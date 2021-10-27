@@ -1,0 +1,81 @@
+ただ単に証明木 + refinement type を扱えるようにしただけの体系を考える。
+subtyping はない。
+問題点としては、もしシステムとして実装するなら証明木を対話的に組んでいく必要があってめんどくさそう。
+なので、この方向は使わない（問題点を示すためのもの）
+
+\begin{itembox}[l]{項やコンテキストの定義}
+\begin{grammar}
+<term> ::= <variable> 
+\alt `Prop'
+\alt `Type'
+\alt `Fun' <variable> <term> <term>
+\alt `Forall' <variable> <term> <term>
+\alt `Apply' <term> <term>
+\alt `Refined' <term> <term>
+
+<context-snippet> ::= <variable> `:' <term>
+\alt Hold <term>
+
+<context> ::= `empty' | <context> `,' <context-snippet>
+\end{grammar}
+\end{itembox}
+
+\texttt{Refined} が refinement type の型。
+コンテキストの \(\text{Hold} \, \langle term \rangle\) は命題の仮定を表す。
+\(\langle variable \rangle\) を \(x\) 、 \(\langle term \rangle\) を \(t\) や \(A\) や \(P\) 、 \(\langle context \rangle\) を \(\Gamma\) 
+のように書く。
+\(t\) と \(A\) は同じ項だが、気持ちとしては項と型の分け方である。
+また \(\texttt{Sort}\) は \texttt{Prop} か \texttt{Type} を表す。
+
+コンテキストと項の関係について。
+直観的にはコンテキストの well-def 性、型付け可能性、証明可能、を表す。
+\begin{itembox}[l]{関係一覧}
+  \(\vdash \Gamma \) \\
+  \(\Gamma \vdash t_1 : t_2\) \\
+  \(\Gamma \vDash t \) \\
+\end{itembox}
+これが関係の全部。自由変数とか subst とかはめんどくさいので書いてない。 conversion rule も定義していないが、 \(M_1 \equiv_{\beta} M_2\) みたいなのが定義されていてほしい。
+Type : Type を避けるためにいろいろ書いている？
+コンテキストの well-defined 性は次のようになる。
+\begin{gather*}
+  \infer[\text{context empty}]{\vdash empty}{} \\
+  \infer[\text{context type}]{\vdash \Gamma , x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Type} & x \notin \text{FV}(\Gamma)} \\
+  \infer[\text{context prop}]{\vdash \Gamma , \text{Hold} \, P}{\vdash \Gamma & \Gamma \vdash P : \texttt{Prop}} \\
+\end{gather*}
+
+Type と Prop に型付けされる項は次のようになる（ただし、 large elimination に相当するものをのぞく）
+\begin{gather*}
+  \infer[\text{forall formation(type)}]{\Gamma \vdash \texttt{Forall} x \texttt{of} A_1 \texttt{to} A_2 : \texttt{Type}}{\Gamma \vdash A_1 : \texttt{Type} & \Gamma , x : A_1 \vdash A_2 : \texttt{Type} } \\
+  \infer[\text{forall formation(prop)}]{\Gamma \vdash \texttt{Forall} x \texttt{of} A_1 \texttt{to} A_2 : \texttt{Prop}}{\Gamma \vdash A_1 : \texttt{Type} & \Gamma , x : A_1 \vdash A_2 : \texttt{Prop} } \\
+  \infer[\text{refinement formation}]{\Gamma \vdash \texttt{Refined} A \texttt{with} P : \texttt{Type}}{\Gamma \vdash A : \texttt{Type} & \Gamma \vdash P : \texttt{Forall} x \texttt{of} A \texttt{to} \texttt{Prop}} \\
+\end{gather*}
+  以下は \(\beta\) 同値に関するもの。
+  application や conversion により 下二つはいらないかもしれないし、逆に強すぎるかもしれない。
+  （ subject reduction がうまくいくのかわからなかったのでとりあえずつけた。 ITT での equality rule みたいなのがないのでバグがありそう）
+\begin{gather*}
+  \infer[\text{conversion}]{\Gamma \vdash x : A_2}{\Gamma \vdash x : A_1 & A_1 \equiv_{\beta} A_2 & \Gamma \vdash A_1 : \texttt{Type}} \\
+  \infer[\text{conversion(type)}]{\Gamma \vdash A_2 : \texttt{Type}}{\Gamma \vdash A_1 : \texttt{Type} & A_1 \equiv_{\beta} A_2} \\
+  \infer[\text{conversion(prop)}]{\Gamma \vdash A_2 : \texttt{Prop}}{\Gamma \vdash A_1 : \texttt{Prop} & A_1 \equiv_{\beta} A_2}
+\end{gather*}
+
+より一般の項の型付けは次のようになる。
+\begin{gather*}
+  \infer[\text{start}]{\Gamma , x : A \vdash x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Type}} \\
+  \infer[\text{weakning}]{\Gamma , x : A_1 \vdash t : A_2}{\vdash \Gamma , x : A_1 & \Gamma \vdash t : A_2} \\
+  \\
+  \infer[\text{forall introduction}]{\Gamma \vdash \texttt{Fun} x \texttt{of} A_1 \texttt{mapsto} t : \texttt{Forall} x \texttt{of} A_1 \texttt{to} A_2}{\Gamma , x : A_1 \vdash t : A_2 & \Gamma \vdash \texttt{Forall} x \texttt{of} A_1 \texttt{to} A_2 : \texttt{Type}} \\
+  \infer[\text{forall elimination}]{\Gamma \vdash \texttt{Apply} t_1 \texttt{and} t_2 : A_2\{x \leftarrow t_2\}}{\Gamma \vdash t_1 : \texttt{Forall} x \texttt{of} A_1 \texttt{to} A_2 & \Gamma \vdash t_2 : A_1} \\
+  \infer[\text{refinement introduction}]{\Gamma \vdash t : \texttt{Refined} A \texttt{with} P}{\Gamma \vdash t : A & \Gamma \vdash \texttt{Refined} A \texttt{with} P : \texttt{Type} & \Gamma \vDash (\texttt{Apply} P \texttt{and} t)} \\
+  \infer[\text{refinement elimination}]{\Gamma \vdash t : A}{\Gamma \vdash t : \texttt{Refined} A \texttt{with} P}
+\end{gather*}
+
+次に証明木とか証明周りのやつを書く。
+\begin{gather*}
+  \infer[\text{prop conversion}]{\Gamma \vDash P_2}{\Gamma \vdash P_1 : \texttt{Prop} & P_1 \equiv_{\beta} P_2 & \Gamma \vDash P_1} \\
+  \infer[\text{prop forall intro}]{\Gamma \vDash \texttt{Forall} x \texttt{of} A \texttt{to} P}{\Gamma \vdash \texttt{Forall} x \texttt{of} A \texttt{to} P : \texttt{Prop} & \Gamma , x : A \vDash \texttt{Apply} P \texttt{and} x} \\
+  \infer[\text{prop forall elim}]{\Gamma \vDash P\{x \leftarrow t\}}{\Gamma \vDash \texttt{Forall} x \texttt{of} A \texttt{to} P & \Gamma \vdash t : A} \\
+  \infer[\text{prop refinement elim}]{\Gamma \vDash \texttt{Apply} P \texttt{and} x}{\Gamma \vdash x : \texttt{Refined} A \texttt{with} P}
+\end{gather*}
+
+これで終わり。この型理論を検討することはないと思うが、例を後で挙げたい。
+Prop と Type で別々の型付けが必要になることがありめんどくさい。

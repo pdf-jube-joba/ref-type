@@ -1,0 +1,100 @@
+Curry-Howard 対応で見ておもしろくなるものをラムダ計算に付け足す。
+\begin{itembox}[l]{項、型、コンテキストの定義}
+  \begin{grammar}
+    <type> ::= <type-variable>
+    \alt `Arr' <type> <type>
+    \alt `Prod' <type> <type>
+    \alt `Sum' <type> <type>
+    \alt `Unit'
+    \alt `Void'
+    
+    <term> ::= <term-variable>
+    \alt `Fun' <variable> <type> <term> | `App' <term> <term>
+    \alt `Pair' <term> <term> | `Pjl' <term> | `Pjr' <term>
+    \alt `Inl' <term> | `InE' <term> | `Case' <term> <variable> <term> <variable> <term>
+    \alt `T' 
+    
+    <context> ::= empty | <context> ,  <term-variable> : <type>
+    
+  \end{grammar}
+\end{itembox}
+
+\begin{itembox}[l]{型付け規則}
+  \[
+    \infer[\text{variable}]{\Gamma , x : T \vdash x : T}{} \,
+    \infer[\text{weakning}]{\Gamma , x_1 : T_1 \vdash x_2 : T_2}{\Gamma \vdash x_2 : T_2}
+  \] \[
+    \infer[\text{Arr-intro}]{\Gamma \vdash \texttt{Fun} \, x \, T_1 \, t : \texttt{Arr} \, T_1 \, T_2}{\Gamma , x : T_1 \vdash t : T_2} \,
+    \infer[\text{Arr-elim}]{\Gamma \vdash \texttt{App} \, t_1 \, t_2 : T_2}{\Gamma \vdash t_1 : \texttt{Arr} \, T_1 \, T_2 & \Gamma \vdash t_2 : T_1}
+  \] \[
+    \infer[\text{Prod-intro}]{\Gamma \vdash \texttt{Pair} \, t_1 \, t_1 : \texttt{Prod} \, T_1 \, T_2}{\Gamma \vdash t_1 : T_1 & \Gamma \vdash t_2 : T_2} \,
+    \infer[\text{Prod-elim1}]{\Gamma \vdash \texttt{Pjl} \, t : T_1}{\Gamma \vdash t : \texttt{Prod} \, T_1 \, T_2} \,
+    \infer[\text{Prod-elim2}]{\Gamma \vdash \texttt{Pjr} \, t : T_2}{\Gamma \vdash t : \texttt{Prod} \, T_1 \, T_2}
+  \] \[\infer[\text{Sum-intro1}]{\Gamma \vdash \texttt{Inl} \, t : \texttt{Sum} \, T_1 \, T_2}{\Gamma \vdash x : T_1} \,
+    \infer[\text{Sum-intro2}]{\Gamma \vdash \texttt{Inr} \, t : \texttt{Sum} \, T_1 \, T_2}{\Gamma \vdash x : T_2}
+  \] \[
+    \infer[\text{Sum-elim}]{\Gamma \vdash \texttt{Case} \, t \, x_1 \, t_1 \, x_2 \, t_2 : T}{\Gamma \vdash t : \texttt{Sum} \, T_1 \, T_2 & \Gamma , x_1 : T_1 \vdash t_1 : T & \Gamma , x_2 : T_2 \vdash t_2 : T}
+  \] \[
+    \infer[\text{Unit-intro}]{\Gamma \vdash \texttt{T} : \texttt{Unit}}{} \,
+    \infer[\text{Unit-elim}]{\Gamma \vdash }{}
+  \]
+\end{itembox}
+
+\begin{itembox}[l]{ラムダ項の等式}
+  \[
+    \infer[\text{Arr-alpha}]{\texttt{Fun} \, x_1 \, t_1 \equiv \texttt{Fun} \, x_2 \, (t_1\{x_1 \leftarrow t_2\})}{} \,
+    \infer[\text{Arr-comp}]{\texttt{App} \, (\texttt{Fun} \, x \, t_1) t_2 \equiv t_2\{x \leftarrow t_2\}}{}
+  \]
+  \[
+    \infer[\text{Arr-conv}]{\texttt{Fun} \, x \, t_1 \equiv \texttt{Fun} \, x \, t_2}{t_1 \equiv t_2} \,
+    \infer[\text{Arr-conv}]{\texttt{App} \, t_1 \, t_2 \equiv \texttt{App} \, t_3 \, t_2}{t_1 \equiv t_3} \,
+    \infer[\text{Arr-conv}]{\texttt{App} \, t_1 \, t_2 \equiv \texttt{App} \, t_1 \, t_3}{t_2 \equiv t_3}
+  \]
+  \[
+    \infer[\text{Prod-comp1}]{\texttt{Pj1} \, (\texttt{Pair} \, t_1 t_2) \equiv t_1}{} \,
+    \infer[\text{Prod-comp2}]{\texttt{Pj2} \, (\texttt{Pair} \, t_1 t_2) \equiv t_2}{}
+  \]
+  \[
+    \infer[\text{Sum-comp1}]{\texttt{Case} \, (\texttt{Inl} \, t) \, x_1 \, t_1 \, x_2 \, t_2 \equiv t_1\{x_1 \leftarrow t\}}{} \,
+    \infer[\text{Sum-comp1}]{\texttt{Case} \, (\texttt{Inr} \, t) \, x_1 \, t_1 \, x_2 \, t_2 \equiv t_2\{x_2 \leftarrow t\}}{}
+  \]
+  あと cov がいろいろ
+\end{itembox}
+
+この場合、 Coq と比較すると Product Type の induction が対応しないように見えるため、
+eliminater に対応するものに変えることが考えられる。
+こっちの方が match に近くて書きやすい。
+
+\begin{itembox}[l]{項、型、コンテキストの定義}
+  \begin{grammar}
+    <type> ::= <type-variable>
+    \alt `Arr' <type> <type>
+    \alt `Prod' <type> <type>
+    \alt `Sum' <type> <type>
+    \alt `Unit'
+    \alt `Void'
+    
+    <term> ::= <term-variable>
+    \alt `Fun' <variable> <type> <term>
+    \alt `App' <term> <term>
+    \alt `Prod-c' <term> <term>
+    \alt `Prod-e' <term>
+    \alt `Sum-c1' <term>
+    \alt `Sum-c2' <term>
+    \alt `Sum-e' <term>
+    \alt `Unit-c'
+    \alt 
+
+    <context-snippet> ::= <term-variable> : <type>
+    
+    <context> ::= empty | <context> , <context-snippet>
+    
+  \end{grammar}
+\end{itembox}
+
+\begin{itembox}[l]{型付け規則}
+  \[\infer[\text{variable}]{\Gamma , x : T \vdash x : T}{}\]
+  \[\infer[\text{weakning}]{\Gamma , x_1 : T_1 \vdash x_2 : T_2}{\Gamma \vdash x_2 : T_2}\]
+  \[\infer[\text{Arr-introduction}]{\Gamma \vdash \texttt{Fun} \, x \, T_1 \, t : \texttt{Arr} \, T_1 \, T_2}{\Gamma , x : T_1 \vdash t : T_2}\]
+  \[\infer[\text{Arr-elimination}]{\Gamma \vdash \texttt{App} \, t_1 \, t_2 : T_2}{\Gamma \vdash t_1 : \texttt{Arr} \, T_1 \, T_2 & \Gamma \vdash t_2 : T_1}\]
+\end{itembox}
