@@ -47,6 +47,9 @@ module RefCore =
   | ExplicitPrf
   | RefInversion
 
+  type JudgementTree =
+  | JTree of InferenceRule * Propotision * (JudgementTree list)
+
   module Variable =
 
     let rec freeValue l =
@@ -212,6 +215,23 @@ module RefCore =
       Alpha.equiv (reduction m1) (reduction m2)
 
   module Judgement =
+    let equiv m1 m2 =
+      match m1 , m2 with
+      | CtxtJdg g1 , CtxtJdg g2 -> Context.equiv g1 g2
+      | TypeJdg (g1 , t1 , A1) , TypeJdg (g2 , t2 , A2) ->
+        Context.equiv g1 g2 && Alpha.equiv t1 t2 && Alpha.equiv A1 A1
+      | PropInf (g1 , p1) , PropInf (g2 , p2) ->
+        Context.equiv g1 g2 && Alpha.equiv p1 p2
+      | BetaEqv L1 , BetaEqv L2 ->
+        let rec all l1 l2 =
+          match l1 , l2 with
+          | [] , [] -> true
+          | (l1 , r1) :: t1 , (l2 , r2) :: t2 -> Alpha.equiv l1 l2 && Alpha.equiv r1 r2 && all t1 t2
+          | _ , _ -> false
+        all L1 L2
+      | NewVars x1 , NewVars x2 -> x1 = x2
+      | _ , _ -> false
+
     let derivation : InferenceRule -> Propotision list -> Propotision option = fun d l ->
       match d , l with
       | ContextEmpty , [] -> Some (CtxtJdg [])
@@ -272,3 +292,17 @@ module RefCore =
         else None
       | RefInversion , [TypeJdg (G , t , TRef (A , P))] -> Some (PropInf (G , TApp (P , t)))
       | _ , _ -> None
+
+    let heads t =
+      match t with
+      | JTree (_ , x , _) -> x
+
+    let rec isValidTree t =
+      match t with
+      | JTree (s , j , t) ->
+        match derivation s (List.map heads t) with
+        | Some j1 ->
+          if equiv j j1 then
+            List.fold (&&) true (List.map isValidTree t)
+          else false
+        | None -> false
