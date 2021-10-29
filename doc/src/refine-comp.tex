@@ -1,0 +1,130 @@
+上の奴は実装するのが難しい。
+実装上はコンテキストの \(\alpha\) 同値を考えたり、\(\beta\) 同値の判定が停止する形で扱えると嬉しい。
+のでもう少し扱いやすくすることにした。
+（同じ体系として考えられるかはわからない）
+\(\equiv: \text{Term} \to \text{Term} \to \texttt{Bool}\)
+は通常の \(\alpha\) 同値で定義する。
+\(\equiv : \text{Context} \to \text{Context} \to \texttt{Bool}\)
+を型の部分の \(\alpha\) 同値を許すものとして定義する。
+\(\text{FV} : \text{Context} \to \text{Variable list}\)
+として \(x \in \text{FV}(\Gamma)\) かどうかも Bool 値で定まる。
+また、 \(1\) step の \(\beta\) reduction （停止する）
+\(\text{step} : \text{Term} \to \text{Term}\)
+が定まっているとする。
+特に、 \(M \rightarrow_{\beta} N\) かどうかが（停止する形）で判定できる。
+
+\(\beta\) 同値性については \(\beta\) 同値であることの証明を受け取りそれが正しいか判定する関数を作りたい。
+一応 \(\beta\) 同値性を定義する。以下の同値閉包として定義（ただし後で作ったものがこれと一致するかは確かめてない）。
+\begin{itembox}[l]{beta equivalence}
+\begin{align*}
+  \text{alpha} &&
+  \infer[]{t_1 \equiv_{\beta} t_2}{} && t_1 \equiv t_2 \\
+  \text{step} &&
+  \infer[]{t_1 \equiv_{\beta} t_2}{} && \text{step} \, t_1 \equiv t_2 \\
+\end{align*}
+\end{itembox}
+
+ここで list (Term * Term) を \(\beta\) 同値宣言列（ betaEqs とおく。メタ変数では \(L\) ）ということにする。
+同値宣言列の最初と最後が（ Option 型に）定まる。
+つまり、 \(\text{Begin , End} : \text{(Term * Term) list} \to \text{Option Term}\) を作る。
+このリストの元 \((t_1 , t_2)\) 各々が \(t_1 \equiv t_2\) か \(\text{step} \, t_1 \equiv t_2\) か \(\text{step} \, t_2 \equiv t_1\) を満たすとする。
+このとき、宣言列は \(\beta\) 同値を表していると思われるから、\(\text{acceptable} = \text{acc} : \text{betaEqs} \to \text{Bool}\) で \(\beta\) 同値性を表すものを定めることができる。
+
+\begin{itembox}[l]{コンテキストと項の関係}
+  \(\vdash \Gamma\) , コンテキストの well-def 性 \\
+  \(\Gamma \vdash t_1 : t_2\) , 項の型付け性 \\
+  \(\Gamma \vDash t\) , 項の証明可能性 \\
+  \(\text{Eqv} \, L\) , \(\beta\) 同値宣言列 \\
+  \(\text{New} \, x\) , 新しい変数の宣言
+\end{itembox}
+
+この関係自体にも同値関係を自然に定めておく。
+次に規則自体を上から下に計算できるようにしておく（規則にも名前を付ける）。
+規則と judgement のリストをとり judgement 規則が導けるかを計算する（ option 型？)。
+つまり、 \(F : \text{rule} \to \text{Context list} \to \text{Option Context}\) であって、下に定めるものを成り立たせる関数が作れるように規則の方を変形した。
+その結果、コンテキストと項の関係に新しい変数の宣言が必要になった。
+右に成り立つ条件を書いたが、これは規則の上の条件から停止する形で判定できる。
+
+\begin{itembox}[l]{コンテキストの well-def}
+\begin{align*}
+  \text{context empty} &&
+  \infer[]{\vdash empty}{} \\
+  \text{context start} &&
+  \infer[]{
+    \vdash \Gamma_1 , x : A}{\vdash \Gamma_1 & \Gamma_2 \vdash A : \texttt{Sort} & \text{New} \, x
+  } && \Gamma_1 \equiv \Gamma_2 , x \notin \text{FV}(\Gamma_1) \\
+  \text{context prop} &&
+  \infer[]{
+    \vdash \Gamma_1 , \text{Hold } P}{\vdash \Gamma_1 & \Gamma_2 \vdash P : \texttt{Prop}
+  } && \Gamma_1 \equiv \Gamma_2
+\end{align*}
+\end{itembox}
+
+\begin{itembox}[l]{コンテキスト 自明}
+\begin{align*}
+  \text{axiom} &&
+  \infer[]{empty \vdash \texttt{Sort}_1 : \texttt{Sort}_2}{} \\
+  \text{variable} &&
+  \infer[]{
+    \Gamma_1 , x : A \vdash x : A}{\vdash \Gamma_1 & \Gamma_2 \vdash A : \texttt{Type} & \text{New} \, x
+  } && \Gamma_1 \equiv \Gamma_2 , x \notin \text{FV}(\Gamma) \\
+  \text{weakning} &&
+  \infer[]{
+    \Gamma_1 , \_ \vdash t : A_2}{\vdash \Gamma_1 , \_ & \Gamma_2 \vdash t : A_2
+  } && \Gamma_1 \equiv \Gamma_2 
+\end{align*}
+\end{itembox}
+
+\begin{itembox}[l]{formation}
+\begin{align*}
+  \text{forall formation} &&
+  \infer[]{
+    \Gamma_1 \vdash \texttt{For} \, x \, A_2 \, A_3 : \texttt{Sort}_2}{\Gamma_1 \vdash A_1 : \texttt{Sort}_1 & \Gamma_2 , x : A_2 \vdash A_3 : \texttt{Sort}_2
+  } && \Gamma_1 \equiv \Gamma_2 , A_1 \equiv A_2 \\
+  \text{refinement formation} &&
+  \infer[]{
+    \Gamma_1 \vdash \texttt{Ref} \, A_1 \, P : \texttt{Type}}{\Gamma_1 \vdash A_1 : \texttt{Type} & \Gamma_2 \vdash P : \texttt{For} \, x \, A_2 \, \texttt{Prop}
+  } && \Gamma_1 \equiv \Gamma_2 , A_1 \equiv A_2
+\end{align*}
+\end{itembox}
+
+\begin{itembox}[l]{conversion}
+\begin{align*}
+  \text{reduction} &&
+  \infer[]{
+    \Gamma_1 \vdash x : A_2}{\Gamma_1 \vdash x : A_1 & \text{Eqv} \, L & \Gamma_2 \vdash A_2 : \texttt{Sort}
+  } && \Gamma_1 \equiv \Gamma_2 , \text{begin} \, L \equiv A_1 , \text{end} \, L \equiv A_2 , \text{acc} \, L
+\end{align*}
+\end{itembox}
+
+\begin{itembox}[l]{introduction と elimination}
+\begin{align*}
+  \text{for intro} &&
+  \infer[]{
+    \Gamma_1 \vdash \texttt{Fun} \, x \, A_1 \, t : \texttt{For} \, x \, A_1 \, A_2}{\Gamma_1 , x_1 : A_1 \vdash t : A_2 & \Gamma_2 \vdash \texttt{For} \, x_2 \, A_3 \, A_4 : \texttt{Type}} && \Gamma_1 \equiv \Gamma_2 , A_1 \equiv A_3 , A_2 \equiv A_4 \\
+  \text{for elim} &&
+  \infer[]{
+    \Gamma \vdash \texttt{App} \, t_1 \, t_2 : A_2\{x \leftarrow t_2\}}{\Gamma_1 \vdash t_1 : \texttt{For} \, x \, A_1 \, A_2 & \Gamma_2 \vdash t_2 : A_3} && A_1 \equiv A_3 \\
+  \text{ref intro} &&
+  \infer[]{
+    \Gamma \vdash t : \texttt{Ref} \, A \, P}{\Gamma_1 \vdash t_1 : A_1 & \Gamma \vdash \texttt{Ref} \, A_2 \, P_1 : \texttt{Type} & \Gamma \vDash \texttt{App} \, P_2 \, t_2} && A_1 \equiv A_2 , t_1 \equiv t_2 , P_1 \equiv P_2 \\
+  \text{ref elim} &&
+  \infer[]{
+    \Gamma \vdash t : A}{\Gamma \vdash t : \texttt{Ref} \, A \, P}
+\end{align*}
+\end{itembox}
+
+\begin{itembox}[l]{proof term について}
+\begin{align*}
+  \text{assumption} &&
+  \infer[]{\Gamma , \text{Hold} \, P \vDash P}{} \\
+  \text{weakning} &&
+  \infer[]{\Gamma , \_ \vDash P}{\Gamma \vDash P} \\
+  \text{implicit proof} &&
+  \infer[]{\Gamma_1 \vDash P_1}{\Gamma_1 \vdash P_1 : \texttt{Prop} & \Gamma _2 \vdash t : P_2} && \Gamma_1 \equiv \Gamma_2 , P_1 \equiv P_2 \\
+  \text{explicit proof} &&
+  \infer[]{\Gamma_1 \vdash \texttt{Prf} \, P_1 : P_1}{\Gamma_1 \vdash P_1 : \texttt{Prop} &\Gamma_2 \vDash P_2} && \Gamma_1 \equiv \Gamma_2 , P_1 \equiv P_2 \\
+  \text{refinement inversion} && 
+  \infer[]{\Gamma \vDash \texttt{App} \, P \, t}{\Gamma \vdash t : \texttt{Ref} \, A \, P}
+\end{align*}
+\end{itembox}
