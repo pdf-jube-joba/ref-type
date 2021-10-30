@@ -1,54 +1,54 @@
-module RefCore =
+module RefCore
 
-  type Sort =
-    | TProp | TType
+type Sort =
+  | TProp | TType
 
-  type Term =
-    | TVar of int
-    | TSort of Sort
-    | TFor of int * Term * Term
-    | TFun of int * Term * Term
-    | TApp of Term * Term
-    | TRef of Term * Term
-    | TPrf of Term
+type Term =
+  | TVar of int
+  | TSort of Sort
+  | TFor of int * Term * Term
+  | TFun of int * Term * Term
+  | TApp of Term * Term
+  | TRef of Term * Term
+  | TPrf of Term
 
-  type ContextSnippet =
-    | CType of int * Term
-    | CHold of Term
+type ContextSnippet =
+  | CType of int * Term
+  | CHold of Term
 
-  type Context = ContextSnippet list
+type Context = ContextSnippet list
 
-  type BetaEqSeq = (Term * Term) list
+type BetaEqSeq = (Term * Term) list
 
-  type Propotision =
-  | CtxtJdg of Context
-  | TypeJdg of Context * Term * Term
-  | PropInf of Context * Term
-  | BetaEqv of BetaEqSeq
-  | NewVars of int
+type Proposition =
+| CtxtJdg of Context
+| TypeJdg of Context * Term * Term
+| PropInf of Context * Term
+| BetaEqv of BetaEqSeq
+| NewVars of int
 
-  type InferenceRule =
-  | ContextEmpty
-  | ContextStart
-  | ContextProp
-  | Axiom of Sort * Sort
-  | Variable
-  | WeakningType
-  | ForForm
-  | RefForm
-  | Conversion
-  | ForIntro
-  | ForElim
-  | RefIntro
-  | RefElim
-  | Assumption
-  | WeakningProp
-  | ImplicitPrf
-  | ExplicitPrf
-  | RefInversion
+type InferenceRule =
+| ContextEmpty
+| ContextStart
+| ContextProp
+| Axiom of Sort * Sort
+| Variable
+| WeakningType
+| ForForm
+| RefForm
+| Conversion
+| ForIntro
+| ForElim
+| RefIntro
+| RefElim
+| Assumption
+| WeakningProp
+| ImplicitPrf
+| ExplicitPrf
+| RefInversion
 
-  type JudgementTree =
-  | JTree of InferenceRule * Propotision * (JudgementTree list)
+type JudgementTree =
+| JTree of InferenceRule * Proposition * (JudgementTree list)
 
   module Variable =
 
@@ -202,7 +202,7 @@ module RefCore =
       | [] -> None
       | [(_ , t2)] -> Some t2
       | _ :: tail -> endOf tail
- 
+
     let rec isAcc l =
       match l with
       | [] -> true
@@ -232,7 +232,7 @@ module RefCore =
       | NewVars x1 , NewVars x2 -> x1 = x2
       | _ , _ -> false
 
-    let derivation : InferenceRule -> Propotision list -> Propotision option = fun d l ->
+    let derivation : InferenceRule -> Proposition list -> Proposition option = fun d l ->
       match d , l with
       | ContextEmpty , [] -> Some (CtxtJdg [])
       | ContextStart , [CtxtJdg G1 ; TypeJdg (G2 , A , TSort TType) ; NewVars x] ->
