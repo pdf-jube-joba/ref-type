@@ -37,13 +37,16 @@ open RefCore
         | Ok t -> g t
         | x -> Error ""
 
+    let ApplyNth n : Constructor -> PartialTree -> Result<PartialTree , string> = fun c p ->
+      if (List.length (AllTaskPresent p)) <= 0 then
+        let p1 = List.item n (AllTaskPresent p)
+        ConstPresentComposition c p1
+      else Error "length error"
+
     let CtrNthComposition n : Constructor -> Constructor -> Constructor = fun c1 c2 p ->
       match (c1 p) with
       | Ok t ->
-        if (List.length (AllTaskPresent t)) <= n then
-          let P = (List.item n (AllTaskPresent t))
-          ConstPresentComposition c2 P
-        else Error "length error"
+        ApplyNth n c2 t
       | _ -> Error "fail in c1"
 
     let ChallengeTwo : Constructor -> Constructor -> Constructor = fun c1 c2 p ->
@@ -109,10 +112,10 @@ open RefCore
     let rec CVariableMany : Constructor = fun p ->
       match p with
       | TypeJdg (G , TVar x , A) when Context.occur x G ->
-        ChallengeTwo VariableOne (CtrNthComposition 2 Weakning VariableMany) p
+        ChallengeTwo CVariableOne (CtrNthComposition 2 CWeakning CVariableMany) p
       | _ -> Error "Non occurrence"
 
     let rec CContextWellToType : Constructor = fun p ->
       match p with
-      | TypeJdg _ -> ChallengeTwo ContextEmpty (ChallengeTwo ContextStart ContextProp) p
+      | TypeJdg _ -> ChallengeTwo CContextEmpty (ChallengeTwo CContextStart CContextProp) p
       | _ -> Error "not context judgement"
