@@ -21,34 +21,32 @@ type Context = ContextSnippet list
 type BetaEqSeq = (Term * Term) list
 
 type Proposition =
-| CtxtJdg of Context
-| TypeJdg of Context * Term * Term
-| PropInf of Context * Term
-| BetaEqv of BetaEqSeq
-| NewVars of int
+  | CtxtJdg of Context
+  | TypeJdg of Context * Term * Term
+  | PropInf of Context * Term
 
 type InferenceRule =
-| ContextEmpty
-| ContextStart
-| ContextProp
-| Axiom of Sort * Sort
-| Variable
-| WeakningType
-| ForForm
-| RefForm
-| Conversion
-| ForIntro
-| ForElim
-| RefIntro
-| RefElim
-| Assumption
-| WeakningProp
-| ImplicitPrf
-| ExplicitPrf
-| RefInversion
+  | ContextEmpty
+  | ContextStart of int
+  | ContextProp
+  | Axiom of Sort * Sort
+  | Variable of int
+  | WeakningType
+  | ForForm
+  | RefForm
+  | Conversion of BetaEqSeq
+  | ForIntro
+  | ForElim
+  | RefIntro
+  | RefElim
+  | Assumption
+  | WeakningProp
+  | ImplicitPrf
+  | ExplicitPrf
+  | RefInversion
 
 type JudgementTree =
-| JTree of InferenceRule * Proposition * (JudgementTree list)
+  | JTree of InferenceRule * Proposition * (JudgementTree list)
 
   module Variable =
 
@@ -222,20 +220,12 @@ type JudgementTree =
         Context.equiv g1 g2 && Alpha.equiv t1 t2 && Alpha.equiv A1 A1
       | PropInf (g1 , p1) , PropInf (g2 , p2) ->
         Context.equiv g1 g2 && Alpha.equiv p1 p2
-      | BetaEqv L1 , BetaEqv L2 ->
-        let rec all l1 l2 =
-          match l1 , l2 with
-          | [] , [] -> true
-          | (l1 , r1) :: t1 , (l2 , r2) :: t2 -> Alpha.equiv l1 l2 && Alpha.equiv r1 r2 && all t1 t2
-          | _ , _ -> false
-        all L1 L2
-      | NewVars x1 , NewVars x2 -> x1 = x2
       | _ , _ -> false
 
     let derivation : InferenceRule -> Proposition list -> Proposition option = fun d l ->
       match d , l with
       | ContextEmpty , [] -> Some (CtxtJdg [])
-      | ContextStart , [CtxtJdg G1 ; TypeJdg (G2 , A , TSort TType) ; NewVars x] ->
+      | ContextStart x , [CtxtJdg G1 ; TypeJdg (G2 , A , TSort TType)] ->
         if Context.equiv G1 G2 && not(Context.occur x G1) then
           Some (CtxtJdg (CType (x , A) :: G1))
         else None
@@ -244,7 +234,7 @@ type JudgementTree =
           Some (CtxtJdg (CHold P :: G1))
          else None
       | Axiom (s1 , s2) , [] -> Some (TypeJdg ([] , TSort s1 , TSort s2))
-      | Variable , [CtxtJdg G1 ; TypeJdg (G2 , A , TSort TType) ; NewVars x] ->
+      | Variable x , [CtxtJdg G1 ; TypeJdg (G2 , A , TSort TType)] ->
         if Context.equiv G1 G2 && not(Context.occur x G1) then
           Some (TypeJdg (CType (x , A) :: G1 , TVar x , A))
         else None
@@ -260,7 +250,7 @@ type JudgementTree =
         if Context.equiv G1 G2 && Alpha.equiv A1 A2 then
           Some (TypeJdg (G1 , TRef (A1 , P) , TSort TType))
         else None
-      | Conversion , [TypeJdg (G1 , x , A1) ; BetaEqv L ; TypeJdg (G2 , A2 , TSort _)] ->
+      | Conversion L , [TypeJdg (G1 , x , A1) ; TypeJdg (G2 , A2 , TSort _)] ->
         if Context.equiv G1 G2 && Beta.isAcc L then
           match Beta.beginOf L , Beta.endOf L with
           | Some t1 , Some t2 ->

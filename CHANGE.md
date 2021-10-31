@@ -1,3 +1,4 @@
+change: 名前の衝突を避けるなど。
 update: reftools 書いた。メモ追加。coreも変えた。
 change: fs と fsx 間違ってたので、中身もそれに合わせて変えた。ファイルも追加。
 update: 肝心の関数を定義してなかった

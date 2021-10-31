@@ -54,14 +54,14 @@ open RefCore
   module Elementary =
     open Operator
 
-    let ContextEmpty : Constructor = fun p ->
+    let CContextEmpty : Constructor = fun p ->
       match p with
       | CtxtJdg ([]) ->
         let comp = JTree (ContextEmpty , CtxtJdg [] , [])
         Ok (PComplete comp)
       | _ -> Error "Inappropriate"
 
-    let ContextStart : Constructor = fun p ->
+    let CContextStart : Constructor = fun p ->
       match p with
       | CtxtJdg (CType (x , A) :: G) ->
         if not(Context.occur x G) then
@@ -71,7 +71,7 @@ open RefCore
         else Error "Used Variable"
       | _ -> Error "Inappropriate"
 
-    let ContextProp : Constructor = fun p ->
+    let CContextProp : Constructor = fun p ->
       match p with
       | CtxtJdg (CHold P :: G) ->
         let task1 = PTask (CtxtJdg G)
@@ -79,14 +79,14 @@ open RefCore
         Ok (PTree (ContextProp , p , [task1 ; task2]))
       | _ -> Error "Inappropriate"
     
-    let Axiom : Constructor = fun p ->
+    let CAxiom : Constructor = fun p ->
       match p with
       | TypeJdg ([] , TSort s1 , TSort s2) ->
         let comp = JTree (Axiom (s1 , s2) , p , [])
         Ok (PComplete comp)
       | _ -> Error "Inappropriate"
 
-    let VariableOne : Constructor = fun p ->
+    let CVariableOne : Constructor = fun p ->
       match p with
       | TypeJdg (CType (x1 , A1) :: G , TVar x2 , A2) ->
         if x1 = x2 && Alpha.equiv A1 A2 then
@@ -98,7 +98,7 @@ open RefCore
         else Error "Not this variable"
       | _ -> Error "Inappropriate"
 
-    let Weakning : Constructor = fun p ->
+    let CWeakning : Constructor = fun p ->
       match p with
       | TypeJdg (H :: G , t , A) ->
         let task1 = PTask (CtxtJdg (H :: G))
@@ -106,13 +106,13 @@ open RefCore
         Ok (PTree (WeakningType , p , [task1 ; task2]))
       | _ -> Error "Inappropriate"
 
-    let rec VariableMany : Constructor = fun p ->
+    let rec CVariableMany : Constructor = fun p ->
       match p with
       | TypeJdg (G , TVar x , A) when Context.occur x G ->
         ChallengeTwo VariableOne (CtrNthComposition 2 Weakning VariableMany) p
       | _ -> Error "Non occurrence"
 
-    let rec ContextWellToType : Constructor = fun p ->
+    let rec CContextWellToType : Constructor = fun p ->
       match p with
       | TypeJdg _ -> ChallengeTwo ContextEmpty (ChallengeTwo ContextStart ContextProp) p
       | _ -> Error "not context judgement"
