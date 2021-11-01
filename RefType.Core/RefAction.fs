@@ -137,7 +137,7 @@ open RefTools
 
     let rec printContext =
       function
-      | [] -> "[]"
+      | [] -> "end"
       | CType (x , A) :: tail -> "type(" + string x + "," + printTerm A + ")," + printContext tail
       | CHold p :: tail -> "hold(" + printTerm p + "," + printContext tail
 
@@ -198,136 +198,160 @@ open RefTools
     let unknownAction () =
       "unknown action" |> stdout.WriteLine
       ()
+    let showContext () = Printing.printContext (! nowContext) |> stdout.WriteLine
+    let showMemory () =
+      let s1 =
+        match ! memory1 with
+        | Some t1 ->
+          "memory1 : " + Printing.printTerm t1 + "\n"
+        | None -> "memory1 is empty" + "\n"
+      let s2 = 
+        match ! memory2 with
+        | Some t1 ->
+          "memory2 : " + Printing.printTerm t1
+        | None -> "memory2 is empty"
+      s1 + s2 |> stdout.WriteLine
+    let showGoal () =
+      ( match ! nowTree with
+        | Some tree ->
+          let subgoals = List.map (fun (s,t) -> s) (Operator.AllTaskPresent tree)
+          if List.isEmpty subgoals then "there is no goal" else 
+            List.reduce (fun s1 s2 -> s1 + "\n" + s2) (List.map Printing.printProposition subgoals)
+        | _ ->
+          "tree is not registered")
+      |> stdout.WriteLine
+    let showTree () =
+      ( match ! nowTree with
+        | Some tree -> Printing.printPartialTree tree
+        | None -> "tree is not registered"
+      ) |> stdout.WriteLine
 
     module LexerOrParser =
-      let toToken () =
-        stdin.ReadLine () |> Lexer.toTokenList |> Printing.printTokenList |> stdout.WriteLine
-        ()
-      let toTerm () =
-        match stdin.ReadLine () |> Parser.oneTerm with
-        | Some t ->
-          "success with" + (Printing.printTerm t) |> stdout.WriteLine
-        | None ->
-          "fail to be term" |> stdout.WriteLine
-        ()
-    
+      let toToken = Lexer.toTokenList >> Printing.printTokenList
+
+      let toTerm =
+        let f =
+          function
+          | Some t ->
+            "success with" + (Printing.printTerm t)
+          | None ->
+            "fail to be term"
+        Parser.oneTerm >> f
+
     module Memory =
       module Context =
-        let show () =
-          Printing.printContext (! nowContext) |> stdout.WriteLine
-          ()
-        let pushType () =
-          match stdin.ReadLine () |> Lexer.parseInt with
-          | Some i ->
-            "var is " + string i |> stdout.WriteLine
-            match stdin.ReadLine () |> Lexer.toTokenList |> Parser.makeTerm with
-            | Some (t , l) ->
-              nowContext := CType (i , t) :: ! nowContext
-              "success" |> stdout.WriteLine
-            | None -> "fail to be term" |> stdout.Write
-          | _ -> "not variable" |> stdout.WriteLine
-        let pushProp () =
-          match stdin.ReadLine () |> Parser.oneTerm with
+        let pushType s =
+          match s |> Parser.oneTerm with
           | Some t ->
-            nowContext := CHold t :: ! nowContext
-            "success" |> stdout.WriteLine
-          | None ->
-            "fail to be term" |> stdout.WriteLine
-        let pop () = 
+            let fresh = Context.freshvalue (! nowContext)
+            nowContext := CType (fresh , t) :: (! nowContext)
+            "success."
+          | None -> "fail to be term"
+        let pushProp s =
+          match s |> Parser.oneTerm with
+          | Some t ->
+            nowContext := CHold t :: (! nowContext)
+            "success."
+          | None -> "fail to be term"
+        let popContext () = 
           match ! nowContext with
-          | [] -> "unable to pop" |> stdout.WriteLine
-          | head :: tail ->
+          | _ :: tail ->
             nowContext := tail
-            "success" |> stdout.WriteLine
+            "success."
+          | [] ->
+            "fail:not enough length"
       module Term =
-        let show () =
-          match ! memory1 with
-          | Some t1 ->
-            "memory1 : " + Printing.printTerm t1 |> stdout.WriteLine
-          | None -> "memory1 is empty" |> stdout.WriteLine
-          match ! memory2 with
-          | Some t1 ->
-            "memory2 : " + Printing.printTerm t1 |> stdout.WriteLine
-          | None -> "memory2 is empty" |> stdout.WriteLine
-        let stock () =
-          match stdin.ReadLine () |> Parser.oneTerm with
+        let stock s =
+          match s |> Parser.oneTerm with
           | Some t ->
             memory2 := ! memory1
             memory1 := Some t
+            "success."
           | None ->
-            "fail to be term" |> stdout.WriteLine
+            "fail to be term"
 
     module Proving =
       module Goal =
         let SetCtxtJdg () = 
           let tree = PTask (CtxtJdg ! nowContext)
           nowTree := Some tree
-          "set goal \n" + Printing.printPartialTree tree |> stdout.WriteLine
+          "goal is setted"
         let SetTypeJdg () = 
           match ! memory1 , ! memory2 with
           | Some t1 , Some t2 ->
             let tree = PTask (TypeJdg (! nowContext , t1 , t2))
             nowTree := Some tree
-            "set goal to" + Printing.printPartialTree (tree) |> stdout.WriteLine
+            "goal is setted"
           | _ , _ ->
-            "not enough term in memory" |> stdout.WriteLine
+            "not enough term in memory"
+        let SetPropJdg () =
+          match ! memory1 with
+          | Some t1 ->
+            let tree = PTask (PropInf (! nowContext , t1))
+            "goal is setted"
+          | None -> "not enough term in memory"
+        let Admitted () =
+          nowTree := None
+          "give up goal"
         let Exact () =
           match ! nowTree with
           | Some (PComplete J) ->
             if Judgement.isValidTree J then
-              "completed" |> stdout.WriteLine
+              "completed"
             else
-              "not valid tree" |> stdout.WriteLine
-          | _ -> "tree is not registered" |> stdout.WriteLine
-        let ShowGoal () =
+              "not valid tree"
+          | Some _ -> "there exists not proved task"
+          | _ -> "tree is not registered"
+        let breakTree n c =
           match ! nowTree with
-          | Some tree ->
-            let goals = List.map (fun (s,t) -> s) (Operator.AllTaskPresent tree)
-            let sgoals = List.map Printing.printProposition goals
-            ignore (List.map (fun (s:string) -> s |> stdout.WriteLine) sgoals)
-          | _ ->
-            "tree is not registerd" |> stdout.WriteLine
-        let ChallengeEmpty () =
-          match ! nowTree with
-          | Some tree ->
-            let goals = List.map (fun (s,t) -> s) (Operator.AllTaskPresent tree)
-            if List.isEmpty goals then
-              "no goal" |> stdout.WriteLine
-            else
-              let chargeNum = stdin.Read ()
-              match RefTools.Operator.ApplyNth chargeNum Elementary.CContextEmpty tree with
-              | Ok t1 ->
-                nowTree := Some t1
-              | Error err -> err |> stdout.WriteLine
-          | _ -> "tree is not registered" |> stdout.WriteLine
+          | Some tree1 ->
+            match Operator.ApplyNth n c tree1 with
+            | Ok tree2 ->
+              nowTree := Some tree2
+              "success"
+            | Error err -> err
+          | None -> "tree is not registered"
 
     let searchAction =
       function
-      | "#toToken" ->  LexerOrParser.toToken
-      | "#toTokenList" ->  LexerOrParser.toToken
-      | "#toTerm" ->  LexerOrParser.toTerm
-      | "#context-show" ->  Memory.Context.show
-      | "#context-push-type" ->  Memory.Context.pushType
-      | "#context-push-prop" ->  Memory.Context.pushProp
-      | "#context-pop" ->  Memory.Context.pop
-      | "#memory-show" ->  Memory.Term.show
-      | "#memory-term" ->  Memory.Term.stock
-      | "#prove-context-well" ->  Proving.Goal.SetCtxtJdg
-      | "#prove-type-judgement" ->  Proving.Goal.SetTypeJdg
-      | "#goal-show" -> Proving.Goal.ShowGoal
-      | "#goal-exact" ->  Proving.Goal.Exact
-      | "#goal-empty" -> Proving.Goal.ChallengeEmpty
-      | _ -> unknownAction
+      | "#to-Token" ->
+        printf ">"
+        stdin.ReadLine () |> LexerOrParser.toToken |> stdout.WriteLine
+      | "#to-Term" ->
+        printf ">"
+        stdin.ReadLine () |> LexerOrParser.toTerm |> stdout.WriteLine
+      | "#show-context" -> showContext ()
+      | "#show-memory" -> showMemory ()
+      | "#show-goal" -> showGoal ()
+      | "#show-tree" -> showTree () 
+      | "#push-type" ->
+        printf ">"
+        stdin.ReadLine () |> Memory.Context.pushType |> stdout.WriteLine
+      | "#push-prop" ->
+        printf ">"
+        stdin.ReadLine () |> Memory.Context.pushProp |> stdout.WriteLine
+      | "#newtype" -> "Type" |> Memory.Context.pushType |> stdout.WriteLine
+      | "#pop" -> () |> Memory.Context.popContext |> stdout.WriteLine
+      | "#memory" ->
+        printf ">"
+        stdin.ReadLine () |> Memory.Term.stock |> stdout.WriteLine
+      | "#prove-context-well" -> () |> Proving.Goal.SetCtxtJdg |> stdout.WriteLine
+      | "#prove-type-judgement" -> () |> Proving.Goal.SetTypeJdg |> stdout.WriteLine
+      | "#goal-exact" -> () |> Proving.Goal.Exact |> stdout.WriteLine
+      | "#break-empty" -> (Proving.Goal.breakTree 0 Elementary.ContextEmpty) |> stdout.WriteLine
+      | "#break-axiom" -> (Proving.Goal.breakTree 0 Elementary.Axiom) |> stdout.WriteLine
+      | _ -> unknownAction ()
 
     let rec loop =
       function
       | "#quit" -> 0
       | c ->
-        "input is:" + c |> stdout.WriteLine
-        searchAction c ()
+        searchAction c
+        printf ">"
         stdin.ReadLine () |> loop
 
   [<EntryPoint>]
   let main args =
-    "Welcome" |> stdout.WriteLine
+    "!Welcome" |> stdout.WriteLine
+    printf ">"
     stdin.ReadLine () |> Interact.loop

@@ -49,13 +49,12 @@ type JudgementTree =
   | JTree of InferenceRule * Proposition * (JudgementTree list)
 
   module Variable =
-
     let rec freeValue l =
       let rec remove x l =
         match l with
         | [] -> []
         | y :: t ->
-          let tail = remove x t in if x = y then tail else x :: tail
+          let tail = remove x t in if x = y then tail else y :: tail
 
       match l with
       | TVar x -> [x]
@@ -69,6 +68,21 @@ type JudgementTree =
     let freshValue m = 1 + (List.fold max 0 (freeValue m))
 
   module Alpha =
+    let rec strictEquiv m1 m2 =
+      match m1 , m2 with
+      | TVar x1 , TVar x2 -> x1 = x2
+      | TSort TProp , TSort TProp -> true
+      | TSort TType , TSort TType -> true
+      | TFor (x1 , m1 , n1) , TFor (x2 , m2 , n2) ->
+        x1 = x2 && (strictEquiv m1 m2) && (strictEquiv n1 n2)
+      | TFun (x1 , m1 , n1) , TFun (x2 , m2 , n2) ->
+        x1 = x2 && (strictEquiv m1 m2) && (strictEquiv n1 n2)
+      | TApp (m1 , n1) , TApp (m2 , n2) ->
+        (strictEquiv m1 m2) && (strictEquiv n1 n2)
+      | TRef (m1 , n1) , TRef (m2 , n2) ->
+        (strictEquiv m1 m2) && (strictEquiv n1 n2)
+      | TPrf m1 , TPrf m2 -> strictEquiv m1 m2
+      | _ , _ -> false
 
     let alphaShift =
       let rec find x l =
@@ -83,49 +97,18 @@ type JudgementTree =
           | Some z -> TVar z
           | _ -> TVar x
         | TSort s -> TSort s
-        | TFor (x , M1 , M2)  -> TFor (fresh , (alpha M1 (1 + fresh) change) , (alpha M1 (1 + fresh) ((x , fresh) :: change)))
-        | TFun (x , M1 , M2) -> TFun (fresh , (alpha M1 (1 + fresh) change) , (alpha M1 (1 + fresh) ((x , fresh) :: change)))
+        | TFor (x , M1 , M2)  ->
+          TFor (fresh , (alpha M1 (1 + fresh) change) , (alpha M2 (1 + fresh) ((x , fresh) :: change)))
+        | TFun (x , M1 , M2) ->
+          TFun (fresh , (alpha M1 (1 + fresh) change) , (alpha M2 (1 + fresh) ((x , fresh) :: change)))
         | TApp (M1 , M2) -> TApp ((alpha M1 fresh change) , (alpha M2 fresh change))
         | TRef (M1 , M2) -> TRef ((alpha M1 fresh change) , (alpha M2 fresh change))
         | TPrf M1 -> TPrf (alpha M1 fresh change)
       fun m x -> alpha m x []
-    
-    let alphaNormalize m =
-      let rec find x l =
-        match l with
-        | [] -> false
-        | head :: tail ->
-          if x = head then true else find x tail
-      let rec reset m s l =
-        match m with
-        | TVar x ->
-          if find x l then TVar (x - s) else TVar x
-        | TSort s -> TSort s
-        | TFor (x , M1 , M2) -> TFor (x - s , reset M1 s l , reset M2 s (x :: l))
-        | TFun (x , M1 , M2) -> TFun (x - s , reset M1 s l , reset M2 s (x :: l))
-        | TApp (M1 , M2) -> TApp (reset M1 s l , reset M2 s l)
-        | TRef (M1 , M2) -> TRef (reset M1 s l , reset M2 s l)
-        | TPrf M1 -> TPrf (reset M1 s l)
-      let fresh = Variable.freshValue m
-      reset (alphaShift m fresh) fresh []
 
-    let equiv m1 m2 =
-      let rec strictEquiv m1 m2 =
-        match m1 , m2 with
-        | TVar x1 , TVar x2 -> x1 = x2
-        | TSort TProp , TSort TProp -> true
-        | TSort TType , TSort TType -> true
-        | TFor (x1 , m1 , n1) , TFor (x2 , m2 , n2) ->
-          x1 = x2 && (strictEquiv m1 m2) && (strictEquiv m2 n2)
-        | TFun (x1 , m1 , n1) , TFun (x2 , m2 , n2) ->
-          x1 = x2 && (strictEquiv m1 m2) && (strictEquiv m2 n2)
-        | TApp (m1 , n1) , TApp (m2 , n2) ->
-          (strictEquiv m1 m2) && (strictEquiv n1 n2)
-        | TRef (m1 , n1) , TRef (m2 , n2) ->
-          (strictEquiv m1 m2) && (strictEquiv n1 n2)
-        | TPrf m1 , TPrf m2 -> strictEquiv m1 m2
-        | _ , _ -> false
-      strictEquiv (alphaNormalize m1) (alphaNormalize m2)
+    let alphaNormalize m = alphaShift m (Variable.freshValue m)
+
+    let equiv m1 m2 = strictEquiv (alphaNormalize m1) (alphaNormalize m2)
 
   module Context =
     let snipEquiv g1 g2 =
@@ -146,12 +129,15 @@ type JudgementTree =
       | [] , [] -> true
       | h1 :: t1 , h2 :: t2 -> snipEquiv h1 h2 && equiv g1 g2
       | _ , _ -> false
-    
-    let rec equivAll (gs : Context list) = // = fold 単位元がわからなかった
-      match gs with
-      | [] -> true
-      | [gh1] -> true 
-      | gh1 :: gh2 :: gt -> (equiv gh1 gh2) && (equivAll (gh2 :: gt))
+
+    let freshvalue g =
+      let rec all =
+        function
+        | [] -> []
+        | CType (x , t) :: tail -> x :: all tail
+        | CHold p :: tail -> all tail
+      let bind = all g
+      if List.isEmpty g then 1 else 1 + List.reduce max bind
 
   module Beta =
     let subst m x n =
@@ -166,7 +152,7 @@ type JudgementTree =
         | TApp (M1 , M2) -> TApp (simpleSubst M1 x n , simpleSubst M2 x n)
         | TRef (M1 , M2) -> TRef (simpleSubst M1 x n , simpleSubst M2 x n)
         | TPrf M1 -> TPrf (simpleSubst M1 x n)
-      let shiftM m n = Alpha.alphaShift m (Variable.freshValue n)
+      let shiftM m n = Alpha.alphaShift m (max (Variable.freshValue n) (Variable.freshValue m))
       Alpha.alphaNormalize (simpleSubst (shiftM m n) x n)
 
     let rec isNormal m = // <=> ! is reducible
@@ -207,10 +193,9 @@ type JudgementTree =
       | (t1 , t2) :: tail ->
         (Alpha.equiv t1 t2 || Alpha.equiv (oneStep t1) t2 || Alpha.equiv t1 (oneStep t2)) && isAcc tail
 
-    let betaEquiv m1 m2 = // may no be terminate dont use
-      let rec reduction m =
-        if isNormal m then m else reduction m
-      Alpha.equiv (reduction m1) (reduction m2)
+    let rec reduction m = if isNormal m then m else reduction m
+
+    let betaEquiv m1 m2 = Alpha.equiv (reduction m1) (reduction m2)
 
   module Judgement =
     let equiv m1 m2 =
@@ -242,7 +227,7 @@ type JudgementTree =
         if Context.equiv G1 G2 then
           Some (TypeJdg (s1 :: G1 , t , A))
         else None
-      | ForForm , [TypeJdg (G1 , A1 , TSort s1) ; TypeJdg ((CType (x , A2) :: G2) , A3 , TSort s2 ) ] ->
+      | ForForm , [TypeJdg (G1 , A1 , TSort s1) ; TypeJdg ((CType (x , A2) :: G2) , A3 , TSort s2)] ->
         if Context.equiv G1 G2 && Alpha.equiv A1 A2 then
           Some (TypeJdg (G1 , TFor (x , A2 , A3) , TSort s2))
         else None

@@ -18,16 +18,15 @@ open RefCore
       | PTree (_ , P , _) -> P
       | PTask P -> P
 
-    let PropositionPresent p : Present =
-      let f = fun t -> if Judgement.equiv (HeadOf t) p then Ok t else Error "Ilegal head"
-      (p , f)
-
     let rec AllTaskPresent : PartialTree -> (Present list) = fun p ->
+      let propositionPresent : Proposition -> Present = fun p ->
+        let f = fun t -> if Judgement.equiv (HeadOf t) p then Ok t else Error "Ilegal head"
+        (p , f)
       match p with
       | PTree (_ , P , L) ->
-        let L1 = List.fold List.append [] (List.map AllTaskPresent L)
-        PropositionPresent P :: L1
-      | PTask P -> [PropositionPresent P]
+        let l1 = List.fold List.append [] (List.map AllTaskPresent L)
+        propositionPresent P :: l1
+      | PTask P -> [propositionPresent P]
       | _ -> []
 
     let ConstPresentComposition : Constructor -> Present -> Result<PartialTree , string> = fun f p ->
@@ -35,10 +34,10 @@ open RefCore
       | (P , g) ->
         match f P with
         | Ok t -> g t
-        | x -> Error ""
+        | Error err -> Error err
 
     let ApplyNth n : Constructor -> PartialTree -> Result<PartialTree , string> = fun c p ->
-      if (List.length (AllTaskPresent p)) <= 0 then
+      if not(List.isEmpty (AllTaskPresent p)) then
         let p1 = List.item n (AllTaskPresent p)
         ConstPresentComposition c p1
       else Error "length error"
@@ -57,14 +56,14 @@ open RefCore
   module Elementary =
     open Operator
 
-    let CContextEmpty : Constructor = fun p ->
+    let ContextEmpty : Constructor = fun p ->
       match p with
-      | CtxtJdg ([]) ->
+      | CtxtJdg [] ->
         let comp = JTree (ContextEmpty , CtxtJdg [] , [])
         Ok (PComplete comp)
       | _ -> Error "Inappropriate"
 
-    let CContextStart : Constructor = fun p ->
+    let ContextStart : Constructor = fun p ->
       match p with
       | CtxtJdg (CType (x , A) :: G) ->
         if not(Context.occur x G) then
@@ -74,7 +73,7 @@ open RefCore
         else Error "Used Variable"
       | _ -> Error "Inappropriate"
 
-    let CContextProp : Constructor = fun p ->
+    let ContextProp : Constructor = fun p ->
       match p with
       | CtxtJdg (CHold P :: G) ->
         let task1 = PTask (CtxtJdg G)
@@ -82,14 +81,14 @@ open RefCore
         Ok (PTree (ContextProp , p , [task1 ; task2]))
       | _ -> Error "Inappropriate"
     
-    let CAxiom : Constructor = fun p ->
+    let Axiom : Constructor = fun p ->
       match p with
       | TypeJdg ([] , TSort s1 , TSort s2) ->
         let comp = JTree (Axiom (s1 , s2) , p , [])
         Ok (PComplete comp)
       | _ -> Error "Inappropriate"
 
-    let CVariableOne : Constructor = fun p ->
+    let VariableOne : Constructor = fun p ->
       match p with
       | TypeJdg (CType (x1 , A1) :: G , TVar x2 , A2) ->
         if x1 = x2 && Alpha.equiv A1 A2 then
@@ -101,7 +100,7 @@ open RefCore
         else Error "Not this variable"
       | _ -> Error "Inappropriate"
 
-    let CWeakning : Constructor = fun p ->
+    let Weakning : Constructor = fun p ->
       match p with
       | TypeJdg (H :: G , t , A) ->
         let task1 = PTask (CtxtJdg (H :: G))
@@ -109,13 +108,13 @@ open RefCore
         Ok (PTree (WeakningType , p , [task1 ; task2]))
       | _ -> Error "Inappropriate"
 
-    let rec CVariableMany : Constructor = fun p ->
+    let rec VariableMany : Constructor = fun p ->
       match p with
       | TypeJdg (G , TVar x , A) when Context.occur x G ->
-        ChallengeTwo CVariableOne (CtrNthComposition 2 CWeakning CVariableMany) p
+        ChallengeTwo VariableOne (CtrNthComposition 2 Weakning VariableMany) p
       | _ -> Error "Non occurrence"
 
-    let rec CContextWellToType : Constructor = fun p ->
+    let rec ContextWellToType : Constructor = fun p ->
       match p with
-      | TypeJdg _ -> ChallengeTwo CContextEmpty (ChallengeTwo CContextStart CContextProp) p
+      | TypeJdg _ -> ChallengeTwo ContextEmpty (ChallengeTwo ContextStart ContextProp) p
       | _ -> Error "not context judgement"
