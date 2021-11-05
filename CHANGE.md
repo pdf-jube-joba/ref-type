@@ -1,3 +1,4 @@
+update: 理論を変更
 update: インタラクティブなやつを追加した。
 change: 名前の衝突を避けるなど。
 update: reftools 書いた。メモ追加。coreも変えた。
