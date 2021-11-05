@@ -1,0 +1,74 @@
+証明項に対応するものを微妙に導入して、型システムが自動的に判定できる証明を増やした形。
+
+\paragraph*{項やコンテキストの定義}
+\begin{grammar}
+<term> ::= <variable> 
+\alt `Prop'
+\alt `Type'
+\alt `Fun' <variable> <term> <term>
+\alt `For' <variable> <term> <term>
+\alt `App' <term> <term>
+\alt `Ref' <term> <term>
+\alt `Prf' <term>
+
+<context-snippet> ::= <variable> `:' <term>
+\alt Hold <term>
+
+<context> ::= `empty' | <context> `,' <context-snippet>
+\end{grammar}
+
+\texttt{Proof} は証明項を陽に扱うためのもの。
+命題 \(P\) が示せるときに \(\texttt{Proof } P\) を証明項として扱ってよいとすることで簡単にならないだろうか？
+あるいは、
+（証明が必要となるところでのみ用いたい）
+
+\paragraph*{項やコンテキストの評価}
+ここでコンテキストや項の関係を定義していく。
+
+\begin{itembox}[l]{コンテキストと項の関係}
+  \(\vdash \Gamma\) , コンテキストの well-def 性 \\
+  \(\Gamma \vdash t_1 : t_2\) , 項の型付け性 \\
+  \(\Gamma \vDash t\) , 項の証明可能性
+\end{itembox}
+
+\begin{itembox}[l]{コンテキストの well-def}
+  \[\infer[\text{context empty}]{\vdash empty}{}\]
+  \[\infer[\text{context start}]{\vdash \Gamma , x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Sort} & x \notin \text{FV}(\Gamma)}\]
+  \[\infer[\text{context prop}]{\vdash \Gamma , \text{Hold } P}{\vdash \Gamma & \Gamma \vdash P : \texttt{Prop}}\]
+\end{itembox}
+
+\begin{itembox}[l]{コンテキスト 自明}
+  \[\infer[\text{axiom}]{empty \vdash \texttt{Sort}_1 : \texttt{Sort}_2}{}\]
+  \[\infer[\text{variable}]{\Gamma , x : A \vdash x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Type} & x \notin \text{FV}(\Gamma)}\]
+  \[\infer[\text{weakning}]{\Gamma , \_ \vdash t : A_2}{\vdash \Gamma , \_ & \Gamma \vdash t : A_2} \]
+\end{itembox}
+
+\begin{itembox}[l]{formation}
+  \[\infer[\text{forall formation}]{\Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Sort}_2}{\Gamma \vdash A_1 : \texttt{Sort}_1 & \Gamma , x : A_1 \vdash A_2 : \texttt{Sort}_2 }\]
+  \[\infer[\text{refinement formation}]{\Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type}}{\Gamma \vdash A : \texttt{Type} & \Gamma \vdash P : \texttt{For} \, x \, A \, \texttt{Prop}}\]
+\end{itembox}
+
+\begin{itembox}[l]{\(\beta\) 同値について}
+  \[\infer[\text{conversion}]{\Gamma \vdash x : A_2}{\Gamma \vdash x : A_1 & A_1 \equiv_{\beta} A_2 & \Gamma \vdash A_2 : \texttt{Sort}} \]
+\end{itembox}
+
+\begin{itembox}[l]{introduction と elimination}
+  \[
+    \infer[\text{for intro}]{\Gamma \vdash \texttt{Fun} \, x \, A_1 \, t : \texttt{For} \, x \, A_1 \, A_2}{\Gamma , x : A_1 \vdash t : A_2 & \Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Type}} \,
+    \infer[\text{for elim}]{\Gamma \vdash \texttt{App} \, t_1 \, t_2 : A_2\{x \leftarrow t_2\}}{\Gamma \vdash t_1 : \texttt{For} \, x \, A_1 \, A_2 & \Gamma \vdash t_2 : A_1} \]
+  \[
+    \infer[\text{ref intro}]{\Gamma \vdash t : \texttt{Ref} \, A \, P}{\Gamma \vdash t : A & \Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type} & \Gamma \vDash \texttt{App} \, P \, t} \,
+    \infer[\text{ref elim}]{\Gamma \vdash t : A}{\Gamma \vdash t : \texttt{Ref} \, A \, P} \]
+\end{itembox}
+
+\begin{itembox}[l]{proof term について}
+  \[
+    \infer[\text{assumption}]{\Gamma , \text{Hold} \, P \vDash P}{}\,
+    \infer[\text{weakning}]{\Gamma , \_ \vDash P}{\Gamma \vDash P}
+  \]
+  \[
+    \infer[\text{implicit proof}]{\Gamma \vDash P}{\Gamma \vdash P : \texttt{Prop} & \Gamma \vdash t : P} \,
+    \infer[\text{explicit proof}]{\Gamma \vdash \texttt{Prf} \, P : P}{\Gamma \vdash P : \texttt{Prop} &\Gamma \vDash P} \]
+  \[
+    \infer[\text{refinement inversion}]{\Gamma \vDash \texttt{App} \, P \, t}{\Gamma \vdash t : \texttt{Ref} \, A \, P}\]
+\end{itembox}

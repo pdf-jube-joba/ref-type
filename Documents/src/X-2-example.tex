@@ -1,0 +1,50 @@
+具体例を出したい。
+\begin{itemize}
+  \item \(A : \texttt{Prop} , B : \texttt{Prop} , \text{Hold} \, (\texttt{for} \, x \, A \, B) , \text{Hold} \, A \vDash B\)
+  \item \(A , B : \texttt{Type}\) , \(f : A \to B\) とする。\(P , Q : A , B\) 上の述語に対して 「任意の \(x : A\) について、 \(P(x)\) が成り立つなら \(Q(f(x))\) が成り立つ」とする。
+  このとき \(f : \texttt{Ref} \, A \, P \to \texttt{Ref} B \, Q \) と型付けられるはず。
+\end{itemize}
+一つ目は省略（カリーハワードと Proof を使う）
+コンテキストとしては、
+  \[\Gamma := A : \texttt{Type} , B : \texttt{Type} , f : A \to B , P : A \to \texttt{Prop} , Q : B \to \texttt{Prop}\]
+をまず考え、これに命題に対応する項がくっつく。
+\(K := \texttt{For} \, x \, A \, ((\texttt{App} \, P \, x) \to (\texttt{App} \, Q \, (\texttt{App} \, f \, x))))\) なる \(\texttt{Prop}\) 型の項が 「任意の \(x : A\) について、 \(P(x)\) が成り立つなら \(\ldots\) 」に対応する。
+改めて \(\Gamma \leftarrow \Gamma , \text{Hold } K\) と置き直して、 \(\Gamma \vdash f : \texttt{Ref} \, A \, P \to \texttt{Ref} \, B \, Q\) を示す。
+eta-conversion が必要になっちゃった。
+\[
+  \infer[\text{eta-conversion}]
+  {\Gamma \vdash f : \texttt{Ref} \, A \, P \to \texttt{Ref} \, B \, Q}{
+    \infer[\text{for elim}]
+    {\Gamma \vdash \texttt{Fun} \, x \, (\texttt{App} \, f \, x) : \texttt{Ref} \, A \, P \to \texttt{Ref} \, B \, Q}{
+      \infer[]
+      {\Gamma_1 := \Gamma , x : \texttt{Ref} \, A \, P \vdash \texttt{App} \, f \, x : \texttt{Ref} \, B \, Q}{
+        \infer[\text{for intro}]
+        {\Gamma_1 \vdash \texttt{App} \, f \, x : B}{
+          \Gamma_1 \vdash f : A \to B & \Gamma_1 \vdash x : A} &
+        \infer[hello]
+        {\Gamma_1 \vdash \texttt{Ref} \, B \, Q : \texttt{Type} }{\vdots} &
+        \infer[X_1]
+        {\Gamma_1 \vDash \texttt{App} \, Q \, (\texttt{App} \, f \, x)}{
+        \vdots
+        }
+      }
+  }}
+\]
+\(X_1\) は app 省略して
+\[
+  \infer[\text{imp prf}]
+  {\Gamma_1 \vDash \texttt{App} \, Q \, (\texttt{App} \, f \, x)}{
+    \infer[\text{for elim}]
+    {\Gamma_1 \vdash ((\texttt{Prf} \, K) \, x) \, (\texttt{Prf} \, (P \, x)) : \texttt{App} \, Q \, (\texttt{App} \, f \, x)}{
+      \infer[\text{for elim}]{\Gamma_1 \vdash ((\texttt{Prf} \, K) \, x) : (P \, x) \to (Q \, (f \, x))}{
+        \infer[\text{exp prf}]{\Gamma_1 \vdash \texttt{Prf} \, K : K}{
+          \infer[\text{assumption}]{\Gamma_1 \vDash K}{}}
+      } &
+      \infer[\text{exp prf}]{\Gamma_1 \vdash \texttt{Prf} \, (P \, x) : P \, x}{
+        \infer[\text{ref inv}]{\Gamma_1 \vDash P \, x}{
+          \infer[\text{var term}]{\Gamma_1 \vdash x : \texttt{Ref} \, A \, P}{}}
+    }
+    }
+  }
+\]
+\(\_ \vDash \_ \) が必要になったときのほとんどは自動的に推論できそう
