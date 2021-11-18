@@ -1,0 +1,65 @@
+refinement type を普通の依存型に導入し、項が存在するかどうかで refinement type を構成する。 
+
+\paragraph*{項やコンテキストの定義}
+\begin{grammar}
+<term> ::= <variable> 
+\alt `Prop'
+\alt `Type'
+\alt `Fun' <variable> <term> <term>
+\alt `For' <variable> <term> <term>
+\alt `App' <term> <term>
+\alt `Ref' <term> <term>
+
+<context> ::= empty | <context> `,' <variable> `:' <term>
+\end{grammar}
+
+\texttt{Ref} が refinement type の型。
+\texttt{Ref} \(A\) \(P\) で型 \(A\) を述語 \(P\) : \(A \to \texttt{Prop}\) で refine した型を表す。
+項が refinement type に型付けされるときには述語 \(P\) が満たされているかどうか、つまり inhabitants かどうかを解くことになる。
+
+\paragraph*{項やコンテキストの評価}
+ここでコンテキストや項の関係を定義していく。
+
+\begin{itembox}[l]{コンテキストと項の関係}
+  \(\vdash \Gamma\) , コンテキストの well-def 性 \\
+  \(\Gamma \vdash t_1 : t_2\) , 項の型付け性 \\
+  \(\Gamma \vDash t\) , 項の証明可能性
+\end{itembox}
+
+\begin{itembox}[l]{コンテキストの well-def}
+  \[\infer[\text{context empty}]{\vdash empty}{}\]
+  \[\infer[\text{well formed}]{\vdash \Gamma , x : A}{\Gamma \vdash A : \texttt{Sort} & x \notin \text{FV}(\Gamma)}\]
+\end{itembox}
+
+\begin{itembox}[l]{自然な型付け}
+  \[\infer[\text{axiom}]{empty \vdash \texttt{Sort}_1 : \texttt{Sort}_2}{}\]
+  \[\infer[\text{variable}]{\Gamma , x : A \vdash x : A}{\Gamma \vdash A : \texttt{Sort} & x \notin \text{FV}(\Gamma)}\]
+  \[\infer[\text{weakning}]{\Gamma , x : A \vdash t : A_2}{\Gamma \vdash A : \texttt{Sort} & \Gamma \vdash t : A_2 & x \notin \text{FV}(\Gamma)} \]
+\end{itembox}
+
+\begin{itembox}[l]{formation}
+  \[\infer[\text{forall formation}]{\Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Sort}_2}{\Gamma \vdash A_1 : \texttt{Sort}_1 & \Gamma , x : A_1 \vdash A_2 : \texttt{Sort}_2 }\]
+  \[\infer[\text{refinement formation}]{\Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type}}{\Gamma \vdash A : \texttt{Type} & \Gamma \vdash P : \texttt{For} \, x \, A \, \texttt{Prop}}\]
+\end{itembox}
+
+\begin{itembox}[l]{introduction と elimination}
+  \[\infer[\text{for intro}]{\Gamma \vdash \texttt{Fun} \, x \, A_1 \, t : \texttt{For} \, x \, A_1 \, A_2}{\Gamma , x : A_1 \vdash t : A_2 & \Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Type}} \]
+  \[\infer[\text{for elim}]{\Gamma \vdash \texttt{App} \, t_1 \, t_2 : A_2\{x \leftarrow t_2\}}{\Gamma \vdash t_1 : \texttt{For} \, x \, A_1 \, A_2 & \Gamma \vdash t_2 : A_1} \]
+  \[\infer[\text{ref intro}]{\Gamma \vdash t : \texttt{Ref} \, A \, P}{\Gamma \vdash t : A & \Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type} & \Gamma \vDash \texttt{App} \, P \, t} \]
+  \[\infer[\text{ref elim}]{\Gamma \vdash t : A}{\Gamma \vdash t : \texttt{Ref} \, A \, P} \]
+\end{itembox}
+
+\begin{itembox}[l]{\(\beta\) 同値について}
+  \[\infer[\text{conversion}]{\Gamma \vdash x : A_2}{\Gamma \vdash x : A_1 & A_1 \equiv_{\beta} A_2 & \Gamma \vdash A_2 : \texttt{Sort}} \]
+\end{itembox}
+
+\begin{itembox}[l]{証明について}
+  \[\infer[\text{inhabitants}]{\Gamma \vDash P}{\Gamma \vdash t : P & \Gamma \vdash P : \texttt{Prop}}\]
+  \[\infer[\text{refinement inversion}]{\Gamma \vDash \texttt{App} \, P \, t}{\Gamma \vdash t : \texttt{Ref} \, A \, P}\]
+\end{itembox}
+
+失敗している理由は、「型が inhabitants かどうか」という新しい判断だけ追加しているが、 \(\Gamma \vDash P\) から対応する証明項を取り出すことができないため、成り立ってほしい判断が示せなくなったため。
+
+例えば体系に自然数などを追加する。
+\(\vDash \text{add} : \texttt{Ref} \, \mathbb{N} \, \text{even} \to \texttt{Ref} \, \mathbb{N} \, \text{even} \to \texttt{Ref} \, \mathbb{N} \, \text{even}\) を示したいときに、
+\(n : \texttt{Ref} \, \mathbb{N} \, \text{even} , m : \texttt{Ref} \, \mathbb{N} \, \text{even} \vDash ((\text{add} \, m) \, n) : \texttt{Ref} \, \mathbb{N} \, \text{even}\) を示したいが、 \(((\text{add} \, m) \, n) : \texttt{Ref} \, \mathbb{N} \, \text{even}\) の証明項の構成には \(n , m : \texttt{Ref} \, \mathbb{N} \, \text{even}\) の証明項を取り出したくなるが、できない。
