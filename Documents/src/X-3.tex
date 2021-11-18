@@ -1,5 +1,17 @@
 もうちょっと \(\beta\) 同値を明示的に扱った方が、 eta-conversion とかつけやすい気がした。
-詳しくは知らないのだけれど、\texttt{Type} : \texttt{Type} がついているので体系としてはやばい？
+また、 （ definitional な？） functional extensionality を最終的に扱うにあたり、何か制限を書けた方がいいかも。
+例えば、 \(f_1 , f_2\) が共に \(A \to B , \texttt{Ref} \, A \, P \to \texttt{Ref} \, B \, Q\) と型付けされるとすると、同値であることを \(\texttt{Ref} \, A \, P \to \texttt{Ref} \, B \, Q\) の中で示したら、 \(A \to B\) の中で同値になってしまわないように気を付ける必要がある。
+（あるいは \(\texttt{Ref} \, A \, P \to \texttt{Ref} \, B \, Q\) での同値が \(A \to B\) での同値としてもよいレベルの制限？）
+今回は \(\beta\) 同値と \(\eta\) 同値を見たことある形で適当に rule に入れることにした。
+これは rule にしなくても \(\equiv\) という関係を別に定義して条件として入れてしまってもよい。
+あといるのかどうかよくわからなかったので、 Context Start と Axiom を制限することにした。
+実装してから困ったら変える。
+
+また、 \(\texttt{Hold}\) に対応するコンストラクタとして \(\texttt{If}\) を導入する方がやりやすくなりそう。
+
+結果として、 equivalenve を明示的に書いただけになってしまった。
+あとで well-defined な構成を行うときに使うと思う。
+例えば、 \(\texttt{Take} \, x \, A \, t\) を \(A\) が inhabitants で \(A\) の取り方によらないことが示せたら、 \(t\) の型 \(T\) として、 \(\texttt{Take} \, x \, A \, t\) を \(T\) に型付けられるようにしたら、商集合からの写像がうまくいくと思う。
 
 \paragraph*{項やコンテキストの定義}
 \begin{grammar}
@@ -10,6 +22,7 @@
 \alt `For' <variable> <term> <term>
 \alt `App' <term> <term>
 \alt `Ref' <term> <term>
+\alt `If' <term> <term>
 \alt `Prf' <term>
 
 <context-snippet> ::= <variable> `:' <term>
@@ -27,18 +40,19 @@
   \(\vdash \Gamma\) , コンテキストの well-def 性 \\
   \(\Gamma \vdash t_1 : t_2\) , 項の型付け性 \\
   \(\Gamma \vDash t\) , 項の証明可能性 \\
-  \(\Gamma \vdash t_1 \equiv t_2\) , 項の同一性
+  \(t_1 \equiv t_2\) , 項の同一性
 \end{itembox}
 
 \begin{itembox}[l]{コンテキストの well-def}
   \[\infer[\text{context empty}]{\vdash empty}{}\]
-  \[\infer[\text{context start}]{\vdash \Gamma , x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Sort} & x \notin \Gamma}\]
-  \[\infer[\text{context prop}]{\vdash \Gamma , \text{Hold } P}{\vdash \Gamma & \Gamma \vdash P : \texttt{Prop}}\]
+  \[\infer[\text{context start}]{\vdash \Gamma , x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Type} & x \notin \Gamma}\]
+  \[\infer[\text{context prop}]{\vdash \Gamma , \text{Hold} \, P}{\vdash \Gamma & \Gamma \vdash P : \texttt{Prop}}\]
 \end{itembox}
 
 \begin{itembox}[l]{コンテキスト 自明}
-  \[\infer[\text{axiom}]{empty \vdash \texttt{Sort}_1 : \texttt{Sort}_2}{}\]
-  \[\infer[\text{variable}]{\Gamma , x : A \vdash x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Sort} & x \notin \Gamma}\]
+  \[\infer[\text{axiom Type}]{empty \vdash \texttt{Sort} : \texttt{Type}}{}\]
+  \[\infer[\text{axiom Prop}]{empty \vdash \texttt{Prop} : \texttt{Prop}}{}\]
+  \[\infer[\text{variable}]{\Gamma , x : A \vdash x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Type} & x \notin \Gamma}\]
   \[\infer[\text{weakning}]{\Gamma , \_ \vdash t : A_2}{\vdash \Gamma , \_ & \Gamma \vdash t : A_2} \]
 \end{itembox}
 
@@ -48,22 +62,28 @@
 \end{itembox}
 
 \begin{itembox}[l]{type の conversion}
-  \[\infer[\text{type conversion}]{\Gamma \vdash x : A_2}{\Gamma \vdash x : A_1 & \Gamma \vdash A_1 \equiv A_2 : \texttt{Type} & \Gamma \vdash A_2 : \texttt{Sort}} \]
+  \[\infer[\text{type conversion}]{\Gamma \vdash x : A_2}{\Gamma \vdash x : A_1 & A_1 \equiv A_2 & \Gamma \vdash A_2 : \texttt{Sort}} \]
 \end{itembox}
 
 \begin{itembox}[l]{introduction と elimination}
-  \[\infer[\text{for intro}]{\Gamma \vdash \texttt{Fun} \, x \, A_1 \, t : \texttt{For} \, x \, A_1 \, A_2}{\Gamma , x : A_1 \vdash t : A_2 & \Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Type}}\]
+  \[\infer[\text{for intro}]{\Gamma \vdash \texttt{Fun} \, x \, A_1 \, t : \texttt{For} \, x \, A_1 \, A_2}{\Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Type} & \Gamma , x : A_1 \vdash t : A_2}\]
   \[\infer[\text{for elim}]{\Gamma \vdash \texttt{App} \, t_1 \, t_2 : A_2\{x \leftarrow t_2\}}{\Gamma \vdash t_1 : \texttt{For} \, x \, A_1 \, A_2 & \Gamma \vdash t_2 : A_1}\]
   \[\infer[\text{ref intro}]{\Gamma \vdash t : \texttt{Ref} \, A \, P}{\Gamma \vdash t : A & \Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type} & \Gamma \vDash \texttt{App} \, P \, t} \]
   \[\infer[\text{ref elim}]{\Gamma \vdash t : A}{\Gamma \vdash t : \texttt{Ref} \, A \, P} \]
+  \[\infer[\text{intro}]{\Gamma \vdash \texttt{If} \, P_1 \, p_2 : \texttt{For} \, x \, P_1 \, P_2}{\Gamma \vdash \texttt{For} \, x \, P_1 \, P_2 & \Gamma , \text{Hold} \, P_1 \vdash p_2 : P_2}\]
+\end{itembox}
+
+\begin{itembox}[l]{equiv rel}
+  \[\infer[\text{alpha-refl}]{t_1 \equiv t_2}{t_1 \equiv_{\alpha} t_2}\]
+  \[\infer[\text{sym}]{t_1 \equiv t_2}{t_2 \equiv t_1}\]
+  \[\infer[\text{trans}]{t_1 \equiv t_3}{t_1 \equiv t_2 & t_2 \equiv t_3}\]
 \end{itembox}
 
 \begin{itembox}[l]{conversion}
-  \[\infer[\text{conversion alpha}]{\Gamma \vdash t_1 \equiv t_2}{\vdash \Gamma & t_1 \equiv_{\alpha} t_2}\]
-  \[\infer[\text{for conversion}]{\Gamma \vdash \texttt{for} \, x \, A^1_1 \, A^1_2 \equiv \texttt{for} \, x \, A^2_1 \, A^2_2}{\Gamma \vdash A^1_1 \equiv A^2_1 & \Gamma \vdash A^1_2 \equiv A^2_2}\]
-  \[\infer[\text{fun conversion}]{\Gamma \vdash \texttt{fun} \, x \, t^1_1 \, t^1_2 \equiv \texttt{fun} x \, t^2_1 \, t^2_2}{\Gamma \vdash t^1_1 \equiv t^2_1 & \Gamma \vdash t^1_2 \equiv t^2_2}\]
-  \[\infer[\text{app conversion}]{\Gamma \vdash \texttt{app} \, t^1_1 \, t^1_2 \equiv \texttt{app} \, t^2_1 \, t^2_2}{\Gamma \vdash t^1_1 \equiv t^2_1 & \Gamma \vdash t^1_2 \equiv t^2_2}\]
-  \[\infer[\text{ref conversion}]{\Gamma \vdash \texttt{ref} \, A^1_1 \, A^1_2 \equiv \texttt{ref} \, A^2_1 \, A^2_2}{\Gamma \vdash A^1_1 \equiv A^2_1 & \Gamma \vdash A^1_2 \equiv A^2_2}\]
+  \[\infer[\text{for conversion}]{\texttt{for} \, x \, A^1_1 \, A^1_2 \equiv \texttt{for} \, x \, A^2_1 \, A^2_2}{A^1_1 \equiv A^2_1 & A^1_2 \equiv A^2_2}\]
+  \[\infer[\text{fun conversion}]{\texttt{fun} \, x \, t^1_1 \, t^1_2 \equiv \texttt{fun} x \, t^2_1 \, t^2_2}{t^1_1 \equiv t^2_1 & t^1_2 \equiv t^2_2}\]
+  \[\infer[\text{app conversion}]{\texttt{app} \, t^1_1 \, t^1_2 \equiv \texttt{app} \, t^2_1 \, t^2_2}{t^1_1 \equiv t^2_1 & t^1_2 \equiv t^2_2}\]
+  \[\infer[\text{ref conversion}]{\texttt{ref} \, A^1_1 \, A^1_2 \equiv \texttt{ref} \, A^2_1 \, A^2_2}{A^1_1 \equiv A^2_1 & A^1_2 \equiv A^2_2}\]
 \end{itembox}
 
 \begin{itembox}[l]{computation と eta}
@@ -72,9 +92,9 @@
 \end{itembox}
 
 \begin{itembox}[l]{proof term について}
-  \[\infer[\text{assumption}]{\Gamma , \text{Hold} \, P \vDash P}{}\]
+  \[\infer[\text{assumption}]{\Gamma , \text{Hold} \, P \vDash P}{\vdash \Gamma , \text{Hold} \, P}\]
   \[\infer[\text{weakning}]{\Gamma , \_ \vDash P}{\Gamma \vDash P}\]
   \[\infer[\text{implicit proof}]{\Gamma \vDash P}{\Gamma \vdash P : \texttt{Prop} & \Gamma \vdash t : P} \]
-  \[\infer[\text{explicit proof}]{\Gamma \vdash \texttt{Prf} \, P : P}{\Gamma \vdash P : \texttt{Prop} &\Gamma \vDash P} \]
+  \[\infer[\text{explicit proof}]{\Gamma \vdash \texttt{Prf} \, P : P}{\Gamma \vDash P} \]
   \[\infer[\text{refinement inversion}]{\Gamma \vDash \texttt{App} \, P \, t}{\Gamma \vdash t : \texttt{Ref} \, A \, P}\]
 \end{itembox}
