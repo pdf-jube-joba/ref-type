@@ -1,0 +1,80 @@
+
+\documentclass[dvipdfmx]{jsarticle}
+
+\usepackage{amsmath , amssymb}
+\usepackage{proof , syntax}
+\usepackage{ascmac}
+% なんか別のところにも文書があったから。
+\begin{document}
+
+\section*{項やコンテキストの定義}
+\begin{grammar}
+<term> ::= `Var' <variable> 
+\alt `Sort' `Prop'
+\alt `Sort' `Type'
+\alt `Fun' <variable> <term> <term>
+\alt `For' <variable> <term> <term>
+\alt `App' <term> <term>
+\alt `Ref' <term> <term>
+\alt `Prf' <term>
+
+<context-snippet> ::= <variable> `:' <term> | <term>
+
+<context> ::= `empty' | <context> `,' <context-snippet>
+\end{grammar}
+
+\texttt{Ref} が refinement type の型。
+\(\texttt{Ref} \, A \, P\) で型 \(A\) を述語 \(P\) : \(A \to \texttt{Prop}\) で refine した型を表す。
+項が refinement type に型付けされるときには述語 \(P\) が満たされているかどうか、つまり inhabitants かどうかを解くことになる。
+
+\texttt{Prf} は証明項を陽に扱うためのもの。
+命題 \(P\) が示せるときに \(\texttt{Prf} \, P\) を証明項として扱ってよい。
+
+代入、 \(\beta\) 変換、同値性の定義は普通に行う。
+\(\text{DV}(\Gamma)\) で context \(\Gamma\) で宣言された変数を表す。
+
+\section*{項やコンテキストの評価}
+ここでコンテキストや項の関係を定義していく。
+
+\begin{itembox}[l]{Judgement について}
+  \(\vdash \Gamma\) , コンテキストの well-def 性 \\
+  \(\Gamma \vdash t_1 : t_2\) , 項の型付け性 \\
+  \(\Gamma \vDash t\) , 項の証明可能性
+\end{itembox}
+
+判断のなかに項の証明可能性を含めて定義するのは、
+どこで証明項の存在が要求されているかわかりやすくするため。
+
+\begin{itembox}[l]{コンテキストの well-formed}
+  \[\infer[\text{context empty}]{\vdash empty}{}\]
+  \[\infer[\text{context Type}]{\vdash \Gamma , x : A}{\Gamma \vdash A : \texttt{Sort} \, s & x \notin \text{DV}(\Gamma)}\]
+  \[\infer[\text{context Prop}]{\vdash \Gamma , P}{\Gamma \vdash P : \texttt{Sort} \, \texttt{Prop}}\]
+\end{itembox}
+
+\begin{itembox}[l]{自然な型付け}
+  \[\infer[\text{axiom}]{empty \vdash \texttt{Sort} \, \texttt{Prop} : \texttt{Sort} \, \texttt{Type}}{}\]
+  \[\infer[\text{variable}]{\Gamma , x : A \vdash \texttt{Var} \, x : A}{\vdash \Gamma & \Gamma \vdash A : \texttt{Sort} \, s & x \notin \text{DV}(\Gamma)}\]
+  \[\infer[\text{weakning}]{\Gamma , \_ \vdash t : A}{\vdash \Gamma , \_ & \Gamma \vdash t : A}\]
+\end{itembox}
+
+\begin{itembox}[l]{formation introduction elimination}
+  \[\infer[\text{forall formation}]{\Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Sort} \, s_2}{\Gamma \vdash A_1 : \texttt{Sort} \, s_1 & \Gamma , x : A_1 \vdash A_2 : \texttt{Sort} \, s_2}\]
+  \[\infer[\text{for introduction}]{\Gamma \vdash \texttt{Fun} \, x \, A_1 \, t : \texttt{For} \, x \, A_1 \, A_2}{\Gamma \vdash \texttt{For} \, x \, A_1 \, A_2 : \texttt{Type} & \Gamma , x : A_1 \vdash t : A_2} \]
+  \[\infer[\text{for elimination}]{\Gamma \vdash \texttt{App} \, t_1 \, t_2 : A_2\{x \leftarrow t_2\}}{\Gamma \vdash t_1 : \texttt{For} \, x \, A_1 \, A_2 & \Gamma \vdash t_2 : A_1} \]
+  \[\infer[\text{refinement formation}]{\Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type}}{\Gamma \vdash A : \texttt{Type} & \Gamma \vdash P : \texttt{For} \, x \, A \, \texttt{Prop}}\]
+  \[\infer[\text{ref introduction}]{\Gamma \vdash t : \texttt{Ref} \, A \, P}{\Gamma \vdash \texttt{Ref} \, A \, P : \texttt{Type} & \Gamma \vdash t : A & \Gamma \vDash \texttt{App} \, P \, t} \]
+  \[\infer[\text{ref elimination}]{\Gamma \vdash t : A}{\Gamma \vdash t : \texttt{Ref} \, A \, P} \]
+  \[\infer[\text{proof abstraction}]{\Gamma \vdash \texttt{Prf} \, P : P}{\Gamma \vdash P : \texttt{Prop} &\Gamma \vDash P} \]
+\end{itembox}
+
+\begin{itembox}[l]{\(\beta\) 同値について}
+  \[\infer[\text{conversion}]{\Gamma \vdash t : A_2}{\Gamma \vdash t : A_1 & \Gamma \vdash A_2 : \texttt{Sort} \, s & A_1 \equiv_{\beta} A_2} \]
+\end{itembox}
+
+\begin{itembox}[l]{proof term について}
+  \[\infer[\text{assumption}]{\Gamma , P \vDash P}{\vdash \Gamma , P}\]
+  \[\infer[\text{proof existence}]{\Gamma \vDash P}{\Gamma \vdash P : \texttt{Prop} & \Gamma \vdash t : P}\]
+  \[\infer[\text{refinement inversion}]{\Gamma \vDash \texttt{App} \, P \, t}{\Gamma \vdash t : \texttt{Ref} \, A \, P}\]
+\end{itembox}
+
+\end{document}
