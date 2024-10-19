@@ -43,7 +43,7 @@ pure type system の形で次のように書ける。
       annot: "Term",
       $t$,
       {
-        Or[$s in S$][_proposition_]
+        Or[$s in S$][_kind_]
         Or[$x$][$x in cal(V)$, _variable_]
         Or[$lambda x: t. t$][$x in cal(V)$, _lambda abstraction_]
         Or[$Pi x: t. t$][$x in cal(V)$, _dependent product type_]
@@ -136,6 +136,13 @@ pure type system の形で次のように書ける。
 
 // TODO
 
+== 矛盾しないようにするために注意すること
+以下はやらないようにする。
+- type: type みたいなこと
+- prop のほかに impredicative な sort を追加する
+- strong dependent sum
+- large elimination
+
 = 証明と証明項を抽象化する
 #definition[
   #bnf(
@@ -143,7 +150,7 @@ pure type system の形で次のように書ける。
       annot: "Term",
       $t$,
       {
-        Or[$s in S$][_proposition_]
+        Or[$s in S$][_kind_]
         Or[$x$][$x in cal(V)$, _variable_]
         Or[$lambda x: t. t$][$x in cal(V)$, _lambda abstraction_]
         Or[$Pi x: t. t$][$x in cal(V)$, _dependent product type_]
@@ -260,14 +267,141 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
 
 = refinement type とか predicate subtyping と呼ばれているものの導入。
 ざっくり、 $t: A$ かつ $P(t)$ が成り立てば、 $t: {x: A | P(x)}$ に型付けできる体系になる。
+#definition[
+  #bnf(
+    Prod(
+      annot: "Term",
+      $t$,
+      {
+        Or[$s in S$][_kind_]
+        Or[$x$][$x in cal(V)$, _variable_]
+        Or[$lambda x: t. t$][$x in cal(V)$, _lambda abstraction_]
+        Or[$Pi x: t. t$][$x in cal(V)$, _dependent product type_]
+        Or[$t$ $t$][_application_]
+        Or[$"Proof" t$][_proof of t_]
+        Or[${x: t | t}$][_refinement type_]
+      },
+    ),
+  )
+  #bnf(
+    Prod(
+      annot: "Context snippet",
+      $gamma$,
+      {
+        Or[$x: t$][$x in cal(V)$, $t: "Term"$, _declare_]
+        Or[$"Hold" t$][$t: "Term"$ _assumption_]
+      }
+    )
+  )
+  #bnf(
+    Prod(
+      annot: "Context",
+      $Gamma$,
+      {
+        Or[$emptyset$][_empty context_]
+        Or[$Gamma :: gamma$][$gamma$: Context snippet, _concat_]
+      }
+    )
+  )
+]
+
+- $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$
+- $A equiv^beta A', P equiv^beta P'$ なら ${x: A | P} equiv^beta {x: A' | P'}$
+
+#definition("judgement 一覧")[
+- well found context: $Gamma: "Context"$ に対して、 
+  $ tack Gamma $
+- type judgement: $Gamma: "Context"$, $e_i: "Term"$ に対して、
+  $ Gamma tack e_1: e_2 $
+- proposition: $t: "Term"$ に対して、 （ $t: PP$ と思って）コンテキストから証明可能を意味する。
+  $ Gamma tack.double t $
+]
+
+もとのに加えて次のようにする。
+
+#definition[
+- 部分型付けの導入
+  $ #proof-tree(rule(
+    $Gamma tack t: {x: A | P}$,
+    $Gamma tack t: A$,
+    $Gamma tack P: Pi (\_: A). PP$,
+    $Gamma tack.double P t$,
+  )) $
+- 部分型付けから weak に型を取り出す。
+  $ #proof-tree(rule(
+    $Gamma tack t: A$,
+    $Gamma tack t: {x: A | P}$,
+  )) $
+- 部分型付けから命題を取り出す。
+   $ #proof-tree(rule(
+    $Gamma tack.double P t$,
+    $Gamma tack t: {x: A | P}$
+   )) $
+]
 
 = equality を導入して、元の選択によらずに定まる項をつくる。
-$"take" x: T. t$ は $x$ によらずに $t$ が定まっているときに使う。
+$"take" x: T. t$ という項として $x$ によらずに $t$ が定まっているときに使うようのものを用意する。
 具体的には、 $t: A$ のとき
 - $exists x: T$
 - $t_1: T, t_2: T$ に対して $t[x := t_1] = t[x := t_2]$
 が示せるなら、 $A$ の項として扱う。 
+$exists$ については具体的な項の存在を要求すればいいが、
+equality を導入する関係上、 equality を定義しなければいけない。
+
+#definition[
+  #bnf(
+    Prod(
+      annot: "Term",
+      $t$,
+      {
+        Or[$s in S$][_kind_]
+        Or[$x$][$x in cal(V)$, _variable_]
+        Or[$lambda x: t. t$][$x in cal(V)$, _lambda abstraction_]
+        Or[$Pi x: t. t$][$x in cal(V)$, _dependent product type_]
+        Or[$t$ $t$][_application_]
+        Or[$"Proof" t$][_proof of t_]
+        Or[$"take" x:t. t$][$x in cal(V)$, _choice_]
+      },
+    ),
+  )
+]
+
+#definition[
+$a, b: "Term"$ に対して、
+$a: A$, $b: A$, であったとして、
+$a =_A b$ を次の略記とする。
+（Leibniz の equality）
+$ Pi P: (A -> PP). (P a -> P b) $
+]
+
+もしかしたら、 inductive な形で equality を導入したほうがいいかも。
+
+judgement は変えない。
+reduction として $"take" x: T. m -> m[x := y]$ がほしいように思ったけど、
+証明が複雑になりそうなので、 $=$ で対応している。
+
+#definition[
+- take の導入
+  $ #proof-tree(rule(
+    $Gamma tack ("take" x:T. m): M$,
+    $Gamma tack T: s$,
+    $Gamma :: x: T tack m: M$,
+    $Gamma tack e: T$,
+    $Gamma tack.double Pi x:T. Pi y: T. m =_M m[x := y]$
+  )) $
+- take を使わない形に
+  $ #proof-tree(rule(
+    $Gamma tack ("take" x: T. m) = m[x := t]$,
+    $Gamma tack ("take" x: T. m): M$,
+    $Gamma tack t: M$,
+  )) $
+]
 
 = power type を導入する。
 $A: TT$ に対して $cal(P)(A): TT$ を導入する。
 これで ${A': cal(P)(A) | ... }$ とかが書けるようになって商集合を扱えそう。
+当然、 ${x: A | P}: cal(P)(A)$ である。
+$A: TT$ と $R: A -> A -> PP$ があって、 $R$ が同値関係を与えているとする。
+- $a: A$ に対して $[a]_(A \/ R) := {x: A | x R a}$ とする。
+1. ${B: cal(P)(A) | exists a: A, B = [a]_(A \/ R)}$ これは $exists$ をつかっているのでやばい。
+2. ${B: cal(P)(A) | }$
