@@ -104,7 +104,7 @@ pure type system の形で次のように書ける。
  )) $
 - dependent product type の導入
   $ #proof-tree(rule(
-    $Gamma tack Pi x: t. T$,
+    $Gamma tack Pi x: t. T: s_2$,
     $Gamma tack t: s_1$,
     $Gamma:: x: t tack T: s_2$,
     $(s_1, s_2) in R$,
@@ -126,6 +126,7 @@ pure type system の形で次のように書ける。
   $ #proof-tree(rule(
     $Gamma tack t: T_2$,
     $Gamma tack t: T_1$,
+    $Gamma tack T_2: s$,
     $T_1 equiv^beta T_2$,
   )) $
 ]
@@ -217,7 +218,7 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
  )) $
 - dependent product type の導入
   $ #proof-tree(rule(
-    $Gamma tack Pi x: t. T$,
+    $Gamma tack Pi x: t. T: s_2$,
     $Gamma tack t: s_1$,
     $Gamma:: x: t tack T: s_2$,
     $(s_1, s_2) in R$,
@@ -239,11 +240,12 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
   $ #proof-tree(rule(
     $Gamma tack t: T_2$,
     $Gamma tack t: T_1$,
+    $Gamma tack T_2: s$,
     $T_1 equiv^beta T_2$,
   )) $
 - assumption の追加
   $ #proof-tree(rule(
-    $tack Gamma :: t$,
+    $tack Gamma :: "Hold" t$,
     $tack Gamma$,
     $Gamma tack t: PP$,
   )) $
