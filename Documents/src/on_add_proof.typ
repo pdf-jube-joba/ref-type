@@ -12,7 +12,7 @@
 #show: thmrules.with(qed-symbol: $square$)
 
 = logical な consistency について
-定義を思い出すと、
+定義を思い出すと項やコンテキストとは次のものである。
 #definition[
   #bnf(
     Prod(
@@ -49,22 +49,10 @@
     )
   )
 ]
+$a ->^beta b$ なら $"Proof" a ->^beta "Proof" b$ と $beta$ 簡約を拡張して定義する。
+$a equiv^beta b$ は $->^beta$ から生成される同値関係である。
 
-$a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張しておく。
-
-この体系で示したいのは consistency と呼ばれる次の定理である。
-#theorem[
-  どんな項 $t$ についても、 $tack t: (Pi x:PP. x)$ が成り立たない。
-]
-ここで $Pi x:PP. x$ は論理だと $bot$ に対応する項になっている。
-なので、仮定なしに矛盾しない体系であることを言っている。
-
-= lemmas
-#theorem[
-  合流性がある。
-]<confluence>
-多分ある。
-
+judgement と呼ばれる次の関係があり、
 #definition("judgement 一覧")[
 - well found context: $Gamma: "Context"$ に対して、 
   $ tack Gamma $
@@ -73,6 +61,7 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
 - proposition: $t: "Term"$ に対して、 （ $t: PP$ と思って）コンテキストから証明可能を意味する。
   $ Gamma tack.double t $
 ]
+以下のようにして judgement の導出木が定義される。
 
 #definition("judgement の関係")[
 - empty context の well found:
@@ -121,6 +110,7 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
   $ #proof-tree(rule(
     $Gamma tack t: T_2$,
     $Gamma tack t: T_1$,
+    $Gamma tack T_2: s$,
     $T_1 equiv^beta T_2$,
   )) $
 - assumption の追加
@@ -147,6 +137,27 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
   )) $
 ]
 
+この体系で示したいのは consistency と呼ばれる次の定理である。
+#theorem[
+  どんな項 $t$ についても、 $tack t: (Pi x:PP. x)$ が成り立たない。
+]
+ここで $Pi x:PP. x$ は論理だと $bot$ に対応する項になっている。
+なので、仮定なしに矛盾しない体系であることを言っている。
+
+= lemmas
+#theorem[
+  合流性がある。
+  i.e. $M ->^beta N_1, N_2$ ならある $M'$ があって $N_1, N_2 -> M'$
+]<confluence>
+#proof[
+  多分ある。
+  あとでちゃんとチェックする。
+  #WIP
+]
+
+judgement に現れる $Gamma tack.double t$ を消去し、変数に sort をつけた体系を考えたい。
+[Henk Barendregt. lambda calculi with types. https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf] を参考にする。
+- $x in cal(V)$ みたいに書かれているところを $x^s, x in cal(S), s in S$ の組にする。
 - context $Gamma$ に対して、 $"Hold" t$ の部分を $Gamma$ のそれまでに登場していない変数に置き換える。
 - $Gamma tack.double t$ のコンテキストの含まれる導出木を見て上と下をくっつける。
 をやることで、項の定義は変わらずコンテキストから Hold のみが抜けた次のような体系であると思える。
@@ -156,7 +167,7 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
   $ #proof-tree($tack emptyset$) $
 - context をのばす:
   $ #proof-tree(rule(
-    $tack Gamma :: (x: t)$,
+    $tack Gamma :: (x^s: t)$,
     $tack Gamma$,
     $Gamma tack t: s$,
     $x in.not Gamma$,
@@ -164,9 +175,9 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
   )) $
 - variable を使う
   $ #proof-tree(rule(
-    $Gamma tack x: t$,
+    $Gamma tack x^s: t$,
     $tack Gamma$,
-    $(x: t) in Gamma$,
+    $(x^s: t) in Gamma$,
   )) $
 - axiom
  $ #proof-tree(rule(
@@ -176,22 +187,22 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
  )) $
 - dependent product type の導入
   $ #proof-tree(rule(
-    $Gamma tack Pi x: t. T: s_2$,
+    $Gamma tack Pi x^(s_1): t. T: s_2$,
     $Gamma tack t: s_1$,
-    $Gamma:: x: t tack T: s_2$,
+    $Gamma:: x^(s_1): t tack T: s_2$,
     $(s_1, s_2) in R$,
   )) $
 - dependent product の intro
   $ #proof-tree(rule(
-    $Gamma tack (lambda x: t. m): (Pi x:t. M)$,
-    $Gamma tack (Pi x:t. M): s$,
-    $Gamma ::x: t tack m: M$,
+    $Gamma tack (lambda x^(s'): t. m): (Pi x^(s'):t. M)$,
+    $Gamma tack (Pi x^(s'):t. M): s$,
+    $Gamma ::x^(s'): t tack m: M$,
     $s in S$,
   )) $
 - application 
   $ #proof-tree(rule(
-    $Gamma tack f a: T[x := a]$,
-    $Gamma tack f: Pi x:t. T$,
+    $Gamma tack f a: T[x^s := a]$,
+    $Gamma tack f: Pi x^s:t. T$,
     $Gamma tack a: t$,
   )) $
 - $beta$ reduction について
@@ -253,14 +264,21 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
     ))
   $
 
-#theorem[
-  $Gamma tack t: PP$ なら $t equiv^beta s$ ではない。
-]
-TODO これがほしい。
 
 ここで、コンテキストで型のつく項について、 "sort" のようなものを考えると、
 項の階層をわけることができる。
 （これが pure type system から通常の stratified な定義への変換ができる根拠のはず。）
+#definition[
+  $\#: "Term" -> NN$ を次のように定める。
+  - $\#(TT) = 3, \#(PP) = 2, \#(x^TT) = 1, \#(x^PP) = 0$
+  - $\#(lambda x^s: t. B) = \#(Pi x^s:t. B) = \#(B A) = \#(B)$
+]
+
+#theorem[
+  $Gamma tack t: T$ なら $\#(t) + 1 = \#(T)$
+]
+
+変数に $s$ をつけることで、 [barendregt] の AUTOMATH-like system の folklore として書かれている、 $Gamma tack t: T$
 特に、型として現れる項は $"Proof" t$ を含まない。
 
 #theorem[
@@ -268,6 +286,12 @@ TODO これがほしい。
 - $Gamma tack T: s$ なら $T$ は部分項に $"Proof" m$ を含まない。
 - $tack Gamma$ なら $(x: t) in Gamma$ に対して $t$ は部分項に $"Proof" m$ を含まない。
 ]
+
+成り立たなそうな気がしてきた。
+- $Gamma = x: PP, p: x$ に対して
+  - $Gamma tack ((lambda y:x. PP) ("Proof" x)): TT$）
+    - $Gamma tack (lambda y:x. PP): (Pi y:x. PP)$
+    - $Gamma tack "Proof" x: x$
 
 #proof[
 証明の順序としては、自然数 $n$ についての次の命題を考えて、 $n$ の帰納法で示す。
@@ -319,4 +343,5 @@ $n = k$ で成り立つとして $n = k + 1$ に対して $Gamma, t, T$ とそ�
 - $overline(Gamma) tack_("CoC + Proof") t: overline(t')$ ならある項 $underline(t)$ が存在して $Gamma tack_("Coc") underline(t): t'$
 ]
 
-これが示せれば、
+思ったんだけど、 $overline(M) equiv^beta overline(N)$ なら $M equiv^beta N$ が示せれば、ほしい定理は出るのでは。
+導出木の「証明項を作る」の部分ででてくる $"Proof" t: t$ を $t'$ に置き換える。
