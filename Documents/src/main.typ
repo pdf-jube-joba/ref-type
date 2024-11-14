@@ -35,6 +35,8 @@
 - https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf Extended Calculus of Constructions
 - https://www.cs.cmu.edu/~kw/scans/hurkens95tlca.pdf A simplification of Girard's paradox
 - https://ceur-ws.org/Vol-1525/paper-14.pdf Two set-based implementations of Quotient in type theory 
+- https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf lambda calculi with types 
+- 他 scrapbox にあるやつ
 
 = calculus of construction の復習
 == pure type system を使う
@@ -137,18 +139,24 @@ pure type system の形で次のように書ける。
   )) $
 ]
 
+ただし、ここでは proposition と program を同一視している体系になっている。
+Coq などでは、 Calculus of constructions とは違う形の $S$ を用いているので、
+それに合わせたほうがいいかもしれない。
+
 == stratified な場合
 項を一気に定義するのではなく、
 証明項、命題、型、などを階層化して定義することができるようだが。
 
-// TODO
+たとえば、 $lambda_("LF")$ は pure type system としての形式化以外のやり方がある。
 
 == 矛盾しないようにするために注意すること
 以下はやらないようにする。
 - type: type みたいなこと
   - 普通に sort として $s: s$ があるとだめっぽい？
   - pure type system として Prop ($*$) 以外に sort $s in S$ であって impredicative ($(s, s) in cal(R)$) となるものがあれば、矛盾するらしい。
+    - これは理解を間違えている気がする。多分、 $(square, s) in cal(R)$ があるとまずい。
   - system $U$ や $U^-$ など（ Girard's paradox を参照）
+    - これは循環な体系ではない（ $lambda_("HOL")$ の拡張になっている）がだめらしい。
 - strong dependent sum っぽいことができるとまずい
   - $Gamma ::x: A tack B: PP$ から $Gamma tack (sum x:A. B): PP$ のようなものを付け加えると、 $pi_1$, $pi_2$ とその規則を付け加えることで矛盾する。
   - ただし、 $A: PP$ を仮定したり、 $A: TT_i$ のときに $Gamma tack (sum x:A. B): TT_i$ のようにするのであれば矛盾しない。 [ECC 2.4 節]
@@ -160,6 +168,7 @@ pure type system の形で次のように書ける。
     - つまり、 $pi_2 (e)$ を用いて $pi_1 (e)$ が $B$ を満たすことを証明できるような状況になっていると多分矛盾する？
 - large elimination
   - large elimination が単体でダメなのではなく、 excluded middle と impredicative な prop と合わせると矛盾するらしい。
+  - singleton elimination はやってよいと coq では扱われているらしい。
 
 = 証明と証明項を抽象化する
 #definition[
@@ -286,6 +295,15 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
 
 = refinement type とか predicate subtyping と呼ばれているものの導入。
 ざっくり、 $t: A$ かつ $P(t)$ が成り立てば、 $t: {x: A | P(x)}$ に型付けできる体系になる。
+注意： $S = {*^p, *^s, square}$ にして、 Prop 用の sort と Set として解釈できるものを分けたほうがよいかも。
+その場合は矛盾を避けつつ coq みたいな感じにする。
+（でも cumulative はよくわからんのでやめておきたい。）
+- $cal(A)= {(*^p: square), (*^s, square)}$
+- $cal(R) =$
+  - ${(*^p, *^p), (*^p, square), (square, *^p), (square, square)}$
+  - ${(*^s, *^s), (*^s, square), (*^s, *^p)}$
+なんかこれだめかも。
+
 #definition[
   #bnf(
     Prod(
@@ -358,14 +376,50 @@ $a equiv^beta b$ なら $"Proof" a equiv^beta "Proof" b$ みたいに拡張し�
    )) $
 ]
 
-= equality を導入して、元の選択によらずに定まる項をつくる。
-$"take" x: T. t$ という項として $x$ によらずに $t$ が定まっているときに使うようのものを用意する。
+= equality の導入について
+equality はなんか扱いがめんどくさいが主に 2 つあって、
+- Leibniz equality を考える場合
+  - $A: TT, a: A, b: B$ に対して $a =^A b := Pi (P: A -> PP). P a -> P b$
+- inductive な型のように項の定義を広げる場合
+  - term := $ ... | "Id"_t (t, t) | "refl"_(t, t)$
+    - $a =^A b$ は $"Id"_A (a, b)$ のことになる。
+  - conversion ...
+  - judgement
+    - form $ #proof-tree(rule(
+      $Gamma tack "Id"_A (a, b): PP$,
+      $Gamma tack A: PP$,
+      $Gamma tack a: A$,
+      $Gamma tack b: A$,
+    )) $
+    - intro $ #proof-tree(rule(
+      $Gamma tack "refl"_(A, a): "Id"_A (a, a)$,
+      $Gamma tack "Id"_A (a, a): PP$,
+    )) $
+    - elim $ #proof-tree(rule(
+      $Gamma $
+    )) $
+
+ところで、ほしい性質として、構造の等しさの証明に、性質（の証明）の等しさを要求しないというものがある。
+これは $a, b: {x: A | P}$ に対して、 $a =^A b$ なら $a =^{x: A | P} b$ を与えることになっているはず。
+なので、次を導入したい。
+$ #proof-tree(rule(
+  $Gamma tack.double a=^{x: A | P} b$,
+  $Gamma tack a: {x: A | P}$,
+  $Gamma tack b: {x: A | P}$,
+  $Gamma tack.double a=^A b$,
+)) $
+
+inductive type みたいなものを全然知らないけど、 refl が $"refl"_A a$ ではなく $"refl" a$ として考えれるような場合はおかしい？
+
+= 元の選択によらずに定まる項をつくる。
+$"take" x: T. t$ という項として $x$ によらずに $t$ を定める項を導入する。
 具体的には、 $t: A$ のとき
 - $exists x: T$
-- $t_1: T, t_2: T$ に対して $t[x := t_1] = t[x := t_2]$
+- 任意の $t_1: T, t_2: T$ に対して $t[x := t_1] = t[x := t_2]$
 が示せるなら、 $A$ の項として扱う。 
+  - 任意の、ということについては自由な変数のもとで示せればよい。
 $exists$ については具体的な項の存在を要求すればいいが、
-equality を導入する関係上、 equality を定義しなければいけない。
+$m[x := t_1] = m[x := t_2]$ を必要とする以上、equality が定義されている必要がある。
 
 #definition[
   #bnf(
@@ -385,19 +439,10 @@ equality を導入する関係上、 equality を定義しなければいけな�
   )
 ]
 
-#definition[
-$a, b: "Term"$ に対して、
-$a: A$, $b: A$, であったとして、
-$a =_A b$ を次の略記とする。
-（Leibniz の equality）
-$ Pi P: (A -> PP). (P a -> P b) $
-]
-
-*もしかしたら、 inductive な形で equality を導入したほうがいいかも。*
-
 judgement は変えない。
 reduction として $"take" x: T. m -> m[x := y]$ がほしいように思ったけど、
 証明が複雑になりそうなので、 $=$ で対応している。
+strong normalization は壊れそうだけど、 $=$ のもとで normal form があればうれしい。
 
 #definition[
 - take の導入
@@ -442,17 +487,17 @@ $A: TT$ に対してべき集合 $cal(P)(A): TT$ を導入する。
 #definition[
   - power type の導入
     $ #proof-tree(rule(
-      $Gamma tack cal(P) A: TT$,
+      $Gamma tack cal(P) (A): TT$,
       $Gamma tack A: TT$,
     )) $
   - subset を含むようにする1
     $ #proof-tree(rule(
-      $Gamma tack A: cal(P) A$,
+      $Gamma tack A: cal(P) (A)$,
       $Gamma tack A: TT$,
     )) $
   - subset を含むようにする2
     $ #proof-tree(rule(
-      $Gamma tack {x: A | P} : cal(P) A$,
+      $Gamma tack {x: A | P} : cal(P) (A)$,
       $Gamma tack {x: A | P}: TT$,
     )) $
 ]
@@ -468,27 +513,30 @@ $a: A$ に対して $[a]_(A \/ R) := {x: A | x R a}$ とする。
 ただ、ここから素直に商集合を記述できないことがわかった。
 
 == 問題
-1. なんらかの方法で $exists$ を使う場合、 ${B: cal(P)(A) | exists a: A, B = [a]_(A \/ R)}$ と書けるが、これは $exists$ をつかっているので気を付けないとやばい。
+よく考えたら、 $exists a: A. P$ 自体は $exists a: {a: A. P}$ として書ける。
+なので、 $exists a: A$ のようなものだけ書ければいい。
+（でも $exists$ はよくわからないがやばいらしい。）
+
+1. なんらかの方法で $exists$ を使う場合、 ${B: cal(P)(A) | exists a: {a: A, B = [a]_(A \/ R)} }$ と書けるが、これは $exists$ をつかっているので気を付けないとやばい。
   - $f: A -> Y$ が $R$ を保つとき、 $tilde(f)$ が次のようにして記述できそうに思える。
-  - $tilde(f) = lambda B: {B: cal(P)(A) | exists a: A, B = [a]_(A \/ R)}. "take" x: {x: A | B = [x]_(A \/ R)}. f x$
+  - $tilde(f) = lambda B: {B: cal(P)(A) | exists a: {a: A | B = [a]_(A \/ R)} }. "take" x: {x: A | B = [x]_(A \/ R)}. f x$
   - でもこの記述は示せない。
-    - 具体的に項として $A:"hoge", R:"hoge", B:"hoge" tack e: {...}$ となる項 $e$ を取り出すことができない。
-      - $exists a: A, B = [a]_(A \/ R)$ から取り出せると strong dependent sum っぽい。（ $pi_1$ だけなら大丈夫だが）
-      - $x: B$ で $B: cal(P)(A)$ なら $x: A$ が取り出せるなら、 $"take" x: B. f x$ に型がつく（考えたこと参照 @think1 ）が、それでも $B$ が空でないことはめんどくさい。
+    - take ができる具体的な項はない ... つまり、 $A: ?, R: ?, f:?, B:?} tack e: {x: A | B = [x]_(A \/ R)}$ となる項 $e$ がない。
+      - ただし、 $exists$ を $tack.double$ とするならいい。
     - $x_0, x_1: {x: A | B = [x]_(A \/ R)}$ のとき $R x_0 x_1$ を示す必要があるが、 $[x_0]_(A \/ R) = [x_1]_(A \/ R)$ が言えてもそこから $R x_0 x_1$ が言えない。
   - 問題点としては、次のものがある
-    - $exists a: A. P$ を使うことになる
+    - $exists a: A$ を使うことになる
     - $a: B, B = {x: A | P}$ でも $P(a)$ が言えない
 2. $B: cal(P)(A)$ に対して、次の性質を考える。
   - 性質 ($P$):
-    - $B$ が $R$ で閉じる: $Pi x: B. Pi y: B. R x y$
-    - $B$ が空でない: $exists b: B$
-    - $B$ が同値なものを全部含む $\"y in B\"$ が表現できたとして $Pi x: B. Pi y: A. Pi p: R x y. \"y in B\"$
+    - $B$ が $R$ で閉じる... $Pi x: B. Pi y: B. R x y$
+    - $B$ が空でない... $exists b: B$
+    - $B$ が同値なものを全部含む ... $\"y in B\"$ が表現できたとして $Pi x: B. Pi y: A. Pi p: R x y. \"y in B\"$
   - これなら ${B: cal(P)(A) | P(B)}$ が商集合になっている。
   - $tilde(f) = lambda B: {B: cal(P)(A) | P(B)}. "take" a: B. f a$
     - $B$ が空でないを使う。
     - $R$ で閉じることから well-def になる
-    - 同値なものを全部含むが使えないように思えるけど、 $[a]_(A \/ R): {B cal(P)(A) | P(B)}$ を示すのに使いそう。
+    - 同値なものを全部含むが使えないように思えるけど、 $[a]_(A \/ R): {B: cal(P)(A) | P(B)}$ を示すのに使いそう。
       - TODO これを確かめる。
   - 問題点としては、次のものがある
     - 結局 $exists$ を使う
@@ -501,3 +549,24 @@ $a: A$ に対して $[a]_(A \/ R) := {x: A | x R a}$ とする。
     $Gamma tack x: B$,
     $Gamma tack B: cal(P)(A)$,
   )) $<think1>
+- subset の equal から predicate を取り出す？（ extensional な体系と似てる）
+  $ #proof-tree(rule(
+    $Gamma tack.double P[x := a]$,
+    $Gamma tack a: B$,
+    $Gamma tack.double B =^(cal(P)(A)) {x: A | P}$,
+  )) $
+- $exists$ を導入して、 take も変える。
+  $ #proof-tree(rule(
+    $Gamma tack.double exists x: T$,
+    $Gamma tack t: T$,
+  )) $
+  $ #proof-tree(rule(
+    $Gamma tack ("take" x: T. m): M$,
+    $Gamma tack M: s$,
+    $Gamma, x: T tack m: M$,
+    $Gamma tack.double exists x: T$,
+    $Gamma tack.double Pi y: T. Pi z: T. m[x := y] =^M m[x := z]$,
+  )) $
+
+これで商集合が記述できた。
+
