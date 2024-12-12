@@ -766,3 +766,39 @@ let euc: (n: N) -> (m: N) -> N := take (l: N s.t. n + m <= l). euc' n m l
 - $cal(R) =$
   - ${(*^p, *^p), (*^p, square), (square, *^p), (square, square)}$
   - ${(*^s, *^s), (*^s, square), (*^s, *^p)}$
+
+この上で、 $*^c$ から $*^s$ への reflection を行う。
+具体的には、
+項を $::= .. | "Rf" t$ のように拡張し、
+$"Rf" t$ の変換を次のように行う
+- $"Rf" *^c -> *^s$
+- $"Rf" (lambda x:T. t) -> lambda x: ("Rf" T). ("Rf" t)$
+- $Pi$ や app なども同じ
+- $"Rf" m ->^beta "Rf" m'$ if $m ->^beta m'$
+
+また、帰納的な型として $*^c$ 側に定義されたものは、
+その reflection に対応する型を自動的に $*^s$ につくり、 $"Rf"$ といい感じになるようにつくる。
+例えば自然数の場合、
+- type form ... $NN$: $*^c$ ::=
+  - type intro Z ... $Z$: $NN$
+  - type intro S ... $S$: $NN -> NN$
+と書くと
+- elim rule ... $"elim"_NN$
+- computation rule ...
+が勝手に出てくるが、
+
+これにさらに $*^s$ 側で対応する $hat(NN), hat(Z), hat(S), hat("elim"_NN)$ を導入する。
+そして、 $"Rf" NN = hat(NN)$ などのように変換規則を拡張する。
+
+"rec" 付きの項を "Rf" で "rec" のない世界 $*^s$ 側で表現できているのであれば、
+"rec" が付いていても止まりそう（な気がする）。
+
+$#proof-tree(rule(
+  $Gamma tack ("rec" f x := M): Pi x: T. M' $,
+  $...$,
+  $Gamma tack.double Pi x: ("Rf" T). (("Rf" ("rec" f x := M) x) =_T t x)$,
+))$
+
+とりあえず考えただけなので、整合性があるかは不明。
+
+あとで帰納型を含めてちゃんと考える。
