@@ -465,6 +465,8 @@ strong normalization は壊れそうだけど、 $=$ のもとで normal form �
 ]
 
 = power type を導入する。
+*いろいろ読んでたら、 Power Set は鬼門の気がしてきた。*
+
 $A: TT$ に対してべき集合 $cal(P)(A): TT$ を導入する。
 これで ${A': cal(P)(A) | ... }$ とかが書けるようになって商集合を扱えそう。
 当然、 ${x: A | P}: cal(P)(A)$ である。
