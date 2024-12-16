@@ -31,16 +31,6 @@
 結局、証明項みたいなものを排除する体系なので、 proof-term omitted と呼ぶことにする。
 （ refinement 以外もいろいろ入りすぎている。）
 
-= notation
-変数に使う集合は $cal(V)$ とかにしておく。
-= 資料
-- https://theses.hal.science/tel-02058937/document Extending higher-order logic with predicate subtyping : application to PVS
-- https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf Extended Calculus of Constructions
-- https://www.cs.cmu.edu/~kw/scans/hurkens95tlca.pdf A simplification of Girard's paradox
-- https://ceur-ws.org/Vol-1525/paper-14.pdf Two set-based implementations of Quotient in type theory 
-- https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf lambda calculi with types 
-- 他 scrapbox にあるやつ
-
 = calculus of construction の復習
 == pure type system を使う
 pure type system の形で次のように書ける。
@@ -142,33 +132,16 @@ pure type system の形で次のように書ける。
   )) $
 ]
 
-ただし、ここでは proposition と program を同一視している体系になっている。
-Coq などでは、 Calculus of constructions とは違う形の $S$ を用いているので、
-それに合わせたほうがいいかもしれない。
-
-== stratified な場合
-項を一気に定義するのではなく、
-証明項、命題、型、などを階層化して定義することができるようだが。
-
-たとえば、 $lambda_("LF")$ は pure type system としての形式化以外のやり方がある。
-
-== 矛盾しないようにするために注意すること
-以下はやらないようにする。
-- type: type みたいなこと
-  - 普通に sort として $s: s$ があるとだめっぽい？
-  - pure type system として Prop ($*$) 以外に sort $s in S$ であって impredicative ($(s, s) in cal(R)$) となるものがあれば、矛盾するらしい。
-    - これは理解を間違えている気がする。多分、 $(square, s) in cal(R)$ があるとまずい。
-  - system $U$ や $U^-$ など（ Girard's paradox を参照）
-    - これは循環な体系ではない（ $lambda_("HOL")$ の拡張になっている）がだめらしい。
+// == 矛盾しないようにするために注意すること
+// 以下はやらないようにする。
+// - type: type みたいなこと
+//   - 普通に sort として $s: s$ があるとだめっぽい？
+//   - pure type system として Prop ($*$) 以外に sort $s in S$ であって impredicative ($(s, s) in cal(R)$) となるものがあれば、矛盾するらしい。
+//     - これは理解を間違えている気がする。多分、 $(square, s) in cal(R)$ があるとまずい。
+//   - system $U$ や $U^-$ など（ Girard's paradox を参照）
+//     - これは循環な体系ではない（ $lambda_("HOL")$ の拡張になっている）がだめらしい。
 - strong dependent sum っぽいことができるとまずい
-  - $Gamma ::x: A tack B: PP$ から $Gamma tack (sum x:A. B): PP$ のようなものを付け加えると、 $pi_1$, $pi_2$ とその規則を付け加えることで矛盾する。
-  - ただし、 $A: PP$ を仮定したり、 $A: TT_i$ のときに $Gamma tack (sum x:A. B): TT_i$ のようにするのであれば矛盾しない。 [ECC 2.4 節]
-  - （ Extended calculus of constructions (Zhaohui Luo) を参照）
-  - でも weak dependent sum はいいらしい（これがどういうものかはよくわからない。
-  - ECC の 8.4 を読むと、weak sum （logical existential quantifier） は CC で再現できる
-    - $exists x in A, P$ は $Pi R: PP. (Pi X: A. P -> R) -> R$ とする （ [ECC 6.1.3] ）
-    - この場合、 $e: sum x:A. B$ に対して $pi_1 (e)$ が $B$ を満たすことが示せないぐらい弱い。
-    - つまり、 $pi_2 (e)$ を用いて $pi_1 (e)$ が $B$ を満たすことを証明できるような状況になっていると多分矛盾する？
+ 
 - large elimination
   - large elimination が単体でダメなのではなく、 excluded middle と impredicative な prop と合わせると矛盾するらしい。
   - singleton elimination はやってよいと coq では扱われているらしい。

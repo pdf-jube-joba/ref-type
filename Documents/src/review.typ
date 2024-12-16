@@ -42,6 +42,13 @@
   - Modular proof of strong normalization for the calculus of constructions. Geuvers, Herman, and Mark-Jan Nederhof. 1991.
 - https://arxiv.org/pdf/2308.16726
   - A variation of Reynolds-Hurkens Paradox
+- https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=23af5ccb0b9d053741aeea62e4c8ac911da52327
+  - Constructions Inductive Types and Strong Normalization
+- https://mimuw.edu.pl/media/uploads/doctorates/thesis-agnieszka-kozubek.pdf
+  - formalization of the naive type theory
+- https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf Extended Calculus of Constructions
+- https://www.cs.ru.nl/~herman/PUBS/newnote.pdf
+  - Inconsistency of classical logic in type theory
 
 = Pure Type System
 == definition
@@ -403,11 +410,20 @@ $cal(R)$ はもうちょっと複雑で、次の合併として定義される�
 - ${(s, *_p) | s in cal(S) }$
 - ${(s, *_s) | s = {*_s, *_p}}$
 - ${(square_i, square_j, square_(max(i,j)))}$
+- cumulativity から本当は来てるやつ
+  - ${(*_p, square_j), (*_s, square_j)}$
 
 === どんなことができるか
 
+- $(*_s, square)$ より、 $A: *_s$ 上の述語 $A -> *_p$ が作れる
+  - $#proof-tree(rule(
+    $A: *_s tack (A -> *_p = Pi x: A. *_p): square$,
+    $A: *_s tack A: *_s$,
+    $A: *_s, x: A tack *_p: square$,
+  ))$
+
 === Set の impredicativity について
-$*, square$ だけのときに、高階論理を使うために $(square, *) in cal(R)$ が必要だとわかっていた。
+$cal(S) = {*, square}$ だけのときに、高階論理を使うために $(square, *) in cal(R)$ が必要だとわかっていた。
 これが使えると $tack (Pi P:*.P -> P): *$ のようなこと（ $*_p$ を impredicative にすること ）ができるが、
 これを $*_s$ でも使えるようにはしないのか
 ... Set を impredicative にしないのだろうか。
@@ -427,7 +443,7 @@ $t: A$ なら $t: B$ とするとよい。
 - $t equiv t' => t <= t'$
 - $square_i <= square_j$ if $i <= j$
 - $*_p <= *_s$
-- $*_p <= square_i$
+- $*_s <= square_i$
 - $Pi x: T. T' <= Pi x: U. U'$ if $T equiv T'$ $U <= U'$
 これを用いて conversion rule が次のように変形されている。
 $
@@ -441,6 +457,8 @@ $
 
 = 帰納的な型
 
+
+
 = inconsistency がいつ起こるか
 ここでの inconsistency とは次のことをいう。
 #theorem("inconsistency")[
@@ -448,20 +466,91 @@ $
 ]
 ただ、 $forall P: "proposition". P$ がエンコードできるような体系なら、 inconsistency はだいたい、この型が項を持たないことに帰着する。
 
-== type in type まわりの話
+== type in type と impredicative
+=== type in type
 有名な話として、 PTS で $s in cal(S)$ であって $(s: s) in cal(A)$, $(s, s) in cal(R)$ となるものがあると矛盾する。
 MLTT の一番最初のものはこれでだめだとわかったらしい。
-
 （Girard's paradox）
 
+=== system U
 次に、 System $U$ と $U^-$ もあり、どっちも inconsistent
 System $U$ は PTS で次のように定義する。
 - $cal(S) = {*, square, triangle}$
-- $cal(A) = *: square, square, triangle$
+- $cal(A) = *: square, square: triangle$
 - $cal(R) = {(*, *), (*, square), (square, *), (triangle, *), (triangle, square)}$
 System $U^-$ はここから $(triangle, *)$ を抜く。
 
-== impredicative な sort
+=== impredicative sort
+PTS として、なにかしら $s_1: s_2$ のようになっているとき、
+$(s_2, s_1)$ なら $(Pi x: s_1. s_1 -> s_1): s_1$ となるから $s_1$ は impredicative な sort である。
+このような sort は hierarchy の一番下でなければいけない。
+つまり、 $(exists s_0): s_1$ になっているだけでだめ？
+（folklore っぽい）
+これは system $U^-$ の失敗と同じ。
+system $U^-$ だけみると、 $(exists s_0): s_1$ だけでは矛盾するとは限らなそうだが。
+ただ、ほかのと合わせ技で辛そう。
+
 == dependent sum
+$A times B$ の拡張として、 $x: A$ に依存して決まる $B(x)$ があるときに $x: A$ と $y: B(x)$ の組をペアにすることができそうだ。
+これが依存和になる。
+
+=== strong dependent sum と weak dependent sum
+==== strong dependent sum
+dependent sum はその除去に対応する項の作り方がいくつかある。
+strong dependent sum は次のような感じ
+#bnf(
+  Prod(
+    annot: "Term",
+    $t$,
+    {
+      Or[$...$][]
+      Or[$Sigma cal(V):t. t$][_dependent sum form_]
+      Or[$(t, t)$][_dependent sum intro_]
+      Or[$pi_1 t$][_projection 1_]
+      Or[$pi_2 t$][_projection 2_]
+    }
+  )
+)
+$pi_1 (x, y) -> x$ と $pi_2 (x, y) -> y$ が計算になる。
+
+$ #proof-tree(rule(
+  $Gamma tack (Sigma x: T. T'): s_3$,
+  $Gamma tack T: s_1$,
+  $Gamma, x: T tack T': s_2$,
+)) $
+$ #proof-tree(rule(
+  $Gamma tack (t_1, t_2): (Sigma x: T. T')$,
+  $Gamma tack (Sigma x: T. T'): s$,
+  $Gamma tack t_1: T$,
+  $Gamma tack t_2: T'[x := t_1]$,
+)) $
+$ #proof-tree(rule(
+  $Gamma tack pi_1 t: T$,
+  $Gamma tack t: (Sigma x: T. T')$,
+)) $
+$ #proof-tree(rule(
+  $Gamma tack pi_2 t: T'[x := pi_1 t]$,
+  $Gamma tack t: (Sigma x: T. T')$,
+)) $
+ここの $(s_1, s_2, s_3)$ でなにを許すかが問題になる。
+Luo の ECC で述べられているところによると、
+1. $(s_1, s_2, s_3) = (square, *, *)$ をやると矛盾する。
+2. $(s_1, s_2, s_3) = (*, *, *)$ は矛盾しない。
+3. $(s_1, s_2, s_3) = (square_i, square_j, square_(max(i,j)))$ みたいなものは矛盾しない。
+結局ここでも、 impredicativity が問題になっているようだ。
+
+==== weak dependent sum
+dependent sum を dependent sum なしの体系で再現しようとすると、 $pi_2$ はうまく作れない。
+逆に言うと、 dependent sum を $pi_2$ だけ除いたようなやつは適当にやっても矛盾しなさそう。
+$Sigma x: T. T' := Pi R: *_p. (Pi X: T. T' -> R) -> R$ みたいな感じでやる。
+
+つまり、 $pi_2 (e)$ を用いて $pi_1 (e)$ が $B$ を満たすことを証明できるような状況になっていると多分矛盾する？
+$(s_1, s_2, s_3) = (square, *, square)$ なら矛盾はしないと思うが。
+== retract について
+大きい universe を小さい universe に埋め込もうとすると変になる。
+特に、 $*_p$ と $"bool"$ を同一視するとか、べき集合を $A -> square$ で表して $Pi A: square. (A -> square)$ のようなべき操作をとるとか、
+=== classical logic + bool <=> Prop
+bool は単に帰納的な型として $*_s$ に定義されている。
+
 == large elimination
 == propositional irrelevance
