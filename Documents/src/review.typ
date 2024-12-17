@@ -29,6 +29,8 @@
   - PTS や inductive の話がわかりやすくのってる
 - https://homepages.inf.ed.ac.uk/wadler/papers/barendregt/pure-type-systems.pdf
   - introduction to generalized type systems, Henk Barendregt, 1991.
+- https://arxiv.org/pdf/2102.06513
+  - Complete Bidirectional Typing for the Calculus of Inductive Constructions
 - https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf
   - lambda calculi with types, Henk Barendregt, 1992.
 - https://alexandria.tue.nl/openaccess/Metis211677.pdf
