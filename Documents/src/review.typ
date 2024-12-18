@@ -34,6 +34,8 @@
   - formalization of the naive type theory
 - https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf
   - Extended Calculus of Constructions
+- https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/lmcs.pdf
+  - ON THE STRENGTH OF PROOF-IRRELEVANT TYPE THEORIES
 
 == 帰納型
 - http://cl-informatik.uibk.ac.at/teaching/ss19/itp/slides_vo/09.pdf
