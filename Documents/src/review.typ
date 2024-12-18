@@ -24,8 +24,6 @@
 - Advanced Topics in Types and Programming Languages
 - https://inria.hal.science/inria-00076024/document
   - Coquand, Thierry, and Gérard Huet. The calculus of constructions. Diss. INRIA, 1986.
-- http://cl-informatik.uibk.ac.at/teaching/ss19/itp/slides_vo/09.pdf
-  - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
 - https://homepages.inf.ed.ac.uk/wadler/papers/barendregt/pure-type-systems.pdf
   - introduction to generalized type systems, Henk Barendregt, 1991.
 - https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf
@@ -38,6 +36,10 @@
   - Extended Calculus of Constructions
 
 == 帰納型
+- http://cl-informatik.uibk.ac.at/teaching/ss19/itp/slides_vo/09.pdf
+  - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
+- https://www.cs.cmu.edu/~fp/papers/mfps89.pdf
+ - Inductively Defined Types in the Calculus of Constructions
 
 == strong normalization や type check について
 - https://arxiv.org/pdf/2102.06513
@@ -56,6 +58,8 @@
   - A variation of Reynolds-Hurkens Paradox
 - https://www.cs.ru.nl/~herman/PUBS/newnote.pdf
   - Inconsistency of classical logic in type theory
+- https://www.cs.ru.nl/~herman/PUBS/InconsAutSetTh.pdf
+  - Inconsistency of “Automath powersets” in impredicative type theory
 
 = Pure Type System
 == definition
