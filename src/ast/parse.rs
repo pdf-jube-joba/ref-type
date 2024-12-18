@@ -10,26 +10,68 @@ use super::*;
 #[grammar = "ast.pest"] // relative to src
 struct MyParser;
 
-pub fn parse_str(str: &str) -> Result<Exp, String> {
-    match MyParser::parse(Rule::expression, str) {
-        Ok(exp) => {
-            let Some(pair) = exp.peek() else {
-                return Err("no pair found".to_string());
-            };
-            let result = take_exp(pair);
-            match result {
-                Ok(exp) => Ok(exp),
-                Err(err) => Err(format!("{err}")),
+pub fn parse_command(str: &str) -> Result<ResultCommand, String> {
+    match MyParser::parse(Rule::command, str) {
+        Ok(command) => {
+            let p = command.into_iter();
+            let p = p.peek().unwrap();
+            take_command(p)
+        }
+        Err(err) => Err(format!("{err:?}")),
+    }
+}
+
+pub enum ResultCommand {
+    Parse(Exp),
+    Check(Exp, Exp, Result<(), String>),
+    Infer(Exp, Result<Exp, String>),
+}
+
+pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, String> {
+    debug_assert_eq!(pair.as_rule(), Rule::command);
+    let pair = pair.into_inner().peek().unwrap();
+    match pair.as_rule() {
+        Rule::command_parse => {
+            let mut ps = pair.into_inner();
+            let p = ps.next().unwrap();
+            match take_exp(p) {
+                Ok(exp) => Ok(ResultCommand::Parse(exp)),
+                Err(err) => Err(format!("{err:?}")),
             }
         }
-        Err(err) => Err(format!("{err}")),
+        _ => unreachable!(),
     }
 }
 
 type Res<E> = Result<E, error::Error<Rule>>;
 
 pub(crate) fn take_exp(pair: Pair<Rule>) -> Res<Exp> {
-    todo!()
+    debug_assert_eq!(pair.as_rule(), Rule::expression);
+    let ps = pair.into_inner();
+    let p = ps.peek().unwrap();
+    match p.as_rule() {
+        Rule::sort => {
+            let s = take_sort(p).unwrap();
+            Ok(Exp::Sort(s))
+        }
+        Rule::dependent_prod_form => {
+            let (x, e1, e2) = take_dependent_prod_form(p).unwrap();
+            Ok(Exp::Prod(x, Box::new(e1), Box::new(e2)))
+        }
+        Rule::dependent_prod_intro => {
+            let (x, e1, e2) = take_dependent_prod_intro(p).unwrap();
+            Ok(Exp::Lam(x, Box::new(e1), Box::new(e2)))
+        }
+        Rule::dependent_prod_elim => {
+            let (e1, e2) = take_dependent_prod_elim(p).unwrap();
+            Ok(Exp::App(Box::new(e1), Box::new(e2)))
+        }
+        Rule::identifier => {
+            let x = take_identifier(p).unwrap();
+            Ok(Exp::Var(x))
+        }
+        _ => unreachable!(),
+    }
 }
 
 pub(crate) fn take_sort(pair: Pair<Rule>) -> Res<Sort> {
@@ -64,6 +106,51 @@ pub(crate) fn take_var_annnot(pair: Pair<Rule>) -> Res<(Var, Exp)> {
     };
 
     Ok((v, e))
+}
+
+pub(crate) fn take_dependent_prod_form(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
+    debug_assert_eq!(pair.as_rule(), Rule::dependent_prod_form);
+    let mut ps = pair.into_inner();
+    let (v, e) = {
+        let p = ps.next().unwrap();
+        take_var_annnot(p)?
+    };
+
+    let e2 = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+
+    Ok((v, e, e2))
+}
+
+pub(crate) fn take_dependent_prod_intro(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
+    debug_assert_eq!(pair.as_rule(), Rule::dependent_prod_intro);
+    let mut ps = pair.into_inner();
+    let (v, e) = {
+        let p = ps.next().unwrap();
+        take_var_annnot(p)?
+    };
+
+    let e2 = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+
+    Ok((v, e, e2))
+}
+
+pub(crate) fn take_dependent_prod_elim(pair: Pair<Rule>) -> Res<(Exp, Exp)> {
+    let mut ps = pair.into_inner();
+    let e1 = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+    let e2 = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+    Ok((e1, e2))
 }
 
 #[cfg(test)]

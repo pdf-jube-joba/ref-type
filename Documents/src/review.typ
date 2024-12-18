@@ -31,6 +31,9 @@
   - introduction to generalized type systems, Henk Barendregt, 1991.
 - https://arxiv.org/pdf/2102.06513
   - Complete Bidirectional Typing for the Calculus of Inductive Constructions
+- https://pure.tue.nl/ws/portalfiles/portal/1688613/9314435.pdf
+  - A typechecker for bijective pure type systems
+  - context に type とその sort をいれた体系にして type check をいい感じにする
 - https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf
   - lambda calculi with types, Henk Barendregt, 1992.
 - https://alexandria.tue.nl/openaccess/Metis211677.pdf

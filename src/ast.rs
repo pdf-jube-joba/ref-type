@@ -30,11 +30,53 @@ impl Display for Var {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
     Set,
     Type,
     Prop,
+}
+
+impl Display for Sort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Sort::Set => "SORT",
+            Sort::Type => "TYPE",
+            Sort::Prop => "PROP",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+// functional なものしか考えないのでよい。
+impl Sort {
+    // functional なので、
+    // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
+    pub fn type_of_sort(self) -> Option<Self> {
+        if matches!(self, Sort::Prop | Sort::Set) {
+            Some(Sort::Type)
+        } else {
+            None
+        }
+    }
+
+    // functional なので、
+    // (s1, s2, s3) in R な s3 は (s1, s2) に対して一意 ... それを返す。
+    pub fn relation_of_sort(self, other: Self) -> Option<Self> {
+        match (self, other) {
+            // CoC 部分
+            (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
+            (Sort::Type, Sort::Type) => Some(Sort::Type),
+            (Sort::Type, Sort::Prop) => Some(Sort::Prop),
+            (Sort::Prop, Sort::Type) => Some(Sort::Type),
+            // Set を入れる分
+            (Sort::Set, Sort::Set) => Some(Sort::Set),
+            (Sort::Set, Sort::Type) => Some(Sort::Type),
+            (Sort::Set, Sort::Prop) => Some(Sort::Prop),
+            (Sort::Prop, Sort::Set) => None,
+            (Sort::Type, Sort::Set) => None, // Set は impredicative （これでいいのか?????）
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,4 +90,3 @@ pub enum Exp {
     // Take(Var, Box<Exp>, Box<Exp>),
     // Rec(Var, Var, Box<Exp>),
 }
-
