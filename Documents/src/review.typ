@@ -41,10 +41,13 @@
 == 帰納型
 - http://cl-informatik.uibk.ac.at/teaching/ss19/itp/slides_vo/09.pdf
   - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
+- https://coq.inria.fr/doc/V8.8.2/refman/language/cic.html#inductive-definitions
 - https://www.cs.cmu.edu/~fp/papers/mfps89.pdf
  - Inductively Defined Types in the Calculus of Constructions
 - https://link.springer.com/chapter/10.1007/BFb0037116
   - Inductive definitions in the system Coq rules and properties
+- https://cstheory.stackexchange.com/questions/36475/defining-primitive-recursive-functions-over-general-data-types
+
 
 == strong normalization や type check について
 - https://arxiv.org/pdf/2102.06513
@@ -68,6 +71,9 @@
   - Inconsistency of classical logic in type theory
 - https://www.cs.ru.nl/~herman/PUBS/InconsAutSetTh.pdf
   - Inconsistency of “Automath powersets” in impredicative type theory
+- https://core.ac.uk/reader/85216080
+  - Proof-irrelevance out of excluded-middle and choice in the calculus of constructions
+- https://github.com/coq/coq/wiki/Impredicative-Set
 
 = Pure Type System
 == definition
