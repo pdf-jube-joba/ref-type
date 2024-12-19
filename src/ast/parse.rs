@@ -5,6 +5,8 @@ use pest::{
 };
 use pest_derive::Parser;
 
+use crate::relation;
+
 use super::*;
 #[derive(Parser)]
 #[grammar = "ast.pest"] // relative to src
@@ -15,7 +17,7 @@ pub fn parse_command(str: &str) -> Result<ResultCommand, String> {
         Ok(command) => {
             let p = command.into_iter();
             let p = p.peek().unwrap();
-            take_command(p)
+            take_command(p).map_err(|err| format!("{err:?}"))
         }
         Err(err) => Err(format!("{err:?}")),
     }
@@ -27,19 +29,32 @@ pub enum ResultCommand {
     Infer(Exp, Result<Exp, String>),
 }
 
-pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, String> {
+pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, error::Error<Rule>> {
     debug_assert_eq!(pair.as_rule(), Rule::command);
     let pair = pair.into_inner().peek().unwrap();
     match pair.as_rule() {
         Rule::command_parse => {
             let mut ps = pair.into_inner();
-            let p = ps.next().unwrap();
-            match take_exp(p) {
-                Ok(exp) => Ok(ResultCommand::Parse(exp)),
-                Err(err) => Err(format!("{err:?}")),
-            }
+            let e = {
+                let p = ps.next().unwrap();
+                take_exp(p)?
+            };
+            Ok(ResultCommand::Parse(e))
         }
-        _ => unreachable!(),
+        Rule::command_check => {
+            let mut ps = pair.into_inner();
+            let e1 = {
+                let p = ps.next().unwrap();
+                take_exp(p)?
+            };
+            let e2 = {
+                let p = ps.next().unwrap();
+                take_exp(p)?
+            };
+            let r = relation::type_check(vec![], e1.clone(), e2.clone());
+            Ok(ResultCommand::Check(e1, e2, r))
+        }
+        _ => todo!("command not defined"),
     }
 }
 
@@ -69,6 +84,11 @@ pub(crate) fn take_exp(pair: Pair<Rule>) -> Res<Exp> {
         Rule::identifier => {
             let x = take_identifier(p).unwrap();
             Ok(Exp::Var(x))
+        }
+        Rule::expression_readable => {
+            let ps = p.into_inner();
+            let p = ps.peek().unwrap();
+            take_exp(p)
         }
         _ => unreachable!(),
     }

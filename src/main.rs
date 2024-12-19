@@ -20,7 +20,7 @@ fn main() {
                     println!("Parsed: {exp:?}");
                 },
                 ast::parse::ResultCommand::Check(e1, e2, r) => {
-                    
+                    println!("Checked: {e1:?}: {e2:?} ... {r:?}")
                 },
                 ast::parse::ResultCommand::Infer(_, _) => todo!(),
             },

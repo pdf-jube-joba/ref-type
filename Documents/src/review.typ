@@ -43,6 +43,8 @@
   - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
 - https://www.cs.cmu.edu/~fp/papers/mfps89.pdf
  - Inductively Defined Types in the Calculus of Constructions
+- https://link.springer.com/chapter/10.1007/BFb0037116
+  - Inductive definitions in the system Coq rules and properties
 
 == strong normalization や type check について
 - https://arxiv.org/pdf/2102.06513

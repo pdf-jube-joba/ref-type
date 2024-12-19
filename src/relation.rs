@@ -63,6 +63,40 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
             Box::new(subst_rec(*t1, fresh, substs.clone())),
             Box::new(subst_rec(*t2, fresh, substs.clone())),
         ),
+        Exp::IndTypeType {
+            type_name,
+            argument,
+        } => Exp::IndTypeType {
+            type_name,
+            argument: argument
+                .into_iter()
+                .map(|exp| subst_rec(exp, fresh, substs.clone()))
+                .collect(),
+        },
+        Exp::IndTypeCst {
+            type_name,
+            constructor_name,
+            argument,
+        } => Exp::IndTypeCst {
+            type_name,
+            constructor_name,
+            argument: argument
+                .into_iter()
+                .map(|exp| subst_rec(exp, fresh, substs.clone()))
+                .collect(),
+        },
+        Exp::IndTypeElim {
+            type_name,
+            eliminated_exp,
+            cases,
+        } => Exp::IndTypeElim {
+            type_name,
+            eliminated_exp: Box::new(subst_rec(*eliminated_exp, fresh, substs.clone())),
+            cases: cases
+                .into_iter()
+                .map(|(c, e)| (c, subst_rec(e, fresh, substs.clone())))
+                .collect(),
+        },
         _ => unimplemented!("subst is unimplemented"),
     }
 }
@@ -117,6 +151,13 @@ fn weak_reduction(term: Exp) -> Option<Exp> {
                 Some(Exp::App(Box::new(new_t1), Box::new(t2.as_ref().clone())))
             }
         },
+        Exp::IndTypeElim {
+            type_name,
+            eliminated_exp,
+            cases,
+        } => {
+            todo!()
+        }
         _ => None,
     }
 }
@@ -157,6 +198,48 @@ fn reduce(term: Exp) -> Option<Exp> {
                 }
             }
         },
+        Exp::IndTypeType {
+            type_name,
+            mut argument,
+        } => {
+            for arg in &mut argument {
+                if let Some(e) = reduce(arg.clone()) {
+                    *arg = e;
+                    return Some(Exp::IndTypeType {
+                        type_name,
+                        argument,
+                    });
+                }
+            }
+            None
+        }
+        Exp::IndTypeCst {
+            type_name,
+            constructor_name,
+            mut argument,
+        } => {
+            for arg in &mut argument {
+                if let Some(e) = reduce(arg.clone()) {
+                    *arg = e;
+                    return Some(Exp::IndTypeCst {
+                        type_name,
+                        constructor_name,
+                        argument,
+                    });
+                }
+            }
+            None
+        }
+        Exp::IndTypeElim {
+            type_name,
+            eliminated_exp,
+            cases,
+        } => {
+            if let Some(e) = reduce(*eliminated_exp) {
+                todo!()
+            }
+            todo!()
+        }
     }
 }
 
@@ -181,7 +264,7 @@ fn find_var<'a>(cxt: &'a Context, v: &'a Var) -> Option<&'a Exp> {
         .find_map(|(y, t)| if y == v { Some(t) } else { None })
 }
 
-fn type_check(cxt: Context, term1: Exp, term2: Exp) -> Result<(), String> {
+pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> Result<(), String> {
     let t = type_infer(cxt, term1)?;
     if beta_equiv(t.clone(), term2.clone()) {
         Ok(())
@@ -213,7 +296,7 @@ fn type_infered_to_prod(cxt: Context, term: Exp) -> Result<(Var, Exp, Exp), Stri
     }
 }
 
-fn type_infer(mut cxt: Context, term1: Exp) -> Result<Exp, String> {
+pub fn type_infer(mut cxt: Context, term1: Exp) -> Result<Exp, String> {
     match term1 {
         Exp::Sort(sort) => match sort.type_of_sort() {
             Some(s) => Ok(Exp::Sort(s)),

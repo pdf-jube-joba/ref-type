@@ -35,6 +35,7 @@ pub enum Sort {
     Set,
     Type,
     Prop,
+    // Program, // for computation
 }
 
 impl Display for Sort {
@@ -80,13 +81,52 @@ impl Sort {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct IndTypeName(String);
+
+pub struct IndTypeDefs {
+    signature: Vec<(Var, Exp)>,
+    constructor: Vec<IndTypeCst>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IndTypeCstName(String);
+
+pub struct IndTypeCst {
+    name_constructor: IndTypeCstName,
+    parameter: Vec<(Var, Exp)>,
+    return_signature: Vec<Exp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Exp {
     Sort(Sort),
     Var(Var),
     Prod(Var, Box<Exp>, Box<Exp>),
     Lam(Var, Box<Exp>, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
+    // inductive hoge は global context を見ながらやること
+    IndTypeType {
+        type_name: IndTypeName,
+        argument: Vec<Exp>,
+    },
+    IndTypeCst {
+        type_name: IndTypeName,
+        constructor_name: IndTypeCstName,
+        argument: Vec<Exp>,
+    },
+    IndTypeElim {
+        type_name: IndTypeName,
+        eliminated_exp: Box<Exp>,
+        cases: (Vec<(IndTypeCstName, Exp)>),
+    },
+    // これがほしいメインの部分
     // Sub(Var, Box<Exp>, Box<Exp>),
     // Take(Var, Box<Exp>, Box<Exp>),
     // Rec(Var, Var, Box<Exp>),
+}
+
+pub struct GlobalContext {
+    definitions: Vec<(Var, Exp)>,
+    assumptions: Vec<(Var, Exp)>,
+    inductive_definitions: Vec<IndTypeDefs>,
 }
