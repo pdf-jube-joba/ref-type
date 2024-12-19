@@ -19,41 +19,53 @@
 目的としては、「何をやると型システムがだめになるのか」を抑えるためである。
 
 = 資料
+== 一般
 - Types and Programming Languages
 - Advanced Topics in Types and Programming Languages
 - https://inria.hal.science/inria-00076024/document
   - Coquand, Thierry, and Gérard Huet. The calculus of constructions. Diss. INRIA, 1986.
-- http://cl-informatik.uibk.ac.at/teaching/ss19/itp/slides_vo/09.pdf
-  - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
-  - スライド
-  - PTS や inductive の話がわかりやすくのってる
 - https://homepages.inf.ed.ac.uk/wadler/papers/barendregt/pure-type-systems.pdf
   - introduction to generalized type systems, Henk Barendregt, 1991.
+
+- https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf
+  - lambda calculi with types, Henk Barendregt, 1992.
+- https://florisvandoorn.com/papers/struct_pts.pdf
+  - The Structural Theory of Pure Type Systems, Cody Roux and Floris van Doorn, 2014.
+- https://mimuw.edu.pl/media/uploads/doctorates/thesis-agnieszka-kozubek.pdf
+  - formalization of the naive type theory
+- https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf
+  - Extended Calculus of Constructions
+- https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/lmcs.pdf
+  - ON THE STRENGTH OF PROOF-IRRELEVANT TYPE THEORIES
+
+== 帰納型
+- http://cl-informatik.uibk.ac.at/teaching/ss19/itp/slides_vo/09.pdf
+  - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
+- https://www.cs.cmu.edu/~fp/papers/mfps89.pdf
+ - Inductively Defined Types in the Calculus of Constructions
+
+== strong normalization や type check について
 - https://arxiv.org/pdf/2102.06513
   - Complete Bidirectional Typing for the Calculus of Inductive Constructions
+- https://www.cambridge.org/core/services/aop-cambridge-core/content/view/348B6914C707F5282ED91E08AE47BDB8/S0956796800020037a.pdf/modular-proof-of-strong-normalization-for-the-calculus-of-constructions.pdf
+  - Modular proof of strong normalization for the calculus of constructions. Geuvers, Herman, and Mark-Jan Nederhof. 1991.
+- https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=23af5ccb0b9d053741aeea62e4c8ac911da52327
+  - Constructions Inductive Types and Strong Normalization
 - https://pure.tue.nl/ws/portalfiles/portal/1688613/9314435.pdf
   - A typechecker for bijective pure type systems
   - context に type とその sort をいれた体系にして type check をいい感じにする
-- https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf
-  - lambda calculi with types, Henk Barendregt, 1992.
+
+== inconsistency について
 - https://alexandria.tue.nl/openaccess/Metis211677.pdf
   - (In)consistency of Extensions of Higher Order Logic and Type Theory, Herman Geuvers, 2006.
 - https://arxiv.org/pdf/1911.08174
-  - FAILURE OF NORMALIZATION IN IMPREDICATIVE TYPE THEORY
- WITH PROOF-IRRELEVANT PROPOSITIONAL EQUALITY, ANDREAS ABEL, THIERRY COQUAND, 2020
-- https://florisvandoorn.com/papers/struct_pts.pdf
-  - The Structural Theory of Pure Type Systems, Cody Roux and Floris van Doorn, 2014.
-- https://www.cambridge.org/core/services/aop-cambridge-core/content/view/348B6914C707F5282ED91E08AE47BDB8/S0956796800020037a.pdf/modular-proof-of-strong-normalization-for-the-calculus-of-constructions.pdf
-  - Modular proof of strong normalization for the calculus of constructions. Geuvers, Herman, and Mark-Jan Nederhof. 1991.
+  - failure of normalization in impredicative type theory with proof-irrelevant propositional equality, ANDREAS ABEL, THIERRY COQUAND, 2020
 - https://arxiv.org/pdf/2308.16726
   - A variation of Reynolds-Hurkens Paradox
-- https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=23af5ccb0b9d053741aeea62e4c8ac911da52327
-  - Constructions Inductive Types and Strong Normalization
-- https://mimuw.edu.pl/media/uploads/doctorates/thesis-agnieszka-kozubek.pdf
-  - formalization of the naive type theory
-- https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf Extended Calculus of Constructions
 - https://www.cs.ru.nl/~herman/PUBS/newnote.pdf
   - Inconsistency of classical logic in type theory
+- https://www.cs.ru.nl/~herman/PUBS/InconsAutSetTh.pdf
+  - Inconsistency of “Automath powersets” in impredicative type theory
 
 = Pure Type System
 == definition
