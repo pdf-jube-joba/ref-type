@@ -47,7 +47,13 @@
 - https://link.springer.com/chapter/10.1007/BFb0037116
   - Inductive definitions in the system Coq rules and properties
 - https://cstheory.stackexchange.com/questions/36475/defining-primitive-recursive-functions-over-general-data-types
-
+- https://arxiv.org/pdf/2102.06513
+  - Complete Bidirectional Typing for the Calculus of Inductive Constructions
+  - これは recursor を pattern match を fix に分けている ... pattern 単体では primitive recursion の形をしていない
+- https://drops.dagstuhl.de/storage/00lipics/lipics-vol108-fscd2018/LIPIcs.FSCD.2018.29/LIPIcs.FSCD.2018.29.pdf
+  - Cumulative Inductive Types In Coq
+- https://link.springer.com/content/pdf/10.1007/3-540-52335-9_47.pdf
+  - Inductively defined types 
 
 == strong normalization や type check について
 - https://arxiv.org/pdf/2102.06513
