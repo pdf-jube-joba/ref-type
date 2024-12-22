@@ -43,10 +43,11 @@
   - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade
 - https://coq.inria.fr/doc/V8.8.2/refman/language/cic.html#inductive-definitions
 - https://www.cs.cmu.edu/~fp/papers/mfps89.pdf
- - Inductively Defined Types in the Calculus of Constructions
+ - Frank Pfenning, Christine Paulin-Mohring. Inductively Defined Types in the Calculus of Constructions
 - https://link.springer.com/chapter/10.1007/BFb0037116
   - Inductive definitions in the system Coq rules and properties
 - https://cstheory.stackexchange.com/questions/36475/defining-primitive-recursive-functions-over-general-data-types
+- https://cs.stackexchange.com/questions/89706/how-to-derive-dependently-typed-eliminators
 - https://arxiv.org/pdf/2102.06513
   - Complete Bidirectional Typing for the Calculus of Inductive Constructions
   - これは recursor を pattern match を fix に分けている ... pattern 単体では primitive recursion の形をしていない
@@ -54,6 +55,10 @@
   - Cumulative Inductive Types In Coq
 - https://link.springer.com/content/pdf/10.1007/3-540-52335-9_47.pdf
   - Inductively defined types 
+- https://drops.dagstuhl.de/storage/00lipics/lipics-vol108-fscd2018/LIPIcs.FSCD.2018.29/LIPIcs.FSCD.2018.29.pdf
+  - Amin Timany. Cumulative Inductive Types In Coq
+- https://cs.au.dk/~timany/publications/files/2015_ICTAC_first_steps_cumind.pdf
+  - Amin Timany and Bart Jacobs. First Steps Towards Cumulative Inductive Types in CIC
 
 == strong normalization や type check について
 - https://arxiv.org/pdf/2102.06513
@@ -485,10 +490,43 @@ $
   $T <= U$,
 ))
 $
+これを cumulative という。
 
 = 帰納的な型
+mutualy でない inductive な型の定義は次のような感じ。
+（Frank Pfenning Christine Paulin-Mohring より）
+#let keyword(str) = $bold(#str)$
+$z$ や $x$ は変数で、 $s$ は sort で、それ以外は項である。
+$
+& keyword("inductive") a : (z_1: Q_1) -> ... -> (z_n: Q_n) -> s keyword("with") \
+& #h(10pt) c_1: (x_1: P_(1, 1)) -> ... -> (x_(k_1): P_(1, l_1)) -> a M_(1, 1) dots.c M_(1, n) \
+& #h(10pt) dots.v \
+& #h(10pt) c_k: (x_1: P_(k, 1)) -> ... -> (x_(k_1): P_(k, l_k)) -> a M_(k, 1) dots.c M_(k, n)\
+$
+こういう形をしていること自体は全然良い。
+気を付ける必要があるのが次のもの。
+- どうやって computation rule を定めるか
+- Coq とかである strictly positivity の条件について
 
+$c_1$ とかの名前はあまり関係なくて、 $a$ を変数とみると inductive な型を定めるなら、
+- type を定める ... これは $(z_1: Q_1) -> ...$ の部分でよい。
+- constructor を定める ... $a$: 変数に対しての $(x_1: P_1) -> ... -> (x_k: P_k) -> a M_1 ... M_n$ をとる。
+があればよい。
 
+== 定義
+Coquand と Paulin-Mohring の inductively defined types とか、Coq の reference を参考にする。
+項 $Phi(X)$ と書くのはやめてほしい。
+（項から項へのメタなやつなのか？？？多分違うと思ってるけど。 $X$ という変数を強調する意味で書いていると思うけど。）
+#definition[
+  $X$: 変数に対して $Phi$: 項が strictly positive であるとは、次のいずれかを満たすとき
+  - $Phi$ に $X$ があらわれない
+  - $Phi = X$ である
+  - $Phi = (x: K) -> Phi_0$ で $K$ は $X$ に含まれず $Phi_0$ は $X$ に対して strictly positive
+
+  $X$: 変数と $Theta$: 項に対して $Theta$ が constructor であるとは、次のいずれかを満たすとき
+  - $Theta = X$
+  - $Theta = (x: Phi) -> Theta_0$ で $Phi$ は $X$ に対して strictly positive
+]
 
 = inconsistency がいつ起こるか
 ここでの inconsistency とは次のことをいう。
