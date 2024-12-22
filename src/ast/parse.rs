@@ -1,42 +1,30 @@
-use pest::{
-    error,
-    iterators::{Pair, Pairs},
-    Parser,
-};
+use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
 use super::{inductives::*, *};
 
 #[derive(Default, Parser)]
 #[grammar = "ast.pest"] // relative to src
-struct MyParser {
-    global_context: GlobalContext,
-}
+pub struct MyParser;
 
 impl MyParser {
-    fn parse_code(str: &str) -> Result<ResultCommand, String> {
-        todo!()
+    pub fn parse_command(&self, code: &str) -> Result<Command, error::Error<Rule>> {
+        let mut r = MyParser::parse(Rule::command, code)?;
+        take_command(r.next().unwrap())
+    }
+    pub fn parse_new_command(&self, code: &str) -> Result<Command, error::Error<Rule>> {
+        let mut r = MyParser::parse(Rule::new_command, code)?;
+        take_command(r.next().unwrap())
     }
 }
 
-pub fn parse_command(str: &str) -> Result<ResultCommand, String> {
-    match MyParser::parse(Rule::command, str) {
-        Ok(command) => {
-            let p = command.into_iter();
-            let p = p.peek().unwrap();
-            take_command(p).map_err(|err| format!("{err:?}"))
-        }
-        Err(err) => Err(format!("{err:?}")),
-    }
-}
-
-pub enum ResultCommand {
+pub enum Command {
     Parse(Exp),
-    Check(Exp, Exp, Result<(), String>),
-    Infer(Exp, Result<Exp, String>),
+    Check(Exp, Exp),
+    Infer(Exp),
 }
 
-pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, error::Error<Rule>> {
+pub(crate) fn take_command(pair: Pair<Rule>) -> Result<Command, error::Error<Rule>> {
     debug_assert_eq!(pair.as_rule(), Rule::command);
     let pair = pair.into_inner().peek().unwrap();
     match pair.as_rule() {
@@ -46,7 +34,7 @@ pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, error::Err
                 let p = ps.next().unwrap();
                 take_exp(p)?
             };
-            Ok(ResultCommand::Parse(e))
+            Ok(Command::Parse(e))
         }
         Rule::command_check => {
             let mut ps = pair.into_inner();
@@ -58,9 +46,7 @@ pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, error::Err
                 let p = ps.next().unwrap();
                 take_exp(p)?
             };
-            // let r = relation::type_check(&GlobalContext::new(), e1.clone(), e2.clone());
-            // Ok(ResultCommand::Check(e1, e2, r))
-            todo!()
+            Ok(Command::Check(e1, e2))
         }
         _ => todo!("command not defined"),
     }
@@ -259,9 +245,64 @@ pub(crate) fn take_constructor_rec(pair: Pair<Rule>) -> Res<ConstructorType> {
     }
 }
 
+pub(crate) fn take_constructor_definition(pair: Pair<Rule>) -> Res<(String, ConstructorType)> {
+    debug_assert_eq!(pair.as_rule(), Rule::constructor_definition);
+    let mut ps = pair.into_inner();
+    let constructor_name = {
+        let p = ps.next().unwrap();
+        take_constructor_name(p)?
+    };
+    let constructor_type = {
+        let p = ps.next().unwrap();
+        take_constructor_rec(p)?
+    };
+    Ok((constructor_name, constructor_type))
+}
+
 pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<(IndTypeDefs, String, Vec<String>)> {
     debug_assert_eq!(pair.as_rule(), Rule::new_inductive);
-    todo!()
+    let mut ps = pair.into_inner();
+    let type_name = {
+        let p = ps.next().unwrap();
+        take_type_name(p)?
+    };
+    let variable = {
+        let p = ps.next().unwrap();
+        take_identifier(p)?
+    };
+    let signature = {
+        let p = ps.next().unwrap();
+        take_arity(p)?
+    };
+    let mut constructor = vec![];
+    let mut constructor_names = vec![];
+    for p in ps {
+        let (constructor_name, rec) = take_constructor_definition(p)?;
+        constructor.push(rec);
+        constructor_names.push(constructor_name);
+    }
+    let defs = IndTypeDefs {
+        variable,
+        signature,
+        constructor,
+    };
+    Ok((defs, type_name, constructor_names))
+}
+
+pub(crate) fn take_type_name(pair: Pair<Rule>) -> Res<String> {
+    debug_assert_eq!(pair.as_rule(), Rule::type_name);
+    let mut ps = pair.into_inner();
+    let p = ps.next().unwrap();
+    let name = p.as_str();
+    Ok(name.to_string())
+}
+
+pub(crate) fn take_constructor_name(pair: Pair<Rule>) -> Res<String> {
+    debug_assert_eq!(pair.as_rule(), Rule::constructor_name);
+    let mut ps = pair.into_inner();
+    let p = ps.next().unwrap();
+    let name = p.as_str();
+    Ok(name.to_string())
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use std::io::{BufRead, Read};
 
-use ref_type::ast::{self, parse::parse_command};
+use ref_type::ast::{self};
 
 fn main() {
     let stdin = std::io::stdin();
@@ -14,15 +14,17 @@ fn main() {
             return;
         }
 
-        match parse_command(&buf) {
+        let parser = ast::parse::MyParser;
+
+        match parser.parse_command(&buf) {
             Ok(command) => match command {
-                ast::parse::ResultCommand::Parse(exp) => {
-                    println!("Parsed: {exp:?}");
-                },
-                ast::parse::ResultCommand::Check(e1, e2, r) => {
-                    println!("Checked: {e1:?}: {e2:?} ... {r:?}")
-                },
-                ast::parse::ResultCommand::Infer(_, _) => todo!(),
+                ast::parse::Command::Parse(exp) => {
+                    println!("Parse: {exp:?}");
+                }
+                ast::parse::Command::Check(e1, e2) => {
+                    println!("Check: {e1:?}: {e2:?}")
+                }
+                ast::parse::Command::Infer(_) => todo!(),
             },
             Err(err) => {
                 println!("{err:?}")
