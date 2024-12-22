@@ -1,4 +1,4 @@
-use std::io::{BufRead, Read};
+use std::io::BufRead;
 
 use ref_type::ast::{self};
 

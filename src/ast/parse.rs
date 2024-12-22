@@ -12,9 +12,9 @@ impl MyParser {
         let mut r = MyParser::parse(Rule::command, code)?;
         take_command(r.next().unwrap())
     }
-    pub fn parse_new_command(&self, code: &str) -> Result<Command, error::Error<Rule>> {
-        let mut r = MyParser::parse(Rule::new_command, code)?;
-        take_command(r.next().unwrap())
+    pub fn parse_new_command(&self, code: &str) -> Result<NewCommand, error::Error<Rule>> {
+        let mut p = MyParser::parse(Rule::new_command, code)?.next().unwrap();
+        take_new_command(p)
     }
 }
 
@@ -259,6 +259,22 @@ pub(crate) fn take_constructor_definition(pair: Pair<Rule>) -> Res<(String, Cons
     Ok((constructor_name, constructor_type))
 }
 
+pub(crate) fn take_type_name(pair: Pair<Rule>) -> Res<String> {
+    debug_assert_eq!(pair.as_rule(), Rule::type_name);
+    let mut ps = pair.into_inner();
+    let p = ps.next().unwrap();
+    let name = p.as_str();
+    Ok(name.to_string())
+}
+
+pub(crate) fn take_constructor_name(pair: Pair<Rule>) -> Res<String> {
+    debug_assert_eq!(pair.as_rule(), Rule::constructor_name);
+    let mut ps = pair.into_inner();
+    let p = ps.next().unwrap();
+    let name = p.as_str();
+    Ok(name.to_string())
+}
+
 pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<(IndTypeDefs, String, Vec<String>)> {
     debug_assert_eq!(pair.as_rule(), Rule::new_inductive);
     let mut ps = pair.into_inner();
@@ -289,20 +305,38 @@ pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<(IndTypeDefs, String, 
     Ok((defs, type_name, constructor_names))
 }
 
-pub(crate) fn take_type_name(pair: Pair<Rule>) -> Res<String> {
-    debug_assert_eq!(pair.as_rule(), Rule::type_name);
-    let mut ps = pair.into_inner();
-    let p = ps.next().unwrap();
-    let name = p.as_str();
-    Ok(name.to_string())
+pub(crate) fn take_new_assumption(pair: Pair<Rule>) -> Res<(Var, Exp)> {
+    todo!()
 }
 
-pub(crate) fn take_constructor_name(pair: Pair<Rule>) -> Res<String> {
-    debug_assert_eq!(pair.as_rule(), Rule::constructor_name);
-    let mut ps = pair.into_inner();
-    let p = ps.next().unwrap();
-    let name = p.as_str();
-    Ok(name.to_string())
+pub(crate) fn take_new_definition(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
+    todo!()
+}
+
+pub enum NewCommand {
+    Definition(Var, Exp, Exp),
+    Assumption(Var, Exp),
+    Inductive((IndTypeDefs, String, Vec<String>)),
+}
+
+pub(crate) fn take_new_command(pair: Pair<Rule>) -> Res<NewCommand> {
+    debug_assert_eq!(pair.as_rule(), Rule::new_command);
+    let p = pair.into_inner().next().unwrap();
+    match p.as_rule() {
+        Rule::new_definition => {
+            let a = take_new_definition(p)?;
+            Ok(NewCommand::Definition(a.0, a.1, a.2))
+        }
+        Rule::new_assumption => {
+            let a = take_new_assumption(p)?;
+            Ok(NewCommand::Assumption(a.0, a.1))
+        }
+        Rule::new_inductive => {
+            let a = take_new_inductive(p)?;
+            Ok(NewCommand::Inductive(a))
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[cfg(test)]
