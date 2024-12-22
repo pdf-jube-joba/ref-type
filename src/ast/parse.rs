@@ -5,12 +5,19 @@ use pest::{
 };
 use pest_derive::Parser;
 
-use crate::relation;
+use super::{inductives::*, *};
 
-use super::*;
-#[derive(Parser)]
+#[derive(Default, Parser)]
 #[grammar = "ast.pest"] // relative to src
-struct MyParser;
+struct MyParser {
+    global_context: GlobalContext,
+}
+
+impl MyParser {
+    fn parse_code(str: &str) -> Result<ResultCommand, String> {
+        todo!()
+    }
+}
 
 pub fn parse_command(str: &str) -> Result<ResultCommand, String> {
     match MyParser::parse(Rule::command, str) {
@@ -162,6 +169,7 @@ pub(crate) fn take_dependent_prod_intro(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)
 }
 
 pub(crate) fn take_dependent_prod_elim(pair: Pair<Rule>) -> Res<(Exp, Exp)> {
+    debug_assert_eq!(pair.as_rule(), Rule::dependent_prod_elim);
     let mut ps = pair.into_inner();
     let e1 = {
         let p = ps.next().unwrap();
@@ -172,6 +180,88 @@ pub(crate) fn take_dependent_prod_elim(pair: Pair<Rule>) -> Res<(Exp, Exp)> {
         take_exp(p)?
     };
     Ok((e1, e2))
+}
+
+pub(crate) fn take_arity(pair: Pair<Rule>) -> Res<Arity> {
+    debug_assert_eq!(pair.as_rule(), Rule::arity);
+    let mut ps = pair.into_inner();
+    let mut signature = vec![];
+    loop {
+        let p = ps.next().unwrap();
+        if p.as_rule() == Rule::var_annot {
+            let exp = take_var_annnot(p)?;
+            signature.push(exp);
+        } else {
+            let sort = take_sort(p)?;
+            let arity = Arity::new(signature, sort);
+            return Ok(arity.unwrap()); // あとでちゃんとエラー分ける
+        }
+    }
+}
+
+pub(crate) fn take_terminate(pair: Pair<Rule>) -> Res<(Var, Vec<Exp>)> {
+    debug_assert_eq!(pair.as_rule(), Rule::constructor_terminate);
+    let mut ps = pair.into_inner();
+    let v = {
+        let p = ps.next().unwrap();
+        take_identifier(p)?
+    };
+    let mut argument = vec![];
+    for p in ps {
+        let e = take_exp(p)?;
+        argument.push(e)
+    }
+    Ok((v, argument))
+}
+
+pub(crate) fn take_positive(pair: Pair<Rule>) -> Res<Positive> {
+    debug_assert_eq!(pair.as_rule(), Rule::positive);
+    let mut ps = pair.into_inner();
+    let mut signature = vec![];
+    loop {
+        let p = ps.next().unwrap();
+        if p.as_rule() == Rule::var_annot {
+            let exp = take_var_annnot(p)?;
+            signature.push(exp);
+        } else {
+            let (variable, exps) = take_terminate(p)?;
+            return Ok(Positive {
+                parameter: signature,
+                variable,
+                exps,
+            });
+        }
+    }
+}
+
+pub(crate) fn take_constructor_rec(pair: Pair<Rule>) -> Res<ConstructorType> {
+    debug_assert_eq!(pair.as_rule(), Rule::constructor_rec);
+    let mut ps = pair.into_inner();
+    let p = ps.next().unwrap();
+    match p.as_rule() {
+        Rule::constructor_terminate => {
+            let terminate = take_terminate(p)?;
+            Ok(ConstructorType::End(terminate.0, terminate.1))
+        }
+        Rule::constructor_non_occur => {
+            let mut ps = p.into_inner();
+            let (v, a) = take_var_annnot(ps.next().unwrap())?;
+            let rem = take_constructor_rec(ps.next().unwrap())?;
+            Ok(ConstructorType::Map((v, a), Box::new(rem)))
+        }
+        Rule::constructor_positive_occur => {
+            let mut ps = p.into_inner();
+            let positive = take_positive(ps.next().unwrap())?;
+            let rem = take_constructor_rec(ps.next().unwrap())?;
+            Ok(ConstructorType::PosToCst(positive, Box::new(rem)))
+        }
+        _ => unreachable!("constructor_rec 中"),
+    }
+}
+
+pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<(IndTypeDefs, String, Vec<String>)> {
+    debug_assert_eq!(pair.as_rule(), Rule::new_inductive);
+    todo!()
 }
 
 #[cfg(test)]

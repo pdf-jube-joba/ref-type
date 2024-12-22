@@ -7,11 +7,11 @@ sort = { sort_set | sort_prop | sort_type }
 
 // variable は小文字始まり
 identifier = @{ ('a'..'z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+unused_identifier = @{"_"}
 
+// inductive_type と constructor の定義
 type_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
-constructor_name = @{
-    type_name ~  ('A'..'A') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')*
-}
+constructor_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
 
 var_annot = { identifier ~ ":" ~ expression }
 
@@ -28,8 +28,24 @@ dependent_prod_elim = {
     "(" ~ expression ~ expression ~ ")"
 }
 
+inductive_type = {
+    type_name ~ expression*
+}
+
+inductive_constructor = {
+    type_name ~ "::" ~ constructor_name ~ expression*
+}
+
+inductive_eliminator = {
+    "elim" ~ expression ~ "return" ~ expression ~ "with" ~ expression*
+}
+
 subset_type = {
     "{" ~ var_annot ~ "|" ~ expression ~ "}"
+}
+
+power_type = {
+    "Pow" ~ expression
 }
 
 take_exp = {
@@ -46,6 +62,9 @@ expression = {
     | dependent_prod_intro
     | dependent_prod_elim
     | identifier
+    | inductive_type
+    | inductive_constructor
+    | inductive_eliminator
     | expression_readable
 }
 
@@ -56,9 +75,45 @@ COMMAND_TERMINATE = _{ "." }
 new_definition = { "def" ~ identifier ~ ":=" ~ expression ~ COMMAND_TERMINATE }
 new_assumption = { "assum" ~ identifier ~ ":" ~ expression ~ COMMAND_TERMINATE }
 
+new_inductive = {
+    "inductive" ~ type_name ~ "(" ~ identifier ~ ")" ~ arity ~ "with" ~ constructor_definition ~ COMMAND_TERMINATE
+}
+
+arity = {
+    ( "(" ~ var_annot ~ ")" ~ "->" )* ~ sort
+}
+
+constructor_terminate = {
+    identifier ~ expression*
+}
+
+positive = {
+    ( "(" ~ var_annot ~ ")" ~ "->" )*
+    ~ constructor_terminate
+}
+
+constructor_non_occur = {
+    "(" ~ var_annot ~ ")" ~ "->" ~ constructor_rec
+}
+
+constructor_positive_occur = {
+    positive ~ "->" ~ constructor_rec
+}
+
+constructor_rec = {
+    | constructor_terminate
+    | constructor_non_occur
+    | constructor_positive_occur
+}
+
+constructor_definition = {
+    constructor_name ~ ":" ~ constructor_rec
+}
+
 new_command = {
     | new_definition
     | new_assumption
+    | new_inductive
 }
 
 command_parse = { "Parse" ~ expression ~ COMMAND_TERMINATE }

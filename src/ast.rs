@@ -5,6 +5,64 @@ use std::{
 
 pub mod parse;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Exp {
+    Sort(Sort),
+    Var(Var),
+    Prod(Var, Box<Exp>, Box<Exp>),
+    Lam(Var, Box<Exp>, Box<Exp>),
+    App(Box<Exp>, Box<Exp>),
+    // inductive hoge は global context を見ながらやること
+    IndTypeType {
+        type_name: String,
+        argument: Vec<Exp>,
+    },
+    IndTypeCst {
+        type_name: String,
+        projection: usize,
+        argument: Vec<Exp>,
+    },
+    IndTypeElim {
+        type_name: String,
+        eliminated_exp: Box<Exp>,
+        return_type: Box<Exp>,
+        cases: Vec<Exp>,
+    },
+    // これがほしいメインの部分
+    // Proof(Box<Exp>), // Proof t
+    // Id(Box<Exp>, Box<Exp>, Box<Exp>) // a =_A b
+    // Refl(Box<Exp>, Box<Exp>) // refl_A a
+    // Sub(Var, Box<Exp>, Box<Exp>), // { x : A | P }
+    // Pow(Box<Exp>), // Power X
+    // Pred(Box<Exp>, Box<Exp>), // Pred X
+    // Take(Var, Box<Exp>, Box<Exp>), // take x:A. t
+    // Rec(Var, Var, Box<Exp>), // rec f x = m
+}
+
+pub mod utils {
+    use super::*;
+    pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
+        for v in v {
+            a = Exp::App(Box::new(a), Box::new(v))
+        }
+        a
+    }
+
+    pub fn assoc_prod(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
+        while let Some((x, a)) = v.pop() {
+            e = Exp::Prod(x, Box::new(a), Box::new(e));
+        }
+        e
+    }
+
+    pub fn assoc_lam(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
+        while let Some((x, a)) = v.pop() {
+            e = Exp::Lam(x, Box::new(a), Box::new(e));
+        }
+        e
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Var {
     Str(String),
@@ -18,6 +76,12 @@ where
 {
     fn from(value: S) -> Self {
         Var::Str(value.as_ref().to_string())
+    }
+}
+
+impl From<Var> for Exp {
+    fn from(value: Var) -> Self {
+        Exp::Var(value)
     }
 }
 
@@ -54,6 +118,12 @@ impl Display for Sort {
     }
 }
 
+impl From<Sort> for Exp {
+    fn from(value: Sort) -> Self {
+        Exp::Sort(value)
+    }
+}
+
 // functional なものしか考えないのでよい。
 impl Sort {
     // functional なので、
@@ -80,175 +150,157 @@ impl Sort {
             (Sort::Set, Sort::Type) => Some(Sort::Type),
             (Sort::Set, Sort::Prop) => Some(Sort::Prop),
             (Sort::Prop, Sort::Set) => None,
-            (Sort::Type, Sort::Set) => None, // Set は predicative （これでいいのか?????）
+            (Sort::Type, Sort::Set) => None, // Set は predicative
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+// inductive definition には自由変数がないことを仮定する
+pub mod inductives {
+    use super::{utils::*, *};
 
-pub struct Arity {
-    pub signature: Vec<(Var, Exp)>,
-    pub sort: Sort,
-}
-
-impl From<Arity> for Exp {
-    fn from(Arity { signature, sort }: Arity) -> Self {
-        assoc_prod(signature, Exp::Sort(sort))
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Arity {
+        pub signature: Vec<(Var, Exp)>,
+        pub sort: Sort,
     }
-}
 
-pub struct IndTypeDefs {
-    pub variable: Var,
-    pub signature: Arity,
-    pub constructor: Vec<Constructor>,
-}
-
-// variable = X, parameter = [(y_1, M_1), ..., (y_k, M_k)], exps = [N_1, ... N_l]
-// => (y_1: M_1) -> ... -> (y_k: M_k) -> (X N_1 ... N_l)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Positive {
-    pub variable: Var,
-    pub parameter: Vec<(Var, Exp)>,
-    pub exps: Vec<Exp>,
-}
-
-impl Positive {
-    fn new(variable: Var, parameter: Vec<(Var, Exp)>, exps: Vec<Exp>) -> Result<Self, String> {
-        if parameter
-            .iter()
-            .any(|(_, e)| e.free_variable().contains(&variable))
-        {
-            return Err(format!("{parameter:?} contains {variable:?}"));
-        }
-        Ok(Self {
-            variable,
-            parameter,
-            exps,
-        })
-    }
-}
-
-impl From<Positive> for Exp {
-    fn from(
-        Positive {
-            variable,
-            parameter,
-            exps,
-        }: Positive,
-    ) -> Self {
-        assoc_prod(parameter, assoc_apply(Exp::Var(variable), exps))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Constructor {
-    pub variable: Var,
-    pub constructor_type: ConstructorType,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ConstructorType {
-    End(Var, Vec<Exp>), // X m1 ... mk
-    Map((Var, Exp), Box<ConstructorType>),
-    PosToCst(Positive, Box<ConstructorType>),
-}
-
-impl ConstructorType {
-    pub fn eliminator_type(&self, q: Exp, c: Exp) -> Exp {
-        match self {
-            ConstructorType::End(x, a) => {
-                let v = assoc_apply(q, a.clone());
-                Exp::App(Box::new(v), Box::new(c))
-            }
-            ConstructorType::Map((x, a), m) => {
-                let b = Box::new(m.eliminator_type(q, c));
-                Exp::Prod(x.clone(), Box::new(a.clone()), b)
-            }
-            ConstructorType::PosToCst(p, n) => {
-                let new_var = Var::Str("new_cons".to_string()); // ちゃんとした変数をあとで作る
-                let Positive {
-                    variable,
-                    parameter,
-                    exps,
-                } = p.clone();
-                let neg = n.eliminator_type(q.clone(), c.clone());
-                let pp = assoc_apply(
-                    Exp::Var(new_var.clone()),
-                    parameter.iter().map(|(x, e)| Exp::Var(x.clone())).collect(),
-                );
-                let q = assoc_apply(q.clone(), exps.clone());
-                let pos = assoc_prod(parameter.clone(), Exp::App(Box::new(q), Box::new(pp)));
-
-                Exp::Prod(
-                    new_var,
-                    Box::new(p.clone().into()),
-                    Box::new(Exp::Prod(Var::Unused, Box::new(pos), Box::new(neg))),
-                )
+    impl Arity {
+        pub fn new(signature: Vec<(Var, Exp)>, sort: Sort) -> Result<Self, String> {
+            let arity = Arity { signature, sort };
+            let as_exp: Exp = arity.clone().into();
+            if as_exp.free_variable().is_empty() {
+                Ok(arity)
+            } else {
+                Err(format!("arity {arity:?} contains free variables"))
             }
         }
     }
 
-    pub fn recursor(&self, ff: Exp, f: Exp) -> Exp {
-        match self {
-            ConstructorType::End(_, _) => f,
-            ConstructorType::Map((x, a), n) => {
-                Exp::Lam(x.clone(), Box::new(a.clone()), Box::new(n.recursor(ff, f)))
-            }
-            ConstructorType::PosToCst(p, n) => {
-                let new_var_p = Var::Str("new_cons".to_string()); // ちゃんとした変数をあとで作る
-                let Positive {
-                    variable,
-                    parameter,
-                    exps,
-                } = p.clone();
-                let ff = {
-                    let p = assoc_apply(
-                        Exp::Var(new_var_p.clone()),
-                        parameter.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
+    impl From<Arity> for Exp {
+        fn from(Arity { signature, sort }: Arity) -> Self {
+            assoc_prod(signature, Exp::Sort(sort))
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct IndTypeDefs {
+        pub variable: Var,
+        pub signature: Arity,
+        pub constructor: Vec<ConstructorType>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum ConstructorType {
+        End(Var, Vec<Exp>), // X m1 ... mk
+        Map((Var, Exp), Box<ConstructorType>),
+        PosToCst(Positive, Box<ConstructorType>),
+    }
+
+    impl ConstructorType {
+        pub fn eliminator_type(&self, q: Exp, c: Exp) -> Exp {
+            match self {
+                ConstructorType::End(x, a) => {
+                    let v = assoc_apply(q, a.clone());
+                    Exp::App(Box::new(v), Box::new(c))
+                }
+                ConstructorType::Map((x, a), m) => {
+                    let b = Box::new(m.eliminator_type(q, c));
+                    Exp::Prod(x.clone(), Box::new(a.clone()), b)
+                }
+                ConstructorType::PosToCst(p, n) => {
+                    let new_var = Var::Str("new_cons".to_string()); // ちゃんとした変数をあとで作る
+                    let Positive {
+                        variable,
+                        parameter,
+                        exps,
+                    } = p.clone();
+                    let neg = n.eliminator_type(q.clone(), c.clone());
+                    let pp = assoc_apply(
+                        Exp::Var(new_var.clone()),
+                        parameter.iter().map(|(x, e)| Exp::Var(x.clone())).collect(),
                     );
-                    let ff = assoc_apply(ff, exps.clone());
-                    Exp::App(Box::new(ff), Box::new(p))
-                };
-                let new_f = {
-                    let u = assoc_lam(parameter.clone(), ff.clone());
-                    let v = Exp::App(Box::new(f), Box::new(Exp::Var(new_var_p.clone())));
-                    Exp::App(Box::new(v), Box::new(u))
-                };
-                let rec = n.recursor(ff, new_f);
-                Exp::Lam(new_var_p.clone(), Box::new(p.clone().into()), Box::new(rec))
+                    let q = assoc_apply(q.clone(), exps.clone());
+                    let pos = assoc_prod(parameter.clone(), Exp::App(Box::new(q), Box::new(pp)));
+
+                    Exp::Prod(
+                        new_var,
+                        Box::new(p.clone().into()),
+                        Box::new(Exp::Prod(Var::Unused, Box::new(pos), Box::new(neg))),
+                    )
+                }
+            }
+        }
+
+        pub fn recursor(&self, ff: Exp, f: Exp) -> Exp {
+            match self {
+                ConstructorType::End(_, _) => f,
+                ConstructorType::Map((x, a), n) => {
+                    Exp::Lam(x.clone(), Box::new(a.clone()), Box::new(n.recursor(ff, f)))
+                }
+                ConstructorType::PosToCst(p, n) => {
+                    let new_var_p = Var::Str("new_cons".to_string()); // ちゃんとした変数をあとで作る
+                    let Positive {
+                        variable,
+                        parameter,
+                        exps,
+                    } = p.clone();
+                    let ff = {
+                        let p = assoc_apply(
+                            Exp::Var(new_var_p.clone()),
+                            parameter.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
+                        );
+                        let ff = assoc_apply(ff, exps.clone());
+                        Exp::App(Box::new(ff), Box::new(p))
+                    };
+                    let new_f = {
+                        let u = assoc_lam(parameter.clone(), ff.clone());
+                        let v = Exp::App(Box::new(f), Box::new(Exp::Var(new_var_p.clone())));
+                        Exp::App(Box::new(v), Box::new(u))
+                    };
+                    let rec = n.recursor(ff, new_f);
+                    Exp::Lam(new_var_p.clone(), Box::new(p.clone().into()), Box::new(rec))
+                }
             }
         }
     }
-}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Exp {
-    Sort(Sort),
-    Var(Var),
-    Prod(Var, Box<Exp>, Box<Exp>),
-    Lam(Var, Box<Exp>, Box<Exp>),
-    App(Box<Exp>, Box<Exp>),
-    // inductive hoge は global context を見ながらやること
-    IndTypeType {
-        type_name: String,
-        argument: Vec<Exp>,
-    },
-    IndTypeCst {
-        type_name: String,
-        projection: usize,
-        argument: Vec<Exp>,
-    },
-    IndTypeElim {
-        type_name: String,
-        eliminated_exp: Box<Exp>,
-        return_type: Box<Exp>,
-        cases: Vec<Exp>,
-    },
-    // これがほしいメインの部分
-    // Sub(Var, Box<Exp>, Box<Exp>),
-    // Take(Var, Box<Exp>, Box<Exp>),
-    // Rec(Var, Var, Box<Exp>),
+    // variable = X, parameter = [(y_1, M_1), ..., (y_k, M_k)], exps = [N_1, ... N_l]
+    // => (y_1: M_1) -> ... -> (y_k: M_k) -> (X N_1 ... N_l)
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Positive {
+        pub parameter: Vec<(Var, Exp)>,
+        pub variable: Var,
+        pub exps: Vec<Exp>,
+    }
+
+    impl Positive {
+        fn new(variable: Var, parameter: Vec<(Var, Exp)>, exps: Vec<Exp>) -> Result<Self, String> {
+            if parameter
+                .iter()
+                .any(|(_, e)| e.free_variable().contains(&variable))
+            {
+                return Err(format!("{parameter:?} contains {variable:?}"));
+            }
+            Ok(Self {
+                variable,
+                parameter,
+                exps,
+            })
+        }
+    }
+
+    impl From<Positive> for Exp {
+        fn from(
+            Positive {
+                variable,
+                parameter,
+                exps,
+            }: Positive,
+        ) -> Self {
+            assoc_prod(parameter, assoc_apply(Exp::Var(variable), exps))
+        }
+    }
 }
 
 impl Exp {
@@ -277,7 +329,7 @@ impl Exp {
                 type_name,
                 argument,
             } => argument
-                .into_iter()
+                .iter()
                 .map(|e| e.free_variable())
                 .flatten()
                 .collect(),
@@ -306,42 +358,17 @@ impl Exp {
     }
 }
 
-pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
-    for v in v {
-        a = Exp::App(Box::new(a), Box::new(v))
-    }
-    a
-}
-
-pub fn assoc_prod(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
-    while let Some((x, a)) = v.pop() {
-        e = Exp::Prod(x, Box::new(a), Box::new(e));
-    }
-    e
-}
-
-pub fn assoc_lam(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
-    while let Some((x, a)) = v.pop() {
-        e = Exp::Lam(x, Box::new(a), Box::new(e));
-    }
-    e
-}
-
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GlobalContext {
-    definitions: Vec<(Var, Exp)>,
-    assumptions: Vec<(Var, Exp)>,
-    inductive_definitions: HashMap<String, IndTypeDefs>,
+    inductive_definitions: HashMap<String, (Vec<String>, inductives::IndTypeDefs)>,
 }
 
 impl GlobalContext {
-    pub fn new() -> Self {
-        Self {
-            definitions: vec![],
-            assumptions: vec![],
-            inductive_definitions: HashMap::new(),
-        }
+    pub fn indtype_defs(&self, type_name: &str) -> Option<&inductives::IndTypeDefs> {
+        self.inductive_definitions.get(type_name).map(|s| &s.1)
     }
-    pub fn indtype_defs(&self, s: &str) -> Option<&IndTypeDefs> {
-        self.inductive_definitions.get(s)
+    pub fn indtype_constructor(&self, type_name: &str, constructor_name: &str) -> Option<usize> {
+        let (cs, _) = self.inductive_definitions.get(type_name)?;
+        cs.iter().position(|c_name| c_name == constructor_name)
     }
 }

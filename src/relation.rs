@@ -171,7 +171,7 @@ fn weak_reduction(cxt: &GlobalContext, term: Exp) -> Option<Exp> {
             if type_name != type_name2 {
                 return None;
             }
-            let IndTypeDefs {
+            let inductives::IndTypeDefs {
                 variable,
                 signature,
                 constructor,
@@ -186,7 +186,7 @@ fn weak_reduction(cxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     return_type: return_type.clone(),
                     cases: cases.clone(),
                 };
-                assoc_lam(
+                utils::assoc_lam(
                     signature.signature.iter().cloned().collect(),
                     Exp::Lam(
                         new_var_c,
@@ -202,10 +202,8 @@ fn weak_reduction(cxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     ),
                 )
             };
-            let t = constructor[projection]
-                .constructor_type
-                .recursor(cases[projection].clone(), rec);
-            Some(assoc_apply(t, argument))
+            let t = constructor[projection].recursor(cases[projection].clone(), rec);
+            Some(utils::assoc_apply(t, argument))
         }
         _ => None,
     }
