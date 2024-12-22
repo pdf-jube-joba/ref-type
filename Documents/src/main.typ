@@ -548,6 +548,26 @@ $a: A$ に対して $[a]_(A \/ R) := {x: A | x R a}$ とする。
 
 これで商集合が記述できた。
 
+== さらにいろいろ付け加える
+べき集合と部分集合を加えたので、位相空間論とかができるかと思ったが、
+それをやるためには $O_1: cal(P)(X), O_2: cal(P)(X)$ に対して $O_1 sect O_2$ が記述できないのでつらい。
+やりたいのは
+- $sect_lambda O_lambda$ や $union_lambda O_lambda$ に対する reasonable な解釈
+- 型レベルではなくても、 $x: X$ と $O: cal(P)(X)$ に対して $x in O$ を表すような述語をつくる
+
+これをやるためには、 $O: cal(P)(X)$ に対して、「$O$ に含まれるための述語を取り出す」必要がある。
+これを加える。
+term を $"Pred"_t t$ と拡張し、
+$"Pred"_A {x: A | P} equiv P$ とする。
+
+型システムに追加するのは、
+- $tack B: cal(P)(X)$ なら $"Pred"_X B: X -> *_p$
+  - $"Pred"$ 自体は $((X: *_s) -> (B: cal(P)(X)) -> *_p): *_p$ みたいになっている。
+- $tack B: cal(P)(X)$, $tack x: B$ なら $tack.double ("Pred"_X B) x$
+
+これで $O_1 sect O_2 := {x: X | "Pred"_X O_1 x and "Pred"_X O_2 x}$ と書ける。
+また、 $x: O_1 sect O_2$ なら $x: O_1$ になる？
+
 = non structural recursion を楽に記述する
 division を計算するのに euclidean algorithm（ユークリッド互除法）があるが、
 これは coq では楽に書けない。

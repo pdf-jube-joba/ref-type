@@ -51,8 +51,9 @@ pub(crate) fn take_command(pair: Pair<Rule>) -> Result<ResultCommand, error::Err
                 let p = ps.next().unwrap();
                 take_exp(p)?
             };
-            let r = relation::type_check(vec![], e1.clone(), e2.clone());
-            Ok(ResultCommand::Check(e1, e2, r))
+            // let r = relation::type_check(&GlobalContext::new(), e1.clone(), e2.clone());
+            // Ok(ResultCommand::Check(e1, e2, r))
+            todo!()
         }
         _ => todo!("command not defined"),
     }
