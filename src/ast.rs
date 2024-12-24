@@ -14,16 +14,16 @@ pub enum Exp {
     App(Box<Exp>, Box<Exp>),
     // inductive hoge は global context を見ながらやること
     IndTypeType {
-        type_name: String,
+        ind_type_def: inductives::IndTypeDefs,
         argument: Vec<Exp>,
     },
     IndTypeCst {
-        type_name: String,
+        ind_type_def: inductives::IndTypeDefs,
         projection: usize,
         argument: Vec<Exp>,
     },
     IndTypeElim {
-        type_name: String,
+        ind_type_def: inductives::IndTypeDefs,
         eliminated_exp: Box<Exp>,
         return_type: Box<Exp>,
         cases: Vec<Exp>,
@@ -216,15 +216,14 @@ pub mod inductives {
     }
 
     impl ConstructorType {
-        pub fn free_variable(&self) -> HashSet<Var> {
-            match self {
-                ConstructorType::End(var, vec) => vec.iter().flat_map(|e| e.free_variable()).collect(),
-                ConstructorType::Map((v, e), constructor_type) => {
-                    let mut e = e.free_variable();
-                    todo!()
-                },
-                ConstructorType::PosToCst(positive, constructor_type) => todo!(),
-            }
+        pub fn new_end(var: Var, exps: Vec<Exp>) -> Result<Self, String> {
+            todo!()
+        }
+        pub fn new_map((var, exp): (Var, Exp), cst: ConstructorType) -> Result<Self, String> {
+            todo!()
+        }
+        pub fn new_pos_to_cst(pos: Positive, cst: ConstructorType) -> Result<Self, String> {
+            todo!()
         }
         pub fn eliminator_type(&self, q: Exp, c: Exp) -> Exp {
             match self {
@@ -314,6 +313,7 @@ pub mod inductives {
             {
                 return Err(format!("parameter {parameter:?} contains {variable:?}"));
             }
+
             if exps.iter().any(|e| e.free_variable().contains(&variable)) {
                 return Err(format!("exp {exps:?} contains {variable:?}"));
             }
@@ -373,16 +373,16 @@ impl Exp {
                 v
             }
             Exp::IndTypeType {
-                type_name,
+                ind_type_def,
                 argument,
             } => argument.iter().flat_map(|e| e.free_variable()).collect(),
             Exp::IndTypeCst {
-                type_name,
+                ind_type_def,
                 projection: _,
                 argument,
             } => argument.iter().flat_map(|e| e.free_variable()).collect(),
             Exp::IndTypeElim {
-                type_name,
+                ind_type_def,
                 eliminated_exp,
                 return_type,
                 cases,
