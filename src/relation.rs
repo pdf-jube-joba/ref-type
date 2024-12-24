@@ -330,6 +330,12 @@ pub enum Judgement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Conditions {
+    ContextHasVar(Context, Var),
+    Convertible(Exp, Exp),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DerivationJudge {
     EmptyContext,
     Variable,
@@ -345,6 +351,7 @@ pub struct PartialDerivationTree {
     head: Judgement,
     rel: DerivationJudge,
     leaf: Vec<PartialDerivationTree>,
+    cond: Vec<Conditions>,
 }
 
 impl PartialDerivationTree {
@@ -366,62 +373,67 @@ impl PartialDerivationTree {
 
 pub mod make_tree {
     use super::*;
-    pub fn new_emptycontext() -> Result<PartialDerivationTree, String> {
-        Ok(PartialDerivationTree {
+    pub fn new_emptycontext() -> PartialDerivationTree {
+        PartialDerivationTree {
             head: Judgement::WellFormedContext(Context::default()),
             rel: DerivationJudge::EmptyContext,
             leaf: vec![],
-        })
+            cond: vec![],
+        }
     }
-    pub fn new_var(
-        der_tree: PartialDerivationTree,
-        x: Var,
-    ) -> Result<PartialDerivationTree, String> {
-        let Judgement::TypeCheck(cxt, t, s) = der_tree.head.clone() else {
-            return Err(format!("derivation tree {der_tree:?} wrong"));
-        };
-        if !matches!(s, Exp::Sort(_)) {
-            return Err(format!("{der_tree:?} sort"));
-        }
-        if cxt.search_var_exp(&x).is_some() {
-            return Err(format!("un free {x:?}"));
-        }
-        let mut well = cxt.clone();
-        well.push_decl((x, t));
-        Ok(PartialDerivationTree {
-            head: Judgement::WellFormedContext(well),
-            rel: DerivationJudge::Variable,
-            leaf: vec![der_tree],
-        })
+
+    // G |- T: s, x => 
+    pub fn new_var(der_tree: PartialDerivationTree, x: Var) -> PartialDerivationTree {
+        // let Judgement::TypeCheck(cxt, t, s) = der_tree.head.clone() else {
+        //     return Err(format!("derivation tree {der_tree:?} wrong"));
+        // };
+        // if !matches!(s, Exp::Sort(_)) {
+        //     return Err(format!("{der_tree:?} sort"));
+        // }
+        // if cxt.search_var_exp(&x).is_some() {
+        //     return Err(format!("un free {x:?}"));
+        // }
+        // let cond = vec![(true, Conditions::ContextHasVar(, ()))];
+        // let mut well = cxt.clone();
+        // well.push_decl((x, t));
+
+        // PartialDerivationTree {
+        //     head: Judgement::WellFormedContext(well),
+        //     rel: DerivationJudge::Variable,
+        //     leaf: vec![der_tree],
+        //     cond: vec![(true,)]
+        // }
+        todo!()
     }
     pub fn new_conv(
         der_tree1: PartialDerivationTree,
         der_tree2: PartialDerivationTree,
     ) -> Result<PartialDerivationTree, String> {
-        let Judgement::TypeCheck(cxt1, t, a) = &der_tree1.head else {
-            return Err(format!("derivation tree {der_tree1:?} wrong"));
-        };
-        let Judgement::TypeCheck(cxt2, b, s) = &der_tree2.head else {
-            return Err(format!("derivation tree {der_tree2:?} wrong"));
-        };
+        // let Judgement::TypeCheck(cxt1, t, a) = &der_tree1.head else {
+        //     return Err(format!("derivation tree {der_tree1:?} wrong"));
+        // };
+        // let Judgement::TypeCheck(cxt2, b, s) = &der_tree2.head else {
+        //     return Err(format!("derivation tree {der_tree2:?} wrong"));
+        // };
 
-        if !matches!(s, Exp::Sort(_)) {
-            return Err(format!("{s:?} is not sort"));
-        }
+        // if !matches!(s, Exp::Sort(_)) {
+        //     return Err(format!("{s:?} is not sort"));
+        // }
 
-        if cxt1 != cxt2 {
-            return Err(format!("cxt is not equal {der_tree1:?} {der_tree2:?}"));
-        }
+        // if cxt1 != cxt2 {
+        //     return Err(format!("cxt is not equal {der_tree1:?} {der_tree2:?}"));
+        // }
 
-        if beta_equiv(a.clone(), b.clone()) {
-            Ok(PartialDerivationTree {
-                head: Judgement::TypeCheck(cxt1.clone(), t.clone(), b.clone()),
-                rel: DerivationJudge::Conv,
-                leaf: vec![der_tree1, der_tree2],
-            })
-        } else {
-            Err(format!("{a:?} and {b:?} is not equal"))
-        }
+        // if beta_equiv(a.clone(), b.clone()) {
+        //     Ok(PartialDerivationTree {
+        //         head: Judgement::TypeCheck(cxt1.clone(), t.clone(), b.clone()),
+        //         rel: DerivationJudge::Conv,
+        //         leaf: vec![der_tree1, der_tree2],
+        //     })
+        // } else {
+        //     Err(format!("{a:?} and {b:?} is not equal"))
+        // }
+        todo!()
     }
 }
 
@@ -434,10 +446,7 @@ pub fn type_check_derivation_construct(
     todo!()
 }
 
-pub fn type_check_to_some_sort(
-    cxt: Context,
-    term1: Exp,
-) -> Result<PartialDerivationTree, String> {
+pub fn type_check_to_some_sort(cxt: Context, term1: Exp) -> Result<PartialDerivationTree, String> {
     let dt = type_infer_derivation_construct(cxt, term1)?;
     todo!()
 }
