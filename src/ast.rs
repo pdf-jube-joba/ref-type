@@ -39,8 +39,18 @@ pub enum Exp {
     // Rec(Var, Var, Box<Exp>), // rec f x = m
 }
 
+impl Exp {
+    fn prod(var: Var, a: Exp, b: Exp) -> Self {
+        Exp::Prod(var, Box::new(a), Box::new(b))
+    }
+    fn lambda(var: Var, a: Exp, b: Exp) -> Self {
+        Exp::Lam(var, Box::new(a), Box::new(b))
+    }
+}
+
 pub mod utils {
     use super::*;
+    // (a v[0] ... v[k])
     pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
         for v in v {
             a = Exp::App(Box::new(a), Box::new(v))
@@ -48,6 +58,7 @@ pub mod utils {
         a
     }
 
+    // (x[0]: t[0]) -> ... (x[k]: t[k]) -> e
     pub fn assoc_prod(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
         while let Some((x, a)) = v.pop() {
             e = Exp::Prod(x, Box::new(a), Box::new(e));
@@ -55,6 +66,7 @@ pub mod utils {
         e
     }
 
+    // \ x[0]: t[0]). ... (x[k]: t[k]). e
     pub fn assoc_lam(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
         while let Some((x, a)) = v.pop() {
             e = Exp::Lam(x, Box::new(a), Box::new(e));
@@ -161,8 +173,8 @@ pub mod inductives {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Arity {
-        pub signature: Vec<(Var, Exp)>,
-        pub sort: Sort,
+        signature: Vec<(Var, Exp)>,
+        sort: Sort,
     }
 
     impl Arity {
@@ -174,6 +186,12 @@ pub mod inductives {
             } else {
                 Err(format!("arity {arity:?} contains free variables"))
             }
+        }
+        pub fn signature(&self) -> &Vec<(Var, Exp)> {
+            &self.signature
+        }
+        pub fn sort(&self) -> &Sort {
+            &self.sort
         }
     }
 
@@ -198,6 +216,16 @@ pub mod inductives {
     }
 
     impl ConstructorType {
+        pub fn free_variable(&self) -> HashSet<Var> {
+            match self {
+                ConstructorType::End(var, vec) => vec.iter().flat_map(|e| e.free_variable()).collect(),
+                ConstructorType::Map((v, e), constructor_type) => {
+                    let mut e = e.free_variable();
+                    todo!()
+                },
+                ConstructorType::PosToCst(positive, constructor_type) => todo!(),
+            }
+        }
         pub fn eliminator_type(&self, q: Exp, c: Exp) -> Exp {
             match self {
                 ConstructorType::End(x, a) => {
@@ -275,18 +303,37 @@ pub mod inductives {
     }
 
     impl Positive {
-        fn new(variable: Var, parameter: Vec<(Var, Exp)>, exps: Vec<Exp>) -> Result<Self, String> {
+        pub fn new(
+            variable: Var,
+            parameter: Vec<(Var, Exp)>,
+            exps: Vec<Exp>,
+        ) -> Result<Self, String> {
             if parameter
                 .iter()
                 .any(|(_, e)| e.free_variable().contains(&variable))
             {
-                return Err(format!("{parameter:?} contains {variable:?}"));
+                return Err(format!("parameter {parameter:?} contains {variable:?}"));
             }
-            Ok(Self {
-                variable,
+            if exps.iter().any(|e| e.free_variable().contains(&variable)) {
+                return Err(format!("exp {exps:?} contains {variable:?}"));
+            }
+
+            let positive = Positive {
+                variable: variable.clone(),
                 parameter,
                 exps,
-            })
+            };
+
+            let e: Exp = positive.clone().into();
+            let v: HashSet<Var> = vec![variable.clone()].into_iter().collect();
+
+            if e.free_variable() != v {
+                return Err(format!(
+                    "positive {e:?} contains free variable other than {variable:?}"
+                ));
+            }
+
+            Ok(positive)
         }
     }
 
@@ -328,29 +375,20 @@ impl Exp {
             Exp::IndTypeType {
                 type_name,
                 argument,
-            } => argument
-                .iter()
-                .map(|e| e.free_variable())
-                .flatten()
-                .collect(),
+            } => argument.iter().flat_map(|e| e.free_variable()).collect(),
             Exp::IndTypeCst {
                 type_name,
                 projection: _,
                 argument,
-            } => argument
-                .into_iter()
-                .map(|e| e.free_variable())
-                .flatten()
-                .collect(),
+            } => argument.iter().flat_map(|e| e.free_variable()).collect(),
             Exp::IndTypeElim {
                 type_name,
                 eliminated_exp,
                 return_type,
                 cases,
             } => cases
-                .into_iter()
-                .map(|e| e.free_variable())
-                .flatten()
+                .iter()
+                .flat_map(|e| e.free_variable())
                 .chain(eliminated_exp.free_variable())
                 .chain(return_type.free_variable())
                 .collect(),

@@ -187,13 +187,13 @@ fn weak_reduction(cxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     cases: cases.clone(),
                 };
                 utils::assoc_lam(
-                    signature.signature.iter().cloned().collect(),
+                    signature.signature().to_vec(),
                     Exp::Lam(
                         new_var_c,
                         Box::new(Exp::IndTypeType {
                             type_name: type_name.clone(),
                             argument: signature
-                                .signature
+                                .signature()
                                 .iter()
                                 .map(|(x, _)| Exp::Var(x.clone()))
                                 .collect(),
@@ -311,6 +311,34 @@ fn beta_equiv(cxt: &GlobalContext, term1: Exp, term2: Exp) -> bool {
 }
 
 type Context = Vec<(Var, Exp)>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Judgement {
+    WellFormedContext(Context),
+    TypeCheck(Context, Exp, Exp),
+    Proof(Context, Exp),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DerivationJudge {
+    EmptyContext,
+    Variable,
+    Axiom,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivationTree {
+    head: Judgement,
+    rel: DerivationJudge,
+    leaf: Vec<DerivationTree>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PartialDerivationTree {
+    EmptyContext,
+    WaitTypeCheck,
+    WaitProof,
+}
 
 fn find_var<'a>(cxt: &'a Context, v: &'a Var) -> Option<&'a Exp> {
     cxt.iter()
