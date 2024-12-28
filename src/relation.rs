@@ -343,10 +343,10 @@ pub enum State {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Judgement {
-    WellFormedContext(Context),
+    // WellFormedContext(Context),
     TypeCheck(Context, Either<Exp, usize>, Either<Exp, usize>),
     TypeInfer(Context, Either<Exp, usize>),
-    Prove(Context, Either<Exp, usize>),
+    // Prove(Context, Either<Exp, usize>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -355,6 +355,40 @@ pub enum Conditions {
     Convertible(Either<Exp, usize>, Either<Exp, usize>), // t1 =^beta t2
     ReduceToSort(Either<Exp, usize>, Either<Sort, usize>), // t ->^beta* sort
     ReduceToProd(Either<Exp, usize>, Either<(Var, Exp, Exp), usize>), // t ->^beta* (x: a) -> b
+}
+
+fn cond_step(cond: Conditions) -> Result<(State, Option<SubstKind>), ()> {
+    match cond {
+        Conditions::ContextHasVar(cxt, x, t) => {
+            let Some(t2) = cxt.search_var_exp(&x) else {
+                return Ok((State::Fail, None));
+            };
+            match t {
+                Either::Left(t1) => {
+                    if alpha_eq(&t1, t2) {
+                        Ok((State::Success, None))
+                    } else {
+                        Ok((State::Fail, None))
+                    }
+                },
+                Either::Right(n) => {
+                    Ok((State::Success, Some(SubstKind::NumToExp(n, t2.clone()))))
+                },
+            }
+        },
+        Conditions::Convertible(t1, t2) => {
+            let (Either::Left(t1), Either::Left(t2)) = (t1, t2) else {
+                return Err(());
+            };
+            if beta_equiv(t1, t2) {
+                Ok((State::Success, None))
+            } else {
+                Ok((State::Fail, None))
+            }
+        },
+        Conditions::ReduceToSort(_, _) => todo!(),
+        Conditions::ReduceToProd(_, _) => todo!(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -375,6 +409,13 @@ pub enum DerivationLabel {
     ProdElim,
 }
 
+fn step(judgement: Judgement) -> Option<(DerivationLabel, Vec<Judgement>)> {
+    match judgement {
+        Judgement::TypeCheck(_, _, _) => todo!(),
+        Judgement::TypeInfer(_, _) => todo!(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PartialDerivationTree {
     LeafEnd(Leaf),
@@ -389,6 +430,13 @@ impl PartialDerivationTree {
     pub fn is_complete(&self) -> bool {
         todo!()
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SubstKind {
+    NumToExp(usize, Exp), // ?n <- e
+    Prod(usize, (Var, Exp, Either<Exp, usize>)),
+    Subst(usize, (Either<Exp, usize>, Either<Var, usize>, Exp)),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -495,29 +543,29 @@ pub mod make_tree {
                 }
             }
             PartialDerivationTree::LeafEnd(Leaf::Judge(judge, cond)) => match judge {
-                Judgement::WellFormedContext(cxt) => {
-                    if let Some(d) = cxt.poped() {
-                        let leaf: Leaf = Leaf::Judge({
-                            todo!()
-                        }, State::Wait);
-                        *der_tree = PartialDerivationTree::Node {
-                            head: judge.clone(),
-                            rel: DerivationLabel::VariableContext,
-                            child: vec![PartialDerivationTree::LeafEnd(leaf)],
-                        };
-                        Some(Subst::no())
-                    } else {
-                        *der_tree = PartialDerivationTree::Node {
-                            head: judge.clone(),
-                            rel: DerivationLabel::EmptyContext,
-                            child: vec![],
-                        };
-                        Some(Subst::no())
-                    }
-                }
+                // Judgement::WellFormedContext(cxt) => {
+                //     if let Some(d) = cxt.poped() {
+                //         let leaf: Leaf = Leaf::Judge({
+                //             todo!()
+                //         }, State::Wait);
+                //         *der_tree = PartialDerivationTree::Node {
+                //             head: judge.clone(),
+                //             rel: DerivationLabel::VariableContext,
+                //             child: vec![PartialDerivationTree::LeafEnd(leaf)],
+                //         };
+                //         Some(Subst::no())
+                //     } else {
+                //         *der_tree = PartialDerivationTree::Node {
+                //             head: judge.clone(),
+                //             rel: DerivationLabel::EmptyContext,
+                //             child: vec![],
+                //         };
+                //         Some(Subst::no())
+                //     }
+                // }
                 Judgement::TypeCheck(_, _, _) => todo!(),
                 Judgement::TypeInfer(_, _) => todo!(),
-                Judgement::Prove(_, _) => todo!(),
+                // Judgement::Prove(_, _) => todo!(),
             },
             PartialDerivationTree::Node { head, rel, child } => {
                 for c in child {
