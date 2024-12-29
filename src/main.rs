@@ -1,6 +1,9 @@
 use std::io::BufRead;
 
-use ref_type::ast::{self};
+use ref_type::{
+    ast::{self},
+    relation,
+};
 
 fn main() {
     let stdin = std::io::stdin();
@@ -22,9 +25,16 @@ fn main() {
                     println!("Parse: {exp:?}");
                 }
                 ast::parse::Command::Check(e1, e2) => {
-                    println!("Check: {e1:?}: {e2:?}")
+                    println!("Check: ({}): ({})", e1.pretty_print(), e2.pretty_print());
+                    let tree = relation::type_check(relation::Context::default(), e1, e2);
+                    println!("{}", tree.pretty_print(0));
                 }
-                ast::parse::Command::Infer(_) => todo!(),
+                ast::parse::Command::Infer(e1) => {
+                    println!("Infer: ({})", e1.pretty_print());
+                    let (tree, res) = relation::type_infer(relation::Context::default(), e1);
+                    println!("{}", tree.pretty_print(0));
+                    println!("type: {:?}", res);
+                }
             },
             Err(err) => {
                 println!("{err:?}")

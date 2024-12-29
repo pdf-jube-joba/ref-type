@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use either::Either;
 
@@ -318,6 +318,11 @@ fn beta_equiv(term1: Exp, term2: Exp) -> bool {
 pub struct Context(Vec<(Var, Exp)>);
 
 impl Context {
+    fn pretty_print(&self) -> String {
+        self.0.iter().fold(String::new(), |s1, (v, t)| {
+            format!("{s1} ({v}: {}", t.pretty_print())
+        })
+    }
     fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -341,12 +346,43 @@ pub enum State {
     Wait,
 }
 
+impl Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                State::Success => "Success",
+                State::Fail => "Fail",
+                State::Wait => "Wait",
+            }
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Judgement {
     // WellFormedContext(Context),
     TypeCheck(Context, Either<Exp, usize>, Either<Exp, usize>),
     TypeInfer(Context, Either<Exp, usize>),
     // Prove(Context, Either<Exp, usize>),
+}
+
+impl Display for Judgement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Judgement::TypeCheck(context, either, either1) => format!(
+                "{} |- {}: {}",
+                context.pretty_print(),
+                eitexp_to(either),
+                eitexp_to(either1)
+            ),
+            Judgement::TypeInfer(context, either) => {
+                format!("{} |- {}: ?", context.pretty_print(), eitexp_to(either),)
+            }
+        };
+        write!(f, "{}", s)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -357,6 +393,54 @@ pub enum Conditions {
     ReduceToProd(Either<Exp, usize>, Either<(Var, Exp, Exp), usize>), // t ->^beta* (x: a) -> b
     AxiomSort(Sort, Sort),                           // (s1: s2) in A
     RelationSort(Sort, Sort, Sort),                  // (s1, s2, s3) in A
+}
+
+fn eitexp_to(e: &Either<Exp, usize>) -> String {
+    match e {
+        Either::Left(l) => l.pretty_print(),
+        Either::Right(r) => format!("?{r}"),
+    }
+}
+
+fn eitsort_to(e: &Either<Sort, usize>) -> String {
+    match e {
+        Either::Left(l) => format!("{l}"),
+        Either::Right(r) => format!("?{r}"),
+    }
+}
+
+fn eitprod_to(e: &Either<(Var, Exp, Exp), usize>) -> String {
+    match e {
+        Either::Left((x, a, b)) => format!("({x}: {}) -> {}", a.pretty_print(), b.pretty_print()),
+        Either::Right(r) => format!("?{r}"),
+    }
+}
+
+impl Conditions {
+    fn pretty_print(&self) -> String {
+        match self {
+            Conditions::ContextHasVar(context, var, either) => format!(
+                "({var}: {}) in {}",
+                eitexp_to(either),
+                context.pretty_print()
+            ),
+            Conditions::Convertible(either, either1) => {
+                format!("{} =~ {}", eitexp_to(either), eitexp_to(either1))
+            }
+            Conditions::ReduceToSort(either, either1) => {
+                format!("{} ->*_sort {}", eitexp_to(either), eitsort_to(either1))
+            }
+            Conditions::ReduceToProd(either, either1) => {
+                format!("{} ->*_prod {}", eitexp_to(either), eitprod_to(either1))
+            }
+            Conditions::AxiomSort(sort, sort1) => {
+                format!("{sort}: {sort1} in Axm")
+            }
+            Conditions::RelationSort(sort, sort1, sort2) => {
+                format!("({sort}, {sort1}, {sort2}) in Rel")
+            }
+        }
+    }
 }
 
 // fn cond_step(cond: Conditions) -> Result<(State, Option<SubstKind>), ()> {
@@ -411,6 +495,24 @@ pub enum DerivationLabel {
     ProdElim,
 }
 
+impl Display for DerivationLabel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DerivationLabel::EmptyContext => "Empty(cxt)",
+            DerivationLabel::VariableContext => "Var(cxt)",
+            DerivationLabel::Variable => "Var",
+            DerivationLabel::Axiom => "Axm",
+            DerivationLabel::Conv => "Cnv",
+            DerivationLabel::ConvToSort => "Cnv(->Sort)",
+            DerivationLabel::ConvToProd => "Cnv(->Prod)",
+            DerivationLabel::ProdForm => "Prod(Form)",
+            DerivationLabel::ProdIntro => "Prod(Intr)",
+            DerivationLabel::ProdElim => "Prof(Elim)",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 fn step(judgement: Judgement) -> Option<(DerivationLabel, Vec<Judgement>)> {
     match judgement {
         Judgement::TypeCheck(_, _, _) => todo!(),
@@ -428,6 +530,10 @@ pub enum PartialDerivationTree {
     },
 }
 
+fn indent_string(n: usize) -> String {
+    (0..2 * n).map(|_| ' ').collect()
+}
+
 impl PartialDerivationTree {
     fn child_mut(&mut self) -> Option<&mut Vec<PartialDerivationTree>> {
         match self {
@@ -439,11 +545,29 @@ impl PartialDerivationTree {
             } => Some(child),
         }
     }
-}
-
-impl PartialDerivationTree {
     pub fn is_complete(&self) -> bool {
         todo!()
+    }
+    pub fn pretty_print(&self, indent: usize) -> String {
+        match self {
+            PartialDerivationTree::LeafEnd(leaf) => {
+                let s = match leaf {
+                    Leaf::Judge(judgement, _) => {
+                        format!("{}\n", judgement)
+                    }
+                    Leaf::Cond(conditions, state) => {
+                        format!("{} {}\n", conditions.pretty_print(), state)
+                    }
+                };
+                format!("{}@{}", indent_string(indent), s)
+            }
+            PartialDerivationTree::Node { head, rel, child } => {
+                let fst = format!("{}@{head} ... {rel} \n", indent_string(indent));
+                child.iter().fold(fst, |rem, child| {
+                    format!("{rem}{}", child.pretty_print(indent + 1))
+                })
+            }
+        }
     }
 }
 
@@ -461,137 +585,6 @@ impl Subst {
     fn no() -> Self {
         Subst(HashMap::new())
     }
-}
-
-pub mod make_tree {
-    // use super::*;
-
-    // fn subst(der_tree: &mut PartialDerivationTree, subst: &Subst) {
-    //     todo!()
-    // }
-
-    // // Some を返すのは進展があったとき
-    // fn step_tree(der_tree: &mut PartialDerivationTree) -> Option<Subst> {
-    //     match der_tree {
-    //         PartialDerivationTree::LeafEnd(Leaf::Cond(cond, state)) => {
-    //             if *state == State::Success || *state == State::Fail {
-    //                 return None;
-    //             }
-    //             match cond {
-    //                 Conditions::ContextHasVar(cxt, x, s) => {
-    //                     let Some(t) = cxt.search_var_exp(x) else {
-    //                         *state = State::Fail;
-    //                         return Some(Subst::no());
-    //                     };
-    //                     match s {
-    //                         Either::Left(expected_t) => {
-    //                             if t == expected_t {
-    //                                 *state = State::Fail;
-    //                                 Some(Subst::no())
-    //                             } else {
-    //                                 *state = State::Success;
-    //                                 Some(Subst::no())
-    //                             }
-    //                         }
-    //                         Either::Right(unspec) => {
-    //                             *state = State::Success;
-    //                             let m = HashMap::from_iter(vec![(*unspec, t.clone())]);
-    //                             Some(Subst(m))
-    //                         }
-    //                     }
-    //                 }
-    //                 Conditions::Convertible(t1, t2) => match (t1, t2) {
-    //                     (Either::Left(t1), Either::Left(t2)) => {
-    //                         if beta_equiv(t1.clone(), t2.clone()) {
-    //                             *state = State::Success;
-    //                             Some(Subst::no())
-    //                         } else {
-    //                             *state = State::Fail;
-    //                             Some(Subst::no())
-    //                         }
-    //                     }
-    //                     _ => None,
-    //                 },
-    //                 Conditions::ReduceToSort(Either::Left(t), s) => {
-    //                     let t = normalize(t.clone());
-    //                     let Exp::Sort(s_t) = t else {
-    //                         *state = State::Fail;
-    //                         return Some(Subst::no());
-    //                     };
-    //                     match s {
-    //                         Either::Left(s) => {
-    //                             if *s == s_t {
-    //                                 *state = State::Success;
-    //                             } else {
-    //                                 *state = State::Fail;
-    //                             }
-    //                             Some(Subst::no())
-    //                         }
-    //                         Either::Right(i) => {
-    //                             *state = State::Success;
-    //                             let m = HashMap::from_iter(vec![(*i, Exp::Sort(s_t.clone()))]);
-    //                             Some(Subst(m))
-    //                         }
-    //                     }
-    //                 }
-    //                 Conditions::ReduceToSort(Either::Right(t), s) => None,
-    //                 Conditions::ReduceToProd(Either::Left(t), p) => {
-    //                     let t = normalize(t.clone());
-    //                     let Exp::Prod(xt, at, bt) = t else {
-    //                         *state == State::Fail;
-    //                         return Some(Subst::no());
-    //                     };
-    //                     match p {
-    //                         Either::Left(p) => {
-    //                             // if beta_equiv(p.clone(), t.clone()) {
-    //                             //     *state = State::Success;
-    //                             // } else {
-    //                             //     *state = State::Fail;
-    //                             // }
-    //                             // Some(Subst::no())
-    //                             todo!()
-    //                         }
-    //                         Either::Right(_) => todo!(),
-    //                     }
-    //                 }
-    //                 Conditions::ReduceToProd(Either::Right(_), _) => None,
-    //             }
-    //         }
-    //         PartialDerivationTree::LeafEnd(Leaf::Judge(judge, cond)) => match judge {
-    //             // Judgement::WellFormedContext(cxt) => {
-    //             //     if let Some(d) = cxt.poped() {
-    //             //         let leaf: Leaf = Leaf::Judge({
-    //             //             todo!()
-    //             //         }, State::Wait);
-    //             //         *der_tree = PartialDerivationTree::Node {
-    //             //             head: judge.clone(),
-    //             //             rel: DerivationLabel::VariableContext,
-    //             //             child: vec![PartialDerivationTree::LeafEnd(leaf)],
-    //             //         };
-    //             //         Some(Subst::no())
-    //             //     } else {
-    //             //         *der_tree = PartialDerivationTree::Node {
-    //             //             head: judge.clone(),
-    //             //             rel: DerivationLabel::EmptyContext,
-    //             //             child: vec![],
-    //             //         };
-    //             //         Some(Subst::no())
-    //             //     }
-    //             // }
-    //             Judgement::TypeCheck(_, _, _) => todo!(),
-    //             Judgement::TypeInfer(_, _) => todo!(),
-    //             // Judgement::Prove(_, _) => todo!(),
-    //         },
-    //         PartialDerivationTree::Node { head, rel, child } => {
-    //             for c in child {
-    //                 if let Some(a) = step_tree(c) {
-    //                     return Some(a);
-    //                 }
-    //             }
-    //             None
-    //         }
-    //     }
-    // }
 }
 
 pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree {

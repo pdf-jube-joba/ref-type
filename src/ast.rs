@@ -40,10 +40,44 @@ pub enum Exp {
 }
 
 impl Exp {
-    fn prod(var: Var, a: Exp, b: Exp) -> Self {
+    pub fn pretty_print(&self) -> String {
+        match self {
+            Exp::Sort(sort) => format!("{sort}"),
+            Exp::Var(var) => format!("{var}"),
+            Exp::Prod(var, exp, exp1) => {
+                format!("({var}: {}) -> {}", exp.pretty_print(), exp1.pretty_print())
+            }
+            Exp::Lam(var, exp, exp1) => {
+                format!(
+                    "\\({var}: {}). {}",
+                    exp.pretty_print(),
+                    exp1.pretty_print()
+                )
+            }
+            Exp::App(exp, exp1) => {
+                format!("{} {}", exp.pretty_print(), exp1.pretty_print())
+            }
+            Exp::IndTypeType {
+                ind_type_def,
+                argument,
+            } => todo!(),
+            Exp::IndTypeCst {
+                ind_type_def,
+                projection,
+                argument,
+            } => todo!(),
+            Exp::IndTypeElim {
+                ind_type_def,
+                eliminated_exp,
+                return_type,
+                cases,
+            } => todo!(),
+        }
+    }
+    pub fn prod(var: Var, a: Exp, b: Exp) -> Self {
         Exp::Prod(var, Box::new(a), Box::new(b))
     }
-    fn lambda(var: Var, a: Exp, b: Exp) -> Self {
+    pub fn lambda(var: Var, a: Exp, b: Exp) -> Self {
         Exp::Lam(var, Box::new(a), Box::new(b))
     }
 }
