@@ -27,13 +27,25 @@ fn main() {
                 ast::parse::Command::Check(e1, e2) => {
                     println!("Check: ({}): ({})", e1.pretty_print(), e2.pretty_print());
                     let tree = relation::type_check(relation::Context::default(), e1, e2);
-                    println!("{}", tree.pretty_print(0));
+                    let res = match tree.result_of_tree() {
+                        relation::StatePartialTree::Fail => "FAIL!".to_string(),
+                        relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec),
+                    };
+                    println!("result: {}\n{}", res, tree.pretty_print(0));
                 }
                 ast::parse::Command::Infer(e1) => {
                     println!("Infer: ({})", e1.pretty_print());
                     let (tree, res) = relation::type_infer(relation::Context::default(), e1);
-                    println!("{}", tree.pretty_print(0));
-                    println!("type: {:?}", res);
+                    let res_tree = match tree.result_of_tree() {
+                        relation::StatePartialTree::Fail => "FAIL!".to_string(),
+                        relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec),
+                    };
+                    println!(
+                        "type: {:?}\n result: {}\n{}",
+                        res,
+                        res_tree,
+                        tree.pretty_print(0)
+                    );
                 }
             },
             Err(err) => {

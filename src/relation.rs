@@ -320,7 +320,7 @@ pub struct Context(Vec<(Var, Exp)>);
 impl Context {
     fn pretty_print(&self) -> String {
         self.0.iter().fold(String::new(), |s1, (v, t)| {
-            format!("{s1} ({v}: {}", t.pretty_print())
+            format!("{s1}({v}: {})", t.pretty_print())
         })
     }
     fn is_empty(&self) -> bool {
@@ -344,21 +344,20 @@ pub enum Judgement {
     // WellFormedContext(Context),
     TypeCheck(Context, Exp, Exp),
     TypeInfer(Context, Exp, Option<Exp>),
-    // Prove(Context, Either<Exp, usize>),
 }
 
 impl Display for Judgement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             Judgement::TypeCheck(context, either, either1) => format!(
-                "{} |- {}: {}",
+                "{} |- {}:  {}",
                 context.pretty_print(),
                 either.pretty_print(),
                 either1.pretty_print()
             ),
             Judgement::TypeInfer(context, either, maybe) => {
                 format!(
-                    "{} |- {}: ?{}",
+                    "{} |- {}:? {}",
                     context.pretty_print(),
                     either.pretty_print(),
                     match maybe {
@@ -380,6 +379,14 @@ pub enum Conditions {
     ReduceToProd(Exp, Option<(Var, Exp, Exp)>), // t ->^beta* (x: a) -> b
     AxiomSort(Sort, Option<Sort>),            // (s1: s2) in A
     RelationSort(Sort, Sort, Option<Sort>),   // (s1, s2, s3) in A
+    ProofNeeded(Context, Exp),                // provable? G |= P
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ConditionsState {
+    Success,
+    Fail,
+    Wait(Context, Exp),
 }
 
 impl Conditions {
@@ -432,14 +439,22 @@ impl Conditions {
             None => (Conditions::RelationSort(s1, s2, None), None),
         }
     }
-    fn is_success(&self) -> bool {
-        match self {
+    fn is_success(&self) -> ConditionsState {
+        let opt = match self {
             Conditions::ContextHasVar(_, _, exp) => exp.is_some(),
             Conditions::Convertible(_, _, a) => a.is_some(),
             Conditions::ReduceToSort(_, sort) => sort.is_some(),
             Conditions::ReduceToProd(_, a) => a.is_some(),
             Conditions::AxiomSort(_, sort) => sort.is_some(),
             Conditions::RelationSort(_, _, sort2) => sort2.is_some(),
+            Conditions::ProofNeeded(cxt, exp) => {
+                return ConditionsState::Wait(cxt.clone(), exp.clone());
+            }
+        };
+        if opt {
+            ConditionsState::Success
+        } else {
+            ConditionsState::Fail
         }
     }
     fn pretty_print(&self) -> String {
@@ -449,7 +464,7 @@ impl Conditions {
                 context.pretty_print(),
                 match either {
                     Some(e) => e.pretty_print(),
-                    None => "x".to_string(),
+                    None => "!".to_string(),
                 }
             ),
             Conditions::Convertible(either, either1, res) => {
@@ -458,8 +473,8 @@ impl Conditions {
                     either.pretty_print(),
                     either1.pretty_print(),
                     match res {
-                        Some(_) => "o",
-                        None => "x",
+                        Some(_) => "ok",
+                        None => "!",
                     }
                 )
             }
@@ -469,7 +484,7 @@ impl Conditions {
                     either.pretty_print(),
                     match either1 {
                         Some(s) => format!("{s}"),
-                        None => "x".to_string(),
+                        None => "!".to_string(),
                     }
                 )
             }
@@ -480,7 +495,7 @@ impl Conditions {
                     match either1 {
                         Some((x, a, b)) =>
                             format!("({x}: {}) -> {}", a.pretty_print(), b.pretty_print()),
-                        None => "x".to_string(),
+                        None => "!".to_string(),
                     }
                 )
             }
@@ -489,7 +504,7 @@ impl Conditions {
                     "type of {sort} -> {}",
                     match sort1 {
                         Some(s) => format!("{s}"),
-                        None => "x".to_string(),
+                        None => "!".to_string(),
                     }
                 )
             }
@@ -498,9 +513,12 @@ impl Conditions {
                     "rel of ({sort}, {sort1}) -> {}",
                     match sort2 {
                         Some(s) => format!("{s}"),
-                        None => "x".to_string(),
+                        None => "!".to_string(),
                     }
                 )
+            }
+            Conditions::ProofNeeded(cxt, exp) => {
+                format!("Provable? {} |- {}", cxt.pretty_print(), exp.pretty_print())
             }
         }
     }
@@ -552,7 +570,33 @@ fn indent_string(n: usize) -> String {
     (0..2 * n).map(|_| ' ').collect()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatePartialTree {
+    Fail,
+    Wait(Vec<(Context, Exp)>),
+}
+
 impl PartialDerivationTree {
+    pub fn result_of_tree(&self) -> StatePartialTree {
+        match self {
+            PartialDerivationTree::LeafEnd(conditions) => match conditions.is_success() {
+                ConditionsState::Fail => StatePartialTree::Fail,
+                ConditionsState::Success => StatePartialTree::Wait(vec![]),
+                ConditionsState::Wait(cxt, a) => StatePartialTree::Wait(vec![(cxt, a)]),
+            },
+            PartialDerivationTree::Node { head, rel, child } => {
+                let mut v = vec![];
+                for child in child {
+                    let res = child.result_of_tree();
+                    let StatePartialTree::Wait(res) = res else {
+                        return StatePartialTree::Fail;
+                    };
+                    v.extend(res);
+                }
+                StatePartialTree::Wait(v)
+            }
+        }
+    }
     fn child_mut(&mut self) -> Option<&mut Vec<PartialDerivationTree>> {
         match self {
             PartialDerivationTree::LeafEnd(_) => None,
@@ -572,9 +616,6 @@ impl PartialDerivationTree {
             },
         }
     }
-    pub fn is_complete(&self) -> bool {
-        todo!()
-    }
     pub fn pretty_print(&self, indent: usize) -> String {
         match self {
             PartialDerivationTree::LeafEnd(conditions) => {
@@ -588,22 +629,6 @@ impl PartialDerivationTree {
                 })
             }
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SubstKind {
-    NumToExp(usize, Exp), // ?n <- e
-    Prod(usize, (Var, Exp, Either<Exp, usize>)),
-    Subst(usize, (Either<Exp, usize>, Either<Var, usize>, Exp)),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Subst(HashMap<usize, Exp>);
-
-impl Subst {
-    fn no() -> Self {
-        Subst(HashMap::new())
     }
 }
 
@@ -623,7 +648,7 @@ pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree
     };
 
     let convertibility_tree =
-        { PartialDerivationTree::LeafEnd(Conditions::convertible(term1, t).0) };
+        { PartialDerivationTree::LeafEnd(Conditions::convertible(term2, t).0) };
 
     child.push(convertibility_tree);
 
@@ -767,7 +792,11 @@ pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Optio
                 return (der_tree, None);
             };
 
-            (der_tree, Some(Exp::Prod(x, t, Box::new(type_m))))
+            let res = Some(Exp::Prod(x, t, Box::new(type_m)));
+
+            der_tree.of_type_mut().unwrap().clone_from(&res);
+
+            (der_tree, res)
         }
         Exp::App(t1, t2) => {
             let mut der_tree = PartialDerivationTree::Node {
