@@ -356,6 +356,7 @@ pub enum Conditions {
     ReduceToSort(Either<Exp, usize>, Either<Sort, usize>), // t ->^beta* sort
     ReduceToProd(Either<Exp, usize>, Either<(Var, Exp, Exp), usize>), // t ->^beta* (x: a) -> b
     AxiomSort(Sort, Sort),                           // (s1: s2) in A
+    RelationSort(Sort, Sort, Sort),                  // (s1, s2, s3) in A
 }
 
 // fn cond_step(cond: Conditions) -> Result<(State, Option<SubstKind>), ()> {
@@ -425,6 +426,19 @@ pub enum PartialDerivationTree {
         rel: DerivationLabel,
         child: Vec<PartialDerivationTree>,
     },
+}
+
+impl PartialDerivationTree {
+    fn child_mut(&mut self) -> Option<&mut Vec<PartialDerivationTree>> {
+        match self {
+            PartialDerivationTree::LeafEnd(_) => None,
+            PartialDerivationTree::Node {
+                head: _,
+                rel: _,
+                child,
+            } => Some(child),
+        }
+    }
 }
 
 impl PartialDerivationTree {
@@ -581,7 +595,24 @@ pub mod make_tree {
 }
 
 pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree {
-    let (der_tree, t) = type_infer(cxt.clone(), term1.clone());
+    let mut der_tree = PartialDerivationTree::Node {
+        head: Judgement::TypeCheck(
+            cxt.clone(),
+            Either::Left(term1.clone()),
+            Either::Left(term2.clone()),
+        ),
+        rel: DerivationLabel::Conv,
+        child: vec![],
+    };
+    let child = der_tree.child_mut().unwrap();
+
+    let (der_tree_of_term1, t) = type_infer(cxt.clone(), term1.clone());
+
+    child.push(der_tree_of_term1);
+    let Some(t) = t else {
+        return der_tree;
+    };
+
     let convertibility_tree = {
         let c = Conditions::Convertible(Either::Left(t.clone()), Either::Left(term2.clone()));
         let s = if beta_equiv(t.clone(), term2.clone()) {
@@ -592,16 +623,26 @@ pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree
         PartialDerivationTree::LeafEnd(Leaf::Cond(c, s))
     };
 
-    PartialDerivationTree::Node {
-        head: Judgement::TypeCheck(cxt, Either::Left(term1), Either::Left(term2)),
-        rel: DerivationLabel::Conv,
-        child: vec![der_tree, convertibility_tree],
-    }
+    child.push(convertibility_tree);
+
+    der_tree
 }
 
 // Γ |- t |> (s in S) かどうか
 fn type_infered_to_sort(cxt: Context, term: Exp) -> (PartialDerivationTree, Option<Sort>) {
-    let (der_tree, sort_of_term) = type_infer(cxt.clone(), term.clone());
+    let mut der_tree = PartialDerivationTree::Node {
+        head: Judgement::TypeInfer(cxt.clone(), Either::Left(term.clone())),
+        rel: DerivationLabel::ConvToSort,
+        child: vec![],
+    };
+    let child = der_tree.child_mut().unwrap();
+
+    let (der_tree_of_term, sort_of_term) = type_infer(cxt.clone(), term.clone());
+    child.push(der_tree_of_term);
+    let Some(sort_of_term) = sort_of_term else {
+        return (der_tree, None);
+    };
+
     let (reduce_to_sort_tree, maybe_sort) = {
         let mut s = sort_of_term.clone();
         while let Some(t) = weak_reduction(s.clone()) {
@@ -627,21 +668,28 @@ fn type_infered_to_sort(cxt: Context, term: Exp) -> (PartialDerivationTree, Opti
             }
         }
     };
-    (
-        PartialDerivationTree::Node {
-            head: Judgement::TypeInfer(cxt, Either::Left(term)),
-            rel: DerivationLabel::ConvToSort,
-            child: vec![der_tree, reduce_to_sort_tree],
-        },
-        maybe_sort,
-    )
+    child.push(reduce_to_sort_tree);
+    (der_tree, maybe_sort)
 }
 
 fn type_infered_to_prod(
     cxt: Context,
     term: Exp,
 ) -> (PartialDerivationTree, Option<(Var, Exp, Exp)>) {
-    let (der_tree, sort_of_term) = type_infer(cxt.clone(), term.clone());
+    let mut der_tree = PartialDerivationTree::Node {
+        head: Judgement::TypeInfer(cxt.clone(), Either::Left(term.clone())),
+        rel: DerivationLabel::ConvToProd,
+        child: vec![],
+    };
+    let child = der_tree.child_mut().unwrap();
+
+    let (der_tree_of_term, sort_of_term) = type_infer(cxt.clone(), term.clone());
+
+    child.push(der_tree_of_term);
+    let Some(sort_of_term) = sort_of_term else {
+        return (der_tree, None);
+    };
+
     let (reduce_to_prod, abstract_body) = {
         let mut s = sort_of_term.clone();
         while let Some(t) = weak_reduction(s.clone()) {
@@ -669,63 +717,128 @@ fn type_infered_to_prod(
             }
         }
     };
-    (
-        PartialDerivationTree::Node {
-            head: Judgement::TypeInfer(cxt, Either::Left(term)),
-            rel: DerivationLabel::ConvToProd,
-            child: vec![der_tree, reduce_to_prod],
-        },
-        abstract_body,
-    )
+    child.push(reduce_to_prod);
+    (der_tree, abstract_body)
 }
 
 pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Option<Exp>) {
+    let head = Judgement::TypeInfer(cxt.clone(), Either::Left(term1.clone()));
     match term1 {
-        Exp::Sort(sort) => match sort.type_of_sort() {
-            Some(s) => {
-                let cond = Conditions::AxiomSort(sort, s);
-                (
-                    PartialDerivationTree::Node {
-                        head: Judgement::TypeInfer(cxt, Either::Left(term1.clone())),
-                        rel: DerivationLabel::Axiom,
-                        child: vec![],
-                    },
-                    Some(Exp::Sort(s)),
-                )
-            }
-            None => todo!(),
-        },
+        Exp::Sort(sort) => {
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::Axiom,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
+            let res = match sort.type_of_sort() {
+                Some(s) => {
+                    let cond = Conditions::AxiomSort(sort, s);
+                    let leaf = PartialDerivationTree::LeafEnd(Leaf::Cond(cond, State::Success));
+                    child.push(leaf);
+                    Some(Exp::Sort(s))
+                }
+                None => None,
+            };
+            (der_tree, res)
+        }
         Exp::Var(x) => {
-            let res = cxt.search_var_exp(&x);
-            match res {
-                Some(t) => Ok(t.clone()),
-                None => Err(format!("not found variable {x:?}")),
-            }
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::Variable,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
+            let res = match cxt.search_var_exp(&x) {
+                Some(t) => {
+                    let cond =
+                        Conditions::ContextHasVar(cxt.clone(), x.clone(), Either::Left(t.clone()));
+                    let leaf = PartialDerivationTree::LeafEnd(Leaf::Cond(cond, State::Success));
+                    child.push(leaf);
+                    Some(t.clone())
+                }
+                None => None,
+            };
+            (der_tree, res)
         }
         Exp::Prod(x, t, t2) => {
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::ProdForm,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
             // sort of t
-            let sort_of_t = type_infered_to_sort(cxt.clone(), *t.clone())?;
+            let (der_tree_t, sort_of_t) = type_infered_to_sort(cxt.clone(), *t.clone());
+            child.push(der_tree_t);
+            let Some(sort_of_t) = sort_of_t else {
+                return (der_tree, None);
+            };
+
             // sort of t2
             cxt.push_decl((x, *t));
-            let sort_of_t2 = type_infered_to_sort(cxt, *t2.clone())?;
+            let (der_tree_t2, sort_of_t2) = type_infered_to_sort(cxt, *t2.clone());
+            child.push(der_tree_t2);
+            let Some(sort_of_t2) = sort_of_t2 else {
+                return (der_tree, None);
+            };
 
-            match sort_of_t.relation_of_sort(sort_of_t2) {
-                Some(s) => Ok(Exp::Sort(s)),
-                None => Err(format!("sort {sort_of_t} {sort_of_t2} has no rel")),
-            }
+            // (s1, s2, ?3) in R or not
+            let Some(s3) = sort_of_t.relation_of_sort(sort_of_t2) else {
+                return (der_tree, None);
+            };
+
+            let cond = Conditions::RelationSort(sort_of_t, sort_of_t2, s3);
+            let leaf = PartialDerivationTree::LeafEnd(Leaf::Cond(cond, State::Success));
+
+            child.push(leaf);
+
+            (der_tree, Some(Exp::Sort(s3)))
         }
         Exp::Lam(x, t, m) => {
-            let _sort = type_infered_to_sort(cxt.clone(), *t.clone())?;
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::ProdIntro,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
+
+            let (der_tree_a, _sort) = type_infered_to_sort(cxt.clone(), *t.clone());
+            child.push(der_tree_a);
+            let Some(_sort) = _sort else {
+                return (der_tree, None);
+            };
+
             cxt.push_decl((x.clone(), *t.clone()));
+            let (der_tree_m, type_m) = type_infer(cxt, *m.clone());
+            child.push(der_tree_m);
+            let Some(type_m) = type_m else {
+                return (der_tree, None);
+            };
 
-            let type_m = type_infer(cxt, *m.clone())?;
-
-            Ok(Exp::Prod(x, t, Box::new(type_m)))
+            (der_tree, Some(Exp::Prod(x, t, Box::new(type_m))))
         }
         Exp::App(t1, t2) => {
-            let (x, a, b) = type_infered_to_prod(cxt.clone(), *t1.clone())?;
-            type_check(cxt.clone(), *t2.clone(), a)?;
-            Ok(subst(b, &x, &t2))
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::ProdElim,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
+
+            let (der_tree_t1, xab) = type_infered_to_prod(cxt.clone(), *t1.clone());
+
+            child.push(der_tree_t1);
+            let Some((x, a, b)) = xab else {
+                return (der_tree, None);
+            };
+
+            let der_tree_t2 = type_check(cxt.clone(), *t2.clone(), a);
+            child.push(der_tree_t2);
+
+            let res = subst(b, &x, &t2);
+
+            (der_tree, Some(res))
         }
         _ => todo!("not implemented"),
     }
