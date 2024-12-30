@@ -350,6 +350,8 @@ pub enum Conditions {
     Convertible(Exp, Exp, Option<()>),        // t1 =^beta t2
     ReduceToSort(Exp, Option<Sort>),          // t ->^beta* sort
     ReduceToProd(Exp, Option<(Var, Exp, Exp)>), // t ->^beta* (x: a) -> b
+    ReduceToIndType(Exp, Option<(String, Vec<Exp>)>), // t ->^*beta I a1 ... an
+    ReduceToCstr(Exp, Option<(String, String, Vec<Exp>)>), // t ->* C a1 ... al
     AxiomSort(Sort, Option<Sort>),            // (s1: s2) in A
     RelationSort(Sort, Sort, Option<Sort>),   // (s1, s2, s3) in A
     ProofNeeded(Context, Exp),                // provable? G |= P
@@ -400,6 +402,25 @@ impl Conditions {
         };
         (Conditions::ReduceToProd(term, s.clone()), s)
     }
+    fn reduce_to_indtype(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(String, Vec<Exp>)>) {
+        let term_sort = normalize(gcxt, term.clone());
+        let s = match term_sort {
+            Exp::IndTypeType {
+                ind_type_name,
+                argument,
+            } => Some((ind_type_name, argument)),
+            _ => None,
+        };
+        (Conditions::ReduceToIndType(term, s.clone()), s)
+    }
+    fn reduce_to_indcst(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(String, String, Vec<Exp>)>) {
+        let term_sort = normalize(gcxt, term.clone());
+        let s = match term_sort {
+            Exp::IndTypeCst { ind_type_name, constructor_name, argument } => Some((ind_type_name, constructor_name, argument)),
+            _ => None,
+        };
+        (Conditions::ReduceToCstr(term, s.clone()), s)
+    }
     fn axiom_sort(s: Sort) -> (Self, Option<Sort>) {
         match s.type_of_sort() {
             Some(s2) => (Conditions::AxiomSort(s, Some(s2)), Some(s2)),
@@ -420,6 +441,8 @@ impl Conditions {
             Conditions::ReduceToProd(_, a) => a.is_some(),
             Conditions::AxiomSort(_, sort) => sort.is_some(),
             Conditions::RelationSort(_, _, sort2) => sort2.is_some(),
+            Conditions::ReduceToIndType(_, a) => a.is_some(),
+            Conditions::ReduceToCstr(_, a) => a.is_some(),
             Conditions::ProofNeeded(cxt, exp) => {
                 return ConditionsState::Wait(cxt.clone(), exp.clone());
             }
@@ -472,6 +495,34 @@ impl Conditions {
                     }
                 )
             }
+            Conditions::ReduceToIndType(e, arg) => {
+                format!(
+                    "{} ->*_indtype {}",
+                    e.pretty_print(),
+                    match arg {
+                        None => "x".to_string(),
+                        Some((name, arg)) => format!(
+                            "{name}({})",
+                            arg.iter()
+                                .fold(String::new(), |s, e| format!("{s} {}", e.pretty_print()))
+                        ),
+                    }
+                )
+            }
+            Conditions::ReduceToCstr(e, arg) => {
+                format!(
+                    "{} ->*_indtype {}",
+                    e.pretty_print(),
+                    match arg {
+                        None => "x".to_string(),
+                        Some((name, cst, arg)) => format!(
+                            "{name}::{cst}({})",
+                            arg.iter()
+                                .fold(String::new(), |s, e| format!("{s} {}", e.pretty_print()))
+                        ),
+                    }
+                )
+            }
             Conditions::AxiomSort(sort, sort1) => {
                 format!(
                     "type of {sort} -> {}",
@@ -506,6 +557,8 @@ pub enum DerivationLabel {
     Conv,
     ConvToSort,
     ConvToProd,
+    ConvToInd,
+    ConvToCst,
     ProdForm,
     ProdIntro,
     ProdElim,
@@ -521,6 +574,8 @@ impl Display for DerivationLabel {
             DerivationLabel::Conv => "Cnv",
             DerivationLabel::ConvToSort => "Cnv(->Sort)",
             DerivationLabel::ConvToProd => "Cnv(->Prod)",
+            DerivationLabel::ConvToInd => "Cnv(->Ind)",
+            DerivationLabel::ConvToCst => "Cnv(->Cst)",
             DerivationLabel::ProdForm => "Prod(Form)",
             DerivationLabel::ProdIntro => "Prod(Intr)",
             DerivationLabel::ProdElim => "Prof(Elim)",
@@ -665,6 +720,7 @@ fn type_infered_to_sort(
     (der_tree, sort)
 }
 
+// Γ |- t |> (x: a) -> b
 fn type_infered_to_prod(
     gcxt: &GlobalContext,
     cxt: Context,
@@ -693,6 +749,33 @@ fn type_infered_to_prod(
     *der_tree.of_type_mut().unwrap() = abstract_body.clone().map(|(x, a, b)| Exp::prod(x, a, b));
 
     (der_tree, abstract_body)
+}
+
+// Γ |- t |> I a1 ... an
+pub fn type_infered_to_ind(
+    gcxt: &GlobalContext,
+    cxt: Context,
+    term: Exp,
+) -> (PartialDerivationTree, Option<(String, Vec<Exp>)>) {
+    let mut der_tree = PartialDerivationTree::Node {
+        head: Judgement::TypeInfer(cxt.clone(), term.clone(), None),
+        rel: DerivationLabel::ConvToInd,
+        child: vec![],
+    };
+
+    let child = der_tree.child_mut().unwrap();
+
+    
+    let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
+    todo!()
+}
+
+pub fn type_infered_to_cst(
+    gcxt: &GlobalContext,
+    cxt: Context,
+    term: Exp,
+) -> (PartialDerivationTree, Option<(String, String, Vec<Exp>)>) {
+    todo!()
 }
 
 pub fn type_infer(

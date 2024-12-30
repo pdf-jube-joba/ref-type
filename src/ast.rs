@@ -583,7 +583,7 @@ impl GlobalContext {
             .insert(type_name, (constructors, defs));
         Ok(())
     }
-    pub fn push_new_decl(&mut self, (v, a): (Var, Exp)) -> Result<(), String> {
+    pub fn push_new_defs(&mut self, (x, a, t): (Var, Exp, Exp)) -> Result<(), String> {
         todo!()
     }
     pub fn push_new_assum(&mut self, (v, a): (Var, Exp)) -> Result<(), String> {
