@@ -4,42 +4,6 @@ use either::Either;
 
 use crate::ast::*;
 
-fn fresh_var(v: &Var) -> usize {
-    match v {
-        Var::Str(_) => 0,
-        Var::Internal(_, i) => *i + 1,
-        Var::Unused => 0,
-    }
-}
-
-// term に含まれるどの変数よりも大きい数を返す
-fn fresh(term: &Exp) -> usize {
-    match term {
-        Exp::Sort(_) => 0,
-        Exp::Var(v) => fresh_var(v),
-        Exp::Prod(x, t1, t2) => {
-            let v1 = fresh(t1);
-            let v2 = fresh(t2);
-            let v = std::cmp::max(v1, v2);
-            std::cmp::max(fresh_var(x), v)
-        }
-        Exp::Lam(x, t1, t2) => {
-            let v1 = fresh(t1);
-            let v2 = fresh(t2);
-            let v = std::cmp::max(v1, v2);
-            std::cmp::max(fresh_var(x), v)
-        }
-        Exp::App(t1, t2) => {
-            let v1 = fresh(t1);
-            let v2 = fresh(t2);
-            std::cmp::max(v1, v2)
-        }
-        _ => {
-            unimplemented!("fresh is umimplemented")
-        }
-    }
-}
-
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
     match term1 {
         Exp::Sort(_) => term1,
@@ -69,34 +33,34 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
             Box::new(subst_rec(*t2, fresh, substs.clone())),
         ),
         Exp::IndTypeType {
-            ind_type_def,
+            ind_type_name,
             argument,
         } => Exp::IndTypeType {
-            ind_type_def,
+            ind_type_name,
             argument: argument
                 .into_iter()
                 .map(|exp| subst_rec(exp, fresh, substs.clone()))
                 .collect(),
         },
         Exp::IndTypeCst {
-            ind_type_def,
-            projection,
+            ind_type_name,
+            constructor_name,
             argument,
         } => Exp::IndTypeCst {
-            ind_type_def,
-            projection,
+            ind_type_name,
+            constructor_name,
             argument: argument
                 .into_iter()
                 .map(|exp| subst_rec(exp, fresh, substs.clone()))
                 .collect(),
         },
         Exp::IndTypeElim {
-            ind_type_def,
+            ind_type_name,
             eliminated_exp,
             return_type,
             cases,
         } => Exp::IndTypeElim {
-            ind_type_def,
+            ind_type_name,
             eliminated_exp: Box::new(subst_rec(*eliminated_exp, fresh, substs.clone())),
             return_type: Box::new(subst_rec(*return_type, fresh, substs.clone())),
             cases: cases
@@ -149,115 +113,115 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
 }
 
 // one_step
-fn weak_reduction(term: Exp) -> Option<Exp> {
+// (\x. t1) t2 -> t1[x := t2]
+// Elim(Constructor, Q) -> ...
+pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
     match term {
         Exp::App(t1, t2) => match t1.as_ref() {
             Exp::Lam(x, _, m) => Some(subst(*m.clone(), x, t2.as_ref())),
-            _ => {
-                let new_t1 = weak_reduction(t1.as_ref().clone())?;
-                Some(Exp::App(Box::new(new_t1), Box::new(t2.as_ref().clone())))
-            }
+            _ => None,
         },
         Exp::IndTypeElim {
-            ind_type_def,
+            ind_type_name,
             eliminated_exp,
             return_type,
             cases,
         } => {
             let Exp::IndTypeCst {
-                ind_type_def: ind_type_def2,
-                projection,
+                ind_type_name: ind_type_name2,
+                constructor_name,
                 argument,
             } = *eliminated_exp
             else {
                 return None;
             };
-            if ind_type_def != ind_type_def2 {
+            if ind_type_name != ind_type_name2 {
                 return None;
             }
-            let inductives::IndTypeDefs {
-                variable,
-                signature,
-                constructor,
-            } = ind_type_def.clone();
 
-            let rec = {
+            let (projection, constructor) =
+                gcxt.indtype_constructor(&ind_type_name, &constructor_name)?;
+
+            let signature = gcxt
+                .indtype_defs(&ind_type_name)?
+                .arity()
+                .signature()
+                .clone();
+
+            let ff_elim_q = {
                 let new_var_c = Var::Internal("new_cst".to_string(), 0);
 
-                let elim = Exp::IndTypeElim {
-                    ind_type_def: ind_type_def.clone(),
+                let elim_cqf = Exp::IndTypeElim {
+                    ind_type_name: ind_type_name2.clone(),
                     eliminated_exp: Box::new(Exp::Var(new_var_c.clone())),
                     return_type: return_type.clone(),
                     cases: cases.clone(),
                 };
+
                 utils::assoc_lam(
-                    signature.signature().to_vec(),
+                    signature.clone(),
                     Exp::Lam(
                         new_var_c,
                         Box::new(Exp::IndTypeType {
-                            ind_type_def: ind_type_def.clone(),
-                            argument: signature
-                                .signature()
-                                .iter()
-                                .map(|(x, _)| Exp::Var(x.clone()))
-                                .collect(),
+                            ind_type_name: ind_type_name.clone(),
+                            argument: signature.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
                         }),
-                        Box::new(elim),
+                        Box::new(elim_cqf),
                     ),
                 )
             };
-            let t = constructor[projection].recursor(cases[projection].clone(), rec);
+            let t = constructor.recursor(ff_elim_q, cases[projection].clone());
             Some(utils::assoc_apply(t, argument))
         }
         _ => None,
     }
 }
 
-fn reduce(term: Exp) -> Option<Exp> {
-    if let Some(t) = weak_reduction(term.clone()) {
+pub fn reduce(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
+    if let Some(t) = top_reduction(gcxt, term.clone()) {
         return Some(t);
     }
     match term {
         Exp::Sort(_) | Exp::Var(_) => None,
         Exp::Prod(x, a, b) => {
-            let new_a = reduce(a.as_ref().clone());
+            let new_a = reduce(gcxt, a.as_ref().clone());
             match new_a {
                 Some(new_a) => Some(Exp::Prod(x, Box::new(new_a), b)),
                 None => {
-                    let new_b = reduce(b.as_ref().clone())?;
+                    let new_b = reduce(gcxt, b.as_ref().clone())?;
                     Some(Exp::Prod(x, a, Box::new(new_b)))
                 }
             }
         }
         Exp::Lam(x, a, b) => {
-            let new_a = reduce(a.as_ref().clone());
+            let new_a = reduce(gcxt, a.as_ref().clone());
             match new_a {
                 Some(new_a) => Some(Exp::Lam(x, Box::new(new_a), b)),
                 None => {
-                    let new_b = reduce(b.as_ref().clone())?;
+                    let new_b = reduce(gcxt, b.as_ref().clone())?;
                     Some(Exp::Lam(x, a, Box::new(new_b)))
                 }
             }
         }
         Exp::App(t1, t2) => {
-            let new_t1 = reduce(t1.as_ref().clone());
+            let new_t1 = reduce(gcxt, t1.as_ref().clone());
             match new_t1 {
                 Some(new_t1) => Some(Exp::App(Box::new(new_t1), t2)),
                 None => {
-                    let new_t2 = reduce(t2.as_ref().clone())?;
+                    let new_t2 = reduce(gcxt, t2.as_ref().clone())?;
                     Some(Exp::App(t1, Box::new(new_t2)))
                 }
             }
         }
         Exp::IndTypeType {
-            ind_type_def,
+            ind_type_name,
             mut argument,
         } => {
             for arg in &mut argument {
-                if let Some(e) = reduce(arg.clone()) {
+                if let Some(e) = reduce(gcxt, arg.clone()) {
                     *arg = e;
                     return Some(Exp::IndTypeType {
-                        ind_type_def,
+                        ind_type_name,
                         argument,
                     });
                 }
@@ -265,16 +229,16 @@ fn reduce(term: Exp) -> Option<Exp> {
             None
         }
         Exp::IndTypeCst {
-            ind_type_def,
-            projection,
+            ind_type_name,
+            constructor_name,
             mut argument,
         } => {
             for arg in &mut argument {
-                if let Some(e) = reduce(arg.clone()) {
+                if let Some(e) = reduce(gcxt, arg.clone()) {
                     *arg = e;
                     return Some(Exp::IndTypeCst {
-                        ind_type_def,
-                        projection,
+                        ind_type_name,
+                        constructor_name,
                         argument,
                     });
                 }
@@ -282,14 +246,14 @@ fn reduce(term: Exp) -> Option<Exp> {
             None
         }
         Exp::IndTypeElim {
-            ind_type_def,
+            ind_type_name,
             eliminated_exp,
             return_type,
             cases,
         } => {
-            if let Some(eliminated_exp) = reduce(*eliminated_exp.clone()) {
+            if let Some(eliminated_exp) = reduce(gcxt, *eliminated_exp.clone()) {
                 return Some(Exp::IndTypeElim {
-                    ind_type_def,
+                    ind_type_name,
                     eliminated_exp: Box::new(eliminated_exp),
                     return_type,
                     cases,
@@ -301,16 +265,25 @@ fn reduce(term: Exp) -> Option<Exp> {
     }
 }
 
-fn normalize(mut term: Exp) -> Exp {
-    while let Some(t) = reduce(term.clone()) {
+pub fn normalize(gcxt: &GlobalContext, mut term: Exp) -> Exp {
+    while let Some(t) = reduce(gcxt, term.clone()) {
         term = t;
     }
     term
 }
 
-fn beta_equiv(term1: Exp, term2: Exp) -> bool {
-    let term1 = normalize(term1);
-    let term2 = normalize(term2);
+pub fn normalize_seq(gcxt: &GlobalContext, mut term: Exp) -> Vec<Exp> {
+    let mut v = vec![term.clone()];
+    while let Some(t) = reduce(gcxt, term.clone()) {
+        v.push(t.clone());
+        term = t;
+    }
+    v
+}
+
+pub fn beta_equiv(gcxt: &GlobalContext, term1: Exp, term2: Exp) -> bool {
+    let term1 = normalize(gcxt, term1);
+    let term2 = normalize(gcxt, term2);
     alpha_eq(&term1, &term2)
 }
 
@@ -402,8 +375,8 @@ impl Conditions {
             None => (Conditions::ContextHasVar(cxt, var, None), None),
         }
     }
-    fn convertible(term1: Exp, term2: Exp) -> (Self, Option<()>) {
-        let s = if beta_equiv(term1.clone(), term2.clone()) {
+    fn convertible(gcxt: &GlobalContext, term1: Exp, term2: Exp) -> (Self, Option<()>) {
+        let s = if beta_equiv(gcxt, term1.clone(), term2.clone()) {
             Some(())
         } else {
             None
@@ -411,16 +384,16 @@ impl Conditions {
         let c = Conditions::Convertible(term1.clone(), term2.clone(), s);
         (c, s)
     }
-    fn reduce_to_sort(term: Exp) -> (Self, Option<Sort>) {
-        let term_sort = normalize(term.clone());
+    fn reduce_to_sort(gcxt: &GlobalContext, term: Exp) -> (Self, Option<Sort>) {
+        let term_sort = normalize(gcxt, term.clone());
         let s = match term_sort {
             Exp::Sort(s) => Some(s),
             _ => None,
         };
         (Conditions::ReduceToSort(term, s.clone()), s)
     }
-    fn reduce_to_prod(term: Exp) -> (Self, Option<(Var, Exp, Exp)>) {
-        let term_sort = normalize(term.clone());
+    fn reduce_to_prod(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(Var, Exp, Exp)>) {
+        let term_sort = normalize(gcxt, term.clone());
         let s = match term_sort {
             Exp::Prod(x, a, b) => Some((x, *a, *b)),
             _ => None,
@@ -632,7 +605,12 @@ impl PartialDerivationTree {
     }
 }
 
-pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree {
+pub fn type_check(
+    gcxt: &GlobalContext,
+    cxt: Context,
+    term1: Exp,
+    term2: Exp,
+) -> PartialDerivationTree {
     let mut der_tree = PartialDerivationTree::Node {
         head: Judgement::TypeCheck(cxt.clone(), term1.clone(), term2.clone()),
         rel: DerivationLabel::Conv,
@@ -640,7 +618,7 @@ pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree
     };
     let child = der_tree.child_mut().unwrap();
 
-    let (der_tree_of_term1, t) = type_infer(cxt.clone(), term1.clone());
+    let (der_tree_of_term1, t) = type_infer(gcxt, cxt.clone(), term1.clone());
 
     child.push(der_tree_of_term1);
     let Some(t) = t else {
@@ -648,7 +626,7 @@ pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree
     };
 
     let convertibility_tree =
-        { PartialDerivationTree::LeafEnd(Conditions::convertible(term2, t).0) };
+        { PartialDerivationTree::LeafEnd(Conditions::convertible(gcxt, term2, t).0) };
 
     child.push(convertibility_tree);
 
@@ -656,7 +634,11 @@ pub fn type_check(cxt: Context, term1: Exp, term2: Exp) -> PartialDerivationTree
 }
 
 // Γ |- t |> (s in S) かどうか
-fn type_infered_to_sort(cxt: Context, term: Exp) -> (PartialDerivationTree, Option<Sort>) {
+fn type_infered_to_sort(
+    gcxt: &GlobalContext,
+    cxt: Context,
+    term: Exp,
+) -> (PartialDerivationTree, Option<Sort>) {
     let mut der_tree = PartialDerivationTree::Node {
         head: Judgement::TypeInfer(cxt.clone(), term.clone(), None),
         rel: DerivationLabel::ConvToSort,
@@ -665,14 +647,14 @@ fn type_infered_to_sort(cxt: Context, term: Exp) -> (PartialDerivationTree, Opti
 
     let child = der_tree.child_mut().unwrap();
 
-    let (der_tree_of_term, sort_of_term) = type_infer(cxt.clone(), term.clone());
+    let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
     child.push(der_tree_of_term);
     let Some(sort_of_term) = sort_of_term else {
         return (der_tree, None);
     };
 
     let (reduce_to_sort_tree, sort) = {
-        let (cond, sort) = Conditions::reduce_to_sort(sort_of_term);
+        let (cond, sort) = Conditions::reduce_to_sort(gcxt, sort_of_term);
         (PartialDerivationTree::LeafEnd(cond), sort)
     };
 
@@ -684,6 +666,7 @@ fn type_infered_to_sort(cxt: Context, term: Exp) -> (PartialDerivationTree, Opti
 }
 
 fn type_infered_to_prod(
+    gcxt: &GlobalContext,
     cxt: Context,
     term: Exp,
 ) -> (PartialDerivationTree, Option<(Var, Exp, Exp)>) {
@@ -694,7 +677,7 @@ fn type_infered_to_prod(
     };
     let child = der_tree.child_mut().unwrap();
 
-    let (der_tree_of_term, sort_of_term) = type_infer(cxt.clone(), term.clone());
+    let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
 
     child.push(der_tree_of_term);
     let Some(sort_of_term) = sort_of_term else {
@@ -702,7 +685,7 @@ fn type_infered_to_prod(
     };
 
     let (reduce_to_prod, abstract_body) = {
-        let (c, abs) = Conditions::reduce_to_prod(sort_of_term);
+        let (c, abs) = Conditions::reduce_to_prod(gcxt, sort_of_term);
         (PartialDerivationTree::LeafEnd(c), abs)
     };
     child.push(reduce_to_prod);
@@ -712,7 +695,11 @@ fn type_infered_to_prod(
     (der_tree, abstract_body)
 }
 
-pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Option<Exp>) {
+pub fn type_infer(
+    gcxt: &GlobalContext,
+    mut cxt: Context,
+    term1: Exp,
+) -> (PartialDerivationTree, Option<Exp>) {
     let head = Judgement::TypeInfer(cxt.clone(), term1.clone(), None);
     match term1 {
         Exp::Sort(sort) => {
@@ -748,7 +735,7 @@ pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Optio
             };
             let child = der_tree.child_mut().unwrap();
             // sort of t
-            let (der_tree_t, sort_of_t) = type_infered_to_sort(cxt.clone(), *t.clone());
+            let (der_tree_t, sort_of_t) = type_infered_to_sort(gcxt, cxt.clone(), *t.clone());
             child.push(der_tree_t);
             let Some(sort_of_t) = sort_of_t else {
                 return (der_tree, None);
@@ -756,7 +743,7 @@ pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Optio
 
             // sort of t2
             cxt.push_decl((x, *t));
-            let (der_tree_t2, sort_of_t2) = type_infered_to_sort(cxt, *t2.clone());
+            let (der_tree_t2, sort_of_t2) = type_infered_to_sort(gcxt, cxt, *t2.clone());
             child.push(der_tree_t2);
             let Some(sort_of_t2) = sort_of_t2 else {
                 return (der_tree, None);
@@ -779,14 +766,14 @@ pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Optio
             };
             let child = der_tree.child_mut().unwrap();
 
-            let (der_tree_a, _sort) = type_infered_to_sort(cxt.clone(), *t.clone());
+            let (der_tree_a, _sort) = type_infered_to_sort(gcxt, cxt.clone(), *t.clone());
             child.push(der_tree_a);
             let Some(_sort) = _sort else {
                 return (der_tree, None);
             };
 
             cxt.push_decl((x.clone(), *t.clone()));
-            let (der_tree_m, type_m) = type_infer(cxt, *m.clone());
+            let (der_tree_m, type_m) = type_infer(gcxt, cxt, *m.clone());
             child.push(der_tree_m);
             let Some(type_m) = type_m else {
                 return (der_tree, None);
@@ -806,14 +793,14 @@ pub fn type_infer(mut cxt: Context, term1: Exp) -> (PartialDerivationTree, Optio
             };
             let child = der_tree.child_mut().unwrap();
 
-            let (der_tree_t1, xab) = type_infered_to_prod(cxt.clone(), *t1.clone());
+            let (der_tree_t1, xab) = type_infered_to_prod(gcxt, cxt.clone(), *t1.clone());
 
             child.push(der_tree_t1);
             let Some((x, a, b)) = xab else {
                 return (der_tree, None);
             };
 
-            let der_tree_t2 = type_check(cxt.clone(), *t2.clone(), a);
+            let der_tree_t2 = type_check(gcxt, cxt.clone(), *t2.clone(), a);
             child.push(der_tree_t2);
 
             let res = subst(b, &x, &t2);
