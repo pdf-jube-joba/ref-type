@@ -16,13 +16,11 @@ pub enum Exp {
     // T m[0] ... m[k]
     IndTypeType {
         ind_type_name: String,
-        argument: Vec<Exp>,
     },
     // T[i] a[0] ... a[l]
     IndTypeCst {
         ind_type_name: String,
         constructor_name: String,
-        argument: Vec<Exp>,
     },
     // Elim(T, c, Q){f[0], ..., f[m]}
     IndTypeElim {
@@ -56,25 +54,11 @@ impl Exp {
             Exp::App(exp, exp1) => {
                 format!("{} {}", exp.pretty_print(), exp1.pretty_print())
             }
-            Exp::IndTypeType {
-                ind_type_name,
-                argument,
-            } => format!(
-                "{ind_type_name}({})",
-                argument
-                    .iter()
-                    .fold(String::new(), |s, e| format!("{s} {}", e.pretty_print()))
-            ),
+            Exp::IndTypeType { ind_type_name } => format!("{ind_type_name}",),
             Exp::IndTypeCst {
                 ind_type_name,
                 constructor_name,
-                argument,
-            } => format!(
-                "{ind_type_name}::{constructor_name}({})",
-                argument
-                    .iter()
-                    .fold(String::new(), |s, e| format!("{s} {}", e.pretty_print()))
-            ),
+            } => format!("{ind_type_name}::{constructor_name}",),
             Exp::IndTypeElim {
                 ind_type_name,
                 eliminated_exp,
@@ -95,6 +79,50 @@ impl Exp {
     }
     pub fn lambda(var: Var, a: Exp, b: Exp) -> Self {
         Exp::Lam(var, Box::new(a), Box::new(b))
+    }
+    pub fn indtype(gcxt: &GlobalContext, type_name: String) -> Result<Self, String> {
+        if gcxt.indtype_defs(&type_name).is_none() {
+            return Err(format!("type {type_name} is not found"));
+        };
+        Ok(Self::IndTypeType {
+            ind_type_name: type_name,
+        })
+    }
+    pub fn indcst(
+        gcxt: &GlobalContext,
+        type_name: String,
+        cst_name: String,
+    ) -> Result<Self, String> {
+        if gcxt.indtype_defs(&type_name).is_none() {
+            return Err(format!("type {type_name} is not found"));
+        };
+        if gcxt.indtype_constructor(&type_name, &cst_name).is_none() {
+            return Err(format!("constructor {type_name} {cst_name} is not found"));
+        };
+        Ok(Self::IndTypeCst {
+            ind_type_name: type_name,
+            constructor_name: cst_name,
+        })
+    }
+    pub fn indelim(
+        gcxt: &GlobalContext,
+        ind_type_name: String,
+        eliminated_exp: Exp,
+        return_type: Exp,
+        cases: Vec<Exp>,
+    ) -> Result<Self, String> {
+        let Some(type_def) = gcxt.indtype_defs(&ind_type_name) else {
+            return Err(format!("type {ind_type_name} is not found"));
+        };
+        if type_def.constructors().len() != cases.len() {
+            return Err(format!("elim case num is diff {}", cases.len()));
+        }
+        Ok(Self::IndTypeElim {
+            ind_type_name,
+            eliminated_exp: Box::new(eliminated_exp),
+            return_type: Box::new(return_type),
+            cases,
+        })
     }
 }
 
@@ -279,6 +307,9 @@ pub mod inductives {
         pub fn sort(&self) -> &Sort {
             &self.sort
         }
+        pub fn arg_num(&self) -> usize {
+            self.signature.len()
+        }
     }
 
     impl From<Arity> for Exp {
@@ -310,6 +341,9 @@ pub mod inductives {
         pub fn arity(&self) -> &Arity {
             &self.arity
         }
+        pub fn constructors(&self) -> &Vec<ConstructorType> {
+            &self.constructor
+        }
         pub fn constructor(&self, i: usize) -> Option<&ConstructorType> {
             self.constructor.get(i)
         }
@@ -328,26 +362,29 @@ pub mod inductives {
         Simple((Var, Exp)), // (x: A) -> C where A.free_var does not contains X
     }
 
-    impl From<ConstructorType> for Exp {
-        fn from(value: ConstructorType) -> Self {
+    impl ConstructorType {
+        pub fn subst_exp(&self, e: Exp) -> Exp {
             let ConstructorType {
-                end: (v, exps),
+                end: (_, exps),
                 params,
-            } = value;
-            let mut end = assoc_apply(Exp::Var(v), exps);
+            } = self.clone();
+            let mut end = assoc_apply(e.clone(), exps);
             for p in params.into_iter().rev() {
                 match p {
                     ParamCst::Positive(positive) => {
-                        end = Exp::prod(Var::Unused, positive.into(), end);
+                        end = Exp::prod(Var::Unused, positive.subst(e.clone()), end);
                     }
                     ParamCst::Simple((var, a)) => end = Exp::prod(var, a, end),
                 }
             }
             end
         }
-    }
-
-    impl ConstructorType {
+        pub fn arg_num(&self) -> usize {
+            self.params.len()
+        }
+        pub fn arg_end(&self) -> &Vec<Exp> {
+            &self.end.1
+        }
         pub fn new_constructor(
             end: (Var, Vec<Exp>),
             params: Vec<ParamCst>,
@@ -381,6 +418,87 @@ pub mod inductives {
             }
             Ok((Self { end, params }, var_type))
         }
+    }
+
+    impl From<ConstructorType> for Exp {
+        fn from(value: ConstructorType) -> Exp {
+            let ConstructorType {
+                end: (v, exps),
+                params,
+            } = value;
+            let mut end = assoc_apply(Exp::Var(v), exps);
+            for p in params.into_iter().rev() {
+                match p {
+                    ParamCst::Positive(positive) => {
+                        end = Exp::prod(Var::Unused, positive.into(), end);
+                    }
+                    ParamCst::Simple((var, a)) => end = Exp::prod(var, a, end),
+                }
+            }
+            end
+        }
+    }
+
+    // variable = X, parameter = [(y_1, M_1), ..., (y_k, M_k)], exps = [N_1, ... N_l]
+    // => (y_1: M_1) -> ... -> (y_k: M_k) -> (X N_1 ... N_l)
+    // free variable of Pos is only X
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Positive {
+        parameter: Vec<(Var, Exp)>,
+        variable: Var,
+        exps: Vec<Exp>,
+    }
+
+    impl Positive {
+        pub fn subst(&self, e: Exp) -> Exp {
+            let Positive {
+                parameter,
+                variable: _,
+                exps,
+            } = self.clone();
+            assoc_prod(parameter, assoc_apply(e, exps))
+        }
+        pub fn new(
+            variable: Var,
+            parameter: Vec<(Var, Exp)>,
+            exps: Vec<Exp>,
+        ) -> Result<Self, String> {
+            for (_, a) in &parameter {
+                // a.free_variables() <=(subset) allow
+                if a.free_variable().contains(&variable) {
+                    return Err(format!("pos param {a:?} contains {variable:?}"));
+                }
+            }
+
+            for e in &exps {
+                if e.free_variable().contains(&variable) {
+                    return Err(format!("arg {e:?} contains {variable:?}"));
+                }
+            }
+
+            let positive = Positive {
+                variable,
+                parameter,
+                exps,
+            };
+
+            Ok(positive)
+        }
+    }
+
+    impl From<Positive> for Exp {
+        fn from(
+            Positive {
+                variable,
+                parameter,
+                exps,
+            }: Positive,
+        ) -> Self {
+            assoc_prod(parameter, assoc_apply(Exp::Var(variable), exps))
+        }
+    }
+
+    impl ConstructorType {
         pub fn eliminator_type(&self, q: Exp, mut c: Exp) -> Exp {
             let Self { end, params } = self;
 
@@ -463,57 +581,6 @@ pub mod inductives {
             f
         }
     }
-
-    // variable = X, parameter = [(y_1, M_1), ..., (y_k, M_k)], exps = [N_1, ... N_l]
-    // => (y_1: M_1) -> ... -> (y_k: M_k) -> (X N_1 ... N_l)
-    // free variable of Pos is only X
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct Positive {
-        parameter: Vec<(Var, Exp)>,
-        variable: Var,
-        exps: Vec<Exp>,
-    }
-
-    impl Positive {
-        pub fn new(
-            variable: Var,
-            parameter: Vec<(Var, Exp)>,
-            exps: Vec<Exp>,
-        ) -> Result<Self, String> {
-            for (_, a) in &parameter {
-                // a.free_variables() <=(subset) allow
-                if a.free_variable().contains(&variable) {
-                    return Err(format!("pos param {a:?} contains {variable:?}"));
-                }
-            }
-
-            for e in &exps {
-                if e.free_variable().contains(&variable) {
-                    return Err(format!("arg {e:?} contains {variable:?}"));
-                }
-            }
-
-            let positive = Positive {
-                variable,
-                parameter,
-                exps,
-            };
-
-            Ok(positive)
-        }
-    }
-
-    impl From<Positive> for Exp {
-        fn from(
-            Positive {
-                variable,
-                parameter,
-                exps,
-            }: Positive,
-        ) -> Self {
-            assoc_prod(parameter, assoc_apply(Exp::Var(variable), exps))
-        }
-    }
 }
 
 impl Exp {
@@ -538,15 +605,11 @@ impl Exp {
                 v.extend(e2.free_variable());
                 v
             }
-            Exp::IndTypeType {
-                argument,
-                ind_type_name: _,
-            } => argument.iter().flat_map(|e| e.free_variable()).collect(),
+            Exp::IndTypeType { ind_type_name: _ } => HashSet::new(),
             Exp::IndTypeCst {
                 ind_type_name: _,
                 constructor_name: _,
-                argument,
-            } => argument.iter().flat_map(|e| e.free_variable()).collect(),
+            } => HashSet::new(),
             Exp::IndTypeElim {
                 ind_type_name: _,
                 eliminated_exp,

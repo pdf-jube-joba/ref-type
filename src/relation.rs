@@ -32,27 +32,13 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
             Box::new(subst_rec(*t1, fresh, substs.clone())),
             Box::new(subst_rec(*t2, fresh, substs.clone())),
         ),
-        Exp::IndTypeType {
-            ind_type_name,
-            argument,
-        } => Exp::IndTypeType {
-            ind_type_name,
-            argument: argument
-                .into_iter()
-                .map(|exp| subst_rec(exp, fresh, substs.clone()))
-                .collect(),
-        },
+        Exp::IndTypeType { ind_type_name } => Exp::IndTypeType { ind_type_name },
         Exp::IndTypeCst {
             ind_type_name,
             constructor_name,
-            argument,
         } => Exp::IndTypeCst {
             ind_type_name,
             constructor_name,
-            argument: argument
-                .into_iter()
-                .map(|exp| subst_rec(exp, fresh, substs.clone()))
-                .collect(),
         },
         Exp::IndTypeElim {
             ind_type_name,
@@ -130,7 +116,6 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
             let Exp::IndTypeCst {
                 ind_type_name: ind_type_name2,
                 constructor_name,
-                argument,
             } = *eliminated_exp
             else {
                 return None;
@@ -148,6 +133,8 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                 .signature()
                 .clone();
 
+            let argument = constructor.arg_end().clone();
+
             let ff_elim_q = {
                 let new_var_c = Var::Internal("new_cst".to_string(), 0);
 
@@ -162,10 +149,12 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     signature.clone(),
                     Exp::Lam(
                         new_var_c,
-                        Box::new(Exp::IndTypeType {
-                            ind_type_name: ind_type_name.clone(),
-                            argument: signature.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
-                        }),
+                        Box::new(utils::assoc_apply(
+                            Exp::IndTypeType {
+                                ind_type_name: ind_type_name.clone(),
+                            },
+                            signature.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
+                        )),
                         Box::new(elim_cqf),
                     ),
                 )
@@ -213,38 +202,11 @@ pub fn reduce(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                 }
             }
         }
-        Exp::IndTypeType {
-            ind_type_name,
-            mut argument,
-        } => {
-            for arg in &mut argument {
-                if let Some(e) = reduce(gcxt, arg.clone()) {
-                    *arg = e;
-                    return Some(Exp::IndTypeType {
-                        ind_type_name,
-                        argument,
-                    });
-                }
-            }
-            None
-        }
+        Exp::IndTypeType { ind_type_name: _ } => None,
         Exp::IndTypeCst {
-            ind_type_name,
-            constructor_name,
-            mut argument,
-        } => {
-            for arg in &mut argument {
-                if let Some(e) = reduce(gcxt, arg.clone()) {
-                    *arg = e;
-                    return Some(Exp::IndTypeCst {
-                        ind_type_name,
-                        constructor_name,
-                        argument,
-                    });
-                }
-            }
-            None
-        }
+            ind_type_name: _,
+            constructor_name: _,
+        } => None,
         Exp::IndTypeElim {
             ind_type_name,
             eliminated_exp,
@@ -407,16 +369,22 @@ impl Conditions {
         let s = match term_sort {
             Exp::IndTypeType {
                 ind_type_name,
-                argument,
             } => Some((ind_type_name, argument)),
             _ => None,
         };
         (Conditions::ReduceToIndType(term, s.clone()), s)
     }
-    fn reduce_to_indcst(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(String, String, Vec<Exp>)>) {
+    fn reduce_to_indcst(
+        gcxt: &GlobalContext,
+        term: Exp,
+    ) -> (Self, Option<(String, String, Vec<Exp>)>) {
         let term_sort = normalize(gcxt, term.clone());
         let s = match term_sort {
-            Exp::IndTypeCst { ind_type_name, constructor_name, argument } => Some((ind_type_name, constructor_name, argument)),
+            Exp::IndTypeCst {
+                ind_type_name,
+                constructor_name,
+                argument,
+            } => Some((ind_type_name, constructor_name, argument)),
             _ => None,
         };
         (Conditions::ReduceToCstr(term, s.clone()), s)
@@ -562,6 +530,9 @@ pub enum DerivationLabel {
     ProdForm,
     ProdIntro,
     ProdElim,
+    IndForm,
+    IndIntro,
+    IndElim,
 }
 
 impl Display for DerivationLabel {
@@ -579,6 +550,9 @@ impl Display for DerivationLabel {
             DerivationLabel::ProdForm => "Prod(Form)",
             DerivationLabel::ProdIntro => "Prod(Intr)",
             DerivationLabel::ProdElim => "Prof(Elim)",
+            DerivationLabel::IndForm => "Ind(Form)",
+            DerivationLabel::IndIntro => "Ind(Intr)",
+            DerivationLabel::IndElim => "Ind(Elim)",
         };
         write!(f, "{}", s)
     }
@@ -765,7 +739,6 @@ pub fn type_infered_to_ind(
 
     let child = der_tree.child_mut().unwrap();
 
-    
     let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
     todo!()
 }
@@ -886,9 +859,58 @@ pub fn type_infer(
             let der_tree_t2 = type_check(gcxt, cxt.clone(), *t2.clone(), a);
             child.push(der_tree_t2);
 
-            let res = subst(b, &x, &t2);
+            let res = Some(subst(b, &x, &t2));
+            der_tree.of_type_mut().unwrap().clone_from(&res);
 
-            (der_tree, Some(res))
+            (der_tree, res)
+        }
+        Exp::IndTypeType {
+            ind_type_name,
+            argument,
+        } => {
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::IndForm,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
+
+            let ind_def = gcxt.indtype_defs(&ind_type_name).unwrap(); // todo!()
+            let arity = ind_def.arity();
+            assert_eq!(arity.arg_num(), argument.len());
+
+            let mut substs = vec![];
+
+            for i in 0..arity.arg_num() {
+                let (x, mut a) = arity.signature()[i].clone();
+
+                for (x, v) in &substs {
+                    a = subst(a, x, v);
+                }
+
+                let v = argument[i].clone();
+                let der_tree = type_check(gcxt, cxt.clone(), v.clone(), a.clone());
+
+                if der_tree.result_of_tree() == StatePartialTree::Fail {
+                    return (der_tree, None);
+                }
+
+                child.push(der_tree);
+
+                substs.push((x, v));
+            }
+
+            let res = Some(Exp::Sort(*arity.sort()));
+            der_tree.of_type_mut().unwrap().clone_from(&res);
+
+            (der_tree, res)
+        }
+        Exp::IndTypeCst {
+            ind_type_name,
+            constructor_name,
+            argument,
+        } => {
+            todo!()
         }
         _ => todo!("not implemented"),
     }
