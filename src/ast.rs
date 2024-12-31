@@ -3,6 +3,8 @@ use std::{
     fmt::Display,
 };
 
+use crate::relation::subst;
+
 pub mod parse;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,11 +15,11 @@ pub enum Exp {
     Lam(Var, Box<Exp>, Box<Exp>),
     App(Box<Exp>, Box<Exp>),
     // inductive hoge は global context を見ながらやること
-    // T m[0] ... m[k]
+    // 型 T
     IndTypeType {
         ind_type_name: String,
     },
-    // T[i] a[0] ... a[l]
+    // 型 T のコンストラクタ C の指定
     IndTypeCst {
         ind_type_name: String,
         constructor_name: String,
@@ -151,6 +153,17 @@ pub mod utils {
         }
         e
     }
+
+    pub fn decompose_to_app_exps(mut e: Exp) -> Vec<Exp> {
+        let mut v = vec![];
+        while let Exp::App(t1, t2) = e {
+            v.push(*t2);
+            e = *t1;
+        }
+        v.push(e);
+        v.reverse();
+        v
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -279,6 +292,15 @@ impl Sort {
             (Sort::Type, Sort::Set) => None, // Set は predicative
         }
     }
+
+    // elimination の制限用
+    pub fn ind_type_rel(self, other: Self) -> Option<()> {
+        match (self, other) {
+            (Sort::Prop, Sort::Prop) => Some(()),
+
+            _ => None,
+        }
+    }
 }
 
 // inductive definition には自由変数がないことを仮定する
@@ -338,6 +360,9 @@ pub mod inductives {
                 constructor,
             })
         }
+        pub fn variable(&self) -> &Var {
+            &self.variable
+        }
         pub fn arity(&self) -> &Arity {
             &self.arity
         }
@@ -363,21 +388,8 @@ pub mod inductives {
     }
 
     impl ConstructorType {
-        pub fn subst_exp(&self, e: Exp) -> Exp {
-            let ConstructorType {
-                end: (_, exps),
-                params,
-            } = self.clone();
-            let mut end = assoc_apply(e.clone(), exps);
-            for p in params.into_iter().rev() {
-                match p {
-                    ParamCst::Positive(positive) => {
-                        end = Exp::prod(Var::Unused, positive.subst(e.clone()), end);
-                    }
-                    ParamCst::Simple((var, a)) => end = Exp::prod(var, a, end),
-                }
-            }
-            end
+        pub fn variable(&self) -> &Var {
+            &self.end.0
         }
         pub fn arg_num(&self) -> usize {
             self.params.len()
@@ -639,12 +651,63 @@ impl GlobalContext {
         constructors: Vec<String>,
         defs: inductives::IndTypeDefs,
     ) -> Result<(), String> {
+        use crate::relation::{type_check, type_infered_to_sort, Context, StatePartialTree};
         if self.inductive_definitions.contains_key(&type_name) {
             return Err(format!("already defined {type_name}"));
         }
+
+        // arity の well defined
+        let arity_exp: Exp = defs.arity().clone().into();
+        let check = type_infered_to_sort(self, Context::default(), arity_exp);
+        if check.1.is_none() {
+            return Err(format!(
+                "arity {:?} is not well formed \n{}",
+                defs.arity(),
+                check.0.pretty_print(0),
+            ));
+        }
+
+        // 各 constructor の well defined
+        for c in defs.constructors() {
+            let sort = *defs.arity().sort();
+            let mut cxt = Context::default();
+            let (x, a) = (defs.variable().clone(), defs.arity().clone().into());
+            cxt.push_decl((x, a));
+            let constructor: Exp = c.clone().into();
+            let check = type_check(&self, cxt, constructor, Exp::Sort(sort));
+            if check.result_of_tree() == StatePartialTree::Fail {
+                return Err(format!(
+                    "constructor {:?} is nor well formed \n{}",
+                    c,
+                    check.pretty_print(0),
+                ));
+            }
+        }
+
         self.inductive_definitions
             .insert(type_name, (constructors, defs));
         Ok(())
+    }
+    pub fn type_of_indtype(&self, type_name: &str) -> Option<Exp> {
+        let indtype_def = self.indtype_defs(type_name)?;
+        let arity = indtype_def.arity().clone();
+        Some(arity.into())
+    }
+    pub fn type_of_cst(&self, type_name: &str, constructor_name: &str) -> Option<Exp> {
+        let constructor_def = self.indtype_constructor(type_name, constructor_name)?.1;
+        let constructor_exp: Exp = constructor_def.clone().into();
+        let constructor_exp = subst(
+            constructor_exp,
+            constructor_def.variable(),
+            &Exp::IndTypeType {
+                ind_type_name: type_name.to_string(),
+            },
+        );
+        Some(constructor_exp)
+    }
+    pub fn name_of_cst(&self, type_name: &str, i: usize) -> Option<&String> {
+        let a = self.inductive_definitions.get(type_name)?;
+        a.0.get(i)
     }
     pub fn push_new_defs(&mut self, (x, a, t): (Var, Exp, Exp)) -> Result<(), String> {
         todo!()

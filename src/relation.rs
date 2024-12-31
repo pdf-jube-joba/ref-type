@@ -4,6 +4,8 @@ use either::Either;
 
 use crate::ast::*;
 
+use self::utils::decompose_to_app_exps;
+
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
     match term1 {
         Exp::Sort(_) => term1,
@@ -253,23 +255,23 @@ pub fn beta_equiv(gcxt: &GlobalContext, term1: Exp, term2: Exp) -> bool {
 pub struct Context(Vec<(Var, Exp)>);
 
 impl Context {
-    fn pretty_print(&self) -> String {
+    pub fn pretty_print(&self) -> String {
         self.0.iter().fold(String::new(), |s1, (v, t)| {
             format!("{s1}({v}: {})", t.pretty_print())
         })
     }
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-    fn poped(&self) -> Option<(Self, (Var, Exp))> {
+    pub fn poped(&self) -> Option<(Self, (Var, Exp))> {
         let mut s = self.clone();
         let d = s.0.pop()?;
         Some((s, d))
     }
-    fn push_decl(&mut self, d: (Var, Exp)) {
+    pub fn push_decl(&mut self, d: (Var, Exp)) {
         self.0.push(d);
     }
-    fn search_var_exp(&self, var: &Var) -> Option<&Exp> {
+    pub fn search_var_exp(&self, var: &Var) -> Option<&Exp> {
         self.0.iter().find(|(v, e)| v == var).map(|e| &e.1)
     }
 }
@@ -314,9 +316,11 @@ pub enum Conditions {
     ReduceToProd(Exp, Option<(Var, Exp, Exp)>), // t ->^beta* (x: a) -> b
     ReduceToIndType(Exp, Option<(String, Vec<Exp>)>), // t ->^*beta I a1 ... an
     ReduceToCstr(Exp, Option<(String, String, Vec<Exp>)>), // t ->* C a1 ... al
-    AxiomSort(Sort, Option<Sort>),            // (s1: s2) in A
-    RelationSort(Sort, Sort, Option<Sort>),   // (s1, s2, s3) in A
-    ProofNeeded(Context, Exp),                // provable? G |= P
+    ReduceToReturnType(Exp, Option<(Vec<(Var, Exp)>, Sort)>),
+    AxiomSort(Sort, Option<Sort>),          // (s1: s2) in A
+    RelationSort(Sort, Sort, Option<Sort>), // (s1, s2, s3) in R
+    IndRelSort(Sort, Sort, Option<()>),     // (s1, s2) in R_elim
+    ProofNeeded(Context, Exp),              // provable? G |= P
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -349,27 +353,28 @@ impl Conditions {
         (c, s)
     }
     fn reduce_to_sort(gcxt: &GlobalContext, term: Exp) -> (Self, Option<Sort>) {
-        let term_sort = normalize(gcxt, term.clone());
-        let s = match term_sort {
+        let type_term = normalize(gcxt, term.clone());
+        let s = match type_term {
             Exp::Sort(s) => Some(s),
             _ => None,
         };
         (Conditions::ReduceToSort(term, s.clone()), s)
     }
     fn reduce_to_prod(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(Var, Exp, Exp)>) {
-        let term_sort = normalize(gcxt, term.clone());
-        let s = match term_sort {
+        let type_term = normalize(gcxt, term.clone());
+        let s = match type_term {
             Exp::Prod(x, a, b) => Some((x, *a, *b)),
             _ => None,
         };
         (Conditions::ReduceToProd(term, s.clone()), s)
     }
     fn reduce_to_indtype(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(String, Vec<Exp>)>) {
-        let term_sort = normalize(gcxt, term.clone());
-        let s = match term_sort {
-            Exp::IndTypeType {
-                ind_type_name,
-            } => Some((ind_type_name, argument)),
+        let type_term = normalize(gcxt, term.clone());
+        let type_term_decompose = decompose_to_app_exps(type_term);
+        let head = type_term_decompose[0].clone();
+        let argument = type_term_decompose[1..].to_vec();
+        let s = match head {
+            Exp::IndTypeType { ind_type_name } => Some((ind_type_name, argument)),
             _ => None,
         };
         (Conditions::ReduceToIndType(term, s.clone()), s)
@@ -378,16 +383,44 @@ impl Conditions {
         gcxt: &GlobalContext,
         term: Exp,
     ) -> (Self, Option<(String, String, Vec<Exp>)>) {
-        let term_sort = normalize(gcxt, term.clone());
-        let s = match term_sort {
+        let type_term = normalize(gcxt, term.clone());
+        let type_term_decompose = decompose_to_app_exps(type_term);
+        let head = type_term_decompose[0].clone();
+        let argument = type_term_decompose[1..].to_vec();
+        let s = match head {
             Exp::IndTypeCst {
                 ind_type_name,
                 constructor_name,
-                argument,
             } => Some((ind_type_name, constructor_name, argument)),
             _ => None,
         };
         (Conditions::ReduceToCstr(term, s.clone()), s)
+    }
+    fn reduce_to_returntype(
+        gcxt: &GlobalContext,
+        term: Exp,
+    ) -> (Self, Option<(Vec<(Var, Exp)>, Sort)>) {
+        let type_term = normalize(gcxt, term.clone());
+        let mut v = vec![];
+        let mut term2 = type_term.clone();
+        let s = loop {
+            match term2 {
+                Exp::Prod(x, a, b) => {
+                    v.push((x, *a));
+                    term2 = *b;
+                }
+                Exp::Sort(s) => {
+                    break s;
+                }
+                _ => {
+                    return (Conditions::ReduceToReturnType(term2, None), None);
+                }
+            }
+        };
+        (
+            Conditions::ReduceToReturnType(term, Some((v.clone(), s))),
+            Some((v, s)),
+        )
     }
     fn axiom_sort(s: Sort) -> (Self, Option<Sort>) {
         match s.type_of_sort() {
@@ -401,6 +434,12 @@ impl Conditions {
             None => (Conditions::RelationSort(s1, s2, None), None),
         }
     }
+    fn indrel_sort(s1: Sort, s2: Sort) -> (Self, Option<()>) {
+        match s1.ind_type_rel(s2) {
+            Some(()) => (Conditions::IndRelSort(s1, s2, Some(())), Some(())),
+            None => (Conditions::IndRelSort(s1, s2, None), None),
+        }
+    }
     fn is_success(&self) -> ConditionsState {
         let opt = match self {
             Conditions::ContextHasVar(_, _, exp) => exp.is_some(),
@@ -409,8 +448,10 @@ impl Conditions {
             Conditions::ReduceToProd(_, a) => a.is_some(),
             Conditions::AxiomSort(_, sort) => sort.is_some(),
             Conditions::RelationSort(_, _, sort2) => sort2.is_some(),
+            Conditions::IndRelSort(_, _, a) => a.is_some(),
             Conditions::ReduceToIndType(_, a) => a.is_some(),
             Conditions::ReduceToCstr(_, a) => a.is_some(),
+            Conditions::ReduceToReturnType(_, a) => a.is_some(),
             Conditions::ProofNeeded(cxt, exp) => {
                 return ConditionsState::Wait(cxt.clone(), exp.clone());
             }
@@ -491,6 +532,9 @@ impl Conditions {
                     }
                 )
             }
+            Conditions::ReduceToReturnType(e, r) => {
+                format!("{} ->*_returntype", e.pretty_print(),)
+            }
             Conditions::AxiomSort(sort, sort1) => {
                 format!(
                     "type of {sort} -> {}",
@@ -507,6 +551,12 @@ impl Conditions {
                         Some(s) => format!("{s}"),
                         None => "!".to_string(),
                     }
+                )
+            }
+            Conditions::IndRelSort(s1, s2, s3) => {
+                format!(
+                    "rel(ind) of sort {s1} {s2} -> {}",
+                    if s3.is_some() { "o" } else { "x" }
                 )
             }
             Conditions::ProofNeeded(cxt, exp) => {
@@ -663,7 +713,7 @@ pub fn type_check(
 }
 
 // Γ |- t |> (s in S) かどうか
-fn type_infered_to_sort(
+pub fn type_infered_to_sort(
     gcxt: &GlobalContext,
     cxt: Context,
     term: Exp,
@@ -695,7 +745,7 @@ fn type_infered_to_sort(
 }
 
 // Γ |- t |> (x: a) -> b
-fn type_infered_to_prod(
+pub fn type_infered_to_prod(
     gcxt: &GlobalContext,
     cxt: Context,
     term: Exp,
@@ -739,16 +789,95 @@ pub fn type_infered_to_ind(
 
     let child = der_tree.child_mut().unwrap();
 
-    let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
-    todo!()
+    let (der_tree_of_term, type_term) = type_infer(gcxt, cxt.clone(), term.clone());
+    child.push(der_tree_of_term);
+    let Some(type_term) = type_term else {
+        return (der_tree, None);
+    };
+
+    let (reduce_to_ind, body) = {
+        let (c, body) = Conditions::reduce_to_indtype(gcxt, type_term);
+        (PartialDerivationTree::LeafEnd(c), body)
+    };
+    child.push(reduce_to_ind);
+
+    *der_tree.of_type_mut().unwrap() = body.clone().map(|body| {
+        utils::assoc_apply(
+            Exp::IndTypeType {
+                ind_type_name: body.0,
+            },
+            body.1,
+        )
+    });
+
+    (der_tree, body)
 }
 
-pub fn type_infered_to_cst(
+// exists s' s.t.  |- t |> (x_1: A_1) -> ... (x_k: A_k) -> (_: I x_1 ... x_k) -> s'
+// where (x_1: A_1) -> ... -> (x_k A_k) = arity of I
+pub fn type_infered_to_ind_return_type(
     gcxt: &GlobalContext,
-    cxt: Context,
+    mut cxt: Context,
     term: Exp,
-) -> (PartialDerivationTree, Option<(String, String, Vec<Exp>)>) {
-    todo!()
+    type_name: String,
+) -> (PartialDerivationTree, Option<Sort>) {
+    let mut der_tree = PartialDerivationTree::Node {
+        head: Judgement::TypeInfer(cxt.clone(), term.clone(), None),
+        rel: DerivationLabel::Conv,
+        child: vec![],
+    };
+
+    let child = der_tree.child_mut().unwrap();
+
+    let (der_tree_of_term, type_term) = type_infer(gcxt, cxt.clone(), term.clone());
+    child.push(der_tree_of_term);
+    let Some(type_term) = type_term else {
+        return (der_tree, None);
+    };
+
+    let (der_tree_of_type_term, type_of_term) = {
+        let (c, body) = Conditions::reduce_to_returntype(gcxt, type_term.clone());
+        (PartialDerivationTree::LeafEnd(c), body)
+    };
+    child.push(der_tree_of_type_term);
+
+    let inddef = gcxt.indtype_defs(&type_name).unwrap();
+
+    let Some(type_of_term) = type_of_term else {
+        return (der_tree, None);
+    };
+
+    let end_sort = type_of_term.1;
+
+    let expected = {
+        let mut end: Exp = Exp::Prod(
+            Var::Unused,
+            Box::new(utils::assoc_apply(
+                Exp::IndTypeType {
+                    ind_type_name: type_name,
+                },
+                type_of_term
+                    .0
+                    .iter()
+                    .map(|x| Exp::Var(x.0.clone()))
+                    .collect(),
+            )),
+            Box::new(Exp::Sort(type_of_term.1)),
+        );
+        for (x, a) in type_of_term.0.iter().rev() {
+            end = Exp::Prod(x.clone(), Box::new(a.clone()), Box::new(end));
+        }
+        end
+    };
+    let (der_tree_alpha, conv) = {
+        let (c, body) = Conditions::convertible(gcxt, expected.clone(), type_term);
+        (PartialDerivationTree::LeafEnd(c), body)
+    };
+    child.push(der_tree_alpha);
+
+    *der_tree.of_type_mut().unwrap() = Some(expected);
+
+    (der_tree, Some(end_sort))
 }
 
 pub fn type_infer(
@@ -864,53 +993,136 @@ pub fn type_infer(
 
             (der_tree, res)
         }
-        Exp::IndTypeType {
-            ind_type_name,
-            argument,
-        } => {
-            let mut der_tree = PartialDerivationTree::Node {
-                head,
-                rel: DerivationLabel::IndForm,
-                child: vec![],
-            };
-            let child = der_tree.child_mut().unwrap();
-
-            let ind_def = gcxt.indtype_defs(&ind_type_name).unwrap(); // todo!()
-            let arity = ind_def.arity();
-            assert_eq!(arity.arg_num(), argument.len());
-
-            let mut substs = vec![];
-
-            for i in 0..arity.arg_num() {
-                let (x, mut a) = arity.signature()[i].clone();
-
-                for (x, v) in &substs {
-                    a = subst(a, x, v);
-                }
-
-                let v = argument[i].clone();
-                let der_tree = type_check(gcxt, cxt.clone(), v.clone(), a.clone());
-
-                if der_tree.result_of_tree() == StatePartialTree::Fail {
-                    return (der_tree, None);
-                }
-
-                child.push(der_tree);
-
-                substs.push((x, v));
-            }
-
-            let res = Some(Exp::Sort(*arity.sort()));
-            der_tree.of_type_mut().unwrap().clone_from(&res);
-
-            (der_tree, res)
+        Exp::IndTypeType { ind_type_name } => {
+            let type_of_indtype = gcxt.type_of_indtype(&ind_type_name).unwrap();
+            (
+                PartialDerivationTree::Node {
+                    head,
+                    rel: DerivationLabel::IndForm,
+                    child: vec![],
+                },
+                Some(type_of_indtype),
+            )
         }
         Exp::IndTypeCst {
             ind_type_name,
             constructor_name,
-            argument,
         } => {
-            todo!()
+            let type_of_constructor = gcxt.type_of_cst(&ind_type_name, &constructor_name).unwrap();
+            (
+                PartialDerivationTree::Node {
+                    head,
+                    rel: DerivationLabel::IndIntro,
+                    child: vec![],
+                },
+                Some(type_of_constructor),
+            )
+        }
+        Exp::IndTypeElim {
+            ind_type_name,
+            eliminated_exp,
+            return_type,
+            cases,
+        } => {
+            let mut der_tree = PartialDerivationTree::Node {
+                head,
+                rel: DerivationLabel::IndElim,
+                child: vec![],
+            };
+            let child = der_tree.child_mut().unwrap();
+
+            // |- return_type |> nice form
+            let (return_type_der, sort_of_return_type) = type_infered_to_ind_return_type(
+                gcxt,
+                cxt.clone(),
+                *return_type.clone(),
+                ind_type_name.clone(),
+            );
+
+            let Some(sort_of_return_type) = sort_of_return_type else {
+                return (der_tree, None);
+            };
+            child.push(return_type_der);
+
+            // (sort of indtype, sort of return type) in rel
+            let ind_defs = gcxt.indtype_defs(&ind_type_name).unwrap();
+            let sort_indtype = *ind_defs.arity().sort();
+            let (cond, a) = {
+                let (cond, a) = Conditions::indrel_sort(sort_indtype, sort_of_return_type);
+                (PartialDerivationTree::LeafEnd(cond), a)
+            };
+            child.push(cond);
+            if a.is_none() {
+                return (der_tree, None);
+            }
+
+            // |- eliminated_exp: I a1 ... an
+            let (elim_der_tree, res) =
+                type_infered_to_ind(gcxt, cxt.clone(), *eliminated_exp.clone());
+            child.push(elim_der_tree);
+            let Some(res) = res else {
+                return (der_tree, None);
+            };
+
+            if res.0 != ind_type_name {
+                return (der_tree, None);
+            }
+
+            let args_of_term_ind = res.1.clone();
+
+            // |- I a1 ... an : sort_indtype
+            let ind_well_dertree = type_check(
+                gcxt,
+                cxt.clone(),
+                utils::assoc_apply(
+                    Exp::IndTypeType {
+                        ind_type_name: ind_type_name.clone(),
+                    },
+                    args_of_term_ind.clone(),
+                ),
+                Exp::Sort(sort_indtype),
+            );
+            let b = ind_well_dertree.result_of_tree() == StatePartialTree::Fail;
+            child.push(ind_well_dertree);
+            if b {
+                return (der_tree, None);
+            }
+
+            // f[i]: eliminator_type
+            for (i, c) in ind_defs.constructors().iter().enumerate() {
+                let cname = gcxt.name_of_cst(&ind_type_name, i).unwrap();
+                let expected = c.eliminator_type(
+                    *return_type.clone(),
+                    Exp::IndTypeCst {
+                        ind_type_name: ind_type_name.clone(),
+                        constructor_name: cname.clone(),
+                    },
+                );
+                let expected = subst(
+                    expected,
+                    c.variable(),
+                    &Exp::IndTypeType {
+                        ind_type_name: ind_type_name.clone(),
+                    },
+                );
+                let der_tree_fi = type_check(gcxt, cxt.clone(), cases[i].clone(), expected);
+                let b = der_tree_fi.result_of_tree() == StatePartialTree::Fail;
+                child.push(der_tree_fi);
+                if b {
+                    return (der_tree, None);
+                }
+            }
+
+            //
+
+            let type_of_term = Exp::App(
+                Box::new(utils::assoc_apply(*return_type, args_of_term_ind)),
+                Box::new(*eliminated_exp),
+            );
+
+            *der_tree.of_type_mut().unwrap() = Some(type_of_term.clone());
+
+            (der_tree, Some(type_of_term))
         }
         _ => todo!("not implemented"),
     }

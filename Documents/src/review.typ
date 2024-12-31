@@ -503,6 +503,14 @@ $
 & #h(10pt) dots.v \
 & #h(10pt) c_k: (x_1: P_(k, 1)) -> ... -> (x_(k_1): P_(k, l_k)) -> a M_(k, 1) dots.c M_(k, n)\
 $
+
+例として、自然数の定義は次のようになる。
+$
+& keyword("inductive") NN : *_s keyword("with") \
+& #h(10pt) "Zero": NN \
+& #h(10pt) "Succ": (\_: NN) -> NN \
+$
+
 こういう形をしていること自体は全然良い。
 気を付ける必要があるのが次のもの。
 - どうやって computation rule を定めるか
@@ -514,19 +522,48 @@ $c_1$ とかの名前はあまり関係なくて、 $a$ を変数とみると in
 があればよい。
 
 == 定義
-Coquand と Paulin-Mohring の inductively defined types とか、Coq の reference を参考にする。
-項 $Phi(X)$ と書くのはやめてほしい。
-（項から項へのメタなやつなのか？？？多分違うと思ってるけど。 $X$ という変数を強調する意味で書いていると思うけど。）
+#strike([Coquand と Paulin-Mohring の inductively defined types とか、Coq の reference を参考にする。])
+Timany, Jacobs のほうがわかりやすかったので、それを参考にする。
 #definition[
   $X$: 変数に対して $Phi$: 項が strictly positive であるとは、次のいずれかを満たすとき
-  - $Phi$ に $X$ があらわれない
-  - $Phi = X$ である
-  - $Phi = (x: K) -> Phi_0$ で $K$ は $X$ に含まれず $Phi_0$ は $X$ に対して strictly positive
+  1. $Phi$ に $X$ があらわれない
+  2. $Phi = X m_1 ... m_k$ であり、 $m_i$ は $X$ を含まない
+  3. $Phi = (x: K) -> Phi_0$ で $K$ は $X$ を含まず、 $Phi_0$ は $X$ に対して strictly positive
 
-  $X$: 変数と $Theta$: 項に対して $Theta$ が constructor であるとは、次のいずれかを満たすとき
-  - $Theta = X$
-  - $Theta = (x: Phi) -> Theta_0$ で $Phi$ は $X$ に対して strictly positive
+  $X$: 変数と $Theta$: 項に対して $Theta$ が （$X$ についての） constructor であるとは、次のいずれかを満たすとき
+  - $Theta = X m_1 ... m_k$ で $m_i$ は $X$ を含まない。
+  - $Theta = (x: Phi) -> Theta_0$ で $Phi$ は $X$ に対して strictly positive かつ $Theta_0$ は constructor
+
+  $s in cal(S)$ に対して、 arity of $s$ とは、 $(x_0: A_0) -> ... -> (x_l: A_l) -> s$ の形をしたもののことを言う。
 ]
+
+strictly positive の形を見ると再帰的な定義になっているがそれが終了するのは 1. か 2. である。
+2. と 3. だけまとめて考えると、これで得られる項は $(x_1: K_1) -> ... (x_n: K_n) -> X m_1 ... m_k$ の形をしている。（ただし、 $K_i$ は $X$ を含まない）
+1. と 3. だけまとめて考えると、これでえられる項は $X$ を含むことがない。
+Timany と Jacobs のではこれをわけて前者を strictly positive と呼んでる。
+
+これをもとに、次の定義ができる。
+#definition[
+  次の組のことを帰納型の指定とする。
+  - $X$: 変数 ... 帰納型の指定のための変数
+  - $A$: arity of $s$ ... 帰納型の引数部分
+  - ${C_i}$: constructor of $X$ ... 帰納型の constructor の指定
+]
+
+== eliminator と recursor
+よくある pattern match と primitive recursion をどうやって判定したらよいかについて、
+なんでもかんでも受け入れることはできないのはわかっている。
+Coq ではパターンマッチと fix の引数の減少を指定するようだが、ここでは、 recursor を計算する方法を使う。
+例えば自然数だと、eliminator は次のような型になっていたはずだが、
+$
+&(P: (n: N) -> T)\
+&-> (a_"Zero": P "Zero") \
+&-> (a_"Succ": (n: N) -> P n -> P ("Succ" n)) \
+&-> (n: N) -> P n
+$
+これを自動的に導出する。
+eliminator には eliminator に入れる項以外に、return する項の情報も入れておきたい。
+$"elim"(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解する項、 $Q$ は帰ってくる型、 $f_i$ は constructor それぞれに対応する場合分けの計算とする。
 
 = inconsistency がいつ起こるか
 ここでの inconsistency とは次のことをいう。
