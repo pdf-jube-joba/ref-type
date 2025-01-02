@@ -16,21 +16,29 @@ fn main() {
     let mut gcxt = ast::GlobalContext::default();
 
     loop {
-        let buf = {
+        let buf: String = {
             let mut buf = vec![];
             stdin.read_until(b';', &mut buf).unwrap();
-            String::from_utf8(buf).unwrap()
+            let s = String::from_utf8(buf).unwrap();
+            s.trim().to_string()
         };
+
+        if buf.is_empty() {
+            continue;
+        }
 
         let parser = ast::parse::MyParser;
 
         let command = match parser.parse_command(&buf) {
-            Ok(command) => command,
+            Ok(command) => {
+                command
+            },
             Err(err) => {
-                format!("err: {err:?}");
+                println!("{err}");
                 continue;
             }
         };
+
 
         match command {
             Either::Left(Command::Parse(exp)) => {
@@ -79,7 +87,10 @@ fn main() {
             Either::Left(Command::Normalize(term)) => {
                 println!("input: {term:?}");
                 let a = relation::normalize_seq(&gcxt, term);
-                println!("output: {a:?}");
+                println!("output:");
+                for a in a {
+                    println!(" {a:?}");
+                }
             }
             Either::Left(Command::BetaEq(e1, e2)) => {
                 println!("betaeq: {e1:?} {e2:?}");
