@@ -467,6 +467,7 @@ pub(crate) fn take_constructor_rec(pair: Pair<Rule>, type_name: &str) -> Res<Con
     debug_assert_eq!(pair.as_rule(), Rule::constructor_rec);
     let mut ps = pair.into_inner();
     let p = ps.next().unwrap();
+    println!("{:?} {}", p.as_rule(), p.as_str());
     match p.as_rule() {
         Rule::constructor_terminate => {
             let end = take_terminate(p, type_name)?;
@@ -480,7 +481,9 @@ pub(crate) fn take_constructor_rec(pair: Pair<Rule>, type_name: &str) -> Res<Con
             let (v, a) = take_var_annnot(ps.next().unwrap())?;
             let ConstructorSyntax { end, mut params } =
                 take_constructor_rec(ps.next().unwrap(), type_name)?;
+            params.reverse();
             params.push(ParamCstSyntax::Simple((v, a)));
+            params.reverse();
             Ok(ConstructorSyntax { end, params })
         }
         Rule::constructor_positive_occur => {
@@ -488,7 +491,9 @@ pub(crate) fn take_constructor_rec(pair: Pair<Rule>, type_name: &str) -> Res<Con
             let positive = take_positive(ps.next().unwrap(), type_name)?;
             let ConstructorSyntax { end, mut params } =
                 take_constructor_rec(ps.next().unwrap(), type_name)?;
+            params.reverse();
             params.push(ParamCstSyntax::Positive(positive));
+            params.reverse();
             Ok(ConstructorSyntax { end, params })
         }
         _ => unreachable!("constructor_rec 中"),

@@ -56,7 +56,6 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
                 .map(|e| subst_rec(e, fresh, substs.clone()))
                 .collect(),
         },
-        _ => unimplemented!("subst is unimplemented"),
     }
 }
 

@@ -201,9 +201,22 @@ pub fn fresh(term: &Exp) -> usize {
             let v2 = fresh(t2);
             std::cmp::max(v1, v2)
         }
-        _ => {
-            unimplemented!("fresh is umimplemented")
-        }
+        Exp::IndTypeType { ind_type_name } => 0,
+        Exp::IndTypeCst {
+            ind_type_name,
+            constructor_name,
+        } => 0,
+        Exp::IndTypeElim {
+            ind_type_name,
+            eliminated_exp,
+            return_type,
+            cases,
+        } => cases
+            .iter()
+            .chain(vec![eliminated_exp.as_ref(), return_type.as_ref()])
+            .map(|e| fresh(e))
+            .max()
+            .unwrap(),
     }
 }
 
@@ -247,7 +260,7 @@ pub enum Sort {
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Sort::Set => "SORT",
+            Sort::Set => "SET",
             Sort::Type => "TYPE",
             Sort::Prop => "PROP",
         };
@@ -400,30 +413,10 @@ pub mod inductives {
             params: Vec<ParamCst>,
         ) -> Result<(Self, Var), String> {
             let var_type = end.0.clone();
-            let mut allow = vec![var_type.clone()];
             for p in &params {
                 match p {
-                    ParamCst::Positive(positive) => {
-                        if positive.variable != var_type {
-                            return Err(format!("pos {positive:?} is not of type {var_type:?}"));
-                        }
-                        let e: Exp = positive.clone().into();
-                        for vfree in e.free_variable() {
-                            if !allow.contains(&vfree) {
-                                return Err(format!("pos {positive:?} contains free variable"));
-                            }
-                        }
-                    }
-                    ParamCst::Simple((x, a)) => {
-                        for vfree in a.free_variable() {
-                            if !allow.contains(&vfree) {
-                                return Err(format!(
-                                    "simple ({x:?}: {a:?}) contains free variable"
-                                ));
-                            }
-                            allow.push(x.clone());
-                        }
-                    }
+                    ParamCst::Positive(positive) => {}
+                    ParamCst::Simple((x, a)) => {}
                 }
             }
             Ok((Self { end, params }, var_type))
@@ -675,7 +668,7 @@ impl GlobalContext {
             let check = type_check(self, cxt, constructor, Exp::Sort(sort));
             if check.result_of_tree() == StatePartialTree::Fail {
                 return Err(format!(
-                    "constructor {:?} is nor well formed \n{}",
+                    "constructor {:?} is not well formed \n{}",
                     c,
                     check.pretty_print(0),
                 ));
