@@ -18,41 +18,69 @@ impl MyParser {
         let mut r = MyParser::parse(Rule::command, code)?;
         take_command(r.next().unwrap())
     }
+    pub fn parse_exp(&self, code: &str) -> Result<Exp, error::Error<Rule>> {
+        let mut r = MyParser::parse(Rule::expression, code)?;
+        Ok(take_exp(r.next().unwrap()).unwrap())
+    }
+    pub fn parse_ind(&self, code: &str) -> Result<InductiveDefinitionsSyntax, error::Error<Rule>> {
+        let mut r = MyParser::parse(Rule::expression, code)?;
+        Ok(take_new_inductive(r.next().unwrap()).unwrap())
+    }
 }
 
-pub fn add_ind(gcxt: &mut GlobalContext, ind: InductiveDefinitionsSyntax) -> Result<(), String> {
+pub fn add_ind(
+    gcxt: &mut GlobalContext,
+    ind: InductiveDefinitionsSyntax,
+) -> Result<IndTypeDefs, String> {
     let InductiveDefinitionsSyntax {
         type_name,
-        variable,
         arity: AritySyntax { signature, sort },
         constructors,
     } = ind;
+
+    let variable: Var = type_name.as_str().into();
 
     let mut csnames = vec![];
     let mut cstypes = vec![];
 
     for (n, t) in constructors {
-        let (cstype, v) = t.into_constructor_type()?;
-        if v != variable {
-            return Err(format!("name {n} is not of type {variable:?} but {v:?}"));
+        let ConstructorSyntax { end, params } = t;
+
+        let mut new_params = vec![];
+
+        for param in params {
+            let param = match param {
+                ParamCstSyntax::Positive(positive_syntax) => {
+                    let PositiveSyntax { parameter, exps } = positive_syntax;
+                    let positive = Positive::new(variable.clone(), parameter, exps)?;
+                    ParamCst::Positive(positive)
+                }
+                ParamCstSyntax::Simple(simple) => ParamCst::Simple(simple),
+            };
+            new_params.push(param)
         }
+
+        let cstype = ConstructorType::new_constructor((variable.clone(), end), new_params)?;
+
         csnames.push(n);
-        cstypes.push(cstype)
+        cstypes.push(cstype.0)
     }
 
     let defs = IndTypeDefs::new(variable, (signature, sort), cstypes)?;
-    gcxt.push_newind(type_name, csnames, defs)
+    gcxt.push_newind(type_name, csnames, defs.clone())?;
+    Ok(defs)
 }
 
 pub enum Command {
     Parse(Exp),
     Check(Exp, Exp),
     Infer(Exp),
+    Subst(Exp, Var, Exp),
     AlphaEq(Exp, Exp),
     TopReduce(Exp),
     Reduce(Exp),
     Normalize(Exp),
-    BetaEq(Exp, Exp)
+    BetaEq(Exp, Exp),
 }
 
 pub enum NewCommand {
@@ -92,6 +120,22 @@ pub(crate) fn take_command(pair: Pair<Rule>) -> Res<Either<Command, NewCommand>>
                 take_exp(p)?
             };
             Ok(Either::Left(Command::Infer(e)))
+        }
+        Rule::command_subst => {
+            let mut ps = pair.into_inner();
+            let e1 = {
+                let p = ps.next().unwrap();
+                take_exp(p)?
+            };
+            let x = {
+                let p = ps.next().unwrap();
+                take_identifier(p)?
+            };
+            let e2 = {
+                let p = ps.next().unwrap();
+                take_exp(p)?
+            };
+            Ok(Either::Left(Command::Subst(e1, x, e2)))
         }
         Rule::command_alpha_eq => {
             let mut ps = pair.into_inner();
@@ -168,18 +212,40 @@ pub(crate) fn take_exp(pair: Pair<Rule>) -> Res<Exp> {
         }
         Rule::dependent_prod_elim => {
             let (e1, e2) = take_dependent_prod_elim(p).unwrap();
-            Ok(Exp::App(Box::new(e1), Box::new(e2)))
+            Ok(utils::assoc_apply(e1, e2))
         }
-        Rule::identifier => {
+        Rule::variable => {
             let x = take_identifier(p).unwrap();
             Ok(Exp::Var(x))
+        }
+        Rule::inductive_type => {
+            let n = take_inductive_type(p)?;
+            Ok(Exp::IndTypeType { ind_type_name: n })
+        }
+        Rule::inductive_constructor => {
+            let (n, c) = take_inductive_constructor(p)?;
+            Ok(Exp::IndTypeCst {
+                ind_type_name: n,
+                constructor_name: c,
+            })
+        }
+        Rule::inductive_eliminator => {
+            let (n, c, q, cases) = take_inductive_eliminator(p)?;
+            Ok(Exp::IndTypeElim {
+                ind_type_name: n,
+                eliminated_exp: Box::new(c),
+                return_type: Box::new(q),
+                cases,
+            })
         }
         Rule::expression_readable => {
             let ps = p.into_inner();
             let p = ps.peek().unwrap();
             take_exp(p)
         }
-        _ => unreachable!(),
+        _ => {
+            panic!("{}", p.as_str())
+        }
     }
 }
 
@@ -197,8 +263,11 @@ pub(crate) fn take_sort(pair: Pair<Rule>) -> Res<Sort> {
 }
 
 pub(crate) fn take_identifier(pair: Pair<Rule>) -> Res<Var> {
-    debug_assert_eq!(pair.as_rule(), Rule::identifier);
-    Ok(pair.as_str().into())
+    match pair.as_rule() {
+        Rule::variable => Ok(pair.as_str().into()),
+        Rule::unused_variable => Ok(Var::Unused),
+        _ => unreachable!("identifier expected"),
+    }
 }
 
 pub(crate) fn take_var_annnot(pair: Pair<Rule>) -> Res<(Var, Exp)> {
@@ -249,20 +318,72 @@ pub(crate) fn take_dependent_prod_intro(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)
     Ok((v, e, e2))
 }
 
-pub(crate) fn take_dependent_prod_elim(pair: Pair<Rule>) -> Res<(Exp, Exp)> {
+pub(crate) fn take_dependent_prod_elim(pair: Pair<Rule>) -> Res<(Exp, Vec<Exp>)> {
     debug_assert_eq!(pair.as_rule(), Rule::dependent_prod_elim);
     let mut ps = pair.into_inner();
     let e1 = {
         let p = ps.next().unwrap();
         take_exp(p)?
     };
-    let e2 = {
+    let v = ps.map(|p| take_exp(p)).collect::<Result<_, _>>()?;
+    // let e2 = {
+    //     let p = ps.next().unwrap();
+    //     take_exp(p)?
+    // };
+    Ok((e1, v))
+}
+
+pub(crate) fn take_inductive_type(pair: Pair<Rule>) -> Res<String> {
+    debug_assert_eq!(pair.as_rule(), Rule::inductive_type);
+    let mut ps = pair.into_inner();
+    let n = {
+        let p = ps.next().unwrap();
+        take_type_name(p)?
+    };
+    Ok(n)
+}
+
+pub(crate) fn take_inductive_constructor(pair: Pair<Rule>) -> Res<(String, String)> {
+    eprintln!("{}", pair.as_str());
+    debug_assert_eq!(pair.as_rule(), Rule::inductive_constructor);
+    let mut ps = pair.into_inner();
+    let n = {
+        let p = ps.next().unwrap();
+        take_type_name(p)?
+    };
+    let c = {
+        let p = ps.next().unwrap();
+        take_constructor_name(p)?
+    };
+    Ok((n, c))
+}
+
+pub(crate) fn take_inductive_eliminator(pair: Pair<Rule>) -> Res<(String, Exp, Exp, Vec<Exp>)> {
+    debug_assert_eq!(pair.as_rule(), Rule::inductive_eliminator);
+    let mut ps = pair.into_inner();
+    let n = {
+        let p = ps.next().unwrap();
+        take_type_name(p)?
+    };
+    let c = {
         let p = ps.next().unwrap();
         take_exp(p)?
     };
-    Ok((e1, e2))
+    let q = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+    let cases = {
+        let mut cases = vec![];
+        for p in ps {
+            cases.push(take_exp(p)?);
+        }
+        cases
+    };
+    Ok((n, c, q, cases))
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct AritySyntax {
     signature: Vec<(Var, Exp)>,
     sort: Sort,
@@ -290,34 +411,31 @@ pub(crate) fn take_arity(pair: Pair<Rule>) -> Res<AritySyntax> {
     }
 }
 
-pub(crate) fn take_terminate(pair: Pair<Rule>) -> Res<(Var, Vec<Exp>)> {
+pub(crate) fn take_terminate(pair: Pair<Rule>, type_name: &str) -> Res<Vec<Exp>> {
     debug_assert_eq!(pair.as_rule(), Rule::constructor_terminate);
     let mut ps = pair.into_inner();
     let v = {
         let p = ps.next().unwrap();
-        take_identifier(p)?
+        take_type_name(p)?
     };
+    if v.as_str() != type_name {
+        panic!("")
+    }
     let mut argument = vec![];
     for p in ps {
         let e = take_exp(p)?;
         argument.push(e)
     }
-    Ok((v, argument))
+    Ok(argument)
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PositiveSyntax {
     parameter: Vec<(Var, Exp)>,
-    variable: Var,
     exps: Vec<Exp>,
 }
 
-impl PositiveSyntax {
-    fn into_pos(self) -> Result<Positive, String> {
-        Positive::new(self.variable, self.parameter, self.exps)
-    }
-}
-
-pub(crate) fn take_positive(pair: Pair<Rule>) -> Res<PositiveSyntax> {
+pub(crate) fn take_positive(pair: Pair<Rule>, type_name: &str) -> Res<PositiveSyntax> {
     debug_assert_eq!(pair.as_rule(), Rule::positive);
     let mut ps = pair.into_inner();
     let mut parameter = vec![];
@@ -327,71 +445,49 @@ pub(crate) fn take_positive(pair: Pair<Rule>) -> Res<PositiveSyntax> {
             let exp = take_var_annnot(p)?;
             parameter.push(exp);
         } else {
-            let (variable, exps) = take_terminate(p)?;
-            return Ok(PositiveSyntax {
-                parameter,
-                variable,
-                exps,
-            });
+            let exps = take_terminate(p, type_name)?;
+            return Ok(PositiveSyntax { parameter, exps });
         }
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ConstructorSyntax {
-    end: (Var, Vec<Exp>),
+    end: Vec<Exp>,
     params: Vec<ParamCstSyntax>,
 }
 
-impl ConstructorSyntax {
-    fn into_constructor_type(self) -> Result<(ConstructorType, Var), String> {
-        let ConstructorSyntax { end, params } = self;
-        let params: Vec<ParamCst> = params
-            .into_iter()
-            .map(|s| s.into_paramcst())
-            .collect::<Result<_, _>>()?;
-        ConstructorType::new_constructor(end, params)
-    }
-}
-
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ParamCstSyntax {
     Positive(PositiveSyntax),
     Simple((Var, Exp)),
 }
 
-impl ParamCstSyntax {
-    fn into_paramcst(self) -> Result<ParamCst, String> {
-        match self {
-            ParamCstSyntax::Positive(positive_syntax) => {
-                Ok(ParamCst::Positive(positive_syntax.into_pos()?))
-            }
-            ParamCstSyntax::Simple(s) => Ok(ParamCst::Simple(s)),
-        }
-    }
-}
-
-pub(crate) fn take_constructor_rec(pair: Pair<Rule>) -> Res<ConstructorSyntax> {
+pub(crate) fn take_constructor_rec(pair: Pair<Rule>, type_name: &str) -> Res<ConstructorSyntax> {
     debug_assert_eq!(pair.as_rule(), Rule::constructor_rec);
     let mut ps = pair.into_inner();
     let p = ps.next().unwrap();
     match p.as_rule() {
         Rule::constructor_terminate => {
-            let terminate = take_terminate(p)?;
+            let end = take_terminate(p, type_name)?;
             Ok(ConstructorSyntax {
-                end: (terminate.0, terminate.1),
+                end,
                 params: vec![],
             })
         }
         Rule::constructor_non_occur => {
             let mut ps = p.into_inner();
             let (v, a) = take_var_annnot(ps.next().unwrap())?;
-            let ConstructorSyntax { end, mut params } = take_constructor_rec(ps.next().unwrap())?;
+            let ConstructorSyntax { end, mut params } =
+                take_constructor_rec(ps.next().unwrap(), type_name)?;
             params.push(ParamCstSyntax::Simple((v, a)));
             Ok(ConstructorSyntax { end, params })
         }
         Rule::constructor_positive_occur => {
             let mut ps = p.into_inner();
-            let positive = take_positive(ps.next().unwrap())?;
-            let ConstructorSyntax { end, mut params } = take_constructor_rec(ps.next().unwrap())?;
+            let positive = take_positive(ps.next().unwrap(), type_name)?;
+            let ConstructorSyntax { end, mut params } =
+                take_constructor_rec(ps.next().unwrap(), type_name)?;
             params.push(ParamCstSyntax::Positive(positive));
             Ok(ConstructorSyntax { end, params })
         }
@@ -399,7 +495,10 @@ pub(crate) fn take_constructor_rec(pair: Pair<Rule>) -> Res<ConstructorSyntax> {
     }
 }
 
-pub(crate) fn take_constructor_definition(pair: Pair<Rule>) -> Res<(String, ConstructorSyntax)> {
+pub(crate) fn take_constructor_definition(
+    pair: Pair<Rule>,
+    type_name: &str,
+) -> Res<(String, ConstructorSyntax)> {
     debug_assert_eq!(pair.as_rule(), Rule::constructor_definition);
     let mut ps = pair.into_inner();
     let constructor_name = {
@@ -408,30 +507,24 @@ pub(crate) fn take_constructor_definition(pair: Pair<Rule>) -> Res<(String, Cons
     };
     let constructor_type = {
         let p = ps.next().unwrap();
-        take_constructor_rec(p)?
+        take_constructor_rec(p, type_name)?
     };
     Ok((constructor_name, constructor_type))
 }
 
 pub(crate) fn take_type_name(pair: Pair<Rule>) -> Res<String> {
     debug_assert_eq!(pair.as_rule(), Rule::type_name);
-    let mut ps = pair.into_inner();
-    let p = ps.next().unwrap();
-    let name = p.as_str();
-    Ok(name.to_string())
+    Ok(pair.as_str().to_string())
 }
 
 pub(crate) fn take_constructor_name(pair: Pair<Rule>) -> Res<String> {
     debug_assert_eq!(pair.as_rule(), Rule::constructor_name);
-    let mut ps = pair.into_inner();
-    let p = ps.next().unwrap();
-    let name = p.as_str();
-    Ok(name.to_string())
+    Ok(pair.as_str().to_string())
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct InductiveDefinitionsSyntax {
     type_name: String,
-    variable: Var,
     arity: AritySyntax,
     constructors: Vec<(String, ConstructorSyntax)>,
 }
@@ -443,22 +536,18 @@ pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<InductiveDefinitionsSy
         let p = ps.next().unwrap();
         take_type_name(p)?
     };
-    let variable = {
-        let p = ps.next().unwrap();
-        take_identifier(p)?
-    };
     let arity = {
         let p = ps.next().unwrap();
         take_arity(p)?
     };
     let mut constructors = vec![];
     for p in ps {
-        let (constructor_name, construcor_syntax) = take_constructor_definition(p)?;
+        let (constructor_name, construcor_syntax) =
+            take_constructor_definition(p, type_name.as_str())?;
         constructors.push((constructor_name, construcor_syntax));
     }
     let defs = InductiveDefinitionsSyntax {
         type_name,
-        variable,
         arity,
         constructors,
     };
@@ -479,9 +568,57 @@ mod tests {
     #[test]
     fn parse_test() {
         let var = "xyz";
-        let ps = MyParser::parse(Rule::identifier, var).unwrap();
+        let ps = MyParser::parse(Rule::variable, var).unwrap();
         let p = ps.peek().unwrap();
         let v = parse::take_identifier(p).unwrap();
         assert_eq!(v, Var::from(var.to_string()));
+    }
+    fn take_parse(pair: Pair<Rule>) -> Exp {
+        debug_assert_eq!(pair.as_rule(), Rule::command);
+        let mut ps = pair.into_inner();
+        let pair = ps.next().unwrap();
+        debug_assert_eq!(pair.as_rule(), Rule::command_parse);
+        let mut ps = pair.into_inner();
+        let p = ps.next().unwrap();
+        take_exp(p).unwrap()
+    }
+    #[test]
+    fn i() {
+        let code = "(Nat)";
+        if let Err(err) = MyParser::parse(Rule::expression, code) {
+            panic!("{}", err);
+        };
+
+        let code = "Nat#Succ";
+        if let Err(err) = MyParser::parse(Rule::expression, code) {
+            panic!("{}", err);
+        };
+
+        if let Err(err) = MyParser::parse(Rule::inductive_constructor, code) {
+            panic!("{}", err);
+        };
+
+        if let Err(err) = MyParser::parse(Rule::test, code) {
+            panic!("{}", err);
+        }
+
+        let code = "(Nat#Succ)";
+        if let Err(err) = MyParser::parse(Rule::test, code) {
+            panic!("{}", err);
+        }
+
+        // let code = "(Nat#Succ)";
+        // if let Err(err) = MyParser::parse(Rule::expression, code) {
+        //     panic!("{}", err);
+        // };
+
+        // let code = "Parse (Nat);";
+        // if let Err(err) = MyParser::parse(Rule::command, code) {
+        // };
+
+        // let code = "Parse (Nat::Succ);";
+        // if let Err(err) = MyParser::parse(Rule::command, code) {
+        //     panic!("{}", err);
+        // };
     }
 }

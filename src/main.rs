@@ -1,12 +1,13 @@
+use colored::Colorize;
 use either::Either;
 use std::io::BufRead;
 
 use ref_type::{
     ast::{
-        self, parse,
-        parse::{Command, InductiveDefinitionsSyntax, NewCommand},
+        self,
+        parse::{self, Command, InductiveDefinitionsSyntax, NewCommand},
     },
-    relation,
+    relation::{self, subst},
 };
 
 fn main() {
@@ -24,41 +25,38 @@ fn main() {
         };
 
         if buf.is_empty() {
-            continue;
+            break;
         }
 
         let parser = ast::parse::MyParser;
 
         let command = match parser.parse_command(&buf) {
-            Ok(command) => {
-                command
-            },
+            Ok(command) => command,
             Err(err) => {
                 println!("{err}");
-                continue;
+                break;
             }
         };
 
-
         match command {
             Either::Left(Command::Parse(exp)) => {
-                println!("Parse: {exp:?}");
+                println!("Parse: {exp}");
             }
             Either::Left(Command::Check(e1, e2)) => {
-                println!("Check: ({}): ({})", e1.pretty_print(), e2.pretty_print());
+                println!("Check: ({e1}): ({e2})");
                 let tree = relation::type_check(&gcxt, relation::Context::default(), e1, e2);
                 let res = match tree.result_of_tree() {
-                    relation::StatePartialTree::Fail => "FAIL!".to_string(),
-                    relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec),
+                    relation::StatePartialTree::Fail => "FAIL!".red(),
+                    relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec).blue(),
                 };
-                println!("result: {}\n{}", res, tree.pretty_print(0));
+                println!("{}\n{}", res, tree.pretty_print(1));
             }
             Either::Left(Command::Infer(e1)) => {
-                println!("Infer: ({})", e1.pretty_print());
+                println!("Infer: ({e1})");
                 let (tree, res) = relation::type_infer(&gcxt, relation::Context::default(), e1);
                 let res_tree = match tree.result_of_tree() {
-                    relation::StatePartialTree::Fail => "FAIL!".to_string(),
-                    relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec),
+                    relation::StatePartialTree::Fail => "FAIL!".red(),
+                    relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec).blue(),
                 };
                 println!(
                     "type: {:?}\n result: {}\n{}",
@@ -67,42 +65,57 @@ fn main() {
                     tree.pretty_print(0)
                 );
             }
+            Either::Left(Command::Subst(e1, x, e2)) => {
+                println!("subst: {e1}[{x} := {e2}]");
+                let e = subst(e1, &x, &e2);
+                println!(" => {}", e)
+            }
             Either::Left(Command::AlphaEq(e1, e2)) => {
                 if relation::alpha_eq(&e1, &e2) {
-                    println!("alphaeq {e1:?} {e2:?}");
+                    println!("alphaeq {}: {e1} =~ {e2}", "SUCCESS".blue());
                 } else {
-                    println!("not alphaeq {e1:?} {e2:?}");
+                    println!("alphaeq {}: {e1} =~ {e2}", "FAIL".red());
                 };
             }
             Either::Left(Command::TopReduce(term)) => {
-                println!("input: {term:?}");
-                let a = relation::top_reduction(&gcxt, term);
-                println!("output: {a:?}");
+                println!("top reduction: {term}");
+                match relation::top_reduction(&gcxt, term) {
+                    None => println!(" => x"),
+                    Some(e) => println!(" => {e}"),
+                };
             }
             Either::Left(Command::Reduce(term)) => {
-                println!("input: {term:?}");
-                let a = relation::reduce(&gcxt, term);
-                println!("output: {a:?}");
+                println!("reduce: {term}");
+                match relation::reduce(&gcxt, term) {
+                    None => println!(" => x"),
+                    Some(e) => println!(" => {e}"),
+                };
             }
             Either::Left(Command::Normalize(term)) => {
-                println!("input: {term:?}");
+                println!("normalize: {term}");
                 let a = relation::normalize_seq(&gcxt, term);
-                println!("output:");
                 for a in a {
-                    println!(" {a:?}");
+                    println!(" => {a}");
                 }
             }
             Either::Left(Command::BetaEq(e1, e2)) => {
-                println!("betaeq: {e1:?} {e2:?}");
-                let a = relation::beta_equiv(&gcxt, e1, e2);
-                println!("res: {a}");
+                if relation::beta_equiv(&gcxt, e1.clone(), e2.clone()) {
+                    println!("betaeq {}: {e1} =~ {e2}", "SUCCESS".blue());
+                } else {
+                    println!("betaeq {}: {e1} =~ {e2}", "FAIL".red())
+                }
             }
             Either::Right(NewCommand::Assumption(x, a)) => todo!(),
             Either::Right(NewCommand::Definition(x, a, t)) => todo!(),
             Either::Right(NewCommand::Inductive(inddefs)) => {
-                if let Err(err) = parse::add_ind(&mut gcxt, inddefs) {
-                    println!("err: {err:?}");
-                    continue;
+                println!("{inddefs:?}");
+                match parse::add_ind(&mut gcxt, inddefs) {
+                    Ok(inddefs) => {
+                        println!("{}", format!("SUCC: {:?}", inddefs).blue());
+                    }
+                    Err(err) => {
+                        println!("{}", format!("FAIL: {}", err).red());
+                    }
                 }
             }
         }

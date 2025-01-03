@@ -61,6 +61,9 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
 }
 
 pub fn subst(term1: Exp, var: &Var, term2: &Exp) -> Exp {
+    if matches!(var, Var::Unused) {
+        return term1;
+    }
     let mut fresh_var = std::cmp::max(fresh(&term1), fresh(term2));
     subst_rec(term1, &mut fresh_var, vec![(var.clone(), term2.clone())])
 }
@@ -72,9 +75,12 @@ pub fn alpha_eq(term1: &Exp, term2: &Exp) -> bool {
 fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
     match (term1, term2) {
         (Exp::Var(v1), Exp::Var(v2)) => {
+            bd.reverse();
             for (x, new_x) in bd {
-                if x == *v2 && new_x == *v1 {
+                if x == *v1 && new_x == *v2 {
                     return true;
+                } else if x == *v1 || new_x == *v2 {
+                    return false;
                 }
             }
             v1 == v2
@@ -86,6 +92,7 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
         }
         (Exp::Prod(x1, m1, n1), Exp::Prod(x2, m2, n2)) => {
             alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+                // x1 |-> x2
                 bd.push((x1.clone(), x2.clone()));
                 alpha_eq_rec(n1, n2, bd)
             }
@@ -96,6 +103,44 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
                 alpha_eq_rec(n1, n2, bd)
             }
         }
+        (
+            Exp::IndTypeType {
+                ind_type_name: ind_type_1,
+            },
+            Exp::IndTypeType {
+                ind_type_name: ind_type_2,
+            },
+        ) => ind_type_1 == ind_type_2,
+        (
+            Exp::IndTypeCst {
+                ind_type_name: ind_type_name1,
+                constructor_name: constructor_name1,
+            },
+            Exp::IndTypeCst {
+                ind_type_name: ind_type_name2,
+                constructor_name: constructor_name2,
+            },
+        ) => ind_type_name1 == ind_type_name2 && constructor_name1 == constructor_name2,
+        (
+            Exp::IndTypeElim {
+                ind_type_name: ind_type_name1,
+                eliminated_exp: exp1,
+                return_type: expret1,
+                cases: cases1,
+            },
+            Exp::IndTypeElim {
+                ind_type_name: ind_type_name2,
+                eliminated_exp: exp2,
+                return_type: expret2,
+                cases: cases2,
+            },
+        ) => {
+            ind_type_name1 == ind_type_name2
+                && exp1 == exp2
+                && expret1 == expret2
+                && cases1.len() == cases2.len()
+                && cases1.iter().zip(cases2.iter()).all(|(e1, e2)| e1 == e2)
+        }
         _ => false,
     }
 }
@@ -105,6 +150,7 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
 // Elim(Constructor, Q) -> ...
 pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
     match term {
+        // (\x. m) t2 => m[x := t2]
         Exp::App(t1, t2) => match t1.as_ref() {
             Exp::Lam(x, _, m) => Some(subst(*m.clone(), x, t2.as_ref())),
             _ => None,
@@ -254,12 +300,17 @@ pub fn beta_equiv(gcxt: &GlobalContext, term1: Exp, term2: Exp) -> bool {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Context(Vec<(Var, Exp)>);
 
-impl Context {
-    pub fn pretty_print(&self) -> String {
-        self.0.iter().fold(String::new(), |s1, (v, t)| {
-            format!("{s1}({v}: {})", t.pretty_print())
-        })
+impl Display for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: String = self
+            .0
+            .iter()
+            .fold(String::new(), |s1, (v, t)| format!("{s1}, {v}: {t}"));
+        write!(f, "({s})")
     }
+}
+
+impl Context {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -286,19 +337,12 @@ pub enum Judgement {
 impl Display for Judgement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Judgement::TypeCheck(context, either, either1) => format!(
-                "{} |- {}:  {}",
-                context.pretty_print(),
-                either.pretty_print(),
-                either1.pretty_print()
-            ),
-            Judgement::TypeInfer(context, either, maybe) => {
+            Judgement::TypeCheck(context, exp1, exp2) => format!("{context} |- {exp1}:  {exp2}",),
+            Judgement::TypeInfer(context, exp, maybe) => {
                 format!(
-                    "{} |- {}:? {}",
-                    context.pretty_print(),
-                    either.pretty_print(),
+                    "{context} |- {exp}:? {}",
                     match maybe {
-                        Some(e) => e.pretty_print(),
+                        Some(e) => e.to_string(),
                         None => "".to_string(),
                     }
                 )
@@ -464,76 +508,66 @@ impl Conditions {
     }
     fn pretty_print(&self) -> String {
         match self {
-            Conditions::ContextHasVar(context, var, either) => format!(
-                "{var} in {} -> {}",
-                context.pretty_print(),
-                match either {
-                    Some(e) => e.pretty_print(),
+            Conditions::ContextHasVar(context, var, maybe) => format!(
+                "{var} in {context} -> {}",
+                match maybe {
+                    Some(e) => e.to_string(),
                     None => "!".to_string(),
                 }
             ),
-            Conditions::Convertible(either, either1, res) => {
+            Conditions::Convertible(e1, e2, res) => {
                 format!(
-                    "{} =~ {} .. {}",
-                    either.pretty_print(),
-                    either1.pretty_print(),
+                    "{e1} =~ {e2} .. {}",
                     match res {
-                        Some(_) => "ok",
+                        Some(_) => "o",
                         None => "!",
                     }
                 )
             }
-            Conditions::ReduceToSort(either, either1) => {
+            Conditions::ReduceToSort(e, s) => {
                 format!(
-                    "{} ->*_sort {}",
-                    either.pretty_print(),
-                    match either1 {
+                    "{e} ->*_sort {}",
+                    match s {
                         Some(s) => format!("{s}"),
                         None => "!".to_string(),
                     }
                 )
             }
-            Conditions::ReduceToProd(either, either1) => {
+            Conditions::ReduceToProd(e, abs) => {
                 format!(
-                    "{} ->*_prod {}",
-                    either.pretty_print(),
-                    match either1 {
-                        Some((x, a, b)) =>
-                            format!("({x}: {}) -> {}", a.pretty_print(), b.pretty_print()),
+                    "{e} ->*_prod {}",
+                    match abs {
+                        Some((x, a, b)) => format!("({x}: {a}) -> {b}"),
                         None => "!".to_string(),
                     }
                 )
             }
             Conditions::ReduceToIndType(e, arg) => {
                 format!(
-                    "{} ->*_indtype {}",
-                    e.pretty_print(),
+                    "{e} ->*_indtype {}",
                     match arg {
-                        None => "x".to_string(),
+                        None => "!".to_string(),
                         Some((name, arg)) => format!(
                             "{name}({})",
-                            arg.iter()
-                                .fold(String::new(), |s, e| format!("{s} {}", e.pretty_print()))
+                            arg.iter().fold(String::new(), |s, e| format!("{s} {e}"))
                         ),
                     }
                 )
             }
             Conditions::ReduceToCstr(e, arg) => {
                 format!(
-                    "{} ->*_indtype {}",
-                    e.pretty_print(),
+                    "{e} ->*_indtype {}",
                     match arg {
-                        None => "x".to_string(),
+                        None => "!".to_string(),
                         Some((name, cst, arg)) => format!(
                             "{name}::{cst}({})",
-                            arg.iter()
-                                .fold(String::new(), |s, e| format!("{s} {}", e.pretty_print()))
+                            arg.iter().fold(String::new(), |s, e| format!("{s} {e}"))
                         ),
                     }
                 )
             }
             Conditions::ReduceToReturnType(e, r) => {
-                format!("{} ->*_returntype", e.pretty_print(),)
+                format!("{e} ->*_returntype")
             }
             Conditions::AxiomSort(sort, sort1) => {
                 format!(
@@ -560,7 +594,7 @@ impl Conditions {
                 )
             }
             Conditions::ProofNeeded(cxt, exp) => {
-                format!("Provable? {} |- {}", cxt.pretty_print(), exp.pretty_print())
+                format!("Provable? {cxt} |- {exp}")
             }
         }
     }

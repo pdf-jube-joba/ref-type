@@ -42,40 +42,38 @@ pub enum Exp {
     // Rec(Var, Var, Box<Exp>), // rec f x = m
 }
 
-impl Exp {
-    pub fn pretty_print(&self) -> String {
-        match self {
+impl Display for Exp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: String = match self {
             Exp::Sort(sort) => format!("{sort}"),
             Exp::Var(var) => format!("{var}"),
-            Exp::Prod(var, exp, exp1) => {
-                format!("({var}: {}) -> {}", exp.pretty_print(), exp1.pretty_print())
-            }
-            Exp::Lam(var, exp, exp1) => {
-                format!("\\({var}: {}). {}", exp.pretty_print(), exp1.pretty_print())
-            }
-            Exp::App(exp, exp1) => {
-                format!("{} {}", exp.pretty_print(), exp1.pretty_print())
-            }
-            Exp::IndTypeType { ind_type_name } => format!("{ind_type_name}",),
+            Exp::Prod(var, exp, exp1) => format!("({var}:{exp}) -> {exp1}"),
+            Exp::Lam(var, exp, exp1) => format!("\\{var}:{exp}. {exp1}"),
+            Exp::App(exp, exp1) => format!("({exp} {exp1})"),
+            Exp::IndTypeType { ind_type_name } => ind_type_name.to_string(),
             Exp::IndTypeCst {
                 ind_type_name,
                 constructor_name,
-            } => format!("{ind_type_name}::{constructor_name}",),
+            } => format!("{ind_type_name}::{constructor_name}"),
             Exp::IndTypeElim {
                 ind_type_name,
                 eliminated_exp,
                 return_type,
                 cases,
-            } => format!(
-                "Elim[{ind_type_name}] {} return {} ({})",
-                eliminated_exp.pretty_print(),
-                return_type.pretty_print(),
-                cases.iter().fold(String::new(), |s, e| {
-                    format!("{s} {}", e.pretty_print())
-                }),
-            ),
-        }
+            } => {
+                format!(
+                    "elim({ind_type_name}) {eliminated_exp} return {return_type} with ({})",
+                    cases
+                        .iter()
+                        .fold(String::new(), |s, e| { format!("{s} {e}") }),
+                )
+            }
+        };
+        write!(f, "{}", s)
     }
+}
+
+impl Exp {
     pub fn prod(var: Var, a: Exp, b: Exp) -> Self {
         Exp::Prod(var, Box::new(a), Box::new(b))
     }
@@ -230,9 +228,9 @@ impl Display for Var {
             f,
             "{}",
             match self {
-                Var::Str(s) => s.as_str(),
-                Var::Internal(s, _) => s.as_str(),
-                Var::Unused => "_",
+                Var::Str(s) => s.to_string(),
+                Var::Internal(s, n) => format!("{s}_{n}"),
+                Var::Unused => "_".to_string(),
             }
         )
     }
@@ -402,7 +400,7 @@ pub mod inductives {
             params: Vec<ParamCst>,
         ) -> Result<(Self, Var), String> {
             let var_type = end.0.clone();
-            let mut allow = vec![];
+            let mut allow = vec![var_type.clone()];
             for p in &params {
                 match p {
                     ParamCst::Positive(positive) => {
@@ -528,7 +526,7 @@ pub mod inductives {
                         let qmpx_type = {
                             let p_x = assoc_apply(
                                 Exp::Var(new_var_p.clone()),
-                                parameter.iter().map(|(x, e)| Exp::Var(x.clone())).collect(),
+                                parameter.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
                             );
                             let q_m = assoc_apply(q.clone(), exps.clone());
                             let qmpx = Exp::App(Box::new(q_m), Box::new(p_x));
@@ -567,7 +565,7 @@ pub mod inductives {
                         let ffmpx_lam = {
                             let p_x = assoc_apply(
                                 Exp::Var(new_var_p.clone()),
-                                parameter.iter().map(|(x, e)| Exp::Var(x.clone())).collect(),
+                                parameter.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
                             );
                             let f_m = assoc_apply(ff.clone(), exps.clone());
                             let fmpx = Exp::App(Box::new(f_m), Box::new(p_x));
@@ -674,7 +672,7 @@ impl GlobalContext {
             let (x, a) = (defs.variable().clone(), defs.arity().clone().into());
             cxt.push_decl((x, a));
             let constructor: Exp = c.clone().into();
-            let check = type_check(&self, cxt, constructor, Exp::Sort(sort));
+            let check = type_check(self, cxt, constructor, Exp::Sort(sort));
             if check.result_of_tree() == StatePartialTree::Fail {
                 return Err(format!(
                     "constructor {:?} is nor well formed \n{}",

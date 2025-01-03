@@ -48,6 +48,7 @@
       {
         Or[$t =_t t$][_equality type_]
         Or[$"relf"_t t$][_reflection_]
+        Or[$"Id_ind" ... $][_id induction 後でやる_]
         Or[$exists t$][_existence_]
         Or[$"Take" x. t. t$][_take operator_]
       }
@@ -56,6 +57,7 @@
 ]
 
 #definition("beta")[
+- $"Id_ind"_A (P, "refl"_A a, )$
 - $"Pred"_A {x: t | P} ->^beta lambda x: t. P$ ... $A equiv t$ のときをほぼ想定
 ]
 

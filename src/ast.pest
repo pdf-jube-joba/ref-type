@@ -1,4 +1,5 @@
 WHITESPACE = _{ " " | "\n" }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 sort_set = { "SET" }
 sort_prop = { "PROP" }
@@ -6,14 +7,11 @@ sort_type = { "TYPE" }
 sort = { sort_set | sort_prop | sort_type }
 
 // variable は小文字始まり
-identifier = @{ ('a'..'z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
-unused_identifier = @{"_"}
+variable = @{ ('a'..'z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+unused_variable = @{"_"}
 
-// inductive_type と constructor の定義
-type_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
-constructor_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
-
-var_annot = { identifier ~ ":" ~ expression }
+// x: T のこと
+var_annot = { (variable | unused_variable) ~ ":" ~ expression }
 
 dependent_prod_form = {
     "(" ~ var_annot ~ ")"
@@ -25,19 +23,23 @@ dependent_prod_intro = {
 }
 
 dependent_prod_elim = {
-    "(" ~ expression ~ expression ~ ")"
+    "(" ~ expression ~ expression* ~ ")"
 }
+
+// inductive_type と constructor の定義
+type_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+constructor_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
 
 inductive_type = {
     type_name
 }
 
-inductive_constructor = {
-    type_name ~ "::" ~ constructor_name
+inductive_constructor = @{
+    type_name ~ "#" ~ constructor_name
 }
 
 inductive_eliminator = {
-    "elim" ~ expression ~ "return" ~ expression ~ "with" ~ expression*
+    "elim" ~ "(" ~ type_name ~ ")" ~ expression ~ "return" ~ expression ~ "with" ~ expression*
 }
 
 subset_type = {
@@ -46,6 +48,10 @@ subset_type = {
 
 power_type = {
     "Pow" ~ expression
+}
+
+predicate = {
+    "Pred" ~ expression ~ expression
 }
 
 take_exp = {
@@ -61,35 +67,46 @@ expression = {
     | dependent_prod_form
     | dependent_prod_intro
     | dependent_prod_elim
-    | identifier
-    | inductive_type
-    | inductive_constructor
     | inductive_eliminator
+    | inductive_constructor
+    | inductive_type
+    | variable
     | expression_readable
 }
+
+test = {
+    | inductive_type
+    | inductive_constructor
+    | test_readable
+}
+
+test_readable = { "(" ~ test ~ ")"}
 
 expression_readable = { "(" ~ expression ~ ")" }
 
 COMMAND_TERMINATE = _{ ";" }
 
-new_definition = { "def" ~ identifier ~ ":=" ~ expression ~ COMMAND_TERMINATE }
-new_assumption = { "assum" ~ identifier ~ ":" ~ expression ~ COMMAND_TERMINATE }
+new_definition = { "Def" ~ variable ~ ":=" ~ expression ~ COMMAND_TERMINATE }
+new_assumption = { "Assume" ~ variable ~ ":" ~ expression ~ COMMAND_TERMINATE }
 
 new_inductive = {
-    "inductive" ~ type_name ~ "(" ~ identifier ~ ")" ~ arity ~ "with" ~ constructor_definition* ~ COMMAND_TERMINATE
+    "Inductive" ~ type_name ~ ":" ~ arity ~ "with" ~ constructor_definition* ~ COMMAND_TERMINATE
 }
 
+// inductive definitions
 arity = {
     ( "(" ~ var_annot ~ ")" ~ "->" )* ~ sort
 }
 
 constructor_terminate = {
-    identifier ~ expression*
+    type_name ~ expression*
 }
 
 positive = {
-    ( "(" ~ var_annot ~ ")" ~ "->" )*
-    ~ constructor_terminate
+    "(" ~ 
+        ( "(" ~ var_annot ~ ")" ~ "->" )*
+        ~ constructor_terminate
+    ~ ")"
 }
 
 constructor_non_occur = {
@@ -102,26 +119,31 @@ constructor_positive_occur = {
 
 constructor_rec = {
     | constructor_terminate
-    | constructor_non_occur
     | constructor_positive_occur
+    | constructor_non_occur
 }
 
 constructor_definition = {
-    constructor_name ~ ":" ~ constructor_rec
+    "|" ~ constructor_name ~ ":" ~ constructor_rec
 }
 
+// check command 
 command_parse = { "Parse" ~ expression ~ COMMAND_TERMINATE }
-command_check = { "Check" ~ expression ~ ":" ~ expression ~ COMMAND_TERMINATE}
-command_infer = { "Infer" ~ expression ~ COMMAND_TERMINATE }
-command_alpha_eq = { "Alpha_eq" ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
+
+command_subst = { "Subst" ~ expression ~ "[" ~ variable ~ ":=" ~ expression ~ "]" ~ COMMAND_TERMINATE }
+command_alpha_eq = { "AlphaEq" ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
 command_top_reduction = { "TopReduce" ~ expression ~ COMMAND_TERMINATE }
 command_reduction = { "Reduce" ~ expression ~ COMMAND_TERMINATE }
 command_normalize = { "Normalize" ~ expression ~ COMMAND_TERMINATE }
 command_beta_equiv = { "BetaEq" ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
 
+command_check = { "Check" ~ expression ~ ":" ~ expression ~ COMMAND_TERMINATE}
+command_infer = { "Infer" ~ expression ~ COMMAND_TERMINATE }
+
 command = {
     | command_parse
     | command_check
+    | command_subst
     | command_alpha_eq
     | command_top_reduction
     | command_reduction
