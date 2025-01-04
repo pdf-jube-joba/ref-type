@@ -649,6 +649,7 @@ pub enum DerivationLabel {
     ConvToProd,
     ConvToInd,
     ConvToCst,
+    ConvToRet,
     ProdForm,
     ProdIntro,
     ProdElim,
@@ -671,6 +672,7 @@ impl Display for DerivationLabel {
             DerivationLabel::ConvToProd => "Cnv(->Prod)",
             DerivationLabel::ConvToInd => "Cnv(->Ind)",
             DerivationLabel::ConvToCst => "Cnv(->Cst)",
+            DerivationLabel::ConvToRet => "Cnv(->Ret)",
             DerivationLabel::ProdForm => "Prod(Form)",
             DerivationLabel::ProdIntro => "Prod(Intr)",
             DerivationLabel::ProdElim => "Prof(Elim)",
@@ -917,7 +919,7 @@ pub fn type_infered_to_ind_return_type(
 ) -> (PartialDerivationTree, Option<Sort>) {
     let mut der_tree = PartialDerivationTree::Node {
         head: Judgement::TypeInfer(cxt.clone(), term.clone(), None),
-        rel: DerivationLabel::Conv,
+        rel: DerivationLabel::ConvToRet,
         child: vec![],
     };
 
@@ -942,9 +944,9 @@ pub fn type_infered_to_ind_return_type(
         return (der_tree, None);
     };
 
-    println!("hello");
-
     let end_sort = type_of_term.1;
+
+    der_tree.of_type_mut().unwrap().clone_from(&Some(Exp::Sort(end_sort)));
 
     (der_tree, Some(end_sort))
 }

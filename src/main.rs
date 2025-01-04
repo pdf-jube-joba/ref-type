@@ -140,9 +140,11 @@ fn main() {
                         println!("  constructors:");
                         for c in inddefs.constructors() {
                             let c_exp: Exp = c.clone().into();
-                            let recursor =
-                                c.recursor(Exp::Var("Q_ret".into()), Exp::Var("f_input".into()));
-                            println!("  {} with {}", c_exp, recursor);
+                            let elim_type: Exp =
+                                c.eliminator_type(Exp::Var("Q".into()), Exp::Var("c".into()));
+                            let recursor: Exp =
+                                c.recursor(Exp::Var("F".into()), Exp::Var("f".into()));
+                            println!("  {} with type:{} recursor: {}", c_exp, elim_type, recursor);
                         }
                     }
                     Err(err) => {
