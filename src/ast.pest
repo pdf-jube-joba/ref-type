@@ -1,5 +1,6 @@
 WHITESPACE = _{ " " | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+keyword = {sort | "elim" | "return" | "with" | "end" }
 
 sort_set = { "SET" }
 sort_prop = { "PROP" }
@@ -7,7 +8,7 @@ sort_type = { "TYPE" }
 sort = { sort_set | sort_prop | sort_type }
 
 // variable は小文字始まり
-variable = @{ ('a'..'z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+variable = @{ &!keyword ~ ('a'..'z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")* }
 unused_variable = @{"_"}
 
 // x: T のこと
@@ -27,8 +28,8 @@ dependent_prod_elim = {
 }
 
 // inductive_type と constructor の定義
-type_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
-constructor_name = @{ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+type_name = @{ &!keyword ~ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+constructor_name = @{ &!keyword ~ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
 
 inductive_type = {
     type_name
@@ -39,7 +40,7 @@ inductive_constructor = ${
 }
 
 inductive_eliminator = {
-    "elim" ~ "(" ~ type_name ~ ")" ~ expression ~ "return" ~ expression ~ "with" ~ expression*
+    "elim" ~ "(" ~ type_name ~ ")" ~ expression ~ "return" ~ expression ~ "with" ~ ("|" ~ expression)* ~ "end"
 }
 
 subset_type = {
@@ -86,8 +87,11 @@ expression_readable = { "(" ~ expression ~ ")" }
 
 COMMAND_TERMINATE = _{ ";" }
 
-new_definition = { "Def" ~ variable ~ ":=" ~ expression ~ COMMAND_TERMINATE }
-new_assumption = { "Assume" ~ variable ~ ":" ~ expression ~ COMMAND_TERMINATE }
+new_definition = {
+    "Def" ~ variable ~ ":" ~ expression ~ ":=" ~ expression ~ COMMAND_TERMINATE }
+
+new_assumption = {
+    "Assum" ~ variable ~ ":" ~ expression ~ COMMAND_TERMINATE }
 
 new_inductive = {
     "Inductive" ~ type_name ~ ":" ~ arity ~ "with" ~ constructor_definition* ~ COMMAND_TERMINATE
@@ -128,26 +132,46 @@ constructor_definition = {
 }
 
 // check command 
-command_parse = { "Parse" ~ expression ~ COMMAND_TERMINATE }
+command_parse = {
+    "Parse"
+    ~ expression ~ COMMAND_TERMINATE }
 
-command_subst = { "Subst" ~ expression ~ "[" ~ variable ~ ":=" ~ expression ~ "]" ~ COMMAND_TERMINATE }
-command_alpha_eq = { "AlphaEq" ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
-command_top_reduction = { "TopReduce" ~ expression ~ COMMAND_TERMINATE }
-command_reduction = { "Reduce" ~ expression ~ COMMAND_TERMINATE }
-command_normalize = { "Normalize" ~ expression ~ COMMAND_TERMINATE }
-command_beta_equiv = { "BetaEq" ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
+command_subst = {
+    "Subst"
+    ~ expression ~ "[" ~ variable ~ ":=" ~ expression ~ "]" ~ COMMAND_TERMINATE }
 
-command_check = { "Check" ~ expression ~ ":" ~ expression ~ COMMAND_TERMINATE}
-command_infer = { "Infer" ~ expression ~ COMMAND_TERMINATE }
+command_alpha_eq = {
+    "AlphaEq"
+    ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
+
+command_top_reduction = {
+    "TopReduce" ~ expression ~ COMMAND_TERMINATE }
+
+command_reduction = {
+    "Reduce" ~ expression ~ COMMAND_TERMINATE }
+
+command_normalize = {
+    "Normalize" ~ expression ~ COMMAND_TERMINATE }
+
+command_beta_equiv = {
+    "BetaEq" ~ expression ~ "=" ~ expression ~ COMMAND_TERMINATE }
+
+command_check = {
+    "Check" ~ expression ~ ":" ~ expression ~ COMMAND_TERMINATE}
+
+command_infer = {
+    "Infer" ~ expression ~ COMMAND_TERMINATE }
 
 command = {
     | command_parse
     | command_check
+    | command_infer
     | command_subst
     | command_alpha_eq
     | command_top_reduction
     | command_reduction
     | command_normalize
+    | command_beta_equiv
     | new_definition
     | new_assumption
     | new_inductive

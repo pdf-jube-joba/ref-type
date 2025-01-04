@@ -344,7 +344,6 @@ pub(crate) fn take_inductive_type(pair: Pair<Rule>) -> Res<String> {
 }
 
 pub(crate) fn take_inductive_constructor(pair: Pair<Rule>) -> Res<(String, String)> {
-    eprintln!("{}", pair.as_str());
     debug_assert_eq!(pair.as_rule(), Rule::inductive_constructor);
     let mut ps = pair.into_inner();
     let n = {
@@ -467,7 +466,6 @@ pub(crate) fn take_constructor_rec(pair: Pair<Rule>, type_name: &str) -> Res<Con
     debug_assert_eq!(pair.as_rule(), Rule::constructor_rec);
     let mut ps = pair.into_inner();
     let p = ps.next().unwrap();
-    println!("{:?} {}", p.as_rule(), p.as_str());
     match p.as_rule() {
         Rule::constructor_terminate => {
             let end = take_terminate(p, type_name)?;
@@ -560,11 +558,35 @@ pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<InductiveDefinitionsSy
 }
 
 pub(crate) fn take_new_assumption(pair: Pair<Rule>) -> Res<(Var, Exp)> {
-    todo!()
+    debug_assert_eq!(pair.as_rule(), Rule::new_assumption);
+    let mut ps = pair.into_inner();
+    let variable = {
+        let p = ps.next().unwrap();
+        take_identifier(p)?
+    };
+    let expression = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+    Ok((variable, expression))
 }
 
 pub(crate) fn take_new_definition(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
-    todo!()
+    debug_assert_eq!(pair.as_rule(), Rule::new_definition);
+    let mut ps = pair.into_inner();
+    let variable = {
+        let p = ps.next().unwrap();
+        take_identifier(p)?
+    };
+    let expression1 = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+    let expression2 = {
+        let p = ps.next().unwrap();
+        take_exp(p)?
+    };
+    Ok((variable, expression1, expression2))
 }
 
 #[cfg(test)]

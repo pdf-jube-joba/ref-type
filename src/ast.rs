@@ -3,7 +3,9 @@ use std::{
     fmt::Display,
 };
 
-use crate::relation::subst;
+use crate::relation::{
+    subst, type_check, type_infered_to_sort, Context, PartialDerivationTree, StatePartialTree,
+};
 
 pub mod parse;
 
@@ -62,10 +64,10 @@ impl Display for Exp {
                 cases,
             } => {
                 format!(
-                    "elim({ind_type_name}) {eliminated_exp} return {return_type} with ({})",
+                    "elim({ind_type_name}) {eliminated_exp} return {return_type} with {} end",
                     cases
                         .iter()
-                        .fold(String::new(), |s, e| { format!("{s} {e}") }),
+                        .fold(String::new(), |s, e| { format!("{s} | {e}") }),
                 )
             }
         };
@@ -241,8 +243,8 @@ impl Display for Var {
             f,
             "{}",
             match self {
-                Var::Str(s) => s.to_string(),
-                Var::Internal(s, n) => format!("{s}_{n}"),
+                Var::Str(s) => format!("[{s}]"),
+                Var::Internal(s, n) => format!("[{s}_{n}]"),
                 Var::Unused => "_".to_string(),
             }
         )
@@ -307,8 +309,13 @@ impl Sort {
     // elimination の制限用
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
-            (Sort::Prop, Sort::Prop) => Some(()),
-
+            (Sort::Prop, Sort::Prop) | (Sort::Set, Sort::Prop) | (Sort::Type, Sort::Prop) => {
+                Some(())
+            }
+            (Sort::Type, Sort::Type) | (Sort::Set, Sort::Type) | (Sort::Prop, Sort::Type) => {
+                Some(())
+            }
+            (Sort::Set, Sort::Set) => Some(()),
             _ => None,
         }
     }
@@ -651,9 +658,10 @@ impl GlobalContext {
         let arity_exp: Exp = defs.arity().clone().into();
         let check = type_infered_to_sort(self, Context::default(), arity_exp);
         if check.1.is_none() {
+            let arity: Exp = defs.arity().clone().into();
             return Err(format!(
-                "arity {:?} is not well formed \n{}",
-                defs.arity(),
+                "arity {} is not well formed \n{}",
+                arity,
                 check.0.pretty_print(0),
             ));
         }
@@ -667,8 +675,9 @@ impl GlobalContext {
             let constructor: Exp = c.clone().into();
             let check = type_check(self, cxt, constructor, Exp::Sort(sort));
             if check.result_of_tree() == StatePartialTree::Fail {
+                let c: Exp = c.clone().into();
                 return Err(format!(
-                    "constructor {:?} is not well formed \n{}",
+                    "constructor {} is not well formed \n{}",
                     c,
                     check.pretty_print(0),
                 ));
@@ -700,11 +709,43 @@ impl GlobalContext {
         let a = self.inductive_definitions.get(type_name)?;
         a.0.get(i)
     }
-    pub fn push_new_defs(&mut self, (x, a, t): (Var, Exp, Exp)) -> Result<(), String> {
-        todo!()
+    pub fn search_var_defined(&self, y: Var) -> Option<(&Exp, &Exp)> {
+        self.definitions
+            .iter()
+            .find_map(|(x, a, e)| if *x == y { Some((a, e)) } else { None })
     }
-    pub fn push_new_assum(&mut self, (v, a): (Var, Exp)) -> Result<(), String> {
-        todo!()
+    pub fn search_var_assum(&self, y: Var) -> Option<&Exp> {
+        self.parameters
+            .iter()
+            .find_map(|(x, a)| if *x == y { Some(a) } else { None })
+    }
+    pub fn push_new_defs(
+        &mut self,
+        (x, a, v): (Var, Exp, Exp),
+    ) -> (PartialDerivationTree, Result<(), String>) {
+        let der_tree = type_check(self, Context::default(), v.clone(), a.clone());
+        if der_tree.result_of_tree().is_success() {
+            self.definitions.push((x, a, v));
+            (der_tree, Ok(()))
+        } else if der_tree.result_of_tree().is_fail() {
+            (der_tree, Err("fail".to_string()))
+        } else {
+            todo!()
+        }
+    }
+    pub fn push_new_assum(
+        &mut self,
+        (x, a): (Var, Exp),
+    ) -> (PartialDerivationTree, Result<(), String>) {
+        let (der_tree, _) = type_infered_to_sort(self, Context::default(), a.clone());
+        if der_tree.result_of_tree().is_success() {
+            self.parameters.push((x, a));
+            (der_tree, Ok(()))
+        } else if der_tree.result_of_tree().is_fail() {
+            (der_tree, Err("fail".to_string()))
+        } else {
+            todo!()
+        }
     }
     pub fn indtype_defs(&self, type_name: &str) -> Option<&inductives::IndTypeDefs> {
         self.inductive_definitions.get(type_name).map(|s| &s.1)

@@ -6,6 +6,7 @@ use ref_type::{
     ast::{
         self,
         parse::{self, Command, InductiveDefinitionsSyntax, NewCommand},
+        Exp,
     },
     relation::{self, subst},
 };
@@ -105,13 +106,44 @@ fn main() {
                     println!("betaeq {}: {e1} =~ {e2}", "FAIL".red())
                 }
             }
-            Either::Right(NewCommand::Assumption(x, a)) => todo!(),
-            Either::Right(NewCommand::Definition(x, a, t)) => todo!(),
+            Either::Right(NewCommand::Assumption(x, a)) => {
+                let (der_tree, res) = gcxt.push_new_assum((x, a));
+                match res {
+                    Ok(_) => {
+                        println!("{}", "new assum SUCC".blue());
+                    }
+                    Err(err) => {
+                        println!("{} {}", "new assum FAIL".red(), err);
+                    }
+                }
+                println!("{}", der_tree.pretty_print(0));
+            }
+            Either::Right(NewCommand::Definition(x, a, t)) => {
+                let (der_tree, res) = gcxt.push_new_defs((x, a, t));
+                match res {
+                    Ok(_) => {
+                        println!("{}", "new def SUCC".blue());
+                    }
+                    Err(err) => {
+                        println!("{} {}", "new def FAIL".red(), err);
+                    }
+                }
+                println!("{}", der_tree.pretty_print(0));
+            }
             Either::Right(NewCommand::Inductive(inddefs)) => {
                 println!("{inddefs:?}");
                 match parse::add_ind(&mut gcxt, inddefs) {
                     Ok(inddefs) => {
-                        println!("{}", format!("SUCC: {:?}", inddefs).blue());
+                        let arity: Exp = inddefs.arity().clone().into();
+                        println!("{}", format!("SUCC").blue());
+                        println!("  arity: {arity}");
+                        println!("  constructors:");
+                        for c in inddefs.constructors() {
+                            let c_exp: Exp = c.clone().into();
+                            let recursor =
+                                c.recursor(Exp::Var("Q_ret".into()), Exp::Var("f_input".into()));
+                            println!("  {} with {}", c_exp, recursor);
+                        }
                     }
                     Err(err) => {
                         println!("{}", format!("FAIL: {}", err).red());
