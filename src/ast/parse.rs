@@ -40,8 +40,7 @@ pub fn add_ind(
 
     let variable: Var = type_name.as_str().into();
 
-    let mut csnames = vec![];
-    let mut cstypes = vec![];
+    let mut cs_name_type = vec![];
 
     for (n, t) in constructors {
         let ConstructorSyntax { end, params } = t;
@@ -60,14 +59,13 @@ pub fn add_ind(
             new_params.push(param)
         }
 
-        let cstype = ConstructorType::new_constructor((variable.clone(), end), new_params)?;
+        let cstype = ConstructorType::new_constructor((variable.clone(), end), new_params)?.0;
 
-        csnames.push(n);
-        cstypes.push(cstype.0)
+        cs_name_type.push((n, cstype));
     }
 
-    let defs = IndTypeDefs::new(variable, (signature, sort), cstypes)?;
-    gcxt.push_newind(type_name, csnames, defs.clone())?;
+    let defs = IndTypeDefs::new(type_name, variable, (signature, sort), cs_name_type)?;
+    gcxt.push_newind(defs.clone())?;
     Ok(defs)
 }
 
@@ -357,7 +355,9 @@ pub(crate) fn take_inductive_constructor(pair: Pair<Rule>) -> Res<(String, Strin
     Ok((n, c))
 }
 
-pub(crate) fn take_inductive_eliminator(pair: Pair<Rule>) -> Res<(String, Exp, Exp, Vec<Exp>)> {
+pub(crate) fn take_inductive_eliminator(
+    pair: Pair<Rule>,
+) -> Res<(String, Exp, Exp, Vec<(String, Exp)>)> {
     debug_assert_eq!(pair.as_rule(), Rule::inductive_eliminator);
     let mut ps = pair.into_inner();
     let n = {
@@ -374,8 +374,10 @@ pub(crate) fn take_inductive_eliminator(pair: Pair<Rule>) -> Res<(String, Exp, E
     };
     let cases = {
         let mut cases = vec![];
-        for p in ps {
-            cases.push(take_exp(p)?);
+        while ps.peek().is_some() {
+            let n = take_constructor_name(ps.next().unwrap())?;
+            let e = take_exp(ps.next().unwrap())?;
+            cases.push((n, e));
         }
         cases
     };

@@ -6,7 +6,7 @@ use ref_type::{
     ast::{
         self,
         parse::{self, Command, InductiveDefinitionsSyntax, NewCommand},
-        Exp,
+        Exp, Sort,
     },
     relation::{self, subst},
 };
@@ -60,8 +60,11 @@ fn main() {
                     relation::StatePartialTree::Wait(vec) => format!("GOALS..{:?}", vec).blue(),
                 };
                 println!(
-                    "type: {:?}\n result: {}\n{}",
-                    res,
+                    "type: {}\n result: {}\n{}",
+                    match res {
+                        None => "x".to_string(),
+                        Some(e) => format!("{e}"),
+                    },
                     res_tree,
                     tree.pretty_print(0)
                 );
@@ -138,14 +141,21 @@ fn main() {
                         println!("{}", format!("SUCC").blue());
                         println!("  arity: {arity}");
                         println!("  constructors:");
-                        for c in inddefs.constructors() {
+                        for (cname, c) in inddefs.constructors() {
                             let c_exp: Exp = c.clone().into();
                             let elim_type: Exp =
                                 c.eliminator_type(Exp::Var("Q".into()), Exp::Var("c".into()));
                             let recursor: Exp =
                                 c.recursor(Exp::Var("F".into()), Exp::Var("f".into()));
-                            println!("  {} with type:{} recursor: {}", c_exp, elim_type, recursor);
+                            println!(
+                                "  {cname}: {c_exp} with type:{elim_type} recursor: {recursor}"
+                            );
                         }
+                        let s = Sort::Prop;
+                        println!(
+                            "  elim PROP: {}",
+                            gcxt.type_of_eliminator(inddefs.name(), s).unwrap()
+                        );
                     }
                     Err(err) => {
                         println!("{}", format!("FAIL: {}", err).red());

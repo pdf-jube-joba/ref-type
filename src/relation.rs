@@ -53,7 +53,7 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
             return_type: Box::new(subst_rec(*return_type, fresh, substs.clone())),
             cases: cases
                 .into_iter()
-                .map(|e| subst_rec(e, fresh, substs.clone()))
+                .map(|(c, e)| (c, subst_rec(e, fresh, substs.clone())))
                 .collect(),
         },
     }
@@ -91,7 +91,6 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
         }
         (Exp::Prod(x1, m1, n1), Exp::Prod(x2, m2, n2)) => {
             alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
-                // x1 |-> x2
                 bd.push((x1.clone(), x2.clone()));
                 alpha_eq_rec(n1, n2, bd)
             }
@@ -161,10 +160,11 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
             return_type,
             cases,
         } => {
+            let (head, argument) = utils::decompose_to_app_exps(*eliminated_exp);
             let Exp::IndTypeCst {
                 ind_type_name: ind_type_name2,
                 constructor_name,
-            } = *eliminated_exp
+            } = head
             else {
                 return None;
             };
@@ -172,16 +172,22 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                 return None;
             }
 
-            let (projection, constructor) =
-                gcxt.indtype_constructor(&ind_type_name, &constructor_name)?;
+            let inddefs = gcxt.indtype_defs(&ind_type_name)?;
+            let constructor = inddefs.constructor(&constructor_name)?;
+
+            let corresponding_cases = cases.iter().find_map(|(c, e)| {
+                if c == &constructor_name {
+                    Some(e.clone())
+                } else {
+                    None
+                }
+            })?;
 
             let signature = gcxt
                 .indtype_defs(&ind_type_name)?
                 .arity()
                 .signature()
                 .clone();
-
-            let argument = constructor.arg_end().clone();
 
             let ff_elim_q = {
                 let new_var_c = Var::Internal("new_cst".to_string(), 0);
@@ -207,7 +213,7 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     ),
                 )
             };
-            let t = constructor.recursor(ff_elim_q, cases[projection].clone());
+            let t = constructor.recursor(ff_elim_q, corresponding_cases);
             Some(utils::assoc_apply(t, argument))
         }
         _ => None,
@@ -414,9 +420,7 @@ impl Conditions {
     }
     fn reduce_to_indtype(gcxt: &GlobalContext, term: Exp) -> (Self, Option<(String, Vec<Exp>)>) {
         let type_term = normalize(gcxt, term.clone());
-        let type_term_decompose = decompose_to_app_exps(type_term);
-        let head = type_term_decompose[0].clone();
-        let argument = type_term_decompose[1..].to_vec();
+        let (head, argument) = decompose_to_app_exps(type_term);
         let s = match head {
             Exp::IndTypeType { ind_type_name } => Some((ind_type_name, argument)),
             _ => None,
@@ -428,9 +432,7 @@ impl Conditions {
         term: Exp,
     ) -> (Self, Option<(String, String, Vec<Exp>)>) {
         let type_term = normalize(gcxt, term.clone());
-        let type_term_decompose = decompose_to_app_exps(type_term);
-        let head = type_term_decompose[0].clone();
-        let argument = type_term_decompose[1..].to_vec();
+        let (head, argument) = decompose_to_app_exps(type_term);
         let s = match head {
             Exp::IndTypeCst {
                 ind_type_name,
@@ -446,7 +448,7 @@ impl Conditions {
         term: Exp,
         type_name: String,
     ) -> (Self, Option<(Vec<(Var, Exp)>, Sort)>) {
-        println!("reduce to return type {term}");
+        println!("!!reduce to return type {term}");
         let type_term = normalize(gcxt, term.clone());
         let mut v = vec![];
         let mut term2 = type_term.clone();
@@ -465,36 +467,21 @@ impl Conditions {
                 }
             }
         };
-        let expected = {
-            let Some(inddefs) = gcxt.indtype_defs(&type_name) else {
-                return (Conditions::ReduceToReturnType(term, None), None);
-            };
-            let vars: Vec<Exp> = inddefs
-                .arity()
-                .signature()
-                .iter()
-                .map(|(x, _)| Exp::Var(x.clone()))
-                .collect();
-            let arg = utils::assoc_apply(
-                Exp::IndTypeType {
-                    ind_type_name: type_name.clone(),
-                },
-                vars,
-            );
-            let mut e = Exp::prod(Var::Unused, arg, Exp::Sort(s));
-            for (x, a) in inddefs.arity().signature().iter().rev() {
-                e = Exp::prod(x.clone(), a.clone(), e);
-            }
-            e
+        let expected = gcxt.ind_type_return_type(&type_name, s);
+        let Some(expected) = expected else {
+            return (Conditions::ReduceToReturnType(term2, None), None);
         };
+
+        println!("comp:{expected} & {type_term}");
         if alpha_eq(&expected, &type_term) {
+            println!("ok !!");
             v.pop();
             (
                 Conditions::ReduceToReturnType(term, Some((v.clone(), s))),
                 Some((v, s)),
             )
         } else {
-            eprintln!("{expected} {type_term}");
+            println!("er !!");
             (Conditions::ReduceToReturnType(term2, None), None)
         }
     }
@@ -932,21 +919,20 @@ pub fn type_infered_to_ind_return_type(
     };
 
     let (der_tree_of_type_term, type_of_term) = {
-        let (c, body) =
-            Conditions::reduce_to_returntype(gcxt, type_term.clone(), type_name.clone());
+        let (c, body) = Conditions::reduce_to_returntype(gcxt, type_term, type_name.clone());
         (PartialDerivationTree::LeafEnd(c), body)
     };
     child.push(der_tree_of_type_term);
-
-    // let inddef = gcxt.indtype_defs(&type_name).unwrap();
-
     let Some(type_of_term) = type_of_term else {
         return (der_tree, None);
     };
 
     let end_sort = type_of_term.1;
 
-    der_tree.of_type_mut().unwrap().clone_from(&Some(Exp::Sort(end_sort)));
+    der_tree
+        .of_type_mut()
+        .unwrap()
+        .clone_from(&Some(Exp::Sort(end_sort)));
 
     (der_tree, Some(end_sort))
 }
@@ -1180,8 +1166,11 @@ pub fn type_infer(
             }
 
             // f[i]: eliminator_type
-            for (i, c) in ind_defs.constructors().iter().enumerate() {
-                let cname = gcxt.name_of_cst(&ind_type_name, i).unwrap();
+            for (cname, c) in ind_defs.constructors() {
+                let corresponding_case = cases
+                    .iter()
+                    .find_map(|(c, e)| if c == cname { Some(e.clone()) } else { None })
+                    .unwrap();
                 let expected = c.eliminator_type(
                     *return_type.clone(),
                     Exp::IndTypeCst {
@@ -1196,15 +1185,13 @@ pub fn type_infer(
                         ind_type_name: ind_type_name.clone(),
                     },
                 );
-                let der_tree_fi = type_check(gcxt, cxt.clone(), cases[i].clone(), expected);
+                let der_tree_fi = type_check(gcxt, cxt.clone(), corresponding_case, expected);
                 let b = der_tree_fi.result_of_tree() == StatePartialTree::Fail;
                 child.push(der_tree_fi);
                 if b {
                     return (der_tree, None);
                 }
             }
-
-            println!("here ok");
 
             let type_of_term = Exp::App(
                 Box::new(utils::assoc_apply(*return_type, args_of_term_ind)),

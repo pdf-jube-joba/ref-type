@@ -7,6 +7,8 @@ use crate::relation::{
     subst, type_check, type_infered_to_sort, Context, PartialDerivationTree, StatePartialTree,
 };
 
+use self::inductives::ConstructorType;
+
 pub mod parse;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,7 +33,7 @@ pub enum Exp {
         ind_type_name: String,
         eliminated_exp: Box<Exp>,
         return_type: Box<Exp>,
-        cases: Vec<Exp>,
+        cases: Vec<(String, Exp)>,
     },
     // これがほしいメインの部分
     // Proof(Box<Exp>), // Proof t
@@ -67,7 +69,7 @@ impl Display for Exp {
                     "elim({ind_type_name}) {eliminated_exp} return {return_type} with {} end",
                     cases
                         .iter()
-                        .fold(String::new(), |s, e| { format!("{s} | {e}") }),
+                        .fold(String::new(), |s, (c, e)| { format!("{s} | {c} => {e} ") }),
                 )
             }
         };
@@ -92,18 +94,20 @@ impl Exp {
     }
     pub fn indcst(
         gcxt: &GlobalContext,
-        type_name: String,
-        cst_name: String,
+        ind_type_name: String,
+        constructor_name: String,
     ) -> Result<Self, String> {
-        if gcxt.indtype_defs(&type_name).is_none() {
-            return Err(format!("type {type_name} is not found"));
+        let Some(inddefs) = gcxt.indtype_defs(&ind_type_name) else {
+            return Err(format!("type {ind_type_name} is not found"));
         };
-        if gcxt.indtype_constructor(&type_name, &cst_name).is_none() {
-            return Err(format!("constructor {type_name} {cst_name} is not found"));
-        };
+        if inddefs.constructor(&constructor_name).is_none() {
+            return Err(format!(
+                "constructor {constructor_name} is not found in {ind_type_name}"
+            ));
+        }
         Ok(Self::IndTypeCst {
-            ind_type_name: type_name,
-            constructor_name: cst_name,
+            ind_type_name,
+            constructor_name,
         })
     }
     pub fn indelim(
@@ -111,13 +115,22 @@ impl Exp {
         ind_type_name: String,
         eliminated_exp: Exp,
         return_type: Exp,
-        cases: Vec<Exp>,
+        cases: Vec<(String, Exp)>,
     ) -> Result<Self, String> {
         let Some(type_def) = gcxt.indtype_defs(&ind_type_name) else {
             return Err(format!("type {ind_type_name} is not found"));
         };
-        if type_def.constructors().len() != cases.len() {
-            return Err(format!("elim case num is diff {}", cases.len()));
+        let csname_cases: HashSet<_> = cases.iter().map(|(c, _)| c.to_string()).collect();
+        let csname_ind: HashSet<_> = type_def
+            .constructors()
+            .iter()
+            .map(|(c, _)| c.to_string())
+            .collect();
+        if csname_cases != csname_ind {
+            return Err(format!(
+                "elim case constructor is diff cases: {:?} bud it should {:?}",
+                csname_cases, csname_ind
+            ));
         }
         Ok(Self::IndTypeElim {
             ind_type_name,
@@ -154,15 +167,15 @@ pub mod utils {
         e
     }
 
-    pub fn decompose_to_app_exps(mut e: Exp) -> Vec<Exp> {
+    // e = (((...((e1 e2) e3) ... e(n-1) ) e(n) ) |-> (e1, [e2, ..., en])
+    pub fn decompose_to_app_exps(mut e: Exp) -> (Exp, Vec<Exp>) {
         let mut v = vec![];
         while let Exp::App(t1, t2) = e {
             v.push(*t2);
             e = *t1;
         }
-        v.push(e);
         v.reverse();
-        v
+        (e, v)
     }
 }
 
@@ -215,6 +228,7 @@ pub fn fresh(term: &Exp) -> usize {
             cases,
         } => cases
             .iter()
+            .map(|(_, e)| e)
             .chain(vec![eliminated_exp.as_ref(), return_type.as_ref()])
             .map(|e| fresh(e))
             .max()
@@ -360,23 +374,29 @@ pub mod inductives {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct IndTypeDefs {
+        type_name: String,
         variable: Var,
         arity: Arity,
-        constructor: Vec<ConstructorType>,
+        constructor: Vec<(String, ConstructorType)>,
     }
 
     impl IndTypeDefs {
         pub fn new(
+            type_name: String,
             variable: Var,
             (signature, sort): (Vec<(Var, Exp)>, Sort),
-            constructor: Vec<ConstructorType>,
+            constructor: Vec<(String, ConstructorType)>,
         ) -> Result<Self, String> {
             let arity = Arity::new(signature, sort)?;
             Ok(Self {
+                type_name,
                 variable,
                 arity,
                 constructor,
             })
+        }
+        pub fn name(&self) -> &String {
+            &self.type_name
         }
         pub fn variable(&self) -> &Var {
             &self.variable
@@ -384,11 +404,17 @@ pub mod inductives {
         pub fn arity(&self) -> &Arity {
             &self.arity
         }
-        pub fn constructors(&self) -> &Vec<ConstructorType> {
+        pub fn constructors(&self) -> &Vec<(String, ConstructorType)> {
             &self.constructor
         }
-        pub fn constructor(&self, i: usize) -> Option<&ConstructorType> {
-            self.constructor.get(i)
+        pub fn constructor(&self, constructor_name: &str) -> Option<&ConstructorType> {
+            self.constructor.iter().find_map(|(cname, c)| {
+                if cname.as_str() == constructor_name {
+                    Some(c)
+                } else {
+                    None
+                }
+            })
         }
     }
 
@@ -665,6 +691,7 @@ impl Exp {
                 cases,
             } => cases
                 .iter()
+                .map(|(_, e)| e)
                 .flat_map(|e| e.free_variable())
                 .chain(eliminated_exp.free_variable())
                 .chain(return_type.free_variable())
@@ -675,21 +702,21 @@ impl Exp {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GlobalContext {
-    definitions: Vec<(Var, Exp, Exp)>, // x := v
-    parameters: Vec<(Var, Exp)>,       // x: t
-    inductive_definitions: HashMap<String, (Vec<String>, inductives::IndTypeDefs)>, //
+    definitions: Vec<(Var, Exp, Exp)>,                   // x := v
+    parameters: Vec<(Var, Exp)>,                         // x: t
+    inductive_definitions: Vec<inductives::IndTypeDefs>, //
 }
 
 impl GlobalContext {
-    pub fn push_newind(
-        &mut self,
-        type_name: String,
-        constructors: Vec<String>,
-        defs: inductives::IndTypeDefs,
-    ) -> Result<(), String> {
+    pub fn push_newind(&mut self, defs: inductives::IndTypeDefs) -> Result<(), String> {
         use crate::relation::{type_check, type_infered_to_sort, Context, StatePartialTree};
-        if self.inductive_definitions.contains_key(&type_name) {
-            return Err(format!("already defined {type_name}"));
+        if self
+            .inductive_definitions
+            .iter()
+            .find(|inddefs| inddefs.name() == defs.name())
+            .is_some()
+        {
+            return Err(format!("already defined {}", defs.name()));
         }
 
         // arity の well defined
@@ -705,7 +732,7 @@ impl GlobalContext {
         }
 
         // 各 constructor の well defined
-        for c in defs.constructors() {
+        for (_, c) in defs.constructors() {
             let sort = *defs.arity().sort();
             let mut cxt = Context::default();
             let (x, a) = (defs.variable().clone(), defs.arity().clone().into());
@@ -722,8 +749,7 @@ impl GlobalContext {
             }
         }
 
-        self.inductive_definitions
-            .insert(type_name, (constructors, defs));
+        self.inductive_definitions.push(defs);
         Ok(())
     }
     pub fn type_of_indtype(&self, type_name: &str) -> Option<Exp> {
@@ -732,7 +758,8 @@ impl GlobalContext {
         Some(arity.into())
     }
     pub fn type_of_cst(&self, type_name: &str, constructor_name: &str) -> Option<Exp> {
-        let constructor_def = self.indtype_constructor(type_name, constructor_name)?.1;
+        let defs = self.indtype_defs(type_name)?;
+        let constructor_def = defs.constructor(constructor_name)?;
         let constructor_exp: Exp = constructor_def.clone().into();
         let constructor_exp = subst(
             constructor_exp,
@@ -743,9 +770,100 @@ impl GlobalContext {
         );
         Some(constructor_exp)
     }
-    pub fn name_of_cst(&self, type_name: &str, i: usize) -> Option<&String> {
-        let a = self.inductive_definitions.get(type_name)?;
-        a.0.get(i)
+    pub fn ind_type_return_type(&self, type_name: &str, sort: Sort) -> Option<Exp> {
+        let indtype_def = self.indtype_defs(type_name)?;
+        let arity = indtype_def.arity().clone();
+        let vars = arity
+            .signature()
+            .iter()
+            .map(|(x, _)| Exp::Var(x.clone()))
+            .collect();
+        let end = Exp::prod(
+            Var::Unused,
+            utils::assoc_apply(
+                Exp::IndTypeType {
+                    ind_type_name: type_name.to_string(),
+                },
+                vars,
+            ),
+            Exp::Sort(sort),
+        );
+        Some(utils::assoc_prod(arity.signature().clone(), end))
+    }
+    pub fn type_of_eliminator(&self, type_name: &str, sort: Sort) -> Option<Exp> {
+        let indtype_def = self.indtype_defs(type_name)?;
+        let arity = indtype_def.arity().clone();
+        // (x1: A1) -> ... -> (xn: An) -> (_: I x1 ... xn) -> s
+        let return_type: Exp = {
+            let vars = arity
+                .signature()
+                .iter()
+                .map(|(x, _)| Exp::Var(x.clone()))
+                .collect();
+            let end = Exp::lambda(
+                Var::Unused,
+                utils::assoc_apply(
+                    Exp::IndTypeType {
+                        ind_type_name: type_name.to_string(),
+                    },
+                    vars,
+                ),
+                Exp::Sort(sort),
+            );
+            utils::assoc_prod(arity.signature().clone(), end)
+        };
+        let q_exp = Exp::Var("Q".into());
+        // (fi: xi(I, Q, I::i, C_i)) -> ... ->
+        let type_cases: Vec<(Var, Exp)> = {
+            let mut v = vec![];
+            for (cname, c) in indtype_def.constructors() {
+                // xi_X(Q, c, C[i])
+                let pre = c.eliminator_type(
+                    q_exp.clone(),
+                    Exp::IndTypeCst {
+                        ind_type_name: type_name.to_string(),
+                        constructor_name: cname.clone(),
+                    },
+                );
+                let exact = subst(
+                    pre,
+                    indtype_def.variable(),
+                    &Exp::IndTypeType {
+                        ind_type_name: type_name.to_string(),
+                    },
+                );
+                v.push((cname.as_str().into(), exact));
+            }
+            v
+        };
+        // (x1: A1) -> ... -> (xn: An) -> (x: I x1... xn) -> Q x1 ... xn x
+        let end: Exp = {
+            let vars: Vec<Exp> = arity
+                .signature()
+                .iter()
+                .map(|(x, _)| Exp::Var(x.clone()))
+                .collect();
+            let new_x: Var = "x".into();
+            let end = Exp::lambda(
+                new_x.clone(),
+                utils::assoc_apply(
+                    Exp::IndTypeType {
+                        ind_type_name: type_name.to_string(),
+                    },
+                    vars.clone(),
+                ),
+                utils::assoc_apply(
+                    utils::assoc_apply(q_exp.clone(), vars),
+                    vec![Exp::Var(new_x)],
+                ),
+            );
+            utils::assoc_prod(arity.signature().clone(), end)
+        };
+        Some(Exp::prod(
+            "Q".into(),
+            return_type,
+            utils::assoc_prod(type_cases, end),
+        ))
     }
     pub fn search_var_defined(&self, y: Var) -> Option<(&Exp, &Exp)> {
         self.definitions
@@ -786,18 +904,9 @@ impl GlobalContext {
         }
     }
     pub fn indtype_defs(&self, type_name: &str) -> Option<&inductives::IndTypeDefs> {
-        self.inductive_definitions.get(type_name).map(|s| &s.1)
-    }
-    pub fn indtype_constructor(
-        &self,
-        type_name: &str,
-        constructor_name: &str,
-    ) -> Option<(usize, &inductives::ConstructorType)> {
-        let (cs_name, cs) = self.inductive_definitions.get(type_name)?;
-        let i = cs_name
+        self.inductive_definitions
             .iter()
-            .position(|c_name| c_name == constructor_name)?;
-        Some((i, cs.constructor(i)?))
+            .find(|defs| defs.name() == type_name)
     }
 }
 

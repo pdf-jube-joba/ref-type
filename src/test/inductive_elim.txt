@@ -3,33 +3,61 @@ Inductive Bool: SET with
     | False: Bool
 ;
 
-Parse elim(Bool) Bool::True return \b: Bool. Bool with | Bool::True | Bool::False end ;
-Infer elim(Bool) Bool::True return \b: Bool. Bool with | Bool::True | Bool::False end ;
+Parse elim(Bool) Bool::True return \b: Bool. Bool with
+    | True => x
+    | False => y
+    end
+;
+Infer elim(Bool) Bool::True return \b: Bool. Bool with
+    | True => Bool::True
+    | False => Bool::False
+    end
+;
 
-TopReduce elim(Bool) Bool::True return \b: Bool. Bool with | Bool::True | Bool::False end ;
+TopReduce elim(Bool) Bool::True return \b: Bool. Bool with
+    | True => Bool::True
+    | False => Bool::False
+    end
+;
 
 Inductive Nat: SET with
     | Zero: Nat
     | Succ: (Nat) -> Nat
 ;
 
-TopReduce elim(Bool) Bool::True return \b: Bool. Nat with | Nat::Zero | (Nat::Succ Nat::Zero) end ;
+TopReduce elim(Bool) Bool::True return \b: Bool. Nat with
+    | True => Nat::Zero
+    | False => (Nat::Succ Nat::Zero)
+    end
+;
 
 Def if_statement: (a: SET) -> (x1: a) -> (x2: a) -> (b: Bool) -> a :=
     \a: SET . \x1: a . \x2: a. \b: Bool.  
     elim(Bool) b return \b: Bool. a with
-    | x1
-    | x2
+    | True => x1
+    | False => x2
     end
 ;
 
 Normalize (if_statement Nat (Nat::Zero) (Nat::Succ Nat::Succ) Bool::False);
 Normalize (if_statement Nat (Nat::Zero) (Nat::Succ Nat::Succ) Bool::True);
 
-Def add_nat: (n: Nat) -> (m: Nat) -> Nat :=
-    \n: Nat . \m: Nat.
-    elim(Nat) n return \n: Nat. Nat with
-    | m
-    | \n: Nat. ((Nat::Succ) n)
+Def double: (n: Nat) -> Nat :=
+    \n: Nat.
+    elim(Nat) n return (\n:Nat. Nat) with
+    | Zero => Nat::Zero
+    | Succ => \k: Nat. \l: Nat. (Nat::Succ (Nat::Succ l)) 
+    end
+;
+
+Infer (double Nat::Zero);
+Normalize (double Nat::Zero);
+Normalize (double (Nat::Succ Nat::Zero));
+
+Def add: (_: Nat) -> (_: Nat) -> Nat :=
+    \n:Nat.
+    elim(Nat) n return (\_: Nat. \_: Nat. Nat) with
+    | Zero => \m: Nat. m
+    | Succ => \_: Nat. \g: ((_: Nat) -> Nat). \n: Nat.  (Nat::Succ (g n))
     end
 ;
