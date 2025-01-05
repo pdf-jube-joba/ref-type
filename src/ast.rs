@@ -36,14 +36,14 @@ pub enum Exp {
         cases: Vec<(String, Exp)>,
     },
     // これがほしいメインの部分
-    // Proof(Box<Exp>), // Proof t
-    // Id(Box<Exp>, Box<Exp>, Box<Exp>) // a =_A b
-    // Refl(Box<Exp>, Box<Exp>) // refl_A a
-    // Sub(Var, Box<Exp>, Box<Exp>), // { x : A | P }
-    // Pow(Box<Exp>), // Power X
-    // Pred(Box<Exp>, Box<Exp>), // Pred X
-    // Take(Var, Box<Exp>, Box<Exp>), // take x:A. t
-    // Rec(Var, Var, Box<Exp>), // rec f x = m
+    Proof(Box<Exp>),              // Proof t
+    Sub(Var, Box<Exp>, Box<Exp>), // { x : A | P }
+    Pow(Box<Exp>),                // Power X
+    Pred(Box<Exp>, Box<Exp>),     // Pred X
+                                  // Id(Box<Exp>, Box<Exp>, Box<Exp>), // a =_A b
+                                  // Refl(Box<Exp>, Box<Exp>),         // refl_A a
+                                  // Take(Var, Box<Exp>, Box<Exp>),    // take x:A. t
+                                  // Rec(Var, Var, Box<Exp>), // rec f x = m
 }
 
 impl Display for Exp {
@@ -72,6 +72,13 @@ impl Display for Exp {
                         .fold(String::new(), |s, (c, e)| { format!("{s} | {c} => {e} ") }),
                 )
             }
+            Exp::Proof(t) => format!("Proof {t}"),
+            Exp::Sub(x, a, p) => format!("{{ {x}: {a}: {p} }}"),
+            Exp::Pow(a) => format!("Power({a})"),
+            Exp::Pred(a, b) => format!("Pred {a} {b}"),
+            // Exp::Id(t, a, b) => format!("Id({t}) {a} = {b}"),
+            // Exp::Refl(t, a) => format!("Refl({t}) {a}"),
+            // Exp::Take(x, m, t) => format!("take {x}:{m}. {t}"),
         };
         write!(f, "{}", s)
     }
@@ -143,6 +150,42 @@ impl Exp {
 
 pub mod utils {
     use super::*;
+
+    #[macro_export]
+    macro_rules! var {
+        ($v: expr) => {{
+            {
+                Exp::Var($v.into())
+            }
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! lam {
+        ($x: expr, $a: expr, $b: expr) => {{
+            Exp::Lam($x, Box::new($a), Box::new($b))
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! prod {
+        ($x: expr, $a: expr, $b: expr) => {{
+            Exp::Prod($x, Box::new($a), Box::new($b))
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! app {
+        ($e: expr, $($x: expr),* ) => {{
+            #[allow(unused_mut)]
+            let mut e: Exp = $e;
+            $(
+                e = Exp::App(Box::new(e), Box::new($x));
+            )*
+            e
+        }};
+    }
+
     // (a v[0] ... v[k])
     pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
         for v in v {
@@ -176,6 +219,42 @@ pub mod utils {
         }
         v.reverse();
         (e, v)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn macros() {
+            assert_eq!(var! {"a"}, Exp::Var("a".into()));
+            assert_eq!(
+                lam! { "a".into(), var!{"b"}, var!{"c"} },
+                Exp::Lam(
+                    "a".into(),
+                    Box::new(Exp::Var("b".into())),
+                    Box::new(Exp::Var("c".into()))
+                )
+            );
+            assert_eq!(
+                prod!("a".into(), var! {"b"}, var! {"c"}),
+                Exp::Prod(
+                    "a".into(),
+                    Box::new(Exp::Var("b".into())),
+                    Box::new(Exp::Var("c".into()))
+                )
+            );
+            assert_eq!(app!(var! {"a"},), Exp::Var("a".into()));
+            assert_eq!(
+                app!(var! {"a"}, var! {"b"}, var! {"c"}),
+                Exp::App(
+                    Box::new(Exp::App(
+                        Box::new(Exp::Var("a".into())),
+                        Box::new(Exp::Var("b".into()))
+                    )),
+                    Box::new(Exp::Var("c".into()))
+                )
+            );
+        }
     }
 }
 
@@ -233,6 +312,15 @@ pub fn fresh(term: &Exp) -> usize {
             .map(|e| fresh(e))
             .max()
             .unwrap(),
+        Exp::Proof(t) => fresh(t),
+        Exp::Sub(x, t1, t2) => {
+            let v1 = fresh(t1);
+            let v2 = fresh(t2);
+            let v = std::cmp::max(v1, v2);
+            std::cmp::max(fresh_var(x), v)
+        }
+        Exp::Pow(t) => fresh(t),
+        Exp::Pred(a, b) => std::cmp::max(fresh(&a), fresh(b)),
     }
 }
 
@@ -696,6 +784,19 @@ impl Exp {
                 .chain(eliminated_exp.free_variable())
                 .chain(return_type.free_variable())
                 .collect(),
+            Exp::Proof(a) => a.free_variable(),
+            Exp::Sub(x, a, b) => {
+                let mut v = b.free_variable();
+                v.remove(x);
+                v.extend(a.free_variable());
+                v
+            }
+            Exp::Pow(a) => a.free_variable(),
+            Exp::Pred(a, b) => {
+                let mut v = a.free_variable();
+                v.extend(b.free_variable());
+                v
+            }
         }
     }
 }

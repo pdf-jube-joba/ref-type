@@ -56,6 +56,20 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
                 .map(|(c, e)| (c, subst_rec(e, fresh, substs.clone())))
                 .collect(),
         },
+        Exp::Proof(t) => Exp::Proof(Box::new(subst_rec(*t, fresh, substs))),
+        Exp::Pow(a) => Exp::Pow(Box::new(subst_rec(*a, fresh, substs))),
+        Exp::Pred(a, b) => Exp::Pred(
+            Box::new(subst_rec(*a, fresh, substs.clone())),
+            Box::new(subst_rec(*b, fresh, substs)),
+        ),
+        Exp::Sub(x, unbind, bind) => {
+            let unbind = Box::new(subst_rec(*unbind, fresh, substs.clone()));
+            let new_var = Var::Internal("new".to_string(), *fresh);
+            *fresh += 1;
+            substs.push((x, Exp::Var(new_var.clone())));
+            let bind = Box::new(subst_rec(*bind, fresh, substs));
+            Exp::Sub(new_var, unbind, bind)
+        }
     }
 }
 
@@ -216,6 +230,9 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
             let t = constructor.recursor(ff_elim_q, corresponding_cases);
             Some(utils::assoc_apply(t, argument))
         }
+        Exp::Pred(a, b) => {
+            todo!()
+        }
         _ => None,
     }
 }
@@ -275,9 +292,11 @@ pub fn reduce(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     cases,
                 });
             }
-
             None
         }
+        Exp::Proof(t) => Some(Exp::Proof(Box::new(reduce(gcxt, *t)?))),
+        Exp::Pow(a) => Some(Exp::Pow(Box::new(reduce(gcxt, *a)?))),
+        _ => todo!()
     }
 }
 
