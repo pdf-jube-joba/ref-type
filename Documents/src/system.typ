@@ -193,15 +193,20 @@
     $Gamma tack t: A$,
     $Gamma tack.double P [x := t]$,
   )) $
-- power set
+- power set form
   $ #proof-tree(rule(
     $Gamma tack cal(P)(A): *^s$,
     $Gamma tack A: *^s$,
   )) $
-- subset , powet set 
+- powet set intro subset
   $ #proof-tree(rule(
     $Gamma tack {x: A | P} : cal(P)(A)$,
     $Gamma tack {x: A | P} : *^s$,
+  )) $
+- power set intro set
+  $ #proof-tree(rule(
+    $Gamma tack  A : cal(P)(A)$,
+    $Gamma tack A : *^s$,
   )) $
 - subset elim set
   $ #proof-tree(rule(
