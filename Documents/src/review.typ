@@ -468,6 +468,25 @@ $cal(S) = {*, square}$ だけのときに、高階論理を使うために $(squ
 理由は多分、強すぎるからだと思われる。
 （なにか公理を加えると inconsistent になりやすい。）
 
+例として、帰納的な型の定義時の話を見てみる。
+
+```coq
+Record group: Type := mkGrp
+{ X: Set }.
+
+
+Fail Record group: Set := mkGrp {X: Set}.
+(* is not definable because it should type Type *)
+
+Inductive group2: forall (X: Set), Type :=
+  test: forall (X: Set), group2 X.
+
+Fail Inductive group2: forall(X: Set), Set :=
+  test: forall (X: Set), group2 X.
+ (* is not definable because it shouls type Type *)
+```
+こういうのは許されない。
+
 == cumulativity
 Luo の ECC で提案されているように、
 hierarchy を入れるならある種の lifting ができるとうれしい。
@@ -546,6 +565,7 @@ Timany と Jacobs のではこれをわけて前者を strictly positive と呼�
 #definition[
   次の組のことを帰納型の指定とする。
   - $X$: 変数 ... 帰納型の指定のための変数
+  - $s$: Sort
   - $A$: arity of $s$ ... 帰納型の引数部分
   - ${C_i}$: constructor of $X$ ... 帰納型の constructor の指定
 ]
@@ -565,6 +585,21 @@ $
 eliminator には eliminator に入れる項以外に、return する項の情報も入れておきたい。
 $"elim"(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解する項、 $Q$ は帰ってくる型、 $f_i$ は constructor それぞれに対応する場合分けの計算とする。
 
+ここらへんは論文をそのまま読めばいいから書かない。
+
+== 注意点
+- 帰納型の定義にある arity of $s$ は当然型が付かないといけない。
+- 帰納型の定義にある constructor of $X$ ($C_i$) は、 $Gamma X: "arity" tack C_i: s$ でなければいけない。
+
+Set が impredicative であることを考えると、次のような polymorphic なリストは定義できない。
+```
+Inductive List: (A: Set) -> Set :=
+  | Nil: (A: Set) -> List A
+  | Cons: (A: Set) -> (a: A) -> (_: List A) -> List A
+```
+理由は、 Nil の型について、 $"List": (A: "Set") -> "Set" tack ((A: "Set") -> "List" A): "Set"$ でないから、
+これには $("Type", "Set") in cal(R)$ が必要になる（$=>$ Set が impredicative である必要がある）。
+
 = inconsistency がいつ起こるか
 ここでの inconsistency とは次のことをいう。
 #theorem("inconsistency")[
@@ -574,21 +609,25 @@ $"elim"(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解する項�
 
 == type in type と impredicative
 === type in type
-有名な話として、 PTS で $s in cal(S)$ であって $(s: s) in cal(A)$, $(s, s) in cal(R)$ となるものがあると矛盾する。
+有名な話として、 $"Type": "Type"$ だと矛盾するらしい。
+PTS なら、 $s in cal(S)$ であって $(s: s) in cal(A)$, $(s, s) in cal(R)$ となるものがあると矛盾する。
 MLTT の一番最初のものはこれでだめだとわかったらしい。
 （Girard's paradox）
 
 === system U
-次に、 System $U$ と $U^-$ もあり、どっちも inconsistent
+次に、 System $U$ と $U^-$ もあり、どっちも inconsistent である。
 System $U$ は PTS で次のように定義する。
 - $cal(S) = {*, square, triangle}$
 - $cal(A) = *: square, square: triangle$
 - $cal(R) = {(*, *), (*, square), (square, *), (triangle, *), (triangle, square)}$
 System $U^-$ はここから $(triangle, *)$ を抜く。
 
+一番下の $*$ は impredicative （ $(square, *) in cal(R)$） でよいが、
+$square$ も impredicative （ $(triangle, square) in cal(R)$）なのがまずいらしい。
+
 === impredicative sort
 PTS として、なにかしら $s_1: s_2$ のようになっているとき、
-$(s_2, s_1)$ なら $(Pi x: s_1. s_1 -> s_1): s_1$ となるから $s_1$ は impredicative な sort である。
+$(s_2, s_1) in cal(R)$ なら $(Pi x: s_1. s_1 -> s_1): s_1$ となるから $s_1$ は impredicative な sort である。
 このような sort は hierarchy の一番下でなければいけない。
 つまり、 $(exists s_0): s_1$ になっているだけでだめ？
 （folklore っぽい）
@@ -617,7 +656,7 @@ strong dependent sum は次のような感じ
     }
   )
 )
-$pi_1 (x, y) -> x$ と $pi_2 (x, y) -> y$ が計算になる。
+$pi_1 (x, y) -> x$ と $pi_2 (x, y) -> y$ が reduction rule に入る。
 
 $ #proof-tree(rule(
   $Gamma tack (Sigma x: T. T'): s_3$,
@@ -645,6 +684,31 @@ Luo の ECC で述べられているところによると、
 3. $(s_1, s_2, s_3) = (square_i, square_j, square_(max(i,j)))$ みたいなものは矛盾しない。
 結局ここでも、 impredicativity が問題になっているようだ。
 
+これに対応する帰納型を書くと次のように書ける。
+（ s1, s2, s3 が対応する sort になる。）
+```
+Inductive sig: (A : s1) ->  (P : A -> s2) -> s3 :=
+  ex : (A: s1) -> (P : A -> s2) ->  (t1 : A) -> (t2: P x) -> sig A P.
+```
+Coq では $(s_1, s_2, s_3) = ("Type", PP, PP)$ でも問題なく定義ができる。
+ただし、 $pi_1$ や $pi_2$ に関して、無条件に型を付けることはできない。
+これは elim 時に、 Prop を分解していいのは Prop の項を作るときだけという制限がかかるためである。
+（ large elimination ）
+```Coq
+Fail Definition projection1: forall (A: Type), forall (P: A -> Prop), sig A P -> A :=
+  fun (A: Type) => fun (P: A -> Prop) => fun(x: sig A P) =>
+  match x with
+  | ex _ _ x y => x
+  end.
+```
+
+#quote[
+  Incorrect elimination of "x" in the inductive type "sig":
+  the return type has sort "Type" while it should be "SProp" or "Prop".
+  Elimination of an inductive object of sort Prop is not allowed on a predicate in sort Type
+  because proofs can be eliminated only to build proofs.
+]
+
 ==== weak dependent sum
 dependent sum を dependent sum なしの体系で再現しようとすると、 $pi_2$ はうまく作れない。
 逆に言うと、 dependent sum を $pi_2$ だけ除いたようなやつは適当にやっても矛盾しなさそう。
@@ -652,6 +716,7 @@ $Sigma x: T. T' := Pi R: *_p. (Pi X: T. T' -> R) -> R$ みたいな感じでや�
 
 つまり、 $pi_2 (e)$ を用いて $pi_1 (e)$ が $B$ を満たすことを証明できるような状況になっていると多分矛盾する？
 $(s_1, s_2, s_3) = (square, *, square)$ なら矛盾はしないと思うが。
+
 == retract について
 大きい universe を小さい universe に埋め込もうとすると変になる。
 特に、 $*_p$ と $"bool"$ を同一視するとか、べき集合を $A -> square$ で表して $Pi A: square. (A -> square)$ のようなべき操作をとるとか、
