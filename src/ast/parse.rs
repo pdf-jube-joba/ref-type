@@ -254,6 +254,7 @@ pub(crate) fn take_sort(pair: Pair<Rule>) -> Res<Sort> {
     let sort = match p.as_rule() {
         Rule::sort_set => Sort::Set,
         Rule::sort_prop => Sort::Prop,
+        Rule::sort_univ => Sort::Univ,
         Rule::sort_type => Sort::Type,
         _ => unreachable!("sort の中に変なのがある"),
     };

@@ -558,15 +558,45 @@ $a: A$ に対して $[a]_(A \/ R) := {x: A | x R a}$ とする。
 これをやるためには、 $O: cal(P)(X)$ に対して、「$O$ に含まれるための述語を取り出す」必要がある。
 これを加える。
 term を $"Pred"_t t$ と拡張し、
-$"Pred"_A {x: A | P} equiv P$ とする。
+$"Pred"_(A') {x: A | P} equiv lambda x: A. P$ とする。
 
 型システムに追加するのは、
 - $tack B: cal(P)(X)$ なら $"Pred"_X B: X -> *_p$
   - $"Pred"$ 自体は $((X: *_s) -> (B: cal(P)(X)) -> *_p): *_p$ みたいになっている。
-- $tack B: cal(P)(X)$, $tack x: B$ なら $tack.double ("Pred"_X B) x$
+    - これってけっこうまずい気がする（ strong impredicative sum みたいな）
+    - $(*^s, *^p) in cal(R)$ でないからいいか？
+- $tack B: cal(P)(X)$, $tack t: B$ なら $tack.double ("Pred"_X B) t$
 
 これで $O_1 sect O_2 := {x: X | "Pred"_X O_1 x and "Pred"_X O_2 x}$ と書ける。
-また、 $x: O_1 sect O_2$ なら $x: O_1$ になる？
+また、 $x: O_1 sect O_2$ なら $x: O_1$ になる？ ... ならないが、 $"Pred"_X O_1 x$ は示せる。
+
+- $tack B: cal(P)(X)$ なら $B: *^s$ がほしい。
+- $B equiv^beta { x: X | "Pred"_X B }$ が成り立てば、 上の問題で $ x: O_1$ が示せる。
+
+== 注意点
+位相空間論はできるようになってる。
+ただし、 $*^s$ が predicative かどうかで位相空間がどこに入るかを考える必要がある。
+また、 $x: X$ と $A: cal(P)(X)$ に対して、 $tack t: A$ と $tack.double ("Pred"_X A) t$ では後者の方が弱い。
+そこにも気を付ける必要がある。
+- $"sect" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: O) -> (X_2: O) -> {x: X | ("Pred"_X X_1) x and ("Pred"_X X_2) x}$
+- $"powerset_fin_sect_closed1" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: O) -> (X_2: O) -> "Pred"_(cal(P)(X)) O ("sect" X O X_1 X_2)$
+- $"powerset_fin_sect_closed2" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: cal(P)(X)) -> (X_2: cal(P)(X)) -> (x: X) -> ("Pred"_X X_1) x -> ("Pred"_X X_2) x -> "Pred"_(cal(P)(X)) O ("sect" X O X_1 X_2)$
+
+- $"union" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (Lambda: *^s) -> (o: Lambda -> O) -> {x: X | exists lambda: {lambda: Lambda | "Pred"_X (o lambda) x}}$
+- $"powerset_union_closed1" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (Lambda: *^s) -> (o: Lambda -> O) -> "Pred"_(cal(P)(X)) O ("union" X O Lambda o)$
+
+closed がついているのは $*^p$ の項になる ($*^p$ の impredicativity ... $*^s: square$ で $(square, *^p, *^p)$ より)。
+
+なので、 $"is_topology" (X: *^s) (O: cal(P)(cal(P)(X))): *^p$ という述語が作れる。
+ただし、 topological space を帰納型というか record 型というかそんな感じのやつにしたいなら、
+それは $*^s$ ではなくて $square$ に住むことになる。
+そのため、 $square$ を predicative な形で階層を付ける必要がある。
+（ sum 型が predicative になるために制限があるような感じ）
+
+この場合には、 propositional equality では $t_1, t_2: {x: A | P}$ に対して $t_1 =_A t_2 => t_1 =_{x: A | P} t_2$ ができていたものを、
+再び $square$ のレベルで似たような equality が示せないと使いにくい。
+具体的には、位相空間の compactness が定義されていたとき、 $2$ つの位相空間の等しさの判定時に、 compactness の証明まで要求されるようになってしまう。
+つらい。
 
 = non structural recursion を楽に記述する
 division を計算するのに euclidean algorithm（ユークリッド互除法）があるが、

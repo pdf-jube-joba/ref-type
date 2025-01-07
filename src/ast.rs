@@ -3,6 +3,8 @@ use std::{
     fmt::Display,
 };
 
+use either::Either;
+
 use crate::relation::{
     subst, type_check, type_infered_to_sort, Context, PartialDerivationTree, StatePartialTree,
 };
@@ -10,6 +12,9 @@ use crate::relation::{
 use self::inductives::ConstructorType;
 
 pub mod parse;
+
+type TypeName = String;
+type ConstructorName = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Exp {
@@ -21,16 +26,16 @@ pub enum Exp {
     // inductive hoge は global context を見ながらやること
     // 型 T
     IndTypeType {
-        ind_type_name: String,
+        ind_type_name: TypeName,
     },
     // 型 T のコンストラクタ C の指定
     IndTypeCst {
-        ind_type_name: String,
-        constructor_name: String,
+        ind_type_name: TypeName,
+        constructor_name: ConstructorName,
     },
     // Elim(T, c, Q){f[0], ..., f[m]}
     IndTypeElim {
-        ind_type_name: String,
+        ind_type_name: TypeName,
         eliminated_exp: Box<Exp>,
         return_type: Box<Exp>,
         cases: Vec<(String, Exp)>,
@@ -355,18 +360,19 @@ impl Display for Var {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
+    Univ, // universe
     Set,
-    Type,
     Prop,
-    // Program, // for computation
+    Type, // for program
 }
 
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             Sort::Set => "SET",
-            Sort::Type => "TYPE",
+            Sort::Univ => "UNIV",
             Sort::Prop => "PROP",
+            Sort::Type => "TYPE",
         };
         write!(f, "{}", s)
     }
@@ -384,7 +390,7 @@ impl Sort {
     // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
     pub fn type_of_sort(self) -> Option<Self> {
         if matches!(self, Sort::Prop | Sort::Set) {
-            Some(Sort::Type)
+            Some(Sort::Univ)
         } else {
             None
         }
@@ -396,25 +402,31 @@ impl Sort {
         match (self, other) {
             // CoC 部分
             (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Type, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop, Sort::Type) => Some(Sort::Type),
-            // Set を入れる分
+            (Sort::Univ, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Univ, Sort::Prop) => Some(Sort::Prop),
+            (Sort::Prop, Sort::Univ) => Some(Sort::Univ),
+            // Set を入れる部分
             (Sort::Set, Sort::Set) => Some(Sort::Set),
-            (Sort::Set, Sort::Type) => Some(Sort::Type),
+            (Sort::Set, Sort::Univ) => Some(Sort::Univ),
             (Sort::Set, Sort::Prop) => Some(Sort::Prop),
             (Sort::Prop, Sort::Set) => None,
-            (Sort::Type, Sort::Set) => None, // Set は predicative
+            (Sort::Univ, Sort::Set) => None, // Set は predicative
+            // Type を入れる部分
+            (Sort::Type, Sort::Type) => Some(Sort::Type),
+            (Sort::Type, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Univ, Sort::Type) => Some(Sort::Type),
+            (Sort::Type, _) => None,
+            (_, Sort::Type) => None,
         }
     }
 
     // elimination の制限用
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
-            (Sort::Prop, Sort::Prop) | (Sort::Set, Sort::Prop) | (Sort::Type, Sort::Prop) => {
+            (Sort::Prop, Sort::Prop) | (Sort::Set, Sort::Prop) | (Sort::Univ, Sort::Prop) => {
                 Some(())
             }
-            (Sort::Type, Sort::Type) | (Sort::Set, Sort::Type) | (Sort::Prop, Sort::Type) => {
+            (Sort::Univ, Sort::Univ) | (Sort::Set, Sort::Univ) | (Sort::Prop, Sort::Univ) => {
                 Some(())
             }
             (Sort::Set, Sort::Set) => Some(()),
@@ -801,11 +813,80 @@ impl Exp {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalContext(Vec<(Var, Exp)>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProvableJudgement {
+    context: LocalContext,
+    proposition: Exp,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeCheckJudgement {
+    context: LocalContext,
+    term: Exp,
+    type_of_term: Exp,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Judgement {
+    Proof(ProvableJudgement),
+    Type(TypeCheckJudgement),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DerivationLabel {
+    Variable,
+    Axiom,
+    Conversion,
+    ProdForm,
+    ProdIntro,
+    ProdElim,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Condition {
+    VariableinContext(Context, (Var, Exp)),
+    Convertible(Exp, Exp),
+    SortAxiom(Sort, Sort, Sort),
+    SortRelation(Sort, Sort, Sort),
+    SortInductive(Sort, Sort, Sort),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExtraInfo {
+    Err(String),
+    GeneratedBy(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivationTree {
+    head: Judgement,
+    label: DerivationLabel,
+    extra: ExtraInfo,
+    child: Vec<Either<DerivationTree, Condition>>,
+}
+
+impl DerivationTree {
+    pub fn is_well_formed(&self) -> Option<Vec<ProvableJudgement>> {
+        let DerivationTree { head, label, extra, child } = self;
+        match label {
+            DerivationLabel::Variable => todo!(),
+            DerivationLabel::Axiom => todo!(),
+            DerivationLabel::Conversion => todo!(),
+            DerivationLabel::ProdForm => todo!(),
+            DerivationLabel::ProdIntro => todo!(),
+            DerivationLabel::ProdElim => todo!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GlobalContext {
     definitions: Vec<(Var, Exp, Exp)>,                   // x := v
     parameters: Vec<(Var, Exp)>,                         // x: t
-    inductive_definitions: Vec<inductives::IndTypeDefs>, //
+    inductive_definitions: Vec<inductives::IndTypeDefs>, // inductive defs
 }
 
 impl GlobalContext {
