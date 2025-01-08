@@ -334,7 +334,8 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExtraInfo {
-    Err(ErrOnCondition),
+    ErrOnCondition(ErrOnCondition),
+    ErrNotInfered(DerivationFailed),
     GeneratedBy(String),
 }
 
@@ -497,12 +498,34 @@ impl Display for DerivationLabel {
     }
 }
 
+type DerChild = Either<PartialDerivationTree, Condition>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PartialDerivationTree {
-    head: Judgement,
+pub struct PartialDerivationTreeTypeCheck {
+    head: TypeCheckJudgement,
     rel: DerivationLabel,
-    child: Vec<Either<PartialDerivationTree, Condition>>,
-    extra: ExtraInfo,
+    child: Vec<DerChild>,
+    extra: Vec<ExtraInfo>,
+}
+
+impl PartialDerivationTreeTypeCheck {
+    fn of_type(&self) -> &Exp {
+        &self.head.type_of_term
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartialDerivationTreeProof {
+    head: ProvableJudgement,
+    rel: DerivationLabel,
+    child: Vec<DerChild>,
+    extra: Vec<ExtraInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PartialDerivationTree {
+    TypeCheck(PartialDerivationTreeTypeCheck),
+    Proof(PartialDerivationTreeProof),
 }
 
 impl PartialDerivationTree {
@@ -511,9 +534,17 @@ impl PartialDerivationTree {
     }
 }
 
-fn indent_string(n: usize) -> String {
-    (0..2 * n).map(|_| ' ').collect()
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivationFailed {
+    context: LocalContext,
+    term: Exp,
+    label: DerivationLabel,
+    child: Vec<DerChild>,
 }
+
+// fn indent_string(n: usize) -> String {
+//     (0..2 * n).map(|_| ' ').collect()
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatePartialTree {
@@ -558,28 +589,62 @@ pub fn type_check(
     cxt: LocalContext,
     term1: Exp,
     term2: Exp,
-) -> PartialDerivationTree {
-    // let mut der_tree = PartialDerivationTree::Node {
-    //     head: Judgement::TypeCheck(cxt.clone(), term1.clone(), term2.clone()),
-    //     rel: DerivationLabel::Conv,
-    //     child: vec![],
-    // };
-    // let child = der_tree.child_mut().unwrap();
+) -> (PartialDerivationTreeTypeCheck, Option<()>) {
+    let head = TypeCheckJudgement {
+        context: cxt.clone(),
+        term: term1.clone(),
+        type_of_term: term2.clone(),
+    };
 
-    // let (der_tree_of_term1, t) = type_infer(gcxt, cxt.clone(), term1.clone());
+    let der_tree_infered = match type_infer(gcxt, cxt.clone(), term1.clone()) {
+        Either::Left(der_tree_check) => der_tree_check,
+        Either::Right(derivation_failed) => {
+            let extra = ExtraInfo::ErrNotInfered(derivation_failed);
+            return (
+                PartialDerivationTreeTypeCheck {
+                    head,
+                    rel: DerivationLabel::Conv,
+                    child: vec![],
+                    extra: vec![extra],
+                },
+                None,
+            );
+        }
+    };
 
-    // child.push(der_tree_of_term1);
-    // let Some(t) = t else {
-    //     return der_tree;
-    // };
+    let infered_type = der_tree_infered.of_type().clone();
 
-    // let convertibility_tree =
-    //     { PartialDerivationTree::LeafEnd(Condition::convertible(gcxt, term2, t).0) };
+    let mut child = vec![Either::Left(PartialDerivationTree::TypeCheck(
+        der_tree_infered,
+    ))];
+    let mut extra = vec![ExtraInfo::GeneratedBy("type check".to_string())];
 
-    // child.push(convertibility_tree);
-
-    // der_tree
-    
+    match Condition::convertible(gcxt, infered_type, term2) {
+        Ok(cond) => {
+            child.push(Either::Right(cond));
+            (
+                PartialDerivationTreeTypeCheck {
+                    head,
+                    rel: DerivationLabel::Conv,
+                    child,
+                    extra,
+                },
+                Some(()),
+            )
+        }
+        Err(err) => {
+            extra.push(ExtraInfo::ErrOnCondition(err));
+            (
+                PartialDerivationTreeTypeCheck {
+                    head,
+                    rel: DerivationLabel::Conv,
+                    child,
+                    extra,
+                },
+                None,
+            )
+        }
+    }
 }
 
 // Γ |- t |> (s in S) かどうか
@@ -588,30 +653,30 @@ pub fn type_infered_to_sort(
     cxt: LocalContext,
     term: Exp,
 ) -> (PartialDerivationTree, Option<Sort>) {
-    let mut der_tree = PartialDerivationTree::Node {
-        head: Judgement::TypeInfer(cxt.clone(), term.clone(), None),
-        rel: DerivationLabel::ConvToSort,
-        child: vec![],
-    };
+    // let mut der_tree = PartialDerivationTree {
+    //     head: Judgement::TypeInfer(cxt.clone(), term.clone(), None),
+    //     rel: DerivationLabel::ConvToSort,
+    //     child: vec![],
+    // };
 
-    let child = der_tree.child_mut().unwrap();
+    // let child = der_tree.child_mut().unwrap();
 
-    let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
-    child.push(der_tree_of_term);
-    let Some(sort_of_term) = sort_of_term else {
-        return (der_tree, None);
-    };
+    // let (der_tree_of_term, sort_of_term) = type_infer(gcxt, cxt.clone(), term.clone());
+    // child.push(der_tree_of_term);
+    // let Some(sort_of_term) = sort_of_term else {
+    //     return (der_tree, None);
+    // };
 
-    let (reduce_to_sort_tree, sort) = {
-        let (cond, sort) = Condition::reduce_to_sort(gcxt, sort_of_term);
-        (PartialDerivationTree::LeafEnd(cond), sort)
-    };
+    // let (reduce_to_sort_tree, sort) = {
+    //     let (cond, sort) = Condition::reduce_to_sort(gcxt, sort_of_term);
+    //     (PartialDerivationTree::LeafEnd(cond), sort)
+    // };
 
-    child.push(reduce_to_sort_tree);
+    // child.push(reduce_to_sort_tree);
 
-    *der_tree.of_type_mut().unwrap() = sort.map(|s| Exp::Sort(s));
+    // *der_tree.of_type_mut().unwrap() = sort.map(|s| Exp::Sort(s));
 
-    (der_tree, sort)
+    // (der_tree, sort)
 }
 
 // Γ |- t |> (x: a) -> b
@@ -728,7 +793,7 @@ pub fn type_infer(
     gcxt: &GlobalContext,
     mut cxt: LocalContext,
     term1: Exp,
-) -> (PartialDerivationTree, Option<Exp>) {
+) -> Either<PartialDerivationTreeTypeCheck, DerivationFailed> {
     let head = Judgement::TypeInfer(cxt.clone(), term1.clone(), None);
     match term1 {
         Exp::Sort(sort) => {
