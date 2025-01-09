@@ -148,10 +148,13 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
             },
         ) => {
             ind_type_name1 == ind_type_name2
-                && exp1 == exp2
-                && expret1 == expret2
+                && alpha_eq_rec(exp1, exp2, bd.clone())
+                && alpha_eq_rec(expret1, expret2, bd.clone())
                 && cases1.len() == cases2.len()
-                && cases1.iter().zip(cases2.iter()).all(|(e1, e2)| e1 == e2)
+                && cases1
+                    .iter()
+                    .zip(cases2.iter())
+                    .all(|(e1, e2)| e1.0 == e2.0 && alpha_eq_rec(&e1.1, &e2.1, bd.clone()))
         }
         _ => false,
     }
@@ -198,7 +201,6 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     None
                 }
             })?;
-
 
             let ff_elim_q = {
                 let new_var_c = Var::Internal("new_cst".to_string(), 0);
