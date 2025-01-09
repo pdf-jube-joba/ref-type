@@ -583,13 +583,24 @@ pub(crate) fn take_new_definition(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
         let p = ps.next().unwrap();
         take_identifier(p)?
     };
+    let mut var_annots: Vec<(Var, Exp)> = vec![];
+    loop {
+        if ps.peek().unwrap().as_rule() == Rule::expression {
+            break;
+        };
+        let p = ps.next().unwrap();
+        let (x, e) = take_var_annnot(p)?;
+        var_annots.push((x, e));
+    }
     let expression1 = {
         let p = ps.next().unwrap();
-        take_exp(p)?
+        let e = take_exp(p)?;
+        utils::assoc_prod(var_annots.clone(), e)
     };
     let expression2 = {
         let p = ps.next().unwrap();
-        take_exp(p)?
+        let e = take_exp(p)?;
+        utils::assoc_lam(var_annots, e)
     };
     Ok((variable, expression1, expression2))
 }
