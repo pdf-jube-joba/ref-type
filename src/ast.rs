@@ -382,8 +382,8 @@ pub enum Sort {
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Sort::Set => "SET",
             Sort::Univ => "UNIV",
+            Sort::Set => "SET",
             Sort::Prop => "PROP",
             Sort::Type => "TYPE",
         };
@@ -402,7 +402,7 @@ impl Sort {
     // functional なので、
     // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
     pub fn type_of_sort(self) -> Option<Self> {
-        if matches!(self, Sort::Prop | Sort::Set) {
+        if matches!(self, Sort::Prop | Sort::Set | Sort::Type) {
             Some(Sort::Univ)
         } else {
             None
@@ -436,13 +436,10 @@ impl Sort {
     // elimination の制限用
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
-            (Sort::Prop, Sort::Prop) | (Sort::Set, Sort::Prop) | (Sort::Univ, Sort::Prop) => {
-                Some(())
-            }
-            (Sort::Univ, Sort::Univ) | (Sort::Set, Sort::Univ) | (Sort::Prop, Sort::Univ) => {
-                Some(())
-            }
-            (Sort::Set, Sort::Set) => Some(()),
+            (Sort::Univ | Sort::Set | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
+            (Sort::Univ | Sort::Set | Sort::Type | Sort::Prop, Sort::Univ) => Some(()),
+            (Sort::Univ | Sort::Set, Sort::Set) => Some(()),
+            (Sort::Univ | Sort::Type, Sort::Type) => Some(()),
             _ => None,
         }
     }
@@ -451,6 +448,7 @@ impl Sort {
 // inductive definition には自由変数がないことを仮定する
 pub mod inductives {
     use super::{utils::*, *};
+    use crate::{app, lam, prod, var};
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Arity {
@@ -531,6 +529,95 @@ pub mod inductives {
                     None
                 }
             })
+        }
+        pub fn return_type(&self, sort: Sort) -> Exp {
+            let arity = self.arity().clone();
+            let vars = arity
+                .signature()
+                .iter()
+                .map(|(x, _)| Exp::Var(x.clone()))
+                .collect();
+            let end = Exp::prod(
+                Var::Unused,
+                utils::assoc_apply(
+                    Exp::IndTypeType {
+                        ind_type_name: self.name().clone(),
+                    },
+                    vars,
+                ),
+                Exp::Sort(sort),
+            );
+            utils::assoc_prod(arity.signature().clone(), end)
+        }
+        pub fn induction_scheme(&self, sort: Sort) -> Exp {
+            let arity = self.arity().clone();
+            // (x1: A1) -> ... -> (xn: An) -> (_: I x1 ... xn) -> s
+            let return_type: Exp = {
+                let vars = arity
+                    .signature()
+                    .iter()
+                    .map(|(x, _)| Exp::Var(x.clone()))
+                    .collect();
+                let end = Exp::lambda(
+                    Var::Unused,
+                    utils::assoc_apply(
+                        Exp::IndTypeType {
+                            ind_type_name: self.name().clone(),
+                        },
+                        vars,
+                    ),
+                    Exp::Sort(sort),
+                );
+                utils::assoc_prod(arity.signature().clone(), end)
+            };
+            let q_exp = Exp::Var("Q".into());
+            // (fi: xi(I, Q, I::i, C_i)) -> ... ->
+            let type_cases: Vec<(Var, Exp)> = {
+                let mut v = vec![];
+                for (cname, c) in self.constructors() {
+                    // xi_X(Q, c, C[i])
+                    let pre = c.eliminator_type(
+                        q_exp.clone(),
+                        Exp::IndTypeCst {
+                            ind_type_name: self.name().clone(),
+                            constructor_name: cname.clone(),
+                        },
+                    );
+                    let exact = crate::lambda_calculus::subst(
+                        pre,
+                        self.variable(),
+                        &Exp::IndTypeType {
+                            ind_type_name: self.name().clone(),
+                        },
+                    );
+                    v.push((cname.to_string().into(), exact));
+                }
+                v
+            };
+            // (x1: A1) -> ... -> (xn: An) -> (x: I x1... xn) -> Q x1 ... xn x
+            let end: Exp = {
+                let vars: Vec<Exp> = arity
+                    .signature()
+                    .iter()
+                    .map(|(x, _)| Exp::Var(x.clone()))
+                    .collect();
+                let new_x: Var = "x".into();
+                let end = Exp::lambda(
+                    new_x.clone(),
+                    utils::assoc_apply(
+                        Exp::IndTypeType {
+                            ind_type_name: self.name().clone(),
+                        },
+                        vars.clone(),
+                    ),
+                    utils::assoc_apply(
+                        utils::assoc_apply(q_exp.clone(), vars),
+                        vec![Exp::Var(new_x)],
+                    ),
+                );
+                utils::assoc_prod(arity.signature().clone(), end)
+            };
+            Exp::prod("Q".into(), return_type, utils::assoc_prod(type_cases, end))
         }
     }
 
@@ -773,450 +860,357 @@ pub mod inductives {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct LocalContext(Vec<(Var, Exp)>);
+#[cfg(test)]
+mod tests {
+    use crate::lambda_calculus::alpha_eq;
 
-// impl LocalContext {
-//     fn search_var(&self, var: &Var) -> Option<&(Var, Exp)> {
-//         self.0.iter().find(|(v, e)| v == var)
-//     }
-// }
+    use super::*;
+    use inductives::*;
+    #[test]
+    fn eliminator_and_recursor() {
+        let q_exp = Exp::Var("Q".into());
+        let c_exp = Exp::Var("c".into());
+        let f_exp = Exp::Var("f".into());
+        let ff_exp = Exp::Var("F".into());
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct ProvableJudgement {
-//     context: LocalContext,
-//     proposition: Exp,
-// }
+        // X
+        let c = ConstructorType::new_constructor(("X".into(), vec![]), vec![])
+            .unwrap()
+            .0;
+        assert!(alpha_eq(
+            &c.eliminator_type(q_exp.clone(), c_exp.clone()),
+            // q c
+            &Exp::App(Box::new(q_exp.clone()), Box::new(c_exp.clone())),
+        ));
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct TypeCheckJudgement {
-//     context: LocalContext,
-//     term: Exp,
-//     type_of_term: Exp,
-// }
+        // X m_1 m_2
+        let c = ConstructorType::new_constructor(
+            (
+                "X".into(),
+                vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
+            ),
+            vec![],
+        )
+        .unwrap()
+        .0;
+        // q m_1 m_2 c
+        let expected = {
+            Exp::App(
+                Box::new(utils::assoc_apply(
+                    q_exp.clone(),
+                    vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
+                )),
+                Box::new(c_exp.clone()),
+            )
+        };
+        assert!(alpha_eq(
+            &c.eliminator_type(q_exp.clone(), c_exp.clone()),
+            &expected,
+        ));
+        // f
+        let expected = { f_exp.clone() };
+        assert!(alpha_eq(
+            &c.recursor(ff_exp.clone(), f_exp.clone()),
+            &expected,
+        ));
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum Judgement {
-//     Proof(ProvableJudgement),
-//     Type(TypeCheckJudgement),
-// }
+        // simple(l1: L1) -> simple(l2: L2) -> X m1 m2
+        let c = ConstructorType::new_constructor(
+            (
+                "X".into(),
+                vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
+            ),
+            vec![
+                ParamCst::Simple(("l1".into(), Exp::Var("L1".into()))),
+                ParamCst::Simple(("l2".into(), Exp::Var("L2".into()))),
+            ],
+        )
+        .unwrap()
+        .0;
+        // xi(Q, c, simple(l1: L1) -> simple(l2: L2) -> X m1 m2)
+        // (l1: L2) -> xi(Q, (c l1), simple(l2: L2) -> X m1 m2)
+        // => (l1: L1) -> (l2: L2) -> xi(Q, ((c l1) l2), X m1 m2)
+        // => (l1: L2) -> (l2: L2) -> Q m1 m2 ((c l1) l2)
+        let expected = {
+            let cl1l2 = utils::assoc_apply(
+                c_exp.clone(),
+                vec![Exp::Var("l1".into()), Exp::Var("l2".into())],
+            );
+            let qm1m2 = utils::assoc_apply(
+                q_exp.clone(),
+                vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
+            );
+            let a = Exp::App(Box::new(qm1m2), Box::new(cl1l2));
+            utils::assoc_prod(
+                vec![
+                    ("l1".into(), Exp::Var("L1".into())),
+                    ("l2".into(), Exp::Var("L2".into())),
+                ],
+                a,
+            )
+        };
+        assert!(alpha_eq(
+            &c.eliminator_type(q_exp.clone(), c_exp.clone()),
+            &expected,
+        ));
+        // mu(F, f, simple(l1: L1) -> simple(l2: L2) -> X m1 m2)
+        // => \l1: L1. mu(F, f l1, simple(l2: L2) -> X m1 m2)
+        // => \l1: L1. \l2: L2. mu(F, ((f l1) l2), X m1 m2)
+        // => \l1: L2. \l2: L2. ((f l1) l2)
+        let expected = {
+            let fl1l2 = utils::assoc_apply(
+                f_exp.clone(),
+                vec![Exp::Var("l1".into()), Exp::Var("l2".into())],
+            );
+            utils::assoc_lam(
+                vec![
+                    ("l1".into(), Exp::Var("L1".into())),
+                    ("l2".into(), Exp::Var("L2".into())),
+                ],
+                fl1l2,
+            )
+        };
+        assert!(alpha_eq(
+            &c.recursor(ff_exp.clone(), f_exp.clone()),
+            &expected,
+        ));
+    }
+    #[test]
+    fn eliminator_and_recursor_positivecase() {
+        let q_exp = Exp::Var("Q".into());
+        let c_exp = Exp::Var("c".into());
+        let f_exp = Exp::Var("f".into());
+        let ff_exp = Exp::Var("F".into());
+        // positive(X t1 t2)
+        let positive1 = Positive::new(
+            "X".into(),
+            vec![],
+            vec![Exp::Var("t1".into()), Exp::Var("t2".into())],
+        )
+        .unwrap();
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum DerivationLabel {
-//     Variable,
-//     Axiom,
-//     Conversion,
-//     ProdForm,
-//     ProdIntro,
-//     ProdElim,
-// }
+        // positive(X t1 t2) -> X m1 m2
+        let c = ConstructorType::new_constructor(
+            (
+                "X".into(),
+                vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
+            ),
+            vec![ParamCst::Positive(positive1.clone())],
+        )
+        .unwrap()
+        .0;
 
-// impl Condition {
-//     fn is_well_formed(&self) -> bool {
-//         match self {
-//             Condition::VariableinContext(_, _) => todo!(),
-//             Condition::Convertible(_, _) => todo!(),
-//             Condition::SortAxiom(_, _, _) => todo!(),
-//             Condition::SortRelation(_, _, _) => todo!(),
-//             Condition::SortInductive(_, _, _) => todo!(),
-//         }
-//     }
-//     fn var_cxt(gcxt: &GlobalContext, cxt: LocalContext, var: Var) -> Option<(Self, Exp)> {
-//         let v_e = cxt.search_var(&var)?.clone();
-//         Some((
-//             Condition::VariableinContext(cxt, v_e.clone()),
-//             v_e.1.clone(),
-//         ))
-//     }
-//     fn reduce_to_sort(gcxt: &GlobalContext, term: Exp) -> Option<(Self, Sort)> {
-//         todo!()
-//     }
-// }
+        // (p: (X t1 t2)) -> (_: Q t1 t2 p) -> Q m1 m2 (c p)
+        let expected_elimtype: Exp = {
+            let p_var: Var = "p".into();
+            let qtpx = utils::assoc_apply(
+                q_exp.clone(),
+                vec![
+                    Exp::Var("t1".into()),
+                    Exp::Var("t2".into()),
+                    Exp::Var(p_var.clone()),
+                ],
+            );
+            let qmcp = utils::assoc_apply(
+                q_exp.clone(),
+                vec![
+                    Exp::Var("m1".into()),
+                    Exp::Var("m2".into()),
+                    Exp::App(Box::new(c_exp.clone()), Box::new(Exp::Var(p_var.clone()))),
+                ],
+            );
+            utils::assoc_prod(
+                vec![
+                    (
+                        p_var.clone(),
+                        utils::assoc_apply(
+                            Exp::Var("X".into()),
+                            vec![Exp::Var("t1".into()), Exp::Var("t2".into())],
+                        ),
+                    ),
+                    (Var::Unused, qtpx),
+                ],
+                qmcp,
+            )
+        };
+        println!("{}", c.eliminator_type(q_exp.clone(), c_exp.clone()));
+        println!("{}", expected_elimtype);
+        assert!(alpha_eq(
+            &c.eliminator_type(q_exp.clone(), c_exp.clone()),
+            &expected_elimtype
+        ));
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum ExtraInfo {
-//     Err(String),
-//     GeneratedBy(String),
-// }
+        // \p: X t1 t2. f p (F t1 t2 p)
+        let expected_recursor = {
+            let p_var: Var = "p".into();
+            let ffmpx = {
+                utils::assoc_apply(
+                    ff_exp.clone(),
+                    vec![
+                        Exp::Var("t1".into()),
+                        Exp::Var("t2".into()),
+                        Exp::Var(p_var.clone()),
+                    ],
+                )
+            };
+            // F t1 t2 p
+            let lam_ffmpx = { ffmpx };
+            Exp::Lam(
+                p_var.clone(),
+                Box::new(positive1.clone().into()),
+                Box::new(Exp::App(
+                    Box::new(Exp::App(Box::new(f_exp.clone()), Box::new(Exp::Var(p_var)))),
+                    Box::new(lam_ffmpx),
+                )),
+            )
+        };
+        println!("{}", c.recursor(ff_exp.clone(), f_exp.clone()));
+        println!("{}", expected_recursor);
+        assert!(alpha_eq(
+            &c.recursor(ff_exp.clone(), f_exp.clone()),
+            &expected_recursor
+        ));
+    }
+    #[test]
+    fn eliminator_and_recursor_positivecase2() {
+        let q_exp = Exp::Var("Q".into());
+        let c_exp = Exp::Var("c".into());
+        let f_exp = Exp::Var("f".into());
+        let ff_exp = Exp::Var("F".into());
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct DerivationTree {
-//     head: Judgement,
-//     label: DerivationLabel,
-//     extra: ExtraInfo,
-//     child: Vec<Either<DerivationTree, Condition>>,
-// }
+        // positive(X t1)
+        let positive2 = Positive::new("X".into(), vec![], vec![Exp::Var("t1".into())]).unwrap();
 
-// impl DerivationTree {
-//     pub fn is_well_formed(&self) -> Option<Vec<ProvableJudgement>> {
-//         let DerivationTree {
-//             head,
-//             label,
-//             extra,
-//             child,
-//         } = self;
-//         match label {
-//             DerivationLabel::Variable => todo!(),
-//             DerivationLabel::Axiom => todo!(),
-//             DerivationLabel::Conversion => todo!(),
-//             DerivationLabel::ProdForm => todo!(),
-//             DerivationLabel::ProdIntro => todo!(),
-//             DerivationLabel::ProdElim => todo!(),
-//         }
-//     }
-// }
+        // positive((l: L) -> X t2) -> X m
+        let positive3 = Positive::new(
+            "X".into(),
+            vec![("l".into(), Exp::Var("L".into()))],
+            vec![Exp::Var("t2".into())],
+        )
+        .unwrap();
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::relation::alpha_eq;
+        // positive(X t1) -> positive((l: L) -> X t2) -> X m
+        let c = ConstructorType::new_constructor(
+            ("X".into(), vec![Exp::Var("m".into())]),
+            vec![
+                ParamCst::Positive(positive2.clone()),
+                ParamCst::Positive(positive3.clone()),
+            ],
+        )
+        .unwrap()
+        .0;
 
-//     use super::*;
-//     use inductives::*;
-//     #[test]
-//     fn eliminator_and_recursor() {
-//         let q_exp = Exp::Var("Q".into());
-//         let c_exp = Exp::Var("c".into());
-//         let f_exp = Exp::Var("f".into());
-//         let ff_exp = Exp::Var("F".into());
+        // (p1: X t1) -> (_: Q t1 p1) -> // positive(X t1)
+        //      xi(Q, c p1, positive((l: L) -> X t2) )
+        // -> (p2: (l: L) -> X t2) -> (_: (l: L) -> (Q t2 (p2 l)))
+        //      xi(Q, c p1 p2, X m)
+        // -> (Q m (c p1 p2))
+        let expected_elimtype: Exp = {
+            let mut params: Vec<(Var, Exp)> = vec![];
+            let new_p1: Var = "p1".into();
+            // p1: X t1
+            params.push((
+                new_p1.clone(),
+                utils::assoc_apply(Exp::Var("X".into()), vec![Exp::Var("t1".into())]),
+            ));
+            // _: Q t1 p1
+            params.push((
+                Var::Unused,
+                utils::assoc_apply(
+                    q_exp.clone(),
+                    vec![Exp::Var("t1".into()), Exp::Var(new_p1.clone())],
+                ),
+            ));
+            let new_p2: Var = "p2".into();
+            // p2: (l: L) -> X t2
+            params.push((
+                new_p2.clone(),
+                Exp::prod(
+                    "l".into(),
+                    Exp::Var("L".into()),
+                    utils::assoc_apply(Exp::Var("X".into()), vec![Exp::Var("t2".into())]),
+                ),
+            ));
+            // _: (l: L) -> (Q t2 (p2 l))
+            params.push((
+                Var::Unused,
+                Exp::prod(
+                    "l".into(),
+                    Exp::Var("L".into()),
+                    utils::assoc_apply(
+                        q_exp.clone(),
+                        vec![
+                            Exp::Var("t2".into()),
+                            utils::assoc_apply(
+                                Exp::Var(new_p2.clone()),
+                                vec![Exp::Var("l".into())],
+                            ),
+                        ],
+                    ),
+                ),
+            ));
+            // Q m (c p1 p2)
+            let qmcp = utils::assoc_apply(
+                q_exp.clone(),
+                vec![
+                    Exp::Var("m".into()),
+                    utils::assoc_apply(
+                        c_exp.clone(),
+                        vec![Exp::Var(new_p1.clone()), Exp::Var(new_p2.clone())],
+                    ),
+                ],
+            );
 
-//         // X
-//         let c = ConstructorType::new_constructor(("X".into(), vec![]), vec![])
-//             .unwrap()
-//             .0;
-//         assert!(alpha_eq(
-//             &c.eliminator_type(q_exp.clone(), c_exp.clone()),
-//             // q c
-//             &Exp::App(Box::new(q_exp.clone()), Box::new(c_exp.clone())),
-//         ));
+            utils::assoc_prod(params, qmcp)
+        };
+        println!("{}", expected_elimtype);
+        println!("{}", c.eliminator_type(q_exp.clone(), c_exp.clone()));
+        assert!(alpha_eq(
+            &expected_elimtype,
+            &c.eliminator_type(q_exp, c_exp)
+        ));
 
-//         // X m_1 m_2
-//         let c = ConstructorType::new_constructor(
-//             (
-//                 "X".into(),
-//                 vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
-//             ),
-//             vec![],
-//         )
-//         .unwrap()
-//         .0;
-//         // q m_1 m_2 c
-//         let expected = {
-//             Exp::App(
-//                 Box::new(utils::assoc_apply(
-//                     q_exp.clone(),
-//                     vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
-//                 )),
-//                 Box::new(c_exp.clone()),
-//             )
-//         };
-//         assert!(alpha_eq(
-//             &c.eliminator_type(q_exp.clone(), c_exp.clone()),
-//             &expected,
-//         ));
-//         // f
-//         let expected = { f_exp.clone() };
-//         assert!(alpha_eq(
-//             &c.recursor(ff_exp.clone(), f_exp.clone()),
-//             &expected,
-//         ));
-
-//         // simple(l1: L1) -> simple(l2: L2) -> X m1 m2
-//         let c = ConstructorType::new_constructor(
-//             (
-//                 "X".into(),
-//                 vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
-//             ),
-//             vec![
-//                 ParamCst::Simple(("l1".into(), Exp::Var("L1".into()))),
-//                 ParamCst::Simple(("l2".into(), Exp::Var("L2".into()))),
-//             ],
-//         )
-//         .unwrap()
-//         .0;
-//         // xi(Q, c, simple(l1: L1) -> simple(l2: L2) -> X m1 m2)
-//         // (l1: L2) -> xi(Q, (c l1), simple(l2: L2) -> X m1 m2)
-//         // => (l1: L1) -> (l2: L2) -> xi(Q, ((c l1) l2), X m1 m2)
-//         // => (l1: L2) -> (l2: L2) -> Q m1 m2 ((c l1) l2)
-//         let expected = {
-//             let cl1l2 = utils::assoc_apply(
-//                 c_exp.clone(),
-//                 vec![Exp::Var("l1".into()), Exp::Var("l2".into())],
-//             );
-//             let qm1m2 = utils::assoc_apply(
-//                 q_exp.clone(),
-//                 vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
-//             );
-//             let a = Exp::App(Box::new(qm1m2), Box::new(cl1l2));
-//             utils::assoc_prod(
-//                 vec![
-//                     ("l1".into(), Exp::Var("L1".into())),
-//                     ("l2".into(), Exp::Var("L2".into())),
-//                 ],
-//                 a,
-//             )
-//         };
-//         assert!(alpha_eq(
-//             &c.eliminator_type(q_exp.clone(), c_exp.clone()),
-//             &expected,
-//         ));
-//         // mu(F, f, simple(l1: L1) -> simple(l2: L2) -> X m1 m2)
-//         // => \l1: L1. mu(F, f l1, simple(l2: L2) -> X m1 m2)
-//         // => \l1: L1. \l2: L2. mu(F, ((f l1) l2), X m1 m2)
-//         // => \l1: L2. \l2: L2. ((f l1) l2)
-//         let expected = {
-//             let fl1l2 = utils::assoc_apply(
-//                 f_exp.clone(),
-//                 vec![Exp::Var("l1".into()), Exp::Var("l2".into())],
-//             );
-//             utils::assoc_lam(
-//                 vec![
-//                     ("l1".into(), Exp::Var("L1".into())),
-//                     ("l2".into(), Exp::Var("L2".into())),
-//                 ],
-//                 fl1l2,
-//             )
-//         };
-//         assert!(alpha_eq(
-//             &c.recursor(ff_exp.clone(), f_exp.clone()),
-//             &expected,
-//         ));
-//     }
-//     #[test]
-//     fn eliminator_and_recursor_positivecase() {
-//         let q_exp = Exp::Var("Q".into());
-//         let c_exp = Exp::Var("c".into());
-//         let f_exp = Exp::Var("f".into());
-//         let ff_exp = Exp::Var("F".into());
-//         // positive(X t1 t2)
-//         let positive1 = Positive::new(
-//             "X".into(),
-//             vec![],
-//             vec![Exp::Var("t1".into()), Exp::Var("t2".into())],
-//         )
-//         .unwrap();
-
-//         // positive(X t1 t2) -> X m1 m2
-//         let c = ConstructorType::new_constructor(
-//             (
-//                 "X".into(),
-//                 vec![Exp::Var("m1".into()), Exp::Var("m2".into())],
-//             ),
-//             vec![ParamCst::Positive(positive1.clone())],
-//         )
-//         .unwrap()
-//         .0;
-
-//         // (p: (X t1 t2)) -> (_: Q t1 t2 p) -> Q m1 m2 (c p)
-//         let expected_elimtype: Exp = {
-//             let p_var: Var = "p".into();
-//             let qtpx = utils::assoc_apply(
-//                 q_exp.clone(),
-//                 vec![
-//                     Exp::Var("t1".into()),
-//                     Exp::Var("t2".into()),
-//                     Exp::Var(p_var.clone()),
-//                 ],
-//             );
-//             let qmcp = utils::assoc_apply(
-//                 q_exp.clone(),
-//                 vec![
-//                     Exp::Var("m1".into()),
-//                     Exp::Var("m2".into()),
-//                     Exp::App(Box::new(c_exp.clone()), Box::new(Exp::Var(p_var.clone()))),
-//                 ],
-//             );
-//             utils::assoc_prod(
-//                 vec![
-//                     (
-//                         p_var.clone(),
-//                         utils::assoc_apply(
-//                             Exp::Var("X".into()),
-//                             vec![Exp::Var("t1".into()), Exp::Var("t2".into())],
-//                         ),
-//                     ),
-//                     (Var::Unused, qtpx),
-//                 ],
-//                 qmcp,
-//             )
-//         };
-//         println!("{}", c.eliminator_type(q_exp.clone(), c_exp.clone()));
-//         println!("{}", expected_elimtype);
-//         assert!(alpha_eq(
-//             &c.eliminator_type(q_exp.clone(), c_exp.clone()),
-//             &expected_elimtype
-//         ));
-
-//         // \p: X t1 t2. f p (F t1 t2 p)
-//         let expected_recursor = {
-//             let p_var: Var = "p".into();
-//             let ffmpx = {
-//                 utils::assoc_apply(
-//                     ff_exp.clone(),
-//                     vec![
-//                         Exp::Var("t1".into()),
-//                         Exp::Var("t2".into()),
-//                         Exp::Var(p_var.clone()),
-//                     ],
-//                 )
-//             };
-//             // F t1 t2 p
-//             let lam_ffmpx = { ffmpx };
-//             Exp::Lam(
-//                 p_var.clone(),
-//                 Box::new(positive1.clone().into()),
-//                 Box::new(Exp::App(
-//                     Box::new(Exp::App(Box::new(f_exp.clone()), Box::new(Exp::Var(p_var)))),
-//                     Box::new(lam_ffmpx),
-//                 )),
-//             )
-//         };
-//         println!("{}", c.recursor(ff_exp.clone(), f_exp.clone()));
-//         println!("{}", expected_recursor);
-//         assert!(alpha_eq(
-//             &c.recursor(ff_exp.clone(), f_exp.clone()),
-//             &expected_recursor
-//         ));
-//     }
-//     #[test]
-//     fn eliminator_and_recursor_positivecase2() {
-//         let q_exp = Exp::Var("Q".into());
-//         let c_exp = Exp::Var("c".into());
-//         let f_exp = Exp::Var("f".into());
-//         let ff_exp = Exp::Var("F".into());
-
-//         // positive(X t1)
-//         let positive2 = Positive::new("X".into(), vec![], vec![Exp::Var("t1".into())]).unwrap();
-
-//         // positive((l: L) -> X t2) -> X m
-//         let positive3 = Positive::new(
-//             "X".into(),
-//             vec![("l".into(), Exp::Var("L".into()))],
-//             vec![Exp::Var("t2".into())],
-//         )
-//         .unwrap();
-
-//         // positive(X t1) -> positive((l: L) -> X t2) -> X m
-//         let c = ConstructorType::new_constructor(
-//             ("X".into(), vec![Exp::Var("m".into())]),
-//             vec![
-//                 ParamCst::Positive(positive2.clone()),
-//                 ParamCst::Positive(positive3.clone()),
-//             ],
-//         )
-//         .unwrap()
-//         .0;
-
-//         // (p1: X t1) -> (_: Q t1 p1) -> // positive(X t1)
-//         //      xi(Q, c p1, positive((l: L) -> X t2) )
-//         // -> (p2: (l: L) -> X t2) -> (_: (l: L) -> (Q t2 (p2 l)))
-//         //      xi(Q, c p1 p2, X m)
-//         // -> (Q m (c p1 p2))
-//         let expected_elimtype: Exp = {
-//             let mut params: Vec<(Var, Exp)> = vec![];
-//             let new_p1: Var = "p1".into();
-//             // p1: X t1
-//             params.push((
-//                 new_p1.clone(),
-//                 utils::assoc_apply(Exp::Var("X".into()), vec![Exp::Var("t1".into())]),
-//             ));
-//             // _: Q t1 p1
-//             params.push((
-//                 Var::Unused,
-//                 utils::assoc_apply(
-//                     q_exp.clone(),
-//                     vec![Exp::Var("t1".into()), Exp::Var(new_p1.clone())],
-//                 ),
-//             ));
-//             let new_p2: Var = "p2".into();
-//             // p2: (l: L) -> X t2
-//             params.push((
-//                 new_p2.clone(),
-//                 Exp::prod(
-//                     "l".into(),
-//                     Exp::Var("L".into()),
-//                     utils::assoc_apply(Exp::Var("X".into()), vec![Exp::Var("t2".into())]),
-//                 ),
-//             ));
-//             // _: (l: L) -> (Q t2 (p2 l))
-//             params.push((
-//                 Var::Unused,
-//                 Exp::prod(
-//                     "l".into(),
-//                     Exp::Var("L".into()),
-//                     utils::assoc_apply(
-//                         q_exp.clone(),
-//                         vec![
-//                             Exp::Var("t2".into()),
-//                             utils::assoc_apply(
-//                                 Exp::Var(new_p2.clone()),
-//                                 vec![Exp::Var("l".into())],
-//                             ),
-//                         ],
-//                     ),
-//                 ),
-//             ));
-//             // Q m (c p1 p2)
-//             let qmcp = utils::assoc_apply(
-//                 q_exp.clone(),
-//                 vec![
-//                     Exp::Var("m".into()),
-//                     utils::assoc_apply(
-//                         c_exp.clone(),
-//                         vec![Exp::Var(new_p1.clone()), Exp::Var(new_p2.clone())],
-//                     ),
-//                 ],
-//             );
-
-//             utils::assoc_prod(params, qmcp)
-//         };
-//         println!("{}", expected_elimtype);
-//         println!("{}", c.eliminator_type(q_exp.clone(), c_exp.clone()));
-//         assert!(alpha_eq(
-//             &expected_elimtype,
-//             &c.eliminator_type(q_exp, c_exp)
-//         ));
-
-//         // mu(F, f, positive(X t1) -> positive((l: L) -> X t2) -> X m )
-//         // \p1: X t1.
-//         //      mu(F, f p (F t1 p1), positive((l: L) -> X t2) -> X m)
-//         // \p2: (l: L) -> X t2.
-//         //      mu(F, (f p (F t1 p1)) p2 (\l: L. F t2 (p2 l)), X m)
-//         // (f p1 (F t1 p1)) p2 (\l: L. F t2 (p2 l))
-//         let expected_recursor = {
-//             let new_p1: Var = "p1".into();
-//             let new_p2: Var = "p2".into();
-//             // \l: L. F t2 (p2 l)
-//             let p2_lam = Exp::lambda(
-//                 "l".into(),
-//                 Exp::Var("L".into()),
-//                 utils::assoc_apply(
-//                     ff_exp.clone(),
-//                     vec![
-//                         Exp::Var("t2".into()),
-//                         utils::assoc_apply(Exp::Var(new_p2.clone()), vec![Exp::Var("l".into())]),
-//                     ],
-//                 ),
-//             );
-//             // F t1 p1
-//             let p1_lam = utils::assoc_apply(
-//                 ff_exp.clone(),
-//                 vec![Exp::Var("t1".into()), Exp::Var(new_p1.clone())],
-//             );
-//             // f p1 (F t1 p1)
-//             let fp1_lam = utils::assoc_apply(f_exp.clone(), vec![Exp::Var(new_p1.clone()), p1_lam]);
-//             // (f p1 F t1 p1) p2 (\l:L. F t2 p2)
-//             let end = utils::assoc_apply(fp1_lam, vec![Exp::Var(new_p2.clone()), p2_lam]);
-//             utils::assoc_lam(
-//                 vec![
-//                     (new_p1, positive2.clone().into()),
-//                     (new_p2, positive3.clone().into()),
-//                 ],
-//                 end,
-//             )
-//         };
-//         let result = c.recursor(ff_exp.clone(), f_exp.clone());
-//         println!("{}", expected_recursor);
-//         println!("{}", result);
-//         assert!(alpha_eq(&expected_recursor, &result,))
-//     }
-// }
+        // mu(F, f, positive(X t1) -> positive((l: L) -> X t2) -> X m )
+        // \p1: X t1.
+        //      mu(F, f p (F t1 p1), positive((l: L) -> X t2) -> X m)
+        // \p2: (l: L) -> X t2.
+        //      mu(F, (f p (F t1 p1)) p2 (\l: L. F t2 (p2 l)), X m)
+        // (f p1 (F t1 p1)) p2 (\l: L. F t2 (p2 l))
+        let expected_recursor = {
+            let new_p1: Var = "p1".into();
+            let new_p2: Var = "p2".into();
+            // \l: L. F t2 (p2 l)
+            let p2_lam = Exp::lambda(
+                "l".into(),
+                Exp::Var("L".into()),
+                utils::assoc_apply(
+                    ff_exp.clone(),
+                    vec![
+                        Exp::Var("t2".into()),
+                        utils::assoc_apply(Exp::Var(new_p2.clone()), vec![Exp::Var("l".into())]),
+                    ],
+                ),
+            );
+            // F t1 p1
+            let p1_lam = utils::assoc_apply(
+                ff_exp.clone(),
+                vec![Exp::Var("t1".into()), Exp::Var(new_p1.clone())],
+            );
+            // f p1 (F t1 p1)
+            let fp1_lam = utils::assoc_apply(f_exp.clone(), vec![Exp::Var(new_p1.clone()), p1_lam]);
+            // (f p1 F t1 p1) p2 (\l:L. F t2 p2)
+            let end = utils::assoc_apply(fp1_lam, vec![Exp::Var(new_p2.clone()), p2_lam]);
+            utils::assoc_lam(
+                vec![
+                    (new_p1, positive2.clone().into()),
+                    (new_p2, positive3.clone().into()),
+                ],
+                end,
+            )
+        };
+        let result = c.recursor(ff_exp.clone(), f_exp.clone());
+        println!("{}", expected_recursor);
+        println!("{}", result);
+        assert!(alpha_eq(&expected_recursor, &result,))
+    }
+}

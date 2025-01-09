@@ -600,6 +600,14 @@ Inductive List: (A: Set) -> Set :=
 理由は、 Nil の型について、 $"List": (A: "Set") -> "Set" tack ((A: "Set") -> "List" A): "Set"$ でないから、
 これには $("Type", "Set") in cal(R)$ が必要になる（$=>$ Set が impredicative である必要がある）。
 
+== 具体例
+自然数の定義は
+```
+inductive Nat: SET :=
+| Zero : Nat
+| Succ: (_: Nat) -> Nat
+```
+
 = inconsistency がいつ起こるか
 ここでの inconsistency とは次のことをいう。
 #theorem("inconsistency")[
