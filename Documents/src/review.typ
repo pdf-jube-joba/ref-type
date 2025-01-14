@@ -6,6 +6,9 @@
 
 #let definition = thmbox("definition", "Definition", fill: rgb("#eeffee"))
 #let theorem = thmbox("theorem", "Theorem", fill: rgb("#eeffee"))
+
+#let colored(x, color) = text(fill: color)[$#x$]
+
 #set math.equation(numbering: "1.")
 
 #show: thmrules.with(qed-symbol: $square$)
@@ -84,7 +87,10 @@
   - Inconsistency of “Automath powersets” in impredicative type theory
 - https://core.ac.uk/reader/85216080
   - Proof-irrelevance out of excluded-middle and choice in the calculus of constructions
+- https://link.springer.com/content/pdf/10.1007/BFb0014058.pdf?pdf=inline%20link
+  - simplification of Girard's paradox
 - https://github.com/coq/coq/wiki/Impredicative-Set
+- https://ionathan.ch/2021/11/24/inconsistencies.html
 
 = Pure Type System
 == definition
@@ -613,7 +619,23 @@ inductive Nat: SET :=
 #theorem("inconsistency")[
   どんな型 $tack T: s$ に対しても、 $tack t: T$ を満たす項 $t$ が存在する。
 ]
-ただ、 $forall P: "proposition". P$ がエンコードできるような体系なら、 inconsistency はだいたい、この型が項を持たないことに帰着する。
+ただ、 $forall P: "proposition". P$ がエンコードできるような体系なら、 inconsistency はだいたい、この型が項を持たないことに帰着する。次のように定義しておく。
+- $bot_s := (p: s) -> p$
+- $not_s := lambda (p: s). p -> bot_s$
+
+== pure type system と impredicativity
+$(cal(S), cal(A), cal(R))$ からなる pure type system を考える。
+以下はここだけの定義（こうよんでも別に間違いではないはず。）
+- $s in cal(S)$ が impredicative $<=>$ $(s, s') in cal(A), (s', s, s) in cal(R)$
+  - このとき、 $bot_s: s$ である。
+- proposition に対応する sort を決めている場合には単に $bot$ と書くだろう。
+
+ここからは Coq ぽく書く。
+`Var x: t := v` と書いたら definition で、
+`Assum x: t` と書いたら Context に入れる。
+また、 $Pi (x: A). B$ を $(x: A) -> B$ と書き、$x$ が $B$ に現れなければ $A -> B$ とか $(\_: A) -> B$ と書く。
+subst lemma を思い出す。
+- $Gamma_0, x: T tack t: T'$ かつ $Gamma_0 tack m: T$ なら $Gamma_0 tack t[x := m]: T'[x := m]$
 
 == type in type と impredicative
 === type in type
@@ -621,17 +643,7 @@ inductive Nat: SET :=
 PTS なら、 $s in cal(S)$ であって $(s: s) in cal(A)$, $(s, s) in cal(R)$ となるものがあると矛盾する。
 MLTT の一番最初のものはこれでだめだとわかったらしい。
 （Girard's paradox）
-
-=== system U
-次に、 System $U$ と $U^-$ もあり、どっちも inconsistent である。
-System $U$ は PTS で次のように定義する。
-- $cal(S) = {*, square, triangle}$
-- $cal(A) = *: square, square: triangle$
-- $cal(R) = {(*, *), (*, square), (square, *), (triangle, *), (triangle, square)}$
-System $U^-$ はここから $(triangle, *)$ を抜く。
-
-一番下の $*$ は impredicative （ $(square, *) in cal(R)$） でよいが、
-$square$ も impredicative （ $(triangle, square) in cal(R)$）なのがまずいらしい。
+system $U^-$ から翻訳して矛盾が見つけられる。
 
 === impredicative sort
 PTS として、なにかしら $s_1: s_2$ のようになっているとき、
@@ -642,6 +654,79 @@ $(s_2, s_1) in cal(R)$ なら $(Pi x: s_1. s_1 -> s_1): s_1$ となるから $s_
 これは system $U^-$ の失敗と同じ。
 system $U^-$ だけみると、 $(exists s_0): s_1$ だけでは矛盾するとは限らなそうだが。
 ただ、ほかのと合わせ技で辛そう。
+これも多分 system $U^-$ から翻訳してわかるのでよい。
+
+== system $U^-$
+次に、 System $U$ と $U^-$ もあり、どっちも inconsistent である。
+System $U$ は PTS で次のように定義する。
+- $cal(S) = {*, square, triangle}$
+- $cal(A) = *: square, square: triangle$
+- $cal(R) = {(*, *), (square, square), (square, *), (triangle, *), (triangle, square)}$
+System $U^-$ はここから $(triangle, *)$ を抜く。
+
+$s_1: s_2$ という階層として $*: square: triangle$ となっているが、
+一番下の $*$ は impredicative でもよいが、 $square$ も impredicative なのがまずいらしい。
+
+=== ちゃんと定義する
+- $x: square, y: square tack (x -> y): square$
+  - $ #proof-tree(
+    rule(
+      label: "form",
+      $x: square, y: square tack (x -> y) : square$,
+      $x: square, y: square tack x: square$,
+      $x: square, y: square tack y: square$,
+      $(square, square) in cal(R)$,
+    ),
+  ) $
+- $t$: Term に対して、 $cal(P)[t] := t -> *$ とする。
+  - $x: square tack cal(P)[x]: square$ である。
+- もっというと、 $cal(P)$ は Term としては、 $lambda (x: square). (x -> *)$: $(square -> square)$ と定義できる。
+  - $ #proof-tree(
+    rule(
+      label: "intro",
+      $tack lambda (colored(x, #blue): colored(square, #aqua)). colored((x -> *), #red) : underline((colored(x, #blue): colored(square, #aqua)) -> colored(square, #orange))_1$,
+      rule(
+        $tack underline((colored(x, #blue): colored(square, #aqua)) -> colored(square, #orange))_1 : triangle$,
+        label: "form",
+        $tack colored(square, #aqua): triangle$,
+        $colored(x, #blue): colored(square, #aqua) tack colored(square, #orange): triangle$,
+        $(triangle, triangle) in cal(R)$,
+      ),
+      rule(
+        label: "form",
+        $colored(x, #blue): colored(square, #aqua) tack colored((x -> *), #red): colored(square, #orange)$,
+        "lemma より",
+      ),
+      ),
+    ) $
+
+- #text(fill: red, [
+  - 直感的には確かに成り立つはずなのに、 Pure type system の定義のずれのせいなのか、意味わからん仮定 ($(triangle, triangle) in cal(R)$) が必要になっていて ($(triangle, square) in cal(R)$) は必要になっていない。
+  - 全員間違っているのでは？？？？自然言語で論文書いてるせいでこういうことになる
+  - 絶対あっているはずではある。
+  - まじで意味が分からない
+  - 元論文では単に記法を導入しているだけと考えれば辻褄は合う（つまり、省略しているだけで、 $cal(P)$ という項自体は存在しない？）
+])
+- $U: square := (X: square) -> (cal(P)[cal(P)[X]] -> X) -> cal(P)[cal(P)[X]]$
+  - これには確かに form 則で $(triangle, square) in cal(R)$ が必要になる。
+- $t$: Term に対して $tau[t] := lambda X: square. lambda f: (cal(P)[cal(P)[X]] -> X). lambda p: cal(P)[X]. (t (lambda x: U. (p (f (x X) f))))$
+  - $x: cal(P)[cal(P)[U]]$ なら $tau[x]: U$
+- $s$: Term に対して $sigma[s] := (s U lambda t: cal(P)[cal(P)[U]]. tau[t])$
+  - $x : U$ なら $sigma[x] : cal(P)[cal(P)[U]]$ 
+- $Delta$: $cal(P)[U]$ := $lambda y: U. not ((p: cal(P)[U]) -> sigma[y] p -> p tau[sigma[y]])$
+- $Omega$: $U$ := $tau[lambda p: cal(P)[U]. (x: U) -> sigma[x] p -> p x]$
+
+== Prop と retract について
+次のコンテキストは矛盾する。
+```
+Assum b: PROP
+Assum i: b -> PROP
+Assum o: PROP -> b
+Assum h_1: (p: PROP) -> p -> i o p
+Assum h_2: (p: PROP) -> i o p -> p
+```
+
+これが成り立ってしまうような $b$ のことを retract という。
 
 == dependent sum
 $A times B$ の拡張として、 $x: A$ に依存して決まる $B(x)$ があるときに $x: A$ と $y: B(x)$ の組をペアにすることができそうだ。
