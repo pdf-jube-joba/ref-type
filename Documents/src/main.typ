@@ -827,3 +827,58 @@ $#proof-tree(rule(
 とりあえず考えただけなので、整合性があるかは不明。
 
 あとで帰納型を含めてちゃんと考える。
+
+= bidirectional な type checking がほしい
+まずもともとの CoC での type check を考える
+- inference $Gamma tack t triangle T$
+  - $Gamma$ と $t$ が input で $T$ が output
+- check $Gamma tack t triangle.l T$
+  - $Gamma$ と $t, T$ が input で output は成功したかどうか
+- constrained inference (sort) $Gamma tack t triangle_"sort" s$
+  - $Gamma$ と $t$ が input で $s in cal(S)$ が output
+- constrained inference (prod) $Gamma tack t triangle_"prod" (x: A) -> B$
+  - $Gamma$ と $t$ が input で $(x: A) -> B$ が output
+基本的な考え方は、まず inference して、状況に合わせて check する
+
+部分集合だけが入る場合には、
+- $Gamma tack {x: A | P} triangle *^s$ と考えていい
+- $Gamma tack t triangle.l T$ のときは、
+  - $T$ がいい入力か確かめる ($Gamma tack T triangle_("sort") s$)
+  - $T$ を normalize する $T_("norm")$
+  - $Gamma tack t triangle T'$ をとってきて、 $T'$ を normalize する $T'_("norm")$
+  - $Gamma T' triangle_("sort") s'$ をみておく。
+  - $s, s'$ が一致しないなら論外、 $*^s$ 以外なら普通に normalize して判定、以下はそうじゃない場合
+  1. $T_"norm"$ も $T'_"norm"$ も ${x: A | P}$ の形じゃない場合、
+    - $T_"norm" equiv T'_"norm"$ かどうかでいい
+  2. $T_("norm") = {x : A | P}, T'_("norm") eq.not {x : A | P}$ の場合
+    - $Gamma tack.double P[x := t]$ を見ることになる（ユーザーにお任せ）
+  3. $T_("norm") eq.not {x : A | P}, T'_"norm" = {x: A | P}$ の場合
+    - inference された方が弱いので subset の weak でよい
+  4. $T = {x: A | P}$, $T' = {x: A' | P'}$ の場合
+    - $A equiv A'$ かどうか判定する
+    - $Gamma tack t: {x: A' | P'}$ はわかるので、ユーザーには $Gamma tack.double P'[x: = t]$ を認めたうえで $Gamma tack.double P[x := T]$ を任せる。
+
+べき集合も入れるとかなり大変になる。
+- constrained inference に $cal(P) A$ も入れる？
+  - $Gamma tack t triangle_("pow") cal(P) A$
+  - $Gamma$, $t$, $A$ が入力
+  - $Gamma tack t triangle T$ をもってきて、 $Gamma tack T triangle.r *^s$ を確認する
+  - $T$ を normalize して
+    - ${x: A' | P'}$ の形になったら $A' equiv A$ を確認する
+    - そうじゃない場合は $A equiv T$ を確認する 
+- inference では $A$ や ${x: A | P}$ は 「$A$ の sort が $*^s$ なら」 $cal(P) A$ に infer する
+- constrained inference (sort) では inference した $T$ の normal form が $cal(P) A$ の形かつ $T$ の sort が $*^s$ なら $*^s$ を返す
+
+結局、 $B : cal(P) A$ を $B subset A$ みたいに書いておくと、
+- $A' equiv A => A' subset_"term" A$
+- ${x: A | P} subset_"term" A$
+との関係を調べることになる。
+ただし、 $C subset B, B subset A$ でも $C subset A$ は成り立たない。
+ただし、 $t: C$ なら $t: A$ は成り立つし、 $t: A$ でも $tack.double ("Pred"_B C) t$ かつ $tack.double ("Pred"_A B) t$ なら $t: C$ が示せる。
+このために $subset^*$ という推移閉方を考えればいい。
+- $A subset* B$ で $t: A$ なら $t: B$ が可能
+- $A subset* B$ で $t: B$ なら、 $A = A_0 subset A_1 ... A_(n-1) subset A_n = B$ として $"Pred" t$ を順に示させればいい。
+
+- $A : cal(P) ({x: A | P})$ となることはない？（例として $P$ が恒等の場合とか。）
+- $Gamma tack t: A$ かつ $Gamma tack t: B$ のとき $Gamma tack A: cal(P) B$ または $Gamma tack B: cal(P) A$ である。
+みたいなのが成り立てばうれしい。
