@@ -596,7 +596,10 @@ closed がついているのは $*^p$ の項になる ($*^p$ の impredicativity
 この場合には、 propositional equality では $t_1, t_2: {x: A | P}$ に対して $t_1 =_A t_2 => t_1 =_{x: A | P} t_2$ ができていたものを、
 再び $square$ のレベルで似たような equality が示せないと使いにくい。
 具体的には、位相空間の compactness が定義されていたとき、 $2$ つの位相空間の等しさの判定時に、 compactness の証明まで要求されるようになってしまう。
-つらい。
+だけど、構造の $=$ を要求することは少ないはず？
+どちらかといえば同型が登場するので良い。
+また compactness などの"構造に対する性質"については、 topology の定義を "expand" して、prop を与えることでも得られる。
+こういうのをうまくやる仕組みがあればいい？
 
 = non structural recursion を楽に記述する
 division を計算するのに euclidean algorithm（ユークリッド互除法）があるが、
