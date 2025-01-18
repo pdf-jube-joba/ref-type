@@ -180,39 +180,34 @@
 ]
 
 #definition("set 部分")[
-- subset form
-  $ #proof-tree(rule(
-    $Gamma tack {x: A | P}: *^s$,
-    $Gamma tack A: *^s$,
-    $Gamma, x: A tack P: *^p$,
-  )) $
-- subset intro
-  $ #proof-tree(rule(
-    $Gamma tack t: {x: A | P}$,
-    $Gamma tack {x: A | P}: *^s$,
-    $Gamma tack t: A$,
-    $Gamma tack.double P [x := t]$,
-  )) $
 - power set form
   $ #proof-tree(rule(
     $Gamma tack cal(P)(A): *^s$,
     $Gamma tack A: *^s$,
   )) $
-- powet set intro subset
+- power set weak
   $ #proof-tree(rule(
-    $Gamma tack {x: A | P} : cal(P)(A)$,
-    $Gamma tack {x: A | P} : *^s$,
+    $Gamma tack B: *^s$,
+    $Gamma tack B: cal(P)(A)$,
   )) $
-- power set intro set
+- subset form
   $ #proof-tree(rule(
-    $Gamma tack  A : cal(P)(A)$,
-    $Gamma tack A : *^s$,
+    $Gamma tack {x: A | P}: cal(P)(A)$,
+    $Gamma tack A: *^s$,
+    $Gamma, x: A tack P: *^p$,
+  )) $
+- subset intro
+  $ #proof-tree(rule(
+    $Gamma tack t: B$,
+    $Gamma tack B: cal(P)(A)$,
+    $Gamma tack t: A$,
+    $Gamma tack.double ("Pred"_A B) t$,
   )) $
 - subset elim set
   $ #proof-tree(rule(
     $Gamma tack t: A$,
-    $Gamma tack t: B$,
     $Gamma tack B: cal(P)(A)$,
+    $Gamma tack t: B$,
   )) $
 - subset elim prop
   $ #proof-tree(rule(
