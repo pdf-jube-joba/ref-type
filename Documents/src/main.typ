@@ -387,6 +387,9 @@ $ #proof-tree(rule(
 
 inductive type みたいなものを全然知らないけど、 refl が $"refl"_A a$ ではなく $"refl" a$ として考えれるような場合はおかしい？
 
+== equality を使う
+$A =_(*^s) B -> A -> B$ があるとうれしいが、これを refl でやるには elim についての large elimination に気を付ける必要がある。
+
 = 元の選択によらずに定まる項をつくる。
 $"take" x: T. t$ という項として $x$ によらずに $t$ を定める項を導入する。
 具体的には、 $t: A$ のとき
@@ -833,55 +836,63 @@ $#proof-tree(rule(
 
 = bidirectional な type checking がほしい
 まずもともとの CoC での type check を考える
+基本的な考え方は、まず inference して、状況に合わせて check する
+また、 $cal(A)$ や $cal(R)$ を関数ととらえる。
+CoC の bidirectional は次のようになる。
 - inference $Gamma tack t triangle T$
   - $Gamma$ と $t$ が input で $T$ が output
+  - $Gamma tack x triangle T$ if $x: T in Gamma$
+  - $Gamma tack (x: A) -> B triangle s_3$ if
+    - $Gamma tack A triangle_"sort" s_1$
+    - $Gamma, x: A tack B triangle_"sort" s_2$, $s_3 = cal(R)(s_1, s_2)$
+  - $Gamma tack lambda x: T. m triangle (x: T) -> M$
+    - $Gamma, x: T tack m triangle M$
+  - $Gamma tack t_1 t_2 triangle B[x := t_1]$
+    - $Gamma t_1 triangle_"prod" (x: A) -> B$
+    - $Gamma t_2 triangle.l A$
 - check $Gamma tack t triangle.l T$
   - $Gamma$ と $t, T$ が input で output は成功したかどうか
+  - $Gamma tack t triangle T'$ をする
+  - $T equiv T'$  を確認する
 - constrained inference (sort) $Gamma tack t triangle_"sort" s$
   - $Gamma$ と $t$ が input で $s in cal(S)$ が output
+  - $Gamma tack t triangle T$ をする
+  - $T ->* s$ をえる
 - constrained inference (prod) $Gamma tack t triangle_"prod" (x: A) -> B$
   - $Gamma$ と $t$ が input で $(x: A) -> B$ が output
-基本的な考え方は、まず inference して、状況に合わせて check する
+  - $Gamma tack t triangle T$ をする
+  - $T ->* (x: A) -> B$ をえる
 
-部分集合だけが入る場合には、
-- $Gamma tack {x: A | P} triangle *^s$ と考えていい
-- $Gamma tack t triangle.l T$ のときは、
-  - $T$ がいい入力か確かめる ($Gamma tack T triangle_("sort") s$)
-  - $T$ を normalize する $T_("norm")$
-  - $Gamma tack t triangle T'$ をとってきて、 $T'$ を normalize する $T'_("norm")$
-  - $Gamma T' triangle_("sort") s'$ をみておく。
-  - $s, s'$ が一致しないなら論外、 $*^s$ 以外なら普通に normalize して判定、以下はそうじゃない場合
-  1. $T_"norm"$ も $T'_"norm"$ も ${x: A | P}$ の形じゃない場合、
-    - $T_"norm" equiv T'_"norm"$ かどうかでいい
-  2. $T_("norm") = {x : A | P}, T'_("norm") eq.not {x : A | P}$ の場合
-    - $Gamma tack.double P[x := t]$ を見ることになる（ユーザーにお任せ）
-  3. $T_("norm") eq.not {x : A | P}, T'_"norm" = {x: A | P}$ の場合
-    - inference された方が弱いので subset の weak でよい
-  4. $T = {x: A | P}$, $T' = {x: A' | P'}$ の場合
-    - $A equiv A'$ かどうか判定する
-    - $Gamma tack t: {x: A' | P'}$ はわかるので、ユーザーには $Gamma tack.double P'[x: = t]$ を認めたうえで $Gamma tack.double P[x := T]$ を任せる。
+== 変える部分
+inference は次のようにする。
+わかんなくなった。
+- $Gamma tack {x: A | P} triangle cal(P)(A)$
+  - $Gamma tack A triangle.l *^s$
+  - $Gamma, x: A triangle.l *^p$
+- $Gamma tack cal(P)(A) triangle *^s$
+  - $Gamma tack A triangle.l *^s$
+- $Gamma tack "Pred"_A B triangle A -> *^p$
+  - $Gamma tack A triangle.l *^s$
+  - $Gamma tack B triangle_"pow" cal(P)(A')$
 
-べき集合も入れるとかなり大変になる。
-- constrained inference に $cal(P) A$ も入れる？
-  - $Gamma tack t triangle_("pow") cal(P) A$
-  - $Gamma$, $t$, $A$ が入力
-  - $Gamma tack t triangle T$ をもってきて、 $Gamma tack T triangle.r *^s$ を確認する
-  - $T$ を normalize して
-    - ${x: A' | P'}$ の形になったら $A' equiv A$ を確認する
-    - そうじゃない場合は $A equiv T$ を確認する 
-- inference では $A$ や ${x: A | P}$ は 「$A$ の sort が $*^s$ なら」 $cal(P) A$ に infer する
-- constrained inference (sort) では inference した $T$ の normal form が $cal(P) A$ の形かつ $T$ の sort が $*^s$ なら $*^s$ を返す
+check は次のようにする
+- $Gamma tack t triangle.l T$ について $Gamma tack T triangle_"sort" s$ をみる
+- $Gamma tack t triangle T'$ について $Gamma tack T' triangle_"sort" s'$ をみる
+- $s = s' eq.not *^s$ なら $T equiv T'$ をみる
+- $s = s' = *^s$ の場合は次のようにする
+- $Gamma tack T' triangle_"pow" cal(P)(A')$ か？
+  - もしそうなら、 subset elim でよい
+- $Gamma tack T triangle_"pow" cal(P)(A)$ か？
+  - もしそうなら、 subset intro になる（ユーザーがチェック） 
 
-結局、 $B : cal(P) A$ を $B subset A$ みたいに書いておくと、
-- $A' equiv A => A' subset_"term" A$
-- ${x: A | P} subset_"term" A$
-との関係を調べることになる。
-ただし、 $C subset B, B subset A$ でも $C subset A$ は成り立たない。
-ただし、 $t: C$ なら $t: A$ は成り立つし、 $t: A$ でも $tack.double ("Pred"_B C) t$ かつ $tack.double ("Pred"_A B) t$ なら $t: C$ が示せる。
-このために $subset^*$ という推移閉方を考えればいい。
-- $A subset* B$ で $t: A$ なら $t: B$ が可能
-- $A subset* B$ で $t: B$ なら、 $A = A_0 subset A_1 ... A_(n-1) subset A_n = B$ として $"Pred" t$ を順に示させればいい。
+constrained sort は次のようにする
+- $Gamma tack t triangle T$ をとる
+- $T ->* s$ なら $s$ とする
+- $T ->* cal(P)(A)$ なら $*^s$ とする
 
-- $A : cal(P) ({x: A | P})$ となることはない？（例として $P$ が恒等の場合とか。）
-- $Gamma tack t: A$ かつ $Gamma tack t: B$ のとき $Gamma tack A: cal(P) B$ または $Gamma tack B: cal(P) A$ である。
-みたいなのが成り立てばうれしい。
+constrained inference に $cal(P)(A)$ を入れる
+- $Gamma tack t triangle_("pow") cal(P)(A)$
+- $Gamma$, $t$ が入力
+  - $Gamma tack t triangle T$ をもってくる
+  - $Gamma tack T triangle.l *^s$ を確認する、そうじゃない場合は失敗
+  - $T ->* cal(P)(A)$ をみる

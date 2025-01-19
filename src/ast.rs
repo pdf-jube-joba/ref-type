@@ -1,9 +1,5 @@
 use std::fmt::Display;
 
-// use crate::relation::{
-//     subst, type_check, type_infered_to_sort, Context, PartialDerivationTree, StatePartialTree,
-// };
-
 pub mod parse;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

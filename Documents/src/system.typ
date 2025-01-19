@@ -196,6 +196,12 @@
     $Gamma tack A: *^s$,
     $Gamma, x: A tack P: *^p$,
   )) $
+- predicate form
+  $ #proof-tree(rule(
+    $Gamma tack "Pred"_A B : A -> *^p$,
+    $Gamma tack A: *^s$,
+    $Gamma tack B: cal(P)(A)$,
+  )) $
 - subset intro
   $ #proof-tree(rule(
     $Gamma tack t: B$,
@@ -230,11 +236,18 @@
     $Gamma tack "refl"_A a: a =_A a$,
     $Gamma tack a =_A a: *^p$,
   )) $
+- id elim
+  $ #proof-tree(rule(
+    $Gamma tack.double P b$,
+    $Gamma tack.double a =_A b$,
+    $Gamma tack P : A -> *^p$,
+    $Gamma tack.double P a$,
+  )) $
 - id subset
   $ #proof-tree(rule(
     $Gamma tack.double a =_B b$,
     $Gamma tack.double a =_A b$,
-    $Gamma tack.double B: cal(P)(A)$,
+    $Gamma tack B: cal(P)(A)$,
     $Gamma tack a: B$,
     $Gamma tack b: B$,
   )) $

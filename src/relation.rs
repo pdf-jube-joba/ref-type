@@ -323,6 +323,19 @@ impl Condition {
             other => Err(format!("{term} !->* prod but ->* {other}").into()),
         }
     }
+    fn reduce_to_pow(gcxt: &GlobalContext, term: Exp) -> Result<(Self, Exp), ErrOnCondition> {
+        let term2 = normalize(gcxt, term.clone());
+        match term2 {
+            Exp::Pow(a) => {
+                let a = *a.clone();
+                Ok((
+                    Condition::Convertible(term, Exp::Pow(Box::new(a.clone()))),
+                    a,
+                ))
+            }
+            other => Err(format!("{term} !->* pow but ->* {other}").into()),
+        }
+    }
     fn reduce_to_indtype(
         gcxt: &GlobalContext,
         term: Exp,
@@ -393,6 +406,14 @@ pub enum DerivationLabel {
     ProdForm,
     ProdIntro,
     ProdElim,
+    Proof,
+    PowerSetForm,
+    PowerSetWeak,
+    SubsetForm,
+    SubsetIntro,
+    SubsetElimSet,
+    SubsetElimProp,
+    PredForm,
     IndForm,
     IndIntro,
     IndElim,
@@ -409,6 +430,14 @@ impl Display for DerivationLabel {
             DerivationLabel::ProdForm => "Prod(Form)",
             DerivationLabel::ProdIntro => "Prod(Intr)",
             DerivationLabel::ProdElim => "Prof(Elim)",
+            DerivationLabel::Proof => "Proof",
+            DerivationLabel::PowerSetForm => "Pow(Form)",
+            DerivationLabel::PowerSetWeak => "Pow(Weak)",
+            DerivationLabel::SubsetForm => "Sub(Form)",
+            DerivationLabel::SubsetIntro => "Sub(Intro)",
+            DerivationLabel::SubsetElimSet => "Sub(ElimSet)",
+            DerivationLabel::SubsetElimProp => "Sub(ElimProp)",
+            DerivationLabel::PredForm => "Pred(Form)",
             DerivationLabel::IndForm => "Ind(Form)",
             DerivationLabel::IndIntro => "Ind(Intr)",
             DerivationLabel::IndElim => "Ind(Elim)",
@@ -459,6 +488,7 @@ pub struct PartialDerivationTreeProof {
 pub enum PartialDerivationTree {
     TypeCheck(PartialDerivationTreeTypeCheck),
     Proof(PartialDerivationTreeProof),
+    Unproved(ProvableJudgement),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -489,7 +519,7 @@ pub fn type_check(
     };
 
     let mut child = vec![];
-    let extra = vec![ExtraInfo::GeneratedBy("type check".to_string())];
+    let mut extra = vec![ExtraInfo::GeneratedBy("type check".to_string())];
 
     let der_tree_infered = match type_infer(gcxt, cxt.clone(), term1.clone()) {
         Ok(der_tree_check) => der_tree_check,
@@ -510,7 +540,7 @@ pub fn type_check(
         der_tree_infered,
     )));
 
-    match Condition::convertible(gcxt, infered_type, term2) {
+    match Condition::convertible(gcxt, infered_type.clone(), term2.clone()) {
         Ok(cond) => {
             child.push(Either::Right(cond));
             Ok(PartialDerivationTreeTypeCheck {
@@ -520,13 +550,24 @@ pub fn type_check(
                 extra,
             })
         }
-        Err(err) => Err(DerivationFailed {
-            head: FailHead::CheckFail(head),
-            label: DerivationLabel::Conv,
-            child,
-            extra,
-            err: ErrInfo::ErrOnCondition(err),
-        }),
+        Err(err) => {
+            extra.push(ExtraInfo::GeneratedBy(format!("not conv Err({err:?})")));
+            let (der_tree_inf, sort_of_infered_type) =
+                type_infered_to_sort(gcxt, cxt.clone(), infered_type).unwrap();
+            let (der_tree_sort_t2, sort_of_term2) =
+                type_infered_to_sort(gcxt, cxt.clone(), term2.clone()).unwrap();
+            if sort_of_infered_type == sort_of_term2 && sort_of_term2 == Sort::Set {
+                todo!()
+            } else {
+                Err(DerivationFailed {
+                    head: FailHead::CheckFail(head),
+                    label: DerivationLabel::Conv,
+                    child,
+                    extra,
+                    err: ErrInfo::ErrOnCondition(err),
+                })
+            }
+        }
     }
 }
 
@@ -537,7 +578,7 @@ pub fn type_infered_to_sort(
     term: Exp,
 ) -> Result<(PartialDerivationTreeTypeCheck, Sort), DerivationFailed> {
     let mut child = vec![];
-    let extra = vec![ExtraInfo::GeneratedBy("type infered to sort".to_string())];
+    let mut extra = vec![ExtraInfo::GeneratedBy("type infered to sort".to_string())];
 
     let der_tree_infered = match type_infer(gcxt, cxt.clone(), term.clone()) {
         Ok(der_tree_check) => der_tree_check,
@@ -558,7 +599,7 @@ pub fn type_infered_to_sort(
         der_tree_infered,
     )));
 
-    match Condition::reduce_to_sort(gcxt, infered_term) {
+    match Condition::reduce_to_sort(gcxt, infered_term.clone()) {
         Ok((cond, sort)) => {
             child.push(Either::Right(cond));
             Ok((
@@ -575,13 +616,48 @@ pub fn type_infered_to_sort(
                 sort,
             ))
         }
-        Err(err) => Err(DerivationFailed {
-            head: FailHead::InferFail(cxt, term),
-            label: DerivationLabel::Conv,
-            child,
-            extra,
-            err: ErrInfo::ErrOnCondition(err),
-        }),
+        Err(err) => {
+            extra.push(ExtraInfo::GeneratedBy(format!(
+                "!->* sort Err({err:?}) so check pow"
+            )));
+            match Condition::reduce_to_pow(gcxt, infered_term) {
+                Ok((cond, a)) => {
+                    child.push(Either::Right(cond));
+                    let der_tree_up = PartialDerivationTreeTypeCheck {
+                        head: TypeCheckJudgement {
+                            context: cxt.clone(),
+                            term: term.clone(),
+                            type_of_term: Exp::Pow(Box::new(a.clone())),
+                        },
+                        label: DerivationLabel::Conv,
+                        child,
+                        extra: vec![],
+                    };
+                    Ok((
+                        PartialDerivationTreeTypeCheck {
+                            head: TypeCheckJudgement {
+                                context: cxt,
+                                term,
+                                type_of_term: Exp::Sort(Sort::Set),
+                            },
+                            label: DerivationLabel::PowerSetForm,
+                            child: vec![Either::Left(PartialDerivationTree::TypeCheck(
+                                der_tree_up,
+                            ))],
+                            extra,
+                        },
+                        Sort::Set,
+                    ))
+                }
+                Err(err) => Err(DerivationFailed {
+                    head: FailHead::InferFail(cxt, term),
+                    label: DerivationLabel::Conv,
+                    child,
+                    extra,
+                    err: ErrInfo::ErrOnCondition(err),
+                }),
+            }
+        }
     }
 }
 
@@ -845,7 +921,7 @@ pub fn type_infer(
         }
         Exp::Prod(x, t, t2) => {
             let label = DerivationLabel::ProdForm;
-            // extra.push(ExtraInfo::GeneratedBy("ProdForm".into()));
+            extra.push(ExtraInfo::GeneratedBy("ProdForm".into()));
 
             // sort of t
             let sort_of_t = match type_infered_to_sort(gcxt, cxt.clone(), *t.clone()) {
@@ -902,6 +978,8 @@ pub fn type_infer(
             }
         }
         Exp::Lam(x, t, m) => {
+            extra.push(ExtraInfo::GeneratedBy("ProdIntro".into()));
+
             let label = DerivationLabel::ProdIntro;
 
             // sort of t
@@ -950,6 +1028,8 @@ pub fn type_infer(
             })
         }
         Exp::App(t1, t2) => {
+            extra.push(ExtraInfo::GeneratedBy("ProdElim".into()));
+
             let label = DerivationLabel::ProdElim;
             let (x, a, b) = match type_infered_to_prod(gcxt, cxt.clone(), *t1.clone()) {
                 Ok((der_tree, (x, a, b))) => {
@@ -988,6 +1068,7 @@ pub fn type_infer(
             }
         }
         Exp::IndTypeType { ind_type_name } => {
+            extra.push(ExtraInfo::GeneratedBy("IndForm".into()));
             let label = DerivationLabel::IndForm;
             let type_of_ind_type = match gcxt.type_of_indtype(&ind_type_name) {
                 Some(e) => e,
@@ -1015,6 +1096,7 @@ pub fn type_infer(
             ind_type_name,
             constructor_name,
         } => {
+            extra.push(ExtraInfo::GeneratedBy("IndIntro".into()));
             let label = DerivationLabel::IndIntro;
             let type_of_cst_type = match gcxt.type_of_cst(&ind_type_name, &constructor_name) {
                 Some(e) => e,
@@ -1044,6 +1126,7 @@ pub fn type_infer(
             return_type,
             cases,
         } => {
+            extra.push(ExtraInfo::GeneratedBy("IndElim".into()));
             let label = DerivationLabel::IndElim;
 
             // find ind type
@@ -1184,8 +1267,139 @@ pub fn type_infer(
                 extra,
             })
         }
-        _ => todo!("not implemented"),
+        Exp::Proof(t) => {
+            let label = DerivationLabel::Proof;
+            extra.push(ExtraInfo::GeneratedBy("Proof".into()));
+            let provablejudgement = ProvableJudgement {
+                context: cxt.clone(),
+                proposition: *t.clone(),
+            };
+            let child = vec![Either::Left(PartialDerivationTree::Unproved(
+                provablejudgement,
+            ))];
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(*t.clone()),
+                label,
+                child,
+                extra,
+            })
+        }
+        Exp::Sub(x, a, p) => {
+            extra.push(ExtraInfo::GeneratedBy("SubForm".into()));
+            let label = DerivationLabel::SubsetForm;
+            let mut child = vec![];
+            match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
+                Ok(der_tree) => {
+                    child.push(Either::Left(PartialDerivationTree::TypeCheck(der_tree)))
+                }
+                Err(err) => {
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        label,
+                        child,
+                        err: ErrInfo::ErrOnTree(Box::new(err)),
+                        extra,
+                    })
+                }
+            };
+
+            cxt.push_decl((x, *a.clone()));
+            match type_check(gcxt, cxt.clone(), *p.clone(), Exp::Sort(Sort::Prop)) {
+                Ok(der_tree) => {
+                    child.push(Either::Left(PartialDerivationTree::TypeCheck(der_tree)));
+                }
+                Err(err) => {
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        label,
+                        child,
+                        err: ErrInfo::ErrOnTree(Box::new(err)),
+                        extra,
+                    })
+                }
+            }
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(Exp::Pow(a)),
+                label,
+                child,
+                extra,
+            })
+        }
+        Exp::Pow(a) => {
+            extra.push(ExtraInfo::GeneratedBy("PowForm".into()));
+            let label = DerivationLabel::PowerSetForm;
+            match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
+                Ok(der_tree) => {
+                    child.push(Either::Left(PartialDerivationTree::TypeCheck(der_tree)));
+                }
+                Err(err) => {
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        label,
+                        child,
+                        err: ErrInfo::ErrOnTree(Box::new(err)),
+                        extra,
+                    });
+                }
+            }
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(Exp::Sort(Sort::Set)),
+                label,
+                child,
+                extra,
+            })
+        }
+        Exp::Pred(a, b) => {
+            extra.push(ExtraInfo::GeneratedBy("Pred".into()));
+            let label = DerivationLabel::PredForm;
+            match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
+                Ok(der_tree) => {
+                    child.push(Either::Left(PartialDerivationTree::TypeCheck(der_tree)));
+                }
+                Err(err) => {
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        label,
+                        child,
+                        err: ErrInfo::ErrOnTree(Box::new(err)),
+                        extra,
+                    });
+                }
+            }
+            match type_check(gcxt, cxt.clone(), *b.clone(), Exp::Pow(a.clone())) {
+                Ok(der_tree) => {
+                    child.push(Either::Left(PartialDerivationTree::TypeCheck(der_tree)));
+                }
+                Err(err) => {
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        label,
+                        child,
+                        err: ErrInfo::ErrOnTree(Box::new(err)),
+                        extra,
+                    });
+                }
+            }
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(Exp::prod(Var::Unused, *a.clone(), Exp::Sort(Sort::Prop))),
+                label,
+                child,
+                extra,
+            })
+        }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UserLabel {}
+
+pub fn proof_tree(
+    gcxt: &GlobalContext,
+    mut cxt: LocalContext,
+    term1: Exp,
+    user_label: UserLabel,
+) -> PartialDerivationTreeProof {
+    todo!()
 }
 
 pub mod printing {
@@ -1222,6 +1436,10 @@ pub mod printing {
                 } = tree;
                 v.push(format!("{}{head}({label})", indent_size(indent)));
                 (child, extra)
+            }
+            PartialDerivationTree::Unproved(judgement) => {
+                v.push(format!("{judgement}"));
+                (vec![], vec![])
             }
         };
         for e in extra {

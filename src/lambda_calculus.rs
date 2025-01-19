@@ -229,8 +229,11 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
             let t = constructor.recursor(ff_elim_q, corresponding_cases);
             Some(utils::assoc_apply(t, argument))
         }
-        Exp::Pred(a, b) => {
-            todo!()
+        Exp::Pred(_, b) => {
+            let Exp::Sub(x, a1, p) = *b else {
+                return None;
+            };
+            Some(Exp::Lam(x, a1, p))
         }
         _ => None,
     }
