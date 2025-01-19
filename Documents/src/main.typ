@@ -863,6 +863,90 @@ CoC の bidirectional は次のようになる。
   - $Gamma tack t triangle T$ をする
   - $T ->* (x: A) -> B$ をえる
 
+== 考える必要があること
+$Gamma = A: *^s, P_i: A -> *^p$ とする。
+- $Gamma, x: A tack P_i x: *^p$ が成り立つ。
+
+${x: A | P_1 x and P_2 x}$ と ${x: {x: A | P_1 x} | P_2 x}$ と二つの集合がある。
+
+- ${x: A | P_1 x and P_2 x}$ はちゃんと型付けできる。
+  $ #proof-tree(rule(
+    $Gamma tack {x: A | P_1 x and P_2 x} : cal(P)(A)$,
+    $Gamma tack A : *^s$,
+    $Gamma, x: A tack P_1 x and P_2 x: *^p$,
+  )) $
+- もう一つもできる。
+  $ #proof-tree(rule(
+  $Gamma tack {x: {x: A | P_1 x} | P_2 x}: cal(P)({x: A | P_1 x})$,
+  rule(
+    $Gamma tack {x: A | P_1 x}: *^s$,
+    $Gamma tack {x: A | P_1 x}: cal(P)(A)$,
+  ),
+  rule(
+    $Gamma, x: {x: A | P_1 x} tack P_2 x: *^p$,
+    $Gamma, x: {x: A | P_1 x} tack P_2: A -> *^p$,
+    $Gamma, x: {x: A | P_1 x} tack x: A$,
+  )
+)) $
+ただし、 $B: cal(P)(A)$ でも $C: cal(P)(B) => C: cal(P)(A)$ は成り立たないように作ってしまった。
+（もし $B: cal(P)(A)$ を単に $B subset A$ ととらえれば、 $B subset A$, $C subset B$ なら $C subset A$ としてよいが、まだこれを考えてないわ ）
+だから、 ${x: {x: A | P_1 x} | P_2 x}; cal(P)(A)$ は成り立たない（だろう）。
+
+次が成り立つはず。
+$ Gamma tack t: {x: A | P_1 x and P_2 x} <=> Gamma tack t: {x: {x: A | P_1 x} | P_2 x} $
+
+$arrow.l.double$ については、
+$ #proof-tree(rule(
+  $Gamma tack t: {x: A | P_1 x and P_2 x}$,
+  rule(
+    $Gamma tack t: A$,
+    rule(
+      $Gamma tack t: {x: A | P_1 x}$,
+      $Gamma tack t: {x: {x: A | P_1 x} | P_2 x}$,
+    )
+  ),
+  rule(
+    $Gamma tack.double P_1 t and P_2 t$,
+    rule(
+      $Gamma tack.double P_1 t$,
+      rule(
+        $Gamma tack t: {x: A | P_1 x}$,
+        $Gamma tack t: {x: {x: A | P_1 x} | P_2 x}$,
+      )
+    ),
+    rule(
+      $Gamma tack.double P_2 t$,
+      $Gamma tack t: {x: {x: A | P_1 x} | P_2 x}$,
+    )
+  )
+)) $
+
+$arrow.r.double$ については、
+$ #proof-tree(rule(
+  $Gamma tack t: {x: {x: A | P_1 x} | P_2 x}$,
+  rule(
+    $Gamma tack t: {x: A | P_1 x}$,
+    rule(
+      $Gamma tack t: A$,
+      $Gamma tack t: {x: A | P_1 x and P_2 x}$,
+    ),
+    rule(
+      $Gamma tack.double P_1 t$,
+      $Gamma tack.double P_1 t and P_2 t$,
+    )
+  ),
+  rule(
+    $Gamma tack.double P_2 x$,
+    $Gamma tack.double P_1 t and P_2 t$,
+  )
+)) $
+
+これがめんどくさいのは、 inference して $cal(P)(A)$ だったときの扱い。
+また、 $Gamma tack.double P_1 x -> P_2 x$ が示せる場合にも、ユーザーに何を指せるかがめんどくさい。
+- $Gamma tack t triangle.l {x: A | P}$ を考える
+  - $Gamma tack t triangle T$ をとり、 normal にする
+  - $T = {x: A' | P'}$ なら、 $$
+
 == 変える部分
 inference は次のようにする。
 わかんなくなった。
@@ -880,10 +964,10 @@ check は次のようにする
 - $Gamma tack t triangle T'$ について $Gamma tack T' triangle_"sort" s'$ をみる
 - $s = s' eq.not *^s$ なら $T equiv T'$ をみる
 - $s = s' = *^s$ の場合は次のようにする
-- $Gamma tack T' triangle_"pow" cal(P)(A')$ か？
-  - もしそうなら、 subset elim でよい
-- $Gamma tack T triangle_"pow" cal(P)(A)$ か？
-  - もしそうなら、 subset intro になる（ユーザーがチェック） 
+- $Gamma tack T' triangle_"pow" cal(P)(A')$, $Gamma tack T triangle_"pow" cal(P)(A)$ をみる
+- 両方とも成り立つなら
+  - $A =^beta A'$ を確かめる
+  - $Gamma tack.double ("Pred"_A T)$
 
 constrained sort は次のようにする
 - $Gamma tack t triangle T$ をとる
