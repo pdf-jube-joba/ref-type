@@ -604,6 +604,18 @@ closed がついているのは $*^p$ の項になる ($*^p$ の impredicativity
 また compactness などの"構造に対する性質"については、 topology の定義を "expand" して、prop を与えることでも得られる。
 こういうのをうまくやる仕組みがあればいい？
 
+== 集合論との比較
+集合との比較でいえば、次のものは入れてもよい。
+- $A: cal(P)(A)$
+- $B: cal(P)(A)$, $C: cal(P)(B)$ $=>$ $C: cal(P)(A)$
+- $B: cal(P)(A)$ $=>$ $cal(P)(B): cal(P)(cal(P)(A))$
+- $Gamma tack.double P$ $=>$ $A equiv {x: A | P}$
+ただ、これがなくても十分に使えそうにはなっている。
+例えば次が成り立つ。
+- $B: cal(P)(A)$, $C: cal(P)(B)$, $t: C$ なら $t: A$ である。
+- $t: A$ かつ $Gamma tack.double P$ なら $t: {x: A | P}$
+なので、"項"に対する型としては十分である。
+
 = non structural recursion を楽に記述する
 division を計算するのに euclidean algorithm（ユークリッド互除法）があるが、
 これは coq では楽に書けない。
@@ -964,19 +976,30 @@ check は次のようにする
 - $Gamma tack t triangle T'$ について $Gamma tack T' triangle_"sort" s'$ をみる
 - $s = s' eq.not *^s$ なら $T equiv T'$ をみる
 - $s = s' = *^s$ の場合は次のようにする
-- $Gamma tack T' triangle_"pow" cal(P)(A')$, $Gamma tack T triangle_"pow" cal(P)(A)$ をみる
-- 両方とも成り立つなら
-  - $A =^beta A'$ を確かめる
-  - $Gamma tack.double ("Pred"_A T)$
+
+直感的には、 $T: cal(P)(T')$ を $T subset T'$ と書くと、 $Gamma tack t: (T = T_1) subset T_2 subset ... subset T_n : *^s$ となる、一番長い列を持ってくると、 $Gamma tack t: T$ と $Gamma tack t: T'$ という $2$ が成り立つなら $T_n equiv T'_n$ が成り立っているだろう。
+なのでこれをチェックした後に、 subset に順々に入れるようにすればいい。
+- $T = T_1$, $T' = T'_1$ とする。
+- $Gamma tack T_i triangle_"pow" cal(P)(T_(i+1))$ をできるまでやり、できなくなった最後を $T_n, T'_m$ とする。
+- $T_n equiv T'_m$ を確認する。
+- $Gamma tack t triangle.l T$ には $Gamma tack.double ("Pred"_(T_(i+1)) T_i) t$ を示せばいい。
+- ただし、 $Gamma tack t: T'_i$ は用いていい（ユーザーに入力させる。）
 
 constrained sort は次のようにする
 - $Gamma tack t triangle T$ をとる
 - $T ->* s$ なら $s$ とする
 - $T ->* cal(P)(A)$ なら $*^s$ とする
 
+constrained prod にも修正が必要
+例として、 $Gamma t: T subset B subset M_1 -> M_2$ なら $Gamma tack t: M_1 -> M_2$ なので。
+- $Gamma tack t triangle T$ をとる。
+- $Gamma tack T triangle_"sort" s$ で $s eq.not *^s$ なら従来の方法 
+- $Gamma tack T_i triangle_"pow" T_(i+1)$ を繰り返し、最後を $T_n$ とする。
+- $T_n ->^* (x: A) -> B$ を確認する。
+
 constrained inference に $cal(P)(A)$ を入れる
 - $Gamma tack t triangle_("pow") cal(P)(A)$
 - $Gamma$, $t$ が入力
   - $Gamma tack t triangle T$ をもってくる
   - $Gamma tack T triangle.l *^s$ を確認する、そうじゃない場合は失敗
-  - $T ->* cal(P)(A)$ をみる
+  - $T ->^* cal(P)(A)$ をみる
