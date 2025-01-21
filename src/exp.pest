@@ -1,0 +1,45 @@
+WHITESPACE = _{ " " | "\n" }
+
+comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+sort_set = { "SET" }
+sort_prop = { "PROP" }
+sort_type = { "TYPE" }
+sort_univ = { "UNIV" }
+sort = { sort_set | sort_prop | sort_type | sort_univ }
+
+keyword = {sort | "elim" | "return" | "with" | "end" |
+    "Proof" | "Pow" | "Id" | "Pred" | "Idind" | "Take" 
+}
+
+variable = @{ &!keyword ~ ('a'..'z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9' | "_")* }
+unused_variable = @{"_"}
+name = @{ &!keyword ~ ('A'..'Z') ~ ('a'..'z' | 'A'..'Z' | '0'..'9')* }
+
+expression = { ((smalls | var_annot_paren) ~ delimitor)* ~ smalls}
+smalls = { small+ }
+delimitor = { prod | lamd }
+prod = { "->" }
+lamd = { "|->" }
+
+small = {
+	comment | sort | app | proof | subset | powerset | predicate
+    | variable | ind_name | ind_constructor | ind_elim
+}
+
+var_annot = { variable ~ ":" ~ expression }
+var_annot_paren = { "(" ~ var_annot ~ ")" }
+
+app = { "(" ~ expression+ ~ ")" }
+
+ind_name = { name }
+ind_constructor = ${ name ~ "::" ~ name }
+ind_elim = {
+    "elim" ~ "(" ~ name ~ ")" ~ expression ~ "return" ~ expression ~ "with" ~
+    ("|" ~ name ~ "->" ~ expression)* ~ "end"
+}
+
+proof = { "Proof" ~ "(" ~ expression ~ ")" }
+subset = { "{" ~ var_annot ~ "|" ~ expression ~ "}" }
+powerset = { "Power" ~ "(" ~ expression ~ ")" }
+predicate = { "Pred" ~ "(" ~ expression ~ "," ~ expression ~ ")" }
