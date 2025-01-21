@@ -4,6 +4,145 @@ use either::Either;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
+use logos::Logos;
+
+#[derive(Debug, Clone, PartialEq, Eq, Logos)]
+#[logos(skip r"[\s]+")]
+pub enum ExpToken {
+    #[regex(r"/\*[^*]*\*+([^/*][^*]*\*+)*\/")] // ありがとうGPT
+    Comment,
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token("SET")]
+    SortSet,
+    #[token("PROP")]
+    SortProp,
+    #[token("TYPE")]
+    SortType,
+    #[token("UNIV")]
+    SortUniv,
+    #[token("_")]
+    Unused,
+    #[token(":")]
+    Annotation,
+    #[token("->")]
+    FunctionArrow,
+    #[token("|->")]
+    LambdaArrow,
+    #[token("::")]
+    PathNotation,
+    #[token("elim")]
+    Enum,
+    #[token("return")]
+    EnumReturn,
+    #[token("with")]
+    EnumWith,
+    #[token("|")]
+    EnumBar,
+    #[token("end")]
+    EnumEnd,
+    #[token("Proof")]
+    Proof,
+    #[token("{")]
+    SubsetStart,
+    #[token("}")]
+    SubsetEnd,
+    #[token("Pow")]
+    PowerSet,
+    #[token("Pred")]
+    Pred,
+    #[token("take")]
+    Take,
+    #[token("=")]
+    Id,
+    #[token("refl")]
+    Refl,
+    #[regex(r"[a-z][a-zA-Z0-9_]*")]
+    Variable,
+    #[regex(r"[A-Z][a-zA-Z0-9_]*")]
+    Name,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseError {
+    LParenNotMatch(usize),
+    RParenNotMatch(usize),
+}
+
+pub fn decomp_paren(v: &[ExpToken]) -> Result<Vec<(usize, usize)>, ParseError> {
+    // v を全部見て "(" と ")" の対応する部分をみる
+    let mut depth: isize = 0;
+    let mut parened: Vec<(usize, usize)> = vec![];
+    let mut s: usize = 0;
+    for (i, vi) in v.iter().enumerate() {
+        if *vi == ExpToken::LParen {
+            depth += 1;
+            if depth == 1 {
+                s = i;
+            }
+        }
+        if *vi == ExpToken::RParen {
+            depth -= 1;
+            if depth == 0 {
+                parened.push((s, i));
+            }
+        }
+        if depth < 0 {
+            return Err(ParseError::RParenNotMatch(i));
+        }
+    }
+    if depth != 0 {
+        Err(ParseError::LParenNotMatch(s))
+    } else {
+        Ok(parened)
+    }
+}
+
+pub fn decomp_delimited_by_arrow(v: &[ExpToken]) -> Result<Vec<usize>, ParseError> {
+    todo!()
+}
+
+pub fn parser(v: &[ExpToken]) -> Result<Exp, ParseError> {
+    // "(" ")" で囲まれた部分をとる
+
+    todo!()
+}
+
+#[cfg(test)]
+mod test_lexer {
+    use super::*;
+    #[test]
+    fn test1() {
+        let source = "hello /*world*/ ! /* test */ a /**/b /* */ /****/ ";
+        let mut lexer = ExpToken::lexer(source);
+        let mut tokens = vec![];
+        loop {
+            let Some(token) = lexer.next() else {
+                break;
+            };
+            let span = lexer.span();
+            let slice: &str = lexer.slice();
+            print!("[{}]     {:?} ", slice, span);
+            println!("{token:?}");
+            tokens.push(token);
+        }
+        let expected = vec![
+            Ok(ExpToken::Variable),
+            Ok(ExpToken::Comment),
+            Err(()),
+            Ok(ExpToken::Comment),
+            Ok(ExpToken::Variable),
+            Ok(ExpToken::Comment),
+            Ok(ExpToken::Variable),
+            Ok(ExpToken::Comment),
+            Ok(ExpToken::Comment),
+        ];
+        assert_eq!(tokens, expected);
+    }
+}
+
 #[derive(Default, Parser)]
 #[grammar = "ast.pest"] // relative to src
 pub struct MyParser;
