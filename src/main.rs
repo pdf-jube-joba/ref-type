@@ -3,13 +3,9 @@ use either::Either;
 use std::io::BufRead;
 
 use ref_type::{
-    ast::{
-        self,
-        inductives::IndTypeDefs,
-        parse::{self, Command, InductiveDefinitionsSyntax, NewCommand},
-        Exp, Sort,
-    },
+    ast::{self, inductives::IndTypeDefs, Exp, Sort},
     lambda_calculus::{self, subst},
+    parse::{self, *},
     relation::{self, printing, ResIndDefs},
 };
 
@@ -33,7 +29,7 @@ fn main() {
 
         println!("-----");
 
-        let parser = ast::parse::MyParser;
+        let parser = parse::MyParser;
 
         let command = match parser.parse_command(&buf) {
             Ok(command) => command,

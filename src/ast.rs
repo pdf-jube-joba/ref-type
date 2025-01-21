@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-pub mod parse;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeName(String);
 

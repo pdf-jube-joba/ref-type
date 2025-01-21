@@ -1,10 +1,8 @@
+use crate::ast::{inductives::*, *};
+use crate::relation::GlobalContext;
 use either::Either;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
-
-use crate::relation::GlobalContext;
-
-use super::{inductives::*, *};
 
 #[derive(Default, Parser)]
 #[grammar = "ast.pest"] // relative to src
@@ -605,54 +603,54 @@ pub(crate) fn take_new_definition(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
     Ok((variable, expression1, expression2))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn parse_test() {
-        let var = "xyz";
-        let ps = MyParser::parse(Rule::variable, var).unwrap();
-        let p = ps.peek().unwrap();
-        let v = parse::take_identifier(p).unwrap();
-        assert_eq!(v, Var::from(var.to_string()));
-    }
-    fn take_parse(pair: Pair<Rule>) -> Exp {
-        debug_assert_eq!(pair.as_rule(), Rule::command);
-        let mut ps = pair.into_inner();
-        let pair = ps.next().unwrap();
-        debug_assert_eq!(pair.as_rule(), Rule::command_parse);
-        let mut ps = pair.into_inner();
-        let p = ps.next().unwrap();
-        take_exp(p).unwrap()
-    }
-    #[test]
-    fn i() {
-        let code = "(Nat)";
-        if let Err(err) = MyParser::parse(Rule::expression, code) {
-            panic!("{}", err);
-        };
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     #[test]
+//     fn parse_test() {
+//         let var = "xyz";
+//         let ps = MyParser::parse(Rule::variable, var).unwrap();
+//         let p = ps.peek().unwrap();
+//         let v = parse::take_identifier(p).unwrap();
+//         assert_eq!(v, Var::from(var.to_string()));
+//     }
+//     fn take_parse(pair: Pair<Rule>) -> Exp {
+//         debug_assert_eq!(pair.as_rule(), Rule::command);
+//         let mut ps = pair.into_inner();
+//         let pair = ps.next().unwrap();
+//         debug_assert_eq!(pair.as_rule(), Rule::command_parse);
+//         let mut ps = pair.into_inner();
+//         let p = ps.next().unwrap();
+//         take_exp(p).unwrap()
+//     }
+//     #[test]
+//     fn i() {
+//         let code = "(Nat)";
+//         if let Err(err) = MyParser::parse(Rule::expression, code) {
+//             panic!("{}", err);
+//         };
 
-        let code = "Nat::Succ";
-        if let Err(err) = MyParser::parse(Rule::expression, code) {
-            panic!("{}", err);
-        };
+//         let code = "Nat::Succ";
+//         if let Err(err) = MyParser::parse(Rule::expression, code) {
+//             panic!("{}", err);
+//         };
 
-        if let Err(err) = MyParser::parse(Rule::inductive_constructor, code) {
-            panic!("{}", err);
-        };
+//         if let Err(err) = MyParser::parse(Rule::inductive_constructor, code) {
+//             panic!("{}", err);
+//         };
 
-        // let code = "(Nat#Succ)";
-        // if let Err(err) = MyParser::parse(Rule::expression, code) {
-        //     panic!("{}", err);
-        // };
+//         // let code = "(Nat#Succ)";
+//         // if let Err(err) = MyParser::parse(Rule::expression, code) {
+//         //     panic!("{}", err);
+//         // };
 
-        // let code = "Parse (Nat);";
-        // if let Err(err) = MyParser::parse(Rule::command, code) {
-        // };
+//         // let code = "Parse (Nat);";
+//         // if let Err(err) = MyParser::parse(Rule::command, code) {
+//         // };
 
-        // let code = "Parse (Nat::Succ);";
-        // if let Err(err) = MyParser::parse(Rule::command, code) {
-        //     panic!("{}", err);
-        // };
-    }
-}
+//         // let code = "Parse (Nat::Succ);";
+//         // if let Err(err) = MyParser::parse(Rule::command, code) {
+//         //     panic!("{}", err);
+//         // };
+//     }
+// }

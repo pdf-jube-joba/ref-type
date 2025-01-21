@@ -3,3 +3,4 @@ pub mod lambda_calculus;
 pub mod relation;
 #[cfg(test)]
 pub mod tests;
+pub mod parse;
