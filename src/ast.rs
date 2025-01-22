@@ -180,6 +180,13 @@ pub mod utils {
         }};
     }
 
+    #[macro_export]
+    macro_rules! sort_set {
+        () => {
+            Exp::Sort(Sort::Set)
+        };
+    }
+
     // (a v[0] ... v[k])
     pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
         for v in v {
@@ -266,6 +273,7 @@ pub mod utils {
                     Box::new(Exp::Var("c".into()))
                 )
             );
+
         }
     }
 }
