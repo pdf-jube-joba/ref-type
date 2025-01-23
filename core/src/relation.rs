@@ -426,12 +426,12 @@ pub enum DerivationLabel {
     ProdIntro,
     ProdElim,
     Proof,
-    PowerSetForm,
-    PowerSetWeak,
-    SubsetForm,
-    SubsetIntro,
-    SubsetElimSet,
-    SubsetElimProp,
+    PowerSetForm,   // A: SET => Pow(A): SET
+    PowerSetWeak,   // A: Pow(B) => A: SET
+    SubsetForm,     // {x: A | P}: SET
+    SubsetIntro,    // t: A, B: Pow(A), Pred(A, B) t => t: B
+    SubsetElimSet,  // t: B, B: Pow(A) => t: A
+    SubsetElimProp, // t: B, B:Pow(A) => Pred(A, B) t
     PredForm,
     IndForm,
     IndIntro,
@@ -628,7 +628,7 @@ pub fn type_check(
             }
         };
         let infered_term = der_tree_infered.of_type().clone();
-        match Condition::convertible(gcxt, expected, infered_term) {
+        match Condition::convertible(gcxt, expected.clone(), infered_term.clone()) {
             Ok(cond) => {
                 return Ok(PartialDerivationTreeTypeCheck {
                     head,
@@ -638,12 +638,82 @@ pub fn type_check(
                 })
             }
             Err(err) => {
-                return Err(DerivationFailed {
-                    head: FailHead::CheckFail(head),
+                // infered ->* Pow(T), expected ->* SET な場合はここで処理
+
+                // G |- t |> infered, infered ->* Pow(T) ?
+                let (cond_pow, pow) = match Condition::reduce_to_pow(gcxt, infered_term) {
+                    Ok(ok) => ok,
+                    Err(err) => {
+                        return Err(DerivationFailed {
+                            head: FailHead::CheckFail(head),
+                            label: DerivationLabel::Conv,
+                            child: vec![der_tree.into(), der_tree_infered.clone().into()],
+                            extra,
+                            err: err.into(),
+                        });
+                    }
+                };
+                // tree of G |- t |> Pow(T)
+                let pow_derived_tree = PartialDerivationTreeTypeCheck {
+                    head: TypeCheckJudgement {
+                        context: cxt.clone(),
+                        term: term1.clone(),
+                        type_of_term: Exp::Pow(Box::new(pow)),
+                    },
                     label: DerivationLabel::Conv,
-                    child: vec![der_tree.into(), der_tree_infered.into()],
-                    extra,
-                    err: err.into(),
+                    child: vec![der_tree_infered.clone().into(), cond_pow.into()],
+                    extra: vec![],
+                };
+
+                // tree of G |- t |> SET
+                let set_derived_tree = PartialDerivationTreeTypeCheck {
+                    head: TypeCheckJudgement {
+                        context: cxt.clone(),
+                        term: term1.clone(),
+                        type_of_term: Sort::Set.into(),
+                    },
+                    label: DerivationLabel::PowerSetWeak,
+                    child: vec![pow_derived_tree.into()],
+                    extra: vec![],
+                };
+
+                // tree of G |- expected |>_sort some sort
+                let (der_tree_expected_sort, sort) =
+                    match type_infered_to_sort(gcxt, cxt.clone(), expected.clone()) {
+                        Ok(ok) => ok,
+                        Err(err) => {
+                            extra.push(ExtraInfo::GeneratedBy(format!(
+                                "sort of expected: {expected}not found"
+                            )));
+                            return Err(DerivationFailed {
+                                head: FailHead::CheckFail(head),
+                                label: DerivationLabel::Conv,
+                                child: vec![der_tree.into(), der_tree_infered.clone().into()],
+                                extra,
+                                err: err.into(),
+                            });
+                        }
+                    };
+
+                let cond_sort = match Condition::reduce_to_sort(gcxt, expected.clone()) {
+                    Ok((cond, Sort::Set)) => cond,
+                    Ok(_) => todo!(),
+                    Err(err) => {
+                        return Err(DerivationFailed {
+                            head: FailHead::CheckFail(head),
+                            label: DerivationLabel::Conv,
+                            child: vec![der_tree.into(), der_tree_infered.into()],
+                            extra: vec![],
+                            err: err.into(),
+                        });
+                    }
+                };
+
+                return Ok(PartialDerivationTreeTypeCheck {
+                    head,
+                    label: DerivationLabel::Conv,
+                    child: vec![cond_sort.into(), der_tree_expected_sort.into()],
+                    extra: vec![],
                 });
             }
         }
@@ -733,7 +803,7 @@ pub fn type_check(
             head,
             label: DerivationLabel::Conv,
             child: vec![der_tree_weak_infered.into(), der_tree.into(), cond.into()],
-            extra: vec![ExtraInfo::GeneratedBy("".into())],
+            extra: vec![ExtraInfo::GeneratedBy("weakning".into())],
         }),
         Err(err) => Err(DerivationFailed {
             head: FailHead::CheckFail(head),
@@ -752,7 +822,7 @@ pub fn type_infered_to_sort(
     term: Exp,
 ) -> Result<(PartialDerivationTreeTypeCheck, Sort), DerivationFailed> {
     let mut child = vec![];
-    let mut extra = vec![ExtraInfo::GeneratedBy(format!("infered to sort {term}"))];
+    let mut extra = vec![ExtraInfo::GeneratedBy(format!("infer sort of {term}"))];
 
     let der_tree_infered = match type_infer(gcxt, cxt.clone(), term.clone()) {
         Ok(der_tree_check) => der_tree_check,
@@ -1657,7 +1727,7 @@ pub mod printing {
             child,
             extra,
         } = tree;
-        v.push(format!("{}{head}({label})", indent_size(indent)));
+        v.push(format!("{}{head}({})", indent_size(indent), format!("{label}").green()));
         for e in extra {
             match e {
                 ExtraInfo::GeneratedBy(string) => {
