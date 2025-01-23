@@ -1,5 +1,6 @@
+use std::fmt::Display;
+
 use crate::ast::{inductives::*, *};
-use crate::relation::GlobalContext;
 use either::Either;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -11,9 +12,20 @@ pub use parse_command::{
     Command, NewCommand,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
     Parse(Box<error::Error<Rule>>),
     Other(String),
+}
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ParserError::Parse(error) => format!("{error}"),
+            ParserError::Other(err) => format!("{err}"),
+        };
+        write!(f, "{}", s)
+    }
 }
 
 impl From<Box<error::Error<Rule>>> for ParserError {
@@ -48,7 +60,7 @@ impl MyParser {
     pub fn parse_command(
         &mut self,
         code: &str,
-    ) -> Result<Either<Command, NewCommand>, ParserError> {
+    ) -> Result<(Either<Command, NewCommand>, bool), ParserError> {
         let mut p = MyParser::parse(Rule::command, code)?;
         let e = parse_command::take_command(p.next().unwrap())?;
         Ok(e)
@@ -194,7 +206,7 @@ mod parse_exp {
                 let matched = take_expression(p.next().unwrap())?;
                 let return_type = take_expression(p.next().unwrap())?;
                 let mut cases = vec![];
-                while p.next().is_some() {
+                while p.peek().is_some() {
                     let name = take_name(p.next().unwrap())?;
                     let exp = take_expression(p.next().unwrap())?;
                     cases.push((name.into(), exp));
@@ -216,7 +228,11 @@ mod parse_exp {
         let mut ps = pair.into_inner();
         let v = {
             let p = ps.next().unwrap();
-            take_variable(p)?
+            if p.as_rule() == Rule::unused_variable {
+                Var::Unused
+            } else {
+                take_variable(p)?
+            }
         };
 
         let e = {
@@ -275,6 +291,8 @@ mod parse_exp {
             MyParser::parse(Rule::COMMENT, "/* a1 */").unwrap();
             parse("a1 /* */ a2").unwrap();
             parse("a1 /*a**b**/ a2").unwrap();
+            let e = parse("/* */ x /* test test ; */").unwrap();
+            println!("{e}")
         }
     }
 }
@@ -307,69 +325,79 @@ mod parse_command {
         Inductive(InductiveDefinitionsSyntax),
     }
 
-    pub(crate) fn take_command(pair: Pair<Rule>) -> Res<Either<Command, NewCommand>> {
+    pub(crate) fn take_command(pair: Pair<Rule>) -> Res<(Either<Command, NewCommand>, bool)> {
         debug_assert_eq!(pair.as_rule(), Rule::command);
-        let pair = pair.into_inner().peek().unwrap();
-        match pair.as_rule() {
+        let mut ps = pair.into_inner();
+        let b = {
+            if ps.peek().unwrap().as_rule() == Rule::FAIL {
+                ps.next().unwrap();
+                false
+            } else {
+                true
+            }
+        };
+        let pair = ps.next().unwrap();
+        let cmd = match pair.as_rule() {
             Rule::command_parse => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::Parse(e)))
+                Either::Left(Command::Parse(e))
             }
             Rule::command_check => {
                 let mut ps = pair.into_inner();
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::Check(e1, e2)))
+                Either::Left(Command::Check(e1, e2))
             }
             Rule::command_infer => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::Infer(e)))
+                Either::Left(Command::Infer(e))
             }
             Rule::command_subst => {
                 let mut ps = pair.into_inner();
                 let e1 = take_expression(ps.next().unwrap())?;
                 let x = take_variable(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::Subst(e1, x, e2)))
+                Either::Left(Command::Subst(e1, x, e2))
             }
             Rule::command_alpha_eq => {
                 let mut ps = pair.into_inner();
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::AlphaEq(e1, e2)))
+                Either::Left(Command::AlphaEq(e1, e2))
             }
             Rule::command_top_reduction => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::TopReduce(e)))
+                Either::Left(Command::TopReduce(e))
             }
             Rule::command_normalize => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::Normalize(e)))
+                Either::Left(Command::Normalize(e))
             }
             Rule::command_beta_equiv => {
                 let mut ps = pair.into_inner();
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(Either::Left(Command::BetaEq(e1, e2)))
+                Either::Left(Command::BetaEq(e1, e2))
             }
             Rule::new_definition => {
                 let a = take_new_definition(pair)?;
-                Ok(Either::Right(NewCommand::Definition(a.0, a.1, a.2)))
+                Either::Right(NewCommand::Definition(a.0, a.1, a.2))
             }
             Rule::new_assumption => {
                 let a = take_new_assumption(pair)?;
-                Ok(Either::Right(NewCommand::Assumption(a.0, a.1)))
+                Either::Right(NewCommand::Assumption(a.0, a.1))
             }
             Rule::new_inductive => {
                 let a = take_new_inductive(pair)?;
-                Ok(Either::Right(NewCommand::Inductive(a)))
+                Either::Right(NewCommand::Inductive(a))
             }
             _ => todo!("command not defined"),
-        }
+        };
+        Ok((cmd, b))
     }
 
     pub(crate) fn take_new_assumption(pair: Pair<Rule>) -> Res<(Var, Exp)> {
@@ -417,6 +445,7 @@ mod parse_command {
 
     pub mod new_inductive_type_definition {
         use parse_command::parse_exp::{take_name, take_sort};
+        use parse_exp::take_small;
 
         use super::*;
 
@@ -427,10 +456,58 @@ mod parse_command {
             constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
         }
 
+        impl Display for InductiveDefinitionsSyntax {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let InductiveDefinitionsSyntax {
+                    type_name,
+                    arity,
+                    constructors,
+                } = self;
+                writeln!(f, "name: {type_name}")?;
+                writeln!(
+                    f,
+                    "arity: {}",
+                    utils::assoc_prod(arity.0.clone(), arity.1.into())
+                )?;
+                for (csname, params, end) in constructors {
+                    write!(f, "constructor({csname}):")?;
+                    for param in params {
+                        write!(f, " {} ->", param)?;
+                    }
+                    writeln!(
+                        f,
+                        " {}",
+                        utils::assoc_apply(end[0].clone(), end[1..].to_owned())
+                    )?;
+                }
+                Ok(())
+            }
+        }
+
         #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum ParamCstSyntax {
             Positive((Vec<(Var, Exp)>, Vec<Exp>)),
             Simple((Var, Exp)),
+        }
+
+        impl Display for ParamCstSyntax {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let s = match self {
+                    ParamCstSyntax::Positive((params, end)) => {
+                        format!(
+                            "Pos({})",
+                            utils::assoc_prod(
+                                params.clone(),
+                                utils::assoc_apply(end[0].clone(), end[1..].to_owned())
+                            )
+                        )
+                    }
+                    ParamCstSyntax::Simple(param) => {
+                        format!("Sim({}: {})", param.0, param.1)
+                    }
+                };
+                write!(f, "{}", s)
+            }
         }
 
         pub(crate) fn take_arity(pair: Pair<Rule>) -> Res<(Vec<(Var, Exp)>, Sort)> {
@@ -478,11 +555,11 @@ mod parse_command {
         }
 
         pub(crate) fn take_simple(pair: Pair<Rule>) -> Res<(Var, Exp)> {
-            debug_assert!(matches!(pair.as_rule(), Rule::var_annot | Rule::expression));
+            debug_assert!(matches!(pair.as_rule(), Rule::var_annot | Rule::small));
             match pair.as_rule() {
                 Rule::var_annot => take_var_annnot(pair),
-                Rule::expression => {
-                    let e = take_expression(pair)?;
+                Rule::small => {
+                    let e = take_small(pair)?;
                     Ok((Var::Unused, e))
                 }
                 _ => unreachable!("take simple"),
@@ -498,7 +575,7 @@ mod parse_command {
             let mut params = vec![];
             for p in ps {
                 match p.as_rule() {
-                    Rule::var_annot | Rule::expression => {
+                    Rule::var_annot | Rule::small => {
                         let p = take_simple(p)?;
                         params.push(ParamCstSyntax::Simple(p));
                     }
@@ -542,14 +619,14 @@ mod parse_command {
 
             let mut cs_name_type = vec![];
 
-            for (cs_name, params, end) in constructors {
+            for (cs_name, params, mut end) in constructors {
                 let mut new_params = vec![];
 
                 for param in params {
                     let param = match param {
                         ParamCstSyntax::Positive((parameter, mut exps)) => {
                             if exps[0] != type_name_variable.clone().into() {
-                                return Err(format!("{exps:?} "));
+                                return Err(format!("type name mismatch in param:{exps:?} "));
                             }
                             exps.remove(0);
                             let positive =
@@ -560,6 +637,11 @@ mod parse_command {
                     };
                     new_params.push(param)
                 }
+
+                if end[0] != type_name_variable.clone().into() {
+                    return Err(format!("type name mismatch in end: {end:?}"));
+                }
+                end.remove(0);
 
                 let cstype = ConstructorType::new_constructor(
                     (type_name_variable.clone(), end),

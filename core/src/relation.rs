@@ -19,32 +19,38 @@ pub struct ResIndDefs {
         Option<Vec<Result<PartialDerivationTreeTypeCheck, DerivationFailed>>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResIndDefsError {
+    AlreadyDefinedType,
+    ArityNotWellformed(DerivationFailed),
+    ConstructorNotWellFormed(Vec<Result<PartialDerivationTreeTypeCheck, DerivationFailed>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResIndDefsOk {
+    pub arity_well_formed: PartialDerivationTreeTypeCheck,
+    pub constructor_wellformed: Vec<PartialDerivationTreeTypeCheck>,
+}
+
 impl GlobalContext {
-    pub fn push_new_ind(&mut self, defs: inductives::IndTypeDefs) -> ResIndDefs {
+    pub fn push_new_ind(
+        &mut self,
+        defs: inductives::IndTypeDefs,
+    ) -> Result<ResIndDefsOk, ResIndDefsError> {
         if self
             .inductive_definitions
             .iter()
             .any(|inddefs| inddefs.name() == defs.name())
         {
-            return ResIndDefs {
-                single: false,
-                arity_well_formed: None,
-                constructor_well_formed: None,
-            };
+            return Err(ResIndDefsError::AlreadyDefinedType);
         }
 
         // arity の well defined
         let arity_exp: Exp = defs.arity().clone().into();
         let arity_well_formed = match type_infered_to_sort(self, LocalContext::default(), arity_exp)
         {
-            Ok((der_tree, sort)) => Ok(der_tree),
-            Err(err) => {
-                return ResIndDefs {
-                    single: true,
-                    arity_well_formed: Some(Err(err)),
-                    constructor_well_formed: None,
-                }
-            }
+            Ok((der_tree, sort)) => der_tree,
+            Err(err) => return Err(ResIndDefsError::ArityNotWellformed(err)),
         };
 
         let mut constructor_well_formed = vec![];
@@ -68,15 +74,26 @@ impl GlobalContext {
             };
         }
 
-        if flag {
+        if !flag {
+            Err(ResIndDefsError::ConstructorNotWellFormed(
+                constructor_well_formed,
+            ))
+        } else {
             self.inductive_definitions.push(defs);
+            Ok(ResIndDefsOk {
+                arity_well_formed,
+                constructor_wellformed: constructor_well_formed
+                    .into_iter()
+                    .map(|res| res.unwrap())
+                    .collect(),
+            })
         }
 
-        ResIndDefs {
-            single: true,
-            arity_well_formed: Some(arity_well_formed),
-            constructor_well_formed: Some(constructor_well_formed),
-        }
+        // ResIndDefs {
+        //     single: true,
+        //     arity_well_formed: Some(arity_well_formed),
+        //     constructor_well_formed: Some(constructor_well_formed),
+        // }
     }
 
     pub fn push_new_defs(
@@ -1473,11 +1490,11 @@ pub mod printing {
         } = tree;
         match head {
             FailHead::InferFail(cxt, term) => {
-                let colered = format!("!{cxt} |- {term}",).red();
+                let colered = format!("!{cxt} |- {term}",).bright_red();
                 v.push(format!("{}{colered}({label})", indent_size(indent)));
             }
             FailHead::CheckFail(judgement) => {
-                let colered = format!("!{judgement}",).red();
+                let colered = format!("!{judgement}",).bright_red();
                 v.push(format!("{}{colered}({label})", indent_size(indent)));
             }
         }
@@ -1499,7 +1516,7 @@ pub mod printing {
         }
         match err {
             ErrInfo::ErrOnCondition(err_cond) => {
-                let colered = format!("{}", err_cond.err).red();
+                let colered = format!("{}", err_cond.err).bright_red();
                 v.push(format!("{}{colered}", indent_size(indent + 1)))
             }
             ErrInfo::ErrOnTree(tree) => {
