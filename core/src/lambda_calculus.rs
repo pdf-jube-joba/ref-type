@@ -1,11 +1,6 @@
 use crate::{ast::*, relation::*};
 use std::collections::HashSet;
 
-// 定義されていない型、存在しないコンストラクタ、網羅性のないパターンマッチなどをはじく
-pub fn well_defined_inductives(gcxt: &GlobalContext, term: &Exp) -> Result<(), String> {
-    todo!()
-}
-
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
     match term1 {
         Exp::Sort(_) => term1,
@@ -98,23 +93,28 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
             }
             v1 == v2
         }
+        (Exp::Var(_), _) => false,
         (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
+        (Exp::Sort(_), _) => false,
         (Exp::App(m1, n1), Exp::App(m2, n2)) => {
             alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone())
                 && alpha_eq_rec(n1.as_ref(), n2.as_ref(), bd.clone())
         }
+        (Exp::App(_, _), _) => false,
         (Exp::Prod(x1, m1, n1), Exp::Prod(x2, m2, n2)) => {
             alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
                 bd.push((x1.clone(), x2.clone()));
                 alpha_eq_rec(n1, n2, bd)
             }
         }
+        (Exp::Prod(_, _, _), _) => false,
         (Exp::Lam(x1, m1, n1), Exp::Lam(x2, m2, n2)) => {
             alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
                 bd.push((x1.clone(), x2.clone()));
                 alpha_eq_rec(n1, n2, bd)
             }
         }
+        (Exp::Lam(_, _, _), _) => false,
         (
             Exp::IndTypeType {
                 ind_type_name: ind_type_1,
@@ -123,6 +123,7 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
                 ind_type_name: ind_type_2,
             },
         ) => ind_type_1 == ind_type_2,
+        (Exp::IndTypeType { ind_type_name: _ }, _) => false,
         (
             Exp::IndTypeCst {
                 ind_type_name: ind_type_name1,
@@ -133,6 +134,13 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
                 constructor_name: constructor_name2,
             },
         ) => ind_type_name1 == ind_type_name2 && constructor_name1 == constructor_name2,
+        (
+            Exp::IndTypeCst {
+                ind_type_name: _,
+                constructor_name: _,
+            },
+            _,
+        ) => false,
         (
             Exp::IndTypeElim {
                 ind_type_name: ind_type_name1,
@@ -156,7 +164,30 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
                     .zip(cases2.iter())
                     .all(|(e1, e2)| e1.0 == e2.0 && alpha_eq_rec(&e1.1, &e2.1, bd.clone()))
         }
-        _ => false,
+        (
+            Exp::IndTypeElim {
+                ind_type_name: _,
+                eliminated_exp: _,
+                return_type: _,
+                cases: _,
+            },
+            _,
+        ) => false,
+        (Exp::Proof(t), Exp::Proof(t2)) => alpha_eq_rec(t, t2, bd),
+        (Exp::Proof(_), _) => false,
+        (Exp::Pow(a1), Exp::Pow(a2)) => alpha_eq_rec(a1, a2, bd),
+        (Exp::Pow(_), _) => false,
+        (Exp::Sub(x1, m1, n1), Exp::Sub(x2, m2, n2)) => {
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+                bd.push((x1.clone(), x2.clone()));
+                alpha_eq_rec(n1, n2, bd)
+            }
+        }
+        (Exp::Sub(_, _, _), _) => false,
+        (Exp::Pred(a, b), Exp::Pred(a2, b2)) => {
+            alpha_eq_rec(a, a2, bd.clone()) && alpha_eq_rec(b, b2, bd)
+        }
+        (Exp::Pred(_, _), _) => false,
     }
 }
 
@@ -298,6 +329,20 @@ pub fn reduce(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
         }
         Exp::Proof(t) => Some(Exp::Proof(Box::new(reduce(gcxt, *t)?))),
         Exp::Pow(a) => Some(Exp::Pow(Box::new(reduce(gcxt, *a)?))),
+        Exp::Sub(x, a, p) => {
+            if let Some(a) = reduce(gcxt, *a.clone()) {
+                Some(Exp::Sub(x, Box::new(a), p))
+            } else {
+                Some(Exp::Sub(x, a, Box::new(reduce(gcxt, *p)?)))
+            }
+        }
+        Exp::Pred(a, b) => {
+            if let Some(a) = reduce(gcxt, *a.clone()) {
+                Some(Exp::Pred(Box::new(a), b))
+            } else {
+                Some(Exp::Pred(a, Box::new(reduce(gcxt, *b)?)))
+            }
+        }
         _ => todo!(),
     }
 }

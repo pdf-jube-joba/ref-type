@@ -78,8 +78,12 @@ mod parse_exp {
         let sort = match p.as_rule() {
             Rule::sort_set => Sort::Set,
             Rule::sort_prop => Sort::Prop,
-            Rule::sort_univ => Sort::Univ,
             Rule::sort_type => Sort::Type,
+            Rule::sort_univ => {
+                let p = p.into_inner().next().unwrap();
+                let n: usize = p.as_str().parse().unwrap();
+                Sort::Univ(n)
+            }
             _ => unreachable!("sort の中に変なのがある"),
         };
         Ok(sort)

@@ -97,10 +97,10 @@ impl Display for Exp {
                         .fold(String::new(), |s, (c, e)| { format!("{s} | {c} => {e} ") }),
                 )
             }
-            Exp::Proof(t) => format!("Proof {t}"),
-            Exp::Sub(x, a, p) => format!("{{ {x}: {a}: {p} }}"),
+            Exp::Proof(t) => format!("Proof({t})"),
+            Exp::Sub(x, a, p) => format!("{{ {x}: {a} | {p} }}"),
             Exp::Pow(a) => format!("Power({a})"),
-            Exp::Pred(a, b) => format!("Pred {a} {b}"),
+            Exp::Pred(a, b) => format!("Pred({a}, {b})"),
             // Exp::Id(t, a, b) => format!("Id({t}) {a} = {b}"),
             // Exp::Refl(t, a) => format!("Refl({t}) {a}"),
             // Exp::Take(x, m, t) => format!("take {x}:{m}. {t}"),
@@ -381,7 +381,7 @@ impl Display for Var {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
-    Univ, // universe
+    Univ(usize), // universe SET, PROP, TYPE: UNIV(0): UNIV(1)
     Set,
     Prop,
     Type, // for program
@@ -390,10 +390,10 @@ pub enum Sort {
 impl Display for Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Sort::Univ => "UNIV",
-            Sort::Set => "SET",
-            Sort::Prop => "PROP",
-            Sort::Type => "TYPE",
+            Sort::Univ(i) => format!("UNIV({i})"),
+            Sort::Set => "SET".to_string(),
+            Sort::Prop => "PROP".to_string(),
+            Sort::Type => "TYPE".to_string(),
         };
         write!(f, "{}", s)
     }
@@ -409,11 +409,12 @@ impl From<Sort> for Exp {
 impl Sort {
     // functional なので、
     // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
-    pub fn type_of_sort(self) -> Option<Self> {
-        if matches!(self, Sort::Prop | Sort::Set | Sort::Type) {
-            Some(Sort::Univ)
-        } else {
-            None
+    pub fn type_of_sort(self) -> Self {
+        match self {
+            Sort::Univ(i) => Sort::Univ(i + 1),
+            Sort::Set => Sort::Univ(0),
+            Sort::Prop => Sort::Univ(0),
+            Sort::Type => Sort::Univ(0),
         }
     }
 
@@ -423,31 +424,32 @@ impl Sort {
         match (self, other) {
             // CoC 部分
             (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Univ, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Univ(i1), Sort::Univ(i2)) => Some(Sort::Univ(std::cmp::max(i1, i2))),
+            (Sort::Univ(_), Sort::Prop) => Some(Sort::Prop),
+            (Sort::Prop, Sort::Univ(i)) => Some(Sort::Univ(i)),
             // Set を入れる部分
             (Sort::Set, Sort::Set) => Some(Sort::Set),
-            (Sort::Set, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Set, Sort::Univ(i)) => Some(Sort::Univ(i)),
             (Sort::Set, Sort::Prop) => Some(Sort::Prop),
             (Sort::Prop, Sort::Set) => None,
-            (Sort::Univ, Sort::Set) => None, // Set は predicative
+            (Sort::Univ(_), Sort::Set) => None, // Set は predicative
             // Type を入れる部分
             (Sort::Type, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Type) => Some(Sort::Type),
+            (Sort::Type, Sort::Univ(i)) => Some(Sort::Univ(i)),
+            (Sort::Univ(_), Sort::Type) => Some(Sort::Type),
             (Sort::Type, _) => None,
             (_, Sort::Type) => None,
+            // Univ 用
         }
     }
 
     // elimination の制限用
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
-            (Sort::Univ | Sort::Set | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
-            (Sort::Univ | Sort::Set | Sort::Type | Sort::Prop, Sort::Univ) => Some(()),
-            (Sort::Univ | Sort::Set, Sort::Set) => Some(()),
-            (Sort::Univ | Sort::Type, Sort::Type) => Some(()),
+            (Sort::Univ(_) | Sort::Set | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
+            (Sort::Set | Sort::Type | Sort::Prop, Sort::Univ(_)) => Some(()),
+            (Sort::Univ(i1), Sort::Univ(i2)) if i1 == i2 => Some(()),
+            (Sort::Univ(_) | Sort::Type, Sort::Type) => Some(()),
             _ => None,
         }
     }
