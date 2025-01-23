@@ -6,7 +6,7 @@ use core::{
     ast::{self, inductives::IndTypeDefs, Exp, Sort},
     lambda_calculus::{self, subst},
     parse::{self, *},
-    relation::{self, printing, ResIndDefs, ResIndDefsOk},
+    relation::{self, printing, ResIndDefsOk},
 };
 
 fn succ_or_fail(succ_or_fail: bool, flag: bool) -> ColoredString {

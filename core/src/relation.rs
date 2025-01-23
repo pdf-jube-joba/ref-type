@@ -12,14 +12,6 @@ pub struct GlobalContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResIndDefs {
-    pub single: bool,
-    pub arity_well_formed: Option<Result<PartialDerivationTreeTypeCheck, DerivationFailed>>,
-    pub constructor_well_formed:
-        Option<Vec<Result<PartialDerivationTreeTypeCheck, DerivationFailed>>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResIndDefsError {
     AlreadyDefinedType,
     ArityNotWellformed(DerivationFailed),
