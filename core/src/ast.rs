@@ -110,6 +110,13 @@ impl Display for Exp {
 }
 
 impl Exp {
+    pub fn is_sort(&self) -> Option<Sort> {
+        if let Exp::Sort(s) = self {
+            Some(*s)
+        } else {
+            None
+        }
+    }
     pub fn prod(var: Var, a: Exp, b: Exp) -> Self {
         Exp::Prod(var, Box::new(a), Box::new(b))
     }
@@ -273,7 +280,6 @@ pub mod utils {
                     Box::new(Exp::Var("c".into()))
                 )
             );
-
         }
     }
 }
