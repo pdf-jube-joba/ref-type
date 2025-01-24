@@ -508,6 +508,8 @@ pub enum DerChild {
     PartialDerivationTree(PartialDerivationTreeTypeCheck),
     Condition(Condition),
     NeedProve(ProvableJudgement),
+    Label(DerivationLabel),
+    Info(Either<ExtraInfo, ErrInfo>),
 }
 
 impl From<PartialDerivationTreeTypeCheck> for DerChild {
@@ -528,18 +530,73 @@ impl From<ProvableJudgement> for DerChild {
     }
 }
 
+impl From<DerivationLabel> for DerChild {
+    fn from(value: DerivationLabel) -> Self {
+        DerChild::Label(value)
+    }
+}
+
+impl From<ExtraInfo> for DerChild {
+    fn from(value: ExtraInfo) -> Self {
+        DerChild::Info(Either::Left(value))
+    }
+}
+
+impl From<ErrInfo> for DerChild {
+    fn from(value: ErrInfo) -> Self {
+        DerChild::Info(Either::Right(value))
+    }
+}
+
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct TreeBuilder {
+//     pub head: Either<TypeCheckJudgement, TypeUnSetted>,
+//     pub label: Option<DerivationLabel>,
+//     pub child: Vec<DerChild>,
+//     pub context: Vec<DerChild>,
+// }
+
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct TypeUnSetted {
+//     context: LocalContext,
+//     term: Exp,
+// }
+
+// impl TreeBuilder {
+//     fn build(self) -> Result<PartialDerivationTreeTypeCheck, String> {
+//         let TreeBuilder {
+//             head,
+//             label,
+//             child,
+//             context,
+//         } = self;
+//         let Some(label) = label else {
+//             return Err(format!("label is not setted"));
+//         };
+//         todo!()
+//     }
+//     fn next(&mut self) {
+//         let label = self.label.take();
+//         let child: Vec<_> = self.child.drain(..).collect();
+//         self.context.push();
+//     }
+//     fn failed_tree(self) -> DerivationFailed {
+//         todo!()
+//     }
+// }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartialDerivationTreeTypeCheck {
     pub head: TypeCheckJudgement,
-    pub label: DerivationLabel,
-    pub child: Vec<DerChild>,
-    pub extra: Vec<ExtraInfo>,
+    pub info: Vec<DerChild>,
+    // pub child: Vec<DerChild>,
+    // pub extra: Vec<ExtraInfo>,
 }
 
 impl PartialDerivationTreeTypeCheck {
     pub fn get_goals(&self) -> Vec<ProvableJudgement> {
         let mut v = vec![];
-        for der_child in &self.child {
+        for der_child in &self.info {
             match der_child {
                 DerChild::PartialDerivationTree(partial_derivation_tree_type_check) => {
                     v.extend(partial_derivation_tree_type_check.get_goals());
@@ -548,6 +605,8 @@ impl PartialDerivationTreeTypeCheck {
                 DerChild::NeedProve(provable_judgement) => {
                     v.push(provable_judgement.clone());
                 }
+                DerChild::Label(_) => {}
+                DerChild::Info(_) => {}
             }
         }
         v
@@ -557,9 +616,19 @@ impl PartialDerivationTreeTypeCheck {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartialDerivationTreeProof {
     pub head: ProvableJudgement,
-    pub label: DerivationLabelProof,
-    pub child: Vec<DerChild>,
-    pub extra: Vec<ExtraInfo>,
+    pub info: Vec<DerChild>,
+    pub label: DerivationLabel,
+    // pub child: Vec<DerChild>,
+    // pub extra: Vec<ExtraInfo>,
+}
+
+impl PartialDerivationTreeProof {
+    fn add_child<T>(&mut self, t: T)
+    where
+        DerChild: From<T>,
+    {
+        self.info.push(t.into());
+    }
 }
 
 impl PartialDerivationTreeTypeCheck {
@@ -576,11 +645,12 @@ pub enum FailHead {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DerivationFailed {
-    head: FailHead,
-    label: DerivationLabel,
-    child: Vec<DerChild>,
-    err: ErrInfo,
-    extra: Vec<ExtraInfo>,
+    pub head: FailHead,
+    pub info: Vec<DerChild>,
+    // label: DerivationLabel,
+    // child: Vec<DerChild>,
+    // err: ErrInfo,
+    // extra: Vec<ExtraInfo>,
 }
 
 pub fn type_check(
@@ -594,26 +664,85 @@ pub fn type_check(
         term: term1.clone(),
         type_of_term: expected.clone(),
     };
-    let mut extra = vec![ExtraInfo::GeneratedBy(format!("infer {expected}"))];
+    let fail_head = FailHead::CheckFail(head.clone());
 
-    // get sort of cxt |- expected: |> sort
-    let (der_tree, sort) = match type_infered_to_sort(gcxt, cxt.clone(), expected.clone()) {
+    let mut info: Vec<DerChild> = vec![];
+    info.push(ExtraInfo::GeneratedBy(format!("infer {term1} |> {expected}")).into());
+
+    // get infered type of term1
+    let infered_tree = match type_infer(gcxt, cxt.clone(), term1) {
         Ok(ok) => ok,
-        Err(derivation_failed) => {
-            // 普通に expected = UNIV のような場合にはやばい
+        Err(err) => {
+            // term1 should infered
             return Err(DerivationFailed {
-                head: FailHead::CheckFail(head),
-                label: DerivationLabel::Conv,
-                child: vec![],
-                extra,
-                err: derivation_failed.into(),
+                head: fail_head,
+                info,
             });
         }
     };
 
+    // get infered sort of expected
+    let (sort_of_expected_tree, sort_of_expected) =
+        match type_infered_to_sort(gcxt, cxt.clone(), expected.clone()) {
+            Ok(ok) => ok,
+            Err(err) => {
+                // expected should have infered sort
+                return Err(DerivationFailed {
+                    head: fail_head,
+                    info,
+                });
+            }
+        };
+
+    // 1. if infered =^beta expected => OK (by Conv Rule)
+    let challenge_fail =
+        match Condition::convertible(gcxt, expected.clone(), infered_tree.of_type().clone()) {
+            Ok(cond) => {
+                // ok by conv
+                info.push(cond.into());
+                info.push(DerivationLabel::Conv.into());
+                return Ok(PartialDerivationTreeTypeCheck { head, info });
+            }
+            Err(err) => err,
+        };
+
+    info.push(ExtraInfo::OtherInfo(format!("convertible fail {challenge_fail:?}")).into());
+
+    // 2. if infered ->* Pow(A), expected ->* SET => Ok (by PowWeak)
+    let err = 'pow_weak: {
+        // 1. expected ->* SET challeng
+        let (cond_expected_set, sort) = match Condition::reduce_to_sort(gcxt, expected.clone()) {
+            Ok(cond) => cond,
+            Err(err) => {
+                break 'pow_weak ExtraInfo::OtherInfo(format!("expected ->*! sort {expected}"));
+            }
+        };
+        if sort != Sort::Set {
+            break 'pow_weak ExtraInfo::OtherInfo(format!("expected ->*! SET but {sort}"));
+        }
+
+        // 2. infered ->* Pow(A)
+        let (cond_infered_pow, pow) =
+            match Condition::reduce_to_pow(gcxt, infered_tree.of_type().clone()) {
+                Ok(ok) => ok,
+                Err(err) => {
+                    break 'pow_weak ExtraInfo::OtherInfo(format!("infered ->*! Pow"));
+                }
+            };
+
+        // ok by powersetweak
+        info.push(cond_expected_set.into());
+        info.push(cond_infered_pow.into());
+        info.push(DerivationLabel::PowerSetWeak.into());
+
+        return Ok(PartialDerivationTreeTypeCheck { head, info });
+    };
+
     // get infered type, check infered ~= expected, and return
-    if sort != Sort::Set {
-        extra.push(ExtraInfo::GeneratedBy(format!("sort not set but {sort}")));
+    if sort_of_expected != Sort::Set {
+        extra.push(ExtraInfo::GeneratedBy(format!(
+            "sort not set but {sort_of_expected}"
+        )));
         // get infered of cxt |- term1: infered
         let der_tree_infered = match type_infer(gcxt, cxt.clone(), term1.clone()) {
             Ok(ok) => ok,
@@ -628,6 +757,7 @@ pub fn type_check(
             }
         };
         let infered_term = der_tree_infered.of_type().clone();
+        println!("infered of term {infered_term}");
         match Condition::convertible(gcxt, expected.clone(), infered_term.clone()) {
             Ok(cond) => {
                 return Ok(PartialDerivationTreeTypeCheck {
@@ -713,7 +843,7 @@ pub fn type_check(
                     head,
                     label: DerivationLabel::Conv,
                     child: vec![cond_sort.into(), der_tree_expected_sort.into()],
-                    extra: vec![],
+                    extra,
                 });
             }
         }
