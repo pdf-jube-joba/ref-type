@@ -58,11 +58,11 @@ fn main() {
                 match tree {
                     Ok(der_tree) => {
                         println!("{}", succ_or_fail(true, flag));
-                        print!("{}", printing::print_tree_type_check(der_tree));
+                        printing::print_tree(&der_tree);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        print!("{}", printing::print_fail_tree(err));
+                        printing::print_fail_tree(&err);
                     }
                 }
             }
@@ -73,11 +73,11 @@ fn main() {
                         let head = tree.head.clone();
                         println!("{}", succ_or_fail(true, flag));
                         println!("{}", head);
-                        println!("{}", printing::print_tree_type_check(tree));
+                        printing::print_tree(&tree);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        println!("{}", printing::print_fail_tree(err))
+                        printing::print_fail_tree(&err)
                     }
                 };
             }
@@ -129,11 +129,11 @@ fn main() {
                     Ok((der_tree, sort)) => {
                         println!("{}", succ_or_fail(true, flag));
                         println!("sort {sort}");
-                        println!("{}", printing::print_tree_type_check(der_tree));
+                        printing::print_tree(&der_tree);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        println!("{}", printing::print_fail_tree(err));
+                        printing::print_fail_tree(&err);
                     }
                 }
             }
@@ -142,11 +142,11 @@ fn main() {
                 match gcxt.push_new_defs((x.clone(), a.clone(), t.clone())) {
                     Ok(der_tree) => {
                         println!("{}", succ_or_fail(true, flag));
-                        println!("{}", printing::print_tree_type_check(der_tree));
+                        printing::print_tree(&der_tree);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        println!("{}", printing::print_fail_tree(err));
+                        printing::print_fail_tree(&err);
                     }
                 }
             }
@@ -173,17 +173,15 @@ fn main() {
                                 "{} arity not well-formed: {arity}",
                                 succ_or_fail(false, flag)
                             );
-                            println!("{}", printing::print_fail_tree(tree));
+                            printing::print_fail_tree(&tree);
                         }
                         relation::ResIndDefsError::ConstructorNotWellFormed(cs) => {
                             println!("{} constructor well-formed", succ_or_fail(false, flag));
                             for c in cs {
                                 match c {
-                                    Ok(tree) => {
-                                        println!("{}", printing::print_tree_type_check(tree))
-                                    }
+                                    Ok(tree) => printing::print_tree(&tree),
                                     Err(tree) => {
-                                        println!("{}", printing::print_fail_tree(tree));
+                                        printing::print_fail_tree(&tree);
                                     }
                                 }
                             }
@@ -194,9 +192,9 @@ fn main() {
                         constructor_wellformed,
                     }) => {
                         println!("{} accepted", succ_or_fail(true, flag));
-                        println!("{}", printing::print_tree_type_check(arity_well_formed));
+                        printing::print_tree(&arity_well_formed);
                         for c in constructor_wellformed {
-                            println!("{}", printing::print_tree_type_check(c));
+                            printing::print_tree(&c);
                         }
                     }
                 };
