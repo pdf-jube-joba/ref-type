@@ -1588,110 +1588,91 @@ pub fn proof_tree(
     todo!()
 }
 
-// pub mod printing {
-//     use super::*;
-//     use colored::Colorize;
-//     use termtree::Tree;
+pub mod printing {
+    use super::*;
+    use colored::Colorize;
+    use termtree::Tree;
 
-//     #[derive(Debug, Clone, PartialEq, Eq)]
-//     enum Node {
-//         TypeCheckJudgement(TypeCheckJudgement, DerivationLabel),
-//         ProvableJudgement(ProvableJudgement),
-//         Condition(Condition),
-//         Fail(FailHead, DerivationLabel),
-//         ErrCond(ErrOnCondition),
-//         // ExtraInfo(ExtraInfo),
-//     }
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum Node {
+        TypeCheckJudgement(TypeCheckJudgement),
+        Label(DerivationLabel),
+        ProvableJudgement(ProvableJudgement),
+        Condition(Condition),
+        Fail(FailHead),
+        ErrCond(ErrOnCondition),
+        ContextInfo(String),
+    }
 
-//     fn error_string(s: String) -> String {
-//         format!("{}", s.red())
-//     }
+    fn error_string(s: String) -> String {
+        format!("{}", s.red())
+    }
 
-//     impl Display for Node {
-//         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//             let s: String = match self {
-//                 Node::TypeCheckJudgement(type_check_judgement, label) => {
-//                     format!("{type_check_judgement} ({})", format!("{label}").green())
-//                 }
-//                 Node::ProvableJudgement(provable_judgement) => format!("{provable_judgement}"),
-//                 Node::Condition(condition) => format!("{condition}"),
-//                 Node::Fail(fail_head, label) => match fail_head {
-//                     FailHead::InferFail(local_context, exp) => {
-//                         error_string(format!("!{local_context} {exp} ({label})"))
-//                     }
-//                     FailHead::CheckFail(type_check_judgement) => {
-//                         error_string(format!("{type_check_judgement} {label}"))
-//                     }
-//                 },
-//                 Node::ErrCond(err) => error_string(err.err.clone()),
-//                 Node::ExtraInfo(extra_info) => format!("{extra_info:?}"),
-//             };
-//             write!(f, "{s}")
-//         }
-//     }
+    impl Display for Node {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let s: String = match self {
+                Node::TypeCheckJudgement(type_check_judgement) => {
+                    format!("{type_check_judgement}")
+                }
+                Node::Label(label) => {
+                    format!("{}", format!("{label}").green())
+                }
+                Node::ProvableJudgement(provable_judgement) => format!("{provable_judgement}"),
+                Node::Condition(condition) => format!("{condition}"),
+                Node::Fail(fail_head) => match fail_head {
+                    FailHead::InferFail(local_context, exp) => {
+                        error_string(format!("!{local_context} |- {exp}: !"))
+                    }
+                    FailHead::CheckFail(type_check_judgement) => {
+                        error_string(format!("{type_check_judgement}"))
+                    }
+                },
+                Node::ErrCond(err) => error_string(err.err.clone()),
+                Node::ContextInfo(extra_info) => format!("{extra_info:?}"),
+            };
+            write!(f, "{s}")
+        }
+    }
 
-//     fn tree_partial_derivation_tree(tree: &PartialDerivationTreeTypeCheck) -> Tree<Node> {
-//         let PartialDerivationTreeTypeCheck {
-//             head,
-//             label,
-//             child,
-//             extra,
-//         } = tree;
-//         let mut tree = Tree::new(Node::TypeCheckJudgement(head.clone(), label.clone()));
-//         tree.extend(child.iter().map(|child| match child {
-//             DerChild::PartialDerivationTree(partial_derivation_tree_type_check) => {
-//                 tree_partial_derivation_tree(partial_derivation_tree_type_check)
-//             }
-//             DerChild::Condition(condition) => Tree::new(Node::Condition(condition.clone())),
-//             DerChild::NeedProve(provable_judgement) => {
-//                 Tree::new(Node::ProvableJudgement(provable_judgement.clone()))
-//             }
-//         }));
-//         tree.extend(
-//             extra
-//                 .iter()
-//                 .map(|extra| Tree::new(Node::ExtraInfo(extra.clone()))),
-//         );
-//         tree
-//     }
+    fn node_to_tree(node: &DerChild) -> Tree<Node> {
+        match node {
+            DerChild::PartialDerivationTree(partial_derivation_tree_type_check) => {
+                tree_partial_derivation_tree(partial_derivation_tree_type_check)
+            }
+            DerChild::Label(label) => Tree::new(Node::Label(label.clone())),
+            DerChild::Condition(condition) => Tree::new(Node::Condition(condition.clone())),
+            DerChild::NeedProve(provable_judgement) => {
+                Tree::new(Node::ProvableJudgement(provable_judgement.clone()))
+            }
+            DerChild::Info(info) => match info {
+                Info::Context(context) => Tree::new(Node::ContextInfo(context.clone())),
+                Info::ErrCond(err_on_condition) => {
+                    Tree::new(Node::ErrCond(err_on_condition.clone()))
+                }
+                Info::ErrDer(derivation_failed) => tree_fail_tree(&derivation_failed),
+            },
+        }
+    }
 
-//     pub fn print_tree(tree: &PartialDerivationTreeTypeCheck) {
-//         println!("{}", tree_partial_derivation_tree(tree))
-//     }
+    fn tree_partial_derivation_tree(tree: &PartialDerivationTreeTypeCheck) -> Tree<Node> {
+        let PartialDerivationTreeTypeCheck { head, info } = tree;
+        let mut tree = Tree::new(Node::TypeCheckJudgement(head.clone()));
+        tree.extend(info.iter().map(|info| node_to_tree(info)));
+        tree
+    }
 
-//     fn tree_fail_tree(tree: &DerivationFailed) -> Tree<Node> {
-//         let DerivationFailed {
-//             head,
-//             label,
-//             child,
-//             err,
-//             extra,
-//         } = tree;
-//         let mut tree = Tree::new(Node::Fail(head.clone(), label.clone()));
-//         tree.extend(child.iter().map(|child| match child {
-//             DerChild::PartialDerivationTree(partial_derivation_tree_type_check) => {
-//                 tree_partial_derivation_tree(partial_derivation_tree_type_check)
-//             }
-//             DerChild::Condition(condition) => Tree::new(Node::Condition(condition.clone())),
-//             DerChild::NeedProve(provable_judgement) => {
-//                 Tree::new(Node::ProvableJudgement(provable_judgement.clone()))
-//             }
-//         }));
-//         tree.extend(
-//             extra
-//                 .iter()
-//                 .map(|extra| Tree::new(Node::ExtraInfo(extra.clone()))),
-//         );
-//         tree.extend(vec![match err {
-//             ErrInfo::ErrOnCondition(err_on_condition) => {
-//                 Tree::new(Node::ErrCond(err_on_condition.clone()))
-//             }
-//             ErrInfo::ErrOnTree(derivation_failed) => tree_fail_tree(derivation_failed),
-//         }]);
-//         tree
-//     }
+    pub fn print_tree(tree: &PartialDerivationTreeTypeCheck) {
+        println!("{}", tree_partial_derivation_tree(tree))
+    }
 
-//     pub fn print_fail_tree(tree: &DerivationFailed) {
-//         println!("{}", tree_fail_tree(tree))
-//     }
-// }
+    fn tree_fail_tree(tree: &DerivationFailed) -> Tree<Node> {
+        let DerivationFailed { head, info } = tree;
+        let mut tree = Tree::new(Node::Fail(head.clone()));
+        tree.extend(info.iter().map(|info| node_to_tree(info)));
+        tree
+    }
+
+    pub fn print_fail_tree(tree: &DerivationFailed) {
+        println!("{}", tree_fail_tree(tree))
+    }
+}
