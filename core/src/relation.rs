@@ -627,7 +627,7 @@ pub fn type_check(
     let fail_head = FailHead::CheckFail(head.clone());
 
     let mut info: Vec<DerChild> = vec![];
-    info.push(format!("infer {term1} |> {expected}").into());
+    info.push(format!("call check").into());
 
     // get infered type of term1
     let infered_tree = match type_infer(gcxt, cxt.clone(), term1.clone()) {
@@ -660,7 +660,8 @@ pub fn type_check(
     let err = match Condition::convertible(gcxt, expected.clone(), infered_tree.of_type().clone()) {
         Ok(cond) => {
             // ok by conv
-            info.push(cond.into());
+            info.push(infered_tree.into()); // G |- t: infered
+            info.push(cond.into()); // infered ~= expected
             info.push(DerivationLabel::Conv.into());
             return Ok(PartialDerivationTreeTypeCheck { head, info });
         }
@@ -692,22 +693,24 @@ pub fn type_check(
             };
 
         // ok by powersetweak
-        info.push(cond_expected_set.into());
-        info.push(cond_infered_pow.into());
+        info.push(infered_tree.into()); // G |- t: infered
+        info.push(cond_infered_pow.into()); // infered ->* Pow(pow)
+        info.push(cond_expected_set.into()); // expected ->* SET
         info.push(DerivationLabel::PowerSetWeak.into());
 
         return Ok(PartialDerivationTreeTypeCheck { head, info });
     };
     info.push(err.into());
 
-    // 3. if expected ->* Pow(super_expected)
-    // check cxt |- term1 <| super_expected ask cxt |= Pred(super_expected, expected) term1
-
+    // 3. if cxt |- expected: Pow(super_expected)
+    // check cxt |- term1 <| super_expected
+    // ask cxt |= Pred(super_expected, expected) term1
+    info.push(format!("expect has super set ?").into());
     let err: DerChild = 'sub_intro: {
-        // 1. check expected ->* Pow(A)
-        let (cond_expected_pow, super_expected) =
-            match Condition::reduce_to_pow(gcxt, expected.clone()) {
-                Ok(cond) => cond,
+        // 1. check cxt |- expected |> Pow(super_expected)
+        let (super_expected_tree, super_expected) =
+            match type_infered_to_pow(gcxt, cxt.clone(), expected.clone()) {
+                Ok(ok) => ok,
                 Err(err) => {
                     break 'sub_intro err.into();
                 }
@@ -725,7 +728,7 @@ pub fn type_check(
         // let prop := cxt |= Pred(A, expected) term1
         let proposition = Exp::pred_of_element(super_expected, expected, term1);
 
-        info.push(cond_expected_pow.into());
+        info.push(super_expected_tree.into());
         info.push(term1_weak_tree.into());
         info.push(
             ProvableJudgement {
@@ -743,6 +746,7 @@ pub fn type_check(
     // 4. otherwise
     // expected has no super set .. so outermost super set of infered should equal to expected
     // check cxt |- infered <= A_1 <= ... <= A_n !<= term with expected =~ A_n
+    info.push(format!("infered <= expected ?").into());
     let err = 'subset_elim_set: {
         let mut set = infered_tree.of_type().clone();
         while let Ok((super_set_tree, super_set)) =
@@ -777,7 +781,7 @@ pub fn type_infered_to_sort(
     cxt: LocalContext,
     term: Exp,
 ) -> Result<(PartialDerivationTreeTypeCheck, Sort), DerivationFailed> {
-    let mut info = vec!["infered sort".to_string().into()];
+    let mut info = vec!["call infered sort".to_string().into()];
 
     // get T of G |- t |> infered
     let der_tree_infered = match type_infer(gcxt, cxt.clone(), term.clone()) {
@@ -805,6 +809,7 @@ pub fn type_infered_to_sort(
                 }
             };
 
+        info.push(der_tree_infered.into());
         info.push(cond.into());
         info.push(DerivationLabel::Conv.into());
 
@@ -832,6 +837,7 @@ pub fn type_infered_to_sort(
                 break 'conv_to_pow err.into();
             }
         };
+        info.push(der_tree_infered.into());
         info.push(cond.into());
         info.push(DerivationLabel::PowerSetWeak.into());
 
@@ -862,7 +868,7 @@ pub fn type_infered_to_prod(
     cxt: LocalContext,
     term: Exp,
 ) -> Result<(PartialDerivationTreeTypeCheck, (Var, Exp, Exp)), DerivationFailed> {
-    let mut info = vec!["infered prod".to_string().into()];
+    let mut info = vec!["call infered prod".to_string().into()];
 
     // get T of G |- t |> infered
     info.push("get infered".to_string().into());
@@ -927,7 +933,7 @@ pub fn type_infered_to_pow(
     cxt: LocalContext,
     term: Exp,
 ) -> Result<(PartialDerivationTreeTypeCheck, Exp), DerivationFailed> {
-    let mut info = vec!["infered pow".to_string().into()];
+    let mut info = vec!["call infered pow".to_string().into()];
 
     // get T of G |- t |> infered
     info.push("get infered".to_string().into());
@@ -979,7 +985,7 @@ pub fn type_infered_to_ind(
     cxt: LocalContext,
     term: Exp,
 ) -> Result<(PartialDerivationTreeTypeCheck, (TypeName, Vec<Exp>)), DerivationFailed> {
-    let mut info = vec!["infered ind".to_string().into()];
+    let mut info = vec!["call infered ind".to_string().into()];
 
     // get T of G |- t |> infered
     info.push("get infered".to_string().into());
@@ -1035,7 +1041,7 @@ pub fn type_infered_to_ind_return_type(
     term: Exp,
     type_name: TypeName,
 ) -> Result<(PartialDerivationTreeTypeCheck, Sort), DerivationFailed> {
-    let mut info = vec!["infered return type".to_string().into()];
+    let mut info = vec!["call infered return type".to_string().into()];
 
     // get T of G |- t |> infered
     info.push("get infered".to_string().into());
@@ -1094,7 +1100,7 @@ pub fn type_infer(
     };
     let fail_head = FailHead::InferFail(cxt.clone(), term1.clone());
 
-    let mut info: Vec<DerChild> = vec!["type infer".to_string().into()];
+    let mut info: Vec<DerChild> = vec!["call infer".to_string().into()];
 
     match term1 {
         Exp::Sort(sort) => {
@@ -1211,8 +1217,6 @@ pub fn type_infer(
         }
         Exp::Lam(x, t, m) => {
             info.push("term if lamf".to_string().into());
-
-            let label = DerivationLabel::ProdIntro;
 
             // sort of t
             let sort_of_t = match type_infered_to_sort(gcxt, cxt.clone(), *t.clone()) {
@@ -1488,7 +1492,6 @@ pub fn type_infer(
         }
         Exp::Sub(x, a, p) => {
             info.push(format!("SubForm").into());
-            let label = DerivationLabel::SubsetForm;
 
             // check cxt |- a: SET
             match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
@@ -1526,7 +1529,6 @@ pub fn type_infer(
         }
         Exp::Pow(a) => {
             info.push(format!("PowForm").into());
-            let label = DerivationLabel::PowerSetForm;
 
             // check cxt |- a: SET
             match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
@@ -1551,8 +1553,6 @@ pub fn type_infer(
         }
         Exp::Pred(a, b) => {
             info.push(format!("Pred").into());
-
-            let label = DerivationLabel::PredForm;
 
             // check cxt |- b: Pow(a) ?
             match type_check(gcxt, cxt.clone(), *b.clone(), Exp::Pow(a.clone())) {
