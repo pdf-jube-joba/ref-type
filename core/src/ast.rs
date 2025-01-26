@@ -147,6 +147,12 @@ impl Exp {
             cases: cases.into_iter().map(|(c, e)| (c.into(), e)).collect(),
         }
     }
+    pub fn pred_of_element(superset: Exp, subset: Exp, element: Exp) -> Exp {
+        Exp::App(
+            Box::new(Exp::Pred(Box::new(superset), Box::new(subset))),
+            Box::new(element),
+        )
+    }
 }
 
 pub mod utils {
