@@ -61,14 +61,16 @@ pub enum Exp {
         cases: Vec<(ConstructorName, Exp)>,
     },
     // これがほしいメインの部分
-    Proof(Box<Exp>),              // Proof t
-    Sub(Var, Box<Exp>, Box<Exp>), // { x : A | P }
-    Pow(Box<Exp>),                // Power X
-    Pred(Box<Exp>, Box<Exp>),     // Pred X
-                                  // Id(Box<Exp>, Box<Exp>, Box<Exp>), // a =_A b
-                                  // Refl(Box<Exp>, Box<Exp>),         // refl_A a
-                                  // Take(Var, Box<Exp>, Box<Exp>),    // take x:A. t
-                                  // Rec(Var, Var, Box<Exp>), // rec f x = m
+    Proof(Box<Exp>),                  // Proof t
+    Sub(Var, Box<Exp>, Box<Exp>),     // { x : A | P }
+    Pow(Box<Exp>),                    // Power X
+    Pred(Box<Exp>, Box<Exp>),         // Pred X
+    Id(Box<Exp>, Box<Exp>, Box<Exp>), // a =_A b
+    Refl(Box<Exp>, Box<Exp>),         // refl_A a
+    // JRule()
+    Exists(Box<Exp>), // exists T.
+    Take(Var, Box<Exp>, Box<Exp>), // take x:A. t
+                      // Rec(Var, Var, Box<Exp>),       // rec f x = m
 }
 
 impl Display for Exp {
@@ -101,9 +103,10 @@ impl Display for Exp {
             Exp::Sub(x, a, p) => format!("{{ {x}: {a} | {p} }}"),
             Exp::Pow(a) => format!("Power({a})"),
             Exp::Pred(a, b) => format!("Pred({a}, {b})"),
-            // Exp::Id(t, a, b) => format!("Id({t}) {a} = {b}"),
-            // Exp::Refl(t, a) => format!("Refl({t}) {a}"),
-            // Exp::Take(x, m, t) => format!("take {x}:{m}. {t}"),
+            Exp::Id(set, a, b) => format!("Id({set}, {a} {b})"),
+            Exp::Refl(set, a) => format!("Refl({set}, {a})"),
+            Exp::Exists(t) => format!("exists {t}"),
+            Exp::Take(x, a, m) => format!("Take ({x}: {a}) |-> {m}"),
         };
         write!(f, "{}", s)
     }
@@ -353,6 +356,14 @@ pub fn fresh(term: &Exp) -> usize {
         }
         Exp::Pow(t) => fresh(t),
         Exp::Pred(a, b) => std::cmp::max(fresh(&a), fresh(b)),
+        Exp::Id(exp, exp1, exp2) => {
+            let v = fresh(exp);
+            let v2 = std::cmp::max(fresh(&exp1), fresh(&exp2));
+            std::cmp::max(v, v2)
+        }
+        Exp::Refl(exp, exp1) => std::cmp::max(fresh(&exp), fresh(&exp1)),
+        Exp::Exists(exp) => fresh(&exp),
+        Exp::Take(var, exp, exp1) => std::cmp::max(fresh_var(var), std::cmp::max(fresh(&exp), fresh(&exp1))),
     }
 }
 

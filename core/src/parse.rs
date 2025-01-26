@@ -222,6 +222,30 @@ mod parse_exp {
                     cases,
                 })
             }
+            Rule::identity => {
+                let mut p = p.into_inner();
+                let e = take_expression(p.next().unwrap())?;
+                let e1 = take_expression(p.next().unwrap())?;
+                let e2 = take_expression(p.next().unwrap())?;
+                Ok(Exp::Id(Box::new(e), Box::new(e1), Box::new(e2)))
+            }
+            Rule::identity_refl => {
+                let mut p = p.into_inner();
+                let e = take_expression(p.next().unwrap())?;
+                let e1 = take_expression(p.next().unwrap())?;
+                Ok(Exp::Refl(Box::new(e), Box::new(e1)))
+            }
+            Rule::exists => {
+                let mut p = p.into_inner();
+                let e = take_expression(p.next().unwrap())?;
+                Ok(Exp::Exists(Box::new(e)))
+            }
+            Rule::take_operator => {
+                let mut p = p.into_inner();
+                let (x, a) = take_var_annnot(p.next().unwrap())?;
+                let b = take_expression(p.next().unwrap())?;
+                Ok(Exp::Take(x, Box::new(a), Box::new(b)))
+            }
             Rule::variable => Ok(Exp::Var(take_variable(p)?)),
             _ => unreachable!("take small"),
         }

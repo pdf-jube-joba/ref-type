@@ -1,4 +1,4 @@
-use crate::{ast::*, lambda_calculus::*};
+use crate::{ast::*, lambda_calculus::*, prod};
 use either::Either;
 use std::{collections::HashMap, fmt::Display};
 
@@ -432,7 +432,12 @@ pub enum DerivationLabel {
     SubsetIntro,    // t: A, B: Pow(A), Pred(A, B) t => t: B
     SubsetElimSet,  // t: B, B: Pow(A) => t: A
     SubsetElimProp, // t: B, B:Pow(A) => Pred(A, B) t
-    PredForm,
+    PredForm,       // B: Pow(A) => Pred(A, B): A -> PROP
+    IdentityForm,   // Id(A, a, b)
+    IdentityIntro,  // Refl(A, a): Id(A, a, a)
+    // IdentityELim
+    ExistsIntro, // exists T
+    TakeIntro,   // => Take x:A. m: M
     IndForm,
     IndIntro,
     IndElim,
@@ -462,6 +467,10 @@ impl Display for DerivationLabel {
             DerivationLabel::IndElim => "Ind(Elim)",
             DerivationLabel::GlobalDefinition => "GlobalDef",
             DerivationLabel::GlobalAssumption => "GlobalAssum",
+            DerivationLabel::IdentityForm => "IdentityForm",
+            DerivationLabel::IdentityIntro => "IdentityIntro",
+            DerivationLabel::ExistsIntro => "ExistsIntro",
+            DerivationLabel::TakeIntro => "TakeIntro",
         };
         write!(f, "{}", s)
     }
@@ -1573,6 +1582,193 @@ pub fn type_infer(
                 info,
             })
         }
+        Exp::Id(exp, exp1, exp2) => {
+            info.push(format!("Identity").into());
+
+            // check cxt |- exp: SET
+            match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            // check cxt |- exp1: exp
+            match type_check(gcxt, cxt.clone(), *exp1.clone(), *exp.clone()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            // check cxt |- exp2: exp
+            match type_check(gcxt, cxt.clone(), *exp2.clone(), *exp.clone()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            info.push(DerivationLabel::IdentityForm.into());
+
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(Exp::Sort(Sort::Prop)),
+                info,
+            })
+        }
+        Exp::Refl(exp, exp1) => {
+            info.push(format!("Refl").into());
+
+            // check cxt |- exp: SET
+            match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            // check cxt |- exp1: exp
+            match type_check(gcxt, cxt.clone(), *exp1.clone(), *exp.clone()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            info.push(DerivationLabel::IndIntro.into());
+
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(Exp::Id(
+                    Box::new(*exp.clone()),
+                    Box::new(*exp1.clone()),
+                    Box::new(*exp1.clone()),
+                )),
+                info,
+            })
+        }
+        Exp::Exists(exp) => {
+            info.push(format!("exists").into());
+
+            // check cxt |- exp: SET
+            match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            info.push(DerivationLabel::ExistsIntro.into());
+
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(Exp::Sort(Sort::Prop)),
+                info,
+            })
+        }
+        Exp::Take(var, exp, exp1) => {
+            info.push(format!("take").into());
+
+            // check cxt |- exp: SET
+            match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
+                Ok(der_tree) => {
+                    info.push(der_tree.into());
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            }
+
+            // infer cxt, var: exp |- exp1: M
+            cxt.push_decl((var.clone(), *exp.clone()));
+            let infered_type = match type_infer(gcxt, cxt.clone(), *exp1.clone()) {
+                Ok(ok) => {
+                    let infered = ok.of_type().clone();
+                    info.push(ok.into());
+                    infered
+                }
+                Err(err) => {
+                    info.push(err.into());
+                    return Err(DerivationFailed {
+                        head: fail_head,
+                        info,
+                    });
+                }
+            };
+            let (cxt, _) = cxt.poped().unwrap();
+
+            // need proof of cxt |-
+            let proposition1: ProvableJudgement = ProvableJudgement {
+                context: cxt.clone(),
+                proposition: Exp::Exists(exp.clone()),
+            };
+
+            // need proof of (y1: exp) -> (y2: exp) ->
+            let proposition2: ProvableJudgement = {
+                let fresh_num = fresh(&exp1);
+
+                let new_var1 = Var::Internal("gen by take".to_string(), fresh_num);
+                let new_var2 = Var::Internal("gen by take".to_string(), fresh_num + 1);
+
+                let end = Exp::Id(
+                    Box::new(infered_type.clone()),
+                    Box::new(subst(*exp.clone(), &var, &Exp::Var(new_var1.clone()))),
+                    Box::new(subst(*exp.clone(), &var, &Exp::Var(new_var2.clone()))),
+                );
+
+                ProvableJudgement {
+                    context: cxt.clone(),
+                    proposition: prod!(new_var1, *exp.clone(), prod!(new_var2, *exp.clone(), end)),
+                }
+            };
+
+            info.push(proposition1.into());
+            info.push(proposition2.into());
+            info.push(DerivationLabel::TakeIntro.into());
+
+            Ok(PartialDerivationTreeTypeCheck {
+                head: make_head(infered_type),
+                info,
+            })
+        }
     }
 }
 
@@ -1614,10 +1810,10 @@ pub mod printing {
                 Node::TypeCheckJudgement(type_check_judgement) => {
                     format!("{type_check_judgement}")
                 }
-                Node::Label(label) => {
-                    format!("{}", format!("{label}").green())
+                Node::Label(label) => format!("{label}"),
+                Node::ProvableJudgement(provable_judgement) => {
+                    format!("{}", format!("{provable_judgement}").green())
                 }
-                Node::ProvableJudgement(provable_judgement) => format!("{provable_judgement}"),
                 Node::Condition(condition) => format!("{condition}"),
                 Node::Fail(fail_head) => match fail_head {
                     FailHead::InferFail(local_context, exp) => {

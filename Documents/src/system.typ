@@ -251,7 +251,12 @@
     $Gamma tack a: B$,
     $Gamma tack b: B$,
   )) $
-- exist
+- exists form
+  $ #proof-tree(rule(
+    $Gamma tack exists t: *^p$,
+    $Gamma tack t: *^s $,
+  )) $
+- exist intro
   $ #proof-tree(rule(
     $Gamma tack.double exists t$,
     $Gamma tack t: *^s$,

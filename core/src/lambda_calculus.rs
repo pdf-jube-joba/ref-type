@@ -65,6 +65,24 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
             let bind = Box::new(subst_rec(*bind, fresh, substs));
             Exp::Sub(new_var, unbind, bind)
         }
+        Exp::Id(exp, exp1, exp2) => Exp::Id(
+            Box::new(subst_rec(*exp, fresh, substs.clone())),
+            Box::new(subst_rec(*exp1, fresh, substs.clone())),
+            Box::new(subst_rec(*exp2, fresh, substs)),
+        ),
+        Exp::Refl(exp, exp1) => Exp::Refl(
+            Box::new(subst_rec(*exp, fresh, substs.clone())),
+            Box::new(subst_rec(*exp1, fresh, substs.clone())),
+        ),
+        Exp::Exists(exp) => Exp::Exists(Box::new(subst_rec(*exp, fresh, substs))),
+        Exp::Take(x, unbind, bind) => {
+            let unbind = Box::new(subst_rec(*unbind, fresh, substs.clone()));
+            let new_var = Var::Internal("new".to_string(), *fresh);
+            *fresh += 1;
+            substs.push((x, Exp::Var(new_var.clone())));
+            let bind = Box::new(subst_rec(*bind, fresh, substs));
+            Exp::Take(new_var, unbind, bind)
+        }
     }
 }
 
@@ -188,6 +206,25 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
             alpha_eq_rec(a, a2, bd.clone()) && alpha_eq_rec(b, b2, bd)
         }
         (Exp::Pred(_, _), _) => false,
+        (Exp::Id(set1, a1, b1), Exp::Id(set2, a2, b2)) => {
+            alpha_eq_rec(&set1, &set2, bd.clone())
+                && alpha_eq_rec(&a1, &a2, bd.clone())
+                && alpha_eq_rec(&b1, &b2, bd)
+        }
+        (Exp::Id(_, _, _), _) => false,
+        (Exp::Refl(set1, a1), Exp::Refl(set2, a2)) => {
+            alpha_eq_rec(&set1, &set2, bd.clone()) && alpha_eq_rec(&a1, &a2, bd.clone())
+        }
+        (Exp::Refl(_, _), _) => false,
+        (Exp::Exists(t1), Exp::Exists(t2)) => alpha_eq_rec(&t1, &t2, bd),
+        (Exp::Exists(_), _) => false,
+        (Exp::Take(x1, m1, n1), Exp::Take(x2, m2, n2)) => {
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+                bd.push((x1.clone(), x2.clone()));
+                alpha_eq_rec(n1, n2, bd)
+            }
+        }
+        (Exp::Take(_, _, _), _) => false,
     }
 }
 
@@ -421,6 +458,10 @@ impl Exp {
                 v.extend(b.free_variable());
                 v
             }
+            Exp::Id(exp, exp1, exp2) => todo!(),
+            Exp::Refl(exp, exp1) => todo!(),
+            Exp::Exists(exp) => todo!(),
+            Exp::Take(var, exp, exp1) => todo!(),
         }
     }
 }
