@@ -79,7 +79,7 @@ impl Display for Exp {
             Exp::Sort(sort) => format!("{sort}"),
             Exp::Var(var) => format!("{var}"),
             Exp::Prod(var, exp, exp1) => format!("({var}:{exp}) -> {exp1}"),
-            Exp::Lam(var, exp, exp1) => format!("\\{var}:{exp}. {exp1}"),
+            Exp::Lam(var, exp, exp1) => format!("({var}:{exp}) |-> {exp1}"),
             Exp::App(exp, exp1) => format!("({exp} {exp1})"),
             Exp::IndTypeType { ind_type_name } => ind_type_name.to_string(),
             Exp::IndTypeCst {
@@ -103,7 +103,7 @@ impl Display for Exp {
             Exp::Sub(x, a, p) => format!("{{ {x}: {a} | {p} }}"),
             Exp::Pow(a) => format!("Power({a})"),
             Exp::Pred(a, b) => format!("Pred({a}, {b})"),
-            Exp::Id(set, a, b) => format!("Id({set}, {a} {b})"),
+            Exp::Id(set, a, b) => format!("Id({set}, {a} = {b})"),
             Exp::Refl(set, a) => format!("Refl({set}, {a})"),
             Exp::Exists(t) => format!("exists {t}"),
             Exp::Take(x, a, m) => format!("Take ({x}: {a}) |-> {m}"),

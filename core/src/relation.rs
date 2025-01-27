@@ -180,11 +180,21 @@ impl LocalContext {
         let d = s.0.pop()?;
         Some((s, d))
     }
-    pub fn push_decl(&mut self, d: (Var, Exp)) {
-        self.0.push(d);
+    // if cxt already has var d.0 => false
+    pub fn push_decl(&mut self, d: (Var, Exp)) -> bool {
+        if self.search_var_exp(&d.0).is_none() {
+            self.0.push(d);
+            true
+        } else {
+            false
+        }
     }
     pub fn search_var_exp(&self, var: &Var) -> Option<&(Var, Exp)> {
         self.0.iter().find(|(v, e)| v == var)
+    }
+    pub fn new_variable(&self) -> Var {
+        let i = self.0.iter().map(|(v, _)| fresh_var(v)).max().unwrap_or(0);
+        Var::Internal("cxt created".to_string(), i)
     }
 }
 
@@ -1098,6 +1108,7 @@ pub fn type_infer(
     mut cxt: LocalContext,
     term1: Exp,
 ) -> Result<PartialDerivationTreeTypeCheck, DerivationFailed> {
+    eprintln!("infer {term1}");
     let make_head = {
         let cxt = cxt.clone();
         let term1 = term1.clone();
@@ -1172,7 +1183,7 @@ pub fn type_infer(
                 }
             }
         }
-        Exp::Prod(x, t, t2) => {
+        Exp::Prod(mut x, t, mut t2) => {
             info.push("term is prod".to_string().into());
 
             // get G |- t |. s
@@ -1189,6 +1200,13 @@ pub fn type_infer(
                     });
                 }
             };
+
+            // overlap of variable
+            if cxt.search_var_exp(&x).is_some() {
+                let new_var = cxt.new_variable();
+                t2 = Box::new(subst(*t2, &x, &Exp::Var(new_var.clone())));
+                x = new_var;
+            }
 
             cxt.push_decl((x, *t));
 
@@ -1224,7 +1242,7 @@ pub fn type_infer(
                 }
             }
         }
-        Exp::Lam(x, t, m) => {
+        Exp::Lam(mut x, t, mut m) => {
             info.push("term if lamf".to_string().into());
 
             // sort of t
@@ -1241,6 +1259,13 @@ pub fn type_infer(
                     });
                 }
             };
+
+            // overlap of variable
+            if cxt.search_var_exp(&x).is_some() {
+                let new_var = cxt.new_variable();
+                m = Box::new(subst(*m, &x, &Exp::Var(new_var.clone())));
+                x = new_var;
+            }
 
             cxt.push_decl((x.clone(), *t.clone()));
 
@@ -1499,7 +1524,7 @@ pub fn type_infer(
                 info,
             })
         }
-        Exp::Sub(x, a, p) => {
+        Exp::Sub(mut x, a, mut p) => {
             info.push(format!("SubForm").into());
 
             // check cxt |- a: SET
@@ -1513,6 +1538,13 @@ pub fn type_infer(
                     });
                 }
             };
+
+            // overlap of variable
+            if cxt.search_var_exp(&x).is_some() {
+                let new_var = cxt.new_variable();
+                p = Box::new(subst(*p, &x, &Exp::Var(new_var.clone())));
+                x = new_var;
+            }
 
             // check cxt, x: a |- p: PROP
             cxt.push_decl((x, *a.clone()));
@@ -1700,7 +1732,7 @@ pub fn type_infer(
                 info,
             })
         }
-        Exp::Take(var, exp, exp1) => {
+        Exp::Take(mut var, exp, mut exp1) => {
             info.push(format!("take").into());
 
             // check cxt |- exp: SET
@@ -1715,6 +1747,13 @@ pub fn type_infer(
                         info,
                     });
                 }
+            }
+
+            // overlap of variable
+            if cxt.search_var_exp(&var).is_some() {
+                let new_var = cxt.new_variable();
+                exp1 = Box::new(subst(*exp1, &var, &Exp::Var(new_var.clone())));
+                var = new_var;
             }
 
             // infer cxt, var: exp |- exp1: M
