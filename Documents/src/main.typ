@@ -440,6 +440,8 @@ strong normalization は壊れそうだけど、 $=$ のもとで normal form �
   )) $
 ]
 
+$exists$ はそもそも入れていいと思う。
+
 = power type を導入する。
 *いろいろ読んでたら、 Power Set は鬼門の気がしてきた。*
 
@@ -615,6 +617,28 @@ closed がついているのは $*^p$ の項になる ($*^p$ の impredicativity
 - $B: cal(P)(A)$, $C: cal(P)(B)$, $t: C$ なら $t: A$ である。
 - $t: A$ かつ $Gamma tack.double P$ なら $t: {x: A | P}$
 なので、"項"に対する型としては十分である。
+
+= equality と take について
+equality についてできてほしいのは次のようなこと
+- $a =_A a$
+- $a =_A b => b =_A a$
+- $a =_A b => b =_A c => a =_A c$
+- $a =_A b => A: cal(P) B => a =_A b$
+- $a, b: B => B: cal(P) A => a =_A b => a =_B b$
+- $a =_A b => (P: A -> s) => P a => P b$
+最後のが Leibniz equality で、 $a =_A b$ をこれで定義してもよい。
+この場合には、ほかの性質は全部項が構成できる（はず）
+
+- ここで、 $A: *^s$ を課したほうがいいのか？
+- Leibniz equality は、 $P: A -> s$ に対して、 $s = *^p$ しか考えなくていいか？
+  - 例えば、 $x: A$ で添え字づけられたような集合 $B(x)$ があるとき、 $x =_A y => B(x) => B(y)$ が作れると明らかに便利
+
+$A: *^s, R: A -> A -> *^p, a: A$ に対して、 $[a]_(A \/ R) := {x: A | R x a}$ と書くことができる。
+$[a_0] = [a_1]$ から $R a_0 a_1$ を取り出したい。
+- $X_1 subset_X X_2 := (x: X_1) -> "Pred"(X, X_2) x$
+- $B_0 =_(cal(P)(A)) B_1 => B_0 subset_A B_0 => B_0 subset_A B_1$ が作れそう
+- $[a_0] =_(cal(P)(A)) [a_1] => t: [a_0] => "Pred"(A, [a_1]) t$ も作れそう
+- $a_0: [a_0]$ なら $R a_0 a_1$ が示せる！
 
 = non structural recursion を楽に記述する
 division を計算するのに euclidean algorithm（ユークリッド互除法）があるが、
@@ -1003,3 +1027,13 @@ constrained inference に $cal(P)(A)$ を入れる
   - $Gamma tack t triangle T$ をもってくる
   - $Gamma tack T triangle.l *^s$ を確認する、そうじゃない場合は失敗
   - $T ->^* cal(P)(A)$ をみる
+
+== めんどくさい部分
+$lambda x: A. x$ は $A -> A$ と infer されるが、 $A subset B$ のときに $(lambda x: A .x): (A -> B)$ を check するのがつらい。
+型付け上は確かにできるのだが（$x: A tack x: B$ より）、 check と infer をする上では、ちょっと工夫が必要
+というのも、 $t: A -> A$ でも $t: A -> B$ とは限らないため。
+（ $t$ がラムダ中小の場合にはよい。）
+これと似たような問題を解決するために cumulative を与えていたのかも？
+（ $t: "Univ"(n)$ $=>$ $t: "Univ"(n + 1)$ を型規則に入れるよりも、 $"Univ"(n) <= "Univ"(n+1)$ と $B <= B'$ なら $(x: A) -> B <= (x: A) -> B'$ を入れて、 $t: U, U <= U'$ なら $t: U'$ にするなど。）
+ただ今回の場合は、 cast を間に挟むことで解決できる。
+つまり、 $"cast":= (x: B) -> x$ を入れてやると、 $lambda x: A. ("cast" x)$ が通るようになる。
