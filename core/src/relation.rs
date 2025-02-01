@@ -1,6 +1,5 @@
 use crate::{ast::*, lambda_calculus::*, prod};
-use either::Either;
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
 use self::utils::decompose_to_app_exps;
 
@@ -41,7 +40,7 @@ impl GlobalContext {
         let arity_exp: Exp = defs.arity().clone().into();
         let arity_well_formed = match type_infered_to_sort(self, LocalContext::default(), arity_exp)
         {
-            Ok((der_tree, sort)) => der_tree,
+            Ok((der_tree, _)) => der_tree,
             Err(err) => return Err(ResIndDefsError::ArityNotWellformed(err)),
         };
 
@@ -596,6 +595,7 @@ impl JudgementTreeBuilder {
         }
     }
     fn case_fail(&mut self, err_info: ErrInfo) {
+        assert!(self.now_case.is_some());
         let now_case = {
             let success = self.child.drain(..).collect();
             ErrCases {
@@ -1148,24 +1148,26 @@ pub fn type_infer(
         }
         Exp::Var(x) => {
             // global definition
+            builder.case(format!("var: global def"));
             if let Some(e) = gcxt.search_var_defined(x.clone()) {
-                builder.case(format!("var: global def"));
                 builder.label(DerivationLabel::GlobalDefinition);
                 builder.set_type(e.0.clone());
                 return Ok(builder.build());
             }
+            builder.case_fail(format!("not global def").into());
 
             // global assumption
+            builder.case(format!("var: global assum"));
             if let Some(e) = gcxt.search_var_assum(x.clone()) {
-                builder.case(format!("var: global assum"));
                 builder.label(DerivationLabel::GlobalAssumption);
                 builder.set_type(e.clone());
                 return Ok(builder.build());
             }
+            builder.case_fail(format!("not global assum").into());
 
+            builder.case(format!("var: context"));
             match Condition::context_has_var(cxt, x.clone()) {
                 Ok((cond, e)) => {
-                    builder.case(format!("var: context"));
                     builder.push(cond.into());
                     builder.label(DerivationLabel::Variable);
                     builder.set_type(e);
@@ -1819,7 +1821,7 @@ pub mod printing {
         ))));
         tree.push(Tree::new(Node::Label(label.clone())));
         tree.extend(child.iter().map(|child| node_to_tree(child)));
-        tree.extend(other_case.iter().map(|err_case| tree_err_case(err_case)));
+        // tree.extend(other_case.iter().map(|err_case| tree_err_case(err_case)));
         tree
     }
 

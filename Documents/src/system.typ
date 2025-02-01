@@ -262,12 +262,19 @@
     $Gamma tack t: *^s$,
     $Gamma tack e: t$,
   )) $
-- take
+- take intro
   $ #proof-tree(rule(
     $Gamma tack ("take" x: T. t): M$,
     $Gamma tack T: *^s$,
     $Gamma, x: T tack t: M$,
+    $Gamma tack M: *^s$,
     $Gamma tack.double exists T$,
     $Gamma tack.double Pi (y_1: T). Pi (y_2: T). t[x := y_1] =_M t[x := y_2]$
+  )) $
+- take elim
+  $ #proof-tree(rule(
+    $Gamma tack ("take" x: T. t) =_M t[x := e]$,
+    $Gamma tack ("take" x: T. t): M$,
+    $Gamma tack e: T$,
   )) $
 ]

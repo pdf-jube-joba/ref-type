@@ -44,7 +44,7 @@ fn main() {
             Ok((command, flag)) => (command, flag),
             Err(err) => {
                 println!("{err}");
-                break;
+                std::process::exit(1);
             }
         };
 

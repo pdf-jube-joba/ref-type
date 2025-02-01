@@ -614,6 +614,21 @@ inductive Nat: SET :=
 | Succ: (_: Nat) -> Nat
 ```
 
+== parameter と index について
+例えば、 Coq における次の例を考える。
+```Coq
+Inductive Product (A: Set) (B: Set): Set :=
+  | prod: forall(a: A), forall (b: B), Product A B.
+```
+これは正しい。
+一方で、次の例は `Large non-propositional inductive types must be in Type` というエラーによりはじかれる。
+```Coq
+Inductive Product2: forall (A: Set), forall (B: Set), Set :=
+  | prod: forall(A: Set), forall(B: Set), forall (a: A), forall (b: B), Product2 A B.
+```
+上の List の例もそうだけど、
+Parameter として $(A: "Set"), (B: "Set")$ を与えているから $1$ つめの例は受け入れられるようだ。
+
 = inconsistency がいつ起こるか
 ここでの inconsistency とは次のことをいう。
 #theorem("inconsistency")[

@@ -380,7 +380,36 @@ pub fn reduce(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                 Some(Exp::Pred(a, Box::new(reduce(gcxt, *b)?)))
             }
         }
-        _ => todo!(),
+        Exp::Id(exp, exp1, exp2) => {
+            if let Some(exp) = reduce(gcxt, *exp.clone()) {
+                Some(Exp::Id(Box::new(exp), exp1, exp2))
+            } else if let Some(exp1) = reduce(gcxt, *exp1.clone()) {
+                Some(Exp::Id(exp, Box::new(exp1), exp2))
+            } else if let Some(exp2) = reduce(gcxt, *exp2.clone()) {
+                Some(Exp::Id(exp, exp1, Box::new(exp2)))
+            } else {
+                None
+            }
+        }
+        Exp::Refl(exp, exp1) => {
+            if let Some(exp) = reduce(gcxt, *exp.clone()) {
+                Some(Exp::Refl(Box::new(exp), exp1))
+            } else if let Some(exp1) = reduce(gcxt, *exp1.clone()) {
+                Some(Exp::Refl(exp, Box::new(exp1)))
+            } else {
+                None
+            }
+        }
+        Exp::Exists(exp) => Some(Exp::Exists(Box::new(reduce(gcxt, *exp.clone())?))),
+        Exp::Take(var, exp, exp1) => {
+            if let Some(exp) = reduce(gcxt, *exp.clone()) {
+                Some(Exp::Take(var, Box::new(exp), exp1))
+            } else if let Some(exp1) = reduce(gcxt, *exp1.clone()) {
+                Some(Exp::Take(var, exp, Box::new(exp1)))
+            } else {
+                None
+            }
+        }
     }
 }
 
