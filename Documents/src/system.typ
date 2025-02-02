@@ -243,6 +243,12 @@
     $Gamma tack P : A -> *^p$,
     $Gamma tack.double P a$,
   )) $
+- id superset
+  $ #proof-tree(rule(
+    $Gamma tack.double a =_A b$,
+    $Gamma tack.double a =_B b$,
+    $Gamma tack B: cal(P)(A)$,
+  )) $
 - id subset
   $ #proof-tree(rule(
     $Gamma tack.double a =_B b$,

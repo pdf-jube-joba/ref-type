@@ -4,10 +4,12 @@ use std::io::BufRead;
 
 use core::{
     ast::{self, inductives::IndTypeDefs, Exp, Sort},
+    context::{self, printing, ResIndDefsOk},
     lambda_calculus::{self, subst},
     parse::{self, *},
-    relation::{self, printing, ResIndDefsOk},
 };
+
+mod command;
 
 fn succ_or_fail(succ_or_fail: bool, flag: bool) -> ColoredString {
     match (succ_or_fail, flag) {
@@ -22,7 +24,7 @@ fn main() {
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
 
-    let mut gcxt = relation::GlobalContext::default();
+    let mut gcxt = context::GlobalContext::default();
 
     loop {
         let buf: String = {
@@ -52,32 +54,33 @@ fn main() {
             Either::Left(Command::Parse(exp)) => {
                 println!("Parse: {exp}");
             }
-            Either::Left(Command::Check(e1, e2)) => {
+            Either::Left(Command::Check(e1, e2, config)) => {
                 println!("Check: ({e1}): ({e2})");
-                let tree = relation::type_check(&gcxt, relation::LocalContext::default(), e1, e2);
+                let tree = gcxt.type_check(e1, e2);
                 match tree {
                     Ok(der_tree) => {
                         println!("{}", succ_or_fail(true, flag));
-                        printing::print_tree(&der_tree);
+                        printing::print_tree(&der_tree, &config);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        printing::print_fail_tree(&err);
+                        printing::print_fail_tree(&err, &config);
                     }
                 }
             }
-            Either::Left(Command::Infer(e1)) => {
+            Either::Left(Command::Infer(e1, config)) => {
                 println!("Infer: ({e1})");
-                match relation::type_infer(&gcxt, relation::LocalContext::default(), e1) {
+                let result = gcxt.type_infer(e1);
+                match result {
                     Ok(tree) => {
                         let head = tree.head.clone();
                         println!("{}", succ_or_fail(true, flag));
                         println!("{}", head);
-                        printing::print_tree(&tree);
+                        printing::print_tree(&tree, &config);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        printing::print_fail_tree(&err)
+                        printing::print_fail_tree(&err, &config);
                     }
                 };
             }
@@ -123,34 +126,34 @@ fn main() {
                     println!("{}", succ_or_fail(false, flag));
                 }
             }
-            Either::Right(NewCommand::Assumption(x, a)) => {
+            Either::Right(NewCommand::Assumption(x, a, config)) => {
                 println!("Assum {x}: {a}");
                 match gcxt.push_new_assum((x.clone(), a.clone())) {
                     Ok((der_tree, sort)) => {
                         println!("{}", succ_or_fail(true, flag));
                         println!("sort {sort}");
-                        printing::print_tree(&der_tree);
+                        printing::print_tree(&der_tree, &config);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        printing::print_fail_tree(&err);
+                        printing::print_fail_tree(&err, &config);
                     }
                 }
             }
-            Either::Right(NewCommand::Definition(x, a, t)) => {
+            Either::Right(NewCommand::Definition(x, a, t, config)) => {
                 println!("Def {x}: {a} := {t}");
                 match gcxt.push_new_defs((x.clone(), a.clone(), t.clone())) {
                     Ok(der_tree) => {
                         println!("{}", succ_or_fail(true, flag));
-                        printing::print_tree(&der_tree);
+                        printing::print_tree(&der_tree, &config);
                     }
                     Err(err) => {
                         println!("{}", succ_or_fail(false, flag));
-                        printing::print_fail_tree(&err);
+                        printing::print_fail_tree(&err, &config);
                     }
                 }
             }
-            Either::Right(NewCommand::Inductive(inddefs)) => {
+            Either::Right(NewCommand::Inductive(inddefs, config)) => {
                 println!("Inddefs \n {inddefs}");
                 // inddefs syntax
                 let inddefs = match check_inductive_syntax(inddefs) {
@@ -165,23 +168,23 @@ fn main() {
 
                 match gcxt.push_new_ind(inddefs.clone()) {
                     Err(err) => match err {
-                        relation::ResIndDefsError::AlreadyDefinedType => {
+                        context::ResIndDefsError::AlreadyDefinedType => {
                             println!("{} already defined", succ_or_fail(false, flag));
                         }
-                        relation::ResIndDefsError::ArityNotWellformed(tree) => {
+                        context::ResIndDefsError::ArityNotWellformed(tree) => {
                             println!(
                                 "{} arity not well-formed: {arity}",
                                 succ_or_fail(false, flag)
                             );
-                            printing::print_fail_tree(&tree);
+                            printing::print_fail_tree(&tree, &config);
                         }
-                        relation::ResIndDefsError::ConstructorNotWellFormed(cs) => {
+                        context::ResIndDefsError::ConstructorNotWellFormed(cs) => {
                             println!("{} constructor well-formed", succ_or_fail(false, flag));
                             for c in cs {
                                 match c {
-                                    Ok(tree) => printing::print_tree(&tree),
+                                    Ok(tree) => printing::print_tree(&tree, &config),
                                     Err(tree) => {
-                                        printing::print_fail_tree(&tree);
+                                        printing::print_fail_tree(&tree, &config);
                                     }
                                 }
                             }
@@ -192,9 +195,9 @@ fn main() {
                         constructor_wellformed,
                     }) => {
                         println!("{} accepted", succ_or_fail(true, flag));
-                        printing::print_tree(&arity_well_formed);
+                        printing::print_tree(&arity_well_formed, &config);
                         for c in constructor_wellformed {
-                            printing::print_tree(&c);
+                            printing::print_tree(&c, &config);
                         }
                     }
                 };

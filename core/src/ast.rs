@@ -67,10 +67,9 @@ pub enum Exp {
     Pred(Box<Exp>, Box<Exp>),         // Pred X
     Id(Box<Exp>, Box<Exp>, Box<Exp>), // a =_A b
     Refl(Box<Exp>, Box<Exp>),         // refl_A a
-    // JRule()
-    Exists(Box<Exp>), // exists T.
-    Take(Var, Box<Exp>, Box<Exp>), // take x:A. t
-                      // Rec(Var, Var, Box<Exp>),       // rec f x = m
+    Exists(Box<Exp>),                 // exists T.
+    Take(Var, Box<Exp>, Box<Exp>),    // take x:A. t
+                                      // Rec(Var, Var, Box<Exp>),       // rec f x = m
 }
 
 impl Display for Exp {
@@ -105,7 +104,7 @@ impl Display for Exp {
             Exp::Pred(a, b) => format!("Pred({a}, {b})"),
             Exp::Id(set, a, b) => format!("Id({set}, {a} = {b})"),
             Exp::Refl(set, a) => format!("Refl({set}, {a})"),
-            Exp::Exists(t) => format!("exists {t}"),
+            Exp::Exists(t) => format!("Exists {t}"),
             Exp::Take(x, a, m) => format!("Take ({x}: {a}) |-> {m}"),
         };
         write!(f, "{}", s)
@@ -119,6 +118,9 @@ impl Exp {
         } else {
             None
         }
+    }
+    pub fn var(var: Var) -> Self {
+        Exp::Var(var)
     }
     pub fn prod(var: Var, a: Exp, b: Exp) -> Self {
         Exp::Prod(var, Box::new(a), Box::new(b))
@@ -363,7 +365,9 @@ pub fn fresh(term: &Exp) -> usize {
         }
         Exp::Refl(exp, exp1) => std::cmp::max(fresh(&exp), fresh(&exp1)),
         Exp::Exists(exp) => fresh(&exp),
-        Exp::Take(var, exp, exp1) => std::cmp::max(fresh_var(var), std::cmp::max(fresh(&exp), fresh(&exp1))),
+        Exp::Take(var, exp, exp1) => {
+            std::cmp::max(fresh_var(var), std::cmp::max(fresh(&exp), fresh(&exp1)))
+        }
     }
 }
 
@@ -475,7 +479,6 @@ impl Sort {
 // inductive definition には自由変数がないことを仮定する
 pub mod inductives {
     use super::{utils::*, *};
-    use crate::{app, lam, prod, var};
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Arity {

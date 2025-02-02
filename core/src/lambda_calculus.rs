@@ -1,4 +1,4 @@
-use crate::{ast::*, relation::*};
+use crate::{ast::*, context::*};
 use std::collections::HashSet;
 
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {

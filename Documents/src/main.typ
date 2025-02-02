@@ -623,11 +623,10 @@ equality についてできてほしいのは次のようなこと
 - $a =_A a$
 - $a =_A b => b =_A a$
 - $a =_A b => b =_A c => a =_A c$
-- $a =_A b => A: cal(P) B => a =_A b$
-- $a, b: B => B: cal(P) A => a =_A b => a =_B b$
+- $a =_B b => B: cal(P)(A) => a =_A b$
+- $a, b: A => B: cal(P)(A) => a =_A b => a =_B b$
 - $a =_A b => (P: A -> s) => P a => P b$
 最後のが Leibniz equality で、 $a =_A b$ をこれで定義してもよい。
-この場合には、ほかの性質は全部項が構成できる（はず）
 
 - ここで、 $A: *^s$ を課したほうがいいのか？
 - Leibniz equality は、 $P: A -> s$ に対して、 $s = *^p$ しか考えなくていいか？
@@ -639,6 +638,81 @@ $[a_0] = [a_1]$ から $R a_0 a_1$ を取り出したい。
 - $B_0 =_(cal(P)(A)) B_1 => B_0 subset_A B_0 => B_0 subset_A B_1$ が作れそう
 - $[a_0] =_(cal(P)(A)) [a_1] => t: [a_0] => "Pred"(A, [a_1]) t$ も作れそう
 - $a_0: [a_0]$ なら $R a_0 a_1$ が示せる！
+
+== Leibniz equality
+- $"eq" (A: *^s) (x: A) (y: A)$ := $(P: A -> *^p) -> P x -> P y$ ... $x =_A y$ と書く
+- $"refl" (A: *^s) (x: A)$: $"eq" A x x$ := $(P: A -> *^s) |-> (p: P x) |-> p$
+になっている。
+
+- $a =_B b, B: cal(P)(A) => a =_A b$ について
+  - $Gamma tack p: (P: B -> *^p) -> P a -> P b$ とする
+  - $Gamma tack M: (P: A -> *^p) -> P a -> P b$ なる項をつくりたい。
+  - $M = (P: A -> *^p) |-> (t: P a) |-> M'$ としておく。
+  - $M' = p P t$ だとまずい... $P: A -> *^p$ を入れていて、 $P: B -> *^p$ を入れてないから
+- $a: B, b: B, B: cal(P)(A), a =_A b => a =_B b$ について
+  - これも同様に、 $P: A -> *^p$ と $P: B -> *^p$ に問題がある。
+直感的には、述語を制限したり拡張したりできる。
+しかし、その場合には $P$ ではないものができてしまう。
+- $P: A -> *^p$ のとき、 $((x: B) |-> P x): (B -> *^p)$
+- $P: B -> *^p$ のとき、 $((x: A) |-> "Pred"(A, B) x and P x)$ ただしこれは思うようにいかない。
+  - $t: A$ が $"Pred"(A, B) t and P t$ に元を持つならそもそも $t: B$ である。
+  - $t: A$ だが $t: B$ でない場合が記述できていない。
+
+なので、 Leibniz equality では記述できていない。
+あと、最後のもルールで入れておきたい。
+
+== inductive type との比較
+1. parameter を入れないなら次のようになる。
+```Coq
+Inductive Id: (A: Set) -> (x: A) -> (y: A) -> Prop :=
+  | refl : (A: Set) -> (x: A) -> Id A x x.
+```
+この場合で rec を考える。
+- $xi_X(Q, c, (A: *^s) -> (x: A) -> "Id" A x x) = (A: *^s) -> (x: a) -> (Q A a a (c a x))$
+- $mu_X(F, f, (A: *^s) -> (x: A) -> "Id" A x x) = (A: *^s) |-> (x: a) |-> f a x$
+
+pattern match は $"Elim" "refl" A a "return" Q | "refl" => f_1 ->^beta f_1 A a$ のように reduction が進む。
+$"Rec"_"Id"(c, Q, f) = "Elim" c "return" Q | "refl" => f_1$ である。
+$ #proof-tree(rule(
+  $Gamma tack "Rec"_"Id"(c, Q, f): Q A x y c$,
+  $Gamma tack c: "Id" A x y$,
+  $Gamma tack Q: (A: *^s) -> (x: A) -> (y: A) -> "Id" A x y -> s'$,
+  $Gamma tack f_1: (A: *^s) -> (a: A) -> Q A a a ("refl" A a a)$,
+)) $
+
+2. Coq としての 帰納型としては次のように paramter を入れて定義していた。
+```Coq
+Inductive Id (A: Set) (x: A) : A -> Prop :=
+  | refl : Id A x x.
+```
+この場合で rec を考える。
+よくわかっていないが、 parameter は context に push されているものと思った方がよさそう。
+その場合、 $Gamma = A: *^s, x: A$ となった状態で次のように定義している。
+```Coq
+Inductive Id: A -> Prop :=
+  | refl: Id x.
+```
+- $xi_X(Q, c, "Id" x) = Q x c$
+- $mu_X(F, f, "Id" x) = f$
+
+pattern match は $"Elim" "refl" "return" Q | "refl" => f_1 ->^beta f_1 $ のように reduction が進む。
+$"Rec"_"Id"(c, Q, f)$ を同様に定義する。
+$ #proof-tree(rule(
+  $Gamma tack "Rec"_"Id"(c, Q, f): Q y c$,
+  $Gamma tack c: "Id" y$,
+  $Gamma tack Q: (y: A) -> "Id" y -> s'$,
+  $Gamma tack f: Q x "refl"$,
+)) $
+
+ただ、 proposition に対しては proof の reduction が進んだところであまりうれしくない。
+なので、 $"Rec"_"Id"(c, Q, f)$ に対応することができれば十分である。
+あと、 singleton elimination とかを考えないなら、 elim rule は $s' in *^p$ でなければいけない。
+この $2$ つを合わせると、次でよさそう。
+$ #proof-tree(rule(
+  $Gamma tack.double Q b$,
+  $Gamma tack.double a =_A b$,
+  $Gamma tack.double Q a$,
+)) $
 
 = non structural recursion を楽に記述する
 division を計算するのに euclidean algorithm（ユークリッド互除法）があるが、

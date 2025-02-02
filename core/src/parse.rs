@@ -326,7 +326,10 @@ mod parse_exp {
 }
 
 mod parse_command {
-    use crate::parse::parse_command::new_inductive_type_definition::take_new_inductive;
+    use crate::{
+        context::printing::TreeConfig,
+        parse::parse_command::new_inductive_type_definition::take_new_inductive,
+    };
 
     use super::parse_exp::take_expression;
     use super::*;
@@ -336,21 +339,31 @@ mod parse_command {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum Command {
         Parse(Exp),
-        Check(Exp, Exp),
-        Infer(Exp),
         Subst(Exp, Var, Exp),
         AlphaEq(Exp, Exp),
         TopReduce(Exp),
         Reduce(Exp),
         Normalize(Exp),
         BetaEq(Exp, Exp),
+        Check(Exp, Exp, TreeConfig),
+        Infer(Exp, TreeConfig),
+    }
+
+    pub(crate) fn take_tree_config(pair: Pair<Rule>) -> Res<TreeConfig> {
+        assert_eq!(pair.as_rule(), Rule::command_CONFIG);
+        match pair.as_str() {
+            "GOALS" => Ok(TreeConfig::OnlyGoals),
+            "SUCCS" => Ok(TreeConfig::SuccTree),
+            "ALL" => Ok(TreeConfig::AllCase),
+            _ => unreachable!(""),
+        }
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum NewCommand {
-        Definition(Var, Exp, Exp),
-        Assumption(Var, Exp),
-        Inductive(InductiveDefinitionsSyntax),
+        Definition(Var, Exp, Exp, TreeConfig),
+        Assumption(Var, Exp, TreeConfig),
+        Inductive(InductiveDefinitionsSyntax, TreeConfig),
     }
 
     pub(crate) fn take_command(pair: Pair<Rule>) -> Res<(Either<Command, NewCommand>, bool)> {
@@ -373,14 +386,24 @@ mod parse_command {
             }
             Rule::command_check => {
                 let mut ps = pair.into_inner();
+                let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
+                    take_tree_config(ps.next().unwrap())?
+                } else {
+                    TreeConfig::default()
+                };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Either::Left(Command::Check(e1, e2))
+                Either::Left(Command::Check(e1, e2, config))
             }
             Rule::command_infer => {
                 let mut ps = pair.into_inner();
+                let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
+                    take_tree_config(ps.next().unwrap())?
+                } else {
+                    TreeConfig::default()
+                };
                 let e = take_expression(ps.next().unwrap())?;
-                Either::Left(Command::Infer(e))
+                Either::Left(Command::Infer(e, config))
             }
             Rule::command_subst => {
                 let mut ps = pair.into_inner();
@@ -413,24 +436,29 @@ mod parse_command {
             }
             Rule::new_definition => {
                 let a = take_new_definition(pair)?;
-                Either::Right(NewCommand::Definition(a.0, a.1, a.2))
+                Either::Right(NewCommand::Definition(a.0, a.1, a.2, a.3))
             }
             Rule::new_assumption => {
                 let a = take_new_assumption(pair)?;
-                Either::Right(NewCommand::Assumption(a.0, a.1))
+                Either::Right(NewCommand::Assumption(a.0, a.1, a.2))
             }
             Rule::new_inductive => {
                 let a = take_new_inductive(pair)?;
-                Either::Right(NewCommand::Inductive(a))
+                Either::Right(NewCommand::Inductive(a.0, a.1))
             }
             _ => todo!("command not defined"),
         };
         Ok((cmd, b))
     }
 
-    pub(crate) fn take_new_assumption(pair: Pair<Rule>) -> Res<(Var, Exp)> {
+    pub(crate) fn take_new_assumption(pair: Pair<Rule>) -> Res<(Var, Exp, TreeConfig)> {
         debug_assert_eq!(pair.as_rule(), Rule::new_assumption);
         let mut ps = pair.into_inner();
+        let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
+            take_tree_config(ps.next().unwrap())?
+        } else {
+            TreeConfig::default()
+        };
         let variable = {
             let p = ps.next().unwrap();
             take_variable(p)?
@@ -439,12 +467,17 @@ mod parse_command {
             let p = ps.next().unwrap();
             take_expression(p)?
         };
-        Ok((variable, expression))
+        Ok((variable, expression, config))
     }
 
-    pub(crate) fn take_new_definition(pair: Pair<Rule>) -> Res<(Var, Exp, Exp)> {
+    pub(crate) fn take_new_definition(pair: Pair<Rule>) -> Res<(Var, Exp, Exp, TreeConfig)> {
         debug_assert_eq!(pair.as_rule(), Rule::new_definition);
         let mut ps = pair.into_inner();
+        let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
+            take_tree_config(ps.next().unwrap())?
+        } else {
+            TreeConfig::default()
+        };
         let variable = {
             let p = ps.next().unwrap();
             take_variable(p)?
@@ -468,7 +501,7 @@ mod parse_command {
             let e = take_expression(p)?;
             utils::assoc_lam(var_annots, e)
         };
-        Ok((variable, expression1, expression2))
+        Ok((variable, expression1, expression2, config))
     }
 
     pub mod new_inductive_type_definition {
@@ -621,19 +654,29 @@ mod parse_command {
             unreachable!(" take constructor definition")
         }
 
-        pub(crate) fn take_new_inductive(pair: Pair<Rule>) -> Res<InductiveDefinitionsSyntax> {
+        pub(crate) fn take_new_inductive(
+            pair: Pair<Rule>,
+        ) -> Res<(InductiveDefinitionsSyntax, TreeConfig)> {
             debug_assert_eq!(pair.as_rule(), Rule::new_inductive);
             let mut ps = pair.into_inner();
+            let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
+                take_tree_config(ps.next().unwrap())?
+            } else {
+                TreeConfig::default()
+            };
             let type_name = take_name(ps.next().unwrap())?;
             let arity = take_arity(ps.next().unwrap())?;
             let constructors: Vec<_> = ps
                 .map(|p| take_constructor_definition(p))
                 .collect::<Result<_, _>>()?;
-            Ok(InductiveDefinitionsSyntax {
-                type_name,
-                arity,
-                constructors,
-            })
+            Ok((
+                InductiveDefinitionsSyntax {
+                    type_name,
+                    arity,
+                    constructors,
+                },
+                config,
+            ))
         }
 
         pub fn check_inductive_syntax(
