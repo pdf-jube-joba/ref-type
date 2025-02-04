@@ -5,3 +5,4 @@ pub mod typing;
 #[cfg(test)]
 pub mod tests;
 pub mod parse;
+pub mod interpreter;

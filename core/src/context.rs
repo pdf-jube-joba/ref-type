@@ -724,6 +724,16 @@ pub mod printing {
         tree: &PartialDerivationTreeTypeCheck,
         tree_config: &TreeConfig,
     ) -> Tree<Node> {
+        if *tree_config == TreeConfig::OnlyGoals {
+            let mut show_tree = Tree::new(Node::TypeCheckJudgement(tree.head.clone()));
+            show_tree.extend(
+                tree.get_goals()
+                    .into_iter()
+                    .map(|goal| Node::ProvableJudgement(goal)),
+            );
+            return show_tree;
+        }
+
         let PartialDerivationTreeTypeCheck {
             head,
             label,
