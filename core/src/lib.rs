@@ -5,4 +5,5 @@ pub mod typing;
 #[cfg(test)]
 pub mod tests;
 pub mod parse;
+pub mod proving;
 pub mod interpreter;

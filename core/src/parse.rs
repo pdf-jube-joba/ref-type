@@ -48,6 +48,7 @@ impl From<String> for ParserError {
 
 #[derive(Default, Parser)]
 #[grammar = "exp.pest"] // relative to src
+#[grammar = "proving.pest"]
 #[grammar = "program.pest"]
 pub struct MyParser;
 
@@ -750,6 +751,38 @@ mod parse_command {
                     }
                 }
             }
+        }
+    }
+}
+
+pub mod parse_proof {
+    use crate::parse::parse_exp::take_expression;
+    use crate::proving::UserSelect;
+
+    use super::*;
+    pub(crate) fn parse_proof(pair: Pair<Rule>) -> Result<UserSelect, Box<error::Error<Rule>>> {
+        debug_assert_eq!(pair.as_rule(), Rule::PROOF);
+        let mut ps = pair.into_inner();
+        let _ = ps.next().unwrap();
+        let user_select = ps.next().unwrap();
+        match user_select.as_rule() {
+            Rule::exact_by_term => {
+                let mut ps = user_select.into_inner();
+                let proof = take_expression(ps.next().unwrap())?;
+                Ok(UserSelect::Exact { proof })
+            }
+            Rule::subset_elim_prop => {
+                let mut ps = user_select.into_inner();
+                let term = take_expression(ps.next().unwrap())?;
+                let subset = take_expression(ps.next().unwrap())?;
+                let superset = take_expression(ps.next().unwrap())?;
+                Ok(UserSelect::SubSetPred {
+                    term,
+                    subset,
+                    superset,
+                })
+            }
+            _ => unreachable!(),
         }
     }
 }

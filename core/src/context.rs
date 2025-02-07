@@ -571,6 +571,18 @@ impl From<ProvableJudgement> for DerChild {
     }
 }
 
+impl DerChild {
+    pub fn get_goals(&self) -> Vec<ProvableJudgement> {
+        match self {
+            DerChild::PartialDerivationTree(partial_derivation_tree_type_check) => {
+                partial_derivation_tree_type_check.get_goals()
+            }
+            DerChild::Condition(_) => vec![],
+            DerChild::NeedProve(provable_judgement) => vec![provable_judgement.clone()],
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartialDerivationTreeTypeCheck {
     pub head: TypeCheckJudgement,
