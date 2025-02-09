@@ -1,93 +1,109 @@
+command = { WHITESPACE* ~ (
+    command_parse
+    | lambda_calculus_command
+    | typing_command
+    | new_command
+) ~ COMMAND_TERMINATE }
+
 command_CONFIG = {
     "GOALS" | "SUCCS" | "ALL"
 }
 
-new_definition = {
-    "Definition" ~ ("(" ~ command_CONFIG ~ ")")? ~ 
-    variable ~ var_annot_paren* ~ ":" ~ expression ~ ":=" ~ expression
-}
-
-new_assumption = {
-    "Assume" ~ ("(" ~ command_CONFIG ~ ")")? ~ 
-    variable ~ ":" ~ expression 
-}
-
-new_inductive = {
-    "Inductive" ~ ("(" ~ command_CONFIG ~ ")")? ~ 
-    name ~ ":" ~ arity ~ "with" ~ constructor_definition*
-}
-
-arity = {
-    ( var_annot_paren ~ "->" )* ~ sort
-}
-
-constructor_definition = {
-   "|" ~ name ~ ":" ~ ((var_annot_paren | small | positive) ~ "->")* ~ constructor_terminate
-}
-
-constructor_terminate = {
-    name ~ expression*
-}
-
-positive = {
-    "[" ~ ( var_annot_paren ~ "->" )* ~ constructor_terminate ~ "]"
-}
+COMMAND_TERMINATE = _{ ";" }
+FAIL = { "!" }
 
 command_parse = {
     "Parse" ~
     expression
 }
 
-command_subst = {
-    "Subst" ~
-    expression ~ "[" ~ variable ~ ":=" ~ expression ~ "]"
-}
-
-command_alpha_eq = {
-    "AlphaEq" ~
-    expression ~ "=" ~ expression
-}
-
-command_top_reduction = {
-    "TopReduce" ~
-    expression
-}
-
-command_reduction = {
-    "Reduce" ~ 
-    expression
-}
-
-command_normalize = {
-    "Normalize" ~ expression
-}
-
-command_beta_equiv = {
-    "BetaEq" ~ expression ~ "=" ~ expression
-}
-
-command_check = {
-    "Check" ~ ("(" ~ command_CONFIG ~ ")")? ~ expression ~ ":" ~ expression
-}
-
-command_infer = {
-    "Infer" ~ ("(" ~ command_CONFIG ~ ")")? ~ expression
-}
-
-COMMAND_TERMINATE = _{ ";" }
-FAIL = { "!" }
-
-command = { WHITESPACE* ~ FAIL? ~ (
-    command_parse
-    | command_subst
+lambda_calculus_command = {
+    command_subst
     | command_alpha_eq
     | command_top_reduction
     | command_reduction
     | command_normalize
     | command_beta_equiv
-    | command_check
-    | command_infer
-    | new_definition
-    | new_assumption
-    | new_inductive
-) ~ PROOF* ~ COMMAND_TERMINATE }
+}
+
+    command_subst = {
+        "Subst" ~
+        expression ~ "[" ~ variable ~ ":=" ~ expression ~ "]"
+    }
+
+    command_alpha_eq = {
+        FAIL? ~ "AlphaEq" ~
+        expression ~ "=" ~ expression
+    }
+
+    command_top_reduction = {
+        "TopReduce" ~
+        expression
+    }
+
+    command_reduction = {
+        "Reduce" ~ 
+        expression
+    }
+
+    command_normalize = {
+        "Normalize" ~ expression
+    }
+
+    command_beta_equiv = {
+        FAIL? ~ "BetaEq" ~ expression ~ "=" ~ expression
+    }
+
+typing_command = {
+    FAIL? ~ (
+        command_check
+        | command_infer
+    ) ~ PROOF*
+}
+
+    command_check = {
+        "Check" ~ ("(" ~ command_CONFIG ~ ")")? ~ expression ~ ":" ~ expression
+    }
+
+    command_infer = {
+        "Infer" ~ ("(" ~ command_CONFIG ~ ")")? ~ expression
+    }
+
+new_command = {
+    FAIL? ~ (
+        new_definition
+        | new_assumption
+        | new_inductive
+    ) ~ PROOF*
+}
+
+    new_definition = {
+        "Definition" ~ ("(" ~ command_CONFIG ~ ")")? ~ 
+        variable ~ var_annot_paren* ~ ":" ~ expression ~ ":=" ~ expression
+    }
+
+    new_assumption = {
+        "Assume" ~ ("(" ~ command_CONFIG ~ ")")? ~ 
+        variable ~ ":" ~ expression 
+    }
+
+    new_inductive = {
+        "Inductive" ~ ("(" ~ command_CONFIG ~ ")")? ~ 
+        name ~ ":" ~ arity ~ "with" ~ constructor_definition*
+    }
+
+    arity = {
+        ( var_annot_paren ~ "->" )* ~ sort
+    }
+
+    constructor_definition = {
+    "|" ~ name ~ ":" ~ ((var_annot_paren | small | positive) ~ "->")* ~ constructor_terminate
+    }
+
+    constructor_terminate = {
+        name ~ expression*
+    }
+
+    positive = {
+        "[" ~ ( var_annot_paren ~ "->" )* ~ constructor_terminate ~ "]"
+    }
