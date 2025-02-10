@@ -8,3 +8,4 @@ refinement type （篩型）のついた proof assistant をつくる。
 
 # TODO
 - [] 帰納型で parameter がとれるようにする
+- [] associated type を使って、コマンドとその結果を結びつけるといい？

@@ -778,8 +778,8 @@ pub mod printing {
         tree
     }
 
-    pub fn print_tree(tree: &PartialDerivationTreeTypeCheck, tree_config: &TreeConfig) {
-        println!("{}", tree_partial_derivation_tree(tree, tree_config))
+    pub fn print_tree(tree: &PartialDerivationTreeTypeCheck, tree_config: &TreeConfig) -> String {
+        tree_partial_derivation_tree(tree, tree_config).to_string()
     }
 
     fn tree_fail_tree(tree: &DerivationFailed, tree_config: &TreeConfig) -> Tree<Node> {
@@ -798,7 +798,7 @@ pub mod printing {
         tree
     }
 
-    pub fn print_fail_tree(tree: &DerivationFailed, tree_config: &TreeConfig) {
-        println!("{}", tree_fail_tree(tree, tree_config))
+    pub fn print_fail_tree(tree: &DerivationFailed, tree_config: &TreeConfig) -> String {
+        tree_fail_tree(tree, tree_config).to_string()
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::ast::{inductives::*, *};
-use crate::interpreter::Command;
+use crate::interpreter::command::CommandAll;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
@@ -55,7 +55,7 @@ impl MyParser {
         let e = parse_exp::take_expression(p.next().unwrap())?;
         Ok(e)
     }
-    pub fn parse_command(&mut self, code: &str) -> Result<Command, ParserError> {
+    pub fn parse_command(&mut self, code: &str) -> Result<CommandAll, ParserError> {
         let mut p = MyParser::parse(Rule::command, code)?;
         let e = parse_command::take_command(p.next().unwrap())?;
         Ok(e)
@@ -363,7 +363,10 @@ pub mod parse_command {
     use super::*;
     type Res<E> = Result<E, Box<error::Error<Rule>>>;
     use crate::interpreter::*;
-    use parse_command::parse_exp::{take_var_annnot, take_variable};
+    use parse_command::{
+        command::{Check, NewAssumption, NewDefinition, NewInductive, ParseCommand},
+        parse_exp::{take_var_annnot, take_variable},
+    };
 
     pub(crate) fn take_tree_config(pair: Pair<Rule>) -> Res<TreeConfig> {
         assert_eq!(pair.as_rule(), Rule::command_CONFIG);
@@ -374,28 +377,25 @@ pub mod parse_command {
             _ => unreachable!(""),
         }
     }
-    pub(crate) fn take_command(pair: Pair<Rule>) -> Res<Command> {
+    pub(crate) fn take_command(pair: Pair<Rule>) -> Res<CommandAll> {
         debug_assert_eq!(pair.as_rule(), Rule::command);
         let mut ps = pair.into_inner();
         let pair = ps.next().unwrap();
         match pair.as_rule() {
-            Rule::lambda_calculus_command => {
-                let cmd = take_lambda_command(pair)?;
-                Ok(Command::LambdaCommand(cmd))
+            Rule::command_parse => {
+                let mut ps = pair.into_inner();
+                let e = take_expression(ps.next().unwrap())?;
+                Ok(ParseCommand { exp: e }.into())
             }
-            Rule::typing_command => {
-                let ((cmd, config, bool), proofs) = take_typing_command(pair)?;
-                Ok(Command::TypingCommand(cmd, bool, config))
-            }
-            Rule::new_command => {
-                let ((cmd, config, bool), proofs) = take_new_command(pair)?;
-                Ok(Command::NewCommand(cmd, bool, config))
-            }
+            Rule::lambda_calculus_command => Ok(take_lambda_command(pair)?),
+            Rule::typing_command => Ok(take_typing_command(pair)?.0), // todo use .1
+            Rule::new_command => Ok(take_new_command(pair)?.0),       // todo! use .1
             _ => todo!("command not defined"),
         }
     }
 
-    pub(crate) fn take_lambda_command(pair: Pair<Rule>) -> Res<LambdaCommand> {
+    pub(crate) fn take_lambda_command(pair: Pair<Rule>) -> Res<CommandAll> {
+        use command::*;
         debug_assert_eq!(pair.as_rule(), Rule::lambda_calculus_command);
         let mut ps = pair.into_inner();
 
@@ -405,70 +405,73 @@ pub mod parse_command {
             Rule::command_subst => {
                 let mut ps = pair.into_inner();
                 let b = if ps.peek().unwrap().as_rule() != Rule::FAIL {
-                    ps.next().unwrap();
                     true
                 } else {
+                    ps.next().unwrap();
                     false
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let x = take_variable(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok((LambdaCommand::Subst(e1, x, e2)))
+                Ok(SubstCommand { e1, x, e2 }.into())
             }
             Rule::command_alpha_eq => {
                 let mut ps = pair.into_inner();
-                let b = if ps.peek().unwrap().as_rule() != Rule::FAIL {
-                    ps.next().unwrap();
+                let succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
                     true
                 } else {
+                    ps.next().unwrap();
                     false
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok((LambdaCommand::AlphaEq(e1, e2, b)))
+                Ok(AlphaEq { e1, e2, succ_flag }.into())
             }
             Rule::command_reduction => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok((LambdaCommand::Reduce(e)))
+                Ok(Reduce { e }.into())
             }
             Rule::command_top_reduction => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok((LambdaCommand::TopReduce(e)))
+                Ok(TopReduce { e }.into())
             }
             Rule::command_normalize => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok((LambdaCommand::Normalize(e)))
+                Ok(Normalize { e }.into())
             }
             Rule::command_beta_equiv => {
                 let mut ps = pair.into_inner();
-                let b = if ps.peek().unwrap().as_rule() != Rule::FAIL {
-                    ps.next().unwrap();
+                let succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
                     true
                 } else {
+                    ps.next().unwrap();
                     false
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(LambdaCommand::BetaEq(e1, e2, b))
+                Ok(BetaEq { e1, e2, succ_flag }.into())
             }
             _ => unreachable!("lambda command"),
         }
     }
 
-    pub(crate) fn take_typing_command(
-        pair: Pair<Rule>,
-    ) -> Res<((TypingCommand, TreeConfig, bool), Vec<UserSelect>)> {
+    pub(crate) fn take_typing_command(pair: Pair<Rule>) -> Res<(CommandAll, Vec<UserSelect>)> {
         debug_assert_eq!(pair.as_rule(), Rule::typing_command);
         let mut ps = pair.into_inner();
 
-        let b = ps.next().unwrap().as_rule() != Rule::FAIL;
+        let succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
+            true
+        } else {
+            ps.next().unwrap();
+            false
+        };
 
         let pair = ps.next().unwrap();
 
-        let res = match pair.as_rule() {
+        let res: CommandAll = match pair.as_rule() {
             Rule::command_check => {
                 let mut ps = pair.into_inner();
                 let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
@@ -478,8 +481,7 @@ pub mod parse_command {
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                let command = TypingCommand::Check(e1, e2);
-                (command, config, b)
+                Check { e1, e2, config }.into()
             }
             Rule::command_infer => {
                 let mut ps = pair.into_inner();
@@ -489,8 +491,7 @@ pub mod parse_command {
                     TreeConfig::default()
                 };
                 let e = take_expression(ps.next().unwrap())?;
-                let command = TypingCommand::Infer(e);
-                (command, config, b)
+                command::Infer { e }.into()
             }
             _ => unreachable!("typing command"),
         };
@@ -503,31 +504,35 @@ pub mod parse_command {
         Ok((res, proofs))
     }
 
-    pub(crate) fn take_new_command(
-        pair: Pair<Rule>,
-    ) -> Res<((NewCommand, TreeConfig, bool), Vec<UserSelect>)> {
+    pub(crate) fn take_new_command(pair: Pair<Rule>) -> Res<(CommandAll, Vec<UserSelect>)> {
         debug_assert_eq!(pair.as_rule(), Rule::new_command);
         let mut ps = pair.into_inner();
 
-        let b = ps.next().unwrap().as_rule() != Rule::FAIL;
+        let succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
+            true
+        } else {
+            ps.next().unwrap();
+            false
+        };
 
         let pair = ps.next().unwrap();
 
-        let res = match pair.as_rule() {
+        let res: CommandAll = match pair.as_rule() {
             Rule::new_definition => {
-                let (variable, expression1, expression2, config) = take_new_definition(pair)?;
-                let command = NewCommand::Definition(variable, expression1, expression2);
-                (command, config, b)
+                let (x, t, e, config) = take_new_definition(pair)?;
+                NewDefinition { x, t, e }.into()
             }
             Rule::new_assumption => {
                 let (variable, expression, config) = take_new_assumption(pair)?;
-                let command = NewCommand::Assumption(variable, expression);
-                (command, config, b)
+                NewAssumption {
+                    x: variable,
+                    t: expression,
+                }
+                .into()
             }
             Rule::new_inductive => {
                 let (inductive, config) = take_new_inductive(pair)?;
-                let command = NewCommand::Inductive(inductive);
-                (command, config, b)
+                NewInductive { inddefs: inductive }.into()
             }
             _ => unreachable!("new command"),
         };
