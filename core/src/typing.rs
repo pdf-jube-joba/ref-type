@@ -87,6 +87,8 @@ impl JudgementTreeBuilder {
             err_cases,
         } = self;
 
+        assert!(now_case.is_none() && label.is_none() && child.is_empty());
+
         let head = match type_of_term {
             Some(type_of_term) => FailHead::CheckFail(TypeCheckJudgement {
                 context,
@@ -95,8 +97,6 @@ impl JudgementTreeBuilder {
             }),
             None => FailHead::InferFail(context, term),
         };
-
-        assert!(now_case.is_none() && label.is_none() && child.is_empty());
 
         DerivationFailed {
             head,
@@ -741,7 +741,6 @@ pub fn type_infer(
             cases,
         } => {
             builder.case(format!("ind elim"));
-            builder.label(DerivationLabel::IndElim);
 
             // find ind type
             let inddefs = match gcxt.indtype_defs(&ind_type_name) {
@@ -841,6 +840,8 @@ pub fn type_infer(
                 )),
                 Box::new(*eliminated_exp.clone()),
             );
+
+            builder.label(DerivationLabel::IndElim);
             builder.set_type(type_of_term);
             Ok(builder.build())
         }

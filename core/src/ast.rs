@@ -468,9 +468,10 @@ impl Sort {
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
             (Sort::Univ(_) | Sort::Set | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
-            (Sort::Set | Sort::Type | Sort::Prop, Sort::Univ(_)) => Some(()),
+            (Sort::Set | Sort::Type , Sort::Univ(_)) => Some(()),
             (Sort::Univ(i1), Sort::Univ(i2)) if i1 == i2 => Some(()),
             (Sort::Univ(_) | Sort::Type, Sort::Type) => Some(()),
+            (Sort::Set, Sort::Set) => Some(()),
             _ => None,
         }
     }

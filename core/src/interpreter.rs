@@ -285,7 +285,7 @@ pub mod command {
                     }
                 },
                 CommandAllResult::NewDefinitionResult(result) => match result {
-                    NewDefinitionResult::Ok(tree) => write!(f, " => {:?}", tree),
+                    NewDefinitionResult::Ok(tree) => write!(f, "{:?}", tree),
                     NewDefinitionResult::ErrOnTyping(err, config) => {
                         write!(f, "{}", print_fail_tree(err, config))
                     }
@@ -294,7 +294,7 @@ pub mod command {
                     }
                 },
                 CommandAllResult::NewAssumptionResult(result) => match result {
-                    NewAssumptionResult::Ok(tree) => write!(f, " => {:?}", tree),
+                    NewAssumptionResult::Ok(tree) => write!(f, " {:?}", tree),
                     NewAssumptionResult::ErrOnTyping(err, config) => {
                         write!(f, "{}", print_fail_tree(err, config))
                     }
