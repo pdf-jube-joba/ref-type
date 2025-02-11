@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::ast::{inductives::*, *};
-use crate::interpreter::command::CommandAll;
+use crate::command::*;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
@@ -328,7 +328,7 @@ pub mod parse_proof {
     pub(crate) fn parse_proof(pair: Pair<Rule>) -> Result<UserSelect, Box<error::Error<Rule>>> {
         debug_assert_eq!(pair.as_rule(), Rule::PROOF);
         let mut ps = pair.into_inner();
-        let _ = ps.next().unwrap();
+        // let _ = ps.next().unwrap();
         let user_select = ps.next().unwrap();
         match user_select.as_rule() {
             Rule::exact_by_term => {
@@ -364,7 +364,7 @@ pub mod parse_command {
     type Res<E> = Result<E, Box<error::Error<Rule>>>;
     use crate::interpreter::*;
     use parse_command::{
-        command::{Check, NewAssumption, NewDefinition, NewInductive, ParseCommand},
+        // command::{Check, NewAssumption, NewDefinition, NewInductive, ParseCommand},
         parse_exp::{take_var_annnot, take_variable},
     };
 
@@ -388,14 +388,17 @@ pub mod parse_command {
                 Ok(ParseCommand { exp: e }.into())
             }
             Rule::lambda_calculus_command => Ok(take_lambda_command(pair)?),
-            Rule::typing_command => Ok(take_typing_command(pair)?.0), // todo use .1
-            Rule::new_command => Ok(take_new_command(pair)?.0),       // todo! use .1
+            Rule::typing_command => Ok(take_typing_command(pair)?),
+            Rule::new_command => Ok(take_new_command(pair)?),
+            Rule::PROOF => {
+                let user_select = parse_proof::parse_proof(pair)?;
+                Ok(ProveGoal { user_select }.into())
+            }
             _ => todo!("command not defined"),
         }
     }
 
     pub(crate) fn take_lambda_command(pair: Pair<Rule>) -> Res<CommandAll> {
-        use command::*;
         debug_assert_eq!(pair.as_rule(), Rule::lambda_calculus_command);
         let mut ps = pair.into_inner();
 
@@ -404,12 +407,6 @@ pub mod parse_command {
         match pair.as_rule() {
             Rule::command_subst => {
                 let mut ps = pair.into_inner();
-                let b = if ps.peek().unwrap().as_rule() != Rule::FAIL {
-                    true
-                } else {
-                    ps.next().unwrap();
-                    false
-                };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let x = take_variable(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
@@ -458,7 +455,7 @@ pub mod parse_command {
         }
     }
 
-    pub(crate) fn take_typing_command(pair: Pair<Rule>) -> Res<(CommandAll, Vec<UserSelect>)> {
+    pub(crate) fn take_typing_command(pair: Pair<Rule>) -> Res<CommandAll> {
         debug_assert_eq!(pair.as_rule(), Rule::typing_command);
         let mut ps = pair.into_inner();
 
@@ -491,20 +488,15 @@ pub mod parse_command {
                     TreeConfig::default()
                 };
                 let e = take_expression(ps.next().unwrap())?;
-                command::Infer { e }.into()
+                Infer { e }.into()
             }
             _ => unreachable!("typing command"),
         };
 
-        let proofs = ps
-            .into_iter()
-            .map(|pair| parse_proof::parse_proof(pair))
-            .collect::<Result<_, _>>()?;
-
-        Ok((res, proofs))
+        Ok(res)
     }
 
-    pub(crate) fn take_new_command(pair: Pair<Rule>) -> Res<(CommandAll, Vec<UserSelect>)> {
+    pub(crate) fn take_new_command(pair: Pair<Rule>) -> Res<CommandAll> {
         debug_assert_eq!(pair.as_rule(), Rule::new_command);
         let mut ps = pair.into_inner();
 
@@ -520,11 +512,12 @@ pub mod parse_command {
         let res: CommandAll = match pair.as_rule() {
             Rule::new_definition => {
                 let (x, t, e, config) = take_new_definition(pair)?;
-                NewDefinition { x, t, e }.into()
+                NewDefinition { x, t, e, config }.into()
             }
             Rule::new_assumption => {
                 let (variable, expression, config) = take_new_assumption(pair)?;
                 NewAssumption {
+                    config,
                     x: variable,
                     t: expression,
                 }
@@ -532,17 +525,16 @@ pub mod parse_command {
             }
             Rule::new_inductive => {
                 let (inductive, config) = take_new_inductive(pair)?;
-                NewInductive { inddefs: inductive }.into()
+                NewInductive {
+                    inddefs: inductive,
+                    config,
+                }
+                .into()
             }
             _ => unreachable!("new command"),
         };
 
-        let proofs = ps
-            .into_iter()
-            .map(|pair| parse_proof::parse_proof(pair))
-            .collect::<Result<_, _>>()?;
-
-        Ok((res, proofs))
+        Ok(res)
     }
 
     pub(crate) fn take_new_assumption(pair: Pair<Rule>) -> Res<(Var, Exp, TreeConfig)> {
