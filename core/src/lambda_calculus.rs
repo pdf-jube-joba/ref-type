@@ -1,4 +1,4 @@
-use crate::{ast::*, context::*};
+use crate::{ast::*, environment::*};
 use std::collections::HashSet;
 
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
@@ -260,7 +260,7 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
             let inddefs = gcxt.indtype_defs(&ind_type_name)?;
 
             let constructor = inddefs.constructor(&constructor_name)?;
-            let signature = inddefs.arity().signature().clone();
+            let signature = inddefs.arity().0.clone();
 
             let corresponding_cases = cases.iter().find_map(|(c, e)| {
                 if c == &constructor_name {

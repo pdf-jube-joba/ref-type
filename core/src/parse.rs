@@ -354,7 +354,7 @@ pub mod parse_proof {
 
 pub mod parse_command {
     use crate::{
-        context::printing::TreeConfig,
+        environment::printing::TreeConfig,
         parse::parse_command::new_inductive_type_definition::take_new_inductive,
         proving::UserSelect,
     };
@@ -362,7 +362,7 @@ pub mod parse_command {
     use super::parse_exp::take_expression;
     use super::*;
     type Res<E> = Result<E, Box<error::Error<Rule>>>;
-    use crate::interpreter::*;
+    // use crate::interpreter::*;
     use parse_command::{
         // command::{Check, NewAssumption, NewDefinition, NewInductive, ParseCommand},
         parse_exp::{take_var_annnot, take_variable},
@@ -385,16 +385,28 @@ pub mod parse_command {
             Rule::command_parse => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(ParseCommand { exp: e }.into())
+                Ok(CommandAll::ParseCommand { exp: e }.into())
             }
             Rule::lambda_calculus_command => Ok(take_lambda_command(pair)?),
             Rule::typing_command => Ok(take_typing_command(pair)?),
             Rule::new_command => Ok(take_new_command(pair)?),
+            Rule::show_command => Ok(take_show_command(pair)?),
             Rule::PROOF => {
                 let user_select = parse_proof::parse_proof(pair)?;
-                Ok(ProveGoal { user_select }.into())
+                Ok(CommandAll::ProveGoal { user_select }.into())
             }
             _ => todo!("command not defined"),
+        }
+    }
+
+    pub(crate) fn take_show_command(pair: Pair<Rule>) -> Res<CommandAll> {
+        debug_assert_eq!(pair.as_rule(), Rule::show_command);
+        let mut ps = pair.into_inner();
+        let _ = ps.next().unwrap();
+        let pair = ps.next().unwrap();
+        match pair.as_rule() {
+            Rule::show_goal => Ok(CommandAll::ShowGoal {}.into()),
+            _ => unreachable!("show command"),
         }
     }
 
@@ -410,7 +422,7 @@ pub mod parse_command {
                 let e1 = take_expression(ps.next().unwrap())?;
                 let x = take_variable(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(SubstCommand { e1, x, e2 }.into())
+                Ok(CommandAll::SubstCommand { e1, x, e2 }.into())
             }
             Rule::command_alpha_eq => {
                 let mut ps = pair.into_inner();
@@ -422,22 +434,22 @@ pub mod parse_command {
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(AlphaEq { e1, e2, succ_flag }.into())
+                Ok(CommandAll::AlphaEq { e1, e2, succ_flag }.into())
             }
             Rule::command_reduction => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(Reduce { e }.into())
+                Ok(CommandAll::Reduce { e }.into())
             }
             Rule::command_top_reduction => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(TopReduce { e }.into())
+                Ok(CommandAll::TopReduce { e }.into())
             }
             Rule::command_normalize => {
                 let mut ps = pair.into_inner();
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(Normalize { e }.into())
+                Ok(CommandAll::Normalize { e }.into())
             }
             Rule::command_beta_equiv => {
                 let mut ps = pair.into_inner();
@@ -449,7 +461,7 @@ pub mod parse_command {
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Ok(BetaEq { e1, e2, succ_flag }.into())
+                Ok(CommandAll::BetaEq { e1, e2, succ_flag }.into())
             }
             _ => unreachable!("lambda command"),
         }
@@ -478,7 +490,7 @@ pub mod parse_command {
                 };
                 let e1 = take_expression(ps.next().unwrap())?;
                 let e2 = take_expression(ps.next().unwrap())?;
-                Check { e1, e2, config }.into()
+                CommandAll::Check { e1, e2, config }.into()
             }
             Rule::command_infer => {
                 let mut ps = pair.into_inner();
@@ -488,7 +500,7 @@ pub mod parse_command {
                     TreeConfig::default()
                 };
                 let e = take_expression(ps.next().unwrap())?;
-                Infer { e }.into()
+                CommandAll::Infer { e }.into()
             }
             _ => unreachable!("typing command"),
         };
@@ -512,11 +524,11 @@ pub mod parse_command {
         let res: CommandAll = match pair.as_rule() {
             Rule::new_definition => {
                 let (x, t, e, config) = take_new_definition(pair)?;
-                NewDefinition { x, t, e, config }.into()
+                CommandAll::NewDefinition { x, t, e, config }.into()
             }
             Rule::new_assumption => {
                 let (variable, expression, config) = take_new_assumption(pair)?;
-                NewAssumption {
+                CommandAll::NewAssumption {
                     config,
                     x: variable,
                     t: expression,
@@ -525,7 +537,7 @@ pub mod parse_command {
             }
             Rule::new_inductive => {
                 let (inductive, config) = take_new_inductive(pair)?;
-                NewInductive {
+                CommandAll::NewInductive {
                     inddefs: inductive,
                     config,
                 }
@@ -596,13 +608,6 @@ pub mod parse_command {
 
         use super::*;
 
-        #[derive(Debug, Clone, PartialEq, Eq)]
-        pub struct InductiveDefinitionsSyntax {
-            type_name: String,
-            arity: (Vec<(Var, Exp)>, Sort),
-            constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
-        }
-
         impl Display for InductiveDefinitionsSyntax {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let InductiveDefinitionsSyntax {
@@ -629,12 +634,6 @@ pub mod parse_command {
                 }
                 Ok(())
             }
-        }
-
-        #[derive(Debug, Clone, PartialEq, Eq)]
-        pub enum ParamCstSyntax {
-            Positive((Vec<(Var, Exp)>, Vec<Exp>)),
-            Simple((Var, Exp)),
         }
 
         impl Display for ParamCstSyntax {

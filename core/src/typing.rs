@@ -1,4 +1,4 @@
-use crate::{ast::*, context::*, lambda_calculus::*, prod};
+use crate::{ast::*, environment::*, lambda_calculus::*, prod};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JudgementTreeBuilder {
@@ -769,7 +769,7 @@ pub fn type_infer(
             };
 
             // (sort of ind type, sort of return type) in rel
-            match Condition::indrel_sort(*inddefs.arity().sort(), end_sort) {
+            match Condition::indrel_sort(inddefs.sort(), end_sort) {
                 Ok(cond) => {
                     builder.push(cond.into());
                 }

@@ -1,6 +1,6 @@
 use crate::{
     ast::{Exp, Var},
-    context::{DerChild, DerivationFailed, GlobalContext, LocalContext, ProvableJudgement},
+    environment::{DerChild, DerivationFailed, GlobalContext, LocalContext, ProvableJudgement},
     lambda_calculus::alpha_eq,
     typing::type_check,
 };

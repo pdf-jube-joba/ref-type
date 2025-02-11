@@ -1,7 +1,6 @@
 pub mod ast;
 pub mod command;
-pub mod context;
-pub mod interpreter;
+pub mod environment;
 pub mod lambda_calculus;
 pub mod parse;
 pub mod proving;
