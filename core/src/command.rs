@@ -1,19 +1,20 @@
 use crate::{
-    ast::{Exp, Var},
-    environment::{
-        printing::{print_fail_tree, print_tree, TreeConfig},
-        DerivationFailed, GlobalContext, LocalContext, PartialDerivationTreeTypeCheck,
-        ProvableJudgement,
-    },
-    interpreter::GoalTree,
+    ast::{Exp, Var, inductives::InductiveDefinitionsSyntax},
+    environment::{derivation_tree::*, global_context::*, printing::*, tree_node::*},
+    // environment::{
+    //     printing::{print_fail_tree, print_tree, TreeConfig},
+    //     DerivationFailed, GlobalContext, LocalContext, PartialDerivationTreeTypeCheck,
+    //     ProvableJudgement,
+    // },
+    // interpreter::GoalTree,
     lambda_calculus,
-    parse::{check_inductive_syntax, InductiveDefinitionsSyntax},
+    parse::check_inductive_syntax,
     proving::{proof_tree, ErrProofTree, PartialDerivationTreeProof, UserSelect},
     typing::{type_check, type_infer},
 };
 use std::fmt::Display;
 
-use self::context::{ResIndDefsError, ResIndDefsOk};
+// use self::context::{ResIndDefsError, ResIndDefsOk};
 
 use super::*;
 

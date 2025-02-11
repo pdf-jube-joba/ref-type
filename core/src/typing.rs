@@ -1,4 +1,9 @@
-use crate::{ast::*, environment::*, lambda_calculus::*, prod};
+use crate::{
+    ast::*,
+    environment::{derivation_tree::*, global_context::*, tree_node::*},
+    lambda_calculus::*,
+    prod,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JudgementTreeBuilder {
@@ -743,7 +748,7 @@ pub fn type_infer(
             builder.case(format!("ind elim"));
 
             // find ind type
-            let inddefs = match gcxt.indtype_defs(&ind_type_name) {
+            let inddefs = match gcxt.indtype_def(&ind_type_name) {
                 Some(inddefs) => inddefs,
                 None => {
                     builder.case_fail(format!("ind_type {ind_type_name} is not defined").into());

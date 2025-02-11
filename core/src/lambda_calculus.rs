@@ -1,4 +1,7 @@
-use crate::{ast::*, environment::*};
+use crate::{
+    ast::*,
+    environment::{derivation_tree::*, global_context::*, inductive::*, tree_node::*},
+};
 use std::collections::HashSet;
 
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
@@ -257,7 +260,7 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                 return None;
             }
 
-            let inddefs = gcxt.indtype_defs(&ind_type_name)?;
+            let inddefs = gcxt.indtype_def(&ind_type_name)?;
 
             let constructor = inddefs.constructor(&constructor_name)?;
             let signature = inddefs.arity().0.clone();
