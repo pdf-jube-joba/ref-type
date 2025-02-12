@@ -1,24 +1,25 @@
 use colored::{ColoredString, Colorize};
+use core::{
+    environment::{global_context::GlobalContext, interpreter::Interpreter},
+    parse::MyParser,
+};
 use either::Either;
-use core::{environment::{global_context::GlobalContext, interpreter::Interpreter}, parse::MyParser};
 use std::io::BufRead;
 
 mod command;
 
-fn succ_or_fail(succ_or_fail: bool, flag: bool) -> ColoredString {
-    match (succ_or_fail, flag) {
-        (true, true) => "SUCC".blue(),
-        (true, false) => "SUCC".red(),
-        (false, true) => "FAIL".red(),
-        (false, false) => "FAIL".blue(),
-    }
+pub fn indent(str: String) -> String {
+    str.lines()
+        .map(|line| format!("> {}", line))
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 fn main() {
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
 
-    let mut interpreter = Interpreter::new(GlobalContext::default());
+    let mut interpreter = Interpreter::new();
 
     loop {
         let buf: String = {
@@ -32,7 +33,14 @@ fn main() {
             break;
         }
 
-        println!("-----");
+        match interpreter.now_state() {
+            core::environment::interpreter::StateInterpreter::NoGoal => {
+                println!("---command---")
+            }
+            core::environment::interpreter::StateInterpreter::Goals(_) => {
+                println!("---goals---")
+            }
+        }
 
         let mut parser = MyParser;
 
@@ -47,7 +55,15 @@ fn main() {
         println!("{command}");
 
         let res = interpreter.command(command);
-
-        println!("{res}");
+        match res {
+            Ok(ok) => {
+                println!("{}", "SUCC".blue());
+                println!("{}", indent(ok.to_string()));
+            }
+            Err(err) => {
+                println!("{}", "FAIL".red());
+                println!("{}", indent(err.to_string()));
+            }
+        }
     }
 }

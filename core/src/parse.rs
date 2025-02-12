@@ -495,7 +495,7 @@ pub mod parse_command {
                     TreeConfig::default()
                 };
                 let e = take_expression(ps.next().unwrap())?;
-                CommandAll::Infer { e }.into()
+                CommandAll::Infer { e, config }.into()
             }
             _ => unreachable!("typing command"),
         };

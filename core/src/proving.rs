@@ -23,35 +23,49 @@ impl PartialDerivationTreeProof {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UserSelect {
+    // G |- e: t
+    // G |= t
     Exact {
         proof: Exp,
-    }, // G |- e: t => G |= t
+    },
+    // G |- t: b, G |- b: Power(a)
+    // G |= Pred(a, b) t
     SubSetPred {
         term: Exp,
         subset: Exp,
         superset: Exp,
-    }, // G |- t: B, G |- B: cal(A) => G |= Pred(A, B) t
+    },
+    // G |- a: SET, G |- t1: a, G |- t2: a, G |- p: a -> PROP, G |= p t1
+    // G |= p t2
     LeibnizEq {
         set: Exp,
         term1: Exp,
         term2: Exp,
         predicate: Exp,
     },
+    // G |- a: SET, G |- b: Power(a), G |- t1: b, G |- t2: b, G |= t1 =(b) t2
+    // G |= t1 =(a) t2
     EqualIntoSuper {
         set: Exp,
         term1: Exp,
         term2: Exp,
         superset: Exp,
     },
+    // G |- a: SET, G |- b: Power(a), G |- t1: b, G |- t2: b, G |= t1 =(a) t2
+    // G |= t1 =(b) t2
     EqualIntoSub {
         set: Exp,
         term1: Exp,
         term2: Exp,
         subset: Exp,
     },
+    // G |- e: t, G |- t: SET
+    // G |= exists t
     ExistExact {
         non_empty: Exp,
     },
+    // G |- (take x: t. m): M, G |- e: t
+    // G |= (take x: t. m) =_(M) m[x := e]
     EqualTake {
         take_var: Var,
         take_type: Exp,

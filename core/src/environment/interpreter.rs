@@ -1,5 +1,4 @@
 use crate::{
-    ast::inductives::*,
     command::*,
     environment::{
         derivation_tree::*, derivation_tree::*, global_context::*, inductive::*, printing::*,
@@ -27,9 +26,9 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    pub fn new(global_context: GlobalContext) -> Self {
+    pub fn new() -> Self {
         Self {
-            global_context,
+            global_context: GlobalContext::default(),
             state: StateInterpreter::NoGoal,
         }
     }
@@ -55,80 +54,104 @@ impl Interpreter {
             ));
         }
     }
-    pub fn command(&mut self, command: CommandAll) -> CommandAllResult {
+    pub fn now_state(&self) -> &StateInterpreter {
+        &self.state
+    }
+    pub fn command(
+        &mut self,
+        command: CommandAll,
+    ) -> Result<CommandAllResultOk, CommandAllResultErr> {
         match command {
-            CommandAll::ParseCommand { exp } => CommandAllResult::ParseCommandResult,
+            CommandAll::ParseCommand { exp } => Ok(CommandAllResultOk::ParseCommandResult),
             CommandAll::SubstCommand { e1, x, e2 } => {
                 let e = lambda_calculus::subst(e1.clone(), &x, &e2);
-                CommandAllResult::SubstCommandResult { e }
+                Ok(CommandAllResultOk::SubstCommandResult { e })
             }
             CommandAll::AlphaEq { e1, e2, succ_flag } => {
                 let res = lambda_calculus::alpha_eq(&e1, &e2);
-                CommandAllResult::AlphaEqResult { eq: res }
+                if succ_flag == res {
+                    Ok(CommandAllResultOk::AlphaEqResult {
+                        expected: succ_flag,
+                    })
+                } else {
+                    Err(CommandAllResultErr::AlphaEq {
+                        expected: succ_flag,
+                    })
+                }
             }
             CommandAll::BetaEq { e1, e2, succ_flag } => {
                 let res = lambda_calculus::beta_equiv(&self.global_context, e1.clone(), e2.clone());
-                CommandAllResult::BetaEqResult { eq: res }
+                if succ_flag == res {
+                    Ok(CommandAllResultOk::BetaEqResult {
+                        expected: succ_flag,
+                    })
+                } else {
+                    Err(CommandAllResultErr::BetaEq {
+                        expected: succ_flag,
+                    })
+                }
             }
             CommandAll::TopReduce { e } => {
                 let res = lambda_calculus::top_reduction(&self.global_context, e.clone());
-                CommandAllResult::TopReduceResult { e: res }
+                Ok(CommandAllResultOk::TopReduceResult { e: res })
             }
             CommandAll::Reduce { e } => {
                 let res = lambda_calculus::reduce(&self.global_context, e.clone());
-                CommandAllResult::ReduceResult { e: res }
+                Ok(CommandAllResultOk::ReduceResult { e: res })
             }
             CommandAll::Normalize { e } => {
                 let res = lambda_calculus::normalize_seq(&self.global_context, e.clone());
-                CommandAllResult::NormalizeResult { es: res }
+                Ok(CommandAllResultOk::NormalizeResult { es: res })
             }
             CommandAll::Check { e1, e2, config } => {
                 if self.state != StateInterpreter::NoGoal {
-                    return CommandAllResult::NeedProve;
+                    return Err(CommandAllResultErr::NotInCommandMode);
                 }
                 let res = type_check(&self.global_context, LocalContext::default(), e1, e2);
 
                 let res = match res {
                     Ok(tree) => tree,
                     Err(err) => {
-                        return CommandAllResult::CheckResult {
-                            result: Err(err),
+                        return Err(CommandAllResultErr::CheckFailed {
+                            result: err,
                             config,
-                        };
+                        });
                     }
                 };
 
                 self.set_goals_type_check(&res);
 
-                CommandAllResult::CheckResult {
-                    result: Ok(res),
+                Ok(CommandAllResultOk::CheckResult {
+                    result: res,
                     config,
-                }
+                })
             }
-            CommandAll::Infer { e } => {
+            CommandAll::Infer { config, e } => {
                 if self.state != StateInterpreter::NoGoal {
-                    return CommandAllResult::NeedProve;
+                    return Err(CommandAllResultErr::NotInCommandMode);
                 }
+
                 let res = type_infer(&self.global_context, LocalContext::default(), e);
 
                 match res {
                     Ok(tree) => {
                         let exp = tree.of_type().clone();
                         self.set_goals_type_check(&tree);
-                        CommandAllResult::InferResult {
-                            result: Ok(exp),
-                            config: TreeConfig::default(),
-                        }
+                        Ok(CommandAllResultOk::InferResult {
+                            result_exp: exp,
+                            result_tree: tree,
+                            config,
+                        })
                     }
-                    Err(err) => CommandAllResult::InferResult {
-                        result: Err(err),
-                        config: TreeConfig::default(),
-                    },
+                    Err(err) => Err(CommandAllResultErr::InferFailed {
+                        result: err,
+                        config,
+                    }),
                 }
             }
             CommandAll::NewDefinition { x, t, e, config } => {
                 if self.state != StateInterpreter::NoGoal {
-                    return CommandAllResult::NeedProve;
+                    return Err(CommandAllResultErr::NotInCommandMode);
                 }
 
                 match check_well_formed::check_well_formedness_new_definition(
@@ -141,20 +164,20 @@ impl Interpreter {
                     Ok(tree) => {
                         self.global_context.push_new_defs((x, t, e));
                         self.set_goals_type_check(&tree);
-                        CommandAllResult::NewDefinitionResult {
-                            result: Ok(tree),
+                        Ok(CommandAllResultOk::NewDefinitionResult {
+                            result: tree,
                             config,
-                        }
+                        })
                     }
-                    Err(err) => CommandAllResult::NewDefinitionResult {
-                        result: Err(err),
-                        config: TreeConfig::default(),
-                    },
+                    Err(err) => Err(CommandAllResultErr::NewDefinitionFailed {
+                        result: err,
+                        config,
+                    }),
                 }
             }
             CommandAll::NewAssumption { x, t, config } => {
                 if self.state != StateInterpreter::NoGoal {
-                    return CommandAllResult::NeedProve;
+                    return Err(CommandAllResultErr::NotInCommandMode);
                 }
 
                 match check_well_formed::check_well_formedness_new_assmption(
@@ -166,28 +189,29 @@ impl Interpreter {
                     Ok(tree) => {
                         self.global_context.push_new_assum((x, t));
                         self.set_goals_type_check(&tree);
-                        CommandAllResult::NewAssumptionResult {
-                            result: Ok(tree),
+                        Ok(CommandAllResultOk::NewAssumptionResult {
+                            result: tree,
                             config,
-                        }
+                        })
                     }
-                    Err(err) => CommandAllResult::NewAssumptionResult {
-                        result: Err(err),
-                        config: TreeConfig::default(),
-                    },
+                    Err(err) => Err(CommandAllResultErr::NewAssumptionFailed {
+                        result: err,
+                        config,
+                    }),
                 }
             }
             CommandAll::NewInductive { inddefs, config } => {
                 if self.state != StateInterpreter::NoGoal {
-                    return CommandAllResult::NeedProve;
+                    return Err(CommandAllResultErr::NotInCommandMode);
                 }
+
                 let inddefs = match IndTypeDefs::new(inddefs) {
                     Ok(inddefs) => inddefs,
                     Err(err) => {
-                        return CommandAllResult::NewInductiveResult {
-                            result: Err(ResIndDefsError::SyntaxError(err)),
+                        return Err(CommandAllResultErr::NewInductiveFailed {
+                            result: ResIndDefsError::SyntaxError(err),
                             config,
-                        };
+                        });
                     }
                 };
                 match check_well_formedness_new_inddefs(
@@ -205,27 +229,25 @@ impl Interpreter {
                         for t in constructor_wellformed {
                             self.set_goals_type_check(t);
                         }
-                        CommandAllResult::NewInductiveResult {
-                            result: Ok(ok),
-                            config,
-                        }
+                        Ok(CommandAllResultOk::NewInductiveResult { result: ok, config })
                     }
-                    Err(err) => CommandAllResult::NewInductiveResult {
-                        result: Err(err),
+                    Err(err) => Err(CommandAllResultErr::NewInductiveFailed {
+                        result: err,
                         config,
-                    },
+                    }),
                 }
             }
             CommandAll::ShowGoal => match &self.state {
-                StateInterpreter::NoGoal => CommandAllResult::ShowGoalResult { goals: None },
-                StateInterpreter::Goals(goals) => CommandAllResult::ShowGoalResult {
+                StateInterpreter::NoGoal => Ok(CommandAllResultOk::ShowGoalResult { goals: None }),
+                StateInterpreter::Goals(goals) => Ok(CommandAllResultOk::ShowGoalResult {
                     goals: Some(goals.clone()),
-                },
+                }),
             },
             CommandAll::ProveGoal { user_select } => {
                 let StateInterpreter::Goals(ref mut goals) = self.state else {
-                    return CommandAllResult::NoNeedProve;
+                    return Err(CommandAllResultErr::NotInProofMode);
                 };
+
                 assert!(!goals.is_empty());
 
                 let goal = goals.first().unwrap();
@@ -245,7 +267,10 @@ impl Interpreter {
                 ) {
                     Ok(ok) => ok,
                     Err(err) => {
-                        return CommandAllResult::ProveGoalResult { result: Err(err) };
+                        return Err(CommandAllResultErr::ProofErr {
+                            result: err,
+                            config: TreeConfig::default(),
+                        });
                     }
                 };
 
@@ -261,7 +286,7 @@ impl Interpreter {
                     self.state = StateInterpreter::NoGoal;
                 }
 
-                CommandAllResult::ProveGoalResult { result: Ok(()) }
+                Ok(CommandAllResultOk::ProveGoalResult)
             }
             CommandAll::Admit => todo!(),
             CommandAll::AdmitAll => todo!(),

@@ -48,11 +48,12 @@ pub enum CommandAll {
         e: Exp,
     },
     Check {
+        config: TreeConfig,
         e1: Exp,
         e2: Exp,
-        config: TreeConfig,
     },
     Infer {
+        config: TreeConfig,
         e: Exp,
     },
     NewDefinition {
@@ -79,16 +80,52 @@ pub enum CommandAll {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CommandAllResult {
+pub enum CommandAllResultErr {
+    NotInProofMode,
+    NotInCommandMode,
+    AlphaEq {
+        expected: bool,
+    },
+    BetaEq {
+        expected: bool,
+    },
+    CheckFailed {
+        result: DerivationFailed,
+        config: TreeConfig,
+    },
+    InferFailed {
+        result: DerivationFailed,
+        config: TreeConfig,
+    },
+    NewDefinitionFailed {
+        result: DerivationFailed,
+        config: TreeConfig,
+    },
+    NewAssumptionFailed {
+        result: DerivationFailed,
+        config: TreeConfig,
+    },
+    NewInductiveFailed {
+        result: ResIndDefsError,
+        config: TreeConfig,
+    },
+    ProofErr {
+        result: ErrProofTree,
+        config: TreeConfig,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CommandAllResultOk {
     ParseCommandResult,
     SubstCommandResult {
         e: Exp,
     },
     AlphaEqResult {
-        eq: bool,
+        expected: bool,
     },
     BetaEqResult {
-        eq: bool,
+        expected: bool,
     },
     TopReduceResult {
         e: Option<Exp>,
@@ -99,40 +136,33 @@ pub enum CommandAllResult {
     NormalizeResult {
         es: Vec<Exp>,
     },
-    NeedProve,
-    NoNeedProve,
     CheckResult {
-        result: Result<PartialDerivationTreeTypeCheck, DerivationFailed>,
+        result: PartialDerivationTreeTypeCheck,
         config: TreeConfig,
     },
     InferResult {
-        result: Result<Exp, DerivationFailed>,
+        result_exp: Exp,
+        result_tree: PartialDerivationTreeTypeCheck,
         config: TreeConfig,
     },
     NewDefinitionResult {
-        result: Result<PartialDerivationTreeTypeCheck, DerivationFailed>,
+        result: PartialDerivationTreeTypeCheck,
         config: TreeConfig,
     },
     NewAssumptionResult {
-        result: Result<PartialDerivationTreeTypeCheck, DerivationFailed>,
+        result: PartialDerivationTreeTypeCheck,
         config: TreeConfig,
     },
     NewInductiveResult {
-        result: Result<ResIndDefsOk, ResIndDefsError>,
+        result: ResIndDefsOk,
         config: TreeConfig,
     },
     ShowGoalResult {
         goals: Option<GoalTree>,
     },
-    ProveGoalResult {
-        result: Result<(), ErrProofTree>,
-    },
-    AdmitResult {
-        result: Result<(), ()>,
-    },
-    AdmitAllResult {
-        result: Result<(), ()>,
-    },
+    ProveGoalResult,
+    AdmitResult,
+    AdmitAllResult,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,7 +195,7 @@ impl Display for CommandAll {
             CommandAll::Reduce { e } => write!(f, "reduce {}", e),
             CommandAll::Normalize { e } => write!(f, "normalize {}", e),
             CommandAll::Check { e1, e2, config } => write!(f, "check {} <| {}", e1, e2),
-            CommandAll::Infer { e } => write!(f, "infer {}", e),
+            CommandAll::Infer { config, e } => write!(f, "infer {}", e),
             CommandAll::NewDefinition { x, t, e, config: _ } => {
                 write!(f, "new_definition {} {} {}", x, t, e)
             }
@@ -183,78 +213,64 @@ impl Display for CommandAll {
     }
 }
 
-impl Display for CommandAllResult {
+impl Display for CommandAllResultOk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CommandAllResult::NeedProve => write!(f, "NEED PROVE!"),
-            CommandAllResult::NoNeedProve => write!(f, "NO NEED PROVE!"),
-            CommandAllResult::ParseCommandResult => write!(f, " ok"),
-            CommandAllResult::SubstCommandResult { e } => write!(f, " => {}", e),
-            CommandAllResult::AlphaEqResult { eq } => write!(f, " =~(alpha) {}", eq),
-            CommandAllResult::BetaEqResult { eq } => write!(f, " =~(beta) {}", eq),
-            CommandAllResult::TopReduceResult { e } => match e {
+            CommandAllResultOk::ParseCommandResult => write!(f, " ok"),
+            CommandAllResultOk::SubstCommandResult { e } => write!(f, " => {}", e),
+            CommandAllResultOk::AlphaEqResult { expected } => {
+                write!(f, "=~(alpha) ... {}", if *expected { "o" } else { "x" })
+            }
+            CommandAllResultOk::BetaEqResult { expected } => {
+                write!(f, "=~(beta) ... {}", if *expected { "o" } else { "x" })
+            }
+            CommandAllResultOk::TopReduceResult { e } => match e {
                 Some(e) => write!(f, " => {}", e),
                 None => write!(f, " => !"),
             },
-            CommandAllResult::ReduceResult { e } => match e {
+            CommandAllResultOk::ReduceResult { e } => match e {
                 Some(e) => write!(f, " => {}", e),
                 None => write!(f, " => !"),
             },
-            CommandAllResult::NormalizeResult { es } => {
+            CommandAllResultOk::NormalizeResult { es } => {
                 for e in es {
                     writeln!(f, " => {}", e)?;
                 }
                 Ok(())
             }
-            CommandAllResult::CheckResult { result, config } => match result {
-                Ok(tree) => write!(f, "{}", print_tree(tree, config)),
-                Err(tree) => write!(f, "{}", print_fail_tree(tree, config)),
-            },
-            CommandAllResult::InferResult { result, config } => match result {
-                Ok(exp) => write!(f, " => {}", exp),
-                Err(err) => write!(f, "{}", print_fail_tree(err, config)),
-            },
-            CommandAllResult::NewDefinitionResult { result, config } => match result {
-                Ok(tree) => write!(f, "{}", print_tree(tree, config)),
-                Err(err) => write!(f, "{}", print_fail_tree(err, config)),
-            },
-            CommandAllResult::NewAssumptionResult { result, config } => match result {
-                Ok(tree) => write!(f, " {}", print_tree(tree, config)),
-                Err(err) => write!(f, "{}", print_fail_tree(err, config)),
-            },
-            CommandAllResult::NewInductiveResult { result, config } => match result {
-                Ok(ok) => {
-                    let ResIndDefsOk {
-                        arity_well_formed,
-                        constructor_wellformed,
-                    } = ok;
-                    write!(f, "{}\n", print_tree(arity_well_formed, config))?;
-                    for tree in constructor_wellformed {
-                        write!(f, "{}\n", print_tree(tree, config))?;
-                    }
-                    Ok(())
+            CommandAllResultOk::CheckResult { result, config } => {
+                write!(f, "{}", print_tree(result, config))
+            }
+            CommandAllResultOk::InferResult {
+                result_exp,
+                result_tree,
+                config,
+            } => {
+                write!(
+                    f,
+                    "infered: {}\n{}",
+                    result_exp,
+                    print_tree(result_tree, config)
+                )
+            }
+            CommandAllResultOk::NewDefinitionResult { result, config } => {
+                write!(f, "{}", print_tree(result, config))
+            }
+            CommandAllResultOk::NewAssumptionResult { result, config } => {
+                write!(f, "{}", print_tree(result, config))
+            }
+            CommandAllResultOk::NewInductiveResult { result, config } => {
+                let ResIndDefsOk {
+                    arity_well_formed,
+                    constructor_wellformed,
+                } = result;
+                write!(f, "{}\n", print_tree(arity_well_formed, config))?;
+                for tree in constructor_wellformed {
+                    write!(f, "{}\n", print_tree(tree, config))?;
                 }
-                Err(err) => match err {
-                    ResIndDefsError::AlreadyDefinedType => write!(f, "AlreadyDefinedType"),
-                    ResIndDefsError::SyntaxError(err) => write!(f, "{err}"),
-                    ResIndDefsError::ArityNotWellformed(err) => write!(
-                        f,
-                        "arity not wellformed \n {}",
-                        print_fail_tree(err, config)
-                    ),
-                    ResIndDefsError::ConstructorNotWellFormed(err) => {
-                        write!(f, "constructor not wellformed \n",)?;
-                        for tree in err {
-                            match tree {
-                                Ok(tree) => writeln!(f, "{}", print_tree(tree, config))?,
-                                Err(tree) => writeln!(f, "{}", print_fail_tree(tree, config))?,
-                            }
-                        }
-                        Ok(())
-                    }
-                },
-            },
-            CommandAllResult::ShowGoalResult { goals } => {
+                Ok(())
+            }
+            CommandAllResultOk::ShowGoalResult { goals } => {
                 if let Some(goals) = goals {
                     let GoalTree::Branch(goals) = goals else {
                         unreachable!("branch");
@@ -263,21 +279,65 @@ impl Display for CommandAllResult {
                         writeln!(f, " ?{}", into_printing_tree(goal))?;
                     }
                 } else {
-                    writeln!(f, " no goal ")?;
+                    writeln!(f, "no goal ")?;
                 }
                 Ok(())
             }
-            CommandAllResult::ProveGoalResult { result } => match result {
-                Ok(_) => write!(f, "prove_goal ok"),
-                Err(_) => write!(f, "prove_goal err"),
+            CommandAllResultOk::ProveGoalResult => write!(f, "prove ok"),
+            CommandAllResultOk::AdmitResult => write!(f, "admit ok"),
+            CommandAllResultOk::AdmitAllResult => write!(f, "admit_all ok"),
+        }
+    }
+}
+
+impl Display for CommandAllResultErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommandAllResultErr::NotInProofMode => write!(f, "NotInProofMode"),
+            CommandAllResultErr::NotInCommandMode => write!(f, "NotInCommandMode"),
+            CommandAllResultErr::AlphaEq { expected } => {
+                write!(f, "expected: {}", expected)
+            }
+            CommandAllResultErr::BetaEq { expected } => {
+                write!(f, "expected: {}", expected)
+            }
+            CommandAllResultErr::CheckFailed { result, config } => {
+                write!(f, "{}", print_fail_tree(result, config))
+            }
+            CommandAllResultErr::InferFailed { result, config } => {
+                write!(f, "{}", print_fail_tree(result, config))
+            }
+            CommandAllResultErr::NewDefinitionFailed { result, config } => {
+                write!(f, "{}", print_fail_tree(result, config))
+            }
+            CommandAllResultErr::NewAssumptionFailed { result, config } => {
+                write!(f, "{}", print_fail_tree(result, config))
+            }
+            CommandAllResultErr::NewInductiveFailed { result, config } => match result {
+                ResIndDefsError::AlreadyDefinedType => write!(f, "AlreadyDefinedType"),
+                ResIndDefsError::SyntaxError(err) => write!(f, "{err}"),
+                ResIndDefsError::ArityNotWellformed(err) => write!(
+                    f,
+                    "arity not wellformed \n {}",
+                    print_fail_tree(err, config)
+                ),
+                ResIndDefsError::ConstructorNotWellFormed(err) => {
+                    write!(f, "constructor not wellformed \n",)?;
+                    for tree in err {
+                        match tree {
+                            Ok(tree) => writeln!(f, "{}", print_tree(tree, config))?,
+                            Err(tree) => writeln!(f, "{}", print_fail_tree(tree, config))?,
+                        }
+                    }
+                    Ok(())
+                }
             },
-            CommandAllResult::AdmitResult { result } => match result {
-                Ok(_) => write!(f, "admit ok"),
-                Err(_) => write!(f, "admit no_need_to_prove"),
-            },
-            CommandAllResult::AdmitAllResult { result } => match result {
-                Ok(_) => write!(f, "admit_all ok"),
-                Err(_) => write!(f, "admit_all no_need_to_prove"),
+            CommandAllResultErr::ProofErr { result, config } => match result {
+                ErrProofTree::FailTree { err, fail_tree } => {
+                    write!(f, "{}", err)?;
+                    write!(f, "{}", print_fail_tree(fail_tree, config))
+                }
+                ErrProofTree::NotAlphaEq => write!(f, "NotAlphaEq"),
             },
         }
     }
