@@ -148,7 +148,7 @@ pub fn type_check(
         };
 
     // 1. if infered =^beta expected => OK (by Conv Rule)
-    builder.case(format!("conv ?"));
+    builder.case("conv ?".to_string());
     let err = 'conversion: {
         match Condition::convertible(gcxt, expected.clone(), infered_tree.of_type().clone()) {
             Ok(cond) => {
@@ -167,7 +167,7 @@ pub fn type_check(
     builder.case_fail(err.into());
 
     // 2. if infered ->* Pow(A), expected ->* SET => Ok (by PowWeak)
-    builder.case(format!("pow weak ?"));
+    builder.case("pow weak ?".to_string());
     let err: ErrInfo = 'pow_weak: {
         // 1. check expected ->* SET
         let sort = match Condition::reduce_to_sort(gcxt, expected.clone()) {
@@ -205,7 +205,7 @@ pub fn type_check(
     // 3. if cxt |- expected: Pow(super_expected)
     // check cxt |- term1 <| super_expected
     // ask cxt |= Pred(super_expected, expected) term1
-    builder.case(format!("expect has super set ?").into());
+    builder.case("expect has super set ?".to_string());
     let err: ErrInfo = 'sub_intro: {
         // 1. check cxt |- expected |> Pow(super_expected)
         let super_expected = match type_infered_to_pow(gcxt, cxt.clone(), expected.clone()) {
@@ -247,7 +247,7 @@ pub fn type_check(
     // 4. otherwise
     // expected has no super set .. so outermost super set of infered should equal to expected
     // check cxt |- infered <= A_1 <= ... <= A_n !<= term with expected =~ A_n
-    builder.case(format!("infered <= expected ?").into());
+    builder.case("infered <= expected ?".to_string());
     let err: ErrInfo = 'subset_elim_set: {
         let mut set = infered_tree.of_type().clone();
         while let Ok((super_set_tree, super_set)) =
@@ -318,7 +318,7 @@ pub fn type_infered_to_sort(
     builder.case_fail(err);
 
     // 2. if infered ->* Pow(A) => ok
-    builder.case("conv to pow ?".to_string().into());
+    builder.case("conv to pow ?".to_string());
     let err: ErrInfo = 'conv_to_pow: {
         match Condition::reduce_to_pow(gcxt, der_tree_infered.of_type().clone()) {
             Ok((cond, _)) => {
@@ -335,9 +335,9 @@ pub fn type_infered_to_sort(
         // ok
         return Ok((builder.build(), Sort::Set));
     };
-    builder.case_fail(err.into());
+    builder.case_fail(err);
 
-    return Err(builder.build_fail_tree());
+    Err(builder.build_fail_tree())
 }
 
 // Γ |- t |> (x: a) -> b
@@ -351,7 +351,7 @@ pub fn type_infered_to_prod(
         term.clone(),
         format!("infered prod {cxt} |- {term}"),
     );
-    builder.case(format!("only prod"));
+    builder.case("only prod".to_string());
 
     // get T of G |- t |> infered
     let der_tree_infered = match type_infer(gcxt, cxt.clone(), term.clone()) {
@@ -443,7 +443,7 @@ pub fn type_infered_to_ind(
         term.clone(),
         format!("infered ind {cxt} |- {term}"),
     );
-    builder.case("only ind".to_string().into());
+    builder.case("only ind".to_string());
 
     // get T of G |- t |> infered
     let infered_type = match type_infer(gcxt, cxt.clone(), term.clone()) {
@@ -482,7 +482,7 @@ pub fn type_infered_to_ind(
 // where (x_1: A_1) -> ... -> (x_k A_k) = arity of I
 pub fn type_infered_to_ind_return_type(
     gcxt: &GlobalContext,
-    mut cxt: LocalContext,
+    cxt: LocalContext,
     term: Exp,
     type_name: TypeName,
 ) -> Result<(PartialDerivationTreeTypeCheck, Sort), DerivationFailed> {
@@ -491,7 +491,7 @@ pub fn type_infered_to_ind_return_type(
         term.clone(),
         format!("infered return type {cxt} |- {term}: ... -> {type_name}"),
     );
-    builder.case(format!("only return type"));
+    builder.case("only return type".to_string());
 
     // get T of G |- t |> infered
     let infered_type = match type_infer(gcxt, cxt.clone(), term.clone()) {
@@ -534,7 +534,7 @@ pub fn type_infer(
 
     match term1 {
         Exp::Sort(sort) => {
-            builder.case("term is sort".to_string().into());
+            builder.case("term is sort".to_string());
 
             match Condition::axiom_sort(sort) {
                 Ok((cond, sort)) => {
@@ -551,24 +551,24 @@ pub fn type_infer(
         }
         Exp::Var(x) => {
             // global definition
-            builder.case(format!("var: global def"));
+            builder.case("var: global def".to_string());
             if let Some(e) = gcxt.search_var_defined(x.clone()) {
                 builder.label(DerivationLabel::GlobalDefinition);
                 builder.set_type(e.0.clone());
                 return Ok(builder.build());
             }
-            builder.case_fail(format!("not global def").into());
+            builder.case_fail("not global def".to_string().into());
 
             // global assumption
-            builder.case(format!("var: global assum"));
+            builder.case("var: global assum".to_string());
             if let Some(e) = gcxt.search_var_assum(x.clone()) {
                 builder.label(DerivationLabel::GlobalAssumption);
                 builder.set_type(e.clone());
                 return Ok(builder.build());
             }
-            builder.case_fail(format!("not global assum").into());
+            builder.case_fail("not global assum".to_string().into());
 
-            builder.case(format!("var: context"));
+            builder.case("var: context".to_string());
             match Condition::context_has_var(cxt, x.clone()) {
                 Ok((cond, e)) => {
                     builder.push(cond.into());
@@ -583,7 +583,7 @@ pub fn type_infer(
             }
         }
         Exp::Prod(mut x, t, mut t2) => {
-            builder.case(format!("prod"));
+            builder.case("prod".to_string());
 
             // get G |- t |. s
             let sort_of_t = match type_infered_to_sort(gcxt, cxt.clone(), *t.clone()) {
@@ -626,12 +626,12 @@ pub fn type_infer(
                 }
                 Err(err) => {
                     builder.case_fail(err.into());
-                    return Err(builder.build_fail_tree());
+                    Err(builder.build_fail_tree())
                 }
             }
         }
         Exp::Lam(mut x, t, mut m) => {
-            builder.case(format!("case lam"));
+            builder.case("case lam".to_string());
 
             // sort of t
             let sort_of_t = match type_infered_to_sort(gcxt, cxt.clone(), *t.clone()) {
@@ -672,7 +672,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::App(t1, t2) => {
-            builder.case(format!("term is app"));
+            builder.case("term is app".to_string());
 
             // get G |- t1 |> (x: a)  ->* b
             let (x, a, b) = match type_infered_to_prod(gcxt, cxt.clone(), *t1.clone()) {
@@ -695,12 +695,12 @@ pub fn type_infer(
                 }
                 Err(err) => {
                     builder.case_fail(err.into());
-                    return Err(builder.build_fail_tree());
+                    Err(builder.build_fail_tree())
                 }
             }
         }
         Exp::IndTypeType { ind_type_name } => {
-            builder.case(format!("ind form"));
+            builder.case("ind form".to_string());
 
             // ind_type_name is defined ?
             let type_of_ind_type = match gcxt.type_of_indtype(&ind_type_name) {
@@ -721,7 +721,7 @@ pub fn type_infer(
             ind_type_name,
             constructor_name,
         } => {
-            builder.case(format!("ind intro"));
+            builder.case("ind intro".to_string());
 
             // ind_type_name::constructor_name is defined ?
             let type_of_cst_type = match gcxt.type_of_cst(&ind_type_name, &constructor_name) {
@@ -745,7 +745,7 @@ pub fn type_infer(
             return_type,
             cases,
         } => {
-            builder.case(format!("ind elim"));
+            builder.case("ind elim".to_string());
 
             // find ind type
             let inddefs = match gcxt.indtype_def(&ind_type_name) {
@@ -851,7 +851,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Proof(t) => {
-            builder.case(format!("proof").into());
+            builder.case("proof".to_string());
 
             match type_check(gcxt, cxt.clone(), *t.clone(), Sort::Prop.into()) {
                 Ok(tree) => builder.push(tree.into()),
@@ -871,7 +871,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Sub(mut x, a, mut p) => {
-            builder.case(format!("sub form"));
+            builder.case("sub form".to_string());
 
             // check cxt |- a: SET
             match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
@@ -907,7 +907,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Pow(a) => {
-            builder.case(format!("pow form"));
+            builder.case("pow form".to_string());
 
             // check cxt |- a: SET
             match type_check(gcxt, cxt.clone(), *a.clone(), Exp::Sort(Sort::Set)) {
@@ -926,7 +926,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Pred(a, b) => {
-            builder.case(format!("pred "));
+            builder.case("pred ".to_string());
 
             // check cxt |- b: Pow(a) ?
             match type_check(gcxt, cxt.clone(), *b.clone(), Exp::Pow(a.clone())) {
@@ -944,7 +944,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Id(exp, exp1, exp2) => {
-            builder.case(format!("identity"));
+            builder.case("identity".to_string());
 
             // check cxt |- exp: SET
             match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
@@ -985,7 +985,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Refl(exp, exp1) => {
-            builder.case(format!("refl"));
+            builder.case("refl".to_string());
 
             // check cxt |- exp: SET
             match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
@@ -1019,7 +1019,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Exists(exp) => {
-            builder.case(format!("exists"));
+            builder.case("exists".to_string());
 
             // check cxt |- exp: SET
             match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {
@@ -1038,7 +1038,7 @@ pub fn type_infer(
             Ok(builder.build())
         }
         Exp::Take(mut var, exp, mut exp1) => {
-            builder.case(format!("take"));
+            builder.case("take".to_string());
 
             // check cxt |- exp: SET
             match type_check(gcxt, cxt.clone(), *exp.clone(), Sort::Set.into()) {

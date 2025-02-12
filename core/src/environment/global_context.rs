@@ -54,8 +54,18 @@ pub mod inductive {
             let var_type = end.0.clone();
             for p in &params {
                 match p {
-                    ParamCst::Positive(positive) => {}
-                    ParamCst::Simple((x, a)) => {}
+                    ParamCst::Positive(positive) => {
+                        if positive.variable != var_type {
+                            return Err(format!(
+                                "positive param {positive:?} contains {var_type:?}"
+                            ));
+                        }
+                    }
+                    ParamCst::Simple((_, a)) => {
+                        if a.free_variable().contains(&var_type) {
+                            return Err(format!("arg {a:?} contains {var_type:?}"));
+                        }
+                    }
                 }
             }
             Ok((Self { end, params }, var_type))
@@ -140,7 +150,7 @@ pub mod inductive {
             let Self { end, params } = self;
 
             let mut usable_fresh_var: usize = {
-                let end_fresh = end.1.iter().map(|e| fresh(e)).max().unwrap_or(0);
+                let end_fresh = end.1.iter().map(fresh).max().unwrap_or(0);
                 let params_fresh = params
                     .iter()
                     .map(|p| match p {
@@ -197,7 +207,7 @@ pub mod inductive {
             let Self { end, params } = self;
 
             let mut usable_fresh_var = {
-                let end_fresh = end.1.iter().map(|e| fresh(e)).max().unwrap_or(0);
+                let end_fresh = end.1.iter().map(fresh).max().unwrap_or(0);
                 let params_fresh = params
                     .iter()
                     .map(|p| match p {
@@ -316,7 +326,7 @@ pub mod inductive {
         }
         pub fn arity_as_exp(&self) -> Exp {
             let (vars, sort) = self.arity();
-            assoc_prod(vars.clone(), sort.clone().into())
+            assoc_prod(vars.clone(), (*sort).into())
         }
         pub fn arg_of_type(&self) -> &Vec<(Var, Exp)> {
             &self.arity.0

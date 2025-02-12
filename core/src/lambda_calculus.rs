@@ -1,7 +1,4 @@
-use crate::{
-    ast::*,
-    environment::{derivation_tree::*, global_context::*, tree_node::*},
-};
+use crate::{ast::*, environment::global_context::*};
 use std::collections::HashSet;
 
 fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
@@ -210,16 +207,16 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
         }
         (Exp::Pred(_, _), _) => false,
         (Exp::Id(set1, a1, b1), Exp::Id(set2, a2, b2)) => {
-            alpha_eq_rec(&set1, &set2, bd.clone())
-                && alpha_eq_rec(&a1, &a2, bd.clone())
-                && alpha_eq_rec(&b1, &b2, bd)
+            alpha_eq_rec(set1, set2, bd.clone())
+                && alpha_eq_rec(a1, a2, bd.clone())
+                && alpha_eq_rec(b1, b2, bd)
         }
         (Exp::Id(_, _, _), _) => false,
         (Exp::Refl(set1, a1), Exp::Refl(set2, a2)) => {
-            alpha_eq_rec(&set1, &set2, bd.clone()) && alpha_eq_rec(&a1, &a2, bd.clone())
+            alpha_eq_rec(set1, set2, bd.clone()) && alpha_eq_rec(a1, a2, bd.clone())
         }
         (Exp::Refl(_, _), _) => false,
-        (Exp::Exists(t1), Exp::Exists(t2)) => alpha_eq_rec(&t1, &t2, bd),
+        (Exp::Exists(t1), Exp::Exists(t2)) => alpha_eq_rec(t1, t2, bd),
         (Exp::Exists(_), _) => false,
         (Exp::Take(x1, m1, n1), Exp::Take(x2, m2, n2)) => {
             alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
@@ -388,29 +385,23 @@ pub fn reduce(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                 Some(Exp::Id(Box::new(exp), exp1, exp2))
             } else if let Some(exp1) = reduce(gcxt, *exp1.clone()) {
                 Some(Exp::Id(exp, Box::new(exp1), exp2))
-            } else if let Some(exp2) = reduce(gcxt, *exp2.clone()) {
-                Some(Exp::Id(exp, exp1, Box::new(exp2)))
             } else {
-                None
+                reduce(gcxt, *exp2.clone()).map(|exp2| Exp::Id(exp, exp1, Box::new(exp2)))
             }
         }
         Exp::Refl(exp, exp1) => {
             if let Some(exp) = reduce(gcxt, *exp.clone()) {
                 Some(Exp::Refl(Box::new(exp), exp1))
-            } else if let Some(exp1) = reduce(gcxt, *exp1.clone()) {
-                Some(Exp::Refl(exp, Box::new(exp1)))
             } else {
-                None
+                reduce(gcxt, *exp1.clone()).map(|exp1| Exp::Refl(exp, Box::new(exp1)))
             }
         }
         Exp::Exists(exp) => Some(Exp::Exists(Box::new(reduce(gcxt, *exp.clone())?))),
         Exp::Take(var, exp, exp1) => {
             if let Some(exp) = reduce(gcxt, *exp.clone()) {
                 Some(Exp::Take(var, Box::new(exp), exp1))
-            } else if let Some(exp1) = reduce(gcxt, *exp1.clone()) {
-                Some(Exp::Take(var, exp, Box::new(exp1)))
             } else {
-                None
+                reduce(gcxt, *exp1.clone()).map(|exp1| Exp::Take(var, exp, Box::new(exp1)))
             }
         }
     }
@@ -490,10 +481,24 @@ impl Exp {
                 v.extend(b.free_variable());
                 v
             }
-            Exp::Id(exp, exp1, exp2) => todo!(),
-            Exp::Refl(exp, exp1) => todo!(),
-            Exp::Exists(exp) => todo!(),
-            Exp::Take(var, exp, exp1) => todo!(),
+            Exp::Id(exp, exp1, exp2) => {
+                let mut v = exp.free_variable();
+                v.extend(exp1.free_variable());
+                v.extend(exp2.free_variable());
+                v
+            }
+            Exp::Refl(exp, exp1) => {
+                let mut v = exp.free_variable();
+                v.extend(exp1.free_variable());
+                v
+            }
+            Exp::Exists(exp) => exp.free_variable(),
+            Exp::Take(var, exp, exp1) => {
+                let mut v = exp.free_variable();
+                v.remove(var);
+                v.extend(exp1.free_variable());
+                v
+            }
         }
     }
 }

@@ -1,9 +1,5 @@
-use colored::{ColoredString, Colorize};
-use core::{
-    environment::{global_context::GlobalContext, interpreter::Interpreter},
-    parse::MyParser,
-};
-use either::Either;
+use colored::Colorize;
+use core::{environment::interpreter::Interpreter, parse::MyParser};
 use std::io::BufRead;
 
 mod command;

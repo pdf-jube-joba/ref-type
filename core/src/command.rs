@@ -1,14 +1,7 @@
 use crate::{
     ast::{inductives::InductiveDefinitionsSyntax, Exp, Var},
-    environment::{
-        derivation_tree::*,
-        global_context::{inductive::*, *},
-        printing::*,
-        tree_node::*,
-    },
-    lambda_calculus,
-    proving::{proof_tree, ErrProofTree, PartialDerivationTreeProof, UserSelect},
-    typing::{type_check, type_infer},
+    environment::{derivation_tree::*, printing::*},
+    proving::{ErrProofTree, UserSelect},
 };
 use std::fmt::Display;
 
@@ -194,8 +187,8 @@ impl Display for CommandAll {
             CommandAll::TopReduce { e } => write!(f, "top_reduce {}", e),
             CommandAll::Reduce { e } => write!(f, "reduce {}", e),
             CommandAll::Normalize { e } => write!(f, "normalize {}", e),
-            CommandAll::Check { e1, e2, config } => write!(f, "check {} <| {}", e1, e2),
-            CommandAll::Infer { config, e } => write!(f, "infer {}", e),
+            CommandAll::Check { e1, e2, config: _ } => write!(f, "check {} <| {}", e1, e2),
+            CommandAll::Infer { config: _, e } => write!(f, "infer {}", e),
             CommandAll::NewDefinition { x, t, e, config: _ } => {
                 write!(f, "new_definition {}: {} : {}", x, t, e)
             }
@@ -264,9 +257,9 @@ impl Display for CommandAllResultOk {
                     arity_well_formed,
                     constructor_wellformed,
                 } = result;
-                write!(f, "{}\n", print_tree(arity_well_formed, config))?;
+                writeln!(f, "{}", print_tree(arity_well_formed, config))?;
                 for tree in constructor_wellformed {
-                    write!(f, "{}\n", print_tree(tree, config))?;
+                    writeln!(f, "{}", print_tree(tree, config))?;
                 }
                 Ok(())
             }
@@ -322,7 +315,7 @@ impl Display for CommandAllResultErr {
                     print_fail_tree(err, config)
                 ),
                 ResIndDefsError::ConstructorNotWellFormed(err) => {
-                    write!(f, "constructor not wellformed \n",)?;
+                    writeln!(f, "constructor not wellformed ",)?;
                     for tree in err {
                         match tree {
                             Ok(tree) => writeln!(f, "{}", print_tree(tree, config))?,

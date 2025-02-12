@@ -1,4 +1,3 @@
-
 use super::*;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -48,7 +47,7 @@ pub struct ProvableJudgement {
 }
 
 impl ProvableJudgement {
-    fn predicate_element(context: LocalContext, large: Exp, sub: Exp, element: Exp) -> Self {
+    pub fn predicate_element(context: LocalContext, large: Exp, sub: Exp, element: Exp) -> Self {
         let proposition = {
             let pred = Exp::Pred(Box::new(large), Box::new(sub));
             Exp::App(Box::new(pred), Box::new(element))

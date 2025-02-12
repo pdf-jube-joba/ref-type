@@ -1,6 +1,3 @@
-
-use std::default;
-
 use super::*;
 use colored::Colorize;
 use termtree::Tree;
@@ -105,11 +102,7 @@ fn tree_partial_derivation_tree(
 ) -> Tree<Node> {
     if *tree_config == TreeConfig::OnlyGoals {
         let mut show_tree = Tree::new(Node::TypeCheckJudgement(tree.head.clone()));
-        show_tree.extend(
-            tree.get_goals()
-                .into_iter()
-                .map(|goal| Node::ProvableJudgement(goal)),
-        );
+        show_tree.extend(tree.get_goals().into_iter().map(Node::ProvableJudgement));
         return show_tree;
     }
 

@@ -15,11 +15,9 @@ pub mod tree_node;
 
 use derivation_tree::*;
 use global_context::*;
-use interpreter::*;
 use tree_node::*;
 
 pub mod check_well_formed {
-    use self::inductives::InductiveDefinitionsSyntax;
 
     use super::*;
 
@@ -40,20 +38,17 @@ pub mod check_well_formed {
     pub fn check_well_formedness_new_definition(
         gcxt: &GlobalContext,
         cxt: LocalContext,
-        x: Var,
+        _x: Var,
         a: Exp,
         v: Exp,
     ) -> Result<PartialDerivationTreeTypeCheck, DerivationFailed> {
-        match type_check(gcxt, cxt, v.clone(), a.clone()) {
-            Ok(der_tree) => Ok(der_tree),
-            Err(err) => Err(err),
-        }
+        type_check(gcxt, cxt, v.clone(), a.clone())
     }
 
     pub fn check_well_formedness_new_assmption(
         gcxt: &GlobalContext,
         cxt: LocalContext,
-        x: Var,
+        _x: Var,
         a: Exp,
     ) -> Result<PartialDerivationTreeTypeCheck, DerivationFailed> {
         match type_infered_to_sort(gcxt, cxt, a.clone()) {
@@ -64,7 +59,6 @@ pub mod check_well_formed {
 
     pub fn check_well_formedness_new_inddefs(
         gcxt: &GlobalContext,
-        cxt: LocalContext,
         defs: inductive::IndTypeDefs,
     ) -> Result<ResIndDefsOk, ResIndDefsError> {
         if gcxt

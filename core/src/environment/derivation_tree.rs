@@ -108,13 +108,13 @@ impl GoalTree {
     pub fn first(&mut self) -> Option<&mut Self> {
         match self {
             GoalTree::UnSolved(_) => Some(self),
-            GoalTree::Branch(v) => v.first_mut().map(|v| v.first()).flatten(),
+            GoalTree::Branch(v) => v.first_mut().and_then(|v| v.first()),
         }
     }
     pub fn first_proposition(&mut self) -> Option<&mut ProvableJudgement> {
         match self {
             GoalTree::UnSolved(p) => Some(p),
-            GoalTree::Branch(v) => v.first_mut().map(|v| v.first_proposition()).flatten(),
+            GoalTree::Branch(v) => v.first_mut().and_then(|v| v.first_proposition()),
         }
     }
 }
@@ -142,7 +142,7 @@ pub fn into_printing_tree(v: &GoalTree) -> Tree<Node> {
         GoalTree::UnSolved(p) => Tree::new(Node::UnSolved(p.clone())),
         GoalTree::Branch(v) => {
             let mut t = Tree::new(Node::Mid);
-            t.extend(v.iter().map(|t| into_printing_tree(t)));
+            t.extend(v.iter().map(into_printing_tree));
             t
         }
     }

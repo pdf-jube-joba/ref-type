@@ -332,13 +332,13 @@ pub fn fresh(term: &Exp) -> usize {
             let v2 = fresh(t2);
             std::cmp::max(v1, v2)
         }
-        Exp::IndTypeType { ind_type_name } => 0,
+        Exp::IndTypeType { ind_type_name: _ } => 0,
         Exp::IndTypeCst {
-            ind_type_name,
-            constructor_name,
+            ind_type_name: _,
+            constructor_name: _,
         } => 0,
         Exp::IndTypeElim {
-            ind_type_name,
+            ind_type_name: _,
             eliminated_exp,
             return_type,
             cases,
@@ -346,7 +346,7 @@ pub fn fresh(term: &Exp) -> usize {
             .iter()
             .map(|(_, e)| e)
             .chain(vec![eliminated_exp.as_ref(), return_type.as_ref()])
-            .map(|e| fresh(e))
+            .map(fresh)
             .max()
             .unwrap(),
         Exp::Proof(t) => fresh(t),
@@ -357,16 +357,16 @@ pub fn fresh(term: &Exp) -> usize {
             std::cmp::max(fresh_var(x), v)
         }
         Exp::Pow(t) => fresh(t),
-        Exp::Pred(a, b) => std::cmp::max(fresh(&a), fresh(b)),
+        Exp::Pred(a, b) => std::cmp::max(fresh(a), fresh(b)),
         Exp::Id(exp, exp1, exp2) => {
             let v = fresh(exp);
-            let v2 = std::cmp::max(fresh(&exp1), fresh(&exp2));
+            let v2 = std::cmp::max(fresh(exp1), fresh(exp2));
             std::cmp::max(v, v2)
         }
-        Exp::Refl(exp, exp1) => std::cmp::max(fresh(&exp), fresh(&exp1)),
-        Exp::Exists(exp) => fresh(&exp),
+        Exp::Refl(exp, exp1) => std::cmp::max(fresh(exp), fresh(exp1)),
+        Exp::Exists(exp) => fresh(exp),
         Exp::Take(var, exp, exp1) => {
-            std::cmp::max(fresh_var(var), std::cmp::max(fresh(&exp), fresh(&exp1)))
+            std::cmp::max(fresh_var(var), std::cmp::max(fresh(exp), fresh(exp1)))
         }
     }
 }

@@ -1,11 +1,8 @@
 use crate::{
     command::*,
-    environment::{
-        derivation_tree::*, derivation_tree::*, global_context::*, inductive::*, printing::*,
-        tree_node::*,
-    },
+    environment::{derivation_tree::*, global_context::*, inductive::*, printing::*, tree_node::*},
     lambda_calculus,
-    proving::{proof_tree, ErrProofTree, PartialDerivationTreeProof, UserSelect},
+    proving::{proof_tree, PartialDerivationTreeProof},
     typing::{type_check, type_infer},
 };
 
@@ -25,6 +22,12 @@ pub struct Interpreter {
     state: StateInterpreter,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         Self {
@@ -39,7 +42,7 @@ impl Interpreter {
         } else {
             goals.reverse();
             self.state = StateInterpreter::Goals(GoalTree::Branch(
-                goals.into_iter().map(|p| GoalTree::UnSolved(p)).collect(),
+                goals.into_iter().map(GoalTree::UnSolved).collect(),
             ));
         }
     }
@@ -50,7 +53,7 @@ impl Interpreter {
         } else {
             goals.reverse();
             self.state = StateInterpreter::Goals(GoalTree::Branch(
-                goals.into_iter().map(|p| GoalTree::UnSolved(p)).collect(),
+                goals.into_iter().map(GoalTree::UnSolved).collect(),
             ));
         }
     }
@@ -62,7 +65,7 @@ impl Interpreter {
         command: CommandAll,
     ) -> Result<CommandAllResultOk, CommandAllResultErr> {
         match command {
-            CommandAll::ParseCommand { exp } => Ok(CommandAllResultOk::ParseCommandResult),
+            CommandAll::ParseCommand { exp: _ } => Ok(CommandAllResultOk::ParseCommandResult),
             CommandAll::SubstCommand { e1, x, e2 } => {
                 let e = lambda_calculus::subst(e1.clone(), &x, &e2);
                 Ok(CommandAllResultOk::SubstCommandResult { e })
@@ -214,11 +217,7 @@ impl Interpreter {
                         });
                     }
                 };
-                match check_well_formedness_new_inddefs(
-                    &self.global_context,
-                    LocalContext::default(),
-                    inddefs.clone(),
-                ) {
+                match check_well_formedness_new_inddefs(&self.global_context, inddefs.clone()) {
                     Ok(ok) => {
                         self.global_context.push_new_ind(inddefs);
                         let ResIndDefsOk {
@@ -275,12 +274,7 @@ impl Interpreter {
                 };
 
                 let added_goals = res.get_goals();
-                *goal = GoalTree::Branch(
-                    added_goals
-                        .into_iter()
-                        .map(|t| GoalTree::UnSolved(t))
-                        .collect(),
-                );
+                *goal = GoalTree::Branch(added_goals.into_iter().map(GoalTree::UnSolved).collect());
 
                 if goals.is_empty() {
                     self.state = StateInterpreter::NoGoal;

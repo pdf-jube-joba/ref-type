@@ -17,7 +17,7 @@ impl PartialDerivationTreeProof {
         &self.head
     }
     pub fn get_goals(&self) -> Vec<ProvableJudgement> {
-        self.child.iter().map(|c| c.get_goals()).flatten().collect()
+        self.child.iter().flat_map(|c| c.get_goals()).collect()
     }
 }
 
@@ -86,7 +86,7 @@ pub enum ErrProofTree {
 // G |= t を作る
 pub fn proof_tree(
     gcxt: &GlobalContext,
-    mut cxt: LocalContext,
+    cxt: LocalContext,
     proposition: Exp,
     user_label: UserSelect,
 ) -> Result<PartialDerivationTreeProof, ErrProofTree> {
