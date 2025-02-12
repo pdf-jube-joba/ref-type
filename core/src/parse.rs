@@ -398,7 +398,6 @@ pub mod parse_command {
     pub(crate) fn take_show_command(pair: Pair<Rule>) -> Res<CommandAll> {
         debug_assert_eq!(pair.as_rule(), Rule::show_command);
         let mut ps = pair.into_inner();
-        let _ = ps.next().unwrap();
         let pair = ps.next().unwrap();
         match pair.as_rule() {
             Rule::show_goal => Ok(CommandAll::ShowGoal {}.into()),

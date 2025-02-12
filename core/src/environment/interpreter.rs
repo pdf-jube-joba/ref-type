@@ -10,12 +10,14 @@ use crate::{
     typing::{type_check, type_infer},
 };
 
-use super::check_well_formed::{self, check_well_formedness_new_inddefs, ResIndDefsError};
+use super::check_well_formed::{
+    self, check_well_formedness_new_inddefs, ResIndDefsError, ResIndDefsOk,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateInterpreter {
     NoGoal,
-    Goals(Vec<GoalTree>), // it should be reversed order
+    Goals(GoalTree), // it should be reversed order
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +31,28 @@ impl Interpreter {
         Self {
             global_context,
             state: StateInterpreter::NoGoal,
+        }
+    }
+    pub fn set_goals_type_check(&mut self, tree: &PartialDerivationTreeTypeCheck) {
+        let mut goals = tree.get_goals();
+        if goals.is_empty() {
+            self.state = StateInterpreter::NoGoal;
+        } else {
+            goals.reverse();
+            self.state = StateInterpreter::Goals(GoalTree::Branch(
+                goals.into_iter().map(|p| GoalTree::UnSolved(p)).collect(),
+            ));
+        }
+    }
+    pub fn set_goals_proof_check(&mut self, tree: &PartialDerivationTreeProof) {
+        let mut goals = tree.get_goals();
+        if goals.is_empty() {
+            self.state = StateInterpreter::NoGoal;
+        } else {
+            goals.reverse();
+            self.state = StateInterpreter::Goals(GoalTree::Branch(
+                goals.into_iter().map(|p| GoalTree::UnSolved(p)).collect(),
+            ));
         }
     }
     pub fn command(&mut self, command: CommandAll) -> CommandAllResult {
@@ -74,13 +98,7 @@ impl Interpreter {
                     }
                 };
 
-                let mut goals = res.get_goals();
-                if goals.is_empty() {
-                    self.state = StateInterpreter::NoGoal;
-                } else {
-                    goals.reverse();
-                    self.state = StateInterpreter::Goals(into_tree(goals));
-                }
+                self.set_goals_type_check(&res);
 
                 CommandAllResult::CheckResult {
                     result: Ok(res),
@@ -96,13 +114,7 @@ impl Interpreter {
                 match res {
                     Ok(tree) => {
                         let exp = tree.of_type().clone();
-                        let mut goals = tree.get_goals();
-                        if goals.is_empty() {
-                            self.state = StateInterpreter::NoGoal;
-                        } else {
-                            goals.reverse();
-                            self.state = StateInterpreter::Goals(into_tree(goals));
-                        }
+                        self.set_goals_type_check(&tree);
                         CommandAllResult::InferResult {
                             result: Ok(exp),
                             config: TreeConfig::default(),
@@ -128,6 +140,7 @@ impl Interpreter {
                 ) {
                     Ok(tree) => {
                         self.global_context.push_new_defs((x, t, e));
+                        self.set_goals_type_check(&tree);
                         CommandAllResult::NewDefinitionResult {
                             result: Ok(tree),
                             config,
@@ -152,6 +165,7 @@ impl Interpreter {
                 ) {
                     Ok(tree) => {
                         self.global_context.push_new_assum((x, t));
+                        self.set_goals_type_check(&tree);
                         CommandAllResult::NewAssumptionResult {
                             result: Ok(tree),
                             config,
@@ -183,6 +197,14 @@ impl Interpreter {
                 ) {
                     Ok(ok) => {
                         self.global_context.push_new_ind(inddefs);
+                        let ResIndDefsOk {
+                            arity_well_formed,
+                            constructor_wellformed,
+                        } = &ok;
+                        self.set_goals_type_check(arity_well_formed);
+                        for t in constructor_wellformed {
+                            self.set_goals_type_check(t);
+                        }
                         CommandAllResult::NewInductiveResult {
                             result: Ok(ok),
                             config,
@@ -195,12 +217,8 @@ impl Interpreter {
                 }
             }
             CommandAll::ShowGoal => match &self.state {
-                StateInterpreter::NoGoal => CommandAllResult::ShowGoalResult {
-                    result: Ok(()),
-                    goals: None,
-                },
+                StateInterpreter::NoGoal => CommandAllResult::ShowGoalResult { goals: None },
                 StateInterpreter::Goals(goals) => CommandAllResult::ShowGoalResult {
-                    result: Ok(()),
                     goals: Some(goals.clone()),
                 },
             },
@@ -210,14 +228,15 @@ impl Interpreter {
                 };
                 assert!(!goals.is_empty());
 
-                let goal = goals.first_mut().unwrap().first().unwrap();
-                let GoalTree::Node(ProvableJudgement {
+                let goal = goals.first().unwrap();
+                let GoalTree::UnSolved(ProvableJudgement {
                     context,
                     proposition,
                 }) = goal
                 else {
-                    unreachable!("first() should return Node");
+                    unreachable!()
                 };
+
                 let res = match proof_tree(
                     &self.global_context,
                     context.clone(),
@@ -229,12 +248,19 @@ impl Interpreter {
                         return CommandAllResult::ProveGoalResult { result: Err(err) };
                     }
                 };
+
                 let added_goals = res.get_goals();
-                if added_goals.is_empty() {
-                    goals.pop();
-                } else {
-                    goals.push(GoalTree::Branch(into_tree(added_goals)));
+                *goal = GoalTree::Branch(
+                    added_goals
+                        .into_iter()
+                        .map(|t| GoalTree::UnSolved(t))
+                        .collect(),
+                );
+
+                if goals.is_empty() {
+                    self.state = StateInterpreter::NoGoal;
                 }
+
                 CommandAllResult::ProveGoalResult { result: Ok(()) }
             }
             CommandAll::Admit => todo!(),
@@ -242,10 +268,10 @@ impl Interpreter {
         }
     }
 
-    pub fn unproved_goals(&self) -> Vec<GoalTree> {
+    pub fn unproved_goals(&self) -> Option<GoalTree> {
         match &self.state {
-            StateInterpreter::NoGoal => vec![],
-            StateInterpreter::Goals(goals) => goals.clone(),
+            StateInterpreter::NoGoal => None,
+            StateInterpreter::Goals(goals) => Some(goals.clone()),
         }
     }
 }

@@ -1,3 +1,5 @@
+use termtree::Tree;
+
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,25 +94,56 @@ pub struct DerivationFailed {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GoalTree {
-    Node(ProvableJudgement),
+    UnSolved(ProvableJudgement),
     Branch(Vec<GoalTree>),
 }
 
 impl GoalTree {
     pub fn is_empty(&self) -> bool {
         match self {
-            GoalTree::Node(_) => false,
+            GoalTree::UnSolved(_) => false,
             GoalTree::Branch(v) => v.iter().all(|goal| goal.is_empty()),
         }
     }
     pub fn first(&mut self) -> Option<&mut Self> {
         match self {
-            GoalTree::Node(_) => Some(self),
-            GoalTree::Branch(v) => v.first_mut().map(|goal| goal.first()).flatten(),
+            GoalTree::UnSolved(_) => Some(self),
+            GoalTree::Branch(v) => v.first_mut().map(|v| v.first()).flatten(),
+        }
+    }
+    pub fn first_proposition(&mut self) -> Option<&mut ProvableJudgement> {
+        match self {
+            GoalTree::UnSolved(p) => Some(p),
+            GoalTree::Branch(v) => v.first_mut().map(|v| v.first_proposition()).flatten(),
         }
     }
 }
 
 pub fn into_tree(v: Vec<ProvableJudgement>) -> Vec<GoalTree> {
-    v.into_iter().map(GoalTree::Node).collect()
+    v.into_iter().map(GoalTree::UnSolved).collect()
+}
+
+pub enum Node {
+    UnSolved(ProvableJudgement),
+    Mid,
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::UnSolved(p) => write!(f, "{p}"),
+            Node::Mid => write!(f, "..."),
+        }
+    }
+}
+
+pub fn into_printing_tree(v: &GoalTree) -> Tree<Node> {
+    match v {
+        GoalTree::UnSolved(p) => Tree::new(Node::UnSolved(p.clone())),
+        GoalTree::Branch(v) => {
+            let mut t = Tree::new(Node::Mid);
+            t.extend(v.iter().map(|t| into_printing_tree(t)));
+            t
+        }
+    }
 }

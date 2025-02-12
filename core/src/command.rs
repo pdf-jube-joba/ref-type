@@ -122,8 +122,7 @@ pub enum CommandAllResult {
         config: TreeConfig,
     },
     ShowGoalResult {
-        result: Result<(), ()>,
-        goals: Option<Vec<GoalTree>>,
+        goals: Option<GoalTree>,
     },
     ProveGoalResult {
         result: Result<(), ErrProofTree>,
@@ -255,17 +254,19 @@ impl Display for CommandAllResult {
                     }
                 },
             },
-            CommandAllResult::ShowGoalResult { result, goals } => match result {
-                Ok(_) => write!(f, "show_goal ok"),
-                Err(_) => {
-                    if let Some(goals) = goals {
-                        for goal in goals {
-                            writeln!(f, " => {:?}", goal)?;
-                        }
+            CommandAllResult::ShowGoalResult { goals } => {
+                if let Some(goals) = goals {
+                    let GoalTree::Branch(goals) = goals else {
+                        unreachable!("branch");
+                    };
+                    for goal in goals {
+                        writeln!(f, " ?{}", into_printing_tree(goal))?;
                     }
-                    Ok(())
+                } else {
+                    writeln!(f, " no goal ")?;
                 }
-            },
+                Ok(())
+            }
             CommandAllResult::ProveGoalResult { result } => match result {
                 Ok(_) => write!(f, "prove_goal ok"),
                 Err(_) => write!(f, "prove_goal err"),
