@@ -158,6 +158,12 @@ impl Exp {
             Box::new(element),
         )
     }
+    pub fn id(set: Exp, term1: Exp, term2: Exp) -> Exp {
+        Exp::Id(Box::new(set), Box::new(term1), Box::new(term2))
+    }
+    pub fn take(var: Var, type_of_var: Exp, term: Exp) -> Exp {
+        Exp::Take(var, Box::new(type_of_var), Box::new(term))
+    }
 }
 
 pub mod utils {

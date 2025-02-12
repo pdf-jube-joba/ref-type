@@ -358,8 +358,7 @@ impl Display for CommandAllResultErr {
                 }
             },
             CommandAllResultErr::ProofErr { result, config } => match result {
-                ErrProofTree::FailTree { err, fail_tree } => {
-                    write!(f, "{}", err)?;
+                ErrProofTree::FailTree { fail_tree } => {
                     write!(f, "{}", print_fail_tree(fail_tree, config))
                 }
                 ErrProofTree::NotAlphaEq => write!(f, "NotAlphaEq"),

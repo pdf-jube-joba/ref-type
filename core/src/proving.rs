@@ -1,9 +1,11 @@
 use std::fmt::Display;
 
 use crate::{
-    ast::{Exp, Var},
+    app,
+    ast::{Exp, Sort, Var},
     environment::{derivation_tree::*, global_context::*, tree_node::*},
-    lambda_calculus::alpha_eq,
+    lambda_calculus::{alpha_eq, subst},
+    prod,
     typing::type_check,
 };
 
@@ -65,6 +67,7 @@ pub enum UserSelect {
     // G |= exists t
     ExistExact {
         non_empty: Exp,
+        element: Exp,
     },
     // G |- (take x: t. m): M, G |- e: t
     // G |= (take x: t. m) =_(M) m[x := e]
@@ -72,6 +75,7 @@ pub enum UserSelect {
         take_var: Var,
         take_type: Exp,
         term: Exp,
+        all: Exp,
         replace: Exp,
     },
 }
@@ -103,13 +107,16 @@ impl Display for UserSelect {
                 term2,
                 subset,
             } => format!("EqualIntoSub: {set} {term1} {term2} {subset}"),
-            UserSelect::ExistExact { non_empty } => format!("ExistExact: {non_empty}"),
+            UserSelect::ExistExact { non_empty, element } => {
+                format!("ExistExact: {element} in {non_empty}")
+            }
             UserSelect::EqualTake {
                 take_var,
                 take_type,
                 term,
+                all,
                 replace,
-            } => format!("EqualTake: {take_var} {take_type} {term} {replace}"),
+            } => format!("EqualTake: {take_var} {all} {take_type} {term} {replace}"),
         };
         write!(f, "{s}")
     }
@@ -117,11 +124,14 @@ impl Display for UserSelect {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrProofTree {
-    FailTree {
-        err: String,
-        fail_tree: DerivationFailed,
-    },
+    FailTree { fail_tree: DerivationFailed },
     NotAlphaEq,
+}
+
+impl From<DerivationFailed> for ErrProofTree {
+    fn from(value: DerivationFailed) -> Self {
+        ErrProofTree::FailTree { fail_tree: value }
+    }
 }
 
 // G |= t を作る
@@ -135,22 +145,11 @@ pub fn proof_tree(
         context: cxt.clone(),
         proposition: proposition.clone(),
     };
+    let mut child: Vec<DerChild> = vec![];
     match &user_label {
         UserSelect::Exact { proof } => {
-            let ok = match type_check(gcxt, cxt.clone(), proof.clone(), proposition.clone()) {
-                Ok(ok) => ok,
-                Err(err) => {
-                    return Err(ErrProofTree::FailTree {
-                        err: format!("{cxt} |- {proof}: {proposition}"),
-                        fail_tree: err,
-                    });
-                }
-            };
-            Ok(PartialDerivationTreeProof {
-                head,
-                label: user_label,
-                child: vec![ok.into()],
-            })
+            let ok = type_check(gcxt, cxt.clone(), proof.clone(), proposition.clone())?;
+            child.push(ok.into());
         }
         UserSelect::SubSetPred {
             term,
@@ -158,63 +157,193 @@ pub fn proof_tree(
             superset,
         } => {
             let predicate = Exp::pred_of_element(superset.clone(), subset.clone(), term.clone());
-            if alpha_eq(&proposition, &predicate) {
-                let tree1 = match type_check(gcxt, cxt.clone(), term.clone(), subset.clone()) {
-                    Ok(ok) => ok,
-                    Err(err) => {
-                        return Err(ErrProofTree::FailTree {
-                            err: format!("{cxt} |- {term}: {subset}"),
-                            fail_tree: err,
-                        });
-                    }
-                };
-                let tree2 = match type_check(
-                    gcxt,
-                    cxt.clone(),
-                    subset.clone(),
-                    Exp::Pow(Box::new(superset.clone())),
-                ) {
-                    Ok(ok) => ok,
-                    Err(err) => {
-                        return Err(ErrProofTree::FailTree {
-                            err: format!("{cxt} |- {subset}: {superset}"),
-                            fail_tree: err,
-                        });
-                    }
-                };
-                Ok(PartialDerivationTreeProof {
-                    head,
-                    child: vec![tree1.into(), tree2.into()],
-                    label: user_label,
-                })
-            } else {
-                Err(ErrProofTree::NotAlphaEq)
+            if !alpha_eq(&proposition, &predicate) {
+                return Err(ErrProofTree::NotAlphaEq);
             }
+
+            let ok = type_check(gcxt, cxt.clone(), term.clone(), subset.clone())?;
+            child.push(ok.into());
+
+            let ok = type_check(
+                gcxt,
+                cxt.clone(),
+                subset.clone(),
+                Exp::Pow(Box::new(superset.clone())),
+            )?;
+            child.push(ok.into());
         }
         UserSelect::LeibnizEq {
             set,
             term1,
             term2,
             predicate,
-        } => todo!(),
+        } => {
+            // G |- set: SET, G |- term1: set, G |- term2: set, G |- p: set -> PROP, G |= p term1
+            // G |= p term2
+
+            let prop = app!(predicate.clone(), term2.clone());
+            if !alpha_eq(&prop, &proposition) {
+                return Err(ErrProofTree::NotAlphaEq);
+            }
+
+            // G |- set: SET
+            let ok = type_check(gcxt, cxt.clone(), set.clone(), Sort::Set.into())?;
+            child.push(ok.into());
+
+            // G |- term1: set
+            let ok = type_check(gcxt, cxt.clone(), term1.clone(), set.clone())?;
+            child.push(ok.into());
+
+            // G |- term2: set
+            let ok = type_check(gcxt, cxt.clone(), term2.clone(), set.clone())?;
+            child.push(ok.into());
+
+            // G |- p: a -> PROP
+            let ok = type_check(
+                gcxt,
+                cxt.clone(),
+                predicate.clone(),
+                prod! {Var::Unused, set.clone(), Sort::Prop.into()},
+            )?;
+            child.push(ok.into());
+
+            // G |= p t1
+            child.push(
+                ProvableJudgement {
+                    context: cxt.clone(),
+                    proposition: app!(predicate.clone(), term1.clone()),
+                }
+                .into(),
+            );
+        }
         UserSelect::EqualIntoSuper {
             set,
             term1,
             term2,
             superset,
-        } => todo!(),
+        } => {
+            // G |- superset: SET, G |- set: Power(superset), G |- t1: set, G |- t2: set, G |= t1 =(set) t2
+            // G |= t1 =(superset) t2
+
+            let prop = Exp::id(superset.clone(), term1.clone(), term2.clone());
+            if !alpha_eq(&prop, &proposition) {
+                return Err(ErrProofTree::NotAlphaEq);
+            }
+
+            // G |- superset: SET
+            let ok = type_check(gcxt, cxt.clone(), superset.clone(), Sort::Set.into())?;
+            child.push(ok.into());
+
+            // G |- set: Pow(superset)
+            let ok = type_check(
+                gcxt,
+                cxt.clone(),
+                set.clone(),
+                Exp::Pow(Box::new(superset.clone())),
+            )?;
+            child.push(ok.into());
+
+            // G |- t1: set
+            let ok = type_check(gcxt, cxt.clone(), term1.clone(), set.clone())?;
+            child.push(ok.into());
+
+            // G |- t2: set
+            let ok = type_check(gcxt, cxt.clone(), term2.clone(), set.clone())?;
+            child.push(ok.into());
+
+            // G |= t1 =(superset) t2
+            child.push(
+                ProvableJudgement {
+                    context: cxt.clone(),
+                    proposition: Exp::id(set.clone(), term1.clone(), term2.clone()),
+                }
+                .into(),
+            );
+        }
         UserSelect::EqualIntoSub {
             set,
             term1,
             term2,
             subset,
-        } => todo!(),
-        UserSelect::ExistExact { non_empty } => todo!(),
+        } => {
+            // G |- set: SET, G |- subset: Power(set), G |- t1: subset, G |- t2: subset, G |= t1 =(set) t2
+            // G |= t1 =(subset) t2
+            let prop = Exp::id(subset.clone(), term1.clone(), term2.clone());
+            if !alpha_eq(&prop, &proposition) {
+                return Err(ErrProofTree::NotAlphaEq);
+            }
+
+            // G |- set: SET
+            let ok = type_check(gcxt, cxt.clone(), set.clone(), Sort::Set.into())?;
+            child.push(ok.into());
+
+            // G |- subset: Pow(set)
+            let ok = type_check(
+                gcxt,
+                cxt.clone(),
+                subset.clone(),
+                Exp::Pow(Box::new(set.clone())),
+            )?;
+            child.push(ok.into());
+
+            // G |- t1: set
+            let ok = type_check(gcxt, cxt.clone(), term1.clone(), set.clone())?;
+            child.push(ok.into());
+
+            // G |- t2: set
+            let ok = type_check(gcxt, cxt.clone(), term2.clone(), set.clone())?;
+            child.push(ok.into());
+
+            // G |= t1 =(subset) t2
+            child.push(
+                ProvableJudgement {
+                    context: cxt.clone(),
+                    proposition: Exp::id(set.clone(), term1.clone(), term2.clone()),
+                }
+                .into(),
+            );
+        }
+        UserSelect::ExistExact { non_empty, element } => {
+            let prop = Exp::Exists(Box::new(non_empty.clone()));
+            if !alpha_eq(&prop, &proposition) {
+                return Err(ErrProofTree::NotAlphaEq);
+            }
+
+            let ok = type_check(gcxt, cxt.clone(), element.clone(), non_empty.clone())?;
+            child.push(ok.into());
+        }
         UserSelect::EqualTake {
             take_var,
             take_type,
             term,
+            all,
             replace,
-        } => todo!(),
+        } => {
+            // G |- (take x: t. m): M, G |- e: t
+            // G |= (take x: t. m) =_(M) m[x := e]
+
+            let take = Exp::take(take_var.clone(), take_type.clone(), term.clone());
+            let prop = Exp::id(
+                all.clone(),
+                take.clone(),
+                subst(term.clone(), take_var, replace),
+            );
+            if !alpha_eq(&prop, &proposition) {
+                return Err(ErrProofTree::NotAlphaEq);
+            }
+
+            // G |- (take x: t. m): M
+            let ok = type_check(gcxt, cxt.clone(), take.clone(), all.clone())?;
+            child.push(ok.into());
+
+            // G |- replace: M
+            let ok = type_check(gcxt, cxt.clone(), replace.clone(), take_type.clone())?;
+            child.push(ok.into());
+        }
     }
+    Ok(PartialDerivationTreeProof {
+        head,
+        child,
+        label: user_label,
+    })
 }
