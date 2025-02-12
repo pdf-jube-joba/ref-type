@@ -5,10 +5,6 @@ use crate::command::*;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
-pub use parse_command::new_inductive_type_definition::{
-    check_inductive_syntax, InductiveDefinitionsSyntax, ParamCstSyntax,
-};
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
     Parse(Box<error::Error<Rule>>),
@@ -762,58 +758,6 @@ pub mod parse_command {
                 },
                 config,
             ))
-        }
-
-        pub fn check_inductive_syntax(
-            InductiveDefinitionsSyntax {
-                type_name,
-                arity: (signature, sort),
-                constructors,
-            }: InductiveDefinitionsSyntax,
-        ) -> Result<IndTypeDefs, String> {
-            let type_name_variable: Var = type_name.as_str().into();
-
-            let mut cs_name_type = vec![];
-
-            for (cs_name, params, mut end) in constructors {
-                let mut new_params = vec![];
-
-                for param in params {
-                    let param = match param {
-                        ParamCstSyntax::Positive((parameter, mut exps)) => {
-                            if exps[0] != type_name_variable.clone().into() {
-                                return Err(format!("type name mismatch in param:{exps:?} "));
-                            }
-                            exps.remove(0);
-                            let positive =
-                                Positive::new(type_name_variable.clone(), parameter, exps)?;
-                            ParamCst::Positive(positive)
-                        }
-                        ParamCstSyntax::Simple(simple) => ParamCst::Simple(simple),
-                    };
-                    new_params.push(param)
-                }
-
-                if end[0] != type_name_variable.clone().into() {
-                    return Err(format!("type name mismatch in end: {end:?}"));
-                }
-                end.remove(0);
-
-                let cstype = ConstructorType::new_constructor(
-                    (type_name_variable.clone(), end),
-                    new_params,
-                )?
-                .0;
-
-                cs_name_type.push((cs_name, cstype));
-            }
-
-            IndTypeDefs::new(
-                type_name,
-                type_name_variable,
-                (signature, sort),
-                cs_name_type,
-            )
         }
 
         #[cfg(test)]

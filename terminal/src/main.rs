@@ -1,14 +1,7 @@
 use colored::{ColoredString, Colorize};
 use either::Either;
+use core::{environment::{global_context::GlobalContext, interpreter::Interpreter}, parse::MyParser};
 use std::io::BufRead;
-
-use core::{
-    ast::{self, inductives::IndTypeDefs, Exp, Sort},
-    context::{self, printing, ResIndDefsOk},
-    interpreter::{self, *},
-    lambda_calculus::{self, subst},
-    parse::{self, *},
-};
 
 mod command;
 
@@ -25,7 +18,7 @@ fn main() {
     let stdin = std::io::stdin();
     let mut stdin = stdin.lock();
 
-    let mut interpreter = interpreter::Interpreter::new(context::GlobalContext::default());
+    let mut interpreter = Interpreter::new(GlobalContext::default());
 
     loop {
         let buf: String = {
@@ -41,7 +34,7 @@ fn main() {
 
         println!("-----");
 
-        let mut parser = parse::MyParser;
+        let mut parser = MyParser;
 
         let command = match parser.parse_command(&buf) {
             Ok(command) => command,
@@ -56,6 +49,5 @@ fn main() {
         let res = interpreter.command(command);
 
         println!("{res}");
-
     }
 }

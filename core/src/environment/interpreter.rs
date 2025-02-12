@@ -6,12 +6,11 @@ use crate::{
         tree_node::*,
     },
     lambda_calculus,
-    parse::check_inductive_syntax,
     proving::{proof_tree, ErrProofTree, PartialDerivationTreeProof, UserSelect},
     typing::{type_check, type_infer},
 };
 
-use super::check_well_formed;
+use super::check_well_formed::{self, check_well_formedness_new_inddefs, ResIndDefsError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateInterpreter {
@@ -168,7 +167,7 @@ impl Interpreter {
                 if self.state != StateInterpreter::NoGoal {
                     return CommandAllResult::NeedProve;
                 }
-                let inddefs = match check_inductive_syntax(inddefs) {
+                let inddefs = match IndTypeDefs::new(inddefs) {
                     Ok(inddefs) => inddefs,
                     Err(err) => {
                         return CommandAllResult::NewInductiveResult {
@@ -177,12 +176,18 @@ impl Interpreter {
                         };
                     }
                 };
-                let res = self.global_context.push_new_ind(inddefs);
-                match res {
-                    Ok(ok) => CommandAllResult::NewInductiveResult {
-                        result: Ok(ok),
-                        config,
-                    },
+                match check_well_formedness_new_inddefs(
+                    &self.global_context,
+                    LocalContext::default(),
+                    inddefs.clone(),
+                ) {
+                    Ok(ok) => {
+                        self.global_context.push_new_ind(inddefs);
+                        CommandAllResult::NewInductiveResult {
+                            result: Ok(ok),
+                            config,
+                        }
+                    }
                     Err(err) => CommandAllResult::NewInductiveResult {
                         result: Err(err),
                         config,
@@ -201,17 +206,11 @@ impl Interpreter {
             },
             CommandAll::ProveGoal { user_select } => {
                 let StateInterpreter::Goals(ref mut goals) = self.state else {
-                    return CommandAllResult::ProveGoalResult {
-                        result: Err(ErrProofTree::NoNeedToProve),
-                    };
+                    return CommandAllResult::NoNeedProve;
                 };
                 assert!(!goals.is_empty());
 
-                let Some(goal) = goals.first_mut().unwrap().first() else {
-                    return CommandAllResult::ProveGoalResult {
-                        result: Err(ErrProofTree::NoNeedToProve),
-                    };
-                };
+                let goal = goals.first_mut().unwrap().first().unwrap();
                 let GoalTree::Node(ProvableJudgement {
                     context,
                     proposition,

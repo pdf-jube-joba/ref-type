@@ -468,7 +468,7 @@ impl Sort {
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
             (Sort::Univ(_) | Sort::Set | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
-            (Sort::Set | Sort::Type , Sort::Univ(_)) => Some(()),
+            (Sort::Set | Sort::Type, Sort::Univ(_)) => Some(()),
             (Sort::Univ(i1), Sort::Univ(i2)) if i1 == i2 => Some(()),
             (Sort::Univ(_) | Sort::Type, Sort::Type) => Some(()),
             (Sort::Set, Sort::Set) => Some(()),
@@ -483,11 +483,11 @@ pub mod inductives {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct InductiveDefinitionsSyntax {
-        type_name: String,
-        arity: (Vec<(Var, Exp)>, Sort),
-        constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
+        pub type_name: String,
+        pub arity: (Vec<(Var, Exp)>, Sort),
+        pub constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
     }
-    
+
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum ParamCstSyntax {
         Positive((Vec<(Var, Exp)>, Vec<Exp>)),
@@ -496,8 +496,8 @@ pub mod inductives {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Arity {
-        signature: Vec<(Var, Exp)>,
-        sort: Sort,
+        pub signature: Vec<(Var, Exp)>,
+        pub sort: Sort,
     }
 
     impl Arity {
@@ -526,7 +526,6 @@ pub mod inductives {
             assoc_prod(signature, Exp::Sort(sort))
         }
     }
-
 }
 
 // #[cfg(test)]

@@ -9,24 +9,24 @@ use self::utils::{assoc_apply, assoc_lam, assoc_prod, decompose_to_app_exps};
 
 pub mod derivation_tree;
 pub mod global_context;
-pub mod inductive;
 pub mod interpreter;
 pub mod printing;
 pub mod tree_node;
 
 use derivation_tree::*;
 use global_context::*;
-use inductive::*;
 use interpreter::*;
 use tree_node::*;
 
 pub mod check_well_formed {
+    use self::inductives::InductiveDefinitionsSyntax;
+
     use super::*;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum ResIndDefsError {
         AlreadyDefinedType,
-        SyntaxError,
+        SyntaxError(String),
         ArityNotWellformed(DerivationFailed),
         ConstructorNotWellFormed(Vec<Result<PartialDerivationTreeTypeCheck, DerivationFailed>>),
     }
@@ -62,10 +62,10 @@ pub mod check_well_formed {
         }
     }
 
-    pub fn check_well_formednewss_new_inddefs(
+    pub fn check_well_formedness_new_inddefs(
         gcxt: &GlobalContext,
         cxt: LocalContext,
-        defs: IndTypeDefs,
+        defs: inductive::IndTypeDefs,
     ) -> Result<ResIndDefsOk, ResIndDefsError> {
         if gcxt
             .indtype_defs()

@@ -1,20 +1,20 @@
 use crate::{
-    ast::{Exp, Var, inductives::InductiveDefinitionsSyntax},
-    environment::{derivation_tree::*, global_context::*, printing::*, tree_node::*},
-    // environment::{
-    //     printing::{print_fail_tree, print_tree, TreeConfig},
-    //     DerivationFailed, GlobalContext, LocalContext, PartialDerivationTreeTypeCheck,
-    //     ProvableJudgement,
-    // },
-    // interpreter::GoalTree,
+    ast::{inductives::InductiveDefinitionsSyntax, Exp, Var},
+    environment::{
+        derivation_tree::*,
+        global_context::{inductive::*, *},
+        printing::*,
+        tree_node::*,
+    },
     lambda_calculus,
-    parse::check_inductive_syntax,
     proving::{proof_tree, ErrProofTree, PartialDerivationTreeProof, UserSelect},
     typing::{type_check, type_infer},
 };
 use std::fmt::Display;
 
 // use self::context::{ResIndDefsError, ResIndDefsOk};
+
+use self::environment::check_well_formed::{ResIndDefsError, ResIndDefsOk};
 
 use super::*;
 
@@ -100,6 +100,7 @@ pub enum CommandAllResult {
         es: Vec<Exp>,
     },
     NeedProve,
+    NoNeedProve,
     CheckResult {
         result: Result<PartialDerivationTreeTypeCheck, DerivationFailed>,
         config: TreeConfig,
@@ -187,6 +188,7 @@ impl Display for CommandAllResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CommandAllResult::NeedProve => write!(f, "NEED PROVE!"),
+            CommandAllResult::NoNeedProve => write!(f, "NO NEED PROVE!"),
             CommandAllResult::ParseCommandResult => write!(f, " ok"),
             CommandAllResult::SubstCommandResult { e } => write!(f, " => {}", e),
             CommandAllResult::AlphaEqResult { eq } => write!(f, " =~(alpha) {}", eq),
@@ -235,6 +237,7 @@ impl Display for CommandAllResult {
                 }
                 Err(err) => match err {
                     ResIndDefsError::AlreadyDefinedType => write!(f, "AlreadyDefinedType"),
+                    ResIndDefsError::SyntaxError(err) => write!(f, "{err}"),
                     ResIndDefsError::ArityNotWellformed(err) => write!(
                         f,
                         "arity not wellformed \n {}",

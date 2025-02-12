@@ -1,6 +1,6 @@
 use crate::{
     ast::*,
-    environment::{derivation_tree::*, global_context::*, inductive::*, tree_node::*},
+    environment::{derivation_tree::*, global_context::*, tree_node::*},
 };
 use std::collections::HashSet;
 
