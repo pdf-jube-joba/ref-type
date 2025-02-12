@@ -197,13 +197,13 @@ impl Display for CommandAll {
             CommandAll::Check { e1, e2, config } => write!(f, "check {} <| {}", e1, e2),
             CommandAll::Infer { config, e } => write!(f, "infer {}", e),
             CommandAll::NewDefinition { x, t, e, config: _ } => {
-                write!(f, "new_definition {} {} {}", x, t, e)
+                write!(f, "new_definition {}: {} : {}", x, t, e)
             }
             CommandAll::NewAssumption { x, t, config: _ } => {
-                write!(f, "new_assumption {} {}", x, t)
+                write!(f, "new_assumption {}: {}", x, t)
             }
             CommandAll::NewInductive { inddefs, config: _ } => {
-                write!(f, "new_inductive {:?}", inddefs)
+                write!(f, "new_inductive {}", inddefs)
             }
             CommandAll::ShowGoal => write!(f, "show_goal"),
             CommandAll::ProveGoal { user_select } => write!(f, "prove_goal {:?}", user_select),

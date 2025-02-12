@@ -603,54 +603,6 @@ pub mod parse_command {
 
         use super::*;
 
-        impl Display for InductiveDefinitionsSyntax {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let InductiveDefinitionsSyntax {
-                    type_name,
-                    arity,
-                    constructors,
-                } = self;
-                writeln!(f, "name: {type_name}")?;
-                writeln!(
-                    f,
-                    "arity: {}",
-                    utils::assoc_prod(arity.0.clone(), arity.1.into())
-                )?;
-                for (csname, params, end) in constructors {
-                    write!(f, "constructor({csname}):")?;
-                    for param in params {
-                        write!(f, " {} ->", param)?;
-                    }
-                    writeln!(
-                        f,
-                        " {}",
-                        utils::assoc_apply(end[0].clone(), end[1..].to_owned())
-                    )?;
-                }
-                Ok(())
-            }
-        }
-
-        impl Display for ParamCstSyntax {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let s = match self {
-                    ParamCstSyntax::Positive((params, end)) => {
-                        format!(
-                            "Pos({})",
-                            utils::assoc_prod(
-                                params.clone(),
-                                utils::assoc_apply(end[0].clone(), end[1..].to_owned())
-                            )
-                        )
-                    }
-                    ParamCstSyntax::Simple(param) => {
-                        format!("Sim({}: {})", param.0, param.1)
-                    }
-                };
-                write!(f, "{}", s)
-            }
-        }
-
         pub(crate) fn take_arity(pair: Pair<Rule>) -> Res<(Vec<(Var, Exp)>, Sort)> {
             debug_assert_eq!(pair.as_rule(), Rule::arity);
             let mut ps = pair.into_inner();
