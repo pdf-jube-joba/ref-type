@@ -2,8 +2,6 @@ use colored::Colorize;
 use core::{environment::interpreter::Interpreter, parse::MyParser};
 use std::io::BufRead;
 
-mod command;
-
 pub fn indent(str: String) -> String {
     str.lines()
         .map(|line| format!("> {}", line))
@@ -16,6 +14,8 @@ fn main() {
     let mut stdin = stdin.lock();
 
     let mut interpreter = Interpreter::new();
+
+    println!("===start of input===");
 
     loop {
         let buf: String = {
@@ -33,8 +33,9 @@ fn main() {
             core::environment::interpreter::StateInterpreter::NoGoal => {
                 println!("---command---")
             }
-            core::environment::interpreter::StateInterpreter::Goals(_) => {
-                println!("---goals---")
+            core::environment::interpreter::StateInterpreter::Goals(goal) => {
+                let first = goal.first_proposition().unwrap();
+                println!("---goal:{}---", first)
             }
         }
 
@@ -62,4 +63,16 @@ fn main() {
             }
         }
     }
+
+    match interpreter.now_state() {
+        core::environment::interpreter::StateInterpreter::NoGoal => {
+            println!("---command---")
+        }
+        core::environment::interpreter::StateInterpreter::Goals(goal) => {
+            let first = goal.first_proposition().unwrap();
+            println!("---goal:{}---", first)
+        }
+    }
+
+    println!("===end of input===")
 }

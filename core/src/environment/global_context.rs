@@ -9,7 +9,6 @@ pub mod inductive {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct IndTypeDefs {
         name: TypeName,
-        variable: Var,
         arity: (Vec<(Var, Exp)>, Sort),
         constructors: Vec<(ConstructorName, ConstructorType)>,
     }
@@ -17,7 +16,7 @@ pub mod inductive {
     #[derive(Debug, Clone, PartialEq, Eq)]
     // P1 -> ... -> Pn -> X m1 ... mk
     pub struct ConstructorType {
-        end: (Var, Vec<Exp>),  // = X m1 ... mk
+        end: Vec<Exp>,         // = I m1 ... mk
         params: Vec<ParamCst>, // P[.]
     }
 
@@ -33,63 +32,59 @@ pub mod inductive {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Positive {
         parameter: Vec<(Var, Exp)>,
-        variable: Var,
-        exps: Vec<Exp>,
+        exps: Vec<Exp>, // X N_1 ... N_l
     }
 
     impl ConstructorType {
-        pub fn variable(&self) -> &Var {
-            &self.end.0
-        }
         pub fn arg_num(&self) -> usize {
             self.params.len()
         }
         pub fn arg_end(&self) -> &Vec<Exp> {
-            &self.end.1
+            &self.end
         }
-        pub fn new_constructor(
-            end: (Var, Vec<Exp>),
-            params: Vec<ParamCst>,
-        ) -> Result<(Self, Var), String> {
-            let var_type = end.0.clone();
-            for p in &params {
-                match p {
-                    ParamCst::Positive(positive) => {
-                        if positive.variable != var_type {
-                            return Err(format!(
-                                "positive param {positive:?} contains {var_type:?}"
-                            ));
-                        }
-                    }
-                    ParamCst::Simple((_, a)) => {
-                        if a.free_variable().contains(&var_type) {
-                            return Err(format!("arg {a:?} contains {var_type:?}"));
-                        }
-                    }
-                }
-            }
-            Ok((Self { end, params }, var_type))
-        }
+        // pub fn new_constructor(
+        //     end: (Var, Vec<Exp>),
+        //     params: Vec<ParamCst>,
+        // ) -> Result<(Self, Var), String> {
+        //     let var_type = end.0.clone();
+        //     for p in &params {
+        //         match p {
+        //             ParamCst::Positive(positive) => {
+        //                 if positive.variable != var_type {
+        //                     return Err(format!(
+        //                         "positive param {positive:?} contains {var_type:?}"
+        //                     ));
+        //                 }
+        //             }
+        //             ParamCst::Simple((_, a)) => {
+        //                 if a.free_variable().contains(&var_type) {
+        //                     return Err(format!("arg {a:?} contains {var_type:?}"));
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     Ok((Self { end, params }, var_type))
+        // }
     }
 
-    impl From<ConstructorType> for Exp {
-        fn from(value: ConstructorType) -> Exp {
-            let ConstructorType {
-                end: (v, exps),
-                params,
-            } = value;
-            let mut end = assoc_apply(Exp::Var(v), exps);
-            for p in params.into_iter().rev() {
-                match p {
-                    ParamCst::Positive(positive) => {
-                        end = Exp::prod(Var::Unused, positive.into(), end);
-                    }
-                    ParamCst::Simple((var, a)) => end = Exp::prod(var, a, end),
+    pub fn cstr_into_exp_with_assign(value: ConstructorType, exp: Exp) -> Exp {
+        let ConstructorType { end, params } = value;
+        let mut end = assoc_apply(exp.clone(), end);
+        for p in params.into_iter().rev() {
+            match p {
+                ParamCst::Positive(positive) => {
+                    end = Exp::prod(
+                        Var::Unused,
+                        positive_into_exp_with_assign(positive, exp.clone()),
+                        end,
+                    );
                 }
+                ParamCst::Simple((var, a)) => end = Exp::prod(var, a, end),
             }
-            end
         }
+        end
     }
+
     impl Positive {
         pub fn parameter(&self) -> &Vec<(Var, Exp)> {
             &self.parameter
@@ -97,65 +92,28 @@ pub mod inductive {
         pub fn exps(&self) -> &Vec<Exp> {
             &self.exps
         }
-        pub fn subst(&self, e: Exp) -> Exp {
-            let Positive {
-                parameter,
-                variable: _,
-                exps,
-            } = self.clone();
-            assoc_prod(parameter, assoc_apply(e, exps))
-        }
-        pub fn new(
-            variable: Var,
-            parameter: Vec<(Var, Exp)>,
-            exps: Vec<Exp>,
-        ) -> Result<Self, String> {
-            for (_, a) in &parameter {
-                // a.free_variables() <=(subset) allow
-                if a.free_variable().contains(&variable) {
-                    return Err(format!("pos param {a:?} contains {variable:?}"));
-                }
-            }
-
-            for e in &exps {
-                if e.free_variable().contains(&variable) {
-                    return Err(format!("arg {e:?} contains {variable:?}"));
-                }
-            }
-
-            let positive = Positive {
-                variable,
-                parameter,
-                exps,
-            };
-
-            Ok(positive)
-        }
     }
 
-    impl From<Positive> for Exp {
-        fn from(
-            Positive {
-                variable,
-                parameter,
-                exps,
-            }: Positive,
-        ) -> Self {
-            assoc_prod(parameter, assoc_apply(Exp::Var(variable), exps))
-        }
+    pub fn positive_into_exp_with_assign(Positive { parameter, exps }: Positive, exp: Exp) -> Exp {
+        assoc_prod(parameter, assoc_apply(exp, exps))
     }
 
     impl ConstructorType {
-        pub fn eliminator_type(&self, q: Exp, mut c: Exp) -> Exp {
+        pub fn eliminator_type(&self, q: Exp, mut c: Exp, type_name: TypeName) -> Exp {
             let Self { end, params } = self;
 
             let mut usable_fresh_var: usize = {
-                let end_fresh = end.1.iter().map(fresh).max().unwrap_or(0);
+                let end_fresh = end.iter().map(fresh).max().unwrap_or(0);
                 let params_fresh = params
                     .iter()
                     .map(|p| match p {
                         ParamCst::Positive(positive) => {
-                            let positive: Exp = positive.clone().into();
+                            let positive: Exp = positive_into_exp_with_assign(
+                                positive.clone(),
+                                Exp::IndTypeType {
+                                    ind_type_name: type_name.clone(),
+                                },
+                            );
                             fresh(&positive)
                         }
                         ParamCst::Simple((v, a)) => std::cmp::max(fresh_var(v), fresh(a)),
@@ -170,11 +128,7 @@ pub mod inductive {
             for p in params {
                 match p {
                     ParamCst::Positive(positive) => {
-                        let Positive {
-                            variable: _,
-                            parameter,
-                            exps,
-                        } = positive.clone();
+                        let Positive { parameter, exps } = positive.clone();
                         let new_var_p: Var = {
                             usable_fresh_var += 1;
                             Var::Internal("elimtype".to_string(), usable_fresh_var)
@@ -188,7 +142,13 @@ pub mod inductive {
                             let qmpx = Exp::App(Box::new(q_m), Box::new(p_x));
                             assoc_prod(parameter.clone(), qmpx)
                         };
-                        pre_params.push((new_var_p.clone(), positive.clone().into()));
+                        let positive_as_exp: Exp = positive_into_exp_with_assign(
+                            positive.clone(),
+                            Exp::IndTypeType {
+                                ind_type_name: type_name.clone(),
+                            },
+                        );
+                        pre_params.push((new_var_p.clone(), positive_as_exp));
                         pre_params.push((Var::Unused, qmpx_type));
                         c = Exp::App(Box::new(c), Box::new(Exp::Var(new_var_p)));
                     }
@@ -199,21 +159,26 @@ pub mod inductive {
                 }
             }
 
-            let res = Exp::App(Box::new(assoc_apply(q, end.1.to_owned())), Box::new(c));
+            let res = Exp::App(Box::new(assoc_apply(q, end.to_owned())), Box::new(c));
             utils::assoc_prod(pre_params, res)
         }
 
-        pub fn recursor(&self, ff: Exp, mut f: Exp) -> Exp {
+        pub fn recursor(&self, ff: Exp, mut f: Exp, type_name: TypeName) -> Exp {
             let Self { end, params } = self;
 
             let mut usable_fresh_var = {
-                let end_fresh = end.1.iter().map(fresh).max().unwrap_or(0);
+                let end_fresh = end.iter().map(fresh).max().unwrap_or(0);
                 let params_fresh = params
                     .iter()
                     .map(|p| match p {
                         ParamCst::Positive(positive) => {
-                            let positive: Exp = positive.clone().into();
-                            fresh(&positive)
+                            let positive_as_exp: Exp = positive_into_exp_with_assign(
+                                positive.clone(),
+                                Exp::IndTypeType {
+                                    ind_type_name: type_name.clone(),
+                                },
+                            );
+                            fresh(&positive_as_exp)
                         }
                         ParamCst::Simple((v, a)) => std::cmp::max(fresh_var(v), fresh(a)),
                     })
@@ -226,11 +191,7 @@ pub mod inductive {
             for p in params {
                 match p {
                     ParamCst::Positive(positive) => {
-                        let Positive {
-                            variable: _,
-                            parameter,
-                            exps,
-                        } = positive.clone();
+                        let Positive { parameter, exps } = positive.clone();
                         let new_var_p = {
                             usable_fresh_var += 1;
                             Var::Internal("recursor".to_string(), usable_fresh_var)
@@ -248,7 +209,13 @@ pub mod inductive {
                             Box::new(Exp::App(Box::new(f), Box::new(Exp::Var(new_var_p.clone())))),
                             Box::new(lam_ffmpx),
                         );
-                        pre_params.push((new_var_p, positive.clone().into()));
+                        let positive_as_exp: Exp = positive_into_exp_with_assign(
+                            positive.clone(),
+                            Exp::IndTypeType {
+                                ind_type_name: type_name.clone(),
+                            },
+                        );
+                        pre_params.push((new_var_p, positive_as_exp));
                     }
                     ParamCst::Simple((x, a)) => {
                         f = Exp::App(Box::new(f), Box::new(Exp::Var(x.clone())));
@@ -285,8 +252,7 @@ pub mod inductive {
                                 return Err(format!("type name mismatch in param:{exps:?} "));
                             }
                             exps.remove(0);
-                            let positive =
-                                Positive::new(type_name_variable.clone(), parameter, exps)?;
+                            let positive = Positive { parameter, exps };
                             ParamCst::Positive(positive)
                         }
                         ParamCstSyntax::Simple(simple) => ParamCst::Simple(simple),
@@ -299,18 +265,16 @@ pub mod inductive {
                 }
                 end.remove(0);
 
-                let cstype = ConstructorType::new_constructor(
-                    (type_name_variable.clone(), end),
-                    new_params,
-                )?
-                .0;
+                let cstype = ConstructorType {
+                    end,
+                    params: new_params,
+                };
 
                 cs_name_type.push((cs_name.into(), cstype));
             }
 
             Ok(IndTypeDefs {
                 name: type_name.as_str().to_owned().into(),
-                variable: type_name.as_str().into(),
                 arity,
                 constructors: cs_name_type,
             })
@@ -318,8 +282,8 @@ pub mod inductive {
         pub fn name(&self) -> &TypeName {
             &self.name
         }
-        pub fn variable(&self) -> &Var {
-            &self.variable
+        pub fn name_as_var(&self) -> Var {
+            self.name().to_string().into()
         }
         pub fn arity(&self) -> &(Vec<(Var, Exp)>, Sort) {
             &self.arity
@@ -347,9 +311,14 @@ pub mod inductive {
             })
         }
         pub fn constructor_as_exp(&self, constructor_name: &ConstructorName) -> Option<Exp> {
-            self.constructors.iter().find_map(|(name, exp)| {
+            self.constructors.iter().find_map(|(name, constructor)| {
                 if name == constructor_name {
-                    Some(exp.clone().into())
+                    Some(cstr_into_exp_with_assign(
+                        constructor.clone(),
+                        Exp::IndTypeType {
+                            ind_type_name: self.name.clone(),
+                        },
+                    ))
                 } else {
                     None
                 }
@@ -399,15 +368,9 @@ pub mod inductive {
                             ind_type_name: self.name().clone(),
                             constructor_name: cname.clone(),
                         },
+                        self.name.clone(),
                     );
-                    let exact = crate::lambda_calculus::subst(
-                        pre,
-                        self.variable(),
-                        &Exp::IndTypeType {
-                            ind_type_name: self.name().clone(),
-                        },
-                    );
-                    v.push((cname.to_string().into(), exact));
+                    v.push((cname.to_string().into(), pre));
                 }
                 v
             };
@@ -470,7 +433,12 @@ impl GlobalContext {
     ) -> Option<Exp> {
         let defs = self.indtype_def(ind_type_name)?;
         let constructor_def = defs.constructor(constructor_name)?;
-        let constructor_exp: Exp = constructor_def.clone().into();
+        let constructor_exp: Exp = cstr_into_exp_with_assign(
+            constructor_def.clone(),
+            Exp::IndTypeType {
+                ind_type_name: ind_type_name.clone(),
+            },
+        );
         Some(constructor_exp)
     }
     pub fn ind_type_return_type(&self, ind_type_name: &TypeName, sort: Sort) -> Option<Exp> {

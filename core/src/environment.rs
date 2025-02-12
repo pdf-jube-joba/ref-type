@@ -10,7 +10,6 @@ use self::utils::{assoc_apply, assoc_lam, assoc_prod, decompose_to_app_exps};
 pub mod derivation_tree;
 pub mod global_context;
 pub mod interpreter;
-pub mod printing;
 pub mod tree_node;
 
 use derivation_tree::*;
@@ -18,6 +17,8 @@ use global_context::*;
 use tree_node::*;
 
 pub mod check_well_formed {
+
+    use self::inductive::cstr_into_exp_with_assign;
 
     use super::*;
 
@@ -83,9 +84,9 @@ pub mod check_well_formed {
         for (_, c) in defs.constructors() {
             let sort = defs.sort();
             let mut cxt = LocalContext::default();
-            let (x, a) = (defs.variable().clone(), defs.arity_as_exp());
-            cxt.push_decl((x, a));
-            let constructor: Exp = c.clone().into();
+            let (x, a) = (defs.name_as_var(), defs.arity_as_exp());
+            cxt.push_decl((x.clone(), a));
+            let constructor: Exp = cstr_into_exp_with_assign(c.clone(), x.into());
             match type_check(gcxt, cxt, constructor, Exp::Sort(sort)) {
                 Ok(der_tree) => {
                     constructor_well_formed.push(Ok(der_tree));

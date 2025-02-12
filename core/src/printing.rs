@@ -1,4 +1,9 @@
-use super::*;
+use std::fmt::Display;
+
+use crate::{
+    environment::{derivation_tree::*, tree_node::*},
+    proving::{PartialDerivationTreeProof, UserSelect},
+};
 use colored::Colorize;
 use termtree::Tree;
 
@@ -6,6 +11,7 @@ use termtree::Tree;
 enum Node {
     TypeCheckJudgement(TypeCheckJudgement),
     Label(DerivationLabel),
+    UserSelect(UserSelect),
     ProvableJudgement(ProvableJudgement),
     Condition(Condition),
     Fail(FailHead),
@@ -36,6 +42,7 @@ impl Display for Node {
             Node::ProvableJudgement(provable_judgement) => {
                 format!("{}", format!("{provable_judgement}").green())
             }
+            Node::UserSelect(user_select) => format!("{user_select}"),
             Node::Condition(condition) => format!("{condition}"),
             Node::Fail(fail_head) => match fail_head {
                 FailHead::InferFail(local_context, exp) => {
@@ -115,7 +122,7 @@ fn tree_partial_derivation_tree(
     } = tree;
     let mut tree = Tree::new(Node::TypeCheckJudgement(head.clone()));
 
-    if matches!(tree_config, TreeConfig::SuccTree) {
+    if !matches!(tree_config, TreeConfig::OnlyGoals) {
         tree.push(Tree::new(Node::ContextInfo(format!(
             "generated {generated}, case {case}"
         ))));
@@ -160,4 +167,20 @@ fn tree_fail_tree(tree: &DerivationFailed, tree_config: &TreeConfig) -> Tree<Nod
 
 pub fn print_fail_tree(tree: &DerivationFailed, tree_config: &TreeConfig) -> String {
     tree_fail_tree(tree, tree_config).to_string()
+}
+
+fn tree_proof_tree(tree: &PartialDerivationTreeProof, tree_config: &TreeConfig) -> Tree<Node> {
+    let PartialDerivationTreeProof { head, label, child } = tree;
+    let mut tree = Tree::new(Node::ProvableJudgement(head.clone()));
+    tree.push(Tree::new(Node::UserSelect(label.clone())));
+    tree.extend(
+        child
+            .iter()
+            .filter_map(|child| node_to_tree(child, tree_config)),
+    );
+    tree
+}
+
+pub fn print_proof_tree(tree: &PartialDerivationTreeProof, tree_config: &TreeConfig) -> String {
+    tree_proof_tree(tree, tree_config).to_string()
 }

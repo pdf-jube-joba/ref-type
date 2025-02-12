@@ -354,8 +354,12 @@ pub fn type_infered_to_prod(
     builder.case("only prod".to_string());
 
     // get T of G |- t |> infered
-    let der_tree_infered = match type_infer(gcxt, cxt.clone(), term.clone()) {
-        Ok(der_tree_check) => der_tree_check,
+    let infered_type = match type_infer(gcxt, cxt.clone(), term.clone()) {
+        Ok(der_tree_check) => {
+            let infered = der_tree_check.of_type().clone();
+            builder.push(der_tree_check.into());
+            infered
+        }
         Err(derivation_failed) => {
             builder.case_fail(derivation_failed.into());
             // t should have type
@@ -365,7 +369,7 @@ pub fn type_infered_to_prod(
 
     // get outer_most super set of infered
     let outer_infered: Exp = {
-        let mut set = der_tree_infered.of_type().clone();
+        let mut set = infered_type;
         while let Ok((super_set_tree, super_set)) =
             type_infered_to_pow(gcxt, cxt.clone(), set.clone())
         {
@@ -818,13 +822,7 @@ pub fn type_infer(
                         ind_type_name: ind_type_name.clone(),
                         constructor_name: cname.clone(),
                     },
-                );
-                let expected = subst(
-                    expected,
-                    c.variable(),
-                    &Exp::IndTypeType {
-                        ind_type_name: ind_type_name.clone(),
-                    },
+                    ind_type_name.clone(),
                 );
 
                 match type_check(gcxt, cxt.clone(), corresponding_case, expected) {

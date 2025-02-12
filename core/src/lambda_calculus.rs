@@ -294,7 +294,7 @@ pub fn top_reduction(gcxt: &GlobalContext, term: Exp) -> Option<Exp> {
                     ),
                 )
             };
-            let t = constructor.recursor(ff_elim_q, corresponding_cases);
+            let t = constructor.recursor(ff_elim_q, corresponding_cases, inddefs.name().clone());
             Some(utils::assoc_apply(t, argument))
         }
         Exp::Pred(_, b) => {

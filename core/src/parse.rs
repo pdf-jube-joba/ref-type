@@ -350,8 +350,8 @@ pub mod parse_proof {
 
 pub mod parse_command {
     use crate::{
-        environment::printing::TreeConfig,
         parse::parse_command::new_inductive_type_definition::take_new_inductive,
+        printing::TreeConfig,
     };
 
     use super::parse_exp::take_expression;
@@ -495,6 +495,16 @@ pub mod parse_command {
                 };
                 let e = take_expression(ps.next().unwrap())?;
                 CommandAll::Infer { e, config }
+            }
+            Rule::command_theorem => {
+                let mut ps = pair.into_inner();
+                let config = if ps.peek().unwrap().as_rule() == Rule::command_CONFIG {
+                    take_tree_config(ps.next().unwrap())?
+                } else {
+                    TreeConfig::default()
+                };
+                let e = take_expression(ps.next().unwrap())?;
+                CommandAll::Theorem { e, config }
             }
             _ => unreachable!("typing command"),
         };

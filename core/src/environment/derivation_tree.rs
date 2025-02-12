@@ -105,16 +105,28 @@ impl GoalTree {
             GoalTree::Branch(v) => v.iter().all(|goal| goal.is_empty()),
         }
     }
-    pub fn first(&mut self) -> Option<&mut Self> {
+    pub fn first(&self) -> Option<&Self> {
         match self {
             GoalTree::UnSolved(_) => Some(self),
-            GoalTree::Branch(v) => v.first_mut().and_then(|v| v.first()),
+            GoalTree::Branch(v) => v.iter().find_map(|v| v.first()),
         }
     }
-    pub fn first_proposition(&mut self) -> Option<&mut ProvableJudgement> {
+    pub fn first_mut(&mut self) -> Option<&mut Self> {
+        match self {
+            GoalTree::UnSolved(_) => Some(self),
+            GoalTree::Branch(v) => v.iter_mut().find_map(|v| v.first_mut()),
+        }
+    }
+    pub fn first_proposition(&self) -> Option<&ProvableJudgement> {
         match self {
             GoalTree::UnSolved(p) => Some(p),
-            GoalTree::Branch(v) => v.first_mut().and_then(|v| v.first_proposition()),
+            GoalTree::Branch(v) => v.iter().find_map(|v| v.first_proposition()),
+        }
+    }
+    pub fn first_proposition_mut(&mut self) -> Option<&mut ProvableJudgement> {
+        match self {
+            GoalTree::UnSolved(p) => Some(p),
+            GoalTree::Branch(v) => v.iter_mut().find_map(|v| v.first_proposition_mut()),
         }
     }
 }

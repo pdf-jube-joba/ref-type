@@ -1,13 +1,15 @@
 use crate::{
     command::*,
-    environment::{derivation_tree::*, global_context::*, inductive::*, printing::*, tree_node::*},
+    environment::{derivation_tree::*, global_context::*, inductive::*, tree_node::*},
     lambda_calculus,
+    printing::*,
     proving::{proof_tree, PartialDerivationTreeProof},
     typing::{type_check, type_infer},
 };
 
-use super::check_well_formed::{
-    self, check_well_formedness_new_inddefs, ResIndDefsError, ResIndDefsOk,
+use super::{
+    check_well_formed::{self, check_well_formedness_new_inddefs, ResIndDefsError, ResIndDefsOk},
+    Exp, Sort,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,6 +112,7 @@ impl Interpreter {
                 if self.state != StateInterpreter::NoGoal {
                     return Err(CommandAllResultErr::NotInCommandMode);
                 }
+
                 let res = type_check(&self.global_context, LocalContext::default(), e1, e2);
 
                 let res = match res {
@@ -147,6 +150,34 @@ impl Interpreter {
                         })
                     }
                     Err(err) => Err(CommandAllResultErr::InferFailed {
+                        result: err,
+                        config,
+                    }),
+                }
+            }
+            CommandAll::Theorem { e, config } => {
+                if self.state != StateInterpreter::NoGoal {
+                    return Err(CommandAllResultErr::NotInCommandMode);
+                }
+
+                match type_check(
+                    &self.global_context,
+                    LocalContext::default(),
+                    e.clone(),
+                    Exp::Sort(Sort::Prop),
+                ) {
+                    Ok(tree) => {
+                        self.state =
+                            StateInterpreter::Goals(GoalTree::UnSolved(ProvableJudgement {
+                                context: LocalContext::default(),
+                                proposition: e,
+                            }));
+                        Ok(CommandAllResultOk::TheoremIsProp {
+                            result: tree,
+                            config,
+                        })
+                    }
+                    Err(err) => Err(CommandAllResultErr::TheoremIsNotProp {
                         result: err,
                         config,
                     }),
@@ -249,7 +280,7 @@ impl Interpreter {
 
                 assert!(!goals.is_empty());
 
-                let goal = goals.first().unwrap();
+                let goal = goals.first_mut().unwrap();
                 let GoalTree::UnSolved(ProvableJudgement {
                     context,
                     proposition,
@@ -268,19 +299,25 @@ impl Interpreter {
                     Err(err) => {
                         return Err(CommandAllResultErr::ProofErr {
                             result: err,
-                            config: TreeConfig::default(),
+                            config: TreeConfig::AllCase,
                         });
                     }
                 };
+
+                println!("hello --- {proposition}");
 
                 let added_goals = res.get_goals();
                 *goal = GoalTree::Branch(added_goals.into_iter().map(GoalTree::UnSolved).collect());
 
                 if goals.is_empty() {
+                    println!("test");
                     self.state = StateInterpreter::NoGoal;
                 }
 
-                Ok(CommandAllResultOk::ProveGoalResult)
+                Ok(CommandAllResultOk::ProveGoalResult {
+                    result: res,
+                    config: TreeConfig::AllCase,
+                })
             }
             CommandAll::Admit => todo!(),
             CommandAll::AdmitAll => todo!(),

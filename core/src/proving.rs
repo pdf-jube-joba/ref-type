@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     ast::{Exp, Var},
     environment::{derivation_tree::*, global_context::*, tree_node::*},
@@ -72,6 +74,45 @@ pub enum UserSelect {
         term: Exp,
         replace: Exp,
     },
+}
+
+impl Display for UserSelect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            UserSelect::Exact { proof } => format!("Exact: {proof}"),
+            UserSelect::SubSetPred {
+                term,
+                subset,
+                superset,
+            } => format!("SubSetPred: {term} {subset} {superset}"),
+            UserSelect::LeibnizEq {
+                set,
+                term1,
+                term2,
+                predicate,
+            } => format!("LeibnizEq: {set} {term1} {term2} {predicate}"),
+            UserSelect::EqualIntoSuper {
+                set,
+                term1,
+                term2,
+                superset,
+            } => format!("EqualIntoSuper: {set} {term1} {term2} {superset}"),
+            UserSelect::EqualIntoSub {
+                set,
+                term1,
+                term2,
+                subset,
+            } => format!("EqualIntoSub: {set} {term1} {term2} {subset}"),
+            UserSelect::ExistExact { non_empty } => format!("ExistExact: {non_empty}"),
+            UserSelect::EqualTake {
+                take_var,
+                take_type,
+                term,
+                replace,
+            } => format!("EqualTake: {take_var} {take_type} {term} {replace}"),
+        };
+        write!(f, "{s}")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

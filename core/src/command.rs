@@ -1,13 +1,17 @@
 use crate::{
     ast::{inductives::InductiveDefinitionsSyntax, Exp, Var},
-    environment::{derivation_tree::*, printing::*},
+    environment::derivation_tree::*,
+    printing::*,
     proving::{ErrProofTree, UserSelect},
 };
 use std::fmt::Display;
 
 // use self::context::{ResIndDefsError, ResIndDefsOk};
 
-use self::environment::check_well_formed::{ResIndDefsError, ResIndDefsOk};
+use self::{
+    environment::check_well_formed::{ResIndDefsError, ResIndDefsOk},
+    proving::PartialDerivationTreeProof,
+};
 
 use super::*;
 
@@ -49,6 +53,10 @@ pub enum CommandAll {
         config: TreeConfig,
         e: Exp,
     },
+    Theorem {
+        config: TreeConfig,
+        e: Exp,
+    },
     NewDefinition {
         config: TreeConfig,
         x: Var,
@@ -87,6 +95,10 @@ pub enum CommandAllResultErr {
         config: TreeConfig,
     },
     InferFailed {
+        result: DerivationFailed,
+        config: TreeConfig,
+    },
+    TheoremIsNotProp {
         result: DerivationFailed,
         config: TreeConfig,
     },
@@ -138,6 +150,10 @@ pub enum CommandAllResultOk {
         result_tree: PartialDerivationTreeTypeCheck,
         config: TreeConfig,
     },
+    TheoremIsProp {
+        result: PartialDerivationTreeTypeCheck,
+        config: TreeConfig,
+    },
     NewDefinitionResult {
         result: PartialDerivationTreeTypeCheck,
         config: TreeConfig,
@@ -153,7 +169,10 @@ pub enum CommandAllResultOk {
     ShowGoalResult {
         goals: Option<GoalTree>,
     },
-    ProveGoalResult,
+    ProveGoalResult {
+        result: PartialDerivationTreeProof,
+        config: TreeConfig,
+    },
     AdmitResult,
     AdmitAllResult,
 }
@@ -192,6 +211,7 @@ impl Display for CommandAll {
             CommandAll::NewDefinition { x, t, e, config: _ } => {
                 write!(f, "new_definition {}: {} : {}", x, t, e)
             }
+            CommandAll::Theorem { e, config: _ } => write!(f, "theorem {e}"),
             CommandAll::NewAssumption { x, t, config: _ } => {
                 write!(f, "new_assumption {}: {}", x, t)
             }
@@ -246,6 +266,9 @@ impl Display for CommandAllResultOk {
                     print_tree(result_tree, config)
                 )
             }
+            CommandAllResultOk::TheoremIsProp { result, config } => {
+                write!(f, "{}", print_tree(result, config))
+            }
             CommandAllResultOk::NewDefinitionResult { result, config } => {
                 write!(f, "{}", print_tree(result, config))
             }
@@ -265,18 +288,24 @@ impl Display for CommandAllResultOk {
             }
             CommandAllResultOk::ShowGoalResult { goals } => {
                 if let Some(goals) = goals {
-                    let GoalTree::Branch(goals) = goals else {
-                        unreachable!("branch");
-                    };
-                    for goal in goals {
-                        writeln!(f, " ?{}", into_printing_tree(goal))?;
+                    match goals {
+                        GoalTree::UnSolved(prop) => {
+                            writeln!(f, "?{prop}")?;
+                        }
+                        GoalTree::Branch(goals) => {
+                            for goal in goals {
+                                writeln!(f, " ?{}", into_printing_tree(goal))?;
+                            }
+                        }
                     }
                 } else {
-                    writeln!(f, "no goal ")?;
+                    writeln!(f, "no goal")?;
                 }
                 Ok(())
             }
-            CommandAllResultOk::ProveGoalResult => write!(f, "prove ok"),
+            CommandAllResultOk::ProveGoalResult { result, config } => {
+                write!(f, "prove ok\n{}", print_proof_tree(result, config))
+            }
             CommandAllResultOk::AdmitResult => write!(f, "admit ok"),
             CommandAllResultOk::AdmitAllResult => write!(f, "admit_all ok"),
         }
@@ -298,6 +327,9 @@ impl Display for CommandAllResultErr {
                 write!(f, "{}", print_fail_tree(result, config))
             }
             CommandAllResultErr::InferFailed { result, config } => {
+                write!(f, "{}", print_fail_tree(result, config))
+            }
+            CommandAllResultErr::TheoremIsNotProp { result, config } => {
                 write!(f, "{}", print_fail_tree(result, config))
             }
             CommandAllResultErr::NewDefinitionFailed { result, config } => {
