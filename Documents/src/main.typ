@@ -609,14 +609,48 @@ closed がついているのは $*^p$ の項になる ($*^p$ の impredicativity
 == 集合論との比較
 集合との比較でいえば、次のものは入れてもよい。
 - $A: cal(P)(A)$
-- $B: cal(P)(A)$, $C: cal(P)(B)$ $=>$ $C: cal(P)(A)$
-- $B: cal(P)(A)$ $=>$ $cal(P)(B): cal(P)(cal(P)(A))$
-- $Gamma tack.double P$ $=>$ $A equiv {x: A | P}$
+- $B: cal(P)(A)$, $C: cal(P)(B)$ なら $C: cal(P)(A)$
+- $B: cal(P)(A)$ なら $cal(P)(B): cal(P)(cal(P)(A))$
+- $Gamma tack.double P$ なら $A equiv {x: A | P}$
 ただ、これがなくても十分に使えそうにはなっている。
 例えば次が成り立つ。
 - $B: cal(P)(A)$, $C: cal(P)(B)$, $t: C$ なら $t: A$ である。
 - $t: A$ かつ $Gamma tack.double P$ なら $t: {x: A | P}$
 なので、"項"に対する型としては十分である。
+
+== めんどくさい部分
+$lambda x: A. x$ は $A -> A$ と infer されるが、 $A subset B$ のときに $(lambda x: A .x): (A -> B)$ を check するのがつらい。
+型付け上は確かにできるのだが（$x: A tack x: B$ より）、 check と infer をする上では、ちょっと工夫が必要
+というのも、 $t: A -> A$ でも $t: A -> B$ とは限らないため。
+（ $t$ がラムダ中小の場合にはよい。）
+これと似たような問題を解決するために cumulative を与えていたのかも？
+（ $t: "Univ"(n)$ $=>$ $t: "Univ"(n + 1)$ を型規則に入れるよりも、 $"Univ"(n) <= "Univ"(n+1)$ と $B <= B'$ なら $(x: A) -> B <= (x: A) -> B'$ を入れて、 $t: U, U <= U'$ なら $t: U'$ にするなど。）
+ただ今回の場合は、 cast を間に挟むことで解決できる。
+つまり、 $"cast":= (x: B) -> x$ を入れてやると、 $lambda x: A. ("cast" x)$ が通るようになる。
+（ここらへんは type check の実装の話っぽい）
+
+また、以下の $eta$ ルールを導入してやれば、一般の $t$ でも似たようなことはできる。
+- $Gamma tack t: (x: A) -> B$ なら $t equiv lambda x: A. t x$
+
+=== cumulativity を導入する？
+$B: cal(P) A$ で $t: X -> B$ なら $t$ がラムダ抽象じゃなくても、 $t: X -> A$ と書けると嬉しい。
+この点で、 $B: cal(P)(A)$ をもとに次のようなものを考えるとよさそう？
+- 新たに、 $Gamma tack T_1 <= T_2$ という関係を導入する。
+- $Gamma tack A: *^s$ なら $Gamma tack A <= A$
+- $Gamma tack B: cal(P)(A)$ なら $Gamma tack B <= A$
+- $Gamma tack A <= B, B <= C$ なら $Gamma tack A <= C$
+- $Gamma x: M tack A <= B$ なら $Gamma tack (x: M) -> A <= (x: M) -> B$
+- $Gamma t: B$, $Gamma tack B <= A$ なら $Gamma tack t: A$
+
+== 空間を集めてくる操作がつらい
+$X$ 上のベクトル束の同型類のなすモノイドをよりよく扱うには、 $*^s$ 上で部分集合とべき集合を集めても意味がない。
+（その universe を超えるので）
+ただ、普通に $square^i$ にそれを導入すると、 ${p: *^p | ...}$ のように、 「 proposition $p$ であって ... を満たすもの」のようなやばそうなことができてしまう。
+なので、 unvierse を $lambda_{"PRED"}$ のようにわけるのも手かもしれない。
+具体的には、
+$*^p: square^0$, $square^i: square^(o+1)$ とは別に、 $*^s_i: *^s_(i+1)$ と階層を用意しておいて、
+$*^s_i$ と $square^i$ はそれぞれ predicative にして inductive type まわりを整備したうえで、
+$(square^i, *^p), (*^s_i, *^p)$ を用意すれば、 $x: *^s$ に対して $(y: *^s, f: y -> x)$ を全部集めてきたような"集合"を扱えている？
 
 = equality と take について
 equality についてできてほしいのは次のようなこと
@@ -1101,13 +1135,3 @@ constrained inference に $cal(P)(A)$ を入れる
   - $Gamma tack t triangle T$ をもってくる
   - $Gamma tack T triangle.l *^s$ を確認する、そうじゃない場合は失敗
   - $T ->^* cal(P)(A)$ をみる
-
-== めんどくさい部分
-$lambda x: A. x$ は $A -> A$ と infer されるが、 $A subset B$ のときに $(lambda x: A .x): (A -> B)$ を check するのがつらい。
-型付け上は確かにできるのだが（$x: A tack x: B$ より）、 check と infer をする上では、ちょっと工夫が必要
-というのも、 $t: A -> A$ でも $t: A -> B$ とは限らないため。
-（ $t$ がラムダ中小の場合にはよい。）
-これと似たような問題を解決するために cumulative を与えていたのかも？
-（ $t: "Univ"(n)$ $=>$ $t: "Univ"(n + 1)$ を型規則に入れるよりも、 $"Univ"(n) <= "Univ"(n+1)$ と $B <= B'$ なら $(x: A) -> B <= (x: A) -> B'$ を入れて、 $t: U, U <= U'$ なら $t: U'$ にするなど。）
-ただ今回の場合は、 cast を間に挟むことで解決できる。
-つまり、 $"cast":= (x: B) -> x$ を入れてやると、 $lambda x: A. ("cast" x)$ が通るようになる。
