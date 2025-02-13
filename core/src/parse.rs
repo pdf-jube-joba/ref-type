@@ -318,7 +318,7 @@ mod parse_exp {
 
 pub mod parse_proof {
     use crate::parse::parse_exp::take_expression;
-    use crate::proving::UserSelect;
+    use crate::proving::{OtherSelect, UserSelect};
 
     use super::*;
     pub(crate) fn parse_proof(pair: Pair<Rule>) -> Result<UserSelect, Box<error::Error<Rule>>> {
@@ -343,7 +343,83 @@ pub mod parse_proof {
                     superset,
                 })
             }
+            Rule::leibniz_eq => {
+                let mut ps = user_select.into_inner();
+                let term1 = take_expression(ps.next().unwrap())?;
+                let term2 = take_expression(ps.next().unwrap())?;
+                let set = take_expression(ps.next().unwrap())?;
+                let predicate = take_expression(ps.next().unwrap())?;
+                Ok(UserSelect::LeibnizEq {
+                    set,
+                    term1,
+                    term2,
+                    predicate,
+                })
+            }
+            Rule::equal_into_super => {
+                let mut ps = user_select.into_inner();
+                let term1 = take_expression(ps.next().unwrap())?;
+                let term2 = take_expression(ps.next().unwrap())?;
+                let set = take_expression(ps.next().unwrap())?;
+                let superset = take_expression(ps.next().unwrap())?;
+                Ok(UserSelect::EqualIntoSuper {
+                    set,
+                    term1,
+                    term2,
+                    superset,
+                })
+            }
+            Rule::equal_into_sub => {
+                let mut ps = user_select.into_inner();
+                let term1 = take_expression(ps.next().unwrap())?;
+                let term2 = take_expression(ps.next().unwrap())?;
+                let set = take_expression(ps.next().unwrap())?;
+                let subset = take_expression(ps.next().unwrap())?;
+                Ok(UserSelect::EqualIntoSub {
+                    set,
+                    term1,
+                    term2,
+                    subset,
+                })
+            }
+            Rule::exist_refine => {
+                let mut ps = user_select.into_inner();
+                let element = take_expression(ps.next().unwrap())?;
+                if ps.peek().is_some() {
+                    let non_empty = take_expression(ps.next().unwrap())?;
+                    Ok(UserSelect::ExistExact {
+                        non_empty: Some(non_empty),
+                        element,
+                    })
+                } else {
+                    Ok(UserSelect::ExistExact {
+                        non_empty: None,
+                        element,
+                    })
+                }
+            }
+            Rule::applied_rule => {
+                let other = take_applied_rule(user_select)?;
+                Ok(UserSelect::Applied { other })
+            }
             _ => unreachable!(),
+        }
+    }
+
+    fn take_applied_rule(pair: Pair<Rule>) -> Result<OtherSelect, Box<error::Error<Rule>>> {
+        assert_eq!(pair.as_rule(), Rule::applied_rule);
+        let pair = pair.into_inner().next().unwrap();
+        match pair.as_rule() {
+            Rule::reduce => {
+                let mut ps = pair.into_inner();
+                if ps.peek().is_some() {
+                    let e = take_expression(ps.next().unwrap())?;
+                    Ok(OtherSelect::Reduction { reduced: Some(e) })
+                } else {
+                    Ok(OtherSelect::Reduction { reduced: None })
+                }
+            }
+            _ => unreachable!("applied rule"),
         }
     }
 }

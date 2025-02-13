@@ -362,6 +362,9 @@ impl Display for CommandAllResultErr {
                     write!(f, "{}", print_fail_tree(fail_tree, config))
                 }
                 ErrProofTree::NotAlphaEq => write!(f, "NotAlphaEq"),
+                ErrProofTree::FailCondition { condition } => write!(f, "{condition:?}"),
+                ErrProofTree::NotReduceble => write!(f, "NotReduceble"),
+                ErrProofTree::NotAppropriateForm(err) => write!(f, "{err}"),
             },
         }
     }

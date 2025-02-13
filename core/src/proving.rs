@@ -4,7 +4,7 @@ use crate::{
     app,
     ast::{Exp, Sort, Var},
     environment::{derivation_tree::*, global_context::*, tree_node::*},
-    lambda_calculus::{alpha_eq, subst},
+    lambda_calculus::{alpha_eq, reduce, subst},
     prod,
     typing::type_check,
 };
@@ -66,7 +66,7 @@ pub enum UserSelect {
     // G |- e: t, G |- t: SET
     // G |= exists t
     ExistExact {
-        non_empty: Exp,
+        non_empty: Option<Exp>,
         element: Exp,
     },
     // G |- (take x: t. m): M, G |- e: t
@@ -77,6 +77,9 @@ pub enum UserSelect {
         term: Exp,
         all: Exp,
         replace: Exp,
+    },
+    Applied {
+        other: OtherSelect,
     },
 }
 
@@ -108,7 +111,14 @@ impl Display for UserSelect {
                 subset,
             } => format!("EqualIntoSub: {set} {term1} {term2} {subset}"),
             UserSelect::ExistExact { non_empty, element } => {
-                format!("ExistExact: {element} in {non_empty}")
+                format!(
+                    "ExistExact: {element} in {}",
+                    if let Some(non_empty) = non_empty {
+                        format!("{non_empty}")
+                    } else {
+                        "x".to_string()
+                    }
+                )
             }
             UserSelect::EqualTake {
                 take_var,
@@ -117,6 +127,7 @@ impl Display for UserSelect {
                 all,
                 replace,
             } => format!("EqualTake: {take_var} {all} {take_type} {term} {replace}"),
+            UserSelect::Applied { other } => format!("{other}"),
         };
         write!(f, "{s}")
     }
@@ -125,12 +136,21 @@ impl Display for UserSelect {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrProofTree {
     FailTree { fail_tree: DerivationFailed },
+    FailCondition { condition: ErrOnCondition },
     NotAlphaEq,
+    NotReduceble,
+    NotAppropriateForm(String),
 }
 
 impl From<DerivationFailed> for ErrProofTree {
     fn from(value: DerivationFailed) -> Self {
         ErrProofTree::FailTree { fail_tree: value }
+    }
+}
+
+impl From<ErrOnCondition> for ErrProofTree {
+    fn from(value: ErrOnCondition) -> Self {
+        ErrProofTree::FailCondition { condition: value }
     }
 }
 
@@ -141,6 +161,9 @@ pub fn proof_tree(
     proposition: Exp,
     user_label: UserSelect,
 ) -> Result<PartialDerivationTreeProof, ErrProofTree> {
+    if let UserSelect::Applied { other } = user_label {
+        return deformation_proof_tree(gcxt, cxt, proposition, other);
+    }
     let head = ProvableJudgement {
         context: cxt.clone(),
         proposition: proposition.clone(),
@@ -303,15 +326,29 @@ pub fn proof_tree(
                 .into(),
             );
         }
-        UserSelect::ExistExact { non_empty, element } => {
-            let prop = Exp::Exists(Box::new(non_empty.clone()));
-            if !alpha_eq(&prop, &proposition) {
-                return Err(ErrProofTree::NotAlphaEq);
-            }
+        UserSelect::ExistExact { non_empty, element } => match non_empty {
+            Some(non_empty) => {
+                let prop = Exp::Exists(Box::new(non_empty.clone()));
+                if !alpha_eq(&prop, &proposition) {
+                    return Err(ErrProofTree::NotAlphaEq);
+                }
 
-            let ok = type_check(gcxt, cxt.clone(), element.clone(), non_empty.clone())?;
-            child.push(ok.into());
-        }
+                let ok = type_check(gcxt, cxt.clone(), element.clone(), non_empty.clone())?;
+                child.push(ok.into());
+            }
+            None => {
+                let Exp::Exists(set) = proposition else {
+                    return Err(ErrProofTree::NotAppropriateForm(format!(
+                        "not form exists but {proposition}"
+                    )));
+                };
+
+                // G |- element: set
+                let set = *set;
+                let ok = type_check(gcxt, cxt.clone(), element.clone(), set.clone())?;
+                child.push(ok.into());
+            }
+        },
         UserSelect::EqualTake {
             take_var,
             take_type,
@@ -340,10 +377,100 @@ pub fn proof_tree(
             let ok = type_check(gcxt, cxt.clone(), replace.clone(), take_type.clone())?;
             child.push(ok.into());
         }
+        UserSelect::Applied { other: _ } => unreachable!(),
     }
     Ok(PartialDerivationTreeProof {
         head,
         child,
         label: user_label,
+    })
+}
+
+// composition of others
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OtherSelect {
+    // G |= T, T ~ T'
+    // => G |= T'
+    // by G |= T => G |- Proof(T): T => G |- Proof(T): T' => G |= T'
+    Reduction { reduced: Option<Exp> },
+}
+
+impl Display for OtherSelect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OtherSelect::Reduction { reduced } => write!(
+                f,
+                "Reduce {}",
+                if let Some(a) = reduced {
+                    format!("{a}")
+                } else {
+                    "".to_string()
+                }
+            ),
+        }
+    }
+}
+
+fn deformation_proof_tree(
+    gcxt: &GlobalContext,
+    cxt: LocalContext,
+    proposition: Exp,
+    other_select: OtherSelect,
+) -> Result<PartialDerivationTreeProof, ErrProofTree> {
+    let head = ProvableJudgement {
+        context: cxt.clone(),
+        proposition: proposition.clone(),
+    };
+    let mut child: Vec<DerChild> = vec![];
+
+    match other_select.clone() {
+        OtherSelect::Reduction { reduced } => {
+            // G |= T, T ~ T'
+            // => G |= T'
+            // by G |= T => G |- Proof(T): T => G |- Proof(T): T' => G |= T'
+            match reduced {
+                Some(expected) => {
+                    // G |- expected: PROP
+                    let ok = type_check(gcxt, cxt.clone(), expected.clone(), Sort::Prop.into())?;
+                    child.push(ok.into());
+
+                    // expected =~ proposition
+                    let ok = Condition::convertible(gcxt, expected.clone(), proposition.clone())?;
+                    child.push(ok.into());
+
+                    // G |= expected
+                    let new_proposition = ProvableJudgement {
+                        context: cxt.clone(),
+                        proposition: expected,
+                    };
+                    child.push(new_proposition.into());
+                }
+                None => {
+                    // just reduce (once) proposition
+                    let Some(new_proposition) = reduce(gcxt, proposition.clone()) else {
+                        return Err(ErrProofTree::NotReduceble);
+                    };
+
+                    let ok =
+                        Condition::convertible(gcxt, new_proposition.clone(), proposition.clone())
+                            .unwrap(); // it should be ok
+                    child.push(ok.into());
+
+                    let new_proposition = ProvableJudgement {
+                        context: cxt.clone(),
+                        proposition: new_proposition,
+                    };
+                    child.push(new_proposition.into());
+                }
+            }
+        }
+    }
+
+    Ok(PartialDerivationTreeProof {
+        head,
+        child,
+        label: UserSelect::Applied {
+            other: other_select,
+        },
     })
 }
