@@ -299,7 +299,7 @@ impl Interpreter {
                     Err(err) => {
                         return Err(CommandAllResultErr::ProofErr {
                             result: err,
-                            config: TreeConfig::AllCase,
+                            config: TreeConfig::OnlyGoals,
                         });
                     }
                 };
@@ -316,7 +316,7 @@ impl Interpreter {
 
                 Ok(CommandAllResultOk::ProveGoalResult {
                     result: res,
-                    config: TreeConfig::AllCase,
+                    config: TreeConfig::OnlyGoals,
                 })
             }
             CommandAll::Admit => todo!(),
