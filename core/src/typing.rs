@@ -1077,7 +1077,7 @@ pub fn type_infer(
                 proposition: Exp::Exists(exp.clone()),
             };
 
-            // need proof of (y1: exp) -> (y2: exp) ->
+            // need proof of (y1: exp) -> (y2: exp) -> exp1[var := y1] =_M exp1[var := y2]
             let proposition2: ProvableJudgement = {
                 let fresh_num = fresh(&exp1);
 
@@ -1086,8 +1086,8 @@ pub fn type_infer(
 
                 let end = Exp::Id(
                     Box::new(infered_type.clone()),
-                    Box::new(subst(*exp.clone(), &var, &Exp::Var(new_var1.clone()))),
-                    Box::new(subst(*exp.clone(), &var, &Exp::Var(new_var2.clone()))),
+                    Box::new(subst(*exp1.clone(), &var, &Exp::Var(new_var1.clone()))),
+                    Box::new(subst(*exp1.clone(), &var, &Exp::Var(new_var2.clone()))),
                 );
 
                 ProvableJudgement {

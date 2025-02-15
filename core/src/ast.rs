@@ -66,7 +66,7 @@ pub enum Exp {
     Pow(Box<Exp>),                    // Power X
     Pred(Box<Exp>, Box<Exp>),         // Pred X
     Id(Box<Exp>, Box<Exp>, Box<Exp>), // a =_A b
-    Refl(Box<Exp>, Box<Exp>),         // refl_A a
+    Refl(Box<Exp>, Box<Exp>),         // refl_A a ... これいらないかも（証明項ではなく、証明についてればいい）
     Exists(Box<Exp>),                 // exists T.
     Take(Var, Box<Exp>, Box<Exp>),    // take x:A. t
                                       // Rec(Var, Var, Box<Exp>),       // rec f x = m

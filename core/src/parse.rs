@@ -40,9 +40,9 @@ impl From<String> for ParserError {
 }
 
 #[derive(Default, Parser)]
-#[grammar = "exp.pest"] // relative to src
-#[grammar = "proving.pest"]
-#[grammar = "program.pest"]
+#[grammar = "syntax/exp.pest"] // relative to src
+#[grammar = "syntax/proving.pest"]
+#[grammar = "syntax/program.pest"]
 pub struct MyParser;
 
 impl MyParser {
@@ -321,8 +321,11 @@ pub mod parse_proof {
     use crate::proving::{OtherSelect, UserSelect};
 
     use super::*;
-    pub(crate) fn parse_proof(pair: Pair<Rule>) -> Result<UserSelect, Box<error::Error<Rule>>> {
-        debug_assert_eq!(pair.as_rule(), Rule::PROOF);
+
+    pub(crate) fn parse_user_select(
+        pair: Pair<Rule>,
+    ) -> Result<UserSelect, Box<error::Error<Rule>>> {
+        debug_assert_eq!(pair.as_rule(), Rule::PROOF_base);
         let mut ps = pair.into_inner();
         // let _ = ps.next().unwrap();
         let user_select = ps.next().unwrap();
@@ -398,9 +401,26 @@ pub mod parse_proof {
                     })
                 }
             }
+            _ => unreachable!("proof base"),
+        }
+    }
+    pub(crate) fn parse_proof(pair: Pair<Rule>) -> Result<CommandAll, Box<error::Error<Rule>>> {
+        debug_assert_eq!(pair.as_rule(), Rule::PROOF);
+        let mut ps = pair.into_inner();
+        // let _ = ps.next().unwrap();
+        let user_select = ps.next().unwrap();
+        match user_select.as_rule() {
+            Rule::ADMIT => Ok(CommandAll::Admit),
+            Rule::ADMIT_ALL => Ok(CommandAll::AdmitAll),
+            Rule::PROOF_base => {
+                let user_select = parse_user_select(user_select)?;
+                Ok(CommandAll::ProveGoal { user_select })
+            }
             Rule::applied_rule => {
                 let other = take_applied_rule(user_select)?;
-                Ok(UserSelect::Applied { other })
+                Ok(CommandAll::ProveGoal {
+                    user_select: UserSelect::Applied { other },
+                })
             }
             _ => unreachable!(),
         }
@@ -463,8 +483,8 @@ pub mod parse_command {
             Rule::new_command => Ok(take_new_command(pair)?),
             Rule::show_command => Ok(take_show_command(pair)?),
             Rule::PROOF => {
-                let user_select = parse_proof::parse_proof(pair)?;
-                Ok(CommandAll::ProveGoal { user_select })
+                let proof_command = parse_proof::parse_proof(pair)?;
+                Ok(proof_command)
             }
             _ => todo!("command not defined"),
         }

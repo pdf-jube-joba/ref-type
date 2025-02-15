@@ -38,22 +38,20 @@ impl Interpreter {
         }
     }
     pub fn set_goals_type_check(&mut self, tree: &PartialDerivationTreeTypeCheck) {
-        let mut goals = tree.get_goals();
+        let goals = tree.get_goals();
         if goals.is_empty() {
             self.state = StateInterpreter::NoGoal;
         } else {
-            goals.reverse();
             self.state = StateInterpreter::Goals(GoalTree::Branch(
                 goals.into_iter().map(GoalTree::UnSolved).collect(),
             ));
         }
     }
     pub fn set_goals_proof_check(&mut self, tree: &PartialDerivationTreeProof) {
-        let mut goals = tree.get_goals();
+        let goals = tree.get_goals();
         if goals.is_empty() {
             self.state = StateInterpreter::NoGoal;
         } else {
-            goals.reverse();
             self.state = StateInterpreter::Goals(GoalTree::Branch(
                 goals.into_iter().map(GoalTree::UnSolved).collect(),
             ));
@@ -304,8 +302,6 @@ impl Interpreter {
                     }
                 };
 
-                println!("hello --- {proposition}");
-
                 let added_goals = res.get_goals();
                 *goal = GoalTree::Branch(added_goals.into_iter().map(GoalTree::UnSolved).collect());
 
@@ -319,7 +315,26 @@ impl Interpreter {
                     config: TreeConfig::OnlyGoals,
                 })
             }
-            CommandAll::Admit => todo!(),
+            CommandAll::Admit => {
+                let StateInterpreter::Goals(ref mut goals) = self.state else {
+                    return Err(CommandAllResultErr::NotInProofMode);
+                };
+
+                assert!(!goals.is_empty());
+
+                let goal = goals.first_mut().unwrap();
+                let pred = std::mem::replace(goal, GoalTree::Branch(vec![]));
+                let GoalTree::UnSolved(proof_judge) = pred else {
+                    unreachable!()
+                };
+
+                if goals.is_empty() {
+                    println!("test");
+                    self.state = StateInterpreter::NoGoal;
+                }
+
+                Ok(CommandAllResultOk::AdmitResult { proof_judge })
+            }
             CommandAll::AdmitAll => todo!(),
         }
     }

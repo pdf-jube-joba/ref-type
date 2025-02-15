@@ -9,7 +9,7 @@ use std::fmt::Display;
 // use self::context::{ResIndDefsError, ResIndDefsOk};
 
 use self::{
-    environment::check_well_formed::{ResIndDefsError, ResIndDefsOk},
+    environment::{check_well_formed::{ResIndDefsError, ResIndDefsOk}, tree_node::{LocalContext, ProvableJudgement}},
     proving::PartialDerivationTreeProof,
 };
 
@@ -173,7 +173,9 @@ pub enum CommandAllResultOk {
         result: PartialDerivationTreeProof,
         config: TreeConfig,
     },
-    AdmitResult,
+    AdmitResult {
+        proof_judge: ProvableJudgement,
+    },
     AdmitAllResult,
 }
 
@@ -306,7 +308,7 @@ impl Display for CommandAllResultOk {
             CommandAllResultOk::ProveGoalResult { result, config } => {
                 write!(f, "prove ok\n{}", print_proof_tree(result, config))
             }
-            CommandAllResultOk::AdmitResult => write!(f, "admit ok"),
+            CommandAllResultOk::AdmitResult { proof_judge } => write!(f, "ADMIT {proof_judge}"),
             CommandAllResultOk::AdmitAllResult => write!(f, "admit_all ok"),
         }
     }
