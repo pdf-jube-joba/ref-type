@@ -60,6 +60,7 @@ fn main() {
             Err(err) => {
                 println!("{}", "FAIL".red());
                 println!("{}", indent(err.to_string()));
+                std::process::exit(1);
             }
         }
     }

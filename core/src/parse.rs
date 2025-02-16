@@ -40,7 +40,8 @@ impl From<String> for ParserError {
 }
 
 #[derive(Default, Parser)]
-#[grammar = "syntax/exp.pest"] // relative to src
+#[grammar = "syntax/common.pest"]
+#[grammar = "syntax/exp.pest"]
 #[grammar = "syntax/proving.pest"]
 #[grammar = "syntax/program.pest"]
 pub struct MyParser;
@@ -538,8 +539,14 @@ pub mod parse_command {
             }
             Rule::command_normalize => {
                 let mut ps = pair.into_inner();
+                let b = if ps.peek().unwrap().as_rule() == Rule::normalize_opt {
+                    ps.next();
+                    true
+                } else {
+                    false
+                };
                 let e = take_expression(ps.next().unwrap())?;
-                Ok(CommandAll::Normalize { e })
+                Ok(CommandAll::Normalize { e, process: b })
             }
             Rule::command_beta_equiv => {
                 let mut ps = pair.into_inner();
@@ -560,13 +567,6 @@ pub mod parse_command {
     pub(crate) fn take_typing_command(pair: Pair<Rule>) -> Res<CommandAll> {
         debug_assert_eq!(pair.as_rule(), Rule::typing_command);
         let mut ps = pair.into_inner();
-
-        let succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
-            true
-        } else {
-            ps.next().unwrap();
-            false
-        };
 
         let pair = ps.next().unwrap();
 

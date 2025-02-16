@@ -29,6 +29,10 @@ Inductive Nat: SET with
     | Succ: [Nat] -> Nat
 ;
 
+Definition nat_zero: Nat := Nat::Zero;
+Definition nat_one: Nat := (Nat::Succ Nat::Zero);
+Definition nat_two: Nat := (Nat::Succ (Nat::Succ Nat::Zero));
+
 Definition is_zero (n: Nat): Bool :=
     elim(Nat) n return (_: Nat) |-> Bool /* P */ with
     | Zero =>  Bool::True /* : P 0 */
@@ -36,8 +40,9 @@ Definition is_zero (n: Nat): Bool :=
     end
 ;
 
-Normalize is_zero Nat::Zero;
-Normalize is_zero (Nat::Succ Nat::Zero);
+Normalize is_zero nat_zero;
+Normalize is_zero nat_one;
+Normalize is_zero nat_two;
 
 Definition pred (n: Nat): Nat :=
     elim(Nat) n return (_: Nat) |-> Nat with
@@ -46,21 +51,71 @@ Definition pred (n: Nat): Nat :=
     end
 ;
 
-Normalize pred Nat::Zero;
-Normalize pred (Nat::Succ Nat::Zero);
-Normalize pred (Nat::Succ (Nat::Succ Nat::Zero));
+Normalize pred nat_zero;
+Normalize pred nat_one;
+Normalize pred nat_two;
 
 Definition nat_eqb (n: Nat): Nat -> Bool :=
     elim(Nat) n return (_: Nat) |-> (_: Nat) -> Bool with
     | Zero => (n: Nat) |-> is_zero n
-    | Succ => (_: Nat) |-> (g: Nat -> Bool) |-> (l: Nat) |-> g (pred l)
+    | Succ => (_: Nat) |-> (g: Nat -> Bool) |-> (l: Nat) |->
+        elim(Nat) l return (_: Nat) |-> Bool with
+        | Zero => Bool::False
+        | Succ => (_: Nat) |-> (_: Bool) |-> g (pred l)
+        end
     end
 ;
 
-Normalize nat_eqb Nat::Zero Nat::Zero;
-Normalize nat_eqb Nat::Zero (Nat::Succ Nat::Zero);
-Normalize nat_eqb (Nat::Succ Nat::Zero) Nat::Zero;
+Normalize nat_eqb nat_zero nat_zero;
+Normalize nat_eqb nat_zero nat_one;
+Normalize nat_eqb nat_zero nat_two;
+Normalize nat_eqb nat_one nat_zero;
+Normalize nat_eqb nat_one nat_one;
+Normalize nat_eqb nat_one nat_two;
+Normalize nat_eqb nat_two nat_zero;
+Normalize nat_eqb nat_two nat_one;
+Normalize nat_eqb nat_two nat_two;
 
-Normalize nat_eqb Nat::Zero (Nat::Succ Nat::Zero);
-Normalize nat_eqb (Nat::Succ Nat::Zero) (Nat::Succ Nat::Zero);
-Normalize nat_eqb (Nat::Succ (Nat::Succ Nat::Zero)) (Nat::Succ Nat::Zero);
+Definition nat_add (n: Nat): Nat -> Nat :=
+    elim(Nat) n return ((_: Nat) |-> Nat -> Nat) with
+    | Zero => (m:Nat) |-> m
+    | Succ => (_:Nat) |-> (g:( (_: Nat) -> Nat )) |-> (n: Nat) |-> (Nat::Succ (g n))
+    end
+;
+
+Normalize nat_add nat_zero nat_zero;
+Normalize nat_add nat_zero nat_one;
+Normalize nat_add nat_zero nat_two;
+Normalize nat_add nat_one nat_zero;
+Normalize nat_add nat_one nat_one;
+Normalize nat_add nat_one nat_two;
+
+Inductive NatProd: SET with
+    | Pair: Nat -> Nat -> NatProd
+;
+
+Definition proj0 (nm: NatProd): Nat :=
+    elim(NatProd) nm return (_: NatProd) |-> Nat with
+    | Pair => (n: Nat) |-> (m: Nat) |-> n
+    end
+;
+
+Definition proj1 (nm: NatProd): Nat :=
+    elim(NatProd) nm return (_: NatProd) |-> Nat with
+    | Pair => (n: Nat) |-> (m: Nat) |-> m
+    end
+;
+
+Definition abel_rel (nm0: NatProd) (nm1: NatProd): Bool :=
+    /* (n0, m0) ~ (n1, m1) <=> n0 + m1 = n1 + m0 */
+    nat_eqb (nat_add (proj0 nm0) (proj1 nm1)) (nat_add (proj0 nm1) (proj1 nm0))
+;
+
+Definition rel_sym_set (nm: NatProd): Power(NatProd) := { y: NatProd | Id(Bool, abel_rel nm y = Bool::True) } ;
+
+Definition number: Power(Power(NatProd)) := { sub_natprod: Power(NatProd) | Exists { y: NatProd | Id(Power(NatProd), sub_natprod = rel_sym_set y) } };
+Definition add_num (n: number) (m: number): number :=
+    Take (n_rep: { n_rep: NatProd |  }) |->
+    Take (m_rep: { m_rep: NatProd |  }) |->
+    // TODO
+;

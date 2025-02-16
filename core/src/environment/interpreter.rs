@@ -102,8 +102,11 @@ impl Interpreter {
                 let res = lambda_calculus::reduce(&self.global_context, e.clone());
                 Ok(CommandAllResultOk::ReduceResult { e: res })
             }
-            CommandAll::Normalize { e } => {
-                let res = lambda_calculus::normalize_seq(&self.global_context, e.clone());
+            CommandAll::Normalize { e, process } => {
+                let mut res = lambda_calculus::normalize_seq(&self.global_context, e.clone());
+                if !process {
+                    res = vec![res.first().unwrap().clone(), res.last().unwrap().clone()];
+                }
                 Ok(CommandAllResultOk::NormalizeResult { es: res })
             }
             CommandAll::Check { e1, e2, config } => {

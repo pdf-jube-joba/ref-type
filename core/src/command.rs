@@ -9,7 +9,10 @@ use std::fmt::Display;
 // use self::context::{ResIndDefsError, ResIndDefsOk};
 
 use self::{
-    environment::{check_well_formed::{ResIndDefsError, ResIndDefsOk}, tree_node::{LocalContext, ProvableJudgement}},
+    environment::{
+        check_well_formed::{ResIndDefsError, ResIndDefsOk},
+        tree_node::{LocalContext, ProvableJudgement},
+    },
     proving::PartialDerivationTreeProof,
 };
 
@@ -42,6 +45,7 @@ pub enum CommandAll {
         e: Exp,
     },
     Normalize {
+        process: bool,
         e: Exp,
     },
     Check {
@@ -207,7 +211,7 @@ impl Display for CommandAll {
             }
             CommandAll::TopReduce { e } => write!(f, "top_reduce {}", e),
             CommandAll::Reduce { e } => write!(f, "reduce {}", e),
-            CommandAll::Normalize { e } => write!(f, "normalize {}", e),
+            CommandAll::Normalize { e, process: _ } => write!(f, "normalize {}", e),
             CommandAll::Check { e1, e2, config: _ } => write!(f, "check {} <| {}", e1, e2),
             CommandAll::Infer { config: _, e } => write!(f, "infer {}", e),
             CommandAll::NewDefinition { x, t, e, config: _ } => {

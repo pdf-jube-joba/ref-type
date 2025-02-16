@@ -1,33 +1,35 @@
 use crate::{ast::*, environment::global_context::*};
 use std::collections::HashSet;
 
-fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp {
+fn subst_rec(term1: Exp, fresh: &mut usize, substs: &mut Vec<(Var, Exp)>) -> Exp {
     match term1 {
         Exp::Sort(_) => term1,
         Exp::Var(ref v) => substs
             .into_iter()
             .rev()
-            .find_map(|(x, t)| if *v == x { Some(t) } else { None })
+            .find_map(|(x, t)| if v == x { Some(t.clone()) } else { None })
             .unwrap_or(term1),
         Exp::Prod(x, unbind, bind) => {
-            let unbind = Box::new(subst_rec(*unbind, fresh, substs.clone()));
-            let new_var = Var::Internal("new".to_string(), *fresh);
+            let unbind = Box::new(subst_rec(*unbind, fresh, substs));
+            let new_var = Var::Internal("subst".to_string(), *fresh);
             *fresh += 1;
             substs.push((x, Exp::Var(new_var.clone())));
             let bind = Box::new(subst_rec(*bind, fresh, substs));
+            substs.pop();
             Exp::Prod(new_var, unbind, bind)
         }
         Exp::Lam(x, unbind, bind) => {
-            let unbind = Box::new(subst_rec(*unbind, fresh, substs.clone()));
-            let new_var = Var::Internal("new".to_string(), *fresh);
+            let unbind = Box::new(subst_rec(*unbind, fresh, substs));
+            let new_var = Var::Internal("subst".to_string(), *fresh);
             *fresh += 1;
             substs.push((x, Exp::Var(new_var.clone())));
             let bind = Box::new(subst_rec(*bind, fresh, substs));
+            substs.pop();
             Exp::Lam(new_var, unbind, bind)
         }
         Exp::App(t1, t2) => Exp::App(
-            Box::new(subst_rec(*t1, fresh, substs.clone())),
-            Box::new(subst_rec(*t2, fresh, substs.clone())),
+            Box::new(subst_rec(*t1, fresh, substs)),
+            Box::new(subst_rec(*t2, fresh, substs)),
         ),
         Exp::IndTypeType { ind_type_name } => Exp::IndTypeType { ind_type_name },
         Exp::IndTypeCst {
@@ -44,43 +46,45 @@ fn subst_rec(term1: Exp, fresh: &mut usize, mut substs: Vec<(Var, Exp)>) -> Exp 
             cases,
         } => Exp::IndTypeElim {
             ind_type_name,
-            eliminated_exp: Box::new(subst_rec(*eliminated_exp, fresh, substs.clone())),
-            return_type: Box::new(subst_rec(*return_type, fresh, substs.clone())),
+            eliminated_exp: Box::new(subst_rec(*eliminated_exp, fresh, substs)),
+            return_type: Box::new(subst_rec(*return_type, fresh, substs)),
             cases: cases
                 .into_iter()
-                .map(|(c, e)| (c, subst_rec(e, fresh, substs.clone())))
+                .map(|(c, e)| (c, subst_rec(e, fresh, substs)))
                 .collect(),
         },
         Exp::Proof(t) => Exp::Proof(Box::new(subst_rec(*t, fresh, substs))),
         Exp::Pow(a) => Exp::Pow(Box::new(subst_rec(*a, fresh, substs))),
         Exp::Pred(a, b) => Exp::Pred(
-            Box::new(subst_rec(*a, fresh, substs.clone())),
+            Box::new(subst_rec(*a, fresh, substs)),
             Box::new(subst_rec(*b, fresh, substs)),
         ),
         Exp::Sub(x, unbind, bind) => {
-            let unbind = Box::new(subst_rec(*unbind, fresh, substs.clone()));
+            let unbind = Box::new(subst_rec(*unbind, fresh, substs));
             let new_var = Var::Internal("new".to_string(), *fresh);
             *fresh += 1;
             substs.push((x, Exp::Var(new_var.clone())));
             let bind = Box::new(subst_rec(*bind, fresh, substs));
+            substs.pop();
             Exp::Sub(new_var, unbind, bind)
         }
         Exp::Id(exp, exp1, exp2) => Exp::Id(
-            Box::new(subst_rec(*exp, fresh, substs.clone())),
-            Box::new(subst_rec(*exp1, fresh, substs.clone())),
+            Box::new(subst_rec(*exp, fresh, substs)),
+            Box::new(subst_rec(*exp1, fresh, substs)),
             Box::new(subst_rec(*exp2, fresh, substs)),
         ),
         Exp::Refl(exp, exp1) => Exp::Refl(
-            Box::new(subst_rec(*exp, fresh, substs.clone())),
-            Box::new(subst_rec(*exp1, fresh, substs.clone())),
+            Box::new(subst_rec(*exp, fresh, substs)),
+            Box::new(subst_rec(*exp1, fresh, substs)),
         ),
         Exp::Exists(exp) => Exp::Exists(Box::new(subst_rec(*exp, fresh, substs))),
         Exp::Take(x, unbind, bind) => {
-            let unbind = Box::new(subst_rec(*unbind, fresh, substs.clone()));
+            let unbind = Box::new(subst_rec(*unbind, fresh, substs));
             let new_var = Var::Internal("new".to_string(), *fresh);
             *fresh += 1;
             substs.push((x, Exp::Var(new_var.clone())));
             let bind = Box::new(subst_rec(*bind, fresh, substs));
+            substs.pop();
             Exp::Take(new_var, unbind, bind)
         }
     }
@@ -91,21 +95,21 @@ pub fn subst(term1: Exp, var: &Var, term2: &Exp) -> Exp {
         return term1;
     }
     let mut fresh_var = std::cmp::max(fresh(&term1), fresh(term2));
-    subst_rec(term1, &mut fresh_var, vec![(var.clone(), term2.clone())])
+    subst_rec(
+        term1,
+        &mut fresh_var,
+        &mut vec![(var.clone(), term2.clone())],
+    )
 }
 
-pub fn alpha_eq(term1: &Exp, term2: &Exp) -> bool {
-    alpha_eq_rec(term1, term2, vec![])
-}
-
-fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
+fn alpha_eq_rec(term1: &Exp, term2: &Exp, bd: &mut Vec<(Var, Var)>) -> bool {
     match (term1, term2) {
         (Exp::Var(v1), Exp::Var(v2)) => {
             bd.reverse();
             for (x, new_x) in bd {
-                if x == *v1 && new_x == *v2 {
+                if x == v1 && new_x == v2 {
                     return true;
-                } else if x == *v1 || new_x == *v2 {
+                } else if x == v1 || new_x == v2 {
                     return false;
                 }
             }
@@ -115,21 +119,24 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
         (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
         (Exp::Sort(_), _) => false,
         (Exp::App(m1, n1), Exp::App(m2, n2)) => {
-            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone())
-                && alpha_eq_rec(n1.as_ref(), n2.as_ref(), bd.clone())
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd) && alpha_eq_rec(n1.as_ref(), n2.as_ref(), bd)
         }
         (Exp::App(_, _), _) => false,
         (Exp::Prod(x1, m1, n1), Exp::Prod(x2, m2, n2)) => {
-            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd) && {
                 bd.push((x1.clone(), x2.clone()));
-                alpha_eq_rec(n1, n2, bd)
+                let b = alpha_eq_rec(n1, n2, bd);
+                bd.pop();
+                b
             }
         }
         (Exp::Prod(_, _, _), _) => false,
         (Exp::Lam(x1, m1, n1), Exp::Lam(x2, m2, n2)) => {
-            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd) && {
                 bd.push((x1.clone(), x2.clone()));
-                alpha_eq_rec(n1, n2, bd)
+                let b = alpha_eq_rec(n1, n2, bd);
+                bd.pop();
+                b
             }
         }
         (Exp::Lam(_, _, _), _) => false,
@@ -174,13 +181,13 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
             },
         ) => {
             ind_type_name1 == ind_type_name2
-                && alpha_eq_rec(exp1, exp2, bd.clone())
-                && alpha_eq_rec(expret1, expret2, bd.clone())
+                && alpha_eq_rec(exp1, exp2, bd)
+                && alpha_eq_rec(expret1, expret2, bd)
                 && cases1.len() == cases2.len()
                 && cases1
                     .iter()
                     .zip(cases2.iter())
-                    .all(|(e1, e2)| e1.0 == e2.0 && alpha_eq_rec(&e1.1, &e2.1, bd.clone()))
+                    .all(|(e1, e2)| e1.0 == e2.0 && alpha_eq_rec(&e1.1, &e2.1, bd))
         }
         (
             Exp::IndTypeElim {
@@ -196,36 +203,40 @@ fn alpha_eq_rec(term1: &Exp, term2: &Exp, mut bd: Vec<(Var, Var)>) -> bool {
         (Exp::Pow(a1), Exp::Pow(a2)) => alpha_eq_rec(a1, a2, bd),
         (Exp::Pow(_), _) => false,
         (Exp::Sub(x1, m1, n1), Exp::Sub(x2, m2, n2)) => {
-            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd) && {
                 bd.push((x1.clone(), x2.clone()));
-                alpha_eq_rec(n1, n2, bd)
+                let b = alpha_eq_rec(n1, n2, bd);
+                bd.pop();
+                b
             }
         }
         (Exp::Sub(_, _, _), _) => false,
-        (Exp::Pred(a, b), Exp::Pred(a2, b2)) => {
-            alpha_eq_rec(a, a2, bd.clone()) && alpha_eq_rec(b, b2, bd)
-        }
+        (Exp::Pred(a, b), Exp::Pred(a2, b2)) => alpha_eq_rec(a, a2, bd) && alpha_eq_rec(b, b2, bd),
         (Exp::Pred(_, _), _) => false,
         (Exp::Id(set1, a1, b1), Exp::Id(set2, a2, b2)) => {
-            alpha_eq_rec(set1, set2, bd.clone())
-                && alpha_eq_rec(a1, a2, bd.clone())
-                && alpha_eq_rec(b1, b2, bd)
+            alpha_eq_rec(set1, set2, bd) && alpha_eq_rec(a1, a2, bd) && alpha_eq_rec(b1, b2, bd)
         }
         (Exp::Id(_, _, _), _) => false,
         (Exp::Refl(set1, a1), Exp::Refl(set2, a2)) => {
-            alpha_eq_rec(set1, set2, bd.clone()) && alpha_eq_rec(a1, a2, bd.clone())
+            alpha_eq_rec(set1, set2, bd) && alpha_eq_rec(a1, a2, bd)
         }
         (Exp::Refl(_, _), _) => false,
         (Exp::Exists(t1), Exp::Exists(t2)) => alpha_eq_rec(t1, t2, bd),
         (Exp::Exists(_), _) => false,
         (Exp::Take(x1, m1, n1), Exp::Take(x2, m2, n2)) => {
-            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd.clone()) && {
+            alpha_eq_rec(m1.as_ref(), m2.as_ref(), bd) && {
                 bd.push((x1.clone(), x2.clone()));
-                alpha_eq_rec(n1, n2, bd)
+                let b = alpha_eq_rec(n1, n2, bd);
+                bd.pop();
+                b
             }
         }
         (Exp::Take(_, _, _), _) => false,
     }
+}
+
+pub fn alpha_eq(term1: &Exp, term2: &Exp) -> bool {
+    alpha_eq_rec(term1, term2, &mut vec![])
 }
 
 // one_step
