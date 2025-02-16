@@ -42,29 +42,6 @@ pub mod inductive {
         pub fn arg_end(&self) -> &Vec<Exp> {
             &self.end
         }
-        // pub fn new_constructor(
-        //     end: (Var, Vec<Exp>),
-        //     params: Vec<ParamCst>,
-        // ) -> Result<(Self, Var), String> {
-        //     let var_type = end.0.clone();
-        //     for p in &params {
-        //         match p {
-        //             ParamCst::Positive(positive) => {
-        //                 if positive.variable != var_type {
-        //                     return Err(format!(
-        //                         "positive param {positive:?} contains {var_type:?}"
-        //                     ));
-        //                 }
-        //             }
-        //             ParamCst::Simple((_, a)) => {
-        //                 if a.free_variable().contains(&var_type) {
-        //                     return Err(format!("arg {a:?} contains {var_type:?}"));
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     Ok((Self { end, params }, var_type))
-        // }
     }
 
     pub fn cstr_into_exp_with_assign(value: ConstructorType, exp: Exp) -> Exp {

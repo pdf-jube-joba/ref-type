@@ -79,7 +79,7 @@ impl Display for Exp {
             Exp::Var(var) => format!("{var}"),
             Exp::Prod(var, exp, exp1) => format!("({var}:{exp}) -> {exp1}"),
             Exp::Lam(var, exp, exp1) => format!("({var}:{exp}) |-> {exp1}"),
-            Exp::App(exp, exp1) => format!("({exp} {exp1})"),
+            Exp::App(exp, exp1) => format!("{{{exp}}} {{{exp1}}}"),
             Exp::IndTypeType { ind_type_name } => ind_type_name.to_string(),
             Exp::IndTypeCst {
                 ind_type_name,

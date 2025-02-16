@@ -1,16 +1,66 @@
-Inductive Nat: SET with
-    | Zero: Nat
-    | Succ: [Nat] -> Nat
-;
-
 Inductive Bool: SET with
     | True: Bool
     | False: Bool
 ;
 
+Definition negb (b: Bool): Bool :=
+    elim(Bool) b return (_: Bool) |-> Bool with
+    | True => Bool::False
+    | False => Bool::True
+    end
+;
+
+Definition andb (b1: Bool) (b2: Bool): Bool :=
+    elim(Bool) b1 return (_: Bool) |-> Bool with
+    | True => b2
+    | False => negb b1
+    end
+;
+
+Definition orb (b1: Bool) (b2: Bool): Bool :=
+    elim(Bool) b1 return (_: Bool) |-> Bool with
+    | True => Bool::True
+    | False => b2
+    end
+;
+
+Inductive Nat: SET with
+    | Zero: Nat
+    | Succ: [Nat] -> Nat
+;
+
 Definition is_zero (n: Nat): Bool :=
     elim(Nat) n return (_: Nat) |-> Bool /* P */ with
     | Zero =>  Bool::True /* : P 0 */
-    | Succ => (_: Nat) |-> (_: (_: Nat) -> Bool) |-> (_: Nat) |-> Bool::False /* : (n: nat) -> P n -> P (S n) */
-end
+    | Succ => (_: Nat) |-> (_: Bool) |-> Bool::False /* : (n: nat) -> P n -> P (S n) */
+    end
 ;
+
+Normalize is_zero Nat::Zero;
+Normalize is_zero (Nat::Succ Nat::Zero);
+
+Definition pred (n: Nat): Nat :=
+    elim(Nat) n return (_: Nat) |-> Nat with
+    | Zero => Nat::Zero
+    | Succ => (l: Nat) |-> (g: Nat) |-> l
+    end
+;
+
+Normalize pred Nat::Zero;
+Normalize pred (Nat::Succ Nat::Zero);
+Normalize pred (Nat::Succ (Nat::Succ Nat::Zero));
+
+Definition nat_eqb (n: Nat): Nat -> Bool :=
+    elim(Nat) n return (_: Nat) |-> (_: Nat) -> Bool with
+    | Zero => (n: Nat) |-> is_zero n
+    | Succ => (_: Nat) |-> (g: Nat -> Bool) |-> (l: Nat) |-> g (pred l)
+    end
+;
+
+Normalize nat_eqb Nat::Zero Nat::Zero;
+Normalize nat_eqb Nat::Zero (Nat::Succ Nat::Zero);
+Normalize nat_eqb (Nat::Succ Nat::Zero) Nat::Zero;
+
+Normalize nat_eqb Nat::Zero (Nat::Succ Nat::Zero);
+Normalize nat_eqb (Nat::Succ Nat::Zero) (Nat::Succ Nat::Zero);
+Normalize nat_eqb (Nat::Succ (Nat::Succ Nat::Zero)) (Nat::Succ Nat::Zero);
