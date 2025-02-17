@@ -3,11 +3,13 @@ use inductive::*;
 
 pub mod inductive {
     use self::inductives::InductiveDefinitionsSyntax;
+    use crate::utils;
 
     use super::*;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct IndTypeDefs {
+        // parameter: (Var, Exp),
         name: TypeName,
         arity: (Vec<(Var, Exp)>, Sort),
         constructors: Vec<(ConstructorName, ConstructorType)>,
@@ -211,9 +213,9 @@ pub mod inductive {
                 type_name,
                 arity,
                 constructors,
-            }: crate::ast::inductives::InductiveDefinitionsSyntax,
+            }: crate::syntax::ast::inductives::InductiveDefinitionsSyntax,
         ) -> Result<Self, String> {
-            use crate::ast::inductives::*;
+            use crate::syntax::ast::inductives::*;
             use crate::environment::inductive::*;
             let type_name_variable: Var = type_name.as_str().into();
 

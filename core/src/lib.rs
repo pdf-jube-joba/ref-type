@@ -1,10 +1,7 @@
-pub mod ast;
-pub mod command;
+pub mod computation;
+pub mod core;
 pub mod environment;
-pub mod lambda_calculus;
-pub mod parse;
-pub mod printing;
-pub mod proving;
+pub mod syntax;
 #[cfg(test)]
 pub mod tests;
-pub mod typing;
+pub mod utils;

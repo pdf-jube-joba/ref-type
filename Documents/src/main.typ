@@ -641,6 +641,8 @@ $B: cal(P) A$ で $t: X -> B$ なら $t$ がラムダ抽象じゃなくても、
 - $Gamma tack A <= B, B <= C$ なら $Gamma tack A <= C$
 - $Gamma x: M tack A <= B$ なら $Gamma tack (x: M) -> A <= (x: M) -> B$
 - $Gamma t: B$, $Gamma tack B <= A$ なら $Gamma tack t: A$
+この場合、 $B_i: cal(P)(A)$ で $"Pred"(A, B_0) -> "Pred"(A, B_1)$ が成り立っていても、 $B_0 <= B_1$ ではないので注意？
+（ここもどうにかしたい。）
 
 == 空間を集めてくる操作がつらい
 $X$ 上のベクトル束の同型類のなすモノイドをよりよく扱うには、 $*^s$ 上で部分集合とべき集合を集めても意味がない。

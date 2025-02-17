@@ -47,8 +47,6 @@
       $...$,
       {
         Or[$t =_t t$][_equality type_]
-        Or[$"relf"_t t$][_reflection_]
-        Or[$"Idind" ... $][_id induction 後でやる_]
         Or[$exists t$][_existence_]
         Or[$"Take" x. t. t$][_take operator_]
       }
@@ -57,8 +55,9 @@
 ]
 
 #definition("beta")[
-- $"Idind"_A (P, "refl"_A a, )$
+次のものだけ導入
 - $"Pred"_A {x: t | P} ->^beta lambda x: t. P$ ... $A equiv t$ のときをほぼ想定
+それ以外は congruent にやる
 ]
 
 #definition("judgementの定義")[
@@ -68,7 +67,6 @@
       $gamma$,
       {
         Or[$x: t$][_declare_]
-        Or[$"Hold" t$][_assumption_]
       }
     )
   )
@@ -89,6 +87,7 @@
       {
         Or[$tack Gamma$][_well formed context_]
         Or[$Gamma tack t: t$][_typing_]
+        Or[$Gamma tack t <= t$][_subtyping_]
         Or[$Gamma tack.double t$][_provable_]
       }
     )
@@ -155,17 +154,6 @@
 ]
 
 #definition("proof term 部分")[
-- assumption の追加
-  $ #proof-tree(rule(
-    $tack Gamma :: "Hold" t$,
-    $tack Gamma$,
-    $Gamma tack t: *^p$,
-  )) $
-- assumption の使用
-  $ #proof-tree(rule(
-    $Gamma tack.double t$,
-    $"Hold" t in Gamma$,
-  )) $
 - 項の使用
    $ #proof-tree(rule(
     $Gamma tack.double t$,
@@ -220,6 +208,37 @@
     $Gamma tack.double ("Pred"_A B) t$,
     $Gamma tack B: cal(P)(A)$,
     $Gamma tack t: B$,
+  )) $
+]
+
+#definition("subset rel")[
+- sub refl
+  $ #proof-tree(rule(
+    $Gamma tack X <= X$,
+    $Gamma tack X: *^s$,
+  )) $
+- sub rel from sub
+  $ #proof-tree(rule(
+    $Gamma tack X_1 <= X_2$,
+    $Gamma tack X_1: cal(P)(X_2)$,
+  )) $
+- sub trans
+  $ #proof-tree(rule(
+    $Gamma tack X_1 <= X_3$,
+    $Gamma tack X_1 <= X_2$,
+    $Gamma tack X_2 <= X_3$,
+  )) $
+- sub codomain
+  $ #proof-tree(rule(
+    $Gamma tack (x: X) -> X_1 <= (x: X) -> X_2$,
+    $Gamma, (x: X) tack X_1 <= X_2$,
+    $Gamma tack X: *^s$,
+  )) $
+- elem of sub
+  $ #proof-tree(rule(
+    $Gamma tack t: X_1$,
+    $Gamma tack X_1 <= X_2$,
+    $Gamma tack t: X_2$,
   )) $
 ]
 

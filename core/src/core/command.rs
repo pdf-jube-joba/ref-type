@@ -1,22 +1,17 @@
 use crate::{
-    ast::{inductives::InductiveDefinitionsSyntax, Exp, Var},
-    environment::derivation_tree::*,
-    printing::*,
-    proving::{ErrProofTree, UserSelect},
+    computation::proving::{ErrProofTree, PartialDerivationTreeProof, UserSelect},
+    environment::{
+        check_well_formed::{ResIndDefsError, ResIndDefsOk},
+        derivation_tree::*,
+        tree_node::ProvableJudgement,
+    },
+    syntax::{
+        ast::{inductives::InductiveDefinitionsSyntax, Exp, Var},
+        printing::*,
+    },
 };
 use std::fmt::Display;
 
-// use self::context::{ResIndDefsError, ResIndDefsOk};
-
-use self::{
-    environment::{
-        check_well_formed::{ResIndDefsError, ResIndDefsOk},
-        tree_node::{LocalContext, ProvableJudgement},
-    },
-    proving::PartialDerivationTreeProof,
-};
-
-use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandAll {

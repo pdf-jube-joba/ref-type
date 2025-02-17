@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use crate::{
+    computation::proving::{PartialDerivationTreeProof, UserSelect},
     environment::{derivation_tree::*, tree_node::*},
-    proving::{PartialDerivationTreeProof, UserSelect},
 };
 use colored::Colorize;
 use termtree::Tree;

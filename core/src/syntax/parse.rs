@@ -1,7 +1,8 @@
+use crate::utils;
 use std::fmt::Display;
 
-use crate::ast::{inductives::*, *};
-use crate::command::*;
+use super::ast::{inductives::*, *};
+use crate::core::command::*;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
@@ -318,10 +319,9 @@ mod parse_exp {
 }
 
 pub mod parse_proof {
-    use crate::parse::parse_exp::take_expression;
-    use crate::proving::{OtherSelect, UserSelect};
-
     use super::*;
+    use crate::computation::proving::{OtherSelect, UserSelect};
+    use crate::syntax::parse::parse_exp::take_expression;
 
     pub(crate) fn parse_user_select(
         pair: Pair<Rule>,
@@ -447,8 +447,8 @@ pub mod parse_proof {
 
 pub mod parse_command {
     use crate::{
-        parse::parse_command::new_inductive_type_definition::take_new_inductive,
-        printing::TreeConfig,
+        syntax::parse::parse_command::new_inductive_type_definition::take_new_inductive,
+        syntax::printing::TreeConfig,
     };
 
     use super::parse_exp::take_expression;

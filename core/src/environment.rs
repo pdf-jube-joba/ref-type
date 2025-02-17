@@ -1,15 +1,15 @@
 use crate::{
-    ast::*,
-    lambda_calculus::*,
-    typing::{type_check, type_infered_to_sort},
+    computation::{
+        lambda_calculus::*,
+        typing::{type_check, type_infered_to_sort},
+    },
+    syntax::ast::*,
+    utils::*,
 };
 use std::fmt::Display;
 
-use self::utils::{assoc_apply, assoc_lam, assoc_prod, decompose_to_app_exps};
-
 pub mod derivation_tree;
 pub mod global_context;
-pub mod interpreter;
 pub mod tree_node;
 
 use derivation_tree::*;
