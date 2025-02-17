@@ -1,5 +1,8 @@
 use colored::Colorize;
-use core::{environment::interpreter::Interpreter, parse::MyParser};
+use core::{
+    core::checker::{Interpreter, StateInterpreter},
+    syntax::parse::MyParser,
+};
 use std::io::BufRead;
 
 pub fn indent(str: String) -> String {
@@ -30,10 +33,10 @@ fn main() {
         }
 
         match interpreter.now_state() {
-            core::environment::interpreter::StateInterpreter::NoGoal => {
+            StateInterpreter::NoGoal => {
                 println!("---command---")
             }
-            core::environment::interpreter::StateInterpreter::Goals(goal) => {
+            StateInterpreter::Goals(goal) => {
                 let first = goal.first_proposition().unwrap();
                 println!("---goal:{}---", first)
             }
@@ -66,10 +69,10 @@ fn main() {
     }
 
     match interpreter.now_state() {
-        core::environment::interpreter::StateInterpreter::NoGoal => {
+        StateInterpreter::NoGoal => {
             println!("---command---")
         }
-        core::environment::interpreter::StateInterpreter::Goals(goal) => {
+        StateInterpreter::Goals(goal) => {
             let first = goal.first_proposition().unwrap();
             println!("---goal:{}---", first)
         }

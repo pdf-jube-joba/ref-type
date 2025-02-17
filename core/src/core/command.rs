@@ -12,7 +12,6 @@ use crate::{
 };
 use std::fmt::Display;
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandAll {
     ParseCommand {
@@ -278,6 +277,7 @@ impl Display for CommandAllResultOk {
             }
             CommandAllResultOk::NewInductiveResult { result, config } => {
                 let ResIndDefsOk {
+                    parameters_well_formed,
                     arity_well_formed,
                     constructor_wellformed,
                 } = result;
@@ -342,6 +342,11 @@ impl Display for CommandAllResultErr {
             CommandAllResultErr::NewInductiveFailed { result, config } => match result {
                 ResIndDefsError::AlreadyDefinedType => write!(f, "AlreadyDefinedType"),
                 ResIndDefsError::SyntaxError(err) => write!(f, "{err}"),
+                ResIndDefsError::ParameterNotWellFormed(err) => write!(
+                    f,
+                    "parameter not wellformed \n {}",
+                    print_fail_tree(err, config)
+                ),
                 ResIndDefsError::ArityNotWellformed(err) => write!(
                     f,
                     "arity not wellformed \n {}",

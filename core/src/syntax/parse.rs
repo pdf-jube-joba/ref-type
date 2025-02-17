@@ -800,12 +800,21 @@ pub mod parse_command {
                 TreeConfig::default()
             };
             let type_name = take_name(ps.next().unwrap())?;
+            let parameter = {
+                let mut parameter = vec![];
+                while ps.peek().unwrap().as_rule() == Rule::var_annot {
+                    let xa = take_var_annnot(ps.next().unwrap())?;
+                    parameter.push(xa);
+                }
+                parameter
+            };
             let arity = take_arity(ps.next().unwrap())?;
             let constructors: Vec<_> = ps
                 .map(|p| take_constructor_definition(p))
                 .collect::<Result<_, _>>()?;
             Ok((
                 InductiveDefinitionsSyntax {
+                    parameter,
                     type_name,
                     arity,
                     constructors,

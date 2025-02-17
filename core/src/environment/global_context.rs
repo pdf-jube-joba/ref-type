@@ -9,8 +9,8 @@ pub mod inductive {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct IndTypeDefs {
-        // parameter: (Var, Exp),
         name: TypeName,
+        parameter: Vec<(Var, Exp)>,
         arity: (Vec<(Var, Exp)>, Sort),
         constructors: Vec<(ConstructorName, ConstructorType)>,
     }
@@ -211,12 +211,13 @@ pub mod inductive {
         pub fn new(
             InductiveDefinitionsSyntax {
                 type_name,
+                parameter,
                 arity,
                 constructors,
             }: crate::syntax::ast::inductives::InductiveDefinitionsSyntax,
         ) -> Result<Self, String> {
-            use crate::syntax::ast::inductives::*;
             use crate::environment::inductive::*;
+            use crate::syntax::ast::inductives::*;
             let type_name_variable: Var = type_name.as_str().into();
 
             let mut cs_name_type = vec![];
@@ -230,7 +231,16 @@ pub mod inductive {
                             if exps[0] != type_name_variable.clone().into() {
                                 return Err(format!("type name mismatch in param:{exps:?} "));
                             }
-                            exps.remove(0);
+                            let mut i = 0;
+                            for (x, a) in &parameter {
+                                if exps[i + 1] != x.clone().into() {
+                                    return Err(format!(
+                                        "parameter mismatch in param: {exps:?} at {i}"
+                                    ));
+                                }
+                                i += 1;
+                            }
+                            exps.drain(0..=i);
                             let positive = Positive { parameter, exps };
                             ParamCst::Positive(positive)
                         }
@@ -254,6 +264,7 @@ pub mod inductive {
 
             Ok(IndTypeDefs {
                 name: type_name.as_str().to_owned().into(),
+                parameter,
                 arity,
                 constructors: cs_name_type,
             })
@@ -263,6 +274,9 @@ pub mod inductive {
         }
         pub fn name_as_var(&self) -> Var {
             self.name().to_string().into()
+        }
+        pub fn parameters(&self) -> &Vec<(Var, Exp)> {
+            &self.parameter
         }
         pub fn arity(&self) -> &(Vec<(Var, Exp)>, Sort) {
             &self.arity

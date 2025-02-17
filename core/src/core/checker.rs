@@ -260,9 +260,13 @@ impl Interpreter {
                     Ok(ok) => {
                         self.global_context.push_new_ind(inddefs);
                         let ResIndDefsOk {
+                            parameters_well_formed,
                             arity_well_formed,
                             constructor_wellformed,
                         } = &ok;
+                        for t in parameters_well_formed {
+                            self.set_goals_type_check(t);
+                        }
                         self.set_goals_type_check(arity_well_formed);
                         for t in constructor_wellformed {
                             self.set_goals_type_check(t);

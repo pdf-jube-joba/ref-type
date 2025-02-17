@@ -351,11 +351,12 @@ impl Sort {
 // inductive definition には自由変数がないことを仮定する
 pub mod inductives {
     use super::*;
-    
+
     use crate::utils;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct InductiveDefinitionsSyntax {
+        pub parameter: Vec<(Var, Exp)>,
         pub type_name: String,
         pub arity: (Vec<(Var, Exp)>, Sort),
         pub constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
@@ -403,11 +404,17 @@ pub mod inductives {
     impl Display for InductiveDefinitionsSyntax {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let InductiveDefinitionsSyntax {
+                parameter,
                 type_name,
                 arity,
                 constructors,
             } = self;
             writeln!(f, "name: {type_name}")?;
+            writeln!(
+                f,
+                "parameter: {}",
+                parameter.iter().map(|(x, a)| format!("({x}: {a}) ")).collect::<String>()
+            );
             writeln!(
                 f,
                 "arity: {}",

@@ -88,6 +88,13 @@ impl Display for TypeCheckJudgement {
     }
 }
 
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct SubsetJudgement {
+//     pub context: LocalContext,
+//     pub subset: Exp,
+//     pub superset: Exp,
+// }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Judgement {
     Proof(ProvableJudgement),
