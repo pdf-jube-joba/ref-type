@@ -1,8 +1,9 @@
 use crate::{
-    ast::*,
+    computation::lambda_calculus::*,
     environment::{derivation_tree::*, global_context::*, tree_node::*},
-    lambda_calculus::*,
     prod,
+    syntax::ast::*,
+    utils,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

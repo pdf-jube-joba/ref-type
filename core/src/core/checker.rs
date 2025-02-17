@@ -1,16 +1,20 @@
 use crate::{
-    command::*,
-    environment::{derivation_tree::*, global_context::*, inductive::*, tree_node::*},
-    lambda_calculus,
-    printing::*,
-    proving::{proof_tree, PartialDerivationTreeProof},
-    typing::{type_check, type_infer},
+    computation::{
+        lambda_calculus,
+        proving::{proof_tree, PartialDerivationTreeProof},
+        typing::{type_check, type_infer},
+    },
+    core::command::*,
+    environment::{
+        check_well_formed::{self, ResIndDefsError, ResIndDefsOk},
+        derivation_tree::*,
+        global_context::*,
+        tree_node::*,
+    },
+    syntax::{ast::*, printing::*},
 };
 
-use super::{
-    check_well_formed::{self, check_well_formedness_new_inddefs, ResIndDefsError, ResIndDefsOk},
-    Exp, Sort,
-};
+use self::inductive::IndTypeDefs;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateInterpreter {
@@ -249,13 +253,20 @@ impl Interpreter {
                         });
                     }
                 };
-                match check_well_formedness_new_inddefs(&self.global_context, inddefs.clone()) {
+                match check_well_formed::check_well_formedness_new_inddefs(
+                    &self.global_context,
+                    inddefs.clone(),
+                ) {
                     Ok(ok) => {
                         self.global_context.push_new_ind(inddefs);
                         let ResIndDefsOk {
+                            parameters_well_formed,
                             arity_well_formed,
                             constructor_wellformed,
                         } = &ok;
+                        for t in parameters_well_formed {
+                            self.set_goals_type_check(t);
+                        }
                         self.set_goals_type_check(arity_well_formed);
                         for t in constructor_wellformed {
                             self.set_goals_type_check(t);

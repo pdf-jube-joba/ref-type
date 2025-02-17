@@ -2,11 +2,13 @@ use std::fmt::Display;
 
 use crate::{
     app,
-    ast::{Exp, Sort, Var},
+    computation::{
+        lambda_calculus::{alpha_eq, reduce, subst},
+        typing::type_check,
+    },
     environment::{derivation_tree::*, global_context::*, tree_node::*},
-    lambda_calculus::{alpha_eq, reduce, subst},
     prod,
-    typing::type_check,
+    syntax::ast::{Exp, Sort, Var},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

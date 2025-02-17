@@ -1,4 +1,5 @@
 use super::*;
+use crate::utils;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LocalContext(Vec<(Var, Exp)>);
@@ -86,6 +87,13 @@ impl Display for TypeCheckJudgement {
         write!(f, "{context} |- {term}:  {type_of_term}")
     }
 }
+
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct SubsetJudgement {
+//     pub context: LocalContext,
+//     pub subset: Exp,
+//     pub superset: Exp,
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Judgement {

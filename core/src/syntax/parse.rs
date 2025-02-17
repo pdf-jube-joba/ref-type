@@ -1,7 +1,8 @@
+use crate::utils;
 use std::fmt::Display;
 
-use crate::ast::{inductives::*, *};
-use crate::command::*;
+use super::ast::{inductives::*, *};
+use crate::core::command::*;
 use pest::{error, iterators::Pair, Parser};
 use pest_derive::Parser;
 
@@ -101,7 +102,7 @@ mod parse_exp {
                     let e = p.next().unwrap();
                     let (x, a) = match e.as_rule() {
                         // true
-                        Rule::smalls => (Var::Unused, take_smalls(e)?),
+                        Rule::smalls => (Var::Unused, utils::assoc_apply_vec(take_smalls(e)?)),
                         // false
                         Rule::var_annot => take_var_annnot(e)?,
                         _ => unreachable!("pre_arrow"),
@@ -118,7 +119,7 @@ mod parse_exp {
                     v.push((x, a, b));
                 }
                 Rule::smalls => {
-                    let mut e = take_smalls(p)?;
+                    let mut e = utils::assoc_apply_vec(take_smalls(p)?);
                     while let Some((x, a, b)) = v.pop() {
                         if b {
                             // prod
@@ -136,15 +137,13 @@ mod parse_exp {
         unreachable!("end of take expression")
     }
 
-    pub(crate) fn take_smalls(pair: Pair<Rule>) -> Res<Exp> {
+    pub(crate) fn take_smalls(pair: Pair<Rule>) -> Res<Vec<Exp>> {
         debug_assert_eq!(pair.as_rule(), Rule::smalls);
-        let mut p = pair.into_inner();
-        let first = take_small(p.next().unwrap())?;
-        let mut remains = vec![];
-        for p in p {
-            remains.push(take_small(p)?);
+        let mut v = vec![];
+        for p in pair.into_inner() {
+            v.push(take_small(p)?);
         }
-        Ok(utils::assoc_apply(first, remains))
+        Ok(v)
     }
 
     pub(crate) fn take_small(pair: Pair<Rule>) -> Res<Exp> {
@@ -263,7 +262,6 @@ mod parse_exp {
         Ok((v, e))
     }
 
-    #[cfg(test)]
     mod tests {
         use super::*;
         use crate::{app, lam, prod, var};
@@ -318,10 +316,9 @@ mod parse_exp {
 }
 
 pub mod parse_proof {
-    use crate::parse::parse_exp::take_expression;
-    use crate::proving::{OtherSelect, UserSelect};
-
     use super::*;
+    use crate::computation::proving::{OtherSelect, UserSelect};
+    use crate::syntax::parse::parse_exp::take_expression;
 
     pub(crate) fn parse_user_select(
         pair: Pair<Rule>,
@@ -447,8 +444,8 @@ pub mod parse_proof {
 
 pub mod parse_command {
     use crate::{
-        parse::parse_command::new_inductive_type_definition::take_new_inductive,
-        printing::TreeConfig,
+        syntax::parse::parse_command::new_inductive_type_definition::take_new_inductive,
+        syntax::printing::TreeConfig,
     };
 
     use super::parse_exp::take_expression;
@@ -701,6 +698,7 @@ pub mod parse_command {
     }
 
     pub mod new_inductive_type_definition {
+        use new_inductive_type_definition::parse_command::parse_exp::take_smalls;
         use parse_command::parse_exp::{take_name, take_sort};
         use parse_exp::take_small;
 
@@ -728,8 +726,7 @@ pub mod parse_command {
             let v = take_name(ps.next().unwrap())?;
             let mut argument = vec![Exp::Var(v.into())];
             for p in ps {
-                let e = take_expression(p)?;
-                argument.push(e)
+                argument.push(take_small(p)?);
             }
             Ok(argument)
         }
@@ -800,12 +797,21 @@ pub mod parse_command {
                 TreeConfig::default()
             };
             let type_name = take_name(ps.next().unwrap())?;
+            let parameter = {
+                let mut parameter = vec![];
+                while ps.peek().unwrap().as_rule() == Rule::var_annot {
+                    let xa = take_var_annnot(ps.next().unwrap())?;
+                    parameter.push(xa);
+                }
+                parameter
+            };
             let arity = take_arity(ps.next().unwrap())?;
             let constructors: Vec<_> = ps
                 .map(|p| take_constructor_definition(p))
                 .collect::<Result<_, _>>()?;
             Ok((
                 InductiveDefinitionsSyntax {
+                    parameter,
                     type_name,
                     arity,
                     constructors,

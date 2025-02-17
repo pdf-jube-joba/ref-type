@@ -1,11 +1,11 @@
-use crate::{ast::*, environment::global_context::*};
+use crate::{environment::global_context::*, syntax::ast::*, utils};
 use std::collections::HashSet;
 
 fn subst_rec(term1: Exp, fresh: &mut usize, substs: &mut Vec<(Var, Exp)>) -> Exp {
     match term1 {
         Exp::Sort(_) => term1,
         Exp::Var(ref v) => substs
-            .into_iter()
+            .iter_mut()
             .rev()
             .find_map(|(x, t)| if v == x { Some(t.clone()) } else { None })
             .unwrap_or(term1),

@@ -1,15 +1,15 @@
 use crate::{
-    ast::*,
-    lambda_calculus::*,
-    typing::{type_check, type_infered_to_sort},
+    computation::{
+        lambda_calculus::*,
+        typing::{type_check, type_infered_to_sort},
+    },
+    syntax::ast::*,
+    utils::*,
 };
 use std::fmt::Display;
 
-use self::utils::{assoc_apply, assoc_lam, assoc_prod, decompose_to_app_exps};
-
 pub mod derivation_tree;
 pub mod global_context;
-pub mod interpreter;
 pub mod tree_node;
 
 use derivation_tree::*;
@@ -17,6 +17,8 @@ use global_context::*;
 use tree_node::*;
 
 pub mod check_well_formed {
+
+    use crate::{computation::typing::type_infer, utils};
 
     use self::inductive::cstr_into_exp_with_assign;
 
@@ -26,12 +28,14 @@ pub mod check_well_formed {
     pub enum ResIndDefsError {
         AlreadyDefinedType,
         SyntaxError(String),
+        ParameterNotWellFormed(DerivationFailed),
         ArityNotWellformed(DerivationFailed),
         ConstructorNotWellFormed(Vec<Result<PartialDerivationTreeTypeCheck, DerivationFailed>>),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct ResIndDefsOk {
+        pub parameters_well_formed: Vec<PartialDerivationTreeTypeCheck>,
         pub arity_well_formed: PartialDerivationTreeTypeCheck,
         pub constructor_wellformed: Vec<PartialDerivationTreeTypeCheck>,
     }
@@ -69,10 +73,24 @@ pub mod check_well_formed {
         {
             return Err(ResIndDefsError::AlreadyDefinedType);
         }
+        let mut local_context = LocalContext::default();
+        // parameter の well formred
+        let mut parameters_well_formed = vec![];
+        for (x, a) in defs.parameters() {
+            match type_infer(gcxt, local_context.clone(), a.clone()) {
+                Ok(tree) => {
+                    parameters_well_formed.push(tree);
+                    local_context.push_decl((x.clone(), a.clone()));
+                }
+                Err(err) => {
+                    return Err(ResIndDefsError::ParameterNotWellFormed(err));
+                }
+            }
+        }
 
         // arity の well defined
         let arity_well_formed =
-            match type_infered_to_sort(gcxt, LocalContext::default(), defs.arity_as_exp()) {
+            match type_infered_to_sort(gcxt, local_context.clone(), defs.arity_as_exp()) {
                 Ok((der_tree, _)) => der_tree,
                 Err(err) => return Err(ResIndDefsError::ArityNotWellformed(err)),
             };
@@ -83,8 +101,9 @@ pub mod check_well_formed {
         // 各 constructor の well defined
         for (_, c) in defs.constructors() {
             let sort = defs.sort();
-            let mut cxt = LocalContext::default();
-            let (x, a) = (defs.name_as_var(), defs.arity_as_exp());
+            let mut cxt = local_context.clone();
+            let type_of_this = utils::assoc_prod(defs.parameters().clone(), defs.arity_as_exp());
+            let (x, a) = (defs.name_as_var(), type_of_this);
             cxt.push_decl((x.clone(), a));
             let constructor: Exp = cstr_into_exp_with_assign(c.clone(), x.into());
             match type_check(gcxt, cxt, constructor, Exp::Sort(sort)) {
@@ -104,6 +123,7 @@ pub mod check_well_formed {
             ))
         } else {
             Ok(ResIndDefsOk {
+                parameters_well_formed,
                 arity_well_formed,
                 constructor_wellformed: constructor_well_formed
                     .into_iter()

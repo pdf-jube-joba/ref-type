@@ -66,10 +66,10 @@ pub enum Exp {
     Pow(Box<Exp>),                    // Power X
     Pred(Box<Exp>, Box<Exp>),         // Pred X
     Id(Box<Exp>, Box<Exp>, Box<Exp>), // a =_A b
-    Refl(Box<Exp>, Box<Exp>),         // refl_A a ... これいらないかも（証明項ではなく、証明についてればいい）
-    Exists(Box<Exp>),                 // exists T.
-    Take(Var, Box<Exp>, Box<Exp>),    // take x:A. t
-                                      // Rec(Var, Var, Box<Exp>),       // rec f x = m
+    Refl(Box<Exp>, Box<Exp>), // refl_A a ... これいらないかも（証明項ではなく、証明についてればいい）
+    Exists(Box<Exp>),         // exists T.
+    Take(Var, Box<Exp>, Box<Exp>), // take x:A. t
+                              // Rec(Var, Var, Box<Exp>),       // rec f x = m
 }
 
 impl Display for Exp {
@@ -163,141 +163,6 @@ impl Exp {
     }
     pub fn take(var: Var, type_of_var: Exp, term: Exp) -> Exp {
         Exp::Take(var, Box::new(type_of_var), Box::new(term))
-    }
-}
-
-pub mod utils {
-    use super::*;
-
-    #[macro_export]
-    macro_rules! var {
-        ($v: expr) => {{
-            {
-                Exp::Var($v.into())
-            }
-        }};
-    }
-
-    #[macro_export]
-    macro_rules! lam {
-        ($x: expr, $a: expr, $b: expr) => {{
-            Exp::Lam($x, Box::new($a), Box::new($b))
-        }};
-    }
-
-    #[macro_export]
-    macro_rules! prod {
-        ($x: expr, $a: expr, $b: expr) => {{
-            Exp::Prod($x, Box::new($a), Box::new($b))
-        }};
-    }
-
-    #[macro_export]
-    macro_rules! app {
-        ($e: expr, $($x: expr),* ) => {{
-            #[allow(unused_mut)]
-            let mut e: Exp = $e;
-            $(
-                e = Exp::App(Box::new(e), Box::new($x));
-            )*
-            e
-        }};
-    }
-
-    #[macro_export]
-    macro_rules! sort_set {
-        () => {
-            Exp::Sort(Sort::Set)
-        };
-    }
-
-    // (a v[0] ... v[k])
-    pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
-        for v in v {
-            a = Exp::App(Box::new(a), Box::new(v))
-        }
-        a
-    }
-
-    // (x[0]: t[0]) -> ... (x[k]: t[k]) -> e
-    pub fn assoc_prod(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
-        while let Some((x, a)) = v.pop() {
-            e = Exp::Prod(x, Box::new(a), Box::new(e));
-        }
-        e
-    }
-
-    // \ x[0]: t[0]). ... (x[k]: t[k]). e
-    pub fn assoc_lam(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
-        while let Some((x, a)) = v.pop() {
-            e = Exp::Lam(x, Box::new(a), Box::new(e));
-        }
-        e
-    }
-
-    // e = (((...((e1 e2) e3) ... e(n-1) ) e(n) ) |-> (e1, [e2, ..., en])
-    pub fn decompose_to_app_exps(mut e: Exp) -> (Exp, Vec<Exp>) {
-        let mut v = vec![];
-        while let Exp::App(t1, t2) = e {
-            v.push(*t2);
-            e = *t1;
-        }
-        v.reverse();
-        (e, v)
-    }
-
-    pub fn decompose_to_prod_exps(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
-        let mut v = vec![];
-        while let Exp::Prod(x, a, b) = e {
-            v.push((x, *a));
-            e = *b;
-        }
-        (v, e)
-    }
-
-    pub fn decompose_to_lam_exps(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
-        let mut v = vec![];
-        while let Exp::Lam(x, a, b) = e {
-            v.push((x, *a));
-            e = *b;
-        }
-        (v, e)
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-        #[test]
-        fn macros() {
-            assert_eq!(var! {"a"}, Exp::Var("a".into()));
-            assert_eq!(
-                lam! { "a".into(), var!{"b"}, var!{"c"} },
-                Exp::Lam(
-                    "a".into(),
-                    Box::new(Exp::Var("b".into())),
-                    Box::new(Exp::Var("c".into()))
-                )
-            );
-            assert_eq!(
-                prod!("a".into(), var! {"b"}, var! {"c"}),
-                Exp::Prod(
-                    "a".into(),
-                    Box::new(Exp::Var("b".into())),
-                    Box::new(Exp::Var("c".into()))
-                )
-            );
-            assert_eq!(app!(var! {"a"},), Exp::Var("a".into()));
-            assert_eq!(
-                app!(var! {"a"}, var! {"b"}, var! {"c"}),
-                Exp::App(
-                    Box::new(Exp::App(
-                        Box::new(Exp::Var("a".into())),
-                        Box::new(Exp::Var("b".into()))
-                    )),
-                    Box::new(Exp::Var("c".into()))
-                )
-            );
-        }
     }
 }
 
@@ -485,10 +350,13 @@ impl Sort {
 
 // inductive definition には自由変数がないことを仮定する
 pub mod inductives {
-    use super::{utils::*, *};
+    use super::*;
+
+    use crate::utils;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct InductiveDefinitionsSyntax {
+        pub parameter: Vec<(Var, Exp)>,
         pub type_name: String,
         pub arity: (Vec<(Var, Exp)>, Sort),
         pub constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
@@ -529,18 +397,24 @@ pub mod inductives {
 
     impl From<Arity> for Exp {
         fn from(Arity { signature, sort }: Arity) -> Self {
-            assoc_prod(signature, Exp::Sort(sort))
+            utils::assoc_prod(signature, Exp::Sort(sort))
         }
     }
 
     impl Display for InductiveDefinitionsSyntax {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let InductiveDefinitionsSyntax {
+                parameter,
                 type_name,
                 arity,
                 constructors,
             } = self;
             writeln!(f, "name: {type_name}")?;
+            writeln!(
+                f,
+                "parameter: {}",
+                parameter.iter().map(|(x, a)| format!("({x}: {a}) ")).collect::<String>()
+            );
             writeln!(
                 f,
                 "arity: {}",
