@@ -50,6 +50,11 @@ pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
     a
 }
 
+pub fn assoc_apply_vec(mut v: Vec<Exp>) -> Exp {
+    let rem = v.split_off(1);
+    assoc_apply(v.pop().unwrap(), rem)
+}
+
 // (x[0]: t[0]) -> ... (x[k]: t[k]) -> e
 pub fn assoc_prod(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
     while let Some((x, a)) = v.pop() {
@@ -95,9 +100,22 @@ pub fn decompose_to_lam_exps(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
     (v, e)
 }
 
-#[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn decompose() {
+        let e = assoc_apply(var!("a"), vec![var!("b0"), var!("b1"), var!("b2")]);
+        assert_eq!(
+            e,
+            Exp::App(
+                Box::new(Exp::App(
+                    Box::new(Exp::App(Box::new(var!("a")), Box::new(var!("b0")))),
+                    Box::new(var!("b1"))
+                )),
+                Box::new(var!("b2")),
+            )
+        );
+    }
     #[test]
     fn macros() {
         assert_eq!(var! {"a"}, Exp::Var("a".into()));

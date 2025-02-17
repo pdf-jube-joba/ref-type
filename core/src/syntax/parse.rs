@@ -102,7 +102,7 @@ mod parse_exp {
                     let e = p.next().unwrap();
                     let (x, a) = match e.as_rule() {
                         // true
-                        Rule::smalls => (Var::Unused, take_smalls(e)?),
+                        Rule::smalls => (Var::Unused, utils::assoc_apply_vec(take_smalls(e)?)),
                         // false
                         Rule::var_annot => take_var_annnot(e)?,
                         _ => unreachable!("pre_arrow"),
@@ -119,7 +119,7 @@ mod parse_exp {
                     v.push((x, a, b));
                 }
                 Rule::smalls => {
-                    let mut e = take_smalls(p)?;
+                    let mut e = utils::assoc_apply_vec(take_smalls(p)?);
                     while let Some((x, a, b)) = v.pop() {
                         if b {
                             // prod
@@ -137,15 +137,13 @@ mod parse_exp {
         unreachable!("end of take expression")
     }
 
-    pub(crate) fn take_smalls(pair: Pair<Rule>) -> Res<Exp> {
+    pub(crate) fn take_smalls(pair: Pair<Rule>) -> Res<Vec<Exp>> {
         debug_assert_eq!(pair.as_rule(), Rule::smalls);
-        let mut p = pair.into_inner();
-        let first = take_small(p.next().unwrap())?;
-        let mut remains = vec![];
-        for p in p {
-            remains.push(take_small(p)?);
+        let mut v = vec![];
+        for p in pair.into_inner() {
+            v.push(take_small(p)?);
         }
-        Ok(utils::assoc_apply(first, remains))
+        Ok(v)
     }
 
     pub(crate) fn take_small(pair: Pair<Rule>) -> Res<Exp> {
@@ -264,7 +262,6 @@ mod parse_exp {
         Ok((v, e))
     }
 
-    #[cfg(test)]
     mod tests {
         use super::*;
         use crate::{app, lam, prod, var};
@@ -701,6 +698,7 @@ pub mod parse_command {
     }
 
     pub mod new_inductive_type_definition {
+        use new_inductive_type_definition::parse_command::parse_exp::take_smalls;
         use parse_command::parse_exp::{take_name, take_sort};
         use parse_exp::take_small;
 
@@ -728,8 +726,7 @@ pub mod parse_command {
             let v = take_name(ps.next().unwrap())?;
             let mut argument = vec![Exp::Var(v.into())];
             for p in ps {
-                let e = take_expression(p)?;
-                argument.push(e)
+                argument.push(take_small(p)?);
             }
             Ok(argument)
         }
