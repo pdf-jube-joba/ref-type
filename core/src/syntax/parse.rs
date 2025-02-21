@@ -262,9 +262,11 @@ mod parse_exp {
         Ok((v, e))
     }
 
+    #[cfg(test)]
     mod tests {
         use super::*;
         use crate::{app, lam, prod, var};
+
         fn parse(code: &str) -> Res<Exp> {
             let mut p = MyParser::parse(Rule::expression, code)?;
             take_expression(p.next().unwrap())
@@ -609,7 +611,7 @@ pub mod parse_command {
         debug_assert_eq!(pair.as_rule(), Rule::new_command);
         let mut ps = pair.into_inner();
 
-        let succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
+        let _succ_flag = if ps.peek().unwrap().as_rule() != Rule::FAIL {
             true
         } else {
             ps.next().unwrap();
@@ -698,7 +700,7 @@ pub mod parse_command {
     }
 
     pub mod new_inductive_type_definition {
-        use new_inductive_type_definition::parse_command::parse_exp::take_smalls;
+
         use parse_command::parse_exp::{take_name, take_sort};
         use parse_exp::take_small;
 

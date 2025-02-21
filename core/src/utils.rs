@@ -2,34 +2,26 @@ use crate::syntax::ast::{Exp, Var};
 
 #[macro_export]
 macro_rules! var {
-    ($v: expr) => {{
-        {
-            Exp::Var($v.into())
-        }
-    }};
+    ($v: expr) => {{ { $crate::syntax::ast::Exp::Var($v.into()) } }};
 }
 
 #[macro_export]
 macro_rules! lam {
-    ($x: expr, $a: expr, $b: expr) => {{
-        $crate::syntax::ast::Exp::Lam($x, Box::new($a), Box::new($b))
-    }};
+    ($x: expr, $a: expr, $b: expr) => {{ $crate::syntax::ast::Exp::Lam($x, Box::new($a), Box::new($b)) }};
 }
 
 #[macro_export]
 macro_rules! prod {
-    ($x: expr, $a: expr, $b: expr) => {{
-        $crate::syntax::ast::Exp::Prod($x, Box::new($a), Box::new($b))
-    }};
+    ($x: expr, $a: expr, $b: expr) => {{ $crate::syntax::ast::Exp::Prod($x, Box::new($a), Box::new($b)) }};
 }
 
 #[macro_export]
 macro_rules! app {
         ($e: expr, $($x: expr),* ) => {{
             #[allow(unused_mut)]
-            let mut e: Exp = $e;
+            let mut e: $crate::syntax::ast::Exp = $e;
             $(
-                e = Exp::App(Box::new(e), Box::new($x));
+                e = $crate::syntax::ast::Exp::App(Box::new(e), Box::new($x));
             )*
             e
         }};
@@ -100,8 +92,11 @@ pub fn decompose_to_lam_exps(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
     (v, e)
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::syntax::ast::Exp;
+    use crate::utils::assoc_apply;
+
     #[test]
     fn decompose() {
         let e = assoc_apply(var!("a"), vec![var!("b0"), var!("b1"), var!("b2")]);

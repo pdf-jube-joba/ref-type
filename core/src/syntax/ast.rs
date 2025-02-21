@@ -414,7 +414,7 @@ pub mod inductives {
                 f,
                 "parameter: {}",
                 parameter.iter().map(|(x, a)| format!("({x}: {a}) ")).collect::<String>()
-            );
+            )?;
             writeln!(
                 f,
                 "arity: {}",
