@@ -644,6 +644,9 @@ $B: cal(P) A$ で $t: X -> B$ なら $t$ がラムダ抽象じゃなくても、
 この場合、 $B_i: cal(P)(A)$ で $"Pred"(A, B_0) -> "Pred"(A, B_1)$ が成り立っていても、 $B_0 <= B_1$ ではないので注意？
 （ここもどうにかしたい。）
 
+cumulative は宇宙用の言葉らしい。
+https://ncatlab.org/nlab/show/type+universe#:~:text=A%20tower%20of%20universes%20is%20cumulative
+
 == 空間を集めてくる操作がつらい
 $X$ 上のベクトル束の同型類のなすモノイドをよりよく扱うには、 $*^s$ 上で部分集合とべき集合を集めても意味がない。
 （その universe を超えるので）
