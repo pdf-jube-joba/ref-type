@@ -1,4 +1,4 @@
-#import "@preview/ctheorems:1.1.2": *
+#import "@preview/ctheorems:1.1.3": *
 #import "@preview/simplebnf:0.1.1": *
 #import "@preview/curryst:0.3.0": rule, proof-tree
 
