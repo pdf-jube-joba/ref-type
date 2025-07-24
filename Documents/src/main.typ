@@ -555,9 +555,9 @@ $a: A$ に対して $[a]_(A \/ R) := {x: A | x R a}$ とする。
 
 == さらにいろいろ付け加える
 べき集合と部分集合を加えたので、位相空間論とかができるかと思ったが、
-それをやるためには $O_1: cal(P)(X), O_2: cal(P)(X)$ に対して $O_1 sect O_2$ が記述できないのでつらい。
+それをやるためには $O_1: cal(P)(X), O_2: cal(P)(X)$ に対して $O_1 inter O_2$ が記述できないのでつらい。
 やりたいのは
-- $sect_lambda O_lambda$ や $union_lambda O_lambda$ に対する reasonable な解釈
+- $inter_lambda O_lambda$ や $union_lambda O_lambda$ に対する reasonable な解釈
 - 型レベルではなくても、 $x: X$ と $O: cal(P)(X)$ に対して $x in O$ を表すような述語をつくる
 
 これをやるためには、 $O: cal(P)(X)$ に対して、「$O$ に含まれるための述語を取り出す」必要がある。
@@ -572,8 +572,8 @@ $"Pred"_(A') {x: A | P} equiv lambda x: A. P$ とする。
     - $(*^s, *^p) in cal(R)$ でないからいいか？
 - $tack B: cal(P)(X)$, $tack t: B$ なら $tack.double ("Pred"_X B) t$
 
-これで $O_1 sect O_2 := {x: X | "Pred"_X O_1 x and "Pred"_X O_2 x}$ と書ける。
-また、 $x: O_1 sect O_2$ なら $x: O_1$ になる？ ... ならないが、 $"Pred"_X O_1 x$ は示せる。
+これで $O_1 inter O_2 := {x: X | "Pred"_X O_1 x and "Pred"_X O_2 x}$ と書ける。
+また、 $x: O_1 inter O_2$ なら $x: O_1$ になる？ ... ならないが、 $"Pred"_X O_1 x$ は示せる。
 
 - $tack B: cal(P)(X)$ なら $B: *^s$ がほしい。
 - $B equiv^beta { x: X | "Pred"_X B }$ が成り立てば、 上の問題で $ x: O_1$ が示せる。
@@ -583,9 +583,9 @@ $"Pred"_(A') {x: A | P} equiv lambda x: A. P$ とする。
 ただし、 $*^s$ が predicative かどうかで位相空間がどこに入るかを考える必要がある。
 また、 $x: X$ と $A: cal(P)(X)$ に対して、 $tack t: A$ と $tack.double ("Pred"_X A) t$ では後者の方が弱い。
 そこにも気を付ける必要がある。
-- $"sect" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: O) -> (X_2: O) -> {x: X | ("Pred"_X X_1) x and ("Pred"_X X_2) x}$
-- $"powerset_fin_sect_closed1" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: O) -> (X_2: O) -> "Pred"_(cal(P)(X)) O ("sect" X O X_1 X_2)$
-- $"powerset_fin_sect_closed2" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: cal(P)(X)) -> (X_2: cal(P)(X)) -> (x: X) -> ("Pred"_X X_1) x -> ("Pred"_X X_2) x -> "Pred"_(cal(P)(X)) O ("sect" X O X_1 X_2)$
+- $"inter" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: O) -> (X_2: O) -> {x: X | ("Pred"_X X_1) x and ("Pred"_X X_2) x}$
+- $"powerset_fin_inter_closed1" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: O) -> (X_2: O) -> "Pred"_(cal(P)(X)) O ("inter" X O X_1 X_2)$
+- $"powerset_fin_inter_closed2" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (X_1: cal(P)(X)) -> (X_2: cal(P)(X)) -> (x: X) -> ("Pred"_X X_1) x -> ("Pred"_X X_2) x -> "Pred"_(cal(P)(X)) O ("inter" X O X_1 X_2)$
 
 - $"union" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (Lambda: *^s) -> (o: Lambda -> O) -> {x: X | exists lambda: {lambda: Lambda | "Pred"_X (o lambda) x}}$
 - $"powerset_union_closed1" := (X: *^s) -> (O: cal(P)(cal(P)(X))) -> (Lambda: *^s) -> (o: Lambda -> O) -> "Pred"_(cal(P)(X)) O ("union" X O Lambda o)$
