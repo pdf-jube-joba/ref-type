@@ -49,8 +49,16 @@
     - well-formed context: $\Gamma$
 
 ## reduction
-- $\Pred _A {x: t \mid P} \rightarrow^\beta \lambda x:t. P$
+- $\Pred _A \{x: t \mid P\} \rightarrow^\beta \lambda x:t. P$
     - $A \equiv t$ のときをほぼ想定
 - これ以外は普通のもの。
 
 ## context, judgement
+Context は普通に定義して、メタ変数 $\Gamma$ で表す。
+
+| category | definition |
+| --- | --- |
+| well formed context | $\vdash \Gamma$ |
+| typing | $\Gamma \vdash t: t$ |
+| subtyping | $\Gamma \vdash t \leq t$ |
+| probable | $\Gamma \vDash t$ |
