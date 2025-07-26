@@ -149,9 +149,7 @@ $\Pred_A B$ を $A$ の部分集合 $B$ に対して、 $B$ に含まれる条�
 $t: B$ に入る条件を、 $\vDash (\Pred_A B)@t$ とし、 reduction として $\Pred_A \{x: A' \mid P\} \to \lambda x: A'. P$ を許すことにする。
 - reduction を考えれば $t: {x: A \mid P}$ の話を一般の $B: \Power A$ でできる。
 - $\Pred$ 自体は $\Pi (A: *^s). \Pi (B: \Power A). B \to *^p$ のようになっていて大きい。
-
-次のようになる。
-- [ ] TODO ここを書く。
+- $\vdash t: A$ と $\vdash B: \Power A$ に対して、 $\vdash t: B$ と $\vDash \Pred_A B @ t$ が行き来できる。
 
 ### set の中での推移律
 （ cumulativity という言葉を使っていたが、不適だった。
@@ -169,9 +167,11 @@ $\lambda x: A. x$ は $A \to A$ と infer されるが、 $A \subset B$ のと�
 $\eta$ を入れれば一部は改善する： $\Gamma \vdash t: (x: A) \to B$ なら $t \equiv \lambda x: A. t x$
 
 これと似たような動機で出てくる Coq の $\leq$ を考えて、似たような定義をすればいい。
+（これは Luo の ECC での話に出てくる。）
 すなわち、 $\Gamma \vdash t_1 \leq t_2$ という新たな judgement を入れる。
 
-- [ ] TODO ここを書く。
+- 反射律と推移律
+- $(x: A) \to X_1 \leq (x: A) \to X_2$ if $X_1 \leq X_2$
 
 # 現状の課題
 ## 空間を集めてくる操作がつらい。
