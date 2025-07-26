@@ -4,3 +4,5 @@
 - [Motivation](./motivation.md)
   - [non-structural recursion](./motivation/non-structural-recursion.md)
 - [Survey](./survey.md)
+  - [PTS](./survey/PTS.md)
+  - [帰納型](./survey/inductive_type.md)
