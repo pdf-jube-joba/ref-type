@@ -6,3 +6,4 @@
 - [Survey](./survey.md)
   - [PTS](./survey/PTS.md)
   - [帰納型](./survey/inductive_type.md)
+  - [inconsistency](./survey/inconsistency.md)

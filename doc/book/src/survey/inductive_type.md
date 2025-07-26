@@ -66,4 +66,45 @@ Timany と Jacobs のではこれをわけて前者を strictly positive と呼�
 Coq ではパターンマッチと fix の引数の減少を指定するようだが、ここでは、 recursor を計算する方法を使う。
 例えば自然数だと、eliminator は次のような型になっていたはずだが、これを自動的に導出したい。
 
+$$\begin{align*}
+&(P: (n: N) \to T) \\
+&\to (a_\text{Zero}: P @ \text{Zero}) \\
+&\to (a_{\textop{Succ}}: (n: N) \to P @ n \to P @ (\textop{Succ} n)) \\
+&\to (n: N) \to P @ n
+\end{align*}$$
 
+eliminator には eliminator に入れる項以外に、return する項の情報も入れておきたい。
+$\text{elim}(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解する項、 $Q$ は帰ってくる型、 $f_i$ は constructor それぞれに対応する場合分けの計算とする。
+
+ここらへんは論文をそのまま読めばいいから書かない。
+- 帰納型の定義にある arity of $s$ は当然型が付かないといけない。
+- 帰納型の定義にある constructor of $X$ ($C_i$) は、 $\Gamma :: X: \text{arity} \vdash C_i: s$ でなければいけない。
+
+## parameter と index について
+
+Set が impredicative であることを考えると、次のような polymorphic なリストは定義できない。
+```Coq
+Inductive List: forall a: Set, Set :=
+  | Nil: forall a: Set, List a
+  | Cons: forall (a: Set), a -> List a -> List a
+.
+```
+エラーの理由は、 `Large non-propositional inductive types must be in Type` になる。
+理由は、 Nil の型について、 $\text{List}: (A: \text{Set}) \to \text{Set} \vdash ((A: \text{Set}) \to \text{List} A): \text{Set}$ でないから、
+これには $(\text{Type}, \text{Set}) \in \mathcal{R}$ が必要になる（$\Rightarrow$ Set が impredicative である必要がある）。
+
+一方で、次のような、 parametrized な場合は大丈夫。
+```Coq
+Inductive List (a: Set): Set :=
+  | Nil: List a
+  | Cons: a -> List a -> List a
+.
+```
+
+これは、各 `A: Set` ごとに Set の元として `List A` を定義しているから。
+このとき、 `List` は `Set -> Set` になる。
+これについては、 Lean でも注意があって、
+[https://leanprover.github.io/functional_programming_in_lean/dependent-types/indices-parameters-universes.html] というところで書かれている。
+
+## Identity type について
+parameter と index の話を踏まえると、 Identity type は `A: Set` と `a: A` は parameter で、 `b: A` が index となる。
