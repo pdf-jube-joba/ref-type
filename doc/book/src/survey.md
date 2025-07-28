@@ -58,11 +58,22 @@ Coq や Lean の型システムについてのメモをとっておく。
 - Amin Timany and Bart Jacobs. First Steps Towards Cumulative Inductive Types in CIC
   - https://cs.au.dk/~timany/publications/files/2015_ICTAC_first_steps_cumind.pdf
 
+## strong normalization について
+- Modular proof of strong normalization for the calculus of constructions. Geuvers, Herman, and Mark-Jan Nederhof. 1991.
+  - https://www.cambridge.org/core/services/aop-cambridge-core/content/view/348B6914C707F5282ED91E08AE47BDB8/S0956796800020037a.pdf/modular-proof-of-strong-normalization-for-the-calculus-of-constructions.pdf
+- Strong Normalization for the CoC
+  - https://arxiv.org/abs/2210.11240
+  - これは3つの証明の比較
+
+## モデルについて
+- A simple model construction for the CoC
+  - https://www.cs.ru.nl/~herman/PUBS/BRATurModel.pdf
+  - モデルを集合じゃなくて combinatory algebra を使って定義する
+- 
+
 ## strong normalization や type check について
 - Complete Bidirectional Typing for the Calculus of Inductive Constructions
   - https://arxiv.org/pdf/2102.06513
-- Modular proof of strong normalization for the calculus of constructions. Geuvers, Herman, and Mark-Jan Nederhof. 1991.
-  - https://www.cambridge.org/core/services/aop-cambridge-core/content/view/348B6914C707F5282ED91E08AE47BDB8/S0956796800020037a.pdf/modular-proof-of-strong-normalization-for-the-calculus-of-constructions.pdf
 - Constructions Inductive Types and Strong Normalization
   - https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=23af5ccb0b9d053741aeea62e4c8ac911da52327
 - A typechecker for bijective pure type systems
@@ -72,6 +83,10 @@ Coq や Lean の型システムについてのメモをとっておく。
 ## proof-irrelevance
 - ON THE STRENGTH OF PROOF-IRRELEVANT TYPE THEORIES
   - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/lmcs.pdf
+- Proof-irrelevant model of CC with predicative induction and judgmental equality
+  - https://arxiv.org/abs/1111.0123
+- The not so simple proof-irrelevant model of CC
+  - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/cc.pdf
 
 ## inconsistency について
 - (In)consistency of Extensions of Higher Order Logic and Type Theory, Herman Geuvers, 2006.
