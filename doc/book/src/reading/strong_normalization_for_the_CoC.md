@@ -25,7 +25,7 @@ strong normalization の証明は次のようなものがある。
   - $\Gamma \vdash B: *$ ... $A$ は term
 
 ここで、 **kind は Context によらない** らしい。
-- [] 後で調べる // TODO
+- [ ] 後で調べる // TODO
 
 constructor と term を証明の中で見通しよく扱うために、 variable の階層を分けるのもよい。
 （memo: あるいは、 $x^s$ のように、 variable と sort をメモしておくのも見かけた。コンテキストの中でも、 $x::A::s$ のように sort をメモしておく方がよいという話もある。）
