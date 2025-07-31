@@ -108,3 +108,6 @@ Inductive List (a: Set): Set :=
 
 ## Identity type について
 parameter と index の話を踏まえると、 Identity type は `A: Set` と `a: A` は parameter で、 `b: A` が index となる。
+
+# W-type について
+- [] TODO
