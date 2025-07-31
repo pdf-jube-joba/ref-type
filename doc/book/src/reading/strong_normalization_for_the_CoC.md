@@ -145,3 +145,9 @@ constructor と term それぞれに environment を割り当てるが、 term �
     \llbracket a \rrbracket \llbracket b \rrbracket & \text{if }b\text{ is a }\Gamma\text{-constructor} \\
     \llbracket a \rrbracket & \text{otherwise}
     \end{cases}$
+
+# realizability
+これは読まなくていいか。
+
+# 思ったこと
+$V(\square) = V(*)$ になるのはちょっと違和感がある。

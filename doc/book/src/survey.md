@@ -75,7 +75,8 @@ Coq や Lean の型システムについてのメモをとっておく。
   - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/cc.pdf
 - Proof-irrelevant model of CC with predicative induction and judgmental equality
   - https://arxiv.org/abs/1111.0123
-
+- Milena Stefanova, a schematic proof of strong normalization for the systems of the $\lambda$-cube
+  - https://annual.uni-sofia.bg/index.php/fmi/article/view/284/274
 
 ## type check について
 - Complete Bidirectional Typing for the Calculus of Inductive Constructions
