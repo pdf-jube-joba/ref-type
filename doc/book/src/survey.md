@@ -64,14 +64,20 @@ Coq や Lean の型システムについてのメモをとっておく。
 - Strong Normalization for the CoC
   - https://arxiv.org/abs/2210.11240
   - これは3つの証明の比較
+- A proof of strong normalization using Domain theory
+  - https://ieeexplore.ieee.org/abstract/document/1691241
 
 ## モデルについて
 - A simple model construction for the CoC
   - https://www.cs.ru.nl/~herman/PUBS/BRATurModel.pdf
   - モデルを集合じゃなくて combinatory algebra を使って定義する
-- 
+- The not so simple proof-irrelevant model of CC
+  - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/cc.pdf
+- Proof-irrelevant model of CC with predicative induction and judgmental equality
+  - https://arxiv.org/abs/1111.0123
 
-## strong normalization や type check について
+
+## type check について
 - Complete Bidirectional Typing for the Calculus of Inductive Constructions
   - https://arxiv.org/pdf/2102.06513
 - Constructions Inductive Types and Strong Normalization
@@ -83,10 +89,6 @@ Coq や Lean の型システムについてのメモをとっておく。
 ## proof-irrelevance
 - ON THE STRENGTH OF PROOF-IRRELEVANT TYPE THEORIES
   - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/lmcs.pdf
-- Proof-irrelevant model of CC with predicative induction and judgmental equality
-  - https://arxiv.org/abs/1111.0123
-- The not so simple proof-irrelevant model of CC
-  - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/cc.pdf
 
 ## inconsistency について
 - (In)consistency of Extensions of Higher Order Logic and Type Theory, Herman Geuvers, 2006.

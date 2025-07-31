@@ -8,3 +8,4 @@
   - [帰納型](./survey/inductive_type.md)
   - [inconsistency](./survey/inconsistency.md)
 - [read](./reading.md)
+  - [strong_normalization_for_the_CoC](./reading/strong_normalization_for_the_CoC.md)
