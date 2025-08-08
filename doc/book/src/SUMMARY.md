@@ -7,6 +7,7 @@
   - [PTS](./survey/PTS.md)
   - [帰納型](./survey/inductive_type.md)
   - [inconsistency](./survey/inconsistency.md)
+  - [property of CoC](./survey/property_CoC.md)
 - [read](./reading.md)
   - [strong normalization for the CoC](./reading/strong_normalization_for_the_CoC.md)
   - [simple model construction for the CoC](./reading/simple_model_construction_for_the_CoC.md)
