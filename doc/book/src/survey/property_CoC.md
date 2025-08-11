@@ -114,6 +114,21 @@
 #lem2
 1. $M \Rightarrow N$ なら $N \Rightarrow M^*$
 
-証明は $M$ の帰納法。
+証明：
+1. $M$ の構造に関する帰納法を用いる。
+    1. $s$ のの場合： $M \Rightarrow N$ なら $N = M = M^*$ である。
+    2. $x$ の場合：上と同様
+    3. $\lambda x:A. t$ の場合： $N = \lambda x: A'. t'$ のみが考えられる。帰納法の仮定から $A \Rightarrow A' \Rightarrow A^*$, $t \Rightarrow t' \Rightarrow t^*$ が得られている。なので、 $\lambda x: A'. t' \Rightarrow \lambda x: A^*. t^*$
+    4. $(x: A) \to t$ の場合は上と同様。
+    5. $t_1 t_2$ の場合：
+        - $t_1$ が $\lambda$ の形をしていない場合を考える。
+            このとき、 $t_1 t_2 \Rightarrow N$ は $t_1 \Rightarrow t_1'$, $t_2 \Rightarrow t_2'$ によって $N = t_1' t_2'$ と書ける。
+            帰納法の仮定から、 $t_i' \Rightarrow t_i^:*$ なので、 $t_1 t_2 \Rightarrow t_1' t_2' \Rightarrow t_1^* t_2^*$ よりよい。
+        - $t_1 = \lambda x:A. t$ の場合。
+            もし規則 5. を用いて導出されたなら、 $\lambda x:A.t \Rightarrow t_1'$ と $t_2 \Rightarrow t_2'$ を用いて
+            $M = (\lambda x:A. t) t_2 \Rightarrow t_1' t_2' = N$ となっている。
+            ここで、この $t_1'$ は必ず $\lambda x: A'. t'$ の形をしていて、 $A \Rightarrow A', t_1 \Rightarrow t_1'$ であることが（定義を調べると）わかる。
+            また、帰納法の仮定から、 $A \rightarrow A' \Rightarrow A^*$, $t \Rightarrow t' \Rightarrow t^*$ が得られている。
+            $N = t_1' t_2' = (\lambda x: A'. t') t_2' \Rightarrow $ 
 
 よって、 $\Rightarrow$ の合流性は示せた。
