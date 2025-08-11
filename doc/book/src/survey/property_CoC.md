@@ -125,10 +125,70 @@
             このとき、 $t_1 t_2 \Rightarrow N$ は $t_1 \Rightarrow t_1'$, $t_2 \Rightarrow t_2'$ によって $N = t_1' t_2'$ と書ける。
             帰納法の仮定から、 $t_i' \Rightarrow t_i^:*$ なので、 $t_1 t_2 \Rightarrow t_1' t_2' \Rightarrow t_1^* t_2^*$ よりよい。
         - $t_1 = \lambda x:A. t$ の場合。
-            もし規則 5. を用いて導出されたなら、 $\lambda x:A.t \Rightarrow t_1'$ と $t_2 \Rightarrow t_2'$ を用いて
-            $M = (\lambda x:A. t) t_2 \Rightarrow t_1' t_2' = N$ となっている。
-            ここで、この $t_1'$ は必ず $\lambda x: A'. t'$ の形をしていて、 $A \Rightarrow A', t_1 \Rightarrow t_1'$ であることが（定義を調べると）わかる。
-            また、帰納法の仮定から、 $A \rightarrow A' \Rightarrow A^*$, $t \Rightarrow t' \Rightarrow t^*$ が得られている。
-            $N = t_1' t_2' = (\lambda x: A'. t') t_2' \Rightarrow $ 
+            - もし #def5 を用いて導出されたなら、 $\lambda x:A.t \Rightarrow t_1'$ と $t_2 \Rightarrow t_2'$ を用いて
+                $M = (\lambda x:A. t) t_2 \Rightarrow t_1' t_2' = N$ となっている。
+                ここで、この $t_1'$ は必ず $\lambda x: A'. t'$ の形をしていて、 $A \Rightarrow A', t_1 \Rightarrow t_1'$ であることが（定義を調べると）わかる。
+                また、帰納法の仮定から、 $A \rightarrow A' \Rightarrow A^*$, $t \Rightarrow t' \Rightarrow t^*$ が得られている。
+                $N = t_1' t_2' = (\lambda x: A'. t') t_2' \Rightarrow t^* [x := t_2^*] = (\lambda x: A. t)^* t_2^*$ 
+            - もし #def6 を用いて導出されたなら、 $t'$, $A', $t_2'$ によって $\lambda x: A. t \Rightarrow \lambda x:A'. t'$ と $t_2 \Rightarrow t_2^*$ を用いて
+                $M = (\lambda x: A. t) t_2 \Rightarrow t'[x := t_2'] = N$ となっている。
+                ところで帰納法の仮定から、 $\lambda x: A'. t' \Rightarrow \lambda x: A^*. t^*$ と $t_2' \Rightarrow t_2^*$ が成り立っている。
+                $t'[x := t_2'] \Rightarrow t^*[x := t_2^*]$ が示せる。
 
 よって、 $\Rightarrow$ の合流性は示せた。
+
+# type system の性質
+barendregt の lambda calculi with typesね。
+#def4
+- context $\Gamma$ と $s$ に対して $\Gamma \vdash A: s$ となるものを $\Gamma$-type of $s$
+- context $\Gamma$ と $s$ に対して $\exists B, \Gamma \vdash A: B, \Gamma B: s$ となるものを $\Gamma$-element of $s$
+
+#thm FV について
+- $\Gamma \vdash A: B$ なら $\text{FV}(A), \text{FV}(B) \subset \{x \mid x \in \Gamma\}$
+- $\vdash \Gamma = x_1: A_1 :: \cdots :: x_n: A_n$ なら $\text{FV}(A_i) \subset \{x_1, \ldots, x_{i-1}\}$
+
+#thm
+- (transitivity) $\Gamma \vdash \Gamma'$ かつ $\Gamma' \vdash A: B$ なら $\Gamma \vdash A: B$
+- (substitution) $\Gamma :: x: A :: \Gamma' \vdash B: C$ かつ $\Gamma \vdash M: A$ なら $\Gamma :: \Gamma'[x := M] \vdash B[x := M]: C[x := M]$
+- (thinning) $\Gamma \subset \Gamma'$ かつ $\Gamma \vdash A: B$ かつ $\vdash \Gamma'$ なら $\Gamma' \vdash A: B$
+- (generation)
+    - $\Gamma \vdash s: A$ なら $\exists s'$ s.t.
+        - $A \equiv s'$
+        - $(s, s') \in \mathcal{A}$
+    - $\Gamma \vdash x: A$ なら $\exists B$ s.t.
+        - $\Gamma \vdash B: s$
+        - $A =_\beta B
+        - $(x: B) \in \Gamma$
+    - $\Gamma \vdash ((x: M) \to N): A$ なら $\exists (s_1, s_2) \in \mathcal{R}$ s.t.
+        - $\Gamma \vdash M: s_1$
+        - $\Gamma::x:M \vdash N: s_2$
+        - $A =_\beta s_3$
+    - $\Gamma \vdash (\lambda x: M. t): A$ なら $\exists s, B$ s.t.
+        - $\Gamma \vdash (x: M) \to B: s$
+        - $\Gamma:: x: A \vdash b: B$
+        - $A =_\beta (x: M) \to B$
+    - $\Gamma \vdash (F a): A$ なら $\exists M, B$ s.t.
+        - $\Gamma \vdash F: (x: M) \to B$
+        - $\Gamma \vdash a: M$
+        - $A \equiv B[x := a]$
+- (sort) $\Gamma \vdash A: B$ なら $B \equiv s$ か $\Gamma \vdash B: s$
+- (subject reduction) $\Gamma \vdash A: B$ かつ $A \to_\beta A'$ なら $\Gamma \vdash A': B$
+- (subject reduction (type)) $\Gamma \vdash A: B$ かつ $B \to_\beta B'$ なら $\Gamma \vdash A: B'$
+- (uniqueness of type) $\Gamma \vdash A: B_1, \Gamma \vdash A: B_2$ なら $B_1 =_\beta B_2$
+
+classifycation のために次のものを定義する。
+- $\mathcal{V}$: term to $\{0,1,2,3\}$
+    - $\mathcal{V}(\square) = 3$, $\mathcal{V}(*) = 2$
+    - $\mathcal{V}(x^\square) = 1$, $\mathcal{V}(x^*) = 0$
+    - $\mathcal{V}(\lambda x: A. B) = \mathcal{V}((x: A) \to B) = \mathcal{V}(B A) = \mathcal{V}(B)$
+
+#thm 
+- $\mathcal{V}(x^s) = \mathcal{V}(M)$ なら $\mathcal{V}(P[x := M]) = \mathcal{V}(P)$
+
+#thm
+- not $\Gamma \vdash \square: A$
+- not $\Gamma \vdash A B: \square$
+- not $\Gamma \vdash (\lambda x: A. b): \square$
+- $\Gamma \vdash A: \square$ なら $\mathcal{V}(A) = 2$
+- $\Gamma \vdash A: B$ かつ $\mathcal{V}(A) \in \{2, 3\}$ なら $B \equiv \square$
+- $\Gamma \vdash A: B$ なら $\mathcal{V}(A) + 1 = \mathcal{V}(B)$
