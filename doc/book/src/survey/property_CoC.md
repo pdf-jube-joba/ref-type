@@ -1,4 +1,12 @@
 一回、 CoC の性質についていろいろ証明を見ておく。
+# PTS としての CoC について
+PTS 自体が定義が複数ある。
+judgement はほとんどは The Structural Theory of Pure Type System に従う。
+
+- judgement に context の WF を入れる
+- judgemental equality ではなく beta conversion （外部）を使うとする
+- 変数に sort のラベルが付き、 context にも sort を入れておく。
+- var は top の変数を出し、 weak として 「$\Gamma \vdash M: N$ かつ $\text{WF}(\Gamma:: x^s: A)$ なら $\Gamma :: x^s:A \vdash M: N$」 を入れる。
 
 # confluence (Church-Rosser)
 代入やα変換についてまじめに考える必要がある。
@@ -143,38 +151,73 @@ barendregt の lambda calculi with typesね。
 - context $\Gamma$ と $s$ に対して $\Gamma \vdash A: s$ となるものを $\Gamma$-type of $s$
 - context $\Gamma$ と $s$ に対して $\exists B, \Gamma \vdash A: B, \Gamma B: s$ となるものを $\Gamma$-element of $s$
 
-#thm FV について
-- $\Gamma \vdash A: B$ なら $\text{FV}(A), \text{FV}(B) \subset \{x \mid x \in \Gamma\}$
-- $\vdash \Gamma = x_1: A_1 :: \cdots :: x_n: A_n$ なら $\text{FV}(A_i) \subset \{x_1, \ldots, x_{i-1}\}$
+CoC の場合は、 term を 4 つに分類することができる：
+- $\square$
+- $\square$-type
+- $\square$-element $\superset$ $*$-type
+- $*$-element
 
-#thm
-- (transitivity) $\Gamma \vdash \Gamma'$ かつ $\Gamma' \vdash A: B$ なら $\Gamma \vdash A: B$
-- (substitution) $\Gamma :: x: A :: \Gamma' \vdash B: C$ かつ $\Gamma \vdash M: A$ なら $\Gamma :: \Gamma'[x := M] \vdash B[x := M]: C[x := M]$
-- (thinning) $\Gamma \subset \Gamma'$ かつ $\Gamma \vdash A: B$ かつ $\vdash \Gamma'$ なら $\Gamma' \vdash A: B$
-- (generation)
-    - $\Gamma \vdash s: A$ なら $\exists s'$ s.t.
-        - $A \equiv s'$
-        - $(s, s') \in \mathcal{A}$
-    - $\Gamma \vdash x: A$ なら $\exists B$ s.t.
-        - $\Gamma \vdash B: s$
-        - $A =_\beta B
-        - $(x: B) \in \Gamma$
-    - $\Gamma \vdash ((x: M) \to N): A$ なら $\exists (s_1, s_2) \in \mathcal{R}$ s.t.
-        - $\Gamma \vdash M: s_1$
-        - $\Gamma::x:M \vdash N: s_2$
-        - $A =_\beta s_3$
-    - $\Gamma \vdash (\lambda x: M. t): A$ なら $\exists s, B$ s.t.
-        - $\Gamma \vdash (x: M) \to B: s$
-        - $\Gamma:: x: A \vdash b: B$
-        - $A =_\beta (x: M) \to B$
-    - $\Gamma \vdash (F a): A$ なら $\exists M, B$ s.t.
-        - $\Gamma \vdash F: (x: M) \to B$
-        - $\Gamma \vdash a: M$
-        - $A \equiv B[x := a]$
-- (sort) $\Gamma \vdash A: B$ なら $B \equiv s$ か $\Gamma \vdash B: s$
-- (subject reduction) $\Gamma \vdash A: B$ かつ $A \to_\beta A'$ なら $\Gamma \vdash A': B$
-- (subject reduction (type)) $\Gamma \vdash A: B$ かつ $B \to_\beta B'$ なら $\Gamma \vdash A: B'$
-- (uniqueness of type) $\Gamma \vdash A: B_1, \Gamma \vdash A: B_2$ なら $B_1 =_\beta B_2$
+この分類をもとにモデルを考えたりする。
+
+#### variable
+次が成り立つ（帰納法の議論のため、一緒にした方がいい。）
+1. $\Gamma \vdash A: B$ なら $\text{FV}(A), \text{FV}(B) \subset \{x \mid x \in \Gamma\}$
+2. $\vdash \Gamma = x_1^{s_1}: A_1 :: \cdots :: x_n: A_n$ なら $\text{FV}(A_i) \subset \{x_1, \ldots, x_{i-1}\}$
+
+証明：
+導出木に関する帰納法を用いる。
+- empty の場合(2) $\text{WF} \emptyset$ なので、 2 は満たされる
+- wf の場合(2) 「$\Gamma \vdash A: s$ かつ $x \notin \Gamma$ なら $\text{WF}(\Gamma::x^s: A)$」 に対して $\text{FV}(A) \subset \Gamma$ を示せばよい。これは帰納法の仮定の $\Gamma \vdash A: s$ からわかる。
+- axiom の場合(1) 「$\text{WF}(\Gamma)$ なら $\Gamma \vdash s_1: s_2$」 については、 $s_1, s_2$ は FV がないのでよい。
+- var の場合(1) 「$\text{WF}(\Gamma:: x^s: A)$ なら $\証明mma \vdash x: A$」に対して、 $\text{FV}(A) \subset \Gamma$ を示せばいい。これは帰納法の仮定から。
+- weak の場合(1) 「$\Gamma \vdash M:N$ かつ $\text{WF}(\Gamma::x^s:A)$ なら $\Gamma::x^s:A \vdash M:N$」 に対して、 $\text{FV}(M), \text{FV}(N) \subset \Gamma::x^s: A$ を示すが、これは帰納法の仮定からすでに $\subset \Gamma$ が示せている。
+- prod の場合(1) 「$\Gamma \vdash A: s_1$ かつ $\Gamma::x^{s_1}:A \vdash B: s_2$ なら $\Gamma \vdash ((x^{s_1}: A) \to B): s_3$」に対して $\text{FV}((x^{s_1}: A) \to B) \subset \Gamma$ を示す。これは、帰納法の仮定から $\text{FV}(A) \subset \Gamma$ と $\text{FV}(B) \subset \Gamma \cup x$ がわかっているので、 $\text{FV}((x^{s_1}: A) \to B) = \text{FV}(B) - \{x\} \cup \text{FV}(A) \subset \Gamma$ である。
+- abs の場合(1) 「$\Gamma::x^s:A \vdash t: B$ かつ $\Gamma \vdash ((x^s: A) \to B): s'$ なら $\Gamma \vdash (\lambda x^s: A. t): ((x^s: A) \to B)$」 に対して $\text{FV}(\lambda x^s: A. t), \text{FV}((x^s: A) \to B) \subset \Gamma$ を示す。これは、帰納法の仮定からわかる。
+- app の場合(1) 「 $\Gamma \vdash t: (x^s:A) \to B$ かつ $\Gamma \vdash y: A$ なら $\Gamma \vdash t @ u: B[x := u]$」に対して $\text{FV}(u @ v), \text{FV}(B[x := u]) \subset \Gamma$ を示す。 $\text{FV}(u @ v) $ についてはそのままわかる。 $\text{FV}(B[x := u]) = \text{FV}(B) - \{x\} \cup \text{FV}(u)$ なので、 $\text{FV}((x^s:A) \to B) \subset \Gamma$ とかからわかる。
+- conv の場合(1) これは conversion で beta が変わらないのでいい。
+
+#### substituion
+仮定
+$\Gamma \vdash t: A$
+結論
+1. $\text{WF}(\Gamma :: x: A :: \Gamma')$ なら $\text{WF}(\Gamma :: \Gamma'[x := t])$
+2. $\Gamma :: x: A :: \Gamma' \vdash B: C$ なら $\Gamma :: \Gamma'[x := t] \vdash B[x := t]: C[x := t]$
+
+証明：
+結論の前提に関する帰納法を用いる。
+- empty の場合 (1) $\Gamma$ も $\Gamma'$ も empty になるからよい
+- wf の場合 (1) 
+
+#### generation
+- $\Gamma \vdash s: A$ なら $\exists s'$ s.t.
+    - $A \equiv s'$
+    - $(s, s') \in \mathcal{A}$
+- $\Gamma \vdash x: A$ なら $\exists B$ s.t.
+    - $\Gamma \vdash B: s$
+    - $A =_\beta B
+    - $(x: B) \in \Gamma$
+- $\Gamma \vdash ((x: M) \to N): A$ なら $\exists (s_1, s_2) \in \mathcal{R}$ s.t.
+    - $\Gamma \vdash M: s_1$
+    - $\Gamma::x:M \vdash N: s_2$
+    - $A =_\beta s_3$
+- $\Gamma \vdash (\lambda x: M. t): A$ なら $\exists s, B$ s.t.
+    - $\Gamma \vdash (x: M) \to B: s$
+    - $\Gamma:: x: A \vdash b: B$
+    - $A =_\beta (x: M) \to B$
+- $\Gamma \vdash (F a): A$ なら $\exists M, B$ s.t.
+    - $\Gamma \vdash F: (x: M) \to B$
+    - $\Gamma \vdash a: M$
+    - $A \equiv B[x := a]$
+
+#### sort
+$\Gamma \vdash A: B$ なら $B \equiv s$ か $\Gamma \vdash B: s$
+
+#### subject reduction
+- $\Gamma \vdash A: B$ かつ $A \to_\beta A'$ なら $\Gamma \vdash A': B$
+- $\Gamma \vdash A: B$ かつ $B \to_\beta B'$ なら $\Gamma \vdash A: B'$
+
+#### uniqueness of type
+$\Gamma \vdash A: B_1, \Gamma \vdash A: B_2$ なら $B_1 =_\beta B_2$
 
 classifycation のために次のものを定義する。
 - $\mathcal{V}$: term to $\{0,1,2,3\}$
