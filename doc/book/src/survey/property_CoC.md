@@ -183,6 +183,9 @@ $\Gamma \vdash t: A$
 1. $\text{WF}(\Gamma :: x: A :: \Gamma')$ なら $\text{WF}(\Gamma :: \Gamma'[x := t])$
 2. $\Gamma :: x: A :: \Gamma' \vdash B: C$ なら $\Gamma :: \Gamma'[x := t] \vdash B[x := t]: C[x := t]$
 
+これの $\Gamma' = \emptyset$ で derivation が var のときが base case として次のようになっている。
+$$\Gamma x: A \vdash x: A \implies \Gamma \vdash x[x:=t] : A[x := t]$$
+
 証明：
 結論の前提に関する帰納法を用いる。
 - empty の場合 (1) $\Gamma$ も $\Gamma'$ も empty になるからよい
@@ -235,3 +238,29 @@ classifycation のために次のものを定義する。
 - $\Gamma \vdash A: \square$ なら $\mathcal{V}(A) = 2$
 - $\Gamma \vdash A: B$ かつ $\mathcal{V}(A) \in \{2, 3\}$ なら $B \equiv \square$
 - $\Gamma \vdash A: B$ なら $\mathcal{V}(A) + 1 = \mathcal{V}(B)$
+
+# モデルと consistency
+polymorphic is not set-theoretic によると、
+impredicative な sort は $\{0 = \emptyset, 1 = \{0\}\}$ という bool みたいな集合に移し、
+$*$-type は $0$ か $1$ になるようにしないといけない。
+この場合、 $*$-element はなんでも $0$ に移す interpretation にすることで、
+type は inhabitant かどうか、 term は項が存在するかどうかになってしまう。
+（つまり、 term を区別せずに $0$ に移してしまう。）
+逆にこれを守れば、 set-theoretic な interpretation ができるようになる。
+
+set-theoretic なモデルを考える以外にも、 interpretation を考えることができる。
+- $\Gamma$ のもとでの classification を考えることで、項や variable を階層分けしたうえで、 interpretation を考える
+    - saturated set と normalizing な項の集合を考える ... strong normalization を示すのにわかりやすい。型に対して、停止する項全体の集合を与える。
+    - realization model ... よくわかんない
+    - (partial) combinatorial algebra を使う ... 集合というよりは構造付きで考えるほうが都合がいい。
+    - domain theory ... untyped な lambda でもできるし、一応そういう研究はあるみたい。
+- 階層分けしない ... set-theoretic なものしかみないかも。
+
+## set theoretic な話
+CoC を広げて、 impredicative な sort $*$ と predicative な sort $\square^i$ を加えた $\text{CoC}_\omega$ を考えておく。
+これをちょっと cumulative （ $\Gamma \vdash A: *$ なら $\Gamma \vdash A:\square^i$ ）にしたものに、
+ZFC での interpretation を与えたのが set in types, type in sets に書かれている。
+このとき ZFC + inaccesible な cardinal が $\mathbb{N}$ ぐらいあって階層になっている体系を考えたら、
+その集合の体系が無矛盾なら $\text{CoC}_\omega$ が無矛盾になる。
+（なぜなら、 $\vdash t: (P:*). P$ となる項 $t$ があれば $(P:*). P$ に対応する集合が空じゃなくなるが、これは普通は空集合になるから？）
+この話をちゃんと読んでおきたい。

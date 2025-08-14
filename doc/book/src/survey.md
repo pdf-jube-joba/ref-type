@@ -68,6 +68,9 @@ Coq や Lean の型システムについてのメモをとっておく。
   - https://ieeexplore.ieee.org/abstract/document/1691241
 
 ## モデルについて
+- set in types, type in sets
+  - https://www.lix.polytechnique.fr/~werner/publis/tacs97.pdf
+  - これはふつうに集合を使う
 - A simple model construction for the CoC
   - https://www.cs.ru.nl/~herman/PUBS/BRATurModel.pdf
   - モデルを集合じゃなくて combinatory algebra を使って定義する
