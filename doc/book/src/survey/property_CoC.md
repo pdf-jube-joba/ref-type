@@ -222,6 +222,8 @@ $\Gamma \vdash A: B$ なら $B \equiv s$ か $\Gamma \vdash B: s$
 #### uniqueness of type
 $\Gamma \vdash A: B_1, \Gamma \vdash A: B_2$ なら $B_1 =_\beta B_2$
 
+## classification
+
 classifycation のために次のものを定義する。
 - $\mathcal{V}$: term to $\{0,1,2,3\}$
     - $\mathcal{V}(\square) = 3$, $\mathcal{V}(*) = 2$
@@ -239,6 +241,18 @@ classifycation のために次のものを定義する。
 - $\Gamma \vdash A: B$ かつ $\mathcal{V}(A) \in \{2, 3\}$ なら $B \equiv \square$
 - $\Gamma \vdash A: B$ なら $\mathcal{V}(A) + 1 = \mathcal{V}(B)$
 
+これは階層を番号付けしているわけなので、単純に sort を見るだけなら $s$ という関数を次のように定義すればいい。
+- $s(x^s) = s$ for $s \in \{*, \square\}$
+- $s(\lambda x. A. B) = s((x: A) \to B) = s(A B) = s(B)$
+
+これは、 $s$-element を見つけるのに役立つ。
+#def
+- $s(t) = *$ ... proof term
+- $s(t) = \square$ ... predicate
+
+#thm
+- $\Gamma \vdash t: T$ なら $\Gamma \vdash T: s(t)$ か $T \equiv \square$ のどちらか一方のみが成り立つ。
+
 # モデルと consistency
 polymorphic is not set-theoretic によると、
 impredicative な sort は $\{0 = \emptyset, 1 = \{0\}\}$ という bool みたいな集合に移し、
@@ -247,6 +261,7 @@ $*$-type は $0$ か $1$ になるようにしないといけない。
 type は inhabitant かどうか、 term は項が存在するかどうかになってしまう。
 （つまり、 term を区別せずに $0$ に移してしまう。）
 逆にこれを守れば、 set-theoretic な interpretation ができるようになる。
+impredicative な sort $*$ の解釈を、 "proof-irrelevant" なモデルに対応させてしまうしかないということ。
 
 set-theoretic なモデルを考える以外にも、 interpretation を考えることができる。
 - $\Gamma$ のもとでの classification を考えることで、項や variable を階層分けしたうえで、 interpretation を考える
@@ -264,3 +279,27 @@ ZFC での interpretation を与えたのが set in types, type in sets に書�
 その集合の体系が無矛盾なら $\text{CoC}_\omega$ が無矛盾になる。
 （なぜなら、 $\vdash t: (P:*). P$ となる項 $t$ があれば $(P:*). P$ に対応する集合が空じゃなくなるが、これは普通は空集合になるから？）
 この話をちゃんと読んでおきたい。
+一応、 not so simple model constructions of CoC の sorted system の議論の方がわかりやすいのでこっちをとりたい。
+こっちは cumulative じゃないので、こっちの方が好きかも。
+
+注意点として、
+- ZFC は一回述語論理なので、こっち側ではすべてが "式" として定義されている。
+- 「well-formed / well-typed なもの以外にも定義しているので、 partial な定義であるが、 well-* な場合にはうまくいく」ようにやっている。
+    - **$\Gamma \vdash t$ は全ての $\Gamma$ と $t$ に対して定義されている。**
+- sorted な system を用いることで、 $\Gamma \vdash t$ の場合分けを楽に記述する。
+    - if proof-term は Werner の方でも書かれていた場合分けだと思う。
+
+#def
+- $\lvert \Gamma \rvert$: $n$-tuples of ZFC-sets (partial) where $n$ is length of context :=
+    - $\lvert [] \rvert$ = $()$
+    - $\lvert \Gamma; x: A \rvert$ = $\{(\gamma, \alpha) \mid \gamma \in \lvert \Gamma \rvert, \alpha \in \lvert \Gamma \vdash A \rvert (\gamma)\}$
+- $\lvert \Gamma \vdash t \rvert$: partial function of $\lvert \Gamma \rvert$ to ZFC-sets :=
+    - $\lvert \Gamma \vdash t \rvert (\gamma) = 0$ if $s(t) = *$
+    - $\lvert \Gamma \vdash * \rvert (\gamma) = \{0, 1\}$
+    - $\lvert \Gamma \vdash \square \rvert (\gamma) = U$
+    - $\lvert \Gamma \vdash x^\square \rvert (\gamma) = \pi_i \gamma$ if $x^\square$ is $i$-th
+    - $\lvert \Gamma \vdash t u \rvert(\gamma) = \lvert \Gamma \vdash t \rvert (\gamma) ( \lvert \Gamma \vdash u \rvert (\gamma))$
+        - これは set-theoretic な関数の適用のため、well-typed じゃない一般の状況では定義されていないことに注意。例： $A: *, B: * \vdash A B$ は意味がない。
+    - $\lvert \Gamma \vdash \lambda x^s: A. t \rvert (\gamma) = \alpha \in \lvert \Gamma \vdash A \rvert(\gamma) \mapsto \lvert \Gamma; x^s: A \vdash t \rvert(\gamma, \alpha)$
+    - $\lvert \Gamma \vdash (x^s: A) \to B \rvert$ = $\bigcap_{\alpha \in \lvert \Gamma \vdash A \rvert} \lvert \Gamma; x^s: A \vdash B \rvert (\gamma, \alpha)$ if $B$ is predicate ... iff $(x^s: A) \to B$ is predicate
+    - $\lvert \Gamma \vdash (x^s: A) \to B \rvert$ = $\Pi_{\alpha \in \lvert \Gamma \vdash A \rvert} \lvert \Gamma: x^s: A \vdash B \rvert (\gamma \alpha)$
