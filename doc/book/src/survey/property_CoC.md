@@ -138,7 +138,7 @@ judgement はほとんどは The Structural Theory of Pure Type System に従う
                 ここで、この $t_1'$ は必ず $\lambda x: A'. t'$ の形をしていて、 $A \Rightarrow A', t_1 \Rightarrow t_1'$ であることが（定義を調べると）わかる。
                 また、帰納法の仮定から、 $A \rightarrow A' \Rightarrow A^*$, $t \Rightarrow t' \Rightarrow t^*$ が得られている。
                 $N = t_1' t_2' = (\lambda x: A'. t') t_2' \Rightarrow t^* [x := t_2^*] = (\lambda x: A. t)^* t_2^*$ 
-            - もし #def6 を用いて導出されたなら、 $t'$, $A', $t_2'$ によって $\lambda x: A. t \Rightarrow \lambda x:A'. t'$ と $t_2 \Rightarrow t_2^*$ を用いて
+            - もし #def6 を用いて導出されたなら、 $t'$, $A'$, $t_2'$ によって $\lambda x: A. t \Rightarrow \lambda x:A'. t'$ と $t_2 \Rightarrow t_2^*$ を用いて
                 $M = (\lambda x: A. t) t_2 \Rightarrow t'[x := t_2'] = N$ となっている。
                 ところで帰納法の仮定から、 $\lambda x: A'. t' \Rightarrow \lambda x: A^*. t^*$ と $t_2' \Rightarrow t_2^*$ が成り立っている。
                 $t'[x := t_2'] \Rightarrow t^*[x := t_2^*]$ が示せる。
@@ -149,12 +149,12 @@ judgement はほとんどは The Structural Theory of Pure Type System に従う
 barendregt の lambda calculi with typesね。
 #def4
 - context $\Gamma$ と $s$ に対して $\Gamma \vdash A: s$ となるものを $\Gamma$-type of $s$
-- context $\Gamma$ と $s$ に対して $\exists B, \Gamma \vdash A: B, \Gamma B: s$ となるものを $\Gamma$-element of $s$
+- context $\Gamma$ と $s$ に対して $\exists B, \Gamma \vdash A: B, \Gamma \vdash B: s$ となるものを $\Gamma$-element of $s$
 
 CoC の場合は、 term を 4 つに分類することができる：
 - $\square$
 - $\square$-type
-- $\square$-element $\superset$ $*$-type
+- $\square$-element $\supset$ $*$-type
 - $*$-element
 
 この分類をもとにモデルを考えたりする。
@@ -197,7 +197,7 @@ $$\Gamma x: A \vdash x: A \implies \Gamma \vdash x[x:=t] : A[x := t]$$
     - $(s, s') \in \mathcal{A}$
 - $\Gamma \vdash x: A$ なら $\exists B$ s.t.
     - $\Gamma \vdash B: s$
-    - $A =_\beta B
+    - $A =_\beta B$
     - $(x: B) \in \Gamma$
 - $\Gamma \vdash ((x: M) \to N): A$ なら $\exists (s_1, s_2) \in \mathcal{R}$ s.t.
     - $\Gamma \vdash M: s_1$
@@ -303,3 +303,28 @@ ZFC での interpretation を与えたのが set in types, type in sets に書�
     - $\lvert \Gamma \vdash \lambda x^s: A. t \rvert (\gamma) = \alpha \in \lvert \Gamma \vdash A \rvert(\gamma) \mapsto \lvert \Gamma; x^s: A \vdash t \rvert(\gamma, \alpha)$
     - $\lvert \Gamma \vdash (x^s: A) \to B \rvert$ = $\bigcap_{\alpha \in \lvert \Gamma \vdash A \rvert} \lvert \Gamma; x^s: A \vdash B \rvert (\gamma, \alpha)$ if $B$ is predicate ... iff $(x^s: A) \to B$ is predicate
     - $\lvert \Gamma \vdash (x^s: A) \to B \rvert$ = $\Pi_{\alpha \in \lvert \Gamma \vdash A \rvert} \lvert \Gamma: x^s: A \vdash B \rvert (\gamma \alpha)$
+
+まあこれはうまくいきそうということで。
+predicate かどうかの場合分けの際に、 proof はありえないが、 $a: *, p: a \to *$ のような場合には $a \to *$ は predicate でないことに注意。
+これは CoC でやっているので $\square$ が top sort ということからちょっとめんどくさいことがいろいろ出てくると思うが、
+Lean や Coq のような hierarchy を作る場合には、もうちょっと楽な気がする（ sort function が total になるので、 well-* なもののみ考えることができる。）
+依存型を入れるのに $(*, \square, \square)$ を入れるのは、 $*$ を型と強く思う場合なので、 $\square^i$ を型の住む本体と考えれば、 $(*, \square)$ はいらない。
+代わりに、"述語" として $A: \square^i$ に対して $(A \to *): \square^i$ が欲しくなる。
+しかしこれはふつうの $(\square^i, \square^j , \square^{\text{max}(i, j)})$ 則で対応可能。
+
+- $S = \{*, \square^i\}$
+- $A = \{(*, \square^1), (\square^i, \square^{i+1})\}$
+- $R = \{(*, *, *), (\square^i, *, *), (\square^i, \square^j, \square^{\text{max}(i, j)})\}$
+
+これで、 sort-labeled な PTS を考えれば、 $s(t)$ は全射になる。
+（ $\Gamma t: T : s(t)$ を考えたいので level が 2 つ上がる。）
+- $s(*)$ = $\square^2$
+- $s(\square^i)$ = $\square^{i+2}$
+- $s(x^s)$ = $s$
+- $s((x^s: A) \to B)$ = $(s(A), s(B), s)$ かつ $s: s'$ となる $s, s'$ が一意なので、この $s'$ 
+- $s(\lambda x^s: A. B)$ = 上と同様の定義。
+- $s(t u)$ = $s(t)$
+
+このとき、次が成り立つ。（ Generation 省略）
+#thm
+- $\Gamma \vdash t: T$ なら $\Gamma \vdash T: s(t)$
