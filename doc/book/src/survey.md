@@ -111,3 +111,9 @@ Coq や Lean の型システムについてのメモをとっておく。
   - https://link.springer.com/content/pdf/10.1007/BFb0014058.pdf?pdf=inline%20link
 - https://github.com/coq/coq/wiki/Impredicative-Set
 - https://ionathan.ch/2021/11/24/inconsistencies.html
+
+## ZFC について
+
+## その他
+- https://www.sciencedirect.com/science/article/pii/S0890540185710577
+  - parallel reduction と $M^*$ のやり方

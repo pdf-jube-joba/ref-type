@@ -31,7 +31,6 @@ judgement はほとんどは The Structural Theory of Pure Type System に従う
 示したいのは、「 $t \to_\beta t_1$ かつ $t \to_\beta t_2$ ならば、 $t'$ があって $t_1 \to_\beta^* t'$ かつ $t_2 \to_beta^* t'$ が成り立つ。」である。
 （この性質を合流性 (confluence) とか church-Rosser という。）
 
-
 これを示すのに、 parallel reduction と呼ばれる別の簡約を定義して、
 もとの簡約との関係を用いる方法がある。
 （ Tait, Martin-L"of method ?）
@@ -87,6 +86,7 @@ judgement はほとんどは The Structural Theory of Pure Type System に従う
       - $x \neq y$ なら $((\lambda x: A. t_1) t_2)[y := l] \equiv (\lambda x: A[y := l]. t_1[y := l]) t_2 \Rightarrow (t_1'[y := l'])[x := t_2'[y := l']] \equiv t_1'[x := t_2'][y := l']$ **ラムダ抽象への代入が行える条件から、 $l$はFVに$x$を持ってはいけない。なので、代入の順序を入れ替える補題が使える。**
 
 代入に関する補題として次を用いた。
+（ Barendregt の lambda calculi with types の prop 2.6.1 にある）
 #lem1
 1. $t_1[x := t_2[x := l]] \equiv t_1[x := t_2][x := l]$
 2. $x \neq y$ で $x \notin \text{FV}(l)$ なら $t_1[y := l][x := t_2[y := l]] \equiv t_1[x := t_2][y := l]$
@@ -169,7 +169,7 @@ CoC の場合は、 term を 4 つに分類することができる：
 - empty の場合(2) $\text{WF} \emptyset$ なので、 2 は満たされる
 - wf の場合(2) 「$\Gamma \vdash A: s$ かつ $x \notin \Gamma$ なら $\text{WF}(\Gamma::x^s: A)$」 に対して $\text{FV}(A) \subset \Gamma$ を示せばよい。これは帰納法の仮定の $\Gamma \vdash A: s$ からわかる。
 - axiom の場合(1) 「$\text{WF}(\Gamma)$ なら $\Gamma \vdash s_1: s_2$」 については、 $s_1, s_2$ は FV がないのでよい。
-- var の場合(1) 「$\text{WF}(\Gamma:: x^s: A)$ なら $\証明mma \vdash x: A$」に対して、 $\text{FV}(A) \subset \Gamma$ を示せばいい。これは帰納法の仮定から。
+- var の場合(1) 「$\text{WF}(\Gamma:: x^s: A)$ なら $\gamma \vdash x: A$」に対して、 $\text{FV}(A) \subset \Gamma$ を示せばいい。これは帰納法の仮定から。
 - weak の場合(1) 「$\Gamma \vdash M:N$ かつ $\text{WF}(\Gamma::x^s:A)$ なら $\Gamma::x^s:A \vdash M:N$」 に対して、 $\text{FV}(M), \text{FV}(N) \subset \Gamma::x^s: A$ を示すが、これは帰納法の仮定からすでに $\subset \Gamma$ が示せている。
 - prod の場合(1) 「$\Gamma \vdash A: s_1$ かつ $\Gamma::x^{s_1}:A \vdash B: s_2$ なら $\Gamma \vdash ((x^{s_1}: A) \to B): s_3$」に対して $\text{FV}((x^{s_1}: A) \to B) \subset \Gamma$ を示す。これは、帰納法の仮定から $\text{FV}(A) \subset \Gamma$ と $\text{FV}(B) \subset \Gamma \cup x$ がわかっているので、 $\text{FV}((x^{s_1}: A) \to B) = \text{FV}(B) - \{x\} \cup \text{FV}(A) \subset \Gamma$ である。
 - abs の場合(1) 「$\Gamma::x^s:A \vdash t: B$ かつ $\Gamma \vdash ((x^s: A) \to B): s'$ なら $\Gamma \vdash (\lambda x^s: A. t): ((x^s: A) \to B)$」 に対して $\text{FV}(\lambda x^s: A. t), \text{FV}((x^s: A) \to B) \subset \Gamma$ を示す。これは、帰納法の仮定からわかる。
@@ -317,7 +317,7 @@ Lean や Coq のような hierarchy を作る場合には、もうちょっと�
 - $R = \{(*, *, *), (\square^i, *, *), (\square^i, \square^j, \square^{\text{max}(i, j)})\}$
 
 これで、 sort-labeled な PTS を考えれば、 $s(t)$ は全射になる。
-（ $\Gamma t: T : s(t)$ を考えたいので level が 2 つ上がる。）
+（ $\Gamma \vdash t: T : s(t)$ を考えたいので level が 2 つ上がる。）
 - $s(*)$ = $\square^2$
 - $s(\square^i)$ = $\square^{i+2}$
 - $s(x^s)$ = $s$
@@ -325,6 +325,8 @@ Lean や Coq のような hierarchy を作る場合には、もうちょっと�
 - $s(\lambda x^s: A. B)$ = 上と同様の定義。
 - $s(t u)$ = $s(t)$
 
-このとき、次が成り立つ。（ Generation 省略）
+このとき、次が成り立つ。
+
 #thm
 - $\Gamma \vdash t: T$ なら $\Gamma \vdash T: s(t)$
+- $\text{WF}(\Gamma, x^s: A)$ なら $\Gamma \vdash A: s$
