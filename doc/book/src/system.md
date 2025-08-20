@@ -1,6 +1,8 @@
 # 体系について
 とりあえず、現在考えている体系をここにまとめる。
 ただし、まだ formal に定義できていない部分は載ってない。
+あと、 bind が発生するのがめんどくさいので、 $\{x: A \mid P\}$ ではなくて、 $\{A \mid P\}$ にしておく。
+この場合、 $\Pred(A, \{A' \mid P\}) \to_\beta P$ とする必要がある。
 
 ## Sort
 - $\mathcal{S} = \{*^p, *^s, \square\}$
@@ -34,7 +36,7 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
     - 集合に関する項
         | category | definition |
         | --- | --- |
-        | refinement type | $\{x: t \mid t\}$ |
+        | refinement type | $\{t \mid t\}$ |
         | power set | $\Power t$ |
         | predicate | $\Pred_t t$ or $\Pred(A, B)$ |
     - equiality の記述
@@ -54,6 +56,7 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
 ## reduction
 - $\Pred _A \{x: t \mid P\} \rightarrow^\beta \lambda x:t. P$
     - $A \equiv t$ のときをほぼ想定
+- あるいは、　$\Pred(A, \{B \mid P\}) \rightarrow^\beta P$
 - これ以外は普通のもの。
 
 ## context, judgement
@@ -68,17 +71,17 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 
 ## derivation
 ### Calculus of Constructions 部分
-| category | conclusion | premises |
-| --- | --- | --- |
-| empty | $\vdash \emptyset$ | |
-| axiom | $\emptyset \vdash s_1: s_2$ | $(s_1, s_2) \in \mathcal{A}$ |
-| start | $\vdash \Gamma::(x: t)$ | $\vdash \Gamma, x \notin \Gamma \\ \Gamma \vdash t: s$ |
-| weak | $\Gamma :: (x: t) \vdash t_1: t_2$ | $\Gamma \vdash t_1: t_2, \vdash \Gamma :: (x: t)$ |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| empty | $\vdash \emptyset$ | | |
+| axiom | $\emptyset \vdash s_1: s_2$ | | $(s_1, s_2) \in \mathcal{A}$ |
+| start | $\vdash \Gamma::(x: t)$ | $\vdash \Gamma, \Gamma \vdash t: s$ | $x \notin \Gamma$ |
+| weak | $\Gamma :: (x: t) \vdash t_1: t_2$ | $\Gamma \vdash t_1: t_2, \vdash \Gamma :: (x: t)$ | $x \notin \Gamma$ |
 | variable | $\Gamma :: (x: t) \vdash x: t$ | $\vdash \Gamma :: x: t$ |
-| conversion | $\Gamma \vdash t: T_2$ | $\Gamma \vdash t: T_1, T_1 \equiv^\beta T_2$ |
-| dependent product form | $\Gamma \vdash (\Pi x:t. T): s_3$ | $\Gamma \vdash t: s_1, x \notin \Gamma, \\ \Gamma:: (x: t) \vdash T: s_2, \\ (s_1, s_2, s_3) \in \mathcal{R}$
-| dep.prd. intro | $\Gamma \vdash (\lambda x:t.m): (\Pi x:t.M)$ | $\Gamma \vdash (\Pi x:t. M): s, \\ x \notin \Gamma, \Gamma:: (x:t) \vdash m: M$ |
-| dep.prd. elim | $\Gamma \vdash (f @ a): T[x := a]$ | $\Gamma \vdash f: (\Pi x: t. T), \Gamma \vdash a: t$ | 
+| conversion | $\Gamma \vdash t: T_2$ | $\Gamma \vdash t: T_1, \Gamma \vdash T_2: s$ | $T_1 \equiv^\beta T_2$ |
+| dependent product form | $\Gamma \vdash (\Pi x:t. T): s_3$ | $\Gamma \vdash t: s_1, \\ \Gamma:: (x: t) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}, x \notin \Gamma $
+| dep.prd. intro | $\Gamma \vdash (\lambda x:t.m): (\Pi x:t.M)$ | $\Gamma \vdash (\Pi x:t. M): s, \\ \Gamma:: (x:t) \vdash m: M$ | $x \notin \Gamma$ |
+| dep.prd. elim | $\Gamma \vdash (f @ a): T[x := a]$ | $\Gamma \vdash f: (\Pi x: t. T), \Gamma \vdash a: t$ | |
 
 ### provable
 | category | conclusion | premises |
@@ -91,19 +94,19 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- |
 | power set form | $\Gamma \vdash \Power A: *^s$ | $\Gamma \vdash A: *^s$ |
 | power set weak | $\Gamma \vdash B: *^s$ | $\Gamma \vdash B: \Power A$ |
-| subset form | $\Gamma \vdash \{x: A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma:: (x: A) \vdash P: *^p, x \notin \Gamma$ |
+| subset form | $\Gamma \vdash \{A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma \vdash P: A \to *^p$ |
 | predicate form | $\Gamma \vdash \Pred_A B: A \to *^p$ | $\Gamma \vdash B: \Power A$ |
 | subset intro | $\Gamma \vdash t: B$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: A, \\ \Gamma \vDash (\Pred_A B) @ t$ |
 | susbet weak | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: B$ |
 
 ### set rel
-| category | conclusion | premises |
-| --- | --- | --- |
-| setrel refl | $\Gamma \vdash X \leq X$ | $\Gamma \vdash X: *^s$ |
-| setrel trans | $\Gamma \vdash X_1 \leq X_3$ | $\Gamma \vdash X_1 \leq X_2, \Gamma \vdash X_2 \leq X_3$ | 
-| setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2$ |
-| setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma, x: X \vdash X_1 \leq X_2, x \notin \Gamma$ |
-| subset element | $\Gamma \vdash t: X_2$ | $\Gamma \vdash X_1 \leq X_2, \Gamma \vdash t: X_1$ |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| setrel refl | $\Gamma \vdash X \leq X$ | $\Gamma \vdash X: *^s$ | |
+| setrel trans | $\Gamma \vdash X_1 \leq X_3$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash X_2 \leq X_3$ | |
+| setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2$ | |
+| setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma \vdash X: *^s \\ \Gamma, x: X \vdash X_1 \leq X_2$ | $x \notin \Gamma$ |
+| subset element | $\Gamma \vdash t: X_2$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash t: X_1$ | |
 
 ### Identity
 | category | conclusion | premises |
@@ -119,5 +122,5 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma  \vdash e: t$ |
-| take intro | $\Gamma \vdash (\Take x: T. t): M$ | $\Gamma \vdash T: *^s, \Gamma \vdash M: *^s, x \notin \Gamma \\ \Gamma:: x: T \vdash t: M, \\ \Gamma \vDash \exists t, \\ \Gamma \vDash \Pi (y_1: T). \Pi (y_2: T). t[x := y_1] =_M t[x := y_2]$ |
-| take elim | $\Gamma \vDash (\Take x: T. t) =_M t[x := e]$ | $\Gamma \vdash (\Take x: T): M, \Gamma \vdash e: T$
+| take intro | $\Gamma \vdash (\Take x: T. m): M$ | $\Gamma \vdash T: *^s, \Gamma \vdash M: *^s, x \notin \Gamma \\ \Gamma:: x: T \vdash m: M, \\ \Gamma \vDash \exists T, \\ \Gamma \vDash \Pi (y_1: T). \Pi (y_2: T). m[x := y_1] =_M m[x := y_2]$ |
+| take elim | $\Gamma \vDash (\Take x: T. m) =_M m[x := e]$ | $\Gamma \vdash (\Take x: T. m): M, \Gamma \vdash e: T$

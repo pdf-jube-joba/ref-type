@@ -1,5 +1,6 @@
 拡張した体系として、部分型・べき・述語・存在・take を入れてた。
 これの confluence を示す。
+
 Tait-Martin-Lof の parallel reduction と Takahashi の $M^*$ を使えばできそう。
 term はだいたい cong にやってるが、次のものだけ追加されている。
 - $\Pred (A, \{x: t \mid P \}) \rightarrow^\beta \lambda x:t. P$
@@ -10,7 +11,19 @@ term はだいたい cong にやってるが、次のものだけ追加されて
 - $(\Pred (A, \{x: t \mid P\}))^* = \lambda x: t^*. P^*$ 
 
 としておく。
+
+$\{A \mid P\}$ を使う場合は次のようにする。
+- $\Pred(A, \{B \mid P\}) \to_\beta P$
+- $\Pred(A, \{B \mid P\}) \Rightarrow P'$ if $A \Rightarrow A', B \Rightarrow B', P \Rightarrow P'$
+- $\Pred(A, B) \Rightarrow \Pred(A', B')$ if ...
+- $\Pred(A, \{B \mid P\})^* = P^*$ 
+
 # ちゃんと全部書いておく
+## 代入順序の交換について
+$M[x := L][y := N[x := L]] = M[y := N][x := L]$ が成り立つ。
+（ただし、束縛変数に関する条件があるので注意）
+証明はしないでいいか。
+
 ## parallel reduction
 base case
 - $s \Rightarrow s$
@@ -33,24 +46,28 @@ redux case
 Remark: beta reduction はここから次のように制限したものになる。
 - $s \Rightarrow s$ と $x^s \rightarrow x^s$ を抜く
 - sub term はそれぞれ一つだけ reduction を進める
-  - 例： $(x^s: A) \to B \to_beta (x^s: A') \to B$ みたいに、 $A$ が進んだときは $B$ を進めない。
-- $(\lambda x^s: A. M) B \to_beta B[x := A]$ のような redux は subterm を進めない。 $\Pred(A, \{x: B \mid P\}) \to_beta \lambda x: B. P$ もそう。
+  - 例： $(x^s: A) \to B \to_\beta (x^s: A') \to B$ みたいに、 $A$ が進んだときは $B$ を進めない。
+- $(\lambda x^s: A. M) B \to_\beta B[x := A]$ のような redux は subterm を進めない。
+  - $\Pred(A, \{x: B \mid P\}) \to_\beta \lambda x: B. P$ もそう。
+  - $\Pred(A, \{B \mid P\}) \to_\beta P$ もそう。
 
 #### $M \Rightarrow M$
 base case と congruent なやつを使えば、 $M$ の構造についての帰納法でよい。
 
 #### $M \to_\beta N$ なら $M \Rightarrow N$
-$\to_beta$ の構成に関する帰納法でよい。
+$\to_\beta$ の構成に関する帰納法でよい。
 このさいに $M \Rightarrow M$ が必要になる。
 $\to_\beta$ も congruent に定義しているところでは、そのまま次のような議論が使える。
-- $M N \to_beta M' N$ で $M \to_beta M'$ のとき、帰納法の仮定から $M \Rightarrow M'$ が得られて、 $N \Rightarrow N$ と合わせて par.red ができる。
-そうじゃなくて、 redux っぽいところはこれも対応する par.red を考えればいい。
+- $M N \to_\beta M' N$ で $M \to_\beta M'$ のとき、帰納法の仮定から $M \Rightarrow M'$ が得られて、 $N \Rightarrow N$ と合わせて par.red ができる。
+
+そうじゃない、 redux っぽいところはこれも対応する par.red を考えればいい。
 - $(\lambda x^s: A. M) B \to_\beta M [x := B]$ のとき、 $M \Rightarrow M, B \Rightarrow B, A \Rightarrow A$ から、これと par.red ができる。
-- $\Pred(A, \{x: B \mid P\}) \to_\beta \lambda x^{*^s}:B. P $ のときは、これも上と同様。
+- $\Pred(A, \{x: B \mid P\}) \to_\beta \lambda x:B. P $ のときは、これも上と同様。
+- $\Pred(A, \{B \mid P\}) \to_\beta P$ のときも同様。
 
 #### $M \Rightarrow N$ なら $M \to_\beta^* N$
 $M \Rightarrow N$ の構成に関する帰納法でよい。
-- base case に対しては、 $\to_beta^*$ は reflective + transitive な閉包なので、 reflective の方からわかる。
+- base case に対しては、 $\to_\beta^*$ は reflective + transitive な閉包なので、 reflective の方からわかる。
 - cong case に対しては、帰納法の仮定から楽にできる。
   - 例： $M N \Rightarrow M' N'$ if $M \Rightarrow M', N \Rightarrow N'$ に対しては、帰納法の仮定から $M \to_\beta^* M', N \to_\beta N'$ が得られていて、 $\to_\beta$ の cong の方を適用すればいい。
 - redux case に対しては、これも redux + 帰納法の仮定からわかる。
@@ -58,10 +75,6 @@ $M \Rightarrow N$ の構成に関する帰納法でよい。
   帰納法の仮定から、 $A \to_\beta^* A', B \to_\beta^* B', M \to_\beta M'$ が得られている。よって、 $(\lambda x^s: A. M) B \to_\beta^* \lambda (x^s: A'. M') B' \to_\beta M'[x := B']$ になる。
 
 他は全部同じようにできる。
-
-#### 代入順序の交換について
-$M[x := L][y := N[x := L]] = M[y := N][x := L]$ が成り立つ。
-（ただし、束縛変数に関する条件があるので注意）
 
 #### $M \Rightarrow M', N \Rightarrow N'$ なら $M[x: = N] \Rightarrow M'[x: = N']$
 binding を行うような項（ $(x^s: A) \to B$, $\lambda x: A. B$, $\{x: A \mid P\}$, $\Take x: A. B$ ）は、α同値で代入する変数とかぶらないようにしておく。
@@ -80,6 +93,7 @@ redux case: この場合、代入の順序の入れ替えに関する補題を�
   $$ ((\lambda y^s: A. M) B)[x := N] \Rightarrow (M'[y^s := B'])[x := N'] $$
   ここで、 $((\lambda y^s: A. M) B)[x := N] \equiv (\lambda y^s: A[x := N]. M[x := N]) B[x := N] \Rightarrow (M'[x := N'])[y := B'[x := N']] \equiv M'[y := B'][x := N']$ である。（ここで束縛の仮定を用いることになる。）
 - $\Pred(A, \{y: B \mid P\}) \Rightarrow \lambda y^{*^s}:B'. P'$ のとき。帰納法の仮定から $B[x := N] \Rightarrow B'[x := N']$ と $P[x := N] \Rightarrow P'[x := N']$ が得られている。なので、 $\Pred()[x := N] = \Pred(A, \{y \mid B[] \mid P[]\}) \Rightarrow \lambda y: B'[]. P'[]$ からわかる。
+- $\Pred(A, \{B \mid P\}) \Rightarrow P'$ の場合も同様。
 
 ## $M^*$ を作る
 base case
@@ -109,6 +123,7 @@ $M$ の構造に関する帰納法を用いる。
   - $M \equiv \Pred(A, \{x: B \mid P\})$ のとき。
     - $N \equiv \lambda x: B'. P'$ のときには帰納法の仮定から $B' \Rightarrow B^*$ と $P' \Rightarrow P^*$ が得られているので、 $\lambda x: B'. P' \Rightarrow \lambda x: B^*. P^*$ である。
     - $N \equiv \Pred(A', \{x: B' \mid P'\})$ のときには帰納法の仮定から $B' \Rightarrow B^*$ などが得られているので $\Pred(A', \{x: B' \mid P'\}) \Rightarrow \lambda x: B^*. P^*$ である。
+  - $M \equiv \Pred(A, \{B \mid P\})$ のときは議論が同じ。
 
 #### confluence
 $M \Rightarrow M_1, M_2$ でも $M_1, M_2 \Rightarrow M^*$ がわかるので、 $\Rightarrow$ は合流性があるから、これに挟まれている $\to_\beta$ も合流性がある。

@@ -184,9 +184,6 @@ $*^p: \square^0$, $\square^i: \square^(o+1)$ とは別に、 $*^s_i: *^s_(i+1)$ 
 $*^s_i$ と $\square^i$ はそれぞれ predicative にして inductive type まわりを整備したうえで、
 $(\square^i, *^p), (*^s_i, *^p)$ を用意すれば、 $x: *^s$ に対して $(y: *^s, f: y \to x)$ を全部集めてきたような"集合"を扱えている？
 
-## non-structural recursion について
-別のところに書いた。
-
 # 具体例
 ## $2 \mathbb{N}$
 refinement がある時点で、 $2: 2 \mathbb{N}$ は示せる。
