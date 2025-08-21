@@ -102,7 +102,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 ### set rel
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| setrel refl | $\Gamma \vdash X \leq X$ | $\Gamma \vdash X: *^s$ | |
+| setrel refl | $\Gamma \vdash X \leq X'$ | $\Gamma \vdash X: *^s, \Gamma \vdash X': *^s$ | $X \equiv^\beta$ |
 | setrel trans | $\Gamma \vdash X_1 \leq X_3$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash X_2 \leq X_3$ | |
 | setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2$ | |
 | setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma \vdash X: *^s \\ \Gamma, x: X \vdash X_1 \leq X_2$ | $x \notin \Gamma$ |
@@ -115,12 +115,12 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | id intro | $\Gamma \vDash a =_A a$ | $\Gamma \vdash a =_A a: *^p$ |
 | id elim | $\Gamma \vDash P @ b$ | $\Gamma \vDash a =_A b, \Gamma \vdash P: A \to *^p, \Gamma \vDash P @ a$ |
 | id superset | $\Gamma \vDash a =_A b$ | $\Gamma \vDash a =_B b, \Gamma \vdash B: \Power A$ |
-| id subset | $\Gamma \vDash a =_B b$ | $\Gamma \vDash a =_A b, \Gamma \vdash B: \Power A$ |
+| id subset | $\Gamma \vDash a =_B b$ | $\Gamma \vDash a =_A b, \Gamma \vdash B: \Power A, \Gamma \vdash a: B, \Gamma \vdash b: B$ |
 
 ### independent choice
 | category | conclusion | premises |
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma  \vdash e: t$ |
-| take intro | $\Gamma \vdash (\Take x: T. m): M$ | $\Gamma \vdash T: *^s, \Gamma \vdash M: *^s, x \notin \Gamma \\ \Gamma:: x: T \vdash m: M, \\ \Gamma \vDash \exists T, \\ \Gamma \vDash \Pi (y_1: T). \Pi (y_2: T). m[x := y_1] =_M m[x := y_2]$ |
+| take intro | $\Gamma \vdash (\Take x: T. m): M$ | $\Gamma \vdash T: *^s, \Gamma \vdash M: *^s, x \notin \Gamma \\ \Gamma:: x: T \vdash m: M, \\ \Gamma \vDash \exists T, \\ \Gamma :: (y_1: T) :: (y_2: T) \vdash m[x := y_1] =_M m[x := y_2]$ |
 | take elim | $\Gamma \vDash (\Take x: T. m) =_M m[x := e]$ | $\Gamma \vdash (\Take x: T. m): M, \Gamma \vdash e: T$

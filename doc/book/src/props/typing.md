@@ -64,4 +64,3 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 ## generation lemma
 generation lemma とは $\Gamma \vdash t: T$ に対して $t$ の形をもとに $T \equiv \text{なんかいい感じの形}$ が証明できるという形のもの。
 ここではほかにも、 $\Gamma \vDash P$ や $\Gamma \vdash X_1 \leq X_2$ についてもいえる。
-このとき、重要なのは、"すべての導出木"で同時に相互再帰をすること。
