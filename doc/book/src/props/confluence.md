@@ -18,6 +18,9 @@ $\{A \mid P\}$ を使う場合は次のようにする。
 - $\Pred(A, B) \Rightarrow \Pred(A', B')$ if ...
 - $\Pred(A, \{B \mid P\})^* = P^*$ 
 
+あと、 $\Take$ も束縛が発生しないようにするには $\Take f$ のようにするが、
+redux みたいな部分は増えないのでやることは特に増えない。
+
 # ちゃんと全部書いておく
 ## 代入順序の交換について
 $M[x := L][y := N[x := L]] = M[y := N][x := L]$ が成り立つ。
@@ -38,6 +41,7 @@ cong case
 - $\Pred(A, B) \Rightarrow \Pred(A', B')$ if $A \Rightarrow A', B \Rightarrow B'$
 - $a =_A b \Rightarrow a' =_{A'} b'$ if $A \Rightarrow A', a \Rightarrow a', b \Rightarrow b'$
 - $\Take x: A. B \Rightarrow \Take x: A'. B'$ if $A \Rightarrow A', B \Rightarrow B'$ 
+- $\Take f \Rightarrow \Take f'$ if $f \Rightarrow f'$
 - $\exists A \Rightarrow \exists A'$ if $A \Rightarrow A'$
 redux case
 - $\Pred(A, \{x: B \mid P\}) \Rightarrow \lambda x: B'. P'$ if $A \Rightarrow A', B \Rightarrow B', P \Rightarrow P'$

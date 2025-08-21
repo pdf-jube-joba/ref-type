@@ -58,7 +58,7 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
   まずは帰納法の仮定から得られる、 premise それぞれに $[x := t]$ を付けたものを考える。
   そこから自然に得られる導出木はほとんど気にしなくてよくて、 $\Gamma \vdash (y_1: T'[]) \to (y_2 : T'[]) \to m[x' := y_1][x := t] =_M m[x' := y_2][x := t]$ だけ気にしないといけない。
   ただこれは、代入順序の補題から、 $\Gamma \vdash \cdots m[x := t][x' := y_1] =_M m[x := t][x' := y_2]$ とできるからよい。
-- take.elim の場合：
+- take.elim （ bind あり）の場合：
   これも気にするのは、 $ \cdot =_M m[x' := e]$ の代入の順番であるが、 $m[x' := e][x := t] = m[x := t][x' := e[x := t]]$ よりよい。
 
 ## generation lemma
@@ -80,8 +80,28 @@ generation lemma とは $\Gamma \vdash t: T$ に対して $t$ の形をもとに
 
 #thm
 - $\Gamma \vdash X_1 \leq X_2$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2: *^s$
+
+証明：
+- setrel refl なら premises にある
+- setrel trans なら帰納法の仮定
+- setrel sub なら premises にある
+- setrel codomain なら premises の $\Gamma::x: X \vdash X_1 \leq X_2$ に帰納法の仮定を適用すれば、
+  $\Gamma::x: X \vdash X_i: :*^s$ が得られるから、
+  dep.form に適用すると、 $\Gamma \vdash (x: X) \to X_i: *^s$ がわかる。
+
+#thm
+- $\Gamma \vdash \Power X_1: X_2$ なら $\Gamma \vdash X_1: *^s$
+
+証明：
+- conversion ならそのまま帰納法の仮定を適用する。
+- powerset form なら premises にある
+- powerset weak, subset into, subset element なら帰納法の仮定を適用する。
+
+
+#thm
 - $\Gamma \vdash X_1: X_2$ かつ $X_2 \equiv_\beta \Power X_2'$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2': *^s$
-- $\Gamma \vdash \Power X_1: X_2$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2: *^s$
+
+証明：
 
 #thm
 - $\Gamma \vdash s: T$ なら $\exists s'. T \equiv s'$ かつ $(s, s') \in \mathcal{R}$

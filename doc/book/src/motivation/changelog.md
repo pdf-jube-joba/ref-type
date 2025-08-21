@@ -154,8 +154,16 @@ $\eta$ を入れれば一部は改善する： $\Gamma \vdash t: (x: A) \to B$ �
 - 反射律と推移律
 - $(x: A) \to X_1 \leq (x: A) \to X_2$ if $X_1 \leq X_2$
 
-### equality について
+## equality について
 型理論からの類推から、 equality は $a =_A b$ として導入してきた。
 ただ、 $a =_A b \Leftrightarrow a =_B b$ などが欲しいことを考えると、 $a = b$ の形にしてしまってもいい気がする。
 $a = b$ が示せるなら当然 $P @ a \implies P @ b$ が欲しいので、型付け部分の一致については指定したうえで、これを導入する。
 これがあれば、 $=$ に必要なものは全部証明できたはず。
+
+## $\Pred(A, B)$ の型について
+$\Pred(A, \{\{B \mid P\} \mid Q\})$ を考えると、 $\{\{B \mid P\} \mid Q\} \leq \{A \mid P\} \leq A$ が成り立つ。
+ここで、 $\Pred(A, B)$ if $B \leq A$ とすると、次のように reduction で型がおかしくなる。
+- $\Pred(A, \{\{\} \mid Q\})$: $A \to *^p$
+- $\Pred(A, \{\{\} \mid Q\}) \to Q$: $\{B \mid P\} \to *^p$
+
+なので、 $B: \Power A$ とした方がいい。

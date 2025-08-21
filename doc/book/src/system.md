@@ -104,9 +104,10 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- | --- |
 | setrel refl | $\Gamma \vdash X \leq X'$ | $\Gamma \vdash X: *^s, \Gamma \vdash X': *^s$ | $X \equiv^\beta X'$ |
 | setrel trans | $\Gamma \vdash X_1 \leq X_3$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash X_2 \leq X_3$ | |
-| setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2$ | |
+| setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2, \\ \Gamma \vdash X_1: *^s, \\ \Gamma \vdash X_2: *^s$ | |
 | setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma \vdash X: *^s \\ \Gamma, x: X \vdash X_1 \leq X_2$ | $x \notin \Gamma$ |
 | subset element | $\Gamma \vdash t: X_2$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash t: X_1$ | |
+
 
 ### Identity
 | category | conclusion | premises |
@@ -123,4 +124,6 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | take intro | $\Gamma \vdash (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
 | take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash Y: *^s \\ \Gamma \vdash \Take f: Y, \Gamma \vdash e: Y$
 
-take.elim の $\Gamma \vdash Y:*^s$ は議論を簡単にするためのやつ。
+以下、議論を簡単にするために調整したもの
+- setrel sub の $:*^s$
+- take.elim の $\Gamma \vdash Y:*^s$
