@@ -42,9 +42,9 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
     - equiality の記述
         | category | definition |
         | --- | --- |
-        | equality type | $ t =_t t$ |
+        | equality type | $ t = t$ |
         | existence | $\exists t$ |
-        | take operator | $\Take x.t: t$ |
+        | take operator | $\Take t$ |
 - context: $\Gamma=$
     | category | definition |
     | --- | --- |
@@ -102,7 +102,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 ### set rel
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| setrel refl | $\Gamma \vdash X \leq X'$ | $\Gamma \vdash X: *^s, \Gamma \vdash X': *^s$ | $X \equiv^\beta$ |
+| setrel refl | $\Gamma \vdash X \leq X'$ | $\Gamma \vdash X: *^s, \Gamma \vdash X': *^s$ | $X \equiv^\beta X'$ |
 | setrel trans | $\Gamma \vdash X_1 \leq X_3$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash X_2 \leq X_3$ | |
 | setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2$ | |
 | setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma \vdash X: *^s \\ \Gamma, x: X \vdash X_1 \leq X_2$ | $x \notin \Gamma$ |
@@ -111,16 +111,14 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 ### Identity
 | category | conclusion | premises |
 | --- | --- | --- |
-| id form | $\Gamma \vdash a =_A b: *^p$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A, \Gamma \vdash b: A$ |
-| id intro | $\Gamma \vDash a =_A a$ | $\Gamma \vdash a =_A a: *^p$ |
-| id elim | $\Gamma \vDash P @ b$ | $\Gamma \vDash a =_A b, \Gamma \vdash P: A \to *^p, \Gamma \vDash P @ a$ |
-| id superset | $\Gamma \vDash a =_A b$ | $\Gamma \vDash a =_B b, \Gamma \vdash B: \Power A$ |
-| id subset | $\Gamma \vDash a =_B b$ | $\Gamma \vDash a =_A b, \Gamma \vdash B: \Power A, \Gamma \vdash a: B, \Gamma \vdash b: B$ |
+| id form | $\Gamma \vdash a = b: *^p$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A, \Gamma \vdash b: A$ |
+| id intro | $\Gamma \vDash a = a$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A$ |
+| id elim | $\Gamma \vDash P @ b$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A, \Gamma \vdash b: A, \Gamma \vDash a = b, \\ \Gamma \vdash P: A \to *^p, \Gamma \vDash P @ a$ |
 
 ### independent choice
 | category | conclusion | premises |
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma  \vdash e: t$ |
-| take intro | $\Gamma \vdash (\Take x: T. m): M$ | $\Gamma \vdash T: *^s, \Gamma \vdash M: *^s, x \notin \Gamma \\ \Gamma:: x: T \vdash m: M, \\ \Gamma \vDash \exists T, \\ \Gamma :: (y_1: T) :: (y_2: T) \vdash m[x := y_1] =_M m[x := y_2]$ |
-| take elim | $\Gamma \vDash (\Take x: T. m) =_M m[x := e]$ | $\Gamma \vdash (\Take x: T. m): M, \Gamma \vdash e: T$
+| take intro | $\Gamma \vdash (\Take f): Y$ | $\Gamma \vdash X \to Y: *^s, \Gamma \vdash f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
+| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash f: X \to Y \\ \Gamma \vdash \Take f: Y, \Gamma \vdash e: Y$

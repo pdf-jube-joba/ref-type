@@ -2,6 +2,7 @@
 - [README](./README.md)
 - [System](./system.md)
 - [Motivation](./motivation.md)
+  - [changelog](./motivation/changelog.md)
   - [non-structural recursion](./motivation/non-structural-recursion.md)
 - [Survey](./survey.md)
   - [PTS](./survey/PTS.md)
