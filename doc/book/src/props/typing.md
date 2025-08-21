@@ -64,3 +64,26 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 ## generation lemma
 generation lemma とは $\Gamma \vdash t: T$ に対して $t$ の形をもとに $T \equiv \text{なんかいい感じの形}$ が証明できるという形のもの。
 ここではほかにも、 $\Gamma \vDash P$ や $\Gamma \vdash X_1 \leq X_2$ についてもいえる。
+いくつかの命題は、相互再帰をする必要がある。
+
+#thm
+- $\Gamma \vDash P$ なら $\Gamma \vdash P: *^p$
+
+証明：導出木を見てみる。
+- provable: $\Gamma \vDash P$ if $\Gamma \vdash p: P, \Gamma \vdash P: *^p$ なら仮定にある。
+- subset weak: $\Gamma \vDash (\Pred(A, B)) @ t$ if $\Gamma \vdash B: \Power(A), \Gamma t: B$ なら、
+  $\Gamma \vdash \Pred(A, B): A \to *^p$ が示せるから、これと dep.elim により導出できる。
+- id.intro なら $\Gamma \vDash a = a$ if $\Gamma \vdash A: *^s, \Gamma \vdash a: A$ から id form を適用すればいい。
+- id.elim なら、 $\Gamma \vDash P @ b$ if $\Gamma \vdash A: *^s, \Gamma \vdash a, b: A, \Gamma \vdash P: A \to *^p$ より、 dep.elim により導出できる。
+- exists.intro なら仮定にある。
+- take.elim なら $\Gamma \vdash \Take f: Y, \Gamma \vdash e: Y, \Gamma \vdash Y: *^s$ より id intro により導出できる。
+
+#thm
+- $\Gamma \vdash X_1 \leq X_2$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2: *^s$
+- $\Gamma \vdash X_1: X_2$ かつ $X_2 \equiv_\beta \Power X_2'$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2': *^s$
+- $\Gamma \vdash \Power X_1: X_2$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2: *^s$
+
+#thm
+- $\Gamma \vdash s: T$ なら $\exists s'. T \equiv s'$ かつ $(s, s') \in \mathcal{R}$
+
+証明：

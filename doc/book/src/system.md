@@ -120,5 +120,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma  \vdash e: t$ |
-| take intro | $\Gamma \vdash (\Take f): Y$ | $\Gamma \vdash X \to Y: *^s, \Gamma \vdash f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
-| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash f: X \to Y \\ \Gamma \vdash \Take f: Y, \Gamma \vdash e: Y$
+| take intro | $\Gamma \vdash (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
+| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash Y: *^s \\ \Gamma \vdash \Take f: Y, \Gamma \vdash e: Y$
+
+take.elim の $\Gamma \vdash Y:*^s$ は議論を簡単にするためのやつ。
