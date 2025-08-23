@@ -8,6 +8,15 @@
 
 証明は、導出木に関する帰納法を用いる。
 
+## variable の導出
+- $\text{WF}(\Gamma)$ かつ $(x: T) \in \Gamma$ なら $\Gamma \vdash x: T$
+
+証明：
+$\text{WF}(\Gamma)$ は empty と start のみから導出されているので、
+$\Gamma = \Gamma_1 :: (x: T) :: \Gamma_2$ に対して $\text{WF}(\Gamma)$ の導出木を分析すれば、
+$\Gamma_1 \vdash T: s, x \notin \Gamma \implies \text{WF}(\Gamma_1::(x:T))$ の部分があるはず。
+ここから、 $\Gamma_1 :: x: T \vdash x: T$ が示せて、あとは weak を $\Gamma_2$ に合わせて広げていくだけ。
+
 ## substitution lemma
 $\Gamma \vdash t: T$ とする。
 - $\text{WF}(\Gamma:: x: T::\Gamma')$ なら $\text{WF}(\Gamma::(\Gamma'[x := t]))$
@@ -65,38 +74,56 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 generation lemma とは $\Gamma \vdash t: T$ に対して $t$ の形をもとに $T \equiv \text{なんかいい感じの形}$ が証明できるという形のもの。
 ここではほかにも、 $\Gamma \vDash P$ や $\Gamma \vdash X_1 \leq X_2$ についてもいえる。
 いくつかの命題は、相互再帰をする必要がある。
+そのため、まとめて箇条書きしているものは相互再帰としておく。
+$T$ 側の形はあまり考えないほうがいい。理由は単純に、「dep.elim の $T[x := a]$ が hogehoge の形をしているとき ...」の議論は全然うまくいかないから。
+それと、 $t \equiv^\beta \text{hoge}$ もうまくいかない。 $f @ a \equiv \text{hoge}$ は扱うのが難しすぎる。
+
+一度帰納法を思い出しておくと、
+$P(0) \to (\forall n. P(n) \to P(n+1)) \to \forall n. P(n)$ のような形だが、
+「 $P(n) \to (n+1)$ の前件が成り立たないから全体が成り立つ」のような議論が許されることに注意する。
 
 #thm
 - $\Gamma \vDash P$ なら $\Gamma \vdash P: *^p$
 
 証明：導出木を見てみる。
-- provable: $\Gamma \vDash P$ if $\Gamma \vdash p: P, \Gamma \vdash P: *^p$ なら仮定にある。
+- provable: $\Gamma \vDash P$ if $\Gamma \vdash p: P, \Gamma \vdash P: *^p$ なら premises にある。
 - subset weak: $\Gamma \vDash (\Pred(A, B)) @ t$ if $\Gamma \vdash B: \Power(A), \Gamma t: B$ なら、
   $\Gamma \vdash \Pred(A, B): A \to *^p$ が示せるから、これと dep.elim により導出できる。
-- id.intro なら $\Gamma \vDash a = a$ if $\Gamma \vdash A: *^s, \Gamma \vdash a: A$ から id form を適用すればいい。
-- id.elim なら、 $\Gamma \vDash P @ b$ if $\Gamma \vdash A: *^s, \Gamma \vdash a, b: A, \Gamma \vdash P: A \to *^p$ より、 dep.elim により導出できる。
-- exists.intro なら仮定にある。
-- take.elim なら $\Gamma \vdash \Take f: Y, \Gamma \vdash e: Y, \Gamma \vdash Y: *^s$ より id intro により導出できる。
+- id.intro: $\Gamma \vDash a = a$ if $\Gamma \vdash A: *^s, \Gamma \vdash a: A$ から id form を適用すればいい。
+- id.elim: $\Gamma \vDash P @ b$ if $\Gamma \vdash A: *^s, \Gamma \vdash a, b: A, \Gamma \vdash P: A \to *^p$ より、 dep.elim により導出できる。
+- exists.intro: premises にある。
+- take.elim: $\Gamma \vdash \Take f: Y, \Gamma \vdash e: Y, \Gamma \vdash Y: *^s$ より id intro により導出できる。
 
 #thm
 - $\Gamma \vdash X_1 \leq X_2$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2: *^s$
 
 証明：
-- setrel refl なら premises にある
-- setrel trans なら帰納法の仮定
-- setrel sub なら premises にある
-- setrel codomain なら premises の $\Gamma::x: X \vdash X_1 \leq X_2$ に帰納法の仮定を適用すれば、
+- setrel refl: premises にある。
+- setrel trans: premises に帰納法の仮定を適用すればいい。
+- setrel sub: premises にある。
+- setrel codomain: premises の $\Gamma::x: X \vdash X_1 \leq X_2$ に帰納法の仮定を適用すれば、
   $\Gamma::x: X \vdash X_i: :*^s$ が得られるから、
   dep.form に適用すると、 $\Gamma \vdash (x: X) \to X_i: *^s$ がわかる。
 
 #thm
-- $\Gamma \vdash \Power X_1: X_2$ なら $\Gamma \vdash X_1: *^s$
+1. $\Gamma \vdash s: T$ なら $\exists s'. T \equiv^\beta s'$ かつ $(s, s') \in \mathcal{R}$
+2. $\Gamma \vdash \Power X_1: X_2$ なら $\Gamma \vdash X_1: *^s$
 
 証明：
-- conversion ならそのまま帰納法の仮定を適用する。
-- powerset form なら premises にある
-- powerset weak, subset into, subset element なら帰納法の仮定を適用する。
+- axiom (1.): $T = s'$ として other にある。 
+- weak (1. 2.): そのまま premises に帰納法の仮定を適用する
+- conversion:
+  - (1.): $\Gamma \vdash s: T_2$ if $\Gamma \vdash s: T_1, \Gamma \vdash T_2: s', T_1 \equiv T_2$ なので premises の $T_1$ に帰納法の仮定を適用すると $T_1 \equiv s_0$ で $(s, s_0) \in \mathcal{R}$ が出てくるので、 $T_2 \equiv s_0$ となるからよい。
+  - (2.): $\Gamma \vdash \Power X_1: T_2$ に帰納法の仮定を適用する。
+- powerset.form: (2.): premises にある。
+- powerset.weak:
+  - (1.): premises に $\Gamma \vdash s: \Power A$ が入るが、帰納法の仮定 (1.) を考えると $\Power A \cong s'$ となり合流性から矛盾する。
+    つまり、このケースは起こらない。（帰納法の前件の矛盾から、全体として成り立つ）
+  - (2.): premises に帰納法を適用する。
+- subset.intro: 
+  - (1.): $\Gamma \vdash s: B$ かつ $\Gamma \vdash B: *^s$ が得られているが、
 
+全然示せない。
 
 #thm
 - $\Gamma \vdash X_1: X_2$ かつ $X_2 \equiv_\beta \Power X_2'$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2': *^s$
@@ -104,6 +131,5 @@ generation lemma とは $\Gamma \vdash t: T$ に対して $t$ の形をもとに
 証明：
 
 #thm
-- $\Gamma \vdash s: T$ なら $\exists s'. T \equiv s'$ かつ $(s, s') \in \mathcal{R}$
 
 証明：

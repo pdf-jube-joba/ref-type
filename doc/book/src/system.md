@@ -96,7 +96,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | power set weak | $\Gamma \vdash B: *^s$ | $\Gamma \vdash B: \Power A$ |
 | subset form | $\Gamma \vdash \{A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma \vdash P: A \to *^p$ |
 | predicate form | $\Gamma \vdash \Pred_A B: A \to *^p$ | $\Gamma \vdash B: \Power A$ |
-| subset intro | $\Gamma \vdash t: B$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: A, \\ \Gamma \vDash (\Pred_A B) @ t$ |
+| subset intro | $\Gamma \vdash t: B$ | $\Gamma \vdash B: \Power A, \\ \Gamma \vdash t: A, \Gamma \vDash (\Pred_A B) @ t$ |
 | susbet weak | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: B$ |
 
 ### set rel
@@ -107,7 +107,6 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2, \\ \Gamma \vdash X_1: *^s, \\ \Gamma \vdash X_2: *^s$ | |
 | setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma \vdash X: *^s \\ \Gamma, x: X \vdash X_1 \leq X_2$ | $x \notin \Gamma$ |
 | subset element | $\Gamma \vdash t: X_2$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash t: X_1$ | |
-
 
 ### Identity
 | category | conclusion | premises |

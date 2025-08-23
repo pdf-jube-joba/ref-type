@@ -167,3 +167,19 @@ $\Pred(A, \{\{B \mid P\} \mid Q\})$ を考えると、 $\{\{B \mid P\} \mid Q\} 
 - $\Pred(A, \{\{\} \mid Q\}) \to Q$: $\{B \mid P\} \to *^p$
 
 なので、 $B: \Power A$ とした方がいい。
+
+## $\Power A$ と $*^s$ の階層について
+現状では $*^s$ には項と型のような分け方ができないようになっている。
+理由は、 $A: *^s, x: A \vdash x: A: *^s$ と $\Gamma \vdash x: \{A \mid P\} : \Power A : *^s$ ができるから。
+$A: \Power (A)$ はないものの、 $\{A \mid P \}: \Power A: *^s$ という "element" レベルのものが型としてふるまうことができているので、
+これがちょっと扱いにくい原因も知れない。
+
+なので、項のレベルを型のレベルに引き上げる操作があればいい？
+- $\textop{Wop} A$ を新たに syntax に加える。
+- $\Gamma \vdash \Power A: *^s$ if $\Gamma \vdash A: *^s$ はよい
+- $\Gamma \vdash \textop{Wop} B: *^s$ if $\Gamma \vdash B: \Power A$...これは、 $\Power A$ の項ごとに対応する型があるということ
+- $\Gamma \vdash t: \textop{Wop}(B)$ if $\Gamma \vdash t: A, \Gamma \vdash B: \Power A, \Gamma \vDash \Pred(A, B) @ t$
+
+これで element と type を分けることができるようになるはず。
+
+この場合、 $X_1 \leq X_2$ は $\Power A$ の中の $\leq$ として処理したほうがいい？
