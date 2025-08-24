@@ -17,3 +17,4 @@
   - [confluence](./props/confluence.md)
   - [typing](./props/typing.md)
   - [model](./props/model.md)
+  - [stratified judement](./props/stratified_judgement.md)

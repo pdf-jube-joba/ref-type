@@ -1,8 +1,7 @@
 # 体系について
 とりあえず、現在考えている体系をここにまとめる。
 ただし、まだ formal に定義できていない部分は載ってない。
-あと、 bind が発生するのがめんどくさいので、 $\{x: A \mid P\}$ ではなくて、 $\{A \mid P\}$ にしておく。
-この場合、 $\Pred(A, \{A' \mid P\}) \to_\beta P$ とする必要がある。
+$\Pred(A, \{A' \mid P\}) \to_\beta P$ とする必要がある。
 
 ## Sort
 - $\mathcal{S} = \{*^p, *^s, \square\}$
@@ -38,6 +37,7 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
         | --- | --- |
         | refinement type | $\{t \mid t\}$ |
         | power set | $\Power t$ |
+        | type lift | $\Ty t$ |
         | predicate | $\Pred_t t$ or $\Pred(A, B)$ |
     - equiality の記述
         | category | definition |
@@ -66,7 +66,6 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- |
 | well formed context | $\vdash \Gamma$ |
 | typing | $\Gamma \vdash t: t$ |
-| subtyping | $\Gamma \vdash t \leq t$ |
 | probable | $\Gamma \vDash t$ |
 
 ## derivation
@@ -93,20 +92,12 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | category | conclusion | premises |
 | --- | --- | --- |
 | power set form | $\Gamma \vdash \Power A: *^s$ | $\Gamma \vdash A: *^s$ |
-| power set weak | $\Gamma \vdash B: *^s$ | $\Gamma \vdash B: \Power A$ |
+| power set weak | $\Gamma \vdash \Ty B: *^s$ | $\Gamma \vdash B: \Power A$ |
 | subset form | $\Gamma \vdash \{A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma \vdash P: A \to *^p$ |
 | predicate form | $\Gamma \vdash \Pred_A B: A \to *^p$ | $\Gamma \vdash B: \Power A$ |
-| subset intro | $\Gamma \vdash t: B$ | $\Gamma \vdash B: \Power A, \\ \Gamma \vdash t: A, \Gamma \vDash (\Pred_A B) @ t$ |
-| susbet weak | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: B$ |
-
-### set rel
-| category | conclusion | premises | other |
-| --- | --- | --- | --- |
-| setrel refl | $\Gamma \vdash X \leq X'$ | $\Gamma \vdash X: *^s, \Gamma \vdash X': *^s$ | $X \equiv^\beta X'$ |
-| setrel trans | $\Gamma \vdash X_1 \leq X_3$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash X_2 \leq X_3$ | |
-| setrel sub | $\Gamma \vdash X_1 \leq X_2$ | $\Gamma \vdash X_1: \Power X_2, \\ \Gamma \vdash X_1: *^s, \\ \Gamma \vdash X_2: *^s$ | |
-| setrel codomain | $\Gamma \vdash (\Pi x: X. X_1) \leq (\Pi x: X. X_2)$ | $\Gamma \vdash X: *^s \\ \Gamma, x: X \vdash X_1 \leq X_2$ | $x \notin \Gamma$ |
-| subset element | $\Gamma \vdash t: X_2$ | $\Gamma \vdash X_1 \leq X_2, \\ \Gamma \vdash t: X_1$ | |
+| subset intro | $\Gamma \vdash t: \Ty B$ | $\Gamma \vdash B: \Power A, \\ \Gamma \vdash t: A, \Gamma \vDash (\Pred_A B) @ t$ |
+| subset weak | $\Gamma \vdash t: A$ | $\Gamma \vdash B: \Power A, \\ \Gamma \vdash t: \Ty B, $ |
+| susbet prop | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: \Ty B$ |
 
 ### Identity
 | category | conclusion | premises |

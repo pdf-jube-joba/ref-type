@@ -183,3 +183,14 @@ $A: \Power (A)$ はないものの、 $\{A \mid P \}: \Power A: *^s$ という "
 これで element と type を分けることができるようになるはず。
 
 この場合、 $X_1 \leq X_2$ は $\Power A$ の中の $\leq$ として処理したほうがいい？
+
+## inversion が subset.intro のせいで示せない
+sort に対する inversion も示せないので、方法を変える。
+項の stratification も考えたが、 dependent type 云々で結構大変な気がした。
+そのため、
+- variable に sort を与える
+- judgement を stratified にする（ Kind, Type, term をわけたような感じ。）
+- 一度、 set rel なしで考える。
+
+以下、 judgement を stratified にした場合を考えてみる。
+ただし、普通の PTS で表現力を損なわないか調べておいた方がいいかも。
