@@ -182,4 +182,5 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
 > 1. $T = s$ なら $\Gamma \vdash_t t: s$
 > 2. $s$ であって $\Gamma \vdash T: s$ を満たすものがあれば、 $\Gamma \vdash^s t: T$
 
-証明：
+証明：なんかうまくいきそう。
+- [ ] TODO

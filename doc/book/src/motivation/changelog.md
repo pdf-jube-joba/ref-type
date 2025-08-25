@@ -193,4 +193,8 @@ sort に対する inversion も示せないので、方法を変える。
 - 一度、 set rel なしで考える。
 
 以下、 judgement を stratified にした場合を考えてみる。
-ただし、普通の PTS で表現力を損なわないか調べておいた方がいいかも。
+- $\Gamma \vdash t: s$ のような、 $s$-type を判断する部分
+- $\Gamma \vdash^s t: T$ のような、 $s$-element を判断する部分
+
+このとき、 $\Gamma \vdash^s t: T$ なら $\Gamma \vdash T: s$ が成り立っていれば、かなり楽。
+あと、 context 内でも sort を持ちまわすこと。

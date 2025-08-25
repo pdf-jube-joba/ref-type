@@ -49,7 +49,7 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
     | category | definition |
     | --- | --- |
     | empty context | $\emptyset$ |
-    | concat | $\Gamma, x:t$ |
+    | concat | $\Gamma, x:t:s$ |
 - judgement
     - well-formed context: $\Gamma$
 
@@ -65,7 +65,8 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | category | definition |
 | --- | --- |
 | well formed context | $\vdash \Gamma$ |
-| typing | $\Gamma \vdash t: t$ |
+| sort | $\Gamma \vdash t: s$ |
+| typing | $\Gamma \vdash^s t: t$ |
 | probable | $\Gamma \vDash t$ |
 
 ## derivation
@@ -74,45 +75,46 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- | --- |
 | empty | $\vdash \emptyset$ | | |
 | axiom | $\emptyset \vdash s_1: s_2$ | | $(s_1, s_2) \in \mathcal{A}$ |
-| start | $\vdash \Gamma::(x: t)$ | $\vdash \Gamma, \Gamma \vdash t: s$ | $x \notin \Gamma$ |
-| weak | $\Gamma :: (x: t) \vdash t_1: t_2$ | $\Gamma \vdash t_1: t_2, \vdash \Gamma :: (x: t)$ | $x \notin \Gamma$ |
-| variable | $\Gamma :: (x: t) \vdash x: t$ | $\vdash \Gamma :: x: t$ |
-| conversion | $\Gamma \vdash t: T_2$ | $\Gamma \vdash t: T_1, \Gamma \vdash T_2: s$ | $T_1 \equiv^\beta T_2$ |
-| dependent product form | $\Gamma \vdash (\Pi x:t. T): s_3$ | $\Gamma \vdash t: s_1, \\ \Gamma:: (x: t) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}, x \notin \Gamma $
-| dep.prd. intro | $\Gamma \vdash (\lambda x:t.m): (\Pi x:t.M)$ | $\Gamma \vdash (\Pi x:t. M): s, \\ \Gamma:: (x:t) \vdash m: M$ | $x \notin \Gamma$ |
-| dep.prd. elim | $\Gamma \vdash (f @ a): T[x := a]$ | $\Gamma \vdash f: (\Pi x: t. T), \Gamma \vdash a: t$ | |
+| start | $\vdash \Gamma::(x: t: s)$ | $\vdash \Gamma, \Gamma \vdash t: s$ | $x \notin \Gamma$ |
+| weak.sort | $\Gamma :: (x: t: s) \vdash t_1: s'$ | $\Gamma \vdash t_1: s', \vdash \Gamma :: (x: t: s)$ | $x \notin \Gamma$ |
+| weak.type | $\Gamma :: (x: t: s) \vdash^s t_1: t_2$ | $\Gamma \vdash^s t_1: t_2, \vdash \Gamma :: (x: t: s)$ | $x \notin \Gamma$ |
+| variable | $\Gamma :: (x: t: s) \vdash^s x^s: t$ | $\vdash \Gamma :: (x: t: s)$ |
+| conversion | $\Gamma \vdash^s t: T_2$ | $\Gamma \vdash^s t: T_1, \Gamma \vdash T_2: s$ | $T_1 \equiv^\beta T_2$ |
+| dep.form | $\Gamma \vdash (\Pi x:t. T): s_3$ | $\Gamma \vdash t: s_1, \\ \Gamma:: (x: t: s) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}, x \notin \Gamma $
+| dep.intro | $\Gamma \vdash^{s_3} (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M)$ | $\Gamma \vdash (\Pi x^{s_1}:t. M): s_3, \\ \Gamma:: (x:t: s_1) \vdash m: M$ | $x \notin \Gamma$ |
+| dep.elim | $\Gamma \vdash^{s_3} (f @ a): T[x := a]$ | $\Gamma \vdash^{s_3} f: (\Pi x^{s_1}: t. T), \Gamma \vdash^{s_1} a: t$ | |
 
 ### provable
 | category | conclusion | premises |
 | --- | --- | --- |
-| provable | $\Gamma \vDash P $ | $\Gamma \vdash p: P, \Gamma \vdash P: *^p$ |
-| proof term | $\Gamma \vdash \Proof P: P$ | $\Gamma \vDash P$ |
+| provable | $\Gamma \vDash P $ | $\Gamma \vdash^{*^p} p: P, \Gamma \vdash P: *^p$ |
+| proof term | $\Gamma \vdash^{*^p} \Proof P: P$ | $\Gamma \vDash P$ |
 
 ### power set, subset
 | category | conclusion | premises |
 | --- | --- | --- |
 | power set form | $\Gamma \vdash \Power A: *^s$ | $\Gamma \vdash A: *^s$ |
-| power set weak | $\Gamma \vdash \Ty B: *^s$ | $\Gamma \vdash B: \Power A$ |
-| subset form | $\Gamma \vdash \{A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma \vdash P: A \to *^p$ |
-| predicate form | $\Gamma \vdash \Pred_A B: A \to *^p$ | $\Gamma \vdash B: \Power A$ |
-| subset intro | $\Gamma \vdash t: \Ty B$ | $\Gamma \vdash B: \Power A, \\ \Gamma \vdash t: A, \Gamma \vDash (\Pred_A B) @ t$ |
-| subset weak | $\Gamma \vdash t: A$ | $\Gamma \vdash B: \Power A, \\ \Gamma \vdash t: \Ty B, $ |
-| susbet prop | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash B: \Power A, \Gamma \vdash t: \Ty B$ |
+| power set weak | $\Gamma \vdash \Ty B: *^s$ | $\Gamma \vdash^{*^s} B: \Power A$ |
+| subset form | $\Gamma \vdash^{*^s} \{A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{\square} P: A \to *^p$ |
+| predicate form | $\Gamma \vdash^{\square} \Pred_A B: A \to *^p$ | $\Gamma \vdash^{*^s} B: \Power A$ |
+| subset intro | $\Gamma \vdash^{*^s} t: \Ty B$ | $\Gamma \vdash^{*^s} B: \Power A, \\ \Gamma \vdash^{*^s} t: A, \Gamma \vDash (\Pred_A B) @ t$ |
+| subset weak | $\Gamma \vdash^{*^s} t: A$ | $\Gamma \vdash^{*^s} B: \Power A, \\ \Gamma \vdash^{*^s} t: \Ty B, $ |
+| susbet prop | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash^{*^s} B: \Power A, \Gamma \vdash^{*^s} t: \Ty B$ |
 
 ### Identity
 | category | conclusion | premises |
 | --- | --- | --- |
-| id form | $\Gamma \vdash a = b: *^p$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A, \Gamma \vdash b: A$ |
-| id intro | $\Gamma \vDash a = a$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A$ |
-| id elim | $\Gamma \vDash P @ b$ | $\Gamma \vdash A: *^s, \Gamma \vdash a: A, \Gamma \vdash b: A, \Gamma \vDash a = b, \\ \Gamma \vdash P: A \to *^p, \Gamma \vDash P @ a$ |
+| id form | $\Gamma \vdash a = b: *^p$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{*^s} a: A, \Gamma \vdash^{*^s} b: A$ |
+| id intro | $\Gamma \vDash a = a$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{*^s} a: A$ |
+| id elim | $\Gamma \vDash P @ b$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{*^s} a: A, \Gamma \vdash^{*^s} b: A, \Gamma \vDash a = b, \\ \Gamma \vdash^{\square} P: A \to *^p, \Gamma \vDash P @ a$ |
 
 ### independent choice
 | category | conclusion | premises |
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
-| exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma  \vdash e: t$ |
-| take intro | $\Gamma \vdash (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
-| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash Y: *^s \\ \Gamma \vdash \Take f: Y, \Gamma \vdash e: Y$
+| exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma \vdash^{*^s} e: t$ |
+| take intro | $\Gamma \vdash^{*^s} (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash^{*^s} f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
+| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash Y: *^s \\ \Gamma \vdash^{*^s} \Take f: Y, \Gamma^{*^s} \vdash e: Y$
 
 以下、議論を簡単にするために調整したもの
 - setrel sub の $:*^s$
