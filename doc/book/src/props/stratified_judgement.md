@@ -7,7 +7,6 @@
     - CoC では成り立つ。 ... $s_1 = s_2 = *, s_1' = s_2' = \square$ しかないので
     - $\text{CC}_\omega$ は成り立たない。 $\square_2: \square_3, *: \square_0$ だが、 $R(\square_2, *) = *$ で $R(\square_3, \square_0) = \square_3$ のため。
 
-
 以下は定義
 - term $t$ = $S$ | $V^S$ | $\lambda V^S: t. t$ | $(V^S: t) \mapsto t$ | $t @ t$
 - context $\Gamma$ = list of $V^S: t$
@@ -27,101 +26,109 @@ judgement について
 > - subject reduction $\Gamma \vdash t: T$ かつ $t \to_\beta t'$ なら $\Gamma \vdash t': T$
 > - uniqueness of type $\Gamma \vdash t: T_1$ かつ $\Gamma \vdash t: T_2$ なら $T_1 \equiv T_2$
 
-ここで、 sort elem func: $\text{Term} \to S$ を sort 以外に対して帰納的に定義する。
-- $s(s) = \text{None}$
-- $s(x^s) = s$
-- $s(\lambda x^s: t_1. t_2) = R(s, s(t_2))$
-- $s((x^s: t_1) \to t_2) = R(s(t_1), s(t_2))$
-- $s(t u) = s(t)$ ただし $s(u)$ が定義されている。
+ここで、 sort elem func $e$: partial $\text{Term} \to S$ を次のように定義する。
+- $e(s) = \text{None}$
+- $e(x^s) = s$
+- $e(\lambda x^s: t_1. t_2) = R(e, e(t_2))$ if $e(t_1)$ defined
+- $e((x^s: t_1) \to t_2) = R(e(t_1), e(t_2))$
+- $e(t u) = e(t)$ if $e(u)$ defined
 
-また、 redux が well-sorted とは $(\lambda x^s: t_1. t_2) @ t$ に対して $s(t) = s$ を満たすこと。
+また、 sort type func $a$: partial $\text{Term} \to S$ を次のように定義する。
+- $a(s) = A(s)$
+- $a(x^s) = \text{None}$
+- $a(\lambda x^s: t_1. t_2) = \text{None}$
+- $a((x^s: t_1) \tp t_2) = R(a(t_1), a(t_2))$
+- $a(t u) = a(t)$ if $a(u)$ is defined
+
+また、 redux が well-sorted とは $(\lambda x^s: t_1. t_2) @ t$ に対して $e(t) = s$ を満たすこと。
 term が well-sorted とは、全ての subterm が well-sorted かつ redux も well-sorted なこと。ちゃんと定義すると：
 - $s$, $x^s$ は well-sorted
 - $(x^s: t_1) \to t_2$ は $t_1$, $t_2$ がそうなら
 - $\lambda x^s: t_1. t_2$ は $t_1$, $t_2$ がそうなら
 - $t @ u$ は
     - $t$ が $\lambda$ じゃないなら、 $t$, $u$ がそうなら
-    - $(\lambda x^s: t_1. t_2) @ t$ は $s(t) = s$ かつ $t$, $t_1$, $t_2$ がそうなら
+    - $(\lambda x^s: t_1. t_2) @ t$ は $e(t) = s$ かつ $t$, $t_1$, $t_2$ がそうなら
 
-このとき、次が成り立つ。
-> $T$, $x$, $s$ に対して、 $x$ の free occurence が $x^s$ の形であるなら、
-> $s(t) = s$ を満たす $t$ に対して $s(T[x := t]) = s(T)$ 
+> $e(t)$ か $a(t)$ のどちらかは undef
 
 証明：項の形の帰納法
-- $s(s) = s(s[x := t])$ で両方 $\text{None}$
-- $s(y^{s'}[x := t]) = s(y^{s'}) = s'$
-- $s(x^{s}[x := t]) = s(t)$
-- $s((\lambda y^{s'}: t_1. t_2)[x := t]) = s(\lambda y^{s'}: (t_1[x := t]). (t_2[x := t])) = R(s(t_1[x := t]), s(t_2[x := t])) = R(s(t_1), s(t_2)) = s(\lambda y^{s'}: t_1. t_2)$
+- $e(s)$ undef
+- $a(x^s)$ undef
+- $a(\lambda)$ undef
+- $(x^s: t_1) \to t_2$ について：仮定から $e(t_1)$ か $a(t_1)$ のどっちかが undef、 $e(t_2)$ と $a(t_2)$ のどっちかが undef であるからよい。
+- $t u$ について：仮定から $e(t)$ か $a(t)$ のどっちかが undef なので。
+
+このとき、次が成り立つ。
+> $T$, $x$, $s$ に対して、 $T$ における $x$ の free occurence が $x^s$ の形であるなら、
+> $e(t) = s$ を満たす $t$ に対して $e(T[x := t]) = e(T)$ 
+
+証明：項の形の帰納法
+- $T = s$ なら $T[x := t] = T$ より。
+- $T = y^{s'}$ なら、 $T[x := t] = T$ より。
+- $T = x^s$ なら、 $T[x := t] = t$ より、 $e(T) = e(x^s) = s = e(t) = e(T[x := t])$
+- $e((\lambda y^{s'}: t_1. t_2)[x := t]) = e(\lambda y^{s'}: (t_1[x := t]). (t_2[x := t])) = R(e(t_1[x := t]), e(t_2[x := t])) = R(e(t_1), e(t_2)) = e(\lambda y^{s'}: t_1. t_2)$
 - 他は同じ。
 
-> $t_1 \to_\beta t_2$ で $t_1$ が well-sorted なら $t_2$ も well-sorted で $s(t_1) = s(t_2)$
+> $t_1 \to_\beta t_2$ で $t_1$ が well-sorted なら $t_2$ も well-sorted で $e(t_1) = e(t_2)$
 
 証明： $\to_\beta$ の導出の帰納法
 - $\lambda x^s: t_1. t_2 \to_\beta \lambda x^s: t_1'. t_2$ if $t_1 \to_\beta t_1'$ なら帰納法の仮定から、
     - $t_1$, $t_2$ は well-sorted なので $\lambda x^s: t_1'. t_2$ は well-sorted
-    - $s(t_1) = s(t_1')$ なので、 $s(\lambda x^s: t_1. t_2) = s(\lambda x^s: t_1'. t_2)$
+    - $e(t_1) = e(t_1')$ なので、 $e(\lambda x^s: t_1. t_2) = e(\lambda x^s: t_1'. t_2)$
 - 他の cong なものは同じ議論
 - $(\lambda x^s: t_1. t_2) @ t \to_\beta t_2[x := t]$ のとき。
-    - well-sorted の仮定から、 $t_1, t_2, t$ は well-sorted かつ $s = s(t)$
+    - well-sorted の仮定から、 $t_1, t_2, t$ は well-sorted かつ $s = e(t)$
     - 全体が well-sorted であることは定義から。
-    - 上の命題から、 $s(t_2) = s(t_2[x := t])$
-    - $s((\lambda x^s: t_1. t_2)@ t) = s(t_2) = s(t_2[x := t])$ で示された。
+    - 上の命題から、 $e(t_2) = e(t_2[x := t])$
+    - $e((\lambda x^s: t_1. t_2)@ t) = e(t_2) = e(t_2[x := t])$ で示された。
 
-> $\Gamma \vdash t: T$ なら $t$ と $T$ は well-sorted かつ、次のどちらかが成り立つ。
->   1. $s(t)$ が定義されて、 $\Gamma \vdash T: s(t)$
->   2. $s(t)$ が定義されず、 $T \to_\beta^* s$
-
-なんかしょうもない話： (a -> b) & (~a -> c) <=> (a & b) | (~a & c) ... Truth は FTFTFFTT
-後者の意味にとっていい。
-成り立たない？？
+> $\Gamma \vdash t: T$ なら $t$ と $T$ は well-sorted かつ、次の少なくともどちらかが成り立つ。
+>   1. $e(t)$ が定義される /\ $\Gamma \vdash T: e(t)$
+>   2. $a(t)$ が定義される /\ $T \to_\beta^* a(t)$
 
 証明：導出木に関する帰納法を用いる。
 - axiom: $s$ は well-sorted
-    2. $s(s)$ は定義されてなくて $T$ は確かに $s_2$
+    2. $a(s_1)$ が定義されて $T = s_2 = a(s_1)$
 - start: $x^s$ は well-sorted で、帰納法の仮定を $\Gamma \vdash A: s$ に適用すれば $A$ も well-sorted
-    1. $s(x^s)$ が定義されている。 premise から $\Gamma \vdash A: s(x^s) = s$
+    1. $e(x^s)$ が定義されている。 premise から $\Gamma \vdash A: e(x^s) = s$
 - weak: premise にある $\Gamma \vdash M: N$ を見ればいい。
 - conversion: $\Gamma \vdash t: T_2$ if $\Gamma \vdash t: T_1, \Gamma \vdash T_2: s, T_1 \equiv^\beta T_2$ の場合
     このとき、 $t$ と $T_2$ が well-sorted なのはすぐにわかる。
     帰納法の仮定を $\Gamma \vdash t: T_1$ に適用する。どっちが成り立つかで場合分けする。
-    1. $s(t)$ が定義されかつ $\Gamma \vdash T_1: s(t)$ だったとする。
+    1. $e(t)$ が定義されかつ $\Gamma \vdash T_1: e(t)$ だったとする。
         $T_1 \equiv^\beta T_2$ に合流性を適用して
         $T_1 \rightarrow_\beta T_3 \rightarrow_\beta T_2$ を得るが、
-        それぞれ subject reduction と $\Gamma \vdash T_{i = 1, 2}: \text{sort here}$ を適用して $\Gamma \vdash T_3: s(t)$ と $\Gamma \vdash T_3: s$ が得られる。
-        ここで type uniqueness により $s = s(t)$ なので、 $\Gamma \vdash T_2: s = s(t)$ である。
-        ので、 1. の $\Gamma \vdash T_2: s(t)$ が成り立つ。
-    2. $s(t)$ が定義されていなくて $T_1 = s$ だったとする。
-        $T_2 \equiv T_1 = s$ なので、 $T_2 \to_\beta^* s$ である。
-        ので、 2. が成り立つ。
-        定理には関係ないけど、 $\Gamma \vdash T_2: s$ なのでもし $s(T_2)$ が定義されていれば、
-        $T_2 \to T_1 = s$ も $s(T_1)$ が定義されているはずだから、矛盾する。
-        なので、 $s(T_2)$ は定義されていない。
+        それぞれ subject reduction と $\Gamma \vdash T_{i = 1, 2}: \text{sort here}$ を適用して $\Gamma \vdash T_3: e(t)$ と $\Gamma \vdash T_3: s$ が得られる。
+        ここで type uniqueness により $s = e(t)$ なので、 $\Gamma \vdash T_2: s = e(t)$ である。
+        ので、 1. の $\Gamma \vdash T_2: e(t)$ が成り立つ。
+    2. $a(t)$ が定義されていて $T_1 \to_\beta^* a(t)$ だったとする。
+        このとき、 $T_1 \equiv_\beta T_2$ より $T_2 \to_\beta^* a(t)$ である。
 - dep.form: 帰納法の仮定を適用すれば、 $A, B$ が well-sorted であることはわかるから、項は well-sorted である。
-    - $s(A)$ と $s(B)$ がどちらも定義されているなら：
-        示したいのは、 $\Gamma \vdash (s_3 = R(s_1, s_2)): R(s(A), s(B))$ が成り立っていること。
-        $\Gamma \vdash A: s_1$ に帰納法の仮定を適用して $\Gamma \vdash s_1: s(A)$ がわかる。
-        $\Gamma; x^{s_1}: A \vdash B: s_2$ に帰納法の仮定を適用して $\Gamma; x^{s_1}: A \vdash s_2: s(B)$ がわかる。
-        なので、 $s((x^{s_1}: A) \to B) = R(s(A), s(B))$ も定義されている。
+    - $e(A)$ と $e(B)$ がどちらも定義されているなら：
+        示したいのは、 $\Gamma \vdash (s_3 = R(s_1, s_2)): R(e(A), e(B))$ が成り立っていること。
+        $\Gamma \vdash A: s_1$ に帰納法の仮定を適用して $\Gamma \vdash s_1: e(A)$ がわかる。
+        $\Gamma; x^{s_1}: A \vdash B: s_2$ に帰納法の仮定を適用して $\Gamma; x^{s_1}: A \vdash s_2: e(B)$ がわかる。
+        なので、 $e((x^{s_1}: A) \to B) = R(e(A), e(B))$ も定義されている。
         この場合、次の命題が必要になる ... $R(s_1, s_2): R(A(s_1), A(s_2))$
-    - $s(A)$ と $s(B)$ のどちらかが定義されない：
+    - $e(A)$ と $e(B)$ のどちらかが定義されない：
         $(x^{s_1}: A) \to B$ でも定義されてなくて、 $s_3$ がある。
 - dep.intro: 帰納法の仮定を適用すれば、 well-sorted であるとわかる。
-    - $s(m)$ が定義されているなら：
-        示したいのは $\Gamma \vdash ((x^s: A) \to M): R(s, s(m))$ であること。
+    - $e(m)$ が定義されているなら：
+        示したいのは $\Gamma \vdash ((x^s: A) \to M): R(s, e(m))$ であること。
         inversion から $\Gamma \vdash A: s$ がわかる。
-        $\Gamma; (x^s: A) \vdash m: M$ に帰納法の仮定を適用して $\Gamma; x^s: A \vdash M: s(m)$ がわかる。
-        dep.form にいれて $\Gamma \vdash (x^s: A) \to M: R(s, s(m))$ が成り立つ。
-    - $s(m)$ が定義されていないなら： $M \to_\beta^* s$ とわかる。
+        $\Gamma; (x^s: A) \vdash m: M$ に帰納法の仮定を適用して $\Gamma; x^s: A \vdash M: e(m)$ がわかる。
+        dep.form にいれて $\Gamma \vdash (x^s: A) \to M: R(s, e(m))$ が成り立つ。
+    - $e(m)$ が定義されていないなら： $M \to_\beta^* s$ とわかる。
 
 
 - dep.elim: 帰納法の仮定を適用すれば、 well-sorted とわかる。
     $\Gamma \vdash f: (x^s: A) \to M$ に帰納法の仮定を適用すると、 $(x^s: A) \to B \not \equiv_\beta s$ であるから、
-    「$s(f)$ が定義されていて $\Gamma \vdash (x^s: A) \to M: s(f)$」の方が成り立っているとわかる。
-    もし $s(a)$ が定義されているなら：
-    $s(f @ a)$ も定義されているのと、帰納法の仮定から $\Gamma \vdash A: s(a)$ である。
-    また、 inversion から $\Gamma; x^s: A \vdash M: s(f)$ がわかる。
-    このとき、 $\Gamma \vdash M[x := a]: s(f @ a)$ は substitution lemma を適用すればいい。
-    もし $s(a)$ が定義されていないなら：
+    「$e(f)$ が定義されていて $\Gamma \vdash (x^s: A) \to M: e(f)$」の方が成り立っているとわかる。
+    もし $e(a)$ が定義されているなら：
+    $e(f @ a)$ も定義されているのと、帰納法の仮定から $\Gamma \vdash A: e(a)$ である。
+    また、 inversion から $\Gamma; x^s: A \vdash M: e(f)$ がわかる。
+    このとき、 $\Gamma \vdash M[x := a]: e(f @ a)$ は substitution lemma を適用すればいい。
+    もし $e(a)$ が定義されていないなら：
 
 $\text{CC}_\omega$ だと次のようなのは valid
 - $\vdash (\lambda x^{\square_{i+2}}: \square_{i+1}. \square_j) @ \square_i: \square_{j+1}$
@@ -154,4 +161,4 @@ $\text{CC}_\omega$ だと次のようなのは valid
 
 $\Gamma \vdash t: T$ とする。
 - $T \equiv s$ なら $\Gamma \vdash_t t: s$
-- $s(t)$ が定義されるなら $\Gamma \vdash
+- $e(t)$ が定義されるなら $\Gamma \vdash
