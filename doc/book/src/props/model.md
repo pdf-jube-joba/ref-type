@@ -37,15 +37,19 @@ sort が $(s_1, s_2, s_2) \in \mathcal{R}$ の形なので、 sort-elem function
 - $\lvert \Gamma \Vdash p \rvert = \cdot$
   - $\Uparrow$ if $s(p) = *^p$
 - $\lvert \Gamma \Vdash x^\square \rvert _\gamma = \pi_i \gamma$ if $x^\square$ is $i$-th
+- $\lvert \Gamma \Vdash \lambda x: A. t \rvert _\gamma = \alpha \in \lvert \Gamma \Vdash A \rvert \mapsto \lvert \Gamma \Vdash t \rvert _{(\gamma, \alpha)}$
 - $\lvert \Gamma \Vdash f @ a  \rvert _\gamma = \lvert \Gamma \Vdash f \rvert _\gamma (\lvert \Gamma \Vdash a \rvert _\gamma)$
 - $\lvert \Gamma \Vdash (x: A) \to B \rvert = \{f \in \{ \bullet \} \mid \forall \alpha \in \lvert \Gamma \Vdash A \rvert _\gamma , f \in \lvert \Gamma; x: A \Vdash B \rvert _{(\gamma, \alpha)} \}$
   - $\Uparrow$ if $s(B) = \square$
 - $\lvert \Gamma \Vdash (x: A) \to B \rvert = \Pi_{\alpha \in \lvert \Gamma \Vdash A \rvert _\gamma} \lvert \Gamma; x: A \Vdash B \rvert _{(\gamma, \alpha)}$
 - ここ以降がちゃんと定義しないといけない部分
+- $\lvert \Gamma \Vdash \Proof p \rvert _\gamma = \bullet$
 - $\lvert \Gamma \Vdash \Power (A) \rvert _\gamma = \mathcal{P}(\lvert \Gamma \Vdash A \rvert _\gamma)$
 - $\lvert \Gamma \Vdash \{A \mid P\} \rvert _\gamma = \{x \in \lvert \Gamma \Vdash A \rvert _\gamma \mid \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \}$
 - $\lvert \Gamma \Vdash \Ty(A, B) \rvert _\gamma = \{x \in \lvert \Gamma \Vdash A _\gamma \rvert \mid x \in \lvert \Gamma \Vdash B \rvert _\gamma\}$
-- $\lvert \Gamma \Vdash \Pred(B, A) \rvert _\gamma = \\ \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \lvert \Gamma \Vdash B \rvert _\gamma\} \\ \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash B \rvert _\gamma\}$
+- $\lvert \Gamma \Vdash \Pred(A, B) \rvert _\gamma =
+  \\ \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \lvert \Gamma \Vdash B \rvert _\gamma\} \\
+  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash B \rvert _\gamma\}$
   <br> これの型は $A \to *^p$ なので、 $\lvert A \rvert \to \mathbb{B}$ になる。 $x \in \lvert B \rvert$ かどうかで分ければいい。
 - $\lvert \Gamma \Vdash a = b \rvert _\gamma = \{\bullet \mid \lvert \Gamma \Vdash a \rvert _\gamma = \lvert \Gamma \Vdash b \rvert _\gamma\}$
 - $\lvert \Gamma \Vdash \exists t \rvert _\gamma = \{ \bullet \mid \lvert \Gamma \vdash t \rvert _\gamma \not = \emptyset \} $
@@ -54,3 +58,16 @@ sort が $(s_1, s_2, s_2) \in \mathcal{R}$ の形なので、 sort-elem function
   $\text{s.t}$ の意味が不明瞭に見えるけれど、そもそも集合自体、自由変数で導入した後に論理式で定義を用いるのでよい。
   （ $z \in \{y \in x \mid \phi(y, x)\}$ が $(k \in l \leftrightarrow \phi(y, k)) \rightarrow z \in l$  になるのと同じ。）
 
+reduction に対してどうふるまうかがみたい。
+substitutivility は大丈夫だと思うので飛ばす。
+（ $\Pred(A, \{B \mid P\}) \to_\beta P$ は reduction の話なので、subst に関係することはないから。）
+$\lvert \Gamma \vDash \Pred(A, \{B \mid P \}) \rvert _\gamma = \lvert \Gamma \Vdash P \rvert _\gamma$ になるか？
+- $\lvert \Gamma \vDash \Pred(A, \{B \mid P \}) \rvert _\gamma$
+- $ = \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \lvert \Gamma \Vdash \{B \mid P\} \rvert _\gamma\} \\
+  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash \{B \mid P\} \rvert _\gamma\}$
+- $ = \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \{x \in \lvert \Gamma \Vdash B \rvert _\gamma \mid \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \}\} \\
+  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \{x \in \lvert \Gamma \Vdash B \rvert _\gamma \mid \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \}\} $
+- $ = \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \lvert \Gamma \Vdash B \rvert _\gamma \wedge \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \} \\
+  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash B \rvert _\gamma \vee \bullet \notin \lvert \Gamma \Vdash P \rvert _\gamma (x) \} $
+
+同じにならない。
