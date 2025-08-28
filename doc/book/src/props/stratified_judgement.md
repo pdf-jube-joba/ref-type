@@ -175,8 +175,10 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
 | dep.form | $\Gamma \vdash_t (x^{s_1}: A) \to B: s_3$ | $\Gamma \vdash_t A: s_1, \Gamma; x^{s_1}: A \vdash_t B: s_2$ <br> $(s_1, s_2, s_3) \in R$ |
 | dep.intro | $\Gamma \vdash^{s_3} (\lambda x^{s_1}: A. m): (x^{s_1}: A) \to M$ | $\Gamma \vdash_t (x^{s_1}: A) \to M: s_3$, <br> $\Gamma; x^{s_1}: A \vdash^{s_2} m: M$ |
 | dep.elim | $\Gamma \vdash^{s_3} f @ a: M[x := a]$ | $\Gamma \vdash^{s_3} f: (x^{s_1}: A) \to M, \Gamma \vdash^{s_1} a: A$ |
+| axiom term | $\Gamma \vdash^{s'} A: s'$ | $\Gamma \vdash_t A: s, \Gamma \vdash_t s: s'$ |
 
 - $\vdash_t, \vdash^s$ から $\vdash$ は項を忘れるだけでいいから、 valid はよい。
+    - axiom term だけ、上のやつを持ってくる必要がある。
 
 > $\Gamma \vdash t: T$ とする。
 > 1. $T = s$ なら $\Gamma \vdash_t t: s$
@@ -185,12 +187,22 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
 証明：なんかうまくいきそう。
 - axiom ：
     1. そのまま $\vdash_t s_1: s_2$ にできる
-    2. これは証明できてないけど、まあ示せなくても大丈夫な奴だと思う。（定理は成り立たないが、適当に modify すればいい。）
-        ちゃんと書くと、 $\vdash s_1: s_2: s_3$ のときに $\vdash^{s_3} s_1: s_2$ が示せる必要があるが、 
-        CoC ならこの状況が成り立たないし、なんならこれを定義に加える分には問題ないと思う。
+    2. axiom term をこのために入れた。
 - start ：
-    1. これも、 $\vdash A: s: s'$ のときに $\vdash^{s'} A: s$ を示せないといけないが、まあ大丈夫でしょう。
-
+    1. axiom term に入れればよい。
     2. premise に帰納法の仮定を適用して $\vdash_t A: s$ にできるから、 $\vdash^s x^s: A$ になる。
-- weak ：自明
-- 
+- weak ：
+    1. $\Gamma \vdash t: s$ if $\Gamma \vdash t: T_1$, $\Gamma \vdash s: s', T_1 \equiv s$ のとき：
+        unstratified の SR から $\Gamma \vdash T_1: s$ が出てくる。（木の長さ的に怪しいかも...）
+        よって、 $\Gamma \vdash_t T_1: s$ と $\Gamma \vdash^s t: T_1$ がわかる。
+        これより、 $\Gamma \vdash^s t: T_2$ だが、これと $\Gamma \vdash_t s: s'$ に axiom term を合わせればよい。
+    2. これは楽。
+- dep.from：
+    1. 帰納法の仮定で $\vdash^s$ が全部出てくる。
+    2. axiom term による。
+- dep.intro：
+    1. 起こらない。
+    2. 帰納法の仮定。
+- dep.elim：
+    1. 起こらない。
+    2. 帰納法の仮定。

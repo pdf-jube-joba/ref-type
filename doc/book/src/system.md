@@ -10,7 +10,8 @@ $\Pred(A, \{A' \mid P\}) \to_\beta P$ とする必要がある。
     - $\square$ は universe 
 - $\mathcal{A} = {(*^p, \square), (*^s, \square)}$
 - $\mathcal{R} =$ union of
-    - $\{(*^p, *^p), (*^p, \square), (\square, \square)\}$ $*^p$ は impredicative だけど dependent はない
+    - $\{(\square, \square)\}$
+    - $\{(*^p, *^p), (\square, *^p)\}$ $*^p$ は impredicative だけど dependent はない
     - $\{(*^s, *^s), (*^s, \square), (*^s, *^p)\}$ $*^s$ は predicative + dependent
 
 普通の変数を $x$ とする。
@@ -37,8 +38,8 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
         | --- | --- |
         | refinement type | $\{t \mid t\}$ |
         | power set | $\Power t$ |
-        | type lift | $\Ty t$ |
-        | predicate | $\Pred_t t$ or $\Pred(A, B)$ |
+        | type lift | $\Ty (t, t)$ |
+        | predicate | $\Pred_t t$ or $\Pred(t, t)$ |
     - equiality の記述
         | category | definition |
         | --- | --- |
@@ -94,12 +95,12 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | category | conclusion | premises |
 | --- | --- | --- |
 | power set form | $\Gamma \vdash \Power A: *^s$ | $\Gamma \vdash A: *^s$ |
-| power set weak | $\Gamma \vdash \Ty B: *^s$ | $\Gamma \vdash^{*^s} B: \Power A$ |
+| power set intro | $\Gamma \vdash \Ty (A, B): *^s$ | $\Gamma \vdash^{*^s} B: \Power A$ |
+| predicate | $\Gamma \vdash^{\square} \Pred_A B: A \to *^p$ | $\Gamma \vdash^{*^s} B: \Power A$ |
 | subset form | $\Gamma \vdash^{*^s} \{A \mid P\}: \Power A$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{\square} P: A \to *^p$ |
-| predicate form | $\Gamma \vdash^{\square} \Pred_A B: A \to *^p$ | $\Gamma \vdash^{*^s} B: \Power A$ |
-| subset intro | $\Gamma \vdash^{*^s} t: \Ty B$ | $\Gamma \vdash^{*^s} B: \Power A, \\ \Gamma \vdash^{*^s} t: A, \Gamma \vDash (\Pred_A B) @ t$ |
-| subset weak | $\Gamma \vdash^{*^s} t: A$ | $\Gamma \vdash^{*^s} B: \Power A, \\ \Gamma \vdash^{*^s} t: \Ty B, $ |
-| susbet prop | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash^{*^s} B: \Power A, \Gamma \vdash^{*^s} t: \Ty B$ |
+| subset intro | $\Gamma \vdash^{*^s} t: \Ty (A, B)$ | $\Gamma \vdash^{*^s} B: \Power A, \\ \Gamma \vdash^{*^s} t: A, \Gamma \vDash (\Pred_A B) @ t$ |
+| subset weak | $\Gamma \vdash^{*^s} t: A$ | $\Gamma \vdash^{*^s} \Ty (A, B): *^s, \\ \Gamma \vdash^{*^s} t: \Ty (A, B)$ |
+| susbet prop | $\Gamma \vDash (\Pred_A B)@ t$ | $\Gamma \vdash^{*^s} \Ty (A, B): *^s, \\ \Gamma \vdash^{*^s} t: \Ty (A, B)$ |
 
 ### Identity
 | category | conclusion | premises |
@@ -113,9 +114,10 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma \vdash^{*^s} e: t$ |
-| take intro | $\Gamma \vdash^{*^s} (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash^{*^s} f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vdash f @ y_1 = f @ y_2$ |
-| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash Y: *^s \\ \Gamma \vdash^{*^s} \Take f: Y, \Gamma^{*^s} \vdash e: Y$
+| take intro | $\Gamma \vdash^{*^s} (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash^{*^s} f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vDash f @ y_1 = f @ y_2$ |
+| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash^{*^s} \Take f: Y, \Gamma^{*^s} \vdash e: Y$
 
-以下、議論を簡単にするために調整したもの
-- setrel sub の $:*^s$
-- take.elim の $\Gamma \vdash Y:*^s$
+課題：
+- judgement を stratified にしなくてもいいのでは...
+- $\Ty$ を2引数にしない場合
+    - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$  premise に入れる。

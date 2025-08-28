@@ -198,3 +198,8 @@ sort に対する inversion も示せないので、方法を変える。
 
 このとき、 $\Gamma \vdash^s t: T$ なら $\Gamma \vdash T: s$ が成り立っていれば、かなり楽。
 あと、 context 内でも sort を持ちまわすこと。
+
+## モデルを考えるうえで...
+- inversion は必ずしも必須じゃない？
+- $\Ty B$ はそのままだと ZFC で Valid にできない。
+   $\Ty (B, A)$ のようにすることで、 $\{ x \in \lvert \Gamma \vdash A \rvert \mid x \in \lvert \Gamma \vdash B \rvert\}$ のように書けて大丈夫になる。
