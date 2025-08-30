@@ -180,9 +180,13 @@ $A: \Power (A)$ はないものの、 $\{A \mid P \}: \Power A: *^s$ という "
 - $\Gamma \vdash \textop{Wop} B: *^s$ if $\Gamma \vdash B: \Power A$...これは、 $\Power A$ の項ごとに対応する型があるということ
 - $\Gamma \vdash t: \textop{Wop}(B)$ if $\Gamma \vdash t: A, \Gamma \vdash B: \Power A, \Gamma \vDash \Pred(A, B) @ t$
 
-これで element と type を分けることができるようになるはず。
 
+これで element と type を分けることができるようになるはず。
 この場合、 $X_1 \leq X_2$ は $\Power A$ の中の $\leq$ として処理したほうがいい？
+これは、 $\lambda x: A. t$ との兼ね合いになるから、後でやる。
+当面は set rel なし。
+
+$\text{Wop}$ じゃなくて、 $\text{Ty}$ にした。
 
 ## inversion が subset.intro のせいで示せない
 sort に対する inversion も示せないので、方法を変える。
@@ -199,7 +203,22 @@ sort に対する inversion も示せないので、方法を変える。
 このとき、 $\Gamma \vdash^s t: T$ なら $\Gamma \vdash T: s$ が成り立っていれば、かなり楽。
 あと、 context 内でも sort を持ちまわすこと。
 
+## sort の階層について
+集合としては $*^s_{i}$ の階層があった方がいい。
+（ $X$ 上の空間を集めてくる必要があるから、閉じている必要はないがこれが作れないといけない。）
+この場合、 $\{*^s _i \mid i \in \mathbb{N}\}$ という predicative な階層と、 Proposition 用の sort にわけてもいい。
+- $S = \{*^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \square\}$
+- $A = \{(*^s_{i}, *^s_{i+1}) \mid i \in \mathbb{N}\} \cup \{(*^p, \square)\}$
+- $R= \{(*^s_{i}, *^s_{j}, *^s_{\max(i,j)}) \mid i, j \in \mathbb{N}\} \cup \{(*^p, *^p), (\square, *^p), (\square, \square)\} \cup \{(*^s_{i}, *p), (*^s, \square) \mid i \in \mathbb{N}\}$
+
+PTS としてはこれは無矛盾。
+（ 『structural theory of PTS』 の $\forall \mathcal{P}. Q$ を参照。）
+
 ## モデルを考えるうえで...
 - inversion は必ずしも必須じゃない？
 - $\Ty B$ はそのままだと ZFC で Valid にできない。
    $\Ty (B, A)$ のようにすることで、 $\{ x \in \lvert \Gamma \vdash A \rvert \mid x \in \lvert \Gamma \vdash B \rvert\}$ のように書けて大丈夫になる。
+- $\Gamma \vdash t$ に対して  $t \to_\beta t'$ が （well-sorted ぐらいを課して） $\Gamma \vdash t'$ と一致するほうが望ましい。
+  - conv を入れるため。
+
+この場合、 $\Pred (A, \{B \mid P\}) \to_\beta P$ が難しい。

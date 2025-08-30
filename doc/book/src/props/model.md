@@ -71,3 +71,5 @@ $\lvert \Gamma \vDash \Pred(A, \{B \mid P \}) \rvert _\gamma = \lvert \Gamma \Vd
   \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash B \rvert _\gamma \vee \bullet \notin \lvert \Gamma \Vdash P \rvert _\gamma (x) \} $
 
 同じにならない。
+
+
