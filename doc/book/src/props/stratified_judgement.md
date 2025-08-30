@@ -159,43 +159,50 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
 
 これの judgement を stratified にすることができるか？
 - $\Gamma \vdash^s t: T$ ... $s$-element の判定 ($s \in S$ が動く)
-- $\Gamma \vdash_t t: s$ ... $s$-type の判定
+- $\Gamma \vdash_{\text{ty}} t: s$ ... $s$-type の判定
 
-例 ... CoC なら sort は $\{*, \square\}$ で $\Gamma \vdash^* t: T$ が term: type になり $\Gamma \vdash^\square t: T$ が constructor: type になる。
+例 ... CoC なら sort は $\{*, \square\}$ で $\Gamma \vdash^* t: T$ が term: type になり $\Gamma \vdash^\square t: T$ が constructor: kind になる。
 
 とりあえずやってみる。
 
 | category | conclusion | premises |
 | --- | --- | --- |
-| axiom | $\emptyset \vdash_t s_1: s_2$ | $(s_1, s_2) \in A$ |
-| start | $\Gamma; x^s: A \vdash^s x^s: A$| $\Gamma \vdash_t A: s, x \notin \Gamma$ |
-| weak el | $\Gamma; x^s: A \vdash^{s'} M: N$ | $\Gamma \vdash^{s'} M: N, \Gamma \vdash_t C: s, x \notin \Gamma$ |
-| weak ty | $\Gamma; x^s: A \vdash_t M: s$ | $\Gamma \vdash_t M: s, \Gamma \vdash_t C: s, x \notin \Gamma$ |
-| conversion el | $\Gamma \vdash^s t: T_2$ | $\Gamma \vdash^s t: T_1, \Gamma \vdash_t T_2: s, T_1 \equiv^\beta T_2$ |
-| dep.form | $\Gamma \vdash_t (x^{s_1}: A) \to B: s_3$ | $\Gamma \vdash_t A: s_1, \Gamma; x^{s_1}: A \vdash_t B: s_2$ <br> $(s_1, s_2, s_3) \in R$ |
-| dep.intro | $\Gamma \vdash^{s_3} (\lambda x^{s_1}: A. m): (x^{s_1}: A) \to M$ | $\Gamma \vdash_t (x^{s_1}: A) \to M: s_3$, <br> $\Gamma; x^{s_1}: A \vdash^{s_2} m: M$ |
+| axiom | $\emptyset \vdash_{\text{ty}} s_1: s_2$ | $(s_1, s_2) \in A$ |
+| start | $\Gamma; x^s: A \vdash^s x^s: A$| $\Gamma \vdash_{\text{ty}} A: s, x \notin \Gamma$ |
+| weak el | $\Gamma; x^s: A \vdash^{s'} M: N$ | $\Gamma \vdash^{s'} M: N, \Gamma \vdash_{\text{ty}} C: s, x \notin \Gamma$ |
+| weak ty | $\Gamma; x^s: A \vdash_{\text{ty}} M: s$ | $\Gamma \vdash_{\text{ty}} M: s, \Gamma \vdash_{\text{ty}} C: s, x \notin \Gamma$ |
+| conversion el | $\Gamma \vdash^s t: T_2$ | $\Gamma \vdash^s t: T_1, \Gamma \vdash_{\text{ty}} T_2: s, T_1 \equiv^\beta T_2$ |
+| dep.form | $\Gamma \vdash_{\text{ty}} (x^{s_1}: A) \to B: s_3$ | $\Gamma \vdash_{\text{ty}} A: s_1, \Gamma; x^{s_1}: A \vdash_{\text{ty}} B: s_2$ <br> $(s_1, s_2, s_3) \in R$ |
+| dep.intro | $\Gamma \vdash^{s_3} (\lambda x^{s_1}: A. m): (x^{s_1}: A) \to M$ | $\Gamma \vdash_{\text{ty}} (x^{s_1}: A) \to M: s_3$, <br> $\Gamma; x^{s_1}: A \vdash^{s_2} m: M$ |
 | dep.elim | $\Gamma \vdash^{s_3} f @ a: M[x := a]$ | $\Gamma \vdash^{s_3} f: (x^{s_1}: A) \to M, \Gamma \vdash^{s_1} a: A$ |
-| axiom term | $\Gamma \vdash^{s'} A: s'$ | $\Gamma \vdash_t A: s, \Gamma \vdash_t s: s'$ |
+| axiom term | $\Gamma \vdash^{s'} A: s$ | $\Gamma \vdash_{\text{ty}} A: s, \Gamma \vdash_{\text{ty}} s: s'$ |
 
-- $\vdash_t, \vdash^s$ から $\vdash$ は項を忘れるだけでいいから、 valid はよい。
+- $\vdash_{\text{ty}}, \vdash^s$ から $\vdash$ は項を忘れるだけでいいから、 valid はよい。
     - axiom term だけ、上のやつを持ってくる必要がある。
 
+> - $\Gamma \vdash_{\text{ty}} s_1: s$ なら $(s_1, s) \in A$
+> - $\Gamma \vdash^s s_1: T$ なら $\exists s_2, T \equiv s_2, (s_1, s_2), (s_2, s) \in A$
+
+証明：
+一つ目のは導出の帰納法。
+二つ目は一つ目を使って示す。
+
 > $\Gamma \vdash t: T$ とする。
-> 1. $T = s$ なら $\Gamma \vdash_t t: s$
+> 1. $T = s$ なら $\Gamma \vdash_{\text{ty}} t: s$
 > 2. $s$ であって $\Gamma \vdash T: s$ を満たすものがあれば、 $\Gamma \vdash^s t: T$
 
 証明：なんかうまくいきそう。
 - axiom ：
-    1. そのまま $\vdash_t s_1: s_2$ にできる
+    1. そのまま $\vdash_{\text{ty}} s_1: s_2$ にできる
     2. axiom term をこのために入れた。
 - start ：
     1. axiom term に入れればよい。
-    2. premise に帰納法の仮定を適用して $\vdash_t A: s$ にできるから、 $\vdash^s x^s: A$ になる。
+    2. premise に帰納法の仮定を適用して $\vdash_{\text{ty}} A: s$ にできるから、 $\vdash^s x^s: A$ になる。
 - weak ：
     1. $\Gamma \vdash t: s$ if $\Gamma \vdash t: T_1$, $\Gamma \vdash s: s', T_1 \equiv s$ のとき：
         unstratified の SR から $\Gamma \vdash T_1: s$ が出てくる。（木の長さ的に怪しいかも...）
-        よって、 $\Gamma \vdash_t T_1: s$ と $\Gamma \vdash^s t: T_1$ がわかる。
-        これより、 $\Gamma \vdash^s t: T_2$ だが、これと $\Gamma \vdash_t s: s'$ に axiom term を合わせればよい。
+        よって、 $\Gamma \vdash_{\text{ty}} T_1: s$ と $\Gamma \vdash^s t: T_1$ がわかる。
+        これより、 $\Gamma \vdash^s t: T_2$ だが、これと $\Gamma \vdash_{\text{ty}} s: s'$ に axiom term を合わせればよい。
     2. これは楽。
 - dep.from：
     1. 帰納法の仮定で $\vdash^s$ が全部出てくる。
@@ -204,5 +211,9 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
     1. 起こらない。
     2. 帰納法の仮定。
 - dep.elim：
-    1. 起こらない。
+    1. $M = s$ か、 $M = x$ で $a = s$ の場合が考えられる。
+        - $M = s$ なら： $\Gamma \vdash f: (x^{s_1}: A) \to s$ から $\Gamma::x^{s_1}: A \vdash s: s'$ がわかるので、 $\exists s', (s, s') \in A$ になる。
+            普通に得られる $\Gamma \vdash^{s'} f @ a: s$ に axiom term を適用すればいい。
+        2. $M = x$ なら： $\Gamma \vdash f: (x^{s'}: A) \to x$ で $\Gamma \vdash s: A$ がわかっている。
+            $A \to^* s_2$ によって $(s, s_2) \in A$ なので、 axiom term を適用すればいい。
     2. 帰納法の仮定。

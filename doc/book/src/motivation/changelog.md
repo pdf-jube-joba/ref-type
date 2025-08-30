@@ -210,6 +210,7 @@ sort に対する inversion も示せないので、方法を変える。
 - $S = \{*^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \square\}$
 - $A = \{(*^s_{i}, *^s_{i+1}) \mid i \in \mathbb{N}\} \cup \{(*^p, \square)\}$
 - $R= \{(*^s_{i}, *^s_{j}, *^s_{\max(i,j)}) \mid i, j \in \mathbb{N}\} \cup \{(*^p, *^p), (\square, *^p), (\square, \square)\} \cup \{(*^s_{i}, *p), (*^s, \square) \mid i \in \mathbb{N}\}$
+  - $\{(*^s_i, *^s_j, *^s_j) \mid i \leq j\}$ をしばらくは考えてもいい。理由は、 $s_1, s_3$ から $s_2$ が決まるので、 $s$-elem と $s$-type の計算がしやすい。
 
 PTS としてはこれは無矛盾。
 （ 『structural theory of PTS』 の $\forall \mathcal{P}. Q$ を参照。）
@@ -222,3 +223,22 @@ PTS としてはこれは無矛盾。
   - conv を入れるため。
 
 この場合、 $\Pred (A, \{B \mid P\}) \to_\beta P$ が難しい。
+
+1. $\Pred (A, B, t)$ のようにする。
+2. $\{ x: B \mid P\}$ を使って $\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t$ と考える。
+3. $\lvert \Gamma \vdash \{x: A \mid P\} \rvert _\gamma = \{\alpha \in \lvert A \rvert \mid \bullet \in \lvert \Gamma; x: A \vdash P \rvert _{(\gamma, \alpha)}\}$
+4. $\lvert \Gamma \vdash \Pred (A, B, t) \rvert = \{a \in \{\bullet\} \mid \lvert \Gamma \vdash t \rvert \in \lvert \Gamma \vdash B \rvert\}$
+
+このとき、次のように惜しいところまで行く。
+- $\lvert \Gamma \vdash \Pred (A, \{x: B \mid P\}, t) \rvert$
+- ... $\{a \in \{\bullet\} \mid \lvert \Gamma \vdash t \rvert \in \lvert \Gamma \vdash \{x: B \mid P\} \rvert\}$
+- ... $\{a \in \{\bullet\} \mid \lvert t \rvert \in \lvert B \rvert \wedge \bullet \in \lvert \Gamma; x: B \vdash P \rvert _{(\gamma, \lvert t \rvert)}\}$
+- $\lvert \Gamma \vdash (\lambda x: B. P) @ t \rvert$
+- ... $(\alpha \in \lvert B \rvert \mapsto \lvert \Gamma; x: B \vdash P \rvert _{(\gamma, \alpha)}) (\lvert t \rvert)$
+- ... $\lvert \Gamma; x: B \vdash P \rvert _{(\gamma, \lvert t \rvert)}$
+
+$\lvert \Gamma; x: B \vdash P \rvert _{(\gamma, \lvert t \rvert)}$ が定義されている時点で、 $\lvert t \rvert \in \lvert B \rvert$ になっているはずなので、
+これを踏まえると、 $\{\bullet\} \cap$ が後者につけれれば、集合として同じになる。
+なので、 $\lvert \Gamma \vdash^s t \rvert = \lvert s \rvert \cap \lvert \Gamma \vdash t \rvert$ とすればいい？
+これなら、 $t \to t'$ に対して $\lvert \Gamma \vdash^s t \rvert = \lvert \Gamma \vdash^s t' \rvert$ を示すことになるのでよさそう。
+また、 $\Gamma \vdash^s t: T$ なら $\lvert \Gamma \vdash^s t \rvert \in \lvert \Gamma \vdash^s T \rvert$ となるので、もうちょっと示しやすい。

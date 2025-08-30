@@ -61,15 +61,3 @@ sort が $(s_1, s_2, s_2) \in \mathcal{R}$ の形なので、 sort-elem function
 reduction に対してどうふるまうかがみたい。
 substitutivility は大丈夫だと思うので飛ばす。
 （ $\Pred(A, \{B \mid P\}) \to_\beta P$ は reduction の話なので、subst に関係することはないから。）
-$\lvert \Gamma \vDash \Pred(A, \{B \mid P \}) \rvert _\gamma = \lvert \Gamma \Vdash P \rvert _\gamma$ になるか？
-- $\lvert \Gamma \vDash \Pred(A, \{B \mid P \}) \rvert _\gamma$
-- $ = \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \lvert \Gamma \Vdash \{B \mid P\} \rvert _\gamma\} \\
-  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash \{B \mid P\} \rvert _\gamma\}$
-- $ = \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \{x \in \lvert \Gamma \Vdash B \rvert _\gamma \mid \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \}\} \\
-  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \{x \in \lvert \Gamma \Vdash B \rvert _\gamma \mid \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \}\} $
-- $ = \{(x, 1) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \in \lvert \Gamma \Vdash B \rvert _\gamma \wedge \bullet \in \lvert \Gamma \Vdash P \rvert _\gamma (x) \} \\
-  \cup \{(x, 0) \in \lvert \Gamma \Vdash A \rvert _\gamma \times \mathbb{B} \mid x \notin \lvert \Gamma \Vdash B \rvert _\gamma \vee \bullet \notin \lvert \Gamma \Vdash P \rvert _\gamma (x) \} $
-
-同じにならない。
-
-

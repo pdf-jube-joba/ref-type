@@ -70,66 +70,15 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 - take.elim （ bind あり）の場合：
   これも気にするのは、 $ \cdot =_M m[x' := e]$ の代入の順番であるが、 $m[x' := e][x := t] = m[x := t][x' := e[x := t]]$ よりよい。
 
-## generation lemma
-generation lemma とは $\Gamma \vdash t: T$ に対して $t$ の形をもとに $T \equiv \text{なんかいい感じの形}$ が証明できるという形のもの。
-ここではほかにも、 $\Gamma \vDash P$ や $\Gamma \vdash X_1 \leq X_2$ についてもいえる。
-いくつかの命題は、相互再帰をする必要がある。
-そのため、まとめて箇条書きしているものは相互再帰としておく。
-$T$ 側の形はあまり考えないほうがいい。理由は単純に、「dep.elim の $T[x := a]$ が hogehoge の形をしているとき ...」の議論は全然うまくいかないから。
-それと、 $t \equiv^\beta \text{hoge}$ もうまくいかない。 $f @ a \equiv \text{hoge}$ は扱うのが難しすぎる。
+## generation lemma (inversion)
+### sort まわり
+> $\Gamma \not \vdash \square:  s$
+> $\Gamma \vdash *^p: s$ なら $s = \square$
+> $\Gamma \vdash *^s_i: s$ なら $s = *^s_{i+1}$
+- 証明は普通に木を見ればいい。
 
-一度帰納法を思い出しておくと、
-$P(0) \to (\forall n. P(n) \to P(n+1)) \to \forall n. P(n)$ のような形だが、
-「 $P(n) \to (n+1)$ の前件が成り立たないから全体が成り立つ」のような議論が許されることに注意する。
+> $\Gamma \not \vdash^s \square: T$ 
+> $\Gamma \not \vdash^s *^p: T$
+- これも同じ。 type.elem では上の命題から。
 
-#thm
-- $\Gamma \vDash P$ なら $\Gamma \vdash P: *^p$
-
-証明：導出木を見てみる。
-- provable: $\Gamma \vDash P$ if $\Gamma \vdash p: P, \Gamma \vdash P: *^p$ なら premises にある。
-- subset weak: $\Gamma \vDash (\Pred(A, B)) @ t$ if $\Gamma \vdash B: \Power(A), \Gamma t: B$ なら、
-  $\Gamma \vdash \Pred(A, B): A \to *^p$ が示せるから、これと dep.elim により導出できる。
-- id.intro: $\Gamma \vDash a = a$ if $\Gamma \vdash A: *^s, \Gamma \vdash a: A$ から id form を適用すればいい。
-- id.elim: $\Gamma \vDash P @ b$ if $\Gamma \vdash A: *^s, \Gamma \vdash a, b: A, \Gamma \vdash P: A \to *^p$ より、 dep.elim により導出できる。
-- exists.intro: premises にある。
-- take.elim: $\Gamma \vdash \Take f: Y, \Gamma \vdash e: Y, \Gamma \vdash Y: *^s$ より id intro により導出できる。
-
-#thm
-- $\Gamma \vdash X_1 \leq X_2$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2: *^s$
-
-証明：
-- setrel refl: premises にある。
-- setrel trans: premises に帰納法の仮定を適用すればいい。
-- setrel sub: premises にある。
-- setrel codomain: premises の $\Gamma::x: X \vdash X_1 \leq X_2$ に帰納法の仮定を適用すれば、
-  $\Gamma::x: X \vdash X_i: :*^s$ が得られるから、
-  dep.form に適用すると、 $\Gamma \vdash (x: X) \to X_i: *^s$ がわかる。
-
-#thm
-1. $\Gamma \vdash s: T$ なら $\exists s'. T \equiv^\beta s'$ かつ $(s, s') \in \mathcal{R}$
-2. $\Gamma \vdash \Power X_1: X_2$ なら $\Gamma \vdash X_1: *^s$
-
-証明：
-- axiom (1.): $T = s'$ として other にある。 
-- weak (1. 2.): そのまま premises に帰納法の仮定を適用する
-- conversion:
-  - (1.): $\Gamma \vdash s: T_2$ if $\Gamma \vdash s: T_1, \Gamma \vdash T_2: s', T_1 \equiv T_2$ なので premises の $T_1$ に帰納法の仮定を適用すると $T_1 \equiv s_0$ で $(s, s_0) \in \mathcal{R}$ が出てくるので、 $T_2 \equiv s_0$ となるからよい。
-  - (2.): $\Gamma \vdash \Power X_1: T_2$ に帰納法の仮定を適用する。
-- powerset.form: (2.): premises にある。
-- powerset.weak:
-  - (1.): premises に $\Gamma \vdash s: \Power A$ が入るが、帰納法の仮定 (1.) を考えると $\Power A \cong s'$ となり合流性から矛盾する。
-    つまり、このケースは起こらない。（帰納法の前件の矛盾から、全体として成り立つ）
-  - (2.): premises に帰納法を適用する。
-- subset.intro: 
-  - (1.): $\Gamma \vdash s: B$ かつ $\Gamma \vdash B: *^s$ が得られているが、
-
-全然示せない。
-
-#thm
-- $\Gamma \vdash X_1: X_2$ かつ $X_2 \equiv_\beta \Power X_2'$ なら $\Gamma \vdash X_1: *^s$ かつ $\Gamma \vdash X_2': *^s$
-
-証明：
-
-#thm
-
-証明：
+> $\Gamma \vdash^s *^s_i: T$ なら $s = *^s_{i+2}$
