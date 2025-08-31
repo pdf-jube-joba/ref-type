@@ -1,15 +1,14 @@
 体系の judgement が 4 つあって相互再帰的に定義されているから、大体の命題も、相互再帰的に定義するしかない。
 
 ## free variable について
-- $\text{WF}(x_1: A_1:: \cdots :: x_n: A_n)$ なら $x_i$ はすべて異なり、 $\text{FV}(A_i) \subset \{x_1, \ldots, x_{i-1}\}$
-- $\Gamma \vdash t: T$ なら $\text{FV}(t), \text{FV}(T) \subset \Gamma$
-- $\Gamma \vDash P$ なら $\text{FV}(P) \subset \Gamma$
-- $\Gamma \vdash X_1 \leq X_2$ なら $\text{FV}(X_1), \text{FV}(X_2) \subset \Gamma$
-
-証明は、導出木に関する帰納法を用いる。
+> - $\text{WF}(x_1: A_1:: \cdots :: x_n: A_n)$ なら $x_i$ はすべて異なり、 $\text{FV}(A_i) \subset \{x_1, \ldots, x_{i-1}\}$
+> - $\Gamma \vdash^s t: T$ なら $\text{FV}(t), \text{FV}(T) \subset \Gamma$
+> - $\Gamma \vdash t: s$ なら $\text{FV}(t) \subset \Gamma$
+> - $\Gamma \vDash P$ なら $\text{FV}(P) \subset \Gamma$
+- 証明は、導出木に関する帰納法を用いる。
 
 ## variable の導出
-- $\text{WF}(\Gamma)$ かつ $(x: T) \in \Gamma$ なら $\Gamma \vdash x: T$
+> $\text{WF}(\Gamma)$ かつ $(x: T) \in \Gamma$ なら $\Gamma \vdash x: T$
 
 証明：
 $\text{WF}(\Gamma)$ は empty と start のみから導出されているので、
@@ -18,11 +17,11 @@ $\Gamma_1 \vdash T: s, x \notin \Gamma \implies \text{WF}(\Gamma_1::(x:T))$ の�
 ここから、 $\Gamma_1 :: x: T \vdash x: T$ が示せて、あとは weak を $\Gamma_2$ に合わせて広げていくだけ。
 
 ## substitution lemma
-$\Gamma \vdash t: T$ とする。
-- $\text{WF}(\Gamma:: x: T::\Gamma')$ なら $\text{WF}(\Gamma::(\Gamma'[x := t]))$
-- $\Gamma:: x: T::\Gamma' \vdash M: N$ なら $\Gamma::(\Gamma'[x := t]) \vdash M[x := t]: N[x := t]$
-- $\Gamma:: x: T::\Gamma' \vDash P$ なら $\Gamma::(\Gamma'[x := t]) \vDash P[x := t]$
-- $\Gamma:: x: T::\Gamma' \vdash X_1 \leq X_2$ なら $\Gamma::(\Gamma'[x := t]) \vdash X_1[x := t] \leq X_2[x := t]$
+> $\Gamma \vdash t: T$ とする。
+> - $\text{WF}(\Gamma:: x: T::\Gamma')$ なら $\text{WF}(\Gamma::(\Gamma'[x := t]))$
+> - $\Gamma:: x: T::\Gamma' \vdash^s M: N$ なら $\Gamma::(\Gamma'[x := t]) \vdash^s M[x := t]: N[x := t]$
+> - $\Gamma:: x: T::\Gamma' \vdash M: s$ なら $\Gamma::(\Gamma'[x := t]) \vdash M: s$
+> - $\Gamma:: x: T::\Gamma' \vDash P$ なら $\Gamma::(\Gamma'[x := t]) \vDash P[x := t]$
 
 Note:
 $\vdash M: N$ のときの $\Gamma' = \emptyset$ でその導出が var のときが base case である。
@@ -72,13 +71,13 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 
 ## generation lemma (inversion)
 ### sort まわり
-> $\Gamma \not \vdash \square:  s$
-> $\Gamma \vdash *^p: s$ なら $s = \square$
-> $\Gamma \vdash *^s_i: s$ なら $s = *^s_{i+1}$
+> - $\Gamma \not \vdash \square:  s$
+> - $\Gamma \vdash *^p: s$ なら $s = \square$
+> - $\Gamma \vdash *^s_i: s$ なら $s = *^s_{i+1}$
 - 証明は普通に木を見ればいい。
 
-> $\Gamma \not \vdash^s \square: T$ 
-> $\Gamma \not \vdash^s *^p: T$
+> - $\Gamma \not \vdash^s \square: T$ 
+> - $\Gamma \not \vdash^s *^p: T$
 - これも同じ。 type.elem では上の命題から。
 
 > $\Gamma \vdash^s *^s_i: T$ なら $s = *^s_{i+2}$
