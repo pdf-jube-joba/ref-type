@@ -162,6 +162,11 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
 - $\Gamma \vdash_{\text{ty}} t: s$ ... $s$-type の判定
 
 例 ... CoC なら sort は $\{*, \square\}$ で $\Gamma \vdash^* t: T$ が term: type になり $\Gamma \vdash^\square t: T$ が constructor: kind になる。
+- $(\lambda x: B. t)$ は必ず element になり、 $s$-type にはならない。
+- $(x: B) \to t$ は必ず $s$-type になる。（ $*$-type は $\square$-element なので、 element にもなりうる）
+- $f @ a$ は、 $\square$-type にはならない。
+    - $*$-type にはなりえて、型レベルの適用の話になる。つまり、 $T_1: * \to *, T_2: *$ から $T_1 @ T_2: *$ が得られる操作。
+    - この場合に、 $t: T_1, T_1 \equiv T_2$ なら $t: T_2$ が重要になる。（  $T_2$ が $s$-type のときのみ）
 
 とりあえずやってみる。
 
@@ -175,10 +180,11 @@ $e(t)$ も $a(t)$ も定義されないことがあるが、 $e(t)$ か $a(T)$ �
 | dep.form | $\Gamma \vdash_{\text{ty}} (x^{s_1}: A) \to B: s_3$ | $\Gamma \vdash_{\text{ty}} A: s_1, \Gamma; x^{s_1}: A \vdash_{\text{ty}} B: s_2$ <br> $(s_1, s_2, s_3) \in R$ |
 | dep.intro | $\Gamma \vdash^{s_3} (\lambda x^{s_1}: A. m): (x^{s_1}: A) \to M$ | $\Gamma \vdash_{\text{ty}} (x^{s_1}: A) \to M: s_3$, <br> $\Gamma; x^{s_1}: A \vdash^{s_2} m: M$ |
 | dep.elim | $\Gamma \vdash^{s_3} f @ a: M[x := a]$ | $\Gamma \vdash^{s_3} f: (x^{s_1}: A) \to M, \Gamma \vdash^{s_1} a: A$ |
-| axiom term | $\Gamma \vdash^{s'} A: s$ | $\Gamma \vdash_{\text{ty}} A: s, \Gamma \vdash_{\text{ty}} s: s'$ |
+| type.elem | $\Gamma \vdash^{s'} A: s$ | $\Gamma \vdash_{\text{ty}} A: s, \Gamma \vdash_{\text{ty}} s: s'$ |
+| elem.type | $\Gamma \vdash_{\text{ty}} A: s$ | $\Gamma \vdash^{s'} A: s$ |
 
 - $\vdash_{\text{ty}}, \vdash^s$ から $\vdash$ は項を忘れるだけでいいから、 valid はよい。
-    - axiom term だけ、上のやつを持ってくる必要がある。
+    - type.elem と elem.type だけ、上のやつを持ってくる必要がある。
 
 > - $\Gamma \vdash_{\text{ty}} s_1: s$ なら $(s_1, s) \in A$
 > - $\Gamma \vdash^s s_1: T$ なら $\exists s_2, T \equiv s_2, (s_1, s_2), (s_2, s) \in A$

@@ -81,3 +81,9 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 - これも同じ。 type.elem では上の命題から。
 
 > $\Gamma \vdash^s *^s_i: T$ なら $s = *^s_{i+2}$
+
+### type になれない項
+> - $\Gamma \not \vdash (\lambda x: T. t): s$
+
+### lambda まわり
+> $\Gamma \vdash^{s_3} (\lambda^{s_1} x: B. t): T_2$ かつ $T_2 \equiv (x: B') \to T$ なら $B \equiv B'$ かつ $\Gamma; x: B \vdash^{s_2} t: T$
