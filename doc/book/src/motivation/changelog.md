@@ -242,3 +242,16 @@ $\lvert \Gamma; x: B \vdash P \rvert _{(\gamma, \lvert t \rvert)}$ が定義さ�
 なので、 $\lvert \Gamma \vdash^s t \rvert = \lvert s \rvert \cap \lvert \Gamma \vdash t \rvert$ とすればいい？
 これなら、 $t \to t'$ に対して $\lvert \Gamma \vdash^s t \rvert = \lvert \Gamma \vdash^s t' \rvert$ を示すことになるのでよさそう。
 また、 $\Gamma \vdash^s t: T$ なら $\lvert \Gamma \vdash^s t \rvert \in \lvert \Gamma \vdash^s T \rvert$ となるので、もうちょっと示しやすい。
+
+## take について
+Prop と Set(i) を分けたりしていたので、気が付いたら、 $\text{Take}$ がもっと楽にできることに気が付いた。
+coersion ができるので、 $\{y: Y \mid \exists x. f(x) = y\} \subset Y$ に忘れることで楽ができる。
+- definite/indefinite decsription っぽく、型から元を取り出す方式
+- contractible や singleton とかの公理じゃない形での定義
+- choice とかの、関数の取り出し系
+
+使いやすいのはこんな感じ？
+- $\Gamma \vdash \Take T: T$ if $\Gamma \vDash \exists T, \Gamma \vDash \forall x_1: T, \forall x_2, x_1 = x_2$
+- $\Gamma \vDash \Take T = t$ if $\Gamma \vdash \Take T: T, \Gamma \vdash t: T$
+
+今扱っている $=$ は型の情報を忘れているので、その点で扱いが難しくなることはありそうだが、それは元から。

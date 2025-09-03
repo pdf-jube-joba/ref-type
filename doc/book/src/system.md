@@ -1,7 +1,6 @@
 # 体系について
 とりあえず、現在考えている体系をここにまとめる。
 ただし、まだ formal に定義できていない部分は載ってない。
-$\Pred(A, \{A' \mid P\}) \to_\beta P$ とする必要がある。
 
 ## Sort
 - $\mathcal{S} = \{*^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \square\}$
@@ -69,7 +68,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | probable | $\Gamma \vDash t$ |
 
 ## derivation
-### Calculus of Constructions 部分
+### pure type system 部分
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
 | empty | $\text{WF}(\emptyset)$ | | |
@@ -102,22 +101,22 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | subset weak | $\Gamma \vdash^{*^s} t: A$ | $\Gamma \vdash \Ty (A, B): *^s, \\ \Gamma \vdash^{*^s} t: \Ty (A, B)$ |
 | susbet prop | $\Gamma \vDash \Pred(A, B, t)$ | $\Gamma \vdash \Ty (A, B): *^s, \\ \Gamma \vdash^{*^s} t: \Ty (A, B)$ |
 
-### Identity
+### equality
 | category | conclusion | premises |
 | --- | --- | --- |
 | id form | $\Gamma \vdash a = b: *^p$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{*^s} a: A, \Gamma \vdash^{*^s} b: A$ |
 | id intro | $\Gamma \vDash a = a$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{*^s} a: A$ |
 | id elim | $\Gamma \vDash P @ b$ | $\Gamma \vdash A: *^s, \Gamma \vdash^{*^s} a: A, \Gamma \vdash^{*^s} b: A, \Gamma \vDash a = b, \\ \Gamma \vdash^{\square} P: A \to *^p, \Gamma \vDash P @ a$ |
 
-### independent choice
+### choice
 | category | conclusion | premises |
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma \vdash^{*^s} e: t$ |
-| take intro | $\Gamma \vdash^{*^s} (\Take f): Y$ | $\Gamma \vdash X: *^s, \Gamma \vdash Y: *^s, \Gamma \vdash^{*^s} f: X \to Y \\ \Gamma \vDash \exists X, \\ \Gamma :: (y_1: X) :: (y_2: X) \vDash f @ y_1 = f @ y_2$ |
-| take elim | $\Gamma \vDash \Take f = f @ e$ | $\Gamma \vdash^{*^s} \Take f: Y, \Gamma^{*^s} \vdash e: Y$
+| take intro | $\Gamma \vdash^{*^s} (\Take T): T$ | $\Gamma \vdash T: *^s, \\ \Gamma \vDash \exists T, \\ \Gamma \vDash (x_1: T) \to (x_2: T) \to x_1 = x_2$ |
+| take elim | $\Gamma \vDash \Take T = t$ | $\Gamma \vdash^{*^s} \Take T: T, \Gamma^{*^s} \vdash t: T$
 
 課題：
 - judgement を stratified にしなくてもいいのでは...
 - $\Ty$ を2引数にしない場合
-    - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$  premise に入れる。
+    - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$ を premise に入れる。
