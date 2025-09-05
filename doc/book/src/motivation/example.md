@@ -30,26 +30,29 @@ $$ \{x: \Power \mathbb{N} \mid \forall y: \Ty(\mathbb{N}, x), y \mathrel{\text{d
 これをちゃんと書く。
 - 定義：$[a]: \Power A := \{x: A \mid R x a\}$ for $a: A$
 - 定義：$A/R: \Power \Power A := \{X : \Power A \mid \exists \{a: A \mid X = [a] \}\}$
-- 定義：$\tilde{f}: \Ty(\Power A, A/R) \to Y = \lambda y: \Ty(\Power A, A/R). \Take \Ty(Y, \{i: Y \mid \exists x: \Ty(A, y), i = f(x)\})$
-  - これには $y: \Ty(\Power A, A/R) \vdash \Take \Ty(Y, \{i: Y \mid \exists x: \Ty(A, y), i = f(x)\}): \Ty(Y, \cdots)$ が示せれば、 $\cdots \vdash \Take (): Y$ と dep.intro でよい。
-  - $\vdash \exists \Ty(Y, \{i: Y \mid \exists x: \Ty(A, y), i = f(x)\})$
-  - $\vdash \forall y_1: \Ty (\cdots), \forall y_2: \Ty(\cdots), y_1 = y_2$
+- 定義：$\tilde{f}: \Ty(\Power A, A/R) \to Y = \lambda X: \Ty(\Power A, A/R). \Take (\lambda x: \Ty(A, X). f @ x)$
+  - $X: \Ty(\Power A, A/R) \vdash \Take (\lambda x: \Ty(A, X). f @ x): Y$ を示せばいい。
+  - $\vDash \forall x_1: \Ty(A, X), \forall x_2: \Ty(A, X), (\lambda x: \Ty(). f @ x) @ x_1 = (\lambda x: \Ty(). f @ x) @ x_1$ については、
+    $x_1: \Ty(A, X); x_2: \Ty(A, X) \vDash f @ x_1 = f @ x_2$ が示せるのでよい。
+
+難しいの：$\Gamma; X: \Ty(\Power A, A/ R) \vDash \exists \Ty(A, X)$
+
+補題：次が成り立つ。
+$A: *^s; X, Y: \Power A, p: X = Y, a: \Ty(A, X) \vdash a: \Ty(A, Y)$ が示せる。
+$P := (\lambda Z: \Power A. \Pred(A, Z, a))$ とすると、
+- $\Gamma \vdash a: \Ty(A, X)$ より $\Gamma \vDash \Pred(A, Z, a) = P @ a$
+- $\Gamma \vDash X = Y$ と合わせて $\Gamma \vDash \Pred(A, Y, a)$
+- $\Gamma \vdash a: \Ty(A, Y)$ になる。
+
+ここからはちょっと考えることが多い。
+- $\Gamma; X: \Ty(\Power A, A/R); a: \Ty(A, \{x: A \mid X = [a]\}) \vdash a: \Ty(A, X)$ になる。
+  - $\vdash X = [a]$
+  - $\vdash a: \Ty(A, [a])$ ... これを示すのには、 $R$ の refl ($R a a$) が必要。
+  - これと上の補題から、わかる。
+- また、 $\Gamma; X: \Ty(\Power A, A/R) \vdash \exists \Ty(A, \{x: A \mid X = [a]\})$ は $\Pred(\Power A, A/R, X)$ からわかる。
+
+なので状況としては、 $\Gamma; a: A \vdash b: B$ と $\Gamma \vDash \exists A$ から $\Gamma \vDash \exists B$ がほしい。
 
 ## 位相空間
 べきと部分集合と述語があれば位相空間ができる。
-ただし、 $\vdash t: B$ と $\vDash \Pred (A, B, t)$ の違いに注意する。
-- $O_1, O_1: \Power X$ に対して、 $O_1 \cap O_2 := \{x: X \mid \Pred_X O_1 x \wedge \Pred_X O_2 x\}$ と書ける。
-- $\Lambda: *^s$ により $f: \Lambda \to \Power X$ があるなら $\bigcup_{\lambda \in \Lambda} f(\lambda) := \{x: X \mid \exists \lambda. \Pred_X f(\lambda) x\}$
-
-これで頑張れば、 $\mathop{\text{is-topology}} (X: *^s) (O: \Power \Power X): *^p$ が作れる。
-ただし、 topological space を帰納型というか record 型というかそんな感じのやつにしたいなら、
-それは $*^s$ ではなくて $\square$ に住むことになる。
-そのため、「 hoge を満たす位相空間 」を記述したい場合には、 $\square$ を predicative な形で階層を付ける必要がある。
-（ sum 型が predicative になるために制限があるような感じ）
-
-この場合には、 propositional equality では $t_1, t_2: {x: A | P}$ に対して $t_1 =_A t_2 => t_1 =_{x: A | P} t_2$ ができていたものを、
-再び $\square$ のレベルで似たような equality が示せないと使いにくい。
-具体的には、位相空間の compactness が定義されていたとき、 $2$ つの位相空間の等しさの判定時に、 compactness の証明まで要求されるようになってしまう。
-だけど、構造の $=$ を要求することは少ないはずで、どちらかといえば同型が登場するので良い。
-また compactness などの"構造に対する性質"については、 topology の定義を "expand" して、prop を与えることでも得られる。
-こういうのをうまくやる仕組みがあればいい？
+（ただし、 Set の階層が上がることに注意する。）

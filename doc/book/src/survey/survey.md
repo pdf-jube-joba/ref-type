@@ -117,3 +117,11 @@ Coq や Lean の型システムについてのメモをとっておく。
 ## その他
 - https://www.sciencedirect.com/science/article/pii/S0890540185710577
   - parallel reduction と $M^*$ のやり方
+- https://eprints.whiterose.ac.uk/id/eprint/113157/1/collection.pdf
+  - Collection Principles in Dependent Type Theory
+  - logic enriched type theory があって、これは type の世界を導入した後に prop を付け加えているので、実質 PTS で $\forall \mathcal{P}. \mathcal{Q}$ をやっている。
+- https://dl.acm.org/doi/pdf/10.1145/1656242.1656246
+  - Weyl’s Predicative Classical Mathematics as a Logic-Enriched Type Theory
+  - Fig1 がめっちゃわかりやすい。
+- https://dl.acm.org/doi/abs/10.1017/S0960129501003309
+  - 家だと読めなかった

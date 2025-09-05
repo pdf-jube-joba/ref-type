@@ -255,3 +255,40 @@ coersion ができるので、 $\{y: Y \mid \exists x. f(x) = y\} \subset Y$ に
 - $\Gamma \vDash \Take T = t$ if $\Gamma \vdash \Take T: T, \Gamma \vdash t: T$
 
 今扱っている $=$ は型の情報を忘れているので、その点で扱いが難しくなることはありそうだが、それは元から。
+
+### なんか記述できなかったものがある。
+これは前のものより弱くなっているかもしれない。
+$f: A \to Y$ から $A/R \to Y$ をつくるためには、
+$Y: A/R$ に対して $f(\Take \{a: A \mid Y = [a]\})$ のようにやるしかないが、
+これは $Y$ に対して $a: A$ が一意じゃないので無理。
+
+関数にしないといけないか、あるいは、 propositional truncation (とか bracket type) のように、 elimination がある形にする。
+bracket type を考えているのは type しかない世界で type = proposition と考えている。
+なので、 elimination はまさに $\Take f$ のような形にはなっている。
+この場合には $*^p$ でも $=$ を考えていることになるので、 $*^p$ と $*^s$ を分ける必要がないから elimination は 1 つになる。
+
+```note
+bracket type を思い出したので読んだら考えていたことが載っていたのでよかった。
+それと、
+```
+
+今回考えている体系では、 type (set) の世界と prop の世界を分けているので、
+elimination は2つないといけない。
+逆に、それがあればできるかもしれないということでやってみる。
+
+要は、 $T: *^s$ に対して $\exists T: *^p$ が bracket type になっているから、それを考えながらやればいい。
+
+現在の状況を整理する。
+すでに $\exists$ はあって次のような form と intro 
+- $\vdash \exists T: *^p$ if $\vdash T: *^s$
+- $\vDash \exists T$ if $\vdash e: T: *^s$
+
+1. $\Take x: T. m$ や $\Take f$ など、関数に対しての "independent choice" を記述する場合
+  - まず $T: *^s, M:*^s$ に対しての $T \to M$ を考えていることに注意。
+  - $\vDash exists T$ と $\vDash (x_1: T) \to (x_2: T) \to f @ x_1 = f @ x_2$ を課す。
+  - 問題点： $a: A \vdash b: B$ と $\exists A$ から $\exists B$ が書けない。
+    - これは、 $M: *^p$ の場合に $f @ x_1 = f @ x_2$ を課さない derive を追加することでいいかも。
+2. description など、集合に対しての choice を記述する場合
+  - $T: *^s$ に対して $\Take T: T$ を $\vDash \exists T$ と $\vDash (x_1: T) \to (x_2: T) \to x_1 = x_2$ に対して導入する。
+  - まさに $\Take$ が $\exists$ に対しての intro になっているようにみえる。
+  - 問題点： $\vDash \exists T$ と $f: T \to Y$ に対して、 $f(\Take T)$ を正当化できない。理由は、 $=$ は $T$ 側ではなく $Y$ 側で発生するから。
