@@ -5,6 +5,7 @@
   - [example](./motivation/example.md)
   - [changelog](./motivation/changelog.md)
   - [non-structural recursion](./motivation/non-structural-recursion.md)
+  - [other idea](./motivation/other_idea.md)
 - [Survey](./survey/survey.md)
   - [PTS](./survey/PTS.md)
   - [帰納型](./survey/inductive_type.md)

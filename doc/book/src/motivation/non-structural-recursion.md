@@ -58,7 +58,6 @@ elim の変換は次のように書ける。
 - $\text{elim}_\mathbb{N} (x_Z, x_S, 0) -> x_Z$
 - $\text{elim}_\mathbb{N} (x_Z, x_S, S n) -> x_S (\text{elim}_\mathbb{N} (x_Z, x_S, n))$
 
-
 add の場合は、 `add = n |-> m |-> elim (m, x |-> S x, n)` と書けて、例えば次のように遷移が進む。
 - $\text{add} S(Z) m = \text{elim} (m, x \mapsto S x, S(Z))$
 - $(x \mapsto S(x)) @ (\text{elim}(m, x \mapsto S(x), Z))$

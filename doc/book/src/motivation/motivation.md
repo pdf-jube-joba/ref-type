@@ -47,7 +47,18 @@ $P: *^p$ に対して $t: P$ の項を区別する必要はなく、存在する
 これを動機として、 $\Take T$ を $T$ が空でなくかつ元が1つしかない場合に $T$ の元とする。
 これの正当性を記述するために $=$ や"元の存在"が必要になる。
 
-# 現状の課題
+# 現状の課題（体系）
+総じて、記述のための universe 以外に、 computation のための universe が欲しいということに見える。
+（というかそれ用に `rust` 側で用意していたのだった。）
+
+- $*^s_{i}: *^s_{i+1}$: ちゃんとした数学のための厳密な universe
+  - 項が computational じゃなくても、 canonical じゃなくてもよい
+  - 再帰にはちゃんとした well-foundedness を要求する側
+- $*^c$: 
+  - 項が（基本的には） computational になっている。
+  - $*^s$ 側で見たときに停止するなら、厳密な recursion の形をしていなくてもいい。
+  - マクロやメタプログラミングのような、コード自体を扱えてほしい。
+
 ## non-structural recursion がほしい。
 全てが structural recursion や recursor による記述だとつらい。
 proof-term の存在が示せればよかったように、普通の rec も、 upper bound が存在することが示せれば、

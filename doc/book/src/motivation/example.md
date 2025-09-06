@@ -52,6 +52,9 @@ $P := (\lambda Z: \Power A. \Pred(A, Z, a))$ とすると、
 - また、 $\Gamma; X: \Ty(\Power A, A/R) \vdash \exists \Ty(A, \{x: A \mid X = [a]\})$ は $\Pred(\Power A, A/R, X)$ からわかる。
 
 なので状況としては、 $\Gamma; a: A \vdash b: B$ と $\Gamma \vDash \exists A$ から $\Gamma \vDash \exists B$ がほしい。
+$\Gamma; a: A \vdash \Proof (\exists B): \exists B$ が $\Gamma: a: A \vDash \exists B$ からわかる。
+なので、 $\Gamma \vdash (\lambda a: A. \Proof (\exists B)): (a: A) \to \exists B$ ができるので、
+$\Take (\lambda a: A. \Proof (\exists B)): \exists B$ である。 
 
 ## 位相空間
 べきと部分集合と述語があれば位相空間ができる。

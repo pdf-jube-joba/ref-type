@@ -1,5 +1,5 @@
 # このリポジトリについて
-proof term の扱いが楽な proof assistant をつくる。
+proof checker を作る。
 
 # 構成
 - doc/ はドキュメント置き場
