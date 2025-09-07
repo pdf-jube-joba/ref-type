@@ -213,3 +213,11 @@ $$
 とりあえず考えただけなので、整合性があるかは不明。
 
 あとで帰納型を含めてちゃんと考える。
+
+## McCarthy 91 function
+$$ M(n) = \begin{cases}
+ n - 10 & n > 100
+ M(M(n)) & \text{otherwise}
+\end{cases} $$
+
+これも項として存在できるならうれしい。
