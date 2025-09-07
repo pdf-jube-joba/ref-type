@@ -1,4 +1,5 @@
-mod syntax;
-mod utils;
-mod lambda_calculus;
-mod parse;
+pub mod syntax;
+pub mod utils;
+pub mod lambda_calculus;
+pub mod parse;
+pub mod printing;

@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+// this is internal representation
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Exp {
     Sort(Sort),
@@ -11,18 +12,20 @@ pub enum Exp {
     // 型 T
     IndType {
         ind_type_name: inductives::TypeName,
+        parameters: Vec<Exp>,
     },
     // 型 T のコンストラクタ C の指定
     IndCst {
         ind_type_name: inductives::TypeName,
         constructor_name: inductives::ConstructorName,
+        parameters: Vec<Exp>,
     },
     // Elim(T, c, Q){f[0], ..., f[m]}
     IndTypeElim {
         ind_type_name: inductives::TypeName,
         eliminated_exp: Box<Exp>,
         return_type: Box<Exp>,
-        cases: Vec<(inductives::ConstructorName, Exp)>,
+        cases: Vec<(inductives::ConstructorName, Vec<Var>, Exp)>,
     },
     // これがほしいメインの部分
     Proof(Box<Exp>),                    // Proof t
@@ -42,11 +45,25 @@ impl Display for Exp {
             Exp::Prod(bind, exp1) => format!("({bind}) -> {exp1}"),
             Exp::Lam(bind, exp1) => format!("({bind}) |-> {exp1}"),
             Exp::App(exp, exp1) => format!("{{{exp}}} {{{exp1}}}"),
-            Exp::IndType { ind_type_name } => ind_type_name.to_string(),
+            Exp::IndType {
+                ind_type_name,
+                parameters,
+            } => format!(
+                "{ind_type_name}({})",
+                parameters
+                    .iter()
+                    .fold(String::new(), |s, e| { format!("{s}, {e}") })
+            ),
             Exp::IndCst {
                 ind_type_name,
                 constructor_name,
-            } => format!("{ind_type_name}::{constructor_name}"),
+                parameters,
+            } => format!(
+                "{ind_type_name}::{constructor_name}({})",
+                parameters
+                    .iter()
+                    .fold(String::new(), |s, e| { format!("{s}, {e}") })
+            ),
             Exp::IndTypeElim {
                 ind_type_name,
                 eliminated_exp,
@@ -55,9 +72,13 @@ impl Display for Exp {
             } => {
                 format!(
                     "elim({ind_type_name}) {eliminated_exp} return {return_type} with {} end",
-                    cases
-                        .iter()
-                        .fold(String::new(), |s, (c, e)| { format!("{s} | {c} => {e} ") }),
+                    cases.iter().fold(String::new(), |s, (c, arg, e)| {
+                        format!(
+                            "{s} | {c}({}) => {e} ",
+                            arg.iter()
+                                .fold(String::new(), |s, e| { format!("{s}, {e}") })
+                        )
+                    }),
                 )
             }
             Exp::Proof(t) => format!("Proof({t})"),
@@ -84,13 +105,16 @@ impl Exp {
         ind_type_name: String,
         eliminated_exp: Exp,
         return_type: Exp,
-        cases: Vec<(String, Exp)>,
+        cases: Vec<(String, Vec<Var>, Exp)>,
     ) -> Self {
         Self::IndTypeElim {
             ind_type_name: ind_type_name.into(),
             eliminated_exp: Box::new(eliminated_exp),
             return_type: Box::new(return_type),
-            cases: cases.into_iter().map(|(c, e)| (c.into(), e)).collect(),
+            cases: cases
+                .into_iter()
+                .map(|(c, arg, e)| (c.into(), arg, e))
+                .collect(),
         }
     }
 }
@@ -123,70 +147,6 @@ pub enum Var {
     Internal(String, usize),
     Unused,
 }
-
-// pub fn fresh_var(v: &Var) -> usize {
-//     match v {
-//         Var::Str(_) => 0,
-//         Var::Internal(_, i) => *i + 1,
-//         Var::Unused => 0,
-//     }
-// }
-
-// // term に含まれるどの変数よりも大きい数を返す
-// pub fn fresh(term: &Exp) -> usize {
-//     match term {
-//         Exp::Sort(_) => 0,
-//         Exp::Var(v) => fresh_var(v),
-//         Exp::Prod(x, t1, t2) => {
-//             let v1 = fresh(t1);
-//             let v2 = fresh(t2);
-//             let v = std::cmp::max(v1, v2);
-//             std::cmp::max(fresh_var(x), v)
-//         }
-//         Exp::Lam(x, t1, t2) => {
-//             let v1 = fresh(t1);
-//             let v2 = fresh(t2);
-//             let v = std::cmp::max(v1, v2);
-//             std::cmp::max(fresh_var(x), v)
-//         }
-//         Exp::App(t1, t2) => {
-//             let v1 = fresh(t1);
-//             let v2 = fresh(t2);
-//             std::cmp::max(v1, v2)
-//         }
-//         Exp::IndType { ind_type_name: _ } => 0,
-//         Exp::IndCst {
-//             ind_type_name: _,
-//             constructor_name: _,
-//         } => 0,
-//         Exp::IndTypeElim {
-//             ind_type_name: _,
-//             eliminated_exp,
-//             return_type,
-//             cases,
-//         } => cases
-//             .iter()
-//             .map(|(_, e)| e)
-//             .chain(vec![eliminated_exp.as_ref(), return_type.as_ref()])
-//             .map(fresh)
-//             .max()
-//             .unwrap(),
-//         Exp::Proof(t) => fresh(t),
-//         Exp::Sub(x, t1, t2) => {
-//             let v1 = fresh(t1);
-//             let v2 = fresh(t2);
-//             let v = std::cmp::max(v1, v2);
-//             std::cmp::max(fresh_var(x), v)
-//         }
-//         Exp::Pow(t) => fresh(t),
-//         Exp::Pred(a, b, t) => std::cmp::max(std::cmp::max(fresh(a), fresh(b)), fresh(t)),
-//         Exp::Id(exp1, exp2) => std::cmp::max(fresh(exp1), fresh(exp2)),
-//         Exp::Exists(exp) => fresh(exp),
-//         Exp::Take(var, exp, exp1) => {
-//             std::cmp::max(fresh_var(var), std::cmp::max(fresh(exp), fresh(exp1)))
-//         }
-//     }
-// }
 
 impl<S> From<S> for Var
 where
@@ -297,6 +257,7 @@ impl Sort {
 // inductive definition には自由変数がないことを仮定する
 pub mod inductives {
     use super::*;
+    use crate::utils;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct TypeName(String);
@@ -334,48 +295,21 @@ pub mod inductives {
         }
     }
 
-    use crate::utils;
-
+    // Inductive List (A: Set): Set :=
+    // | nil : List A
+    // | cons : A -> List A -> List A.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct InductiveDefinitionsSyntax {
-        pub parameter: Vec<(Var, Exp)>,
-        pub type_name: String,
-        pub arity: (Vec<(Var, Exp)>, Sort),
-        pub constructors: Vec<(String, Vec<ParamCstSyntax>, Vec<Exp>)>,
+        pub type_name: TypeName,
+        pub parameter: Vec<Bind>,
+        pub arity: (Vec<Bind>, Sort),
+        pub constructors: Vec<(ConstructorName, Vec<ParamCstSyntax>, Vec<Exp>)>,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum ParamCstSyntax {
-        Positive((Vec<(Var, Exp)>, Vec<Exp>)),
-        Simple((Var, Exp)),
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct Arity {
-        pub signature: Vec<(Var, Exp)>,
-        pub sort: Sort,
-    }
-
-    impl Arity {
-        pub fn new(signature: Vec<(Var, Exp)>, sort: Sort) -> Result<Self, String> {
-            let arity = Arity { signature, sort };
-            Ok(arity)
-        }
-        pub fn signature(&self) -> &Vec<(Var, Exp)> {
-            &self.signature
-        }
-        pub fn sort(&self) -> &Sort {
-            &self.sort
-        }
-        pub fn arg_num(&self) -> usize {
-            self.signature.len()
-        }
-    }
-
-    impl From<Arity> for Exp {
-        fn from(Arity { signature, sort }: Arity) -> Self {
-            utils::assoc_prod(signature, Exp::Sort(sort))
-        }
+        Positive((Vec<Bind>, Vec<Exp>)),
+        Simple(Bind),
     }
 
     impl Display for InductiveDefinitionsSyntax {
@@ -386,20 +320,21 @@ pub mod inductives {
                 arity,
                 constructors,
             } = self;
+
             writeln!(f, "name: {type_name}")?;
             writeln!(
                 f,
                 "parameter: {}",
                 parameter
                     .iter()
-                    .map(|(x, a)| format!("({x}: {a}) "))
-                    .collect::<String>()
+                    .fold(String::new(), |acc, bind| format!("{acc} ({bind}) "))
             )?;
             writeln!(
                 f,
                 "arity: {}",
                 utils::assoc_prod(arity.0.clone(), arity.1.into())
             )?;
+
             for (csname, params, end) in constructors {
                 write!(f, "constructor({csname}):")?;
                 for param in params {
@@ -411,6 +346,7 @@ pub mod inductives {
                     utils::assoc_apply(end[0].clone(), end[1..].to_owned())
                 )?;
             }
+
             Ok(())
         }
     }
@@ -427,8 +363,8 @@ pub mod inductives {
                         )
                     )
                 }
-                ParamCstSyntax::Simple(param) => {
-                    format!("Sim({}: {})", param.0, param.1)
+                ParamCstSyntax::Simple(bind) => {
+                    format!("Sim({bind})")
                 }
             };
             write!(f, "{}", s)

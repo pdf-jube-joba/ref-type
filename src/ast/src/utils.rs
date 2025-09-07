@@ -53,19 +53,21 @@ macro_rules! app {
 
 #[macro_export]
 macro_rules! indtype {
-    ($n: expr) => {
+    ($n: expr$ (, $vals:expr)* $(,)?) => {
         $crate::syntax::Exp::IndType {
             ind_type_name: $n.into(),
+            parameters: vec![$($vals),*],
         }
     };
 }
 
 #[macro_export]
 macro_rules! indcst {
-    ($n: expr, $c: expr) => {
+    ($n: expr, $c: expr $(, $vals:expr)* $(,)?) => {
         $crate::syntax::Exp::IndCst {
             ind_type_name: $n.into(),
             constructor_name: $c.into(),
+            parameters: vec![$($vals),*],
         }
     };
 }
@@ -133,17 +135,17 @@ pub fn assoc_apply_vec(mut v: Vec<Exp>) -> Exp {
 }
 
 // (x[0]: t[0]) -> ... (x[k]: t[k]) -> e
-pub fn assoc_prod(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
-    while let Some((x, a)) = v.pop() {
-        e = Exp::Prod(Bind::new(x, a), Box::new(e));
+pub fn assoc_prod(mut v: Vec<Bind>, mut e: Exp) -> Exp {
+    while let Some(bind) = v.pop() {
+        e = Exp::Prod(bind, Box::new(e));
     }
     e
 }
 
 // \ x[0]: t[0]). ... (x[k]: t[k]). e
-pub fn assoc_lam(mut v: Vec<(Var, Exp)>, mut e: Exp) -> Exp {
-    while let Some((x, a)) = v.pop() {
-        e = Exp::Lam(Bind::new(x, a), Box::new(e));
+pub fn assoc_lam(mut v: Vec<Bind>, mut e: Exp) -> Exp {
+    while let Some(bind) = v.pop() {
+        e = Exp::Lam(bind, Box::new(e));
     }
     e
 }
@@ -190,6 +192,8 @@ mod tests {
         let _ = app!(var!("f"), var!("x"), var!("y"), var!("z"));
         let _ = indtype!("Nat");
         let _ = indcst!("Nat", "zero");
+        let _ = indtype!("Vec", var!("A"), var!("n"));
+        let _ = indcst!("Vec", "nil", var!("A"));
         let _ = proof!(var!("p"));
         let _ = power!(var!("A"));
         let _ = subset!("x", var!("A"), var!("p"));
