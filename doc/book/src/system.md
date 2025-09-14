@@ -113,11 +113,12 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma \vdash^{*^s} e: t$ |
-| take elim set | $\Gamma \vdash^{*^s} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^s, \Gamma \vdash f: X \to T \\ \Gamma \vDash \exists X, \\ \Gamma \vDash (x_1: T) \to (x_2: T) \to x_1 = x_2$ |
-| take elim prop | $\Gamma \vdash^{*^p} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^p, \Gamma \vdash f: X \to T \\ \Gamma \vDash \exists X, |
-| take equal | $\Gamma \vDash \Take T = t$ | $\Gamma \vdash^{*^s} \Take T: T, \Gamma^{*^s} \vdash t: T$ |
+| take elim set | $\Gamma \vdash^{*^s} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^s, \Gamma \vdash^{*^s} f: X \to T \\ \Gamma \vDash \exists X, \\ \Gamma \vDash (x_1: T) \to (x_2: T) \to f @ x_1 = f @ x_2$ |
+| take elim prop | $\Gamma \vdash^{*^p} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^p, \Gamma \vdash^{*^p} f: X \to T \\ \Gamma \vDash \exists X $ |
+| take equal | $\Gamma \vDash \Take f = t$ | $\Gamma \vdash^{*^s} \Take f: T, \Gamma^{*^s} \vdash t: T$ |
 
 課題：
 - judgement を stratified にしなくてもいいのでは...
 - $\Ty$ を2引数にしない場合
     - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$ を premise に入れる。
+- take elim prop の意味が分からない。
