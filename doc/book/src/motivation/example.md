@@ -56,6 +56,10 @@ $\Gamma; a: A \vdash \Proof (\exists B): \exists B$ が $\Gamma: a: A \vDash \ex
 なので、 $\Gamma \vdash (\lambda a: A. \Proof (\exists B)): (a: A) \to \exists B$ ができるので、
 $\Take (\lambda a: A. \Proof (\exists B)): \exists B$ である。 
 
+## Group の 2 つの定義が同じになる？
+$(\Take e:\{e: A \mid (x: A) \to e * x = x \wedge x * e = x\}. e): A$ ができる。
+$\exists$ はよくて、 $e_1, e_2: \{\}$ に対して $e_1 = e_2$ が証明できるから。
+
 ## 位相空間
 べきと部分集合と述語があれば位相空間ができる。
 （ただし、 Set の階層が上がることに注意する。）

@@ -82,9 +82,10 @@ module の中で宣言されている変数に代入ができないといけな�
     $A: *^s, a: A \vdash \text{id} \{A \mid \top\} (\text{id} \{A \mid \top\} a)$ の検査時に $2$ 回 $\top$ を証明する必要が出てくるようになってしまう。
   - また、 $A: *^s, B: \Pow A, x: \Ty(B)$ とわかっているのに、 $ \vdash x: \Ty(B)$ の導出木を $\vdash x: A$ からやって $\vDash \Pred(A, B, x)$ を要求するようなら、
     とってもめんどくさい。
+  - DAG を作るほうがいい。 up alpha conversion を無視したほうがいいので、この点でも locally nameless が楽になる。
 - 検証器は展開時に木構造じゃなくて DAG で judgement の関係を保持する。
 - provability の場合には、 $\beta$ modulo を加味して保持する。
-  - すでにあるかどうかを検査する？
+  - すでにあるかどうかを検査する？...normalize すると停止しなくなるので、 Prop かどうかを検査すること。
 - $\vDash P$ の導出に何を使うかがユーザーに指定できないといけない。
   - 現在の分
     - $\vDash P$ if $\vdash p: P$ ... \exact p か、何も言わずに $p$ とするとか。

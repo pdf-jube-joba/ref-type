@@ -121,4 +121,5 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 - judgement を stratified にしなくてもいいのでは...
 - $\Ty$ を2引数にしない場合
     - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$ を premise に入れる。
-- take elim prop の意味が分からない。
+- take elim prop の set-theoretic な意味は、普通に $\bullet \in \lbracket T \rbracket$ への map になっているということ？
+- take elim は $X: *^p$ なら cut elimination に見える。

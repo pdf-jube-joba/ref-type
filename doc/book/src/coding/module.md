@@ -57,4 +57,7 @@ definition nat-module-quotient (n: Nat): module := (nat-modulo (n: Nat))::quotie
 ```
 この書き方は絶対おかしい。
 もっといいものがあるはず？
-AI の書き方を参考にする。
+- ファイルは `#include` でマクロっぽい感じ（ checker 用マクロ）
+- `theory Rel-theory(var X: Set, var R: X -> X -> Prop, asm p: (x: X) -> R x x) requires hoge-theory, fuga-theory { ... }`
+- 使うとき：`import Rel-theory(X := Nat, R := leq p := self) as RelNat`
+- top-level 以外はなくていい。

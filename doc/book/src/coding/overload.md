@@ -79,7 +79,7 @@ impl Commutative Monoid for Nat {
 可換な群はそれ自身を加群とみなす：
 ```
 impl<M> Group-Module<M> for M where M: Group + Commutative Monoid  {
-  var action := (m: M) => (x: M) => m * x;
+  var action := (m: M) => (x: M) => $m * x$;
   law act := <M as Monoid>::assoc;
 }
 ```
@@ -159,5 +159,21 @@ def Monoid-equal-class: SET(1) := rel.equiv.class Monoid-all Monoid-iso;
 ```
 
 書けそうということはわかったが、これがどれぐらい使えるのかがわからない。
-## 書いてて思ったこと
-- 
+そもそも、 `\{ T: Monoid \}` がどういう意味論を持つべきかがわからない？
+1. Set に associate したメソッドがついているだけで、条件を満たすような型の部分集合と考える。
+  - $\{T: *^s_i \mid \exists f: T \to T \to T, \exists e: T, \text{s.t. assoc, unitary}\}: \Power (*^s_{i})$
+  - $\{T: \text{Monoid}\} \subset \{T: \text{BinOp}\}$ ... $X: \Ty(\{T: \text{Monoid}\})$ なら $X: \Ty(T: \text{BinOp})$
+  - $\mathbb{N}: \Ty(\{T: \text{BinOp}\})$ が、本当の型付けになる。
+2. record （ dependent sum type のこと）の集まりと考える。
+  - $(T: *^s_i, f: T \to T \to T): *^s_{i+1}$ として解釈： $\{\text{Base}: *^s_i, \text{operation}: \text{Base} \to \text{Base} \to \text{Base}\}$
+  - 多相 record みたいなことをしないと、 「$X: \text{Monoid}$ なら $X: \text{BinOp}$」が成り立たない。
+  - $\mathbb{N}: \text{Monoid}$ ではないので、別の機構が必要（上と合わせて）。
+
+# その他
+性質側の群から、構造側の群への定義ができる。
+
+## 自然数以外にも十進数表記を入れれるようにする？
+環なら $1$ やら $6$ やらの自然数をそのまま定義できる（ $\mathbb{Z} \to R$ があるから）。
+これを考えると、 build-in での trait として Ring に付随することにすればいい。
+checker としては非自明なら、 parser をもっと自由に書くような拡張を作る？
+tokenize には影響を与えないようにしたい。
