@@ -22,6 +22,7 @@
   - [model](./props/model.md)
   - [stratified judgement](./props/stratified_judgement.md)
 - [coding](./coding/coding.md)
+  - [syntax](./coding/syntax.md)
   - [proof](./coding/proof.md)
   - [overload](./coding/overload.md)
   - [module](./coding/module.md)

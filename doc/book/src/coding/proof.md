@@ -86,7 +86,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     remark gcd-cd: (a: int) -> (b: int) -> ($a "mod" 2$ = 0) -> ($b "mod" 2$ = 0) -> $gcd a b > 1$ := { ... }
   }
 
-  FALSE := reasoning! {
+  reasoning! {
     gcd a b > 1 & h4
     => $1 > 1$ & eq.rewrite h-gen
     => FALSE & leq-self-neg

@@ -1,0 +1,55 @@
+# code での文法の検討
+- checker 用の命令は `#` で始まる
+  - `#include` ... 他の読むべきファイルを連結する（ファイルの頭に）
+  - `#eval` ... normalize する
+- `theory` の連結に意味論を与えたい。
+  - 基本的には、パースの際は空白で区切ったものが token になるようにする。
+  - `'name` と `'variable` は identifier にする
+  - `'number` はそのまま数字のこと
+  - `'macro` は `'name` の後に空白無しで `!` とする。
+  - `'macro-acceptable-token` は token 側とかぶらないようなやつのこと。 
+    - 例えば、 `"mod"` や `+++` は acceptable だが、 `:` は記法がかぶるのでダメ。
+- syntax は
+  - `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
+  - `'parameter-decl` = `"var" 'variable ":" 'expression` | `"law" 'variable ":" 'expression`
+  - `'code-decl` = either
+    - `"definition" 'variable ":" 'expression ":=" 'code-body`
+    - `"theorem" 'variable ":" 'expression ":=" 'code-body`
+    - `"trait" 'name "{" 'parameter-delc "}"`
+    - `"impl" 'name "for" 'expresion "where" "{" "}"`
+  - `'code-body` = either
+    - `'expression;`
+    - `"{" ('block)+ "}"`
+    - `'macro "{" ('expression | 'macro-acceptable)+ "}"`
+  - `'block` =  either 
+    - `"fix" 'variable ":" 'expression ";"`
+    - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
+    - `"have" 'variable ":" 'expression ":=" 'code-body`
+    - `"return" 'code-body`
+  - `'where` = `"where" "{" ("-" 'variable ":" 'expression = 'expression ";") "}"`
+  - `'expression` = either
+    - math macro: `"$" ('expression | 'macro-acceptable)+ "$"`
+    - sort: `("\PROP" | "\SET(" 'number ")" | "\TYPE" )`
+    - variable: `'variable`
+    - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
+    - depprod.intro: `"(" 'variable ":" 'expression ")" "=>"  'expression`
+    - depprod.elim `"(" ('expression)+ ")"`
+    - ind.form: `'name "(" ('expression ",")* ")"`
+    - ind.intro: `'name "." 'name "(" ('expression ",")* ")"`
+    - ind.elim: 
+    - record.intro `'name "{" "}"`
+    - record.proj `'expression "#" 'name`
+    - module.access `'name "#" 'name`
+
+- 使うかもしれない記法のメモ
+  - `a#b`
+  - `a::b`
+  - `a@b`
+  - `a.b`
+
+# 実装での話
+- locally nameless にしておく。
+  - theory-local definition と theory を覚えておく必要がある。
+- sum ではなく レコード型を入れて、多相にしない。
+- なるべく機械と目でのパースを楽にしたい。
+- trait と impl：
