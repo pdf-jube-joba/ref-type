@@ -29,27 +29,38 @@
   - `'where` = `"where" "{" ("-" 'variable ":" 'expression = 'expression ";") "}"`
   - `'expression` = either
     - math macro: `"$" ('expression | 'macro-acceptable)+ "$"`
+    - module.access `'name "@" 'name`
     - sort: `("\PROP" | "\SET(" 'number ")" | "\TYPE" )`
     - variable: `'variable`
     - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
     - depprod.intro: `"(" 'variable ":" 'expression ")" "=>"  'expression`
-    - depprod.elim `"(" ('expression)+ ")"`
+    - depprod.elim: `"(" ('expression)+ ")"`
     - ind.form: `'name "(" ('expression ",")* ")"`
-    - ind.intro: `'name "." 'name "(" ('expression ",")* ")"`
-    - ind.elim: 
-    - record.intro `'name "{" "}"`
-    - record.proj `'expression "#" 'name`
-    - module.access `'name "#" 'name`
+    - ind.intro: `'name "::" 'name "(" ('expression ",")* ")"`
+    - ind.elim: `"elim" "(" 'name ")" 'expression "return" 'expression "with" ( "|" 'name "(" ('variable ",") ")" "="> 'expression )* "end"`
+    - record.intro: `'name "{" "}"`
+    - record.proj: `'expression "#" 'name`
+    - proof term: `\Proof 'expression`
+    - power.set: `'\Power 'expression`
+    - sub.set: `"{" 'variable: 'expression "|" 'expression "}"`
+    - predicate: `\Pred "(" 'expression "," 'expression "," 'expression ")"`
+    - identity: `'expression "=" 'expression`
+    - exists1: `\non-empty 'expression`
+    - take: `\take 'variable ":" 'expression "," 'expression`
 
 - 使うかもしれない記法のメモ
-  - `a#b`
-  - `a::b`
-  - `a@b`
   - `a.b`
 
 # 実装での話
+- なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
 - locally nameless にしておく。
   - theory-local definition と theory を覚えておく必要がある。
+  - 束縛変数の名前と、束縛される部分を覚えておく。
+    - subset やら exist やらも含めて。
+    - ind-elim のところも vec で引数をとっておく。
 - sum ではなく レコード型を入れて、多相にしない。
-- なるべく機械と目でのパースを楽にしたい。
-- trait と impl：
+- trait と impl： coference は一回置いておく。
+  - trait は課す側・ impl は証明する側
+  - impl の中で証明するのはめんどくさいが、証明用の書き方を置いておく？
+  - impl のときに証明したものは（当然）既知のものとする。
+- 帰納型は引数を explicit に与える方式にしたい（見やすいから）。

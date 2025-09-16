@@ -183,3 +183,6 @@ def Monoid-equal-class: SET(1) := rel.equiv.class Monoid-all Monoid-iso;
 これを考えると、 build-in での trait として Ring に付随することにすればいい。
 checker としては非自明なら、 parser をもっと自由に書くような拡張を作る？
 tokenize には影響を与えないようにしたい。
+
+# そもそも
+レコード型を中心に考えた方がいいかも。
