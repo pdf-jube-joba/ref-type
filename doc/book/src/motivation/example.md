@@ -56,9 +56,34 @@ $\Gamma; a: A \vdash \Proof (\exists B): \exists B$ が $\Gamma: a: A \vDash \ex
 なので、 $\Gamma \vdash (\lambda a: A. \Proof (\exists B)): (a: A) \to \exists B$ ができるので、
 $\Take (\lambda a: A. \Proof (\exists B)): \exists B$ である。 
 
-## Group の 2 つの定義が同じになる？
-$(\Take e:\{e: A \mid (x: A) \to e * x = x \wedge x * e = x\}. e): A$ ができる。
+## Group の 2 つの定義が同じになる
+群の定義だと単位元を存在で書くか構造に含めるかで違いが出るときがある。
+
+帰納型はあるので依存和型は作れるが、
+そもそも $\exists x: A. P$ で $A: *^s$, $P: A \to *^p$ に対応するものは作れないとして考えると、
+law に当たる部分は subset を使って定義するしかない。
+以下はそのような定義。この意味で 1. から 2. や 3. への写像が（多分）作れる。
+
+1. $(X: *^s, \mu: X \to X \to X): \{(X, \mu) \mid \text{associative, exists unit, exists inverse}\}$
+2. $(X: *^s, \mu: X \to X \to X, 1: X) : \{(\ldots) \mid \text{assoc, unit, exists inverse}\}$
+3. $(X: *^s, \mu: X \to X \to X, 1: X, \text{inv}: X \to X) : \{(\ldots) \mid \text{assoc, unit, inverse}\}$
+
+単位元について：$(\Take e:\{e: A \mid (x: A) \to e * x = x \wedge x * e = x\}. e): A$ ができる。
 $\exists$ はよくて、 $e_1, e_2: \{\}$ に対して $e_1 = e_2$ が証明できるから。
+（これは普通にやればよくて、 $e_1 = e_1 * e_2 = e_2$ という普通の数学での証明がそのまま使える。）
+
+逆元は関数を取り出す必要があるので難しい。
+すでに unit が固定されているとする。
+そもそも exists inverse をどの意味でとるか？
+1. 関数の存在： $\exists \{f: X \to Y \mid \mu x (f x) = 1, \mu (f x) x = 1\}$
+  - $f_1, f_2: \{f: X \to Y \mid \mu x (f x) = 1, \mu (f x) x = 1\}$ から $f_1 = f_2$ を示す必要があり、困る。
+    $(x: X) \to f_1 x = f_2 x$ は示せるが、fun.ext がないとどうにもならない。
+2. 各元に対しての逆元の存在： $(x: X) \to \exists \{y: X \mid \mu x y = 1, \mu y x = 1\}$
+  - $y_1, y_2: \{y: X \mid \mu x y = 1, \mu y x = 1\}$ から $y_1 = y_2$ が示せるので
+    $\lambda (x: X). \Take y: \{y: X \mid \mu x y = 1, \mu y x = 1\}. y$ と書けばいい。
+    これはちゃんと $X \to Y$ に型付けできるので、 inverse になっている。 
+
+$(x: X) => \Take \{y: X \mid \mu x y = 1 \wedge \mu y x = 1\}$
 
 ## 位相空間
 べきと部分集合と述語があれば位相空間ができる。

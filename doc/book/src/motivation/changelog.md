@@ -243,7 +243,7 @@ $\lvert \Gamma; x: B \vdash P \rvert _{(\gamma, \lvert t \rvert)}$ が定義さ�
 これなら、 $t \to t'$ に対して $\lvert \Gamma \vdash^s t \rvert = \lvert \Gamma \vdash^s t' \rvert$ を示すことになるのでよさそう。
 また、 $\Gamma \vdash^s t: T$ なら $\lvert \Gamma \vdash^s t \rvert \in \lvert \Gamma \vdash^s T \rvert$ となるので、もうちょっと示しやすい。
 
-## take について (WIP)
+## take について
 Prop と Set(i) を分けたりしていたので、気が付いたら、 $\text{Take}$ がもっと楽にできることに気が付いた。
 coersion ができるので、 $\{y: Y \mid \exists x. f(x) = y\} \subset Y$ に忘れることで楽ができる。
 - definite/indefinite decsription っぽく、型から元を取り出す方式
@@ -293,31 +293,4 @@ elimination は2つないといけない。
   - $T: *^s$ に対して $\Take T: T$ を $\vDash \exists T$ と $\vDash (x_1: T) \to (x_2: T) \to x_1 = x_2$ に対して導入する。
   - 問題点： $\vDash \exists T$ と $f: T \to Y$ に対して、 $f(\Take T)$ を正当化できない。理由は、 $=$ は $T$ 側ではなく $Y$ 側で発生するから。
 
-## $(*^p, *^s, *^s)$ がない。(WIP)
-必要かどうかはわからないが、 $(*^p, *^s, *^s) \in \mathcal{R}$ を入れてない。
-入れても多分大丈夫そうだが、とりあえず分けてる。
-モデルの側で考えるとどうなるのか... $X: *^p, Y: *^s \vdash X \to Y: *^s$ に対しては、
-$X \in S_i, Y \in \{\bullet, \{\bullet\}\}$ が適用されて、 $(\Pi_{\alpha \in X} Y) \in S_i$ が要求される。
-これは $\bullet \in S_i$ と $\{\bullet\} \in S_i$ ならいいので楽勝。
-pure type system としては functional + injective は保っていても、
-普通のやつの組み合わせにはなっていない。
-
-この場合、 $X: *^s, Y: *^s \vdash X = Y \to X \to Y$ が type を持たないことになっている。
-一応、 $X: *^s, Y: *^s, p: X = Y \vdash X \to Y: *^s$ のように型はつく。
-こんな感じで、 context として push するしかないものがいくつかある。
-この点で、定理や関数の定義における引数が変わる可能性がある。
-例として、
-```
-variable X, Y: Set(0);
-f0 (p: X = Y): X -> Y := (t: X) => t; // これは OK
-f1: (X = Y) -> X -> Y := (p: X = Y) => (t: x) => t; // これは NG
-```
-この場合には定理の適用の仕方も異なって、
-subst lemma 的に代入するものと関数適用をするもので別れる？
-
-
-### $X = Y \to X \to Y$ について
-$*^s_i$ の階層があることを考えると、どうにか $\forall Z: *^s_i, \Pred(*^s_{i+1}, *^s_{i}, Z)$ が作れるようなら、
-$X=Y$ を入れて $\lambda t: X. t$ が $X \to Y$ と型付けされるようになるので、 $X \to Y$ が inhabited になる。
-
-ただこれのためには $X: \Power(*^s_{i})$ でなければいけない。
+結局、かなり elimination として現在の $\Take$ の形が一番よさそうということになった。

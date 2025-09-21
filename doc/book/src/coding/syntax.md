@@ -9,6 +9,8 @@
   - `'macro` は `'name` の後に空白無しで `!` とする。
   - `'macro-acceptable-token` は token 側とかぶらないようなやつのこと。 
     - 例えば、 `"mod"` や `+++` は acceptable だが、 `:` は記法がかぶるのでダメ。
+- keyword のようなものをなるべく登場させたくない。
+  - expression の中で何を variable として使ってよいかの自由度を高めたい。
 - syntax は
   - `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
   - `'parameter-decl` = `"var" 'variable ":" 'expression` | `"law" 'variable ":" 'expression`
@@ -25,11 +27,12 @@
     - `"fix" 'variable ":" 'expression ";"`
     - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
     - `"have" 'variable ":" 'expression ":=" 'code-body`
+    - `"sufficient" 'expression "by" 'expression;`
     - `"return" 'code-body`
   - `'where` = `"where" "{" ("-" 'variable ":" 'expression = 'expression ";") "}"`
   - `'expression` = either
     - math macro: `"$" ('expression | 'macro-acceptable)+ "$"`
-    - module.access `'name "@" 'name`
+    - module.access `'name "." 'name`
     - sort: `("\PROP" | "\SET(" 'number ")" | "\TYPE" )`
     - variable: `'variable`
     - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
@@ -49,11 +52,11 @@
     - take: `\take 'variable ":" 'expression "," 'expression`
 
 - 使うかもしれない記法のメモ
-  - `a.b`
+  - `a@b`
 
 # 実装での話
 - なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
-- locally nameless にしておく。
+- 内部での表現は locally nameless にしておく。
   - theory-local definition と theory を覚えておく必要がある。
   - 束縛変数の名前と、束縛される部分を覚えておく。
     - subset やら exist やらも含めて。
@@ -64,3 +67,4 @@
   - impl の中で証明するのはめんどくさいが、証明用の書き方を置いておく？
   - impl のときに証明したものは（当然）既知のものとする。
 - 帰納型は引数を explicit に与える方式にしたい（見やすいから）。
+  - explicit というか、 `(` と `)` で囲みたい。

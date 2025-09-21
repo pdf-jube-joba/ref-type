@@ -1,5 +1,4 @@
-# 全体で考慮する点代入さえ許せば代入さえ許せば
-- 型の記法と trait の記法が混じっていてめんどくさい。 extend にした方がいいかも。
+# 全体で考慮する点・・
 - haskell の type class みたいに、辞書渡し（ dictionary passing ）で定義する？
   - record 型を持つ言語への変換と考えてしまうらしい。直感にあっている。
 - 型は交差しうることを考えると、 term のレベルから実装が一意に定まってほしいので、交差しうる型に対しては、実装が同じになっていることを課すべき
@@ -11,178 +10,66 @@
     `1: Nat` から `Nat` に定義された record を探索する必要がある。
     なので、 `Nat` に2つ以上の BinOp の実装があるなら、 正しく反映されない？
 
-# 群と加群の定義
-- モノイド・群・環
-- 加群の定義
-```
-trait BinOp {
-  var operation: Base -> Base -> Base;
-} with parse {
-  - (expr1 "*" expr2) := operation expr1 expr2
-}
+思ったのが、 **そもそも** レコード型を中心に考えた方がいいかも。
+- record 自体は parametric にする（ polymorphic だと意味が違う？型に引数を与える。）
+  - record は nominal にするために `RecordName { field := expression }` が項になるようにする。
+- record 型と型を結び付ける宣言が instance になる。
+- どんな時でも使える notation の部分と、特定の record を使って解釈する部分の両方を定義する。
+  - context の解決は明示的に書けたほうがいいが、多くの場合は、型に結びつけられた Record を用いたり、一般の Notation の定義による。
+- law は Record に対する性質として定義する。
 
-trait Monoid: BinOp {
-  var unit: Base;
-  law assoc: (x, y, z: Base) -> $(x * y) * z$ = $x * (y * z)$;
-  law unitary: (x: Base) -> $1 * x$ = $x /\ $x * 1$ = $x$;
-} with parse {
-  - "1" := unit
-}
+## コードはこんな感じ
+- 普通の Record 型の使い方：
+  - record 定義： `parame` への projection を持つ型を定義してみる。
+    ```
+    Record NewA (param: Set) {
+      base: Set;
+      map: base -> param;
+    };
+    ```
+  - Record 型の項：
+    ```
+    definition some-a: NewA(Nat) := NewA(Nat) {
+      base := Nat;
+      map := id;
+    };
+    definition make0: (x: Set) -> NewA(Nat) := (x: Set) => NewA(Nat) {
+      base := x;
+      map := (_: x) => 0;
+    };
+    definition make1: (x: Set) -> NewA(x) := (x: Set) => NewA(x) {
+      base := x;
+      map := (u: x) => u;
+    }
+    ```
+  - field へのアクセス：
+    ```
+    definition h1: Nat -> Nat := some-a#map;
+    definition h2: some-a#base -> Nat := some-a#map;
 
-property Commutative for Monoid {
-  law commutative: (x, y: Base) -> $x * y$ = $y * x$
-}
-
-trait Group: Monoid {
-  var inverse: Base -> Base;
-  law inv: (x: Base) -> $x * x ^{-1}$ = unit /\ $x ^{-1} * x$ = unit
-} with parse {
-  - (expr "^{-1}") := inverse expr
-}
-
-trait Group-Module<G>: Commutative Monoid where G: Group {
-  var action: G -> Base -> Base;
-  law act: (g: G) -> (x, y: Base) -> $(g . x) * y$ = $g . (x * y)$
-} with parse {
-  - (expr0 "." expr1) := action expr0 expr1;
-}
-```
-
-## 書いてみて思ったこと
-- 単純に SET の $=$ が law に入っていると使いにくいはずなので、 by definition での同値を制約としてほしい。
-  - constraint はそれ
-- また、 Commutative Monoid のように（性質 構造）みたいに書くこともあるので、それ用の宣言もあってほしい。
-  - property はそれ
-- もうちょっと考える点：
-  - trait ごとの method 名はかぶってもいい。
-  - `trait A: B` で、すでにある trait の継承に対応する？
-  - `trait A: B1 + B2` は？
-
-# モノイドの構成例
-"具体的な"型に対しての定義の仕方：
-```
-fn add: nat -> nat -> nat := { ... }
-
-impl BinOp for Nat {
-  var operation := add
-} with parse {
-  - (expr0 "+" expr1) := operation;
-}
-
-impl Monoid for Nat {
-  var unit := 0;
-  law assoc := assoc;
-  law unitary := unitary;
-}
-
-impl Commutative Monoid for Nat {
-  law commutative := comm;
-}
-```
-
-可換な群はそれ自身を加群とみなす：
-```
-impl<M> Group-Module<M> for M where M: Group + Commutative Monoid  {
-  var action := (m: M) => (x: M) => $m * x$;
-  law act := <M as Monoid>::assoc;
-}
-```
-
-## 書いてみて思ったこと
-- Self と Base やらで、 definitional な equal が要求されるのがいつなのかをちゃんと考えないといけない。
-- trait と notation が対応しているほうがいいと思う。 Nat の add を `+` で書いて、それ以外の monoid を `*` で書くのはどうしてか考えないといけない。
-  - 「comm なら `+` で、"そうじゃないなら" `*`」はいやだ。
-    1. comm なら `+` と書いてもよい？ ... 一番ましか？
-    2. Ring に対して `*` と `+` を与える。 ... Ring から Monoid にするのができなくなる。
-  - これはめんどくさいので、環なら `+`, `*` を使ってよくて、それ以外は `++` や `**` を使うということにする。
-
-# 積に対して定義する
-```
-inductive Product (A: Set) (B: Set): Set :=
-  | pair: (a: A) -> (b: B) -> Product A B
-  ;
-
-impl BinOp for Product(A, B) where A: BinOp, B: Binop {
-  var operation := (m1: Product(A, B)) => (m2: Product(A, B)) =>
-    match m1 with
-    | pair(a1, b1) =>
-      match m2 with
-      | pair(a2, b2) => pair($a1 * a2$, $b1 * b2$)
-      end
-    end;
-}
-
-impl Monoid for Product(A, B) where A: Monoid, B: Monoid {
-  var unit := pair($1$, $1$);
-  law assoc := {...}
-  law unitary := {...}
-}
-```
-
-## 書いてみて思ったこと
-これは普通に定義できるように思えるが、
-- `trait A: B` に対して `impl B for T where T2: B` と `impl A for T where T2: A` に課される一致を検査しなくていいのか？
-  - `impl A for T where T2: A` と書いた時点で、 `T` には `B` の実装がついているはず。
-    これがどう実装されているか（ `T2: B` からきているのか）は知らなくてもいい？
-    - こうすると、 law で要求する proposition の型に `B` の実装の詳細が現れていないといけない。
-      だから、 prover は当然、どこから `B` の実装を持ってくるかを決める必要がある。
-    - このことを考えると、 `B` の実装は `impl B for T where T2: B` から来ているとしてしまった方が不都合がない。
-
-# 部分集合に対して定義する
-```
-def is-close (A: BinOp) -> (H: \Power A) -> PROP := (x, y: \Ty(H)) -> \Pred(H, $x * y$);
-
-impl Binop for \Ty(H) where
-  - A: Binop
-  - law is-close-sub: is-close A H
-{
-  var operation := (x, y: \Ty(H)) => $x * y$;
-} with proof {
-  - proof1: (x, y: \Ty(H)) -> \Pred(H, $x * y$) := {
-    is-close-sub A H
-  }
-}
-```
-
-なんかすんなりと定義できてしまった...
-
-# Trait を全部集めてくる？
-```
-Inductive Monoid-iso-maps (A: Monoid) (B: Monoid): SET(0) := record {
-  - f: A -> B
-  - g: B -> A
-  - id-A: (x: A) -> g f x = x
-  - id-B: (x: B) -> f g x = x
-}
-
-def Monoid-iso (A: Monoid) (B: Monoid): PROP :=
-  // \exists f: A -> B, \exists g: B -> A, ((x: A) -> g f x = x) /\ ((x: B) -> f g x = x) のようにも定義できる。
-  \exists Monoid-iso-maps(A, B);s
-
-def Monoid-all: \Power Set := \{ T: Monoid \};
-def Monoid-equal-class: SET(1) := rel.equiv.class Monoid-all Monoid-iso;
-```
-
-書けそうということはわかったが、これがどれぐらい使えるのかがわからない。
-そもそも、 `\{ T: Monoid \}` がどういう意味論を持つべきかがわからない？
-1. Set に associate したメソッドがついているだけで、条件を満たすような型の部分集合と考える。
-  - $\{T: *^s_i \mid \exists f: T \to T \to T, \exists e: T, \text{s.t. assoc, unitary}\}: \Power (*^s_{i})$
-  - $\{T: \text{Monoid}\} \subset \{T: \text{BinOp}\}$ ... $X: \Ty(\{T: \text{Monoid}\})$ なら $X: \Ty(T: \text{BinOp})$
-  - $\mathbb{N}: \Ty(\{T: \text{BinOp}\})$ が、本当の型付けになる。
-2. record （ dependent sum type のこと）の集まりと考える。
-  - $(T: *^s_i, f: T \to T \to T): *^s_{i+1}$ として解釈： $\{\text{Base}: *^s_i, \text{operation}: \text{Base} \to \text{Base} \to \text{Base}\}$
-  - 多相 record みたいなことをしないと、 「$X: \text{Monoid}$ なら $X: \text{BinOp}$」が成り立たない。
-  - $\mathbb{N}: \text{Monoid}$ ではないので、別の機構が必要（上と合わせて）。
-
-これはユーザーが目的に合わせて定義したほうがいいと思う。
-（性質が違う可能性がある。）
-つまり、 `\{T: Monoid\}` という書き方は作らない方がいい？
-
-## 自然数以外にも十進数表記を入れれるようにする？
-環なら $1$ やら $6$ やらの自然数をそのまま定義できる（ $\mathbb{Z} \to R$ があるから）。
-これを考えると、 build-in での trait として Ring に付随することにすればいい。
-checker としては非自明なら、 parser をもっと自由に書くような拡張を作る？
-tokenize には影響を与えないようにしたい。
-
-# そもそも
-レコード型を中心に考えた方がいいかも。
+    definition proj-def1: (x: Set) -> (a: NewA(x)) -> a#base -> Nat := (x: Nat) => (a: NewA(x)) => a#map;
+    definition proj-def2: (x: Set) -> (a: NewA(x)) -> x -> Nat := (x: Nat) => (a: NewA(x)) => a#map;
+    ```
+- overload 解決のための type class 的なもの
+  - record を structure にする： `Carrior: Set` を台集合とすることに決め打ちする。
+    ```
+    Structure PointedOver(X: Set) {
+      var pt: Carrior
+      var proj: Carrior -> X;
+    }
+    ```
+  - Structure 自体に名前を付ける： `[]` で渡した Set を Carrior と考える。
+    ```
+    definition NatId: PointedOver[Nat] := PointedOver(Nat)[Nat] {
+      pt := 0;
+      proj := (n: Nat) => Nat;
+    };
+    definition NatConst0: (X: Set) -> (p: X) -> PoitedOver(Nat)[X] := {
+      pt := p;
+      proj := (p: X) => 0;
+    }
+    ```
+  - Structure と型を結び付ける
+    ```
+    Instance PointedOver(Nat)[Nat] := NatId;
+    ```
