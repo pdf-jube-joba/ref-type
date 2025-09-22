@@ -180,7 +180,6 @@ $A: \Power (A)$ はないものの、 $\{A \mid P \}: \Power A: *^s$ という "
 - $\Gamma \vdash \textop{Wop} B: *^s$ if $\Gamma \vdash B: \Power A$...これは、 $\Power A$ の項ごとに対応する型があるということ
 - $\Gamma \vdash t: \textop{Wop}(B)$ if $\Gamma \vdash t: A, \Gamma \vdash B: \Power A, \Gamma \vDash \Pred(A, B) @ t$
 
-
 これで element と type を分けることができるようになるはず。
 この場合、 $X_1 \leq X_2$ は $\Power A$ の中の $\leq$ として処理したほうがいい？
 これは、 $\lambda x: A. t$ との兼ね合いになるから、後でやる。

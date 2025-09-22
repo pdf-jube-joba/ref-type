@@ -9,7 +9,7 @@
     - $\square$ は universe 
 - $\mathcal{A} = \{(*^s_{i}, *^s_{i+1})\} \cup \{(*^p, \square)\}$
 - $\mathcal{R} =$ union of
-    - $\{(*^s_{i}, *^s_{j}) \mid i \leq j\}$ ... $*^s_i$ は predicative になる。
+    - $\{(*^s_{i}, *^s_{j}, *^s_{\text{max}(i,j)})\}$ ... $*^s_i$ は predicative になる。
     - $\{(*^p, *^p), (\square, *^p), (\square, \square)\}$ ... $*^p$ は impredicative だけど dependent はない。
     - $\{(*^s_i, *^p), (*^s_i, \square)\}$ ... $*^s$ についての命題を用意するため。
 
@@ -118,10 +118,12 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | take equal | $\Gamma \vDash \Take f = t$ | $\Gamma \vdash^{*^s} \Take f: T, \Gamma^{*^s} \vdash t: T$ |
 
 課題：
-- judgement を stratified にしなくてもいいのでは...
+- judgement を stratified （ $\Gamma \vdash^s t: T$） にしなくてもいいのでは...
 - $\Ty$ を2引数にしない場合
     - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$ を premise に入れる。
 - take elim prop の set-theoretic な意味は、普通に $\bullet \in \lbrack T \rbrack$ への map になっているということ？
-- take elim は $X: *^p$ なら cut elimination に見える。
+    - take elim は $X: *^p$ なら cut elimination に見える。
 - inductive type や record を定義する際に気を付けるのは、 dependent sum type と W-type にしたときの大きさ
+    - 基本的には $\mathcal{R}$ と同じものを使ってよい。
     - impredicative にならないように、 $(*^s, *^p, *^s) \in \mathcal{R}$ にすること。
+        - これが必要になるのはおかしい気がする（ subtype で対応するべきだから。）
