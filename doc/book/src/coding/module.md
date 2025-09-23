@@ -1,63 +1,70 @@
-# relation 用の module の定義
-- 集合 $A$ 上の relation $R$ の性質の定義
-- 他からどう使うか
-- 商集合の定義など
+対処したい問題：
+- コード全体を適切に分割するための機構が欲しい
+- 一般化された議論のパラメータに対して代入ができるとうれしい。
+
+## アイディア
+- 名前は `module` でも `theory` でもいいけれど、 `theory` にした。
+- Coq だと variable や parameter や axiom が文中に書けるけど、これは読みづらくなるのでやめる。
+  そういうパラメータ的なものは `theory` の引数として最初に集中させておく。
+- ほかに使う theory も同様に、最初に集中させておく。
+- 内部から使う場合は代入を全部して import したものからアクセスする。
+- `A extend B` と書いたら、 `A` での宣言が使える。
+
+## コード例
 
 ```
-module rel (
-  var A: SET;
-  var R: A -> A -> PROP;
+theory rel(
+  var A: Set;
+  var R: A -> A -> Prop;
 ) {
-  definition reflexivity: PROP := (x: A) -> R x x;
-  definition symmetricity: PROP := (x, y: A) -> R x y -> R y x;
-  definition transitivity: PROP := (x, y, z: A) -> R x y -> R y z -> R x z;
+  definition refl: Prop := (x: A) -> R x x;
+  definition sym: Prop := (x, y: A) -> R x y -> R y x;
+  definition trans: Prop := (x, y, z: A) -> R x y -> R y z -> R x z;
 
-  module quotient (
-    assum refl: reflexivity;
-    assum sym: symmetricity;
-    assum trans: transitivity;
-  ) {
-    definition eq-class (a: A): \Power A := { x: A | R a x };
-    definition eq-classes: \Power (\Power A) := { X: \Power A | \exists a, X = eq-class a}
+  definition any: Prop := (x, y: A) -> R x y;
 
-    lemma eq-class-l1: (X, Y: Power A) -> (X = Y) -> (x: A) -> \Pred(A, X, x) -> \Pred(A, Y, x) := {
-      fix (X, Y: \Power A), (h: X = Y), (x: A), (hX: \Pred(A, X, x));
-      \id-elim X Y ((Z: \Power A) -> \Pred(A, Z, x));
-    }
-    lemma eq-class-l2: (a1, a2: A) -> eq-class a1 = eq-class a2 -> R a2 a1 := {
-      fix (a1, a2: A), (h: eq-class a1 = eq-class a2);
-      have h1: (x: A) -> R a1 x -> R a2 x := eq-class-l1 (eq-class a1) (eq-class a2) h;
-      h1 a1 (refl a1)
+  theorem any-refl: any -> refl := {
+    fix h: any, x: a;
+    h x x   
+  }
+}
+
+theory eq-rel(
+  var p_refl: refl;
+  var p_sym: sym;
+  var p_trans: trans;
+) extends rel {
+
+  definition eq-cls1: (x: A) -> Power A := (x: A) => { y: A | R x y };
+  definition eq-cls2: (x: A) -> Power A := (x: A) => { y: A | R y x };
+
+  theorem eq-cls-coinside: (x: A) -> (eq-cls1 x = eq-cls2) := {
+    fix x: A;
+    // これ集合の extensionality が必要だわ
+    have h: (y: A) -> Pred(A, eq-cls1 x, y) -> Pred(A, eq-cls1 x, y) := {
+      fix y: A, p: Pred(A, eq-cls1 x, y);
+      notice (Pred(A, eq-cls1 x, y)) is (R x y);
+      notice (Pred(A, eq-cls2 x, y)) is (R y x);
+      p_sym x y p;
     }
 
-    definition quotient-map: (Y: SET) -> (f: A -> Y) -> ((x1, x2: A) -> R x1 x2 -> f x1 = f x2) -> \Ty(eq-classes) -> Y := {
-      fix (Y: Set), (f: A -> Y), (h-a0: (x1, x2: A) -> R x1 x2 -> f x1 = f x2), X: \Ty(eq-classes);
-      have h1: \exists a: A | h: X = eq-class a & \subset X eq-classes (\Power A);
-      take a: A | h: X = eq-class a;
-      f a
-    } proof {
-      - \exists a: A | h: X = eq-class a := { h1 }
-      - (a1: A | X = eq-class a1) -> (a2: A | X = eq-class a2) -> f a1 = f a2 := {
-        fix (a1: A | h1: X = eq-class a1), (a2: A | h2: X = eq-class a2);
-        have hR: R a2 a1 := eq-class l2 _ _ _;
-        eq.sym a2 a1 (h-a0 a2 a1)
-      }
-    }
+  }
+}
+
+theory dec-rel(
+  var A: Set;
+  var Rdec: A -> A -> Bool
+) requires rel {
+
+  definition b-to-p: (x: A) -> (y: A) -> Prop := (Rdec x y) = Bool()::True();
+  
+  definition Rdec-refl: Prop := (x: A) -> (Rdec x x) = Bool()::True();
+
+  import rel(A := A, R := b-to-q) as rel-q;
+
+  theorem refl-tp: Rdec-refl -> rel-q.refl := {
+    fix p: Rdec-refl, x: A;
+    p x;
   }
 }
 ```
-
-思いのほか本題以外が長くなったが、とりあえずこんな感じで定義しておくとする。
-- module in module を許し、 parameter 部分（ module の sig? ）は最初に宣言しておく。
-
-# 使う側？
-```
-definition nat-modulo (n: Nat): module := rel(A := Nat, R := (x1: Nat) -> (x2: Nat) -> ($x1 "mod" n$ = $x2 "mod" n$));
-definition nat-module-quotient (n: Nat): module := (nat-modulo (n: Nat))::quotient(refl := ... sym := ... trans := ...);
-```
-この書き方は絶対おかしい。
-もっといいものがあるはず？
-- ファイルは `#include` でマクロっぽい感じ（ checker 用マクロ）
-- `theory Rel-theory(var X: Set, var R: X -> X -> Prop, asm p: (x: X) -> R x x) requires hoge-theory, fuga-theory { ... }`
-- 使うとき：`import Rel-theory(X := Nat, R := leq p := self) as RelNat`
-- top-level 以外はなくていい。

@@ -17,39 +17,40 @@
   - `'code-decl` = either
     - `"definition" 'variable ":" 'expression ":=" 'code-body`
     - `"theorem" 'variable ":" 'expression ":=" 'code-body`
-    - `"trait" 'name "{" 'parameter-delc "}"`
-    - `"impl" 'name "for" 'expresion "where" "{" "}"`
   - `'code-body` = either
     - `'expression;`
-    - `"{" ('block)+ "}"`
+    - `"{" ('block)* 'expression "}"`
     - `'macro "{" ('expression | 'macro-acceptable)+ "}"`
   - `'block` =  either 
     - `"fix" 'variable ":" 'expression ";"`
     - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
+    - `"notice" ('expression) "is" ('expression);` // これはコメント用と思っていい。
     - `"have" 'variable ":" 'expression ":=" 'code-body`
     - `"sufficient" 'expression "by" 'expression;`
-    - `"return" 'code-body`
   - `'where` = `"where" "{" ("-" 'variable ":" 'expression = 'expression ";") "}"`
   - `'expression` = either
     - math macro: `"$" ('expression | 'macro-acceptable)+ "$"`
     - module.access `'name "." 'name`
-    - sort: `("\PROP" | "\SET(" 'number ")" | "\TYPE" )`
+    - paren: `'parend-exp`
+    - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
     - variable: `'variable`
     - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
     - depprod.intro: `"(" 'variable ":" 'expression ")" "=>"  'expression`
-    - depprod.elim: `"(" ('expression)+ ")"`
+    - depprod.elim: `'expression 'expression`
     - ind.form: `'name "(" ('expression ",")* ")"`
     - ind.intro: `'name "::" 'name "(" ('expression ",")* ")"`
     - ind.elim: `"elim" "(" 'name ")" 'expression "return" 'expression "with" ( "|" 'name "(" ('variable ",") ")" "="> 'expression )* "end"`
-    - record.intro: `'name "{" "}"`
+    - record.form ``'name "(" ('expression ",")* ")"``
+    - record.intro: `'name "(" ('expression ",")* ")" "{" "}"`
     - record.proj: `'expression "#" 'name`
     - proof term: `\Proof 'expression`
     - power.set: `'\Power 'expression`
-    - sub.set: `"{" 'variable: 'expression "|" 'expression "}"`
+    - sub.set: `"{" 'variable ":" 'expression "|" 'expression "}"`
     - predicate: `\Pred "(" 'expression "," 'expression "," 'expression ")"`
     - identity: `'expression "=" 'expression`
     - exists1: `\non-empty 'expression`
     - take: `\take 'variable ":" 'expression "," 'expression`
+  - `'parend-exp` = `"(" 'expression ")"`
 
 - 使うかもしれない記法のメモ
   - `a@b`

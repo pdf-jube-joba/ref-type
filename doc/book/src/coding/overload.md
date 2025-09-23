@@ -1,6 +1,6 @@
 対処したい問題：
 - `a "div" b` のような、通常とは異なるパースを要するような演算子について、これをその関数の定義の仕方とは分離した形で記述できてほしい。
-- `a * b` のように、文脈によって異なる解釈をするものを適切に（文脈を明示的に与えることもできるようにしたうえで）記述したい。
+- `a * b` のように文脈によって異なる解釈をするものを、適切に（文脈を明示的に与えることもできるようにしたうえで）記述したい。
 - 暗黙的な引数を使うところもわかった方がいい。
 
 ## アイディア
@@ -61,8 +61,8 @@ definition proj-def2: (x: Set) -> (a: NewA(x)) -> x -> Nat := (x: Nat) => (a: Ne
 ```
 // structure 宣言
 Structure PointedOver(X: Set) {
-  var pt: Carrior
-  var proj: Carrior -> X;
+  pt: Carrior
+  proj: Carrior -> X;
 }
 
 // 型の上の Structure の宣言
@@ -94,17 +94,17 @@ definition example1: nat := $(1 "div" 3$);
 Structure による解釈の場合：
 ```
 // BinOp を定義してみる
-Structure BinOp(n: Nat) {
+Structure BinOp {
   operator:  Carrior -> Carrior -> Carrior;
 }
 
-interpretation $(expr1 * expr2$) for A: Array[X] := A#operator expr1 expr2;
+interpretation $(expr1 * expr2$) for X: BinOp := X#operator expr1 expr2;
 
 definition NatAdd: BinOp[Nat] := BinOp[Nat] { opetator := add };
-definition NatMul: BinOp[Nat] := BinOp[Nat] { opetator := mul }
+definition NatMul: BinOp[Nat] := BinOp[Nat] { opetator := mul };
 
-definition tmp1: Nat := $(1 * 2$ NatAdd); // => 3
-definition tmp2: Nat := $(1 * 2$ NatMul); // => 2
+definition tmp1: Nat := $(1 * 2$ NatAdd ); // => 3
+definition tmp2: Nat := $(1 * 2$ NatMul ); // => 2
 ```
 
 instance 宣言により、書かなくてもよくなる。
@@ -113,3 +113,34 @@ Instance BinOp[Nat] := NatAdd;
 definition tmp3: Nat := $(3 * 4$); // => 7
 ```
 
+## structure の性質について
+形容詞として性質をいろいろつけることができるとうれしい。
+```
+property Associative on X: BinOp {
+  assoc: (x, y, z: X) -> $((x * y) * z$) = $(x * (y * z)$);
+}
+
+property Commutative on X: BinOp {
+  assoc: (x, y, z: X) -> $((x * y) * z$) = $(x * (y * z)$);
+}
+
+// theorem 名を書かなくていい。
+satisfy Associative- NatAdd :={
+  // ここに add の addociative を書く。
+};
+
+satisfy Commutative- NatAdd := {
+  // ここに add の addociative を書く。
+};
+
+definition double: (X: Associative- Commutative- BinOp) -> (x: X) -> X := $(x * x$);
+
+theorem test: double NatMul 1 = 1 := {
+  notice (double NatMul 1) is (mul 1 1);
+  \refl;
+}
+
+satisfy (X: Associative- BinOp) -> (Y: Associative- BinOp) -> (Prof(X, Y): Associative- BinOp) := {
+  ...
+}
+```

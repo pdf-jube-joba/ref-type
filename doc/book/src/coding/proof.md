@@ -19,7 +19,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
         => sqrt 2 = $(a0 * (gcd a b)) / (b0 * (gcd a b))$ & eq.rewrite-r.fn ((x: int) -> $(a0 * (gcd a b)) / x$) hb
         => sqrt 2 = $a0 * b0$ & eq.rewrite-r l1 a0 b0 (gcd a b)
       } with {
-        remark l1: (x: int) -> (y: int) -> (z: int) -> $(x * z) / (y * z) = x * y$
+        - l1: (x: int) -> (y: int) -> (z: int) -> $(x * z) / (y * z) = x * y$
       }
     }
   }
@@ -32,9 +32,9 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     => $2 * (b * b)$ = $(a * a) / (b * b) * (b * b)$ & eq.apply-fn ((b: real) => a * (b * b))
     => $2 * (b * b)$ = $(a * a)$ & eq.rewrite-r (l3 a b)
   } with {
-    remark l1: (x: real_{> 0}) -> ((sqrt x) * (sqrt x) = x) := { ... }
-    remark l2: (a, b: int) -> $(a / b) * (a / b)$ = $(a * a) / (b * b)$ := { ... }
-    remark l3: (a, b: real) -> $a / b * b = a$ := { ... }
+    - l1: (x: real_{> 0}) -> ((sqrt x) * (sqrt x) = x) := { ... }
+    - l2: (a, b: int) -> $(a / b) * (a / b)$ = $(a * a) / (b * b)$ := { ... }
+    - l3: (a, b: real) -> $a / b * b = a$ := { ... }
   }
 
   lemma c1: (x: int) -> (\exists y: int, $x * x$ = $2 * y$) -> (\exists x': int, x = $2 * x'$) := {
@@ -52,7 +52,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
       }
     }
   } with {
-    remark l1: (x, y, z: int) -> ($x * y$ = $2 * z$) -> (\exists x': int, x = $2 * m$) \/ (\exists y': int, y = $2 * y'$) := { ... }
+    - l1: (x, y, z: int) -> ($x * y$ = $2 * z$) -> (\exists x': int, x = $2 * m$) \/ (\exists y': int, y = $2 * y'$) := { ... }
   }
 
   have h2: (\exists a': int, a = $2 * a$) := reasoning! {
@@ -71,8 +71,8 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     => $b * b$ = $2 * a' * a'$ & Nat.mul.comm
     => (\exists x': int, b = $2 * x'$) & c1 b (#exact $a' * a'$)
   } with {
-    remark l1: (x: int) -> (y: int) -> (x = y) -> ($x * x$ = $y * y$) := { ... }
-    remark l2: (m: int_{> 0}) -> (x: int) -> (y: int) -> ($m * x$ = $m * y$) -> $x * y$ := { ... }
+    - l1: (x: int) -> (y: int) -> (x = y) -> ($x * x$ = $y * y$) := { ... }
+    - l2: (m: int_{> 0}) -> (x: int) -> (y: int) -> ($m * x$ = $m * y$) -> $x * y$ := { ... }
   }
 
   take b': int | p2: b = $2 * b'$ & h3;
@@ -83,7 +83,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     have h2: $b "mod" 2$ = 0 := l1 a p2;
     gcd-cd a b h1 h2
   } with {
-    remark gcd-cd: (a: int) -> (b: int) -> ($a "mod" 2$ = 0) -> ($b "mod" 2$ = 0) -> $gcd a b > 1$ := { ... }
+    - gcd-cd: (a: int) -> (b: int) -> ($a "mod" 2$ = 0) -> ($b "mod" 2$ = 0) -> $gcd a b > 1$ := { ... }
   }
 
   reasoning! {
@@ -91,7 +91,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     => $1 > 1$ & eq.rewrite h-gen
     => FALSE & leq-self-neg
   } with {
-    remark leq-self-neg: (n: int) -> $n > n$ -> FALSE := { ... }
+    - leq-self-neg: (n: int) -> $n > n$ -> FALSE := { ... }
   }
 }
 ```
