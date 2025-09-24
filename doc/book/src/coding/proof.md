@@ -2,36 +2,40 @@
 `{...}` の部分は省略してる。
 int と real の扱いも省略した。
 書いてて思ったけど、省略したら意味ないところもあるのに、全部書こうとすると長すぎる。
+注意： `hoge!` はユーザー定義マクロ。
 
 ## $\sqrt{2}$ の無理性をそれっぽく書く。
 ```
-theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
+theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
   fix (a: int) (b: int) (h: sqrt 2 = $a / b$);
 
-  generality h-gen: gcd a b = 1 [rename] (a0 @ a; b0 @ b; h0 @ h) := {
-    let { a0 := $a "div" (gcd a b)$; b0 := $a "div" (gcd a b)$; h-gen} = gcd.mk-coprime a b
+  generality! {
+    "new-assumption" h-gen: gcd a b = 1;
+    "rename" a0 @ a, b0 @ b, h0 @ h;
+
+    let { a0 := $a "div" (gcd a b)$; b0 := $a "div" (gcd a b)$; h-gen } = gcd.mk-coprime a b
     have h0: sqrt 2 = $a0 / b0$ := {
       have ha: a = $a0 * (gcd a b)$ & gcd.gcd-div a
       have hb: b = $b0 * (gcd a b)$ & gcd.gcd-div b
       reasoning! {
         sqrt 2 = $a / b$ & h
-        => sqrt 2 = $(a0 * (gcd a b)) / b$ & eq.rewrite-r.fn ((x: int) -> $x / b$) ha
-        => sqrt 2 = $(a0 * (gcd a b)) / (b0 * (gcd a b))$ & eq.rewrite-r.fn ((x: int) -> $(a0 * (gcd a b)) / x$) hb
-        => sqrt 2 = $a0 * b0$ & eq.rewrite-r l1 a0 b0 (gcd a b)
-      } with {
-        - l1: (x: int) -> (y: int) -> (z: int) -> $(x * z) / (y * z) = x * y$
+        ==> sqrt 2 = $(a0 * (gcd a b)) / b$ & eq.rewrite-r.fn ((x: int) => $x / b$) ha
+        ==> sqrt 2 = $(a0 * (gcd a b)) / (b0 * (gcd a b))$ & eq.rewrite-r.fn ((x: int) => $(a0 * (gcd a b)) / x$) hb
+        ==> sqrt 2 = $a0 * b0$ & eq.rewrite-r l1 a0 b0 (gcd a b)
+      } where {
+        - l1: (x: int) -> (y: int) -> (z: int) -> $(x * z) / (y * z) = x * y$ := { ... }
       }
     }
   }
-
+  
   have h1: $2 * (b * b)$ = $a * a$ := reasoning! {
     (sqrt 2 = $a / b$) & from h
-    => $(sqrt 2) * (sqrt 2)$ = $(a / b) * (a / b)$ & eq.apply-fn square
-    => 2 = $(a / b) * (a / b)$ & eq.rewrite-l (l1 2)
-    => 2 = $(a * a) / (b * b)$ & (l2 a b)
-    => $2 * (b * b)$ = $(a * a) / (b * b) * (b * b)$ & eq.apply-fn ((b: real) => a * (b * b))
-    => $2 * (b * b)$ = $(a * a)$ & eq.rewrite-r (l3 a b)
-  } with {
+    ==> $(sqrt 2) * (sqrt 2)$ = $(a / b) * (a / b)$ & eq.apply-fn ((x: int) => $x * x$)
+    ==> 2 = $(a / b) * (a / b)$ & eq.rewrite-l (l1 2)
+    ==> 2 = $(a * a) / (b * b)$ & (l2 a b)
+    ==> $2 * (b * b)$ = $(a * a) / (b * b) * (b * b)$ & eq.apply-fn ((b: real) => a * (b * b))
+    ==> $2 * (b * b)$ = $(a * a)$ & eq.rewrite-r (l3 a b)
+  } where {
     - l1: (x: real_{> 0}) -> ((sqrt x) * (sqrt x) = x) := { ... }
     - l2: (a, b: int) -> $(a / b) * (a / b)$ = $(a * a) / (b * b)$ := { ... }
     - l3: (a, b: real) -> $a / b * b = a$ := { ... }
@@ -42,8 +46,8 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     take y: int | h: square x = $2 * y$;
     reasoning! {
       $x * x$ = $2 * y$ & h
-      => (\exists x', x = $2 * x'$) \/ (\exists y', x = $2 * y'$) & l1 x x y
-    } either! {
+      ==> (\exists x', x = $2 * x'$) \/ (\exists y', x = $2 * y'$) & l1 x x y
+    } |> either! {
       case1: (\exists x', x = $2 * x'$) {
         case1
       }
@@ -51,7 +55,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
         case2
       }
     }
-  } with {
+  } where {
     - l1: (x, y, z: int) -> ($x * y$ = $2 * z$) -> (\exists x': int, x = $2 * m$) \/ (\exists y': int, y = $2 * y'$) := { ... }
   }
 
@@ -70,7 +74,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     => $b * b$ = $a' * 2 * a'$ & l2
     => $b * b$ = $2 * a' * a'$ & Nat.mul.comm
     => (\exists x': int, b = $2 * x'$) & c1 b (#exact $a' * a'$)
-  } with {
+  } where {
     - l1: (x: int) -> (y: int) -> (x = y) -> ($x * x$ = $y * y$) := { ... }
     - l2: (m: int_{> 0}) -> (x: int) -> (y: int) -> ($m * x$ = $m * y$) -> $x * y$ := { ... }
   }
@@ -82,7 +86,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     have h1: $a "mod" 2$ = 0 := l1 a p1;
     have h2: $b "mod" 2$ = 0 := l1 a p2;
     gcd-cd a b h1 h2
-  } with {
+  } where {
     - gcd-cd: (a: int) -> (b: int) -> ($a "mod" 2$ = 0) -> ($b "mod" 2$ = 0) -> $gcd a b > 1$ := { ... }
   }
 
@@ -90,7 +94,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = a / b) -> FALSE := {
     gcd a b > 1 & h4
     => $1 > 1$ & eq.rewrite h-gen
     => FALSE & leq-self-neg
-  } with {
+  } where {
     - leq-self-neg: (n: int) -> $n > n$ -> FALSE := { ... }
   }
 }

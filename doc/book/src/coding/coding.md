@@ -93,10 +93,12 @@ module についての扱いをどうするか。
   - すでにあるかどうかを検査する？...normalize すると停止しなくなるので、 Prop かどうかを検査すること。
 - $\vDash P$ の導出に何を使うかがユーザーに指定できないといけない。
   - 現在の分
-    - $\vDash P$ if $\vdash p: P$ ... \exact p か、何も言わずに $p$ とするとか。
+    - $\vDash P$ if $\vdash p: P$ ... \exact p か、何も言わずに `p` とするとか。
     - $\vDash \Pred(A, B, t)$ if $\vDash B: \Power A, \vDash t: \Ty(A, B)$ ... \subset t A B
     - $\vDash a = a$ ... \refl a
     - $\vDash P @ a$ if $\vdash P: A -> *^p, $ ... \id-elim a b P
     - $\vDash \Take f = t$ if $\Take f: T$ ... \take-eq f t T
-- backward よりは forward の方がコードとしては読みやすいけど、 backward の操作自体もできたほうがいい。
-  - sufficient とか。
+- その他 axiom の分 `\axiom:{hoge}` みたいな感じで。
+  - law of excluded middle: $\vDash (P: *^p) \to (P \vee \gen P)$ ... `\axiom:LEM`
+  - set extensionality: $\vDash (X: *^s) \to (Y_1, Y_2: \Power X) \to ((z: X) \to \Pred(X, Y_1, z) \leftrightarrow \Pred(X, Y_2, z)) \to Y_1 = Y_2$ ... `\axiom:SE`
+  - function extensionality: $\vDash (X, Y:*^s) \to (f_1, f_2: X \to Y) \to ((x: X) \to f_1 x = f_2 x) \to f_1 = f_2$ ... `\axiom:FE`

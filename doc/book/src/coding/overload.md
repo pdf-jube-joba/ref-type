@@ -86,7 +86,7 @@ Instance (X: Set) -> PointedOver(X)[A] -> PointedOver(X)[B] -> PointedOver(X)[Pr
 ```
 definition div: nat -> nat -> nat := ... ;
 // 関数と記号の結び付け
-interpretation $(expr1 "div" expr2$) := div expr1 expr2;
+interpretation $(expr1 "div" expr2$) := (div expr1 expr2);
 // 使い方
 definition example1: nat := $(1 "div" 3$); 
 ```

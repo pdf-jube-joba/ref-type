@@ -8,28 +8,30 @@
   - `'number` はそのまま数字のこと
   - `'macro` は `'name` の後に空白無しで `!` とする。
   - `'macro-acceptable-token` は token 側とかぶらないようなやつのこと。 
-    - 例えば、 `"mod"` や `+++` は acceptable だが、 `:` は記法がかぶるのでダメ。
+    - 例えば、 `"mod"` や `+++` や `!hello` は acceptable だが、 `:` は記法がかぶるのでダメ。
 - keyword のようなものをなるべく登場させたくない。
   - expression の中で何を variable として使ってよいかの自由度を高めたい。
-- syntax は
+- modus ponens 用のものも欲しい。パイプライン演算子？
+  
+## syntax
   - `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
-  - `'parameter-decl` = `"var" 'variable ":" 'expression` | `"law" 'variable ":" 'expression`
+  - `'parameter-decl` = `'variable ":" 'expression`
   - `'code-decl` = either
-    - `"definition" 'variable ":" 'expression ":=" 'code-body`
-    - `"theorem" 'variable ":" 'expression ":=" 'code-body`
+    - `"definition" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
+    - `"theorem" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
+    - `"interpretation" "$(" ('expression | 'macro-acceptable)+ "$)" ":=" 'expression ";"`
   - `'code-body` = either
-    - `'expression;`
-    - `"{" ('block)* 'expression "}"`
+    - `'expression`
+    - `"{" ('block-decl)* 'expression "}"`
     - `'macro "{" ('expression | 'macro-acceptable)+ "}"`
-  - `'block` =  either 
-    - `"fix" 'variable ":" 'expression ";"`
+  - `'block-decl` =  either 
+    - `"fix" ('variable ":" 'expression)+ ";"`
     - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
-    - `"notice" ('expression) "is" ('expression);` // これはコメント用と思っていい。
     - `"have" 'variable ":" 'expression ":=" 'code-body`
     - `"sufficient" 'expression "by" 'expression;`
-  - `'where` = `"where" "{" ("-" 'variable ":" 'expression = 'expression ";") "}"`
+  - `'where` = `"where" "{" ("-" 'variable ":" 'expression ":=" 'expression ";")+ "}"`
   - `'expression` = either
-    - math macro: `"$" ('expression | 'macro-acceptable)+ "$"`
+    - math macro: `"$" "(" ('expression | 'macro-acceptable)+ "$" ")"`
     - module.access `'name "." 'name`
     - paren: `'parend-exp`
     - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
@@ -43,7 +45,7 @@
     - record.form ``'name "(" ('expression ",")* ")"``
     - record.intro: `'name "(" ('expression ",")* ")" "{" "}"`
     - record.proj: `'expression "#" 'name`
-    - proof term: `\Proof 'expression`
+    - proof.term: `\Proof 'expression`
     - power.set: `'\Power 'expression`
     - sub.set: `"{" 'variable ":" 'expression "|" 'expression "}"`
     - predicate: `\Pred "(" 'expression "," 'expression "," 'expression ")"`
