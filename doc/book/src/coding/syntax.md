@@ -3,59 +3,15 @@
   - `#include` ... 他の読むべきファイルを連結する（ファイルの頭に）
   - `#eval` ... normalize する
 - `theory` の連結に意味論を与えたい。
-  - 基本的には、パースの際は空白で区切ったものが token になるようにする。
-  - `'name` と `'variable` は identifier にする
+- 基本的には、パースの際に空白で区切ったものが token になるようにする。
+- ユーザーが処理するように自由に使える token と、言語側で予約している token をわける。
+  - `'name` と `'variable` は identifier にする。
   - `'number` はそのまま数字のこと
   - `'macro` は `'name` の後に空白無しで `!` とする。
-  - `'macro-acceptable-token` は token 側とかぶらないようなやつのこと。 
-    - 例えば、 `"mod"` や `+++` や `!hello` は acceptable だが、 `:` は記法がかぶるのでダメ。
-- keyword のようなものをなるべく登場させたくない。
-  - expression の中で何を variable として使ってよいかの自由度を高めたい。
-- modus ponens 用のものも欲しい。パイプライン演算子？
-  
-## syntax
-  - `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
-  - `'parameter-decl` = `'variable ":" 'expression`
-  - `'code-decl` = either
-    - `"definition" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
-    - `"theorem" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
-    - `"interpretation" "$(" ('expression | 'macro-acceptable)+ "$)" ":=" 'expression ";"`
-  - `'code-body` = either
-    - `'expression`
-    - `"{" ('block-decl)* 'expression "}"`
-    - `'macro "{" ('expression | 'macro-acceptable)+ "}"`
-  - `'block-decl` =  either 
-    - `"fix" ('variable ":" 'expression)+ ";"`
-    - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
-    - `"have" 'variable ":" 'expression ":=" 'code-body`
-    - `"sufficient" 'expression "by" 'expression;`
-  - `'where` = `"where" "{" ("-" 'variable ":" 'expression ":=" 'expression ";")+ "}"`
-  - `'expression` = either
-    - math macro: `"$" "(" ('expression | 'macro-acceptable)+ "$" ")"`
-    - module.access `'name "." 'name`
-    - paren: `'parend-exp`
-    - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
-    - variable: `'variable`
-    - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
-    - depprod.intro: `"(" 'variable ":" 'expression ")" "=>"  'expression`
-    - depprod.elim: `'expression 'expression`
-    - ind.form: `'name "(" ('expression ",")* ")"`
-    - ind.intro: `'name "::" 'name "(" ('expression ",")* ")"`
-    - ind.elim: `"elim" "(" 'name ")" 'expression "return" 'expression "with" ( "|" 'name "(" ('variable ",") ")" "="> 'expression )* "end"`
-    - record.form ``'name "(" ('expression ",")* ")"``
-    - record.intro: `'name "(" ('expression ",")* ")" "{" "}"`
-    - record.proj: `'expression "#" 'name`
-    - proof.term: `\Proof 'expression`
-    - power.set: `'\Power 'expression`
-    - sub.set: `"{" 'variable ":" 'expression "|" 'expression "}"`
-    - predicate: `\Pred "(" 'expression "," 'expression "," 'expression ")"`
-    - identity: `'expression "=" 'expression`
-    - exists1: `\non-empty 'expression`
-    - take: `\take 'variable ":" 'expression "," 'expression`
-  - `'parend-exp` = `"(" 'expression ")"`
-
-- 使うかもしれない記法のメモ
-  - `a@b`
+    - 例： `reasoning!`, `either!`
+  - `'macro-acceptable` は token 側とかぶらないようなやつのこと。 
+    - 例： `"mod"`, `+++`, `!hello` は acceptable
+    - ダメな例： `:` は記法がかぶるのでダメ。
 
 # 実装での話
 - なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
@@ -65,9 +21,52 @@
     - subset やら exist やらも含めて。
     - ind-elim のところも vec で引数をとっておく。
 - sum ではなく レコード型を入れて、多相にしない。
-- trait と impl： coference は一回置いておく。
-  - trait は課す側・ impl は証明する側
-  - impl の中で証明するのはめんどくさいが、証明用の書き方を置いておく？
-  - impl のときに証明したものは（当然）既知のものとする。
 - 帰納型は引数を explicit に与える方式にしたい（見やすいから）。
   - explicit というか、 `(` と `)` で囲みたい。
+- 使うかもしれない記法のメモ
+  - `a@b`
+
+# 構文（案）
+- `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
+- `'parameter-decl` = `'variable ":" 'expression`
+- `'code-decl` = either
+  - `"definition" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
+  - `"theorem" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
+  - `"interpretation" "$(" ('expression | 'macro-acceptable)+ "$)" ":=" 'expression ";"`
+  - `"inductive"` ... 帰納型の定義
+  - `"structure"` ... 構造の定義
+- `'code-body` = either
+  - `'expression`
+  - `"{" ('block-decl)* 'expression "}"`
+  - `'macro "{" ('expression | 'macro-acceptable)+ "}"`
+- `'block-decl` =  either 
+  - `"fix" ('variable ":" 'expression)+ ";"`
+  - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
+  - `"have" 'variable ":" 'expression ":=" 'code-body`
+  - `"sufficient" 'expression "by" 'expression;`
+- `'where` = `"where" "{" ("-" 'variable ":" 'expression ":=" 'expression ";")+ "}"`
+- `'expression` = either
+  - math macro: `"$" "(" ('expression | 'macro-acceptable)+ "$" ")"`
+  - module.access: `'name ("." 'name)+`
+  - paren: `'parend-exp`
+  - pipe: `'expression | 'expression` ... `x | f` は `f(x)` に自動的に修正されるとする。
+  - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
+  - variable: `'variable`
+  - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
+  - depprod.intro: `"(" 'variable ":" 'expression ")" "=>"  'expression`
+  - depprod.elim: `'expression 'expression`
+  - ind.form: `'name "(" ('expression ",")* ")"`
+  - ind.intro: `'name "::" 'name "(" ('expression ",")* ")"`
+  - ind.elim: `"elim" "(" 'name ")" 'expression "return" 'expression "with" ( "|" 'name "(" ('variable ",") ")" "="> 'expression )* "end"`
+  - record.form ``'name "(" ('expression ",")* ")"``
+  - record.intro: `'name "(" ('expression ",")* ")" "{" "}"`
+  - record.proj: `'expression "#" 'name`
+  - proof.term: `\Proof 'expression`
+  - power.set: `'\Power 'expression`
+  - sub.set: `"{" 'variable ":" 'expression "|" 'expression "}"`
+  - predicate: `\Pred "(" 'expression "," 'expression "," 'expression ")"`
+  - identity: `'expression "=" 'expression`
+  - exists: `\non-empty 'expression`
+  - take: `\take 'variable ":" 'expression "," 'expression`
+  - abort: `\abort`
+- `'parend-exp` = `"(" 'expression ")"`
