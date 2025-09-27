@@ -6,23 +6,21 @@
 - 基本的には、パースの際に空白で区切ったものが token になるようにする。
 - ユーザーが処理するように自由に使える token と、言語側で予約している token をわける。
   - `'name` と `'variable` は identifier にする。
+    - 気持ち的には、 `'name` は展開されないやつで、 `'variable` は展開されるやつ。
   - `'number` はそのまま数字のこと
   - `'macro` は `'name` の後に空白無しで `!` とする。
     - 例： `reasoning!`, `either!`
   - `'macro-acceptable` は token 側とかぶらないようなやつのこと。 
     - 例： `"mod"`, `+++`, `!hello` は acceptable
     - ダメな例： `:` は記法がかぶるのでダメ。
-
-# 実装での話
+- 記号の解釈を選ぶ必要があるような部分を明示的に書くための文法として `$(` から `$)` で囲むことができるようにする。
+  - context を選ぶ場合には、 `$ ... )` の間に何か書く。
+- 帰納型は引数を `(` と `)` で囲んで明示的に与える方式にしたい（見やすいから）。
 - なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
-- 内部での表現は locally nameless にしておく。
-  - theory-local definition と theory を覚えておく必要がある。
-  - 束縛変数の名前と、束縛される部分を覚えておく。
-    - subset やら exist やらも含めて。
-    - ind-elim のところも vec で引数をとっておく。
-- sum ではなく レコード型を入れて、多相にしない。
-- 帰納型は引数を explicit に与える方式にしたい（見やすいから）。
-  - explicit というか、 `(` と `)` で囲みたい。
+- 数学的構造の話には Record 型"のようなもの"を使う。
+  - 項は nominal にするために `RecordName { fiele := expression}` とする。
+  - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
+  - 構造の性質については、構造に含めずに、 subset を記述しやすくするものと考えて、形容詞みたいに扱えるようにしたい。
 - 使うかもしれない記法のメモ
   - `a@b`
 
@@ -48,7 +46,7 @@
 - `'expression` = either
   - math macro: `"$" "(" ('expression | 'macro-acceptable)+ "$" ")"`
   - module.access: `'name ("." 'name)+`
-  - paren: `'parend-exp`
+  - paren: `'parend-exp` ... `"(" 'expression ")"` のこと。
   - pipe: `'expression | 'expression` ... `x | f` は `f(x)` に自動的に修正されるとする。
   - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
   - variable: `'variable`
@@ -69,4 +67,3 @@
   - exists: `\non-empty 'expression`
   - take: `\take 'variable ":" 'expression "," 'expression`
   - abort: `\abort`
-- `'parend-exp` = `"(" 'expression ")"`

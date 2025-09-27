@@ -1,10 +1,7 @@
-# $\sqrt{2}$ の無理性について。
-`{...}` の部分は省略してる。
-int と real の扱いも省略した。
-書いてて思ったけど、省略したら意味ないところもあるのに、全部書こうとすると長すぎる。
-注意： `hoge!` はユーザー定義マクロ。
+## コード例：$\sqrt{2}$ の無理性
+`{...}` は省略している部分。
+`int` と `real` についてはあまり気にしない。
 
-## $\sqrt{2}$ の無理性をそれっぽく書く。
 ```
 theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
   fix (a: int) (b: int) (h: sqrt 2 = $a / b$);
@@ -14,6 +11,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
     "rename" a0 @ a, b0 @ b, h0 @ h;
 
     let { a0 := $a "div" (gcd a b)$; b0 := $a "div" (gcd a b)$; h-gen } = gcd.mk-coprime a b
+
     have h0: sqrt 2 = $a0 / b0$ := {
       have ha: a = $a0 * (gcd a b)$ & gcd.gcd-div a
       have hb: b = $b0 * (gcd a b)$ & gcd.gcd-div b
@@ -41,14 +39,16 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
     - l3: (a, b: real) -> $a / b * b = a$ := { ... }
   }
 
-  lemma c1: (x: int) -> (\exists y: int, $x * x$ = $2 * y$) -> (\exists x': int, x = $2 * x'$) := {
+  have c1: (x: int) -> (\exists y: int, $x * x$ = $2 * y$) -> (\exists x': int, x = $2 * x'$) := {
     fix (x: int) (h: (\exists y: int, $x * x$ = $2 * y$));
     take y: int | h: $x * x$ = $2 * y$;
 
     reasoning! {
       $x * x$ = $2 * y$ & h
       ==> (\exists x', x = $2 * x'$) \/ (\exists y', x = $2 * y'$) & l1 x x y
+    
     } | either! { // `reasoning! {}` で生成された項を either! {} に流し込む。
+
       case1: (\exists x', x = $2 * x'$) {
         case1
       }
@@ -68,7 +68,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
     ==> (\exists x': int, a = $2 * x'$) & c1 a (#exact $b * b$)
   }
 
-  take a': int | p1: a = $2 * a'$ & h2;
+  take a': int | p1: a = $2 * a'$;
 
   have h3: (\exists b': int, b = $2 * b'$) := reasoning! {
     $2 * (b * b)$ = $a * a$ & h1
@@ -82,14 +82,14 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
     - l2: (m: int_{> 0}) -> (x: int) -> (y: int) -> ($m * x$ = $m * y$) -> $x * y$ := { ... }
   }
 
-  take b': int | p2: b = $2 * b'$ & h3;
+  take b': int | p2: b = $2 * b'$;
 
   have h4: gcd a b > 1 := reasoning! {
-    lemma l1: (a: int) -> (\exists x: int, a = $2 * x$) -> ($a "mod" 2$ = 0) := { ... }
     have h1: $a "mod" 2$ = 0 := l1 a p1;
     have h2: $b "mod" 2$ = 0 := l1 a p2;
     gcd-cd a b h1 h2
   } where {
+    - l1: (a: int) -> (\exists x: int, a = $2 * x$) -> ($a "mod" 2$ = 0) := { ... }
     - gcd-cd: (a: int) -> (b: int) -> ($a "mod" 2$ = 0) -> ($b "mod" 2$ = 0) -> $gcd a b > 1$ := { ... }
   }
 
@@ -100,5 +100,8 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $a / b$) -> FALSE := {
   } where {
     - leq-self-neg: (n: int) -> $n > n$ -> FALSE := { ... }
   }
+} proof {
+  - goal: \exists { a': int | a = $2 * a'$} := h2; 
+  - goal: \exists { b': int | b = $2 * b'$} := h3;
 }
 ```

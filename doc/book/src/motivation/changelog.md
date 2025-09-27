@@ -292,4 +292,4 @@ elimination は2つないといけない。
   - $T: *^s$ に対して $\Take T: T$ を $\vDash \exists T$ と $\vDash (x_1: T) \to (x_2: T) \to x_1 = x_2$ に対して導入する。
   - 問題点： $\vDash \exists T$ と $f: T \to Y$ に対して、 $f(\Take T)$ を正当化できない。理由は、 $=$ は $T$ 側ではなく $Y$ 側で発生するから。
 
-結局、かなり elimination として現在の $\Take$ の形が一番よさそうということになった。
+結局、 $\exists$ に対する elimination と思える現在の $\Take$ の形が一番よさそうということになった。

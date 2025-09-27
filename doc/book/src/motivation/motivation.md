@@ -138,7 +138,6 @@ $R_f, R_g$ は関係なので、 $R_f = R_g$ を書くことができない。
 かわりに、 $(x: X) \to (y: Y) \to (R_f x y \Leftrightarrow R_g x y)$ はできる。
 （$p_{f = g}$ から $f x = y \Leftrightarrow g x = y$ が示せるから。）
 
-
 $\text{Func}$ 自体の考察：
 $\text{Func} := (X, Y: *^s) \mapsto (R: X \to Y \to *^p) \mapsto (p_1: (x: X) \to \exists \{y: Y \mid R x y\}) \mapsto (p_2: (x: X) \to (y_1, y_2: Y) \to R x y_1 \to T x y_2 \to y_1 = y_2) \mapsto (x: X) \mapsto \Take \{y: Y \mid R x y\} $ で、
 これの型は $(X, Y: *^p) \to (R: X \to Y \to *^p) \to (\text{map all}) \to (\text{map unique}) \to X \to Y$ になっている。
@@ -159,3 +158,20 @@ $X: *^s, Y_1, Y_2: \Power(X)$ に対して、 $((z: X) \to (\Pred(X, Y_1, z) \Le
 これなら確かに、 $\{\} = \{\}$ は成り立つ。
 
 成り立つとしても、ここから $f = g$ は取り出せない。
+
+### その他考察
+extensionality は項の (propositional な) uniqueness が、外部との関連から導き出せる話になっている。
+$x, y: X: *^s$ に対して、$X$ という型の性質から定義される相互作用のようなものに対して、 $x$ と $y$ の振る舞いが同じなら $x = y$ みたいな感じ。
+- set ext: $X: *^s, Y_1, Y_2: \Power (X) \vDash ((z: X) \to (\Pred(X, Y_1, z) \leftrightarrow \Pred(X, Y_2, z)))  \to Y_1 = Y_2$
+- fun ext: $X: *^s, Y: *^s, f_1, f_2: X \to Y \vDash ((x: X) \to f_1 x = f_2 x) \to f_1 = f_2$
+
+これの見方として、 $Y_1, Y_2$ を $X \to *^p$ のことだと思えば、
+Coq の Prop ext （$*^p$ にも $=$ があって $(p \leftrightarrow q) \to (p = q)$） を仮定すれば、 set ext は fun ext になる。
+（ fun ext でいう $Y$ を $*^p$ にして、 $\Pred(X, Y_i, z)$ は $Y_i z$ になっている。）
+ちゃんと $\leftrightarrow$ を考えると、
+$$p \leftrightarrow q = (p \to q) \wedge (q \to p) = (c: *^p) \to ((p \to q) \to c) \to ((q \to p) \to c) \to c$$
+というふるまいだが、問題はなさそう。
+
+逆はできなさそう。
+つまり、 fun ext から set ext は厳しい気がする。
+$(\Take x: T. m) = e$ があるので何とかなる気もするが。
