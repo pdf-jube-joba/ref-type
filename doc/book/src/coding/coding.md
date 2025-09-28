@@ -107,7 +107,7 @@ reasoning!{
 ```
 は Prop `P1` から Prop `P3` をどう導出すればいいか記述しているが、
 これを `((h3: P2 -> P3) (h2: P1 -> P2) (h1: P1)): P3` に変形するマクロが、**ユーザーにも**書けるとうれしい。
-このマクロを記述する言語はできれば外部のツールとしてではなく、内部の言語として書かれていたほうが、
+このマクロを記述する言語はできれば、外部のツールとしてではなく、内部の言語として書かれていたほうが、
 インターネットでは保存がきく。
 
 # 検証器の仕様について
@@ -126,16 +126,7 @@ reasoning!{
 - provability の場合には、 $\beta$ modulo を加味して保持する。
   - すでにあるかどうかを検査する？...normalize すると停止しなくなるので、 Prop かどうかを検査すること。
 - $\vDash P$ の導出に何を使うかがユーザーに指定できないといけない。
-  - 現在の分
-    - $\vDash P$ if $\vdash p: P$ ... \exact p か、何も言わずに `p` とするとか。
-    - $\vDash \Pred(A, B, t)$ if $\vDash B: \Power A, \vDash t: \Ty(A, B)$ ... \subset t A B
-    - $\vDash a = a$ ... \refl a
-    - $\vDash P @ a$ if $\vdash P: A -> *^p, $ ... \id-elim a b P
-    - $\vDash \Take f = t$ if $\Take f: T$ ... \take-eq f t T
-- その他 axiom の分 `\axiom:{hoge}` みたいな感じで。
-  - law of excluded middle: $\vDash (P: *^p) \to (P \vee \neg P)$ ... `\axiom:LEM`
-  - set extensionality: $\vDash (X: *^s) \to (Y_1, Y_2: \Power X) \to ((z: X) \to \Pred(X, Y_1, z) \leftrightarrow \Pred(X, Y_2, z)) \to Y_1 = Y_2$ ... `\axiom:SE`
-  - function extensionality: $\vDash (X, Y:*^s) \to (f_1, f_2: X \to Y) \to ((x: X) \to f_1 x = f_2 x) \to f_1 = f_2$ ... `\axiom:FE`
+  - 証明が要求される部分で適宜ユーザーが証明を与えるための文法が必要。
 
 # 実装側の話
 - 内部での表現は locally nameless にしておく。

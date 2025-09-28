@@ -2,7 +2,10 @@
 - checker 用の命令は `#` で始まる
   - `#include` ... 他の読むべきファイルを連結する（ファイルの頭に）
   - `#eval` ... normalize する
-- `theory` の連結に意味論を与えたい。
+- ファイルに対してではなくて、 それの中身を（適当な順で並べた）　`theory` の集まりを処理することを考える。
+  - 本当は `theory` の順は不問としたいけど、実装の都合とかがあるので、しばらくは順序を指定することにする。
+  - なんで `theory` ってキーワードにしたんだろ
+- なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
 - 基本的には、パースの際に空白で区切ったものが token になるようにする。
 - ユーザーが処理するように自由に使える token と、言語側で予約している token をわける。
   - `'name` と `'variable` は identifier にする。
@@ -15,8 +18,9 @@
     - ダメな例： `:` は記法がかぶるのでダメ。
 - 記号の解釈を選ぶ必要があるような部分を明示的に書くための文法として `$(` から `$)` で囲むことができるようにする。
   - context を選ぶ場合には、 `$ ... )` の間に何か書く。
+  - これは別のやり方の方が読みやすいかも。
 - 帰納型は引数を `(` と `)` で囲んで明示的に与える方式にしたい（見やすいから）。
-- なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
+  - parameter と index の違いをどう与えればいいかわからない。
 - 数学的構造の話には Record 型"のようなもの"を使う。
   - 項は nominal にするために `RecordName { fiele := expression}` とする。
   - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
@@ -26,44 +30,58 @@
 
 # 構文（案）
 - `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
-- `'parameter-decl` = `'variable ":" 'expression`
+- `'parameter-decl` = `'variable ":" 'exp`
 - `'code-decl` = either
-  - `"definition" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
-  - `"theorem" 'variable ":" 'expression ":=" 'code-body ('where)? ";"`
-  - `"interpretation" "$(" ('expression | 'macro-acceptable)+ "$)" ":=" 'expression ";"`
-  - `"inductive"` ... 帰納型の定義
-  - `"structure"` ... 構造の定義
+  - `"definition" 'variable ":" 'exp ":=" 'code-body ('where)? ";"`
+  - `"theorem" 'variable ":" 'exp ":=" 'code-body ('where)? ";"`
+  - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
+  - `"inductive"`
+  - 以降はまだ構文が決まってない部分
+    - `"structure"` ... 構造の定義
+    - `"property"` ... 構造についての性質の定義
+    - `"satisfy"` ... 構造が性質を満たすことの宣言
 - `'code-body` = either
-  - `'expression`
-  - `"{" ('block-decl)* 'expression "}"`
-  - `'macro "{" ('expression | 'macro-acceptable)+ "}"`
-- `'block-decl` =  either 
-  - `"fix" ('variable ":" 'expression)+ ";"`
-  - `"take 'variable ":" 'expression "|" 'variable ":" 'expression ";"`
-  - `"have" 'variable ":" 'expression ":=" 'code-body`
-  - `"sufficient" 'expression "by" 'expression;`
-- `'where` = `"where" "{" ("-" 'variable ":" 'expression ":=" 'expression ";")+ "}"`
-- `'expression` = either
-  - math macro: `"$" "(" ('expression | 'macro-acceptable)+ "$" ")"`
+  - `'exp 'where 'proof`
+  - `"{" ('block-decl)* 'exp "}" 'where 'proof`
+  - `'macro "{" ('exp | 'macro-acceptable)+ "}" 'where 'proof`
+- `'block-decl` =  either
+  - `"fix" ('variable ":" 'exp)+ ";"`
+  - `"take 'variable ":" 'exp "|" 'variable ":" 'exp ";"`
+  - `"have" 'variable ":" 'exp ":=" 'code-body`
+  - `"sufficient" 'exp "by" 'exp;`
+- `'where` = `"where" "{" ("-" 'variable ":" 'exp ":=" 'exp ";")+ "}"`
+- `'proof` = ` "proof" "{" ("-" "goal" ":" 'exp ":=" 'proof-by ";")+ "}"`
+- `'proof-by` = either
+  - exact `"\exact" 'exp`
+  - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp`
+  - idrefl `"\idrefl" 'exp`
+  - idelim `"\idelim" 'exp "=" 'exp "\with" 'exp`
+  - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp`
+  - axioms = either
+    - law of excluded middle `"\axiom:LEM" 'exp ";"`
+    - functional extensionality `"\axiom:FE" 'exp "=" 'exp ":" 'exp "->" 'exp`
+    - set extensionality `"\axiom:SE" 'exp "=" 'exp "\subset" 'exp `
+  - abort: `\abort`
+- `'exp` = either
+  - math macro: `"$" "(" ('exp | 'macro-acceptable)+ "$" ")"`
   - module.access: `'name ("." 'name)+`
-  - paren: `'parend-exp` ... `"(" 'expression ")"` のこと。
-  - pipe: `'expression | 'expression` ... `x | f` は `f(x)` に自動的に修正されるとする。
+  - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
+  - pipe: `'exp | 'exp` ... `x | f` は `f(x)` に自動的に修正されるとする。
   - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
   - variable: `'variable`
-  - depprod.form: `"(" 'variable ":" 'expression ")" "->"  'expression`
-  - depprod.intro: `"(" 'variable ":" 'expression ")" "=>"  'expression`
-  - depprod.elim: `'expression 'expression`
-  - ind.form: `'name "(" ('expression ",")* ")"`
-  - ind.intro: `'name "::" 'name "(" ('expression ",")* ")"`
-  - ind.elim: `"elim" "(" 'name ")" 'expression "return" 'expression "with" ( "|" 'name "(" ('variable ",") ")" "="> 'expression )* "end"`
-  - record.form ``'name "(" ('expression ",")* ")"``
-  - record.intro: `'name "(" ('expression ",")* ")" "{" "}"`
-  - record.proj: `'expression "#" 'name`
-  - proof.term: `\Proof 'expression`
-  - power.set: `'\Power 'expression`
-  - sub.set: `"{" 'variable ":" 'expression "|" 'expression "}"`
-  - predicate: `\Pred "(" 'expression "," 'expression "," 'expression ")"`
-  - identity: `'expression "=" 'expression`
-  - exists: `\non-empty 'expression`
-  - take: `\take 'variable ":" 'expression "," 'expression`
-  - abort: `\abort`
+  - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
+  - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`
+  - depprod.elim: `'exp 'exp`
+  - ind.form: `'name "(" ('exp ",")* ")"`
+  - ind.intro: `'name "::" 'name "(" ('exp ",")* ")"`
+  - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
+  - record.form ``'name "(" ('exp ",")* ")"``
+  - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
+  - record.proj: `'exp "#" 'name`
+  - proof.term: `\Proof 'exp`
+  - power.set: `'\Power 'exp`
+  - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
+  - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`
+  - identity: `'exp "=" 'exp`
+  - exists: `\non-empty 'exp`
+  - take: `\take 'variable ":" 'exp "," 'exp`

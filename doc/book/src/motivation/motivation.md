@@ -65,6 +65,29 @@ Bool 型を用いて $f: X \to \text{Bool}$ と $p: X \to *^p$ がいい感じ�
 つまり、 `leq` と `leb` を自動で補完する？
 これをやるにはそもそもなにか結び付けを宣言する機構が必要になるので、やめたほうがいいかも。
 
+## 項のレベルと型のレベルが分かれてないのがもしかしたらめんどくさいかも
+changelog の方にあったように、 judgement を term っぽいものと type っぽいものにわけたが、
+以前として、 $\Gamma \vdash t: *^s_{i}: *^s_{i+1}$ になることは変わらない。
+なので現状だと、 $\Gamma \vdash t: *^s_{i}$ と $\exists T, \Gamma \vdash t: T: *^s_{i}$ は被る。
+
+CoC だと $*$-term, $*$-type in $\square$-term, $\square$-type, $\square$ の階層ができていたが、
+$*^s_{i}$ ごとに $*^s_{\square}$ を用意してこれと同様のことを行ってもいいかもしれない。
+これと cumulative （といっていいのかわからないけどリフトみたい）な操作を行えば、無理なく階層が作れそう。
+
+こんな感じ？：
+- $(*^s_{i}, \square^s_{i}) \in \mathcal{A}$
+- $(*^s_{i}, *^s_{i}) \in \mathcal{R}$ ... これは普通に関数型 $(A \to B)$ のこと。
+- $(*^s_{i}, \square^s_{i}) \in \mathcal{R}$ ... これが依存型のこと。
+- $(\square^s_{i}, *^s_{i}, *^s_{i+1})$ ... $i$ のレベルでの term が type に依存しているのを、レベルを上げる。
+- $(\square^s_{i}, \square^s_{i}, *^s_{i+1})$ ... これも同様。
+
+これは $*^s_{i} \mapsto *^s_{i}, \square^s_{i} \mapsto *^s_{i+1}$ によって普通の predicative なやつに埋め込めるので、いい感じに思える。
+これと $t: *^s_{i}$ なら $t: *^s_{i+1}$ （か、 Lift という項を使って $\text{Lift}(t): *^s_{i+1}$ ）みたいにすれば、
+cumulative なものが普通にできる。
+（型だけじゃなくて項のリフトも必要だけど。）
+
+$\Gamma \vdash t: T: *^s_{i}$, $\Gamma \vdash t: *^s_{i}$ が排他になるならうれしい。
+
 ## $(*^p, *^s, *^s)$ がない。
 必要かどうかはわからないが、 $(*^p, *^s, *^s) \in \mathcal{R}$ を入れてない。
 入れても多分大丈夫そうだが、とりあえず分けてる。
