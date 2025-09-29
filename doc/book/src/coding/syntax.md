@@ -18,10 +18,6 @@
 - 記号の解釈を選ぶ必要があるような部分を明示的に書くための文法として `$(` から `$)` で囲むことができるようにする。
   - context を選ぶ場合には、 `$ ... )` の間に何か書く。
   - これは別のやり方の方が読みやすいかも。
-- 帰納型は引数を `(` と `)` で囲んで明示的に与える方式にしたい（見やすいから）。
-  - parameter と index の違いをどう与えればいいかわからない。
-  - この場合、他の module で定義された帰納型を使うのが難しくなる。
-    - 単に syntax の問題として、 module へのアクセスを `'name "." 'name "." ...` の形にしているから。
 - 数学的構造の話には Record 型"のようなもの"を使う。
   - 項は nominal にするために `RecordName { fiele := expression}` とする。
   - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
@@ -30,6 +26,35 @@
   - `a@b`
 
 # 構文（案）
+## exp 部分
+ここは core calculus + α ぐらい。
+module へのアクセスをどうするかが難しい。
+
+- `'exp` = either
+  - math macro: `"$" "(" ('exp | 'macro-acceptable)+ "$" ")"`
+  - module.access: `'name ("." 'name)+`
+  - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
+  - pipe: `'exp "|" 'exp` ... `x | f` は `f(x)` に自動的に修正されるとする。
+  - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
+  - variable: `'variable`
+  - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
+  - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`
+  - depprod.elim: `'exp 'exp`
+  - ind.form: `'name`
+  - ind.intro: `'name "::" 'name`
+  - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
+  - record.form ``'name "(" ('exp ",")* ")"``
+  - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
+  - record.proj: `'exp "#" 'name`
+  - proof.term: `\Proof 'exp`
+  - power.set: `'\Power 'exp`
+  - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
+  - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`
+  - identity: `'exp "=" 'exp`
+  - take: `\take 'variable ":" 'exp ( "|" 'exp)?`
+- `'param-decl` = `'variable ":" 'exp`
+
+## 各 module ごとの宣言
 - `'module-decl` = `"module" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
 - `'parameter-decl` = `'variable ":" 'exp`
 - `'code-decl` = either
@@ -64,26 +89,3 @@
     - functional extensionality `"\axiom:FE" 'exp "=" 'exp ":" 'exp "->" 'exp`
     - set extensionality `"\axiom:SE" 'exp "=" 'exp "\subset" 'exp `
   - abort: `\abort`
-- `'exp` = either
-  - math macro: `"$" "(" ('exp | 'macro-acceptable)+ "$" ")"`
-  - module.access: `'name ("." 'name)+`
-  - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
-  - pipe: `'exp | 'exp` ... `x | f` は `f(x)` に自動的に修正されるとする。
-  - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
-  - variable: `'variable`
-  - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
-  - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`
-  - depprod.elim: `'exp 'exp`
-  - ind.form: `'name "(" ('exp ",")* ")"`
-  - ind.intro: `'name "::" 'name "(" ('exp ",")* ")"`
-  - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
-  - record.form ``'name "(" ('exp ",")* ")"``
-  - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
-  - record.proj: `'exp "#" 'name`
-  - proof.term: `\Proof 'exp`
-  - power.set: `'\Power 'exp`
-  - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
-  - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`
-  - identity: `'exp "=" 'exp`
-  - exists: `\non-empty 'exp`
-  - take: `\take 'variable ":" 'exp "," 'exp`

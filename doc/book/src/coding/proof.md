@@ -10,15 +10,15 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     "new-assumption" h-gen: gcd a b = 1;
     "rename" a0 @ a, b0 @ b, h0 @ h;
 
-    let { a0 := $( a "div" (gcd a b)$; b0 := $a "div" (gcd a b) $); h-gen } = gcd.mk-coprime a b
+    let { a0 := $( a "div" (gcd a b) $); b0 := $( a "div" (gcd a b) $); h-gen } = gcd.mk-coprime a b
 
     have h0: sqrt 2 = $( a0 / b0 $) := {
       have ha: a = $( a0 * (gcd a b) $) & gcd.gcd-div a
       have hb: b = $( b0 * (gcd a b) $) & gcd.gcd-div b
       reasoning! {
         sqrt 2 = $( a / b $) & h
-        ==> sqrt 2 = $( (a0 * (gcd a b)) / b$ & eq.rewrite-r.fn ((x: int) => $x / b $)) ha
-        ==> sqrt 2 = $( (a0 * (gcd a b)) / (b0 * (gcd a b))$ & eq.rewrite-r.fn ((x: int) => $(a0 * (gcd a b)) / x $)) hb
+        ==> sqrt 2 = $( (a0 * (gcd a b)) / b $) & eq.rewrite-r.fn ((x: int) => $( x / b $ )) ha
+        ==> sqrt 2 = $( (a0 * (gcd a b)) / (b0 * (gcd a b)) $) & eq.rewrite-r.fn ((x: int) => $( a0 * (gcd a b) / x $)) hb
         ==> sqrt 2 = $( a0 * b0 $) & eq.rewrite-r l1 a0 b0 (gcd a b)
       } where {
         - l1: (x: int) -> (y: int) -> (z: int) -> $( (x * z) / (y * z) = x * y $) := { ... }
@@ -28,18 +28,18 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
   
   have h1: $( 2 * (b * b)$ = $a * a $) := reasoning! {
     (sqrt 2 = $( a / b $)) & h
-    ==> $( (sqrt 2) * (sqrt 2)$ = $(a / b) * (a / b)$ & eq.apply-fn ((x: int) => $x * x $))
+    ==> $( (sqrt 2) * (sqrt 2) $) = $( (a / b) * (a / b) $) & eq.apply-fn ((x: int) => $( x * x $))
     ==> 2 = $( (a / b) * (a / b) $) & eq.rewrite-l (l1 2)
     ==> 2 = $( (a * a) / (b * b) $) & (l2 a b)
-    ==> $( 2 * (b * b)$ = $(a * a) / (b * b) * (b * b) $) & eq.apply-fn ((b: real) => a * (b * b))
-    ==> $( 2 * (b * b)$ = $(a * a) $) & eq.rewrite-r (l3 a b)
+    ==> $( 2 * (b * b) $) = $( (a * a) / (b * b) * (b * b) $) & eq.apply-fn ((b: real) => $( a * (b * b) $))
+    ==> $( 2 * (b * b) $) = $( (a * a) $) & eq.rewrite-r (l3 a b)
   } where {
-    - l1: (x: real_{> 0}) -> ((sqrt x) * (sqrt x) = x) := { ... }
-    - l2: (a, b: int) -> $( (a / b) * (a / b)$ = $(a * a) / (b * b) $) := { ... }
+    - l1: (x: real_{> 0}) -> $( (sqrt x) * (sqrt x) = x $) := { ... }
+    - l2: (a, b: int) -> $( (a / b) * (a / b) $) = $( (a * a) / (b * b) $) := { ... }
     - l3: (a, b: real) -> $( a / b * b = a $) := { ... }
   }
 
-  have c1: (x: int) -> (\exists y: int, $( x * x$ = $2 * y$) -> (\exists x': int, x = $2 * x' $)) := {
+  have c1: (x: int) -> (\exists y: int | $( x * x $) = $( 2 * y $)) -> (\exists x': int | x = $( 2 * x' $)) := {
     fix (x: int) (h: (\exists y: int, $( x * x$ = $2 * y $)));
     take y: int | h: $( x * x$ = $2 * y $);
 
@@ -59,7 +59,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
   } where {
     - l1: (x, y, z: int) -> ($( x * y$ = $2 * z$) -> (\exists x': int, x = $2 * m$) \/ (\exists y': int, y = $2 * y' $)) := { ... };
   } proof {
-    - goal: \exists { y: int | $( x * x$ = $2 * y $) } := h;
+    - goal: \exists { y: int | $( x * x$ = $2 * y $) } := \exact h;
   }
 
   have h2: (\exists a': int, a = $( 2 * a $)) := reasoning! {
@@ -101,7 +101,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     - leq-self-neg: (n: int) -> $( n > n $) -> FALSE := { ... }
   }
 } proof {
-  - goal: \exists { a': int | a = $( 2 * a' $)} := h2; 
-  - goal: \exists { b': int | b = $( 2 * b' $)} := h3;
+  - goal: \exists { a': int | a = $( 2 * a' $)} := \exact h2; 
+  - goal: \exists { b': int | b = $( 2 * b' $)} := \exact h3;
 }
 ```

@@ -3,17 +3,17 @@
 - 一般化された議論のパラメータに対して代入ができるとうれしい。
 
 ## アイディア
-- 名前は `module` でも `theory` でもいいけれど、 `theory` にした。
 - Coq だと variable や parameter や axiom が文中に書けるけど、これは読みづらくなるのでやめる。
-  そういうパラメータ的なものは `theory` の引数として最初に集中させておく。
-- ほかに使う theory も同様に、最初に集中させておく。
+  そういうパラメータ的なものは `module` の引数として最初に集中させておく。
+- 使う module も同様に、最初に集中させておく。
 - 内部から使う場合は代入を全部して import したものからアクセスする。
 - `A extend B` と書いたら、 `A` での宣言が使える。
+- 入れ子に対してどうするかは検討中
 
 ## コード例
 
 ```
-theory rel(
+module rel(
   var A: Set;
   var R: A -> A -> Prop;
 ) {
@@ -29,7 +29,7 @@ theory rel(
   }
 }
 
-theory eq-rel(
+module eq-rel(
   var p_refl: refl;
   var p_sym: sym;
   var p_trans: trans;
@@ -51,7 +51,7 @@ theory eq-rel(
   }
 }
 
-theory dec-rel(
+module dec-rel(
   var A: Set;
   var Rdec: A -> A -> Bool
 ) requires rel {
