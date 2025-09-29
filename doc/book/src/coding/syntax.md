@@ -2,9 +2,8 @@
 - checker 用の命令は `#` で始まる
   - `#include` ... 他の読むべきファイルを連結する（ファイルの頭に）
   - `#eval` ... normalize する
-- ファイルに対してではなくて、 それの中身を（適当な順で並べた）　`theory` の集まりを処理することを考える。
-  - 本当は `theory` の順は不問としたいけど、実装の都合とかがあるので、しばらくは順序を指定することにする。
-  - なんで `theory` ってキーワードにしたんだろ
+- ファイルに対してではなくて、 それの中身を（適当な順で並べた） `module` の集まりを処理することを考える。
+  - 本当は `module` の順は不問としたいけど、実装の都合とかがあるので、しばらくは順序を指定することにする。
 - なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
 - 基本的には、パースの際に空白で区切ったものが token になるようにする。
 - ユーザーが処理するように自由に使える token と、言語側で予約している token をわける。
@@ -21,6 +20,8 @@
   - これは別のやり方の方が読みやすいかも。
 - 帰納型は引数を `(` と `)` で囲んで明示的に与える方式にしたい（見やすいから）。
   - parameter と index の違いをどう与えればいいかわからない。
+  - この場合、他の module で定義された帰納型を使うのが難しくなる。
+    - 単に syntax の問題として、 module へのアクセスを `'name "." 'name "." ...` の形にしているから。
 - 数学的構造の話には Record 型"のようなもの"を使う。
   - 項は nominal にするために `RecordName { fiele := expression}` とする。
   - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
@@ -29,17 +30,18 @@
   - `a@b`
 
 # 構文（案）
-- `'theory-decl` = `"theory" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
+- `'module-decl` = `"module" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
 - `'parameter-decl` = `'variable ":" 'exp`
 - `'code-decl` = either
   - `"definition" 'variable ":" 'exp ":=" 'code-body ('where)? ";"`
   - `"theorem" 'variable ":" 'exp ":=" 'code-body ('where)? ";"`
   - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
-  - `"inductive"`
+  - `"inductive" 'name ":" ":=" ";"`
+  - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
   - 以降はまだ構文が決まってない部分
     - `"structure"` ... 構造の定義
     - `"property"` ... 構造についての性質の定義
-    - `"satisfy"` ... 構造が性質を満たすことの宣言
+    - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
 - `'code-body` = either
   - `'exp 'where 'proof`
   - `"{" ('block-decl)* 'exp "}" 'where 'proof`
