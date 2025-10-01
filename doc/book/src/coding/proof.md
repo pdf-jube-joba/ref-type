@@ -10,14 +10,15 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     "new-assumption" h-gen: gcd a b = 1;
     "rename" a0 @ a, b0 @ b, h0 @ h;
 
-    let { a0 := $( a "div" (gcd a b) $); b0 := $( a "div" (gcd a b) $); h-gen } = gcd.mk-coprime a b
+    pair.decompose! { a0, a1 := gcd.mk-coprime a b }
+    have h-gen: (gcd a b = 1) := gcd.mk-coprime.gcdprop; 
 
     have h0: sqrt 2 = $( a0 / b0 $) := {
       have ha: a = $( a0 * (gcd a b) $) & gcd.gcd-div a
       have hb: b = $( b0 * (gcd a b) $) & gcd.gcd-div b
       reasoning! {
         sqrt 2 = $( a / b $) & h
-        ==> sqrt 2 = $( (a0 * (gcd a b)) / b $) & eq.rewrite-r.fn ((x: int) => $( x / b $ )) ha
+        ==> sqrt 2 = $( (a0 * (gcd a b)) / b $) & eq.rewrite-r.fn ((x: int) ==> $( x / b $ )) ha
         ==> sqrt 2 = $( (a0 * (gcd a b)) / (b0 * (gcd a b)) $) & eq.rewrite-r.fn ((x: int) => $( a0 * (gcd a b) / x $)) hb
         ==> sqrt 2 = $( a0 * b0 $) & eq.rewrite-r l1 a0 b0 (gcd a b)
       } where {
@@ -68,6 +69,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     ==> (\exists x': int, a = $( 2 * x'$) & c1 a (#exact $b * b $))
   }
 
+  // これを満たす a' の存在を証明する必要があるが、最後の方に書かれることになる。
   take a': int | p1: a = $( 2 * a' $);
 
   have h3: (\exists b': int, b = $( 2 * b' $)) := reasoning! {
@@ -82,6 +84,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     - l2: (m: int_{> 0}) -> (x: int) -> (y: int) -> ($( m * x$ = $m * y$) -> $x * y $) := { ... }
   }
 
+  // これを満たす b' の存在を証明する必要があるが、最後の方に書かれることになる。
   take b': int | p2: b = $( 2 * b' $);
 
   have h4: gcd a b > 1 := reasoning! {
@@ -101,6 +104,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     - leq-self-neg: (n: int) -> $( n > n $) -> FALSE := { ... }
   }
 } proof {
+  // take を使ったので、存在証明が goal に入っている。
   - goal: \exists { a': int | a = $( 2 * a' $)} := \exact h2; 
   - goal: \exists { b': int | b = $( 2 * b' $)} := \exact h3;
 }

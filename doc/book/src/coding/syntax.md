@@ -18,6 +18,10 @@
 - 記号の解釈を選ぶ必要があるような部分を明示的に書くための文法として `$(` から `$)` で囲むことができるようにする。
   - context を選ぶ場合には、 `$ ... )` の間に何か書く。
   - これは別のやり方の方が読みやすいかも。
+- refinement のようなことをする部分では、常に `|` を書いていいほうがうれしい。
+  - 普通の subset を扱うときは `(x: \Ty({x: A | P}) ) => ...` のように書くのはめんどくさいので、 `(x: A | P) => (some x occurence)` と書きたい
+  - set の nonempty も、 `\exists { x: A | P } => ...` は嫌かもしれないから、 `\exists (x: A | P) => (some x occurence)` とか
+  - take も `\Take x: A. ...` 以外に `\Take (x: A | P). (some x occurence)` とか。
 - 数学的構造の話には Record 型"のようなもの"を使う。
   - 項は nominal にするために `RecordName { fiele := expression}` とする。
   - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
@@ -29,48 +33,36 @@
 ## exp 部分
 ここは core calculus + α ぐらい。
 module へのアクセスをどうするかが難しい。
+（見た目からは module かどうかがわからないので...）
 
 - `'exp` = either
-  - math macro: `"$" "(" ('exp | 'macro-acceptable)+ "$" ")"`
-  - module.access: `'name ("." 'name)+`
-  - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
-  - pipe: `'exp "|" 'exp` ... `x | f` は `f(x)` に自動的に修正されるとする。
-  - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
-  - variable: `'variable`
-  - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
-  - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`
-  - depprod.elim: `'exp 'exp`
-  - ind.form: `'name`
-  - ind.intro: `'name "::" 'name`
-  - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
-  - record.form ``'name "(" ('exp ",")* ")"``
-  - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
-  - record.proj: `'exp "#" 'name`
-  - proof.term: `\Proof 'exp`
-  - power.set: `'\Power 'exp`
-  - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
-  - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`
-  - identity: `'exp "=" 'exp`
-  - take: `\take 'variable ":" 'exp ( "|" 'exp)?`
-- `'param-decl` = `'variable ":" 'exp`
-
-## 各 module ごとの宣言
-- `'module-decl` = `"module" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
-- `'parameter-decl` = `'variable ":" 'exp`
-- `'code-decl` = either
-  - `"definition" 'variable ":" 'exp ":=" 'code-body ('where)? ";"`
-  - `"theorem" 'variable ":" 'exp ":=" 'code-body ('where)? ";"`
-  - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
-  - `"inductive" 'name ":" ":=" ";"`
-  - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
-  - 以降はまだ構文が決まってない部分
-    - `"structure"` ... 構造の定義
-    - `"property"` ... 構造についての性質の定義
-    - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
-- `'code-body` = either
-  - `'exp 'where 'proof`
-  - `"{" ('block-decl)* 'exp "}" 'where 'proof`
-  - `'macro "{" ('exp | 'macro-acceptable)+ "}" 'where 'proof`
+  - 普通じゃないやつ
+    - math macro: `"$(" ('exp | 'macro-acceptable)+ "$" 'context ")"`
+      - `'context` の仕様は決まってない
+    - macro: `'macro "{" ('exp | 'macro-acceptable)+ "}"`
+    - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
+    - pipe: `'exp "|" 'exp` ... `x | f` は `f x` に自動的に修正されるとする。
+    - block: `'block`
+  - それ以外
+    - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
+    - variable: `'variable`
+    - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
+    - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`
+    - depprod.elim: `'exp 'exp`
+    - ind.form: `'name`
+    - ind.intro: `'name "::" 'name`
+    - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
+    - record.form ``'name "(" ('exp ",")* ")"``
+    - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
+    - record.proj: `'exp "#" 'name`
+    - proof.term: `\Proof 'exp`
+    - power.set: `'\Power 'exp`
+    - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
+    - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`
+    - identity: `'exp "=" 'exp`
+    - take: `\take 'variable ":" 'exp ( "|" 'exp)?`
+    - let: `\let 'variable: ":" 'exp ":=" 'exp "in" 'exp`
+- `'block` = `"{" ('block-decl)* 'exp "}" ('where)? ('proof)?`
 - `'block-decl` =  either
   - `"fix" ('variable ":" 'exp)+ ";"`
   - `"take 'variable ":" 'exp "|" 'variable ":" 'exp ";"`
@@ -78,6 +70,24 @@ module へのアクセスをどうするかが難しい。
   - `"sufficient" 'exp "by" 'exp;`
 - `'where` = `"where" "{" ("-" 'variable ":" 'exp ":=" 'exp ";")+ "}"`
 - `'proof` = ` "proof" "{" ("-" "goal" ":" 'exp ":=" 'proof-by ";")+ "}"`
+
+## 各 module ごとの宣言
+- `'module-decl` = `"module" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
+- `'parameter-decl` = `'variable ":" 'exp`
+- `'code-decl` = either
+  - `"definition" 'variable ":" 'exp ":=" 'exp`
+  - `"theorem" 'variable ":" 'exp ":=" 'exp`
+  - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
+  - `"inductive" 'name ":" ":=" ";"`
+  - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
+  - 以降はまだ構文が決まってない部分
+    - `"structure"` ... 構造の定義
+    - `"property"` ... 構造についての性質の定義
+    - `"instance"` ... 構造と集合の結び付けの宣言
+    - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
+- `'code-body` = either
+  - `'exp 'where 'proof`
+  - `"{" ('block-decl)* 'exp "}" 'where 'proof`
 - `'proof-by` = either
   - exact `"\exact" 'exp`
   - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp`
