@@ -90,6 +90,7 @@ module へのアクセスをどうするかが難しい。
     - `"property"` ... 構造についての性質の定義
     - `"instance"` ... 構造と集合の結び付けの宣言
     - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
+    - `"macro"` ...マクロの宣言
 - `'code-body` = either
   - `'exp 'where 'proof`
   - `"{" ('block-decl)* 'exp "}" 'where 'proof`
