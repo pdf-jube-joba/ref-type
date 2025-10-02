@@ -22,10 +22,14 @@
   - 普通の subset を扱うときは `(x: \Ty({x: A | P}) ) => ...` のように書くのはめんどくさいので、 `(x: A | P) => (some x occurence)` と書きたい
   - set の nonempty も、 `\exists { x: A | P } => ...` は嫌かもしれないから、 `\exists (x: A | P) => (some x occurence)` とか
   - take も `\Take x: A. ...` 以外に `\Take (x: A | P). (some x occurence)` とか。
+- module と定義の展開とか等しさの定義を考える。
+
+## 今はちょっと置いておく部分
 - 数学的構造の話には Record 型"のようなもの"を使う。
   - 項は nominal にするために `RecordName { fiele := expression}` とする。
   - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
   - 構造の性質については、構造に含めずに、 subset を記述しやすくするものと考えて、形容詞みたいに扱えるようにしたい。
+- `import a.b` や `import a.*` の仕組みや std は自動的に import されるみたいな仕組みを考える。
 - 使うかもしれない記法のメモ
   - `a@b`
 
@@ -43,6 +47,7 @@ module へのアクセスをどうするかが難しい。
     - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
     - pipe: `'exp "|" 'exp` ... `x | f` は `f x` に自動的に修正されるとする。
     - block: `'block`
+    - module.access: `'module "." 'name`
   - それ以外
     - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
     - variable: `'variable`
@@ -88,6 +93,9 @@ module へのアクセスをどうするかが難しい。
 - `'code-body` = either
   - `'exp 'where 'proof`
   - `"{" ('block-decl)* 'exp "}" 'where 'proof`
+- `'module` = either
+  - `'name "(" ('variable ":=" 'exp)* ")"`
+  - `'name`
 - `'proof-by` = either
   - exact `"\exact" 'exp`
   - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp`
