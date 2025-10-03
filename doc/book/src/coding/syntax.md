@@ -83,8 +83,10 @@ module へのアクセスをどうするかが難しい。
   - `"definition" 'variable ":" 'exp ":=" 'exp`
   - `"theorem" 'variable ":" 'exp ":=" 'exp`
   - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
+  - `"macro" 'name "{" ('exp | 'macro-acceptable)+ "}" ":=" 'exp`
   - `"inductive" 'name ":" ":=" ";"`
   - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
+  - `"module"`
   - 以降はまだ構文が決まってない部分
     - `"structure"` ... 構造の定義
     - `"property"` ... 構造についての性質の定義
