@@ -10,6 +10,7 @@
   - [proof](./coding/proof.md)
   - [overload](./coding/overload.md)
   - [module](./coding/module.md)
+  - [implementation](./coding/implementation.md)
 - [props](./props/props.md)
   - [confluence](./props/confluence.md)
   - [typing](./props/typing.md)
