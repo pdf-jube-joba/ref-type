@@ -157,3 +157,6 @@ prefix/infix/postfix や associativity の指定**ではなくて**、「この�
     - 内部で definition や theorem があるたびに覚えておき、一度チェックしたら二度とチェックしない。
   - ある名前がほかの module を指しているのか definition などの定義を指しているのかも検査する。
     - 意味解析の中で、 module と variable のどっちかを調べるところまでやる。
+- module と同値性について
+  - ある module `A (B: Set)` の中に `Id` があったとして、 `A(B := C).Id = A(B := D).Id` が示せるかどうか？
+  - module の content になっている時点で代入して比較はできる ... やってよいことにする。
