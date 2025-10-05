@@ -6,6 +6,7 @@
 theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
   fix (a: int) (b: int) (h: sqrt 2 = $( a / b $));
 
+  // user defined なマクロ
   generality! {
     "new-assumption" h-gen: gcd a b = 1;
     "rename" a0 @ a, b0 @ b, h0 @ h;
@@ -27,7 +28,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     }
   }
   
-  have h1: $( 2 * (b * b)$ = $a * a $) := reasoning! {
+  have h1: $( 2 * (b * b) $) = $( a * a $) := reasoning! {
     (sqrt 2 = $( a / b $)) & h
     ==> $( (sqrt 2) * (sqrt 2) $) = $( (a / b) * (a / b) $) & eq.apply-fn ((x: int) => $( x * x $))
     ==> 2 = $( (a / b) * (a / b) $) & eq.rewrite-l (l1 2)
@@ -37,16 +38,16 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
   } where {
     - l1: (x: real_{> 0}) -> $( (sqrt x) * (sqrt x) = x $) := { ... }
     - l2: (a, b: int) -> $( (a / b) * (a / b) $) = $( (a * a) / (b * b) $) := { ... }
-    - l3: (a, b: real) -> $( a / b * b = a $) := { ... }
+    - l3: (a, b: real) -> $( a / b * b $) = a := { ... }
   }
 
   have c1: (x: int) -> (\exists y: int | $( x * x $) = $( 2 * y $)) -> (\exists x': int | x = $( 2 * x' $)) := {
-    fix (x: int) (h: (\exists y: int, $( x * x$ = $2 * y $)));
-    take y: int | h: $( x * x$ = $2 * y $);
+    fix (x: int) (h: (\exists y: int, $( x * x $) = $( 2 * y $)));
+    take y: int | h: $( x * x $) = $( 2 * y $);
 
     reasoning! {
-      $( x * x$ = $2 * y $) & h
-      ==> (\exists x', x = $( 2 * x'$) \/ (\exists y', x = $2 * y' $)) & l1 x x y
+      $( x * x $) = $( 2 * y $) & h
+      ==> (\exists x', x = $( 2 * x' $)) \/ (\exists y', x = $( 2 * y' $)) & l1 x x y
     
     } | either! { // `reasoning! {}` で生成された項を either! {} に流し込む。
 
@@ -58,30 +59,33 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
       }
     }
   } where {
-    - l1: (x, y, z: int) -> ($( x * y$ = $2 * z$) -> (\exists x': int, x = $2 * m$) \/ (\exists y': int, y = $2 * y' $)) := { ... };
+    - l1: (x, y, z: int) -> ($( x * y $) = $( 2 * z $)) -> (\exists x': int, x = $( 2 * m $)) \/ (\exists y': int, y = $(2 * y' $)) := { ... };
   } proof {
-    - goal: \exists { y: int | $( x * x$ = $2 * y $) } := \exact h;
+    - goal: \exists { y: int | $( x * x $) = $( 2 * y $) } := \exact h;
   }
 
   have h2: (\exists a': int, a = $( 2 * a $)) := reasoning! {
-    $( 2 * (b * b)$ = $a * a $) & h1
-    ==> $( a * a$ = $2 * (b * b) $) & eq.sym
-    ==> (\exists x': int, a = $( 2 * x'$) & c1 a (#exact $b * b $))
+    $( 2 * (b * b)$) = $(a * a $) & h1
+    ==> $( a * a$) = $(2 * (b * b) $) & eq.sym
+    ==> \exists x': int | a = $( 2 * x' $) & c1 a l
+  } where {
+    - l: \exists y: int | $( a * a $) = $( 2 * y $) := \exact $( b * b $);
   }
 
   // これを満たす a' の存在を証明する必要があるが、最後の方に書かれることになる。
   take a': int | p1: a = $( 2 * a' $);
 
   have h3: (\exists b': int, b = $( 2 * b' $)) := reasoning! {
-    $( 2 * (b * b)$ = $a * a $) & h1
-    ==> $( 2 * (b * b)$ = $(2 * a') * (2 * a') $) & l1 a (2 * a') p1
-    ==> $( 2 * (b * b)$ = $2 * a' * 2 * a' $) & Nat.mul.assoc
-    ==> $( b * b$ = $a' * 2 * a' $) & l2
-    ==> $( b * b$ = $2 * a' * a' $) & Nat.mul.comm
-    ==> (\exists x': int, b = $( 2 * x'$) & c1 b (#exact $a' * a' $))
+    $( 2 * (b * b)$) = $(a * a $) & h1
+    ==> $( 2 * (b * b) $) = $( (2 * a') * (2 * a') $) & l1 a (2 * a') p1
+    ==> $( 2 * (b * b) $) = $( 2 * a' * 2 * a' $) & Nat.mul.assoc
+    ==> $( b * b $) = $(a' * 2 * a' $) & l2
+    ==> $( b * b $) = $(2 * a' * a' $) & Nat.mul.comm
+    ==> \exists x': int, b = $( 2 * x' $) & c1 b l3
   } where {
     - l1: (x: int) -> (y: int) -> (x = y) -> ($( x * x$ = $y * y $)) := { ... }
     - l2: (m: int_{> 0}) -> (x: int) -> (y: int) -> ($( m * x$ = $m * y$) -> $x * y $) := { ... }
+    - l3: \exists y: int | $( a * a $) = $( 2 * y $) := \exact $( a' * a' $);
   }
 
   // これを満たす b' の存在を証明する必要があるが、最後の方に書かれることになる。
@@ -92,8 +96,8 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
     have h2: $( b "mod" 2 $) = 0 := l1 a p2;
     gcd-cd a b h1 h2
   } where {
-    - l1: (a: int) -> (\exists x: int, a = $( 2 * x$) -> ($a "mod" 2 $) = 0) := { ... }
-    - gcd-cd: (a: int) -> (b: int) -> ($( a "mod" 2$ = 0) -> ($b "mod" 2$ = 0) -> $gcd a b > 1 $) := { ... }
+    - l1: (a: int) -> (\exists x: int, a = $( 2 * x $) ) -> ($(a "mod" 2 $) = 0) := { ... }
+    - gcd-cd: (a: int) -> (b: int) -> ($( a "mod" 2$) = 0) -> ($(b "mod" 2$) = 0) -> $(gcd a b > 1 $) := { ... }
   }
 
   reasoning! {
