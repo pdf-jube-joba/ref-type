@@ -34,18 +34,41 @@
   - `a@b`
 
 # 構文（案）
-## exp 部分
-ここは core calculus + α ぐらい。
-module へのアクセスをどうするかが難しい。
-（見た目からは module かどうかがわからないので...）
+## 概要
+- 式、文、ブロックによる構造化
+  - 'exp := ... | 'block
+  - 'block := "{" ('stmt)* 'exp "}"
+  - 'stmt := "fix" (x: A) ";" | "have" x: A := t ; | ...
+- where と proof で証明の補助を明示的に書く
+  - 例：
+    ```
+    definition x: A := t where {
+      - l1: P1 := p1;
+      - l2: P2 := p2;
+    } proof {
+      - goal: P3 := p3;
+      - goal: P4 := p4;
+    }
+    ```
+- parametrized module の入れ子とアクセスを簡単に
+  - `module Name((param : paramtype)* ) { ... }` で module にパラメータを
+  - `ModName(param := arg)` で module に引数を与える
+  - `a.b.c.d` 記法
+  - `import ModName(param := arg) as AnotherName` で簡単なアクセスができるように
+- 型チェックの中で proof の構成が要求されることがある...expression の一部として組み込んだりすることにする。
+  - 型チェックある所に proof あるので全部に `'proof` 句がくるように syntax を調整しないと。
 
+## 全体
+ここは core calculus + α ぐらい。
+
+## exp
 - `'exp` = either
   - 普通じゃないやつ
     - math macro: `"$(" ('exp | 'macro-acceptable)+ "$" 'context ")"`
       - `'context` の仕様は決まってない
-    - macro: `'macro "{" ('exp | 'macro-acceptable)+ "}"`
+    - user macro: `'macro "{" ('exp | 'macro-acceptable)+ "}"`
     - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
-    - pipe: `'exp "|" 'exp` ... `x | f` は `f x` に自動的に修正されるとする。
+    - pipe: `'exp "|" 'exp` ... `x | f` は `f x` と同じ意味
     - block: `'block`
     - module.access: `'module "." 'name`
   - それ以外
@@ -75,15 +98,27 @@ module へのアクセスをどうするかが難しい。
   - `"sufficient" 'exp "by" 'exp;`
 - `'where` = `"where" "{" ("-" 'variable ":" 'exp ":=" 'exp ";")+ "}"`
 - `'proof` = ` "proof" "{" ("-" "goal" ":" 'exp ":=" 'proof-by ";")+ "}"`
+- `'proof-by` = either
+  - construct `"\by" 'exp` ... $\Gamma \vdash P$ if $\Gamma \vdash p: P$
+  - exact `"\exact" 'exp` ... $\Gamma \vdash \exists A$ if $\Gamma \vdash a: A$
+  - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp` ... $\Gamma \vdash \Pred(A, a, x)$ if $\Gamma \vdash x: \Ty(a, A)$
+  - idrefl `"\idrefl" 'exp "\in" 'exp` ... $\Gamma \vdash a = a$ if $\Gamma \vdash a: A$
+  - idelim `"\idelim" 'exp "=" 'exp "\with" "(" 'var ":" 'ty ")" "=>" 'exp` ... $\Gamma \vdash (\lambda x: A. P) a_2$ if $\Gamma \vdash a_1 = a_2$, $\Gamma \vdash a_1, a_2: A$, $\Gamma x: A \vdash P_1$, $\Gamma \vdash (\lambda x: A. P) a_1$
+  - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp` ... $\Gamma \vdash \Take f = t$ if $\Gamma \vdash \Take f, t: X: *^s$
+  - axioms = either
+    - law of excluded middle `"\axiom:LEM" 'exp ";"`
+    - functional extensionality `"\axiom:FE" 'exp "=" 'exp ":" 'exp "->" 'exp`
+    - set extensionality `"\axiom:SE" 'exp "=" 'exp "\subset" 'exp `
+  - abort: `\abort`
 
-## 各 module ごとの宣言
+## module
 - `'module-decl` = `"module" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
 - `'parameter-decl` = `'variable ":" 'exp`
 - `'code-decl` = either
   - `"definition" 'variable ":" 'exp ":=" 'exp`
   - `"theorem" 'variable ":" 'exp ":=" 'exp`
   - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
-  - `"macro" 'name "{" ('exp | 'macro-acceptable)+ "}" ":=" 'exp`
+  - `"macro"  "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp`
   - `"inductive" 'name ":" ":=" ";"`
   - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
   - `"module"`
@@ -92,21 +127,10 @@ module へのアクセスをどうするかが難しい。
     - `"property"` ... 構造についての性質の定義
     - `"instance"` ... 構造と集合の結び付けの宣言
     - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
-    - `"macro"` ...マクロの宣言
+    - `"macro"` ... ユーザーマクロの宣言
 - `'code-body` = either
   - `'exp 'where 'proof`
   - `"{" ('block-decl)* 'exp "}" 'where 'proof`
 - `'module` = either
   - `'name "(" ('variable ":=" 'exp)* ")"`
   - `'name`
-- `'proof-by` = either
-  - exact `"\exact" 'exp`
-  - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp`
-  - idrefl `"\idrefl" 'exp`
-  - idelim `"\idelim" 'exp "=" 'exp "\with" 'exp`
-  - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp`
-  - axioms = either
-    - law of excluded middle `"\axiom:LEM" 'exp ";"`
-    - functional extensionality `"\axiom:FE" 'exp "=" 'exp ":" 'exp "->" 'exp`
-    - set extensionality `"\axiom:SE" 'exp "=" 'exp "\subset" 'exp `
-  - abort: `\abort`

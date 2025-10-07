@@ -76,7 +76,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = $( a / b $)) -> FALSE := {
   take a': int | p1: a = $( 2 * a' $);
 
   have h3: (\exists b': int, b = $( 2 * b' $)) := reasoning! {
-    $( 2 * (b * b)$) = $(a * a $) & h1
+    $( 2 * (b * b) $) = $( a * a $) & h1
     ==> $( 2 * (b * b) $) = $( (2 * a') * (2 * a') $) & l1 a (2 * a') p1
     ==> $( 2 * (b * b) $) = $( 2 * a' * 2 * a' $) & Nat.mul.assoc
     ==> $( b * b $) = $(a' * 2 * a' $) & l2

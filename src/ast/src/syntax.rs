@@ -1,218 +1,256 @@
-use std::fmt::Display;
+use either::Either;
+
+// module definition
+#[derive(Debug, Clone)]
+pub struct Module {
+    pub name: String,
+    pub parameters: Vec<(Name, Exp)>, // given parameters for module
+    pub declarations: Vec<Declaration>, // sensitive to order
+}
+
+// parameter instantiated module
+// e.g. modA(B := x, C := y)
+#[derive(Debug, Clone)]
+pub struct ModuleInstantiated {
+    pub module_name: Name,
+    pub arguments: Vec<(Var, Exp)>,
+}
+
+// path of module access
+// e.g. [A, B(x1 := y1, x2 := y2), C] for A.B(x1 := y1, x2 := y2).C.name
+// if it is empty, it means current module
+#[derive(Debug, Clone)]
+pub struct ModPath(Vec<Either<Name, ModuleInstantiated>>);
+
+#[derive(Debug, Clone)]
+pub enum Declaration {
+    Definition {
+        name: Name,
+        ty: Exp,
+        body: Exp,
+    },
+    Theorem {
+        name: Name,
+        ty: Exp,
+        body: Exp,
+    },
+    Inductive {
+        ind_defs: InductiveTypeSpecs,
+    },
+    ChildModule {
+        module: Module,
+    },
+    Import {
+        instantiated_module: ModuleInstantiated,
+        import_name: Name,
+    },
+    MathMacro {
+        before: Vec<Either<MacroToken, Var>>,
+        after: Vec<Var>,
+    },
+    // currently not supported
+    // UserMacro {
+    //     name: Name,
+    //     before: Vec<Either<MacroToken, Var>>,
+    //     after: Vec<Var>,
+    // },
+}
+
+// later use
+// ```
+// definition x: A := t where {
+// - y: B := u;
+// - z: C := v;
+// }
+// ```
+#[derive(Debug, Clone)]
+pub struct WhereClause(Vec<(Name, Exp, Exp)>);
+
+// later use
+// theorem x: A := t proof {
+// - goal: A1 := t1;
+// - goal: A2 := t2;
+// }
+#[derive(Debug, Clone)]
+pub struct ProofClause(Vec<(Exp, Exp)>);
+
+#[derive(Debug, Clone)]
+pub struct InductiveTypeSpecs {
+    pub type_name: Name,
+    pub parameter: Vec<(Name, Exp)>,
+    pub arity: (Vec<(Name, Exp)>, Sort),
+    pub constructors: Vec<(Name, Vec<ParamCstSyntax>, Vec<Exp>)>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ParamCstSyntax {
+    Positive((Vec<(Name, Exp)>, Vec<Exp>)),
+    Simple((Name, Exp)),
+}
 
 // this is internal representation
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Exp {
+    // --- module access
+    // module access `path.name`
+    // if name pointed to a inductive type, it should IndType
+    // this contains both Definition and Theorem pointing
+    ModAccess {
+        path: ModPath,
+        name: Name,
+    },
+    // --- macro
+    MathMacro {
+        tokens: Vec<Either<MacroToken, Exp>>,
+    },
+    // currently not supported
+    // UserMacro {
+    //     name: Name,
+    //     tokens: Vec<Either<MacroToken, Exp>>,
+    // },
+    // --- lambda calculus
+    // sort: Prop, Set(i), Univ, Type
     Sort(Sort),
+    // variable defined by De Bruijn index
+    // de Bruijn index is (local, global)
+    // it should not point to a module defined name
     Var(Var),
-    Prod(Bind, Box<Exp>),
-    Lam(Bind, Box<Exp>),
-    App(Box<Exp>, Box<Exp>),
-    // inductive hoge は global context を見ながらやること
-    // 型 T
+    // (x: A) -> B  or  (x: A | P) -> B
+    Prod {
+        var: Var,
+        ty: Box<Exp>,
+        predicate: Option<Box<Exp>>,
+        body: Box<Exp>,
+    },
+    // (x: A) => t  or  (x: A | P) => t
+    Lam {
+        var: Var,
+        ty: Box<Exp>,
+        predicate: Option<Box<Exp>>,
+        body: Box<Exp>,
+    },
+    // usual application (f x)
+    App {
+        func: Box<Exp>,
+        arg: Box<Exp>,
+    },
+    // pipeline style application (x |> f)
+    AppByPipe {
+        func: Box<Exp>,
+        arg: Box<Exp>,
+    },
+    // type annotation (exp as ty)
+    Ann {
+        exp: Box<Exp>,
+        ty: Box<Exp>,
+    },
+    // --- inductive type
+    // name of inductive type
     IndType {
-        ind_type_name: inductives::TypeName,
-        parameters: Vec<Exp>,
+        path: ModPath,
+        ind_type_name: String,
     },
-    // 型 T のコンストラクタ C の指定
+    // constructor of inductive type
     IndCst {
-        ind_type_name: inductives::TypeName,
-        constructor_name: inductives::ConstructorName,
-        parameters: Vec<Exp>,
+        path: ModPath,
+        ind_type_name: String,
+        constructor_name: String,
     },
-    // Elim(T, c, Q){f[0], ..., f[m]}
+    // primitive elimination for inductive type
+    // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndTypeElim {
-        ind_type_name: inductives::TypeName,
+        ind_type_name: String,
         eliminated_exp: Box<Exp>,
         return_type: Box<Exp>,
-        cases: Vec<(inductives::ConstructorName, Vec<Var>, Exp)>,
-    },
-    // これがほしいメインの部分
-    Proof(Box<Exp>),                    // Proof t
-    Pow(Box<Exp>),                      // Power X
-    Sub(Bind, Box<Exp>),                // { x : A | P }
-    Pred(Box<Exp>, Box<Exp>, Box<Exp>), // Pred (A, B, t)
-    Id(Box<Exp>, Box<Exp>),             // a = b
-    Exists(Box<Exp>),                   // exists T.
-    Take(Bind, Box<Exp>),               // take x:A. t
-}
-
-impl Display for Exp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s: String = match self {
-            Exp::Sort(sort) => format!("{sort}"),
-            Exp::Var(var) => format!("{var}"),
-            Exp::Prod(bind, exp1) => format!("({bind}) -> {exp1}"),
-            Exp::Lam(bind, exp1) => format!("({bind}) |-> {exp1}"),
-            Exp::App(exp, exp1) => format!("{{{exp}}} {{{exp1}}}"),
-            Exp::IndType {
-                ind_type_name,
-                parameters,
-            } => format!(
-                "{ind_type_name}({})",
-                parameters
-                    .iter()
-                    .fold(String::new(), |s, e| { format!("{s}, {e}") })
-            ),
-            Exp::IndCst {
-                ind_type_name,
-                constructor_name,
-                parameters,
-            } => format!(
-                "{ind_type_name}::{constructor_name}({})",
-                parameters
-                    .iter()
-                    .fold(String::new(), |s, e| { format!("{s}, {e}") })
-            ),
-            Exp::IndTypeElim {
-                ind_type_name,
-                eliminated_exp,
-                return_type,
-                cases,
-            } => {
-                format!(
-                    "elim({ind_type_name}) {eliminated_exp} return {return_type} with {} end",
-                    cases.iter().fold(String::new(), |s, (c, arg, e)| {
-                        format!(
-                            "{s} | {c}({}) => {e} ",
-                            arg.iter()
-                                .fold(String::new(), |s, e| { format!("{s}, {e}") })
-                        )
-                    }),
-                )
-            }
-            Exp::Proof(t) => format!("Proof({t})"),
-            Exp::Sub(bind, p) => format!("{{ {bind} | {p} }}"),
-            Exp::Pow(a) => format!("Power({a})"),
-            Exp::Pred(a, b, t) => format!("Pred({a}, {b}, {t})"),
-            Exp::Id(a, b) => format!("({a} = {b})"),
-            Exp::Exists(t) => format!("Exists {t}"),
-            Exp::Take(bind, m) => format!("Take ({bind}) |-> {m}"),
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl Exp {
-    pub fn is_sort(&self) -> Option<Sort> {
-        if let Exp::Sort(s) = self {
-            Some(*s)
-        } else {
-            None
-        }
-    }
-    pub fn indelim(
-        ind_type_name: String,
-        eliminated_exp: Exp,
-        return_type: Exp,
         cases: Vec<(String, Vec<Var>, Exp)>,
-    ) -> Self {
-        Self::IndTypeElim {
-            ind_type_name: ind_type_name.into(),
-            eliminated_exp: Box::new(eliminated_exp),
-            return_type: Box::new(return_type),
-            cases: cases
-                .into_iter()
-                .map(|(c, arg, e)| (c.into(), arg, e))
-                .collect(),
-        }
-    }
+    },
+    // --- set theory
+    // \Proof term ... "prove this later"
+    Proof {
+        term: Box<Exp>,
+    },
+    // \Power power
+    Pow {
+        power: Box<Exp>,
+    },
+    // { x: A | P }
+    Sub {
+        var: Var,
+        ty: Box<Exp>,
+        predicate: Box<Exp>,
+    },
+    // \Pred (superset, subset, elem)
+    Pred {
+        superset: Box<Exp>,
+        subset: Box<Exp>,
+        elem: Box<Exp>,
+    },
+    // \TypeLift (superset, subset)
+    TypeLift {
+        superset: Box<Exp>,
+        subset: Box<Exp>,
+    },
+    // --- proposition
+    // a = b
+    Equal {
+        left: Box<Exp>,
+        right: Box<Exp>,
+    },
+    // \exists (x: A | P) or \exists (x: A)
+    Exists {
+        var: Var,
+        ty: Box<Exp>,
+        predicate: Option<Box<Exp>>,
+    },
+    // --- opaque description (specified but not constructed)
+    // \take (x: A) => t or \take (x: A | P) => t
+    Take {
+        var: Var,
+        ty: Box<Exp>,
+        predicate: Option<Box<Exp>>,
+        body: Box<Exp>,
+    },
+    // --- "proof by" terms
+    ProofBy(ProofBy),
+    Block(Block),
 }
 
-// occurence of bind (x: A)
+// token for macros
+// which is (not identifier) /\ (not keyword)
+// e.g. "+", "*", "==>", "||", ...
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Bind {
-    pub var: Var,
-    pub ty: Box<Exp>,
-}
+pub struct MacroToken(pub String);
 
-impl Bind {
-    pub fn new(x: Var, a: Exp) -> Self {
-        Bind {
-            var: x,
-            ty: Box::new(a),
-        }
-    }
-}
+// identifier for any naming
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Name(pub String);
 
-impl Display for Bind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.var, self.ty)
-    }
-}
-
+// no free variable
+// De bruijn index with local and global
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Var {
-    Str(String),
-    Internal(String, usize),
-    Unused,
-}
-
-impl<S> From<S> for Var
-where
-    S: AsRef<str>,
-{
-    fn from(value: S) -> Self {
-        Var::Str(value.as_ref().to_string())
-    }
-}
-
-impl From<Var> for Exp {
-    fn from(value: Var) -> Self {
-        Exp::Var(value)
-    }
-}
-
-impl Display for Var {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Var::Str(s) => format!("[{s}]"),
-                Var::Internal(s, n) => format!("[{s}_{n}]"),
-                Var::Unused => "_".to_string(),
-            }
-        )
-    }
+    Bound(usize),  // de bruijn index for bound variable
+    Global(usize), // de bruijn index for global variable
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
-    Set(usize),  // predicateive SET(0): SET(1): SET(2) ...
-    Prop,        // proposition
-    Univ(usize), // Prop: Univ(0): Univ(1): Univ(2) ...,
-    Type,        // for programming language
-}
-
-impl Display for Sort {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Sort::Univ(i) => format!("UNIV({i})"),
-            Sort::Set(i) => format!("SET({i})"),
-            Sort::Prop => "PROP".to_string(),
-            Sort::Type => "TYPE".to_string(),
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl From<Sort> for Exp {
-    fn from(value: Sort) -> Self {
-        Exp::Sort(value)
-    }
+    Set(usize), // predicateive SET(0): SET(1): SET(2) ...
+    Prop,       // proposition
+    Univ,       // Prop: UNiv
+    Type,       // for programming language
 }
 
 // functional なものしか考えないのでよい。
 impl Sort {
     // functional なので、
     // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
-    pub fn type_of_sort(self) -> Self {
+    pub fn type_of_sort(self) -> Option<Self> {
         match self {
-            Sort::Univ(i) => Sort::Univ(i + 1),
-            Sort::Set(i) => Sort::Set(i + 1),
-            Sort::Prop => Sort::Univ(0),
-            Sort::Type => Sort::Univ(0),
+            Sort::Univ => None,
+            Sort::Set(i) => Some(Sort::Set(i + 1)),
+            Sort::Prop => Some(Sort::Univ),
+            Sort::Type => Some(Sort::Univ),
         }
     }
 
@@ -222,152 +260,103 @@ impl Sort {
         match (self, other) {
             // CoC 部分
             (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Univ(i1), Sort::Univ(i2)) => Some(Sort::Univ(std::cmp::max(i1, i2))),
-            (Sort::Univ(_), Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop, Sort::Univ(i)) => Some(Sort::Univ(i)),
+            (Sort::Univ, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Univ, Sort::Prop) => Some(Sort::Prop),
+            (Sort::Prop, Sort::Univ) => Some(Sort::Univ),
             // Set を入れる部分
             (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(std::cmp::max(i, j))),
-            (Sort::Set(_), Sort::Univ(i)) => Some(Sort::Univ(i)),
+            (Sort::Set(_), Sort::Univ) => Some(Sort::Univ),
             (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
             (Sort::Prop, Sort::Set(_)) => None,
-            (Sort::Univ(_), Sort::Set(_)) => None, // Set は predicative
+            (Sort::Univ, Sort::Set(_)) => None, // Set は predicative
             // Type を入れる部分
             (Sort::Type, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, Sort::Univ(i)) => Some(Sort::Univ(i)),
-            (Sort::Univ(_), Sort::Type) => Some(Sort::Type),
+            (Sort::Type, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Univ, Sort::Type) => Some(Sort::Type),
             (Sort::Type, _) => None,
             (_, Sort::Type) => None,
             // Univ 用
         }
     }
 
-    // elimination の制限用
+    // inductive type の elimination の制限用
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
-            (Sort::Univ(_) | Sort::Set(_) | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
-            (Sort::Set(_) | Sort::Type, Sort::Univ(_)) => Some(()),
-            (Sort::Univ(i1), Sort::Univ(i2)) if i1 == i2 => Some(()),
-            (Sort::Univ(_) | Sort::Type, Sort::Type) => Some(()),
+            (Sort::Univ | Sort::Set(_) | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
+            (Sort::Set(_) | Sort::Type, Sort::Univ) => Some(()),
+            (Sort::Univ, Sort::Univ) => Some(()),
+            (Sort::Univ | Sort::Type, Sort::Type) => Some(()),
             (Sort::Set(_), Sort::Set(_)) => Some(()),
             _ => None,
         }
     }
 }
 
-// inductive definition には自由変数がないことを仮定する
-pub mod inductives {
-    use super::*;
-    use crate::utils;
+#[derive(Debug, Clone)]
+pub enum ProofBy {
+    Construct {
+        term: Box<Exp>,
+    },
+    Exact {
+        term: Box<Exp>,
+        set: Box<Exp>,
+    },
+    SubElim {
+        superset: Box<Exp>,
+        subset: Box<Exp>,
+        elem: Box<Exp>,
+    },
+    IdRefl {
+        term: Box<Exp>,
+        ty: Box<Exp>,
+    },
+    IdElim {
+        left: Box<Exp>,
+        right: Box<Exp>,
+        var: Var,
+        ty: Box<Exp>,
+        predicate: Box<Exp>,
+    },
+    TakeEq {
+        func: Box<Exp>,
+        elem: Box<Exp>,
+    },
+    AxiomLEM {
+        proposition: Box<Exp>,
+    },
+    AxiomFunctionExt {
+        func1: Box<Exp>,
+        func2: Box<Exp>,
+        domain: Box<Exp>,
+    },
+    AxiomEmsembleExt {
+        set1: Box<Exp>,
+        set2: Box<Exp>,
+        superset: Box<Exp>,
+    },
+}
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct TypeName(String);
+#[derive(Debug, Clone)]
+pub struct Block {
+    pub declarations: Vec<Statement>, // sensitive to order
+    pub term: Box<Exp>,
+}
 
-    impl<S> From<S> for TypeName
-    where
-        S: AsRef<str>,
-    {
-        fn from(value: S) -> Self {
-            TypeName(value.as_ref().to_string())
-        }
-    }
-
-    impl Display for TypeName {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct ConstructorName(String);
-
-    impl<S> From<S> for ConstructorName
-    where
-        S: AsRef<str>,
-    {
-        fn from(value: S) -> Self {
-            ConstructorName(value.as_ref().to_string())
-        }
-    }
-
-    impl Display for ConstructorName {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
-
-    // Inductive List (A: Set): Set :=
-    // | nil : List A
-    // | cons : A -> List A -> List A.
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct InductiveDefinitionsSyntax {
-        pub type_name: TypeName,
-        pub parameter: Vec<Bind>,
-        pub arity: (Vec<Bind>, Sort),
-        pub constructors: Vec<(ConstructorName, Vec<ParamCstSyntax>, Vec<Exp>)>,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub enum ParamCstSyntax {
-        Positive((Vec<Bind>, Vec<Exp>)),
-        Simple(Bind),
-    }
-
-    impl Display for InductiveDefinitionsSyntax {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let InductiveDefinitionsSyntax {
-                parameter,
-                type_name,
-                arity,
-                constructors,
-            } = self;
-
-            writeln!(f, "name: {type_name}")?;
-            writeln!(
-                f,
-                "parameter: {}",
-                parameter
-                    .iter()
-                    .fold(String::new(), |acc, bind| format!("{acc} ({bind}) "))
-            )?;
-            writeln!(
-                f,
-                "arity: {}",
-                utils::assoc_prod(arity.0.clone(), arity.1.into())
-            )?;
-
-            for (csname, params, end) in constructors {
-                write!(f, "constructor({csname}):")?;
-                for param in params {
-                    write!(f, " {} ->", param)?;
-                }
-                writeln!(
-                    f,
-                    " {}",
-                    utils::assoc_apply(end[0].clone(), end[1..].to_owned())
-                )?;
-            }
-
-            Ok(())
-        }
-    }
-
-    impl Display for ParamCstSyntax {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let s = match self {
-                ParamCstSyntax::Positive((params, end)) => {
-                    format!(
-                        "Pos({})",
-                        utils::assoc_prod(
-                            params.clone(),
-                            utils::assoc_apply(end[0].clone(), end[1..].to_owned())
-                        )
-                    )
-                }
-                ParamCstSyntax::Simple(bind) => {
-                    format!("Sim({bind})")
-                }
-            };
-            write!(f, "{}", s)
-        }
-    }
+#[derive(Debug, Clone)]
+pub enum Statement {
+    Fix(Vec<(Var, Exp)>), // fix x: A; y: B;
+    Have {
+        var: Var,
+        ty: Exp,
+        body: Exp,
+    }, // have x: A := t;
+    Take {
+        var: Var,
+        ty: Exp,
+        predicate_proof: Option<(Option<Exp>, Exp)>,
+    }, // take x: A; or take x: A | P; or take x: A | h: P;
+    Sufficient {
+        prop: Exp,
+        implication: Exp,
+    }, // suffices A by (h: A -> B);
 }

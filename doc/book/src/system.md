@@ -115,7 +115,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash (\exists t): *^p, \Gamma \vdash^{*^s} e: t$ |
 | take elim set | $\Gamma \vdash^{*^s} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^s, \Gamma \vdash^{*^s} f: X \to T \\ \Gamma \vDash \exists X, \\ \Gamma \vDash (x_1: T) \to (x_2: T) \to f @ x_1 = f @ x_2$ |
 | take elim prop | $\Gamma \vdash^{*^p} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^p, \Gamma \vdash^{*^p} f: X \to T \\ \Gamma \vDash \exists X $ |
-| take equal | $\Gamma \vDash \Take f = t$ | $\Gamma \vdash^{*^s} \Take f: T, \Gamma^{*^s} \vdash t: T$ |
+| take equal | $\Gamma \vDash \Take f = f @ t$ | $\Gamma \vdash f: A \to T, \Gamma \vdash^{*^s} \Take f: T, \Gamma^{*^s} \vdash t: A$ |
 
 課題：
 - judgement を stratified （ $\Gamma \vdash^s t: T$） にしなくてもいいのでは...

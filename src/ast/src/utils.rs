@@ -1,4 +1,4 @@
-use crate::syntax::{Bind, Exp, Var};
+use crate::syntax::{Exp, Var};
 
 #[macro_export]
 macro_rules! sort {

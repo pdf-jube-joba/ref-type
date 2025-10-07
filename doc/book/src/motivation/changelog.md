@@ -293,3 +293,14 @@ elimination は2つないといけない。
   - 問題点： $\vDash \exists T$ と $f: T \to Y$ に対して、 $f(\Take T)$ を正当化できない。理由は、 $=$ は $T$ 側ではなく $Y$ 側で発生するから。
 
 結局、 $\exists$ に対する elimination と思える現在の $\Take$ の形が一番よさそうということになった。
+
+## take の equal を間違えていた。
+$f: A -> B$ に対して $\Take f: B$ が $A$ の取り方によらないなら...だった。
+なので、 $\Take f = t$ は任意の $B$ に対しては成り立たない、これは当然。
+やるべきは、 $\Take f = f @ y$ for $\Gamma \vdash y: A$ になる。
+他に、 $\Take$ 自体の一意性もあった方がいい？
+関数の外延性との関係を考えると、
+$f = g \in A \to B \Leftrightarrow \forall k: () \to A, f \comp k = g \comp k$ なので、
+$\Take$ が $(A -> B)$　を $A \to () \to B$ に分解する操作であることを考えると、
+$\Take f = \Take g$ が関数の外延性を自然に導出する気がした。
+

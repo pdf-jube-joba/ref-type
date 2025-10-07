@@ -127,6 +127,7 @@ prefix/infix/postfix や associativity の指定**ではなくて**、「この�
 - ちゃんと結合を指定したいときは常にかっこでくくる： `$( 1 + (add 2 3) $)`
 - あるいは、 `$($)` を使ってもいい： `$( 1 + $( 2 + 3 $) $)`
 - もうちょっと複雑なこともできる： `! expr0 ? expr1 : expr 2 => {hoge}` とか
+- 少し工夫が必要な例： `! expr0 expr1` ... これは `(expr0 expr1)` にパースの時点で解釈されてしまわないようにする必要があるので、パーサーには頼み込むしかない。
 
 # 検証器の仕様や実装側について
 部分集合がある時点で、項と型を与えられても導出木が全部導出できるわけではない。
@@ -153,6 +154,25 @@ prefix/infix/postfix や associativity の指定**ではなくて**、「この�
   - ただこれも動作が読みにくくなるので、どうにか指定させる方がいい？
 - $\vDash P$ の導出に何を使うかがユーザーに指定できないといけない。
   - 証明が要求される部分で適宜ユーザーが証明を与えるための文法が必要。
+  - これ自体は、 `exp proof { - goal: P1 := p1; - goal: P2 := p2; }` でよい。
+    - ただし、型チェックの側の ctxt に push が入っているはずなので、 `- goal (x: A) (y: B): P1 := p1` のように書いて ctxt の側と合わせることにする。
+  - $\Gamma \vDash P$ の導出を書かせるというより、ちょうど証明項が要求されているところに $\Gamma \vDash P$ の導出に使えるルールを与える感じの方がいいかも
+  - $\Gamma \vdash (\text{here}): P: *^p$ のところに $\Gamma \vDash P$ に対応するような宣言が来たら、
+    $\Gamma \vdash (\Proof P): P$ if $\Gamma \vDash P$ のようにとらえる。$\Gamma \vDash P$ は常に goal に表示されているからそこで構成する。
+  - 例：
+    - `theorem l (A: \Set) (x: A): \exists A := \exact (x: A)`
+      - これは理論の側でいうと、 $\Gamma = A: *^s, x: A$ として $\Gamma \vdash \Proof (\exists A): \exists A$ if $\Gamma \vDash \exists A$ if $\Gamma \vdash x: A$ に対応する。
+    - `theorem l (P: \Prop) (A: \Set) (x: A) (f: (\exists (y: A)) -> P): P := f (\exact (x: A))`
+      - これは理論の側でいうと、 $\Gamma \vdash f (\Proof (\exists (y: A))): P$ if $\Gamma \vdash f: \ldots$, $\Gamma \vdash \Proof(): \ldots$ if $\Gamma \vDash \exists (y: A)$ if $\Gamma \vdash x: A$ に対応する。
+  - あと、これまでと同じように、 $\vDash P$ を示せるような奴に対して `\Proof P` を用いていいこととする。
+    - 例：
+      ```
+      theorem l (P1, P2: \Prop): P1 -> (P1 -> P2) -> P2 := (h1: P1) => (h2: P1 -> P2) => (\Proof (P1 -> P2)) (\Proof P1) proof {
+        - goal: P1 := h1;
+        - goal: P2 := h2;
+      }
+      ```
+    - これは、 `\Proof` を書いたところで証明項を後で埋める必要があるから。
 - checker の前にパースの時点でいろいろな処理をする：
   - 内部での表現は locally nameless にしておく。
     - 束縛変数の名前と、束縛される部分を覚えておく。
@@ -167,3 +187,5 @@ prefix/infix/postfix や associativity の指定**ではなくて**、「この�
 - module と同値性について
   - ある module `A (B: Set)` の中に `Id` があったとして、 `A(B := C).Id = A(B := D).Id` が示せるかどうか？
   - module の content になっている時点で代入して比較はできる ... やってよいことにする。
+  - 結局、 eta-expansion の一環として module レベルのものも opaque をやめて展開することにする？
+    - これはあとで pub のような修飾子による制御を考えないと、 module 化による隠ぺいが効かなくなる。
