@@ -189,3 +189,4 @@ prefix/infix/postfix や associativity の指定**ではなくて**、「この�
   - module の content になっている時点で代入して比較はできる ... やってよいことにする。
   - 結局、 eta-expansion の一環として module レベルのものも opaque をやめて展開することにする？
     - これはあとで pub のような修飾子による制御を考えないと、 module 化による隠ぺいが効かなくなる。
+    - delta-expansion でした (eta- は `f = \x. f x` だった)

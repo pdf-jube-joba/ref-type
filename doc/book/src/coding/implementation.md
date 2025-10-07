@@ -33,6 +33,8 @@
   - ただし、 IO とは作用しない。
 - terminal:
   - IO を制御して適切に checker を呼び出す。
+- module について
+  - 
 
 ## front の動作
 - パース自体は他の crate にお任せする。ただし、 name と variable は全部 identifier とかにしてしまう。

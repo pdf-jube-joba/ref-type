@@ -1,26 +1,39 @@
+// this file describes the syntax tree after parsing + early name resolution
+// it is not type checked yet but should be well scoped
 use either::Either;
+
+// root of the environment
+pub struct Environment {
+    pub modules: Vec<Module>,
+}
 
 // module definition
 #[derive(Debug, Clone)]
 pub struct Module {
-    pub name: String,
-    pub parameters: Vec<(Name, Exp)>, // given parameters for module
+    pub name: Name,
+    pub parent: Option<usize>,          // None for top level module
+    pub parameters: Vec<(Name, Exp)>,   // given parameters for module
     pub declarations: Vec<Declaration>, // sensitive to order
 }
 
 // parameter instantiated module
 // e.g. modA(B := x, C := y)
+// internally, it is represented as ModuleInstantiated { module_name: modA, arguments: [x, y] }
+// this is after name resolution)
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
-    pub module_name: Name,
-    pub arguments: Vec<(Var, Exp)>,
+    pub module_name: usize, // index to Environment.modules
+    pub arguments: Vec<Exp>,
 }
 
 // path of module access
 // e.g. [A, B(x1 := y1, x2 := y2), C] for A.B(x1 := y1, x2 := y2).C.name
 // if it is empty, it means current module
 #[derive(Debug, Clone)]
-pub struct ModPath(Vec<Either<Name, ModuleInstantiated>>);
+pub struct ModPath {
+    pub abs_path: Vec<ModuleInstantiated>, // absolute path from root module
+    pub represented_path: String,          // for display purpose only
+}
 
 #[derive(Debug, Clone)]
 pub enum Declaration {
@@ -38,17 +51,19 @@ pub enum Declaration {
         ind_defs: InductiveTypeSpecs,
     },
     ChildModule {
-        module: Module,
+        module: usize, // index to Environment.modules
     },
+    // this is only for display purpose
+    // after name resolution, any mod access should be replaced with absolute path
     Import {
-        instantiated_module: ModuleInstantiated,
+        instantiated_module: ModPath,
         import_name: Name,
     },
-    MathMacro {
-        before: Vec<Either<MacroToken, Var>>,
-        after: Vec<Var>,
-    },
     // currently not supported
+    // MathMacro {
+    //     before: Vec<Either<MacroToken, Var>>,
+    //     after: Vec<Either<Exp, Var>>,
+    // },
     // UserMacro {
     //     name: Name,
     //     before: Vec<Either<MacroToken, Var>>,
@@ -100,6 +115,7 @@ pub enum Exp {
         name: Name,
     },
     // --- macro
+    // shared macro for math symbols
     MathMacro {
         tokens: Vec<Either<MacroToken, Exp>>,
     },
@@ -218,19 +234,20 @@ pub enum Exp {
 // token for macros
 // which is (not identifier) /\ (not keyword)
 // e.g. "+", "*", "==>", "||", ...
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MacroToken(pub String);
 
 // identifier for any naming
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Name(pub String);
 
 // no free variable
 // De bruijn index with local and global
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Var {
-    Bound(usize),  // de bruijn index for bound variable
-    Global(usize), // de bruijn index for global variable
+    Bound(usize), // de bruijn index for bound variable
+    Module(Name), // "unique" reference for module parameter
+                  // maybe this mentioning to a parent module
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -261,8 +278,8 @@ impl Sort {
             // CoC 部分
             (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
             (Sort::Univ, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop, Sort::Univ) => Some(Sort::Univ),
+            (Sort::Univ, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
+            (Sort::Prop, Sort::Univ) => None,             // prop は dependent ではない
             // Set を入れる部分
             (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(std::cmp::max(i, j))),
             (Sort::Set(_), Sort::Univ) => Some(Sort::Univ),
