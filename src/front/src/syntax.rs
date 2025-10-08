@@ -1,5 +1,7 @@
 // this file describes the syntax tree after parsing + early name resolution
 // it is not type checked yet but should be well scoped
+// any variable should be replaced as de Bruijn index
+
 use either::Either;
 
 // root of the environment
@@ -38,56 +40,39 @@ pub struct ModPath {
 #[derive(Debug, Clone)]
 pub enum Declaration {
     Definition {
-        name: Name,
+        // display name for user
+        display_name: Name,
         ty: Exp,
         body: Exp,
     },
     Theorem {
-        name: Name,
+        // display name for user
+        display_name: Name,
         ty: Exp,
         body: Exp,
     },
     Inductive {
         ind_defs: InductiveTypeSpecs,
     },
+    // these are only for display purpose
+    // after name resolution, any mod access should be replaced with absolute path
     ChildModule {
         module: usize, // index to Environment.modules
     },
-    // this is only for display purpose
-    // after name resolution, any mod access should be replaced with absolute path
     Import {
         instantiated_module: ModPath,
         import_name: Name,
     },
-    // currently not supported
-    // MathMacro {
-    //     before: Vec<Either<MacroToken, Var>>,
-    //     after: Vec<Either<Exp, Var>>,
-    // },
-    // UserMacro {
-    //     name: Name,
-    //     before: Vec<Either<MacroToken, Var>>,
-    //     after: Vec<Var>,
-    // },
+    MathMacro {
+        before: Vec<Either<MacroToken, Name>>,
+        after: Vec<Either<Exp, Name>>,
+    },
+    UserMacro {
+        name: Name,
+        before: Vec<Either<MacroToken, Name>>,
+        after: Vec<Name>,
+    },
 }
-
-// later use
-// ```
-// definition x: A := t where {
-// - y: B := u;
-// - z: C := v;
-// }
-// ```
-#[derive(Debug, Clone)]
-pub struct WhereClause(Vec<(Name, Exp, Exp)>);
-
-// later use
-// theorem x: A := t proof {
-// - goal: A1 := t1;
-// - goal: A2 := t2;
-// }
-#[derive(Debug, Clone)]
-pub struct ProofClause(Vec<(Exp, Exp)>);
 
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
@@ -103,6 +88,16 @@ pub enum ParamCstSyntax {
     Simple((Name, Exp)),
 }
 
+#[derive(Debug, Clone)]
+// general binding syntax
+// A = (_: A), (x: A), (x: A | P), (x: A | h: P),
+// binding variable is for display purpose only (de Bruijn)
+pub struct Bind {
+    pub var: Option<Name>,
+    pub ty: Box<Exp>,
+    pub predicate: Option<(Option<Name>, Box<Exp>)>,
+}
+
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum Exp {
@@ -116,6 +111,7 @@ pub enum Exp {
     },
     // --- macro
     // shared macro for math symbols
+    // before type checking, it is expanded to normal expression
     MathMacro {
         tokens: Vec<Either<MacroToken, Exp>>,
     },
@@ -124,6 +120,17 @@ pub enum Exp {
     //     name: Name,
     //     tokens: Vec<Either<MacroToken, Exp>>,
     // },
+    // --- expression with clauses
+    // where clauses to define local variables
+    Where {
+        exp: Box<Exp>,
+        clauses: Vec<(Name, Exp, Exp)>,
+    },
+    // goal proving  given by type checker
+    WithProof {
+        exp: Box<Exp>,
+        proofs: Vec<(Vec<(Name, Exp)>, Exp, Exp)>,
+    },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
     Sort(Sort),
@@ -131,18 +138,14 @@ pub enum Exp {
     // de Bruijn index is (local, global)
     // it should not point to a module defined name
     Var(Var),
-    // (x: A) -> B  or  (x: A | P) -> B
+    // bind -> B
     Prod {
-        var: Var,
-        ty: Box<Exp>,
-        predicate: Option<Box<Exp>>,
+        bind: Bind,
         body: Box<Exp>,
     },
-    // (x: A) => t  or  (x: A | P) => t
+    // bind => t
     Lam {
-        var: Var,
-        ty: Box<Exp>,
-        predicate: Option<Box<Exp>>,
+        bind: Bind,
         body: Box<Exp>,
     },
     // usual application (f x)
@@ -175,10 +178,11 @@ pub enum Exp {
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndTypeElim {
+        path: ModPath,
         ind_type_name: String,
         eliminated_exp: Box<Exp>,
         return_type: Box<Exp>,
-        cases: Vec<(String, Vec<Var>, Exp)>,
+        cases: Vec<(String, Exp)>,
     },
     // --- set theory
     // \Proof term ... "prove this later"
@@ -191,7 +195,7 @@ pub enum Exp {
     },
     // { x: A | P }
     Sub {
-        var: Var,
+        var: Name,
         ty: Box<Exp>,
         predicate: Box<Exp>,
     },
@@ -212,22 +216,19 @@ pub enum Exp {
         left: Box<Exp>,
         right: Box<Exp>,
     },
-    // \exists (x: A | P) or \exists (x: A)
+    // Bracket type ... \exists (x: A), (x: A | P)
     Exists {
-        var: Var,
-        ty: Box<Exp>,
-        predicate: Option<Box<Exp>>,
+        bind: Bind,
     },
     // --- opaque description (specified but not constructed)
     // \take (x: A) => t or \take (x: A | P) => t
     Take {
-        var: Var,
-        ty: Box<Exp>,
-        predicate: Option<Box<Exp>>,
+        bind: Bind,
         body: Box<Exp>,
     },
     // --- "proof by" terms
     ProofBy(ProofBy),
+    // --- block of statements
     Block(Block),
 }
 
@@ -245,9 +246,8 @@ pub struct Name(pub String);
 // De bruijn index with local and global
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Var {
-    Bound(usize), // de bruijn index for bound variable
-    Module(Name), // "unique" reference for module parameter
-                  // maybe this mentioning to a parent module
+    Bound(usize),  // de Bruijn index for local bound variable
+    Module(usize), // de Bruijn index to parameters of current delcaration module
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -330,7 +330,7 @@ pub enum ProofBy {
     IdElim {
         left: Box<Exp>,
         right: Box<Exp>,
-        var: Var,
+        var: Name,
         ty: Box<Exp>,
         predicate: Box<Exp>,
     },
@@ -356,19 +356,19 @@ pub enum ProofBy {
 #[derive(Debug, Clone)]
 pub struct Block {
     pub declarations: Vec<Statement>, // sensitive to order
-    pub term: Box<Exp>,
+    pub term: Box<Exp>,               // returning term of the block
 }
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Fix(Vec<(Var, Exp)>), // fix x: A; y: B;
+    Fix(Vec<(Name, Exp)>), // fix x: A; y: B;
     Have {
-        var: Var,
+        var: Name,
         ty: Exp,
         body: Exp,
     }, // have x: A := t;
     Take {
-        var: Var,
+        var: Name,
         ty: Exp,
         predicate_proof: Option<(Option<Exp>, Exp)>,
     }, // take x: A; or take x: A | P; or take x: A | h: P;
