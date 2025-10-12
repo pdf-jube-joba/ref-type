@@ -1,4 +1,4 @@
-// this file describes the syntax tree after parsing + early name resolution
+// this file describes the syntax tree after (parsing + early name resolution)
 // it is not type checked yet but should be well scoped
 use either::Either;
 
@@ -12,14 +12,15 @@ pub struct Environment {
 pub struct Module {
     pub name: Name,
     pub parent: Option<usize>,          // None for top level module
+    pub children: Vec<usize>,           // index to Environment.modules
     pub parameters: Vec<(Name, Exp)>,   // given parameters for module
     pub declarations: Vec<Declaration>, // sensitive to order
 }
 
 // parameter instantiated module
 // e.g. modA(B := x, C := y)
-// internally, it is represented as ModuleInstantiated { module_name: modA, arguments: [x, y] }
-// this is after name resolution)
+// internally, it is represented as ModuleInstantiated { module_name: n, arguments: [x, y] }
+// this is after name resolution
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
     pub module_name: usize, // index to Environment.modules
@@ -28,10 +29,9 @@ pub struct ModuleInstantiated {
 
 // path of module access
 // e.g. [A, B(x1 := y1, x2 := y2), C] for A.B(x1 := y1, x2 := y2).C.name
-// if it is empty, it means current module
 #[derive(Debug, Clone)]
 pub struct ModPath {
-    pub abs_path: Vec<ModuleInstantiated>, // absolute path from root module
+    pub abs_path: Vec<ModuleInstantiated>, // absolute path from root environment
     pub represented_path: String,          // for display purpose only
 }
 
@@ -50,6 +50,7 @@ pub enum Declaration {
     Inductive {
         ind_defs: InductiveTypeSpecs,
     },
+    // sub module, this is only for display purpose
     ChildModule {
         module: usize, // index to Environment.modules
     },
