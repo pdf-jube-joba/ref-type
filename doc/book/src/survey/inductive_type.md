@@ -80,23 +80,28 @@ $\text{elim}(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解す�
 - 帰納型の定義にある constructor of $X$ ($C_i$) は、 $\Gamma :: X: \text{arity} \vdash C_i: s$ でなければいけない。
 
 各 constructor に対する型はこんな感じ。
-- elim_type(X a[], Q, c, X) = Q a[] c
+- elim_type(THIS a[], q, c, THIS) = q a[] c
   - `X` のところには型名が来る想定
-- simple case: elim_type((x: M) -> N, Q, c, X)
-  - = (x: M) -> elim_type(N, Q, c x, X)
-- strpos case: elim_type(((x[]: M[]) -> X m[]) -> N, Q, c, X)
-  - = (p: (x[]: M[]) -> X m[])
-    - `X` のところには型名が来る想定
-  - -> (_: (x[]: M[]) -> Q m[] (p x[]))
-  - -> elim_type(N, (c p), N)
+- simple case: elim_type((x: t) -> n, q, c, THIS)
+  - = (x: t) -> elim_type(n, q, c x, THIS)
+- strpos case: elim_type(((x[]: t[]) -> THIS m[]) -> n, q, c, THIS)
+  - = (p: (x[]: t[]) -> THIS m[]) // `X` のところには型名が来る想定
+  - -> (_: (x[]: t[]) -> q m[] (p x[]))
+  - -> elim_type(n, (c p), THIS)
 
 各 constructor に対する recursor はこんな感じ。
-- recursor(X a[], F, f, X) = f
-- simple case: recursor((x: M) -> N, Q, c, X)
-  - = (x: M) => recursor(N, F, (f x), X)
-- strpos case: recursor(((x[]: M[]) -> X m[]) -> N, F, f, X)
-  - = (p: (x[]: M[]) -> X m[])
-  - recursor(N, F, (f p ((x[]: M[]) -> F m[] (p x[]))), X)
+- recursor(THIS a[], q, f, THIS) = f
+- simple case: recursor((x: t) -> n, q, f, THIS)
+  - = (x: t) => recursor(n, q, (f x), THIS)
+- strpos case: recursor(((x[]: t[]) -> THIS m[]) -> n, q, f, THIS)
+  - = (p: (x[]: t[]) -> THIS m[])
+  - => recursor(n, q, (f p ((x[]: t[]) -> q m[] (p x[]))), THIS)
+
+recursor に対する動作について。
+型は index = (x[]: a[]) -> s となっているとする。
+- Elim((i-th Cst of Type I) m[], q, f[])
+- => recursor(ff, f[i], C[i]) m[]
+- where ff = (x[]: a[]) => (c: (Type x[])) => Elim(Type, c, q, f[])
 
 ## parameter と index について
 

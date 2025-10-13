@@ -1,7 +1,37 @@
 // this file is for core expression definition and its type checking
-// represented in de Bruijn index
+// variable is represented as std::rc::Rc<String>
 
-use std::rc::Rc;
+use std::{
+    fmt::{Debug, Display},
+    rc::Rc,
+};
+
+#[derive(Clone)]
+pub struct Var(pub Rc<String>);
+
+impl Debug for Var {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}[{:p}]", self.0, self.0)
+    }
+}
+
+impl Display for Var {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Var {
+    pub fn new(name: &str) -> Self {
+        Var(Rc::new(name.to_string()))
+    }
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+    pub fn is_eq_ptr(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
@@ -13,8 +43,7 @@ pub enum Sort {
 
 // functional なものしか考えないのでよい。
 impl Sort {
-    // functional なので、
-    // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
+    // functional pure type system, i.e. foraeach s1, (s1, s2) in R => s2 is unique
     pub fn type_of_sort(self) -> Option<Self> {
         match self {
             Sort::Univ => None,
@@ -24,8 +53,7 @@ impl Sort {
         }
     }
 
-    // functional なので、
-    // (s1, s2, s3) in R な s3 は (s1, s2) に対して一意 ... それを返す。
+    // functional pure type system, i.e. foraeach s1, s2, (s1, s2, s3) in R => s3 is unique
     pub fn relation_of_sort(self, other: Self) -> Option<Self> {
         match (self, other) {
             // CoC 部分
@@ -49,7 +77,7 @@ impl Sort {
         }
     }
 
-    // inductive type の elimination の制限用
+    // inductive type relation (restiction for large elimination)
     pub fn ind_type_rel(self, other: Self) -> Option<()> {
         match (self, other) {
             (Sort::Univ | Sort::Set(_) | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
@@ -62,17 +90,19 @@ impl Sort {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum CoreExp {
     Sort(Sort),
-    Var(usize),
+    Var(Var),
     // (x: A) -> B where x is bound in B but not in A
     Prod {
+        var: Var,
         ty: Box<CoreExp>,
         body: Box<CoreExp>, // bind one variable
     },
     // (x: A) => B where x is bound in B but not in A
     Lam {
+        var: Var,
         ty: Box<CoreExp>,
         body: Box<CoreExp>, // bind one variable
     },
@@ -80,13 +110,17 @@ pub enum CoreExp {
         func: Box<CoreExp>,
         arg: Box<CoreExp>,
     },
+    // uncurry (explicitly specify constructor arguments)
     IndType {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
-        args: Vec<CoreExp>,
+        parameters: Vec<CoreExp>,
+        index: Vec<CoreExp>,
     },
+    // uncurry (explicitly specify constructor arguments)
     IndTypeCst {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
         idx: usize,
+        parameter: Vec<CoreExp>,
         args: Vec<CoreExp>,
     },
     // this is primitive recursion
@@ -109,6 +143,7 @@ pub enum CoreExp {
     },
     // {x: A | P} where x is bound in P but not in A
     SubSet {
+        var: Var,
         exp: Box<CoreExp>,
         predicate: Box<CoreExp>, // bind one variable
     },
@@ -136,28 +171,33 @@ pub enum CoreExp {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Context(pub Vec<CoreExp>);
+#[derive(Debug, Clone)]
+pub struct Context(pub Vec<(Var, CoreExp)>);
 
 impl Context {
-    pub fn extend(&self, ty: CoreExp) -> Self {
+    pub fn extend(&self, varty: (Var, CoreExp)) -> Self {
         let mut new_ctx = self.0.clone();
-        new_ctx.push(ty);
+        new_ctx.push(varty);
         Context(new_ctx)
     }
-    pub fn get(&self, idx: usize) -> Option<&CoreExp> {
-        self.0.get(self.0.len() - 1 - idx)
+    pub fn get(&self, var: &Var) -> Option<&CoreExp> {
+        for (v, ty) in self.0.iter().rev() {
+            if v.is_eq_ptr(var) {
+                return Some(ty);
+            }
+        }
+        None
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TypeJudge {
     pub ctx: Context,
     pub term: CoreExp,
     pub ty: CoreExp,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Provable {
     pub ctx: Context,
     pub prop: CoreExp,
@@ -167,14 +207,14 @@ pub struct Provable {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailJudge(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Judgement {
     Type(TypeJudge),
     Provable(Provable),
     FailJudge(FailJudge),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Derivation {
     pub conclusion: Judgement,
     pub premises: Vec<Derivation>,
@@ -193,7 +233,7 @@ impl Derivation {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum ProveCommandBy {
     Construct {
         ctx: Context,
@@ -229,7 +269,7 @@ pub enum ProveCommandBy {
     Axiom(Axiom),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Axiom {
     ExcludedMiddle {
         ctx: Context,
