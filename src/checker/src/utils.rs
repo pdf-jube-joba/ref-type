@@ -55,6 +55,27 @@ pub fn assoc_prod(v: Vec<(Var, CoreExp)>, mut body: CoreExp) -> CoreExp {
     body
 }
 
+pub fn decompose_app(mut e: CoreExp) -> (CoreExp, Vec<CoreExp>) {
+    let mut args = vec![];
+    while let CoreExp::App { func, arg } = e {
+        args.push(*arg);
+        e = *func;
+    }
+    args.reverse();
+    (e, args)
+}
+
+pub fn decompose_app_ref(e: &CoreExp) -> (&CoreExp, Vec<&CoreExp>) {
+    let mut args = vec![];
+    let mut e = e;
+    while let CoreExp::App { func, arg } = e {
+        args.push(arg.as_ref());
+        e = func.as_ref();
+    }
+    args.reverse();
+    (e, args)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

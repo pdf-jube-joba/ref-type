@@ -110,18 +110,16 @@ pub enum CoreExp {
         func: Box<CoreExp>,
         arg: Box<CoreExp>,
     },
-    // uncurry (explicitly specify constructor arguments)
+    // uncurry with parameter
     IndType {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<CoreExp>,
-        index: Vec<CoreExp>,
     },
-    // uncurry (explicitly specify constructor arguments)
+    // uncurry with parameter
     IndTypeCst {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
         idx: usize,
         parameter: Vec<CoreExp>,
-        args: Vec<CoreExp>,
     },
     // this is primitive recursion
     // no binding in elim, return_type, cases
@@ -233,28 +231,37 @@ impl Derivation {
     }
 }
 
+// given (ctx |= prop)
 #[derive(Debug, Clone)]
 pub enum ProveCommandBy {
+    // ctx |= prop
+    //   ctx |- proof_term : prop
     Construct {
-        ctx: Context,
         proof_term: CoreExp,
+        prop: CoreExp,
     },
+    // ctx |= nonempty(ty)
+    //   ctx |- elem: ty, ctx |- ty: Set(i)
     ExactElem {
-        ctx: Context,
         elem: CoreExp,
         ty: CoreExp,
     },
+    // ctx |= Pred(supserset, subset, elem)
+    //   ctx |- elem: Typelift(superset, subset), ctx |- Typelift(superset, subset): Set(i)
     SubsetElim {
-        ctx: Context,
         elem: CoreExp,
         subset: CoreExp,
         superset: CoreExp,
     },
+    // ctx |= elem = elem
+    //   ctx |- elem: ty, ctx |- ty: Set(i)
     IdRefl {
         ctx: Context,
         elem: CoreExp,
-        ty: CoreExp,
     },
+    // ctx |= predicate(elem2)
+    //   ctx |- elem1: ty, ctx |- elem2: ty, ctx |- ty: Set(i), ctx |- predicate: ty -> Prop
+    //   ctx |= predicate(elem1), ctx |= elem1 = elem2
     IdElim {
         ctx: Context,
         elem1: CoreExp,
@@ -262,10 +269,16 @@ pub enum ProveCommandBy {
         ty: Box<CoreExp>,
         predicate: Box<CoreExp>,
     },
+    // ctx |= Take f = f elem
+    //  ctx |- func: (_: domain) -> codomain, ctx |- elem: domain
+    //  ctx |- Take f: docomain
     TakeEq {
         func: Box<CoreExp>,
+        domain: Box<CoreExp>,
+        codomain: Box<CoreExp>,
         elem: Box<CoreExp>,
     },
+    // axioms
     Axiom(Axiom),
 }
 

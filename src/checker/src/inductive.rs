@@ -1,23 +1,29 @@
-use crate::utils;
+use crate::{
+    checker::{check, infer_sort},
+    utils,
+};
 
 use super::coreexp::*;
 
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
     pub parameter: Vec<(Var, CoreExp)>,
-    pub arity: Vec<(Var, CoreExp)>,
+    pub arity_arg: Vec<(Var, CoreExp)>,
     pub sort: Sort,
     pub constructors: Vec<ConstructorType>,
 }
 
 impl InductiveTypeSpecs {
-    fn constructor_len(&self) -> usize {
+    pub fn arity(&self) -> CoreExp {
+        utils::assoc_prod(self.arity_arg.clone(), CoreExp::Sort(self.sort))
+    }
+    pub fn constructor_len(&self) -> usize {
         self.constructors.len()
     }
-    fn param_args_len(&self) -> usize {
+    pub fn param_args_len(&self) -> usize {
         self.parameter.len()
     }
-    fn arg_len_cst(&self, idx: usize) -> usize {
+    pub fn arg_len_cst(&self, idx: usize) -> usize {
         self.constructors[idx].args.len()
     }
 }
@@ -46,19 +52,144 @@ pub struct ConstructorType {
     pub args: Vec<CoreExp>,
 }
 
+impl ConstructorType {
+    // subst "THIS" in args with the given type and return as CoreExp
+    pub fn as_exp_with_type(&self, ty: &CoreExp) -> CoreExp {
+        // we need to reconstructur variables (for differentiate from Rc<InductiveTypeSpecs>)
+        let mut pre_prod_stack = vec![];
+        for pos in self.params.iter() {
+            match pos {
+                IndParam::StrictPositive { pre, args } => {
+                    let unused_var = Var::new("_");
+                    // (x[]: t[]) -> ty m[]
+                    let ty = {
+                        let ty = utils::assoc_apply(ty.clone(), args.clone()); // ty m[]
+                        utils::assoc_prod(pre.clone(), ty) // (x[]: t[]) -> ...
+                    };
+                    pre_prod_stack.push((unused_var, ty));
+                }
+                IndParam::Simple((x, t)) => {
+                    let x = Var::new(x.name());
+                    let t = t.clone();
+                    pre_prod_stack.push((x, t));
+                }
+            }
+        }
+        utils::assoc_prod(
+            pre_prod_stack,
+            utils::assoc_apply(ty.clone(), self.args.clone()),
+        )
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum IndParam {
+    // (_: {(x[]: t[]) -> THIS m[]}) where THIS should be the inductive type itself
+    //
     StrictPositive {
-        pre: Vec<(Var, CoreExp)>,
-        args: Vec<CoreExp>,
+        pre: Vec<(Var, CoreExp)>, // x[]: t[]
+        args: Vec<CoreExp>,       // m[]
     },
+    // (x: t)
     Simple((Var, CoreExp)),
+}
+
+pub fn acceptable_typespecs(
+    params: Vec<(Var, CoreExp)>,
+    arity_arg: Vec<(Var, CoreExp)>,
+    sort: Sort,
+    constructors: Vec<ConstructorType>,
+) -> (Vec<Derivation>, Result<InductiveTypeSpecs, String>) {
+    // 1. check parameters are well-sorted (parameters can depend on previous parameters)
+    let mut well_derivation = vec![];
+    let mut local_context = Context(vec![]);
+    for (x, a) in params.iter() {
+        match infer_sort(&local_context, a) {
+            Ok((derivation, _sort)) => {
+                // check ty is a sort
+                well_derivation.push(derivation);
+                local_context = local_context.extend((x.clone(), a.clone()));
+            }
+            Err(err_derivation) => {
+                well_derivation.push(err_derivation);
+                return (
+                    well_derivation,
+                    Err("Parameter type is not well-sorted".to_string()),
+                );
+            }
+        }
+    }
+    // after this, local_context contains all parameters
+
+    // 2. check arity is well-sorted (arity can depend on parameters and previous arities)
+    // arity = arity_arg[] -> sort
+    let arity = utils::assoc_prod(arity_arg.clone(), CoreExp::Sort(sort));
+    match infer_sort(&local_context, &arity) {
+        Ok((derivation, _sort)) => {
+            well_derivation.push(derivation);
+        }
+        Err(err_derivation) => {
+            well_derivation.push(err_derivation);
+            return (well_derivation, Err("Arity is not well-sorted".to_string()));
+        }
+    }
+
+    // 3. check constructors are well-sorted (constructor can depend on parameters and each params)
+    // adding (Var("This"): arity) to local_context and check each constructor under this context
+    let this = Var::new("THIS");
+    local_context = local_context.extend((this.clone(), arity.clone()));
+
+    for cst in constructors.iter() {
+        // constructor as type: pos[] -> THIS args[0] ... args[m]
+        let substed_selftype: Vec<(Var, CoreExp)> = cst
+            .params
+            .iter()
+            .map(|p| match p {
+                IndParam::Simple((x, t)) => (x.clone(), t.clone()),
+                IndParam::StrictPositive { pre: xts, args } => {
+                    let subst_selftype =
+                        utils::assoc_apply(CoreExp::Var(this.clone()), args.clone());
+                    (
+                        Var::new("_"),
+                        utils::assoc_prod(xts.clone(), subst_selftype),
+                    )
+                }
+            })
+            .collect();
+        let cst_type = utils::assoc_prod(
+            substed_selftype,
+            utils::assoc_apply(CoreExp::Var(this.clone()), cst.args.clone()),
+        );
+        // check (ctx |- cst_type : sort)
+        match check(&local_context, &cst_type, &CoreExp::Sort(sort)) {
+            Ok(derivation) => {
+                well_derivation.push(derivation);
+            }
+            Err(err_derivation) => {
+                well_derivation.push(err_derivation);
+                return (
+                    well_derivation,
+                    Err(format!("Constructor {cst:?} is not well-sorted")),
+                );
+            }
+        }
+    }
+
+    (
+        well_derivation,
+        Ok(InductiveTypeSpecs {
+            parameter: params,
+            arity_arg,
+            sort,
+            constructors,
+        }),
+    )
 }
 
 // return type of corresponding eliminator case for the given constructor
 /*
-- elim_type(X a[], q, c, THIS) = q a[] c
-  - `X` のところには型名が来る想定
+- elim_type(THIS a[], q, c, THIS) = q a[] c
+  - `THIS` のところには型名が来る想定
 - simple case: elim_type((x: t) -> n, q, c, THIS)
   - = (x: t) -> elim_type(n, q, c x, THIS)
 - strpos case: elim_type(((x[]: t[]) -> THIS m[]) -> n, q, c, THIS)
@@ -66,7 +197,7 @@ pub enum IndParam {
   - -> (_: (x[]: t[]) -> q m[] (p x[]))
   - -> elim_type(n, (c p), THIS)
 */
-fn eliminator_type(
+pub fn eliminator_type(
     cst_type: &ConstructorType,
     q: &CoreExp,
     c: &CoreExp,
@@ -157,7 +288,7 @@ fn eliminator_type(
   - = (p: (x[]: t[]) -> THIS m[])
   - => recursor(n, q, (f p ((x[]: t[]) -> q m[] (p x[]))), THIS)
 */
-fn recursor(
+pub fn recursor(
     cst_type: &ConstructorType,
     ff: &CoreExp,
     f: &CoreExp,
@@ -224,10 +355,10 @@ fn recursor(
 
 // (simple) check well-formedness of elim and reduce
 /*
-- Elim(C_i m[], q, f[]) where C_i is i-th constructor of inductive type I
+- Elim(C_i m[], q, f[]) where C_i is i-th constructor of inductive type THIS
 - => recursor(C_i, ff, f[i]) m[]
 - where ff = (x[]: a[]) => (c: (Type x[])) => Elim(Type, c, q, f[])
-- where Type I has arity (x[]: a[]) -> s
+- where Type THIS has arity (x[]: a[]) -> s
 */
 pub fn inductive_type_elim_reduce(e: &CoreExp) -> Result<CoreExp, String> {
     // A. check well-formedness
@@ -241,12 +372,12 @@ pub fn inductive_type_elim_reduce(e: &CoreExp) -> Result<CoreExp, String> {
     else {
         return Err("Not an InductiveTypeElim".to_string());
     };
+    let (head, m) = utils::decompose_app_ref(elim.as_ref());
     let CoreExp::IndTypeCst {
         ty: ty2,
         idx,
         parameter,
-        args: m,
-    } = elim.as_ref()
+    } = head
     else {
         return Err("Elim is not an InductiveTypeCst".to_string());
     };
@@ -270,17 +401,10 @@ pub fn inductive_type_elim_reduce(e: &CoreExp) -> Result<CoreExp, String> {
         return Err("Cases length mismatch".to_string());
     }
     // B. reduce
-    // new variable
-    // ff = (x[]: a[]) => (c: (Type x[])) => Elim(Type, c, q, f[])
+    // ff = (x[]: a[]) => (c: (THIS x[])) => Elim(Type, c, q, f[])
     let ff = {
+        // new variable "c"
         let c = Var::new("c");
-        // we use same "string" but different as variable
-        let arities: Vec<(Var, CoreExp)> = ty
-            .arity
-            .iter()
-            .map(|(x, t)| (Var::new(x.name()), t.clone()))
-            .collect();
-
         // Elim(Type, c, q, f[])
         let body = CoreExp::IndTypeElim {
             ty: ty.clone(),
@@ -289,37 +413,41 @@ pub fn inductive_type_elim_reduce(e: &CoreExp) -> Result<CoreExp, String> {
             cases: f.clone(),
         };
 
-        // (c: (Type x[])) => Elim(Type, c, q, f[]) where x[] are in variables in arities
-        let t = CoreExp::IndType {
-            ty: ty.clone(),
-            parameters: parameter.clone(),
-            index: arities
-                .iter()
-                .map(|(x, _)| CoreExp::Var(x.clone()))
-                .collect(),
-            // x[] are in variables in arities
-        };
+        // arity_arg (x[]: a[])
+        let arity_arg: Vec<(Var, CoreExp)> = ty
+            .arity_arg
+            .iter()
+            .map(|(x, t)| (Var::new(x.name()), t.clone())) // with different meaning variable (same string)
+            .collect();
+
+        // (c: (THIS x[])) => Elim(Type, c, q, f[]) where x[] are in variables in arities
         let body = CoreExp::Lam {
             var: c.clone(),
-            ty: Box::new(t),
+            ty: Box::new(utils::assoc_apply(
+                CoreExp::IndType {
+                    ty: ty.clone(),
+                    parameters: parameter.clone(),
+                },
+                // same x[] as arity_arg
+                arity_arg
+                    .iter()
+                    .map(|(x, _)| CoreExp::Var(x.clone()))
+                    .collect(),
+            )),
             body: Box::new(body),
         };
 
         // (x[]: a[]) => (c: (Type x[])) => Elim(Type, c, q, f[])
-        utils::assoc_lam(arities, body)
+        utils::assoc_lam(arity_arg, body)
     };
-    // type should be curried (i.e. I can be considered as a function (params => arity => I param arity)))
-    let this = utils::assoc_lam(
-        ty.parameter.clone(),
-        utils::assoc_lam(
-            ty.arity.clone(),
-            CoreExp::IndType {
-                ty: ty.clone(),
-                parameters: parameter.clone(),
-                index: m.clone(),
-            },
-        ),
-    );
 
-    Ok(recursor(&ty.constructors[*idx], &ff, &f[*idx], &this))
+    Ok(recursor(
+        &ty.constructors[*idx],
+        &ff,
+        &f[*idx],
+        &CoreExp::IndType {
+            ty: ty.clone(),
+            parameters: parameter.clone(),
+        },
+    ))
 }

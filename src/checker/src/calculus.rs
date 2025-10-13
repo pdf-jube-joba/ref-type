@@ -83,12 +83,10 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 CoreExp::IndType {
                     ty: ty1,
                     parameters: parameter1,
-                    index: index1,
                 },
                 CoreExp::IndType {
                     ty: ty2,
                     parameters: parameter2,
-                    index: index2,
                 },
             ) => {
                 std::rc::Rc::ptr_eq(ty1, ty2)
@@ -97,17 +95,11 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                         .iter()
                         .zip(parameter2.iter())
                         .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
-                    && index1.len() == index2.len()
-                    && index1
-                        .iter()
-                        .zip(index2.iter())
-                        .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
             }
             (
                 CoreExp::IndType {
                     ty: _,
                     parameters: _,
-                    index: _,
                 },
                 _,
             ) => false,
@@ -116,13 +108,11 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                     ty: ty1,
                     idx: idx1,
                     parameter: parameter1,
-                    args: args1,
                 },
                 CoreExp::IndTypeCst {
                     ty: ty2,
                     idx: idx2,
                     parameter: parameter2,
-                    args: args2,
                 },
             ) => {
                 std::rc::Rc::ptr_eq(ty1, ty2)
@@ -132,18 +122,12 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                         .iter()
                         .zip(parameter2.iter())
                         .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
-                    && args1.len() == args2.len()
-                    && args1
-                        .iter()
-                        .zip(args2.iter())
-                        .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
             }
             (
                 CoreExp::IndTypeCst {
                     ty: _,
                     idx: _,
                     parameter: _,
-                    args: _,
                 },
                 _,
             ) => false,
@@ -349,25 +333,14 @@ pub fn subst(e: &CoreExp, v: &Var, t: &CoreExp) -> CoreExp {
             func: Box::new(subst(func, v, t)),
             arg: Box::new(subst(arg, v, t)),
         },
-        CoreExp::IndType {
-            ty,
-            parameters,
-            index,
-        } => CoreExp::IndType {
+        CoreExp::IndType { ty, parameters } => CoreExp::IndType {
             ty: ty.clone(),
             parameters: parameters.iter().map(|arg| subst(arg, v, t)).collect(),
-            index: index.iter().map(|arg| subst(arg, v, t)).collect(),
         },
-        CoreExp::IndTypeCst {
-            ty,
-            idx,
-            parameter,
-            args,
-        } => CoreExp::IndTypeCst {
+        CoreExp::IndTypeCst { ty, idx, parameter } => CoreExp::IndTypeCst {
             ty: ty.clone(),
             idx: *idx,
             parameter: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
-            args: args.iter().map(|arg| subst(arg, v, t)).collect(),
         },
         CoreExp::IndTypeElim {
             ty,
@@ -502,11 +475,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
                 arg: Box::new(arg),
             })
         }
-        CoreExp::IndType {
-            ty,
-            parameters,
-            index,
-        } => {
+        CoreExp::IndType { ty, parameters } => {
             for (i, arg) in parameters.iter().enumerate() {
                 if let Some(arg) = reduce_one(arg) {
                     let mut new_args = parameters.clone();
@@ -514,31 +483,13 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
                     return Some(CoreExp::IndType {
                         ty: ty.clone(),
                         parameters: new_args,
-                        index: index.clone(),
-                    });
-                }
-            }
-
-            for (i, arg) in index.iter().enumerate() {
-                if let Some(arg) = reduce_one(arg) {
-                    let mut new_args = index.clone();
-                    new_args[i] = arg;
-                    return Some(CoreExp::IndType {
-                        ty: ty.clone(),
-                        parameters: parameters.clone(),
-                        index: new_args,
                     });
                 }
             }
 
             None
         }
-        CoreExp::IndTypeCst {
-            ty,
-            idx,
-            parameter,
-            args,
-        } => {
+        CoreExp::IndTypeCst { ty, idx, parameter } => {
             for (i, arg) in parameter.iter().enumerate() {
                 if let Some(arg) = reduce_one(arg) {
                     let mut new_args = parameter.clone();
@@ -547,20 +498,6 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
                         ty: ty.clone(),
                         idx: *idx,
                         parameter: new_args,
-                        args: args.clone(),
-                    });
-                }
-            }
-
-            for (i, arg) in args.iter().enumerate() {
-                if let Some(arg) = reduce_one(arg) {
-                    let mut new_args = args.clone();
-                    new_args[i] = arg;
-                    return Some(CoreExp::IndTypeCst {
-                        ty: ty.clone(),
-                        idx: *idx,
-                        parameter: parameter.clone(),
-                        args: new_args,
                     });
                 }
             }
