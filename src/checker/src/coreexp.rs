@@ -78,7 +78,7 @@ impl Sort {
     }
 
     // inductive type relation (restiction for large elimination)
-    pub fn ind_type_rel(self, other: Self) -> Option<()> {
+    pub fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
         match (self, other) {
             (Sort::Univ | Sort::Set(_) | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
             (Sort::Set(_) | Sort::Type, Sort::Univ) => Some(()),
@@ -127,6 +127,7 @@ pub enum CoreExp {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
         elim: Box<CoreExp>,
         return_type: Box<CoreExp>,
+        sort: Sort,
         cases: Vec<CoreExp>,
     },
     Cast {

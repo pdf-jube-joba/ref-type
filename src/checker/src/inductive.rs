@@ -367,6 +367,7 @@ pub fn inductive_type_elim_reduce(e: &CoreExp) -> Result<CoreExp, String> {
         ty,
         elim,
         return_type: q,
+        sort,
         cases: f,
     } = e
     else {
@@ -410,6 +411,7 @@ pub fn inductive_type_elim_reduce(e: &CoreExp) -> Result<CoreExp, String> {
             ty: ty.clone(),
             elim: Box::new(CoreExp::Var(c.clone())),
             return_type: q.clone(),
+            sort: *sort,
             cases: f.clone(),
         };
 

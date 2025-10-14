@@ -76,6 +76,27 @@ pub fn decompose_app_ref(e: &CoreExp) -> (&CoreExp, Vec<&CoreExp>) {
     (e, args)
 }
 
+pub fn decompose_prod(mut e: CoreExp) -> (Vec<(Var, CoreExp)>, CoreExp) {
+    let mut vars = vec![];
+    while let CoreExp::Prod { var, ty, body } = e {
+        vars.push((var, *ty));
+        e = *body;
+    }
+    vars.reverse();
+    (vars, e)
+}
+
+pub fn decompose_prod_ref(e: &CoreExp) -> (Vec<(&Var, &CoreExp)>, &CoreExp) {
+    let mut vars = vec![];
+    let mut e = e;
+    while let CoreExp::Prod { var, ty, body } = e {
+        vars.push((var, ty.as_ref()));
+        e = body.as_ref();
+    }
+    vars.reverse();
+    (vars, e)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

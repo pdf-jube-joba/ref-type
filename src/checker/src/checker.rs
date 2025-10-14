@@ -352,26 +352,46 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             ty,
             elim,
             return_type,
+            sort,
             cases,
         } => {
             let mut builder = Builder::new("IndTypeElim".to_string(), Some("infer".to_string()));
+            // 1. check (ty.sort, sort) can form a elimination
+            if ty.sort.relation_of_sort_indelim(*sort).is_none() {
+                return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                    "Cannot form eliminator with inductive type sort {:?} and return type sort {:?}",
+                    ty.sort, sort
+                )))));
+            }
 
-            // 2. infer_indetype (ctx |- elim : IndType(ty, parameters) a[])
-            let (inferred_indty, parameters, a) = match infer_indetype(ctx, elim) {
-                Ok((derivation, inferred_indty, parameters, a)) => {
+            // 2. infer (ctx |- elim : IndType(ty, parameters) a[])
+            let inferred_indty = match infer(ctx, elim) {
+                Ok((derivation, ty)) => {
                     builder.add(derivation);
-                    (inferred_indty, parameters, a)
+                    ty
                 }
                 Err(derivation) => {
                     builder.add(derivation);
                     return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
-                        "Failed to infer inductive type of eliminator {:?}",
+                        "Failed to infer type of eliminator expression {:?}",
                         elim
                     )))));
                 }
             };
 
-            // 3. check ty is the same as inferred ty, and parameters are the same as inferred parameters
+            let (inferred_indty_base, a) = utils::decompose_app(inferred_indty);
+            let CoreExp::IndType {
+                ty: inferred_indty,
+                parameters,
+            } = inferred_indty_base
+            else {
+                return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                    "Eliminator type {:?} is not an inductive type",
+                    inferred_indty_base
+                )))));
+            };
+
+            // 3. check ty is the same as inferred ty
             if std::rc::Rc::ptr_eq(ty, &inferred_indty) {
                 return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
                     "Inductive type mismatch: expected {:?}, found {:?}",
@@ -379,7 +399,107 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 )))));
             }
 
-            todo!()
+            // 4. check types of a[]: t[] in ty.arity_arg
+            if ty.arity_arg.len() != a.len() {
+                return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                    "Arity length mismatch: expected {}, found {}",
+                    ty.arity_arg.len(),
+                    a.len()
+                )))));
+            }
+
+            for ((_, arg_ty), arg) in ty.arity_arg.iter().zip(a.iter()) {
+                match check(ctx, arg, arg_ty) {
+                    Ok(derivation) => {
+                        builder.add(derivation);
+                    }
+                    Err(derivation) => {
+                        builder.add(derivation);
+                        return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                            "Failed to check arity argument {:?} against type {:?}",
+                            arg, arg_ty
+                        )))));
+                    }
+                }
+            }
+
+            // 5. check (ctx |- return_type: (x[]: t[]) -> THIS x[] -> s)
+            // where (x[]: t[]) are in ty.arity_arg
+            let expected_type_of_return_type = {
+                // THIS x[] where x[] is ty.arity_arg's variables
+                let e = utils::assoc_apply(
+                    CoreExp::IndType {
+                        ty: ty.clone(),
+                        parameters: parameters.clone(),
+                    },
+                    ty.arity_arg
+                        .iter()
+                        .map(|(x, _)| CoreExp::Var(x.clone()))
+                        .collect(),
+                );
+                utils::assoc_prod(
+                    ty.arity_arg.clone(),
+                    CoreExp::Prod {
+                        var: Var::new("THIS"),
+                        ty: Box::new(e),
+                        body: Box::new(CoreExp::Sort(ty.sort)),
+                    },
+                )
+            };
+            match check(ctx, return_type, &expected_type_of_return_type) {
+                Ok(derivation) => {
+                    builder.add(derivation);
+                }
+                Err(derivation) => {
+                    builder.add(derivation);
+                    return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                        "Failed to check return type {:?} against expected type {:?}",
+                        return_type, expected_type_of_return_type
+                    )))));
+                }
+            };
+
+            // 6. check each case has type eliminator_type of constructor
+            // check length of cases and constructors
+            if cases.len() != ty.constructors.len() {
+                return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                    "Constructor length mismatch: expected {}, found {}",
+                    ty.constructors.len(),
+                    cases.len()
+                )))));
+            }
+            // check (ctx |- cases[i] : eliminator_type)
+            for (case, constructor) in cases.iter().zip(ty.constructors.iter()) {
+                let eliminator_ty = eliminator_type(
+                    constructor,
+                    return_type,
+                    elim,
+                    &CoreExp::IndType {
+                        ty: ty.clone(),
+                        parameters: parameters.clone(),
+                    },
+                );
+                match check(ctx, case, &eliminator_ty) {
+                    Ok(derivation) => {
+                        builder.add(derivation);
+                    }
+                    Err(derivation) => {
+                        builder.add(derivation);
+                        return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                            "Failed to check case {:?} against eliminator type {:?}",
+                            case, eliminator_ty
+                        )))));
+                    }
+                }
+            }
+
+            // 7. conclude (ctx |- IndTypeElim(ty, elim, return_type, sort, cases) : q a[] c)
+            let ty = CoreExp::App {
+                func: Box::new(utils::assoc_apply(*return_type.clone(), a.clone())),
+                arg: elim.clone(),
+            };
+
+            Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
         CoreExp::Cast { exp, to } => {
             let mut builder = Builder::new("Cast".to_string(), Some("infer".to_string()));
@@ -465,7 +585,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                     )))));
                 }
             };
-            let Sort::Set(i) = sort else {
+            let Sort::Set(_) = sort else {
                 return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
                     "Type {:?} is not of form Set(i)",
                     exp
@@ -509,7 +629,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                     )))));
                 }
             };
-            let Sort::Set(i) = sort else {
+            let Sort::Set(_) = sort else {
                 return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
                     "Type {:?} is not of form Set(i)",
                     superset
@@ -818,73 +938,6 @@ pub fn infer_sort(ctx: &Context, term: &CoreExp) -> Result<(Derivation, Sort), D
     ))
 }
 
-// infer (ctx |- term: I (params[]) a[]) with (ctx |- term: ty) and ty ->* I(params[]) a[]
-pub fn infer_indetype(
-    ctx: &Context,
-    term: &CoreExp,
-) -> Result<
-    (
-        Derivation,
-        Rc<InductiveTypeSpecs>,
-        Vec<CoreExp>,
-        Vec<CoreExp>,
-    ),
-    Derivation,
-> {
-    // rule is Conversion, meta is indetype
-    let rule = "Conversion".to_string();
-    let meta = "indetype".to_string().into();
-
-    // 1. infer type -> get ty
-    let (infer_derivation, inferred_ty) = match infer(ctx, term) {
-        Ok(ok) => ok,
-        Err(derivation) => {
-            return Err(Derivation {
-                conclusion: Judgement::FailJudge(FailJudge(format!(
-                    "Failed to infer type of term {:?}: {:?}",
-                    term, derivation
-                ))),
-                premises: vec![derivation],
-                rule,
-                meta,
-            });
-        }
-    };
-    // 2. check ty ->* I(params[]) a[]
-    let (indtype, a) = utils::decompose_app(normalize(&inferred_ty));
-    let CoreExp::IndType { ty, parameters } = indtype else {
-        return Err(Derivation {
-            conclusion: Judgement::FailJudge(FailJudge(format!(
-                "Type {:?} is not convertible to an inductive type",
-                inferred_ty
-            ))),
-            premises: vec![infer_derivation],
-            rule,
-            meta,
-        });
-    };
-
-    // 3. conclude (ctx |- term : I(params[]) a[])
-    Ok((
-        Derivation {
-            conclusion: Judgement::Type(TypeJudge {
-                ctx: ctx.clone(),
-                term: term.clone(),
-                ty: CoreExp::IndType {
-                    ty: ty.clone(),
-                    parameters: parameters.clone(),
-                },
-            }),
-            premises: vec![infer_derivation],
-            rule,
-            meta,
-        },
-        ty.clone(),
-        parameters,
-        a,
-    ))
-}
-
 // given ctx
 // return derivation tree of ctx |= prop (prop come decided from command)
 pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivation, Derivation> {
@@ -1158,12 +1211,86 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
             };
             Ok(builder.build(goal(prop)))
         }
+        // ctx |= Take f = f elem
+        //  ctx |- func: (_: domain) -> codomain, ctx |- elem: domain
+        //  ctx |- Take f: docomain
         ProveCommandBy::TakeEq {
             func,
             domain,
             codomain,
             elem,
-        } => todo!(),
-        ProveCommandBy::Axiom(axiom) => todo!(),
+        } => {
+            let mut builder = Builder::new("TakeEq".to_string(), Some("prove_command".to_string()));
+            // 1. check (ctx |- func : (_: domain) -> codomain)
+            match check(
+                &ctx,
+                &func,
+                &CoreExp::Prod {
+                    var: Var::new("_"),
+                    ty: Box::new(*domain.clone()),
+                    body: Box::new(*codomain.clone()),
+                },
+            ) {
+                Ok(ok) => {
+                    builder.add(ok);
+                }
+                Err(err) => {
+                    builder.add(err);
+                    return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                        "Failed to check function {:?} against type (_: {:?}) -> {:?}",
+                        func, domain, codomain
+                    )))));
+                }
+            }
+            // 2. check (ctx |- elem : domain)
+            match check(&ctx, &elem, &domain) {
+                Ok(ok) => {
+                    builder.add(ok);
+                }
+                Err(err) => {
+                    builder.add(err);
+                    return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                        "Failed to check element {:?} against type {:?}",
+                        elem, domain
+                    )))));
+                }
+            }
+            // 3. infer (ctx |- Take f: codomain)
+            let take_ty = CoreExp::Take {
+                map: Box::new(*func.clone()),
+                domain: Box::new(*domain.clone()),
+                codomain: Box::new(*codomain.clone()),
+            };
+            match infer(&ctx, &take_ty) {
+                Ok((derivation, ty)) => {
+                    if !convertible(&ty, &*codomain) {
+                        return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                            "Type mismatch: expected {:?}, found {:?}",
+                            codomain, ty
+                        )))));
+                    }
+                    builder.add(derivation);
+                }
+                Err(err) => {
+                    builder.add(err);
+                    return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
+                        "Failed to infer type of Take function {:?}",
+                        take_ty
+                    )))));
+                }
+            }
+            // 4. conclude (ctx |= Take f = f elem)
+            let prop = CoreExp::Equal {
+                left: Box::new(take_ty),
+                right: Box::new(CoreExp::App {
+                    func: func.clone(),
+                    arg: elem.clone(),
+                }),
+            };
+            Ok(builder.build(goal(prop)))
+        }
+        ProveCommandBy::Axiom(axiom) => {
+            todo!("currently unsupported")
+        }
     }
 }

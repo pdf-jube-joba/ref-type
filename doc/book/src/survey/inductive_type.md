@@ -81,11 +81,11 @@ $\text{elim}(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解す�
 
 各 constructor に対する型はこんな感じ。
 - elim_type(THIS a[], q, c, THIS) = q a[] c
-  - `X` のところには型名が来る想定
+  - `THIS` のところには型名が来る想定
 - simple case: elim_type((x: t) -> n, q, c, THIS)
   - = (x: t) -> elim_type(n, q, c x, THIS)
 - strpos case: elim_type(((x[]: t[]) -> THIS m[]) -> n, q, c, THIS)
-  - = (p: (x[]: t[]) -> THIS m[]) // `X` のところには型名が来る想定
+  - = (p: (x[]: t[]) -> THIS m[]) // `THIS` のところには型（ parameter が与えられている）が来る想定
   - -> (_: (x[]: t[]) -> q m[] (p x[]))
   - -> elim_type(n, (c p), THIS)
 
@@ -102,6 +102,14 @@ recursor に対する動作について。
 - Elim((i-th Cst of Type I) m[], q, f[])
 - => recursor(ff, f[i], C[i]) m[]
 - where ff = (x[]: a[]) => (c: (Type x[])) => Elim(Type, c, q, f[])
+
+型はこんな感じ。(s は sort)
+- THIS = { arity: (x[]: t[]) -> s, constructors: C[] }
+- Elim(c, q, s', f[]): q a[] c
+  - c: THIS a[]
+  - a[]: t[]
+  - q: (x[]: t[]) -> THIS x[] -> s'
+  - f[i]: elim_type(C[i], q, c, THIS)
 
 ## parameter と index について
 
@@ -130,7 +138,7 @@ Inductive List (a: Set): Set :=
 [https://leanprover.github.io/functional_programming_in_lean/dependent-types/indices-parameters-universes.html] というところで書かれている。
 
 Inductive type の定義でいうと、context にそのまま入っていると思える部分になる。
-ただし、 Constructor の arguments には素直にそのまま渡した方がいい。
+型の宣言とコンストラクタへの引数として一体化していると考えたほうがいい？
 
 ## Identity type について
 parameter と index の話を踏まえると、 Identity type は `A: Set` と `a: A` は parameter で、 `b: A` が index となる。
