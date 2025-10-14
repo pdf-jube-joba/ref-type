@@ -23,9 +23,9 @@ macro_rules! sort {
     };
 }
 
-pub fn assoc_apply(mut a: CoreExp, v: Vec<CoreExp>) -> CoreExp {
+pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
     for arg in v {
-        a = CoreExp::App {
+        a = Exp::App {
             func: Box::new(a),
             arg: Box::new(arg),
         };
@@ -33,9 +33,9 @@ pub fn assoc_apply(mut a: CoreExp, v: Vec<CoreExp>) -> CoreExp {
     a
 }
 
-pub fn assoc_lam(v: Vec<(Var, CoreExp)>, mut body: CoreExp) -> CoreExp {
+pub fn assoc_lam(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
     for (var, ty) in v.into_iter().rev() {
-        body = CoreExp::Lam {
+        body = Exp::Lam {
             var,
             ty: Box::new(ty),
             body: Box::new(body),
@@ -44,9 +44,9 @@ pub fn assoc_lam(v: Vec<(Var, CoreExp)>, mut body: CoreExp) -> CoreExp {
     body
 }
 
-pub fn assoc_prod(v: Vec<(Var, CoreExp)>, mut body: CoreExp) -> CoreExp {
+pub fn assoc_prod(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
     for (var, ty) in v.into_iter().rev() {
-        body = CoreExp::Prod {
+        body = Exp::Prod {
             var,
             ty: Box::new(ty),
             body: Box::new(body),
@@ -55,9 +55,9 @@ pub fn assoc_prod(v: Vec<(Var, CoreExp)>, mut body: CoreExp) -> CoreExp {
     body
 }
 
-pub fn decompose_app(mut e: CoreExp) -> (CoreExp, Vec<CoreExp>) {
+pub fn decompose_app(mut e: Exp) -> (Exp, Vec<Exp>) {
     let mut args = vec![];
-    while let CoreExp::App { func, arg } = e {
+    while let Exp::App { func, arg } = e {
         args.push(*arg);
         e = *func;
     }
@@ -65,10 +65,10 @@ pub fn decompose_app(mut e: CoreExp) -> (CoreExp, Vec<CoreExp>) {
     (e, args)
 }
 
-pub fn decompose_app_ref(e: &CoreExp) -> (&CoreExp, Vec<&CoreExp>) {
+pub fn decompose_app_ref(e: &Exp) -> (&Exp, Vec<&Exp>) {
     let mut args = vec![];
     let mut e = e;
-    while let CoreExp::App { func, arg } = e {
+    while let Exp::App { func, arg } = e {
         args.push(arg.as_ref());
         e = func.as_ref();
     }
@@ -76,9 +76,9 @@ pub fn decompose_app_ref(e: &CoreExp) -> (&CoreExp, Vec<&CoreExp>) {
     (e, args)
 }
 
-pub fn decompose_prod(mut e: CoreExp) -> (Vec<(Var, CoreExp)>, CoreExp) {
+pub fn decompose_prod(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
     let mut vars = vec![];
-    while let CoreExp::Prod { var, ty, body } = e {
+    while let Exp::Prod { var, ty, body } = e {
         vars.push((var, *ty));
         e = *body;
     }
@@ -86,10 +86,10 @@ pub fn decompose_prod(mut e: CoreExp) -> (Vec<(Var, CoreExp)>, CoreExp) {
     (vars, e)
 }
 
-pub fn decompose_prod_ref(e: &CoreExp) -> (Vec<(&Var, &CoreExp)>, &CoreExp) {
+pub fn decompose_prod_ref(e: &Exp) -> (Vec<(&Var, &Exp)>, &Exp) {
     let mut vars = vec![];
     let mut e = e;
-    while let CoreExp::Prod { var, ty, body } = e {
+    while let Exp::Prod { var, ty, body } = e {
         vars.push((var, ty.as_ref()));
         e = body.as_ref();
     }

@@ -91,95 +91,94 @@ impl Sort {
 }
 
 #[derive(Debug, Clone)]
-pub enum CoreExp {
+pub enum Exp {
     Sort(Sort),
     Var(Var),
     // (x: A) -> B where x is bound in B but not in A
     Prod {
         var: Var,
-        ty: Box<CoreExp>,
-        body: Box<CoreExp>, // bind one variable
+        ty: Box<Exp>,
+        body: Box<Exp>, // bind one variable
     },
     // (x: A) => B where x is bound in B but not in A
     Lam {
         var: Var,
-        ty: Box<CoreExp>,
-        body: Box<CoreExp>, // bind one variable
+        ty: Box<Exp>,
+        body: Box<Exp>, // bind one variable
     },
     App {
-        func: Box<CoreExp>,
-        arg: Box<CoreExp>,
+        func: Box<Exp>,
+        arg: Box<Exp>,
     },
     // uncurry with parameter
     IndType {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
-        parameters: Vec<CoreExp>,
+        parameters: Vec<Exp>,
     },
     // uncurry with parameter
-    IndTypeCst {
+    IndCtor {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
+        parameters: Vec<Exp>,
         idx: usize,
-        parameter: Vec<CoreExp>,
     },
-    // this is primitive recursion
-    // no binding in elim, return_type, cases
-    IndTypeElim {
+    // this is primitive recursion (no binding representation)
+    IndElim {
         ty: Rc<crate::inductive::InductiveTypeSpecs>,
-        elim: Box<CoreExp>,
-        return_type: Box<CoreExp>,
+        elim: Box<Exp>,
+        return_type: Box<Exp>,
         sort: Sort,
-        cases: Vec<CoreExp>,
+        cases: Vec<Exp>,
     },
     Cast {
-        exp: Box<CoreExp>,
-        to: Box<CoreExp>,
+        exp: Box<Exp>,
+        to: Box<Exp>,
     },
     Proof {
-        exp: Box<CoreExp>,
+        prop: Box<Exp>,
     },
     PowerSet {
-        exp: Box<CoreExp>,
+        set: Box<Exp>,
     },
     // {x: A | P} where x is bound in P but not in A
     SubSet {
         var: Var,
-        exp: Box<CoreExp>,
-        predicate: Box<CoreExp>, // bind one variable
+        set: Box<Exp>,
+        predicate: Box<Exp>, // bind one variable
     },
     Pred {
-        superset: Box<CoreExp>,
-        subset: Box<CoreExp>,
-        element: Box<CoreExp>,
+        superset: Box<Exp>,
+        subset: Box<Exp>,
+        element: Box<Exp>,
     },
     TypeLift {
-        superset: Box<CoreExp>,
-        subset: Box<CoreExp>,
+        superset: Box<Exp>,
+        subset: Box<Exp>,
     },
     Equal {
-        left: Box<CoreExp>,
-        right: Box<CoreExp>,
+        left: Box<Exp>,
+        right: Box<Exp>,
     },
     // just non-emptyness proposition
     Exists {
-        ty: Box<CoreExp>,
+        set: Box<Exp>,
     },
     Take {
-        map: Box<CoreExp>,
-        domain: Box<CoreExp>,
-        codomain: Box<CoreExp>,
+        map: Box<Exp>,
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct Context(pub Vec<(Var, CoreExp)>);
+pub struct Context(pub Vec<(Var, Exp)>);
 
 impl Context {
-    pub fn extend(&self, varty: (Var, CoreExp)) -> Self {
+    pub fn extend(&self, varty: (Var, Exp)) -> Self {
         let mut new_ctx = self.0.clone();
         new_ctx.push(varty);
         Context(new_ctx)
     }
-    pub fn get(&self, var: &Var) -> Option<&CoreExp> {
+    pub fn get(&self, var: &Var) -> Option<&Exp> {
         for (v, ty) in self.0.iter().rev() {
             if v.is_eq_ptr(var) {
                 return Some(ty);
@@ -192,14 +191,14 @@ impl Context {
 #[derive(Debug, Clone)]
 pub struct TypeJudge {
     pub ctx: Context,
-    pub term: CoreExp,
-    pub ty: CoreExp,
+    pub term: Exp,
+    pub ty: Exp,
 }
 
 #[derive(Debug, Clone)]
 pub struct Provable {
     pub ctx: Context,
-    pub prop: CoreExp,
+    pub prop: Exp,
 }
 
 // this is for representing failure of proof
@@ -222,7 +221,7 @@ pub struct Derivation {
 }
 
 impl Derivation {
-    pub fn make_goal(ctx: Context, prop: CoreExp) -> Self {
+    pub fn make_goal(ctx: Context, prop: Exp) -> Self {
         Derivation {
             conclusion: Judgement::Provable(Provable { ctx, prop }),
             premises: vec![],
@@ -238,46 +237,46 @@ pub enum ProveCommandBy {
     // ctx |= prop
     //   ctx |- proof_term : prop
     Construct {
-        proof_term: CoreExp,
-        prop: CoreExp,
+        proof_term: Exp,
+        prop: Exp,
     },
     // ctx |= nonempty(ty)
     //   ctx |- elem: ty, ctx |- ty: Set(i)
     ExactElem {
-        elem: CoreExp,
-        ty: CoreExp,
+        elem: Exp,
+        ty: Exp,
     },
     // ctx |= Pred(supserset, subset, elem)
     //   ctx |- elem: Typelift(superset, subset), ctx |- Typelift(superset, subset): Set(i)
     SubsetElim {
-        elem: CoreExp,
-        subset: CoreExp,
-        superset: CoreExp,
+        elem: Exp,
+        subset: Exp,
+        superset: Exp,
     },
     // ctx |= elem = elem
     //   ctx |- elem: ty, ctx |- ty: Set(i)
     IdRefl {
         ctx: Context,
-        elem: CoreExp,
+        elem: Exp,
     },
     // ctx |= predicate(elem2)
     //   ctx |- elem1: ty, ctx |- elem2: ty, ctx |- ty: Set(i), ctx |- predicate: ty -> Prop
     //   ctx |= predicate(elem1), ctx |= elem1 = elem2
     IdElim {
         ctx: Context,
-        elem1: CoreExp,
-        elem2: CoreExp,
-        ty: Box<CoreExp>,
-        predicate: Box<CoreExp>,
+        elem1: Exp,
+        elem2: Exp,
+        ty: Box<Exp>,
+        predicate: Box<Exp>,
     },
     // ctx |= Take f = f elem
     //  ctx |- func: (_: domain) -> codomain, ctx |- elem: domain
     //  ctx |- Take f: docomain
     TakeEq {
-        func: Box<CoreExp>,
-        domain: Box<CoreExp>,
-        codomain: Box<CoreExp>,
-        elem: Box<CoreExp>,
+        func: Box<Exp>,
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
+        elem: Box<Exp>,
     },
     // axioms
     Axiom(Axiom),
@@ -287,18 +286,18 @@ pub enum ProveCommandBy {
 pub enum Axiom {
     ExcludedMiddle {
         ctx: Context,
-        prop: CoreExp,
+        prop: Exp,
     },
     FunctionExtensionality {
         ctx: Context,
-        func1: CoreExp,
-        func2: CoreExp,
+        func1: Exp,
+        func2: Exp,
     },
     EmsemblesExtensionality {
         ctx: Context,
-        set1: CoreExp,
-        set2: CoreExp,
-        superset: CoreExp,
+        set1: Exp,
+        set2: Exp,
+        superset: Exp,
     },
 }
 
@@ -307,6 +306,6 @@ mod tests {
     use super::*;
     #[test]
     fn test_macros() {
-        let _ = CoreExp::Sort(Sort::Prop);
+        let _ = Exp::Sort(Sort::Prop);
     }
 }

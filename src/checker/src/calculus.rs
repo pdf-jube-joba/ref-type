@@ -2,12 +2,12 @@ use crate::inductive::inductive_type_elim_reduce;
 
 use super::coreexp::*;
 
-pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
-    fn is_alpha_rec(e1: &CoreExp, e2: &CoreExp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {
+pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
+    fn is_alpha_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {
         match (e1, e2) {
-            (CoreExp::Sort(s1), CoreExp::Sort(s2)) => s1 == s2,
-            (CoreExp::Sort(_), _) => false,
-            (CoreExp::Var(v1), CoreExp::Var(v2)) => {
+            (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
+            (Exp::Sort(_), _) => false,
+            (Exp::Var(v1), Exp::Var(v2)) => {
                 let pos1 = env1.iter().rposition(|v| v.is_eq_ptr(v1));
                 let pos2 = env2.iter().rposition(|v| v.is_eq_ptr(v2));
                 match (pos1, pos2) {
@@ -16,14 +16,14 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                     _ => false,
                 }
             }
-            (CoreExp::Var(_), _) => false,
+            (Exp::Var(_), _) => false,
             (
-                CoreExp::Prod {
+                Exp::Prod {
                     var: var1,
                     ty: ty1,
                     body: body1,
                 },
-                CoreExp::Prod {
+                Exp::Prod {
                     var: var2,
                     ty: ty2,
                     body: body2,
@@ -39,7 +39,7 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 }
             }
             (
-                CoreExp::Prod {
+                Exp::Prod {
                     var: _,
                     ty: _,
                     body: _,
@@ -47,12 +47,12 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 _,
             ) => false,
             (
-                CoreExp::Lam {
+                Exp::Lam {
                     var: var1,
                     ty: ty1,
                     body: body1,
                 },
-                CoreExp::Lam {
+                Exp::Lam {
                     var: var2,
                     ty: ty2,
                     body: body2,
@@ -68,23 +68,23 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 }
             }
             (
-                CoreExp::Lam {
+                Exp::Lam {
                     var: _,
                     ty: _,
                     body: _,
                 },
                 _,
             ) => false,
-            (CoreExp::App { func: f1, arg: a1 }, CoreExp::App { func: f2, arg: a2 }) => {
+            (Exp::App { func: f1, arg: a1 }, Exp::App { func: f2, arg: a2 }) => {
                 is_alpha_rec(f1, f2, env1, env2) && is_alpha_rec(a1, a2, env1, env2)
             }
-            (CoreExp::App { func: _, arg: _ }, _) => false,
+            (Exp::App { func: _, arg: _ }, _) => false,
             (
-                CoreExp::IndType {
+                Exp::IndType {
                     ty: ty1,
                     parameters: parameter1,
                 },
-                CoreExp::IndType {
+                Exp::IndType {
                     ty: ty2,
                     parameters: parameter2,
                 },
@@ -97,22 +97,22 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                         .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
             }
             (
-                CoreExp::IndType {
+                Exp::IndType {
                     ty: _,
                     parameters: _,
                 },
                 _,
             ) => false,
             (
-                CoreExp::IndTypeCst {
+                Exp::IndCtor {
                     ty: ty1,
                     idx: idx1,
-                    parameter: parameter1,
+                    parameters: parameter1,
                 },
-                CoreExp::IndTypeCst {
+                Exp::IndCtor {
                     ty: ty2,
                     idx: idx2,
-                    parameter: parameter2,
+                    parameters: parameter2,
                 },
             ) => {
                 std::rc::Rc::ptr_eq(ty1, ty2)
@@ -124,22 +124,22 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                         .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
             }
             (
-                CoreExp::IndTypeCst {
+                Exp::IndCtor {
                     ty: _,
                     idx: _,
-                    parameter: _,
+                    parameters: _,
                 },
                 _,
             ) => false,
             (
-                CoreExp::IndTypeElim {
+                Exp::IndElim {
                     ty: ty1,
                     elim: elim1,
                     return_type: ret1,
                     sort: sort1,
                     cases: cases1,
                 },
-                CoreExp::IndTypeElim {
+                Exp::IndElim {
                     ty: ty2,
                     elim: elim2,
                     return_type: ret2,
@@ -158,7 +158,7 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                         .all(|(c1, c2)| is_alpha_rec(c1, c2, env1, env2))
             }
             (
-                CoreExp::IndTypeElim {
+                Exp::IndElim {
                     ty: _,
                     elim: _,
                     return_type: _,
@@ -167,27 +167,27 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 },
                 _,
             ) => false,
-            (CoreExp::Cast { exp: e1, to: t1 }, CoreExp::Cast { exp: e2, to: t2 }) => {
+            (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
                 is_alpha_rec(e1, e2, env1, env2) && is_alpha_rec(t1, t2, env1, env2)
             }
-            (CoreExp::Cast { exp: _, to: _ }, _) => false,
-            (CoreExp::Proof { exp: e1 }, CoreExp::Proof { exp: e2 }) => {
+            (Exp::Cast { exp: _, to: _ }, _) => false,
+            (Exp::Proof { prop: e1 }, Exp::Proof { prop: e2 }) => {
                 is_alpha_rec(e1, e2, env1, env2)
             }
-            (CoreExp::Proof { exp: _ }, _) => false,
-            (CoreExp::PowerSet { exp: e1 }, CoreExp::PowerSet { exp: e2 }) => {
+            (Exp::Proof { prop: _ }, _) => false,
+            (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => {
                 is_alpha_rec(e1, e2, env1, env2)
             }
-            (CoreExp::PowerSet { exp: _ }, _) => false,
+            (Exp::PowerSet { set: _ }, _) => false,
             (
-                CoreExp::SubSet {
+                Exp::SubSet {
                     var: var1,
-                    exp: e1,
+                    set: e1,
                     predicate: p1,
                 },
-                CoreExp::SubSet {
+                Exp::SubSet {
                     var: var2,
-                    exp: e2,
+                    set: e2,
                     predicate: p2,
                 },
             ) => {
@@ -201,20 +201,20 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 }
             }
             (
-                CoreExp::SubSet {
+                Exp::SubSet {
                     var: _,
-                    exp: _,
+                    set: _,
                     predicate: _,
                 },
                 _,
             ) => false,
             (
-                CoreExp::Pred {
+                Exp::Pred {
                     superset: s1,
                     subset: sub1,
                     element: e1,
                 },
-                CoreExp::Pred {
+                Exp::Pred {
                     superset: s2,
                     subset: sub2,
                     element: e2,
@@ -225,7 +225,7 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                     && is_alpha_rec(e1, e2, env1, env2)
             }
             (
-                CoreExp::Pred {
+                Exp::Pred {
                     superset: _,
                     subset: _,
                     element: _,
@@ -233,44 +233,44 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                 _,
             ) => false,
             (
-                CoreExp::TypeLift {
+                Exp::TypeLift {
                     superset: s1,
                     subset: sub1,
                 },
-                CoreExp::TypeLift {
+                Exp::TypeLift {
                     superset: s2,
                     subset: sub2,
                 },
             ) => is_alpha_rec(s1, s2, env1, env2) && is_alpha_rec(sub1, sub2, env1, env2),
             (
-                CoreExp::TypeLift {
+                Exp::TypeLift {
                     superset: _,
                     subset: _,
                 },
                 _,
             ) => false,
             (
-                CoreExp::Equal {
+                Exp::Equal {
                     left: l1,
                     right: r1,
                 },
-                CoreExp::Equal {
+                Exp::Equal {
                     left: l2,
                     right: r2,
                 },
             ) => is_alpha_rec(l1, l2, env1, env2) && is_alpha_rec(r1, r2, env1, env2),
-            (CoreExp::Equal { left: _, right: _ }, _) => false,
-            (CoreExp::Exists { ty: ty1 }, CoreExp::Exists { ty: ty2 }) => {
+            (Exp::Equal { left: _, right: _ }, _) => false,
+            (Exp::Exists { set: ty1 }, Exp::Exists { set: ty2 }) => {
                 is_alpha_rec(ty1, ty2, env1, env2)
             }
-            (CoreExp::Exists { ty: _ }, _) => false,
+            (Exp::Exists { set: _ }, _) => false,
             (
-                CoreExp::Take {
+                Exp::Take {
                     map: m1,
                     domain: d1,
                     codomain: c1,
                 },
-                CoreExp::Take {
+                Exp::Take {
                     map: m2,
                     domain: d2,
                     codomain: c2,
@@ -281,7 +281,7 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
                     && is_alpha_rec(c1, c2, env1, env2)
             }
             (
-                CoreExp::Take {
+                Exp::Take {
                     map: _,
                     domain: _,
                     codomain: _,
@@ -293,126 +293,126 @@ pub fn is_alpha_eq(e1: &CoreExp, e2: &CoreExp) -> bool {
     is_alpha_rec(e1, e2, &mut vec![], &mut vec![])
 }
 
-pub fn subst(e: &CoreExp, v: &Var, t: &CoreExp) -> CoreExp {
+pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
     match e {
-        CoreExp::Sort(sort) => CoreExp::Sort(*sort),
-        CoreExp::Var(var) => {
+        Exp::Sort(sort) => Exp::Sort(*sort),
+        Exp::Var(var) => {
             if var.is_eq_ptr(v) {
                 t.clone()
             } else {
                 e.clone()
             }
         }
-        CoreExp::Prod { var, ty, body } => {
+        Exp::Prod { var, ty, body } => {
             if var.is_eq_ptr(v) {
-                CoreExp::Prod {
+                Exp::Prod {
                     var: var.clone(),
                     ty: Box::new(subst(ty, v, t)),
                     body: body.clone(),
                 }
             } else {
-                CoreExp::Prod {
+                Exp::Prod {
                     var: var.clone(),
                     ty: Box::new(subst(ty, v, t)),
                     body: Box::new(subst(body, v, t)),
                 }
             }
         }
-        CoreExp::Lam { var, ty, body } => {
+        Exp::Lam { var, ty, body } => {
             if var.is_eq_ptr(v) {
-                CoreExp::Lam {
+                Exp::Lam {
                     var: var.clone(),
                     ty: Box::new(subst(ty, v, t)),
                     body: body.clone(),
                 }
             } else {
-                CoreExp::Lam {
+                Exp::Lam {
                     var: var.clone(),
                     ty: Box::new(subst(ty, v, t)),
                     body: Box::new(subst(body, v, t)),
                 }
             }
         }
-        CoreExp::App { func, arg } => CoreExp::App {
+        Exp::App { func, arg } => Exp::App {
             func: Box::new(subst(func, v, t)),
             arg: Box::new(subst(arg, v, t)),
         },
-        CoreExp::IndType { ty, parameters } => CoreExp::IndType {
+        Exp::IndType { ty, parameters } => Exp::IndType {
             ty: ty.clone(),
             parameters: parameters.iter().map(|arg| subst(arg, v, t)).collect(),
         },
-        CoreExp::IndTypeCst { ty, idx, parameter } => CoreExp::IndTypeCst {
+        Exp::IndCtor { ty, idx, parameters: parameter } => Exp::IndCtor {
             ty: ty.clone(),
             idx: *idx,
-            parameter: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
+            parameters: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
         },
-        CoreExp::IndTypeElim {
+        Exp::IndElim {
             ty,
             elim,
             return_type,
             sort,
             cases,
-        } => CoreExp::IndTypeElim {
+        } => Exp::IndElim {
             ty: ty.clone(),
             elim: Box::new(subst(elim, v, t)),
             return_type: Box::new(subst(return_type, v, t)),
             sort: *sort,
             cases: cases.iter().map(|case| subst(case, v, t)).collect(),
         },
-        CoreExp::Cast { exp, to } => CoreExp::Cast {
+        Exp::Cast { exp, to } => Exp::Cast {
             exp: Box::new(subst(exp, v, t)),
             to: Box::new(subst(to, v, t)),
         },
-        CoreExp::Proof { exp } => CoreExp::Proof {
-            exp: Box::new(subst(exp, v, t)),
+        Exp::Proof { prop: exp } => Exp::Proof {
+            prop: Box::new(subst(exp, v, t)),
         },
-        CoreExp::PowerSet { exp } => CoreExp::PowerSet {
-            exp: Box::new(subst(exp, v, t)),
+        Exp::PowerSet { set: exp } => Exp::PowerSet {
+            set: Box::new(subst(exp, v, t)),
         },
-        CoreExp::SubSet {
+        Exp::SubSet {
             var,
-            exp,
+            set: exp,
             predicate,
         } => {
             if var.is_eq_ptr(v) {
-                CoreExp::SubSet {
+                Exp::SubSet {
                     var: var.clone(),
-                    exp: Box::new(subst(exp, v, t)),
+                    set: Box::new(subst(exp, v, t)),
                     predicate: predicate.clone(),
                 }
             } else {
-                CoreExp::SubSet {
+                Exp::SubSet {
                     var: var.clone(),
-                    exp: Box::new(subst(exp, v, t)),
+                    set: Box::new(subst(exp, v, t)),
                     predicate: Box::new(subst(predicate, v, t)),
                 }
             }
         }
-        CoreExp::Pred {
+        Exp::Pred {
             superset,
             subset,
             element,
-        } => CoreExp::Pred {
+        } => Exp::Pred {
             superset: Box::new(subst(superset, v, t)),
             subset: Box::new(subst(subset, v, t)),
             element: Box::new(subst(element, v, t)),
         },
-        CoreExp::TypeLift { superset, subset } => CoreExp::TypeLift {
+        Exp::TypeLift { superset, subset } => Exp::TypeLift {
             superset: Box::new(subst(superset, v, t)),
             subset: Box::new(subst(subset, v, t)),
         },
-        CoreExp::Equal { left, right } => CoreExp::Equal {
+        Exp::Equal { left, right } => Exp::Equal {
             left: Box::new(subst(left, v, t)),
             right: Box::new(subst(right, v, t)),
         },
-        CoreExp::Exists { ty } => CoreExp::Exists {
-            ty: Box::new(subst(ty, v, t)),
+        Exp::Exists { set: ty } => Exp::Exists {
+            set: Box::new(subst(ty, v, t)),
         },
-        CoreExp::Take {
+        Exp::Take {
             map,
             domain,
             codomain,
-        } => CoreExp::Take {
+        } => Exp::Take {
             map: Box::new(subst(map, v, t)),
             domain: Box::new(subst(domain, v, t)),
             codomain: Box::new(subst(codomain, v, t)),
@@ -422,103 +422,103 @@ pub fn subst(e: &CoreExp, v: &Var, t: &CoreExp) -> CoreExp {
 
 // any bindings in e should be renamed to avoid some problems
 // free variable is not affected (ptr_copy)
-pub fn alpha_conversion(e: &CoreExp) -> CoreExp {
+pub fn alpha_conversion(e: &Exp) -> Exp {
     match e {
-        CoreExp::Sort(sort) => CoreExp::Sort(*sort),
-        CoreExp::Var(var) => CoreExp::Var(var.clone()),
-        CoreExp::Prod { var, ty, body } => {
+        Exp::Sort(sort) => Exp::Sort(*sort),
+        Exp::Var(var) => Exp::Var(var.clone()),
+        Exp::Prod { var, ty, body } => {
             let new_var = Var::new(var.name());
-            CoreExp::Prod {
+            Exp::Prod {
                 var: new_var.clone(),
                 ty: Box::new(alpha_conversion(ty)),
-                body: Box::new(subst(&alpha_conversion(body), var, &CoreExp::Var(new_var))),
+                body: Box::new(subst(&alpha_conversion(body), var, &Exp::Var(new_var))),
             }
         }
-        CoreExp::Lam { var, ty, body } => {
+        Exp::Lam { var, ty, body } => {
             let new_var = Var::new(var.name());
-            CoreExp::Lam {
+            Exp::Lam {
                 var: new_var.clone(),
                 ty: Box::new(alpha_conversion(ty)),
-                body: Box::new(subst(&alpha_conversion(body), var, &CoreExp::Var(new_var))),
+                body: Box::new(subst(&alpha_conversion(body), var, &Exp::Var(new_var))),
             }
         }
-        CoreExp::App { func, arg } => CoreExp::App {
+        Exp::App { func, arg } => Exp::App {
             func: Box::new(alpha_conversion(func)),
             arg: Box::new(alpha_conversion(arg)),
         },
-        CoreExp::IndType { ty, parameters } => CoreExp::IndType {
+        Exp::IndType { ty, parameters } => Exp::IndType {
             ty: ty.clone(),
             parameters: parameters.iter().map(alpha_conversion).collect(),
         },
-        CoreExp::IndTypeCst { ty, idx, parameter } => CoreExp::IndTypeCst {
+        Exp::IndCtor { ty, idx, parameters: parameter } => Exp::IndCtor {
             ty: ty.clone(),
             idx: *idx,
-            parameter: parameter.iter().map(alpha_conversion).collect(),
+            parameters: parameter.iter().map(alpha_conversion).collect(),
         },
-        CoreExp::IndTypeElim {
+        Exp::IndElim {
             ty,
             elim,
             return_type,
             sort,
             cases,
-        } => CoreExp::IndTypeElim {
+        } => Exp::IndElim {
             ty: ty.clone(),
             elim: Box::new(alpha_conversion(elim)),
             return_type: Box::new(alpha_conversion(return_type)),
             sort: *sort,
             cases: cases.iter().map(alpha_conversion).collect(),
         },
-        CoreExp::Cast { exp, to } => CoreExp::Cast {
+        Exp::Cast { exp, to } => Exp::Cast {
             exp: Box::new(alpha_conversion(exp)),
             to: Box::new(alpha_conversion(to)),
         },
-        CoreExp::Proof { exp } => CoreExp::Proof {
-            exp: Box::new(alpha_conversion(exp)),
+        Exp::Proof { prop: exp } => Exp::Proof {
+            prop: Box::new(alpha_conversion(exp)),
         },
-        CoreExp::PowerSet { exp } => CoreExp::PowerSet {
-            exp: Box::new(alpha_conversion(exp)),
+        Exp::PowerSet { set: exp } => Exp::PowerSet {
+            set: Box::new(alpha_conversion(exp)),
         },
-        CoreExp::SubSet {
+        Exp::SubSet {
             var,
-            exp,
+            set: exp,
             predicate,
         } => {
             let new_var = Var::new(var.name());
-            CoreExp::SubSet {
+            Exp::SubSet {
                 var: new_var.clone(),
-                exp: Box::new(alpha_conversion(exp)),
+                set: Box::new(alpha_conversion(exp)),
                 predicate: Box::new(subst(
                     &alpha_conversion(predicate),
                     var,
-                    &CoreExp::Var(new_var),
+                    &Exp::Var(new_var),
                 )),
             }
         }
-        CoreExp::Pred {
+        Exp::Pred {
             superset,
             subset,
             element,
-        } => CoreExp::Pred {
+        } => Exp::Pred {
             superset: Box::new(alpha_conversion(superset)),
             subset: Box::new(alpha_conversion(subset)),
             element: Box::new(alpha_conversion(element)),
         },
-        CoreExp::TypeLift { superset, subset } => CoreExp::TypeLift {
+        Exp::TypeLift { superset, subset } => Exp::TypeLift {
             superset: Box::new(alpha_conversion(superset)),
             subset: Box::new(alpha_conversion(subset)),
         },
-        CoreExp::Equal { left, right } => CoreExp::Equal {
+        Exp::Equal { left, right } => Exp::Equal {
             left: Box::new(alpha_conversion(left)),
             right: Box::new(alpha_conversion(right)),
         },
-        CoreExp::Exists { ty } => CoreExp::Exists {
-            ty: Box::new(alpha_conversion(ty)),
+        Exp::Exists { set: ty } => Exp::Exists {
+            set: Box::new(alpha_conversion(ty)),
         },
-        CoreExp::Take {
+        Exp::Take {
             map,
             domain,
             codomain,
-        } => CoreExp::Take {
+        } => Exp::Take {
             map: Box::new(alpha_conversion(map)),
             domain: Box::new(alpha_conversion(domain)),
             codomain: Box::new(alpha_conversion(codomain)),
@@ -526,10 +526,10 @@ pub fn alpha_conversion(e: &CoreExp) -> CoreExp {
     }
 }
 
-pub fn reduce_if_top(e: &CoreExp) -> Option<CoreExp> {
+pub fn reduce_if_top(e: &Exp) -> Option<Exp> {
     match e {
-        CoreExp::App { func, arg } => {
-            if let CoreExp::Lam { var, ty: _, body } = func.as_ref() {
+        Exp::App { func, arg } => {
+            if let Exp::Lam { var, ty: _, body } = func.as_ref() {
                 Some(subst(body, var, arg))
             } else {
                 None
@@ -539,7 +539,7 @@ pub fn reduce_if_top(e: &CoreExp) -> Option<CoreExp> {
     }
 }
 
-pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
+pub fn reduce_one(e: &Exp) -> Option<Exp> {
     if let Some(e) = reduce_if_top(e) {
         return Some(e);
     }
@@ -548,7 +548,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
     // return if Some(reduced) with changed := true
     // else return self
     let mut changed = false;
-    let mut reduce_if = |e: &CoreExp| -> CoreExp {
+    let mut reduce_if = |e: &Exp| -> Exp {
         changed
             .then(|| reduce_one(e).inspect(|_| changed = true))
             .flatten()
@@ -556,43 +556,43 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
     };
 
     match e {
-        CoreExp::Sort(_) => None,
-        CoreExp::Var(_) => None,
-        CoreExp::Prod { var, ty, body } => {
+        Exp::Sort(_) => None,
+        Exp::Var(_) => None,
+        Exp::Prod { var, ty, body } => {
             let ty = reduce_if(ty);
             let body = reduce_if(body);
 
-            changed.then_some(CoreExp::Prod {
+            changed.then_some(Exp::Prod {
                 var: var.clone(),
                 ty: Box::new(ty),
                 body: Box::new(body),
             })
         }
-        CoreExp::Lam { var, ty, body } => {
+        Exp::Lam { var, ty, body } => {
             let ty = reduce_if(ty);
             let body = reduce_if(body);
 
-            changed.then_some(CoreExp::Lam {
+            changed.then_some(Exp::Lam {
                 var: var.clone(),
                 ty: Box::new(ty),
                 body: Box::new(body),
             })
         }
-        CoreExp::App { func, arg } => {
+        Exp::App { func, arg } => {
             let func = reduce_if(func);
             let arg = reduce_if(arg);
 
-            changed.then_some(CoreExp::App {
+            changed.then_some(Exp::App {
                 func: Box::new(func),
                 arg: Box::new(arg),
             })
         }
-        CoreExp::IndType { ty, parameters } => {
+        Exp::IndType { ty, parameters } => {
             for (i, arg) in parameters.iter().enumerate() {
                 if let Some(arg) = reduce_one(arg) {
                     let mut new_args = parameters.clone();
                     new_args[i] = arg;
-                    return Some(CoreExp::IndType {
+                    return Some(Exp::IndType {
                         ty: ty.clone(),
                         parameters: new_args,
                     });
@@ -601,22 +601,22 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
 
             None
         }
-        CoreExp::IndTypeCst { ty, idx, parameter } => {
+        Exp::IndCtor { ty, idx, parameters: parameter } => {
             for (i, arg) in parameter.iter().enumerate() {
                 if let Some(arg) = reduce_one(arg) {
                     let mut new_args = parameter.clone();
                     new_args[i] = arg;
-                    return Some(CoreExp::IndTypeCst {
+                    return Some(Exp::IndCtor {
                         ty: ty.clone(),
                         idx: *idx,
-                        parameter: new_args,
+                        parameters: new_args,
                     });
                 }
             }
 
             None
         }
-        CoreExp::IndTypeElim {
+        Exp::IndElim {
             ty,
             elim,
             return_type,
@@ -624,7 +624,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
             cases,
         } => {
             if let Some(elim) = reduce_one(elim) {
-                Some(CoreExp::IndTypeElim {
+                Some(Exp::IndElim {
                     ty: ty.clone(),
                     elim: Box::new(elim),
                     return_type: return_type.clone(),
@@ -632,7 +632,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
                     cases: cases.clone(),
                 })
             } else if let Some(return_type) = reduce_one(return_type) {
-                Some(CoreExp::IndTypeElim {
+                Some(Exp::IndElim {
                     ty: ty.clone(),
                     elim: elim.clone(),
                     return_type: Box::new(return_type),
@@ -644,7 +644,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
                     if let Some(case) = reduce_one(case) {
                         let mut new_cases = cases.clone();
                         new_cases[i] = case;
-                        return Some(CoreExp::IndTypeElim {
+                        return Some(Exp::IndElim {
                             ty: ty.clone(),
                             elim: elim.clone(),
                             return_type: return_type.clone(),
@@ -656,37 +656,37 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
                 None
             }
         }
-        CoreExp::Cast { exp, to } => {
+        Exp::Cast { exp, to } => {
             let exp = reduce_if(exp);
             let to = reduce_if(to);
 
-            changed.then_some(CoreExp::Cast {
+            changed.then_some(Exp::Cast {
                 exp: Box::new(exp),
                 to: Box::new(to),
             })
         }
-        CoreExp::Proof { exp } => {
+        Exp::Proof { prop: exp } => {
             let exp = reduce_if(exp);
-            changed.then_some(CoreExp::Proof { exp: Box::new(exp) })
+            changed.then_some(Exp::Proof { prop: Box::new(exp) })
         }
-        CoreExp::PowerSet { exp } => {
+        Exp::PowerSet { set: exp } => {
             let exp = reduce_if(exp);
-            changed.then_some(CoreExp::PowerSet { exp: Box::new(exp) })
+            changed.then_some(Exp::PowerSet { set: Box::new(exp) })
         }
-        CoreExp::SubSet {
+        Exp::SubSet {
             var,
-            exp,
+            set: exp,
             predicate,
         } => {
             let exp = reduce_if(exp);
             let predicate = reduce_if(predicate);
-            changed.then_some(CoreExp::SubSet {
+            changed.then_some(Exp::SubSet {
                 var: var.clone(),
-                exp: Box::new(exp),
+                set: Box::new(exp),
                 predicate: Box::new(predicate),
             })
         }
-        CoreExp::Pred {
+        Exp::Pred {
             superset,
             subset,
             element,
@@ -694,33 +694,33 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
             let superset = reduce_if(superset);
             let subset = reduce_if(subset);
             let element = reduce_if(element);
-            changed.then_some(CoreExp::Pred {
+            changed.then_some(Exp::Pred {
                 superset: Box::new(superset),
                 subset: Box::new(subset),
                 element: Box::new(element),
             })
         }
-        CoreExp::TypeLift { superset, subset } => {
+        Exp::TypeLift { superset, subset } => {
             let superset = reduce_if(superset);
             let subset = reduce_if(subset);
-            changed.then_some(CoreExp::TypeLift {
+            changed.then_some(Exp::TypeLift {
                 superset: Box::new(superset),
                 subset: Box::new(subset),
             })
         }
-        CoreExp::Equal { left, right } => {
+        Exp::Equal { left, right } => {
             let left = reduce_if(left);
             let right = reduce_if(right);
-            changed.then_some(CoreExp::Equal {
+            changed.then_some(Exp::Equal {
                 left: Box::new(left),
                 right: Box::new(right),
             })
         }
-        CoreExp::Exists { ty } => {
+        Exp::Exists { set: ty } => {
             let ty = reduce_if(ty);
-            changed.then_some(CoreExp::Exists { ty: Box::new(ty) })
+            changed.then_some(Exp::Exists { set: Box::new(ty) })
         }
-        CoreExp::Take {
+        Exp::Take {
             map,
             domain,
             codomain,
@@ -728,7 +728,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
             let map = reduce_if(map);
             let domain = reduce_if(domain);
             let codomain = reduce_if(codomain);
-            changed.then_some(CoreExp::Take {
+            changed.then_some(Exp::Take {
                 map: Box::new(map),
                 domain: Box::new(domain),
                 codomain: Box::new(codomain),
@@ -737,7 +737,7 @@ pub fn reduce_one(e: &CoreExp) -> Option<CoreExp> {
     }
 }
 
-pub fn normalize(e: &CoreExp) -> CoreExp {
+pub fn normalize(e: &Exp) -> Exp {
     let mut current = e.clone();
     while let Some(next) = reduce_one(&current) {
         current = next;
@@ -745,6 +745,6 @@ pub fn normalize(e: &CoreExp) -> CoreExp {
     current
 }
 
-pub fn convertible(e1: &CoreExp, e2: &CoreExp) -> bool {
+pub fn convertible(e1: &Exp, e2: &Exp) -> bool {
     is_alpha_eq(&normalize(e1), &normalize(e2))
 }

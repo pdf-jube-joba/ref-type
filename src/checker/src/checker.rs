@@ -1,11 +1,8 @@
-use std::rc::Rc;
-
-use crate::inductive::InductiveTypeSpecs;
 use crate::inductive::eliminator_type;
 use crate::utils;
 
-use super::calculus::*;
-use super::coreexp::*;
+use crate::calculus::*;
+use crate::coreexp::*;
 
 struct Builder {
     rule: String,
@@ -35,7 +32,7 @@ impl Builder {
     }
 }
 
-pub fn check(ctx: &Context, term: &CoreExp, ty: &CoreExp) -> Result<Derivation, Derivation> {
+pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<Derivation, Derivation> {
     // rule is Conversion, meta is check
     let mut builder = Builder::new("Conversion".to_string(), Some("check".to_string()));
 
@@ -82,8 +79,8 @@ pub fn check(ctx: &Context, term: &CoreExp, ty: &CoreExp) -> Result<Derivation, 
     }
 }
 
-pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Derivation> {
-    let judgement_from_ty = |ty: &CoreExp| {
+pub fn infer(ctx: &Context, term: &Exp) -> Result<(Derivation, Exp), Derivation> {
+    let judgement_from_ty = |ty: &Exp| {
         Judgement::Type(TypeJudge {
             ctx: ctx.clone(),
             term: term.clone(),
@@ -91,13 +88,13 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
         })
     };
     match term {
-        CoreExp::Sort(sort) => {
+        Exp::Sort(sort) => {
             let builder = Builder::new("Sort".to_string(), Some("infer".to_string()));
 
             // conclude (ctx |- sort : sort_of_sort) if (sort_of_sort exists)
             match sort.type_of_sort() {
                 Some(sort_of_sort) => {
-                    let ty = CoreExp::Sort(sort_of_sort);
+                    let ty = Exp::Sort(sort_of_sort);
                     Ok((builder.build(judgement_from_ty(&ty)), ty))
                 }
                 None => Err(builder.build(Judgement::FailJudge(FailJudge(format!(
@@ -106,7 +103,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 ))))),
             }
         }
-        CoreExp::Var(index) => {
+        Exp::Var(index) => {
             let builder = Builder::new("Var".to_string(), Some("infer".to_string()));
             // conclude (ctx |- Var(index) : ctx[index]) if ctx[index] exists
             match ctx.get(index) {
@@ -117,7 +114,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 ))))),
             }
         }
-        CoreExp::Prod { var, ty, body } => {
+        Exp::Prod { var, ty, body } => {
             let mut builder = Builder::new("Prod".to_string(), Some("infer".to_string()));
             // 1. infer (ctx |- ty : s1)
             let s1 = match infer_sort(ctx, ty) {
@@ -158,11 +155,11 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                     )))));
                 }
             };
-            let ty = CoreExp::Sort(s3);
+            let ty = Exp::Sort(s3);
             // 4. conclude (ctx |- Prod(ty, body) : s3)
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::Lam { var, ty, body } => {
+        Exp::Lam { var, ty, body } => {
             let mut builder = Builder::new("Lam".to_string(), Some("infer".to_string()));
             // 1. infer (ctx |- ty : s)
             match infer_sort(ctx, ty) {
@@ -193,7 +190,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                     )))));
                 }
             };
-            let lam_ty = CoreExp::Prod {
+            let lam_ty = Exp::Prod {
                 var: var.clone(),
                 ty: ty.clone(),
                 body: Box::new(body_ty),
@@ -201,7 +198,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             // 3. conclude (ctx |- Lam(ty, body) : Prod(ty, body_ty))
             Ok((builder.build(judgement_from_ty(&lam_ty)), lam_ty))
         }
-        CoreExp::App { func, arg } => {
+        Exp::App { func, arg } => {
             let mut builder = Builder::new("App".to_string(), Some("infer".to_string()));
             // 1. infer (ctx |- func : (x: arg_ty) -> ret_ty)
             let func_ty = match infer(ctx, func) {
@@ -217,7 +214,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                     )))));
                 }
             };
-            let CoreExp::Prod {
+            let Exp::Prod {
                 var,
                 ty: arg_ty,
                 body: ret_ty,
@@ -248,7 +245,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 ret_ty_substituted,
             ))
         }
-        CoreExp::IndType { ty, parameters } => {
+        Exp::IndType { ty, parameters } => {
             let mut builder = Builder::new("IndType".to_string(), Some("infer".to_string()));
             let parameter_ty_defined = ty.parameter.clone();
             // 1. check parameters length
@@ -263,7 +260,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             // 2. check (ctx |- parameters[i] : parameter_ty_defined[i]) for each i
             //   (we need to substitute previous parameters into later parameter types)
 
-            let mut subst_varexp: Vec<(Var, CoreExp)> = vec![];
+            let mut subst_varexp: Vec<(Var, Exp)> = vec![];
 
             for (param, (var, param_ty)) in parameters.iter().zip(parameter_ty_defined.iter()) {
                 // substitute previous parameters into param_ty
@@ -292,11 +289,11 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             }
 
             // 3. conclude (ctx |- IndType(ty, parameters) : arity_ty[] -> ty.sort)
-            let arity_ty = ty.arity_arg.clone();
-            let arity = utils::assoc_prod(arity_ty, CoreExp::Sort(ty.sort));
+            let arity_ty = ty.indices.clone();
+            let arity = utils::assoc_prod(arity_ty, Exp::Sort(ty.sort));
             Ok((builder.build(judgement_from_ty(&arity)), arity))
         }
-        CoreExp::IndTypeCst { ty, idx, parameter } => {
+        Exp::IndCtor { ty, idx, parameters: parameter } => {
             let mut builder = Builder::new("IndTypeCst".to_string(), Some("infer".to_string()));
             let parameter_ty_defined = ty.parameter.clone();
             // 1. check parameter length
@@ -310,7 +307,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             // 2. check (ctx |- parameter[i] : parameter_ty_defined[i]) for each i
             //   (we need to substitute previous parameters into later parameter types)
 
-            let mut subst_varexp: Vec<(Var, CoreExp)> = vec![];
+            let mut subst_varexp: Vec<(Var, Exp)> = vec![];
 
             for (param, (var, param_ty)) in parameter.iter().zip(parameter_ty_defined.iter()) {
                 // substitute previous parameters into param_ty
@@ -339,7 +336,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             }
 
             // 3. conclude (ctx |- IndTypeCst(ty, idx, parameter) : ty.Constructors[idx] where THIS = ty)
-            let constructor_type = ty.constructors[*idx].as_exp_with_type(&CoreExp::IndType {
+            let constructor_type = ty.constructors[*idx].as_exp_with_type(&Exp::IndType {
                 ty: ty.clone(),
                 parameters: parameter.clone(),
             });
@@ -348,7 +345,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 constructor_type,
             ))
         }
-        CoreExp::IndTypeElim {
+        Exp::IndElim {
             ty,
             elim,
             return_type,
@@ -380,7 +377,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             };
 
             let (inferred_indty_base, a) = utils::decompose_app(inferred_indty);
-            let CoreExp::IndType {
+            let Exp::IndType {
                 ty: inferred_indty,
                 parameters,
             } = inferred_indty_base
@@ -400,15 +397,15 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             }
 
             // 4. check types of a[]: t[] in ty.arity_arg
-            if ty.arity_arg.len() != a.len() {
+            if ty.indices.len() != a.len() {
                 return Err(builder.build(Judgement::FailJudge(FailJudge(format!(
                     "Arity length mismatch: expected {}, found {}",
-                    ty.arity_arg.len(),
+                    ty.indices.len(),
                     a.len()
                 )))));
             }
 
-            for ((_, arg_ty), arg) in ty.arity_arg.iter().zip(a.iter()) {
+            for ((_, arg_ty), arg) in ty.indices.iter().zip(a.iter()) {
                 match check(ctx, arg, arg_ty) {
                     Ok(derivation) => {
                         builder.add(derivation);
@@ -428,21 +425,21 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             let expected_type_of_return_type = {
                 // THIS x[] where x[] is ty.arity_arg's variables
                 let e = utils::assoc_apply(
-                    CoreExp::IndType {
+                    Exp::IndType {
                         ty: ty.clone(),
                         parameters: parameters.clone(),
                     },
-                    ty.arity_arg
+                    ty.indices
                         .iter()
-                        .map(|(x, _)| CoreExp::Var(x.clone()))
+                        .map(|(x, _)| Exp::Var(x.clone()))
                         .collect(),
                 );
                 utils::assoc_prod(
-                    ty.arity_arg.clone(),
-                    CoreExp::Prod {
+                    ty.indices.clone(),
+                    Exp::Prod {
                         var: Var::new("THIS"),
                         ty: Box::new(e),
-                        body: Box::new(CoreExp::Sort(ty.sort)),
+                        body: Box::new(Exp::Sort(ty.sort)),
                     },
                 )
             };
@@ -474,7 +471,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                     constructor,
                     return_type,
                     elim,
-                    &CoreExp::IndType {
+                    &Exp::IndType {
                         ty: ty.clone(),
                         parameters: parameters.clone(),
                     },
@@ -494,14 +491,14 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             }
 
             // 7. conclude (ctx |- IndTypeElim(ty, elim, return_type, sort, cases) : q a[] c)
-            let ty = CoreExp::App {
+            let ty = Exp::App {
                 func: Box::new(utils::assoc_apply(*return_type.clone(), a.clone())),
                 arg: elim.clone(),
             };
 
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::Cast { exp, to } => {
+        Exp::Cast { exp, to } => {
             let mut builder = Builder::new("Cast".to_string(), Some("infer".to_string()));
             // simply, check (ctx |- exp : to)
             match check(ctx, exp, to) {
@@ -519,10 +516,10 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             }
         }
         // (ctx |- Proof(exp): exp) if (ctx |- exp : Prop) and (ctx |= exp)
-        CoreExp::Proof { exp } => {
+        Exp::Proof { prop: exp } => {
             let mut builder = Builder::new("Proof".to_string(), Some("infer".to_string()));
             // 1. check (ctx |- exp : Prop)
-            match check(ctx, exp, &CoreExp::Sort(Sort::Prop)) {
+            match check(ctx, exp, &Exp::Sort(Sort::Prop)) {
                 Ok(derivation) => {
                     builder.add(derivation);
                 }
@@ -539,7 +536,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             // 3. conclude (ctx |- Proof(exp) : exp)
             Ok((builder.build(judgement_from_ty(exp)), *exp.clone()))
         }
-        CoreExp::PowerSet { exp } => {
+        Exp::PowerSet { set: exp } => {
             let mut builer = Builder::new("PowerSet".to_string(), Some("infer".to_string()));
             // 1. check (ctx |- exp : Set(i))
             let sort = match infer_sort(ctx, exp) {
@@ -562,12 +559,12 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 )))));
             };
             // 2. conclude (ctx |- PowerSet(exp) : Set(i))
-            let ty = CoreExp::Sort(Sort::Set(i));
+            let ty = Exp::Sort(Sort::Set(i));
             Ok((builer.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::SubSet {
+        Exp::SubSet {
             var,
-            exp,
+            set: exp,
             predicate,
         } => {
             let mut builder = Builder::new("SubSet".to_string(), Some("infer".to_string()));
@@ -593,7 +590,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             };
             // 2. check (ctx, exp |= predicate : Prop)
             let extend = ctx.extend((var.clone(), *exp.clone()));
-            match check(&extend, predicate, &CoreExp::Sort(Sort::Prop)) {
+            match check(&extend, predicate, &Exp::Sort(Sort::Prop)) {
                 Ok(derivation) => {
                     builder.add(derivation);
                 }
@@ -606,10 +603,10 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 }
             };
             // 3. conclude (ctx |- SubSet(exp, predicate) : Power(exp)
-            let ty = CoreExp::PowerSet { exp: exp.clone() };
+            let ty = Exp::PowerSet { set: exp.clone() };
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::Pred {
+        Exp::Pred {
             superset,
             subset,
             element,
@@ -639,8 +636,8 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             match check(
                 ctx,
                 subset,
-                &CoreExp::PowerSet {
-                    exp: superset.clone(),
+                &Exp::PowerSet {
+                    set: superset.clone(),
                 },
             ) {
                 Ok(derivation) => {
@@ -668,10 +665,10 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 }
             };
             // 4. conclude (ctx |- Pred(superset, subset, element) : Prop)
-            let ty = CoreExp::Sort(Sort::Prop);
+            let ty = Exp::Sort(Sort::Prop);
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::TypeLift { superset, subset } => {
+        Exp::TypeLift { superset, subset } => {
             let mut builder = Builder::new("TypeLift".to_string(), Some("infer".to_string()));
             // 1. check (ctx |- superset : Set(i))
             let sort = match infer_sort(ctx, superset) {
@@ -697,8 +694,8 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             match check(
                 ctx,
                 subset,
-                &CoreExp::PowerSet {
-                    exp: superset.clone(),
+                &Exp::PowerSet {
+                    set: superset.clone(),
                 },
             ) {
                 Ok(derivation) => {
@@ -713,10 +710,10 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 }
             };
             // 3. conclude (ctx |- TypeLift(superset, subset) : Set(i))
-            let ty = CoreExp::Sort(Sort::Set(i));
+            let ty = Exp::Sort(Sort::Set(i));
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::Equal { left, right } => {
+        Exp::Equal { left, right } => {
             let mut builder = Builder::new("Equal".to_string(), Some("infer".to_string()));
             // 1. infer type of left
             let left_ty = match infer(ctx, left) {
@@ -754,10 +751,10 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 )))));
             }
             // 4. conclude (ctx |- Equal(left, right) : Prop)
-            let ty = CoreExp::Sort(Sort::Prop);
+            let ty = Exp::Sort(Sort::Prop);
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::Exists { ty } => {
+        Exp::Exists { set: ty } => {
             let mut builder = Builder::new("Exists".to_string(), Some("infer".to_string()));
             // 1. check (ctx |- ty : Set(i))
             let sort = match infer_sort(ctx, ty) {
@@ -780,10 +777,10 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
                 )))));
             };
             // 2. conclude (ctx |- Exists(ty) : Prop)
-            let ty = CoreExp::Sort(Sort::Prop);
+            let ty = Exp::Sort(Sort::Prop);
             Ok((builder.build(judgement_from_ty(&ty)), ty))
         }
-        CoreExp::Take {
+        Exp::Take {
             map,
             domain,
             codomain,
@@ -839,7 +836,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             match check(
                 ctx,
                 map,
-                &CoreExp::Prod {
+                &Exp::Prod {
                     var: Var::new("_"),
                     ty: domain.clone(),
                     body: codomain.clone(),
@@ -859,24 +856,24 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
             // 4. make two goals (ctx |= Exists(domain)) and (ctx |= (ctx |= (x1: domain) -> (x2: domain) -> Equal(map(x1), map(x2))))
             builder.add(Derivation::make_goal(
                 ctx.clone(),
-                CoreExp::Exists { ty: domain.clone() },
+                Exp::Exists { set: domain.clone() },
             ));
             let x1 = Var::new("x1");
             let x2 = Var::new("x2");
-            let eq = CoreExp::Equal {
-                left: Box::new(CoreExp::App {
+            let eq = Exp::Equal {
+                left: Box::new(Exp::App {
                     func: map.clone(),
-                    arg: Box::new(CoreExp::Var(x1.clone())),
+                    arg: Box::new(Exp::Var(x1.clone())),
                 }),
-                right: Box::new(CoreExp::App {
+                right: Box::new(Exp::App {
                     func: map.clone(),
-                    arg: Box::new(CoreExp::Var(x2.clone())),
+                    arg: Box::new(Exp::Var(x2.clone())),
                 }),
             };
-            let impl_exp = CoreExp::Prod {
+            let impl_exp = Exp::Prod {
                 var: x1.clone(),
                 ty: Box::new(domain.as_ref().clone()),
-                body: Box::new(CoreExp::Prod {
+                body: Box::new(Exp::Prod {
                     var: x2.clone(),
                     ty: Box::new(domain.as_ref().clone()),
                     body: Box::new(eq),
@@ -891,7 +888,7 @@ pub fn infer(ctx: &Context, term: &CoreExp) -> Result<(Derivation, CoreExp), Der
 }
 
 // infer (ctx |- term: sort) with (ctx |- term: ty) and ty ->* sort
-pub fn infer_sort(ctx: &Context, term: &CoreExp) -> Result<(Derivation, Sort), Derivation> {
+pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<(Derivation, Sort), Derivation> {
     // rule is Conversion, meta is sort
     let rule = "Conversion".to_string();
     let meta = "sort".to_string().into();
@@ -912,7 +909,7 @@ pub fn infer_sort(ctx: &Context, term: &CoreExp) -> Result<(Derivation, Sort), D
         }
     };
     // 2. check type is convertible to a sort
-    let CoreExp::Sort(s) = normalize(&inferred_ty) else {
+    let Exp::Sort(s) = normalize(&inferred_ty) else {
         return Err(Derivation {
             conclusion: Judgement::FailJudge(FailJudge(format!(
                 "Type {:?} is not convertible to a sort",
@@ -928,7 +925,7 @@ pub fn infer_sort(ctx: &Context, term: &CoreExp) -> Result<(Derivation, Sort), D
             conclusion: Judgement::Type(TypeJudge {
                 ctx: ctx.clone(),
                 term: term.clone(),
-                ty: CoreExp::Sort(s),
+                ty: Exp::Sort(s),
             }),
             premises: vec![infer_derivation],
             rule,
@@ -941,7 +938,7 @@ pub fn infer_sort(ctx: &Context, term: &CoreExp) -> Result<(Derivation, Sort), D
 // given ctx
 // return derivation tree of ctx |= prop (prop come decided from command)
 pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivation, Derivation> {
-    let goal = |prop: CoreExp| {
+    let goal = |prop: Exp| {
         Judgement::Provable(Provable {
             ctx: ctx.clone(),
             prop,
@@ -1009,7 +1006,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
                 }
             }
             // 3. conclude (ctx |= nonempty(ty))
-            let prop = CoreExp::Exists { ty: Box::new(ty) };
+            let prop = Exp::Exists { set: Box::new(ty) };
             Ok(builder.build(goal(prop)))
         }
         // ctx |= Pred(supserset, subset, elem)
@@ -1022,7 +1019,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
             let mut builder =
                 Builder::new("SubsetElim".to_string(), Some("prove_command".to_string()));
             // 1. check (ctx |- elem : Typelift(superset, subset))
-            let typelift = CoreExp::TypeLift {
+            let typelift = Exp::TypeLift {
                 superset: Box::new(superset.clone()),
                 subset: Box::new(subset.clone()),
             };
@@ -1060,7 +1057,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
                 }
             }
             // 3. conclude (ctx |= Pred(superset, subset, elem))
-            let prop = CoreExp::Pred {
+            let prop = Exp::Pred {
                 superset: Box::new(superset),
                 subset: Box::new(subset),
                 element: Box::new(elem),
@@ -1107,7 +1104,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
                 }
             }
             // 3. conclude (ctx |= elem = elem)
-            let prop = CoreExp::Equal {
+            let prop = Exp::Equal {
                 left: Box::new(elem.clone()),
                 right: Box::new(elem),
             };
@@ -1175,10 +1172,10 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
             match check(
                 &ctx,
                 &predicate,
-                &CoreExp::Prod {
+                &Exp::Prod {
                     var: Var::new("_"),
                     ty: Box::new(*ty.clone()),
-                    body: Box::new(CoreExp::Sort(Sort::Prop)),
+                    body: Box::new(Exp::Sort(Sort::Prop)),
                 },
             ) {
                 Ok(ok) => {
@@ -1193,19 +1190,19 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
                 }
             }
             // 5. goal (ctx |= predicate(elem1))
-            let prop1 = CoreExp::App {
+            let prop1 = Exp::App {
                 func: Box::new(*predicate.clone()),
                 arg: Box::new(elem1.clone()),
             };
             builder.add(Derivation::make_goal(ctx.clone(), prop1));
             // 6. goal (ctx |= elem1 = elem2)
-            let prop2 = CoreExp::Equal {
+            let prop2 = Exp::Equal {
                 left: Box::new(elem1.clone()),
                 right: Box::new(elem2.clone()),
             };
             builder.add(Derivation::make_goal(ctx.clone(), prop2));
             // 7. conclude (ctx |= predicate(elem2))
-            let prop = CoreExp::App {
+            let prop = Exp::App {
                 func: Box::new(*predicate.clone()),
                 arg: Box::new(elem2),
             };
@@ -1225,7 +1222,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
             match check(
                 &ctx,
                 &func,
-                &CoreExp::Prod {
+                &Exp::Prod {
                     var: Var::new("_"),
                     ty: Box::new(*domain.clone()),
                     body: Box::new(*codomain.clone()),
@@ -1256,7 +1253,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
                 }
             }
             // 3. infer (ctx |- Take f: codomain)
-            let take_ty = CoreExp::Take {
+            let take_ty = Exp::Take {
                 map: Box::new(*func.clone()),
                 domain: Box::new(*domain.clone()),
                 codomain: Box::new(*codomain.clone()),
@@ -1280,9 +1277,9 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> Result<Derivatio
                 }
             }
             // 4. conclude (ctx |= Take f = f elem)
-            let prop = CoreExp::Equal {
+            let prop = Exp::Equal {
                 left: Box::new(take_ty),
-                right: Box::new(CoreExp::App {
+                right: Box::new(Exp::App {
                     func: func.clone(),
                     arg: elem.clone(),
                 }),
