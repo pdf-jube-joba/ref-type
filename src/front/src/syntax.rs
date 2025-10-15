@@ -1,6 +1,4 @@
-// this file describes the syntax tree after (parsing + early name resolution)
-// it is not type checked yet but should be well scoped
-// any variable should be replaced as de Bruijn index
+// this file describes the surface syntax tree
 
 use either::Either;
 
@@ -9,45 +7,47 @@ pub struct Environment {
     pub modules: Vec<Module>,
 }
 
+// identifier for any naming
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Identifier(pub String);
+
 // module definition
 #[derive(Debug, Clone)]
 pub struct Module {
-    pub name: Name,
-    pub parent: Option<usize>,          // None for top level module
-    pub children: Vec<usize>,           // index to Environment.modules
-    pub parameters: Vec<(Name, Exp)>,   // given parameters for module
-    pub declarations: Vec<Declaration>, // sensitive to order
+    pub name: Identifier,
+    pub parent: Option<usize>,              // None for top level module
+    pub children: Vec<usize>,               // index to Environment.modules
+    pub parameters: Vec<(Identifier, Exp)>, // given parameters for module
+    pub declarations: Vec<Declaration>,     // sensitive to order
 }
 
 // parameter instantiated module
 // e.g. modA(B := x, C := y)
 // internally, it is represented as ModuleInstantiated { module_name: n, arguments: [x, y] }
-// this is after name resolution
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
-    pub module_name: usize, // index to Environment.modules
-    pub arguments: Vec<Exp>,
+    pub module_name: usize,                // index to Environment.modules
+    pub arguments: Vec<(Identifier, Exp)>, // given arguments for parameters
 }
 
 // path of module access
 // e.g. [A, B(x1 := y1, x2 := y2), C] for A.B(x1 := y1, x2 := y2).C.name
 #[derive(Debug, Clone)]
-pub struct ModPath {
-    pub abs_path: Vec<ModuleInstantiated>, // absolute path from root environment
-    pub represented_path: String,          // for display purpose only
+pub enum ModPath {
+    Root(Vec<ModuleInstantiated>),             // from top level module
+    Current(usize, Vec<ModuleInstantiated>),   // from current module to parent modules
+    Name(Identifier, Vec<ModuleInstantiated>), // from named module to child modules
 }
 
 #[derive(Debug, Clone)]
 pub enum Declaration {
     Definition {
-        // display name for user
-        display_name: Name,
+        var: Identifier,
         ty: Exp,
         body: Exp,
     },
     Theorem {
-        // display name for user
-        display_name: Name,
+        var: Identifier,
         ty: Exp,
         body: Exp,
     },
@@ -55,47 +55,46 @@ pub enum Declaration {
         ind_defs: InductiveTypeSpecs,
     },
     // these are only for display purpose
-    // after name resolution, any mod access should be replaced with absolute path
     ChildModule {
         module: usize, // index to Environment.modules
     },
     Import {
         instantiated_module: ModPath,
-        import_name: Name,
+        import_name: Identifier,
     },
     MathMacro {
-        before: Vec<Either<MacroToken, Name>>,
-        after: Vec<Either<Exp, Name>>,
+        before: Vec<Either<MacroToken, Identifier>>,
+        after: Vec<Either<Exp, Identifier>>,
     },
     UserMacro {
-        name: Name,
-        before: Vec<Either<MacroToken, Name>>,
-        after: Vec<Name>,
+        name: Identifier,
+        before: Vec<Either<MacroToken, Identifier>>,
+        after: Vec<Identifier>,
     },
 }
 
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
-    pub type_name: Name,
-    pub parameter: Vec<(Name, Exp)>,
-    pub arity: (Vec<(Name, Exp)>, Sort),
-    pub constructors: Vec<(Name, Vec<ParamCstSyntax>, Vec<Exp>)>,
+    pub type_name: Identifier,
+    pub parameter: Vec<(Identifier, Exp)>,
+    pub arity: (Vec<(Identifier, Exp)>, Sort),
+    pub constructors: Vec<(Identifier, Vec<ParamCstSyntax>, Vec<Exp>)>,
 }
 
 #[derive(Debug, Clone)]
 pub enum ParamCstSyntax {
-    Positive((Vec<(Name, Exp)>, Vec<Exp>)),
-    Simple((Name, Exp)),
+    Positive((Vec<(Identifier, Exp)>, Vec<Exp>)),
+    Simple((Identifier, Exp)),
 }
 
 #[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), (x: A | P), (x: A | h: P),
-// binding variable is for display purpose only (de Bruijn)
+// binding variable now uses Identifier directly
 pub struct Bind {
-    pub var: Option<Name>,
+    pub var: Identifier, // variable name (was Option<Name>)
     pub ty: Box<Exp>,
-    pub predicate: Option<(Option<Name>, Box<Exp>)>,
+    pub predicate: Option<(Option<Identifier>, Box<Exp>)>, // predicate now uses Identifier
 }
 
 // this is internal representation
@@ -107,7 +106,7 @@ pub enum Exp {
     // this contains both Definition and Theorem pointing
     ModAccess {
         path: ModPath,
-        name: Name,
+        name: Identifier,
     },
     // --- macro
     // shared macro for math symbols
@@ -124,20 +123,18 @@ pub enum Exp {
     // where clauses to define local variables
     Where {
         exp: Box<Exp>,
-        clauses: Vec<(Name, Exp, Exp)>,
+        clauses: Vec<(Identifier, Exp, Exp)>,
     },
     // goal proving  given by type checker
     WithProof {
         exp: Box<Exp>,
-        proofs: Vec<(Vec<(Name, Exp)>, Exp, Exp)>,
+        proofs: Vec<WithGoal>,
     },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
     Sort(Sort),
-    // variable defined by De Bruijn index
-    // de Bruijn index is (local, global)
-    // it should not point to a module defined name
-    Var(Var),
+    // variable defined by name
+    Var(Identifier), // updated to use Identifier directly
     // bind -> B
     Prod {
         bind: Bind,
@@ -195,7 +192,7 @@ pub enum Exp {
     },
     // { x: A | P }
     Sub {
-        var: Name,
+        var: Identifier,
         ty: Box<Exp>,
         predicate: Box<Exp>,
     },
@@ -218,12 +215,12 @@ pub enum Exp {
     },
     // Bracket type ... \exists (x: A), (x: A | P)
     Exists {
-        bind: Bind,
+        bind: Bind, // updated to use the new Bind structure
     },
     // --- opaque description (specified but not constructed)
     // \take (x: A) => t or \take (x: A | P) => t
     Take {
-        bind: Bind,
+        bind: Bind, // updated to use the new Bind structure
         body: Box<Exp>,
     },
     // --- "proof by" terms
@@ -237,18 +234,6 @@ pub enum Exp {
 // e.g. "+", "*", "==>", "||", ...
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MacroToken(pub String);
-
-// identifier for any naming
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Name(pub String);
-
-// no free variable
-// De bruijn index with local and global
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Var {
-    Bound(usize),  // de Bruijn index for local bound variable
-    Module(usize), // de Bruijn index to parameters of current delcaration module
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
@@ -330,7 +315,7 @@ pub enum ProofBy {
     IdElim {
         left: Box<Exp>,
         right: Box<Exp>,
-        var: Name,
+        var: Identifier,
         ty: Box<Exp>,
         predicate: Box<Exp>,
     },
@@ -361,19 +346,26 @@ pub struct Block {
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Fix(Vec<(Name, Exp)>), // fix x: A; y: B;
+    Fix(Vec<(Identifier, Exp)>), // fix x: A; y: B;
     Have {
-        var: Name,
+        var: Identifier,
         ty: Exp,
         body: Exp,
     }, // have x: A := t;
     Take {
-        var: Name,
+        var: Identifier, // updated to use Identifier directly
         ty: Exp,
-        predicate_proof: Option<(Option<Exp>, Exp)>,
+        predicate_proof: Option<(Option<Exp>, Exp)>, // no changes needed here
     }, // take x: A; or take x: A | P; or take x: A | h: P;
     Sufficient {
         prop: Exp,
         implication: Exp,
     }, // suffices A by (h: A -> B);
+}
+
+#[derive(Debug, Clone)]
+pub struct WithGoal {
+    pub extended_ctx: Vec<(Identifier, Exp)>, // extended context
+    pub goal: Exp,                            // goal to prove
+    pub proof_term: Exp,                      // proof term to fill in
 }
