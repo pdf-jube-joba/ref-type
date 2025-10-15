@@ -171,9 +171,7 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                 is_alpha_rec(e1, e2, env1, env2) && is_alpha_rec(t1, t2, env1, env2)
             }
             (Exp::Cast { exp: _, to: _ }, _) => false,
-            (Exp::Proof { prop: e1 }, Exp::Proof { prop: e2 }) => {
-                is_alpha_rec(e1, e2, env1, env2)
-            }
+            (Exp::Proof { prop: e1 }, Exp::Proof { prop: e2 }) => is_alpha_rec(e1, e2, env1, env2),
             (Exp::Proof { prop: _ }, _) => false,
             (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => {
                 is_alpha_rec(e1, e2, env1, env2)
@@ -341,7 +339,11 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             ty: ty.clone(),
             parameters: parameters.iter().map(|arg| subst(arg, v, t)).collect(),
         },
-        Exp::IndCtor { ty, idx, parameters: parameter } => Exp::IndCtor {
+        Exp::IndCtor {
+            ty,
+            idx,
+            parameters: parameter,
+        } => Exp::IndCtor {
             ty: ty.clone(),
             idx: *idx,
             parameters: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
@@ -450,7 +452,11 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             ty: ty.clone(),
             parameters: parameters.iter().map(alpha_conversion).collect(),
         },
-        Exp::IndCtor { ty, idx, parameters: parameter } => Exp::IndCtor {
+        Exp::IndCtor {
+            ty,
+            idx,
+            parameters: parameter,
+        } => Exp::IndCtor {
             ty: ty.clone(),
             idx: *idx,
             parameters: parameter.iter().map(alpha_conversion).collect(),
@@ -487,11 +493,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             Exp::SubSet {
                 var: new_var.clone(),
                 set: Box::new(alpha_conversion(exp)),
-                predicate: Box::new(subst(
-                    &alpha_conversion(predicate),
-                    var,
-                    &Exp::Var(new_var),
-                )),
+                predicate: Box::new(subst(&alpha_conversion(predicate), var, &Exp::Var(new_var))),
             }
         }
         Exp::Pred {
@@ -544,9 +546,10 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
         return Some(e);
     }
 
-    // challenge reduce exp if changed = true
-    // return if Some(reduced) with changed := true
-    // else return self
+    // challenge reduce exp if changed == true
+    // return if [Some(reduced) = reduce(exp)]
+    //    then {changed := true, recude}
+    //    else exp
     let mut changed = false;
     let mut reduce_if = |e: &Exp| -> Exp {
         changed
@@ -588,33 +591,25 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             })
         }
         Exp::IndType { ty, parameters } => {
-            for (i, arg) in parameters.iter().enumerate() {
-                if let Some(arg) = reduce_one(arg) {
-                    let mut new_args = parameters.clone();
-                    new_args[i] = arg;
-                    return Some(Exp::IndType {
-                        ty: ty.clone(),
-                        parameters: new_args,
-                    });
-                }
-            }
+            let parameters = parameters.iter().map(reduce_if).collect::<Vec<_>>();
 
-            None
+            changed.then_some(Exp::IndType {
+                ty: ty.clone(),
+                parameters,
+            })
         }
-        Exp::IndCtor { ty, idx, parameters: parameter } => {
-            for (i, arg) in parameter.iter().enumerate() {
-                if let Some(arg) = reduce_one(arg) {
-                    let mut new_args = parameter.clone();
-                    new_args[i] = arg;
-                    return Some(Exp::IndCtor {
-                        ty: ty.clone(),
-                        idx: *idx,
-                        parameters: new_args,
-                    });
-                }
-            }
+        Exp::IndCtor {
+            ty,
+            idx,
+            parameters: parameter,
+        } => {
+            let parameters = parameter.iter().map(reduce_if).collect::<Vec<_>>();
 
-            None
+            changed.then_some(Exp::IndCtor {
+                ty: ty.clone(),
+                idx: *idx,
+                parameters,
+            })
         }
         Exp::IndElim {
             ty,
@@ -623,38 +618,17 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             sort,
             cases,
         } => {
-            if let Some(elim) = reduce_one(elim) {
-                Some(Exp::IndElim {
-                    ty: ty.clone(),
-                    elim: Box::new(elim),
-                    return_type: return_type.clone(),
-                    sort: *sort,
-                    cases: cases.clone(),
-                })
-            } else if let Some(return_type) = reduce_one(return_type) {
-                Some(Exp::IndElim {
-                    ty: ty.clone(),
-                    elim: elim.clone(),
-                    return_type: Box::new(return_type),
-                    sort: *sort,
-                    cases: cases.clone(),
-                })
-            } else {
-                for (i, case) in cases.iter().enumerate() {
-                    if let Some(case) = reduce_one(case) {
-                        let mut new_cases = cases.clone();
-                        new_cases[i] = case;
-                        return Some(Exp::IndElim {
-                            ty: ty.clone(),
-                            elim: elim.clone(),
-                            return_type: return_type.clone(),
-                            sort: *sort,
-                            cases: new_cases,
-                        });
-                    }
-                }
-                None
-            }
+            let elim = reduce_if(elim);
+            let return_type = reduce_if(return_type);
+            let cases = cases.iter().map(reduce_if).collect::<Vec<_>>();
+
+            changed.then_some(Exp::IndElim {
+                ty: ty.clone(),
+                elim: Box::new(elim),
+                return_type: Box::new(return_type),
+                sort: *sort,
+                cases,
+            })
         }
         Exp::Cast { exp, to } => {
             let exp = reduce_if(exp);
@@ -667,7 +641,9 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
         }
         Exp::Proof { prop: exp } => {
             let exp = reduce_if(exp);
-            changed.then_some(Exp::Proof { prop: Box::new(exp) })
+            changed.then_some(Exp::Proof {
+                prop: Box::new(exp),
+            })
         }
         Exp::PowerSet { set: exp } => {
             let exp = reduce_if(exp);
@@ -680,6 +656,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
         } => {
             let exp = reduce_if(exp);
             let predicate = reduce_if(predicate);
+
             changed.then_some(Exp::SubSet {
                 var: var.clone(),
                 set: Box::new(exp),
@@ -694,6 +671,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let superset = reduce_if(superset);
             let subset = reduce_if(subset);
             let element = reduce_if(element);
+
             changed.then_some(Exp::Pred {
                 superset: Box::new(superset),
                 subset: Box::new(subset),
@@ -703,6 +681,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
         Exp::TypeLift { superset, subset } => {
             let superset = reduce_if(superset);
             let subset = reduce_if(subset);
+
             changed.then_some(Exp::TypeLift {
                 superset: Box::new(superset),
                 subset: Box::new(subset),
@@ -711,6 +690,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
         Exp::Equal { left, right } => {
             let left = reduce_if(left);
             let right = reduce_if(right);
+
             changed.then_some(Exp::Equal {
                 left: Box::new(left),
                 right: Box::new(right),
@@ -728,6 +708,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let map = reduce_if(map);
             let domain = reduce_if(domain);
             let codomain = reduce_if(codomain);
+
             changed.then_some(Exp::Take {
                 map: Box::new(map),
                 domain: Box::new(domain),
@@ -745,6 +726,7 @@ pub fn normalize(e: &Exp) -> Exp {
     current
 }
 
+// inefficient but simple
 pub fn convertible(e1: &Exp, e2: &Exp) -> bool {
     is_alpha_eq(&normalize(e1), &normalize(e2))
 }

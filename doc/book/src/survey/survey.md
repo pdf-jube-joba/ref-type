@@ -34,6 +34,12 @@ Coq や Lean の型システムについてのメモをとっておく。
   - https://mimuw.edu.pl/media/uploads/doctorates/thesis-agnieszka-kozubek.pdf
   - PTS として set と prop を（属する universe をわけつつ）別々に用意して、 naive な set theory を定義しようとしている。
   - Power set が定義できる！
+- Parametricity in an Impredicative Sort
+  - https://drops.dagstuhl.de/storage/00lipics/lipics-vol016-csl2012/LIPIcs.CSL.2012.381/LIPIcs.CSL.2012.381.pdf
+  - set 用の hierarchy を別に与える議論
+- realizability and parametricity in PTS
+  - https://who.rocq.inria.fr/Marc.Lasson/articles/RealParam/RealParam.pdf
+  - 一般の PTS に対して、 Type: Kind の関係から Prop: PropKind みたいなことができるようにする？
 
 ## 帰納型
 - Calculus of Inductive Constructions, 2008, MariaJo˜aoFrade

@@ -7,7 +7,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct Var(pub Rc<String>);
+pub struct Var(Rc<String>);
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -41,7 +41,7 @@ pub enum Sort {
     Type,       // for programming language
 }
 
-// functional なものしか考えないのでよい。
+// functional pure type system
 impl Sort {
     // functional pure type system, i.e. foraeach s1, (s1, s2) in R => s2 is unique
     pub fn type_of_sort(self) -> Option<Self> {

@@ -1,5 +1,5 @@
 pub mod calculus;
-pub mod checker;
+pub mod derivation;
 pub mod coreexp;
 pub mod inductive;
 pub mod utils;
