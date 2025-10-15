@@ -5,7 +5,7 @@ use crate::{
     utils,
 };
 
-use super::coreexp::*;
+use super::exp::*;
 
 // specifications of inductive type
 /*
@@ -332,8 +332,6 @@ pub fn recursor(
     utils::assoc_lam(bindstack, f)
 }
 
-// simple well-formedness check for inductive type eliminator
-// check only the shape of the expression
 struct RedexShapeInductiveTypeElim {
     ty: Rc<InductiveTypeSpecs>,
     idx: usize,
@@ -344,6 +342,8 @@ struct RedexShapeInductiveTypeElim {
     f: Vec<Exp>,
 }
 
+// simple well-formedness check for inductive type eliminator
+// check only the shape of the expression
 fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 1. check e = Elim{ty}(e', q, f[])
     let Exp::IndElim {

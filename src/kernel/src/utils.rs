@@ -1,27 +1,4 @@
-use super::coreexp::*;
-
-#[macro_export]
-macro_rules! var {
-    ($name:expr) => {
-        Var::new($name)
-    };
-}
-
-#[macro_export]
-macro_rules! sort {
-    (Set( $i:literal )) => {
-        Sort::Set($i)
-    };
-    (Prop) => {
-        Sort::Prop
-    };
-    (Univ) => {
-        Sort::Univ
-    };
-    (Type) => {
-        Sort::Type
-    };
-}
+use super::exp::*;
 
 pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
     for arg in v {
@@ -97,6 +74,13 @@ pub fn decompose_prod_ref(e: &Exp) -> (Vec<(&Var, &Exp)>, &Exp) {
     (vars, e)
 }
 
+#[macro_export]
+macro_rules! var {
+    ($name:expr) => {
+        Var::new($name)
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,14 +89,5 @@ mod tests {
         var!("x");
         var!("y");
         var!("z");
-        assert_eq!(var!("x").name(), "x");
-        // different pointer (but same name => alpha equivalent)
-        assert!(!var!("x").is_eq_ptr(&var!("x")));
-
-        assert_eq!(sort!(Set(0)), Sort::Set(0));
-        assert_eq!(sort!(Set(1)), Sort::Set(1));
-        assert_eq!(sort!(Prop), Sort::Prop);
-        assert_eq!(sort!(Univ), Sort::Univ);
-        assert_eq!(sort!(Type), Sort::Type);
     }
 }

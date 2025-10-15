@@ -1,6 +1,6 @@
 use crate::inductive::inductive_type_elim_reduce;
 
-use super::coreexp::*;
+use super::exp::*;
 
 pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
     fn is_alpha_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {

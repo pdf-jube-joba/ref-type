@@ -1,5 +1,9 @@
 # フォルダ構成
-- ast/ ... syntax の定義と parse をするのと、 syntax 用の macro
-  - alpha conversion や beta reduction の定義もここにする
-- checker/ ... checker の core を作る
-- terminal/ ... checker を動かす用のもの
+- kernel: ほぼ理論通りの実装
+  - 理論側の言語
+  - type-check / type-infer
+  - checker
+- front: 言語処理系
+  - 実装側の言語
+  - parser
+  - elaboration

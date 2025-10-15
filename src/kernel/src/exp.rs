@@ -1,11 +1,11 @@
 // this file is for core expression definition and its type checking
-// variable is represented as std::rc::Rc<String>
 
 use std::{
     fmt::{Debug, Display},
     rc::Rc,
 };
 
+// variable is represented as std::rc::Rc<String>
 #[derive(Clone)]
 pub struct Var(Rc<String>);
 
@@ -35,7 +35,7 @@ impl Var {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
-    Set(usize), // predicateive SET(0): SET(1): SET(2) ...
+    Set(usize), // predicative SET(0): SET(1): SET(2) ...
     Prop,       // proposition
     Univ,       // Prop: UNiv
     Type,       // for programming language
@@ -94,13 +94,13 @@ impl Sort {
 pub enum Exp {
     Sort(Sort),
     Var(Var),
-    // (x: A) -> B where x is bound in B but not in A
+    // (var: ty) -> body where var is bound in body but not in ty
     Prod {
         var: Var,
         ty: Box<Exp>,
         body: Box<Exp>, // bind one variable
     },
-    // (x: A) => B where x is bound in B but not in A
+    // (var: ty) -> body where var is bound in body but not in ty
     Lam {
         var: Var,
         ty: Box<Exp>,
@@ -139,11 +139,11 @@ pub enum Exp {
     PowerSet {
         set: Box<Exp>,
     },
-    // {x: A | P} where x is bound in P but not in A
+    // {var: set | predicate} where var is bound in predicate but not in A
     SubSet {
         var: Var,
         set: Box<Exp>,
-        predicate: Box<Exp>, // bind one variable
+        predicate: Box<Exp>,
     },
     Pred {
         superset: Box<Exp>,

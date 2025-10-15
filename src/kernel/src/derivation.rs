@@ -1,8 +1,10 @@
+// All judgement functions return a Derivation (the trace) plus a payload indicating success/value.
+
 use crate::inductive::eliminator_type;
 use crate::utils;
 
 use crate::calculus::*;
-use crate::coreexp::*;
+use crate::exp::*;
 
 struct Builder {
     rule: String,
@@ -32,7 +34,6 @@ impl Builder {
     }
 }
 
-// All judgement functions return a Derivation (the trace) plus a payload indicating success/value.
 // check: (Derivation, bool) where bool = true on success
 pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> (Derivation, bool) {
     // rule is Conversion, meta is check
