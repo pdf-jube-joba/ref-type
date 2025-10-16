@@ -87,3 +87,6 @@ context $\Gamma'$ についての命題が「 $\Gamma::x: T::\Gamma'$ につい�
 
 ### lambda まわり
 > $\Gamma \vdash^{s_3} (\lambda^{s_1} x: B. t): T_2$ かつ $T_2 \equiv (x: B') \to T$ なら $B \equiv B'$ かつ $\Gamma; x: B \vdash^{s_2} t: T$
+
+### sort には prop goal が発生しない？
+> $\Gamma \vdash t: s$ の導出木には $\Gamma \vDash P$ の形が発生しない。

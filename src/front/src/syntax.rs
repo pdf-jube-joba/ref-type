@@ -2,11 +2,6 @@
 
 use either::Either;
 
-// root of the environment
-pub struct Environment {
-    pub modules: Vec<Module>,
-}
-
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Identifier(pub String);
@@ -15,28 +10,28 @@ pub struct Identifier(pub String);
 #[derive(Debug, Clone)]
 pub struct Module {
     pub name: Identifier,
-    pub parent: Option<usize>,              // None for top level module
-    pub children: Vec<usize>,               // index to Environment.modules
     pub parameters: Vec<(Identifier, Exp)>, // given parameters for module
     pub declarations: Vec<Declaration>,     // sensitive to order
+    pub children: Vec<Box<Module>>,         // child modules as a tree structure
 }
 
 // parameter instantiated module
 // e.g. modA(B := x, C := y)
-// internally, it is represented as ModuleInstantiated { module_name: n, arguments: [x, y] }
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
-    pub module_name: usize,                // index to Environment.modules
+    pub module_name: Identifier,           // name of the module
     pub arguments: Vec<(Identifier, Exp)>, // given arguments for parameters
 }
 
 // path of module access
-// e.g. [A, B(x1 := y1, x2 := y2), C] for A.B(x1 := y1, x2 := y2).C.name
+// pattern 1 (absolute path): root.name1(arg1, ...).name2(...).name3(...)
+// pattern 2 (relatice path): name1(arg1, ...).name2(...).name3(...), or parent.parent. ... .parent.name1(...).name2(...).name3(...)
+// pattern 3 (start from named): name.name2(...).name3(...)
 #[derive(Debug, Clone)]
 pub enum ModPath {
-    Root(Vec<ModuleInstantiated>),             // from top level module
-    Current(usize, Vec<ModuleInstantiated>),   // from current module to parent modules
-    Name(Identifier, Vec<ModuleInstantiated>), // from named module to child modules
+    Root(Vec<ModuleInstantiated>),    // absolute path from project root
+    Current(Vec<ModuleInstantiated>), // relative path from current module
+    Name(Identifier, Vec<ModuleInstantiated>), // relative path from named module
 }
 
 #[derive(Debug, Clone)]
@@ -46,17 +41,11 @@ pub enum Declaration {
         ty: Exp,
         body: Exp,
     },
-    Theorem {
-        var: Identifier,
-        ty: Exp,
-        body: Exp,
-    },
     Inductive {
         ind_defs: InductiveTypeSpecs,
     },
-    // these are only for display purpose
     ChildModule {
-        module: usize, // index to Environment.modules
+        module: Box<Module>,
     },
     Import {
         instantiated_module: ModPath,
@@ -104,7 +93,7 @@ pub enum Exp {
     // module access `path.name`
     // if name pointed to a inductive type, it should IndType
     // this contains both Definition and Theorem pointing
-    ModAccess {
+    ModAccessDef {
         path: ModPath,
         name: Identifier,
     },
@@ -156,7 +145,7 @@ pub enum Exp {
         arg: Box<Exp>,
     },
     // type annotation (exp as ty)
-    Ann {
+    Annotation {
         exp: Box<Exp>,
         ty: Box<Exp>,
     },
@@ -167,14 +156,14 @@ pub enum Exp {
         ind_type_name: String,
     },
     // constructor of inductive type
-    IndCst {
+    IndCtor {
         path: ModPath,
         ind_type_name: String,
         constructor_name: String,
     },
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
-    IndTypeElim {
+    IndElim {
         path: ModPath,
         ind_type_name: String,
         eliminated_exp: Box<Exp>,
