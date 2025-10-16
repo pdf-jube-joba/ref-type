@@ -76,17 +76,41 @@ $*^s_{i}$ ごとに $*^s_{\square}$ を用意してこれと同様のことを�
 
 こんな感じ？：
 - $(*^s_{i}, \square^s_{i}) \in \mathcal{A}$
-- $(*^s_{i}, *^s_{i}) \in \mathcal{R}$ ... これは普通に関数型 $(A \to B)$ のこと。
-- $(*^s_{i}, \square^s_{i}) \in \mathcal{R}$ ... これが依存型のこと。
+- $(*^s_{i}, *^s_{i}, *^s_{i}) \in \mathcal{R}$ ... これは普通に関数型 $(A \to B)$ のこと。
+- $(*^s_{i}, \square^s_{i}, \square^s_{i}) \in \mathcal{R}$ ... これが依存型のこと。
 - $(\square^s_{i}, *^s_{i}, *^s_{i+1})$ ... $i$ のレベルでの term が type に依存しているのを、レベルを上げる。
 - $(\square^s_{i}, \square^s_{i}, *^s_{i+1})$ ... これも同様。
+  - $(\square^s_i, \square^s_i, \square^s_i)$ の方があってる気がする。
 
 これは $*^s_{i} \mapsto *^s_{i}, \square^s_{i} \mapsto *^s_{i+1}$ によって普通の predicative なやつに埋め込めるので、いい感じに思える。
 これと $t: *^s_{i}$ なら $t: *^s_{i+1}$ （か、 Lift という項を使って $\text{Lift}(t): *^s_{i+1}$ ）みたいにすれば、
 cumulative なものが普通にできる。
-（型だけじゃなくて項のリフトも必要だけど。）
 
-$\Gamma \vdash t: T: *^s_{i}$, $\Gamma \vdash t: *^s_{i}$ が排他になるならうれしい。
+ちゃんと考える例：
+- $(A: *_i) \vdash A \to *_i: \square_i$ ... $x: A$ ごとに集合を定める操作: $\square_i$
+- $(F: *_i \to *_i), (A, B: *_i) \vdash ((A \to B) \to F A \to F B): *_i$
+  - $\vdash *_i \to *_i: \square_i$ は $(\square_i, \square_i, \square_i)$ から。
+  - 残りは $(*_i, *_i, *_i)$ から。
+- $\vdash (F: *_i \to *_i) \to (A, B: *_i) \to ((A \to B) \to F A \to F B): *_{i + 1}$
+  - $(\square_i, *_i, *_{i+1})$ から。
+  - 宇宙 $V_i$ に対して、 $V_i \to V_i$ とかが $V_{i+1}$ にある？
+
+syntax というか judgement 周りでの扱いの良さについて考えているだけなので、
+意味論的には $*^s_{i+1}$ と $\square_i$ がつぶれてしまってもかまわない。
+リフトがあればある程度は $*^s_{i}: *^s_{i+1}$ と max を使うほうでやりたかったことがある程度できるはず。
+「$T: *^s_i$ なら $l(T): *^s_{i+1}$」と「$T: \square^s_i$ なら $L(T): \square^s_{i+1}$」 とか、あるいは暗黙のリフトを許すとか。
+リフトに対する reduction としては、 $(x: A) \to B$ に対してのみでいいのか、他のも congruent にやる必要があるのか...
+
+これをやっても矛盾はしなそう（ $\square_i \mapsto *_{i+1}$ で、リフトありの中に埋め込めるから。）
+
+$\Gamma \vdash t: T: *^s_{i}$, $\Gamma \vdash t: *^s_{j}$ が排他になるならうれしい。
+
+- $\exists T, \Gamma \vdash t: T: *^s_{i}$
+- $\exists T, \Gamma \vdash t: T: \square^s_{i}$
+- $\Gamma \vdash t: \square^s_{i}$
+
+のいずれか？
+もしこれができるなら、 judgement を $\Gamma \vdash t: T: s$ と $\Gamma \vdash t: s$ にわけてよい。
 
 ## $(*^p, *^s, *^s)$ がない。
 必要かどうかはわからないが、 $(*^p, *^s, *^s) \in \mathcal{R}$ を入れてない。
