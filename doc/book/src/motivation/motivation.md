@@ -80,6 +80,7 @@ $*^s_{i}$ ごとに $*^s_{\square}$ を用意してこれと同様のことを�
 - $(*^s_{i}, \square^s_{i}) \in \mathcal{R}$ ... これが依存型のこと。
 - $(\square^s_{i}, *^s_{i}, *^s_{i+1})$ ... $i$ のレベルでの term が type に依存しているのを、レベルを上げる。
 - $(\square^s_{i}, \square^s_{i}, *^s_{i+1})$ ... これも同様。
+  - $(\square^s_{i}, \square^s_{i}, \square^s_{i})$ にしてもいいかもしれない。
 
 これは $*^s_{i} \mapsto *^s_{i}, \square^s_{i} \mapsto *^s_{i+1}$ によって普通の predicative なやつに埋め込めるので、いい感じに思える。
 これと $t: *^s_{i}$ なら $t: *^s_{i+1}$ （か、 Lift という項を使って $\text{Lift}(t): *^s_{i+1}$ ）みたいにすれば、

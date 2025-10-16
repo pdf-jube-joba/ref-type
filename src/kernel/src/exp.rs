@@ -300,12 +300,3 @@ pub enum Axiom {
         superset: Exp,
     },
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_macros() {
-        let _ = Exp::Sort(Sort::Prop);
-    }
-}
