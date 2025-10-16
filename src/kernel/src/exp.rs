@@ -1,25 +1,10 @@
 // this file is for core expression definition and its type checking
 
-use std::{
-    fmt::{Debug, Display},
-    rc::Rc,
-};
+use std::{fmt::Debug, rc::Rc};
 
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone)]
 pub struct Var(Rc<String>);
-
-impl Debug for Var {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}[{:p}]", self.0, self.0)
-    }
-}
-
-impl Display for Var {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 impl Var {
     pub fn new(name: &str) -> Self {
@@ -27,6 +12,9 @@ impl Var {
     }
     pub fn name(&self) -> &str {
         &self.0
+    }
+    pub fn ptr(&self) -> *const String {
+        Rc::as_ptr(&self.0)
     }
     pub fn is_eq_ptr(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
