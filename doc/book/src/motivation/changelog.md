@@ -300,7 +300,7 @@ $f: A -> B$ に対して $\Take f: B$ が $A$ の取り方によらないなら.
 やるべきは、 $\Take f = f @ y$ for $\Gamma \vdash y: A$ になる。
 他に、 $\Take$ 自体の一意性もあった方がいい？
 関数の外延性との関係を考えると、
-$f = g \in A \to B \Leftrightarrow \forall k: () \to A, f \comp k = g \comp k$ なので、
+$f = g \in A \to B \Leftrightarrow \forall k: () \to A, f \circ k = g \circ k$ なので、
 $\Take$ が $(A -> B)$　を $A \to () \to B$ に分解する操作であることを考えると、
 $\Take f = \Take g$ が関数の外延性を自然に導出する気がした。
 

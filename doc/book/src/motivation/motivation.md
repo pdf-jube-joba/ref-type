@@ -5,7 +5,7 @@
 ## 証明と証明項の抽象化
 $P: *^p$ に対して $t: P$ の項を区別する必要はなく、存在することだけ取り出せればよいはず。
 - $\Gamma \vDash P$ を 「$\Gamma$ の下で $P$ が証明可能」を表すように導入する。
-- $\Gamma \vDash P$ ならその証明項として $\Proof P$ をもって $\Gamma \vDash t: P$ なる $t$ のように扱う。
+- $\Gamma \vDash P$ ならその証明項を具体的に扱わなくてもいいように、 $\Gamma \vdash \Proof P: P$ という項を導入できるようにする。
 
 ## refinement type と power type と predicate の導入
 "集合" $A$ に対して $\{x: A \mid P\}$ や $\Power A$ が書けるとうれしい。
