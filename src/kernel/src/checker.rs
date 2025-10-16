@@ -1,103 +1,102 @@
 // "interactive" type checker
 
-use crate::exp::{Context, Derivation, Exp, Judgement, Provable, Sort, Var};
+use crate::{
+    calculus::is_alpha_eq,
+    derivation::prove_command,
+    exp::{Context, Derivation, Exp, Judgement, Provable, ProveCommandBy, Var},
+};
 
-#[derive(Debug, Clone)]
-pub enum ProveTree {
-    Leaf(Provable),
-    Node(Vec<ProveTree>),
+// return derivation of provable judgement if exists
+pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
+    match der.conclusion {
+        Judgement::Provable(_) => Some(der),
+        _ => {
+            for prem in &mut der.premises {
+                if let Some(g) = get_first_goal(prem) {
+                    return Some(g);
+                }
+            }
+            None
+        }
+    }
 }
 
-pub fn collect_goals_from_derivation(der: &Derivation) -> Vec<ProveTree> {
-    let mut goals = vec![];
-    let Derivation {
-        conclusion,
-        premises,
-        rule: _,
-        meta: _,
-    } = der;
-    if let Judgement::Provable(prop) = conclusion {
-        goals.push(ProveTree::Leaf(prop.clone()));
-    }
-    for prem in premises {
-        goals.extend(collect_goals_from_derivation(prem));
-    }
-    goals
-}
+pub fn solve(der: &mut Derivation, command: ProveCommandBy) -> bool {
+    let Some(prove_derivation) = get_first_goal(der) else {
+        return false;
+    };
 
-#[derive(Debug)]
-pub enum State {
-    None,
-    Checking(Exp, Exp),
-    Inferring(Exp),
+    let Judgement::Provable(Provable { ctx, prop }) = &prove_derivation.conclusion else {
+        unreachable!("get_first_goal should return a Provable judgement");
+    };
+
+    let (der, b): (Derivation, bool) = prove_command(ctx, command);
+    let Judgement::Provable(Provable {
+        ctx: _, // ctx is shared with der.colclusion.ctx
+        prop: prop_derived,
+    }) = &der.conclusion
+    else {
+        unreachable!("prove_command should return a Provable judgement");
+    };
+    if b && is_alpha_eq(prop_derived, prop) {
+        *prove_derivation = der;
+        true
+    } else {
+        false
+    }
 }
 
 #[derive(Debug)]
 pub struct Checker {
     context: Context,
-    goals: Vec<ProveTree>,
-    state: State,
 }
 
 impl Default for Checker {
     fn default() -> Self {
         Checker {
             context: Context(vec![]),
-            goals: vec![],
-            state: State::None,
         }
     }
 }
 
 impl Checker {
-    pub fn current_goals(&self) -> &Vec<ProveTree> {
-        &self.goals
-    }
-    pub fn is_accepted(&self) -> bool {
-        self.goals.is_empty()
-    }
     pub fn context(&self) -> &Context {
         &self.context
     }
-    pub fn state(&self) -> &State {
-        &self.state
-    }
-    pub fn is_waiting(&self) -> bool {
-        matches!(self.state, State::None)
-    }
-    pub fn check(&mut self, term: &Exp, ty: &Exp) -> (Derivation, bool) {
+    pub fn check(
+        &mut self,
+        term: &Exp,
+        ty: &Exp,
+        prove_commands: Vec<ProveCommandBy>,
+    ) -> (Derivation, bool) {
         let (der, b) = crate::derivation::check(&self.context, term, ty);
-        let goals = collect_goals_from_derivation(&der);
-        if goals.is_empty() {
-            self.state = State::None;
-        } else {
-            self.state = State::Checking(term.clone(), ty.clone());
+        if !b {
+            return (der, false);
         }
+
+        let mut der = der;
+        for command in prove_commands {
+            if !solve(&mut der, command) {
+                return (der, false);
+            }
+        }
+
+        if get_first_goal(&mut der).is_some() {
+            return (der, false);
+        }
+
         (der, b)
     }
-    pub fn infer(&mut self, term: &Exp) -> (Derivation, Option<Exp>) {
-        let (der, ty) = crate::derivation::infer(&self.context, term);
-        let goals = collect_goals_from_derivation(&der);
-        if goals.is_empty() {
-            self.state = State::None;
-        } else {
-            self.state = State::Inferring(term.clone());
-        }
-        (der, ty)
-    }
-    pub fn infer_sort(&mut self, term: &Exp) -> (Derivation, Option<Sort>) {
-        let (der, s) = crate::derivation::infer_sort(&self.context, term);
-        // self.goals = collect_goals_from_derivation(&der);
-        // I think infer_sort will not produce any goals
-        (der, s)
-    }
     pub fn push(&mut self, var: Var, ty: Exp) -> (Derivation, bool) {
-        let (der, res) = self.infer_sort(&ty);
+        let (der, res) = crate::derivation::infer_sort(&self.context, &ty);
         if res.is_none() {
             return (der, false);
         }
 
         self.context.0.push((var, ty));
         (der, true)
+    }
+    pub fn pop(&mut self) {
+        self.context.0.pop();
     }
 }
