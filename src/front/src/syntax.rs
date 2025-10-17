@@ -11,8 +11,7 @@ pub struct Identifier(pub String);
 pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<(Identifier, Exp)>, // given parameters for module
-    pub declarations: Vec<Declaration>,     // sensitive to order
-    pub children: Vec<Box<Module>>,         // child modules as a tree structure
+    pub declarations: Vec<ModuleItem>,      // sensitive to order
 }
 
 // parameter instantiated module
@@ -35,7 +34,7 @@ pub enum ModPath {
 }
 
 #[derive(Debug, Clone)]
-pub enum Declaration {
+pub enum ModuleItem {
     Definition {
         var: Identifier,
         ty: Exp,
@@ -66,7 +65,8 @@ pub enum Declaration {
 pub struct InductiveTypeSpecs {
     pub type_name: Identifier,
     pub parameter: Vec<(Identifier, Exp)>,
-    pub arity: (Vec<(Identifier, Exp)>, Sort),
+    pub indices: Vec<(Identifier, Exp)>,
+    pub sort: Sort,
     pub constructors: Vec<(Identifier, Vec<ParamCstSyntax>, Vec<Exp>)>,
 }
 
