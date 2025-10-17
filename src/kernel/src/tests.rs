@@ -4,6 +4,8 @@ use crate::{
     utils,
 };
 
+use crate::exp::ProveCommandBy;
+
 // P: Prop |- P: Prop
 #[test]
 fn p_prop() {
@@ -33,6 +35,34 @@ fn no_need_elem() {
     assert!(b);
     // check P : Prop without proof
     let (der, b) = checker.check(&Exp::Var(pp.clone()), &Exp::Sort(Sort::Prop), vec![]);
+    println!("{}", der);
+    assert!(b);
+}
+
+// (P1: Prop), (P2: Prop) |- P1 -> P2 : Prop
+#[test]
+fn imp_prop() {
+    let mut checker = Checker::default();
+    let p1 = Var::new("P1");
+    let p2 = Var::new("P2");
+    // push (P1: Prop)
+    let (der, b) = checker.push(p1.clone(), Exp::Sort(Sort::Prop));
+    println!("{}", der);
+    assert!(b);
+    // push (P2: Prop)
+    let (der, b) = checker.push(p2.clone(), Exp::Sort(Sort::Prop));
+    println!("{}", der);
+    assert!(b);
+    // check P1 -> P2 : Prop without proof
+    let (der, b) = checker.check(
+        &Exp::Prod {
+            var: Var::new("_"),
+            ty: Box::new(Exp::Var(p1.clone())),
+            body: Box::new(Exp::Var(p2.clone())),
+        },
+        &Exp::Sort(Sort::Prop),
+        vec![],
+    );
     println!("{}", der);
     assert!(b);
 }
@@ -229,4 +259,102 @@ fn type_leve_reduction() {
     );
     println!("{}", der);
     assert!(b3);
+}
+
+// proof by construct proof term
+// X: Prop, x: X |= X by construct x
+#[test]
+fn proof_by_exact() {
+    let mut checker = Checker::default();
+    let xx = Var::new("X");
+    let x = Var::new("x");
+    // push (X: Prop)
+    let (_, b1) = checker.push(xx.clone(), Exp::Sort(Sort::Prop));
+    assert!(b1);
+    // push (x: X)
+    let (_, b2) = checker.push(x.clone(), Exp::Var(xx.clone()));
+    assert!(b2);
+    // prove X by consrsuct x
+    let (der, b3) = checker.prove(
+        &Exp::Var(xx.clone()),
+        vec![ProveCommandBy::Construct {
+            proof_term: Exp::Var(x.clone()),
+            prop: Exp::Var(xx.clone()),
+        }],
+    );
+    println!("{}", der);
+    assert!(b3);
+}
+
+// proof by construct proof term with application
+// X: Prop, Y: Prop, x: X, f: X -> Y |= Y by construct f (Proof X)
+// by  ... |- Proof(X): X, ... |= x: X
+#[test]
+fn proof_by_exact_app() {
+    let mut checker = Checker::default();
+    let xx = Var::new("X");
+    let yy = Var::new("Y");
+    let x = Var::new("x");
+    let f = Var::new("f");
+    // push (X: Prop)
+    let (_, b1) = checker.push(xx.clone(), Exp::Sort(Sort::Prop));
+    assert!(b1);
+    // push (Y: Prop)
+    let (_, b2) = checker.push(yy.clone(), Exp::Sort(Sort::Prop));
+    assert!(b2);
+    // push (x: X)
+    let (_, b3) = checker.push(x.clone(), Exp::Var(xx.clone()));
+    assert!(b3);
+    // push (f: X -> Y)
+    let (_, b4) = checker.push(
+        f.clone(),
+        Exp::Prod {
+            var: Var::new("_"),
+            ty: Box::new(Exp::Var(xx.clone())),
+            body: Box::new(Exp::Var(yy.clone())),
+        },
+    );
+    assert!(b4);
+    // prove Y by consrsuct f x
+    let (der, b5) = checker.prove(
+        &Exp::Var(yy.clone()),
+        vec![
+            ProveCommandBy::Construct {
+                proof_term: Exp::App {
+                    func: Box::new(Exp::Var(f.clone())),
+                    arg: Box::new(Exp::ProveLater {
+                        prop: Box::new(Exp::Var(xx.clone())),
+                    }),
+                },
+                prop: Exp::Var(yy.clone()),
+            },
+            ProveCommandBy::Construct {
+                proof_term: Exp::Var(x.clone()),
+                prop: Exp::Var(xx.clone()),
+            },
+        ],
+    );
+    println!("{}", der);
+    assert!(b5);
+}
+
+// Power set
+// X: Set(0) |- Power(X): Set(0)
+#[test]
+fn powerset() {
+    let mut checker = Checker::default();
+    let x = Var::new("X");
+    // push (X: Set(0))
+    let (_, b1) = checker.push(x.clone(), Exp::Sort(Sort::Set(0)));
+    assert!(b1);
+    // check P(X): Set(0) without proof
+    let (der, b2) = checker.check(
+        &Exp::PowerSet {
+            set: Box::new(Exp::Var(x.clone())),
+        },
+        &Exp::Sort(Sort::Set(0)),
+        vec![],
+    );
+    println!("{}", der);
+    assert!(b2);
 }

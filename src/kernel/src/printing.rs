@@ -83,7 +83,7 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Cast { exp, to } => {
                 write!(f, "{} as {}", exp, to)
             }
-            crate::exp::Exp::Proof { prop } => {
+            crate::exp::Exp::ProveLater { prop } => {
                 write!(f, "proof({})", prop)
             }
             crate::exp::Exp::PowerSet { set } => {

@@ -564,7 +564,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
             }
         }
         // (ctx |- Proof(exp): exp) if (ctx |- exp : Prop) and (ctx |= exp)
-        Exp::Proof { prop: exp } => {
+        Exp::ProveLater { prop: exp } => {
             let mut builder = Builder::new("Proof".to_string(), "infer");
             // 1. check (ctx |- exp : Prop)
             let (derivation, ok) = check(ctx, exp, &Exp::Sort(Sort::Prop));
@@ -999,7 +999,7 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> (Derivation, Option<Sort>) {
     )
 }
 
-// prove_command: (Derivation, bool)
+// (ctx |= prop) by command
 pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, bool) {
     let goal = |prop: Exp| {
         Judgement::Provable(Provable {
@@ -1311,11 +1311,6 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
             };
             (builder.build(goal(prop)), true)
         }
-        ProveCommandBy::Axiom(_axiom) => (
-            Builder::new("Axiom".to_string(), "prove_command").build(Judgement::FailJudge(
-                FailJudge("Axiom not supported".to_string()),
-            )),
-            false,
-        ),
+        ProveCommandBy::Axiom(_axiom) => todo!(),
     }
 }

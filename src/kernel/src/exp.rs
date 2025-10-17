@@ -128,7 +128,7 @@ pub enum Exp {
         exp: Box<Exp>,
         to: Box<Exp>,
     },
-    Proof {
+    ProveLater {
         prop: Box<Exp>,
     },
     PowerSet {

@@ -166,7 +166,7 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
             (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
                 is_alpha_rec(e1, e2, env1, env2) && is_alpha_rec(t1, t2, env1, env2)
             }
-            (Exp::Proof { prop: e1 }, Exp::Proof { prop: e2 }) => is_alpha_rec(e1, e2, env1, env2),
+            (Exp::ProveLater { prop: e1 }, Exp::ProveLater { prop: e2 }) => is_alpha_rec(e1, e2, env1, env2),
             (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => {
                 is_alpha_rec(e1, e2, env1, env2)
             }
@@ -326,7 +326,7 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             exp: Box::new(subst(exp, v, t)),
             to: Box::new(subst(to, v, t)),
         },
-        Exp::Proof { prop: exp } => Exp::Proof {
+        Exp::ProveLater { prop: exp } => Exp::ProveLater {
             prop: Box::new(subst(exp, v, t)),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
@@ -439,7 +439,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             exp: Box::new(alpha_conversion(exp)),
             to: Box::new(alpha_conversion(to)),
         },
-        Exp::Proof { prop: exp } => Exp::Proof {
+        Exp::ProveLater { prop: exp } => Exp::ProveLater {
             prop: Box::new(alpha_conversion(exp)),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
@@ -600,9 +600,9 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 to: Box::new(to),
             })
         }
-        Exp::Proof { prop: exp } => {
+        Exp::ProveLater { prop: exp } => {
             let exp = reduce_if(exp);
-            changed.then_some(Exp::Proof {
+            changed.then_some(Exp::ProveLater {
                 prop: Box::new(exp),
             })
         }
