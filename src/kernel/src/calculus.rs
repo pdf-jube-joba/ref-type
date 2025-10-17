@@ -2,11 +2,50 @@ use crate::inductive::inductive_type_elim_reduce;
 
 use super::exp::*;
 
+// same variable as ptr
+pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
+    match (e1, e2) {
+        (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
+        (Exp::Var(v1), Exp::Var(v2)) => v1.is_eq_ptr(v2),
+        (
+            Exp::Prod {
+                var: var1,
+                ty: ty1,
+                body: body1,
+            },
+            Exp::Prod {
+                var: var2,
+                ty: ty2,
+                body: body2,
+            },
+        ) => {
+            var1.is_eq_ptr(var2) && strict_equivalence(ty1, ty2) && strict_equivalence(body1, body2)
+        }
+        (
+            Exp::Lam {
+                var: var1,
+                ty: ty1,
+                body: body1,
+            },
+            Exp::Lam {
+                var: var2,
+                ty: ty2,
+                body: body2,
+            },
+        ) => {
+            var1.is_eq_ptr(var2) && strict_equivalence(ty1, ty2) && strict_equivalence(body1, body2)
+        }
+        (Exp::App { func: f1, arg: a1 }, Exp::App { func: f2, arg: a2 }) => {
+            strict_equivalence(f1, f2) && strict_equivalence(a1, a2)
+        }
+        _ => false,
+    }
+}
+
 pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
     fn is_alpha_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {
         match (e1, e2) {
             (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
-            (Exp::Sort(_), _) => false,
             (Exp::Var(v1), Exp::Var(v2)) => {
                 let pos1 = env1.iter().rposition(|v| v.is_eq_ptr(v1));
                 let pos2 = env2.iter().rposition(|v| v.is_eq_ptr(v2));
@@ -16,7 +55,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                     _ => false,
                 }
             }
-            (Exp::Var(_), _) => false,
             (
                 Exp::Prod {
                     var: var1,
@@ -39,14 +77,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                 }
             }
             (
-                Exp::Prod {
-                    var: _,
-                    ty: _,
-                    body: _,
-                },
-                _,
-            ) => false,
-            (
                 Exp::Lam {
                     var: var1,
                     ty: ty1,
@@ -67,18 +97,9 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                     res
                 }
             }
-            (
-                Exp::Lam {
-                    var: _,
-                    ty: _,
-                    body: _,
-                },
-                _,
-            ) => false,
             (Exp::App { func: f1, arg: a1 }, Exp::App { func: f2, arg: a2 }) => {
                 is_alpha_rec(f1, f2, env1, env2) && is_alpha_rec(a1, a2, env1, env2)
             }
-            (Exp::App { func: _, arg: _ }, _) => false,
             (
                 Exp::IndType {
                     ty: ty1,
@@ -96,13 +117,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                         .zip(parameter2.iter())
                         .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
             }
-            (
-                Exp::IndType {
-                    ty: _,
-                    parameters: _,
-                },
-                _,
-            ) => false,
             (
                 Exp::IndCtor {
                     ty: ty1,
@@ -123,14 +137,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                         .zip(parameter2.iter())
                         .all(|(a1, a2)| is_alpha_rec(a1, a2, env1, env2))
             }
-            (
-                Exp::IndCtor {
-                    ty: _,
-                    idx: _,
-                    parameters: _,
-                },
-                _,
-            ) => false,
             (
                 Exp::IndElim {
                     ty: ty1,
@@ -157,26 +163,13 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                         .zip(cases2.iter())
                         .all(|(c1, c2)| is_alpha_rec(c1, c2, env1, env2))
             }
-            (
-                Exp::IndElim {
-                    ty: _,
-                    elim: _,
-                    return_type: _,
-                    sort: _,
-                    cases: _,
-                },
-                _,
-            ) => false,
             (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
                 is_alpha_rec(e1, e2, env1, env2) && is_alpha_rec(t1, t2, env1, env2)
             }
-            (Exp::Cast { exp: _, to: _ }, _) => false,
             (Exp::Proof { prop: e1 }, Exp::Proof { prop: e2 }) => is_alpha_rec(e1, e2, env1, env2),
-            (Exp::Proof { prop: _ }, _) => false,
             (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => {
                 is_alpha_rec(e1, e2, env1, env2)
             }
-            (Exp::PowerSet { set: _ }, _) => false,
             (
                 Exp::SubSet {
                     var: var1,
@@ -199,14 +192,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                 }
             }
             (
-                Exp::SubSet {
-                    var: _,
-                    set: _,
-                    predicate: _,
-                },
-                _,
-            ) => false,
-            (
                 Exp::Pred {
                     superset: s1,
                     subset: sub1,
@@ -223,14 +208,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                     && is_alpha_rec(e1, e2, env1, env2)
             }
             (
-                Exp::Pred {
-                    superset: _,
-                    subset: _,
-                    element: _,
-                },
-                _,
-            ) => false,
-            (
                 Exp::TypeLift {
                     superset: s1,
                     subset: sub1,
@@ -241,13 +218,6 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                 },
             ) => is_alpha_rec(s1, s2, env1, env2) && is_alpha_rec(sub1, sub2, env1, env2),
             (
-                Exp::TypeLift {
-                    superset: _,
-                    subset: _,
-                },
-                _,
-            ) => false,
-            (
                 Exp::Equal {
                     left: l1,
                     right: r1,
@@ -257,11 +227,9 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                     right: r2,
                 },
             ) => is_alpha_rec(l1, l2, env1, env2) && is_alpha_rec(r1, r2, env1, env2),
-            (Exp::Equal { left: _, right: _ }, _) => false,
             (Exp::Exists { set: ty1 }, Exp::Exists { set: ty2 }) => {
                 is_alpha_rec(ty1, ty2, env1, env2)
             }
-            (Exp::Exists { set: _ }, _) => false,
             (
                 Exp::Take {
                     map: m1,
@@ -278,14 +246,7 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
                     && is_alpha_rec(d1, d2, env1, env2)
                     && is_alpha_rec(c1, c2, env1, env2)
             }
-            (
-                Exp::Take {
-                    map: _,
-                    domain: _,
-                    codomain: _,
-                },
-                _,
-            ) => false,
+            _ => false,
         }
     }
     is_alpha_rec(e1, e2, &mut vec![], &mut vec![])

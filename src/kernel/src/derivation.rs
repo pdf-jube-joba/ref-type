@@ -58,8 +58,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> (Derivation, bool) {
         }
     };
 
-    // if ty == inferred_ty_result, done
-    if is_alpha_eq(&inferred_ty_result, ty) {
+    if strict_equivalence(ty, &inferred_ty_result) {
         builder.meta_through("check");
         return (
             builder.build(Judgement::Type(TypeJudge {
@@ -1011,8 +1010,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
 
     match command {
         ProveCommandBy::Construct { proof_term, prop } => {
-            let mut builder =
-                Builder::new("Construct".to_string(), "prove_command");
+            let mut builder = Builder::new("Construct".to_string(), "prove_command");
             let (derivation, ok) = check(ctx, &proof_term, &prop);
             builder.add(derivation);
             if !ok {
@@ -1027,8 +1025,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
             (builder.build(goal(prop)), true)
         }
         ProveCommandBy::ExactElem { elem, ty } => {
-            let mut builder =
-                Builder::new("ExactElem".to_string(), "prove_command");
+            let mut builder = Builder::new("ExactElem".to_string(), "prove_command");
             let (derivation, ok) = check(ctx, &elem, &ty);
             builder.add(derivation);
             if !ok {
@@ -1069,8 +1066,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
             subset,
             superset,
         } => {
-            let mut builder =
-                Builder::new("SubsetElim".to_string(), "prove_command");
+            let mut builder = Builder::new("SubsetElim".to_string(), "prove_command");
             let typelift = Exp::TypeLift {
                 superset: Box::new(superset.clone()),
                 subset: Box::new(subset.clone()),
@@ -1316,9 +1312,9 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
             (builder.build(goal(prop)), true)
         }
         ProveCommandBy::Axiom(_axiom) => (
-            Builder::new("Axiom".to_string(), "prove_command").build(
-                Judgement::FailJudge(FailJudge("Axiom not supported".to_string())),
-            ),
+            Builder::new("Axiom".to_string(), "prove_command").build(Judgement::FailJudge(
+                FailJudge("Axiom not supported".to_string()),
+            )),
             false,
         ),
     }

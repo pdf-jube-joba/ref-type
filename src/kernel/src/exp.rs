@@ -217,9 +217,9 @@ pub struct Derivation {
 
 #[derive(Debug, Clone)]
 pub enum Meta {
-    Usual(String),
-    Through(String),
-    Stop,
+    Usual(String),   // usual type derivation
+    Through(String), // pass through with that function (nothing happens with it)
+    Stop,            // stop by proposition
 }
 
 impl Derivation {
