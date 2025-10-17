@@ -25,8 +25,9 @@ impl Var {
 pub enum Sort {
     Set(usize), // predicative SET(0): SET(1): SET(2) ...
     Prop,       // proposition
-    Univ,       // Prop: UNiv
+    PropKind,   // Prop: PropKind
     Type,       // for programming language
+    TypeKind,   // Type: TypeKind
 }
 
 // functional pure type system
@@ -34,45 +35,51 @@ impl Sort {
     // functional pure type system, i.e. foraeach s1, (s1, s2) in R => s2 is unique
     pub fn type_of_sort(self) -> Option<Self> {
         match self {
-            Sort::Univ => None,
+            Sort::PropKind => None,
+            Sort::Prop => Some(Sort::PropKind),
+            Sort::Type => Some(Sort::PropKind),
+            Sort::TypeKind => None,
             Sort::Set(i) => Some(Sort::Set(i + 1)),
-            Sort::Prop => Some(Sort::Univ),
-            Sort::Type => Some(Sort::Univ),
         }
     }
 
-    // functional pure type system, i.e. foraeach s1, s2, (s1, s2, s3) in R => s3 is unique
+    // functional pure type system, i.e. for each s1, s2, (s1, s2, s3) in R => s3 is unique
     pub fn relation_of_sort(self, other: Self) -> Option<Self> {
         match (self, other) {
-            // CoC 部分
+            // Prop: PropKind part（ non dependent ）
             (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Univ, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
-            (Sort::Prop, Sort::Univ) => None,             // prop は dependent ではない
-            // Set を入れる部分
+            (Sort::PropKind, Sort::PropKind) => Some(Sort::PropKind),
+            (Sort::PropKind, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
+            (Sort::Prop, Sort::PropKind) => None,             // dependent なし
+            // Set(i): Set(i + 1) part (predicative)
             (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(std::cmp::max(i, j))),
-            (Sort::Set(_), Sort::Univ) => Some(Sort::Univ),
+            // Type: TypeKind (include dependent, impredicative)
+            (Sort::Type | Sort::TypeKind, Sort::Type | Sort::TypeKind) => Some(other),
+            // relation of set and prop
+            (Sort::Set(_), Sort::PropKind) => Some(Sort::PropKind),
             (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop, Sort::Set(_)) => None,
-            (Sort::Univ, Sort::Set(_)) => None, // Set は predicative
-            // Type を入れる部分
-            (Sort::Type, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, _) => None,
-            (_, Sort::Type) => None,
-            // Univ 用
+            (Sort::Prop | Sort::PropKind, Sort::Set(_)) => None,
+            // other => None
+            _ => None,
         }
     }
 
     // inductive type relation (restiction for large elimination)
     pub fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
         match (self, other) {
-            (Sort::Univ | Sort::Set(_) | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
-            (Sort::Set(_) | Sort::Type, Sort::Univ) => Some(()),
-            (Sort::Univ, Sort::Univ) => Some(()),
-            (Sort::Univ | Sort::Type, Sort::Type) => Some(()),
-            (Sort::Set(_), Sort::Set(_)) => Some(()),
+            (
+                Sort::PropKind | Sort::Prop | Sort::Set(_) | Sort::Type | Sort::TypeKind,
+                Sort::Prop,
+            ) => Some(()),
+            (Sort::Set(i), Sort::Set(j)) => {
+                if i <= j {
+                    Some(())
+                } else {
+                    None
+                }
+            }
+            (Sort::Set(_), Sort::PropKind) => Some(()),
+            (Sort::PropKind, Sort::PropKind) => Some(()),
             _ => None,
         }
     }
@@ -205,7 +212,14 @@ pub struct Derivation {
     pub conclusion: Judgement,
     pub premises: Vec<Derivation>,
     pub rule: String,
-    pub meta: Option<String>,
+    pub meta: Meta,
+}
+
+#[derive(Debug, Clone)]
+pub enum Meta {
+    Usual(String),
+    Through(String),
+    Stop,
 }
 
 impl Derivation {
@@ -214,7 +228,7 @@ impl Derivation {
             conclusion: Judgement::Provable(Provable { ctx, prop }),
             premises: vec![],
             rule: "Goal".to_string(),
-            meta: None,
+            meta: Meta::Stop,
         }
     }
 }

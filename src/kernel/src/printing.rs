@@ -19,8 +19,9 @@ impl Display for crate::exp::Sort {
         match self {
             crate::exp::Sort::Set(i) => write!(f, "Set({})", i),
             crate::exp::Sort::Prop => write!(f, "Prop"),
-            crate::exp::Sort::Univ => write!(f, "Univ"),
+            crate::exp::Sort::PropKind => write!(f, "PropKind"),
             crate::exp::Sort::Type => write!(f, "Type"),
+            crate::exp::Sort::TypeKind => write!(f, "TypeKind"),
         }
     }
 }
@@ -162,21 +163,25 @@ impl Display for Judgement {
     }
 }
 
-pub enum StringTree {
-    Node(String, Vec<StringTree>),
-}
+pub struct StringTree(String, Vec<StringTree>);
 
 fn map_derivation(der: &Derivation) -> StringTree {
-    StringTree::Node(
-        format!(
-            "{} by {} {}",
-            der.conclusion,
-            der.rule,
-            der.meta
-                .as_ref()
-                .map(|m| format!("[{}]", m))
-                .unwrap_or_default()
-        ),
+    StringTree(
+        match &der.meta {
+            crate::exp::Meta::Usual(string) => {
+                format!("{} by {} [{}]", der.conclusion, der.rule, string)
+            }
+            crate::exp::Meta::Through(string) => {
+                // der.premises.len() == 1 and we print this with meta info
+                let first = der.premises.first().unwrap();
+                let mut sttree = map_derivation(first);
+                sttree.0 = format!("{} through [{string}]", sttree.0);
+                return sttree;
+            }
+            crate::exp::Meta::Stop => {
+                format!("{} by {} [stopped]", der.conclusion, der.rule)
+            }
+        },
         der.premises.iter().map(map_derivation).collect(),
     )
 }
@@ -185,13 +190,16 @@ fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -
     for _ in 0..indent {
         write!(f, "  ")?;
     }
-    writeln!(f, "{}", match tree {
-        StringTree::Node(s, _) => s,
-    })?;
-    if let StringTree::Node(_, children) = tree {
-        for child in children {
-            fmt_tree(f, child, indent + 1)?;
-        }
+    writeln!(f, "{}", tree.0)?;
+    for child in &tree.1 {
+        fmt_tree(f, child, indent + 1)?;
     }
     Ok(())
+}
+
+impl Display for Derivation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tree = map_derivation(self);
+        fmt_tree(f, &tree, 0)
+    }
 }
