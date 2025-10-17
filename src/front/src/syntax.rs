@@ -67,13 +67,7 @@ pub struct InductiveTypeSpecs {
     pub parameter: Vec<(Identifier, Exp)>,
     pub indices: Vec<(Identifier, Exp)>,
     pub sort: Sort,
-    pub constructors: Vec<(Identifier, Vec<ParamCstSyntax>, Vec<Exp>)>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ParamCstSyntax {
-    Positive((Vec<(Identifier, Exp)>, Vec<Exp>)),
-    Simple((Identifier, Exp)),
+    pub constructors: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,11 +97,12 @@ pub enum Exp {
     MathMacro {
         tokens: Vec<Either<MacroToken, Exp>>,
     },
-    // currently not supported
-    // UserMacro {
-    //     name: Name,
-    //     tokens: Vec<Either<MacroToken, Exp>>,
-    // },
+    // macro specified by name
+    NamedMacro {
+        path: ModPath,
+        name: Identifier,
+        tokens: Vec<Either<MacroToken, Exp>>,
+    },
     // --- expression with clauses
     // where clauses to define local variables
     Where {
