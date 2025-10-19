@@ -2,65 +2,82 @@
 // - name resolution (binding variables and bindee)
 // - macro expansion
 
-use std::rc::Rc;
+use std::fmt::Debug;
 
-use crate::syntax::Sort;
+// root of middle intermediate representation
+pub struct MirGlobal {
+    pub mods: Vec<MirModule>,
+    pub order: Vec<usize>, // evaluation order of root modules
+}
 
-#[derive(Clone)]
-pub struct Name(Rc<String>);
-
+#[derive(Debug)]
 pub struct MirModule {
-    pub name: String,
-    pub parent: Option<usize>,
-    pub parameters: Vec<(Name, Mir)>,
+    pub parameters: Vec<(kernel::exp::Var, Mir)>,
     pub items: Vec<MirModuleItem>,
 }
 
+#[derive(Debug)]
 pub struct MirModuleInstantiated {
     pub module: usize,
-    pub arguments: Vec<(Name, Mir)>,
+    pub arguments: Vec<(kernel::exp::Var, Mir)>,
 }
 
-pub struct ModulePath(Vec<MirModuleInstantiated>);
-
+#[derive(Debug)]
 pub enum MirModuleItem {
-    Definition { name: Name, ty: Mir, body: Mir },
-    Inductive { ind_defs: InductiveTypeSpecs },
+    Definition {
+        name: kernel::exp::Var,
+        ty: Mir,
+        body: Mir,
+        goals: Vec<WithGoal>,
+    },
+    Inductive {
+        ind_defs: InductiveTypeSpecs,
+    },
+    ChildModule(usize),
 }
 
+#[derive(Debug)]
 pub struct InductiveTypeSpecs {
-    pub type_name: String,
-    pub parameters: Vec<(Name, Mir)>,
-    pub indices: Vec<(Name, Mir)>,
+    pub parameters: Vec<(kernel::exp::Var, Mir)>,
+    pub indices: Vec<(kernel::exp::Var, Mir)>,
     pub sort: Mir,
-    pub constructors: Vec<(Name, Vec<ParamCtor>, Vec<Mir>)>,
+    pub constructors: Vec<(kernel::exp::Var, Vec<ParamCtor>, Vec<Mir>)>,
 }
 
+#[derive(Debug)]
 pub enum ParamCtor {
-    StrictPositive(Vec<(Name, Mir)>, Vec<Mir>),
-    Simple(Name, Mir),
+    StrictPositive(Vec<(kernel::exp::Var, Mir)>, Vec<Mir>),
+    Simple(kernel::exp::Var, Mir),
 }
 
+#[derive(Debug)]
+pub struct WithGoal {
+    pub extend_ctx: Vec<(kernel::exp::Var, Mir)>,
+    pub goal_prop: Mir,
+    pub proof: Mir,
+}
+
+#[derive(Debug)]
 pub enum Mir {
     ModAccessDef {
-        path: ModulePath,
-        name: Name,
+        path: MirModuleInstantiated,
+        name: kernel::exp::Var,
     },
     Let {
-        name: Name,
+        name: kernel::exp::Var,
         ty: Box<Mir>,
         body: Box<Mir>,
         value: Box<Mir>,
     },
-    Sort(Sort),
-    Var(Name),
+    Sort(kernel::exp::Sort),
+    Var(kernel::exp::Var),
     Prod {
-        var: Name,
+        var: kernel::exp::Var,
         ty: Box<Mir>,
         body: Box<Mir>,
     },
     Lam {
-        var: Name,
+        var: kernel::exp::Var,
         ty: Box<Mir>,
         body: Box<Mir>,
     },
@@ -73,20 +90,20 @@ pub enum Mir {
         ty: Box<Mir>,
     },
     IndType {
-        path: ModulePath,
-        type_name: Name,
+        path: MirModuleInstantiated,
+        idx: usize, // index to items[idx] of MirModule ... it should be `ModItem::Inductive``
     },
     IndCtor {
-        path: ModulePath,
-        type_name: Name,
-        ctor_name: Name,
+        path: MirModuleInstantiated,
+        idx: usize, // index to items[idx] of MirModule ... it should be `ModItem::Inductive``
+        ctor_name: kernel::exp::Var,
     },
     IndElim {
-        path: ModulePath,
-        ty: Box<Mir>,
+        path: MirModuleInstantiated,
+        idx: usize, // index to items[idx] of MirModule ... it should be `ModItem::Inductive``
         elim: Box<Mir>,
         return_type: Box<Mir>,
-        sort: Sort,
+        sort: kernel::exp::Sort,
         cases: Vec<Mir>,
     },
     ProofLater {
@@ -96,7 +113,7 @@ pub enum Mir {
         base: Box<Mir>,
     },
     Subset {
-        var: Name,
+        var: kernel::exp::Var,
         base: Box<Mir>,
         predicate: Box<Mir>,
     },
@@ -117,7 +134,7 @@ pub enum Mir {
         base: Box<Mir>,
     },
     Take {
-        var: Name,
+        var: kernel::exp::Var,
         ty: Box<Mir>,
         body: Box<Mir>,
         codomain: Box<Mir>,
@@ -126,16 +143,19 @@ pub enum Mir {
     Block(MirBlock),
 }
 
+#[derive(Debug)]
 pub enum MirProofBy {}
 
+#[derive(Debug)]
 pub struct MirBlock {
     pub statements: Vec<MirStatement>,
     pub result: Box<Mir>,
 }
 
+#[derive(Debug)]
 pub enum MirStatement {
     Let {
-        name: Name,
+        name: kernel::exp::Var,
         ty: Box<Mir>,
         value: Box<Mir>,
     },

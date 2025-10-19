@@ -127,9 +127,13 @@ pub enum Exp {
     Cast {
         exp: Box<Exp>,
         to: Box<Exp>,
+        withgoals: Vec<ProveGoal>,
     },
     ProveLater {
         prop: Box<Exp>,
+    },
+    ProofTermRaw {
+        command: Box<ProveCommandBy>,
     },
     PowerSet {
         set: Box<Exp>,
@@ -164,73 +168,24 @@ pub enum Exp {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct Context(pub Vec<(Var, Exp)>);
-
-impl Context {
-    pub fn extend(&self, varty: (Var, Exp)) -> Self {
-        let mut new_ctx = self.0.clone();
-        new_ctx.push(varty);
-        Context(new_ctx)
-    }
-    pub fn get(&self, var: &Var) -> Option<&Exp> {
-        for (v, ty) in self.0.iter().rev() {
-            if v.is_eq_ptr(var) {
-                return Some(ty);
-            }
-        }
-        None
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TypeJudge {
-    pub ctx: Context,
-    pub term: Exp,
-    pub ty: Exp,
-}
-
-#[derive(Debug, Clone)]
-pub struct Provable {
-    pub ctx: Context,
-    pub prop: Exp,
-}
-
-// this is for representing failure of proof
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FailJudge(pub String);
-
-#[derive(Debug, Clone)]
-pub enum Judgement {
-    Type(TypeJudge),
-    Provable(Provable),
-    FailJudge(FailJudge),
-}
-
-#[derive(Debug, Clone)]
-pub struct Derivation {
-    pub conclusion: Judgement,
-    pub premises: Vec<Derivation>,
-    pub rule: String,
-    pub meta: Meta,
-}
-
-#[derive(Debug, Clone)]
-pub enum Meta {
-    Usual(String),   // usual type derivation
-    Through(String), // pass through with that function (nothing happens with it)
-    Stop,            // stop by proposition
-}
-
-impl Derivation {
-    pub fn make_goal(ctx: Context, prop: Exp) -> Self {
-        Derivation {
-            conclusion: Judgement::Provable(Provable { ctx, prop }),
-            premises: vec![],
-            rule: "Goal".to_string(),
-            meta: Meta::Stop,
+impl Exp {
+    pub fn let_in_ty(var: Var, ty: Exp, val: Exp, body: Exp) -> Exp {
+        Exp::App {
+            func: Box::new(Exp::Lam {
+                var,
+                ty: Box::new(ty),
+                body: Box::new(body),
+            }),
+            arg: Box::new(val),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProveGoal {
+    pub extended_ctx: Context,
+    pub goal_prop: Exp,
+    pub proof_term: Exp,
 }
 
 // given (ctx |= prop)
@@ -240,7 +195,6 @@ pub enum ProveCommandBy {
     //   ctx |- proof_term : prop
     Construct {
         proof_term: Exp,
-        prop: Exp,
     },
     // ctx |= nonempty(ty)
     //   ctx |- elem: ty, ctx |- ty: Set(i)
@@ -282,6 +236,86 @@ pub enum ProveCommandBy {
     },
     // axioms
     Axiom(Axiom),
+}
+
+#[derive(Debug, Clone)]
+pub struct Context(pub Vec<(Var, Exp)>);
+
+impl Context {
+    pub fn extend(&self, varty: (Var, Exp)) -> Self {
+        let mut new_ctx = self.0.clone();
+        new_ctx.push(varty);
+        Context(new_ctx)
+    }
+    pub fn get(&self, var: &Var) -> Option<&Exp> {
+        for (v, ty) in self.0.iter().rev() {
+            if v.is_eq_ptr(var) {
+                return Some(ty);
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeJudge {
+    pub ctx: Context,
+    pub term: Exp,
+    pub ty: Exp,
+}
+
+#[derive(Debug, Clone)]
+pub struct Provable {
+    pub ctx: Context,
+    pub prop: Exp,
+}
+
+// this is for representing failure of proof
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailJudge(pub String);
+
+#[derive(Debug, Clone)]
+pub enum Judgement {
+    Type(TypeJudge),
+    Provable(Rc<Provable>),
+    FailJudge(FailJudge),
+}
+
+#[derive(Debug, Clone)]
+pub enum Derivation {
+    Tree {
+        conclusion: Judgement,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
+    },
+    Stop(Rc<Provable>), // stop derivation at this provable judgment
+}
+
+#[derive(Debug, Clone)]
+pub enum Meta {
+    Usual(String),   // usual type derivation
+    Through(String), // pass through with that function (nothing happens with it)
+    Stop,            // stop by proposition
+}
+
+impl Derivation {
+    pub fn new_tree(
+        conclusion: Judgement,
+        premises: Vec<Derivation>,
+        rule: &str,
+        meta: Meta,
+    ) -> Self {
+        Derivation::Tree {
+            conclusion,
+            premises,
+            rule: rule.to_string(),
+            meta,
+        }
+    }
+    pub fn stop(ctx: Context, prop: Exp) -> Self {
+        Derivation::Stop(Rc::new(Provable { ctx, prop }))
+    }
 }
 
 #[derive(Debug, Clone)]

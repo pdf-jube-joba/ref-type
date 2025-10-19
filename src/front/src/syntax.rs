@@ -66,7 +66,7 @@ pub struct InductiveTypeSpecs {
     pub type_name: Identifier,
     pub parameter: Vec<(Identifier, Exp)>,
     pub indices: Vec<(Identifier, Exp)>,
-    pub sort: Sort,
+    pub sort: kernel::exp::Sort,
     pub constructors: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
 }
 
@@ -75,7 +75,7 @@ pub struct InductiveTypeSpecs {
 // A = (_: A), (x: A), (x: A | P), (x: A | h: P),
 // binding variable now uses Identifier directly
 pub struct Bind {
-    pub var: Identifier, // variable name (was Option<Name>)
+    pub var: Option<Identifier>,
     pub ty: Box<Exp>,
     pub predicate: Option<(Option<Identifier>, Box<Exp>)>, // predicate now uses Identifier
 }
@@ -116,7 +116,7 @@ pub enum Exp {
     },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
-    Sort(Sort),
+    Sort(kernel::exp::Sort),
     // variable defined by name
     Var(Identifier), // updated to use Identifier directly
     // bind -> B
@@ -218,65 +218,6 @@ pub enum Exp {
 // e.g. "+", "*", "==>", "||", ...
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MacroToken(pub String);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Sort {
-    Set(usize), // predicateive SET(0): SET(1): SET(2) ...
-    Prop,       // proposition
-    Univ,       // Prop: UNiv
-    Type,       // for programming language
-}
-
-// functional なものしか考えないのでよい。
-impl Sort {
-    // functional なので、
-    // (s1, s2) in A な s2 は s1 に対して一意 ... それを返す。
-    pub fn type_of_sort(self) -> Option<Self> {
-        match self {
-            Sort::Univ => None,
-            Sort::Set(i) => Some(Sort::Set(i + 1)),
-            Sort::Prop => Some(Sort::Univ),
-            Sort::Type => Some(Sort::Univ),
-        }
-    }
-
-    // functional なので、
-    // (s1, s2, s3) in R な s3 は (s1, s2) に対して一意 ... それを返す。
-    pub fn relation_of_sort(self, other: Self) -> Option<Self> {
-        match (self, other) {
-            // CoC 部分
-            (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::Univ, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
-            (Sort::Prop, Sort::Univ) => None,             // prop は dependent ではない
-            // Set を入れる部分
-            (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(std::cmp::max(i, j))),
-            (Sort::Set(_), Sort::Univ) => Some(Sort::Univ),
-            (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop, Sort::Set(_)) => None,
-            (Sort::Univ, Sort::Set(_)) => None, // Set は predicative
-            // Type を入れる部分
-            (Sort::Type, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, Sort::Univ) => Some(Sort::Univ),
-            (Sort::Univ, Sort::Type) => Some(Sort::Type),
-            (Sort::Type, _) => None,
-            (_, Sort::Type) => None,
-            // Univ 用
-        }
-    }
-
-    // inductive type の elimination の制限用
-    pub fn ind_type_rel(self, other: Self) -> Option<()> {
-        match (self, other) {
-            (Sort::Univ | Sort::Set(_) | Sort::Type | Sort::Prop, Sort::Prop) => Some(()),
-            (Sort::Set(_) | Sort::Type, Sort::Univ) => Some(()),
-            (Sort::Univ, Sort::Univ) => Some(()),
-            (Sort::Univ | Sort::Type, Sort::Type) => Some(()),
-            (Sort::Set(_), Sort::Set(_)) => Some(()),
-            _ => None,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum ProofBy {

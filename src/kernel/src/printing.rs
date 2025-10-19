@@ -80,11 +80,15 @@ impl Display for crate::exp::Exp {
                         .join(", ")
                 )
             }
-            crate::exp::Exp::Cast { exp, to } => {
+            crate::exp::Exp::Cast { exp, to, withgoals } => {
                 write!(f, "{} as {}", exp, to)
             }
             crate::exp::Exp::ProveLater { prop } => {
                 write!(f, "proof({})", prop)
+            }
+            crate::exp::Exp::ProofTermRaw { command } => {
+                // write!(f, "{}", term)
+                todo!()
             }
             crate::exp::Exp::PowerSet { set } => {
                 write!(f, "Pow({})", set)
@@ -166,24 +170,25 @@ impl Display for Judgement {
 pub struct StringTree(String, Vec<StringTree>);
 
 fn map_derivation(der: &Derivation) -> StringTree {
-    StringTree(
-        match &der.meta {
-            crate::exp::Meta::Usual(string) => {
-                format!("{} by {} [{}]", der.conclusion, der.rule, string)
-            }
-            crate::exp::Meta::Through(string) => {
-                // der.premises.len() == 1 and we print this with meta info
-                let first = der.premises.first().unwrap();
-                let mut sttree = map_derivation(first);
-                sttree.0 = format!("{} through [{string}]", sttree.0);
-                return sttree;
-            }
-            crate::exp::Meta::Stop => {
-                format!("{} by {} [stopped]", der.conclusion, der.rule)
-            }
-        },
-        der.premises.iter().map(map_derivation).collect(),
-    )
+    // StringTree(
+    //     match &der.meta {
+    //         crate::exp::Meta::Usual(string) => {
+    //             format!("{} by {} [{}]", der.conclusion, der.rule, string)
+    //         }
+    //         crate::exp::Meta::Through(string) => {
+    //             // der.premises.len() == 1 and we print this with meta info
+    //             let first = der.premises.first().unwrap();
+    //             let mut sttree = map_derivation(first);
+    //             sttree.0 = format!("{} through [{string}]", sttree.0);
+    //             return sttree;
+    //         }
+    //         crate::exp::Meta::Stop => {
+    //             format!("{} by {} [stopped]", der.conclusion, der.rule)
+    //         }
+    //     },
+    //     der.premises.iter().map(map_derivation).collect(),
+    // )
+    todo!()
 }
 
 fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -> std::fmt::Result {

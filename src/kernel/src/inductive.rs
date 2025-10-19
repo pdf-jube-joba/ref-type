@@ -14,6 +14,8 @@ Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]
 */
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
+    // context of definition
+    pub ctx: Context,
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
     // indices of the type
@@ -100,6 +102,7 @@ impl CtorType {
 
 // check well-formedness of inductive type specifications
 pub fn acceptable_typespecs(
+    ctx: Context, // assume well-formed
     params: Vec<(Var, Exp)>,
     arity_arg: Vec<(Var, Exp)>,
     sort: Sort,
@@ -108,7 +111,7 @@ pub fn acceptable_typespecs(
     // 1. check parameters are well-sorted (parameters can depend on previous parameters)
     // (ctx, parameter.var[..i]: parameter.ty[..i] |- parameter.ty[i] : sort)
     let mut well_derivation = vec![];
-    let mut local_context = Context(vec![]);
+    let mut local_context = ctx.clone();
     for (x, a) in params.iter() {
         let (derivation, sort_opt) = infer_sort(&local_context, a);
         well_derivation.push(derivation);
@@ -155,6 +158,7 @@ pub fn acceptable_typespecs(
     (
         well_derivation,
         Ok(InductiveTypeSpecs {
+            ctx,
             parameters: params,
             indices: arity_arg,
             sort,

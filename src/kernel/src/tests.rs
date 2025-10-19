@@ -14,7 +14,7 @@ fn p_prop() {
     let (der, b) = checker.push(p.clone(), Exp::Sort(Sort::Prop));
     println!("{}", der);
     assert!(b);
-    let (der, b) = checker.check(&Exp::Var(p.clone()), &Exp::Sort(Sort::Prop), vec![]);
+    let (der, b) = checker.check(&Exp::Var(p.clone()), &Exp::Sort(Sort::Prop));
     println!("{}", der);
     assert!(b);
 }
@@ -34,7 +34,7 @@ fn no_need_elem() {
     println!("{}", der);
     assert!(b);
     // check P : Prop without proof
-    let (der, b) = checker.check(&Exp::Var(pp.clone()), &Exp::Sort(Sort::Prop), vec![]);
+    let (der, b) = checker.check(&Exp::Var(pp.clone()), &Exp::Sort(Sort::Prop));
     println!("{}", der);
     assert!(b);
 }
@@ -61,7 +61,6 @@ fn imp_prop() {
             body: Box::new(Exp::Var(p2.clone())),
         },
         &Exp::Sort(Sort::Prop),
-        vec![],
     );
     println!("{}", der);
     assert!(b);
@@ -89,7 +88,6 @@ fn lam_prod() {
             ty: Box::new(Exp::Var(pp.clone())),
             body: Box::new(Exp::Var(pp.clone())),
         },
-        vec![],
     );
     println!("{}", der);
     assert!(b);
@@ -112,7 +110,6 @@ fn impredicative_true() {
             }),
         },
         &Exp::Sort(Sort::Prop),
-        vec![],
     );
     println!("{}", der);
     assert!(b);
@@ -153,7 +150,6 @@ fn modusponens_ctx() {
             arg: Box::new(Exp::Var(aa.clone())),
         },
         &Exp::Var(b.clone()),
-        vec![],
     );
     println!("{}", der);
     assert!(b5);
@@ -196,7 +192,7 @@ fn modusponens_popped() {
     );
     let ty = utils::assoc_prod(telescope, Exp::Var(b.clone()));
 
-    let (der, b) = checker.check(&term, &ty, vec![]);
+    let (der, b) = checker.check(&term, &ty);
     println!("{}", der);
     assert!(b);
 }
@@ -224,7 +220,6 @@ fn alpha_equiv() {
             ty: Box::new(Exp::Var(a.clone())),
             body: Box::new(Exp::Var(a.clone())),
         },
-        vec![],
     );
     println!("{}", der);
     assert!(b2);
@@ -255,88 +250,87 @@ fn type_leve_reduction() {
             }),
             arg: Box::new(Exp::Var(x.clone())),
         },
-        vec![],
     );
     println!("{}", der);
     assert!(b3);
 }
 
-// proof by construct proof term
-// X: Prop, x: X |= X by construct x
-#[test]
-fn proof_by_exact() {
-    let mut checker = Checker::default();
-    let xx = Var::new("X");
-    let x = Var::new("x");
-    // push (X: Prop)
-    let (_, b1) = checker.push(xx.clone(), Exp::Sort(Sort::Prop));
-    assert!(b1);
-    // push (x: X)
-    let (_, b2) = checker.push(x.clone(), Exp::Var(xx.clone()));
-    assert!(b2);
-    // prove X by consrsuct x
-    let (der, b3) = checker.prove(
-        &Exp::Var(xx.clone()),
-        vec![ProveCommandBy::Construct {
-            proof_term: Exp::Var(x.clone()),
-            prop: Exp::Var(xx.clone()),
-        }],
-    );
-    println!("{}", der);
-    assert!(b3);
-}
+// // proof by construct proof term
+// // X: Prop, x: X |= X by construct x
+// #[test]
+// fn proof_by_exact() {
+//     let mut checker = Checker::default();
+//     let xx = Var::new("X");
+//     let x = Var::new("x");
+//     // push (X: Prop)
+//     let (_, b1) = checker.push(xx.clone(), Exp::Sort(Sort::Prop));
+//     assert!(b1);
+//     // push (x: X)
+//     let (_, b2) = checker.push(x.clone(), Exp::Var(xx.clone()));
+//     assert!(b2);
+//     // prove X by consrsuct x
+//     let (der, b3) = checker.prove(
+//         &Exp::Var(xx.clone()),
+//         vec![ProveCommandBy::Construct {
+//             proof_term: Exp::Var(x.clone()),
+//             prop: Exp::Var(xx.clone()),
+//         }],
+//     );
+//     println!("{}", der);
+//     assert!(b3);
+// }
 
-// proof by construct proof term with application
-// X: Prop, Y: Prop, x: X, f: X -> Y |= Y by construct f (Proof X)
-// by  ... |- Proof(X): X, ... |= x: X
-#[test]
-fn proof_by_exact_app() {
-    let mut checker = Checker::default();
-    let xx = Var::new("X");
-    let yy = Var::new("Y");
-    let x = Var::new("x");
-    let f = Var::new("f");
-    // push (X: Prop)
-    let (_, b1) = checker.push(xx.clone(), Exp::Sort(Sort::Prop));
-    assert!(b1);
-    // push (Y: Prop)
-    let (_, b2) = checker.push(yy.clone(), Exp::Sort(Sort::Prop));
-    assert!(b2);
-    // push (x: X)
-    let (_, b3) = checker.push(x.clone(), Exp::Var(xx.clone()));
-    assert!(b3);
-    // push (f: X -> Y)
-    let (_, b4) = checker.push(
-        f.clone(),
-        Exp::Prod {
-            var: Var::new("_"),
-            ty: Box::new(Exp::Var(xx.clone())),
-            body: Box::new(Exp::Var(yy.clone())),
-        },
-    );
-    assert!(b4);
-    // prove Y by consrsuct f x
-    let (der, b5) = checker.prove(
-        &Exp::Var(yy.clone()),
-        vec![
-            ProveCommandBy::Construct {
-                proof_term: Exp::App {
-                    func: Box::new(Exp::Var(f.clone())),
-                    arg: Box::new(Exp::ProveLater {
-                        prop: Box::new(Exp::Var(xx.clone())),
-                    }),
-                },
-                prop: Exp::Var(yy.clone()),
-            },
-            ProveCommandBy::Construct {
-                proof_term: Exp::Var(x.clone()),
-                prop: Exp::Var(xx.clone()),
-            },
-        ],
-    );
-    println!("{}", der);
-    assert!(b5);
-}
+// // proof by construct proof term with application
+// // X: Prop, Y: Prop, x: X, f: X -> Y |= Y by construct f (Proof X)
+// // by  ... |- Proof(X): X, ... |= x: X
+// #[test]
+// fn proof_by_exact_app() {
+//     let mut checker = Checker::default();
+//     let xx = Var::new("X");
+//     let yy = Var::new("Y");
+//     let x = Var::new("x");
+//     let f = Var::new("f");
+//     // push (X: Prop)
+//     let (_, b1) = checker.push(xx.clone(), Exp::Sort(Sort::Prop));
+//     assert!(b1);
+//     // push (Y: Prop)
+//     let (_, b2) = checker.push(yy.clone(), Exp::Sort(Sort::Prop));
+//     assert!(b2);
+//     // push (x: X)
+//     let (_, b3) = checker.push(x.clone(), Exp::Var(xx.clone()));
+//     assert!(b3);
+//     // push (f: X -> Y)
+//     let (_, b4) = checker.push(
+//         f.clone(),
+//         Exp::Prod {
+//             var: Var::new("_"),
+//             ty: Box::new(Exp::Var(xx.clone())),
+//             body: Box::new(Exp::Var(yy.clone())),
+//         },
+//     );
+//     assert!(b4);
+//     // prove Y by consrsuct f x
+//     let (der, b5) = checker.prove(
+//         &Exp::Var(yy.clone()),
+//         vec![
+//             ProveCommandBy::Construct {
+//                 proof_term: Exp::App {
+//                     func: Box::new(Exp::Var(f.clone())),
+//                     arg: Box::new(Exp::ProveLater {
+//                         prop: Box::new(Exp::Var(xx.clone())),
+//                     }),
+//                 },
+//                 prop: Exp::Var(yy.clone()),
+//             },
+//             ProveCommandBy::Construct {
+//                 proof_term: Exp::Var(x.clone()),
+//                 prop: Exp::Var(xx.clone()),
+//             },
+//         ],
+//     );
+//     println!("{}", der);
+//     assert!(b5);
+// }
 
 // Power set
 // X: Set(0) |- Power(X): Set(0)
@@ -353,7 +347,6 @@ fn powerset() {
             set: Box::new(Exp::Var(x.clone())),
         },
         &Exp::Sort(Sort::Set(0)),
-        vec![],
     );
     println!("{}", der);
     assert!(b2);

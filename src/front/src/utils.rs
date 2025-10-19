@@ -3,13 +3,13 @@ use crate::syntax::Exp;
 #[macro_export]
 macro_rules! sort {
     (SET($n: literal)) => {
-        $crate::syntax::Exp::Sort($crate::syntax::Sort::Set($n))
-    };
-    (UNIV) => {
-        $crate::syntax::Exp::Sort($crate::syntax::Sort::Univ)
+        $crate::syntax::Exp::Sort(kernel::exp::Sort::Set($n))
     };
     (PROP) => {
-        $crate::syntax::Exp::Sort($crate::syntax::Sort::Prop)
+        $crate::syntax::Exp::Sort(kernel::exp::Sort::Prop)
+    };
+    (PROPKIND) => {
+        $crate::syntax::Exp::Sort(kernel::exp::Sort::PropKind)
     };
 }
 
@@ -34,7 +34,6 @@ mod tests {
     #[test]
     fn macro_expand() {
         let _ = sort!(SET(0));
-        let _ = sort!(UNIV);
         let _ = sort!(PROP);
     }
 }

@@ -1,4 +1,7 @@
 // All judgement functions return a Derivation (the trace) plus a payload indicating success/value.
+// ? for output value
+
+use std::rc::Rc;
 
 use crate::inductive::eliminator_type;
 use crate::utils;
@@ -20,6 +23,9 @@ impl Builder {
             premises: vec![],
         }
     }
+    fn meta(&mut self, meta: &str) {
+        self.meta = Meta::Usual(meta.to_string());
+    }
     fn meta_through(&mut self, meta: &str) {
         self.meta = Meta::Through(meta.to_string());
     }
@@ -28,7 +34,7 @@ impl Builder {
         self
     }
     fn build(self, judgement: Judgement) -> Derivation {
-        Derivation {
+        Derivation::Tree {
             conclusion: judgement,
             premises: self.premises,
             rule: self.rule,
@@ -39,13 +45,12 @@ impl Builder {
 
 // check: (Derivation, bool) where bool = true on success
 pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> (Derivation, bool) {
-    // rule is Conversion, meta is check
     let mut builder = Builder::new("Conversion".to_string(), "check");
 
-    // 1. Infer the type of the term
+    // 1. infer (ctx |- term : ?inferred_ty)
     let (infer_derivation, infer_ty_opt) = infer(ctx, term);
     builder.add(infer_derivation);
-    let inferred_ty_result = match infer_ty_opt {
+    let inferred_ty = match infer_ty_opt {
         Some(t) => t,
         None => {
             return (
@@ -58,7 +63,8 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> (Derivation, bool) {
         }
     };
 
-    if strict_equivalence(ty, &inferred_ty_result) {
+    // 2-if. inferred_ty == ty by strict equivalence => this function through the result
+    if strict_equivalence(ty, &inferred_ty) {
         builder.meta_through("check");
         return (
             builder.build(Judgement::Type(TypeJudge {
@@ -70,7 +76,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> (Derivation, bool) {
         );
     }
 
-    // 2. check ty is well-sorted
+    // 2. check (ctx |- ty : ?s) for some sort s
     let (ty_sort_derivation, ty_sort_opt) = infer_sort(ctx, ty);
     builder.add(ty_sort_derivation);
     if ty_sort_opt.is_none() {
@@ -83,25 +89,87 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> (Derivation, bool) {
         );
     }
 
-    // 3. check convertibility
-    if convertible(&inferred_ty_result, ty) {
-        (
+    // 3 get normal(inferred_ty) and normal(ty)
+    let inferred_ty_result = normalize(&inferred_ty);
+    let ty = normalize(ty);
+
+    // 3-A-if. check ty =(alpha)= inferred_ty
+    // conclude (ctx |- term : ty) by conversion rule
+    if convertible(&ty, &inferred_ty_result) {
+        builder.meta_through("check");
+        return (
             builder.build(Judgement::Type(TypeJudge {
                 ctx: ctx.clone(),
                 term: term.clone(),
                 ty: ty.clone(),
             })),
             true,
-        )
-    } else {
-        (
-            builder.build(Judgement::FailJudge(FailJudge(format!(
-                "Type mismatch: inferred type {:?} is not convertible to expected type {:?}",
-                inferred_ty_result, ty
-            )))),
-            false,
-        )
+        );
     }
+
+    // 3-B-if check inferred_ty =(alpha)= TypeLift(ty, some) ... inferred_ty < ty
+    // conclude (ctx |- term : ty) by subset weak rule
+    if let Exp::TypeLift {
+        superset,
+        subset: _,
+    } = &inferred_ty_result
+    {
+        if is_alpha_eq(superset.as_ref(), &ty) {
+            builder.meta("SubsetWeak");
+            return (
+                builder.build(Judgement::Type(TypeJudge {
+                    ctx: ctx.clone(),
+                    term: term.clone(),
+                    ty: ty.clone(),
+                })),
+                true,
+            );
+        } else {
+            // if inferred_ty =(alpha)= TypeLift(ty1, some) with ty1 != ty ... fails
+            return (
+                builder.build(Judgement::FailJudge(FailJudge(format!(
+                    "Type mismatch: inferred type {:?} is a TypeLift over {:?}, which is not equal to expected type {:?}",
+                    inferred_ty_result, superset, ty
+                )))),
+                false,
+            );
+        }
+    }
+
+    // 3-C-if ty =(alpha)= TypeLift(inferred_ty, subset) ... ty < inferred_ty
+    // conclude (ctx |- term : ty) by subset strong rule
+    // add goal (ctx |= Pred(inferred_ty, subset, term))
+    if let Exp::TypeLift { superset, subset } = &ty {
+        if is_alpha_eq(superset.as_ref(), &inferred_ty_result) {
+            builder.meta("SubsetStrong");
+            // add goal (ctx |= Pred(inferred_ty, subset, term))
+            builder.add(Derivation::stop(
+                ctx.clone(),
+                Exp::Pred {
+                    superset: Box::new(inferred_ty_result),
+                    subset: subset.clone(),
+                    element: Box::new(term.clone()),
+                },
+            ));
+            return (
+                builder.build(Judgement::Type(TypeJudge {
+                    ctx: ctx.clone(),
+                    term: term.clone(),
+                    ty: ty.clone(),
+                })),
+                true,
+            );
+        }
+    }
+
+    // 4. fails
+    (
+        builder.build(Judgement::FailJudge(FailJudge(format!(
+            "Type mismatch: inferred type {:?} is not convertible to expected type {:?}",
+            inferred_ty_result, ty
+        )))),
+        false,
+    )
 }
 
 // infer: (Derivation, Option<Exp>) where Option<Exp> = Some(ty) on success
@@ -117,6 +185,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
     match term {
         Exp::Sort(sort) => {
             let builder = Builder::new("Sort".to_string(), "infer");
+
+            // 1. conclude (ctx: s: ?s1) where s: s1 in rules
             match sort.type_of_sort() {
                 Some(sort_of_sort) => {
                     let ty = Exp::Sort(sort_of_sort);
@@ -133,6 +203,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
         }
         Exp::Var(index) => {
             let builder = Builder::new("Var".to_string(), "infer");
+
+            // 1. (ctx |- var: ?ty) where (var: ty) in ctx
             match ctx.get(index) {
                 Some(ty) => (builder.build(judgement_from_ty(ty)), Some(ty.clone())),
                 None => (
@@ -146,7 +218,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
         }
         Exp::Prod { var, ty, body } => {
             let mut builder = Builder::new("Prod".to_string(), "infer");
-            // 1. infer (ctx |- ty : s1)
+            // 1. infer (ctx |- ty : ?s1)
             let (ty_sort_derivation, s1_opt) = infer_sort(ctx, ty);
             builder.add(ty_sort_derivation);
             let s1 = match s1_opt {
@@ -162,7 +234,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                 }
             };
             let extend = ctx.extend((var.clone(), *ty.clone()));
-            // 2. infer (ctx, ty |= body : s2)
+            // 2. infer (ctx, ty |= body : ?s2)
             let (body_sort_derivation, s2_opt) = infer_sort(&extend, body);
             builder.add(body_sort_derivation);
             let s2 = match s2_opt {
@@ -177,7 +249,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     );
                 }
             };
-            // 3. check relation
+            // 3. check (s1, s2) can form a product sort s3
             let s3 = match s1.relation_of_sort(s2) {
                 Some(s3) => s3,
                 None => {
@@ -189,12 +261,15 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     );
                 }
             };
+
+            // 4. conclude (ctx |- Prod(var, ty, body) : s3)
             let ty = Exp::Sort(s3);
             (builder.build(judgement_from_ty(&ty)), Some(ty))
         }
         Exp::Lam { var, ty, body } => {
             let mut builder = Builder::new("Lam".to_string(), "infer");
-            // 1. infer (ctx |- ty : s)
+
+            // 1. infer (ctx |- ty : ?s) for some sort s
             let (ty_sort_derivation, ty_sort_opt) = infer_sort(ctx, ty);
             builder.add(ty_sort_derivation);
             if ty_sort_opt.is_none() {
@@ -207,7 +282,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                 );
             }
             let extend = ctx.extend((var.clone(), *ty.clone()));
-            // 2. infer (ctx, ty |- body : body_ty)
+
+            // 2. infer (ctx, (var, ty) |- body : ?body_ty)
             let (body_derivation, body_ty_opt) = infer(&extend, body);
             builder.add(body_derivation);
             let body_ty = match body_ty_opt {
@@ -231,7 +307,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
         }
         Exp::App { func, arg } => {
             let mut builder = Builder::new("App".to_string(), "infer");
-            // 1. infer (ctx |- func : (x: arg_ty) -> ret_ty)
+            // 1. infer (ctx |- func : ?(x: arg_ty) -> ret_ty)
             let (func_derivation, func_ty_opt) = infer(ctx, func);
             builder.add(func_derivation);
             let func_ty = match func_ty_opt {
@@ -260,6 +336,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     None,
                 );
             };
+
             // 2. check (ctx |- arg : arg_ty)
             let (arg_check_derivation, arg_ok) = check(ctx, arg, &arg_ty);
             builder.add(arg_check_derivation);
@@ -273,7 +350,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                 );
             }
             let ret_ty_substituted = subst(&ret_ty, &var, arg);
-            // 3. conclude (ctx |- App(func, arg) : ret_ty[arg/0])
+
+            // 3. conclude (ctx |- App(func, arg) : ret_ty[var := arg])
             (
                 builder.build(judgement_from_ty(&ret_ty_substituted)),
                 Some(ret_ty_substituted),
@@ -546,27 +624,31 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
 
             (builder.build(judgement_from_ty(&ty)), Some(ty))
         }
-        Exp::Cast { exp, to } => {
+        Exp::Cast { exp, to, withgoals } => {
             let mut builder = Builder::new("Cast".to_string(), "infer");
-            // simply, check (ctx |- exp : to)
+            // 1. simply, check (ctx |- exp : to)
             let (check_derivation, ok) = check(ctx, exp, to);
             builder.add(check_derivation);
-            if ok {
-                (builder.build(judgement_from_ty(to)), Some(*to.clone()))
-            } else {
-                (
+
+            if !ok {
+                return (
                     builder.build(Judgement::FailJudge(FailJudge(format!(
                         "Failed to check casted expression {:?} against type {:?}",
                         exp, to
                     )))),
                     None,
-                )
+                );
             }
+
+            // 2. we solve generated goals in derivation
+            todo!();
+
+            (builder.build(judgement_from_ty(to)), Some(*to.clone()))
         }
-        // (ctx |- Proof(exp): exp) if (ctx |- exp : Prop) and (ctx |= exp)
         Exp::ProveLater { prop: exp } => {
+            // (ctx |- Proof(exp): exp) if (ctx |- exp : \PROP) and (ctx |= exp)
             let mut builder = Builder::new("Proof".to_string(), "infer");
-            // 1. check (ctx |- exp : Prop)
+            // 1. check (ctx |- exp : \PROP)
             let (derivation, ok) = check(ctx, exp, &Exp::Sort(Sort::Prop));
             builder.add(derivation);
             if !ok {
@@ -579,9 +661,49 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                 );
             }
             // 2. add goal (ctx |= exp)
-            builder.add(Derivation::make_goal(ctx.clone(), *exp.clone()));
+            builder.add(Derivation::stop(ctx.clone(), *exp.clone()));
             // 3. conclude (ctx |- Proof(exp) : exp)
             (builder.build(judgement_from_ty(exp)), Some(*exp.clone()))
+        }
+        Exp::ProofTermRaw { command: command } => {
+            // (ctx |- ProofTermRaw(command) : prop) if (ctx |= prop) by command
+
+            let mut builder = Builder::new("ProofTermRaw".to_string(), "infer");
+
+            // 1. get (ctx |= prop) by command
+            let (der, ok) = prove_command(ctx, command.as_ref());
+            if !ok {
+                builder.add(der);
+                return (
+                    builder.build(Judgement::FailJudge(FailJudge(format!(
+                        "Failed to prove proof term command {:?}",
+                        command
+                    )))),
+                    None,
+                );
+            }
+            // unpack der to get prop
+            let prop: Exp = {
+                let Derivation::Tree {
+                    conclusion,
+                    premises: _,
+                    rule: _,
+                    meta: _,
+                } = &der
+                else {
+                    unreachable!();
+                };
+                let Judgement::Provable(provable) = conclusion else {
+                    unreachable!();
+                };
+                let Provable { ctx: _, prop } = provable.as_ref();
+                prop.clone()
+            };
+
+            builder.add(der);
+
+            // 2. conclude (ctx |- ProofTermRaw(command) : prop)
+            (builder.build(judgement_from_ty(&prop)), Some(prop))
         }
         Exp::PowerSet { set: exp } => {
             let mut builder = Builder::new("PowerSet".to_string(), "infer");
@@ -643,7 +765,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                 );
             };
             let extend = ctx.extend((var.clone(), *exp.clone()));
-            // 2. check (ctx, exp |- predicate : Prop)
+            // 2. check (ctx, exp |- predicate : \PROP)
             let (derivation, ok) = check(&extend, predicate, &Exp::Sort(Sort::Prop));
             builder.add(derivation);
             if !ok {
@@ -655,10 +777,10 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     None,
                 );
             }
-            // 3. conclude (ctx |- SubSet(var, exp, predicate) : Prop)
+            // 3. conclude (ctx |- SubSet(var, exp, predicate) : Power(exp))
             (
-                builder.build(judgement_from_ty(&Exp::Sort(Sort::Prop))),
-                Some(Exp::Sort(Sort::Prop)),
+                builder.build(judgement_from_ty(&Exp::PowerSet { set: exp.clone() })),
+                Some(Exp::PowerSet { set: exp.clone() }),
             )
         }
         Exp::Pred {
@@ -721,7 +843,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     None,
                 );
             }
-            // 4. conclude (ctx |- Pred(superset, subset, element) : Prop)
+            // 4. conclude (ctx |- Pred(superset, subset, element) : \Prop)
             (
                 builder.build(judgement_from_ty(&Exp::Sort(Sort::Prop))),
                 Some(Exp::Sort(Sort::Prop)),
@@ -819,7 +941,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     None,
                 );
             }
-            // 4. conclude (ctx |- Equal(left, right) : Prop)
+            // 4. conclude (ctx |- Equal(left, right) : \Prop)
             (
                 builder.build(judgement_from_ty(&Exp::Sort(Sort::Prop))),
                 Some(Exp::Sort(Sort::Prop)),
@@ -851,7 +973,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     None,
                 );
             };
-            // 2. conclude (ctx |- Exists(ty) : Prop)
+            // 2. conclude (ctx |- Exists(ty) : \Prop)
             (
                 builder.build(judgement_from_ty(&Exp::Sort(Sort::Prop))),
                 Some(Exp::Sort(Sort::Prop)),
@@ -999,29 +1121,49 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> (Derivation, Option<Sort>) {
     )
 }
 
-// (ctx |= prop) by command
-pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, bool) {
+// given ctx, return derivation of (ctx |= prop) with prop defined by command
+pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> (Derivation, bool) {
     let goal = |prop: Exp| {
-        Judgement::Provable(Provable {
+        Judgement::Provable(Rc::new(Provable {
             ctx: ctx.clone(),
             prop,
-        })
+        }))
     };
 
     match command {
-        ProveCommandBy::Construct { proof_term, prop } => {
+        ProveCommandBy::Construct { proof_term } => {
             let mut builder = Builder::new("Construct".to_string(), "prove_command");
-            let (derivation, ok) = check(ctx, &proof_term, &prop);
+
+            // 1. infer (ctx |- proof_term : prop)
+            let (derivation, prop_opt) = infer(ctx, &proof_term);
+            builder.add(derivation);
+            let prop = match prop_opt {
+                Some(p) => p,
+                None => {
+                    return (
+                        builder.build(Judgement::FailJudge(FailJudge(format!(
+                            "Failed to infer type of proof term {:?}",
+                            proof_term
+                        )))),
+                        false,
+                    );
+                }
+            };
+
+            // 2. check prop: \Prop
+            let (derivation, ok) = check(ctx, &prop, &Exp::Sort(Sort::Prop));
             builder.add(derivation);
             if !ok {
                 return (
                     builder.build(Judgement::FailJudge(FailJudge(format!(
-                        "Failed to check proof term {:?} against proposition {:?}",
-                        proof_term, prop
+                        "Inferred type {:?} of proof term {:?} is not of type Prop",
+                        prop, proof_term
                     )))),
                     false,
                 );
             }
+
+            // 3. conclude (ctx |= prop)
             (builder.build(goal(prop)), true)
         }
         ProveCommandBy::ExactElem { elem, ty } => {
@@ -1058,7 +1200,9 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
                     false,
                 );
             }
-            let prop = Exp::Exists { set: Box::new(ty) };
+            let prop = Exp::Exists {
+                set: Box::new(ty.clone()),
+            };
             (builder.build(goal(prop)), true)
         }
         ProveCommandBy::SubsetElim {
@@ -1104,9 +1248,9 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
                 );
             }
             let prop = Exp::Pred {
-                superset: Box::new(superset),
-                subset: Box::new(subset),
-                element: Box::new(elem),
+                superset: Box::new(superset.clone()),
+                subset: Box::new(subset.clone()),
+                element: Box::new(elem.clone()),
             };
             (builder.build(goal(prop)), true)
         }
@@ -1149,7 +1293,7 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
             }
             let prop = Exp::Equal {
                 left: Box::new(elem.clone()),
-                right: Box::new(elem),
+                right: Box::new(elem.clone()),
             };
             (builder.build(goal(prop)), true)
         }
@@ -1227,15 +1371,15 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
                 func: Box::new(*predicate.clone()),
                 arg: Box::new(elem1.clone()),
             };
-            builder.add(Derivation::make_goal(ctx.clone(), prop1));
+            builder.add(Derivation::stop(ctx.clone(), prop1));
             let prop2 = Exp::Equal {
                 left: Box::new(elem1.clone()),
                 right: Box::new(elem2.clone()),
             };
-            builder.add(Derivation::make_goal(ctx.clone(), prop2));
+            builder.add(Derivation::stop(ctx.clone(), prop2));
             let prop = Exp::App {
                 func: Box::new(*predicate.clone()),
-                arg: Box::new(elem2),
+                arg: Box::new(elem2.clone()),
             };
             (builder.build(goal(prop)), true)
         }
@@ -1312,5 +1456,25 @@ pub fn prove_command(ctx: &Context, command: ProveCommandBy) -> (Derivation, boo
             (builder.build(goal(prop)), true)
         }
         ProveCommandBy::Axiom(_axiom) => todo!(),
+    }
+}
+
+// return derivation of provable judgement if exists
+pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
+    match der {
+        Derivation::Tree {
+            conclusion: _,
+            premises,
+            rule: _,
+            meta: _,
+        } => {
+            for premise in premises {
+                if let Some(goal) = get_first_goal(premise) {
+                    return Some(goal);
+                }
+            }
+            None
+        }
+        Derivation::Stop(_) => Some(der),
     }
 }

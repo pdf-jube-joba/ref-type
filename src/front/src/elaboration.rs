@@ -1,6 +1,9 @@
-use crate::syntax::*;
+use crate::middle;
 
-#[derive(Debug)]
-pub struct Global {
-    modules: Vec<Module>,
-}
+fn elaborate_module() {}
+
+fn elaborate_module_item() {}
+
+fn elaborate_module_instantiated() {}
+
+fn elaborate_exp() {}
