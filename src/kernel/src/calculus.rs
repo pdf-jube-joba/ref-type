@@ -411,6 +411,24 @@ pub fn is_alpha_eq_ctx(ctx1: &Context, ctx2: &Context) -> bool {
     true
 }
 
+pub fn is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp) -> bool {
+    if !is_alpha_eq_ctx(ctx1, ctx2) {
+        return false;
+    }
+
+    let mut env1 = vec![];
+    let mut env2 = vec![];
+
+    for (var1, _) in ctx1.0.iter() {
+        env1.push(var1.clone());
+    }
+    for (var2, _) in ctx2.0.iter() {
+        env2.push(var2.clone());
+    }
+
+    is_alpha_eq_rec(t1, t2, &mut env1, &mut env2)
+}
+
 pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
     match e {
         Exp::Sort(sort) => Exp::Sort(*sort),

@@ -2,6 +2,8 @@
 
 use std::{fmt::Debug, rc::Rc};
 
+use crate::calculus;
+
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone)]
 pub struct Var(Rc<String>);
@@ -124,6 +126,8 @@ pub enum Exp {
         sort: Sort,
         cases: Vec<Exp>,
     },
+    // cast `exp` to `to` and solve goals of derivation tree with `withgoals`
+    // `withgoals` behaves like is treated as if it were not present in some functions.
     Cast {
         exp: Box<Exp>,
         to: Box<Exp>,
@@ -247,6 +251,13 @@ impl Context {
         new_ctx.push(varty);
         Context(new_ctx)
     }
+    pub fn extend_ctx(&self, other: &Context) -> Self {
+        let mut new_ctx = self.0.clone();
+        for (v, ty) in other.0.iter() {
+            new_ctx.push((v.clone(), ty.clone()));
+        }
+        Context(new_ctx)
+    }
     pub fn get(&self, var: &Var) -> Option<&Exp> {
         for (v, ty) in self.0.iter().rev() {
             if v.is_eq_ptr(var) {
@@ -277,8 +288,26 @@ pub struct FailJudge(pub String);
 #[derive(Debug, Clone)]
 pub enum Judgement {
     Type(TypeJudge),
-    Provable(Rc<Provable>),
+    Provable(Provable),
     FailJudge(FailJudge),
+}
+
+impl Judgement {
+    pub fn is_alpha_eq_judge(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Judgement::Type(t1), Judgement::Type(t2)) => {
+                t1.ctx.0.len() == t2.ctx.0.len()
+                    && calculus::is_alpha_eq_under_ctx(&t1.ctx, &t1.term, &t2.ctx, &t2.term)
+                    && calculus::is_alpha_eq_under_ctx(&t1.ctx, &t1.ty, &t2.ctx, &t2.ty)
+            }
+            (Judgement::Provable(p1), Judgement::Provable(p2)) => {
+                p1.ctx.0.len() == p2.ctx.0.len()
+                    && calculus::is_alpha_eq_under_ctx(&p1.ctx, &p1.prop, &p2.ctx, &p2.prop)
+            }
+            (Judgement::FailJudge(f1), Judgement::FailJudge(f2)) => f1 == f2,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -289,14 +318,24 @@ pub enum Derivation {
         rule: String,
         meta: Meta,
     },
-    Stop(Rc<Provable>), // stop derivation at this provable judgment
+    // stop derivation at this provable judgment
+    UnProved(Provable),
+    // proved by another proof tree
+    Proved {
+        target: Provable,
+        num: Rc<()>,
+    },
+    // the another tree
+    Proving {
+        der: Box<Derivation>,
+        num: Rc<()>,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub enum Meta {
     Usual(String),   // usual type derivation
     Through(String), // pass through with that function (nothing happens with it)
-    Stop,            // stop by proposition
 }
 
 impl Derivation {
@@ -314,7 +353,18 @@ impl Derivation {
         }
     }
     pub fn stop(ctx: Context, prop: Exp) -> Self {
-        Derivation::Stop(Rc::new(Provable { ctx, prop }))
+        Derivation::UnProved(Provable { ctx, prop })
+    }
+    pub fn conclusion(&self) -> Judgement {
+        match self {
+            Derivation::Tree { conclusion, .. } => conclusion.clone(),
+            Derivation::UnProved(provable) => Judgement::Provable(provable.clone()),
+            Derivation::Proved { target, .. } => Judgement::Provable(target.clone()),
+            Derivation::Proving { der, .. } => der.conclusion().clone(),
+        }
+    }
+    pub fn into_proved(&mut self, proving: &Derivation) -> bool {
+        todo!()
     }
 }
 

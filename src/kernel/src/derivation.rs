@@ -627,10 +627,11 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
         Exp::Cast { exp, to, withgoals } => {
             let mut builder = Builder::new("Cast".to_string(), "infer");
             // 1. simply, check (ctx |- exp : to)
-            let (check_derivation, ok) = check(ctx, exp, to);
-            builder.add(check_derivation);
+            let (mut check_derivation, ok) = check(ctx, exp, to);
+            // we need to modify check derivation, so we add it later
 
             if !ok {
+                builder.add(check_derivation);
                 return (
                     builder.build(Judgement::FailJudge(FailJudge(format!(
                         "Failed to check casted expression {:?} against type {:?}",
@@ -641,8 +642,53 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
             }
 
             // 2. we solve generated goals in derivation
-            todo!();
+            for goal in withgoals {
+                // 1. get first goal prop
+                let Some(unproved_tree) = get_first_goal(&mut check_derivation) else {
+                    builder.add(check_derivation);
+                    return (
+                        builder.build(Judgement::FailJudge(FailJudge(
+                            "No more goals to prove in cast derivation".to_string(),
+                        ))),
+                        None,
+                    );
+                };
 
+                // 2. der = derivation of (ctx::extended_ctx |- proof_term : goal_prop)
+                let proving_der = {
+                    let ProveGoal {
+                        extended_ctx,
+                        goal_prop,
+                        proof_term,
+                    } = goal;
+                    let extended_ctx = ctx.extend_ctx(extended_ctx);
+                    let (der, ok) = check(&extended_ctx, proof_term, goal_prop);
+
+                    let prove_number = Rc::new(());
+                    Derivation::Proving {
+                        der: Box::new(der),
+                        num: prove_number.clone(),
+                    }
+                };
+
+                if !ok {
+                    builder.add(proving_der);
+                    builder.add(check_derivation);
+                    return (
+                        builder.build(Judgement::FailJudge(FailJudge(format!(
+                            "Failed to prove cast goal {:?}",
+                            goal
+                        )))),
+                        None,
+                    );
+                }
+
+                // 3. check unproved_goal and proved_goal are equivalent
+                todo!();
+            }
+
+            // here we add the check derivation
+            builder.add(check_derivation);
             (builder.build(judgement_from_ty(to)), Some(*to.clone()))
         }
         Exp::ProveLater { prop: exp } => {
@@ -682,28 +728,9 @@ pub fn infer(ctx: &Context, term: &Exp) -> (Derivation, Option<Exp>) {
                     None,
                 );
             }
-            // unpack der to get prop
-            let prop: Exp = {
-                let Derivation::Tree {
-                    conclusion,
-                    premises: _,
-                    rule: _,
-                    meta: _,
-                } = &der
-                else {
-                    unreachable!();
-                };
-                let Judgement::Provable(provable) = conclusion else {
-                    unreachable!();
-                };
-                let Provable { ctx: _, prop } = provable.as_ref();
-                prop.clone()
-            };
 
-            builder.add(der);
+            todo!();
 
-            // 2. conclude (ctx |- ProofTermRaw(command) : prop)
-            (builder.build(judgement_from_ty(&prop)), Some(prop))
         }
         Exp::PowerSet { set: exp } => {
             let mut builder = Builder::new("PowerSet".to_string(), "infer");
@@ -1475,6 +1502,8 @@ pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
             }
             None
         }
-        Derivation::Stop(_) => Some(der),
+        Derivation::UnProved(_) => Some(der),
+        Derivation::Proved { target: _, num: _ } => None,
+        Derivation::Proving { der: tree, num: _ } => get_first_goal(tree),
     }
 }
