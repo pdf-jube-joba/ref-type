@@ -208,7 +208,7 @@ impl Display for Prove {
         let Prove { ctx, prop } = self;
         write!(
             f,
-            "Prove {} |= {}",
+            "[{} |= {}]",
             ctx,
             prop.as_ref()
                 .map(|p| format!("{}", p))

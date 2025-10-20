@@ -26,8 +26,8 @@ impl Builder {
             node: candidate,
         }
     }
-    fn meta(&mut self, meta: &str) {
-        self.meta = Meta::Usual(meta.to_string());
+    fn rule(&mut self, rule: &str) {
+        self.rule = rule.to_string();
     }
     fn meta_through(&mut self, meta: &str) {
         self.meta = Meta::Through(meta.to_string());
@@ -137,11 +137,15 @@ impl Builder {
     where
         I: Into<String>,
     {
+        assert!(matches!(self.meta, Meta::Usual(_)));
+        let Meta::Usual(meta) = self.meta else {
+            unreachable!("Only Usual meta can build fail")
+        };
         Derivation::Derivation {
             conclusion: self.node,
             premises: self.premises,
             rule: self.rule,
-            meta: Meta::Fail(fail_reason.into()),
+            meta: Meta::Fail(format!("{}: {}", meta, fail_reason.into())),
         }
     }
 }
@@ -187,7 +191,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Derivation {
 
     // 3-B-if inferred_ty == s1, ty == s2 ... lift universe rule
     if let (Exp::Sort(s1), Exp::Sort(s2)) = (&inferred_ty_result, &ty) {
-        builder.meta("UniverseLift");
+        builder.rule("UniverseLift");
         if s1.can_lift_to(*s2) {
             return builder.build_typecheck();
         } else {
@@ -203,7 +207,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Derivation {
         subset: _,
     } = &inferred_ty_result
     {
-        builder.meta("SubsetWeak");
+        builder.rule("SubsetWeak");
         if is_alpha_eq(superset.as_ref(), &ty) {
             return builder.build_typecheck();
         } else {
@@ -215,7 +219,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Derivation {
     // 3-D-if ty =(alpha)= TypeLift(inferred_ty, subset) ... ty < inferred_ty
     // conclude (ctx |- term : ty) by subset strong rule if one can prove (ctx |= Pred(inferred_ty, subset, term))
     if let Exp::TypeLift { superset, subset } = &ty {
-        builder.meta("SubsetStrong");
+        builder.rule("SubsetStrong");
         if is_alpha_eq(superset.as_ref(), &inferred_ty_result) {
             // add goal (ctx |= Pred(inferred_ty, subset, term))
             builder.add_unproved_goal(Prove {
@@ -250,7 +254,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
     );
     match term {
         Exp::Sort(sort) => {
-            builder.meta("Sort");
+            builder.rule("Sort");
 
             // 1. conclude (ctx |- s : ?s1) where s: s1 in rules
             match sort.type_of_sort() {
@@ -262,7 +266,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             }
         }
         Exp::Var(index) => {
-            builder.meta("Var");
+            builder.rule("Var");
 
             // 1. conclude (ctx |- var : ?ty) where (var: ty) in ctx
             match ctx.get(index) {
@@ -271,7 +275,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             }
         }
         Exp::Prod { var, ty, body } => {
-            builder.meta("Prod");
+            builder.rule("Prod");
 
             // 1. infer (ctx |- ty : ?s1)
             let Some(s1) = builder.add_sort(ctx, ty) else {
@@ -297,7 +301,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(ty)
         }
         Exp::Lam { var, ty, body } => {
-            builder.meta("Lam");
+            builder.rule("Lam");
 
             // 1. infer (ctx |- ty : ?s) for some sort s
             let Some(_sort) = builder.add_sort(ctx, ty) else {
@@ -319,7 +323,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(lam_ty)
         }
         Exp::App { func, arg } => {
-            builder.meta("App");
+            builder.rule("App");
 
             // 1. infer (ctx |- func : ?(x: arg_ty) -> ret_ty)
             let Some(func_ty) = builder.add_infer(ctx, func) else {
@@ -344,7 +348,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(ret_ty_substituted)
         }
         Exp::IndType { indty, parameters } => {
-            builder.meta("IndType");
+            builder.rule("IndType");
 
             let parameter_indty_defined = indty.parameters.clone();
 
@@ -392,7 +396,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             idx,
             parameters,
         } => {
-            builder.meta("IndTypeCst");
+            builder.rule("IndTypeCst");
 
             let parameter_indty_defined = indty.parameters.clone();
 
@@ -439,7 +443,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             sort,
             cases,
         } => {
-            builder.meta("IndTypeElim");
+            builder.rule("IndTypeElim");
 
             // 1. check (ty.sort, sort) can form a elimination
             if indty.sort.relation_of_sort_indelim(*sort).is_none() {
@@ -541,7 +545,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
         }
         // type check (ctx |- exp: to) and solve all goal generated in derivation with `withgoals`
         Exp::Cast { exp, to, withgoals } => {
-            builder.meta("Cast");
+            builder.rule("Cast");
 
             // 1. simply, check (ctx |- exp : to)
             // we use check_derivation later, so we do not add it yet
@@ -633,7 +637,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(to.as_ref().clone())
         }
         Exp::ProveLater { prop } => {
-            builder.meta("ProveLater");
+            builder.rule("ProveLater");
 
             // 1. check (ctx |- exp : \Prop)
             let Some(()) = builder.add_check(ctx, prop, &Exp::Sort(Sort::Prop)) else {
@@ -654,7 +658,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
         }
         // (ctx |- ProofTermRaw(command) : prop) if (ctx |= prop) by command
         Exp::ProofTermRaw { command } => {
-            builder.meta("ProofTermRaw");
+            builder.rule("ProofTermRaw");
 
             // 1. get (ctx |= prop) by command
             let Some(proved_goal) = builder.add_prove(prove_command(ctx, command.as_ref())) else {
@@ -666,7 +670,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(proved_goal)
         }
         Exp::PowerSet { set: exp } => {
-            builder.meta("PowerSet");
+            builder.rule("PowerSet");
 
             // 1. check (ctx |- exp : Set(i))
             let Some(sort) = builder.add_sort(ctx, exp) else {
@@ -685,7 +689,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             set,
             predicate,
         } => {
-            builder.meta("SubSet");
+            builder.rule("SubSet");
 
             // 1. check (ctx |- set : Set(i))
             let Some(sort) = builder.add_sort(ctx, set) else {
@@ -712,7 +716,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             subset,
             element,
         } => {
-            builder.meta("Pred");
+            builder.rule("Pred");
 
             // 1. check (ctx |- superset : Set(i))
             let Some(sort) = builder.add_sort(ctx, superset) else {
@@ -747,7 +751,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(Exp::Sort(Sort::Prop))
         }
         Exp::TypeLift { superset, subset } => {
-            builder.meta("TypeLift");
+            builder.rule("TypeLift");
             // 1. check (ctx |- superset : Set(i))
             let Some(sort) = builder.add_sort(ctx, superset) else {
                 return builder.build_fail(format!("Failed to infer sort of type {:?}", superset));
@@ -774,7 +778,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(Exp::Sort(Sort::Set(i)))
         }
         Exp::Equal { left, right } => {
-            builder.meta("Equal");
+            builder.rule("Equal");
             // 1. infer left type
             let Some(left_ty) = builder.add_infer(ctx, left) else {
                 return builder.build_fail(format!(
@@ -802,7 +806,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(Exp::Sort(Sort::Prop))
         }
         Exp::Exists { set: ty } => {
-            builder.meta("Exists");
+            builder.rule("Exists");
             // 1. check (ctx |- ty : Set(i))
             let Some(_sort) = builder.add_sort(ctx, ty) else {
                 return builder.build_fail(format!("Failed to infer sort of type {:?}", ty));
@@ -818,7 +822,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             domain,
             codomain,
         } => {
-            builder.meta("Take");
+            builder.rule("Take");
             // 1. check (ctx |- domain : Set(i))
             let Some(sort) = builder.add_sort(ctx, domain) else {
                 return builder.build_fail(format!("Failed to infer sort of type {:?}", domain));
@@ -903,7 +907,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
 
     match command {
         ProveCommandBy::Construct { proof_term } => {
-            builder.meta("Construct");
+            builder.rule("Construct");
 
             // 1. infer (ctx |- proof_term : prop)
             let Some(prop) = builder.add_infer(ctx, proof_term) else {
@@ -914,28 +918,18 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             };
 
             // 2. check prop: \Prop
-            // after
             let Some(()) = builder.add_check(ctx, &prop, &Exp::Sort(Sort::Prop)) else {
                 return builder.build_fail(format!(
                     "Inferred type {:?} of proof term {:?} is not of type Prop",
                     prop, proof_term
                 ));
             };
-            // before
-            // let (derivation, ok) = check(ctx, &prop, &Exp::Sort(Sort::Prop));
-            // builder.add(derivation);
-            // if !ok {
-            //     return builder.build_fail(format!(
-            //         "Inferred type {:?} of proof term {:?} is not of type Prop",
-            //         prop, proof_term
-            //     ));
-            // }
 
             // 3. conclude (ctx |= prop)
             builder.build_prop(prop)
         }
         ProveCommandBy::ExactElem { elem, ty } => {
-            builder.meta("ExactElem");
+            builder.rule("ExactElem");
 
             // 1. check (ctx |- elem : ty)
             let Some(()) = builder.add_check(ctx, elem, ty) else {
@@ -964,7 +958,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             subset,
             superset,
         } => {
-            builder.meta("SubsetElim");
+            builder.rule("SubsetElim");
 
             // 1. check (ctx |- elem : Typelift(superset, subset))
             let typelift = Exp::TypeLift {
@@ -1001,7 +995,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             builder.build_prop(prop)
         }
         ProveCommandBy::IdRefl { elem } => {
-            builder.meta("IdRefl");
+            builder.rule("IdRefl");
 
             // 1. infer (ctx |- elem : ?ty)
             // after
@@ -1031,7 +1025,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             var,
             predicate,
         } => {
-            builder.meta("IdElim");
+            builder.rule("IdElim");
 
             // 1. check (ctx |- ty : Set(i)) for some i
             let Some(sort) = builder.add_sort(ctx, ty) else {
@@ -1106,7 +1100,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             codomain,
             elem,
         } => {
-            builder.meta("TakeEq");
+            builder.rule("TakeEq");
 
             // 1. check (ctx |- Take(func, domain, codomain) : codomain)
             let take_ty = Exp::Take {

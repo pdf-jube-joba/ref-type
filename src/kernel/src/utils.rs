@@ -81,6 +81,38 @@ macro_rules! var {
     };
 }
 
+#[macro_export]
+macro_rules! var_exp {
+    ($name:expr) => {
+        Exp::Var(Var::new($name))
+    };
+}
+
+#[macro_export]
+macro_rules! app {
+    // named: func, arg（この順）
+    ( func: $f:expr , arg: $a:expr $(,)? ) => {
+        Exp::App {
+            func: Box::new($f),
+            arg: Box::new($a),
+        }
+    };
+    // named: arg, func（逆順）
+    ( arg: $a:expr , func: $f:expr $(,)? ) => {
+        Exp::App {
+            func: Box::new($f),
+            arg: Box::new($a),
+        }
+    };
+    // 位置引数版
+    ( $f:expr , $a:expr ) => {
+        Exp::App {
+            func: Box::new($f),
+            arg: Box::new($a),
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +121,6 @@ mod tests {
         var!("x");
         var!("y");
         var!("z");
+        app! { func: var_exp!("f"), arg: var_exp!("x") };
     }
 }
