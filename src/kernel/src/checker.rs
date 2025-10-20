@@ -1,6 +1,6 @@
 // "interactive" type checker
 
-use crate::exp::{Context, Derivation, Exp, Var};
+use crate::exp::{Context, Derivation, Exp, ProveCommandBy, Var};
 
 #[derive(Debug)]
 pub struct Checker {
@@ -19,7 +19,7 @@ impl Checker {
     pub fn context(&self) -> &Context {
         &self.context
     }
-    pub fn check(&mut self, term: &Exp, ty: &Exp) -> (Derivation, bool) {
+    pub fn check(&self, term: &Exp, ty: &Exp) -> (Derivation, bool) {
         let (der, b) = crate::derivation::check(&self.context, term, ty);
         if !b {
             return (der, false);
@@ -27,13 +27,21 @@ impl Checker {
 
         (der, b)
     }
-    pub fn infer(&mut self, term: &Exp) -> (Derivation, Option<Exp>) {
+    pub fn infer(&self, term: &Exp) -> (Derivation, Option<Exp>) {
         let (der, ty_opt) = crate::derivation::infer(&self.context, term);
         if ty_opt.is_none() {
             return (der, None);
         }
 
         (der, ty_opt)
+    }
+    pub fn prove_command(&self, command: &ProveCommandBy) -> (Derivation, bool) {
+        let (der, b) = crate::derivation::prove_command(&self.context, command);
+        if !b {
+            return (der, false);
+        }
+
+        (der, b)
     }
     pub fn push(&mut self, var: Var, ty: Exp) -> (Derivation, bool) {
         let (der, res) = crate::derivation::infer_sort(&self.context, &ty);

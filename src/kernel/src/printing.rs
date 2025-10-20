@@ -17,11 +17,12 @@ impl Display for Var {
 impl Display for crate::exp::Sort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            crate::exp::Sort::Set(i) => write!(f, "Set({})", i),
-            crate::exp::Sort::Prop => write!(f, "Prop"),
-            crate::exp::Sort::PropKind => write!(f, "PropKind"),
-            crate::exp::Sort::Type => write!(f, "Type"),
-            crate::exp::Sort::TypeKind => write!(f, "TypeKind"),
+            crate::exp::Sort::Prop => write!(f, "\\Prop"),
+            crate::exp::Sort::PropKind => write!(f, "\\PropKind"),
+            crate::exp::Sort::Set(i) => write!(f, "\\Set({})", i),
+            crate::exp::Sort::SetKind(i) => write!(f, "\\SetKind({})", i),
+            crate::exp::Sort::Univ => write!(f, "\\Univ"),
+            crate::exp::Sort::UnivKind => write!(f, "\\UnivKind"),
         }
     }
 }
@@ -94,7 +95,7 @@ impl Display for crate::exp::Exp {
                                  goal_prop,
                                  proof_term,
                              }| format!(
-                                "{extended_ctx:?}: {goal_prop} := {proof_term}"
+                                "[{extended_ctx:?}: {goal_prop} := {proof_term}]"
                             )
                         )
                         .collect::<Vec<_>>()
@@ -118,20 +119,20 @@ impl Display for crate::exp::Exp {
                 } => {
                     write!(f, "subset_elim {} in {} ⊆ {}", elem, subset, superset)
                 }
-                crate::exp::ProveCommandBy::IdRefl { ctx, elem } => {
-                    write!(f, "id_refl {} in {}", elem, ctx)
+                crate::exp::ProveCommandBy::IdRefl { elem } => {
+                    write!(f, "id_refl {} ", elem)
                 }
                 crate::exp::ProveCommandBy::IdElim {
-                    ctx,
                     elem1,
                     elem2,
                     ty,
+                    var,
                     predicate,
                 } => {
                     write!(
                         f,
-                        "id_elim {} = {} in {} with {} : {}",
-                        elem1, elem2, ctx, predicate, ty
+                        "id_elim {} = {} with ({}: {}) => {}",
+                        elem1, elem2, var, ty, predicate
                     )
                 }
                 crate::exp::ProveCommandBy::TakeEq {
@@ -261,7 +262,7 @@ fn map_derivation(der: &Derivation) -> StringTree {
                 }
             }
         }
-        Derivation::FaileDerive {
+        Derivation::FailDerive {
             conclusion,
             premises,
             rule,

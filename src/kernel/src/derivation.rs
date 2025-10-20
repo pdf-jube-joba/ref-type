@@ -51,7 +51,7 @@ impl Builder {
         }
     }
     fn build_fail(self, judgement: FailJudge) -> Derivation {
-        Derivation::FaileDerive {
+        Derivation::FailDerive {
             conclusion: judgement,
             premises: self.premises,
             rule: self.rule,
@@ -1340,7 +1340,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> (Derivation, bo
             };
             (builder.build_prop(goal(prop)), true)
         }
-        ProveCommandBy::IdRefl { ctx, elem } => {
+        ProveCommandBy::IdRefl { elem } => {
             let mut builder = Builder::new("IdRefl".to_string(), "prove_command");
             let (derivation, ty_opt) = infer(ctx, elem);
             builder.add(derivation);
@@ -1379,13 +1379,29 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> (Derivation, bo
             (builder.build_prop(goal(prop)), true)
         }
         ProveCommandBy::IdElim {
-            ctx,
             elem1,
             elem2,
             ty,
+            var,
             predicate,
         } => {
             let mut builder = Builder::new("IdElim".to_string(), "prove_command");
+            let (derivation, sort_opt) = infer_sort(ctx, ty);
+            builder.add(derivation);
+            if let Some(sort) = sort_opt {
+                if !matches!(sort, Sort::Set(_)) {
+                    return (
+                        builder
+                            .build_fail(FailJudge(format!("Type {:?} is not of form Set(i)", ty))),
+                        false,
+                    );
+                }
+            } else {
+                return (
+                    builder.build_fail(FailJudge(format!("Failed to infer sort of type {:?}", ty))),
+                    false,
+                );
+            }
             let (derivation, ok) = check(ctx, elem1, ty);
             builder.add(derivation);
             if !ok {
@@ -1408,27 +1424,11 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> (Derivation, bo
                     false,
                 );
             }
-            let (derivation, sort_opt) = infer_sort(ctx, ty);
-            builder.add(derivation);
-            if let Some(sort) = sort_opt {
-                if !matches!(sort, Sort::Set(_)) {
-                    return (
-                        builder
-                            .build_fail(FailJudge(format!("Type {:?} is not of form Set(i)", ty))),
-                        false,
-                    );
-                }
-            } else {
-                return (
-                    builder.build_fail(FailJudge(format!("Failed to infer sort of type {:?}", ty))),
-                    false,
-                );
-            }
             let (derivation, ok) = check(
                 ctx,
                 predicate,
                 &Exp::Prod {
-                    var: Var::new("_"),
+                    var: var.clone(),
                     ty: Box::new(*ty.clone()),
                     body: Box::new(Exp::Sort(Sort::Prop)),
                 },
@@ -1564,7 +1564,7 @@ pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
             }
             None
         }
-        Derivation::FaileDerive {
+        Derivation::FailDerive {
             conclusion: _,
             premises: _,
             rule: _,

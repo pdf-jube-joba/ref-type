@@ -23,11 +23,12 @@ impl Var {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
-    Set(usize), // predicative SET(0): SET(1): SET(2) ...
-    Prop,       // proposition
-    PropKind,   // Prop: PropKind
-    Type,       // for programming language
-    TypeKind,   // Type: TypeKind
+    Set(usize),     // predicative SET(i):
+    SetKind(usize), // SET(i): SETKind(i)
+    Prop,           // proposition
+    PropKind,       // Prop: PropKind
+    Univ,           // for programming language
+    UnivKind,       // Type: TypeKind
 }
 
 // functional pure type system
@@ -35,11 +36,12 @@ impl Sort {
     // functional pure type system, i.e. foraeach s1, (s1, s2) in R => s2 is unique
     pub fn type_of_sort(self) -> Option<Self> {
         match self {
-            Sort::PropKind => None,
             Sort::Prop => Some(Sort::PropKind),
-            Sort::Type => Some(Sort::PropKind),
-            Sort::TypeKind => None,
-            Sort::Set(i) => Some(Sort::Set(i + 1)),
+            Sort::PropKind => None,
+            Sort::Univ => Some(Sort::PropKind),
+            Sort::UnivKind => None,
+            Sort::Set(i) => Some(Sort::SetKind(i)),
+            Sort::SetKind(_) => None,
         }
     }
 
@@ -51,10 +53,14 @@ impl Sort {
             (Sort::PropKind, Sort::PropKind) => Some(Sort::PropKind),
             (Sort::PropKind, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
             (Sort::Prop, Sort::PropKind) => None,             // dependent なし
-            // Set(i): Set(i + 1) part (predicative)
-            (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(std::cmp::max(i, j))),
+            // Set(i): SetKind(i) part (predicative)
+            (Sort::Set(i), Sort::Set(j)) if i == j => Some(Sort::Set(i)),
+            (Sort::Set(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
+            (Sort::SetKind(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
+            (Sort::SetKind(i), Sort::Set(j)) if i == j => Some(Sort::Set(i + 1)),
+            (Sort::Set(_) | Sort::SetKind(_), Sort::Set(_) | Sort::SetKind(_)) => None,
             // Type: TypeKind (include dependent, impredicative)
-            (Sort::Type | Sort::TypeKind, Sort::Type | Sort::TypeKind) => Some(other),
+            (Sort::Univ | Sort::UnivKind, Sort::Univ | Sort::UnivKind) => Some(other),
             // relation of set and prop
             (Sort::Set(_), Sort::PropKind) => Some(Sort::PropKind),
             (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
@@ -68,7 +74,12 @@ impl Sort {
     pub fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
         match (self, other) {
             (
-                Sort::PropKind | Sort::Prop | Sort::Set(_) | Sort::Type | Sort::TypeKind,
+                Sort::PropKind
+                | Sort::Prop
+                | Sort::Set(_)
+                | Sort::SetKind(_)
+                | Sort::Univ
+                | Sort::UnivKind,
                 Sort::Prop,
             ) => Some(()),
             (Sort::Set(i), Sort::Set(j)) => {
@@ -214,17 +225,16 @@ pub enum ProveCommandBy {
     // ctx |= elem = elem
     //   ctx |- elem: ty, ctx |- ty: Set(i)
     IdRefl {
-        ctx: Context,
         elem: Exp,
     },
-    // ctx |= predicate(elem2)
-    //   ctx |- elem1: ty, ctx |- elem2: ty, ctx |- ty: Set(i), ctx |- predicate: ty -> Prop
-    //   ctx |= predicate(elem1), ctx |= elem1 = elem2
+    // ctx |= ((var: ty) => predicate) elem2
+    //   ctx |- elem1: ty, ctx |- elem2: ty, ctx |- ty: Set(i), ctx::(var, ty) |- predicate: Prop
+    //   ctx |= ((var: ty) => predicate) elem1, ctx |= elem1 = elem2
     IdElim {
-        ctx: Context,
         elem1: Exp,
         elem2: Exp,
         ty: Box<Exp>,
+        var: Var,
         predicate: Box<Exp>,
     },
     // ctx |= Take f = f elem
@@ -297,7 +307,7 @@ pub enum Derivation {
         rule: String,
         meta: Meta,
     },
-    FaileDerive {
+    FailDerive {
         conclusion: FailJudge,
         premises: Vec<Derivation>,
         rule: String,
@@ -310,6 +320,7 @@ pub enum Derivation {
         target: Provable,
         num: Rc<()>,
     },
+    // failed to prove by another proof tree
     ProveFailed {
         target: Provable,
         num: Rc<()>,
