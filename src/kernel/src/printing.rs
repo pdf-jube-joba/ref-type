@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::exp::{Derivation, Judgement, TypeJudge, Var};
+use crate::exp::{Derivation, ProveGoal, TypeJudge, Var};
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -81,15 +81,75 @@ impl Display for crate::exp::Exp {
                 )
             }
             crate::exp::Exp::Cast { exp, to, withgoals } => {
-                write!(f, "{} as {}", exp, to)
+                write!(
+                    f,
+                    "{} as {} by {}",
+                    exp,
+                    to,
+                    withgoals
+                        .iter()
+                        .map(
+                            |ProveGoal {
+                                 extended_ctx,
+                                 goal_prop,
+                                 proof_term,
+                             }| format!(
+                                "{extended_ctx:?}: {goal_prop} := {proof_term}"
+                            )
+                        )
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             }
             crate::exp::Exp::ProveLater { prop } => {
                 write!(f, "proof({})", prop)
             }
-            crate::exp::Exp::ProofTermRaw { command } => {
-                // write!(f, "{}", term)
-                todo!()
-            }
+            crate::exp::Exp::ProofTermRaw { command } => match command.as_ref() {
+                crate::exp::ProveCommandBy::Construct { proof_term } => {
+                    write!(f, "construct {}", proof_term)
+                }
+                crate::exp::ProveCommandBy::ExactElem { elem, ty } => {
+                    write!(f, "exact {} : {}", elem, ty)
+                }
+                crate::exp::ProveCommandBy::SubsetElim {
+                    elem,
+                    subset,
+                    superset,
+                } => {
+                    write!(f, "subset_elim {} in {} ⊆ {}", elem, subset, superset)
+                }
+                crate::exp::ProveCommandBy::IdRefl { ctx, elem } => {
+                    write!(f, "id_refl {} in {}", elem, ctx)
+                }
+                crate::exp::ProveCommandBy::IdElim {
+                    ctx,
+                    elem1,
+                    elem2,
+                    ty,
+                    predicate,
+                } => {
+                    write!(
+                        f,
+                        "id_elim {} = {} in {} with {} : {}",
+                        elem1, elem2, ctx, predicate, ty
+                    )
+                }
+                crate::exp::ProveCommandBy::TakeEq {
+                    func,
+                    domain,
+                    codomain,
+                    elem,
+                } => {
+                    write!(
+                        f,
+                        "take_eq {}({}) in {} -> {} ",
+                        func, elem, domain, codomain
+                    )
+                }
+                crate::exp::ProveCommandBy::Axiom(axiom) => {
+                    write!(f, "axiom {:?}", axiom)
+                }
+            },
             crate::exp::Exp::PowerSet { set } => {
                 write!(f, "Pow({})", set)
             }
@@ -157,38 +217,82 @@ impl Display for crate::exp::FailJudge {
     }
 }
 
-impl Display for Judgement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Judgement::Type(type_judge) => write!(f, "{}", type_judge),
-            Judgement::Provable(provable) => write!(f, "{}", provable),
-            Judgement::FailJudge(fail_judge) => write!(f, "{}", fail_judge),
-        }
-    }
-}
-
 pub struct StringTree(String, Vec<StringTree>);
 
 fn map_derivation(der: &Derivation) -> StringTree {
-    // StringTree(
-    //     match &der.meta {
-    //         crate::exp::Meta::Usual(string) => {
-    //             format!("{} by {} [{}]", der.conclusion, der.rule, string)
-    //         }
-    //         crate::exp::Meta::Through(string) => {
-    //             // der.premises.len() == 1 and we print this with meta info
-    //             let first = der.premises.first().unwrap();
-    //             let mut sttree = map_derivation(first);
-    //             sttree.0 = format!("{} through [{string}]", sttree.0);
-    //             return sttree;
-    //         }
-    //         crate::exp::Meta::Stop => {
-    //             format!("{} by {} [stopped]", der.conclusion, der.rule)
-    //         }
-    //     },
-    //     der.premises.iter().map(map_derivation).collect(),
-    // )
-    todo!()
+    match der {
+        Derivation::TypeDerive {
+            conclusion,
+            premises,
+            rule,
+            meta,
+        } => {
+            match meta {
+                crate::exp::Meta::Usual(string) => StringTree(
+                    format!("{} by {} [{}]", conclusion, rule, string),
+                    premises.iter().map(map_derivation).collect(),
+                ),
+                crate::exp::Meta::Through(string) => {
+                    // premises.len() == 1 and we print this with meta info
+                    let first = premises.first().unwrap();
+                    let mut sttree = map_derivation(first);
+                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree
+                }
+            }
+        }
+        Derivation::PropDerive {
+            conclusion,
+            premises,
+            rule,
+            meta,
+        } => {
+            match meta {
+                crate::exp::Meta::Usual(string) => StringTree(
+                    format!("{} by {} [{}]", conclusion, rule, string),
+                    premises.iter().map(map_derivation).collect(),
+                ),
+                crate::exp::Meta::Through(string) => {
+                    // premises.len() == 1 and we print this with meta info
+                    let first = premises.first().unwrap();
+                    let mut sttree = map_derivation(first);
+                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree
+                }
+            }
+        }
+        Derivation::FaileDerive {
+            conclusion,
+            premises,
+            rule,
+            meta,
+        } => {
+            match meta {
+                crate::exp::Meta::Usual(string) => StringTree(
+                    format!("{} by {} [{}]", conclusion, rule, string),
+                    premises.iter().map(map_derivation).collect(),
+                ),
+                crate::exp::Meta::Through(string) => {
+                    // premises.len() == 1 and we print this with meta info
+                    let first = premises.first().unwrap();
+                    let mut sttree = map_derivation(first);
+                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree
+                }
+            }
+        }
+        Derivation::UnProved(provable) => StringTree(format!("Unproved: {}", provable), vec![]),
+        Derivation::Proved { target, num } => {
+            StringTree(format!("Proved: {} at {:p}", target, num), vec![])
+        }
+        Derivation::ProveFailed { target, num } => {
+            StringTree(format!("ProveFailed: {} at {:p}", target, num), vec![])
+        }
+        Derivation::Proving { prop, der, num } => StringTree(
+            format!("Proving: {} at {:p}", prop, num),
+            vec![map_derivation(der)],
+        ),
+    }
 }
 
 fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -> std::fmt::Result {

@@ -152,10 +152,72 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                     ProveCommandBy::Construct { proof_term: pt1 },
                     ProveCommandBy::Construct { proof_term: pt2 },
                 ) => strict_equivalence(pt1, pt2),
-                _ => todo!(),
+                _ => todo!("strict eq ... other commands"),
             }
         }
-        _ => todo!(),
+        (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => strict_equivalence(e1, e2),
+        (
+            Exp::SubSet {
+                var: var1,
+                set: e1,
+                predicate: p1,
+            },
+            Exp::SubSet {
+                var: var2,
+                set: e2,
+                predicate: p2,
+            },
+        ) => var1.is_eq_ptr(var2) && strict_equivalence(e1, e2) && strict_equivalence(p1, p2),
+        (
+            Exp::Pred {
+                superset: s1,
+                subset: sub1,
+                element: e1,
+            },
+            Exp::Pred {
+                superset: s2,
+                subset: sub2,
+                element: e2,
+            },
+        ) => {
+            strict_equivalence(s1, s2)
+                && strict_equivalence(sub1, sub2)
+                && strict_equivalence(e1, e2)
+        }
+        (
+            Exp::TypeLift {
+                superset: s1,
+                subset: sub1,
+            },
+            Exp::TypeLift {
+                superset: s2,
+                subset: sub2,
+            },
+        ) => strict_equivalence(s1, s2) && strict_equivalence(sub1, sub2),
+        (
+            Exp::Equal {
+                left: l1,
+                right: r1,
+            },
+            Exp::Equal {
+                left: l2,
+                right: r2,
+            },
+        ) => strict_equivalence(l1, l2) && strict_equivalence(r1, r2),
+        (Exp::Exists { set: ty1 }, Exp::Exists { set: ty2 }) => strict_equivalence(ty1, ty2),
+        (
+            Exp::Take {
+                map: m1,
+                domain: d1,
+                codomain: c1,
+            },
+            Exp::Take {
+                map: m2,
+                domain: d2,
+                codomain: c2,
+            },
+        ) => strict_equivalence(m1, m2) && strict_equivalence(d1, d2) && strict_equivalence(c1, c2),
+        _ => false,
     }
 }
 
@@ -285,12 +347,12 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
             Exp::Cast {
                 exp: e1,
                 to: t1,
-                withgoals: withgoals1,
+                withgoals: _,
             },
             Exp::Cast {
                 exp: e2,
                 to: t2,
-                withgoals: withgoals2,
+                withgoals: _,
             },
         ) => {
             is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(t1, t2, env1, env2) && {
@@ -301,7 +363,7 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         (Exp::ProveLater { prop: e1 }, Exp::ProveLater { prop: e2 }) => {
             is_alpha_eq_rec(e1, e2, env1, env2)
         }
-        (Exp::ProofTermRaw { command: command1 }, Exp::ProofTermRaw { command: command2 }) => {
+        (Exp::ProofTermRaw { command: _ }, Exp::ProofTermRaw { command: _ }) => {
             // here we ignore proof terms
             true
         }
@@ -429,6 +491,15 @@ pub fn is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp)
     is_alpha_eq_rec(t1, t2, &mut env1, &mut env2)
 }
 
+pub fn is_alpha_eq_typejudge(tj1: &TypeJudge, tj2: &TypeJudge) -> bool {
+    is_alpha_eq_under_ctx(&tj1.ctx, &tj1.ty, &tj2.ctx, &tj2.ty)
+        && is_alpha_eq_under_ctx(&tj1.ctx, &tj1.term, &tj2.ctx, &tj2.term)
+}
+
+pub fn is_alpha_eq_provable(p1: &Provable, p2: &Provable) -> bool {
+    is_alpha_eq_under_ctx(&p1.ctx, &p1.prop, &p2.ctx, &p2.prop)
+}
+
 pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
     match e {
         Exp::Sort(sort) => Exp::Sort(*sort),
@@ -525,7 +596,7 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
                 ProveCommandBy::Construct { proof_term } => ProveCommandBy::Construct {
                     proof_term: subst(proof_term, v, t),
                 },
-                _ => todo!(),
+                _ => todo!("subst ... other commands"),
             }
             .into(),
         },
@@ -658,7 +729,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
                 ProveCommandBy::Construct { proof_term } => ProveCommandBy::Construct {
                     proof_term: alpha_conversion(proof_term),
                 },
-                _ => todo!(),
+                _ => todo!("alpha conv ... other commands"),
             }
             .into(),
         },
@@ -849,7 +920,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 ProveCommandBy::Construct { proof_term } => ProveCommandBy::Construct {
                     proof_term: reduce_if(proof_term),
                 },
-                _ => todo!(),
+                _ => todo!("reduce ... other commands"),
             };
 
             changed.then_some(Exp::ProofTermRaw {

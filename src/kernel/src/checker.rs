@@ -1,10 +1,6 @@
 // "interactive" type checker
 
-use crate::{
-    calculus::is_alpha_eq,
-    derivation::prove_command,
-    exp::{Context, Derivation, Exp, Judgement, Provable, ProveCommandBy, Var},
-};
+use crate::exp::{Context, Derivation, Exp, Var};
 
 #[derive(Debug)]
 pub struct Checker {
@@ -23,11 +19,7 @@ impl Checker {
     pub fn context(&self) -> &Context {
         &self.context
     }
-    pub fn check(
-        &mut self,
-        term: &Exp,
-        ty: &Exp,
-    ) -> (Derivation, bool) {
+    pub fn check(&mut self, term: &Exp, ty: &Exp) -> (Derivation, bool) {
         let (der, b) = crate::derivation::check(&self.context, term, ty);
         if !b {
             return (der, false);
@@ -35,10 +27,7 @@ impl Checker {
 
         (der, b)
     }
-    pub fn infer(
-        &mut self,
-        term: &Exp,
-    ) -> (Derivation, Option<Exp>) {
+    pub fn infer(&mut self, term: &Exp) -> (Derivation, Option<Exp>) {
         let (der, ty_opt) = crate::derivation::infer(&self.context, term);
         if ty_opt.is_none() {
             return (der, None);

@@ -2,8 +2,6 @@
 
 use std::{fmt::Debug, rc::Rc};
 
-use crate::calculus;
-
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone)]
 pub struct Var(Rc<String>);
@@ -286,34 +284,21 @@ pub struct Provable {
 pub struct FailJudge(pub String);
 
 #[derive(Debug, Clone)]
-pub enum Judgement {
-    Type(TypeJudge),
-    Provable(Provable),
-    FailJudge(FailJudge),
-}
-
-impl Judgement {
-    pub fn is_alpha_eq_judge(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Judgement::Type(t1), Judgement::Type(t2)) => {
-                t1.ctx.0.len() == t2.ctx.0.len()
-                    && calculus::is_alpha_eq_under_ctx(&t1.ctx, &t1.term, &t2.ctx, &t2.term)
-                    && calculus::is_alpha_eq_under_ctx(&t1.ctx, &t1.ty, &t2.ctx, &t2.ty)
-            }
-            (Judgement::Provable(p1), Judgement::Provable(p2)) => {
-                p1.ctx.0.len() == p2.ctx.0.len()
-                    && calculus::is_alpha_eq_under_ctx(&p1.ctx, &p1.prop, &p2.ctx, &p2.prop)
-            }
-            (Judgement::FailJudge(f1), Judgement::FailJudge(f2)) => f1 == f2,
-            _ => false,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub enum Derivation {
-    Tree {
-        conclusion: Judgement,
+    TypeDerive {
+        conclusion: TypeJudge,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
+    },
+    PropDerive {
+        conclusion: Provable,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
+    },
+    FaileDerive {
+        conclusion: FailJudge,
         premises: Vec<Derivation>,
         rule: String,
         meta: Meta,
@@ -325,8 +310,13 @@ pub enum Derivation {
         target: Provable,
         num: Rc<()>,
     },
+    ProveFailed {
+        target: Provable,
+        num: Rc<()>,
+    },
     // the another tree
     Proving {
+        prop: Provable,
         der: Box<Derivation>,
         num: Rc<()>,
     },
@@ -339,32 +329,27 @@ pub enum Meta {
 }
 
 impl Derivation {
-    pub fn new_tree(
-        conclusion: Judgement,
+    pub fn new_typederive(
+        conclusion: TypeJudge,
         premises: Vec<Derivation>,
         rule: &str,
         meta: Meta,
     ) -> Self {
-        Derivation::Tree {
+        Derivation::TypeDerive {
             conclusion,
             premises,
             rule: rule.to_string(),
             meta,
         }
     }
-    pub fn stop(ctx: Context, prop: Exp) -> Self {
+    pub fn unproved(ctx: Context, prop: Exp) -> Self {
         Derivation::UnProved(Provable { ctx, prop })
     }
-    pub fn conclusion(&self) -> Judgement {
+    pub fn get_unproved(&self) -> Option<Provable> {
         match self {
-            Derivation::Tree { conclusion, .. } => conclusion.clone(),
-            Derivation::UnProved(provable) => Judgement::Provable(provable.clone()),
-            Derivation::Proved { target, .. } => Judgement::Provable(target.clone()),
-            Derivation::Proving { der, .. } => der.conclusion().clone(),
+            Derivation::UnProved(p) => Some(p.clone()),
+            _ => None,
         }
-    }
-    pub fn into_proved(&mut self, proving: &Derivation) -> bool {
-        todo!()
     }
 }
 
