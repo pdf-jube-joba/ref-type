@@ -19,38 +19,23 @@ impl Checker {
     pub fn context(&self) -> &Context {
         &self.context
     }
-    pub fn check(&self, term: &Exp, ty: &Exp) -> (Derivation, bool) {
-        let (der, b) = crate::derivation::check(&self.context, term, ty);
-        if !b {
-            return (der, false);
-        }
-
-        (der, b)
+    pub fn check(&self, term: &Exp, ty: &Exp) -> Derivation {
+        crate::derivation::check(&self.context, term, ty)
     }
-    pub fn infer(&self, term: &Exp) -> (Derivation, Option<Exp>) {
-        let (der, ty_opt) = crate::derivation::infer(&self.context, term);
-        if ty_opt.is_none() {
-            return (der, None);
-        }
-
-        (der, ty_opt)
+    pub fn infer(&self, term: &Exp) -> Derivation {
+        crate::derivation::infer(&self.context, term)
     }
-    pub fn prove_command(&self, command: &ProveCommandBy) -> (Derivation, bool) {
-        let (der, b) = crate::derivation::prove_command(&self.context, command);
-        if !b {
-            return (der, false);
-        }
-
-        (der, b)
+    pub fn prove_command(&self, command: &ProveCommandBy) -> Derivation {
+        crate::derivation::prove_command(&self.context, command)
     }
-    pub fn push(&mut self, var: Var, ty: Exp) -> (Derivation, bool) {
-        let (der, res) = crate::derivation::infer_sort(&self.context, &ty);
-        if res.is_none() {
-            return (der, false);
+    pub fn push(&mut self, var: Var, ty: Exp) -> Derivation {
+        let der = crate::derivation::infer_sort(&self.context, &ty);
+        if !der.node().unwrap().is_success() {
+            return der;
         }
 
         self.context.0.push((var, ty));
-        (der, true)
+        der
     }
     pub fn pop(&mut self) {
         self.context.0.pop();

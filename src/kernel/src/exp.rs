@@ -301,8 +301,7 @@ pub struct SortInfer {
 #[derive(Debug, Clone)]
 pub struct Prove {
     pub ctx: Context,
-    pub prop: Exp,
-    pub res: bool,
+    pub prop: Option<Exp>,
 }
 
 #[derive(Debug, Clone)]
@@ -319,7 +318,7 @@ impl Node {
             Node::TypeCheck(tc) => tc.res,
             Node::TypeInfer(ti) => ti.ty.is_some(),
             Node::SortInfer(si) => si.sort.is_some(),
-            Node::Prove(p) => p.res,
+            Node::Prove(p) => p.prop.is_some(),
         }
     }
     pub fn ctx(&self) -> &Context {

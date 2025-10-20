@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::exp::{Derivation, ProveGoal, TypeJudge, Var};
+use crate::exp::{Derivation, Node, Prove, ProveGoal, SortInfer, TypeCheck, TypeInfer, Var};
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -35,7 +35,10 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Prod { var, ty, body } => write!(f, "({}: {}) -> {}", var, ty, body),
             crate::exp::Exp::Lam { var, ty, body } => write!(f, "({}: {}) => {}", var, ty, body),
             crate::exp::Exp::App { func, arg } => write!(f, "({}) ({})", func, arg),
-            crate::exp::Exp::IndType { indty: ty, parameters } => write!(
+            crate::exp::Exp::IndType {
+                indty: ty,
+                parameters,
+            } => write!(
                 f,
                 "{:p}({})",
                 ty,
@@ -200,21 +203,59 @@ impl Display for crate::exp::Context {
     }
 }
 
-impl Display for TypeJudge {
+impl Display for Prove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} |- {} : {}", self.ctx, self.term, self.ty)
+        let Prove { ctx, prop } = self;
+        write!(
+            f,
+            "Prove {} |= {}",
+            ctx,
+            prop.as_ref()
+                .map(|p| format!("{}", p))
+                .unwrap_or("???".to_string())
+        )
     }
 }
 
-impl Display for crate::exp::Provable {
+impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} |= {}", self.ctx, self.prop)
-    }
-}
-
-impl Display for crate::exp::FailJudge {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Failed to judge: {}", self.0)
+        match self {
+            Node::TypeCheck(TypeCheck { ctx, term, ty, res }) => {
+                write!(
+                    f,
+                    "[{} |- {} : {}] check ... {}",
+                    ctx,
+                    term,
+                    ty,
+                    if *res { "Success" } else { "Fail" },
+                )
+            }
+            Node::TypeInfer(TypeInfer { ctx, term, ty }) => {
+                write!(
+                    f,
+                    "[{} |- {} : {}] infer",
+                    ctx,
+                    term,
+                    ty.as_ref()
+                        .map(|t| format!("{}", t))
+                        .unwrap_or("???".to_string())
+                )
+            }
+            Node::SortInfer(SortInfer { ctx, ty, sort }) => {
+                write!(
+                    f,
+                    "[{} |- {} : {}] sort infer",
+                    ctx,
+                    ty,
+                    sort.as_ref()
+                        .map(|t| format!("{}", t))
+                        .unwrap_or("???".to_string())
+                )
+            }
+            Node::Prove(prove) => {
+                write!(f, "{}", prove)
+            }
+        }
     }
 }
 
@@ -222,7 +263,7 @@ pub struct StringTree(String, Vec<StringTree>);
 
 fn map_derivation(der: &Derivation) -> StringTree {
     match der {
-        Derivation::TypeDerive {
+        Derivation::Derivation {
             conclusion,
             premises,
             rule,
@@ -240,46 +281,10 @@ fn map_derivation(der: &Derivation) -> StringTree {
                     sttree.0 = format!("{} through [{}]", sttree.0, string);
                     sttree
                 }
-            }
-        }
-        Derivation::PropDerive {
-            conclusion,
-            premises,
-            rule,
-            meta,
-        } => {
-            match meta {
-                crate::exp::Meta::Usual(string) => StringTree(
-                    format!("{} by {} [{}]", conclusion, rule, string),
+                crate::exp::Meta::Fail(string) => StringTree(
+                    format!("{} failed by {} [{}]", conclusion, rule, string),
                     premises.iter().map(map_derivation).collect(),
                 ),
-                crate::exp::Meta::Through(string) => {
-                    // premises.len() == 1 and we print this with meta info
-                    let first = premises.first().unwrap();
-                    let mut sttree = map_derivation(first);
-                    sttree.0 = format!("{} through [{}]", sttree.0, string);
-                    sttree
-                }
-            }
-        }
-        Derivation::FailDerive {
-            conclusion,
-            premises,
-            rule,
-            meta,
-        } => {
-            match meta {
-                crate::exp::Meta::Usual(string) => StringTree(
-                    format!("{} by {} [{}]", conclusion, rule, string),
-                    premises.iter().map(map_derivation).collect(),
-                ),
-                crate::exp::Meta::Through(string) => {
-                    // premises.len() == 1 and we print this with meta info
-                    let first = premises.first().unwrap();
-                    let mut sttree = map_derivation(first);
-                    sttree.0 = format!("{} through [{}]", sttree.0, string);
-                    sttree
-                }
             }
         }
         Derivation::UnProved(provable) => StringTree(format!("Unproved: {}", provable), vec![]),
@@ -289,9 +294,9 @@ fn map_derivation(der: &Derivation) -> StringTree {
         Derivation::ProveFailed { target, num } => {
             StringTree(format!("ProveFailed: {} at {:p}", target, num), vec![])
         }
-        Derivation::Prove { prop, der, num } => StringTree(
-            format!("Proving: {} at {:p}", prop, num),
-            vec![map_derivation(der)],
+        Derivation::Prove { tree, proved, num } => StringTree(
+            format!("Proving: {} at {:p}", proved, num),
+            vec![map_derivation(tree)],
         ),
     }
 }

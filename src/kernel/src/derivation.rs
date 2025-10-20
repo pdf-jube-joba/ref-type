@@ -57,7 +57,7 @@ impl Builder {
         }
     }
     fn add_sort(&mut self, premise: Derivation) -> Option<Sort> {
-        assert!(matches!(premise.node(), Some(Node::TypeInfer(_))));
+        assert!(matches!(premise.node(), Some(Node::SortInfer(_))));
         let SortInfer { sort, .. } = premise.node().unwrap().sortinfer().unwrap();
         if let Some(sort) = sort {
             let sort = *sort;
@@ -70,14 +70,14 @@ impl Builder {
     }
     fn add_prove(&mut self, premise: Derivation) -> Option<Exp> {
         assert!(matches!(premise.node(), Some(Node::Prove(_))));
-        let Prove { res, prop, .. } = premise.node().unwrap().prove().unwrap();
-        if !*res {
+        let Prove { prop, .. } = premise.node().unwrap().prove().unwrap();
+        if prop.is_none() {
             self.premises.push(premise);
             None
         } else {
             let prop = prop.clone();
             self.premises.push(premise);
-            Some(prop)
+            prop
         }
     }
     fn add_unproved_goal(&mut self, unproved: Prove) {
@@ -108,9 +108,20 @@ impl Builder {
         }
     }
     fn build_sortinfer(mut self, sort_res: Sort) -> Derivation {
-        assert!(matches!(self.node, Node::TypeInfer(_)));
+        assert!(matches!(self.node, Node::SortInfer(_)));
         let SortInfer { sort, .. } = &mut self.node.sortinfer_mut().unwrap();
         *sort = Some(sort_res);
+        Derivation::Derivation {
+            conclusion: self.node,
+            premises: self.premises,
+            rule: self.rule,
+            meta: self.meta,
+        }
+    }
+    fn build_prop(mut self, prop_res: Exp) -> Derivation {
+        assert!(matches!(self.node, Node::Prove(_)));
+        let Prove { prop, .. } = &mut self.node.prove_mut().unwrap();
+        *prop = Some(prop_res);
         Derivation::Derivation {
             conclusion: self.node,
             premises: self.premises,
@@ -195,12 +206,11 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Derivation {
             // add goal (ctx |= Pred(inferred_ty, subset, term))
             builder.add_unproved_goal(Prove {
                 ctx: ctx.clone(),
-                prop: Exp::Pred {
+                prop: Some(Exp::Pred {
                     superset: Box::new(inferred_ty_result),
                     subset: subset.clone(),
                     element: Box::new(term.clone()),
-                },
-                res: false,
+                }),
             });
             return builder.build_typecheck();
         } else {
@@ -210,13 +220,13 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Derivation {
     }
 
     // 4. fails
-    return builder.build_fail("ty, inferred_ty not convertible");
+    builder.build_fail("ty, inferred_ty not convertible")
 }
 
 // infer: (Derivation, Option<Exp>) where Option<Exp> = Some(ty) on success
 pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
     let mut builder = Builder::new(
-        "Subst Here (Infer)".to_string(),
+        "Subst Here (Infer)".to_string(), // we will change rule name later
         "infer",
         Node::TypeInfer(TypeInfer {
             ctx: ctx.clone(),
@@ -549,8 +559,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
                 let proved_goal = Prove {
                     ctx: extended_ctx.clone(),
-                    prop: goal_prop.clone(),
-                    res: false,
+                    prop: Some(goal_prop.clone()),
                 };
 
                 let prove_number = Rc::new(());
@@ -606,7 +615,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             }
 
             // 4. check no more unproved goals remain
-            if let Some(_) = get_first_goal(&mut check_derivation.clone()) {
+            if get_first_goal(&mut check_derivation.clone()).is_some() {
                 builder.add(check_derivation);
                 return builder.build_fail("Some goals remain unproved in cast derivation");
             }
@@ -631,8 +640,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 2. add goal (ctx |= exp)
             builder.add_unproved_goal(Prove {
                 ctx: ctx.clone(),
-                prop: prop.as_ref().clone(),
-                res: false,
+                prop: Some(prop.as_ref().clone()),
             });
             builder.build_typeinfer(prop.as_ref().clone())
         }
@@ -858,19 +866,16 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Derivation {
     );
 
     // 1. infer type of term
-    let Some(ty_opt) = builder.add_infer(infer(ctx, term)) else {
+    let Some(inferred_ty) = builder.add_infer(infer(ctx, term)) else {
         return builder.build_fail(format!("Failed to infer type of term {:?}", term));
     };
 
     // 2. converting inferred_ty to sort
     let Exp::Sort(s) = normalize(&inferred_ty) else {
-        return (
-            builder.build_fail(FailJudge(format!(
-                "Type {:?} is not convertible to a sort",
-                inferred_ty
-            ))),
-            None,
-        );
+        return builder.build_fail(format!(
+            "Type {:?} is not convertible to a sort",
+            inferred_ty
+        ));
     };
 
     builder.build_sortinfer(s)
@@ -878,167 +883,137 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Derivation {
 
 // given ctx, return derivation of (ctx |= prop) with prop defined by command
 pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
-    let goal = |prop: Exp| Provable {
-        ctx: ctx.clone(),
-        prop,
-    };
+    let mut builder = Builder::new(
+        "ProveCommand".to_string(), // we will change rule name later
+        "prove_command",
+        Node::Prove(Prove {
+            ctx: ctx.clone(),
+            prop: None,
+        }),
+    );
 
     match command {
         ProveCommandBy::Construct { proof_term } => {
-            let mut builder = Builder::new("Construct".to_string(), "prove_command");
+            builder.meta("Construct");
 
             // 1. infer (ctx |- proof_term : prop)
-            let (derivation, prop_opt) = infer(ctx, proof_term);
-            builder.add(derivation);
-            let prop = match prop_opt {
-                Some(p) => p,
-                None => {
-                    return (
-                        builder.build_fail(FailJudge(format!(
-                            "Failed to infer type of proof term {:?}",
-                            proof_term
-                        ))),
-                        false,
-                    );
-                }
+            let Some(prop) = builder.add_infer(infer(ctx, proof_term)) else {
+                return builder.build_fail(format!(
+                    "Failed to infer type of proof term {:?}",
+                    proof_term
+                ));
             };
 
             // 2. check prop: \Prop
-            let (derivation, ok) = check(ctx, &prop, &Exp::Sort(Sort::Prop));
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Inferred type {:?} of proof term {:?} is not of type Prop",
-                        prop, proof_term
-                    ))),
-                    false,
-                );
-            }
+            // after
+            let Some(()) = builder.add_check(check(ctx, &prop, &Exp::Sort(Sort::Prop))) else {
+                return builder.build_fail(format!(
+                    "Inferred type {:?} of proof term {:?} is not of type Prop",
+                    prop, proof_term
+                ));
+            };
+            // before
+            // let (derivation, ok) = check(ctx, &prop, &Exp::Sort(Sort::Prop));
+            // builder.add(derivation);
+            // if !ok {
+            //     return builder.build_fail(format!(
+            //         "Inferred type {:?} of proof term {:?} is not of type Prop",
+            //         prop, proof_term
+            //     ));
+            // }
 
             // 3. conclude (ctx |= prop)
-            (builder.build_prop(goal(prop)), true)
+            builder.build_prop(prop)
         }
         ProveCommandBy::ExactElem { elem, ty } => {
-            let mut builder = Builder::new("ExactElem".to_string(), "prove_command");
-            let (derivation, ok) = check(ctx, elem, ty);
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check element {:?} against type {:?}",
-                        elem, ty
-                    ))),
-                    false,
-                );
-            }
-            let (derivation, sort_opt) = infer_sort(ctx, ty);
-            builder.add(derivation);
-            if let Some(sort) = sort_opt {
-                if !matches!(sort, Sort::Set(_)) {
-                    return (
-                        builder
-                            .build_fail(FailJudge(format!("Type {:?} is not of form Set(i)", ty))),
-                        false,
-                    );
-                }
-            } else {
-                return (
-                    builder.build_fail(FailJudge(format!("Failed to infer sort of type {:?}", ty))),
-                    false,
-                );
-            }
+            builder.meta("ExactElem");
+
+            // 1. check (ctx |- elem : ty)
+            let Some(()) = builder.add_check(check(ctx, elem, ty)) else {
+                return builder.build_fail(format!(
+                    "Failed to check element {:?} against type {:?}",
+                    elem, ty
+                ));
+            };
+
+            // 2. (check ctx |- ty : Set(i)) for some i
+            let Some(sort) = builder.add_sort(infer_sort(ctx, ty)) else {
+                return builder.build_fail(format!("Failed to infer sort of type {:?}", ty));
+            };
+            let Sort::Set(_) = sort else {
+                return builder.build_fail(format!("Type {:?} is not of form Set(i)", ty));
+            };
+
+            // 3. conclude (ctx |= Exists(ty))
             let prop = Exp::Exists {
                 set: Box::new(ty.clone()),
             };
-            (builder.build_prop(goal(prop)), true)
+            builder.build_prop(prop)
         }
         ProveCommandBy::SubsetElim {
             elem,
             subset,
             superset,
         } => {
-            let mut builder = Builder::new("SubsetElim".to_string(), "prove_command");
+            builder.meta("SubsetElim");
+
+            // 1. check (ctx |- elem : Typelift(superset, subset))
             let typelift = Exp::TypeLift {
                 superset: Box::new(superset.clone()),
                 subset: Box::new(subset.clone()),
             };
-            let (derivation, ok) = check(ctx, elem, &typelift);
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check element {:?} against type Typelift({:?}, {:?})",
-                        elem, superset, subset
-                    ))),
-                    false,
-                );
-            }
-            let (derivation, sort_opt) = infer_sort(ctx, &typelift);
-            builder.add(derivation);
-            if let Some(sort) = sort_opt {
-                if !matches!(sort, Sort::Set(_)) {
-                    return (
-                        builder.build_fail(FailJudge(format!(
-                            "Type Typelift({:?}, {:?}) is not of form Set(i)",
-                            superset, subset
-                        ))),
-                        false,
-                    );
-                }
-            } else {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to infer sort of type Typelift({:?}, {:?})",
-                        superset, subset
-                    ))),
-                    false,
-                );
-            }
+            let Some(()) = builder.add_check(check(ctx, elem, &typelift)) else {
+                return builder.build_fail(format!(
+                    "Failed to check element {:?} against type Typelift({:?}, {:?})",
+                    elem, superset, subset
+                ));
+            };
+
+            // 2. check (ctx |- Typelift(superset, subset) : Set(i)) for some i
+            let Some(_sort) = builder.add_sort(infer_sort(ctx, &typelift)) else {
+                return builder.build_fail(format!(
+                    "Failed to infer sort of type Typelift({:?}, {:?})",
+                    superset, subset
+                ));
+            };
+            let Sort::Set(_) = _sort else {
+                return builder.build_fail(format!(
+                    "Type Typelift({:?}, {:?}) is not of form Set(i)",
+                    superset, subset
+                ));
+            };
+
+            // 3. conclude (ctx |= Pred(superset, subset, elem))
             let prop = Exp::Pred {
                 superset: Box::new(superset.clone()),
                 subset: Box::new(subset.clone()),
                 element: Box::new(elem.clone()),
             };
-            (builder.build_prop(goal(prop)), true)
+            builder.build_prop(prop)
         }
         ProveCommandBy::IdRefl { elem } => {
-            let mut builder = Builder::new("IdRefl".to_string(), "prove_command");
-            let (derivation, ty_opt) = infer(ctx, elem);
-            builder.add(derivation);
-            let ty = match ty_opt {
-                Some(t) => t,
-                None => {
-                    return (
-                        builder.build_fail(FailJudge(format!(
-                            "Failed to infer type of element {:?}",
-                            elem
-                        ))),
-                        false,
-                    );
-                }
+            builder.meta("IdRefl");
+
+            // 1. infer (ctx |- elem : ?ty)
+            // after
+            let Some(ty) = builder.add_infer(infer(ctx, elem)) else {
+                return builder.build_fail(format!("Failed to infer type of element {:?}", elem));
             };
-            let (derivation, sort_opt) = infer_sort(ctx, &ty);
-            builder.add(derivation);
-            if let Some(sort) = sort_opt {
-                if !matches!(sort, Sort::Set(_)) {
-                    return (
-                        builder
-                            .build_fail(FailJudge(format!("Type {:?} is not of form Set(i)", ty))),
-                        false,
-                    );
-                }
-            } else {
-                return (
-                    builder.build_fail(FailJudge(format!("Failed to infer sort of type {:?}", ty))),
-                    false,
-                );
-            }
+
+            // 2. check (ctx |- ty : Set(i)) for some i
+            let Some(sort) = builder.add_sort(infer_sort(ctx, &ty)) else {
+                return builder.build_fail(format!("Failed to infer sort of type {:?}", ty));
+            };
+            let Sort::Set(_) = sort else {
+                return builder.build_fail(format!("Type {:?} is not of form Set(i)", ty));
+            };
+
+            // 3. conclude (ctx |= elem = elem)
             let prop = Exp::Equal {
                 left: Box::new(elem.clone()),
                 right: Box::new(elem.clone()),
             };
-            (builder.build_prop(goal(prop)), true)
+            builder.build_prop(prop)
         }
         ProveCommandBy::IdElim {
             elem1,
@@ -1047,79 +1022,68 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             var,
             predicate,
         } => {
-            let mut builder = Builder::new("IdElim".to_string(), "prove_command");
-            let (derivation, sort_opt) = infer_sort(ctx, ty);
-            builder.add(derivation);
-            if let Some(sort) = sort_opt {
-                if !matches!(sort, Sort::Set(_)) {
-                    return (
-                        builder
-                            .build_fail(FailJudge(format!("Type {:?} is not of form Set(i)", ty))),
-                        false,
-                    );
-                }
-            } else {
-                return (
-                    builder.build_fail(FailJudge(format!("Failed to infer sort of type {:?}", ty))),
-                    false,
-                );
-            }
-            let (derivation, ok) = check(ctx, elem1, ty);
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check element {:?} against type {:?}",
-                        elem1, ty
-                    ))),
-                    false,
-                );
-            }
-            let (derivation, ok) = check(ctx, elem2, ty);
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check element {:?} against type {:?}",
-                        elem2, ty
-                    ))),
-                    false,
-                );
-            }
-            let (derivation, ok) = check(
-                ctx,
-                predicate,
-                &Exp::Prod {
-                    var: var.clone(),
-                    ty: Box::new(*ty.clone()),
-                    body: Box::new(Exp::Sort(Sort::Prop)),
-                },
-            );
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check predicate {:?} against type {:?} -> Prop",
-                        predicate, ty
-                    ))),
-                    false,
-                );
-            }
+            builder.meta("IdElim");
+
+            // 1. check (ctx |- ty : Set(i)) for some i
+            let Some(_sort) = builder.add_sort(infer_sort(ctx, ty)) else {
+                return builder.build_fail(format!("Failed to infer sort of type {:?}", ty));
+            };
+            let Sort::Set(_) = _sort else {
+                return builder.build_fail(format!("Type {:?} is not of form Set(i)", ty));
+            };
+
+            // 2. check (ctx |- elem1 : ty)
+            let Some(()) = builder.add_check(check(ctx, elem1, ty)) else {
+                return builder.build_fail(format!(
+                    "Failed to check element {:?} against type {:?}",
+                    elem1, ty
+                ));
+            };
+
+            // 3. check (ctx |- elem2 : ty)
+            let Some(()) = builder.add_check(check(ctx, elem2, ty)) else {
+                return builder.build_fail(format!(
+                    "Failed to check element {:?} against type {:?}",
+                    elem2, ty
+                ));
+            };
+
+            // 4. check (ctx::(var, ty) |- predicate : Prop)
+            let extend = ctx.extend((var.clone(), *ty.clone()));
+            let Some(()) = builder.add_check(check(&extend, predicate, &Exp::Sort(Sort::Prop)))
+            else {
+                return builder.build_fail(format!(
+                    "Failed to check predicate {:?} against type Prop in extended context",
+                    predicate
+                ));
+            };
+
+            // 5. add (ctx |= predicate(elem1)) as unproved goal
             let prop1 = Exp::App {
                 func: Box::new(*predicate.clone()),
                 arg: Box::new(elem1.clone()),
             };
-            builder.add(Derivation::unproved(ctx.clone(), prop1));
+            builder.add_unproved_goal(Prove {
+                ctx: ctx.clone(),
+                prop: Some(prop1.clone()),
+            });
+
+            // 6. add (ctx |= elem1 = elem2) as unproved goal
             let prop2 = Exp::Equal {
                 left: Box::new(elem1.clone()),
                 right: Box::new(elem2.clone()),
             };
-            builder.add(Derivation::unproved(ctx.clone(), prop2));
+            builder.add_unproved_goal(Prove {
+                ctx: ctx.clone(),
+                prop: Some(prop2.clone()),
+            });
+
+            // 7. conclude (ctx |= predicate(elem2))
             let prop = Exp::App {
                 func: Box::new(*predicate.clone()),
                 arg: Box::new(elem2.clone()),
             };
-            (builder.build_prop(goal(prop)), true)
+            builder.build_prop(prop)
         }
         ProveCommandBy::TakeEq {
             func,
@@ -1127,63 +1091,43 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             codomain,
             elem,
         } => {
-            let mut builder = Builder::new("TakeEq".to_string(), "prove_command");
-            let (derivation, ok) = check(
-                ctx,
-                func,
-                &Exp::Prod {
-                    var: Var::new("_"),
-                    ty: Box::new(*domain.clone()),
-                    body: Box::new(*codomain.clone()),
-                },
-            );
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check function {:?} against type (_: {:?}) -> {:?}",
-                        func, domain, codomain
-                    ))),
-                    false,
-                );
-            }
-            let (derivation, ok) = check(ctx, elem, domain);
-            builder.add(derivation);
-            if !ok {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to check element {:?} against type {:?}",
-                        elem, domain
-                    ))),
-                    false,
-                );
-            }
-            let take_ty = Exp::Take {
-                map: Box::new(*func.clone()),
-                domain: Box::new(*domain.clone()),
-                codomain: Box::new(*codomain.clone()),
+            builder.meta("TakeEq");
+
+            // 1. check (ctx |- func : (_: domain) -> codomain)
+            let func_type = Exp::Prod {
+                var: Var::new("_"),
+                ty: domain.clone(),
+                body: codomain.clone(),
             };
-            let (derivation, ty_opt) = infer(ctx, &take_ty);
-            builder.add(derivation);
-            if let Some(ty) = ty_opt {
-                if !convertible(&ty, codomain) {
-                    return (
-                        builder.build_fail(FailJudge(format!(
-                            "Type mismatch: expected {:?}, found {:?}",
-                            codomain, ty
-                        ))),
-                        false,
-                    );
-                }
-            } else {
-                return (
-                    builder.build_fail(FailJudge(format!(
-                        "Failed to infer type of Take function {:?}",
-                        take_ty
-                    ))),
-                    false,
-                );
-            }
+            let Some(()) = builder.add_check(check(ctx, func, &func_type)) else {
+                return builder.build_fail(format!(
+                    "Failed to check function {:?} against type domain -> codomain in context",
+                    func
+                ));
+            };
+
+            // 2. check (ctx |- elem : domain)
+            let Some(()) = builder.add_check(check(ctx, elem, domain)) else {
+                return builder.build_fail(format!(
+                    "Failed to check element {:?} against type {:?}",
+                    elem, domain
+                ));
+            };
+
+            // 3. check (ctx |- Take(func, domain, codomain) : codomain)
+            let take_ty = Exp::Take {
+                map: Box::new(func.as_ref().clone()),
+                domain: domain.clone(),
+                codomain: codomain.clone(),
+            };
+            let Some(()) = builder.add_check(check(ctx, &take_ty, codomain)) else {
+                return builder.build_fail(format!(
+                    "Failed to check Take({:?}, {:?}, {:?}) against type {:?} in context",
+                    func, domain, codomain, codomain
+                ));
+            };
+
+            // 4. conclude (ctx |= Take(func, domain, codomain) = func(elem))
             let prop = Exp::Equal {
                 left: Box::new(take_ty),
                 right: Box::new(Exp::App {
@@ -1191,16 +1135,16 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
                     arg: elem.clone(),
                 }),
             };
-            (builder.build_prop(goal(prop)), true)
+            builder.build_prop(prop)
         }
         ProveCommandBy::Axiom(_axiom) => todo!("axiom implement later"),
     }
 }
 
-// return derivation of provable judgement if exists
+// return derivation of unproved Prove if exists
 pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
     match der {
-        Derivation::TypeDerive {
+        Derivation::Derivation {
             conclusion: _,
             premises,
             rule: _,
@@ -1213,32 +1157,13 @@ pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
             }
             None
         }
-        Derivation::PropDerive {
-            conclusion: _,
-            premises,
-            rule: _,
-            meta: _,
-        } => {
-            for premise in premises {
-                if let Some(goal) = get_first_goal(premise) {
-                    return Some(goal);
-                }
-            }
-            None
-        }
-        Derivation::FailDerive {
-            conclusion: _,
-            premises: _,
-            rule: _,
-            meta: _,
-        } => None,
         Derivation::UnProved(_) => Some(der),
-        Derivation::Proved { target: _, num: _ }
-        | Derivation::ProveFailed { target: _, num: _ } => None,
         Derivation::Prove {
-            der: tree,
+            tree: _,
+            proved: _,
             num: _,
-            prop: _,
-        } => get_first_goal(tree),
+        }
+        | Derivation::Proved { target: _, num: _ }
+        | Derivation::ProveFailed { target: _, num: _ } => None,
     }
 }

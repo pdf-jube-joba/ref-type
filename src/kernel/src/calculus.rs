@@ -492,7 +492,12 @@ pub fn is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp)
 }
 
 pub fn is_alpha_eq_prove(p1: &Prove, p2: &Prove) -> bool {
-    is_alpha_eq_under_ctx(&p1.ctx, &p1.prop, &p2.ctx, &p2.prop)
+    match (&p1.prop, &p2.prop) {
+        (Some(prop1), Some(prop2)) => is_alpha_eq_under_ctx(&p1.ctx, prop1, &p2.ctx, prop2),
+        (None, None) => is_alpha_eq_ctx(&p1.ctx, &p2.ctx),
+        _ => false,
+    }
+    //
 }
 
 pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {

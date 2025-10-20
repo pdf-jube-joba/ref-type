@@ -113,16 +113,18 @@ pub fn acceptable_typespecs(
     let mut well_derivation = vec![];
     let mut local_context = ctx.clone();
     for (x, a) in params.iter() {
-        let (derivation, sort_opt) = infer_sort(&local_context, a);
+        let derivation = infer_sort(&local_context, a);
+        let well_sorted = derivation.node().unwrap().is_success();
         well_derivation.push(derivation);
-        if sort_opt.is_some() {
-            local_context = local_context.extend((x.clone(), a.clone()));
-        } else {
+
+        if !well_sorted {
             return (
                 well_derivation,
                 Err("Parameter type is not well-sorted".to_string()),
             );
         }
+
+        local_context = local_context.extend((x.clone(), a.clone()));
     }
     // after this, local_context contains all parameters
 
@@ -130,9 +132,11 @@ pub fn acceptable_typespecs(
     // arity = arity_arg[] -> sort
     // (ctx, parameters[] |- arity : sort)
     let arity = utils::assoc_prod(arity_arg.clone(), Exp::Sort(sort));
-    let (derivation, sort_opt) = infer_sort(&local_context, &arity);
+    let derivation = infer_sort(&local_context, &arity);
+    let well_sorted = derivation.node().unwrap().is_success();
     well_derivation.push(derivation);
-    if sort_opt.is_none() {
+
+    if !well_sorted {
         return (well_derivation, Err("Arity is not well-sorted".to_string()));
     }
 
@@ -145,9 +149,11 @@ pub fn acceptable_typespecs(
         // cst_type(constructor as type) = pos[] -> THIS args[0] ... args[m]
         let cst_type = cst.as_exp_with_type(&Exp::Var(this.clone()));
         // check (ctx |- cst_type : sort)
-        let (derivation, ok) = check(&local_context, &cst_type, &Exp::Sort(sort));
+        let derivation = check(&local_context, &cst_type, &Exp::Sort(sort));
+        let well_typed = derivation.node().unwrap().is_success();
         well_derivation.push(derivation);
-        if !ok {
+
+        if !well_typed {
             return (
                 well_derivation,
                 Err(format!("Constructor {cst:?} is not well-sorted")),
