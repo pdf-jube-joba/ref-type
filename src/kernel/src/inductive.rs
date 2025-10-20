@@ -43,6 +43,36 @@ impl InductiveTypeSpecs {
     pub fn arg_len_cst(&self, idx: usize) -> usize {
         self.constructors[idx].indices.len()
     }
+    // type of constructor C_i with given parameters
+    pub fn type_of_constructor(indty: &std::rc::Rc<Self>, idx: usize, parameters: Vec<Exp>) -> Exp {
+        indty.constructors[idx].as_exp_with_type(&Exp::IndType {
+            indty: indty.clone(),
+            parameters,
+        })
+    }
+    // (x[]: t[]) -> THIS x[] -> sort
+    pub fn return_type_kind(indty: &std::rc::Rc<Self>, parameters: Vec<Exp>, sort: Sort) -> Exp {
+        // THIS x[] where x[] is ty.arity_arg's variables
+        let e = utils::assoc_apply(
+            Exp::IndType {
+                indty: indty.clone(),
+                parameters: parameters.clone(),
+            },
+            indty
+                .indices
+                .iter()
+                .map(|(x, _)| Exp::Var(x.clone()))
+                .collect(),
+        );
+        utils::assoc_prod(
+            indty.indices.clone(),
+            Exp::Prod {
+                var: Var::new("_"),
+                ty: Box::new(e),
+                body: Box::new(Exp::Sort(sort)),
+            },
+        )
+    }
 }
 
 /*

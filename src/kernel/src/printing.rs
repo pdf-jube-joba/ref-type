@@ -126,8 +126,8 @@ impl Display for crate::exp::Exp {
                     write!(f, "id_refl {} ", elem)
                 }
                 crate::exp::ProveCommandBy::IdElim {
-                    elem1,
-                    elem2,
+                    left: elem1,
+                    right: elem2,
                     ty,
                     var,
                     predicate,

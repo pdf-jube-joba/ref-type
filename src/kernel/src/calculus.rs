@@ -152,7 +152,81 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                     ProveCommandBy::Construct { proof_term: pt1 },
                     ProveCommandBy::Construct { proof_term: pt2 },
                 ) => strict_equivalence(pt1, pt2),
-                _ => todo!("strict eq ... other commands"),
+                (
+                    ProveCommandBy::ExactElem {
+                        elem: elem1,
+                        ty: ty1,
+                    },
+                    ProveCommandBy::ExactElem {
+                        elem: elem2,
+                        ty: ty2,
+                    },
+                ) => strict_equivalence(elem1, elem2) && strict_equivalence(ty1, ty2),
+                (
+                    ProveCommandBy::IdRefl { elem: elem1 },
+                    ProveCommandBy::IdRefl { elem: elem2 },
+                ) => strict_equivalence(elem1, elem2),
+                (
+                    ProveCommandBy::IdElim {
+                        left: left1,
+                        right: right1,
+                        ty: ty1,
+                        var: var1,
+                        predicate: predicate1,
+                    },
+                    ProveCommandBy::IdElim {
+                        left: left2,
+                        right: right2,
+                        ty: ty2,
+                        var: var2,
+                        predicate: predicate2,
+                    },
+                ) => {
+                    var1.is_eq_ptr(var2)
+                        && strict_equivalence(left1, left2)
+                        && strict_equivalence(right1, right2)
+                        && strict_equivalence(ty1, ty2)
+                        && strict_equivalence(predicate1, predicate2)
+                }
+                (
+                    ProveCommandBy::SubsetElim {
+                        elem: elem1,
+                        subset: subset1,
+                        superset: superset1,
+                    },
+                    ProveCommandBy::SubsetElim {
+                        elem: elem2,
+                        subset: subset2,
+                        superset: superset2,
+                    },
+                ) => {
+                    strict_equivalence(elem1, elem2)
+                        && strict_equivalence(subset1, subset2)
+                        && strict_equivalence(superset1, superset2)
+                }
+                (
+                    ProveCommandBy::TakeEq {
+                        func: func1,
+                        domain: domain1,
+                        codomain: codomain1,
+                        elem: elem1,
+                    },
+                    ProveCommandBy::TakeEq {
+                        func: func2,
+                        domain: domain2,
+                        codomain: codomain2,
+                        elem: elem2,
+                    },
+                ) => {
+                    strict_equivalence(func1, func2)
+                        && strict_equivalence(domain1, domain2)
+                        && strict_equivalence(codomain1, codomain2)
+                        && strict_equivalence(elem1, elem2)
+                }
+                (ProveCommandBy::Axiom(_), ProveCommandBy::Axiom(_)) => {
+                    todo!("axiom later fix")
+                }
+                _ => false,
             }
         }
         (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => strict_equivalence(e1, e2),
@@ -204,7 +278,7 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                 right: r2,
             },
         ) => strict_equivalence(l1, l2) && strict_equivalence(r1, r2),
-        (Exp::Exists { set: ty1 }, Exp::Exists { set: ty2 }) => strict_equivalence(ty1, ty2),
+        (Exp::Exists { set: set1 }, Exp::Exists { set: set2 }) => strict_equivalence(set1, set2),
         (
             Exp::Take {
                 map: m1,
@@ -221,7 +295,7 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
     }
 }
 
-// WARNING we ignore proof level term
+// WARNING we ignore raw proof terms (it behaves like ProofLater(p))
 // i.e. ctx |- p1, p2: P: \Prop => p1 == p2
 fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {
     match (e1, e2) {
@@ -356,7 +430,7 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
             },
         ) => {
             is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(t1, t2, env1, env2) && {
-                // here we ignore proof terms
+                // here we ignore proof terms `withgoals`
                 true
             }
         }
@@ -497,7 +571,6 @@ pub fn is_alpha_eq_prove(p1: &Prove, p2: &Prove) -> bool {
         (None, None) => is_alpha_eq_ctx(&p1.ctx, &p2.ctx),
         _ => false,
     }
-    //
 }
 
 pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
@@ -599,7 +672,51 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
                 ProveCommandBy::Construct { proof_term } => ProveCommandBy::Construct {
                     proof_term: subst(proof_term, v, t),
                 },
-                _ => todo!("subst ... other commands"),
+                ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
+                    elem: subst(elem, v, t),
+                    ty: subst(ty, v, t),
+                },
+                ProveCommandBy::SubsetElim {
+                    elem,
+                    subset,
+                    superset,
+                } => ProveCommandBy::SubsetElim {
+                    elem: subst(elem, v, t),
+                    subset: subst(subset, v, t),
+                    superset: subst(superset, v, t),
+                },
+                ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
+                    elem: subst(elem, v, t),
+                },
+                ProveCommandBy::IdElim {
+                    left,
+                    right,
+                    ty,
+                    var,
+                    predicate,
+                } => ProveCommandBy::IdElim {
+                    left: subst(left, v, t),
+                    right: subst(right, v, t),
+                    ty: subst(ty, v, t),
+                    var: var.clone(),
+                    predicate: if !v.is_eq_ptr(var) {
+                        subst(predicate, v, t)
+                    } else {
+                        predicate.clone()
+                    },
+                },
+                ProveCommandBy::TakeEq {
+                    func,
+                    domain,
+                    codomain,
+                    elem,
+                } => ProveCommandBy::TakeEq {
+                    func: subst(func, v, t),
+                    domain: subst(domain, v, t),
+                    codomain: subst(codomain, v, t),
+                    elem: subst(elem, v, t),
+                },
+                ProveCommandBy::Axiom(_) => todo!("axiom later fix"),
             }
             .into(),
         },
@@ -735,7 +852,50 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
                 ProveCommandBy::Construct { proof_term } => ProveCommandBy::Construct {
                     proof_term: alpha_conversion(proof_term),
                 },
-                _ => todo!("alpha conv ... other commands"),
+                ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
+                    elem: alpha_conversion(elem),
+                    ty: alpha_conversion(ty),
+                },
+                ProveCommandBy::SubsetElim {
+                    elem,
+                    subset,
+                    superset,
+                } => ProveCommandBy::SubsetElim {
+                    elem: alpha_conversion(elem),
+                    subset: alpha_conversion(subset),
+                    superset: alpha_conversion(superset),
+                },
+                ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
+                    elem: alpha_conversion(elem),
+                },
+                ProveCommandBy::IdElim {
+                    left,
+                    right,
+                    ty,
+                    var,
+                    predicate,
+                } => {
+                    let new_var = Var::new(var.name());
+                    ProveCommandBy::IdElim {
+                        left: alpha_conversion(left),
+                        right: alpha_conversion(right),
+                        ty: alpha_conversion(ty),
+                        var: new_var.clone(),
+                        predicate: subst(&alpha_conversion(predicate), var, &Exp::Var(new_var)),
+                    }
+                }
+                ProveCommandBy::TakeEq {
+                    func,
+                    domain,
+                    codomain,
+                    elem,
+                } => ProveCommandBy::TakeEq {
+                    func: alpha_conversion(func),
+                    domain: alpha_conversion(domain),
+                    codomain: alpha_conversion(codomain),
+                    elem: alpha_conversion(elem),
+                },
+                ProveCommandBy::Axiom(_) => todo!("axiom later fix"),
             }
             .into(),
         },
@@ -929,7 +1089,49 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 ProveCommandBy::Construct { proof_term } => ProveCommandBy::Construct {
                     proof_term: reduce_if(proof_term),
                 },
-                _ => todo!("reduce ... other commands"),
+                ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
+                    elem: reduce_if(elem),
+                    ty: reduce_if(ty),
+                },
+                ProveCommandBy::SubsetElim {
+                    elem,
+                    subset,
+                    superset,
+                } => ProveCommandBy::SubsetElim {
+                    elem: reduce_if(elem),
+                    subset: reduce_if(subset),
+                    superset: reduce_if(superset),
+                },
+                ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
+                    elem: reduce_if(elem),
+                },
+                ProveCommandBy::IdElim {
+                    left,
+                    right,
+                    ty,
+                    var,
+                    predicate,
+                } => ProveCommandBy::IdElim {
+                    left: reduce_if(left),
+                    right: reduce_if(right),
+                    ty: reduce_if(ty),
+                    var: var.clone(),
+                    predicate: reduce_if(predicate),
+                },
+                ProveCommandBy::TakeEq {
+                    func,
+                    domain,
+                    codomain,
+                    elem,
+                } => ProveCommandBy::TakeEq {
+                    func: reduce_if(func),
+                    domain: reduce_if(domain),
+                    codomain: reduce_if(codomain),
+                    elem: reduce_if(elem),
+                },
+                ProveCommandBy::Axiom(_) => {
+                    todo!("axiom later fix")
+                }
             };
 
             changed.then_some(Exp::ProofTermRaw {

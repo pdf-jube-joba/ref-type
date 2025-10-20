@@ -94,6 +94,14 @@ impl Sort {
             _ => None,
         }
     }
+
+    pub fn can_lift_to(self, to: Self) -> bool {
+        match (self, to) {
+            (Sort::Set(i), Sort::Set(j)) if i <= j => true,
+            (Sort::SetKind(i), Sort::SetKind(j)) if i <= j => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -135,8 +143,7 @@ pub enum Exp {
         sort: Sort,
         cases: Vec<Exp>,
     },
-    // cast `exp` to `to` and solve goals of derivation tree with `withgoals`
-    // `withgoals` behaves like is treated as if it were not present in some functions.
+    // cast `exp` to `to` and solve all goals of derivation tree given by `fn check` with `withgoals`
     Cast {
         exp: Box<Exp>,
         to: Box<Exp>,
@@ -231,20 +238,20 @@ pub enum ProveCommandBy {
     //   ctx |- elem1: ty, ctx |- elem2: ty, ctx |- ty: Set(i), ctx::(var, ty) |- predicate: Prop
     //   ctx |= ((var: ty) => predicate) elem1, ctx |= elem1 = elem2
     IdElim {
-        elem1: Exp,
-        elem2: Exp,
-        ty: Box<Exp>,
+        left: Exp,
+        right: Exp,
+        ty: Exp,
         var: Var,
-        predicate: Box<Exp>,
+        predicate: Exp,
     },
     // ctx |= Take f = f elem
     //  ctx |- func: (_: domain) -> codomain, ctx |- elem: domain
     //  ctx |- Take f: docomain
     TakeEq {
-        func: Box<Exp>,
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        elem: Box<Exp>,
+        func: Exp,
+        domain: Exp,
+        codomain: Exp,
+        elem: Exp,
     },
     // axioms
     Axiom(Axiom),
