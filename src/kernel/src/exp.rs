@@ -118,18 +118,18 @@ pub enum Exp {
     },
     // uncurry with parameter
     IndType {
-        ty: Rc<crate::inductive::InductiveTypeSpecs>,
+        indty: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>,
     },
     // uncurry with parameter
     IndCtor {
-        ty: Rc<crate::inductive::InductiveTypeSpecs>,
+        indty: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>,
         idx: usize,
     },
     // this is primitive recursion (no binding representation)
     IndElim {
-        ty: Rc<crate::inductive::InductiveTypeSpecs>,
+        indty: Rc<crate::inductive::InductiveTypeSpecs>,
         elim: Box<Exp>,
         return_type: Box<Exp>,
         sort: Sort,
@@ -277,86 +277,158 @@ impl Context {
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeJudge {
+pub struct TypeCheck {
     pub ctx: Context,
     pub term: Exp,
     pub ty: Exp,
+    pub res: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct Provable {
+pub struct TypeInfer {
     pub ctx: Context,
-    pub prop: Exp,
+    pub term: Exp,
+    pub ty: Option<Exp>,
 }
 
-// this is for representing failure of proof
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FailJudge(pub String);
+#[derive(Debug, Clone)]
+pub struct SortInfer {
+    pub ctx: Context,
+    pub ty: Exp,
+    pub sort: Option<Sort>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Prove {
+    pub ctx: Context,
+    pub prop: Exp,
+    pub res: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum Node {
+    TypeCheck(TypeCheck),
+    TypeInfer(TypeInfer),
+    SortInfer(SortInfer),
+    Prove(Prove),
+}
+
+impl Node {
+    pub fn is_success(&self) -> bool {
+        match self {
+            Node::TypeCheck(tc) => tc.res,
+            Node::TypeInfer(ti) => ti.ty.is_some(),
+            Node::SortInfer(si) => si.sort.is_some(),
+            Node::Prove(p) => p.res,
+        }
+    }
+    pub fn ctx(&self) -> &Context {
+        match self {
+            Node::TypeCheck(tc) => &tc.ctx,
+            Node::TypeInfer(ti) => &ti.ctx,
+            Node::SortInfer(si) => &si.ctx,
+            Node::Prove(p) => &p.ctx,
+        }
+    }
+    pub fn typecheck(&self) -> Option<&TypeCheck> {
+        match self {
+            Node::TypeCheck(tc) => Some(tc),
+            _ => None,
+        }
+    }
+    pub fn typecheck_mut(&mut self) -> Option<&mut TypeCheck> {
+        match self {
+            Node::TypeCheck(tc) => Some(tc),
+            _ => None,
+        }
+    }
+    pub fn typeinfer(&self) -> Option<&TypeInfer> {
+        match self {
+            Node::TypeInfer(ti) => Some(ti),
+            _ => None,
+        }
+    }
+    pub fn typeinfer_mut(&mut self) -> Option<&mut TypeInfer> {
+        match self {
+            Node::TypeInfer(ti) => Some(ti),
+            _ => None,
+        }
+    }
+    pub fn sortinfer(&self) -> Option<&SortInfer> {
+        match self {
+            Node::SortInfer(si) => Some(si),
+            _ => None,
+        }
+    }
+    pub fn sortinfer_mut(&mut self) -> Option<&mut SortInfer> {
+        match self {
+            Node::SortInfer(si) => Some(si),
+            _ => None,
+        }
+    }
+    pub fn prove(&self) -> Option<&Prove> {
+        match self {
+            Node::Prove(p) => Some(p),
+            _ => None,
+        }
+    }
+    pub fn prove_mut(&mut self) -> Option<&mut Prove> {
+        match self {
+            Node::Prove(p) => Some(p),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Meta {
+    Usual(String),
+    Through(String),
+    Fail(String),
+}
 
 #[derive(Debug, Clone)]
 pub enum Derivation {
-    TypeDerive {
-        conclusion: TypeJudge,
-        premises: Vec<Derivation>,
-        rule: String,
-        meta: Meta,
-    },
-    PropDerive {
-        conclusion: Provable,
-        premises: Vec<Derivation>,
-        rule: String,
-        meta: Meta,
-    },
-    FailDerive {
-        conclusion: FailJudge,
+    Derivation {
+        conclusion: Node,
         premises: Vec<Derivation>,
         rule: String,
         meta: Meta,
     },
     // stop derivation at this provable judgment
-    UnProved(Provable),
+    UnProved(Prove),
     // proved by another proof tree
     Proved {
-        target: Provable,
+        target: Prove,
         num: Rc<()>,
     },
     // failed to prove by another proof tree
     ProveFailed {
-        target: Provable,
+        target: Prove,
         num: Rc<()>,
     },
     // the another tree
-    Proving {
-        prop: Provable,
-        der: Box<Derivation>,
+    Prove {
+        tree: Box<Derivation>,
+        proved: Prove,
         num: Rc<()>,
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum Meta {
-    Usual(String),   // usual type derivation
-    Through(String), // pass through with that function (nothing happens with it)
-}
-
 impl Derivation {
-    pub fn new_typederive(
-        conclusion: TypeJudge,
-        premises: Vec<Derivation>,
-        rule: &str,
-        meta: Meta,
-    ) -> Self {
-        Derivation::TypeDerive {
-            conclusion,
-            premises,
-            rule: rule.to_string(),
-            meta,
+    pub fn node(&self) -> Option<&Node> {
+        match self {
+            Derivation::Derivation { conclusion, .. } => Some(conclusion),
+            _ => None,
         }
     }
-    pub fn unproved(ctx: Context, prop: Exp) -> Self {
-        Derivation::UnProved(Provable { ctx, prop })
+    pub fn node_mut(&mut self) -> Option<&mut Node> {
+        match self {
+            Derivation::Derivation { conclusion, .. } => Some(conclusion),
+            _ => None,
+        }
     }
-    pub fn get_unproved(&self) -> Option<Provable> {
+    pub fn get_unproved(&self) -> Option<Prove> {
         match self {
             Derivation::UnProved(p) => Some(p.clone()),
             _ => None,

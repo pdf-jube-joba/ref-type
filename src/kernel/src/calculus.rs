@@ -40,11 +40,11 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         }
         (
             Exp::IndType {
-                ty: ty1,
+                indty: ty1,
                 parameters: parameter1,
             },
             Exp::IndType {
-                ty: ty2,
+                indty: ty2,
                 parameters: parameter2,
             },
         ) => {
@@ -57,12 +57,12 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         }
         (
             Exp::IndCtor {
-                ty: ty1,
+                indty: ty1,
                 idx: idx1,
                 parameters: parameter1,
             },
             Exp::IndCtor {
-                ty: ty2,
+                indty: ty2,
                 idx: idx2,
                 parameters: parameter2,
             },
@@ -77,14 +77,14 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         }
         (
             Exp::IndElim {
-                ty: ty1,
+                indty: ty1,
                 elim: elim1,
                 return_type: ret1,
                 sort: sort1,
                 cases: cases1,
             },
             Exp::IndElim {
-                ty: ty2,
+                indty: ty2,
                 elim: elim2,
                 return_type: ret2,
                 sort: sort2,
@@ -282,11 +282,11 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (
             Exp::IndType {
-                ty: ty1,
+                indty: ty1,
                 parameters: parameter1,
             },
             Exp::IndType {
-                ty: ty2,
+                indty: ty2,
                 parameters: parameter2,
             },
         ) => {
@@ -299,12 +299,12 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (
             Exp::IndCtor {
-                ty: ty1,
+                indty: ty1,
                 idx: idx1,
                 parameters: parameter1,
             },
             Exp::IndCtor {
-                ty: ty2,
+                indty: ty2,
                 idx: idx2,
                 parameters: parameter2,
             },
@@ -319,14 +319,14 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (
             Exp::IndElim {
-                ty: ty1,
+                indty: ty1,
                 elim: elim1,
                 return_type: ret1,
                 sort: sort1,
                 cases: cases1,
             },
             Exp::IndElim {
-                ty: ty2,
+                indty: ty2,
                 elim: elim2,
                 return_type: ret2,
                 sort: sort2,
@@ -491,12 +491,7 @@ pub fn is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp)
     is_alpha_eq_rec(t1, t2, &mut env1, &mut env2)
 }
 
-pub fn is_alpha_eq_typejudge(tj1: &TypeJudge, tj2: &TypeJudge) -> bool {
-    is_alpha_eq_under_ctx(&tj1.ctx, &tj1.ty, &tj2.ctx, &tj2.ty)
-        && is_alpha_eq_under_ctx(&tj1.ctx, &tj1.term, &tj2.ctx, &tj2.term)
-}
-
-pub fn is_alpha_eq_provable(p1: &Provable, p2: &Provable) -> bool {
+pub fn is_alpha_eq_prove(p1: &Prove, p2: &Prove) -> bool {
     is_alpha_eq_under_ctx(&p1.ctx, &p1.prop, &p2.ctx, &p2.prop)
 }
 
@@ -544,27 +539,30 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             func: Box::new(subst(func, v, t)),
             arg: Box::new(subst(arg, v, t)),
         },
-        Exp::IndType { ty, parameters } => Exp::IndType {
-            ty: ty.clone(),
+        Exp::IndType {
+            indty: ty,
+            parameters,
+        } => Exp::IndType {
+            indty: ty.clone(),
             parameters: parameters.iter().map(|arg| subst(arg, v, t)).collect(),
         },
         Exp::IndCtor {
-            ty,
+            indty: ty,
             idx,
             parameters: parameter,
         } => Exp::IndCtor {
-            ty: ty.clone(),
+            indty: ty.clone(),
             idx: *idx,
             parameters: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
         },
         Exp::IndElim {
-            ty,
+            indty: ty,
             elim,
             return_type,
             sort,
             cases,
         } => Exp::IndElim {
-            ty: ty.clone(),
+            indty: ty.clone(),
             elim: Box::new(subst(elim, v, t)),
             return_type: Box::new(subst(return_type, v, t)),
             sort: *sort,
@@ -680,27 +678,30 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             func: Box::new(alpha_conversion(func)),
             arg: Box::new(alpha_conversion(arg)),
         },
-        Exp::IndType { ty, parameters } => Exp::IndType {
-            ty: ty.clone(),
+        Exp::IndType {
+            indty: ty,
+            parameters,
+        } => Exp::IndType {
+            indty: ty.clone(),
             parameters: parameters.iter().map(alpha_conversion).collect(),
         },
         Exp::IndCtor {
-            ty,
+            indty: ty,
             idx,
             parameters: parameter,
         } => Exp::IndCtor {
-            ty: ty.clone(),
+            indty: ty.clone(),
             idx: *idx,
             parameters: parameter.iter().map(alpha_conversion).collect(),
         },
         Exp::IndElim {
-            ty,
+            indty: ty,
             elim,
             return_type,
             sort,
             cases,
         } => Exp::IndElim {
-            ty: ty.clone(),
+            indty: ty.clone(),
             elim: Box::new(alpha_conversion(elim)),
             return_type: Box::new(alpha_conversion(return_type)),
             sort: *sort,
@@ -845,29 +846,32 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 arg: Box::new(arg),
             })
         }
-        Exp::IndType { ty, parameters } => {
+        Exp::IndType {
+            indty: ty,
+            parameters,
+        } => {
             let parameters = parameters.iter().map(reduce_if).collect::<Vec<_>>();
 
             changed.then_some(Exp::IndType {
-                ty: ty.clone(),
+                indty: ty.clone(),
                 parameters,
             })
         }
         Exp::IndCtor {
-            ty,
+            indty: ty,
             idx,
             parameters: parameter,
         } => {
             let parameters = parameter.iter().map(reduce_if).collect::<Vec<_>>();
 
             changed.then_some(Exp::IndCtor {
-                ty: ty.clone(),
+                indty: ty.clone(),
                 idx: *idx,
                 parameters,
             })
         }
         Exp::IndElim {
-            ty,
+            indty: ty,
             elim,
             return_type,
             sort,
@@ -878,7 +882,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let cases = cases.iter().map(reduce_if).collect::<Vec<_>>();
 
             changed.then_some(Exp::IndElim {
-                ty: ty.clone(),
+                indty: ty.clone(),
                 elim: Box::new(elim),
                 return_type: Box::new(return_type),
                 sort: *sort,

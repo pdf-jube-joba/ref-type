@@ -35,7 +35,7 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Prod { var, ty, body } => write!(f, "({}: {}) -> {}", var, ty, body),
             crate::exp::Exp::Lam { var, ty, body } => write!(f, "({}: {}) => {}", var, ty, body),
             crate::exp::Exp::App { func, arg } => write!(f, "({}) ({})", func, arg),
-            crate::exp::Exp::IndType { ty, parameters } => write!(
+            crate::exp::Exp::IndType { indty: ty, parameters } => write!(
                 f,
                 "{:p}({})",
                 ty,
@@ -46,7 +46,7 @@ impl Display for crate::exp::Exp {
                     .join(", ")
             ),
             crate::exp::Exp::IndCtor {
-                ty,
+                indty: ty,
                 parameters,
                 idx,
             } => write!(
@@ -61,7 +61,7 @@ impl Display for crate::exp::Exp {
                     .join(", ")
             ),
             crate::exp::Exp::IndElim {
-                ty,
+                indty: ty,
                 elim,
                 return_type,
                 sort,
@@ -289,7 +289,7 @@ fn map_derivation(der: &Derivation) -> StringTree {
         Derivation::ProveFailed { target, num } => {
             StringTree(format!("ProveFailed: {} at {:p}", target, num), vec![])
         }
-        Derivation::Proving { prop, der, num } => StringTree(
+        Derivation::Prove { prop, der, num } => StringTree(
             format!("Proving: {} at {:p}", prop, num),
             vec![map_derivation(der)],
         ),

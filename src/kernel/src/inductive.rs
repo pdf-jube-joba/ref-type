@@ -351,7 +351,7 @@ struct RedexShapeInductiveTypeElim {
 fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 1. check e = Elim{ty}(e', q, f[])
     let Exp::IndElim {
-        ty,
+        indty: ty,
         elim,
         return_type: q,
         sort,
@@ -363,7 +363,7 @@ fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 2. check e' = Ctor{ty2, idx}{parameter[]} m[]
     let (
         Exp::IndCtor {
-            ty: ty2,
+            indty: ty2,
             idx,
             parameters: parameter,
         },
@@ -434,7 +434,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         let c = Var::new("c");
         // Elim(THIS, c, q, f[])
         let body = Exp::IndElim {
-            ty: ty.clone(),
+            indty: ty.clone(),
             elim: Box::new(Exp::Var(c.clone())),
             return_type: q.clone(),
             sort,
@@ -449,7 +449,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
             var: c.clone(),
             ty: Box::new(utils::assoc_apply(
                 Exp::IndType {
-                    ty: ty.clone(),
+                    indty: ty.clone(),
                     parameters: parameter.clone(),
                 },
                 indices.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
@@ -466,7 +466,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         &ff,
         &f[idx],
         &Exp::IndType {
-            ty: ty.clone(),
+            indty: ty.clone(),
             parameters: parameter.clone(),
         },
     );
