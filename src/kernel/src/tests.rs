@@ -2,7 +2,7 @@ use crate::{
     checker::Checker,
     exp::ProveCommandBy,
     exp::{Exp, Sort, Var},
-    utils,
+    utils::{self, app, lam, prod, prooflater, var, var_exp},
 };
 // rustfmt doens not allow us variable starts with Uppercase letter
 // ... => we use double lowercase letters
@@ -36,7 +36,7 @@ fn prove_by(checker: &Checker, prop: &Exp, command: &ProveCommandBy) {
 #[test]
 fn p_prop() {
     let mut checker = Checker::default();
-    let pp = Var::new("P");
+    let pp = var!("P");
     push_var(&mut checker, &pp, Exp::Sort(Sort::Prop));
     check_term(&checker, &Exp::Var(pp), &Exp::Sort(Sort::Prop));
 }
@@ -45,9 +45,9 @@ fn p_prop() {
 #[test]
 fn no_need_elem() {
     let mut checker = Checker::default();
-    let pp = Var::new("P");
+    let pp = var!("P");
     push_var(&mut checker, &pp, Exp::Sort(Sort::Prop));
-    let p = Var::new("p");
+    let p = var!("p");
     push_var(&mut checker, &p, Exp::Var(pp.clone()));
     check_term(&checker, &Exp::Var(pp), &Exp::Sort(Sort::Prop));
 }
@@ -56,16 +56,16 @@ fn no_need_elem() {
 #[test]
 fn imp_prop() {
     let mut checker = Checker::default();
-    let pp1 = Var::new("P1");
-    let pp2 = Var::new("P2");
+    let pp1 = var!("P1");
+    let pp2 = var!("P2");
     push_var(&mut checker, &pp1, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &pp2, Exp::Sort(Sort::Prop));
     check_term(
         &checker,
-        &Exp::Prod {
-            var: Var::new("_"),
-            ty: Box::new(Exp::Var(pp1.clone())),
-            body: Box::new(Exp::Var(pp2.clone())),
+        &prod! {
+            var: var!("_"),
+            ty: Exp::Var(pp1.clone()),
+            body: Exp::Var(pp2.clone()),
         },
         &Exp::Sort(Sort::Prop),
     );
@@ -75,20 +75,20 @@ fn imp_prop() {
 #[test]
 fn lam_prod() {
     let mut checker = Checker::default();
-    let pp = Var::new("P");
+    let pp = var!("P");
     push_var(&mut checker, &pp, Exp::Sort(Sort::Prop));
-    let p = Var::new("p");
+    let p = var!("p");
     check_term(
         &checker,
-        &Exp::Lam {
+        &lam! {
             var: p.clone(),
-            ty: Box::new(Exp::Var(pp.clone())),
-            body: Box::new(Exp::Var(p.clone())),
+            ty: Exp::Var(pp.clone()),
+            body: Exp::Var(p.clone()),
         },
-        &Exp::Prod {
+        &prod! {
             var: p.clone(),
-            ty: Box::new(Exp::Var(pp.clone())),
-            body: Box::new(Exp::Var(pp.clone())),
+            ty: Exp::Var(pp.clone()),
+            body: Exp::Var(pp.clone()),
         },
     );
 }
@@ -97,18 +97,18 @@ fn lam_prod() {
 #[test]
 fn impredicative_true() {
     let checker = Checker::default();
-    let pp = Var::new("P");
-    let p = Var::new("p");
+    let pp = var!("P");
+    let p = var!("p");
     check_term(
         &checker,
-        &Exp::Prod {
+        &prod! {
             var: pp.clone(),
-            ty: Box::new(Exp::Sort(Sort::Prop)),
-            body: Box::new(Exp::Prod {
+            ty: Exp::Sort(Sort::Prop),
+            body: prod! {
                 var: p.clone(),
-                ty: Box::new(Exp::Var(pp.clone())),
-                body: Box::new(Exp::Var(pp.clone())),
-            }),
+                ty: Exp::Var(pp.clone()),
+                body: Exp::Var(pp.clone()),
+            },
         },
         &Exp::Sort(Sort::Prop),
     );
@@ -119,17 +119,17 @@ fn impredicative_true() {
 #[test]
 fn modusponens_ctx() {
     let mut checker = Checker::default();
-    let aa = Var::new("A");
-    let bb = Var::new("B");
-    let f = Var::new("f");
-    let a = Var::new("a");
+    let aa = var!("A");
+    let bb = var!("B");
+    let f = var!("f");
+    let a = var!("a");
     push_var(&mut checker, &aa, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &bb, Exp::Sort(Sort::Prop));
     push_var(
         &mut checker,
         &f,
         Exp::Prod {
-            var: Var::new("_"),
+            var: var!("_"),
             ty: Box::new(Exp::Var(aa.clone())),
             body: Box::new(Exp::Var(bb.clone())),
         },
@@ -151,17 +151,17 @@ fn modusponens_ctx() {
 #[test]
 fn modusponens_popped() {
     let mut checker = Checker::default();
-    let aa = Var::new("A");
-    let bb = Var::new("B");
-    let f = Var::new("f");
-    let a = Var::new("a");
+    let aa = var!("A");
+    let bb = var!("B");
+    let f = var!("f");
+    let a = var!("a");
     let telescope: Vec<(Var, Exp)> = vec![
         (aa.clone(), Exp::Sort(Sort::Prop)),
         (bb.clone(), Exp::Sort(Sort::Prop)),
         (
             f.clone(),
             Exp::Prod {
-                var: Var::new("_"),
+                var: var!("_"),
                 ty: Box::new(Exp::Var(aa.clone())),
                 body: Box::new(Exp::Var(bb.clone())),
             },
@@ -187,9 +187,9 @@ fn modusponens_popped() {
 #[test]
 fn alpha_equiv() {
     let mut checker = Checker::default();
-    let aa = Var::new("A");
-    let a = Var::new("a");
-    let b = Var::new("b");
+    let aa = var!("A");
+    let a = var!("a");
+    let b = var!("b");
     push_var(&mut checker, &aa, Exp::Sort(Sort::Prop));
     check_term(
         &checker,
@@ -211,9 +211,9 @@ fn alpha_equiv() {
 #[test]
 fn type_level_reduction() {
     let mut checker = Checker::default();
-    let xx = Var::new("X");
-    let x = Var::new("x");
-    let yy = Var::new("Y");
+    let xx = var!("X");
+    let x = var!("x");
+    let yy = var!("Y");
     push_var(&mut checker, &xx, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &x, Exp::Var(xx.clone()));
     check_term(
@@ -231,10 +231,11 @@ fn type_level_reduction() {
 }
 
 // Power set
+// X: \Set(0) |- Power(X): \Set(0)
 #[test]
 fn powerset() {
     let mut checker = Checker::default();
-    let xx = Var::new("X");
+    let xx = var!("X");
     push_var(&mut checker, &xx, Exp::Sort(Sort::Set(0)));
     check_term(
         &checker,
@@ -246,12 +247,12 @@ fn powerset() {
 }
 
 // Proof by construct proof term
-//
+// X: \Prop, x: X |= X by ctx |- x: X
 #[test]
 fn proof_by_construct() {
     let mut checker = Checker::default();
-    let xx = Var::new("X");
-    let x = Var::new("x");
+    let xx = var!("X");
+    let x = var!("x");
     push_var(&mut checker, &xx, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &x, Exp::Var(xx.clone()));
     let der = checker.prove_command(&ProveCommandBy::Construct {
@@ -263,14 +264,14 @@ fn proof_by_construct() {
 
 // Proof by assumption
 // P1: \Prop, P2: \Prop, p1: P1, pm: P1 -> P2 |- (ProofLater(P1 -> P2) ProofLater(P1)): P2
-// ... generated ctx |= P1 -> P2, ctx |= P1
+// ... generated ctx |= P1 -> P2, ctx |= P1 (unproved)
 #[test]
 fn proof_by_assumption() {
     let mut checker = Checker::default();
-    let pp1 = Var::new("P1");
-    let pp2 = Var::new("P2");
-    let p1 = Var::new("p1");
-    let pm = Var::new("pm");
+    let pp1 = var!("P1");
+    let pp2 = var!("P2");
+    let p1 = var!("p1");
+    let pm = var!("pm");
     push_var(&mut checker, &pp1, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &pp2, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &p1, Exp::Var(pp1.clone()));
@@ -278,7 +279,7 @@ fn proof_by_assumption() {
         &mut checker,
         &pm,
         Exp::Prod {
-            var: Var::new("_"),
+            var: var!("_"),
             ty: Box::new(Exp::Var(pp1.clone())),
             body: Box::new(Exp::Var(pp2.clone())),
         },
@@ -286,7 +287,7 @@ fn proof_by_assumption() {
     let proof_term = Exp::App {
         func: Box::new(Exp::ProveLater {
             prop: Box::new(Exp::Prod {
-                var: Var::new("_"),
+                var: var!("_"),
                 ty: Box::new(Exp::Var(pp1.clone())),
                 body: Box::new(Exp::Var(pp2.clone())),
             }),
@@ -295,5 +296,81 @@ fn proof_by_assumption() {
             prop: Box::new(Exp::Var(pp1.clone())),
         }),
     };
+
+    // check without proof
     check_term(&checker, &proof_term, &Exp::Var(pp2.clone()));
+
+    // check with proof by cast and proofrawterm
+    let proof_term = {
+        // ProofLater(P1 -> P2) ProofLater(P1))
+        let exp = app! {
+            func: prooflater!(
+                prod!{
+                    var: var!("_"),
+                    ty: var_exp!("P1"),
+                    body: var_exp!("P2"),
+                }
+            ),
+            arg: prooflater!(var_exp!("P1")),
+        };
+        let castto = Exp::Var(pp2.clone());
+        let goals: Vec<_> = vec![];
+
+        Exp::Cast {
+            exp: Box::new(exp),
+            to: Box::new(castto),
+            withgoals: goals,
+        }
+    };
+
+    let der = checker.infer(&proof_term);
+    println!("{}", der);
+}
+
+// same but in Exp::Cast and solve all goals
+// P1: \Prop, P2: \Prop, p1: P1, pm: P1 -> P2 |- (ProofLater(P1 -> P2) ProofLater(P1)): P2
+#[test]
+fn solvegoals() {
+    let mut checker = Checker::default();
+    let pp1 = var!("P1");
+    let pp2 = var!("P2");
+    let p1 = var!("p1");
+    let pm = var!("pm");
+    push_var(&mut checker, &pp1, Exp::Sort(Sort::Prop));
+    push_var(&mut checker, &pp2, Exp::Sort(Sort::Prop));
+    push_var(&mut checker, &p1, Exp::Var(pp1.clone()));
+    push_var(
+        &mut checker,
+        &pm,
+        Exp::Prod {
+            var: var!("_"),
+            ty: Box::new(Exp::Var(pp1.clone())),
+            body: Box::new(Exp::Var(pp2.clone())),
+        },
+    );
+
+    let proof_term = {
+        // ProofLater(P1 -> P2) ProofLater(P1))
+        let exp = app! {
+            func: prooflater!(
+                prod!{
+                    var: var!("_"),
+                    ty: Exp::Var(pp1.clone()),
+                    body: Exp::Var(pp2.clone()),
+                }
+            ),
+            arg: prooflater!(Exp::Var(pp1.clone())),
+        };
+        let castto = Exp::Var(pp2.clone());
+        let goals: Vec<_> = vec![];
+
+        Exp::Cast {
+            exp: Box::new(exp),
+            to: Box::new(castto),
+            withgoals: goals,
+        }
+    };
+
+    let der = checker.infer(&proof_term);
+    println!("{}", der);
 }
