@@ -109,7 +109,7 @@ pub enum Exp {
         exp: Box<Exp>,
         clauses: Vec<(Identifier, Exp, Exp)>,
     },
-    // goal proving  given by type checker
+    // solve goals given by type checker
     WithProof {
         exp: Box<Exp>,
         proofs: Vec<WithGoal>,

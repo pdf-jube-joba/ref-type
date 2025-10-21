@@ -4,3 +4,27 @@ use crate::syntax::{Identifier, Exp, Bind};
 grammar;
 
 pub Ident: Identifier = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => Identifier(String::from(s));
+
+pub ExpAll = {
+  ArrowSeparated,
+  Combined,
+}
+
+ArrowSeparated: Exp = {
+  <tyast: Combined> "=>" <bodyast: ArrowSeparated> => Exp::Lam { bind: Bind { var: None, ty: Box::new(tyast), predicate: None }, body: Box::new(bodyast)},
+  <bdast: Binder> "=>" <bodyast: ArrowSeparated> => Exp::Lam { bind: bdast, body: Box::new(bodyast)}
+}
+
+Combined: Exp = {
+  <funcast: Atom> <argast: Combined> => Exp::App { func: Box::new(funcast), arg: Box::new(argast)},
+  <argast: Atom> "|" <funcast: Combined> => Exp::AppByPipe { func: Box::new(funcast), arg: Box::new(argast) }
+}
+
+Atom: Exp = {
+  <v: Ident> => Exp::Var(v),
+  "(" <e: ExpAll> ")" => e,
+}
+
+Binder: Bind = {
+  "(" <v: Ident> ":" <e: ExpAll> ")" => Bind { var: Some(v), ty: Box::new(e), predicate: None }
+}
