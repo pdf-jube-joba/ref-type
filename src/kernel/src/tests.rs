@@ -1,7 +1,7 @@
 use crate::{
     checker::Checker,
     exp::{Context, Exp, ProveCommandBy, ProveGoal, Sort, Var},
-    utils::{self, app, lam, prod, prooflater, var, var_exp},
+    utils::{self, app, lam, prod, prooflater, var},
 };
 // rustfmt doens not allow us variable starts with Uppercase letter
 // ... => we use double lowercase letters
@@ -296,19 +296,17 @@ fn proof_by_assumption() {
             func: prooflater!(
                 prod!{
                     var: var!("_"),
-                    ty: var_exp!("P1"),
-                    body: var_exp!("P2"),
+                    ty: Exp::Var(pp1.clone()),
+                    body: Exp::Var(pp2.clone()),
                 }
             ),
-            arg: prooflater!(var_exp!("P1")),
+            arg: prooflater!(Exp::Var(pp1.clone())),
         };
         let castto = Exp::Var(pp2.clone());
-        let goals: Vec<_> = vec![];
 
         Exp::Cast {
             exp: Box::new(exp),
             to: Box::new(castto),
-            withgoals: goals,
         }
     };
 
@@ -347,7 +345,6 @@ fn solvegoals() {
             ),
             arg: prooflater!(Exp::Var(pp1.clone())),
         };
-        let castto = Exp::Var(pp2.clone());
         let goals: Vec<_> = vec![
             ProveGoal {
                 extended_ctx: Context(vec![]),
@@ -369,10 +366,9 @@ fn solvegoals() {
             },
         ];
 
-        Exp::Cast {
+        Exp::ProveHere {
             exp: Box::new(exp),
-            to: Box::new(castto),
-            withgoals: goals,
+            goals,
         }
     };
 

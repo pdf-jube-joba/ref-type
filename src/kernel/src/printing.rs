@@ -84,29 +84,23 @@ impl Display for crate::exp::Exp {
                         .join(", ")
                 )
             }
-            crate::exp::Exp::Cast { exp, to, withgoals } => {
-                write!(
-                    f,
-                    "{} as {} by {}",
-                    exp,
-                    to,
-                    withgoals
-                        .iter()
-                        .map(
-                            |ProveGoal {
-                                 extended_ctx,
-                                 goal_prop,
-                                 proof_term,
-                             }| format!(
-                                "[{extended_ctx:?}: {goal_prop} := {proof_term}]"
-                            )
-                        )
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
+            crate::exp::Exp::Cast { exp, to } => {
+                write!(f, "{} as {} ", exp, to,)
             }
             crate::exp::Exp::ProveLater { prop } => {
                 write!(f, "proof({})", prop)
+            }
+            crate::exp::Exp::ProveHere { exp, goals } => {
+                write!(
+                    f,
+                    "proof_here {} with ({})",
+                    exp,
+                    goals
+                        .iter()
+                        .map(|g| format!("{}", g))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             }
             crate::exp::Exp::ProofTermRaw { command } => match command.as_ref() {
                 crate::exp::ProveCommandBy::Construct { proof_term } => {
@@ -203,6 +197,17 @@ impl Display for crate::exp::Context {
     }
 }
 
+impl Display for ProveGoal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ProveGoal {
+            extended_ctx,
+            goal_prop,
+            proof_term,
+        } = self;
+        write!(f, "[..  {} |- {}: {}]", extended_ctx, proof_term, goal_prop)
+    }
+}
+
 impl Display for Prove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Prove { ctx, prop } = self;
@@ -287,11 +292,11 @@ fn map_derivation(der: &Derivation) -> StringTree {
                 ),
             }
         }
-        Derivation::UnProved(provable) => StringTree(format!("Unproved: {}", provable), vec![]),
-        Derivation::Proved { target, num } => {
+        Derivation::UnSolved(provable) => StringTree(format!("Unproved: {}", provable), vec![]),
+        Derivation::Solved { target, num } => {
             StringTree(format!("Proved: {} at {:p}", target, num), vec![])
         }
-        Derivation::ProveFailed { target, num } => {
+        Derivation::SolveFailed { target, num } => {
             StringTree(format!("ProveFailed: {} at {:p}", target, num), vec![])
         }
         Derivation::Prove { tree, proved, num } => StringTree(

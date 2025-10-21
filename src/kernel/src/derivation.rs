@@ -84,10 +84,62 @@ impl Builder {
         }
     }
     fn add_unproved_goal(&mut self, unproved: Prove) {
-        self.premises.push(Derivation::UnProved(unproved));
+        self.premises.push(Derivation::UnSolved(unproved));
     }
     fn add(&mut self, der: Derivation) {
         self.premises.push(der);
+    }
+    fn solve(&mut self, ders: Vec<Derivation>) -> Result<(), String> {
+        assert!(
+            ders.iter()
+                .all(|der| matches!(der, Derivation::Prove { .. }))
+        );
+        // we solve all goals in first element of premises
+        assert!(!self.premises.is_empty());
+
+        for der in ders {
+            self.premises.push(der);
+        }
+
+        // head ... check to unproved goals, tails ... goal solvers
+        let ([head, ..], tails) = self.premises.split_at_mut(1) else {
+            unreachable!("premises must have at least one element")
+        };
+
+        for tail in tails {
+            let Derivation::Prove { proved, num: n, .. } = tail else {
+                unreachable!("Only Prove derivations are allowed here")
+            };
+
+            let unproved = get_first_goal(head);
+            let Some(unproved) = unproved else {
+                return Err("not found unproved goal".into());
+            };
+
+            let Derivation::UnSolved(unproved_goal) = unproved else {
+                unreachable!("Only UnProved derivations are allowed here")
+            };
+            if is_alpha_eq_prove(unproved_goal, proved) {
+                // solved, remove from premises
+                *unproved = Derivation::Solved {
+                    target: unproved_goal.clone(),
+                    num: n.clone(),
+                };
+            } else {
+                *unproved = Derivation::SolveFailed {
+                    target: unproved_goal.clone(),
+                    num: n.clone(),
+                };
+                return Err("failed to solve goal".into());
+            }
+        }
+
+        // if some goal is remained, return error
+        if get_first_goal(head).is_some() {
+            return Err("some goals are remained unsolved".into());
+        }
+
+        Ok(())
     }
 
     fn build_typecheck(mut self) -> Derivation {
@@ -543,97 +595,19 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
             builder.build_typeinfer(ty)
         }
-        // type check (ctx |- exp: to) and solve all goal generated in derivation with `withgoals`
-        Exp::Cast { exp, to, withgoals } => {
+        // type check (ctx |- exp: to)
+        Exp::Cast { exp, to } => {
             builder.rule("Cast");
 
-            // 1. simply, check (ctx |- exp : to)
-            // we use check_derivation later, so we do not add it yet
-            let mut check_derivation = check(ctx, exp, to);
-            if !check_derivation.node().unwrap().is_success() {
-                builder.add(check_derivation);
+            // 1. check (ctx |- exp : to)
+            let Some(()) = builder.add_check(ctx, exp, to) else {
                 return builder.build_fail(format!(
                     "Failed to check casted expression {:?} against type {:?}",
                     exp, to
                 ));
-            }
+            };
 
-            let mut goal_and_number: Vec<(Prove, Rc<()>)> = vec![];
-
-            // 2. we add all prove goals to derivation
-            for ProveGoal {
-                extended_ctx,
-                goal_prop,
-                proof_term,
-            } in withgoals
-            {
-                let extended_ctx = ctx.extend_ctx(extended_ctx);
-
-                let proved_goal = Prove {
-                    ctx: extended_ctx.clone(),
-                    prop: Some(goal_prop.clone()),
-                };
-
-                let prove_number = Rc::new(());
-
-                // add (ctx::extended_ctx |- proof_term: goal_prop)
-                let der = check(&extended_ctx, proof_term, goal_prop);
-                if !der.node().unwrap().is_success() {
-                    builder.add(der);
-                    builder.add(check_derivation);
-                    return builder
-                        .build_fail(format!("Failed to prove cast goal {:?}", goal_prop));
-                }
-
-                let der = Derivation::Prove {
-                    tree: Box::new(der),
-                    proved: proved_goal.clone(),
-                    num: prove_number.clone(),
-                };
-
-                builder.add(der);
-
-                goal_and_number.push((proved_goal, prove_number));
-            }
-
-            // 3. solve each unproved goal in check_derivation with goal_and_number
-            for (proved, prove_number) in goal_and_number {
-                // get first unproved goal ... we use check_derivation mutably here
-                let Some(unproved_tree) = get_first_goal(&mut check_derivation) else {
-                    builder.add(check_derivation);
-                    return builder
-                        .build_fail("No more goals to prove in cast derivation".to_string());
-                };
-                let Derivation::UnProved(unproved_goal) = &unproved_tree else {
-                    unreachable!("get_first_goal should return UnProved");
-                };
-
-                // check unproved_goal and proved_goal are equivalent
-                let b = crate::calculus::is_alpha_eq_prove(unproved_goal, &proved);
-                if b {
-                    *unproved_tree = Derivation::Proved {
-                        target: unproved_goal.clone(),
-                        num: prove_number,
-                    };
-                } else {
-                    *unproved_tree = Derivation::ProveFailed {
-                        target: unproved_goal.clone(),
-                        num: prove_number,
-                    };
-                    builder.add(check_derivation);
-                    return builder
-                        .build_fail("Proved goal does not match unproved goal".to_string());
-                }
-            }
-
-            // 4. check no more unproved goals remain
-            if get_first_goal(&mut check_derivation.clone()).is_some() {
-                builder.add(check_derivation);
-                return builder.build_fail("Some goals remain unproved in cast derivation");
-            }
-
-            // 5. conclude (ctx |- Cast(exp, to, withgoals) : to)
-            builder.add(check_derivation);
+            // 2. conclude (ctx |- Cast(exp, to) : to)
             builder.build_typeinfer(to.as_ref().clone())
         }
         Exp::ProveLater { prop } => {
@@ -655,6 +629,66 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
             // 3. conclude (ctx |- ProveLater(prop) : prop)
             builder.build_typeinfer(prop.as_ref().clone())
+        }
+        Exp::ProveHere { exp, goals } => {
+            builder.rule("ProveHere");
+
+            // 1. infer (ctx |- exp : ?ty)
+            let Some(inferred_ty) = builder.add_infer(ctx, exp) else {
+                return builder.build_fail("Failed to infer type of proof term expression");
+            };
+
+            // 2. we get all prove derivations (fail or success is cared later)
+            let mut prove_ders: Vec<Derivation> = vec![];
+            let mut fail: Option<usize> = None;
+
+            for (
+                i,
+                ProveGoal {
+                    extended_ctx,
+                    goal_prop,
+                    proof_term,
+                },
+            ) in goals.iter().enumerate()
+            {
+                let extended_ctx = ctx.extend_ctx(extended_ctx);
+
+                let proved_goal = Prove {
+                    ctx: extended_ctx.clone(),
+                    prop: Some(goal_prop.clone()),
+                };
+
+                let prove_number = Rc::new(());
+
+                // add (ctx::extended_ctx |- proof_term: goal_prop)
+                let der = check(&extended_ctx, proof_term, goal_prop);
+                if !der.node().unwrap().is_success() {
+                    fail = Some(i);
+                }
+
+                let der = Derivation::Prove {
+                    tree: Box::new(der),
+                    proved: proved_goal.clone(),
+                    num: prove_number.clone(),
+                };
+
+                prove_ders.push(der);
+            }
+            // if some goals failed, return fail derivation
+            if let Some(i) = fail {
+                for der in prove_ders {
+                    builder.add(der);
+                }
+                return builder.build_fail(format!("Goal {} failed to prove", i + 1));
+            }
+
+            // 3. all goals are proved, now solve them
+            if let Err(err) = builder.solve(prove_ders) {
+                return builder.build_fail(err);
+            }
+
+            // 4. conclude (ctx |- ProveHere(exp, goals) : inferred_ty) where inferred_ty is infered at 1.
+            builder.build_typeinfer(inferred_ty)
         }
         // (ctx |- ProofTermRaw(command) : prop) if (ctx |= prop) by command
         Exp::ProofTermRaw { command } => {
@@ -1153,13 +1187,13 @@ pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
             }
             None
         }
-        Derivation::UnProved(_) => Some(der),
+        Derivation::UnSolved(_) => Some(der),
         Derivation::Prove {
             tree: _,
             proved: _,
             num: _,
         }
-        | Derivation::Proved { target: _, num: _ }
-        | Derivation::ProveFailed { target: _, num: _ } => None,
+        | Derivation::Solved { target: _, num: _ }
+        | Derivation::SolveFailed { target: _, num: _ } => None,
     }
 }

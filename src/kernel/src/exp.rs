@@ -147,10 +147,13 @@ pub enum Exp {
     Cast {
         exp: Box<Exp>,
         to: Box<Exp>,
-        withgoals: Vec<ProveGoal>,
     },
     ProveLater {
         prop: Box<Exp>,
+    },
+    ProveHere {
+        exp: Box<Exp>,
+        goals: Vec<ProveGoal>,
     },
     ProofTermRaw {
         command: Box<ProveCommandBy>,
@@ -402,14 +405,14 @@ pub enum Derivation {
         meta: Meta,
     },
     // stop derivation at this provable judgment
-    UnProved(Prove),
+    UnSolved(Prove),
     // proved by another proof tree
-    Proved {
+    Solved {
         target: Prove,
         num: Rc<()>,
     },
     // failed to prove by another proof tree
-    ProveFailed {
+    SolveFailed {
         target: Prove,
         num: Rc<()>,
     },
@@ -436,7 +439,7 @@ impl Derivation {
     }
     pub fn get_unproved(&self) -> Option<Prove> {
         match self {
-            Derivation::UnProved(p) => Some(p.clone()),
+            Derivation::UnSolved(p) => Some(p.clone()),
             _ => None,
         }
     }

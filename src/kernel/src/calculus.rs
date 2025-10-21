@@ -101,51 +101,40 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                     .zip(cases2.iter())
                     .all(|(c1, c2)| strict_equivalence(c1, c2))
         }
-        (
-            Exp::Cast {
-                exp: e1,
-                to: t1,
-                withgoals: withgoals1,
-            },
-            Exp::Cast {
-                exp: e2,
-                to: t2,
-                withgoals: withgoals2,
-            },
-        ) => {
-            strict_equivalence(e1, e2)
-                && strict_equivalence(t1, t2)
-                && withgoals1.len() == withgoals2.len()
-                && {
-                    for (
-                        ProveGoal {
-                            extended_ctx: extended_ctx1,
-                            goal_prop: goal_prop1,
-                            proof_term: proof_term1,
-                        },
-                        ProveGoal {
-                            extended_ctx: extended_ctx2,
-                            goal_prop: goal_prop2,
-                            proof_term: proof_term2,
-                        },
-                    ) in withgoals1.iter().zip(withgoals2.iter())
-                    {
-                        if extended_ctx1.0.len() != extended_ctx2.0.len()
-                            || !extended_ctx1.0.iter().zip(extended_ctx2.0.iter()).all(
-                                |((v1, e1), (v2, e2))| {
-                                    v1.is_eq_ptr(v2) && strict_equivalence(e1, e2)
-                                },
-                            )
-                            || !strict_equivalence(goal_prop1, goal_prop2)
-                            || !strict_equivalence(proof_term1, proof_term2)
-                        {
-                            return false;
-                        }
-                    }
-                    true
-                }
+        (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
+            strict_equivalence(e1, e2) && strict_equivalence(t1, t2)
         }
         (Exp::ProveLater { prop: e1 }, Exp::ProveLater { prop: e2 }) => strict_equivalence(e1, e2),
+        (
+            Exp::ProveHere {
+                exp: exp1,
+                goals: goals1,
+            },
+            Exp::ProveHere {
+                exp: exp2,
+                goals: goals2,
+            },
+        ) => {
+            strict_equivalence(exp1, exp2)
+                && goals1.len() == goals2.len()
+                && goals1.iter().zip(goals2.iter()).all(|(g1, g2)| {
+                    strict_equivalence(&g1.goal_prop, &g2.goal_prop)
+                        && strict_equivalence(&g1.proof_term, &g2.proof_term)
+                        && {
+                            if g1.extended_ctx.0.len() != g2.extended_ctx.0.len() {
+                                return false;
+                            }
+                            for ((var1, exp1), (var2, exp2)) in
+                                g1.extended_ctx.0.iter().zip(g2.extended_ctx.0.iter())
+                            {
+                                if !var1.is_eq_ptr(var2) || !strict_equivalence(exp1, exp2) {
+                                    return false;
+                                }
+                            }
+                            true
+                        }
+                })
+        }
         (Exp::ProofTermRaw { command: command1 }, Exp::ProofTermRaw { command: command2 }) => {
             match (command1.as_ref(), command2.as_ref()) {
                 (
@@ -417,25 +406,24 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                     .zip(cases2.iter())
                     .all(|(c1, c2)| is_alpha_eq_rec(c1, c2, env1, env2))
         }
-        (
-            Exp::Cast {
-                exp: e1,
-                to: t1,
-                withgoals: _,
-            },
-            Exp::Cast {
-                exp: e2,
-                to: t2,
-                withgoals: _,
-            },
-        ) => {
-            is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(t1, t2, env1, env2) && {
-                // here we ignore proof terms `withgoals`
-                true
-            }
+        (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
+            is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(t1, t2, env1, env2)
         }
         (Exp::ProveLater { prop: e1 }, Exp::ProveLater { prop: e2 }) => {
             is_alpha_eq_rec(e1, e2, env1, env2)
+        }
+        (
+            Exp::ProveHere {
+                exp: exp1,
+                goals: _,
+            },
+            Exp::ProveHere {
+                exp: exp2,
+                goals: _,
+            },
+        ) => {
+            // here we ignore proof goals
+            is_alpha_eq_rec(exp1, exp2, env1, env2)
         }
         (Exp::ProofTermRaw { command: _ }, Exp::ProofTermRaw { command: _ }) => {
             // here we ignore proof terms
@@ -646,10 +634,16 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             sort: *sort,
             cases: cases.iter().map(|case| subst(case, v, t)).collect(),
         },
-        Exp::Cast { exp, to, withgoals } => Exp::Cast {
+        Exp::Cast { exp, to } => Exp::Cast {
             exp: Box::new(subst(exp, v, t)),
             to: Box::new(subst(to, v, t)),
-            withgoals: withgoals
+        },
+        Exp::ProveLater { prop: exp } => Exp::ProveLater {
+            prop: Box::new(subst(exp, v, t)),
+        },
+        Exp::ProveHere { exp, goals } => Exp::ProveHere {
+            exp: Box::new(subst(exp, v, t)),
+            goals: goals
                 .iter()
                 .map(|goal| ProveGoal {
                     extended_ctx: Context(
@@ -663,9 +657,6 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
                     proof_term: subst(&goal.proof_term, v, t),
                 })
                 .collect(),
-        },
-        Exp::ProveLater { prop: exp } => Exp::ProveLater {
-            prop: Box::new(subst(exp, v, t)),
         },
         Exp::ProofTermRaw { command } => Exp::ProofTermRaw {
             command: match command.as_ref() {
@@ -829,21 +820,63 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             sort: *sort,
             cases: cases.iter().map(alpha_conversion).collect(),
         },
-        Exp::Cast { exp, to, withgoals } => Exp::Cast {
+        Exp::Cast { exp, to } => Exp::Cast {
             exp: Box::new(alpha_conversion(exp)),
             to: Box::new(alpha_conversion(to)),
-            withgoals: withgoals
+        },
+
+        Exp::ProveLater { prop: exp } => Exp::ProveLater {
+            prop: Box::new(alpha_conversion(exp)),
+        },
+        Exp::ProveHere { exp, goals } => Exp::ProveHere {
+            exp: Box::new(alpha_conversion(exp)),
+            goals: goals
                 .iter()
-                .map(|goal| ProveGoal {
-                    extended_ctx: Context(
-                        goal.extended_ctx
-                            .0
-                            .iter()
-                            .map(|(var, exp)| (var.clone(), alpha_conversion(exp)))
-                            .collect(),
-                    ),
-                    goal_prop: alpha_conversion(&goal.goal_prop),
-                    proof_term: alpha_conversion(&goal.proof_term),
+                .map(|goal| {
+                    let ProveGoal {
+                        extended_ctx,
+                        goal_prop,
+                        proof_term,
+                    } = goal;
+
+                    let mut subst_map = vec![];
+                    for (var, _) in extended_ctx.0.iter() {
+                        let new_var = Var::new(var.name());
+                        subst_map.push((var.clone(), new_var));
+                    }
+
+                    let mut new_ctx = vec![];
+                    for (i, (_, e)) in extended_ctx.0.iter().enumerate() {
+                        let mut new_e = alpha_conversion(e);
+                        for (old_var, new_var) in subst_map.iter() {
+                            new_e = subst(&new_e, old_var, &Exp::Var(new_var.clone()));
+                        }
+                        new_ctx.push((subst_map[i].1.clone(), new_e));
+                    }
+
+                    let goal_prop = {
+                        let mut new_goal_prop = alpha_conversion(goal_prop);
+                        for (old_var, new_var) in subst_map.iter() {
+                            new_goal_prop =
+                                subst(&new_goal_prop, old_var, &Exp::Var(new_var.clone()));
+                        }
+                        new_goal_prop
+                    };
+
+                    let proof_term = {
+                        let mut new_proof_term = alpha_conversion(proof_term);
+                        for (old_var, new_var) in subst_map.iter() {
+                            new_proof_term =
+                                subst(&new_proof_term, old_var, &Exp::Var(new_var.clone()));
+                        }
+                        new_proof_term
+                    };
+
+                    ProveGoal {
+                        extended_ctx: Context(new_ctx),
+                        goal_prop,
+                        proof_term,
+                    }
                 })
                 .collect(),
         },
@@ -898,9 +931,6 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
                 ProveCommandBy::Axiom(_) => todo!("axiom later fix"),
             }
             .into(),
-        },
-        Exp::ProveLater { prop: exp } => Exp::ProveLater {
-            prop: Box::new(alpha_conversion(exp)),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
             set: Box::new(alpha_conversion(exp)),
@@ -1054,10 +1084,24 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 cases,
             })
         }
-        Exp::Cast { exp, to, withgoals } => {
+        Exp::Cast { exp, to } => {
             let exp = reduce_if(exp);
             let to = reduce_if(to);
-            let withgoals = withgoals
+
+            changed.then_some(Exp::Cast {
+                exp: Box::new(exp),
+                to: Box::new(to),
+            })
+        }
+        Exp::ProveLater { prop: exp } => {
+            let exp = reduce_if(exp);
+            changed.then_some(Exp::ProveLater {
+                prop: Box::new(exp),
+            })
+        }
+        Exp::ProveHere { exp, goals } => {
+            let exp = reduce_if(exp);
+            let goals = goals
                 .iter()
                 .map(|goal| ProveGoal {
                     extended_ctx: Context(
@@ -1072,16 +1116,9 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 })
                 .collect();
 
-            changed.then_some(Exp::Cast {
+            changed.then_some(Exp::ProveHere {
                 exp: Box::new(exp),
-                to: Box::new(to),
-                withgoals,
-            })
-        }
-        Exp::ProveLater { prop: exp } => {
-            let exp = reduce_if(exp);
-            changed.then_some(Exp::ProveLater {
-                prop: Box::new(exp),
+                goals,
             })
         }
         Exp::ProofTermRaw { command } => {
