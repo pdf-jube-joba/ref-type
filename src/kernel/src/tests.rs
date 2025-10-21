@@ -1,7 +1,6 @@
 use crate::{
     checker::Checker,
-    exp::ProveCommandBy,
-    exp::{Exp, Sort, Var},
+    exp::{Context, Exp, ProveCommandBy, ProveGoal, Sort, Var},
     utils::{self, app, lam, prod, prooflater, var, var_exp},
 };
 // rustfmt doens not allow us variable starts with Uppercase letter
@@ -18,16 +17,6 @@ fn push_var(checker: &mut Checker, var: &Var, ty: Exp) {
 // Helper function to check terms
 fn check_term(checker: &Checker, term: &Exp, ty: &Exp) {
     let der = checker.check(term, ty);
-    println!("{}", der);
-    assert!(der.node().unwrap().is_success());
-}
-
-fn prove_by(checker: &Checker, prop: &Exp, command: &ProveCommandBy) {
-    // we use
-    let proof_term = &Exp::ProofTermRaw {
-        command: Box::new(command.clone()),
-    };
-    let der = checker.check(proof_term, prop);
     println!("{}", der);
     assert!(der.node().unwrap().is_success());
 }
@@ -336,18 +325,15 @@ fn solvegoals() {
     let pp2 = var!("P2");
     let p1 = var!("p1");
     let pm = var!("pm");
+    let p1impp2 = prod! {
+        var: var!("_"),
+        ty: Exp::Var(pp1.clone()),
+        body: Exp::Var(pp2.clone()),
+    };
     push_var(&mut checker, &pp1, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &pp2, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &p1, Exp::Var(pp1.clone()));
-    push_var(
-        &mut checker,
-        &pm,
-        Exp::Prod {
-            var: var!("_"),
-            ty: Box::new(Exp::Var(pp1.clone())),
-            body: Box::new(Exp::Var(pp2.clone())),
-        },
-    );
+    push_var(&mut checker, &pm, p1impp2.clone());
 
     let proof_term = {
         // ProofLater(P1 -> P2) ProofLater(P1))
@@ -362,7 +348,26 @@ fn solvegoals() {
             arg: prooflater!(Exp::Var(pp1.clone())),
         };
         let castto = Exp::Var(pp2.clone());
-        let goals: Vec<_> = vec![];
+        let goals: Vec<_> = vec![
+            ProveGoal {
+                extended_ctx: Context(vec![]),
+                goal_prop: p1impp2.clone(),
+                proof_term: Exp::ProofTermRaw {
+                    command: Box::new(ProveCommandBy::Construct {
+                        proof_term: Exp::Var(pm.clone()),
+                    }),
+                },
+            },
+            ProveGoal {
+                extended_ctx: Context(vec![]),
+                goal_prop: Exp::Var(pp1.clone()),
+                proof_term: Exp::ProofTermRaw {
+                    command: Box::new(ProveCommandBy::Construct {
+                        proof_term: Exp::Var(p1.clone()),
+                    }),
+                },
+            },
+        ];
 
         Exp::Cast {
             exp: Box::new(exp),
