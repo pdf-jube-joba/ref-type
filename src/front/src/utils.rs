@@ -24,6 +24,7 @@ pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
         a = Exp::App {
             func: Box::new(a),
             arg: Box::new(v),
+            piped: false,
         }
     }
     a

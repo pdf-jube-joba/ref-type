@@ -133,11 +133,7 @@ pub enum Exp {
     App {
         func: Box<Exp>,
         arg: Box<Exp>,
-    },
-    // pipeline style application (x |> f)
-    AppByPipe {
-        func: Box<Exp>,
-        arg: Box<Exp>,
+        piped: bool, // (x | f) to indicate piped application
     },
     // type annotation (exp as ty)
     Annotation {

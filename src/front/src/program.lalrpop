@@ -1,30 +1,56 @@
-use std::str::FromStr;
-use crate::syntax::{Identifier, Exp, Bind};
+use crate::syntax::{Identifier, Exp, MacroToken, Bind};
+use either::Either;
+use lalrpop_util::ParseError;
 
 grammar;
 
-pub Ident: Identifier = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => Identifier(String::from(s));
+pub SortAst: kernel::exp::Sort = {
+  "\\Prop" => kernel::exp::Sort::Prop,
+}
+
+Ident: Identifier = <s:r"[a-zA-Z][a-zA-Z0-9_]*"> => Identifier(String::from(s));
+
+MacTok: MacroToken = {
+  <s:r"[1!23#4$5%6&7'890=\-~^`@{\[\+*\]},<.>?/_\\]"> => MacroToken(String::from(s)),
+}
 
 pub ExpAll = {
   ArrowSeparated,
   Combined,
 }
 
-ArrowSeparated: Exp = {
-  <tyast: Combined> "=>" <bodyast: ArrowSeparated> => Exp::Lam { bind: Bind { var: None, ty: Box::new(tyast), predicate: None }, body: Box::new(bodyast)},
-  <bdast: Binder> "=>" <bodyast: ArrowSeparated> => Exp::Lam { bind: bdast, body: Box::new(bodyast)}
+Atom: Exp = {
+  <s: SortAst> => Exp::Sort(s),
+  <v: Ident> => Exp::Var(v),
+  "(" <e: ExpAll> ")" => e,
+  "$(" <seq: SeqTok> "$)"  => Exp::MathMacro { tokens: seq },
 }
 
 Combined: Exp = {
   <funcast: Atom> <argast: Combined> => Exp::App { func: Box::new(funcast), arg: Box::new(argast)},
-  <argast: Atom> "|" <funcast: Combined> => Exp::AppByPipe { func: Box::new(funcast), arg: Box::new(argast) }
+  <argast: Atom> "|" <funcast: Combined> => Exp::AppByPipe { func: Box::new(funcast), arg: Box::new(argast) },
+  Atom,
 }
 
-Atom: Exp = {
-  <v: Ident> => Exp::Var(v),
-  "(" <e: ExpAll> ")" => e,
+ArrowSeparated: Exp = {
+  <bdast: Binder> "->" <bodyast: ArrowSeparated> => Exp::Prod { bind: bdast, body: Box::new(bodyast)},
+  <bdast: Binder> "=>" <bodyast: ArrowSeparated> => Exp::Lam { bind: bdast, body: Box::new(bodyast)},
 }
 
 Binder: Bind = {
-  "(" <v: Ident> ":" <e: ExpAll> ")" => Bind { var: Some(v), ty: Box::new(e), predicate: None }
+  "(" <v: Ident> ":" <e: ExpAll> ")" => Bind { var: Some(v), ty: Box::new(e), predicate: None },
+  <e: Combined> => Bind { var: None, ty: Box::new(e), predicate: None },
+}
+
+SeqTok: Vec<Either<MacroToken, Exp>> = {
+  <a: Atom> <seq: SeqTok> => {
+    let mut v = seq;
+    v.push(Either::Right(a));
+    v
+  },
+  <t: MacTok> <seq: SeqTok> => {
+    let mut v = seq;
+    v.push(Either::Left(t));
+    v
+  },
 }
