@@ -28,8 +28,8 @@ pub struct ModuleInstantiated {
 // pattern 3 (start from named): name.name2(...).name3(...)
 #[derive(Debug, Clone)]
 pub enum ModPath {
-    Root(Vec<ModuleInstantiated>),    // absolute path from project root
-    Current(Vec<ModuleInstantiated>), // relative path from current module
+    Root(Vec<ModuleInstantiated>), // absolute path from project root
+    Current(usize, Vec<ModuleInstantiated>), // relative path from current module
     Name(Identifier, Vec<ModuleInstantiated>), // relative path from named module
 }
 
