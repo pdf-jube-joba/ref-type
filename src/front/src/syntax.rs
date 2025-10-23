@@ -73,11 +73,10 @@ pub struct InductiveTypeSpecs {
 #[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), (x: A | P), (x: A | h: P),
-// binding variable now uses Identifier directly
 pub struct Bind {
     pub var: Option<Identifier>,
     pub ty: Box<Exp>,
-    pub predicate: Option<(Option<Identifier>, Box<Exp>)>, // predicate now uses Identifier
+    pub predicate: Option<(Option<Identifier>, Box<Exp>)>,
 }
 
 // this is internal representation
