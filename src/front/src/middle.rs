@@ -159,4 +159,8 @@ pub enum MirStatement {
         ty: Box<Mir>,
         value: Box<Mir>,
     },
+    Fix {
+        name: kernel::exp::Var,
+        ty: Box<Mir>,
+    },
 }
