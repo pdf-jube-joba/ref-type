@@ -9,14 +9,14 @@ use crate::{
 
 // Helper function to push variables into the context
 fn push_var(checker: &mut Checker, var: &Var, ty: Exp) {
-    let der = checker.push(var.clone(), ty);
+    let der = checker.push(var.clone(), ty).unwrap();
     println!("{}", der);
     assert!(der.node().unwrap().is_success());
 }
 
 // Helper function to check terms
 fn check_term(checker: &Checker, term: &Exp, ty: &Exp) {
-    let der = checker.check(term, ty);
+    let der = checker.check(term, ty).unwrap();
     println!("{}", der);
     assert!(der.node().unwrap().is_success());
 }
@@ -310,7 +310,7 @@ fn proof_by_assumption() {
         }
     };
 
-    let der = checker.infer(&proof_term);
+    let der = checker.infer(&proof_term).unwrap();
     println!("{}", der);
 }
 
@@ -372,6 +372,6 @@ fn solvegoals() {
         }
     };
 
-    let der = checker.infer(&proof_term);
+    let der = checker.infer(&proof_term).unwrap();
     println!("{}", der);
 }

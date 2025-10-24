@@ -4,7 +4,7 @@ use crate::syntax;
 
 lalrpop_mod!(program);
 
-pub fn parse_exp(input: &str) -> Result<syntax::Exp, String> {
+pub fn parse_exp(input: &str) -> Result<syntax::SExp, String> {
     match program::ExpAllParser::new().parse(input) {
         Ok(exp) => Ok(exp),
         Err(err) => Err(format!("Parse error: {}", err)),

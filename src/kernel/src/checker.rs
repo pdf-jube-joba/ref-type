@@ -19,23 +19,33 @@ impl Checker {
     pub fn context(&self) -> &Context {
         &self.context
     }
-    pub fn check(&self, term: &Exp, ty: &Exp) -> Derivation {
-        crate::derivation::check(&self.context, term, ty)
+    pub fn check(&self, term: &Exp, ty: &Exp) -> Result<Derivation, Derivation> {
+        let derivation = crate::derivation::check(&self.context, term, ty);
+        if derivation.node().unwrap().is_success() {
+            Ok(derivation)
+        } else {
+            Err(derivation)
+        }
     }
-    pub fn infer(&self, term: &Exp) -> Derivation {
-        crate::derivation::infer(&self.context, term)
+    pub fn infer(&self, term: &Exp) -> Result<Derivation, Derivation> {
+        let derivation = crate::derivation::infer(&self.context, term);
+        if derivation.node().unwrap().is_success() {
+            Ok(derivation)
+        } else {
+            Err(derivation)
+        }
     }
     pub fn prove_command(&self, command: &ProveCommandBy) -> Derivation {
         crate::derivation::prove_command(&self.context, command)
     }
-    pub fn push(&mut self, var: Var, ty: Exp) -> Derivation {
+    pub fn push(&mut self, var: Var, ty: Exp) -> Result<Derivation, Derivation> {
         let der = crate::derivation::infer_sort(&self.context, &ty);
         if !der.node().unwrap().is_success() {
-            return der;
+            return Err(der);
         }
 
         self.context.0.push((var, ty));
-        der
+        Ok(der)
     }
     pub fn pop(&mut self) {
         self.context.0.pop();

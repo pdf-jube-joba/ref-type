@@ -10,7 +10,7 @@ pub struct Identifier(pub String);
 #[derive(Debug, Clone)]
 pub struct Module {
     pub name: Identifier,
-    pub parameters: Vec<(Identifier, Exp)>, // given parameters for module
+    pub parameters: Vec<(Identifier, SExp)>, // given parameters for module
     pub declarations: Vec<ModuleItem>,      // sensitive to order
 }
 
@@ -19,7 +19,7 @@ pub struct Module {
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
     pub module_name: Identifier,           // name of the module
-    pub arguments: Vec<(Identifier, Exp)>, // given arguments for parameters
+    pub arguments: Vec<(Identifier, SExp)>, // given arguments for parameters
 }
 
 // path of module access
@@ -28,17 +28,15 @@ pub struct ModuleInstantiated {
 // pattern 3 (start from named): name.name2(...).name3(...)
 #[derive(Debug, Clone)]
 pub enum ModPath {
-    Root(Vec<ModuleInstantiated>), // absolute path from project root
-    Current(usize, Vec<ModuleInstantiated>), // relative path from current module
-    Name(Identifier, Vec<ModuleInstantiated>), // relative path from named module
+    Root(Vec<ModuleInstantiated>), // relative path from named module
 }
 
 #[derive(Debug, Clone)]
 pub enum ModuleItem {
     Definition {
         var: Identifier,
-        ty: Exp,
-        body: Exp,
+        ty: SExp,
+        body: SExp,
     },
     Inductive {
         ind_defs: InductiveTypeSpecs,
@@ -52,7 +50,7 @@ pub enum ModuleItem {
     },
     MathMacro {
         before: Vec<Either<MacroToken, Identifier>>,
-        after: Vec<Either<Exp, Identifier>>,
+        after: Vec<Either<SExp, Identifier>>,
     },
     UserMacro {
         name: Identifier,
@@ -64,10 +62,10 @@ pub enum ModuleItem {
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
     pub type_name: Identifier,
-    pub parameter: Vec<(Identifier, Exp)>,
-    pub indices: Vec<(Identifier, Exp)>,
+    pub parameter: Vec<(Identifier, SExp)>,
+    pub indices: Vec<(Identifier, SExp)>,
     pub sort: kernel::exp::Sort,
-    pub constructors: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+    pub constructors: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,13 +73,13 @@ pub struct InductiveTypeSpecs {
 // A = (_: A), (x: A), (x: A | P), (x: A | h: P),
 pub struct Bind {
     pub var: Option<Identifier>,
-    pub ty: Box<Exp>,
-    pub predicate: Option<(Option<Identifier>, Box<Exp>)>,
+    pub ty: Box<SExp>,
+    pub predicate: Option<(Option<Identifier>, Box<SExp>)>,
 }
 
 // this is internal representation
 #[derive(Debug, Clone)]
-pub enum Exp {
+pub enum SExp {
     // --- module access
     // module access `path.name`
     // if name pointed to a inductive type, it should IndType
@@ -94,23 +92,23 @@ pub enum Exp {
     // shared macro for math symbols
     // before type checking, it is expanded to normal expression
     MathMacro {
-        tokens: Vec<Either<MacroToken, Exp>>,
+        tokens: Vec<Either<MacroToken, SExp>>,
     },
     // macro specified by name
     NamedMacro {
         path: ModPath,
         name: Identifier,
-        tokens: Vec<Either<MacroToken, Exp>>,
+        tokens: Vec<Either<MacroToken, SExp>>,
     },
     // --- expression with clauses
     // where clauses to define local variables
     Where {
-        exp: Box<Exp>,
-        clauses: Vec<(Identifier, Exp, Exp)>,
+        exp: Box<SExp>,
+        clauses: Vec<(Identifier, SExp, SExp)>,
     },
     // solve goals given by type checker
     WithProof {
-        exp: Box<Exp>,
+        exp: Box<SExp>,
         proofs: Vec<WithGoal>,
     },
     // --- lambda calculus
@@ -121,23 +119,23 @@ pub enum Exp {
     // bind -> B
     Prod {
         bind: Bind,
-        body: Box<Exp>,
+        body: Box<SExp>,
     },
     // bind => t
     Lam {
         bind: Bind,
-        body: Box<Exp>,
+        body: Box<SExp>,
     },
     // usual application (f x)
     App {
-        func: Box<Exp>,
-        arg: Box<Exp>,
+        func: Box<SExp>,
+        arg: Box<SExp>,
         piped: bool, // (x | f) to indicate piped application
     },
     // type annotation (exp as ty)
     Annotation {
-        exp: Box<Exp>,
-        ty: Box<Exp>,
+        exp: Box<SExp>,
+        ty: Box<SExp>,
     },
     // --- inductive type
     // name of inductive type
@@ -156,41 +154,41 @@ pub enum Exp {
     IndElim {
         path: ModPath,
         ind_type_name: String,
-        eliminated_exp: Box<Exp>,
-        return_type: Box<Exp>,
-        cases: Vec<(String, Exp)>,
+        eliminated_exp: Box<SExp>,
+        return_type: Box<SExp>,
+        cases: Vec<(String, SExp)>,
     },
     // --- set theory
     // \Proof term ... "prove this later"
     Proof {
-        term: Box<Exp>,
+        term: Box<SExp>,
     },
     // \Power power
     Pow {
-        power: Box<Exp>,
+        power: Box<SExp>,
     },
     // { x: A | P }
     Sub {
         var: Identifier,
-        ty: Box<Exp>,
-        predicate: Box<Exp>,
+        ty: Box<SExp>,
+        predicate: Box<SExp>,
     },
     // \Pred (superset, subset, elem)
     Pred {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        elem: Box<Exp>,
+        superset: Box<SExp>,
+        subset: Box<SExp>,
+        elem: Box<SExp>,
     },
     // \TypeLift (superset, subset)
     TypeLift {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
+        superset: Box<SExp>,
+        subset: Box<SExp>,
     },
     // --- proposition
     // a = b
     Equal {
-        left: Box<Exp>,
-        right: Box<Exp>,
+        left: Box<SExp>,
+        right: Box<SExp>,
     },
     // Bracket type ... \exists (x: A), (x: A | P)
     Exists {
@@ -200,7 +198,7 @@ pub enum Exp {
     // \take (x: A) => t or \take (x: A | P) => t
     Take {
         bind: Bind, // updated to use the new Bind structure
-        body: Box<Exp>,
+        body: Box<SExp>,
     },
     // --- "proof by" terms
     ProofBy(ProofBy),
@@ -217,75 +215,75 @@ pub struct MacroToken(pub String);
 #[derive(Debug, Clone)]
 pub enum ProofBy {
     Construct {
-        term: Box<Exp>,
+        term: Box<SExp>,
     },
     Exact {
-        term: Box<Exp>,
-        set: Box<Exp>,
+        term: Box<SExp>,
+        set: Box<SExp>,
     },
     SubElim {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        elem: Box<Exp>,
+        superset: Box<SExp>,
+        subset: Box<SExp>,
+        elem: Box<SExp>,
     },
     IdRefl {
-        term: Box<Exp>,
-        ty: Box<Exp>,
+        term: Box<SExp>,
+        ty: Box<SExp>,
     },
     IdElim {
-        left: Box<Exp>,
-        right: Box<Exp>,
+        left: Box<SExp>,
+        right: Box<SExp>,
         var: Identifier,
-        ty: Box<Exp>,
-        predicate: Box<Exp>,
+        ty: Box<SExp>,
+        predicate: Box<SExp>,
     },
     TakeEq {
-        func: Box<Exp>,
-        elem: Box<Exp>,
+        func: Box<SExp>,
+        elem: Box<SExp>,
     },
     AxiomLEM {
-        proposition: Box<Exp>,
+        proposition: Box<SExp>,
     },
     AxiomFunctionExt {
-        func1: Box<Exp>,
-        func2: Box<Exp>,
-        domain: Box<Exp>,
+        func1: Box<SExp>,
+        func2: Box<SExp>,
+        domain: Box<SExp>,
     },
     AxiomEmsembleExt {
-        set1: Box<Exp>,
-        set2: Box<Exp>,
-        superset: Box<Exp>,
+        set1: Box<SExp>,
+        set2: Box<SExp>,
+        superset: Box<SExp>,
     },
 }
 
 #[derive(Debug, Clone)]
 pub struct Block {
     pub declarations: Vec<Statement>, // sensitive to order
-    pub term: Box<Exp>,               // returning term of the block
+    pub term: Box<SExp>,               // returning term of the block
 }
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Fix(Vec<(Identifier, Exp)>), // fix x: A; y: B;
+    Fix(Vec<(Identifier, SExp)>), // fix x: A; y: B;
     Have {
         var: Identifier,
-        ty: Exp,
-        body: Exp,
+        ty: SExp,
+        body: SExp,
     }, // have x: A := t;
     Take {
         var: Identifier, // updated to use Identifier directly
-        ty: Exp,
-        predicate_proof: Option<(Option<Exp>, Exp)>, // no changes needed here
+        ty: SExp,
+        predicate_proof: Option<(Option<SExp>, SExp)>, // no changes needed here
     }, // take x: A; or take x: A | P; or take x: A | h: P;
     Sufficient {
-        prop: Exp,
-        implication: Exp,
+        prop: SExp,
+        implication: SExp,
     }, // suffices A by (h: A -> B);
 }
 
 #[derive(Debug, Clone)]
 pub struct WithGoal {
-    pub extended_ctx: Vec<(Identifier, Exp)>, // extended context
-    pub goal: Exp,                            // goal to prove
-    pub proof_term: Exp,                      // proof term to fill in
+    pub extended_ctx: Vec<(Identifier, SExp)>, // extended context
+    pub goal: SExp,                            // goal to prove
+    pub proof_term: SExp,                      // proof term to fill in
 }

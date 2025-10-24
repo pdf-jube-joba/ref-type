@@ -765,6 +765,14 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
     }
 }
 
+pub fn subst_map(e: &Exp, v: &[(Var, Exp)]) -> Exp {
+    let mut res = e.clone();
+    for (var, exp) in v.iter() {
+        res = subst(&res, var, exp);
+    }
+    res
+}
+
 // any bindings in e should be renamed to avoid some problems
 // free variable is not affected (ptr_copy)
 pub fn alpha_conversion(e: &Exp) -> Exp {

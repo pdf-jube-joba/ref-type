@@ -1,15 +1,15 @@
-use crate::syntax::Exp;
+use crate::syntax::SExp;
 
 #[macro_export]
 macro_rules! sort {
     (SET($n: literal)) => {
-        $crate::syntax::Exp::Sort(kernel::exp::Sort::Set($n))
+        $crate::syntax::SExp::Sort(kernel::exp::Sort::Set($n))
     };
     (PROP) => {
-        $crate::syntax::Exp::Sort(kernel::exp::Sort::Prop)
+        $crate::syntax::SExp::Sort(kernel::exp::Sort::Prop)
     };
     (PROPKIND) => {
-        $crate::syntax::Exp::Sort(kernel::exp::Sort::PropKind)
+        $crate::syntax::SExp::Sort(kernel::exp::Sort::PropKind)
     };
 }
 
@@ -19,9 +19,9 @@ macro_rules! var {
 }
 
 // (a v[0] ... v[k])
-pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
+pub fn assoc_apply(mut a: SExp, v: Vec<SExp>) -> SExp {
     for v in v {
-        a = Exp::App {
+        a = SExp::App {
             func: Box::new(a),
             arg: Box::new(v),
             piped: false,
