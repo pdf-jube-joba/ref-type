@@ -1,4 +1,4 @@
-use crate::syntax::{Identifier, Exp, MacroToken, Bind};
+use crate::syntax::{Identifier, SExp, MacroToken, Bind};
 use either::Either;
 use lalrpop_util::ParseError;
 
@@ -14,35 +14,35 @@ MacTok: MacroToken = {
   <s:r"[1!23#4$5%6&7'890=\-~^`@{\[\+*\]},<.>?/_\\]"> => MacroToken(String::from(s)),
 }
 
-pub ExpAll = {
+pub SExpAll = {
   ArrowSeparated,
   Combined,
 }
 
-Atom: Exp = {
-  <s: SortAst> => Exp::Sort(s),
-  <v: Ident> => Exp::Var(v),
-  "(" <e: ExpAll> ")" => e,
-  "$(" <seq: SeqTok> "$)"  => Exp::MathMacro { tokens: seq },
+Atom: SExp = {
+  <s: SortAst> => SExp::Sort(s),
+  <v: Ident> => SExp::Var(v),
+  "(" <e: SExpAll> ")" => e,
+  "$(" <seq: SeqTok> "$)"  => SExp::MathMacro { tokens: seq },
 }
 
-Combined: Exp = {
-  <funcast: Atom> <argast: Combined> => Exp::App { func: Box::new(funcast), arg: Box::new(argast)},
-  <argast: Atom> "|" <funcast: Combined> => Exp::AppByPipe { func: Box::new(funcast), arg: Box::new(argast) },
+Combined: SExp = {
+  <funcast: Atom> <argast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: false },
+  <argast: Atom> "|" <funcast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: true },
   Atom,
 }
 
-ArrowSeparated: Exp = {
-  <bdast: Binder> "->" <bodyast: ArrowSeparated> => Exp::Prod { bind: bdast, body: Box::new(bodyast)},
-  <bdast: Binder> "=>" <bodyast: ArrowSeparated> => Exp::Lam { bind: bdast, body: Box::new(bodyast)},
+ArrowSeparated: SExp = {
+  <bdast: Binder> "->" <bodyast: ArrowSeparated> => SExp::Prod { bind: bdast, body: Box::new(bodyast)},
+  <bdast: Binder> "=>" <bodyast: ArrowSeparated> => SExp::Lam { bind: bdast, body: Box::new(bodyast)},
 }
 
 Binder: Bind = {
-  "(" <v: Ident> ":" <e: ExpAll> ")" => Bind { var: Some(v), ty: Box::new(e), predicate: None },
+  "(" <v: Ident> ":" <e: SExpAll> ")" => Bind { var: Some(v), ty: Box::new(e), predicate: None },
   <e: Combined> => Bind { var: None, ty: Box::new(e), predicate: None },
 }
 
-SeqTok: Vec<Either<MacroToken, Exp>> = {
+SeqTok: Vec<Either<MacroToken, SExp>> = {
   <a: Atom> <seq: SeqTok> => {
     let mut v = seq;
     v.push(Either::Right(a));
