@@ -1,53 +1,59 @@
 // "interactive" type checker
 
-use crate::exp::{Context, Derivation, Exp, ProveCommandBy, Var};
+use crate::exp::{Context, Derivation, Exp, ProveCommandBy, TypeInfer, Var};
 
 #[derive(Debug)]
 pub struct Checker {
     context: Context,
+    derivations: Vec<Derivation>,
 }
 
 impl Default for Checker {
     fn default() -> Self {
         Checker {
-            context: Context(vec![]),
+            context: vec![].into(),
+            derivations: vec![],
         }
     }
 }
 
 impl Checker {
+    pub fn history(&self) -> &Vec<Derivation> {
+        &self.derivations
+    }
     pub fn context(&self) -> &Context {
         &self.context
     }
-    pub fn check(&self, term: &Exp, ty: &Exp) -> Result<Derivation, Derivation> {
+    pub fn check(&mut self, term: &Exp, ty: &Exp) -> Result<(), ()> {
         let derivation = crate::derivation::check(&self.context, term, ty);
-        if derivation.node().unwrap().is_success() {
-            Ok(derivation)
-        } else {
-            Err(derivation)
-        }
+        let res = derivation.node().unwrap().is_success();
+        self.derivations.push(derivation);
+        if res { Ok(()) } else { Err(()) }
     }
-    pub fn infer(&self, term: &Exp) -> Result<Derivation, Derivation> {
+    pub fn infer(&mut self, term: &Exp) -> Result<Exp, ()> {
         let derivation = crate::derivation::infer(&self.context, term);
-        if derivation.node().unwrap().is_success() {
-            Ok(derivation)
-        } else {
-            Err(derivation)
-        }
+        let ty = {
+            let TypeInfer { ty, .. } = derivation.node().unwrap().as_type_infer().unwrap();
+            ty.clone()
+        };
+        self.derivations.push(derivation);
+        if let Some(ty) = ty { Ok(ty) } else { Err(()) }
     }
     pub fn prove_command(&self, command: &ProveCommandBy) -> Derivation {
         crate::derivation::prove_command(&self.context, command)
     }
-    pub fn push(&mut self, var: Var, ty: Exp) -> Result<Derivation, Derivation> {
+    pub fn push(&mut self, var: Var, ty: Exp) -> Result<(), ()> {
         let der = crate::derivation::infer_sort(&self.context, &ty);
-        if !der.node().unwrap().is_success() {
-            return Err(der);
+        let res = der.node().unwrap().is_success();
+        self.derivations.push(der);
+        if res {
+            self.context.push((var, ty));
+            Ok(())
+        } else {
+            Err(())
         }
-
-        self.context.0.push((var, ty));
-        Ok(der)
     }
     pub fn pop(&mut self) {
-        self.context.0.pop();
+        self.context.pop();
     }
 }

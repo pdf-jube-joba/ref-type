@@ -188,7 +188,7 @@ impl Display for crate::exp::Exp {
 impl Display for crate::exp::Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ctx_str = self
-            .0
+            .vec()
             .iter()
             .map(|(var, ty)| format!("{}: {}", var, ty))
             .collect::<Vec<_>>()

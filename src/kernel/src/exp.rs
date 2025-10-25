@@ -120,10 +120,18 @@ pub enum Exp {
         ty: Box<Exp>,
         body: Box<Exp>, // bind one variable
     },
+    // usual application (f x)
     App {
         func: Box<Exp>,
         arg: Box<Exp>,
     },
+    // // let x: ty = val in body
+    // Let {
+    //     var: Var,
+    //     ty: Box<Exp>,
+    //     val: Box<Exp>,
+    //     body: Box<Exp>,
+    // },
     // uncurry with parameter
     IndType {
         indty: Rc<crate::inductive::InductiveTypeSpecs>,
@@ -191,19 +199,6 @@ pub enum Exp {
     },
 }
 
-impl Exp {
-    pub fn let_in_ty(var: Var, ty: Exp, val: Exp, body: Exp) -> Exp {
-        Exp::App {
-            func: Box::new(Exp::Lam {
-                var,
-                ty: Box::new(ty),
-                body: Box::new(body),
-            }),
-            arg: Box::new(val),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ProveGoal {
     pub extended_ctx: Context,
@@ -260,10 +255,25 @@ pub enum ProveCommandBy {
     Axiom(Axiom),
 }
 
-#[derive(Debug, Clone)]
-pub struct Context(pub Vec<(Var, Exp)>);
+#[derive(Debug, Clone, Default)]
+pub struct Context(Vec<(Var, Exp)>);
+
+impl From<Vec<(Var, Exp)>> for Context {
+    fn from(v: Vec<(Var, Exp)>) -> Self {
+        Context(v)
+    }
+}
 
 impl Context {
+    pub fn vec(&self) -> &Vec<(Var, Exp)> {
+        &self.0
+    }
+    pub fn push(&mut self, varty: (Var, Exp)) {
+        self.0.push(varty);
+    }
+    pub fn pop(&mut self) {
+        self.0.pop();
+    }
     pub fn extend(&self, varty: (Var, Exp)) -> Self {
         let mut new_ctx = self.0.clone();
         new_ctx.push(varty);
@@ -339,49 +349,49 @@ impl Node {
             Node::Prove(p) => &p.ctx,
         }
     }
-    pub fn typecheck(&self) -> Option<&TypeCheck> {
+    pub fn as_type_check(&self) -> Option<&TypeCheck> {
         match self {
             Node::TypeCheck(tc) => Some(tc),
             _ => None,
         }
     }
-    pub fn typecheck_mut(&mut self) -> Option<&mut TypeCheck> {
+    pub fn as_type_check_mut(&mut self) -> Option<&mut TypeCheck> {
         match self {
             Node::TypeCheck(tc) => Some(tc),
             _ => None,
         }
     }
-    pub fn typeinfer(&self) -> Option<&TypeInfer> {
+    pub fn as_type_infer(&self) -> Option<&TypeInfer> {
         match self {
             Node::TypeInfer(ti) => Some(ti),
             _ => None,
         }
     }
-    pub fn typeinfer_mut(&mut self) -> Option<&mut TypeInfer> {
+    pub fn as_type_infer_mut(&mut self) -> Option<&mut TypeInfer> {
         match self {
             Node::TypeInfer(ti) => Some(ti),
             _ => None,
         }
     }
-    pub fn sortinfer(&self) -> Option<&SortInfer> {
+    pub fn as_sort_infer(&self) -> Option<&SortInfer> {
         match self {
             Node::SortInfer(si) => Some(si),
             _ => None,
         }
     }
-    pub fn sortinfer_mut(&mut self) -> Option<&mut SortInfer> {
+    pub fn as_sort_infer_mut(&mut self) -> Option<&mut SortInfer> {
         match self {
             Node::SortInfer(si) => Some(si),
             _ => None,
         }
     }
-    pub fn prove(&self) -> Option<&Prove> {
+    pub fn as_prove(&self) -> Option<&Prove> {
         match self {
             Node::Prove(p) => Some(p),
             _ => None,
         }
     }
-    pub fn prove_mut(&mut self) -> Option<&mut Prove> {
+    pub fn as_prove_mut(&mut self) -> Option<&mut Prove> {
         match self {
             Node::Prove(p) => Some(p),
             _ => None,

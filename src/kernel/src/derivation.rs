@@ -36,7 +36,7 @@ impl Builder {
     fn add_check(&mut self, ctx: &Context, term: &Exp, ty: &Exp) -> Option<()> {
         let premise = check(ctx, term, ty);
         assert!(matches!(premise.node(), Some(Node::TypeCheck(_))));
-        let TypeCheck { res, .. } = premise.node().unwrap().typecheck().unwrap();
+        let TypeCheck { res, .. } = premise.node().unwrap().as_type_check().unwrap();
         if !*res {
             self.premises.push(premise);
             None
@@ -48,7 +48,7 @@ impl Builder {
     fn add_infer(&mut self, ctx: &Context, term: &Exp) -> Option<Exp> {
         let premise = infer(ctx, term);
         assert!(matches!(premise.node(), Some(Node::TypeInfer(_))));
-        let TypeInfer { ty, .. } = premise.node().unwrap().typeinfer().unwrap();
+        let TypeInfer { ty, .. } = premise.node().unwrap().as_type_infer().unwrap();
         if let Some(ty) = ty {
             let ty = ty.clone();
             self.premises.push(premise);
@@ -61,7 +61,7 @@ impl Builder {
     fn add_sort(&mut self, ctx: &Context, ty: &Exp) -> Option<Sort> {
         let premise = infer_sort(ctx, ty);
         assert!(matches!(premise.node(), Some(Node::SortInfer(_))));
-        let SortInfer { sort, .. } = premise.node().unwrap().sortinfer().unwrap();
+        let SortInfer { sort, .. } = premise.node().unwrap().as_sort_infer().unwrap();
         if let Some(sort) = sort {
             let sort = *sort;
             self.premises.push(premise);
@@ -73,7 +73,7 @@ impl Builder {
     }
     fn add_prove(&mut self, premise: Derivation) -> Option<Exp> {
         assert!(matches!(premise.node(), Some(Node::Prove(_))));
-        let Prove { prop, .. } = premise.node().unwrap().prove().unwrap();
+        let Prove { prop, .. } = premise.node().unwrap().as_prove().unwrap();
         if prop.is_none() {
             self.premises.push(premise);
             None
@@ -143,7 +143,7 @@ impl Builder {
     }
 
     fn build_typecheck(mut self) -> Derivation {
-        let TypeCheck { res, .. } = self.node.typecheck_mut().unwrap();
+        let TypeCheck { res, .. } = self.node.as_type_check_mut().unwrap();
         *res = true;
         Derivation::Derivation {
             conclusion: self.node,
@@ -154,7 +154,7 @@ impl Builder {
     }
     fn build_typeinfer(mut self, ty_res: Exp) -> Derivation {
         assert!(matches!(self.node, Node::TypeInfer(_)));
-        let TypeInfer { ty, .. } = &mut self.node.typeinfer_mut().unwrap();
+        let TypeInfer { ty, .. } = &mut self.node.as_type_infer_mut().unwrap();
         *ty = Some(ty_res);
         Derivation::Derivation {
             conclusion: self.node,
@@ -165,7 +165,7 @@ impl Builder {
     }
     fn build_sortinfer(mut self, sort_res: Sort) -> Derivation {
         assert!(matches!(self.node, Node::SortInfer(_)));
-        let SortInfer { sort, .. } = &mut self.node.sortinfer_mut().unwrap();
+        let SortInfer { sort, .. } = &mut self.node.as_sort_infer_mut().unwrap();
         *sort = Some(sort_res);
         Derivation::Derivation {
             conclusion: self.node,
@@ -176,7 +176,7 @@ impl Builder {
     }
     fn build_prop(mut self, prop_res: Exp) -> Derivation {
         assert!(matches!(self.node, Node::Prove(_)));
-        let Prove { prop, .. } = &mut self.node.prove_mut().unwrap();
+        let Prove { prop, .. } = &mut self.node.as_prove_mut().unwrap();
         *prop = Some(prop_res);
         Derivation::Derivation {
             conclusion: self.node,

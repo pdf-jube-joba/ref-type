@@ -153,7 +153,7 @@ macro_rules! prod {
 macro_rules! goal {
     ( $ctx:expr ; $prop:expr => $proof:expr) => {
         $crate::exp::ProveGoal {
-            extended_ctx: Context($ctx),
+            extended_ctx: ($ctx).into(),
             goal_prop: $prop,
             proof_term: $proof,
         }

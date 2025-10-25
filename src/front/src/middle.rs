@@ -7,22 +7,21 @@ use std::fmt::Debug;
 // root of middle intermediate representation
 pub struct MirGlobal {
     pub mods: Vec<MirModule>,
-    pub order: Vec<usize>, // evaluation order of root modules
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MirModule {
     pub parameters: Vec<(kernel::exp::Var, Mir)>,
     pub items: Vec<MirModuleItem>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MirModuleInstantiated {
     pub module: usize,
-    pub arguments: Vec<(kernel::exp::Var, Mir)>,
+    pub arguments: Vec<Mir>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MirModuleItem {
     Definition {
         name: kernel::exp::Var,
@@ -33,10 +32,9 @@ pub enum MirModuleItem {
     Inductive {
         ind_defs: InductiveTypeSpecs,
     },
-    ChildModule(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
     pub parameters: Vec<(kernel::exp::Var, Mir)>,
     pub indices: Vec<(kernel::exp::Var, Mir)>,
@@ -44,30 +42,24 @@ pub struct InductiveTypeSpecs {
     pub constructors: Vec<(kernel::exp::Var, Vec<ParamCtor>, Vec<Mir>)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParamCtor {
     StrictPositive(Vec<(kernel::exp::Var, Mir)>, Vec<Mir>),
     Simple(kernel::exp::Var, Mir),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WithGoal {
     pub extend_ctx: Vec<(kernel::exp::Var, Mir)>,
     pub goal_prop: Mir,
     pub proof: Mir,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Mir {
     ModAccessDef {
         path: MirModuleInstantiated,
         name: kernel::exp::Var,
-    },
-    Let {
-        name: kernel::exp::Var,
-        ty: Box<Mir>,
-        body: Box<Mir>,
-        value: Box<Mir>,
     },
     Sort(kernel::exp::Sort),
     Var(kernel::exp::Var),
@@ -85,7 +77,7 @@ pub enum Mir {
         func: Box<Mir>,
         arg: Box<Mir>,
     },
-    Annotation {
+    Cast {
         exp: Box<Mir>,
         ty: Box<Mir>,
     },
@@ -143,16 +135,16 @@ pub enum Mir {
     Block(MirBlock),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MirProofBy {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MirBlock {
     pub statements: Vec<MirStatement>,
     pub result: Box<Mir>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MirStatement {
     Let {
         name: kernel::exp::Var,
@@ -160,6 +152,10 @@ pub enum MirStatement {
         value: Box<Mir>,
     },
     Fix {
+        name: kernel::exp::Var,
+        ty: Box<Mir>,
+    },
+    Take {
         name: kernel::exp::Var,
         ty: Box<Mir>,
     },
