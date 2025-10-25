@@ -7,10 +7,32 @@ use kernel::{
 
 pub struct Elaborator {
     global: Vec<MirModule>,
-    current_mod: usize, // self.global[current_mod] is the module being checked
+    // self.global[current_mod] is the module being checked
+    // self.global[j] for j < current_mod have been checked => usable module
+    current_mod: usize,
+    // self.global[current_mod].items[current_item] is the item being checked
+    // self.global[j].items[l] for (j < current_mod) or (j = current_mod && l < current_item) have been checked => usable item
+    current_item: usize,
+
+    // all items that have been checked
+    checked_item: Vec<Vec<Item>>,
+
+    // logs
     checker: Checker,
     checker_log: Vec<Checker>,
     log: Vec<String>,
+}
+
+pub enum Item {
+    Def {
+        name: Var,
+        ty: Exp,
+        body: Exp,
+        goals: Vec<ProveGoal>,
+    },
+    Inductive {
+        ind_defs: std::rc::Rc<kernel::inductive::InductiveTypeSpecs>,
+    },
 }
 
 impl Elaborator {
@@ -18,14 +40,12 @@ impl Elaborator {
         Elaborator {
             global: global.mods,
             current_mod: 0,
+            current_item: 0,
+            checked_item: vec![],
             checker: Checker::default(),
             checker_log: vec![],
             log: vec![],
         }
-    }
-    fn new_chk(&mut self) {
-        let old_checker = std::mem::replace(&mut self.checker, Checker::default());
-        self.checker_log.push(old_checker);
     }
     fn get_checked_mod(&self, mod_idx: usize) -> Result<&MirModule, String> {
         if self.current_mod <= mod_idx {
@@ -34,10 +54,24 @@ impl Elaborator {
             Ok(&self.global[mod_idx])
         }
     }
+    fn get_check_item(&self, mod_idx: usize, item_idx: usize) -> Result<&Item, String> {
+        if mod_idx > self.current_mod
+            || (mod_idx == self.current_mod && item_idx >= self.current_item)
+        {
+            Err(format!(
+                "Module item {} of module {} has not been checked yet",
+                item_idx, mod_idx
+            ))
+        } else {
+            Ok(&self.checked_item[mod_idx][item_idx])
+        }
+    }
     fn start_chk(&mut self) -> Result<(), String> {
         for i in 0..self.global.len() {
             self.current_mod = i;
-            self.new_chk();
+            let old_checker = std::mem::replace(&mut self.checker, Checker::default());
+            self.checker_log.push(old_checker);
+            self.checked_item.push(vec![]);
             let mod_defs = self.global[self.current_mod].clone();
 
             for item in mod_defs.items {
@@ -84,12 +118,19 @@ impl Elaborator {
                         // check
                         match self.checker.check(
                             &Exp::ProveHere {
-                                exp: Box::new(elab_body),
-                                goals,
+                                exp: Box::new(elab_body.clone()),
+                                goals: goals.clone(),
                             },
                             &elab_ty,
                         ) {
-                            Ok(_) => {}
+                            Ok(_) => {
+                                self.checked_item.last_mut().unwrap().push(Item::Def {
+                                    name,
+                                    ty: elab_ty,
+                                    body: elab_body,
+                                    goals,
+                                });
+                            }
                             Err(_) => {
                                 return Err(format!(
                                     "Definition {} does not have the expected type",
@@ -98,7 +139,82 @@ impl Elaborator {
                             }
                         }
                     }
-                    MirModuleItem::Inductive { ind_defs } => {}
+                    MirModuleItem::Inductive { ind_defs } => {
+                        let InductiveTypeSpecs {
+                            parameters,
+                            indices,
+                            sort,
+                            constructors,
+                        } = ind_defs;
+
+                        let parameteres_elab = parameters
+                            .iter()
+                            .map(|(v, ty_mir)| {
+                                let ty_elab = self.elab_mir(ty_mir).unwrap();
+                                (v.clone(), ty_elab)
+                            })
+                            .collect::<Vec<_>>();
+                        let indices_elab = indices
+                            .iter()
+                            .map(|(v, ty_mir)| {
+                                let ty_elab = self.elab_mir(ty_mir).unwrap();
+                                (v.clone(), ty_elab)
+                            })
+                            .collect::<Vec<_>>();
+                        let constructors_elab = constructors
+                            .iter()
+                            .map(|(params_ctor, ret_types)| {
+                                let params_ctor_elab = params_ctor
+                                    .iter()
+                                    .map(|param_ctor| match param_ctor {
+                                        ParamCtor::StrictPositive(param_list, ret_types) => {
+                                            let param_list_elab = param_list
+                                                .iter()
+                                                .map(|(v, ty_mir)| {
+                                                    let ty_elab = self.elab_mir(ty_mir).unwrap();
+                                                    (v.clone(), ty_elab)
+                                                })
+                                                .collect::<Vec<_>>();
+                                            let ret_types_elab = ret_types
+                                                .iter()
+                                                .map(|ty_mir| self.elab_mir(ty_mir).unwrap())
+                                                .collect::<Vec<_>>();
+                                            kernel::inductive::CtorBinder::StrictPositive {
+                                                binders: param_list_elab,
+                                                self_indices: ret_types_elab,
+                                            }
+                                        }
+                                        ParamCtor::Simple(v, ty_mir) => {
+                                            let ty_elab = self.elab_mir(ty_mir).unwrap();
+                                            kernel::inductive::CtorBinder::Simple((
+                                                v.clone(),
+                                                ty_elab,
+                                            ))
+                                        }
+                                    })
+                                    .collect::<Vec<_>>();
+                                let ret_types_elab = ret_types
+                                    .iter()
+                                    .map(|ty_mir| self.elab_mir(ty_mir).unwrap())
+                                    .collect::<Vec<_>>();
+                                kernel::inductive::CtorType {
+                                    telescope: params_ctor_elab,
+                                    indices: ret_types_elab,
+                                }
+                            })
+                            .collect::<Vec<_>>();
+
+                        let res = self.checker.chk_indspec(
+                            parameteres_elab,
+                            indices_elab,
+                            sort,
+                            constructors_elab,
+                        )?;
+
+                        self.checked_item.last_mut().unwrap().push(Item::Inductive {
+                            ind_defs: std::rc::Rc::new(res),
+                        });
+                    }
                 }
             }
         }
@@ -138,7 +254,13 @@ impl Elaborator {
     pub fn elab_mir(&mut self, mir: &Mir) -> Result<Exp, String> {
         match mir {
             Mir::ModAccessDef { path, name } => {
-                self.elab_mid_mod_instantiated(path)?;
+                todo!()
+            }
+            Mir::IndType { path, idx } => {
+                let exp = Exp::IndType {
+                    indty: todo!(),
+                    parameters: todo!(),
+                };
                 todo!()
             }
             _ => todo!(),

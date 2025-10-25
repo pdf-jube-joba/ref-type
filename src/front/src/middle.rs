@@ -4,6 +4,8 @@
 
 use std::fmt::Debug;
 
+use kernel::exp::Sort;
+
 // root of middle intermediate representation
 pub struct MirGlobal {
     pub mods: Vec<MirModule>,
@@ -38,8 +40,8 @@ pub enum MirModuleItem {
 pub struct InductiveTypeSpecs {
     pub parameters: Vec<(kernel::exp::Var, Mir)>,
     pub indices: Vec<(kernel::exp::Var, Mir)>,
-    pub sort: Mir,
-    pub constructors: Vec<(kernel::exp::Var, Vec<ParamCtor>, Vec<Mir>)>,
+    pub sort: Sort,
+    pub constructors: Vec<(Vec<ParamCtor>, Vec<Mir>)>,
 }
 
 #[derive(Debug, Clone)]

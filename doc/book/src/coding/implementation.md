@@ -57,3 +57,24 @@ mod A(
   `"B2"` で指定される module に対して、 `P1 := P1, P2 := P3, P22 := P3` をしてからその item を得る。
 
 全然実装がわからなかったので、 しばらく full-path でのみとする。
+なんかもう全然わからない。
+```
+mod A(P: Set) {
+  inductive U: Set := U1: A.
+}
+
+mod B() {
+  // 1. は accept, 2. は reject
+  definition x: $root.A(P := Nat).U := $root.A(P := Nat).U::U1;
+  definition x: $root.A(P := Nat).U := $root.A(P := Nat2).U::U1; 
+}
+
+mod B2() {
+  import B() as BB;
+
+  // これはどうする？
+  definition x: $root.A(P := Nat).U := BB.x;
+}
+```
+
+理想的には、 access path を覚えておく ... それが一致したら同じとみなす。

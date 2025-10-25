@@ -42,6 +42,23 @@ impl Checker {
     pub fn prove_command(&self, command: &ProveCommandBy) -> Derivation {
         crate::derivation::prove_command(&self.context, command)
     }
+    pub fn chk_indspec(
+        &mut self,
+        params: Vec<(Var, Exp)>,
+        indices: Vec<(Var, Exp)>,
+        sort: crate::exp::Sort,
+        constructors: Vec<crate::inductive::CtorType>,
+    ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
+        let (derivation, res) = crate::inductive::acceptable_typespecs(
+            &self.context,
+            params,
+            indices,
+            sort,
+            constructors,
+        );
+        self.derivations.extend(derivation);
+        res
+    }
     pub fn push(&mut self, var: Var, ty: Exp) -> Result<(), ()> {
         let der = crate::derivation::infer_sort(&self.context, &ty);
         let res = der.node().unwrap().is_success();

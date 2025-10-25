@@ -1,4 +1,5 @@
 use crate::{
+    calculus::is_alpha_eq,
     checker::Checker,
     exp::{Exp, ProveCommandBy, ProveGoal, Sort, Var},
     utils::{self, app, lam, prod, prooflater, var},
@@ -23,6 +24,14 @@ fn check_term(checker: &mut Checker, term: &Exp, ty: &Exp) {
     let last = checker.history().last().unwrap();
     println!("{}", last);
     assert!(last.node().unwrap().is_success());
+}
+
+fn infer_term(checker: &mut Checker, term: &Exp, expected_ty: &Exp) {
+    let inferred_ty = checker.infer(term).unwrap();
+    let last = checker.history().last().unwrap();
+    println!("{}", last);
+    assert!(last.node().unwrap().is_success());
+    assert!(is_alpha_eq(&inferred_ty, expected_ty));
 }
 
 // P: \Prop |- P: \Prop
@@ -376,6 +385,5 @@ fn solvegoals() {
         }
     };
 
-    let der = checker.infer(&proof_term).unwrap();
-    println!("{}", der);
+    infer_term(&mut checker, &proof_term, &Exp::Var(pp2.clone()));
 }

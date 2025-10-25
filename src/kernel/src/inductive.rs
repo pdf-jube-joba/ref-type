@@ -15,7 +15,7 @@ Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
     // context of definition
-    pub ctx: Context,
+    // pub ctx: Context, // これは外部にあるべき？
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
     // indices of the type
@@ -132,9 +132,9 @@ impl CtorType {
 
 // check well-formedness of inductive type specifications
 pub fn acceptable_typespecs(
-    ctx: Context, // assume well-formed
+    ctx: &Context, // assume well-formed
     params: Vec<(Var, Exp)>,
-    arity_arg: Vec<(Var, Exp)>,
+    indices: Vec<(Var, Exp)>,
     sort: Sort,
     constructors: Vec<CtorType>,
 ) -> (Vec<Derivation>, Result<InductiveTypeSpecs, String>) {
@@ -161,7 +161,7 @@ pub fn acceptable_typespecs(
     // 2. check arity is well-sorted (arity can depend on parameters and previous arities)
     // arity = arity_arg[] -> sort
     // (ctx, parameters[] |- arity : sort)
-    let arity = utils::assoc_prod(arity_arg.clone(), Exp::Sort(sort));
+    let arity = utils::assoc_prod(indices.clone(), Exp::Sort(sort));
     let derivation = infer_sort(&local_context, &arity);
     let well_sorted = derivation.node().unwrap().is_success();
     well_derivation.push(derivation);
@@ -194,9 +194,8 @@ pub fn acceptable_typespecs(
     (
         well_derivation,
         Ok(InductiveTypeSpecs {
-            ctx,
             parameters: params,
-            indices: arity_arg,
+            indices,
             sort,
             constructors,
         }),
