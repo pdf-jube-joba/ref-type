@@ -9,6 +9,20 @@ pub struct Resolver {
     pub old_local_states: Vec<LocalState>,
 }
 
+impl Default for Resolver {
+    fn default() -> Self {
+        Self {
+            module_stack: vec![],
+            current_local_state: LocalState {
+                checker: kernel::checker::Checker::default(),
+                imports: HashMap::new(),
+                items: vec![],
+            },
+            old_local_states: vec![],
+        }
+    }
+}
+
 pub struct LocalState {
     checker: kernel::checker::Checker,
     imports: HashMap<Var, ModuleRealized>,
@@ -42,17 +56,6 @@ pub struct ModuleRealized {
 }
 
 impl Resolver {
-    pub fn new() -> Self {
-        Self {
-            module_stack: Vec::new(),
-            current_local_state: LocalState {
-                checker: kernel::checker::Checker::default(),
-                items: Vec::new(),
-                imports: HashMap::new(),
-            },
-            old_local_states: Vec::new(),
-        }
-    }
     pub fn new_module(&mut self, module: &Module) -> Result<(), String> {
         let Module {
             name,
@@ -223,6 +226,9 @@ impl Resolver {
             }
         }
         Ok(())
+    }
+    pub fn get_resolved_module(&mut self) {
+        todo!()
     }
     pub fn elab_exp(&mut self, sexp: &SExp, bind_var: Vec<Var>) -> Result<Exp, String> {
         todo!()
