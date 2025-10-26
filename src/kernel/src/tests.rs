@@ -2,6 +2,7 @@ use crate::{
     calculus::is_alpha_eq,
     checker::Checker,
     exp::{Exp, ProveCommandBy, ProveGoal, Sort, Var},
+    inductive::CtorBinder,
     utils::{self, app, lam, prod, prooflater, var},
 };
 // rustfmt doens not allow us variable starts with Uppercase letter
@@ -386,4 +387,42 @@ fn solvegoals() {
     };
 
     infer_term(&mut checker, &proof_term, &Exp::Var(pp2.clone()));
+}
+
+/*
+inductive Nat : Set 0 :=
+| Zero : Nat
+| Succ : Nat -> Nat
+*/
+
+#[test]
+fn nat_test() {
+    let params = vec![];
+    let indices = vec![];
+    let sort = Sort::Set(0);
+    let constructors = vec![
+        crate::inductive::CtorType {
+            telescope: vec![],
+            indices: vec![],
+        },
+        crate::inductive::CtorType {
+            telescope: vec![
+                (CtorBinder::StrictPositive {
+                    binders: vec![],
+                    self_indices: vec![],
+                }),
+            ],
+            indices: vec![],
+        },
+    ];
+
+    let mut checker = Checker::default();
+    let indspecs = checker
+        .chk_indspec(params, indices, sort, constructors)
+        .unwrap();
+
+    checker.history().iter().for_each(|der| {
+        println!("{}", der);
+        assert!(der.node().unwrap().is_success());
+    });
 }

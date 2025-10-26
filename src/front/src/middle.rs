@@ -51,14 +51,14 @@ pub enum ParamCtor {
 pub struct WithGoal {
     pub extend_ctx: Vec<(kernel::exp::Var, Mir)>,
     pub goal_prop: Mir,
-    pub proof: Mir,
+    pub proof_term: Mir,
 }
 
 #[derive(Debug, Clone)]
 pub enum Mir {
     ModAccessDef {
         path: MirModuleInstantiated,
-        name: kernel::exp::Var,
+        idx: usize,
     },
     Sort(kernel::exp::Sort),
     Var(kernel::exp::Var),

@@ -77,10 +77,124 @@ impl Elaborator {
                     body,
                     goals,
                 } => {
-                    todo!()
+                    let ty_elab = self.elab_mir(&ty)?;
+                    let body_elab = self.elab_mir(&body)?;
+                    let mut goals_elab = vec![];
+                    for goal in goals {
+                        let extended_ctx_elab = goal
+                            .extend_ctx
+                            .iter()
+                            .map(|(v, ty)| {
+                                let ty_elab = self.elab_mir(ty)?;
+                                Ok((v.clone(), ty_elab))
+                            })
+                            .collect::<Result<Vec<_>, String>>()?
+                            .into();
+                        let goal_prop_elab = self.elab_mir(&goal.goal_prop)?;
+                        let proof_term_elab = self.elab_mir(&goal.proof_term)?;
+                        goals_elab.push(ProveGoal {
+                            extended_ctx: extended_ctx_elab,
+                            goal_prop: goal_prop_elab,
+                            proof_term: proof_term_elab,
+                        });
+                    }
+
+                    // check type
+                    self.checker
+                        .check(&body_elab, &ty_elab)
+                        .map_err(|_| format!("Definition {} has invalid type", name))?;
+
+                    items_elab.push(Item::Def {
+                        ty: ty_elab,
+                        body: body_elab,
+                        goals: goals_elab,
+                    });
                 }
                 MirModuleItem::Inductive { name, ind_defs } => {
-                    todo!()
+                    let InductiveTypeSpecsMid {
+                        parameters,
+                        indices,
+                        sort,
+                        constructors,
+                    } = ind_defs;
+                    let parameters_elab = parameters
+                        .iter()
+                        .map(|(v, ty)| {
+                            let ty_elab = self.elab_mir(ty)?;
+                            Ok((v.clone(), ty_elab))
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    let indices_elab = indices
+                        .iter()
+                        .map(|(v, ty)| {
+                            let ty_elab = self.elab_mir(ty)?;
+                            Ok((v.clone(), ty_elab))
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    let constructors_elab = constructors
+                        .iter()
+                        .map(|(param_ctors, indices)| {
+                            let mut param_ctors_elab = vec![];
+                            for param_ctor in param_ctors {
+                                match param_ctor {
+                                    ParamCtor::StrictPositive(binders, self_indices) => {
+                                        let binders_elab = binders
+                                            .iter()
+                                            .map(|(v, ty)| {
+                                                let ty_elab = self.elab_mir(ty)?;
+                                                Ok((v.clone(), ty_elab))
+                                            })
+                                            .collect::<Result<Vec<_>, String>>()?;
+                                        let self_indices_elab = self_indices
+                                            .iter()
+                                            .map(|ty| self.elab_mir(ty))
+                                            .collect::<Result<Vec<_>, String>>()?;
+                                        param_ctors_elab.push(
+                                            kernel::inductive::CtorBinder::StrictPositive {
+                                                binders: binders_elab,
+                                                self_indices: self_indices_elab,
+                                            },
+                                        );
+                                    }
+                                    ParamCtor::Simple(v, ty) => {
+                                        let ty_elab = self.elab_mir(ty)?;
+                                        param_ctors_elab.push(
+                                            kernel::inductive::CtorBinder::Simple((
+                                                v.clone(),
+                                                ty_elab,
+                                            )),
+                                        );
+                                    }
+                                }
+                            }
+                            let indices_elab = indices
+                                .iter()
+                                .map(|ty| self.elab_mir(ty))
+                                .collect::<Result<Vec<_>, String>>()?;
+                            Ok(kernel::inductive::CtorType {
+                                telescope: param_ctors_elab,
+                                indices: indices_elab,
+                            })
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+
+                    self.checker
+                        .chk_indspec(
+                            parameters_elab.clone(),
+                            indices_elab.clone(),
+                            sort,
+                            constructors_elab.clone(),
+                        )
+                        .map_err(|e| format!("Inductive type {} is invalid: {}", name, e))?;
+
+                    items_elab.push(Item::Inductive {
+                        ind_defs: std::rc::Rc::new(kernel::inductive::InductiveTypeSpecs {
+                            parameters: parameters_elab,
+                            indices: indices_elab,
+                            sort,
+                            constructors: constructors_elab,
+                        }),
+                    });
                 }
             }
         }
@@ -99,11 +213,7 @@ impl Elaborator {
     fn history_str(&mut self, s: String) {
         self.log.push(s);
     }
-    fn access_path(
-        &self,
-        name: &Var,
-        subst_mapping: Vec<Exp>,
-    ) -> Result<&RealizedPath, String> {
+    fn access_path(&self, name: &Var, subst_mapping: Vec<Exp>) -> Result<&RealizedPath, String> {
         for rp in &self.checked_path {
             if rp.origin_modname.is_eq_ptr(name)
                 && subst_mapping.len() == rp.subst_mapping.len()
@@ -120,10 +230,7 @@ impl Elaborator {
             name
         ))
     }
-    fn elab_mid_mod_instantiated(
-        &mut self,
-        mid: &MirModuleInstantiated,
-    ) -> Result<usize, String> {
+    fn elab_mid_mod_instantiated(&mut self, mid: &MirModuleInstantiated) -> Result<usize, String> {
         let MirModuleInstantiated {
             mod_name,
             arguments,
@@ -262,9 +369,9 @@ impl Elaborator {
     }
     pub fn elab_mir(&mut self, mir: &Mir) -> Result<Exp, String> {
         match mir {
-            Mir::ModAccessDef { path, name } => {
+            Mir::ModAccessDef { path, idx } => {
                 let MirModuleInstantiated {
-                    mod_name: module,
+                    mod_name,
                     arguments,
                 } = path;
 
