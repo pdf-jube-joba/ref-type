@@ -1,21 +1,15 @@
 use crate::middle::*;
 use kernel::{
-    calculus::subst_map,
+    calculus::{is_alpha_eq, subst_map},
     checker::Checker,
     exp::{Exp, ProveGoal, Var},
 };
 
 pub struct Elaborator {
-    global: Vec<MirModule>,
-    // self.global[current_mod] is the module being checked
-    // self.global[j] for j < current_mod have been checked => usable module
-    current_mod: usize,
-    // self.global[current_mod].items[current_item] is the item being checked
-    // self.global[j].items[l] for (j < current_mod) or (j = current_mod && l < current_item) have been checked => usable item
-    current_item: usize,
+    global: Vec<(Var, Vec<(Var, Exp)>, Vec<Item>)>, // all modules
 
-    // all items that have been checked
-    checked_item: Vec<Vec<Item>>,
+    // all paths that have been checked => access by "origin"
+    checked_path: Vec<RealizedPath>,
 
     // logs
     checker: Checker,
@@ -23,9 +17,16 @@ pub struct Elaborator {
     log: Vec<String>,
 }
 
+// store realized path
+pub struct RealizedPath {
+    origin_modname: Var,     // idx to self.global
+    subst_mapping: Vec<Exp>, // substitution map for parameters
+    items: Vec<Item>,        // items in the module
+}
+
+#[derive(Debug, Clone)]
 pub enum Item {
     Def {
-        name: Var,
         ty: Exp,
         body: Exp,
         goals: Vec<ProveGoal>,
@@ -36,206 +37,105 @@ pub enum Item {
 }
 
 impl Elaborator {
-    pub fn new_global(global: MirGlobal) -> Self {
+    pub fn new_global() -> Self {
         Elaborator {
-            global: global.mods,
-            current_mod: 0,
-            current_item: 0,
-            checked_item: vec![],
+            global: vec![],
+            checked_path: vec![],
             checker: Checker::default(),
             checker_log: vec![],
             log: vec![],
         }
     }
-    fn get_checked_mod(&self, mod_idx: usize) -> Result<&MirModule, String> {
-        if self.current_mod <= mod_idx {
-            Err(format!("Module {} has not been checked yet", mod_idx))
-        } else {
-            Ok(&self.global[mod_idx])
+    pub fn add_mod(&mut self, module: MirModule) -> Result<(), String> {
+        let old_checker = std::mem::take(&mut self.checker);
+        self.checker_log.push(old_checker);
+
+        let MirModule {
+            name,
+            parameters,
+            items,
+        } = module;
+
+        let mut parameters_elab = vec![];
+
+        for (v, ty) in parameters {
+            let ty_elab = self.elab_mir(&ty)?;
+            let res = self.checker.push(v.clone(), ty_elab.clone());
+            if res.is_err() {
+                return Err(format!("Parameter {} has invalid type", v));
+            }
+            parameters_elab.push((v.clone(), ty_elab));
         }
-    }
-    fn get_check_item(&self, mod_idx: usize, item_idx: usize) -> Result<&Item, String> {
-        if mod_idx > self.current_mod
-            || (mod_idx == self.current_mod && item_idx >= self.current_item)
-        {
-            Err(format!(
-                "Module item {} of module {} has not been checked yet",
-                item_idx, mod_idx
-            ))
-        } else {
-            Ok(&self.checked_item[mod_idx][item_idx])
-        }
-    }
-    fn start_chk(&mut self) -> Result<(), String> {
-        for i in 0..self.global.len() {
-            self.current_mod = i;
-            let old_checker = std::mem::replace(&mut self.checker, Checker::default());
-            self.checker_log.push(old_checker);
-            self.checked_item.push(vec![]);
-            let mod_defs = self.global[self.current_mod].clone();
 
-            for item in mod_defs.items {
-                match item {
-                    MirModuleItem::Definition {
-                        name,
-                        ty,
-                        body,
-                        goals,
-                    } => {
-                        // get elaborated types and body
-                        let name = name.clone();
-                        let ty = ty.clone();
-                        let elab_ty = self.elab_mir(&ty)?;
-                        let body = body.clone();
-                        let elab_body = self.elab_mir(&body)?;
-                        let goals = goals
-                            .iter()
-                            .map(|g| {
-                                let WithGoal {
-                                    extend_ctx,
-                                    goal_prop,
-                                    proof,
-                                } = g.clone();
+        let mut items_elab = vec![];
 
-                                let extended_ctx_elab = extend_ctx
-                                    .iter()
-                                    .map(|(v, ty_mir)| {
-                                        let ty_elab = self.elab_mir(ty_mir).unwrap();
-                                        (v.clone(), ty_elab)
-                                    })
-                                    .collect::<Vec<_>>();
-                                let goal_prop_elab = self.elab_mir(&goal_prop).unwrap();
-                                let proof_elab = self.elab_mir(&proof).unwrap();
-
-                                ProveGoal {
-                                    extended_ctx: extended_ctx_elab.into(),
-                                    goal_prop: goal_prop_elab,
-                                    proof_term: proof_elab,
-                                }
-                            })
-                            .collect::<Vec<_>>();
-
-                        // check
-                        match self.checker.check(
-                            &Exp::ProveHere {
-                                exp: Box::new(elab_body.clone()),
-                                goals: goals.clone(),
-                            },
-                            &elab_ty,
-                        ) {
-                            Ok(_) => {
-                                self.checked_item.last_mut().unwrap().push(Item::Def {
-                                    name,
-                                    ty: elab_ty,
-                                    body: elab_body,
-                                    goals,
-                                });
-                            }
-                            Err(_) => {
-                                return Err(format!(
-                                    "Definition {} does not have the expected type",
-                                    name
-                                ));
-                            }
-                        }
-                    }
-                    MirModuleItem::Inductive { ind_defs } => {
-                        let InductiveTypeSpecs {
-                            parameters,
-                            indices,
-                            sort,
-                            constructors,
-                        } = ind_defs;
-
-                        let parameteres_elab = parameters
-                            .iter()
-                            .map(|(v, ty_mir)| {
-                                let ty_elab = self.elab_mir(ty_mir).unwrap();
-                                (v.clone(), ty_elab)
-                            })
-                            .collect::<Vec<_>>();
-                        let indices_elab = indices
-                            .iter()
-                            .map(|(v, ty_mir)| {
-                                let ty_elab = self.elab_mir(ty_mir).unwrap();
-                                (v.clone(), ty_elab)
-                            })
-                            .collect::<Vec<_>>();
-                        let constructors_elab = constructors
-                            .iter()
-                            .map(|(params_ctor, ret_types)| {
-                                let params_ctor_elab = params_ctor
-                                    .iter()
-                                    .map(|param_ctor| match param_ctor {
-                                        ParamCtor::StrictPositive(param_list, ret_types) => {
-                                            let param_list_elab = param_list
-                                                .iter()
-                                                .map(|(v, ty_mir)| {
-                                                    let ty_elab = self.elab_mir(ty_mir).unwrap();
-                                                    (v.clone(), ty_elab)
-                                                })
-                                                .collect::<Vec<_>>();
-                                            let ret_types_elab = ret_types
-                                                .iter()
-                                                .map(|ty_mir| self.elab_mir(ty_mir).unwrap())
-                                                .collect::<Vec<_>>();
-                                            kernel::inductive::CtorBinder::StrictPositive {
-                                                binders: param_list_elab,
-                                                self_indices: ret_types_elab,
-                                            }
-                                        }
-                                        ParamCtor::Simple(v, ty_mir) => {
-                                            let ty_elab = self.elab_mir(ty_mir).unwrap();
-                                            kernel::inductive::CtorBinder::Simple((
-                                                v.clone(),
-                                                ty_elab,
-                                            ))
-                                        }
-                                    })
-                                    .collect::<Vec<_>>();
-                                let ret_types_elab = ret_types
-                                    .iter()
-                                    .map(|ty_mir| self.elab_mir(ty_mir).unwrap())
-                                    .collect::<Vec<_>>();
-                                kernel::inductive::CtorType {
-                                    telescope: params_ctor_elab,
-                                    indices: ret_types_elab,
-                                }
-                            })
-                            .collect::<Vec<_>>();
-
-                        let res = self.checker.chk_indspec(
-                            parameteres_elab,
-                            indices_elab,
-                            sort,
-                            constructors_elab,
-                        )?;
-
-                        self.checked_item.last_mut().unwrap().push(Item::Inductive {
-                            ind_defs: std::rc::Rc::new(res),
-                        });
-                    }
+        for item in items {
+            match item {
+                MirModuleItem::Definition {
+                    name,
+                    ty,
+                    body,
+                    goals,
+                } => {
+                    todo!()
+                }
+                MirModuleItem::Inductive { name, ind_defs } => {
+                    todo!()
                 }
             }
         }
-        Ok(())
+
+        self.global.push((name, parameters_elab, items_elab));
+        todo!();
+    }
+    fn get_mod_from_name(&self, name: &Var) -> Option<(Var, Vec<(Var, Exp)>, Vec<Item>)> {
+        for (idx, (mod_name, _, _)) in self.global.iter().enumerate() {
+            if mod_name.is_eq_ptr(name) {
+                return Some(self.global[idx].clone());
+            }
+        }
+        None
     }
     fn history_str(&mut self, s: String) {
         self.log.push(s);
     }
-    pub fn elab_mid_mod_instantiated(
+    fn access_path(
+        &self,
+        name: &Var,
+        subst_mapping: Vec<Exp>,
+    ) -> Result<&RealizedPath, String> {
+        for rp in &self.checked_path {
+            if rp.origin_modname.is_eq_ptr(name)
+                && subst_mapping.len() == rp.subst_mapping.len()
+                && subst_mapping
+                    .iter()
+                    .zip(rp.subst_mapping.iter())
+                    .all(|(e1, e2)| is_alpha_eq(e1, e2))
+            {
+                return Ok(rp);
+            }
+        }
+        Err(format!(
+            "No realized path found for origin {} with given substitution",
+            name
+        ))
+    }
+    fn elab_mid_mod_instantiated(
         &mut self,
         mid: &MirModuleInstantiated,
-    ) -> Result<Vec<(Var, Exp)>, String> {
-        let mod_def = self.get_checked_mod(mid.module)?.clone();
+    ) -> Result<usize, String> {
+        let MirModuleInstantiated {
+            mod_name,
+            arguments,
+        } = mid;
+        let Some((_, mod_parameters, items)) = self.get_mod_from_name(mod_name) else {
+            return Err(format!("Module {} not found", mod_name));
+        };
 
         let mut subst_map_acum = vec![];
 
-        for ((param_name, param_ty_mir), arg_mir) in
-            mod_def.parameters.iter().zip(mid.arguments.iter())
-        {
-            let param_ty_elab = self.elab_mir(param_ty_mir)?;
-            let param_ty_subst = subst_map(&param_ty_elab, subst_map_acum.as_slice());
+        for ((param_name, param_ty), arg_mir) in mod_parameters.iter().zip(arguments.iter()) {
+            let param_ty_subst = subst_map(&param_ty, subst_map_acum.as_slice());
             let arg_elab = self.elab_mir(arg_mir)?;
             match self.checker.check(&arg_elab, &param_ty_subst) {
                 Ok(()) => {}
@@ -249,11 +149,125 @@ impl Elaborator {
             subst_map_acum.push((param_name.clone(), arg_elab));
         }
 
-        Ok(subst_map_acum)
+        let items = items
+            .iter()
+            .map(|it| match it {
+                Item::Def { ty, body, goals } => Item::Def {
+                    ty: subst_map(ty, subst_map_acum.as_slice()),
+                    body: subst_map(body, subst_map_acum.as_slice()),
+                    goals: goals
+                        .iter()
+                        .map(|g| ProveGoal {
+                            extended_ctx: g
+                                .extended_ctx
+                                .vec()
+                                .iter()
+                                .map(|(v, ty)| {
+                                    (v.clone(), subst_map(ty, subst_map_acum.as_slice()))
+                                })
+                                .collect::<Vec<_>>()
+                                .into(),
+                            goal_prop: subst_map(&g.goal_prop, subst_map_acum.as_slice()),
+                            proof_term: subst_map(&g.proof_term, subst_map_acum.as_slice()),
+                        })
+                        .collect(),
+                },
+                Item::Inductive { ind_defs } => {
+                    let kernel::inductive::InductiveTypeSpecs {
+                        parameters,
+                        indices,
+                        sort,
+                        constructors,
+                    } = ind_defs.as_ref().clone();
+                    Item::Inductive {
+                        ind_defs: std::rc::Rc::new(kernel::inductive::InductiveTypeSpecs {
+                            parameters: parameters
+                                .iter()
+                                .map(|(v, ty)| {
+                                    (v.clone(), subst_map(ty, subst_map_acum.as_slice()))
+                                })
+                                .collect(),
+                            indices: indices
+                                .iter()
+                                .map(|(v, ty)| {
+                                    (v.clone(), subst_map(ty, subst_map_acum.as_slice()))
+                                })
+                                .collect(),
+                            sort: sort.clone(),
+                            constructors: constructors
+                                .iter()
+                                .map(|ctor| {
+                                    let kernel::inductive::CtorType { telescope, indices } =
+                                        ctor.clone();
+                                    kernel::inductive::CtorType {
+                                        telescope: telescope
+                                            .iter()
+                                            .map(|binder| match binder {
+                                                kernel::inductive::CtorBinder::StrictPositive {
+                                                    binders,
+                                                    self_indices,
+                                                } => {
+                                                    kernel::inductive::CtorBinder::StrictPositive {
+                                                        binders: binders
+                                                            .iter()
+                                                            .map(|(v, ty)| {
+                                                                (
+                                                                    v.clone(),
+                                                                    subst_map(
+                                                                        ty,
+                                                                        subst_map_acum.as_slice(),
+                                                                    ),
+                                                                )
+                                                            })
+                                                            .collect(),
+                                                        self_indices: self_indices
+                                                            .iter()
+                                                            .map(|ty| {
+                                                                subst_map(
+                                                                    ty,
+                                                                    subst_map_acum.as_slice(),
+                                                                )
+                                                            })
+                                                            .collect(),
+                                                    }
+                                                }
+                                                kernel::inductive::CtorBinder::Simple((v, ty)) => {
+                                                    kernel::inductive::CtorBinder::Simple((
+                                                        v.clone(),
+                                                        subst_map(ty, subst_map_acum.as_slice()),
+                                                    ))
+                                                }
+                                            })
+                                            .collect(),
+                                        indices: indices
+                                            .iter()
+                                            .map(|ty| subst_map(ty, subst_map_acum.as_slice()))
+                                            .collect(),
+                                    }
+                                })
+                                .collect(),
+                        }),
+                    }
+                }
+            })
+            .collect();
+
+        self.checked_path.push(RealizedPath {
+            origin_modname: mod_name.clone(),
+            subst_mapping: subst_map_acum.iter().map(|(_, e)| e.clone()).collect(),
+            items,
+        });
+
+        Ok(self.checked_path.len() - 1)
     }
     pub fn elab_mir(&mut self, mir: &Mir) -> Result<Exp, String> {
         match mir {
             Mir::ModAccessDef { path, name } => {
+                let MirModuleInstantiated {
+                    mod_name: module,
+                    arguments,
+                } = path;
+
                 todo!()
             }
             Mir::IndType { path, idx } => {
