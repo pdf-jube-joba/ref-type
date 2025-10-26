@@ -311,3 +311,14 @@ $\Take f = \Take g$ が関数の外延性を自然に導出する気がした。
   - これまでは $\Gamma \vdash \Proof P: P$ にして明示的に所属を書かせていた。
 - $\Gamma \vDash P$ の導出公理のそれぞれに対応する項を用意する
   - 例： $\Gamma \vdash \lvert t \rvert: \exists A$ if $\Gamma \vdash t: A$
+
+## Set の階層をまた変えた。
+motivation の方には書いたけれど、こっちには書いてなかったので書いておく。
+$*^s_i: *^s_{i+1}: *^s_{i+2}$ のような sort にしていたのを、$*^s_i: \sq^s_i$ にした。
+それにともない
+- $(*^s_i, *^s_i), (*^s_i, \sq^s_i), (\sq^s_i, \sq^s_i) \mathcal{R}$ にして普通の依存型と Omegaにした。
+- $(\sq^s_i, *^s_i, *^s_{i+1})$ これで Id に型を付けつつ、レベルを上げることで矛盾しなさそうな感じにした。
+- 「$T: *^s_i$ なら $T: *^s_{i+1}」 とかを入れて cumulative にした。
+
+これによって、すべての sort が、 $*: \sq$ のみの axiom になって、 injective になった。
+（ cumulative を入れているので、 PTS の injective の議論はそのまま使えるとは限らない。）
