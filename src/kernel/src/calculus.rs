@@ -287,6 +287,117 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
     }
 }
 
+pub fn contains_as_freevar(e: &Exp, v: &Var) -> bool {
+    match e {
+        Exp::Sort(_) => false,
+        Exp::Var(var) => var.is_eq_ptr(v),
+        Exp::Prod { var, ty, body } => {
+            contains_as_freevar(ty, v) || (!var.is_eq_ptr(v) && contains_as_freevar(body, v))
+        }
+        Exp::Lam { var, ty, body } => {
+            contains_as_freevar(ty, v) || (!var.is_eq_ptr(v) && contains_as_freevar(body, v))
+        }
+        Exp::App { func, arg } => contains_as_freevar(func, v) || contains_as_freevar(arg, v),
+        Exp::IndType { parameters, .. } => parameters.iter().any(|arg| contains_as_freevar(arg, v)),
+        Exp::IndCtor { parameters, .. } => parameters.iter().any(|arg| contains_as_freevar(arg, v)),
+        Exp::IndElim {
+            indty: _, // todo: check indty?
+            elim,
+            return_type,
+            cases,
+            sort: _,
+        } => {
+            contains_as_freevar(elim, v)
+                || contains_as_freevar(return_type, v)
+                || cases.iter().any(|case| contains_as_freevar(case, v))
+        }
+        Exp::Cast { exp, to } => contains_as_freevar(exp, v) || contains_as_freevar(to, v),
+        Exp::ProveLater { prop } => contains_as_freevar(prop, v),
+        Exp::ProveHere { exp, goals } => {
+            contains_as_freevar(exp, v)
+                || goals.iter().any(|goal| {
+                    goal.extended_ctx
+                        .vec()
+                        .iter()
+                        .any(|(var, _)| var.is_eq_ptr(v))
+                        || contains_as_freevar(&goal.goal_prop, v)
+                        || contains_as_freevar(&goal.proof_term, v)
+                })
+        }
+        Exp::ProofTermRaw { command } => match command.as_ref() {
+            ProveCommandBy::Construct { proof_term } => contains_as_freevar(proof_term, v),
+            ProveCommandBy::ExactElem { elem, ty } => {
+                contains_as_freevar(elem, v) || contains_as_freevar(ty, v)
+            }
+            ProveCommandBy::SubsetElim {
+                elem,
+                subset,
+                superset,
+            } => {
+                contains_as_freevar(elem, v)
+                    || contains_as_freevar(subset, v)
+                    || contains_as_freevar(superset, v)
+            }
+            ProveCommandBy::IdRefl { elem } => contains_as_freevar(elem, v),
+            ProveCommandBy::IdElim {
+                left,
+                right,
+                ty,
+                var,
+                predicate,
+            } => {
+                contains_as_freevar(left, v)
+                    || contains_as_freevar(right, v)
+                    || contains_as_freevar(ty, v)
+                    || (!var.is_eq_ptr(v) && contains_as_freevar(predicate, v))
+            }
+            ProveCommandBy::TakeEq {
+                func,
+                domain,
+                codomain,
+                elem,
+            } => {
+                contains_as_freevar(func, v)
+                    || contains_as_freevar(domain, v)
+                    || contains_as_freevar(codomain, v)
+                    || contains_as_freevar(elem, v)
+            }
+            ProveCommandBy::Axiom(axiom) => todo!("axiom later fix {:?}", axiom),
+        },
+        Exp::PowerSet { set } => contains_as_freevar(set, v),
+        Exp::SubSet {
+            var,
+            set,
+            predicate,
+        } => {
+            contains_as_freevar(set, v) || (!var.is_eq_ptr(v) && contains_as_freevar(predicate, v))
+        }
+        Exp::Pred {
+            superset,
+            subset,
+            element,
+        } => {
+            contains_as_freevar(superset, v)
+                || contains_as_freevar(subset, v)
+                || contains_as_freevar(element, v)
+        }
+        Exp::TypeLift { superset, subset } => {
+            contains_as_freevar(superset, v) || contains_as_freevar(subset, v)
+        }
+        Exp::Equal { left, right } => contains_as_freevar(left, v) || contains_as_freevar(right, v),
+        Exp::Exists { set } => contains_as_freevar(set, v),
+        Exp::Take {
+            map,
+            domain,
+            codomain,
+        } => {
+            contains_as_freevar(map, v)
+                || contains_as_freevar(domain, v)
+                || contains_as_freevar(codomain, v)
+        }
+    }
+}
+
 // WARNING we ignore raw proof terms (it behaves like ProofLater(p))
 // i.e. ctx |- p1, p2: P: \Prop => p1 == p2
 fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {

@@ -11,14 +11,14 @@ pub struct Identifier(pub String);
 pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<(Identifier, SExp)>, // given parameters for module
-    pub declarations: Vec<ModuleItem>,      // sensitive to order
+    pub declarations: Vec<ModuleItem>,       // sensitive to order
 }
 
 // parameter instantiated module
 // e.g. modA(B := x, C := y)
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
-    pub module_name: Identifier,           // name of the module
+    pub module_name: Identifier,            // name of the module
     pub arguments: Vec<(Identifier, SExp)>, // given arguments for parameters
 }
 
@@ -39,7 +39,7 @@ pub enum ModuleItem {
         body: SExp,
     },
     Inductive {
-        ind_defs: InductiveTypeSpecs,
+        ind_defs: SInductiveTypeSpecs,
     },
     ChildModule {
         module: Box<Module>,
@@ -60,12 +60,12 @@ pub enum ModuleItem {
 }
 
 #[derive(Debug, Clone)]
-pub struct InductiveTypeSpecs {
+pub struct SInductiveTypeSpecs {
     pub type_name: Identifier,
     pub parameter: Vec<(Identifier, SExp)>,
     pub indices: Vec<(Identifier, SExp)>,
     pub sort: kernel::exp::Sort,
-    pub constructors: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+    pub constructors: Vec<(Identifier, SExp)>,
 }
 
 #[derive(Debug, Clone)]
@@ -259,7 +259,7 @@ pub enum ProofBy {
 #[derive(Debug, Clone)]
 pub struct Block {
     pub declarations: Vec<Statement>, // sensitive to order
-    pub term: Box<SExp>,               // returning term of the block
+    pub term: Box<SExp>,              // returning term of the block
 }
 
 #[derive(Debug, Clone)]
