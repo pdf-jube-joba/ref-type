@@ -29,7 +29,7 @@ pub struct ModuleInstantiated {
 // pattern 3 (start from named): name.name2(...).name3(...)
 #[derive(Debug, Clone)]
 pub enum ModPath {
-    Root(Vec<ModuleInstantiated>), // relative path from named module
+    AbsoluteRoot(ModuleInstantiated), // currently we assume module is not nested
 }
 
 #[derive(Debug, Clone)]
@@ -42,13 +42,14 @@ pub enum ModuleItem {
     Inductive {
         ind_defs: SInductiveTypeSpecs,
     },
-    ChildModule {
-        module: Box<Module>,
-    },
-    Import {
-        instantiated_module: ModPath,
-        import_name: Identifier,
-    },
+    // too complicated to implement for now
+    // ChildModule {
+    //     module: Box<Module>,
+    // },
+    // Import {
+    //     path: ModPath,
+    //     import_name: Identifier,
+    // },
     MathMacro {
         before: Vec<Either<MacroToken, Identifier>>,
         after: Vec<Either<SExp, Identifier>>,
@@ -116,7 +117,7 @@ pub enum SExp {
     // sort: Prop, Set(i), Univ, Type
     Sort(kernel::exp::Sort),
     // variable defined by name
-    Var(Identifier), // updated to use Identifier directly
+    Identifier(Identifier), // updated to use Identifier directly
     // bind -> B
     Prod {
         bind: Bind,
@@ -139,21 +140,18 @@ pub enum SExp {
         ty: Box<SExp>,
     },
     // --- inductive type
-    // name of inductive type
-    IndType {
-        path: ModPath,
-        ind_type_name: String,
-    },
+    // // name of inductive type
+    // IndType {
+    //     ind_type_name: String,
+    // }, ... access by identifier
     // constructor of inductive type
     IndCtor {
-        path: ModPath,
         ind_type_name: String,
         constructor_name: String,
     },
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {
-        path: ModPath,
         ind_type_name: String,
         eliminated_exp: Box<SExp>,
         return_type: Box<SExp>,

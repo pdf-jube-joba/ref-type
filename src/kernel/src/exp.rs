@@ -3,7 +3,7 @@
 use std::{fmt::Debug, rc::Rc};
 
 // variable is represented as std::rc::Rc<String>
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Var(Rc<String>);
 
 impl Var {

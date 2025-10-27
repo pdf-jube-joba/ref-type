@@ -15,7 +15,6 @@ pub struct Resolver {
 
 pub struct LocalState {
     checker: kernel::checker::Checker,
-    imports: HashMap<Var, usize>, // index to realized
     realized: Vec<ModuleRealized>,
     items: Vec<Item>,
     // mathmacros, usermacro ... implement after
@@ -318,11 +317,6 @@ impl Resolver {
                     };
                     self.current_local_state.items.push(item_elab);
                 }
-                ModuleItem::ChildModule { module } => todo!(),
-                ModuleItem::Import {
-                    instantiated_module,
-                    import_name,
-                } => todo!(),
                 ModuleItem::MathMacro { before, after } => todo!(),
                 ModuleItem::UserMacro {
                     name,
@@ -420,7 +414,158 @@ impl Resolver {
 
         Ok(self.current_local_state.realized.len() - 1)
     }
+    pub fn mod_path_instantiation(&self, path: &ModPath) -> Result<ModuleInstantiated, String> {
+        match path {
+            ModPath::AbsoluteRoot(instantiated_module) => Ok(instantiated_module.clone()),
+        }
+    }
+    // bind_var ... variables bound in the surrounding context
     pub fn elab_exp(&mut self, sexp: &SExp, bind_var: Vec<Var>) -> Result<Exp, String> {
-        todo!()
+        match sexp {
+            SExp::ModAccessDef { path, name } => {
+                let inst = self.mod_path_instantiation(path)?;
+                let mod_realized_idx = self.get_resolved_module(&inst)?;
+                self.current_local_state.realized[mod_realized_idx]
+                    .items
+                    .iter()
+                    .find_map(|item| match item {
+                        Item::Definition {
+                            name: def_name,
+                            ty: _,
+                            body,
+                        } => {
+                            if def_name.name() == name.0.as_str() {
+                                Some(body.clone())
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    })
+                    .ok_or(format!(
+                        "Definition {} not found in module {}",
+                        name.0.as_str(),
+                        inst.module_name.0.as_str()
+                    ))
+            }
+            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
+                todo!("Macro expansion not implemented yet")
+            }
+            SExp::Where { exp, clauses } => {
+                let mut bind_var_exp = bind_var.clone();
+                let let_ins: Vec<(Var, Exp, Exp)> = clauses
+                    .iter()
+                    .map(|(var, ty, body)| {
+                        bind_var_exp.push(Var::new(var.0.as_str())); // to capture var in body
+                        Ok((
+                            Var::new(var.0.as_str()),
+                            // doen't capture var each other
+                            self.elab_exp(ty, bind_var.clone())?,
+                            self.elab_exp(body, bind_var.clone())?,
+                        ))
+                    })
+                    .collect::<Result<Vec<(Var, Exp, Exp)>, String>>()?;
+                let mut exp_elab = self.elab_exp(exp, bind_var_exp.clone())?;
+                for (var, ty, body) in let_ins.into_iter().rev() {
+                    exp_elab = Exp::App {
+                        func: Box::new(Exp::Lam {
+                            var,
+                            ty: Box::new(ty),
+                            body: Box::new(exp_elab),
+                        }),
+                        arg: Box::new(body),
+                    };
+                }
+                Ok(exp_elab)
+            }
+            SExp::WithProof { exp, proofs } => {
+                let exp_elab = self.elab_exp(exp, bind_var.clone())?;
+                let mut goals_elab = vec![];
+                for goal in proofs {
+                    goals_elab.push(self.map_goal(goal.clone())?);
+                }
+                Ok(Exp::ProveHere {
+                    exp: Box::new(exp_elab),
+                    goals: goals_elab,
+                })
+            }
+            SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
+            SExp::Identifier(identifier) => {
+                // first, check inductive type name
+                if let Some(indty) = self
+                    .current_local_state
+                    .items
+                    .iter()
+                    .find_map(|it| match it {
+                        Item::Inductive {
+                            name,
+                            ctor_names,
+                            ind_defs,
+                        } if name.name() == identifier.0.as_str() => Some(ind_defs.clone()),
+                        _ => None,
+                    })
+                {
+                    return Ok(Exp::IndType {
+                        indty,
+                        parameters: vec![], // parameter を引数にとらせないといけない？
+                    });
+                };
+
+                // then, check bound variables from bind_var
+                if bind_var.iter().any(|v| v.name() == identifier.0.as_str()) {
+                    Ok(Exp::Var(Var::new(identifier.0.as_str())))
+                } else {
+                    Err(format!("Unbound identifier: {}", identifier.0.as_str()))
+                }
+            }
+            SExp::Prod { bind, body } => todo!(),
+            SExp::Lam { bind, body } => todo!(),
+            SExp::App { func, arg, piped } => todo!(),
+            SExp::Annotation { exp, ty } => todo!(),
+            SExp::IndCtor {
+                ind_type_name,
+                constructor_name,
+            } => todo!(),
+            SExp::IndElim {
+                ind_type_name,
+                eliminated_exp,
+                return_type,
+                cases,
+            } => todo!(),
+            SExp::Proof { term } => todo!(),
+            SExp::Pow { power } => todo!(),
+            SExp::Sub { var, ty, predicate } => todo!(),
+            SExp::Pred {
+                superset,
+                subset,
+                elem,
+            } => todo!(),
+            SExp::TypeLift { superset, subset } => todo!(),
+            SExp::Equal { left, right } => todo!(),
+            SExp::Exists { bind } => todo!(),
+            SExp::Take { bind, body } => todo!(),
+            SExp::ProofBy(proof_by) => todo!(),
+            SExp::Block(block) => todo!(),
+        }
+    }
+    fn map_goal(&mut self, goal: WithGoal) -> Result<ProveGoal, String> {
+        let WithGoal {
+            extended_ctx,
+            goal,
+            proof_term,
+        } = goal;
+        let mut ctx_elab = vec![];
+        for (var, ty) in extended_ctx {
+            let var = Var::new(var.0.as_str());
+            let ty = self.elab_exp(&ty, vec![])?;
+            ctx_elab.push((var, ty));
+        }
+        let goal_elab = self.elab_exp(&goal, vec![])?;
+        let proof_term_elab = self.elab_exp(&proof_term, vec![])?;
+        Ok(ProveGoal {
+            extended_ctx: ctx_elab.into(),
+            goal_prop: goal_elab,
+            proof_term: proof_term_elab,
+        })
     }
 }
