@@ -417,9 +417,9 @@ fn nat_test() {
     ];
 
     let mut checker = Checker::default();
-    let indspecs = checker
+    let _indspecs = std::rc::Rc::new(checker
         .chk_indspec(params, indices, sort, constructors)
-        .unwrap();
+        .unwrap());
 
     checker.history().iter().for_each(|der| {
         println!("{}", der);

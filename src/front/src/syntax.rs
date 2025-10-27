@@ -16,6 +16,7 @@ pub struct Module {
 
 // parameter instantiated module
 // e.g. modA(B := x, C := y)
+// WARNING: we assume the order of arguments is the same as parameters
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
     pub module_name: Identifier,            // name of the module

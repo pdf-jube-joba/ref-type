@@ -163,13 +163,11 @@ macro_rules! goal {
 #[macro_export]
 macro_rules! prooflater {
     ($p:expr) => {
-        $crate::exp::Exp::ProveLater {
-            prop: Box::new($p),
-        }
+        $crate::exp::Exp::ProveLater { prop: Box::new($p) }
     };
 }
 
-pub use {app, lam, prod, var, var_exp, goal, prooflater};
+pub use {app, goal, lam, prod, prooflater, var, var_exp};
 
 #[cfg(test)]
 mod tests {
