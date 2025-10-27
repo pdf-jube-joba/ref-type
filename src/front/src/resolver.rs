@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::{syntax::*, utils};
+use crate::syntax::*;
 use kernel::{
     calculus::{contains_as_freevar, is_alpha_eq, subst_map},
     exp::*,
@@ -208,15 +206,12 @@ impl Resolver {
 
                     self.current_local_state.items.push(item_elab);
                 }
-                ModuleItem::Inductive { ind_defs } => {
-                    let SInductiveTypeSpecs {
-                        type_name,
-                        parameter,
-                        indices,
-                        sort,
-                        constructors,
-                    } = ind_defs;
-
+                ModuleItem::Inductive {
+                    type_name,
+                    parameter,
+                    arity,
+                    constructors,
+                } => {
                     let type_name = Var::new(type_name.0.as_str());
 
                     let parameter_elab: Vec<(Var, Exp)> = parameter
@@ -229,15 +224,14 @@ impl Resolver {
                         })
                         .collect::<Result<Vec<(Var, Exp)>, String>>()?;
 
-                    let indices_elab: Vec<(Var, Exp)> = indices
-                        .iter()
-                        .map(|(var, ty)| {
-                            Ok((
-                                Var::new(var.0.as_str()),
-                                self.elab_exp(ty, vec![])?, // Handle error properly
-                            ))
-                        })
-                        .collect::<Result<Vec<(Var, Exp)>, String>>()?;
+                    let (indices_elab, sort) =
+                        kernel::utils::decompose_prod(self.elab_exp(arity, vec![])?);
+
+                    let Exp::Sort(sort) = sort else {
+                        return Err(format!(
+                            "Inductive type arity {arity:?} does not end with a Sort"
+                        ));
+                    };
 
                     let mut ctor_names = vec![];
                     let mut constructors_elab = vec![];
@@ -256,14 +250,21 @@ impl Resolver {
                             if contains_as_freevar(&e, &type_name) {
                                 // strict positive case
                                 let (inner_binders, inner_tail) = kernel::utils::decompose_prod(e);
-                                for (iv, it) in inner_binders.iter() {
-                                    if contains_as_freevar(&it, &type_name) {
+                                for (_, it) in inner_binders.iter() {
+                                    if contains_as_freevar(it, &type_name) {
                                         return Err(format!(
                                             "Constructor binder type {it} contains inductive type name {type_name} in non-strictly positive position"
                                         ));
                                     }
                                 }
                                 let (head, tail) = kernel::utils::decompose_app(inner_tail);
+                                if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name))
+                                {
+                                    return Err(format!(
+                                        "Constructor binder type head does not match inductive type name {type_name}"
+                                    ));
+                                }
+
                                 for tail_elm in tail.iter() {
                                     if contains_as_freevar(tail_elm, &type_name) {
                                         return Err(format!(
@@ -307,7 +308,7 @@ impl Resolver {
                     let indspecs_elab = self
                         .current_local_state
                         .checker
-                        .chk_indspec(parameter_elab, indices_elab, *sort, constructors_elab)
+                        .chk_indspec(parameter_elab, indices_elab, sort, constructors_elab)
                         .map_err(|e| format!("Error in inductive type elaboration: {e}"))?;
 
                     let item_elab = Item::Inductive {
@@ -317,12 +318,7 @@ impl Resolver {
                     };
                     self.current_local_state.items.push(item_elab);
                 }
-                ModuleItem::MathMacro { before, after } => todo!(),
-                ModuleItem::UserMacro {
-                    name,
-                    before,
-                    after,
-                } => todo!(),
+                ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
             }
         }
         Ok(())
@@ -419,6 +415,27 @@ impl Resolver {
             ModPath::AbsoluteRoot(instantiated_module) => Ok(instantiated_module.clone()),
         }
     }
+    pub fn current_item_from_name(&self, name: &Identifier) -> Result<Item, String> {
+        self.current_local_state
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Definition { name: def_name, .. }
+                | Item::Inductive { name: def_name, .. } => {
+                    if def_name.name() == name.0.as_str() {
+                        Some(item.clone())
+                    } else {
+                        None
+                    }
+                }
+            })
+            .ok_or(format!(
+                "Item {} not found in current context",
+                name.0.as_str()
+            ))
+    }
+
+    // does not check well-typed ness
     // bind_var ... variables bound in the surrounding context
     pub fn elab_exp(&mut self, sexp: &SExp, bind_var: Vec<Var>) -> Result<Exp, String> {
         match sexp {
@@ -491,40 +508,72 @@ impl Resolver {
             }
             SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
             SExp::Identifier(identifier) => {
-                // first, check inductive type name
-                if let Some(indty) = self
-                    .current_local_state
-                    .items
-                    .iter()
-                    .find_map(|it| match it {
-                        Item::Inductive {
-                            name,
-                            ctor_names,
-                            ind_defs,
-                        } if name.name() == identifier.0.as_str() => Some(ind_defs.clone()),
-                        _ => None,
-                    })
-                {
-                    return Ok(Exp::IndType {
-                        indty,
-                        parameters: vec![], // parameter を引数にとらせないといけない？
-                    });
-                };
-
-                // then, check bound variables from bind_var
+                // check bounded variables from bind_var
                 if bind_var.iter().any(|v| v.name() == identifier.0.as_str()) {
-                    Ok(Exp::Var(Var::new(identifier.0.as_str())))
-                } else {
-                    Err(format!("Unbound identifier: {}", identifier.0.as_str()))
+                    return Ok(Exp::Var(Var::new(identifier.0.as_str())));
                 }
+
+                // check items
+                if let Ok(item) = self.current_item_from_name(identifier) {
+                    match item {
+                        Item::Definition {
+                            name: _,
+                            ty: _,
+                            body,
+                        } => {
+                            return Ok(body);
+                        }
+                        Item::Inductive {
+                            name: _,
+                            ctor_names: _,
+                            ind_defs,
+                        } => {
+                            return Ok(Exp::IndType {
+                                indty: ind_defs,
+                                parameters: vec![],
+                            });
+                        }
+                    }
+                }
+
+                Err(format!("Unbound identifier: {}", identifier.0.as_str()))
             }
             SExp::Prod { bind, body } => todo!(),
             SExp::Lam { bind, body } => todo!(),
             SExp::App { func, arg, piped } => todo!(),
             SExp::Annotation { exp, ty } => todo!(),
+            SExp::IndType {
+                ind_type_name,
+                parameters,
+            } => {
+                // find inductive type from current
+
+                let Item::Inductive {
+                    name: _,
+                    ctor_names: _,
+                    ind_defs,
+                } = self.current_item_from_name(ind_type_name)?
+                else {
+                    return Err(format!(
+                        "{} is not an inductive type",
+                        ind_type_name.0.as_str()
+                    ));
+                };
+
+                let mut parameters_elab = vec![];
+                for param in parameters {
+                    let param_elab = self.elab_exp(param, bind_var.clone())?;
+                    parameters_elab.push(param_elab);
+                }
+                Ok(Exp::IndType {
+                    indty: ind_defs,
+                    parameters: parameters_elab,
+                })
+            }
             SExp::IndCtor {
                 ind_type_name,
                 constructor_name,
+                parameteres,
             } => todo!(),
             SExp::IndElim {
                 ind_type_name,

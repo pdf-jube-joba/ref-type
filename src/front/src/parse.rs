@@ -11,6 +11,14 @@ pub fn parse_exp(input: &str) -> Result<syntax::SExp, String> {
     }
 }
 
+pub fn parse_module(input: &str) -> Result<syntax::Module, String> {
+    // match program::ModuleAllParser::new().parse(input) {
+    //     Ok(module) => Ok(module),
+    //     Err(err) => Err(format!("Parse error: {}", err)),
+    // }
+    todo!()
+}
+
 #[test]
 fn parse_exp_test() {
     fn print_and_unwrap(input: &'static str) {

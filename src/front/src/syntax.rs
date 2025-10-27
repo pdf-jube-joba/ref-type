@@ -40,7 +40,10 @@ pub enum ModuleItem {
         body: SExp,
     },
     Inductive {
-        ind_defs: SInductiveTypeSpecs,
+        type_name: Identifier,
+        parameter: Vec<(Identifier, SExp)>,
+        arity: Box<SExp>,
+        constructors: Vec<(Identifier, SExp)>,
     },
     // too complicated to implement for now
     // ChildModule {
@@ -59,15 +62,6 @@ pub enum ModuleItem {
         before: Vec<Either<MacroToken, Identifier>>,
         after: Vec<Identifier>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct SInductiveTypeSpecs {
-    pub type_name: Identifier,
-    pub parameter: Vec<(Identifier, SExp)>,
-    pub indices: Vec<(Identifier, SExp)>,
-    pub sort: kernel::exp::Sort,
-    pub constructors: Vec<(Identifier, SExp)>,
 }
 
 #[derive(Debug, Clone)]
@@ -98,7 +92,6 @@ pub enum SExp {
     },
     // macro specified by name
     NamedMacro {
-        path: ModPath,
         name: Identifier,
         tokens: Vec<Either<MacroToken, SExp>>,
     },
@@ -117,7 +110,7 @@ pub enum SExp {
     // sort: Prop, Set(i), Univ, Type
     Sort(kernel::exp::Sort),
     // variable defined by name
-    Identifier(Identifier), // updated to use Identifier directly
+    Identifier(Identifier), // this may contains both definition and inductive type with no parameters
     // bind -> B
     Prod {
         bind: Bind,
@@ -140,14 +133,16 @@ pub enum SExp {
         ty: Box<SExp>,
     },
     // --- inductive type
-    // // name of inductive type
-    // IndType {
-    //     ind_type_name: String,
-    // }, ... access by identifier
+    // name of inductive type
+    IndType {
+        ind_type_name: Identifier,
+        parameters: Vec<SExp>,
+    },
     // constructor of inductive type
     IndCtor {
-        ind_type_name: String,
-        constructor_name: String,
+        ind_type_name: Identifier,
+        constructor_name: Identifier,
+        parameteres: Vec<SExp>,
     },
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}

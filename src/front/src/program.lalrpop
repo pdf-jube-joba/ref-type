@@ -1,4 +1,4 @@
-use crate::syntax::{Identifier, SExp, MacroToken, Bind};
+use crate::syntax::{Identifier, SExp, MacroToken, Bind, Module, ModuleItem};
 use either::Either;
 use lalrpop_util::ParseError;
 
@@ -9,6 +9,7 @@ pub SortAst: kernel::exp::Sort = {
 }
 
 Ident: Identifier = <s:r"[a-zA-Z][a-zA-Z0-9_]*"> => Identifier(String::from(s));
+UserMacroIdent: Identifier = <s:r"[a-zA-Z][a-zA-Z0-9_]*!"> => Identifier(String::from(s));
 
 MacTok: MacroToken = {
   <s:r"[1!23#4$5%6&7'890=\-~^`@{\[\+*\]},<.>?/_\\]"> => MacroToken(String::from(s)),
@@ -21,9 +22,10 @@ pub SExpAll = {
 
 Atom: SExp = {
   <s: SortAst> => SExp::Sort(s),
-  <v: Ident> => SExp::Var(v),
+  <v: Ident> => SExp::Identifier(v),
   "(" <e: SExpAll> ")" => e,
   "$(" <seq: SeqTok> "$)"  => SExp::MathMacro { tokens: seq },
+  <usermacroname: UserMacroIdent> "{" <seq: SeqTok> "}" => SExp::NamedMacro { name: usermacroname, tokens: seq }
 }
 
 Combined: SExp = {
@@ -54,3 +56,38 @@ SeqTok: Vec<Either<MacroToken, SExp>> = {
     v
   },
 }
+
+SimpleBind: (Identifier, SExp) = {
+  "(" <v: Ident> ":" <e:SExpAll> ")" => (v, e)
+}
+
+IndSpecsDecl: ModuleItem = {
+  "inductive" <typename: Ident> <ps: SimpleBind+> ":" <ar: SExpAll> ":=" <ctors: Ctor+> ";" => ModuleItem::Inductive {
+    type_name: typename,
+    parameter: ps,
+    arity: Box::new(ar),
+    constructors: ctors,
+  }
+}
+
+Ctor: (Identifier, SExp) = {
+  "|" <n: Ident> ":" <e: SExpAll> => (n, e)
+}
+
+DefDecl: ModuleItem = {
+  "definition" <n: Ident> ":" <tyast: SExpAll> ":=" <bdast: SExpAll> ";" => ModuleItem::Definition {
+    var: n,
+    ty: tyast,
+    body: bdast,
+  }
+}
+
+ModItem: ModuleItem = {
+  IndSpecsDecl,
+  DefDecl,
+}
+
+SimpleBindSemicolon: (Identifier, SExp) = {
+  <v: Ident> ":" <e:SExpAll> ";" => (v, e)
+}
+
