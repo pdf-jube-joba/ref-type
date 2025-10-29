@@ -21,4 +21,14 @@ fn main() {
         eprintln!("Module: {:?}", module);
         resolver.new_module(&module).unwrap();
     }
+
+    println!("-- Log Derivations --");
+
+    let der_vec = resolver.get_all_log_derivation();
+    for (name, ders) in der_vec {
+        println!("Log Derivations for module: {}", name);
+        for der in ders {
+            println!("{}", der);
+        }
+    }
 }

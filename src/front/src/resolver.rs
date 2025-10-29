@@ -8,7 +8,7 @@ use kernel::{
 pub struct Resolver {
     pub module_stack: Vec<ModuleResolved>, // templates
     pub current_local_state: LocalState,
-    pub old_local_states: Vec<LocalState>,
+    pub old_local_states: Vec<(String, LocalState)>,
 }
 
 impl Default for Resolver {
@@ -17,6 +17,7 @@ impl Default for Resolver {
             module_stack: vec![],
             current_local_state: LocalState {
                 checker: kernel::checker::Checker::default(),
+                parameters: vec![],
                 realized: vec![],
                 items: vec![],
             },
@@ -25,11 +26,93 @@ impl Default for Resolver {
     }
 }
 
+impl Resolver {
+    fn get_module_templates(&self, name: &Identifier) -> Option<ModuleResolved> {
+        for module in self.module_stack.iter().rev() {
+            if module.name.name() == name.0.as_str() {
+                return Some(module.clone());
+            }
+        }
+        None
+    }
+    pub fn get_all_log_derivation(&self) -> Vec<(String, Vec<Derivation>)> {
+        self.old_local_states
+            .iter()
+            .map(|(name, state)| (name.clone(), state.checker.history().clone()))
+            .collect()
+    }
+}
+
 pub struct LocalState {
     checker: kernel::checker::Checker,
+    parameters: Vec<(Var, Exp)>,
     realized: Vec<ModuleRealized>,
     items: Vec<Item>,
     // mathmacros, usermacro ... implement after
+}
+
+impl LocalState {
+    fn push_parameter(&mut self, var: Var, ty: Exp) -> Result<(), String> {
+        if !self.checker.push(var.clone(), ty.clone()) {
+            return Err(format!(
+                "Error in local state parameter elaboration: {} : {}",
+                var.name(),
+                ty
+            ));
+        }
+        self.parameters.push((var, ty));
+        Ok(())
+    }
+    fn push_item(&mut self, item: Item) {
+        self.items.push(item);
+    }
+    fn resolve_var_in_param(&self, ident: &Identifier) -> Option<Exp> {
+        for (var, _) in self.parameters.iter().rev() {
+            if var.name() == ident.0.as_str() {
+                return Some(Exp::Var(var.clone()));
+            }
+        }
+        None
+    }
+    fn resolve_item(&self, ident: &Identifier) -> Option<Item> {
+        for item in self.items.iter().rev() {
+            match item {
+                Item::Definition { name, .. } | Item::Inductive { name, .. } => {
+                    if name.name() == ident.0.as_str() {
+                        return Some(item.clone());
+                    }
+                }
+            }
+        }
+        None
+    }
+    fn check(&mut self, term: &Exp, ty: &Exp) -> Result<(), String> {
+        if !self.checker.check(term, ty) {
+            return Err(format!(
+                "Type checking failed: term {} does not have type {}",
+                term, ty
+            ));
+        }
+        Ok(())
+    }
+    fn is_realized(&self, module_name: &Identifier, arguments: &[Exp]) -> Option<usize> {
+        for (idx, mod_realized) in self.realized.iter().enumerate() {
+            if mod_realized.name.name() == module_name.0.as_str()
+                && mod_realized
+                    .arguments
+                    .iter()
+                    .zip(arguments.iter())
+                    .all(|(a, b)| is_alpha_eq(a, b))
+            {
+                return Some(idx);
+            }
+        }
+        None
+    }
+    // assume well-typedness is already checked
+    fn push_realized(&mut self, module_realized: ModuleRealized) {
+        self.realized.push(module_realized);
+    }
 }
 
 // for templates
@@ -180,45 +263,25 @@ impl Resolver {
             declarations,
         } = module;
 
-        let mut parameteres_elab = vec![];
-
         for (var, ty) in parameters {
             let var = Var::new(var.0.as_str());
             let ty = self.elab_exp(ty, vec![])?;
-            self.current_local_state
-                .checker
-                .push(var.clone(), ty.clone())
-                .map_err(|_| format!("Error in module parameter elaboration: {ty}"))?;
-            parameteres_elab.push((var, ty));
+            self.current_local_state.push_parameter(var, ty)?;
         }
-
-        let module = ModuleResolved {
-            name: Var::new(name.0.as_str()),
-            parameters: parameteres_elab,
-            items: Vec::new(),
-        };
-
-        self.module_stack.push(module);
 
         for item in declarations {
             match item {
                 ModuleItem::Definition { var, ty, body } => {
-                    let var = Var::new(var.0.as_str());
                     let ty = self.elab_exp(ty, vec![])?;
                     let body = self.elab_exp(body, vec![])?;
 
-                    self.current_local_state
-                        .checker
-                        .check(&body, &ty)
-                        .map_err(|_| format!("Error in definition elaboration: {var} : {ty}"))?;
+                    self.current_local_state.check(&body, &ty)?;
 
-                    let item_elab = Item::Definition {
-                        name: var,
+                    self.current_local_state.push_item(Item::Definition {
+                        name: Var::new(var.0.as_str()),
                         ty,
                         body,
-                    };
-
-                    self.current_local_state.items.push(item_elab);
+                    });
                 }
                 ModuleItem::Inductive {
                     type_name,
@@ -230,12 +293,7 @@ impl Resolver {
 
                     let parameter_elab: Vec<(Var, Exp)> = parameter
                         .iter()
-                        .map(|(var, ty)| {
-                            Ok((
-                                Var::new(var.0.as_str()),
-                                self.elab_exp(ty, vec![])?, // Handle error properly
-                            ))
-                        })
+                        .map(|(var, ty)| Ok((Var::new(var.0.as_str()), self.elab_exp(ty, vec![])?)))
                         .collect::<Result<Vec<(Var, Exp)>, String>>()?;
 
                     let (indices_elab, sort) =
@@ -335,6 +393,23 @@ impl Resolver {
                 ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
             }
         }
+
+        self.module_stack.push(ModuleResolved {
+            name: Var::new(name.0.as_str()),
+            parameters: self.current_local_state.parameters.clone(),
+            items: self.current_local_state.items.clone(),
+        });
+        let old_state = std::mem::replace(
+            &mut self.current_local_state,
+            LocalState {
+                checker: kernel::checker::Checker::default(),
+                parameters: vec![],
+                realized: vec![],
+                items: vec![],
+            },
+        );
+        self.old_local_states.push((name.0.to_string(), old_state));
+
         Ok(())
     }
     pub fn get_resolved_module(
@@ -346,17 +421,12 @@ impl Resolver {
             arguments,
         } = mod_instantiated;
 
-        let Some(mod_templates) = self
-            .module_stack
-            .iter()
-            .find(|mod_templates| mod_templates.name.name() == module_name.0.as_str())
-        else {
+        let Some(mod_templates) = self.get_module_templates(module_name) else {
             return Err(format!(
                 "Module {} not found",
                 mod_instantiated.module_name.0.as_str()
             ));
         };
-        let mod_templates = mod_templates.clone();
 
         // check arguments
         if mod_templates.parameters.len() != arguments.len() {
@@ -368,37 +438,30 @@ impl Resolver {
             ));
         }
 
-        let mut arguments_elab = vec![];
-        for i in 0..arguments.len() {
-            let (name, arg) = &arguments[i];
-            if name.0.as_str() != mod_templates.parameters[i].0.name() {
-                return Err(format!(
-                    "Argument name {} does not match parameter name {}",
-                    name.0.as_str(),
-                    mod_templates.parameters[i].0.name()
-                ));
-            }
-            arguments_elab.push(self.elab_exp(arg, vec![])?);
-        }
+        let arguments_elab: Vec<Exp> = arguments
+            .iter()
+            .zip(mod_templates.parameters.iter())
+            .map(|((n, arg), (v, _))| {
+                if n.0.as_str() != v.name() {
+                    return Err(format!(
+                        "Argument name {} does not match parameter name {}",
+                        n.0.as_str(),
+                        v.name()
+                    ));
+                }
+                self.elab_exp(arg, vec![])
+            })
+            .collect::<Result<Vec<Exp>, String>>()?;
 
-        // case: already realized
+        // case: already realized <= checked arg[]: ty[]
         if let Some(idx) = self
             .current_local_state
-            .realized
-            .iter()
-            .position(|mod_realized| {
-                mod_realized.name.name() == mod_instantiated.module_name.0.as_str()
-                    && mod_realized
-                        .arguments
-                        .iter()
-                        .zip(arguments_elab.iter())
-                        .all(|(a, b)| is_alpha_eq(a, b))
-            })
+            .is_realized(module_name, &arguments_elab)
         {
             return Ok(idx);
         }
 
-        // case: not yet realized
+        // case: not yet realized => need to check arg[]: ty[]
         let mut subst_stack = vec![];
 
         for i in 0..mod_templates.parameters.len() {
@@ -406,21 +469,13 @@ impl Resolver {
             let ty_substed = subst_map(&ty, &subst_stack);
             let arg_elab = &arguments_elab[i];
 
-            self.current_local_state
-                .checker
-                .check(arg_elab, &ty_substed)
-                .map_err(|_| {
-                    format!(
-                        "Error in module instantiation: argument {arg_elab} does not match parameter type {ty}"
-                    )
-                })?;
+            self.current_local_state.check(arg_elab, &ty_substed)?;
 
             subst_stack.push((var.clone(), arg_elab.clone()));
         }
 
         self.current_local_state
-            .realized
-            .push(mod_templates.realize(arguments_elab));
+            .push_realized(mod_templates.realize(arguments_elab));
 
         Ok(self.current_local_state.realized.len() - 1)
     }
@@ -429,29 +484,10 @@ impl Resolver {
             ModPath::AbsoluteRoot(instantiated_module) => Ok(instantiated_module.clone()),
         }
     }
-    pub fn current_item_from_name(&self, name: &Identifier) -> Result<Item, String> {
-        self.current_local_state
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Definition { name: def_name, .. }
-                | Item::Inductive { name: def_name, .. } => {
-                    if def_name.name() == name.0.as_str() {
-                        Some(item.clone())
-                    } else {
-                        None
-                    }
-                }
-            })
-            .ok_or(format!(
-                "Item {} not found in current context",
-                name.0.as_str()
-            ))
-    }
 
     // does not check well-typed ness
-    // bind_var ... variables bound in the surrounding context
-    pub fn elab_exp(&mut self, sexp: &SExp, bind_var: Vec<Var>) -> Result<Exp, String> {
+    // bind_var ... recursion on expression to bindings
+    pub fn elab_exp(&mut self, sexp: &SExp, mut bind_var: Vec<Var>) -> Result<Exp, String> {
         match sexp {
             SExp::ModAccessDef { path, name } => {
                 let inst = self.mod_path_instantiation(path)?;
@@ -528,7 +564,7 @@ impl Resolver {
                 }
 
                 // check items
-                if let Ok(item) = self.current_item_from_name(identifier) {
+                if let Some(item) = self.current_local_state.resolve_item(identifier) {
                     match item {
                         Item::Definition {
                             name: _,
@@ -550,23 +586,196 @@ impl Resolver {
                     }
                 }
 
+                // check from current parameters
+                if let Some(exp) = self.current_local_state.resolve_var_in_param(identifier) {
+                    return Ok(exp);
+                }
+
                 Err(format!("Unbound identifier: {}", identifier.0.as_str()))
             }
-            SExp::Prod { bind, body } => todo!(),
-            SExp::Lam { bind, body } => todo!(),
-            SExp::App { func, arg, piped } => todo!(),
-            SExp::Annotation { exp, ty } => todo!(),
+            SExp::Prod { bind, body } => {
+                // 1. { var: None, ty: A, predicate: None }  -->  ( _: A ) -> B
+                // 2. { var: Some x, ty: A, predicate: None }  -->  ( x: A ) -> B(x)
+                // 3. { var: Some x, ty: A, predicate: Some (None, P) }  -->  ( x: {x: A | P(x)} ) -> B(x)
+                // 4. { var: Some x, ty: A, predicate: Some (Some p, P) }  -->  ( x: {x: A | P(x)} ) -> ( p: P(x) ) -> B(x, p)
+                let crate::syntax::Bind { var, ty, predicate } = bind;
+
+                let ty_elab = self.elab_exp(ty, bind_var.clone())?;
+
+                match var {
+                    // 1.
+                    None => {
+                        // assetion: predicate == None
+                        if predicate.is_some() {
+                            return Err(
+                                "Predicate in anonymous product is not supported yet".to_string()
+                            );
+                        }
+                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                        Ok(Exp::Prod {
+                            var: Var::dummy(),
+                            ty: Box::new(ty_elab),
+                            body: Box::new(body_elab),
+                        })
+                    }
+                    Some(var) => {
+                        let v = Var::new(var.0.as_str());
+                        bind_var.push(v.clone());
+                        match predicate {
+                            // 2.
+                            None => {
+                                let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                Ok(Exp::Prod {
+                                    var: v,
+                                    ty: Box::new(ty_elab),
+                                    body: Box::new(body_elab),
+                                })
+                            }
+                            Some((may_name, predicate)) => {
+                                let predicate_elab = self.elab_exp(predicate, bind_var.clone())?;
+                                let refined_ty =
+                                    Exp::refinement(v.clone(), ty_elab, predicate_elab.clone());
+                                match may_name {
+                                    // 3.
+                                    None => {
+                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        Ok(Exp::Prod {
+                                            var: v,
+                                            ty: Box::new(refined_ty),
+                                            body: Box::new(body_elab),
+                                        })
+                                    }
+                                    // 4.
+                                    Some(name) => {
+                                        bind_var.push(Var::new(name.0.as_str()));
+                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        Ok(Exp::Prod {
+                                            var: v,
+                                            ty: Box::new(refined_ty),
+                                            body: Exp::Prod {
+                                                var: Var::new(name.0.as_str()),
+                                                ty: Box::new(predicate_elab),
+                                                body: body_elab.into(),
+                                            }
+                                            .into(),
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            SExp::Lam { bind, body } => {
+                // 1. { var: None, ty: A, predicate: None }  -->  ( _: A ) => B
+                // 2. { var: Some x, ty: A, predicate: None }  -->  ( x: A ) => B(x)
+                // 3. { var: Some x, ty: A, predicate: Some (None, P) }  -->  ( x: {x: A | P(x)} ) => B(x)
+                // 4. { var: Some x, ty: A, predicate: Some (Some p, P) }  -->  ( x: {x: A | P(x)} ) => ( p: P(x) ) => B(x, p)
+                let crate::syntax::Bind { var, ty, predicate } = bind;
+
+                let ty_elab = self.elab_exp(ty, bind_var.clone())?;
+
+                match var {
+                    // 1.
+                    None => {
+                        // assertion: predicate == None
+                        if predicate.is_some() {
+                            return Err(
+                                "Predicate in anonymous lambda is not supported yet".to_string()
+                            );
+                        }
+                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                        Ok(Exp::Lam {
+                            var: Var::dummy(),
+                            ty: Box::new(ty_elab),
+                            body: Box::new(body_elab),
+                        })
+                    }
+                    Some(var) => {
+                        let v = Var::new(var.0.as_str());
+                        bind_var.push(v.clone());
+                        match predicate {
+                            // 2.
+                            None => {
+                                let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                Ok(Exp::Lam {
+                                    var: v,
+                                    ty: Box::new(ty_elab),
+                                    body: Box::new(body_elab),
+                                })
+                            }
+                            Some((may_name, predicate)) => {
+                                let predicate_elab = self.elab_exp(predicate, bind_var.clone())?;
+                                let refined_ty =
+                                    Exp::refinement(v.clone(), ty_elab, predicate_elab.clone());
+                                match may_name {
+                                    // 3.
+                                    None => {
+                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        Ok(Exp::Lam {
+                                            var: v,
+                                            ty: Box::new(refined_ty),
+                                            body: Box::new(body_elab),
+                                        })
+                                    }
+                                    // 4.
+                                    Some(name) => {
+                                        bind_var.push(Var::new(name.0.as_str()));
+                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        Ok(Exp::Lam {
+                                            var: v,
+                                            ty: Box::new(refined_ty),
+                                            body: Box::new(Exp::Lam {
+                                                var: Var::new(name.0.as_str()),
+                                                ty: Box::new(predicate_elab),
+                                                body: Box::new(body_elab),
+                                            }),
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            SExp::App {
+                func,
+                arg,
+                piped: _,
+            } => {
+                let func_elab = self.elab_exp(func, bind_var.clone())?;
+                let arg_elab = self.elab_exp(arg, bind_var.clone())?;
+                Ok(Exp::App {
+                    func: Box::new(func_elab),
+                    arg: Box::new(arg_elab),
+                })
+            }
+            SExp::Annotation { exp, ty } => {
+                let exp_elab = self.elab_exp(exp, bind_var.clone())?;
+                let ty_elab = self.elab_exp(ty, bind_var.clone())?;
+                Ok(Exp::Cast {
+                    exp: Box::new(exp_elab),
+                    to: Box::new(ty_elab),
+                })
+            }
             SExp::IndType {
                 ind_type_name,
                 parameters,
             } => {
                 // find inductive type from current
+                let item = self
+                    .current_local_state
+                    .resolve_item(ind_type_name)
+                    .ok_or(format!(
+                        "Inductive type {} not found",
+                        ind_type_name.0.as_str()
+                    ))?;
 
                 let Item::Inductive {
                     name: _,
                     ctor_names: _,
                     ind_defs,
-                } = self.current_item_from_name(ind_type_name)?
+                } = item
                 else {
                     return Err(format!(
                         "{} is not an inductive type",

@@ -19,6 +19,9 @@ impl Var {
     pub fn is_eq_ptr(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
+    pub fn dummy() -> Self {
+        Var(Rc::new("_".to_string()))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -197,6 +200,19 @@ pub enum Exp {
         domain: Box<Exp>,
         codomain: Box<Exp>,
     },
+}
+
+impl Exp {
+    pub fn refinement(v: Var, set: Exp, predicate: Exp) -> Exp {
+        Exp::TypeLift {
+            superset: Box::new(set.clone()),
+            subset: Box::new(Exp::SubSet {
+                var: v,
+                set: Box::new(set),
+                predicate: Box::new(predicate),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

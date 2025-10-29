@@ -13,7 +13,7 @@ use crate::{
 
 // Helper function to push variables into the context
 fn push_var(checker: &mut Checker, var: &Var, ty: Exp) {
-    checker.push(var.clone(), ty).unwrap();
+    assert!(checker.push(var.clone(), ty));
     let last = checker.history().last().unwrap();
     println!("{}", last);
     assert!(last.node().unwrap().is_success());
@@ -21,7 +21,7 @@ fn push_var(checker: &mut Checker, var: &Var, ty: Exp) {
 
 // Helper function to check terms
 fn check_term(checker: &mut Checker, term: &Exp, ty: &Exp) {
-    checker.check(term, ty).unwrap();
+    assert!(checker.check(term, ty));
     let last = checker.history().last().unwrap();
     println!("{}", last);
     assert!(last.node().unwrap().is_success());
@@ -417,9 +417,11 @@ fn nat_test() {
     ];
 
     let mut checker = Checker::default();
-    let _indspecs = std::rc::Rc::new(checker
-        .chk_indspec(params, indices, sort, constructors)
-        .unwrap());
+    let _indspecs = std::rc::Rc::new(
+        checker
+            .chk_indspec(params, indices, sort, constructors)
+            .unwrap(),
+    );
 
     checker.history().iter().for_each(|der| {
         println!("{}", der);
