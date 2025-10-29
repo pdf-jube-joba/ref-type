@@ -11,6 +11,20 @@ pub struct Resolver {
     pub old_local_states: Vec<LocalState>,
 }
 
+impl Default for Resolver {
+    fn default() -> Self {
+        Resolver {
+            module_stack: vec![],
+            current_local_state: LocalState {
+                checker: kernel::checker::Checker::default(),
+                realized: vec![],
+                items: vec![],
+            },
+            old_local_states: vec![],
+        }
+    }
+}
+
 pub struct LocalState {
     checker: kernel::checker::Checker,
     realized: Vec<ModuleRealized>,
@@ -195,7 +209,7 @@ impl Resolver {
 
                     self.current_local_state
                         .checker
-                        .check(&ty, &body)
+                        .check(&body, &ty)
                         .map_err(|_| format!("Error in definition elaboration: {var} : {ty}"))?;
 
                     let item_elab = Item::Definition {

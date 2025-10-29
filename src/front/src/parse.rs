@@ -11,12 +11,11 @@ pub fn parse_exp(input: &str) -> Result<syntax::SExp, String> {
     }
 }
 
-pub fn parse_module(input: &str) -> Result<syntax::Module, String> {
-    // match program::ModuleAllParser::new().parse(input) {
-    //     Ok(module) => Ok(module),
-    //     Err(err) => Err(format!("Parse error: {}", err)),
-    // }
-    todo!()
+pub fn parse_modules(input: &str) -> Result<Vec<syntax::Module>, String> {
+    match program::ModuleRepsParser::new().parse(input) {
+        Ok(module) => Ok(module),
+        Err(err) => Err(format!("Parse error: {}", err)),
+    }
 }
 
 #[test]
@@ -34,5 +33,5 @@ fn parse_exp_test() {
     print_and_unwrap(r"x");
     print_and_unwrap(r"x y");
     print_and_unwrap(r"x | y");
-    // print_and_unwrap(r"(x y) z");
+    print_and_unwrap(r"(x y) z");
 }
