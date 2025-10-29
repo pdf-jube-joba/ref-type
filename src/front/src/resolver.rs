@@ -497,7 +497,7 @@ impl Resolver {
 
         for i in 0..mod_templates.parameters.len() {
             let (var, ty) = &mod_templates.parameters[i];
-            let ty_substed = subst_map(&ty, &subst_stack);
+            let ty_substed = subst_map(ty, &subst_stack);
             let arg_elab = &arguments_elab[i];
 
             self.current_local_state.check(arg_elab, &ty_substed)?;
