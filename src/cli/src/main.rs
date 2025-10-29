@@ -19,16 +19,25 @@ fn main() {
     let mut resolver = front::resolver::Resolver::default();
     for module in modules {
         eprintln!("Module: {:?}", module);
-        resolver.new_module(&module).unwrap();
-    }
-
-    println!("-- Log Derivations --");
-
-    let der_vec = resolver.get_all_log_derivation();
-    for (name, ders) in der_vec {
-        println!("Log Derivations for module: {}", name);
-        for der in ders {
-            println!("{}", der);
+        let res = resolver.new_module(&module);
+        for log in resolver.history() {
+            match log {
+                either::Either::Left(der) => {
+                    println!("Derivation \n{}", der);
+                }
+                either::Either::Right(log) => {
+                    println!("Log: \n{}", log);
+                }
+            }
+        }
+        match res {
+            Ok(_) => {
+                continue;
+            },
+            Err(err) => {
+                println!("ERROR\n{err}");
+                break;
+            },
         }
     }
 }

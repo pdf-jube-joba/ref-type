@@ -14,8 +14,6 @@ Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]
 */
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
-    // context of definition
-    // pub ctx: Context, // これは外部にあるべき？
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
     // indices of the type
@@ -154,7 +152,7 @@ pub fn acceptable_typespecs(
             );
         }
 
-        local_context = local_context.extend((x.clone(), a.clone()));
+        local_context = ctx_extend(&local_context, (x.clone(), a.clone()));
     }
     // after this, local_context contains all parameters
 
@@ -173,7 +171,7 @@ pub fn acceptable_typespecs(
     // 3. check constructors are well-sorted (constructor can depend on parameters and each params)
     // adding (Var("THIS"): arity) to local_context and check each constructor under this context
     let this = Var::new("THIS");
-    local_context = local_context.extend((this.clone(), arity.clone()));
+    local_context = ctx_extend(&local_context, (this.clone(), arity.clone()));
 
     for cst in constructors.iter() {
         // cst_type(constructor as type) = pos[] -> THIS args[0] ... args[m]

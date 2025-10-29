@@ -271,45 +271,49 @@ pub enum ProveCommandBy {
     Axiom(Axiom),
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Context(Vec<(Var, Exp)>);
-
-impl From<Vec<(Var, Exp)>> for Context {
-    fn from(v: Vec<(Var, Exp)>) -> Self {
-        Context(v)
-    }
+#[derive(Debug, Clone)]
+pub enum Axiom {
+    ExcludedMiddle {
+        ctx: Context,
+        prop: Exp,
+    },
+    FunctionExtensionality {
+        ctx: Context,
+        func1: Exp,
+        func2: Exp,
+    },
+    EmsemblesExtensionality {
+        ctx: Context,
+        set1: Exp,
+        set2: Exp,
+        superset: Exp,
+    },
 }
 
-impl Context {
-    pub fn vec(&self) -> &Vec<(Var, Exp)> {
-        &self.0
-    }
-    pub fn push(&mut self, varty: (Var, Exp)) {
-        self.0.push(varty);
-    }
-    pub fn pop(&mut self) {
-        self.0.pop();
-    }
-    pub fn extend(&self, varty: (Var, Exp)) -> Self {
-        let mut new_ctx = self.0.clone();
-        new_ctx.push(varty);
-        Context(new_ctx)
-    }
-    pub fn extend_ctx(&self, other: &Context) -> Self {
-        let mut new_ctx = self.0.clone();
-        for (v, ty) in other.0.iter() {
-            new_ctx.push((v.clone(), ty.clone()));
+pub type Context = Vec<(Var, Exp)>;
+
+/// Return a new context that is `ctx` extended with one (Var, Exp)
+pub fn ctx_extend(ctx: &Context, varty: (Var, Exp)) -> Context {
+    let mut new_ctx = ctx.clone();
+    new_ctx.push(varty);
+    new_ctx
+}
+
+/// Return a new context that is `ctx` extended by `other` (append other's bindings)
+pub fn ctx_extend_ctx(ctx: &Context, other: &Context) -> Context {
+    let mut new_ctx = ctx.clone();
+    new_ctx.extend(other.iter().cloned());
+    new_ctx
+}
+
+/// Lookup a variable in the context by pointer-equality (same semantics as previous implementation)
+pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
+    for (v, ty) in ctx.iter().rev() {
+        if v.is_eq_ptr(var) {
+            return Some(ty);
         }
-        Context(new_ctx)
     }
-    pub fn get(&self, var: &Var) -> Option<&Exp> {
-        for (v, ty) in self.0.iter().rev() {
-            if v.is_eq_ptr(var) {
-                return Some(ty);
-            }
-        }
-        None
-    }
+    None
 }
 
 #[derive(Debug, Clone)]
@@ -469,23 +473,4 @@ impl Derivation {
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum Axiom {
-    ExcludedMiddle {
-        ctx: Context,
-        prop: Exp,
-    },
-    FunctionExtensionality {
-        ctx: Context,
-        func1: Exp,
-        func2: Exp,
-    },
-    EmsemblesExtensionality {
-        ctx: Context,
-        set1: Exp,
-        set2: Exp,
-        superset: Exp,
-    },
 }

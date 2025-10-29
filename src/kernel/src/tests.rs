@@ -1,13 +1,69 @@
 use crate::{
     calculus::is_alpha_eq,
-    checker::Checker,
-    exp::{Exp, ProveCommandBy, ProveGoal, Sort, Var},
+    exp::{Context, Derivation, Exp, ProveCommandBy, ProveGoal, Sort, Var},
     inductive::CtorBinder,
     utils::{self, app, lam, prod, prooflater, var},
 };
 // rustfmt doens not allow us variable starts with Uppercase letter
 // ... => we use double lowercase letters
 // e.g. A -> aa, P -> pp, P1 -> pp1 etc.
+
+#[derive(Debug, Default)]
+pub struct Checker {
+    context: Context,
+    derivations: Vec<Derivation>,
+}
+
+impl Checker {
+    fn history(&self) -> &Vec<Derivation> {
+        &self.derivations
+    }
+    fn check(&mut self, term: &Exp, ty: &Exp) -> bool {
+        let derivation = crate::derivation::check(&self.context, term, ty);
+        let res = derivation.node().unwrap().is_success();
+        self.derivations.push(derivation);
+        res
+    }
+    fn infer(&mut self, term: &Exp) -> Option<Exp> {
+        let derivation = crate::derivation::infer(&self.context, term);
+        let ty = {
+            let crate::exp::TypeInfer { ty, .. } =
+                derivation.node().unwrap().as_type_infer().unwrap();
+            ty.clone()
+        };
+        self.derivations.push(derivation);
+        ty
+    }
+    fn prove_command(&self, command: &ProveCommandBy) -> Derivation {
+        crate::derivation::prove_command(&self.context, command)
+    }
+    fn chk_indspec(
+        &mut self,
+        params: Vec<(Var, Exp)>,
+        indices: Vec<(Var, Exp)>,
+        sort: crate::exp::Sort,
+        constructors: Vec<crate::inductive::CtorType>,
+    ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
+        let (derivation, res) = crate::inductive::acceptable_typespecs(
+            &self.context,
+            params,
+            indices,
+            sort,
+            constructors,
+        );
+        self.derivations.extend(derivation);
+        res
+    }
+    fn push(&mut self, var: Var, ty: Exp) -> bool {
+        let der = crate::derivation::infer_sort(&self.context, &ty);
+        let res = der.node().unwrap().is_success();
+        self.derivations.push(der);
+        if res {
+            self.context.push((var, ty));
+        }
+        res
+    }
+}
 
 // "interactive" type checker
 
@@ -361,7 +417,7 @@ fn solvegoals() {
         };
         let goals: Vec<_> = vec![
             ProveGoal {
-                extended_ctx: vec![].into(),
+                extended_ctx: vec![],
                 goal_prop: p1impp2.clone(),
                 proof_term: Exp::ProofTermRaw {
                     command: Box::new(ProveCommandBy::Construct {
@@ -370,7 +426,7 @@ fn solvegoals() {
                 },
             },
             ProveGoal {
-                extended_ctx: vec![].into(),
+                extended_ctx: vec![],
                 goal_prop: Exp::Var(pp1.clone()),
                 proof_term: Exp::ProofTermRaw {
                     command: Box::new(ProveCommandBy::Construct {

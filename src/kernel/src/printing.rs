@@ -185,16 +185,11 @@ impl Display for crate::exp::Exp {
     }
 }
 
-impl Display for crate::exp::Context {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ctx_str = self
-            .vec()
-            .iter()
-            .map(|(var, ty)| format!("{}: {}", var, ty))
-            .collect::<Vec<_>>()
-            .join(", ");
-        write!(f, "[{}]", ctx_str)
-    }
+fn print_ctx(ctx: &crate::exp::Context) -> String {
+    ctx.iter()
+        .map(|(var, ty)| format!("{}: {}", var, ty))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 impl Display for ProveGoal {
@@ -204,7 +199,13 @@ impl Display for ProveGoal {
             goal_prop,
             proof_term,
         } = self;
-        write!(f, "[..  {} |- {}: {}]", extended_ctx, proof_term, goal_prop)
+        write!(
+            f,
+            "[..  {} |- {}: {}]",
+            print_ctx(extended_ctx),
+            proof_term,
+            goal_prop
+        )
     }
 }
 
@@ -214,7 +215,7 @@ impl Display for Prove {
         write!(
             f,
             "[{} |= {}]",
-            ctx,
+            print_ctx(ctx),
             prop.as_ref()
                 .map(|p| format!("{}", p))
                 .unwrap_or("???".to_string())
@@ -229,7 +230,7 @@ impl Display for Node {
                 write!(
                     f,
                     "[{} |- {} : {}] check ... {}",
-                    ctx,
+                    print_ctx(ctx),
                     term,
                     ty,
                     if *res { "Success" } else { "Fail" },
@@ -239,7 +240,7 @@ impl Display for Node {
                 write!(
                     f,
                     "[{} |- {} : {}] infer",
-                    ctx,
+                    print_ctx(ctx),
                     term,
                     ty.as_ref()
                         .map(|t| format!("{}", t))
@@ -250,7 +251,7 @@ impl Display for Node {
                 write!(
                     f,
                     "[{} |- {} : {}] sort infer",
-                    ctx,
+                    print_ctx(ctx),
                     ty,
                     sort.as_ref()
                         .map(|t| format!("{}", t))

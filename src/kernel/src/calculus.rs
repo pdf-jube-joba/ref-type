@@ -121,14 +121,11 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                     strict_equivalence(&g1.goal_prop, &g2.goal_prop)
                         && strict_equivalence(&g1.proof_term, &g2.proof_term)
                         && {
-                            if g1.extended_ctx.vec().len() != g2.extended_ctx.vec().len() {
+                            if g1.extended_ctx.len() != g2.extended_ctx.len() {
                                 return false;
                             }
-                            for ((var1, exp1), (var2, exp2)) in g1
-                                .extended_ctx
-                                .vec()
-                                .iter()
-                                .zip(g2.extended_ctx.vec().iter())
+                            for ((var1, exp1), (var2, exp2)) in
+                                g1.extended_ctx.iter().zip(g2.extended_ctx.iter())
                             {
                                 if !var1.is_eq_ptr(var2) || !strict_equivalence(exp1, exp2) {
                                     return false;
@@ -316,10 +313,7 @@ pub fn contains_as_freevar(e: &Exp, v: &Var) -> bool {
         Exp::ProveHere { exp, goals } => {
             contains_as_freevar(exp, v)
                 || goals.iter().any(|goal| {
-                    goal.extended_ctx
-                        .vec()
-                        .iter()
-                        .any(|(var, _)| var.is_eq_ptr(v))
+                    goal.extended_ctx.iter().any(|(var, _)| var.is_eq_ptr(v))
                         || contains_as_freevar(&goal.goal_prop, v)
                         || contains_as_freevar(&goal.proof_term, v)
                 })
@@ -631,14 +625,14 @@ pub fn is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
 }
 
 pub fn is_alpha_eq_ctx(ctx1: &Context, ctx2: &Context) -> bool {
-    if ctx1.vec().len() != ctx2.vec().len() {
+    if ctx1.len() != ctx2.len() {
         return false;
     }
 
     let mut env1 = vec![];
     let mut env2 = vec![];
 
-    for ((var1, exp1), (var2, exp2)) in ctx1.vec().iter().zip(ctx2.vec().iter()) {
+    for ((var1, exp1), (var2, exp2)) in ctx1.iter().zip(ctx2.iter()) {
         if !is_alpha_eq_rec(exp1, exp2, &mut env1, &mut env2) {
             return false;
         }
@@ -657,10 +651,10 @@ pub fn is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp)
     let mut env1 = vec![];
     let mut env2 = vec![];
 
-    for (var1, _) in ctx1.vec().iter() {
+    for (var1, _) in ctx1.iter() {
         env1.push(var1.clone());
     }
-    for (var2, _) in ctx2.vec().iter() {
+    for (var2, _) in ctx2.iter() {
         env2.push(var2.clone());
     }
 
@@ -762,11 +756,9 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
                 .map(|goal| ProveGoal {
                     extended_ctx: goal
                         .extended_ctx
-                        .vec()
                         .iter()
                         .map(|(var, exp)| (var.clone(), subst(exp, v, t)))
-                        .collect::<Vec<_>>()
-                        .into(),
+                        .collect::<Vec<_>>(),
                     goal_prop: subst(&goal.goal_prop, v, t),
                     proof_term: subst(&goal.proof_term, v, t),
                 })
@@ -962,13 +954,13 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
                     } = goal;
 
                     let mut subst_map = vec![];
-                    for (var, _) in extended_ctx.vec().iter() {
+                    for (var, _) in extended_ctx.iter() {
                         let new_var = Var::new(var.name());
                         subst_map.push((var.clone(), new_var));
                     }
 
                     let mut new_ctx = vec![];
-                    for (i, (_, e)) in extended_ctx.vec().iter().enumerate() {
+                    for (i, (_, e)) in extended_ctx.iter().enumerate() {
                         let mut new_e = alpha_conversion(e);
                         for (old_var, new_var) in subst_map.iter() {
                             new_e = subst(&new_e, old_var, &Exp::Var(new_var.clone()));
@@ -995,7 +987,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
                     };
 
                     ProveGoal {
-                        extended_ctx: new_ctx.into(),
+                        extended_ctx: new_ctx,
                         goal_prop,
                         proof_term,
                     }
@@ -1247,11 +1239,9 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 .map(|goal| ProveGoal {
                     extended_ctx: goal
                         .extended_ctx
-                        .vec()
                         .iter()
                         .map(|(var, exp)| (var.clone(), reduce_if(exp)))
-                        .collect::<Vec<_>>()
-                        .into(),
+                        .collect::<Vec<_>>(),
                     goal_prop: reduce_if(&goal.goal_prop),
                     proof_term: reduce_if(&goal.proof_term),
                 })

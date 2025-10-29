@@ -1,4 +1,5 @@
 use crate::syntax::*;
+use either::Either;
 use kernel::{
     calculus::{contains_as_freevar, is_alpha_eq, subst_map},
     exp::*,
@@ -8,7 +9,7 @@ use kernel::{
 pub struct Resolver {
     pub module_stack: Vec<ModuleResolved>, // templates
     pub current_local_state: LocalState,
-    pub old_local_states: Vec<(String, LocalState)>,
+    pub old_local_states: Vec<LocalState>,
 }
 
 impl Default for Resolver {
@@ -16,10 +17,10 @@ impl Default for Resolver {
         Resolver {
             module_stack: vec![],
             current_local_state: LocalState {
-                checker: kernel::checker::Checker::default(),
                 parameters: vec![],
                 realized: vec![],
                 items: vec![],
+                log: vec![],
             },
             old_local_states: vec![],
         }
@@ -27,6 +28,9 @@ impl Default for Resolver {
 }
 
 impl Resolver {
+    pub fn history(&self) -> Vec<Either<Derivation, String>> {
+        self.current_local_state.log.clone()
+    }
     fn get_module_templates(&self, name: &Identifier) -> Option<ModuleResolved> {
         for module in self.module_stack.iter().rev() {
             if module.name.name() == name.0.as_str() {
@@ -35,28 +39,30 @@ impl Resolver {
         }
         None
     }
-    pub fn get_all_log_derivation(&self) -> Vec<(String, Vec<Derivation>)> {
-        self.old_local_states
-            .iter()
-            .map(|(name, state)| (name.clone(), state.checker.history().clone()))
-            .collect()
+    fn log<S>(&mut self, s: S)
+    where
+        S: Into<String>,
+    {
+        self.current_local_state.log.push(Either::Right(s.into()));
     }
 }
 
 pub struct LocalState {
-    checker: kernel::checker::Checker,
     parameters: Vec<(Var, Exp)>,
     realized: Vec<ModuleRealized>,
     items: Vec<Item>,
+    log: Vec<Either<Derivation, String>>,
     // mathmacros, usermacro ... implement after
 }
 
 impl LocalState {
     fn push_parameter(&mut self, var: Var, ty: Exp) -> Result<(), String> {
-        if !self.checker.push(var.clone(), ty.clone()) {
+        // check well-sortedness
+        let der = kernel::derivation::infer_sort(&self.parameters, &ty);
+        self.log.push(Either::Left(der.clone()));
+        if !der.node().unwrap().is_success() {
             return Err(format!(
-                "Error in local state parameter elaboration: {} : {}",
-                var.name(),
+                "Parameter type checking failed: type {} is not a valid type",
                 ty
             ));
         }
@@ -87,7 +93,10 @@ impl LocalState {
         None
     }
     fn check(&mut self, term: &Exp, ty: &Exp) -> Result<(), String> {
-        if !self.checker.check(term, ty) {
+        // run a derivation check with the current global context and log the derivation
+        let der = kernel::derivation::check(&self.parameters, term, ty);
+        self.log.push(Either::Left(der.clone()));
+        if !der.node().unwrap().is_success() {
             return Err(format!(
                 "Type checking failed: term {} does not have type {}",
                 term, ty
@@ -257,6 +266,18 @@ pub struct ModuleRealized {
 
 impl Resolver {
     pub fn new_module(&mut self, module: &Module) -> Result<(), String> {
+        self.log(format!("Resolving module {}", module.name.0.as_str()));
+        let old_state = std::mem::replace(
+            &mut self.current_local_state,
+            LocalState {
+                parameters: vec![],
+                realized: vec![],
+                items: vec![],
+                log: vec![],
+            },
+        );
+        self.old_local_states.push(old_state);
+
         let Module {
             name,
             parameters,
@@ -264,16 +285,19 @@ impl Resolver {
         } = module;
 
         for (var, ty) in parameters {
+            self.log(format!("check {var}"));
             let var = Var::new(var.0.as_str());
-            let ty = self.elab_exp(ty, vec![])?;
+            let ty = self.elab_exp(ty)?;
             self.current_local_state.push_parameter(var, ty)?;
         }
+
+        self.log("parameter ok");
 
         for item in declarations {
             match item {
                 ModuleItem::Definition { var, ty, body } => {
-                    let ty = self.elab_exp(ty, vec![])?;
-                    let body = self.elab_exp(body, vec![])?;
+                    let ty = self.elab_exp(ty)?;
+                    let body = self.elab_exp(body)?;
 
                     self.current_local_state.check(&body, &ty)?;
 
@@ -293,11 +317,10 @@ impl Resolver {
 
                     let parameter_elab: Vec<(Var, Exp)> = parameter
                         .iter()
-                        .map(|(var, ty)| Ok((Var::new(var.0.as_str()), self.elab_exp(ty, vec![])?)))
+                        .map(|(var, ty)| Ok((Var::new(var.0.as_str()), self.elab_exp(ty)?)))
                         .collect::<Result<Vec<(Var, Exp)>, String>>()?;
 
-                    let (indices_elab, sort) =
-                        kernel::utils::decompose_prod(self.elab_exp(arity, vec![])?);
+                    let (indices_elab, sort) = kernel::utils::decompose_prod(self.elab_exp(arity)?);
 
                     let Exp::Sort(sort) = sort else {
                         return Err(format!(
@@ -312,7 +335,8 @@ impl Resolver {
                         let ctor_name_var = Var::new(ctor_name.0.as_str());
                         ctor_names.push(ctor_name_var);
 
-                        let ctor_type_elab = self.elab_exp(ctor_args, vec![type_name.clone()])?;
+                        let ctor_type_elab =
+                            self.elab_exp_rec(ctor_args, vec![type_name.clone()])?;
 
                         let (telescope, tails) = kernel::utils::decompose_prod(ctor_type_elab);
 
@@ -377,18 +401,35 @@ impl Resolver {
                         });
                     }
 
-                    let indspecs_elab = self
-                        .current_local_state
-                        .checker
-                        .chk_indspec(parameter_elab, indices_elab, sort, constructors_elab)
-                        .map_err(|e| format!("Error in inductive type elaboration: {e}"))?;
+                    let (ders, res) = kernel::inductive::acceptable_typespecs(
+                        &self.current_local_state.parameters,
+                        parameter_elab.clone(),
+                        indices_elab.clone(),
+                        sort,
+                        constructors_elab,
+                    );
 
-                    let item_elab = Item::Inductive {
-                        name: type_name,
-                        ctor_names,
-                        ind_defs: std::rc::Rc::new(indspecs_elab),
-                    };
-                    self.current_local_state.items.push(item_elab);
+                    for der in ders {
+                        self.current_local_state.log.push(Either::Left(der));
+                    }
+
+                    match res {
+                        Ok(indspecs_elab) => {
+                            let item_elab = Item::Inductive {
+                                name: type_name,
+                                ctor_names,
+                                ind_defs: std::rc::Rc::new(indspecs_elab),
+                            };
+                            self.current_local_state.items.push(item_elab);
+                        }
+                        Err(err) => {
+                            return Err(format!(
+                                "Inductive type {} definition is not acceptable: {}",
+                                type_name.name(),
+                                err
+                            ));
+                        }
+                    }
                 }
                 ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
             }
@@ -399,16 +440,6 @@ impl Resolver {
             parameters: self.current_local_state.parameters.clone(),
             items: self.current_local_state.items.clone(),
         });
-        let old_state = std::mem::replace(
-            &mut self.current_local_state,
-            LocalState {
-                checker: kernel::checker::Checker::default(),
-                parameters: vec![],
-                realized: vec![],
-                items: vec![],
-            },
-        );
-        self.old_local_states.push((name.0.to_string(), old_state));
 
         Ok(())
     }
@@ -449,7 +480,7 @@ impl Resolver {
                         v.name()
                     ));
                 }
-                self.elab_exp(arg, vec![])
+                self.elab_exp(arg)
             })
             .collect::<Result<Vec<Exp>, String>>()?;
 
@@ -484,10 +515,13 @@ impl Resolver {
             ModPath::AbsoluteRoot(instantiated_module) => Ok(instantiated_module.clone()),
         }
     }
+    fn elab_exp(&mut self, sexp: &SExp) -> Result<Exp, String> {
+        self.elab_exp_rec(sexp, vec![])
+    }
 
     // does not check well-typed ness
     // bind_var ... recursion on expression to bindings
-    pub fn elab_exp(&mut self, sexp: &SExp, mut bind_var: Vec<Var>) -> Result<Exp, String> {
+    pub fn elab_exp_rec(&mut self, sexp: &SExp, mut bind_var: Vec<Var>) -> Result<Exp, String> {
         match sexp {
             SExp::ModAccessDef { path, name } => {
                 let inst = self.mod_path_instantiation(path)?;
@@ -527,12 +561,12 @@ impl Resolver {
                         Ok((
                             Var::new(var.0.as_str()),
                             // doen't capture var each other
-                            self.elab_exp(ty, bind_var.clone())?,
-                            self.elab_exp(body, bind_var.clone())?,
+                            self.elab_exp_rec(ty, bind_var.clone())?,
+                            self.elab_exp_rec(body, bind_var.clone())?,
                         ))
                     })
                     .collect::<Result<Vec<(Var, Exp, Exp)>, String>>()?;
-                let mut exp_elab = self.elab_exp(exp, bind_var_exp.clone())?;
+                let mut exp_elab = self.elab_exp_rec(exp, bind_var_exp.clone())?;
                 for (var, ty, body) in let_ins.into_iter().rev() {
                     exp_elab = Exp::App {
                         func: Box::new(Exp::Lam {
@@ -546,7 +580,7 @@ impl Resolver {
                 Ok(exp_elab)
             }
             SExp::WithProof { exp, proofs } => {
-                let exp_elab = self.elab_exp(exp, bind_var.clone())?;
+                let exp_elab = self.elab_exp_rec(exp, bind_var.clone())?;
                 let mut goals_elab = vec![];
                 for goal in proofs {
                     goals_elab.push(self.map_goal(goal.clone())?);
@@ -600,7 +634,7 @@ impl Resolver {
                 // 4. { var: Some x, ty: A, predicate: Some (Some p, P) }  -->  ( x: {x: A | P(x)} ) -> ( p: P(x) ) -> B(x, p)
                 let crate::syntax::Bind { var, ty, predicate } = bind;
 
-                let ty_elab = self.elab_exp(ty, bind_var.clone())?;
+                let ty_elab = self.elab_exp_rec(ty, bind_var.clone())?;
 
                 match var {
                     // 1.
@@ -611,7 +645,7 @@ impl Resolver {
                                 "Predicate in anonymous product is not supported yet".to_string()
                             );
                         }
-                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                        let body_elab = self.elab_exp_rec(body, bind_var.clone())?;
                         Ok(Exp::Prod {
                             var: Var::dummy(),
                             ty: Box::new(ty_elab),
@@ -624,7 +658,7 @@ impl Resolver {
                         match predicate {
                             // 2.
                             None => {
-                                let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                let body_elab = self.elab_exp_rec(body, bind_var.clone())?;
                                 Ok(Exp::Prod {
                                     var: v,
                                     ty: Box::new(ty_elab),
@@ -632,13 +666,15 @@ impl Resolver {
                                 })
                             }
                             Some((may_name, predicate)) => {
-                                let predicate_elab = self.elab_exp(predicate, bind_var.clone())?;
+                                let predicate_elab =
+                                    self.elab_exp_rec(predicate, bind_var.clone())?;
                                 let refined_ty =
                                     Exp::refinement(v.clone(), ty_elab, predicate_elab.clone());
                                 match may_name {
                                     // 3.
                                     None => {
-                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        let body_elab =
+                                            self.elab_exp_rec(body, bind_var.clone())?;
                                         Ok(Exp::Prod {
                                             var: v,
                                             ty: Box::new(refined_ty),
@@ -648,7 +684,8 @@ impl Resolver {
                                     // 4.
                                     Some(name) => {
                                         bind_var.push(Var::new(name.0.as_str()));
-                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        let body_elab =
+                                            self.elab_exp_rec(body, bind_var.clone())?;
                                         Ok(Exp::Prod {
                                             var: v,
                                             ty: Box::new(refined_ty),
@@ -673,7 +710,7 @@ impl Resolver {
                 // 4. { var: Some x, ty: A, predicate: Some (Some p, P) }  -->  ( x: {x: A | P(x)} ) => ( p: P(x) ) => B(x, p)
                 let crate::syntax::Bind { var, ty, predicate } = bind;
 
-                let ty_elab = self.elab_exp(ty, bind_var.clone())?;
+                let ty_elab = self.elab_exp_rec(ty, bind_var.clone())?;
 
                 match var {
                     // 1.
@@ -684,7 +721,7 @@ impl Resolver {
                                 "Predicate in anonymous lambda is not supported yet".to_string()
                             );
                         }
-                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                        let body_elab = self.elab_exp_rec(body, bind_var.clone())?;
                         Ok(Exp::Lam {
                             var: Var::dummy(),
                             ty: Box::new(ty_elab),
@@ -697,7 +734,7 @@ impl Resolver {
                         match predicate {
                             // 2.
                             None => {
-                                let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                let body_elab = self.elab_exp_rec(body, bind_var.clone())?;
                                 Ok(Exp::Lam {
                                     var: v,
                                     ty: Box::new(ty_elab),
@@ -705,13 +742,15 @@ impl Resolver {
                                 })
                             }
                             Some((may_name, predicate)) => {
-                                let predicate_elab = self.elab_exp(predicate, bind_var.clone())?;
+                                let predicate_elab =
+                                    self.elab_exp_rec(predicate, bind_var.clone())?;
                                 let refined_ty =
                                     Exp::refinement(v.clone(), ty_elab, predicate_elab.clone());
                                 match may_name {
                                     // 3.
                                     None => {
-                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        let body_elab =
+                                            self.elab_exp_rec(body, bind_var.clone())?;
                                         Ok(Exp::Lam {
                                             var: v,
                                             ty: Box::new(refined_ty),
@@ -721,7 +760,8 @@ impl Resolver {
                                     // 4.
                                     Some(name) => {
                                         bind_var.push(Var::new(name.0.as_str()));
-                                        let body_elab = self.elab_exp(body, bind_var.clone())?;
+                                        let body_elab =
+                                            self.elab_exp_rec(body, bind_var.clone())?;
                                         Ok(Exp::Lam {
                                             var: v,
                                             ty: Box::new(refined_ty),
@@ -743,16 +783,16 @@ impl Resolver {
                 arg,
                 piped: _,
             } => {
-                let func_elab = self.elab_exp(func, bind_var.clone())?;
-                let arg_elab = self.elab_exp(arg, bind_var.clone())?;
+                let func_elab = self.elab_exp_rec(func, bind_var.clone())?;
+                let arg_elab = self.elab_exp_rec(arg, bind_var.clone())?;
                 Ok(Exp::App {
                     func: Box::new(func_elab),
                     arg: Box::new(arg_elab),
                 })
             }
             SExp::Annotation { exp, ty } => {
-                let exp_elab = self.elab_exp(exp, bind_var.clone())?;
-                let ty_elab = self.elab_exp(ty, bind_var.clone())?;
+                let exp_elab = self.elab_exp_rec(exp, bind_var.clone())?;
+                let ty_elab = self.elab_exp_rec(ty, bind_var.clone())?;
                 Ok(Exp::Cast {
                     exp: Box::new(exp_elab),
                     to: Box::new(ty_elab),
@@ -785,7 +825,7 @@ impl Resolver {
 
                 let mut parameters_elab = vec![];
                 for param in parameters {
-                    let param_elab = self.elab_exp(param, bind_var.clone())?;
+                    let param_elab = self.elab_exp_rec(param, bind_var.clone())?;
                     parameters_elab.push(param_elab);
                 }
                 Ok(Exp::IndType {
@@ -829,11 +869,11 @@ impl Resolver {
         let mut ctx_elab = vec![];
         for (var, ty) in extended_ctx {
             let var = Var::new(var.0.as_str());
-            let ty = self.elab_exp(&ty, vec![])?;
+            let ty = self.elab_exp(&ty)?;
             ctx_elab.push((var, ty));
         }
-        let goal_elab = self.elab_exp(&goal, vec![])?;
-        let proof_term_elab = self.elab_exp(&proof_term, vec![])?;
+        let goal_elab = self.elab_exp(&goal)?;
+        let proof_term_elab = self.elab_exp(&proof_term)?;
         Ok(ProveGoal {
             extended_ctx: ctx_elab.into(),
             goal_prop: goal_elab,

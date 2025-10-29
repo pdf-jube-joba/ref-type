@@ -321,7 +321,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.rule("Var");
 
             // 1. conclude (ctx |- var : ?ty) where (var: ty) in ctx
-            match ctx.get(index) {
+            match ctx_get(ctx, index) {
                 Some(ty) => builder.build_typeinfer(ty.clone()),
                 None => builder.build_fail("not found"),
             }
@@ -335,7 +335,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             };
 
             // 2. infer (ctx:: (var, ty) |= body : ?s2)
-            let extend = ctx.extend((var.clone(), *ty.clone()));
+            let extend = ctx_extend(ctx, (var.clone(), *ty.clone()));
             let Some(s2) = builder.add_sort(&extend, body) else {
                 return builder.build_fail("fail s2");
             };
@@ -361,7 +361,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             };
 
             // 2. infer (ctx, (var, ty) |- body : ?body_ty)
-            let extend = ctx.extend((var.clone(), *ty.clone()));
+            let extend = ctx_extend(ctx, (var.clone(), *ty.clone()));
             let Some(body_ty) = builder.add_infer(&extend, body) else {
                 return builder.build_fail("no type of body");
             };
@@ -651,7 +651,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 },
             ) in goals.iter().enumerate()
             {
-                let extended_ctx = ctx.extend_ctx(extended_ctx);
+                let extended_ctx = ctx_extend_ctx(ctx, extended_ctx);
 
                 let proved_goal = Prove {
                     ctx: extended_ctx.clone(),
@@ -734,7 +734,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             };
 
             // 2. check (ctx::(var, set) |- predicate : \Prop)
-            let extend = ctx.extend((var.clone(), *set.clone()));
+            let extend = ctx_extend(ctx, (var.clone(), *set.clone()));
             let Some(()) = builder.add_check(&extend, predicate, &Exp::Sort(Sort::Prop)) else {
                 return builder.build_fail(format!(
                     "Failed to check predicate {:?} against type Prop in extended context",
@@ -1086,7 +1086,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
             };
 
             // 4. check (ctx::(var, ty) |- predicate : Prop)
-            let extend = ctx.extend((var.clone(), ty.clone()));
+            let extend = ctx_extend(ctx, (var.clone(), ty.clone()));
             let Some(()) = builder.add_check(&extend, predicate, &Exp::Sort(Sort::Prop)) else {
                 return builder.build_fail(format!(
                     "Failed to check predicate {:?} against type Prop in extended context",
@@ -1196,4 +1196,19 @@ pub fn get_first_goal(der: &mut Derivation) -> Option<&mut Derivation> {
         | Derivation::Solved { target: _, num: _ }
         | Derivation::SolveFailed { target: _, num: _ } => None,
     }
+}
+
+pub fn check_wellformed_ctx(ctx: &Context) -> (Vec<Derivation>, Option<Derivation>) {
+    let mut ders = vec![];
+    let mut cur_ctx = vec![];
+    for (v, ty) in ctx {
+        let der = infer_sort(ctx, ty);
+        if der.node().unwrap().is_success() {
+            ders.push(der);
+            cur_ctx.push((v.clone(), ty.clone()));
+        } else {
+            return (ders, Some(der));
+        }
+    }
+    (ders, None)
 }

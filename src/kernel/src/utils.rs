@@ -3,8 +3,8 @@ use super::exp::*;
 pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
     for arg in v {
         a = Exp::App {
-            func: Box::new(a),
-            arg: Box::new(arg),
+            func: a.into(),
+            arg: arg.into(),
         };
     }
     a
@@ -14,8 +14,8 @@ pub fn assoc_lam(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
     for (var, ty) in v.into_iter().rev() {
         body = Exp::Lam {
             var,
-            ty: Box::new(ty),
-            body: Box::new(body),
+            ty: ty.into(),
+            body: body.into(),
         };
     }
     body
@@ -25,8 +25,8 @@ pub fn assoc_prod(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
     for (var, ty) in v.into_iter().rev() {
         body = Exp::Prod {
             var,
-            ty: Box::new(ty),
-            body: Box::new(body),
+            ty: ty.into(),
+            body: body.into(),
         };
     }
     body
@@ -93,22 +93,22 @@ macro_rules! app {
     // named: func, arg（この順）
     ( func: $f:expr , arg: $a:expr $(,)? ) => {
         $crate::exp::Exp::App {
-            func: Box::new($f),
-            arg: Box::new($a),
+            func: $f.into(),
+            arg: $a.into(),
         }
     };
     // named: arg, func（逆順）
     ( arg: $a:expr , func: $f:expr $(,)? ) => {
         $crate::exp::Exp::App {
-            func: Box::new($f),
-            arg: Box::new($a),
+            func: $f.into(),
+            arg: $a.into(),
         }
     };
     // 位置引数版
     ( $f:expr , $a:expr ) => {
         $crate::exp::Exp::App {
-            func: Box::new($f),
-            arg: Box::new($a),
+            func: $f.into(),
+            arg: $a.into(),
         }
     };
 }
@@ -118,15 +118,15 @@ macro_rules! lam {
     ( var: $v:expr , ty: $t:expr , body: $b:expr $(,)? ) => {
         $crate::exp::Exp::Lam {
             var: $v,
-            ty: Box::new($t),
-            body: Box::new($b),
+            ty: $t.into(),
+            body: $b.into(),
         }
     };
     ( $v:expr, $t:expr, $b:expr) => {
         $crate::exp::Exp::Lam {
             var: $v,
-            ty: Box::new($t),
-            body: Box::new($b),
+            ty: $t.into(),
+            body: $b.into(),
         }
     };
 }
@@ -136,15 +136,15 @@ macro_rules! prod {
     ( var: $v:expr , ty: $t:expr , body: $b:expr $(,)? ) => {
         $crate::exp::Exp::Prod {
             var: $v,
-            ty: Box::new($t),
-            body: Box::new($b),
+            ty: $t.into(),
+            body: $b.into(),
         }
     };
     ( $v:expr, $t:expr, $b:expr) => {
         $crate::exp::Exp::Prod {
             var: $v,
-            ty: Box::new($t),
-            body: Box::new($b),
+            ty: $t.into(),
+            body: $b.into(),
         }
     };
 }
@@ -163,7 +163,7 @@ macro_rules! goal {
 #[macro_export]
 macro_rules! prooflater {
     ($p:expr) => {
-        $crate::exp::Exp::ProveLater { prop: Box::new($p) }
+        $crate::exp::Exp::ProveLater { prop: $p.into() }
     };
 }
 
@@ -178,6 +178,9 @@ mod tests {
         var!("y");
         var!("z");
         app! { func: var_exp!("f"), arg: var_exp!("x") };
+        app! { arg: var_exp!("x"), func: var_exp!("f") };
+        app! { var_exp!("f"), var_exp!("x") };
+        app! { Box::new(var_exp!("f")), var_exp!("x") };
         lam! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("x")};
         prod! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("B")};
         goal! {
