@@ -16,11 +16,11 @@ fn main() {
     println!("Input file: {}", input_file);
 
     let modules = front::parse::parse_modules(&content).unwrap();
-    let mut resolver = front::resolver::Resolver::default();
+    let mut glenv = front::resolver::GlobalEnvironment::default();
     for module in modules {
         eprintln!("Module: {:?}", module);
-        let res = resolver.new_module(&module);
-        for log in resolver.history() {
+        let res = glenv.new_module(&module);
+        for log in glenv.history() {
             match log {
                 either::Either::Left(der) => {
                     println!("Derivation \n{}", der);
