@@ -44,15 +44,16 @@ impl Checker {
         sort: crate::exp::Sort,
         constructors: Vec<crate::inductive::CtorType>,
     ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
-        let (derivation, res) = crate::inductive::acceptable_typespecs(
-            &self.context,
-            params,
-            indices,
+        let indspecs = crate::inductive::InductiveTypeSpecs {
+            parameters: params.clone(),
+            indices: indices.clone(),
             sort,
-            constructors,
-        );
+            constructors: constructors.clone(),
+        };
+        let (derivation, res) = crate::inductive::acceptable_typespecs(&self.context, &indspecs);
         self.derivations.extend(derivation);
-        res
+        res?;
+        Ok(indspecs)
     }
     fn push(&mut self, var: Var, ty: Exp) -> bool {
         let der = crate::derivation::infer_sort(&self.context, &ty);

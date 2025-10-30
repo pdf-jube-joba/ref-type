@@ -37,7 +37,6 @@ impl Default for GlobalEnvironment {
             elaborator: Elaborator {
                 parameters: vec![],
                 items: vec![],
-                local_bindings: vec![],
             },
             logger: Logger { log: vec![] },
         }
@@ -52,17 +51,84 @@ impl GlobalEnvironment {
             declarations,
         } = module;
 
-        let mut parameteres_elab =
+        let parameteres_elab =
             self.elaborator
                 .elab_telescope(&mut self.resolver, &mut self.logger, parameters)?;
 
-        todo!()
+        // sort check parameter's ty
+        {
+            for (_, ty) in parameteres_elab.iter() {
+                let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty);
+                self.logger.log_derivation(der.clone());
+                if !der.node().unwrap().is_success() {
+                    return Err(format!(
+                        "Parameter type checking failed: type {ty} is not a valid type",
+                    ));
+                }
+            }
+        }
+
+        let mut items_elab = vec![];
+        for item in declarations {
+            let item_elab =
+                self.elaborator
+                    .elab_item(&mut self.resolver, &mut self.logger, item)?;
+            self.elaborator.items.push(item_elab.clone()); // to resolve later items
+            items_elab.push(item_elab);
+        }
+
+        // chek well-formedness of items
+        {
+            for item in items_elab.iter() {
+                match item {
+                    Item::Definition { name, ty, body } => {
+                        let der = kernel::derivation::check(&parameteres_elab, body, ty);
+                        self.logger.log_derivation(der.clone());
+                        if !der.node().unwrap().is_success() {
+                            return Err(format!(
+                                "Definition {} type checking failed: body {} does not have type {}",
+                                name.name(),
+                                body,
+                                ty
+                            ));
+                        }
+                    }
+                    Item::Inductive {
+                        name,
+                        ctor_names: _,
+                        ind_defs,
+                    } => {
+                        let (ders, res) =
+                            kernel::inductive::acceptable_typespecs(&parameteres_elab, ind_defs);
+                        for der in ders {
+                            self.logger.log_derivation(der);
+                        }
+                        if let Err(err) = res {
+                            return Err(format!(
+                                "Inductive type {} definition is not acceptable: {}",
+                                name.name(),
+                                err
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        self.resolver.module_templates.push(ModuleResolved {
+            name: Var::new(name.0.as_str()),
+            parameters: parameteres_elab,
+            items: items_elab,
+        });
+
+        Ok(())
     }
     pub fn history(&self) -> Vec<Either<Derivation, String>> {
         self.logger.log.clone()
     }
 }
 
+// contains checked module templates and realized modules
 pub struct Resolver {
     module_templates: Vec<ModuleResolved>,
     realized_modules: Vec<ModuleRealized>,
@@ -99,10 +165,10 @@ impl Resolver {
     }
 }
 
+// elaborator does not type check
 pub struct Elaborator {
     parameters: Vec<(Var, Exp)>,
-    items: Vec<Item>,
-    local_bindings: Vec<Var>,
+    items: Vec<Item>, // previously elaborated items
 }
 
 impl Elaborator {
@@ -112,7 +178,123 @@ impl Elaborator {
         logger: &mut Logger,
         item: &crate::syntax::ModuleItem,
     ) -> Result<Item, String> {
-        todo!()
+        match item {
+            ModuleItem::Definition { var, ty, body } => {
+                let var: Var = var.into();
+                let ty_elab = self.elab_exp(resolver, logger, ty, &[])?;
+                let body_elab = self.elab_exp(resolver, logger, body, &[])?;
+                Ok(Item::Definition {
+                    name: var,
+                    ty: ty_elab,
+                    body: body_elab,
+                })
+            }
+            ModuleItem::Inductive {
+                type_name,
+                parameter,
+                arity,
+                constructors,
+            } => {
+                let type_name: Var = type_name.into();
+
+                // elaborate parameters
+                let parameter_elab = self.elab_telescope(resolver, logger, parameter)?;
+
+                // elaborate arity and decompose to (x[0]: A[0]) -> ... -> (x[n]: A[n]) -> Sort
+                let arity_elab = self.elab_exp(resolver, logger, arity, &[])?;
+                let (indices_elab, sort) = kernel::utils::decompose_prod(arity_elab);
+                let Exp::Sort(sort) = sort else {
+                    return Err(format!(
+                        "Inductive type arity {arity:?} does not end with a Sort"
+                    ));
+                };
+
+                // elaborate constructors
+                let mut ctor_names = vec![];
+                let mut ctor_type_elabs = vec![];
+
+                for (ctor_name, ctor_args) in constructors {
+                    let ctor_name_var: Var = ctor_name.into();
+                    ctor_names.push(ctor_name_var.clone());
+
+                    // elaborate constructor type and decompose to telescope and tails
+                    let ctor_type_elab =
+                        self.elab_exp(resolver, logger, ctor_args, &[type_name.clone()])?;
+                    let (telescope, tails) = kernel::utils::decompose_prod(ctor_type_elab);
+
+                    let mut ctor_binders = vec![];
+                    for (v, e) in telescope {
+                        if contains_as_freevar(&e, &type_name) {
+                            // strict positive case
+                            let (inner_binders, inner_tail) = kernel::utils::decompose_prod(e);
+                            for (_, it) in inner_binders.iter() {
+                                if contains_as_freevar(it, &type_name) {
+                                    return Err(format!(
+                                        "Constructor binder type {it} contains inductive type name {type_name} in non-strictly positive position"
+                                    ));
+                                }
+                            }
+                            let (head, tail) = kernel::utils::decompose_app(inner_tail);
+                            if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name))
+                            {
+                                return Err(format!(
+                                    "Constructor binder type head does not match inductive type name {type_name}"
+                                ));
+                            }
+
+                            for tail_elm in tail.iter() {
+                                if contains_as_freevar(tail_elm, &type_name) {
+                                    return Err(format!(
+                                        "Constructor binder type tail {tail_elm} contains inductive type name {type_name} in non-strictly positive position"
+                                    ));
+                                }
+                            }
+                            ctor_binders.push(CtorBinder::StrictPositive {
+                                binders: inner_binders,
+                                self_indices: tail,
+                            });
+                        } else {
+                            // simple case
+                            ctor_binders.push(CtorBinder::Simple((v, e)));
+                        }
+                    }
+
+                    let (head, tail) = kernel::utils::decompose_app(tails);
+                    if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name)) {
+                        return Err(format!(
+                            "Constructor type head does not match inductive type name {type_name}"
+                        ));
+                    }
+
+                    for tail_elm in tail.iter() {
+                        if contains_as_freevar(tail_elm, &type_name) {
+                            return Err(format!(
+                                "Constructor type tail {tail_elm} contains inductive type name {type_name}"
+                            ));
+                        }
+                    }
+
+                    ctor_type_elabs.push(kernel::inductive::CtorType {
+                        telescope: ctor_binders,
+                        indices: tail,
+                    });
+                }
+
+                let indtype_specs = InductiveTypeSpecs {
+                    parameters: parameter_elab,
+                    indices: indices_elab,
+                    sort,
+                    constructors: ctor_type_elabs,
+                };
+
+                Ok(Item::Inductive {
+                    name: type_name,
+                    ctor_names,
+                    ind_defs: std::rc::Rc::new(indtype_specs),
+                })
+            }
+            ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
+        }
     }
     fn elab_exp(
         &mut self,
@@ -121,7 +303,7 @@ impl Elaborator {
         sexp: &crate::syntax::SExp,
         reference_var: &[Var],
     ) -> Result<Exp, String> {
-        self.elab_exp_rec(resolver, logger, sexp, reference_var)
+        self.elab_exp_rec(resolver, logger, sexp, reference_var, vec![])
     }
     fn elab_telescope(
         &mut self,
@@ -145,8 +327,55 @@ impl Elaborator {
         logger: &mut Logger,
         sexp: &crate::syntax::SExp,
         reference_var: &[Var],
+        bind_var: Vec<(Var, Exp)>,
     ) -> Result<Exp, String> {
-        todo!()
+        match sexp {
+            SExp::Identifier(ident) => {
+                // check bound variables from bind_var
+                for (v, _) in bind_var.iter().rev() {
+                    if v.name() == ident.0.as_str() {
+                        return Ok(Exp::Var(v.clone()));
+                    }
+                }
+
+                // check from previously elaborated items
+                for item in self.items.iter().rev() {
+                    match item {
+                        Item::Definition {
+                            name: def_name,
+                            ty: _,
+                            body,
+                        } => {
+                            if def_name.name() == ident.0.as_str() {
+                                return Ok(body.clone());
+                            }
+                        }
+                        Item::Inductive {
+                            name: ind_name,
+                            ctor_names: _,
+                            ind_defs,
+                        } => {
+                            if ind_name.name() == ident.0.as_str() {
+                                return Ok(Exp::IndType {
+                                    indty: ind_defs.clone(),
+                                    parameters: vec![],
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // check from current parameters
+                for (v, ty) in self.parameters.iter().rev() {
+                    if v.name() == ident.0.as_str() {
+                        return Ok(Exp::Var(v.clone()));
+                    }
+                }
+
+                Err(format!("Unbound identifier: {}", ident.0.as_str()))
+            }
+            _ => todo!(),
+        }
     }
 }
 
@@ -176,6 +405,7 @@ pub struct ModuleResolved {
 
 impl ModuleResolved {
     // assume all aguments are provided, and type checked
+    // items will be substituted accordingly
     fn realize(&self, arguments: Vec<Exp>) -> ModuleRealized {
         assert!(self.parameters.len() == arguments.len());
         let arguments_substmap = self

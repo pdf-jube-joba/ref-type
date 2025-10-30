@@ -131,11 +131,14 @@ impl CtorType {
 // check well-formedness of inductive type specifications
 pub fn acceptable_typespecs(
     ctx: &Context, // assume well-formed
-    params: Vec<(Var, Exp)>,
-    indices: Vec<(Var, Exp)>,
-    sort: Sort,
-    constructors: Vec<CtorType>,
-) -> (Vec<Derivation>, Result<InductiveTypeSpecs, String>) {
+    inductive_type_specs: &InductiveTypeSpecs,
+) -> (Vec<Derivation>, Result<(), String>) {
+    let InductiveTypeSpecs {
+        parameters: params,
+        indices,
+        sort,
+        constructors,
+    } = inductive_type_specs;
     // 1. check parameters are well-sorted (parameters can depend on previous parameters)
     // (ctx, parameter.var[..i]: parameter.ty[..i] |- parameter.ty[i] : sort)
     let mut well_derivation = vec![];
@@ -159,7 +162,7 @@ pub fn acceptable_typespecs(
     // 2. check arity is well-sorted (arity can depend on parameters and previous arities)
     // arity = arity_arg[] -> sort
     // (ctx, parameters[] |- arity : sort)
-    let arity = utils::assoc_prod(indices.clone(), Exp::Sort(sort));
+    let arity = utils::assoc_prod(indices.clone(), Exp::Sort(*sort));
     let derivation = infer_sort(&local_context, &arity);
     let well_sorted = derivation.node().unwrap().is_success();
     well_derivation.push(derivation);
@@ -177,7 +180,7 @@ pub fn acceptable_typespecs(
         // cst_type(constructor as type) = pos[] -> THIS args[0] ... args[m]
         let cst_type = cst.as_exp_with_type(&Exp::Var(this.clone()));
         // check (ctx |- cst_type : sort)
-        let derivation = check(&local_context, &cst_type, &Exp::Sort(sort));
+        let derivation = check(&local_context, &cst_type, &Exp::Sort(*sort));
         let well_typed = derivation.node().unwrap().is_success();
         well_derivation.push(derivation);
 
@@ -189,15 +192,7 @@ pub fn acceptable_typespecs(
         }
     }
 
-    (
-        well_derivation,
-        Ok(InductiveTypeSpecs {
-            parameters: params,
-            indices,
-            sort,
-            constructors,
-        }),
-    )
+    (well_derivation, Ok(()))
 }
 
 // return type of corresponding eliminator case for the given constructor
