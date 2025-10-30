@@ -6,6 +6,18 @@ use either::Either;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Identifier(pub String);
 
+impl From<Identifier> for kernel::exp::Var {
+    fn from(value: Identifier) -> Self {
+        kernel::exp::Var::new(&value.0)
+    }
+}
+
+impl From<&Identifier> for kernel::exp::Var {
+    fn from(value: &Identifier) -> Self {
+        kernel::exp::Var::new(&value.0)
+    }
+}
+
 // module definition
 #[derive(Debug, Clone)]
 pub struct Module {
@@ -65,6 +77,13 @@ pub enum ModuleItem {
 }
 
 #[derive(Debug, Clone)]
+pub enum MacroExp {
+    Exp(SExp),
+    Tok(MacroToken),
+    Seq(Vec<MacroExp>),
+}
+
+#[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), (x: A | P), (x: A | h: P),
 pub struct Bind {
@@ -88,12 +107,12 @@ pub enum SExp {
     // shared macro for math symbols
     // before type checking, it is expanded to normal expression
     MathMacro {
-        tokens: Vec<Either<MacroToken, SExp>>,
+        tokens: Box<MacroExp>,
     },
     // macro specified by name
     NamedMacro {
         name: Identifier,
-        tokens: Vec<Either<MacroToken, SExp>>,
+        tokens: Box<MacroExp>,
     },
     // --- expression with clauses
     // where clauses to define local variables

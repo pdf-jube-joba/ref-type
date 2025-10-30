@@ -1,4 +1,4 @@
-use crate::syntax::{Identifier, SExp, MacroToken, Bind, Module, ModuleItem};
+use crate::syntax::{Identifier, SExp, MacroToken, Bind, Module, ModuleItem, MacroExp};
 use either::Either;
 use lalrpop_util::ParseError;
 use std::str::FromStr;
@@ -9,6 +9,7 @@ pub SortAst: kernel::exp::Sort = {
   "\\Prop" => kernel::exp::Sort::Prop,
   "\\PropKind" => kernel::exp::Sort::PropKind,
   "\\Set" "(" <n: num> ")" => kernel::exp::Sort::Set(n),
+  "\\SetKind" "(" <n: num> ")" => kernel::exp::Sort::Set(n),
 }
 
 Ident: Identifier = {
@@ -20,6 +21,7 @@ num: usize = {
 }
 
 MacTok: MacroToken = {
+  <n: num> => MacroToken(n.to_string()),
   <s:r"[#$%;]+"> => MacroToken(String::from(s)),
 }
 
@@ -34,17 +36,21 @@ ArrowSeparated: SExp = {
 }
 
 Combined: SExp = {
-  <funcast: Atom> <argast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: false },
-  <argast: Atom> "|" <funcast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: true },
+  <funcast: AtomParen> <argast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: false },
+  <argast: AtomParen> "|" <funcast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: true },
+  AtomParen,
+}
+
+AtomParen: SExp = {
   Atom,
+  "(" <e: SExpAll> ")" => e,
+  "$(" <seq: MacAst+> "$)"  => SExp::MathMacro { tokens: Box::new(MacroExp::Seq(seq)) },
+  "!" <nameast: Ident> "{" <seq: MacAst+> "}" => SExp::NamedMacro { name: nameast, tokens: Box::new(MacroExp::Seq(seq)) },
 }
 
 Atom: SExp = {
   <s: SortAst> => SExp::Sort(s),
   <v: Ident> => SExp::Identifier(v),
-  "(" <e: SExpAll> ")" => e,
-  "$(" <seq: SeqTok> "$)"  => SExp::MathMacro { tokens: seq },
-  "!" <nameast: Ident> "{" <seq: SeqTok> "}" => SExp::NamedMacro { name: nameast, tokens: seq },
 }
 
 Binder: Bind = {
@@ -52,17 +58,10 @@ Binder: Bind = {
   <e: Combined> => Bind { var: None, ty: Box::new(e), predicate: None },
 }
 
-SeqTok: Vec<Either<MacroToken, SExp>> = {
-  <a: Atom> <seq: SeqTok> => {
-    let mut v = seq;
-    v.push(Either::Right(a));
-    v
-  },
-  <t: MacTok> <seq: SeqTok> => {
-    let mut v = seq;
-    v.push(Either::Left(t));
-    v
-  },
+MacAst: MacroExp = {
+  "(" <e: SExpAll> ")" => MacroExp::Exp(e),
+  <a: Atom> => MacroExp::Exp(a),
+  <tok: MacTok> => MacroExp::Tok(tok),
 }
 
 SimpleBind: (Identifier, SExp) = {

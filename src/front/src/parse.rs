@@ -33,5 +33,8 @@ fn parse_exp_test() {
     print_and_unwrap(r"x");
     print_and_unwrap(r"x y");
     print_and_unwrap(r"x | y");
+    print_and_unwrap(r"x (y z)");
     print_and_unwrap(r"(x y) z");
+    print_and_unwrap(r"(x: X) -> (y: Y) -> z");
+    print_and_unwrap(r"(x: X | P) -> (y: Y) -> z");
 }

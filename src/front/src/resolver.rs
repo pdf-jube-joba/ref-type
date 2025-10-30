@@ -52,13 +52,9 @@ impl GlobalEnvironment {
             declarations,
         } = module;
 
-        let mut parameteres_elab = vec![];
-        for (v, ty) in parameters {
-            let ty_elab = self
-                .elaborator
-                .elab_exp(&mut self.resolver, &mut self.logger, ty)?;
-            parameteres_elab.push((Var::new(v.0.as_str()), ty_elab));
-        }
+        let mut parameteres_elab =
+            self.elaborator
+                .elab_telescope(&mut self.resolver, &mut self.logger, parameters)?;
 
         todo!()
     }
@@ -123,8 +119,9 @@ impl Elaborator {
         resolver: &mut Resolver,
         logger: &mut Logger,
         sexp: &crate::syntax::SExp,
+        reference_var: &[Var],
     ) -> Result<Exp, String> {
-        self.elab_exp_rec(resolver, logger, sexp)
+        self.elab_exp_rec(resolver, logger, sexp, reference_var)
     }
     fn elab_telescope(
         &mut self,
@@ -133,10 +130,12 @@ impl Elaborator {
         telescope: &Vec<(Identifier, crate::syntax::SExp)>,
     ) -> Result<Vec<(Var, Exp)>, String> {
         let mut result = vec![];
+        let mut reference_var = vec![];
         for (v, ty) in telescope {
-            let ty_elab = self.elab_exp(resolver, logger, &bind.ty)?;
-
-            result.push((var, ty_elab));
+            let v: Var = v.into();
+            let ty_elab = self.elab_exp(resolver, logger, ty, &reference_var)?;
+            reference_var.push(v.clone());
+            result.push((v, ty_elab));
         }
         Ok(result)
     }
@@ -145,6 +144,7 @@ impl Elaborator {
         resolver: &mut Resolver,
         logger: &mut Logger,
         sexp: &crate::syntax::SExp,
+        reference_var: &[Var],
     ) -> Result<Exp, String> {
         todo!()
     }
