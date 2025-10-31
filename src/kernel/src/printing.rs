@@ -4,13 +4,13 @@ use crate::exp::{Derivation, Node, Prove, ProveGoal, SortInfer, TypeCheck, TypeI
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}[{:p}]", self.name(), self.ptr())
+        write!(f, "{}[{:p}]", self.as_str(), self.ptr())
     }
 }
 
 impl Display for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "{}", self.as_str())
     }
 }
 

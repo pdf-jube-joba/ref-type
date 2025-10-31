@@ -10,7 +10,7 @@ impl Var {
     pub fn new(name: &str) -> Self {
         Var(Rc::new(name.to_string()))
     }
-    pub fn name(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
     pub fn ptr(&self) -> *const String {

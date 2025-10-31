@@ -402,7 +402,7 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
             let pos2 = env2.iter().rposition(|v| v.is_eq_ptr(v2));
             match (pos1, pos2) {
                 (Some(p1), Some(p2)) => p1 == p2,
-                (None, None) => v1.name() == v2.name(),
+                (None, None) => v1.as_str() == v2.as_str(),
                 _ => false,
             }
         }
@@ -886,7 +886,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
         Exp::Sort(sort) => Exp::Sort(*sort),
         Exp::Var(var) => Exp::Var(var.clone()),
         Exp::Prod { var, ty, body } => {
-            let new_var = Var::new(var.name());
+            let new_var = Var::new(var.as_str());
             Exp::Prod {
                 var: new_var.clone(),
                 ty: Box::new(alpha_conversion(ty)),
@@ -894,7 +894,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             }
         }
         Exp::Lam { var, ty, body } => {
-            let new_var = Var::new(var.name());
+            let new_var = Var::new(var.as_str());
             Exp::Lam {
                 var: new_var.clone(),
                 ty: Box::new(alpha_conversion(ty)),
@@ -955,7 +955,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
 
                     let mut subst_map = vec![];
                     for (var, _) in extended_ctx.iter() {
-                        let new_var = Var::new(var.name());
+                        let new_var = Var::new(var.as_str());
                         subst_map.push((var.clone(), new_var));
                     }
 
@@ -1022,7 +1022,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
                     var,
                     predicate,
                 } => {
-                    let new_var = Var::new(var.name());
+                    let new_var = Var::new(var.as_str());
                     ProveCommandBy::IdElim {
                         left: alpha_conversion(left),
                         right: alpha_conversion(right),
@@ -1054,7 +1054,7 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             set: exp,
             predicate,
         } => {
-            let new_var = Var::new(var.name());
+            let new_var = Var::new(var.as_str());
             Exp::SubSet {
                 var: new_var.clone(),
                 set: Box::new(alpha_conversion(exp)),

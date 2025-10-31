@@ -20,7 +20,7 @@ fn main() {
     for module in modules {
         eprintln!("Module: {:?}", module);
         let res = glenv.new_module(&module);
-        for log in glenv.history() {
+        for log in glenv.logs() {
             match log {
                 either::Either::Left(der) => {
                     println!("Derivation \n{}", der);
@@ -33,11 +33,11 @@ fn main() {
         match res {
             Ok(_) => {
                 continue;
-            },
+            }
             Err(err) => {
                 println!("ERROR\n{err}");
                 break;
-            },
+            }
         }
     }
 }
