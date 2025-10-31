@@ -77,10 +77,25 @@ pub enum MacroExp {
 #[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), (x: A | P), (x: A | h: P),
-pub struct Bind {
-    pub var: Option<Identifier>,
-    pub ty: Box<SExp>,
-    pub predicate: Option<(Option<Identifier>, Box<SExp>)>,
+pub enum Bind {
+    Anonymous {
+        ty: Box<SExp>,
+    },
+    Named {
+        var: Identifier,
+        ty: Box<SExp>,
+    },
+    Subset {
+        var: Identifier,
+        ty: Box<SExp>,
+        predicate: Box<SExp>,
+    },
+    SubsetWithProof {
+        var: Identifier,
+        ty: Box<SExp>,
+        predicate: Box<SExp>,
+        proof: Identifier,
+    },
 }
 
 // this is internal representation

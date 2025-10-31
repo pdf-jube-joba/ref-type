@@ -526,7 +526,7 @@ impl Elaborator {
         logger: &mut Logger,
         mut sexp: &crate::syntax::SExp,
         reference_var: &[Var],
-        bind_var: Vec<(Var, Exp)>,
+        bind_var: Vec<Var>,
     ) -> Result<Exp, String> {
         // we need to uncurry with parameters if it's an ind_type or ind_ctor
         let mut tails = vec![];
@@ -555,7 +555,7 @@ impl Elaborator {
                     // case len == 1
                     if let [ident] = &idents[..] {
                         // case: binded in expression
-                        for (v, _) in bind_var.iter().rev() {
+                        for v in bind_var.iter().rev() {
                             // apply tails here
                             if v.as_str() == ident.0.as_str() {
                                 // return Ok(kernel::utils::assoc_apply(Exp::Var(v.clone()), tails_elab));
@@ -642,11 +642,71 @@ impl Elaborator {
 
                     return Err(format!("too long"));
                 }
-                SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
-                SExp::Where { exp, clauses } => todo!(),
-                SExp::WithProof { exp, proofs } => todo!(),
-                SExp::Sort(sort) => todo!(),
-                SExp::Prod { bind, body } => todo!(),
+                SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
+                    todo!("macro elaboration not implemented")
+                }
+                SExp::Where { exp, clauses } => {
+                    let mut bind_var = bind_var.clone();
+                    let mut clauses_elab = vec![];
+                    for (v, ty, body) in clauses {
+                        let v: Var = v.into();
+                        bind_var.push(v.clone());
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                        clauses_elab.push((v, ty_elab, body_elab));
+                    }
+                    let mut exp_elab =
+                        self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
+                    for (v, ty, body) in clauses_elab {
+                        exp_elab = Exp::App {
+                            func: Box::new(Exp::Lam {
+                                var: v,
+                                ty: Box::new(ty),
+                                body: Box::new(exp_elab),
+                            }),
+                            arg: Box::new(body),
+                        }
+                    }
+                    exp_elab
+                }
+                SExp::WithProof { exp, proofs } => {
+                    let exp_elab =
+                        self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
+                    let mut proof_goals: Vec<kernel::exp::ProveGoal> = vec![];
+                    for proof in proofs {
+                        let WithGoal {
+                            extended_ctx,
+                            goal,
+                            proof_term,
+                        } = proof;
+                        let mut bind_var = bind_var.clone();
+                        let extended_ctx_elab = self.elab_telescope(logger, extended_ctx)?;
+                        for (v, _) in extended_ctx_elab.iter() {
+                            bind_var.push(v.clone());
+                        }
+                        let goal_elab =
+                            self.elab_exp_rec(logger, goal, reference_var, bind_var.clone())?;
+                        let proof_term_elab =
+                            self.elab_exp_rec(logger, proof_term, reference_var, bind_var.clone())?;
+                        proof_goals.push(ProveGoal {
+                            extended_ctx: extended_ctx_elab,
+                            goal_prop: goal_elab,
+                            proof_term: proof_term_elab,
+                        });
+                    }
+                    Exp::ProveHere {
+                        exp: exp_elab.into(),
+                        goals: proof_goals,
+                    }
+                }
+                SExp::Sort(sort) => Exp::Sort(*sort),
+                SExp::Prod { bind, body } => {
+                    let mut telescope: Vec<(Option<Var>, Exp)> = vec![];
+
+                    todo!()
+                }
                 SExp::Lam { bind, body } => todo!(),
                 SExp::Annotation { exp, ty } => todo!(),
                 SExp::IndElim {

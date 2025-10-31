@@ -22,28 +22,32 @@ num: usize = {
 
 MacTok: MacroToken = {
   <n: num> => MacroToken(n.to_string()),
-  <s:r"[#$%;]+"> => MacroToken(String::from(s)),
+  <s:r"[#$%]+"> => MacroToken(String::from(s)),
 }
 
-pub SExpAll = {
+pub SExpAll: SExp = {
   ArrowSeparated,
 }
 
 ArrowSeparated: SExp = {
   <bdast: Binder> "->" <bodyast: ArrowSeparated> => SExp::Prod { bind: bdast, body: Box::new(bodyast)},
   <bdast: Binder> "=>" <bodyast: ArrowSeparated> => SExp::Lam { bind: bdast, body: Box::new(bodyast)},
-  Combined,
+  Atom,
+  AtomParen,
 }
 
 Combined: SExp = {
   <funcast: AtomParen> <argast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: false },
-  <argast: AtomParen> "|" <funcast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: true },
+  Atom,
   AtomParen,
 }
 
+CombinedPipe: SExp = {
+  <argast: AtomParen> "|" <funcast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: true },
+}
+
 AtomParen: SExp = {
-  Atom,
-  "(" <e: SExpAll> ")" => e,
+  "(" <e: ArrowSeparated> ")" => e,
   "$(" <seq: MacAst+> "$)"  => SExp::MathMacro { tokens: Box::new(MacroExp::Seq(seq)) },
   "!" <nameast: Ident> "{" <seq: MacAst+> "}" => SExp::NamedMacro { name: nameast, tokens: Box::new(MacroExp::Seq(seq)) },
 }
@@ -56,22 +60,26 @@ Atom: SExp = {
 }
 
 Binder: Bind = {
-  "(" <v: Ident> ":" <e: SExpAll> ")" => Bind { var: Some(v), ty: Box::new(e), predicate: None },
-  <e: Combined> => Bind { var: None, ty: Box::new(e), predicate: None },
+  "(" <v: Ident> ":" <e: ArrowSeparated> ")" => Bind::Named { var: v, ty: Box::new(e) },
+  "(" <v: Ident> ":" <e: ArrowSeparated> "|" <pre: ArrowSeparated> ")" => Bind::Subset { var: v, ty: Box::new(e), predicate: Box::new(pre) },
+  "(" <v: Ident> ":" <e: ArrowSeparated> "|" <p: Ident> ":" <pre: ArrowSeparated> ")" => Bind::SubsetWithProof { var: v, ty: Box::new(e), predicate: Box::new(pre), proof: p },
+  <e: Atom> => Bind::Anonymous { ty: Box::new(e) },
+  <e: AtomParen> => Bind::Anonymous { ty: Box::new(e) },
 }
 
 MacAst: MacroExp = {
-  "(" <e: SExpAll> ")" => MacroExp::Exp(e),
+  "(" <e: ArrowSeparated> ")" => MacroExp::Exp(e),
+  "(" <e: ArrowSeparated+> ")" => MacroExp::Tok(vec![]),
   <a: Atom> => MacroExp::Exp(a),
   <tok: MacTok> => MacroExp::Tok(tok),
 }
 
 SimpleBind: (Identifier, SExp) = {
-  "(" <v: Ident> ":" <e:SExpAll> ")" => (v, e)
+  "(" <v: Ident> ":" <e:ArrowSeparated> ")" => (v, e)
 }
 
 IndSpecsDecl: ModuleItem = {
-  "inductive" <typename: Ident> <ps: SimpleBind+> ":" <ar: SExpAll> ":=" <ctors: Ctor*> => ModuleItem::Inductive {
+  "inductive" <typename: Ident> <ps: SimpleBind+> ":" <ar: ArrowSeparated> ":=" <ctors: Ctor+> => ModuleItem::Inductive {
     type_name: typename,
     parameter: ps,
     arity: Box::new(ar),
@@ -84,7 +92,7 @@ Ctor: (Identifier, SExp) = {
 }
 
 DefDecl: ModuleItem = {
-  "definition" <n: Ident> ":" <tyast: SExpAll> ":=" <bdast: SExpAll> ";" => ModuleItem::Definition {
+  "definition" <n: Ident> ":" <tyast: ArrowSeparated> ":=" <bdast: ArrowSeparated> ";" => ModuleItem::Definition {
     var: n,
     ty: tyast,
     body: bdast,
