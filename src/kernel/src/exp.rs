@@ -137,12 +137,12 @@ pub enum Exp {
     // },
     // uncurry with parameter
     IndType {
-        indty: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>,
     },
     // uncurry with parameter
     IndCtor {
-        indty: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>,
         idx: usize,
     },

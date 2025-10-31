@@ -399,7 +399,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             let ret_ty_substituted = subst(&ret_ty, &var, arg);
             builder.build_typeinfer(ret_ty_substituted)
         }
-        Exp::IndType { indty, parameters } => {
+        Exp::IndType { indspec: indty, parameters } => {
             builder.rule("IndType");
 
             let parameter_indty_defined = indty.parameters.clone();
@@ -444,7 +444,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(arity_substituted)
         }
         Exp::IndCtor {
-            indty,
+            indspec: indty,
             idx,
             parameters,
         } => {
@@ -515,7 +515,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
             let (inferred_indty_base, a) = utils::decompose_app(inferred_indty);
             let Exp::IndType {
-                indty: inferred_indty,
+                indspec: inferred_indty,
                 parameters,
             } = inferred_indty_base
             else {
@@ -575,7 +575,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                     return_type,
                     elim,
                     &Exp::IndType {
-                        indty: indty.clone(),
+                        indspec: indty.clone(),
                         parameters: parameters.clone(),
                     },
                 );

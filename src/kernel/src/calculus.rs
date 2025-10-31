@@ -40,11 +40,11 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         }
         (
             Exp::IndType {
-                indty: ty1,
+                indspec: ty1,
                 parameters: parameter1,
             },
             Exp::IndType {
-                indty: ty2,
+                indspec: ty2,
                 parameters: parameter2,
             },
         ) => {
@@ -57,12 +57,12 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         }
         (
             Exp::IndCtor {
-                indty: ty1,
+                indspec: ty1,
                 idx: idx1,
                 parameters: parameter1,
             },
             Exp::IndCtor {
-                indty: ty2,
+                indspec: ty2,
                 idx: idx2,
                 parameters: parameter2,
             },
@@ -453,11 +453,11 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (
             Exp::IndType {
-                indty: ty1,
+                indspec: ty1,
                 parameters: parameter1,
             },
             Exp::IndType {
-                indty: ty2,
+                indspec: ty2,
                 parameters: parameter2,
             },
         ) => {
@@ -470,12 +470,12 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (
             Exp::IndCtor {
-                indty: ty1,
+                indspec: ty1,
                 idx: idx1,
                 parameters: parameter1,
             },
             Exp::IndCtor {
-                indty: ty2,
+                indspec: ty2,
                 idx: idx2,
                 parameters: parameter2,
             },
@@ -714,18 +714,18 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             arg: Box::new(subst(arg, v, t)),
         },
         Exp::IndType {
-            indty: ty,
+            indspec: ty,
             parameters,
         } => Exp::IndType {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             parameters: parameters.iter().map(|arg| subst(arg, v, t)).collect(),
         },
         Exp::IndCtor {
-            indty: ty,
+            indspec: ty,
             idx,
             parameters: parameter,
         } => Exp::IndCtor {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             idx: *idx,
             parameters: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
         },
@@ -906,18 +906,18 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             arg: Box::new(alpha_conversion(arg)),
         },
         Exp::IndType {
-            indty: ty,
+            indspec: ty,
             parameters,
         } => Exp::IndType {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             parameters: parameters.iter().map(alpha_conversion).collect(),
         },
         Exp::IndCtor {
-            indty: ty,
+            indspec: ty,
             idx,
             parameters: parameter,
         } => Exp::IndCtor {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             idx: *idx,
             parameters: parameter.iter().map(alpha_conversion).collect(),
         },
@@ -1175,25 +1175,25 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             })
         }
         Exp::IndType {
-            indty: ty,
+            indspec: ty,
             parameters,
         } => {
             let parameters = parameters.iter().map(reduce_if).collect::<Vec<_>>();
 
             changed.then_some(Exp::IndType {
-                indty: ty.clone(),
+                indspec: ty.clone(),
                 parameters,
             })
         }
         Exp::IndCtor {
-            indty: ty,
+            indspec: ty,
             idx,
             parameters: parameter,
         } => {
             let parameters = parameter.iter().map(reduce_if).collect::<Vec<_>>();
 
             changed.then_some(Exp::IndCtor {
-                indty: ty.clone(),
+                indspec: ty.clone(),
                 idx: *idx,
                 parameters,
             })

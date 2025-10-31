@@ -36,7 +36,7 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Lam { var, ty, body } => write!(f, "({}: {}) => {}", var, ty, body),
             crate::exp::Exp::App { func, arg } => write!(f, "({}) ({})", func, arg),
             crate::exp::Exp::IndType {
-                indty: ty,
+                indspec: ty,
                 parameters,
             } => write!(
                 f,
@@ -49,7 +49,7 @@ impl Display for crate::exp::Exp {
                     .join(", ")
             ),
             crate::exp::Exp::IndCtor {
-                indty: ty,
+                indspec: ty,
                 parameters,
                 idx,
             } => write!(

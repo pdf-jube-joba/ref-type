@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::syntax::*;
 use either::Either;
 use kernel::{
-    calculus::{contains_as_freevar, is_alpha_eq, subst_map},
+    calculus::{contains_as_freevar, subst_map},
     exp::*,
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
 };
@@ -87,19 +87,13 @@ impl GlobalEnvironment {
             self.elaborator.parameters = parameteres_elab.clone();
         }
 
-        let mut items_elab = vec![];
-        for item in declarations {
-            let item_elab =
-                self.elaborator
-                    .elab_item(&mut self.resolver, &mut self.logger, item)?;
-            self.elaborator.items.push(item_elab.clone()); // to resolve later items
-            items_elab.push(item_elab);
-        }
-
         // chek well-formedness of items
         {
-            for item in items_elab.iter() {
-                match item {
+            for item in declarations {
+                let items_elab =
+                    self.elaborator
+                        .elab_item(&mut self.resolver, &mut self.logger, item)?;
+                match &items_elab {
                     Item::Definition { name, ty, body } => {
                         let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
                         self.logger.log_derivation(der.clone());
@@ -133,18 +127,50 @@ impl GlobalEnvironment {
                         }
                     }
                     Item::Import {
-                        name,
+                        name: _,
                         module_idx,
                         args,
-                    } => {}
+                    } => {
+                        let module_template = self
+                            .resolver
+                            .get_module_template_from_idx(*module_idx)
+                            .unwrap();
+                        if module_template.parameters.len() != args.len() {
+                            return Err(format!(
+                                "Imported module expects {} arguments, but {} were provided",
+                                module_template.parameters.len(),
+                                args.len()
+                            ));
+                        }
+
+                        // type check
+                        {
+                            let mut subst_maps = vec![];
+                            for (arg, (v, ty)) in args.iter().zip(module_template.parameters.iter())
+                            {
+                                let ty_substed = subst_map(ty, &subst_maps);
+                                let der =
+                                    kernel::derivation::check(&self.elaborator.parameters, arg, ty);
+                                self.logger.log_derivation(der.clone());
+                                if !der.node().unwrap().is_success() {
+                                    return Err(format!(
+                                        "Imported module argument type checking failed: argument {} does not have type {}",
+                                        arg, ty_substed
+                                    ));
+                                }
+                                subst_maps.push((v.clone(), arg.clone()));
+                            }
+                        }
+                    }
                 }
+                self.elaborator.items.push(items_elab);
             }
         }
 
         self.resolver.module_templates.push(ModuleResolved {
             name: Var::new(name.0.as_str()),
             parameters: self.elaborator.parameters.clone(),
-            items: items_elab,
+            items: self.elaborator.items.clone(),
         });
 
         Ok(())
@@ -155,6 +181,7 @@ impl GlobalEnvironment {
 }
 
 // contains checked module templates and realized modules
+//
 pub struct Resolver {
     module_templates: Vec<ModuleResolved>,
     realized_modules: Vec<ModuleRealized>,
@@ -162,25 +189,6 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    pub fn get_module_template(&self, name: &Var) -> Option<ModuleResolved> {
-        for module in self.module_templates.iter().rev() {
-            if module.name.is_eq_ptr(name) {
-                return Some(module.clone());
-            }
-        }
-        None
-    }
-    pub fn get_module_template_idx(&self, name: &Identifier) -> Option<usize> {
-        for (idx, module) in self.module_templates.iter().rev().enumerate() {
-            if module.name.name() == name.0.as_str() {
-                return Some(idx);
-            }
-        }
-        None
-    }
-    pub fn get_module_template_from_idx(&self, idx: usize) -> Option<ModuleResolved> {
-        self.module_templates.get(idx).cloned()
-    }
     pub fn realize_module(&mut self, name: &Var, arguments: Vec<Exp>) -> Result<usize, String> {
         let Some(module_template) = self.get_module_template(name) else {
             return Err(format!("Module template {} not found", name.name()));
@@ -200,6 +208,25 @@ impl Resolver {
         self.realized_modules.push(module_realized);
 
         Ok(self.realized_modules.len() - 1)
+    }
+    pub fn get_module_template(&self, name: &Var) -> Option<ModuleResolved> {
+        for module in self.module_templates.iter().rev() {
+            if module.name.is_eq_ptr(name) {
+                return Some(module.clone());
+            }
+        }
+        None
+    }
+    pub fn get_module_template_idx(&self, name: &Identifier) -> Option<usize> {
+        for (idx, module) in self.module_templates.iter().rev().enumerate() {
+            if module.name.name() == name.0.as_str() {
+                return Some(idx);
+            }
+        }
+        None
+    }
+    pub fn get_module_template_from_idx(&self, idx: usize) -> Option<ModuleResolved> {
+        self.module_templates.get(idx).cloned()
     }
     pub fn get_realized_module(&self, name: &Var) -> Option<&ModuleRealized> {
         let idx = self.name_map.get(name)?;
@@ -436,83 +463,189 @@ impl Elaborator {
         &mut self,
         resolver: &mut Resolver,
         logger: &mut Logger,
-        sexp: &crate::syntax::SExp,
+        mut sexp: &crate::syntax::SExp,
         reference_var: &[Var],
         bind_var: Vec<(Var, Exp)>,
     ) -> Result<Exp, String> {
-        match sexp {
-            SExp::Identifier(ident) => {
-                // check bound variables from bind_var
-                for (v, _) in bind_var.iter().rev() {
-                    if v.name() == ident.0.as_str() {
-                        return Ok(Exp::Var(v.clone()));
-                    }
-                }
+        // uncurry with parameters
+        let mut tails = vec![];
+        while let SExp::App {
+            func,
+            arg,
+            piped: _,
+        } = sexp
+        {
+            tails.push(arg.as_ref().clone());
+            sexp = func.as_ref();
+        }
 
-                // check from previously elaborated items
-                for item in self.items.iter().rev() {
-                    match item {
-                        Item::Definition {
-                            name: def_name,
-                            ty: _,
-                            body,
-                        } => {
-                            if def_name.name() == ident.0.as_str() {
-                                return Ok(body.clone());
+        let tails_elab = tails
+            .iter()
+            .rev()
+            .map(|arg| self.elab_exp_rec(resolver, logger, arg, reference_var, bind_var.clone()))
+            .collect::<Result<Vec<Exp>, String>>()?;
+
+        match sexp {
+            SExp::AccessPath(idents) => {
+                // accessessing something
+                // len == 1 => locally binded variable | current module defined item (definition, inductive type name) | module parameter
+                // len == 2 => current module's inductive type constructor access | named module's item access
+                // len == 3 => named module's inductive type constructor access
+                // in the case of inductive type of constructors, we need to uncurry with tails
+                // the other cases, elaborate with tails
+
+                // case len == 1
+                if let [ident] = &idents[..] {
+                    // case: binded in expression
+                    for (v, _) in bind_var.iter().rev() {
+                        // apply tails here
+                        if v.name() == ident.0.as_str() {
+                            return Ok(kernel::utils::assoc_apply(Exp::Var(v.clone()), tails_elab));
+                        }
+                    }
+
+                    // case: current module defined item
+                    for item in self.items.iter().rev() {
+                        match item {
+                            Item::Definition {
+                                name: def_name,
+                                ty: _,
+                                body,
+                            } => {
+                                if def_name.name() == ident.0.as_str() {
+                                    return Ok(kernel::utils::assoc_apply(
+                                        body.clone(),
+                                        tails_elab,
+                                    ));
+                                }
+                            }
+                            Item::Inductive {
+                                name: ind_name,
+                                ctor_names: _,
+                                ind_defs,
+                            } => {
+                                // uncurry with parameteres (type check => later, but length check here)
+                                if ind_name.name() == ident.0.as_str() {
+                                    if ind_defs.param_args_len() != tails_elab.len() {
+                                        return Err(format!(
+                                            "Inductive type {} expects {} parameters, but {} were provided",
+                                            ind_name.name(),
+                                            ind_defs.param_args_len(),
+                                            tails_elab.len()
+                                        ));
+                                    }
+                                    return Ok(Exp::IndType {
+                                        indspec: ind_defs.clone(),
+                                        parameters: tails_elab,
+                                    });
+                                }
+                            }
+                            _ => {
+                                return Err(format!("Unbound identifier: {}", ident.0.as_str()));
                             }
                         }
+                    }
+
+                    // case: current module's parameters
+                    for (v, _) in self.parameters.iter().rev() {
+                        if v.name() == ident.0.as_str() {
+                            return Ok(Exp::Var(v.clone()));
+                        }
+                    }
+
+                    return Err(format!("Unbound identifier: {}", ident));
+                }
+
+                // case len == 2
+                if let [path0, path1] = &idents[..] {
+                    // case: path0 is type name in current module, path1 is constructor name
+                    if let Some((indspec, idx)) = self.items.iter().find_map(|item| match item {
                         Item::Inductive {
                             name: ind_name,
-                            ctor_names: _,
+                            ctor_names,
                             ind_defs,
-                        } => {
-                            if ind_name.name() == ident.0.as_str() {
+                        } if ind_name.name() == path0.0.as_str() => ctor_names
+                            .iter()
+                            .position(|ctor_name| ctor_name.name() == path1.0.as_str())
+                            .map(|idx| (ind_defs.clone(), idx)),
+                        _ => None,
+                    }) {
+                        return Ok(Exp::IndCtor {
+                            indspec,
+                            parameters: tails_elab,
+                            idx,
+                        });
+                    }
+
+                    // case: path0 is module namem path1 is item name
+                    if let Ok(item) =
+                        resolver.get_realized_module_item(&Identifier(path0.0.clone()), path1)
+                    {
+                        match item {
+                            Item::Definition {
+                                name: _,
+                                ty: _,
+                                body,
+                            } => {
+                                return Ok(kernel::utils::assoc_apply(body, tails_elab));
+                            }
+                            Item::Inductive {
+                                name: _, // same as path1
+                                ctor_names: _,
+                                ind_defs,
+                            } => {
+                                // uncurry with parameteres (type check => later, but length check here)
+                                if ind_defs.param_args_len() != tails_elab.len() {
+                                    return Err(format!(
+                                        "Inductive type in module {} expects {} parameters, but {} were provided",
+                                        path0.0.as_str(),
+                                        ind_defs.param_args_len(),
+                                        tails_elab.len()
+                                    ));
+                                }
                                 return Ok(Exp::IndType {
-                                    indty: ind_defs.clone(),
-                                    parameters: vec![],
+                                    indspec: ind_defs.clone(),
+                                    parameters: tails_elab,
                                 });
                             }
-                        }
-                        _ => {
-                            unreachable!(
-                                "only Definition and Inductive are allowed in previously elaborated items"
-                            )
+                            _ => {
+                                return Err(format!(
+                                    "Item {}.{} is not a definition or inductive type",
+                                    path0.0.as_str(),
+                                    path1.0.as_str()
+                                ));
+                            }
                         }
                     }
+
+                    return Err(format!(
+                        "Unbound identifier: {}.{}",
+                        path0.0.as_str(),
+                        path1.0.as_str()
+                    ));
                 }
 
-                // check from current parameters
-                for (v, ty) in self.parameters.iter().rev() {
-                    if v.name() == ident.0.as_str() {
-                        return Ok(Exp::Var(v.clone()));
-                    }
+                // case len == 3
+
+                if let [path0, path1, path2] = &idents[..] {
+                    // case: path0 is module name, path1 is inductive type name, path2 is constructor name
+
+                    let Some(idx) = resolver.get_module_template_idx(path0) else {
+                        return Err(format!("not found module name: {}  ", path0.0.as_str(),));
+                    };
+
+                    return Err(format!(
+                        "Unbound identifier: {}.{}.{}",
+                        path0.0.as_str(),
+                        path1.0.as_str(),
+                        path2.0.as_str()
+                    ));
                 }
 
-                Err(format!("Unbound identifier: {}", ident.0.as_str()))
+                Err(format!("too long"))
             }
-            SExp::ModAccessDef { path, name } => {
-                let module_path = match path {
-                    ModPath::Named(mod_name) => mod_name.clone(),
-                };
-                let item = resolver.get_realized_module_item(&module_path, name)?;
-                match item {
-                    Item::Definition {
-                        name: _,
-                        ty: _,
-                        body,
-                    } => Ok(body.clone()),
-                    Item::Inductive {
-                        name: _,
-                        ctor_names: _,
-                        ind_defs,
-                    } => Ok(Exp::IndType {
-                        indty: ind_defs.clone(),
-                        parameters: vec![],
-                    }),
-                    _ => unreachable!(
-                        "only Definition and Inductive are allowed in realized module items"
-                    ),
-                }
+            SExp::App { .. } => {
+                unreachable!()
             }
             _ => todo!(),
         }

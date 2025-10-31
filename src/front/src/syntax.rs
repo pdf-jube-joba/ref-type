@@ -35,16 +35,6 @@ pub struct ModuleInstantiated {
     pub arguments: Vec<(Identifier, SExp)>, // given arguments for parameters
 }
 
-// path of module access
-// pattern 1 (absolute path): root.name1(arg1, ...).name2(...).name3(...)
-// pattern 2 (relatice path): name1(arg1, ...).name2(...).name3(...), or parent.parent. ... .parent.name1(...).name2(...).name3(...)
-// pattern 3 (start from named): name.name2(...).name3(...)
-#[derive(Debug, Clone)]
-pub enum ModPath {
-    // AbsoluteRoot(ModuleInstantiated), // currently we assume module is not nested
-    Named(Identifier), // named module
-}
-
 #[derive(Debug, Clone)]
 pub enum ModuleItem {
     Definition {
@@ -96,14 +86,13 @@ pub struct Bind {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
-    // --- module access
-    // module access `path.name`
-    // if name pointed to a inductive type, it should IndType
-    // this contains both Definition and Theorem pointing
-    ModAccessDef {
-        path: ModPath,
-        name: Identifier,
-    },
+    // accessessing something
+    // len == 1 => locally binded variable | current module defined item (definition, inductive type name) | module parameter
+    // len == 2 => named module's item access | current module's inductive type constructor access
+    // l3n == 3 => named module's inductive type constructor access
+    // too ad-hoc TODO: improve this design
+    AccessPath(Vec<Identifier>),
+
     // --- macro
     // shared macro for math symbols
     // before type checking, it is expanded to normal expression
@@ -130,7 +119,6 @@ pub enum SExp {
     // sort: Prop, Set(i), Univ, Type
     Sort(kernel::exp::Sort),
     // variable defined by name
-    Identifier(Identifier), // this may contains both definition and inductive type with no parameters
     // bind -> B
     Prod {
         bind: Bind,
@@ -154,16 +142,6 @@ pub enum SExp {
     },
     // --- inductive type
     // name of inductive type
-    IndType {
-        ind_type_name: Identifier,
-        parameters: Vec<SExp>,
-    },
-    // constructor of inductive type
-    IndCtor {
-        ind_type_name: Identifier,
-        constructor_name: Identifier,
-        parameteres: Vec<SExp>,
-    },
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {

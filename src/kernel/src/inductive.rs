@@ -44,7 +44,7 @@ impl InductiveTypeSpecs {
     // type of constructor C_i with given parameters
     pub fn type_of_constructor(indty: &std::rc::Rc<Self>, idx: usize, parameters: Vec<Exp>) -> Exp {
         indty.constructors[idx].as_exp_with_type(&Exp::IndType {
-            indty: indty.clone(),
+            indspec: indty.clone(),
             parameters,
         })
     }
@@ -53,7 +53,7 @@ impl InductiveTypeSpecs {
         // THIS x[] where x[] is ty.arity_arg's variables
         let e = utils::assoc_apply(
             Exp::IndType {
-                indty: indty.clone(),
+                indspec: indty.clone(),
                 parameters: parameters.clone(),
             },
             indty
@@ -160,7 +160,7 @@ pub fn acceptable_typespecs(
     // after this, local_context contains all parameters
 
     // 2. check arity is well-sorted (arity can depend on parameters and previous arities)
-    // arity = arity_arg[] -> sort
+    // arity = indices[] -> sort
     // (ctx, parameters[] |- arity : sort)
     let arity = utils::assoc_prod(indices.clone(), Exp::Sort(*sort));
     let derivation = infer_sort(&local_context, &arity);
@@ -391,7 +391,7 @@ fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 2. check e' = Ctor{ty2, idx}{parameter[]} m[]
     let (
         Exp::IndCtor {
-            indty: ty2,
+            indspec: ty2,
             idx,
             parameters: parameter,
         },
@@ -477,7 +477,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
             var: c.clone(),
             ty: Box::new(utils::assoc_apply(
                 Exp::IndType {
-                    indty: ty.clone(),
+                    indspec: ty.clone(),
                     parameters: parameter.clone(),
                 },
                 indices.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
@@ -494,7 +494,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         &ff,
         &f[idx],
         &Exp::IndType {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             parameters: parameter.clone(),
         },
     );
