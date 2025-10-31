@@ -80,3 +80,29 @@ mod B2() {
 理想的には、 access path を覚えておく ... それが一致したら同じとみなす。
 
 nest をやめる。
+
+# 帰納型について
+```lean
+inductive NatList: Type :=
+  | Ok: NatList -> NatList
+
+def id_type := fun (x: Type) => x
+
+inductive NatList2: Type :=
+  | Wrong: (id_type NatList2) -> NatList2
+```
+構文を考えていて、構文のレベルでこういうのを禁止しようか迷っている。
+コンストラクタの型を見ると "reduction をすれば" 大丈夫にはなるけれど、
+禁止したい。
+lean だと宇宙の大きさが推測できない？からエラーになるみたい。
+```
+failed to generate `SizeOf` instance for `NatList2`:
+  type mismatch
+```
+
+ただし、別の module の項をとってくることは十分あり得るので注意すること：（これは lean ではないが）
+```
+inductive NatList: Set :=
+  | Test: Nat.Nat -> NatList -> NatList
+```
+この場合は、 elaboration の時に

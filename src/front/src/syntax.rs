@@ -41,7 +41,8 @@ pub struct ModuleInstantiated {
 // pattern 3 (start from named): name.name2(...).name3(...)
 #[derive(Debug, Clone)]
 pub enum ModPath {
-    AbsoluteRoot(ModuleInstantiated), // currently we assume module is not nested
+    // AbsoluteRoot(ModuleInstantiated), // currently we assume module is not nested
+    Named(Identifier), // named module
 }
 
 #[derive(Debug, Clone)]
@@ -61,10 +62,10 @@ pub enum ModuleItem {
     // ChildModule {
     //     module: Box<Module>,
     // },
-    // Import {
-    //     path: ModPath,
-    //     import_name: Identifier,
-    // },
+    Import {
+        path: ModuleInstantiated,
+        import_name: Identifier,
+    },
     MathMacro {
         before: Vec<Either<MacroToken, Identifier>>,
         after: Vec<Either<SExp, Identifier>>,
