@@ -1,4 +1,5 @@
 use crate::syntax::{Identifier, SExp, MacroToken, Bind, Module, ModuleItem, MacroExp};
+use crate::utils::assoc_apply_vec;
 use either::Either;
 use lalrpop_util::ParseError;
 use std::str::FromStr;
@@ -29,21 +30,11 @@ pub SExpAll: SExp = {
   ArrowSeparated,
 }
 
-ArrowSeparated: SExp = {
+pub ArrowSeparated: SExp = {
   <bdast: Binder> "->" <bodyast: ArrowSeparated> => SExp::Prod { bind: bdast, body: Box::new(bodyast)},
   <bdast: Binder> "=>" <bodyast: ArrowSeparated> => SExp::Lam { bind: bdast, body: Box::new(bodyast)},
-  Atom,
+  <a: Atom+> => assoc_apply_vec(a),
   AtomParen,
-}
-
-Combined: SExp = {
-  <funcast: AtomParen> <argast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: false },
-  Atom,
-  AtomParen,
-}
-
-CombinedPipe: SExp = {
-  <argast: AtomParen> "|" <funcast: Combined> => SExp::App { func: Box::new(funcast), arg: Box::new(argast), piped: true },
 }
 
 AtomParen: SExp = {
@@ -68,8 +59,10 @@ Binder: Bind = {
 }
 
 MacAst: MacroExp = {
-  "(" <e: ArrowSeparated> ")" => MacroExp::Exp(e),
-  "(" <e: ArrowSeparated+> ")" => MacroExp::Tok(vec![]),
+  "(" <e: ArrowSeparated+> ")" => {
+    let tok: Vec<_> = e.into_iter().map(|tok| MacroExp::Exp(tok)).collect::<Vec<_>>();
+    MacroExp::Seq(tok)
+  },
   <a: Atom> => MacroExp::Exp(a),
   <tok: MacTok> => MacroExp::Tok(tok),
 }

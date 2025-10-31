@@ -18,6 +18,18 @@ impl From<&Identifier> for kernel::exp::Var {
     }
 }
 
+impl From<String> for Identifier {
+    fn from(value: String) -> Self {
+        Identifier(value)
+    }
+}
+
+impl From<&str> for Identifier {
+    fn from(value: &str) -> Self {
+        Identifier(value.to_string())
+    }
+}
+
 // module definition
 #[derive(Debug, Clone)]
 pub struct Module {
