@@ -1,34 +1,18 @@
 // this file describes the surface syntax tree
 
+use std::fmt::Display;
+
 use either::Either;
 
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Identifier(pub String);
 
-impl From<Identifier> for kernel::exp::Var {
-    fn from(value: Identifier) -> Self {
-        kernel::exp::Var::new(&value.0)
-    }
-}
-
-impl From<&Identifier> for kernel::exp::Var {
-    fn from(value: &Identifier) -> Self {
-        kernel::exp::Var::new(&value.0)
-    }
-}
-
-impl From<String> for Identifier {
-    fn from(value: String) -> Self {
-        Identifier(value)
-    }
-}
-
-impl From<&str> for Identifier {
-    fn from(value: &str) -> Self {
-        Identifier(value.to_string())
-    }
-}
+// token for macros
+// which is (not identifier) /\ (not keyword)
+// e.g. "+", "*", "==>", "||", ...
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MacroToken(pub String);
 
 // module definition
 #[derive(Debug, Clone)]
@@ -224,12 +208,6 @@ pub enum SExp {
     // --- block of statements
     Block(Block),
 }
-
-// token for macros
-// which is (not identifier) /\ (not keyword)
-// e.g. "+", "*", "==>", "||", ...
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MacroToken(pub String);
 
 #[derive(Debug, Clone)]
 pub enum ProofBy {

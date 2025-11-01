@@ -1,40 +1,422 @@
+use std::fmt::Display;
+
+use kernel::exp::Sort;
 use lalrpop_util::lalrpop_mod;
 
-use crate::syntax;
+use crate::{
+    syntax::{self, Identifier, MacroToken},
+    utils,
+};
 
 lalrpop_mod!(program);
 
-pub fn parse_exp(input: &str) -> Result<syntax::SExp, String> {
-    match program::SExpAllParser::new().parse(input) {
-        Ok(exp) => Ok(exp),
-        Err(err) => Err(format!("Parse error: {}", err)),
+#[derive(Debug, Clone)]
+enum AtomTok {
+    Sort(Sort),
+    AccessPath(Vec<Identifier>),
+}
+
+impl Display for AtomTok {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AtomTok::Sort(sort) => write!(f, "{:?}", sort),
+            AtomTok::AccessPath(path) => {
+                let path_str = path
+                    .iter()
+                    .map(|id| id.to_string())
+                    .collect::<Vec<String>>()
+                    .join(".");
+                write!(f, "{}", path_str)
+            }
+        }
     }
 }
 
-pub fn parse_modules(input: &str) -> Result<Vec<syntax::Module>, String> {
-    match program::ModuleRepsParser::new().parse(input) {
-        Ok(module) => Ok(module),
-        Err(err) => Err(format!("Parse error: {}", err)),
+#[derive(Debug, Clone)]
+enum AtomLike {
+    AtomTok(AtomTok),
+    ParenToks(Vec<SExpTok>),               // "(" t0 ... tn ")"
+    CurlyToks(Vec<SExpTok>),               // "{" t0 ... tn "}" only for subset { x: T | P }
+    MathMacro(Vec<MacroSeq>),              // "$(...$)"
+    NamedMacro(Identifier, Vec<MacroSeq>), // "!name {...@}"
+}
+
+impl Display for AtomLike {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AtomLike::AtomTok(atom_tok) => write!(f, "{}", atom_tok),
+            AtomLike::ParenToks(toks) => {
+                let toks_str = toks
+                    .iter()
+                    .map(|t| format!("{}", t))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "({})", toks_str)
+            }
+            AtomLike::CurlyToks(toks) => {
+                let toks_str = toks
+                    .iter()
+                    .map(|t| format!("{}", t))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "{{{}}}", toks_str)
+            }
+            AtomLike::MathMacro(seqs) => {
+                let seqs_str = seqs
+                    .iter()
+                    .map(|s| format!("{}", s))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "$({}$)", seqs_str)
+            }
+            AtomLike::NamedMacro(name, seqs) => {
+                let seqs_str = seqs
+                    .iter()
+                    .map(|s| format!("{}", s))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "!{} {{{}}}", name, seqs_str)
+            }
+        }
     }
 }
 
-#[test]
-fn parse_exp_test() {
-    fn print_and_unwrap(input: &'static str) {
-        match parse_exp(input) {
-            Ok(exp) => {
-                println!("Parsed expression: {:?}", exp);
+#[derive(Debug, Clone)]
+enum SExpTok {
+    AtomLike(AtomLike), // "\Prop" "x" "x.y" "x.y.z" とか
+    LambdaArrow,        // "=>"
+    ProductTypeArrow,   // "->"
+    Colon,              // ":"
+    Mid,                // "|"
+}
+
+impl Display for SExpTok {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SExpTok::AtomLike(atom_like) => write!(f, "{}", atom_like),
+            SExpTok::LambdaArrow => write!(f, "=>"),
+            SExpTok::ProductTypeArrow => write!(f, "->"),
+            SExpTok::Colon => write!(f, ":"),
+            SExpTok::Mid => write!(f, "|"),
+        }
+    }
+}
+
+fn display_sexptoks(toks: &[SExpTok]) -> String {
+    format!(
+        "[{}]",
+        toks.iter()
+            .map(|t| format!("{}", t))
+            .collect::<Vec<String>>()
+            .join(" ")
+    )
+}
+
+#[derive(Debug, Clone)]
+enum MacroSeq {
+    AtomLike(AtomLike),
+    MacTok(MacroToken),
+    Seq(Vec<MacroSeq>),
+}
+
+impl Display for MacroSeq {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MacroSeq::AtomLike(atom_like) => write!(f, "{}", atom_like),
+            MacroSeq::MacTok(mac_tok) => write!(f, "{}", mac_tok),
+            MacroSeq::Seq(seqs) => {
+                let seqs_str = seqs
+                    .iter()
+                    .map(|s| format!("{}", s))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                write!(f, "{}", seqs_str)
+            }
+        }
+    }
+}
+
+// [AtomLike] => SExp
+fn parse_atomlike(tok: &AtomLike) -> Result<syntax::SExp, String> {
+    match tok {
+        AtomLike::AtomTok(atom_tok) => match atom_tok {
+            AtomTok::Sort(sort) => Ok(syntax::SExp::Sort(*sort)),
+            AtomTok::AccessPath(path) => Ok(syntax::SExp::AccessPath(path.clone())),
+        },
+        AtomLike::ParenToks(sexp_toks) => parse_exp(sexp_toks),
+        AtomLike::CurlyToks(v) => {
+            // find the first top-level "|"
+            let Some(idx) = v.iter().position(|t| matches!(t, SExpTok::Mid)) else {
+                return Err("Invalid subset type format: missing '|'".to_string());
+            };
+            let (var, set) = parse_simple_bind(&v[..idx])?;
+            let predicate = parse_apply_all_from_sexptoks(&v[(idx + 1)..])?;
+            Ok(syntax::SExp::Sub {
+                var,
+                ty: Box::new(set),
+                predicate: Box::new(predicate),
+            })
+        }
+        AtomLike::MathMacro(v) => todo!(),
+        AtomLike::NamedMacro(_, _) => todo!(),
+    }
+}
+
+// [AtomLike]+ = [a0: AtomLike] [a1: AtomLike] ... [an: AtomLik] => ((a0 a1) ... an)
+fn parse_atomlikes(toks: &[AtomLike]) -> Result<syntax::SExp, String> {
+    let v: Vec<_> = toks
+        .iter()
+        .map(|tok| parse_atomlike(tok))
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(crate::utils::assoc_apply_vec(v))
+}
+
+// [AtomLike | "|" ]+ ... where "|" is pipeline operator
+// => split by "|"
+// e.g. 1: [x y z] => ((x y) z)
+// e.g. 2: [x | f | g] => (g (f x))
+// e.g. 3. [x y | f | g z] => ((g z) f) (x y)
+fn parse_apply_all_from_sexptoks(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
+    let mut segments_applied: Vec<syntax::SExp> = Vec::new();
+    for slice in toks.split(|t| matches!(t, SExpTok::Mid)) {
+        if slice.is_empty() {
+            return Err("Empty segment in pipeline".to_string());
+        }
+        let atomlikes: Vec<AtomLike> = slice
+            .iter()
+            .map(|t| match t {
+                SExpTok::AtomLike(al) => Ok(al.clone()),
+                _ => Err("Expected AtomLike in segment".to_string()),
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let exp = parse_atomlikes(&atomlikes)?;
+        segments_applied.push(exp);
+    }
+    if segments_applied.is_empty() {
+        return Err("No segments found in pipeline".to_string());
+    }
+    Ok(utils::assoc_apply_vec(segments_applied))
+}
+
+// take [x: Ident] [":"] ([] = Type )
+// comsume everything until the next top-level SExpTok that is not part of the type
+fn parse_simple_bind(v: &[SExpTok]) -> Result<(Identifier, syntax::SExp), String> {
+    if let [
+        SExpTok::AtomLike(AtomLike::AtomTok(AtomTok::AccessPath(var))),
+        SExpTok::Colon,
+        ..,
+    ] = v
+    {
+        let var = var.first().ok_or("Invalid variable in bind")?.clone();
+        let ty = parse_exp(&v[2..])?;
+        Ok((var, ty))
+    } else {
+        Err("Invalid simple bind format".to_string())
+    }
+}
+
+// <bind> = [AtomLike]+ | "(" <simple bind> ")" | "(" "(" <simple bind> ")" | [AtomLike]+ ")"
+fn parse_bind(toks: &[SExpTok]) -> Result<syntax::Bind, String> {
+    // case 1: Anonymous ... if succeeds, return Anonymous bind
+    if let Ok(ty) = parse_apply_all_from_sexptoks(toks) {
+        return Ok(syntax::Bind::Anonymous { ty: Box::new(ty) });
+    }
+
+    // other case should be parenthesized
+    let [SExpTok::AtomLike(AtomLike::ParenToks(inner_toks))] = toks else {
+        // not a parenthesized bind
+        return Err("Invalid bind format".to_string());
+    };
+
+    // case 2: "(" <simple bind> ")"
+    if let Ok((var, ty)) = parse_simple_bind(inner_toks) {
+        return Ok(syntax::Bind::Named {
+            var,
+            ty: Box::new(ty),
+        });
+    }
+
+    // case 3: "(" "(" <simple bind> ")" "|" "(" <simple bind> ")" ")"
+    if let [
+        SExpTok::AtomLike(AtomLike::ParenToks(simple_bind_toks)),
+        SExpTok::Mid,
+        SExpTok::AtomLike(AtomLike::ParenToks(proof_bind_toks)),
+    ] = &inner_toks[..]
+    {
+        let (var, ty) = parse_simple_bind(simple_bind_toks)?;
+        let (predicate_var, predicate) = parse_simple_bind(proof_bind_toks)?;
+        if predicate_var.0 == "_" {
+            return Err("Proof variable must be anonymous '_'".to_string());
+        }
+        return Ok(syntax::Bind::SubsetWithProof {
+            var,
+            ty: Box::new(ty),
+            predicate: Box::new(predicate),
+            proof: predicate_var,
+        });
+    }
+
+    // case 4: "(" "(" <simple bind> ")" "|" [AtomLike]+ ")"
+    if let [
+        SExpTok::AtomLike(AtomLike::ParenToks(simple_bind_toks)),
+        SExpTok::Mid,
+        ..,
+    ] = &inner_toks[..]
+    {
+        let (var, ty) = parse_simple_bind(simple_bind_toks)?;
+        let predicate = parse_apply_all_from_sexptoks(&inner_toks[2..])?;
+        return Ok(syntax::Bind::Subset {
+            var,
+            ty: Box::new(ty),
+            predicate: Box::new(predicate),
+        });
+    }
+
+    Err("Invalid bind format".to_string())
+}
+
+// <bind> "->" <exp> | <bind> "=>" <exp>
+fn parse_pi_or_lambda(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
+    // find the first top-level "->" or "=>"
+    let Some((idx, flag)) = toks.iter().enumerate().find_map(|(i, t)| {
+        if matches!(t, SExpTok::ProductTypeArrow) {
+            Some((i, true))
+        } else if matches!(t, SExpTok::LambdaArrow) {
+            Some((i, false))
+        } else {
+            None
+        }
+    }) else {
+        return Err("No top-level arrow found".to_string());
+    };
+
+    let bind = parse_bind(&toks[..idx])?;
+    let body_exp = parse_exp(&toks[idx + 1..])?;
+
+    if flag {
+        Ok(syntax::SExp::Prod {
+            bind,
+            body: Box::new(body_exp),
+        })
+    } else {
+        Ok(syntax::SExp::Lam {
+            bind,
+            body: Box::new(body_exp),
+        })
+    }
+}
+
+fn parse_exp(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
+    // case 1: try parse as product type or lambda
+    if let Ok(e) = parse_pi_or_lambda(toks) {
+        return Ok(e);
+    }
+    // case 2: try parse as apply all
+    parse_apply_all_from_sexptoks(toks)
+}
+
+pub fn str_parse_exp(input: &str) -> Result<syntax::SExp, String> {
+    let toks: Vec<SExpTok> = program::SExpAllParser::new()
+        .parse(input)
+        .map_err(|e| format!("Parse error: {}", e))?;
+    parse_exp(&toks)
+}
+
+pub fn str_parse_modules(input: &str) -> Result<Vec<syntax::Module>, String> {
+    todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn parse_tok_unwrap(input: &'static str) -> Vec<SExpTok> {
+        match program::SExpAllParser::new().parse(input) {
+            Ok(toks) => {
+                println!("input toks: {}", display_sexptoks(&toks));
+                toks
             }
             Err(err) => {
                 panic!("Error: {}", err);
             }
         }
     }
-    print_and_unwrap(r"x");
-    print_and_unwrap(r"x y");
-    print_and_unwrap(r"x | y");
-    print_and_unwrap(r"x (y z)");
-    print_and_unwrap(r"(x y) z");
-    print_and_unwrap(r"(x: X) -> (y: Y) -> z");
-    print_and_unwrap(r"(x: X | P) -> (y: Y) -> z");
+    #[test]
+    fn atomlike_test() {
+        fn print_and_unwrap(input: &'static str) {
+            let toks = parse_tok_unwrap(input);
+            match parse_apply_all_from_sexptoks(&toks) {
+                Ok(atomlike) => {
+                    println!("Parsed SExp: {:?} => {:?}", input, atomlike);
+                }
+                Err(err) => {
+                    panic!("Error: {}", err);
+                }
+            }
+        }
+        print_and_unwrap(r"x");
+        print_and_unwrap(r"x y");
+        print_and_unwrap(r"x | y");
+        print_and_unwrap(r"x (y z)");
+        print_and_unwrap(r"(x y) z");
+    }
+    #[test]
+    fn parse_simple_bind_test() {
+        fn print_and_unwrap_simplebind(input: &'static str) {
+            match program::SExpAllParser::new().parse(input) {
+                Ok(atomlike) => {
+                    parse_simple_bind(&atomlike)
+                        .map(|(id, ty)| {
+                            println!("Parsed SimpleBind: {:?} => {:?}: {:?}", input, id, ty);
+                        })
+                        .unwrap();
+                }
+                Err(err) => {
+                    panic!("Error: {}", err);
+                }
+            }
+        }
+        print_and_unwrap_simplebind(r"x: X");
+    }
+    #[test]
+    fn parse_bind_test() {
+        fn print_and_unwrap_bind(input: &'static str) {
+            match program::SExpAllParser::new().parse(input) {
+                Ok(atomlike) => {
+                    parse_bind(&atomlike)
+                        .map(|bind| {
+                            println!("Parsed Bind: {:?} => {:?}", input, bind);
+                        })
+                        .unwrap();
+                }
+                Err(err) => {
+                    panic!("Error: {}", err);
+                }
+            }
+        }
+        print_and_unwrap_bind(r"X");
+        print_and_unwrap_bind(r"(x: X)");
+        print_and_unwrap_bind(r"((x: X) | P)");
+        print_and_unwrap_bind(r"((x: X) | (h: P))");
+    }
+    #[test]
+    fn parse_lambda_or_pi_test() {
+        fn print_and_unwrap_lambda_or_pi(input: &'static str) {
+            match program::SExpAllParser::new().parse(input) {
+                Ok(atomlike) => {
+                    parse_pi_or_lambda(&atomlike)
+                        .map(|exp| {
+                            println!("Parsed Pi/Lam: {:?} => {:?}", input, exp);
+                        })
+                        .unwrap();
+                }
+                Err(err) => {
+                    panic!("Error: {}", err);
+                }
+            }
+        }
+        print_and_unwrap_lambda_or_pi(r"(x: X) -> Y");
+        print_and_unwrap_lambda_or_pi(r"(x: X) => y");
+        print_and_unwrap_lambda_or_pi(r"(x: X) -> Y => z");
+        print_and_unwrap_lambda_or_pi(r"(x: X) => y h -> z");
+    }
 }

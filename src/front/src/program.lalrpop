@@ -27,14 +27,14 @@ MacTok: MacroToken = {
   <s:r"[#$%]+"> => MacroToken(String::from(s)),
 }
 
-AtomTokAst: AtomTok = {
+pub AtomTokAst: AtomTok = {
   <s: SortAst> => AtomTok::Sort(s),
   <v0: Ident> => AtomTok::AccessPath(vec![v0]),
   <v0: Ident> "." <v1: Ident> => AtomTok::AccessPath(vec![v0, v1]),
   <v0: Ident> "." <v1: Ident> "." <v2: Ident> => AtomTok::AccessPath(vec![v0, v1, v2]),
 }
 
-AtomLikeAst: AtomLike = {
+pub AtomLikeAst: AtomLike = {
   <a: AtomTokAst> => AtomLike::AtomTok(a),
   "(" <e: SExpTokAst+> ")" => AtomLike::ParenToks(e),
   "{" <e: SExpTokAst+> "}" => AtomLike::CurlyToks(e),
@@ -43,38 +43,28 @@ AtomLikeAst: AtomLike = {
 }
 
 MacAst: MacroSeq = {
-  <a: AtomTokAst> => MacroSeq::AtomLike(a),
+  <a: AtomTokAst> => MacroSeq::AtomLike(AtomLike::AtomTok(a)),
   <tok: MacTok> => MacroSeq::MacTok(tok),
   "(" <e: MacAst+> ")" => MacroSeq::Seq(e),
 }
 
 SExpTokAst: SExpTok = {
   <a: AtomLikeAst> => SExpTok::AtomLike(a),
+  "=>" => SExpTok::LambdaArrow,
+  "->" => SExpTok::ProductTypeArrow,
+  ":" => SExpTok::Colon,
+  "|" => SExpTok::Mid,
 }
 
 pub SExpAll: Vec<SExpTok> = {
   <v: SExpTokAst+> => v,
 }
+
+pub BindParend: (Identifier, Vec<SExpTok>) = {
+  "(" <v: Ident> ":" <ty: SExpTokAst+> ")" => (v, ty)
+}
+
 /*
-
-pub ArrowSeparated: SExp = {
-  <bdast: Binder> "->" <bodyast: ArrowSeparated> => SExp::Prod { bind: bdast, body: Box::new(bodyast)},
-  <bdast: Binder> "=>" <bodyast: ArrowSeparated> => SExp::Lam { bind: bdast, body: Box::new(bodyast)},
-  <a: Atom+> => assoc_apply_vec(a),
-  AtomParen,
-}
-
-Binder: Bind = {
-  "(" <v: Ident> ":" <e: ArrowSeparated> ")" => Bind::Named { var: v, ty: Box::new(e) },
-  "(" <v: Ident> ":" <e: ArrowSeparated> "|" <pre: ArrowSeparated> ")" => Bind::Subset { var: v, ty: Box::new(e), predicate: Box::new(pre) },
-  "(" <v: Ident> ":" <e: ArrowSeparated> "|" <p: Ident> ":" <pre: ArrowSeparated> ")" => Bind::SubsetWithProof { var: v, ty: Box::new(e), predicate: Box::new(pre), proof: p },
-  <e: Atom> => Bind::Anonymous { ty: Box::new(e) },
-  <e: AtomParen> => Bind::Anonymous { ty: Box::new(e) },
-}
-
-SimpleBind: (Identifier, SExp) = {
-  "(" <v: Ident> ":" <e:ArrowSeparated> ")" => (v, e)
-}
 
 IndSpecsDecl: ModuleItem = {
   "inductive" <typename: Ident> <ps: SimpleBind+> ":" <ar: ArrowSeparated> ":=" <ctors: Ctor+> => ModuleItem::Inductive {

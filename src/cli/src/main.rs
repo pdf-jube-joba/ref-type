@@ -15,7 +15,7 @@ fn main() {
     let content = std::fs::read_to_string(input_file).expect("Failed to read input file");
     println!("Input file: {}", input_file);
 
-    let modules = front::parse::parse_modules(&content).unwrap();
+    let modules = front::parse::str_parse_modules(&content).unwrap();
     let mut glenv = front::resolver::GlobalEnvironment::default();
     for module in modules {
         eprintln!("Module: {:?}", module);
