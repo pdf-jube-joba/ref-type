@@ -98,18 +98,19 @@ impl GlobalEnvironment {
                 .elab_telescope(&mut self.logger, parameters)?;
 
             // sort check parameter's ty
-            for (_, ty) in parameteres_elab.iter() {
+            for (v, ty) in parameteres_elab.iter() {
                 let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty);
                 self.logger.log_derivation(der.clone());
+
+                // a parameter may depends on previous parameters
+                self.elaborator.parameters.push((v.clone(), ty.clone()));
+
                 if !der.node().unwrap().is_success() {
                     return Err(format!(
                         "Parameter type checking failed: type {ty} is not a valid type",
                     ));
                 }
             }
-
-            // set elaborator parameters
-            self.elaborator.parameters = parameteres_elab.clone();
         }
 
         // chek well-formedness of items

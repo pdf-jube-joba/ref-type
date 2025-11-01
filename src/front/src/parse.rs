@@ -138,6 +138,24 @@ impl Display for MacroSeq {
     }
 }
 
+fn parse_map_matco(tok: &MacroSeq) -> Result<crate::syntax::MacroExp, String> {
+    match tok {
+        MacroSeq::MacTok(macro_token) => Ok(crate::syntax::MacroExp::Tok(macro_token.clone())),
+        MacroSeq::AtomLike(atom_like) => {
+            let exp = parse_atomlike(atom_like)?;
+            Ok(crate::syntax::MacroExp::Exp(exp))
+        }
+        MacroSeq::Seq(macro_seqs) => {
+            let mut v = vec![];
+            for ms in macro_seqs {
+                let it = parse_map_matco(ms)?;
+                v.push(it);
+            }
+            Ok(crate::syntax::MacroExp::Seq(v))
+        }
+    }
+}
+
 // [AtomLike] => SExp
 fn parse_atomlike(tok: &AtomLike) -> Result<syntax::SExp, String> {
     match tok {
@@ -159,7 +177,16 @@ fn parse_atomlike(tok: &AtomLike) -> Result<syntax::SExp, String> {
                 predicate: Box::new(predicate),
             })
         }
-        AtomLike::MathMacro(_) => todo!(),
+        AtomLike::MathMacro(v) => {
+            let mut v0 = vec![];
+            for vit in v {
+                let it = parse_map_matco(vit)?;
+                v0.push(it);
+            }
+            Ok(syntax::SExp::MathMacro {
+                tokens: Box::new(syntax::MacroExp::Seq(v0)),
+            })
+        }
         AtomLike::NamedMacro(_, _) => todo!(),
     }
 }
@@ -532,6 +559,7 @@ mod tests {
                 }
             }
         }
+        print_and_unwrap_lambda_or_pi(r"X -> Y");
         print_and_unwrap_lambda_or_pi(r"(x: X) -> Y");
         print_and_unwrap_lambda_or_pi(r"(x: X) => y");
         print_and_unwrap_lambda_or_pi(r"(x: X) -> Y => z");
