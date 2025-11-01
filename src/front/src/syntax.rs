@@ -144,40 +144,41 @@ pub enum SExp {
         piped: bool, // (x | f) to indicate piped application
     },
     // type annotation (exp as ty)
-    Annotation {
+    Cast {
         exp: Box<SExp>,
-        ty: Box<SExp>,
+        to: Box<SExp>,
     },
     // --- inductive type
     // name of inductive type
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {
-        ind_type_name: String,
-        eliminated_exp: Box<SExp>,
+        ind_type_name: Identifier,
+        elim: Box<SExp>,
         return_type: Box<SExp>,
-        cases: Vec<(String, SExp)>,
+        sort: kernel::exp::Sort,
+        cases: Vec<(Identifier, SExp)>,
     },
     // --- set theory
     // \Proof term ... "prove this later"
-    Proof {
+    ProveLater {
         term: Box<SExp>,
     },
     // \Power power
-    Pow {
-        power: Box<SExp>,
+    PowerSet {
+        set: Box<SExp>,
     },
     // { x: A | P }
-    Sub {
+    SubSet {
         var: Identifier,
-        ty: Box<SExp>,
+        set: Box<SExp>,
         predicate: Box<SExp>,
     },
     // \Pred (superset, subset, elem)
     Pred {
         superset: Box<SExp>,
         subset: Box<SExp>,
-        elem: Box<SExp>,
+        element: Box<SExp>,
     },
     // \TypeLift (superset, subset)
     TypeLift {
@@ -215,14 +216,13 @@ pub enum ProofBy {
         term: Box<SExp>,
         set: Box<SExp>,
     },
-    SubElim {
+    SubsetElim {
         superset: Box<SExp>,
         subset: Box<SExp>,
         elem: Box<SExp>,
     },
     IdRefl {
         term: Box<SExp>,
-        ty: Box<SExp>,
     },
     IdElim {
         left: Box<SExp>,
@@ -235,19 +235,7 @@ pub enum ProofBy {
         func: Box<SExp>,
         elem: Box<SExp>,
     },
-    AxiomLEM {
-        proposition: Box<SExp>,
-    },
-    AxiomFunctionExt {
-        func1: Box<SExp>,
-        func2: Box<SExp>,
-        domain: Box<SExp>,
-    },
-    AxiomEmsembleExt {
-        set1: Box<SExp>,
-        set2: Box<SExp>,
-        superset: Box<SExp>,
-    },
+    Axiom(Axiom),
 }
 
 #[derive(Debug, Clone)]
@@ -280,4 +268,21 @@ pub struct WithGoal {
     pub extended_ctx: Vec<(Identifier, SExp)>, // extended context
     pub goal: SExp,                            // goal to prove
     pub proof_term: SExp,                      // proof term to fill in
+}
+
+#[derive(Debug, Clone)]
+pub enum Axiom {
+    AxiomLEM {
+        proposition: Box<SExp>,
+    },
+    AxiomFunctionExt {
+        func1: Box<SExp>,
+        func2: Box<SExp>,
+        domain: Box<SExp>,
+    },
+    AxiomEmsembleExt {
+        set1: Box<SExp>,
+        set2: Box<SExp>,
+        superset: Box<SExp>,
+    },
 }

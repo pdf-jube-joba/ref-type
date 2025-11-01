@@ -171,9 +171,9 @@ fn parse_atomlike(tok: &AtomLike) -> Result<syntax::SExp, String> {
             };
             let (var, set) = parse_simple_bind(&v[..idx])?;
             let predicate = parse_apply_all_from_sexptoks(&v[(idx + 1)..])?;
-            Ok(syntax::SExp::Sub {
+            Ok(syntax::SExp::SubSet {
                 var,
-                ty: Box::new(set),
+                set: Box::new(set),
                 predicate: Box::new(predicate),
             })
         }
