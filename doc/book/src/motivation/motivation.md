@@ -222,3 +222,50 @@ $$p \leftrightarrow q = (p \to q) \wedge (q \to p) = (c: *^p) \to ((p \to q) \to
 逆はできなさそう。
 つまり、 fun ext から set ext は厳しい気がする。
 $(\Take x: T. m) = e$ があるので何とかなる気もするが。
+
+## type level equation をどうにかしないといけない
+長さ $n$ の list を作るとして、
+- subset と predicate を用いる場合 : $\{x: \text{List} \mid \text{length} (x) = n\}$
+- 普通の dependent を用いる場合 : `inductive List := | nil: List 0 ; | cons: A -> (n: Nat) -> List n -> List (Nat.succ n)`
+
+前者の場合には、 $n = m$ から $l: \Ty (\text{ListLen} (n))$ から $l: \Ty(\text{ListLen} (m))$ が導出できるが、後者の場合にはできない気がする。
+普通は、 $P: A \to s$ に対して $x = y -> P x -> P y$ が確かに書けるのでいいが、
+（ singleton だから？）
+今の状況だと $P: A \to *^p$ に限定しているのでだめ。
+
+これをどうにかするなら、 TypeLevel での Equal をまずは書けるようにしないといけない。
+現状だと $t_1, t_2: T: *^s_{i}$ じゃないと $t_1 = t_2$ が書けない。
+- まずは $t_1, t_2: T: s$ に対して $t_1 =^{s} t_2$ を導入して $s = *^s$ はいままで通り。
+
+考えたこと：
+$X =^{\sq} Y$ について、
+そもそももともとの $t: \Ty(A, B)$ if $t: A, \vDash \Pred(A, B)$ についても一般化してしまって、
+type level の物に関しては、 $t: T_1, T_1 =^\sq T_2 \imples t: T_2$ を入れるのはどうか？
+これと合わせて、 type level の場合には、「ある種の external なふるまいがあって、それに対して同じようにふるまうのであれば等しい」が入れられればいい。
+例えば subset からくる場合は、 $(z: A) \to \Pred(A, x, z) \to \Pred(A, y, z)$ なら $\Ty(A, x) = \Ty(A, y)$ とする。
+
+これを拡張すると関数のふるまいも同じようにできる気がする。
+もともと関数は type level のものなので（ $X \to Y$ はべき集合 ... $f: X \to Y$ は subset の同一視だから）、これに対しても external な振る舞いとしての $f = g$ が $(x: X) \to f x \to g x$ から来ている。
+subset の Lift の逆が起きている？
+- $a: A: *$, $b: \Power A: *$ から $a: \Ty (A, b): *$ として、 subset は element から type level に引き上げている
+- $f$ はもとから element レベルにいる設定だけど、これが実は type level から来ているものと思える？
+
+これをやり始めたら、結局、 $*^p$ を impredicative かつ type と同じ階層にいると思って、
+$X \to Y$ と $X \to *^p$ に対して同じ議論を適用する、そうすると subset と function が両方 extensionality で説明できる？
+その話は HOL すぎる？
+ちゃんと考察するのが難しい。
+
+- 一般の $X: K: \sq$ に対して、 $t: X$ となる"条件" $\mathbb{P}(X, t)$ がある
+- $\vdash \mathbb{P}(X, t)$ なら $t: X$ みたいにする？
+- $T_1 =^\sq T_2$ に対する refl: $P: (X: K) \to *^p$ から $\vDash P T_1 \to P T_2$
+  - これは、 $t_1 =^* t_2$ に対する refl: $P: (X: A) \to *^p \implies \vDash P t_1 \to P t_2$ （ただし $t_1, t_2: A$ ）から類推した。
+- $\Ty(A, b): *: \sq$ の場合は $a: \Ty(A, b)$ if $\vDash \Pred(A, b, a)$ ... $\mathbb{P}(\Ty(A, b), a) = \Pred(A, b, a)$
+  - $\mathbb{P}(\Ty(A, \{x: B \mid P\}), a) = (\lambda x: B. P) @ a = P[x := a]$
+- $P: A -> *^s$ として $n = m$ から $\vDash \mathbb{P}(P n, t) \to \mathbb{P}(P m, t)$ 
+- subset は $A \to *^p$ と思えるのは当然だけれど、 $A$
+- Kind level equality は必要になる？
+
+## 導出木と $\vDash$ について
+type level の話を書いていて、（当然だけど）
+結論に $\vDash$ が来る規則は、全部上側に型チェックが来るようにできる。
+（上側の $\vDash$ を下に持ってきて mp にすればいいから）
