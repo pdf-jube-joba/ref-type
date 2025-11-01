@@ -1,5 +1,5 @@
 use crate::syntax::{Identifier, MacroToken};
-use super::{AtomTok, AtomLike, SExpTok, MacroSeq};
+use super::{AtomTok, AtomLike, SExpTok, MacroSeq, ModItemDecl, ModDecl};
 use crate::utils::assoc_apply_vec;
 use either::Either;
 use lalrpop_util::ParseError;
@@ -60,48 +60,60 @@ pub SExpAll: Vec<SExpTok> = {
   <v: SExpTokAst+> => v,
 }
 
-pub BindParend: (Identifier, Vec<SExpTok>) = {
+ModItemAst: ModItemDecl = {
+  IndSpecsDecl,
+  DefDecl,
+  ImportDecl,
+}
+
+BindParend: (Identifier, Vec<SExpTok>) = {
   "(" <v: Ident> ":" <ty: SExpTokAst+> ")" => (v, ty)
 }
 
-/*
-
-IndSpecsDecl: ModuleItem = {
-  "inductive" <typename: Ident> <ps: SimpleBind+> ":" <ar: ArrowSeparated> ":=" <ctors: Ctor+> => ModuleItem::Inductive {
+IndSpecsDecl: ModItemDecl = {
+  "inductive" <typename: Ident> <ps: BindParend*> ":" <ar: SExpAll> ":=" <ctors: Ctor+> => ModItemDecl::Inductive {
     type_name: typename,
     parameter: ps,
-    arity: Box::new(ar),
+    arity: ar,
     constructors: ctors,
   }
 }
 
-Ctor: (Identifier, SExp) = {
-  "|" <n: Ident> ":" <e: ArrowSeparated> ";" => (n, e)
+Ctor: (Identifier, Vec<SExpTok>) = {
+  "|" <n: Ident> ":" <e: SExpAll> ";" => (n, e)
 }
 
-DefDecl: ModuleItem = {
-  "definition" <n: Ident> ":" <tyast: ArrowSeparated> ":=" <bdast: ArrowSeparated> ";" => ModuleItem::Definition {
-    var: n,
+DefDecl: ModItemDecl = {
+  "definition" <n: Ident> ":" <tyast: SExpAll> ":=" <bdast: SExpAll> ";" => ModItemDecl::Definition {
+    name: n,
     ty: tyast,
     body: bdast,
   }
 }
 
-ModItem: ModuleItem = {
-  IndSpecsDecl,
-  DefDecl,
+BindSubst: (Identifier, Vec<SExpTok>) = {
+  <v: Ident> ":=" <e: SExpAll> ";" => (v, e),
 }
 
-SimpleBindSemicolon: (Identifier, SExp) = {
-  <v: Ident> ":" <e:ArrowSeparated> ";" => (v, e)
+ImportDecl: ModItemDecl = {
+  "import" <mname: Ident> "(" <bst: BindSubst*> ")" "as" <v:Ident> => {
+    ModItemDecl::Import {
+      module_name: mname,
+      path: bst,
+      import_name: v,
+    }
+  }
 }
 
-ModuleRep: Module = {
-  "module" <nameast: Ident> "{" <decls: ModItem*> "}" => crate::syntax::Module { name: nameast, parameters: vec![], declarations: decls },
-  "module" <nameast: Ident> "(" <sb: SimpleBindSemicolon+> ")" "{" <decls: ModItem*> "}" => crate::syntax::Module { name: nameast, parameters: sb, declarations: decls },
+SimpleBindSemicolon: (Identifier, Vec<SExpTok>) = {
+  <v: Ident> ":" <e:SExpAll> ";" => (v, e)
 }
 
-pub ModuleReps: Vec<Module> = {
+ModuleRep: ModDecl = {
+  "module" <nameast: Ident> "{" <decls: ModItemAst*> "}" => ModDecl { name: nameast, parameters: vec![], declarations: decls },
+  "module" <nameast: Ident> "(" <sb: SimpleBindSemicolon+> ")" "{" <decls: ModItemAst*> "}" => ModDecl { name: nameast, parameters: sb, declarations: decls },
+}
+
+pub ModuleAll: Vec<ModDecl> = {
   ModuleRep*
 }
-*/

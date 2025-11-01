@@ -1,7 +1,4 @@
 // this file describes the surface syntax tree
-
-use std::fmt::Display;
-
 use either::Either;
 
 // identifier for any naming
@@ -41,7 +38,7 @@ pub enum ModuleItem {
     Inductive {
         type_name: Identifier,
         parameter: Vec<(Identifier, SExp)>,
-        arity: Box<SExp>,
+        arity: SExp,
         constructors: Vec<(Identifier, SExp)>,
     },
     // too complicated to implement for now

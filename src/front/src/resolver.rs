@@ -398,7 +398,8 @@ impl Elaborator {
                     ctor_names.push(ctor_name_var.clone());
 
                     // elaborate constructor type and decompose to telescope and tails
-                    let ctor_type_elab = self.elab_exp(logger, ctor_args, &[type_name.clone()])?;
+                    let ctor_type_elab =
+                        self.elab_exp(logger, ctor_args, std::slice::from_ref(&type_name))?;
                     let (telescope, tails) = kernel::utils::decompose_prod(ctor_type_elab);
 
                     let mut ctor_binders = vec![];
@@ -640,7 +641,7 @@ impl Elaborator {
                         ));
                     }
 
-                    return Err(format!("too long"));
+                    return Err("too long".to_string());
                 }
                 SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
                     todo!("macro elaboration not implemented")

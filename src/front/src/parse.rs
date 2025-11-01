@@ -102,6 +102,8 @@ impl Display for SExpTok {
     }
 }
 
+// to display SExpTok vector for debugging
+#[allow(dead_code)]
 fn display_sexptoks(toks: &[SExpTok]) -> String {
     format!(
         "[{}]",
@@ -157,7 +159,7 @@ fn parse_atomlike(tok: &AtomLike) -> Result<syntax::SExp, String> {
                 predicate: Box::new(predicate),
             })
         }
-        AtomLike::MathMacro(v) => todo!(),
+        AtomLike::MathMacro(_) => todo!(),
         AtomLike::NamedMacro(_, _) => todo!(),
     }
 }
@@ -166,7 +168,7 @@ fn parse_atomlike(tok: &AtomLike) -> Result<syntax::SExp, String> {
 fn parse_atomlikes(toks: &[AtomLike]) -> Result<syntax::SExp, String> {
     let v: Vec<_> = toks
         .iter()
-        .map(|tok| parse_atomlike(tok))
+        .map(parse_atomlike)
         .collect::<Result<Vec<_>, String>>()?;
     Ok(crate::utils::assoc_apply_vec(v))
 }
@@ -322,8 +324,124 @@ pub fn str_parse_exp(input: &str) -> Result<syntax::SExp, String> {
     parse_exp(&toks)
 }
 
+enum ModItemDecl {
+    Inductive {
+        type_name: Identifier,
+        parameter: Vec<(Identifier, Vec<SExpTok>)>,
+        arity: Vec<SExpTok>,
+        constructors: Vec<(Identifier, Vec<SExpTok>)>,
+    },
+    Import {
+        module_name: Identifier,
+        path: Vec<(Identifier, Vec<SExpTok>)>,
+        import_name: Identifier,
+    },
+    Definition {
+        name: Identifier,
+        ty: Vec<SExpTok>,
+        body: Vec<SExpTok>,
+    },
+}
+
+struct ModDecl {
+    pub name: Identifier,
+    pub parameters: Vec<(Identifier, Vec<SExpTok>)>,
+    pub declarations: Vec<ModItemDecl>,
+}
+
+fn parse_module(input: &ModDecl) -> Result<syntax::Module, String> {
+    let ModDecl {
+        name,
+        parameters,
+        declarations,
+    } = input;
+    let mut parameters_syntax: Vec<(Identifier, syntax::SExp)> = Vec::new();
+    for (v, ty_toks) in parameters {
+        let ty = parse_exp(ty_toks)?;
+        parameters_syntax.push((v.clone(), ty));
+    }
+    let mut declarations_syntax: Vec<syntax::ModuleItem> = Vec::new();
+    for it in declarations {
+        let it_parsed = match it {
+            ModItemDecl::Inductive {
+                type_name,
+                parameter,
+                arity,
+                constructors,
+            } => {
+                let parameter_syntax: Vec<(Identifier, syntax::SExp)> = parameter
+                    .iter()
+                    .map(|(v, ty_toks)| {
+                        let ty = parse_exp(ty_toks)?;
+                        Ok((v.clone(), ty))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                let arity_syntax = parse_exp(arity)?;
+                let constructors_syntax: Vec<(Identifier, syntax::SExp)> = constructors
+                    .iter()
+                    .map(|(ctor_name, ctor_toks)| {
+                        let ctor_ty = parse_exp(ctor_toks)?;
+                        Ok((ctor_name.clone(), ctor_ty))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+
+                crate::syntax::ModuleItem::Inductive {
+                    type_name: type_name.clone(),
+                    parameter: parameter_syntax,
+                    arity: arity_syntax,
+                    constructors: constructors_syntax,
+                }
+            }
+            ModItemDecl::Import {
+                module_name,
+                path,
+                import_name,
+            } => {
+                let path_syntax: Vec<(Identifier, syntax::SExp)> = path
+                    .iter()
+                    .map(|(v, ty_toks)| {
+                        let ty = parse_exp(ty_toks)?;
+                        Ok((v.clone(), ty))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+
+                crate::syntax::ModuleItem::Import {
+                    path: crate::syntax::ModuleInstantiated {
+                        module_name: module_name.clone(),
+                        arguments: path_syntax,
+                    },
+                    import_name: import_name.clone(),
+                }
+            }
+            ModItemDecl::Definition { name, ty, body } => {
+                let ty_syntax = parse_exp(ty)?;
+                let body_syntax = parse_exp(body)?;
+                crate::syntax::ModuleItem::Definition {
+                    var: name.clone(),
+                    ty: ty_syntax,
+                    body: body_syntax,
+                }
+            }
+        };
+        declarations_syntax.push(it_parsed);
+    }
+    Ok(syntax::Module {
+        name: name.clone(),
+        parameters: parameters_syntax,
+        declarations: declarations_syntax,
+    })
+}
+
 pub fn str_parse_modules(input: &str) -> Result<Vec<syntax::Module>, String> {
-    todo!()
+    let mods: Vec<ModDecl> = program::ModuleAllParser::new()
+        .parse(input)
+        .map_err(|e| format!("Parse error: {}", e))?;
+    let mut syntax_mods: Vec<syntax::Module> = Vec::new();
+    for m in mods {
+        let syntax_mod = parse_module(&m)?;
+        syntax_mods.push(syntax_mod);
+    }
+    Ok(syntax_mods)
 }
 
 #[cfg(test)]
