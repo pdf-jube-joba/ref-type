@@ -240,7 +240,7 @@ $(\Take x: T. m) = e$ があるので何とかなる気もするが。
 考えたこと：
 $X =^{\sq} Y$ について、
 そもそももともとの $t: \Ty(A, B)$ if $t: A, \vDash \Pred(A, B)$ についても一般化してしまって、
-type level の物に関しては、 $t: T_1, T_1 =^\sq T_2 \imples t: T_2$ を入れるのはどうか？
+type level の物に関しては、 $t: T_1, T_1 =^\sq T_2 \implies t: T_2$ を入れるのはどうか？
 これと合わせて、 type level の場合には、「ある種の external なふるまいがあって、それに対して同じようにふるまうのであれば等しい」が入れられればいい。
 例えば subset からくる場合は、 $(z: A) \to \Pred(A, x, z) \to \Pred(A, y, z)$ なら $\Ty(A, x) = \Ty(A, y)$ とする。
 
@@ -261,9 +261,35 @@ $X \to Y$ と $X \to *^p$ に対して同じ議論を適用する、そうする
   - これは、 $t_1 =^* t_2$ に対する refl: $P: (X: A) \to *^p \implies \vDash P t_1 \to P t_2$ （ただし $t_1, t_2: A$ ）から類推した。
 - $\Ty(A, b): *: \sq$ の場合は $a: \Ty(A, b)$ if $\vDash \Pred(A, b, a)$ ... $\mathbb{P}(\Ty(A, b), a) = \Pred(A, b, a)$
   - $\mathbb{P}(\Ty(A, \{x: B \mid P\}), a) = (\lambda x: B. P) @ a = P[x := a]$
-- $P: A -> *^s$ として $n = m$ から $\vDash \mathbb{P}(P n, t) \to \mathbb{P}(P m, t)$ 
+- $P: A \to *^s$ として $n = m$ から $\vDash \mathbb{P}(P n, t) \to \mathbb{P}(P m, t)$ 
 - subset は $A \to *^p$ と思えるのは当然だけれど、 $A$
 - Kind level equality は必要になる？
+
+indexed family を使った場合の type level equalty の話は、
+term level の eq から type level の eq を導くのではなく、本当に欲しいのは $n = m$ から $T n \to T m$ だと思う。
+indexed type family の index が term であること気をつければいい。
+あと、これをやるなら prop 側も変えて、 elim と induction を入れる方が綺麗かも。
+つまり、 $(A: *^s) \to (a, b: A) \to (p: a = b) \to (P: A \to s) \to P a \to P b$ ができればいい、
+
+この場合には、 computation があるといい？
+
+- $\text{exp} = (e \text{"="} e) \mid \text{refl}(a) \mid J(A, a, b, p, P, r)$
+- $J(A, P, r, a, a, \text{refl}(a)) \to r @ a$
+- $\Gamma \vdash J(A, a, b, p, P, r):$ if
+  - $\Gamma \vdash A: *^s$, $\Gamma \vdash a, b: A$
+  - $\Gamma \vdash p: a = b$
+  - $\Gamma \vdash P: A \to s$ where $s \in \{*^p, *^s_{i}\}$
+  - $\Gamma \vdash r: (a: A) \to P a$
+
+$(p: a = b) \to P a \to P b$ について、 $*^p$ を一度挟んでいるので、最後の sort が $*^s$ になっていないのは奇妙に思える。
+これを解消するなら $\exists P a \to \exists P b$ を考えることになるが、
+この場合は、 $(a: A) \to \exists (P a)$ に対しての elimination が使えるので、
+そもそも書けている。
+
+むしろ、 $\exists (P a \to P b)$ が一番欲しいものになっていて、
+しかも、 computation のことを考えると、 $\exists (P a \to P a)$ が identity であることがないとめんどくさい。
+「この構成によって定義される map が identity であること」を保証するのは、何かしら強力な公理とかを課している？
+$(\exists X) \to (\exists Y)$ から $\exists (X \to Y)$ を取り出すのはやばい気がする。
 
 ## 導出木と $\vDash$ について
 type level の話を書いていて、（当然だけど）

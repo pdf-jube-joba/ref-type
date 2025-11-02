@@ -35,6 +35,39 @@ pub enum Item {
     },
 }
 
+impl Item {
+    fn subst(&self, subst_mapping: &[(Var, Exp)]) -> Item {
+        match self {
+            Item::Definition { name, ty, body } => Item::Definition {
+                name: name.clone(),
+                ty: subst_map(ty, subst_mapping),
+                body: subst_map(body, subst_mapping),
+            },
+            Item::Inductive {
+                name,
+                ctor_names,
+                ind_defs,
+            } => Item::Inductive {
+                name: name.clone(),
+                ctor_names: ctor_names.clone(),
+                ind_defs: std::rc::Rc::new(ind_defs.subst(subst_mapping)),
+            },
+            Item::Import {
+                module_name,
+                import_name,
+                args,
+            } => Item::Import {
+                module_name: module_name.clone(),
+                import_name: import_name.clone(),
+                args: args
+                    .iter()
+                    .map(|(v, e)| (v.clone(), subst_map(e, subst_mapping)))
+                    .collect(),
+            },
+        }
+    }
+}
+
 // do type checking
 pub struct GlobalEnvironment {
     module_templates: Vec<ModuleResolved>,
@@ -118,9 +151,9 @@ impl GlobalEnvironment {
         // chek well-formedness of items
         {
             for item in declarations {
-                let items_elab = self.elaborator.elab_item(&mut self.logger, item)?;
-                self.logger.log(format!("Checking item {:?}", items_elab));
-                match &items_elab {
+                self.logger.log(format!("Checking item {:?}", item));
+                let item_elab = self.elaborator.elab_item(&mut self.logger, item)?;
+                match &item_elab {
                     Item::Definition { name, ty, body } => {
                         let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
                         self.logger.log_derivation(der.clone());
@@ -155,7 +188,7 @@ impl GlobalEnvironment {
                     }
                     Item::Import {
                         module_name,
-                        import_name: _,
+                        import_name,
                         args,
                     } => {
                         let module_template = match self
@@ -209,9 +242,14 @@ impl GlobalEnvironment {
                                 subst_maps.push((v1.clone(), arg.clone()));
                             }
                         }
+                        let realized = module_template
+                            .realize(args.iter().map(|(_, e)| e.clone()).collect::<Vec<_>>());
+                        self.elaborator
+                            .realized
+                            .insert(import_name.as_str().into(), realized);
                     }
                 }
-                self.elaborator.items.push(items_elab);
+                self.elaborator.items.push(item_elab);
             }
         }
 
@@ -228,7 +266,7 @@ impl GlobalEnvironment {
 // elaborator does not type check
 pub struct Elaborator {
     parameters: Vec<(Var, Exp)>,
-    realized: HashMap<Var, ModuleRealized>,
+    realized: HashMap<Identifier, ModuleRealized>,
     items: Vec<Item>, // previously elaborated items
 }
 
@@ -297,7 +335,7 @@ impl Elaborator {
         module_name: &Identifier,
         item_name: &Identifier,
     ) -> Option<&Exp> {
-        let module_realized = self.realized.get(&Var::new(module_name.0.as_str()))?;
+        let module_realized = self.realized.get(module_name)?;
         for item in module_realized.items.iter().rev() {
             if let Item::Definition {
                 name: def_name,
@@ -316,7 +354,7 @@ impl Elaborator {
         module_name: &Identifier,
         indtype_name: &Identifier,
     ) -> Option<std::rc::Rc<InductiveTypeSpecs>> {
-        let module_realized = self.realized.get(&Var::new(module_name.0.as_str()))?;
+        let module_realized = self.realized.get(module_name)?;
         for item in module_realized.items.iter().rev() {
             if let Item::Inductive {
                 name: ind_name,
@@ -336,7 +374,7 @@ impl Elaborator {
         indtype_name: &Identifier,
         ctor_name: &Identifier,
     ) -> Option<(std::rc::Rc<InductiveTypeSpecs>, usize)> {
-        let module_realized = self.realized.get(&Var::new(module_name.0.as_str()))?;
+        let module_realized = self.realized.get(module_name)?;
         for item in module_realized.items.iter().rev() {
             if let Item::Inductive {
                 name: ind_name,
@@ -1401,6 +1439,27 @@ pub struct ModuleResolved {
     pub name: Var,
     pub parameters: Vec<(Var, Exp)>, // v: ty
     pub items: Vec<Item>,
+}
+
+impl ModuleResolved {
+    fn realize(&self, args: Vec<Exp>) -> ModuleRealized {
+        // we need to subst variables in items
+        let subst_map: Vec<(Var, Exp)> = self
+            .parameters
+            .iter()
+            .map(|(v, _)| v.clone())
+            .zip(args)
+            .collect();
+        let mut realized_items = vec![];
+        for item in self.items.iter() {
+            realized_items.push(item.subst(&subst_map));
+        }
+        ModuleRealized {
+            name: self.name.clone(),
+            arguments: subst_map.into_iter().map(|(_, e)| e).collect(),
+            items: realized_items,
+        }
+    }
 }
 
 pub struct ModuleRealized {

@@ -839,6 +839,15 @@ pub fn subst_map(e: &Exp, v: &[(Var, Exp)]) -> Exp {
     res
 }
 
+impl Exp {
+    pub fn alpha_convert(&self) -> Exp {
+        alpha_conversion(self)
+    }
+    pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> Exp {
+        subst_map(self, subst_mapping)
+    }
+}
+
 // any bindings in e should be renamed to avoid some problems
 // free variable is not affected (ptr_copy)
 pub fn alpha_conversion(e: &Exp) -> Exp {

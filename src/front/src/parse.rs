@@ -88,6 +88,8 @@ enum SExpTok {
     ProductTypeArrow,   // "->"
     Colon,              // ":"
     Mid,                // "|"
+    AsKeyWord,          // "as"
+    Equal,              // "="
 }
 
 impl Display for SExpTok {
@@ -98,6 +100,8 @@ impl Display for SExpTok {
             SExpTok::ProductTypeArrow => write!(f, "->"),
             SExpTok::Colon => write!(f, ":"),
             SExpTok::Mid => write!(f, "|"),
+            SExpTok::AsKeyWord => write!(f, "as"),
+            SExpTok::Equal => write!(f, "="),
         }
     }
 }
@@ -335,12 +339,49 @@ fn parse_pi_or_lambda(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
     }
 }
 
+fn parse_askeyword(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
+    // find the first top-level "as"
+    let Some(idx) = toks.iter().position(|t| matches!(t, SExpTok::AsKeyWord)) else {
+        return Err("No top-level 'as' found".to_string());
+    };
+
+    let exp = parse_exp(&toks[..idx])?;
+    let as_type = parse_exp(&toks[idx + 1..])?;
+
+    Ok(syntax::SExp::Cast {
+        exp: Box::new(exp),
+        to: Box::new(as_type),
+    })
+}
+
+fn parse_equality(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
+    // find the first top-level "="
+    let Some(idx) = toks.iter().position(|t| matches!(t, SExpTok::Equal)) else {
+        return Err("No top-level '=' found".to_string());
+    };
+
+    let left = parse_exp(&toks[..idx])?;
+    let right = parse_exp(&toks[idx + 1..])?;
+    Ok(syntax::SExp::Equal {
+        left: Box::new(left),
+        right: Box::new(right),
+    })
+}
+
+fn parse_elim(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
+    todo!()
+}
+
 fn parse_exp(toks: &[SExpTok]) -> Result<syntax::SExp, String> {
     // case 1: try parse as product type or lambda
     if let Ok(e) = parse_pi_or_lambda(toks) {
         return Ok(e);
     }
-    // case 2: try parse as apply all
+    // case 2: try parse as "as" keyword
+    if let Ok(e) = parse_askeyword(toks) {
+        return Ok(e);
+    }
+    // last case: try parse as apply all
     parse_apply_all_from_sexptoks(toks)
 }
 

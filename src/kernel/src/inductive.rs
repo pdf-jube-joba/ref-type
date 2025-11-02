@@ -502,3 +502,47 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
     // recursor(C_i, ff, f[i]) m[]
     Ok(utils::assoc_apply(recursor, m))
 }
+
+impl InductiveTypeSpecs {
+    pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> InductiveTypeSpecs {
+        InductiveTypeSpecs {
+            parameters: self
+                .parameters
+                .iter()
+                .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
+                .collect(),
+            indices: self
+                .indices
+                .iter()
+                .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
+                .collect(),
+            sort: self.sort,
+            constructors: self
+                .constructors
+                .iter()
+                .map(|cst| CtorType {
+                    telescope: cst
+                        .telescope
+                        .iter()
+                        .map(|binder| match binder {
+                            CtorBinder::StrictPositive {
+                                binders: xts,
+                                self_indices: m,
+                            } => CtorBinder::StrictPositive {
+                                binders: xts
+                                    .iter()
+                                    .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
+                                    .collect(),
+                                self_indices: m.iter().map(|t| t.subst(subst_mapping)).collect(),
+                            },
+                            CtorBinder::Simple((x, t)) => {
+                                CtorBinder::Simple((x.clone(), t.subst(subst_mapping)))
+                            }
+                        })
+                        .collect(),
+                    indices: cst.indices.iter().map(|t| t.subst(subst_mapping)).collect(),
+                })
+                .collect(),
+        }
+    }
+}
