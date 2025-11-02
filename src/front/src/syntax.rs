@@ -233,6 +233,8 @@ pub enum ProofBy {
     },
     TakeEq {
         func: Box<SExp>,
+        domain: Box<SExp>,
+        codomain: Box<SExp>,
         elem: Box<SExp>,
     },
     Axiom(Axiom),
@@ -247,19 +249,17 @@ pub struct Block {
 #[derive(Debug, Clone)]
 pub enum Statement {
     Fix(Vec<(Identifier, SExp)>), // fix x: A; y: B;
-    Have {
+    Let {
         var: Identifier,
         ty: SExp,
         body: SExp,
     }, // have x: A := t;
     Take {
-        var: Identifier, // updated to use Identifier directly
-        ty: SExp,
-        predicate_proof: Option<(Option<SExp>, SExp)>, // no changes needed here
-    }, // take x: A; or take x: A | P; or take x: A | h: P;
+        bind: Bind,
+    },
     Sufficient {
-        prop: SExp,
-        implication: SExp,
+        map: SExp,
+        map_ty: SExp,
     }, // suffices A by (h: A -> B);
 }
 

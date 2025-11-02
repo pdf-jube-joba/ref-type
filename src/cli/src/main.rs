@@ -36,7 +36,7 @@ fn main() {
             }
             Err(err) => {
                 // exit with error
-                eprintln!("Error: {:?}", err);
+                eprintln!("Error: {}", err);
                 std::process::exit(1);
             }
         }

@@ -197,8 +197,6 @@ pub enum Exp {
     },
     Take {
         map: Box<Exp>,
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
     },
 }
 

@@ -399,7 +399,10 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             let ret_ty_substituted = subst(&ret_ty, &var, arg);
             builder.build_typeinfer(ret_ty_substituted)
         }
-        Exp::IndType { indspec: indty, parameters } => {
+        Exp::IndType {
+            indspec: indty,
+            parameters,
+        } => {
             builder.rule("IndType");
 
             let parameter_indty_defined = indty.parameters.clone();
@@ -851,47 +854,41 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 2. conclude (ctx |- Exists(ty) : \Prop)
             builder.build_typeinfer(Exp::Sort(Sort::Prop))
         }
-        Exp::Take {
-            map,
-            domain,
-            codomain,
-        } => {
+        Exp::Take { map } => {
             builder.rule("Take");
-            // 1. check (ctx |- domain : Set(i))
-            let Some(sort) = builder.add_sort(ctx, domain) else {
-                return builder.build_fail(format!("Failed to infer sort of type {:?}", domain));
-            };
-            let Sort::Set(i) = sort else {
-                return builder.build_fail(format!("Type {:?} is not of form Set(i)", domain));
+            // 1. infer (ctx |- map: ?map_ty)
+            let Some(map_ty) = builder.add_infer(ctx, map) else {
+                return builder
+                    .build_fail(format!("Failed to infer type of map expression {:?}", map));
             };
 
-            // 2. check (ctx |- codomain : Set(j))
-            let Some(sort) = builder.add_sort(ctx, codomain) else {
-                return builder.build_fail(format!("Failed to infer sort of type {:?}", codomain));
-            };
-            let Sort::Set(j) = sort else {
-                return builder.build_fail(format!("Type {:?} is not of form Set(j)", codomain));
-            };
-
-            // 3. check i == j
-            if i != j {
+            // 2. decompose map_ty into domain -> codomain
+            let Exp::Prod {
+                var,
+                ty: _domain,
+                body: codomain,
+            } = normalize(&map_ty)
+            else {
                 return builder.build_fail(format!(
-                    "Type mismatch: domain sort Set({}) is not equal to codomain sort Set({})",
-                    i, j
+                    "Inferred type {:?} of map expression {:?} is not a function type",
+                    map_ty, map
+                ));
+            };
+
+            // 3. check codomain is independent of var
+            if contains_as_freevar(&codomain, &var) {
+                return builder.build_fail(format!(
+                    "Codomain {:?} depends on variable {:?}, which is not allowed in Take",
+                    codomain, var
                 ));
             }
 
-            // 4. check (ctx |- map : domain -> codomain)
-            let func_type = Exp::Prod {
-                var: Var::new("_"),
-                ty: domain.clone(),
-                body: codomain.clone(),
+            // 4. check (ctx |- map_ty : Set(i)) for some i
+            let Some(sort) = builder.add_sort(ctx, &map_ty) else {
+                return builder.build_fail(format!("Failed to infer sort of type {:?}", map_ty));
             };
-            let Some(()) = builder.add_check(ctx, map, &func_type) else {
-                return builder.build_fail(format!(
-                    "Failed to check map {:?} against type domain -> codomain in context",
-                    map
-                ));
+            let Sort::Set(_) = sort else {
+                return builder.build_fail(format!("Type {:?} is not of form Set(i)", map_ty));
             };
 
             // 5. conclude (ctx |- Take(map, domain, codomain) : codomain)
@@ -1136,11 +1133,9 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
         } => {
             builder.rule("TakeEq");
 
-            // 1. check (ctx |- Take(func, domain, codomain) : codomain)
+            // 1. check (ctx |- Take(func) : codomain)
             let take_ty = Exp::Take {
                 map: Box::new(func.clone()),
-                domain: Box::new(domain.clone()),
-                codomain: Box::new(codomain.clone()),
             };
             let Some(()) = builder.add_check(ctx, &take_ty, codomain) else {
                 return builder.build_fail(format!(

@@ -10,7 +10,7 @@ impl Debug for Var {
 
 impl Display for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}\x1b[2m[{:p}]\x1b[0m", self.as_str(), self.ptr())
     }
 }
 
@@ -172,14 +172,10 @@ impl Display for crate::exp::Exp {
                 write!(f, "{} = {}", left, right)
             }
             crate::exp::Exp::Exists { set } => {
-                write!(f, "∃ {}", set)
+                write!(f, "\\exists {}", set)
             }
-            crate::exp::Exp::Take {
-                map,
-                domain,
-                codomain,
-            } => {
-                write!(f, "Take({}, {}, {})", map, domain, codomain)
+            crate::exp::Exp::Take { map } => {
+                write!(f, "\\Take {}", map)
             }
         }
     }

@@ -99,6 +99,8 @@ impl GlobalEnvironment {
 
             // sort check parameter's ty
             for (v, ty) in parameteres_elab.iter() {
+                self.logger
+                    .log(format!("Checking parameter {} : {}", v.as_str(), ty));
                 let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty);
                 self.logger.log_derivation(der.clone());
 
@@ -117,6 +119,7 @@ impl GlobalEnvironment {
         {
             for item in declarations {
                 let items_elab = self.elaborator.elab_item(&mut self.logger, item)?;
+                self.logger.log(format!("Checking item {:?}", items_elab));
                 match &items_elab {
                     Item::Definition { name, ty, body } => {
                         let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
@@ -946,8 +949,7 @@ impl Elaborator {
                 SExp::Cast { exp, to } => {
                     let exp_elab =
                         self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
-                    let to_elab =
-                        self.elab_exp_rec(logger, &to, reference_var, bind_var.clone())?;
+                    let to_elab = self.elab_exp_rec(logger, to, reference_var, bind_var.clone())?;
                     Exp::Cast {
                         exp: Box::new(exp_elab),
                         to: Box::new(to_elab),
@@ -1084,7 +1086,7 @@ impl Elaborator {
                             }
                         }
                         // \exists x: A ... same as Anonymous
-                        Bind::Named { var, ty } => {
+                        Bind::Named { var: _, ty } => {
                             // may be we should warning?
                             let ty_elab =
                                 self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
@@ -1129,8 +1131,104 @@ impl Elaborator {
                     }
                 }
                 SExp::Take { bind, body } => {
-                    // we should consider this later
-                    todo!()
+                    let map = match bind {
+                        Bind::Anonymous { ty } => {
+                            let ty_elab =
+                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                            let body_elab =
+                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                            Exp::Prod {
+                                var: Var::dummy(),
+                                ty: Box::new(ty_elab),
+                                body: Box::new(body_elab),
+                            }
+                        }
+                        Bind::Named { var, ty } => {
+                            let ty_elab =
+                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                            let var: Var = var.into();
+                            let mut bind_var = bind_var.clone();
+                            bind_var.push(var.clone());
+                            let body_elab =
+                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                            Exp::Prod {
+                                var,
+                                ty: Box::new(ty_elab),
+                                body: Box::new(body_elab),
+                            }
+                        }
+                        Bind::Subset { var, ty, predicate } => {
+                            let ty_elab =
+                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                            let var: Var = var.into();
+                            let mut bind_var = bind_var.clone();
+                            bind_var.push(var.clone());
+                            let predicate_elab = self.elab_exp_rec(
+                                logger,
+                                predicate,
+                                reference_var,
+                                bind_var.clone(),
+                            )?;
+                            let body_elab =
+                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+
+                            let subset = Exp::SubSet {
+                                var: var.clone(),
+                                set: Box::new(ty_elab.clone()),
+                                predicate: Box::new(predicate_elab.clone()),
+                            };
+
+                            Exp::Prod {
+                                var: var.clone(),
+                                ty: Box::new(Exp::TypeLift {
+                                    superset: Box::new(ty_elab.clone()),
+                                    subset: Box::new(subset),
+                                }),
+                                body: Box::new(body_elab),
+                            }
+                        }
+                        Bind::SubsetWithProof {
+                            var,
+                            ty,
+                            predicate,
+                            proof,
+                        } => {
+                            let ty_elab =
+                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                            let var: Var = var.into();
+                            let mut bind_var = bind_var.clone();
+                            bind_var.push(var.clone());
+                            let predicate_elab = self.elab_exp_rec(
+                                logger,
+                                predicate,
+                                reference_var,
+                                bind_var.clone(),
+                            )?;
+                            let proof: Var = proof.into();
+                            bind_var.push(proof.clone());
+                            let body_elab =
+                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                            let subset = Exp::SubSet {
+                                var: var.clone(),
+                                set: Box::new(ty_elab.clone()),
+                                predicate: Box::new(predicate_elab.clone()),
+                            };
+
+                            Exp::Prod {
+                                var: var.clone(),
+                                ty: Box::new(Exp::TypeLift {
+                                    superset: Box::new(ty_elab.clone()),
+                                    subset: Box::new(subset),
+                                }),
+                                body: Box::new(Exp::Prod {
+                                    var: proof,
+                                    ty: Box::new(predicate_elab),
+                                    body: Box::new(body_elab),
+                                }),
+                            }
+                        }
+                    };
+                    Exp::Take { map: Box::new(map) }
                 }
                 SExp::ProofBy(proof_by) => {
                     use kernel::exp::ProveCommandBy;
@@ -1208,10 +1306,32 @@ impl Elaborator {
                                 predicate: predicate_elab,
                             }
                         }
-                        ProofBy::TakeEq { func, elem } => {
-                            todo!()
+                        ProofBy::TakeEq {
+                            func,
+                            domain,
+                            codomain,
+                            elem,
+                        } => {
+                            let func_elab =
+                                self.elab_exp_rec(logger, func, reference_var, bind_var.clone())?;
+                            let domain_elab =
+                                self.elab_exp_rec(logger, domain, reference_var, bind_var.clone())?;
+                            let codomain_elab = self.elab_exp_rec(
+                                logger,
+                                codomain,
+                                reference_var,
+                                bind_var.clone(),
+                            )?;
+                            let elem_elab =
+                                self.elab_exp_rec(logger, elem, reference_var, bind_var.clone())?;
+                            ProveCommandBy::TakeEq {
+                                func: func_elab,
+                                domain: domain_elab,
+                                codomain: codomain_elab,
+                                elem: elem_elab,
+                            }
                         }
-                        ProofBy::Axiom(axiom) => {
+                        ProofBy::Axiom(_) => {
                             todo!()
                         }
                     };
@@ -1219,7 +1339,55 @@ impl Elaborator {
                         command: Box::new(command),
                     }
                 }
-                SExp::Block(block) => todo!(),
+                SExp::Block(block) => {
+                    let Block { declarations, term } = block;
+                    let mut term = term.as_ref().clone();
+                    for decl in declarations.iter().rev() {
+                        match decl {
+                            Statement::Fix(items) => {
+                                for (var, ty) in items.iter().rev() {
+                                    term = SExp::Lam {
+                                        bind: Bind::Named {
+                                            var: var.clone(),
+                                            ty: Box::new(ty.clone()),
+                                        },
+                                        body: Box::new(term),
+                                    };
+                                }
+                            }
+                            Statement::Let { var, ty, body } => {
+                                term = SExp::App {
+                                    func: Box::new(SExp::Lam {
+                                        bind: Bind::Named {
+                                            var: var.clone(),
+                                            ty: Box::new(ty.clone()),
+                                        },
+                                        body: Box::new(term),
+                                    }),
+                                    arg: Box::new(body.clone()),
+                                    piped: false,
+                                };
+                            }
+                            Statement::Take { bind } => {
+                                term = SExp::Take {
+                                    bind: bind.clone(),
+                                    body: Box::new(term),
+                                };
+                            }
+                            Statement::Sufficient { map, map_ty } => {
+                                term = SExp::App {
+                                    func: Box::new(SExp::Cast {
+                                        exp: Box::new(map.clone()),
+                                        to: Box::new(map_ty.clone()),
+                                    }),
+                                    arg: Box::new(term),
+                                    piped: false,
+                                };
+                            }
+                        }
+                    }
+                    self.elab_exp_rec(logger, &term, reference_var, bind_var.clone())?
+                }
             }
         };
 

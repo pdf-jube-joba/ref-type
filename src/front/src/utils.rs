@@ -33,7 +33,7 @@ pub fn assoc_apply(mut a: SExp, v: Vec<SExp>) -> SExp {
 // (a v[0] ... v[k])
 pub fn assoc_apply_vec(mut v: Vec<SExp>) -> SExp {
     assert!(!v.is_empty());
-    let mut vs = v.split_off(1);
+    let vs = v.split_off(1);
     let mut a = v.pop().unwrap();
     for v in vs {
         a = SExp::App {

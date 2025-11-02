@@ -268,18 +268,7 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
             },
         ) => strict_equivalence(l1, l2) && strict_equivalence(r1, r2),
         (Exp::Exists { set: set1 }, Exp::Exists { set: set2 }) => strict_equivalence(set1, set2),
-        (
-            Exp::Take {
-                map: m1,
-                domain: d1,
-                codomain: c1,
-            },
-            Exp::Take {
-                map: m2,
-                domain: d2,
-                codomain: c2,
-            },
-        ) => strict_equivalence(m1, m2) && strict_equivalence(d1, d2) && strict_equivalence(c1, c2),
+        (Exp::Take { map: m1 }, Exp::Take { map: m2 }) => strict_equivalence(m1, m2),
         _ => false,
     }
 }
@@ -380,15 +369,7 @@ pub fn contains_as_freevar(e: &Exp, v: &Var) -> bool {
         }
         Exp::Equal { left, right } => contains_as_freevar(left, v) || contains_as_freevar(right, v),
         Exp::Exists { set } => contains_as_freevar(set, v),
-        Exp::Take {
-            map,
-            domain,
-            codomain,
-        } => {
-            contains_as_freevar(map, v)
-                || contains_as_freevar(domain, v)
-                || contains_as_freevar(codomain, v)
-        }
+        Exp::Take { map } => contains_as_freevar(map, v),
     }
 }
 
@@ -600,22 +581,7 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         (Exp::Exists { set: ty1 }, Exp::Exists { set: ty2 }) => {
             is_alpha_eq_rec(ty1, ty2, env1, env2)
         }
-        (
-            Exp::Take {
-                map: m1,
-                domain: d1,
-                codomain: c1,
-            },
-            Exp::Take {
-                map: m2,
-                domain: d2,
-                codomain: c2,
-            },
-        ) => {
-            is_alpha_eq_rec(m1, m2, env1, env2)
-                && is_alpha_eq_rec(d1, d2, env1, env2)
-                && is_alpha_eq_rec(c1, c2, env1, env2)
-        }
+        (Exp::Take { map: m1 }, Exp::Take { map: m2 }) => is_alpha_eq_rec(m1, m2, env1, env2),
         _ => false,
     }
 }
@@ -859,14 +825,8 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
         Exp::Exists { set: ty } => Exp::Exists {
             set: Box::new(subst(ty, v, t)),
         },
-        Exp::Take {
-            map,
-            domain,
-            codomain,
-        } => Exp::Take {
+        Exp::Take { map } => Exp::Take {
             map: Box::new(subst(map, v, t)),
-            domain: Box::new(subst(domain, v, t)),
-            codomain: Box::new(subst(codomain, v, t)),
         },
     }
 }
@@ -1081,14 +1041,8 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
         Exp::Exists { set: ty } => Exp::Exists {
             set: Box::new(alpha_conversion(ty)),
         },
-        Exp::Take {
-            map,
-            domain,
-            codomain,
-        } => Exp::Take {
+        Exp::Take { map } => Exp::Take {
             map: Box::new(alpha_conversion(map)),
-            domain: Box::new(alpha_conversion(domain)),
-            codomain: Box::new(alpha_conversion(codomain)),
         },
     }
 }
@@ -1361,20 +1315,10 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let ty = reduce_if(ty);
             changed.then_some(Exp::Exists { set: Box::new(ty) })
         }
-        Exp::Take {
-            map,
-            domain,
-            codomain,
-        } => {
+        Exp::Take { map } => {
             let map = reduce_if(map);
-            let domain = reduce_if(domain);
-            let codomain = reduce_if(codomain);
 
-            changed.then_some(Exp::Take {
-                map: Box::new(map),
-                domain: Box::new(domain),
-                codomain: Box::new(codomain),
-            })
+            changed.then_some(Exp::Take { map: Box::new(map) })
         }
     }
 }
