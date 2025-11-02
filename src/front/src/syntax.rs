@@ -105,12 +105,12 @@ pub enum SExp {
     // shared macro for math symbols
     // before type checking, it is expanded to normal expression
     MathMacro {
-        tokens: Box<MacroExp>,
+        tokens: Vec<MacroExp>,
     },
     // macro specified by name
     NamedMacro {
         name: Identifier,
-        tokens: Box<MacroExp>,
+        tokens: Vec<MacroExp>,
     },
     // --- expression with clauses
     // where clauses to define local variables

@@ -1,5 +1,4 @@
-use crate::syntax::{Identifier, MacroToken};
-use super::{AtomTok, AtomLike, SExpTok, MacroSeq, ModItemDecl, ModDecl};
+use crate::syntax::{Identifier, MacroToken, SExp, Bind, MacroExp};
 use crate::utils::assoc_apply_vec;
 use either::Either;
 use lalrpop_util::ParseError;
@@ -24,58 +23,52 @@ num: usize = {
 
 MacTok: MacroToken = {
   <n: num> => MacroToken(n.to_string()),
-  <s:r"[#$%]+"> => MacroToken(String::from(s)),
+  <s:r"[#]+"> => MacroToken(String::from(s)),
 }
 
-pub AtomTokAst: AtomTok = {
-  <s: SortAst> => AtomTok::Sort(s),
-  <v0: Ident> => AtomTok::AccessPath(vec![v0]),
-  <v0: Ident> "." <v1: Ident> => AtomTok::AccessPath(vec![v0, v1]),
-  <v0: Ident> "." <v1: Ident> "." <v2: Ident> => AtomTok::AccessPath(vec![v0, v1, v2]),
+SExpPrimAtomAst: SExp = {
+  <s: SortAst> => SExp::Sort(s),
+  <v0: Ident> => SExp::AccessPath(vec![v0]),
+  <v0: Ident> "." <v1: Ident> => SExp::AccessPath(vec![v0, v1]),
+  <v0: Ident> "." <v1: Ident> "." <v2: Ident> => SExp::AccessPath(vec![v0, v1, v2]),
 }
 
-pub AtomLikeAst: AtomLike = {
-  <a: AtomTokAst> => AtomLike::AtomTok(a),
-  "(" <e: SExpTokAst+> ")" => AtomLike::ParenToks(e),
-  "{" <e: SExpTokAst+> "}" => AtomLike::CurlyToks(e),
-  "$(" <seq: MacAst+> "$)"  => AtomLike::MathMacro(seq),
-  "!" <nameast: Ident> "{" <seq: MacAst+> "}" => AtomLike::NamedMacro(nameast, seq),
-  "\\Elim" <typenameast: Ident> "(" <elim: SExpAll> "," <motive: SExpAll> "," <sort: SortAst> ")" "{" <content: SExpAll> "}" => todo!(),
-  "\\Pr" "(" <e: SExpAll> ")" => todo!(),
-  "\\Power" "(" <e: SExpAll> ")" => todo!(),
-  "\\Pred" "(" <e0: SExpAll> "," <e1: SExpAll> "," <e2: SExpAll> ")" => todo!(),
-  "\\Ty" "(" <e0: SExpAll> "," <e1: SExpAll> ")" => todo!(),
+SExpAtomLike: SExp = {
+  "(" <a: SExpAtomLike> ")" => a,
+  "$(" <seq: MacAst+> "$)" => SExp::MathMacro { tokens: seq },
+  "!" <nameast: Ident> "{" <seq: MacAst+> "}" => SExp::NamedMacro { name: nameast, tokens: seq },
+  SExpPrimAtomAst,
 }
 
-MacAst: MacroSeq = {
-  <a: AtomTokAst> => MacroSeq::AtomLike(AtomLike::AtomTok(a)),
-  <tok: MacTok> => MacroSeq::MacTok(tok),
-  "(" <e: MacAst+> ")" => MacroSeq::Seq(e),
+pub SExpAst: SExp = {
+  ArrowSeparated,
 }
 
-SExpTokAst: SExpTok = {
-  <a: AtomLikeAst> => SExpTok::AtomLike(a),
-  "=>" => SExpTok::LambdaArrow,
-  "->" => SExpTok::ProductTypeArrow,
-  ":" => SExpTok::Colon,
-  "|" => SExpTok::Mid,
-  "as" => SExpTok::AsKeyWord,
-  "=" => SExpTok::Equal,
+ArrowSeparated: SExp = {
+  <bd: BindAst> "->" <bod: ArrowSeparated> => SExp::Prod { bind: bd, body: Box::new(bod) },
+  <cb: SExpAtomLike> "->" <bod: ArrowSeparated> => SExp::Prod { bind: Bind::Anonymous { ty: Box::new(cb)}, body: Box::new(bod) },
+  Combined,
 }
 
-pub SExpAll: Vec<SExpTok> = {
-  <v: SExpTokAst+> => v,
+BindAst: Bind = {
+  "(" <t: TypeAnnot> ")" => Bind::Named { var: t.0, ty: Box::new(t.1) },
 }
 
-ModItemAst: ModItemDecl = {
-  IndSpecsDecl,
-  DefDecl,
-  ImportDecl,
+Combined: SExp = {
+  SExpAtomLike,
 }
 
-BindParend: (Identifier, Vec<SExpTok>) = {
-  "(" <v: Ident> ":" <ty: SExpTokAst+> ")" => (v, ty)
+TypeAnnot: (Identifier, SExp) = {
+  <v: Ident> ":" <a: SExpAtomLike> => (v, a),
 }
+
+MacAst: MacroExp = {
+  <a: SExpAtomLike> => MacroExp::Exp(a),
+  <tok: MacTok> => MacroExp::Tok(tok),
+  "(" <e: MacAst+> ")" => MacroExp::Seq(e),
+}
+
+/*
 
 IndSpecsDecl: ModItemDecl = {
   "inductive" <typename: Ident> <ps: BindParend*> ":" <ar: SExpAll> ":=" <ctors: Ctor+> => ModItemDecl::Inductive {
@@ -124,3 +117,4 @@ ModuleRep: ModDecl = {
 pub ModuleAll: Vec<ModDecl> = {
   ModuleRep*
 }
+*/
