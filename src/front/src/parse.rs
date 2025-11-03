@@ -11,7 +11,7 @@ pub enum Token<'a> {
     Ident(&'a str),
     #[regex(r"[0-9]+")]
     Number(&'a str),
-    #[regex(r#"[#%&"'~\+\^\*<>@\[\]/][^\s]*|:[^\s=]+|-[^\s>]+|=[^\s>]+"#)]
+    #[regex(r#"[#%&"'~\+\^<>@\[\]][^\s]*|:[^\s=]+|-[^\s>]+|=[^\s>]+|/[^*]*|\*[^/]*"#)]
     OtherSymbolStart(&'a str),
     #[regex(r"\?[a-zA-Z_]+")]
     UnSPecifiedVar,
@@ -49,6 +49,10 @@ pub enum Token<'a> {
     Equal,
     #[token("!")]
     Exclamation,
+    #[token("/*")]
+    CommentStart,
+    #[token("*/")]
+    CommentEnd,
 }
 
 static RESERVED_SORT_KEYWORDS: &[&str] = &[
@@ -60,7 +64,23 @@ static RESERVED_SORT_KEYWORDS: &[&str] = &[
     "\\TypeKind",
 ];
 
-static EXPRESSION_KEYWORDS: &[&str] = &["\\fix", "\\as"];
+static EXPRESSION_KEYWORDS: &[&str] = &[
+    "\\as", "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty", "\\exists", "\\take",
+];
+
+static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
+
+static PROOF_COMMAND_KEYWORDS: &[&str] = &[
+    "\\term",
+    "\\exact",
+    "\\bysub",
+    "\\refl",
+    "\\idelim",
+    "\\takeelim",
+    "\\axiom:LEM",
+    "\\axiom:FE",
+    "\\axiom:EE",
+];
 
 static PROGRAM_KEYWORDS: &[&str] = &[
     "\\module",
@@ -799,9 +819,29 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
     let mut lexer = Token::lexer(input);
     let mut out = Vec::new();
 
+    let mut comment_level = 0;
+
     while let Some(tok) = lexer.next() {
         match tok {
+            Ok(Token::CommentStart) => {
+                comment_level += 1;
+                continue;
+            }
+            Ok(Token::CommentEnd) => {
+                if comment_level == 0 {
+                    return Err(format!(
+                        "unmatched comment end at {}..{}",
+                        lexer.span().start,
+                        lexer.span().end
+                    ));
+                }
+                comment_level -= 1;
+                continue;
+            }
             Ok(kind) => {
+                if comment_level > 0 {
+                    continue; // skip tokens inside comments
+                }
                 let span = lexer.span(); // std::ops::Range<usize>
                 out.push(SpannedToken {
                     kind,
@@ -877,6 +917,19 @@ mod tests {
         tok_all_ok(r"(x: X) -> Y => z");
         tok_all_ok(r"(x @ z # a");
         tok_all_ok(r"x $( y += z )$");
+    }
+    #[test]
+    fn comment_test() {
+        fn print_and_unwrap(input: &'static str) {
+            println!("Input: {:?}", input);
+            let spantoks = &lex_all(input).unwrap();
+            for tok in spantoks {
+                println!("{:?}", tok);
+            }
+        }
+        print_and_unwrap(r"x /* this is a comment */ y");
+        print_and_unwrap(r"x /* comment start /* nested comment */ end */ y");
+        print_and_unwrap(r"/* full comment */");
     }
     #[test]
     fn parse_annotate_test() {

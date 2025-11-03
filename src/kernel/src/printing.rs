@@ -71,16 +71,14 @@ impl Display for crate::exp::Exp {
                 indty: ty,
                 elim,
                 return_type,
-                sort,
                 cases,
             } => {
                 write!(
                     f,
-                    "elim {:p} {} : {} in {} with ({})",
-                    ty,
+                    "elim {} {} : {} with {{{}}}",
                     elim,
+                    ty.names.0,
                     return_type,
-                    sort,
                     cases
                         .iter()
                         .map(|c| format!("{}", c))

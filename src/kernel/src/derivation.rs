@@ -495,31 +495,24 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             indty,
             elim,
             return_type,
-            sort,
             cases,
         } => {
             builder.rule("IndTypeElim");
 
-            // 1. check (ty.sort, sort) can form a elimination
-            if indty.sort.relation_of_sort_indelim(*sort).is_none() {
-                return builder.build_fail(format!(
-                    "Cannot form eliminator with inductive type sort {:?} and return type sort {:?}",
-                    indty.sort, sort
-                ));
-            }
-
-            // 2. infer (ctx |- elim : IndType(ty, parameters) a[])
+            // 1. infer (ctx |- elim : IndType(ty, parameters) a[])
             let Some(inferred_indty) = builder.add_infer(ctx, elim) else {
                 return builder.build_fail(format!(
                     "Failed to infer type of eliminator expression {:?}",
                     elim
                 ));
             };
+            // a[] are well-typed
+            // i.e. a[]: t[] where (x[]: t[]) are in indty.indices
 
             let (inferred_indty_base, a) = utils::decompose_app(inferred_indty);
             let Exp::IndType {
                 indspec: inferred_indty,
-                parameters,
+                parameters, // => well-typed
             } = inferred_indty_base
             else {
                 return builder.build_fail(format!(
@@ -528,7 +521,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 ));
             };
 
-            // 3. check indty is the same as inferred_indty
+            // 2. check indty is the same as inferred_indty
             if !std::rc::Rc::ptr_eq(indty, &inferred_indty) {
                 return builder.build_fail(format!(
                     "Inductive type mismatch: expected {:?}, found {:?}",
@@ -536,30 +529,42 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 ));
             }
 
-            let xt: Vec<(Var, Exp)> = indty.indices.to_vec();
-
-            // 4. check types of a[]: t[] where (x[]: t[]) are in indty.indices
-            if xt.len() != a.len() {
-                return builder.build_fail("mismatch arity length");
-            }
-
-            for ((_, t), a) in xt.iter().zip(a.iter()) {
-                let Some(()) = builder.add_check(ctx, a, t) else {
-                    return builder.build_fail(format!("Failed to check arity ... {a}: {t}",));
-                };
-            }
-
-            // 5. check (ctx |- return_type: (x[]: t[]) -> THIS x[] -> s)
-            let kind_of_return_type = crate::inductive::InductiveTypeSpecs::return_type_kind(
-                indty,
-                parameters.clone(),
-                *sort,
-            );
-            let Some(()) = builder.add_check(ctx, return_type, &kind_of_return_type) else {
+            // 3. infer kind of return_type
+            let Some(return_type_kind) = builder.add_infer(ctx, return_type) else {
                 return builder.build_fail(format!(
-                    "Failed to check return type ... {return_type}: {kind_of_return_type}",
+                    "Failed to infer sort of return type expression {:?}",
+                    return_type
                 ));
             };
+            let (telescope, sort) = utils::decompose_prod(normalize(&return_type_kind));
+            let Exp::Sort(sort) = sort else {
+                return builder.build_fail(format!(
+                    "Return type kind {:?} is not ending with a sort",
+                    return_type_kind
+                ));
+            };
+
+            // 4. check (ty.sort, sort) can form a elimination
+            if indty.sort.relation_of_sort_indelim(sort).is_none() {
+                return builder.build_fail(format!(
+                    "Cannot form eliminator with inductive type sort {:?} and return type sort {:?}",
+                    indty.sort, sort
+                ));
+            }
+
+            // 5. check convertibility of kind of return_type
+            let expected_return_type_kind = crate::inductive::InductiveTypeSpecs::return_type_kind(
+                indty,
+                parameters.clone(),
+                sort,
+            );
+            let current_return_type_kind = utils::assoc_prod(telescope, Exp::Sort(sort));
+            if !convertible(&return_type_kind, &current_return_type_kind) {
+                return builder.build_fail(format!(
+                    "Return type kind {:?} is not convertible to expected kind {:?}",
+                    return_type_kind, expected_return_type_kind
+                ));
+            }
 
             // 6. check each case has type eliminator_type of constructor
             // check length of cases and constructors

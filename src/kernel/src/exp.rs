@@ -151,7 +151,6 @@ pub enum Exp {
         indty: Rc<crate::inductive::InductiveTypeSpecs>,
         elim: Box<Exp>,
         return_type: Box<Exp>,
-        sort: Sort,
         cases: Vec<Exp>,
     },
     // cast `exp` to `to` and solve all goals of derivation tree given by `fn check` with `withgoals`

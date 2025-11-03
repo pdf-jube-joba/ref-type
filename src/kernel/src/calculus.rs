@@ -80,19 +80,16 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                 indty: ty1,
                 elim: elim1,
                 return_type: ret1,
-                sort: sort1,
                 cases: cases1,
             },
             Exp::IndElim {
                 indty: ty2,
                 elim: elim2,
                 return_type: ret2,
-                sort: sort2,
                 cases: cases2,
             },
         ) => {
-            sort1 == sort2
-                && std::rc::Rc::ptr_eq(ty1, ty2)
+            std::rc::Rc::ptr_eq(ty1, ty2)
                 && strict_equivalence(elim1, elim2)
                 && strict_equivalence(ret1, ret2)
                 && cases1.len() == cases2.len()
@@ -291,7 +288,6 @@ pub fn contains_as_freevar(e: &Exp, v: &Var) -> bool {
             elim,
             return_type,
             cases,
-            sort: _,
         } => {
             contains_as_freevar(elim, v)
                 || contains_as_freevar(return_type, v)
@@ -474,19 +470,16 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 indty: ty1,
                 elim: elim1,
                 return_type: ret1,
-                sort: sort1,
                 cases: cases1,
             },
             Exp::IndElim {
                 indty: ty2,
                 elim: elim2,
                 return_type: ret2,
-                sort: sort2,
                 cases: cases2,
             },
         ) => {
-            sort1 == sort2
-                && std::rc::Rc::ptr_eq(ty1, ty2)
+            std::rc::Rc::ptr_eq(ty1, ty2)
                 && is_alpha_eq_rec(elim1, elim2, env1, env2)
                 && is_alpha_eq_rec(ret1, ret2, env1, env2)
                 && cases1.len() == cases2.len()
@@ -699,13 +692,11 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             indty: ty,
             elim,
             return_type,
-            sort,
             cases,
         } => Exp::IndElim {
             indty: ty.clone(),
             elim: Box::new(subst(elim, v, t)),
             return_type: Box::new(subst(return_type, v, t)),
-            sort: *sort,
             cases: cases.iter().map(|case| subst(case, v, t)).collect(),
         },
         Exp::Cast { exp, to } => Exp::Cast {
@@ -894,13 +885,11 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             indty: ty,
             elim,
             return_type,
-            sort,
             cases,
         } => Exp::IndElim {
             indty: ty.clone(),
             elim: Box::new(alpha_conversion(elim)),
             return_type: Box::new(alpha_conversion(return_type)),
-            sort: *sort,
             cases: cases.iter().map(alpha_conversion).collect(),
         },
         Exp::Cast { exp, to } => Exp::Cast {
@@ -1165,7 +1154,6 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             indty: ty,
             elim,
             return_type,
-            sort,
             cases,
         } => {
             let elim = reduce_if(elim);
@@ -1176,7 +1164,6 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 indty: ty.clone(),
                 elim: Box::new(elim),
                 return_type: Box::new(return_type),
-                sort: *sort,
                 cases,
             })
         }

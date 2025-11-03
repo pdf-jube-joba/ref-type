@@ -1014,7 +1014,6 @@ impl Elaborator {
                     ind_type_name,
                     elim,
                     return_type,
-                    sort,
                     cases,
                 } => {
                     let ind_defs = match self.module_item_indtype_name(ind_type_name) {
@@ -1056,7 +1055,6 @@ impl Elaborator {
                         indty: ind_defs,
                         elim: Box::new(eliminated_exp_elab),
                         return_type: Box::new(return_type_elab),
-                        sort: *sort,
                         cases: cases_elab,
                     }
                 }

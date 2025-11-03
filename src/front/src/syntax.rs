@@ -156,19 +156,18 @@ pub enum SExp {
         ind_type_name: Identifier,
         elim: Box<SExp>,
         return_type: Box<SExp>,
-        sort: kernel::exp::Sort,
         cases: Vec<(Identifier, SExp)>,
     },
     // --- set theory
-    // \Proof term ... "prove this later"
+    // \Proof (term) ... "prove this later"
     ProveLater {
         term: Box<SExp>,
     },
-    // \Power power
+    // \Power(power)
     PowerSet {
         set: Box<SExp>,
     },
-    // { x: A | P }
+    // \SubSet (var, set, predicate)
     SubSet {
         var: Identifier,
         set: Box<SExp>,

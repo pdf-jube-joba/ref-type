@@ -373,7 +373,6 @@ struct RedexShapeInductiveTypeElim {
     parameter: Vec<Exp>,
     m: Vec<Exp>,
     q: Box<Exp>,
-    sort: Sort,
     f: Vec<Exp>,
 }
 
@@ -385,7 +384,6 @@ fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
         indty: ty,
         elim,
         return_type: q,
-        sort,
         cases: f,
     } = e
     else {
@@ -435,7 +433,6 @@ fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
         parameter: parameter.clone(),
         m: m.iter().map(|e| (**e).clone()).collect(),
         q: q.clone(),
-        sort: *sort,
         f: f.clone(),
     })
 }
@@ -454,7 +451,6 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         parameter,
         m,
         q,
-        sort,
         f,
     } = indelim_shapecheck(e)?;
 
@@ -468,7 +464,6 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
             indty: ty.clone(),
             elim: Box::new(Exp::Var(c.clone())),
             return_type: q.clone(),
-            sort,
             cases: f.clone(),
         };
 
