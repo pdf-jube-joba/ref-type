@@ -717,8 +717,6 @@ impl<'a> Parser<'a> {
         self.expect_token(&Token::Colon)?;
         let arity = self.parse_sexp()?;
 
-        eprintln!("hello");
-
         // body of constructors
         self.expect_token(&Token::Assign)?;
         let mut constructors = vec![];

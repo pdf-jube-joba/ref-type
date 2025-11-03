@@ -90,7 +90,7 @@ impl Logger {
         self.log.push(Either::Left(der));
     }
     pub fn log(&mut self, msg: String) {
-        self.log.push(Either::Right(msg));
+        self.log.push(Either::Right(format!("{msg}\n")));
     }
 }
 
@@ -115,6 +115,9 @@ impl GlobalEnvironment {
             parameters,
             declarations,
         } = module;
+
+        self.logger
+            .log(format!("Elaborating module {}", name.0.as_str()));
 
         // elaborator setup
         {
@@ -401,7 +404,11 @@ impl Elaborator {
         item: &crate::syntax::ModuleItem,
     ) -> Result<Item, String> {
         match item {
-            ModuleItem::Definition { name: var, ty, body } => {
+            ModuleItem::Definition {
+                name: var,
+                ty,
+                body,
+            } => {
                 let var: Var = var.into();
                 let ty_elab = self.elab_exp(logger, ty, &[])?;
                 let body_elab = self.elab_exp(logger, body, &[])?;

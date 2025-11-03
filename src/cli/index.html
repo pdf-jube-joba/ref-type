@@ -1,0 +1,161 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: sans-serif;
+  }
+
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+  }
+
+  textarea,
+  pre {
+    margin: 0;
+    padding: 1em;
+    font-size: 1rem;
+    border: none;
+    outline: none;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    resize: none;
+    border-right: 1px solid #333;
+  }
+
+  pre {
+    background: #111;
+    color: #eee;
+    white-space: pre-wrap;
+    overflow: auto;
+  }
+
+  @media (max-width: 700px) {
+    .container {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    textarea {
+      border-right: none;
+      border-bottom: 1px solid #333;
+    }
+  }
+</style>
+
+<div class="container">
+  <textarea id="input">Hello, Rust!</textarea>
+  <pre id="output"></pre>
+</div>
+
+<script>
+  const input = document.getElementById("input");
+  const output = document.getElementById("output");
+
+  // --- 可調整パラメータ ---
+  let baseDelay = 150;   // 最短デバウンス(ms)
+  let maxDelay = 1200;  // 最長デバウンス(ms)
+  let deltaChars = 4;     // 前回送信からの最低変更文字数
+  let maxWait = 1200;  // どれだけ入力が続いても、この時間で強制送信(ms)
+
+  // --- 内部状態 ---
+  let composing = false;       // IME 変換中フラグ
+  let lastSentText = input.value;
+  let lastSentAt = performance.now();
+  let timer = 0;
+  let inFlight = null;         // { controller, startedAt }
+  let pendingText = null;      // 「最後勝ち」用の最新テキスト
+  let rttAvg = 200;            // RTT 移動平均
+
+  // アダプティブ遅延：重いときは伸ばす、軽いときは縮める
+  function computeDelay() {
+    // タブが非アクティブなら更に伸ばす
+    const visBoost = document.visibilityState === "visible" ? 1 : 2.0;
+    // テキストが長いほど長く待つ（ざっくり）
+    const lenBoost = 1 + Math.min(2, input.value.length / 2000);
+    // RTT に応じて伸縮（200ms基準）
+    const rttBoost = Math.min(3, Math.max(0.8, rttAvg / 200));
+    return Math.min(maxDelay, Math.round(baseDelay * visBoost * lenBoost * rttBoost));
+  }
+
+  function shouldSend(now, text) {
+    const delta = Math.abs(text.length - lastSentText.length);
+    const waited = now - lastSentAt;
+    return (delta >= deltaChars) || (waited >= maxWait);
+  }
+
+  function scheduleSend() {
+    clearTimeout(timer);
+    if (composing) return; // IME変換中は送らない
+    const now = performance.now();
+    const text = input.value;
+    if (!shouldSend(now, text)) {
+      // 変更が小さければまだ待つ
+      timer = setTimeout(scheduleSend, computeDelay());
+      return;
+    }
+    const delay = computeDelay();
+    timer = setTimeout(() => sendLatest(), delay);
+    pendingText = text; // 最新を記録（あとで「最後勝ち」で送る）
+  }
+
+  async function sendLatest() {
+    const text = input.value; // 直前で上書きされてたら、常に最新を使う
+    pendingText = null;
+
+    // 既存リクエストがあればキャンセル
+    if (inFlight) inFlight.controller.abort();
+    const controller = new AbortController();
+    inFlight = { controller, startedAt: performance.now() };
+
+    try {
+      const res = await fetch("/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+      const t1 = performance.now();
+      rttAvg = (rttAvg * 0.7) + ((t1 - inFlight.startedAt) * 0.3); // RTT移動平均
+      inFlight = null;
+
+      const data = await res.json();
+      output.textContent = data.result;
+      lastSentText = text;
+      lastSentAt = t1;
+
+      // 送信中に更に入力が進んだ場合は、終わった直後に最新をもう一度評価
+      if (pendingText !== null) scheduleSend();
+    } catch (e) {
+      inFlight = null;
+      // ユーザー入力で中断されただけなら無視（AbortError）
+      if (e.name !== "AbortError") {
+        output.textContent = "error: " + e;
+      }
+    }
+  }
+
+  // 入力イベント
+  input.addEventListener("input", scheduleSend);
+
+  // IME中は送らない
+  input.addEventListener("compositionstart", () => { composing = true; });
+  input.addEventListener("compositionend", () => { composing = false; scheduleSend(); });
+
+  // タブの可視状態で間隔調整
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") scheduleSend();
+  });
+
+  // 初回起動
+  scheduleSend();
+</script>

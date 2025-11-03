@@ -13,7 +13,7 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 echo "=== OK cases ==="
 for f in "$SCRIPT_DIR/ok"/*.txt; do
     echo "--- running OK: $f"
-    (cd "$PROJECT_DIR" && cargo run -- "$f") || {
+    (cd "$PROJECT_DIR" && cargo run -- file "$f") || {
         echo "ERROR: OK case failed: $f"
         exit 1
     }
@@ -22,7 +22,7 @@ done
 echo "=== NG cases ==="
 for f in "$SCRIPT_DIR/ng"/*.txt; do
     echo "--- running NG: $f"
-    if (cd "$PROJECT_DIR" && cargo run -- "$f"); then
+    if (cd "$PROJECT_DIR" && cargo run -- file "$f"); then
         echo "ERROR: NG case unexpectedly succeeded: $f"
         exit 1
     else

@@ -4,13 +4,17 @@ use crate::exp::{Derivation, Node, Prove, ProveGoal, SortInfer, TypeCheck, TypeI
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}[{:p}]", self.as_str(), self.ptr())
+        if f.alternate() {
+            write!(f, "{}[{:p}]", self.as_str(), self.ptr())
+        } else {
+            write!(f, "{}\x1b[2m[{:p}]\x1b[0m", self.as_str(), self.ptr())
+        }
     }
 }
 
 impl Display for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}\x1b[2m[{:p}]\x1b[0m", self.as_str(), self.ptr())
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -263,7 +267,7 @@ impl Display for Node {
 
 pub struct StringTree(String, Vec<StringTree>);
 
-fn map_derivation(der: &Derivation) -> StringTree {
+pub fn map_derivation(der: &Derivation) -> StringTree {
     match der {
         Derivation::Derivation {
             conclusion,
