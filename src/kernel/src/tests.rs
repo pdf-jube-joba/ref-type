@@ -45,6 +45,7 @@ impl Checker {
         constructors: Vec<crate::inductive::CtorType>,
     ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
         let indspecs = crate::inductive::InductiveTypeSpecs {
+            names: (String::new(), vec![String::new(); constructors.len()]),
             parameters: params.clone(),
             indices: indices.clone(),
             sort,

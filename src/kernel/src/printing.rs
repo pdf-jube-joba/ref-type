@@ -44,8 +44,8 @@ impl Display for crate::exp::Exp {
                 parameters,
             } => write!(
                 f,
-                "{:p}({})",
-                ty,
+                "{}{{{}}}",
+                ty.names.0,
                 parameters
                     .iter()
                     .map(|p| format!("{}", p))
@@ -58,9 +58,9 @@ impl Display for crate::exp::Exp {
                 idx,
             } => write!(
                 f,
-                "{:p}.{}({})",
-                ty,
-                idx,
+                "{}.{}{{{}}}",
+                ty.names.0,
+                ty.names.1.get(*idx).unwrap(),
                 parameters
                     .iter()
                     .map(|p| format!("{}", p))

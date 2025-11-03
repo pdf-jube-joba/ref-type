@@ -72,7 +72,6 @@ fn parse_and_format(src: String) -> String {
                     Ok(_) => {}
                     Err(err) => {
                         output.push_str(&format!("Error: {}\n", err));
-                        return output;
                     }
                 }
             }
@@ -111,25 +110,28 @@ async fn run_api(Json(req): Json<Req>) -> Json<Resp> {
     match parsed {
         Ok(modules) => {
             let mut global = front::resolver::GlobalEnvironment::default();
+            let mut lines = vec![];
             for module in modules {
                 match global.new_module(&module) {
                     Ok(_) => {}
                     Err(err) => {
-                        return Json(Resp {
-                            result: format!("Error: {}", err),
-                        });
+                        lines.push(format!("---Error: {}---\n\n\n", err));
                     }
                 }
             }
-            let lines = global
-                .logs()
-                .iter()
-                .map(|log| match log {
-                    either::Either::Left(der) => format!("{der}\n"),
-                    either::Either::Right(mes) => format!("{mes}\n"),
-                })
-                .collect::<String>();
-            Json(Resp { result: lines })
+            for log in global.logs() {
+                match log {
+                    either::Either::Left(der) => {
+                        lines.push(format!("{der}\n"));
+                    }
+                    either::Either::Right(mes) => {
+                        lines.push(format!("{mes}\n"));
+                    }
+                }
+            }
+            Json(Resp {
+                result: lines.join(""),
+            })
         }
         Err(e) => Json(Resp {
             result: format!("Parse Error: {}", e),

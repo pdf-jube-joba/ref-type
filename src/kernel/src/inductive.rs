@@ -14,6 +14,8 @@ Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]
 */
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
+    // names of the type and the constructors (to print)
+    pub names: (String, Vec<String>),
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
     // indices of the type
@@ -134,6 +136,7 @@ pub fn acceptable_typespecs(
     inductive_type_specs: &InductiveTypeSpecs,
 ) -> (Vec<Derivation>, Result<(), String>) {
     let InductiveTypeSpecs {
+        names: _,
         parameters: params,
         indices,
         sort,
@@ -506,6 +509,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
 impl InductiveTypeSpecs {
     pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> InductiveTypeSpecs {
         InductiveTypeSpecs {
+            names: self.names.clone(),
             parameters: self
                 .parameters
                 .iter()

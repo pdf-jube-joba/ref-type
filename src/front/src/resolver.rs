@@ -510,6 +510,10 @@ impl Elaborator {
                 }
 
                 let indtype_specs = InductiveTypeSpecs {
+                    names: (
+                        type_name.as_str().to_string(),
+                        ctor_names.iter().map(|v| v.as_str().to_string()).collect(),
+                    ),
                     parameters: parameter_elab,
                     indices: indices_elab,
                     sort,
@@ -633,7 +637,8 @@ impl Elaborator {
                                     tails_elab.len()
                                 ));
                             }
-                            let pass_parameter = tails_elab.split_off(indspec.param_args_len());
+                            let mut pass_parameter = tails_elab.split_off(len);
+                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
                             break 'l Exp::IndType {
                                 indspec,
                                 parameters: pass_parameter,
@@ -663,7 +668,9 @@ impl Elaborator {
                                     tails_elab.len()
                                 ));
                             }
-                            let pass_parameter = tails_elab.split_off(indspec.param_args_len());
+
+                            let mut pass_parameter = tails_elab.split_off(len);
+                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
                             break 'l Exp::IndCtor {
                                 indspec,
                                 idx: ctor_idx,
@@ -686,7 +693,8 @@ impl Elaborator {
                                     tails_elab.len()
                                 ));
                             }
-                            let pass_parameter = tails_elab.split_off(indpecs.param_args_len());
+                            let mut pass_parameter = tails_elab.split_off(indpecs.param_args_len());
+                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
                             break 'l Exp::IndType {
                                 indspec: indpecs,
                                 parameters: pass_parameter,
@@ -716,7 +724,9 @@ impl Elaborator {
                                     tails_elab.len()
                                 ));
                             }
-                            let pass_parameter = tails_elab.split_off(ind_defs.param_args_len());
+                            let mut pass_parameter =
+                                tails_elab.split_off(ind_defs.param_args_len());
+                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
                             break 'l Exp::IndCtor {
                                 indspec: ind_defs,
                                 idx: ctor_idx,
