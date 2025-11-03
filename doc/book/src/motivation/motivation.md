@@ -26,33 +26,29 @@ $P: *^p$ に対して $t: P$ の項を区別する必要はなく、存在する
 これの正当性を記述するために $=$ や"元の存在"が必要になる。
 
 # 現状の課題（体系）
-総じて、記述のための universe 以外に、 computation のための universe が欲しいということに見える。
-（というかそれ用に `rust` 側で用意していたのだった。）
+## ideal な世界としての computation や template 用の universe ?
+次の問題は全部、ある種の computation 用の sort を用意しておいて、
+そこの世界の template としての項を、
+（条件付きで）持ってきてよいという感じに考えた方がよさそうに思えた。
+つまり、理想的な記述の仕方（普通に矛盾しうる世界）を考えて、
+それが well-grounded(?) なら Set 側の項として実現してよい。
 
-- $*^s_{i}: *^s_{i+1}$: ちゃんとした数学のための厳密な universe
-  - 項が computational じゃなくても、 canonical じゃなくてもよい
-  - 再帰にはちゃんとした well-foundedness を要求する側
-- $*^c$: 
-  - 項が（基本的には） computational になっている。
-  - $*^s$ 側で見たときに停止するなら、厳密な recursion の形をしていなくてもいい。
-  - マクロやメタプログラミングのような、コード自体を扱えてほしい。
-
-## non-structural recursion がほしい。
+### non-structural recursion がほしい。
 全てが structural recursion や recursor による記述だとつらい。
 proof-term の存在が示せればよかったように、普通の rec も、 upper bound が存在することが示せれば、
 structural recursion になっていなくても項として受け入れたほうがいい。
 
-## universe level polymorphism について
-構造として $X: *^s_{i}$, $\mu: X \times X \to X$ の組を考えてみる。
-このとき $(X, \mu): (X: *^s_{i}) \times (X \times X \to X): *^s_{i+1}$ のようになるが、
+### universe level polymorphism について
+構造として $X: U_i$, $\mu: X \times X \to X$ の組を考えてみる。
+このとき $(X, \mu): (X: U_i) \times (X \times X \to X): U_{i+1}$ のようになるが、
 このレベルが上がるのは仕方がない。
-（これをやるにはさらに $(*^s_{i+1}, *^s_{i}, *^s_{i+1}) \in \mathcal{R}$ とか cumulative （$T: *^s_i \implies T: *^s_{i+1}$）が必要になるが、そこは本題じゃない。）
-理由は、「台集合 $\subset *^s_i$ とその上の二項演算の組」の集合を考えればそれが $*^s_i$ には入らないのは当然だから。
+（これをやるにはさらに $(U_{i+1}, U_i, U_{i+1}) \in \mathcal{R}$ とか cumulative （$T: U_i \implies T: U_{i+1}$）が必要になるが、そこは本題じゃない。）
+理由は、「台集合 $\subset *^s_i$ とその上の二項演算の組」の集合を考えればそれが $U_i$ には入らないのは当然だから。
 ただここでの問題は、そうなると、定義を universe ごとに繰り返さなければいけないこと。
-例えば群を例にすれば、 $*^s_{0}, *^s_{1}, *^s_{2}$ それぞれで帰納的な型やレコード型として定義する必要がある。
+例えば群を例にすれば、 $U_{0}, U_{1}, U_{2}$ それぞれで帰納的な型やレコード型として定義する必要がある。
 これはめんどくさいので、 universe level を受け取っての定義ができるとうれしいが、もっと根本的に解決できないか。
 
-## decidable について
+### decidable について
 Rocq だと decidable は $P \vee \neg P$ として定義されているけど、 排中律を公理に入れたときに、相性がよくない。
 排中律自体はほしいが、 decidable の意味合いを壊したくない。
 なので、 $*^p$ ではないところに2値の Bool 型をもっておくのがいいかも。
@@ -65,54 +61,74 @@ Bool 型を用いて $f: X \to \text{Bool}$ と $p: X \to *^p$ がいい感じ�
 つまり、 `leq` と `leb` を自動で補完する？
 これをやるにはそもそもなにか結び付けを宣言する機構が必要になるので、やめたほうがいいかも。
 
-## 項のレベルと型のレベルが分かれてないのがもしかしたらめんどくさいかも
-changelog の方にあったように、 judgement を term っぽいものと type っぽいものにわけたが、
-以前として、 $\Gamma \vdash t: *^s_{i}: *^s_{i+1}$ になることは変わらない。
-なので現状だと、 $\Gamma \vdash t: *^s_{i}$ と $\exists T, \Gamma \vdash t: T: *^s_{i}$ は被る。
+## sort について
+### stratification を行いたい
+term: type: kind: $\square$ のような感じの階層構造があった方が説明が楽なので、
+これを表現したかった。
+基本的には PTS の $*: \square$ のみの設定が綺麗なので、
+これに添え字をいろいろくっつけることでどうにかしたい。
+- set 用の universes ... $*^s_{i \in \mathbb{N}}: \sq^s_{i \in \mathbb{N}}$
+- prop 用の universes ... $*^p: \sq^p$
 
-CoC だと $*$-term, $*$-type in $\square$-term, $\square$-type, $\square$ の階層ができていたが、
-$*^s_{i}$ ごとに $*^s_{\square}$ を用意してこれと同様のことを行ってもいいかもしれない。
-これと cumulative （といっていいのかわからないけどリフトみたい）な操作を行えば、無理なく階層が作れそう。
+set 側は predicative にするために、 $(\sq^s_i, *^s_i, *^s_{i+1})$ とレベルをあげて、
+cumulative を入れることで下のレベルを無理して挙げなくていいことにする。
 
-こんな感じ？：
-- $(*^s_{i}, \square^s_{i}) \in \mathcal{A}$
-- $(*^s_{i}, *^s_{i}, *^s_{i}) \in \mathcal{R}$ ... これは普通に関数型 $(A \to B)$ のこと。
-- $(*^s_{i}, \square^s_{i}, \square^s_{i}) \in \mathcal{R}$ ... これが依存型のこと。
-- $(\square^s_{i}, *^s_{i}, *^s_{i+1})$ ... $i$ のレベルでの term が type に依存しているのを、レベルを上げる。
-- $(\square^s_{i}, \square^s_{i}, *^s_{i+1})$ ... これも同様。
-  - $(\square^s_i, \square^s_i, \square^s_i)$ の方があってる気がする。
+### 構造付き集合を型にしたい
+record 型を考えたときに、
+```
+record {
+  X: s;
+  mu: X -> X -> X;
+}
+```
+がどの universe にいるか？
+普通に sum で考えたら、 $(X, \mu): (X: s) \times (X \to X \to X)$ なので、 $\text{max}(s', s)$ ただし $s: s'$ みたいなところにいる。
+だから、 $s = U_0$ なら record は $U_1$ に住む。
 
-これは $*^s_{i} \mapsto *^s_{i}, \square^s_{i} \mapsto *^s_{i+1}$ によって普通の predicative なやつに埋め込めるので、いい感じに思える。
-これと $t: *^s_{i}$ なら $t: *^s_{i+1}$ （か、 Lift という項を使って $\text{Lift}(t): *^s_{i+1}$ ）みたいにすれば、
-cumulative なものが普通にできる。
+これを帰納型に持ってくる？
+```
+inductive Lift: s1 :=
+| lift: (X: s) -> (mu: X -> X -> X) -> Lift
+```
+みたいなのを考えたときに、
+$\textit{Lift}: s_1 \vdash [(X: s) \to (\mu: X \to X \to X) \to \textit{Lift}]: s_1$ である必要がある。
+$s: s', (X \to X \to X: s), \textit{Lift}: s1$ と並んでいるので、
+$R(A(s), R(s, s_1)) = s_1$ が満たされていればいい。
 
-ちゃんと考える例：
-- $(A: *_i) \vdash A \to *_i: \square_i$ ... $x: A$ ごとに集合を定める操作: $\square_i$
-- $(F: *_i \to *_i), (A, B: *_i) \vdash ((A \to B) \to F A \to F B): *_i$
-  - $\vdash *_i \to *_i: \square_i$ は $(\square_i, \square_i, \square_i)$ から。
-  - 残りは $(*_i, *_i, *_i)$ から。
-- $\vdash (F: *_i \to *_i) \to (A, B: *_i) \to ((A \to B) \to F A \to F B): *_{i + 1}$
-  - $(\square_i, *_i, *_{i+1})$ から。
-  - 宇宙 $V_i$ に対して、 $V_i \to V_i$ とかが $V_{i+1}$ にある？
+$s = *^s_0$ とすると、 $R(\sq^s_0, R(*^s_0, s_1)) = s_1$ 
+現状だと $R(*^s_0, s_1)$ が書けるのが $*^s_0, \sq^s_0$ しかないので、
+$\sq^s_0$ になってしまう。
+一応、上の $U_0, U_1$ と同じようにはなっていて、 $\sq^s_0$ と $*^s_1$ が同じところに住んでいるイメージだからこれはいい。
 
-syntax というか judgement 周りでの扱いの良さについて考えているだけなので、
-意味論的には $*^s_{i+1}$ と $\square_i$ がつぶれてしまってもかまわない。
-リフトがあればある程度は $*^s_{i}: *^s_{i+1}$ と max を使うほうでやりたかったことがある程度できるはず。
-「$T: *^s_i$ なら $l(T): *^s_{i+1}$」と「$T: \square^s_i$ なら $L(T): \square^s_{i+1}$」 とか、あるいは暗黙のリフトを許すとか。
-リフトに対する reduction としては、 $(x: A) \to B$ に対してのみでいいのか、他のも congruent にやる必要があるのか...
+ただ、 $\sq^s_0$ になっているのはこれはちょっと扱いにくいかも。
+構造付き集合は、存在型と同じと思うことで、 type level に落としたい。
+階層自体は上がるのはしょうがない。
+cumulative があるので、 $(*^s_i, *^s_j, *^s_j) \in \mathcal{R}$ を $i < j$ に対して用意すれば自動的に max と同じような効果にはなる。（ついでに $(\sq^s_i, \sq^s_j, \sq^s_j) \in \mathcal{R}$ も入れておく。）
+また、 $R(\sq^s_i, *^s_j, *^s_j)$ も $i < j$ に対して入れておく。
+そうするとさっきのは解決できる。
 
-これをやっても矛盾はしなそう（ $\square_i \mapsto *_{i+1}$ で、リフトありの中に埋め込めるから。）
+結局、こんな感じになる：
+- $*^s_i : \sq^s_i$
+- $\{(*^s_i, *^s_j, *^s_j) \mid i \leq j\}$
+- $\{(\sq^s_i, \sq^s_j, \sq^s_j) \mid i \leq j\}$
+- $\{(*^s_i, \sq^s_i, \sq^s_i)\}$ ... これも $i \leq j$ にしていいかも
+- $\{(\sq^s_i, *^s_j, *^s_j) \mid i < j\}$ ... これだけ $i < j$ じゃないといけない。
 
-$\Gamma \vdash t: T: *^s_{i}$, $\Gamma \vdash t: *^s_{j}$ が排他になるならうれしい。
+これは普通に $*^s_i \mapsto U_i, \sq^s_i \mapsto U_{i+1}$ とすれば普通の階層構造のものに埋め込める。
 
-- $\exists T, \Gamma \vdash t: T: *^s_{i}$
-- $\exists T, \Gamma \vdash t: T: \square^s_{i}$
-- $\Gamma \vdash t: \square^s_{i}$
+これで、 inductive type として、構造付き集合が書ける。
+```
+inductive Lift: \Set(1) :=
+| lift: (X: \Set(0)) -> (mu: X -> X -> X) -> Lift
+```
+これのコンストラクタの検査が、 $L: *^s_1 \vdash [(X: *^s_0) \to (X \to X \to X) \to L]: *^s_1$ になっていて、導出は次
+- $L: *^s_1 \vdash [(X: *^s_0) \to (X \to X \to X) \to L]: *^s_1$ ... $(\sq^s_0, *^s_1, *^s_1)$
+  - $L: *^s_1 \vdash *^s_0: \sq^s_0$
+  - $L: *^s_1, X: *^s_0 \vdash (X \to X \to X) \to L: *^s_1$ ... $(*^s_0, *^s_1, *^s_1)$
+    - $L: *^s_1, X: *^s_0 \vdash (X \to X \to X): *^s_0$
+    - $L: *^s_1, X: *^s_0, \_: (X \to X \to X): L: *^s_1$
 
-のいずれか？
-もしこれができるなら、 judgement を $\Gamma \vdash t: T: s$ と $\Gamma \vdash t: s$ にわけてよい。
-
-## $(*^p, *^s, *^s)$ がない。
+### $(*^p, *^s, *^s)$ がない。
 必要かどうかはわからないが、 $(*^p, *^s, *^s) \in \mathcal{R}$ を入れてない。
 入れても多分大丈夫そうだが、とりあえず分けてる。
 モデルの側で考えるとどうなるのか... $X: *^p, Y: *^s \vdash X \to Y: *^s$ に対しては、

@@ -50,7 +50,7 @@ Timany, Jacobs のほうがわかりやすかったので、それを参考に�
   - $\Theta_0$ は $X$ に対する constructor
 
 strictly positive の形を見ると再帰的な定義になっているがそれが終了するのは (1) か (2) である。
-(2) と (3) だけまとめて考えると、これで得られる項は $(x_1: K_1) -> ... (x_n: K_n) -> X m_1 ... m_k$ の形をしている。（ただし、 $K_i$ は $X$ を含まない）
+(2) と (3) だけまとめて考えると、これで得られる項は $(x_1: K_1) \to ... (x_n: K_n) \to X m_1 ... m_k$ の形をしている。（ただし、 $K_i$ は $X$ を含まない）
 (1) と (3) だけまとめて考えると、これでえられる項は $X$ を含むことがない。
 Timany と Jacobs のではこれをわけて前者を strictly positive と呼んでる。
 
@@ -59,6 +59,35 @@ Timany と Jacobs のではこれをわけて前者を strictly positive と呼�
 - $s$: sort
 - $A$: arity of $s$ 
 - $\{C_i\}$: constructor of $X$
+
+## 帰納型受け入れの条件
+帰納型の宣言が与えられたときに、それを受け入れてよい条件について。
+注意点として、帰納型の定義自体には free variable が含まれうる。
+だから、外側のコンテキストにある変数に応じて定義されていることがある。
+例えば polymorphic list の場合：
+$\Gamma = A: *$ のもとで考えるなら、
+$$\begin{align*}
+\textbf{inductive} \quad & \textit{list}: * \textbf{ with } \\
+& \textit{nil}: \textit{list} \\
+& \textit{cons}: A \to \textit{list} \to \textit{list}
+\end{align*}$$
+という、 $A$ 自体が $\text{list}$ の宣言の中で縛られていないような宣言もしてよい。
+これがあるので、宣言の parameter と index が分かれている？
+（例えば Coq の polymorphic list は parameter の位置に `A: Set` が来るのは許すが、 index の位置に `A: Set` が来るのは許さない。
+`A: Set` という自由変数のもとで考えるのが parameter で、 arity の位置に来ているのが index になっているっぽい。）
+
+次の宣言が与えられたとする。
+- $X$: 変数
+- $s$: sort
+- $A$: arity of $s$ 
+- $\{C_i\}$: constructor of $X$
+
+このときの受け入れの条件は、
+- $\Gamma \vdash A: s'$ ... これは $s$ とは異なっていていい。
+- $\Gamma, X: A \vdash C_i: s$ ... これは sort $s$ を使う。
+
+注意点として、これは Coq 用の定義なのでそのまま流用できるかは怪しい。
+ただ、定義自体には cumulative とかも表れていないので、そのまま一般の PTS に対して適用できる。
 
 ## eliminator と recursor
 よくある pattern match と primitive recursion をどうやって判定したらよいかについて。
@@ -74,6 +103,9 @@ $$\begin{align*}
 \end{align*}$$
 
 eliminator には eliminator に入れる項以外に、return する項の情報も入れておきたい。
+Coq や Lean の elim だと書かなくても推測されるが、複雑な場合には書く。
+coq の match だと return で、 lean だと motive と呼ばれているやつ。
+
 $\text{elim}(c, Q)(f_1, ... f_n)$ が eliminator の形で、 $c$ は分解する項、 $Q$ は帰ってくる型、 $f_i$ は constructor それぞれに対応する場合分けの計算とする。
 
 - 帰納型の定義にある arity of $s$ は当然型が付かないといけない。

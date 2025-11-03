@@ -313,7 +313,6 @@ $\Take f = \Take g$ が関数の外延性を自然に導出する気がした。
   - 例： $\Gamma \vdash \lvert t \rvert: \exists A$ if $\Gamma \vdash t: A$
 
 ## Set の階層をまた変えた。
-motivation の方には書いたけれど、こっちには書いてなかったので書いておく。
 $*^s_i: *^s_{i+1}: *^s_{i+2}$ のような sort にしていたのを、$*^s_i: \sq^s_i$ にした。
 それにともない
 - $(*^s_i, *^s_i), (*^s_i, \sq^s_i), (\sq^s_i, \sq^s_i) \mathcal{R}$ にして普通の依存型と Omegaにした。
