@@ -66,12 +66,9 @@ static PROGRAM_KEYWORDS: &[&str] = &[
     "\\module",
     "\\import",
     "\\definition",
-    "\\lemma",
-    "\\theorem",
     "\\inductive",
-    "\\constructor",
-    "\\axiom",
-    "\\macro",
+    "\\mathmacro",
+    "\\usermacro",
 ];
 
 #[derive(Debug, Clone)]
@@ -700,7 +697,7 @@ impl<'a> Parser<'a> {
 
     // "|" <ctor_name: Ident> ":" <ctor_type: SExp> ";"
     fn parse_ctor_decl(&mut self) -> Result<(Identifier, SExp), ParseError> {
-        self.expect_token(&Token::KeyWord("\\constructor"))?;
+        self.expect_token(&Token::Pipe)?;
         let ctor_name = self.expect_ident()?;
         self.expect_token(&Token::Colon)?;
         let ctor_type = self.parse_sexp()?;
@@ -720,14 +717,17 @@ impl<'a> Parser<'a> {
         self.expect_token(&Token::Colon)?;
         let arity = self.parse_sexp()?;
 
+        eprintln!("hello");
+
         // body of constructors
         self.expect_token(&Token::Assign)?;
         let mut constructors = vec![];
-        while let Some(Token::KeyWord(kw)) = self.peek() {
-            if *kw == "\\constructor" {
-                let ctor = self.parse_ctor_decl()?;
-                constructors.push(ctor);
+        loop {
+            let save_pos = self.pos;
+            if let Ok((ctor_name, ctor_type)) = self.parse_ctor_decl() {
+                constructors.push((ctor_name, ctor_type));
             } else {
+                self.pos = save_pos;
                 break;
             }
         }
@@ -738,6 +738,28 @@ impl<'a> Parser<'a> {
             arity,
             constructors,
         })
+    }
+
+    pub fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
+        let save_pos = self.pos;
+        match self.peek() {
+            Some(Token::KeyWord(kw)) if *kw == "\\definition" => {
+                let def = self.parse_definition()?;
+                Ok(Some(def))
+            }
+            Some(Token::KeyWord(kw)) if *kw == "\\import" => {
+                let imp = self.parse_import()?;
+                Ok(Some(imp))
+            }
+            Some(Token::KeyWord(kw)) if *kw == "\\inductive" => {
+                let ind = self.parse_inductive_decl()?;
+                Ok(Some(ind))
+            }
+            _ => {
+                self.pos = save_pos;
+                Ok(None)
+            }
+        }
     }
 
     // parse a module
@@ -763,36 +785,10 @@ impl<'a> Parser<'a> {
         // body
         self.expect_token(&Token::LBrace)?;
         let mut declarations = vec![];
-        loop {
-            match self.peek() {
-                Some(Token::KeyWord(kw)) if *kw == "\\definition" => {
-                    let def = self.parse_definition()?;
-                    declarations.push(def);
-                }
-                Some(Token::KeyWord(kw)) if *kw == "\\import" => {
-                    let imp = self.parse_import()?;
-                    declarations.push(imp);
-                }
-                Some(Token::KeyWord(kw)) if *kw == "\\inductive" => {
-                    let ind = self.parse_inductive_decl()?;
-                    declarations.push(ind);
-                }
-                Some(Token::RBrace) => {
-                    self.next(); // consume '}'
-                    break;
-                }
-                Some(_) => {
-                    return Err(ParseError {
-                        msg: "unexpected token in module body".into(),
-                        start: self.pos,
-                        end: self.pos,
-                    });
-                }
-                None => {
-                    return Err(ParseError::eof_error("module body end '}'"));
-                }
-            }
+        while let Some(item) = self.try_parse_module_item()? {
+            declarations.push(item);
         }
+        self.expect_token(&Token::RBrace)?;
         Ok(Module {
             name: module_name,
             parameters,
@@ -991,5 +987,31 @@ mod tests {
         print_and_unwrap(r"x \as Y");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"x \as Y | z = h");
+    }
+    #[test]
+    fn parse_module_item() {
+        fn print_and_unwrap(input: &'static str) {
+            let lex = &lex_all(input).unwrap();
+            let mut parser = Parser::new(lex);
+            let item = parser.try_parse_module_item();
+            match item {
+                Ok(Some(mi)) => {
+                    println!("Parsed ModuleItem: {:?} => {:?}", input, mi);
+                }
+                Ok(None) => {
+                    panic!("Failed to parse ModuleItem: {}", input);
+                }
+                Err(err) => {
+                    panic!("Error: {:?}", err);
+                }
+            }
+        }
+        print_and_unwrap(r"\definition id : (X : \Set) -> X -> X := (x : X) => x ;");
+        print_and_unwrap(
+            r"\definition const : (X : \Set) -> (Y : \Set) -> X := (x : X) => (y : Y) => x ;",
+        );
+        print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
+        print_and_unwrap(r"\import MyModule ( A := B; C := (x: X) => y ;) \as T;");
+        print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
     }
 }
