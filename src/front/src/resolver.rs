@@ -126,12 +126,12 @@ impl GlobalEnvironment {
             };
 
             // get elaborated parameters
-            let parameteres_elab = self
+            let parameters_elab = self
                 .elaborator
                 .elab_telescope(&mut self.logger, parameters)?;
 
             // sort check parameter's ty
-            for (v, ty) in parameteres_elab.iter() {
+            for (v, ty) in parameters_elab.iter() {
                 self.logger
                     .log(format!("Checking parameter {} : {}", v.as_str(), ty));
                 let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty);
@@ -401,7 +401,7 @@ impl Elaborator {
         item: &crate::syntax::ModuleItem,
     ) -> Result<Item, String> {
         match item {
-            ModuleItem::Definition { var, ty, body } => {
+            ModuleItem::Definition { name: var, ty, body } => {
                 let var: Var = var.into();
                 let ty_elab = self.elab_exp(logger, ty, &[])?;
                 let body_elab = self.elab_exp(logger, body, &[])?;
@@ -413,7 +413,7 @@ impl Elaborator {
             }
             ModuleItem::Inductive {
                 type_name,
-                parameter,
+                parameters: parameter,
                 arity,
                 constructors,
             } => {

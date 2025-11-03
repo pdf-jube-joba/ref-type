@@ -46,15 +46,19 @@ pub SExpAst: SExp = {
 
 ArrowSeparated: SExp = {
   <bd: BindAst> "->" <bod: ArrowSeparated> => SExp::Prod { bind: bd, body: Box::new(bod) },
-  <cb: SExpAtomLike> "->" <bod: ArrowSeparated> => SExp::Prod { bind: Bind::Anonymous { ty: Box::new(cb)}, body: Box::new(bod) },
+  <cb: Combined> "->" <bod: ArrowSeparated> => SExp::Prod { bind: Bind::Anonymous { ty: Box::new(cb)}, body: Box::new(bod) },
   Combined,
 }
 
 BindAst: Bind = {
   "(" <t: TypeAnnot> ")" => Bind::Named { var: t.0, ty: Box::new(t.1) },
+  "(" "(" <t: TypeAnnot> ")" "|" <e: SExpAll> ")" => Bind::Named { var: t.0, ty: Box::new(t.1) },
+  "(" "(" <t: TypeAnnot> ")" "|"  <p: Ident> ":" <e: SExpAll> ")" => Bind::Named { var: t.0, ty: Box::new(t.1) },
 }
 
 Combined: SExp = {
+  <cb1: Combined> "|" <cb2: Combined> => Exp::App { func: cb2, arg: cb1, piped: false},
+  <cb: Combined> <at: AtomLike> => Exp::App { func: cb, arg: at, piped: false},
   SExpAtomLike,
 }
 

@@ -31,13 +31,13 @@ pub struct ModuleInstantiated {
 #[derive(Debug, Clone)]
 pub enum ModuleItem {
     Definition {
-        var: Identifier,
+        name: Identifier,
         ty: SExp,
         body: SExp,
     },
     Inductive {
         type_name: Identifier,
-        parameter: Vec<(Identifier, SExp)>,
+        parameters: Vec<(Identifier, SExp)>,
         arity: SExp,
         constructors: Vec<(Identifier, SExp)>,
     },
@@ -69,7 +69,7 @@ pub enum MacroExp {
 
 #[derive(Debug, Clone)]
 // general binding syntax
-// A = (_: A), (x: A), (x: A | P), (x: A | h: P),
+// A = (_: A), (x: A), ((x: A) | P), ((x: A) | h: P),
 pub enum Bind {
     Anonymous {
         ty: Box<SExp>,
