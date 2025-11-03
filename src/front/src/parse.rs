@@ -64,9 +64,14 @@ static RESERVED_SORT_KEYWORDS: &[&str] = &[
     "\\TypeKind",
 ];
 
-static EXPRESSION_KEYWORDS: &[&str] = &[
-    "\\as", "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty", "\\exists", "\\take",
+static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
+    "\\elim", // ind eliminator
+    "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
+    "\\exists", // \exists <Bind>
+    "\\take",   // \take <Bind> => <body>
 ];
+
+static EXPRESSION_SEPARATION_KEYWORDS: &[&str] = &["\\as", "\\with", "\\where", "\\in"];
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
@@ -284,6 +289,168 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_keyword_head(&mut self) -> Result<SExp, ParseError> {
+        // "\elim" <elim: SExp> "\in" <type_name: Ident> ":" <return_type: SExp> "{" ("|" <case_name: Ident> ":" <case_type: SExp>)* "}"
+        if self.bump_keyword("\\elim") {
+            let elim = self.parse_sexp()?;
+            self.expect_token(&Token::KeyWord("\\in"))?; // expect '\in'
+            let type_name = self.expect_ident()?;
+            self.expect_token(&Token::Colon)?; // expect ':'
+            let return_type = self.parse_sexp()?;
+            self.expect_token(&Token::LBrace)?; // expect '{'
+            let mut cases = Vec::new();
+            while self.bump_if(&Token::Pipe) {
+                let case_name = self.expect_ident()?;
+                self.expect_token(&Token::Colon)?; // expect ':'
+                let case_type = self.parse_sexp()?;
+                cases.push((case_name, case_type));
+            }
+            self.expect_token(&Token::RBrace)?; // expect '}'
+            return Ok(SExp::IndElim {
+                ind_type_name: type_name,
+                elim: Box::new(elim),
+                return_type: Box::new(return_type),
+                cases,
+            });
+        }
+        if self.bump_keyword("\\Proof") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let term = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::ProveLater {
+                term: Box::new(term),
+            });
+        }
+        if self.bump_keyword("\\Power") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let set = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::PowerSet { set: Box::new(set) });
+        }
+        if self.bump_keyword("\\Subset") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let var = self.expect_ident()?;
+            self.expect_token(&Token::Comma)?; // expect ','
+            let set = self.parse_sexp()?;
+            self.expect_token(&Token::Comma)?; // expect ','
+            let predicate = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::SubSet {
+                var,
+                set: Box::new(set),
+                predicate: Box::new(predicate),
+            });
+        }
+        if self.bump_keyword("\\Pred") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let superset = self.parse_sexp()?;
+            self.expect_token(&Token::Comma)?; // expect ','
+            let subset = self.parse_sexp()?;
+            self.expect_token(&Token::Comma)?; // expect ','
+            let element = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::Pred {
+                superset: Box::new(superset),
+                subset: Box::new(subset),
+                element: Box::new(element),
+            });
+        }
+        if self.bump_keyword("\\Ty") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let superset = self.parse_sexp()?;
+            self.expect_token(&Token::Comma)?; // expect ','
+            let subset = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::TypeLift {
+                superset: Box::new(superset),
+                subset: Box::new(subset),
+            });
+        }
+        if self.bump_keyword("\\exists") {
+            let bind = self.parse_left_arrow_head()?;
+            return Ok(SExp::Exists { bind });
+        }
+        if self.bump_keyword("\\take") {
+            let bind = self.parse_left_arrow_head()?;
+            self.expect_token(&Token::DoubleArrow)?; // expect '=>'
+            let body = self.parse_sexp()?;
+            return Ok(SExp::Take {
+                bind,
+                body: Box::new(body),
+            });
+        }
+
+        Err(ParseError {
+            msg: "expected expression starting with keyword".into(),
+            start: self.pos,
+            end: self.pos,
+        })
+    }
+
+    fn parse_proof_command(&mut self) -> Result<SExp, ParseError> {
+        if self.bump_keyword("\\term") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let term = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::ProofBy(ProofBy::Construct {
+                term: Box::new(term),
+            }));
+        }
+
+        if self.bump_keyword("\\exact") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let term = self.parse_sexp()?;
+            self.expect_token(&Token::Comma)?; // expect ','
+            let set = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::ProofBy(ProofBy::Exact {
+                term: Box::new(term),
+                set: Box::new(set),
+            }));
+        }
+
+        if self.bump_keyword("\\refl") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let term = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::ProofBy(ProofBy::IdRefl {
+                term: Box::new(term),
+            }));
+        }
+
+        // \\idelim "(" <left: SExp> "=" <right: SExp> "\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
+        if self.bump_keyword("\\idelim") {
+            self.expect_token(&Token::LParen)?; // expect '('
+            let left = self.parse_sexp()?;
+            self.expect_token(&Token::Equal)?; // expect '='
+            let right = self.parse_sexp()?;
+            self.expect_token(&Token::KeyWord("\\with"))?; // expect '\with'
+            let var = self.expect_ident()?;
+            self.expect_token(&Token::Colon)?; // expect ':'
+            let ty = self.parse_sexp()?;
+            self.expect_token(&Token::DoubleArrow)?; // expect '=>'
+            let predicate = self.parse_sexp()?;
+            self.expect_token(&Token::RParen)?; // expect ')'
+            return Ok(SExp::ProofBy(ProofBy::IdElim {
+                left: Box::new(left),
+                right: Box::new(right),
+                var,
+                ty: Box::new(ty),
+                predicate: Box::new(predicate),
+            }));
+        }
+
+        if self.bump_keyword("\\takeelim") {
+            todo!("takeelim proof command not implemented yet");
+        }
+
+        Err(ParseError {
+            msg: "expected expression starting with keyword".into(),
+            start: self.pos,
+            end: self.pos,
+        })
+    }
+
     // parse an access path
     // e.g. `x` or `x.y` or `x.y.z` or ...
     fn parse_access_path(&mut self) -> Result<SExp, ParseError> {
@@ -339,18 +506,21 @@ impl<'a> Parser<'a> {
                 self.expect_token(&Token::RBrace)?; // expect '}'
                 Ok(SExp::NamedMacro { name, tokens })
             }
-            Some(Token::KeyWord(keyword)) => {
+            Some(Token::KeyWord(keyword)) if RESERVED_SORT_KEYWORDS.contains(keyword) => {
                 // check if it's a reserved sort keyword
-                if RESERVED_SORT_KEYWORDS.contains(keyword) {
-                    let sort = self.parse_sort()?;
-                    return Ok(SExp::Sort(sort));
-                }
-                Err(ParseError {
-                    msg: format!("unexpected keyword in atom: {}", keyword),
-                    start: self.pos,
-                    end: self.pos,
-                })
+                self.parse_sort().map(SExp::Sort)
             }
+            Some(Token::KeyWord(keyword)) if EXPRESSION_ATOM_KEYWORDS.contains(keyword) => {
+                self.parse_keyword_head()
+            }
+            Some(Token::KeyWord(keyword)) if PROOF_COMMAND_KEYWORDS.contains(keyword) => {
+                self.parse_proof_command()
+            }
+            Some(Token::KeyWord(keyword)) => Err(ParseError {
+                msg: format!("unexpected keyword in atom: {}", keyword),
+                start: self.pos,
+                end: self.pos,
+            }),
             _ => Err(ParseError {
                 msg: "expected atom".into(),
                 start: self.pos,
@@ -647,7 +817,7 @@ impl<'a> Parser<'a> {
                 }
                 Token::KeyWord(kw)
                     if !RESERVED_SORT_KEYWORDS.contains(kw)
-                        && !EXPRESSION_KEYWORDS.contains(kw)
+                        && !EXPRESSION_ATOM_KEYWORDS.contains(kw)
                         && !PROGRAM_KEYWORDS.contains(kw) =>
                 {
                     let kw_str = self.expect_keyword()?;

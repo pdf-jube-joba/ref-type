@@ -232,9 +232,9 @@ pub enum ProofBy {
     },
     TakeEq {
         func: Box<SExp>,
+        elem: Box<SExp>,
         domain: Box<SExp>,
         codomain: Box<SExp>,
-        elem: Box<SExp>,
     },
     Axiom(Axiom),
 }
