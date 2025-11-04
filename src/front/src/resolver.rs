@@ -1393,7 +1393,7 @@ impl Elaborator {
                     }
                 }
                 SExp::Block(block) => {
-                    let Block { declarations, term } = block;
+                    let Block { statements: declarations, result: term } = block;
                     let mut term = term.as_ref().clone();
                     for decl in declarations.iter().rev() {
                         match decl {

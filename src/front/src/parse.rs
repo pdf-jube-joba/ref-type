@@ -11,48 +11,38 @@ pub enum Token<'a> {
     Ident(&'a str),
     #[regex(r"[0-9]+")]
     Number(&'a str),
-    #[regex(r#"[#%&"'~\+\^<>@\[\]][^\s]*|:[^\s=]+|-[^\s>]+|=[^\s>]+|/[^*]*|\*[^/]*"#)]
-    OtherSymbolStart(&'a str),
     #[regex(r"\?[a-zA-Z_]+")]
-    UnSPecifiedVar,
-    // symbols of 2 or more characters
-    #[token("->")]
-    Arrow,
-    #[token("=>")]
-    DoubleArrow,
-    #[token(":=")]
-    Assign,
-    #[token("$(")]
-    MathLParen,
-    #[token(")$")]
-    MathRParen,
-    // symbols of 1 character
-    #[token("|")]
-    Pipe,
-    #[token(":")]
-    Colon,
-    #[token(";")]
-    Semicolon,
-    #[token(".")]
-    Period,
-    #[token(",")]
-    Comma,
+    UnspecifiedVar(&'a str),
+    // any non-space sequence that does not include backslash, alnum or '?()$'
+    #[regex(r"[^\s\\A-Za-z0-9?()$]+")]
+    MacroToken(&'a str),
+    // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
     LParen,
     #[token(")")]
     RParen,
-    #[token("{")]
-    LBrace,
-    #[token("}")]
-    RBrace,
-    #[token("=")]
-    Equal,
-    #[token("!")]
-    Exclamation,
+    #[token("$(")]
+    MathLParen,
+    #[token(")$")]
+    MathRParen,
+    // comment tokens (will be ignored in lexing)
     #[token("/*")]
     CommentStart,
     #[token("*/")]
     CommentEnd,
+    // mapped tokens (will be produced by mapping MacroToken in lex_all)
+    Arrow,
+    DoubleArrow,
+    Assign,
+    Pipe,
+    Colon,
+    Semicolon,
+    Period,
+    Comma,
+    LBrace,
+    RBrace,
+    Equal,
+    Exclamation,
 }
 
 static RESERVED_SORT_KEYWORDS: &[&str] = &[
@@ -69,9 +59,10 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
     "\\exists", // \exists <Bind>
     "\\take",   // \take <Bind> => <body>
+    "\\block",  // block expression
 ];
 
-static EXPRESSION_SEPARATION_KEYWORDS: &[&str] = &["\\as", "\\with", "\\where", "\\in"];
+static EXPRESSION_SEPARATION_KEYWORDS: &[&str] = &["\\as", "\\with", "\\where", "\\in", "\\return"];
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
@@ -239,7 +230,7 @@ impl<'a> Parser<'a> {
     fn expect_othersymbol(&mut self) -> Result<&'a str, ParseError> {
         match self.next() {
             Some(t) => match &t.kind {
-                Token::OtherSymbolStart(sym_str) => Ok(sym_str),
+                Token::MacroToken(sym_str) => Ok(sym_str),
                 other => Err(ParseError {
                     msg: format!("expected other symbol, found {:?}", other),
                     start: t.start,
@@ -379,6 +370,12 @@ impl<'a> Parser<'a> {
                 body: Box::new(body),
             });
         }
+        if self.bump_keyword("\\block") {
+            self.expect_token(&Token::LBrace)?; // expect '{'
+            let block = self.parse_block()?;
+            self.expect_token(&Token::RBrace)?; // expect '}'
+            return Ok(SExp::Block(block));
+        }
 
         Err(ParseError {
             msg: "expected expression starting with keyword".into(),
@@ -449,6 +446,77 @@ impl<'a> Parser<'a> {
             start: self.pos,
             end: self.pos,
         })
+    }
+
+    fn parse_block(&mut self) -> Result<Block, ParseError> {
+        let mut statements = Vec::new();
+
+        while let Some(tok) = self.peek() {
+            match tok {
+                Token::KeyWord(kw) if BLOCK_KEYWORDS.contains(kw) => {
+                    let stmt = self.parse_block_statement()?;
+                    statements.push(stmt);
+                }
+                Token::KeyWord(kw) if *kw == "\\return" => {
+                    let result = {
+                        self.next(); // consume '\return'
+                        self.parse_sexp()?
+                    };
+                    self.expect_token(&Token::Semicolon)?; // expect ';'
+                    return Ok(Block {
+                        statements,
+                        result: Box::new(result),
+                    });
+                }
+                _ => break, // not a block statement, stop parsing
+            }
+        }
+        Err(ParseError {
+            msg: "expected block statement or \\return".into(),
+            start: self.pos,
+            end: self.pos,
+        })
+    }
+
+    fn parse_block_statement(&mut self) -> Result<Statement, ParseError> {
+        match self.peek() {
+            Some(Token::KeyWord(kw)) if *kw == "\\let" => {
+                self.next(); // consume '\let'
+                let var = self.expect_ident()?;
+                self.expect_token(&Token::Colon)?; // expect ':'
+                let ty = self.parse_sexp()?;
+                self.expect_token(&Token::Assign)?; // expect ':='
+                let body = self.parse_sexp()?;
+                self.expect_token(&Token::Semicolon)?; // expect ';'
+                Ok(Statement::Let { var, ty, body })
+            }
+            Some(Token::KeyWord(kw)) if *kw == "\\take" => {
+                self.next(); // consume '\take'
+                let bind = self.parse_left_arrow_head()?;
+                self.expect_token(&Token::Semicolon)?; // expect ';'
+                Ok(Statement::Take { bind })
+            }
+            Some(Token::KeyWord(kw)) if *kw == "\\fix" => {
+                self.next(); // consume '\fix'
+                let mut binds = Vec::new();
+                loop {
+                    let var = self.expect_ident()?;
+                    self.expect_token(&Token::Colon)?; // expect ':'
+                    let ty = self.parse_sexp()?;
+                    binds.push((var, ty));
+                    if !self.bump_if(&Token::Comma) {
+                        break;
+                    }
+                }
+                self.expect_token(&Token::Semicolon)?; // expect ';'
+                Ok(Statement::Fix(binds))
+            }
+            _ => Err(ParseError {
+                msg: "expected block statement".into(),
+                start: self.pos,
+                end: self.pos,
+            }),
+        }
     }
 
     // parse an access path
@@ -811,7 +879,7 @@ impl<'a> Parser<'a> {
         // OthetSymbolStart or KeyWord which is not contained in *_KEYWORDS
         if let Some(tok) = self.peek() {
             match tok {
-                Token::OtherSymbolStart(_) => {
+                Token::MacroToken(_) => {
                     let sym = self.expect_othersymbol()?;
                     return Ok(MacroExp::Tok(MacroToken(sym.to_string())));
                 }
@@ -995,7 +1063,6 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
         match tok {
             Ok(Token::CommentStart) => {
                 comment_level += 1;
-                continue;
             }
             Ok(Token::CommentEnd) => {
                 if comment_level == 0 {
@@ -1006,18 +1073,66 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     ));
                 }
                 comment_level -= 1;
-                continue;
             }
-            Ok(kind) => {
-                if comment_level > 0 {
-                    continue; // skip tokens inside comments
-                }
-                let span = lexer.span(); // std::ops::Range<usize>
+            Ok(_) if comment_level > 0 => {
+                continue; // skip tokens inside comments
+            }
+            Ok(Token::MacroToken(s)) => {
+                // map known symbol sequences to specific token variants
+                let mapped = match s {
+                    "->" => Token::Arrow,
+                    "=>" => Token::DoubleArrow,
+                    ":=" => Token::Assign,
+                    "|" => Token::Pipe,
+                    ":" => Token::Colon,
+                    ";" => Token::Semicolon,
+                    "." => Token::Period,
+                    "," => Token::Comma,
+                    "{" => Token::LBrace,
+                    "}" => Token::RBrace,
+                    "=" => Token::Equal,
+                    "!" => Token::Exclamation,
+                    _ => Token::MacroToken(s),
+                };
+
+                let span = lexer.span();
                 out.push(SpannedToken {
-                    kind,
+                    kind: mapped,
                     start: span.start,
                     end: span.end,
                 });
+            }
+            Ok(Token::KeyWord(kw)) => {
+                let mapped = if !PROOF_COMMAND_KEYWORDS.contains(&kw)
+                    && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
+                    && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
+                    && !RESERVED_SORT_KEYWORDS.contains(&kw)
+                    && !PROGRAM_KEYWORDS.contains(&kw)
+                {
+                    Token::MacroToken(kw)
+                } else {
+                    Token::KeyWord(kw)
+                };
+                let span = lexer.span();
+                out.push(SpannedToken {
+                    kind: mapped,
+                    start: span.start,
+                    end: span.end,
+                });
+            }
+            Ok(Token::Ident(_))
+            | Ok(Token::Number(_))
+            | Ok(Token::UnspecifiedVar(_))
+            | Ok(Token::LParen | Token::RParen | Token::MathLParen | Token::MathRParen) => {
+                let span = lexer.span();
+                out.push(SpannedToken {
+                    kind: tok.unwrap(),
+                    start: span.start,
+                    end: span.end,
+                });
+            }
+            Ok(_) => {
+                unreachable!("logos does not produce other tokens here");
             }
             Err(_) => {
                 let span = lexer.span();
@@ -1070,17 +1185,17 @@ pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, String> {
 mod tests {
     use super::*;
     #[test]
-    fn a() {
+    fn logos_test() {
         fn tok_all_ok(input: &'static str) {
             let mut toks = Token::lexer(input);
             loop {
-                let Some(tok) = toks.next() else {
-                    break;
-                };
-                println!("span[{:?}] slice[{}]", toks.span(), toks.slice());
-                match tok {
-                    Ok(ok) => println!("  {:?}", ok),
-                    Err(_) => panic!("lex error in input: {}", input),
+                match toks.next() {
+                    Some(Ok(ok)) => {
+                        println!("span[{:?}] slice[{}]", toks.span(), toks.slice());
+                        println!("  {:?}", ok);
+                    }
+                    Some(Err(_)) => panic!("lex error in input: {}", input),
+                    None => break,
                 }
             }
         }
@@ -1089,7 +1204,7 @@ mod tests {
         tok_all_ok(r"x $( y += z )$");
     }
     #[test]
-    fn comment_test() {
+    fn lexer_test() {
         fn print_and_unwrap(input: &'static str) {
             println!("Input: {:?}", input);
             let spantoks = &lex_all(input).unwrap();
@@ -1097,9 +1212,13 @@ mod tests {
                 println!("{:?}", tok);
             }
         }
-        print_and_unwrap(r"x /* this is a comment */ y");
-        print_and_unwrap(r"x /* comment start /* nested comment */ end */ y");
-        print_and_unwrap(r"/* full comment */");
+        print_and_unwrap(r"(x: X) -> Y => z");
+        print_and_unwrap(r"x $( y + z )$ l");
+        print_and_unwrap(r"x ! mymacro { a + b c } l");
+        print_and_unwrap(r"x /* this is a comment */ (y z)");
+        print_and_unwrap(r"x :: y ++ := z");
+        print_and_unwrap(r"\Prop \Set (0)");
+        print_and_unwrap(r"(( $( )) )$");
     }
     #[test]
     fn parse_annotate_test() {

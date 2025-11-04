@@ -241,8 +241,8 @@ pub enum ProofBy {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub declarations: Vec<Statement>, // sensitive to order
-    pub term: Box<SExp>,              // returning term of the block
+    pub statements: Vec<Statement>, // sensitive to order
+    pub result: Box<SExp>,              // returning term of the block
 }
 
 #[derive(Debug, Clone)]
