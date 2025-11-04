@@ -1,5 +1,5 @@
 use crate::{
-    calculus::is_alpha_eq,
+    calculus::exp_is_alpha_eq,
     exp::{Context, Derivation, Exp, ProveCommandBy, ProveGoal, Sort, Var},
     inductive::CtorBinder,
     utils::{self, app, lam, prod, prooflater, var},
@@ -20,21 +20,25 @@ impl Checker {
     }
     fn check(&mut self, term: &Exp, ty: &Exp) -> bool {
         let derivation = crate::derivation::check(&self.context, term, ty);
-        let res = derivation.node().unwrap().is_success();
+        let res = derivation.is_success();
         self.derivations.push(derivation);
         res
     }
     fn infer(&mut self, term: &Exp) -> Option<Exp> {
         let derivation = crate::derivation::infer(&self.context, term);
         let ty = {
-            let crate::exp::TypeInfer { ty, .. } =
-                derivation.node().unwrap().as_type_infer().unwrap();
-            ty.clone()
+            if let crate::exp::Derivation::DerivationSuccess { conclusion, .. } = &derivation {
+                conclusion.ty.clone()
+            } else if let crate::exp::Derivation::DerivationFail { conclusion, .. } = &derivation {
+                conclusion.ty.clone()
+            } else {
+                unreachable!("infer should return success or fail, not proposition")
+            }
         };
         self.derivations.push(derivation);
         ty
     }
-    fn prove_command(&self, command: &ProveCommandBy) -> Derivation {
+    fn prove_command(&self, command: &ProveCommandBy) -> crate::exp::Goal {
         crate::derivation::prove_command(&self.context, command)
     }
     fn chk_indspec(
@@ -58,7 +62,7 @@ impl Checker {
     }
     fn push(&mut self, var: Var, ty: Exp) -> bool {
         let der = crate::derivation::infer_sort(&self.context, &ty);
-        let res = der.node().unwrap().is_success();
+        let res = der.is_success();
         self.derivations.push(der);
         if res {
             self.context.push((var, ty));
@@ -74,7 +78,7 @@ fn push_var(checker: &mut Checker, var: &Var, ty: Exp) {
     assert!(checker.push(var.clone(), ty));
     let last = checker.history().last().unwrap();
     println!("{}", last);
-    assert!(last.node().unwrap().is_success());
+    assert!(last.is_success());
 }
 
 // Helper function to check terms
@@ -82,15 +86,15 @@ fn check_term(checker: &mut Checker, term: &Exp, ty: &Exp) {
     assert!(checker.check(term, ty));
     let last = checker.history().last().unwrap();
     println!("{}", last);
-    assert!(last.node().unwrap().is_success());
+    assert!(last.is_success());
 }
 
 fn infer_term(checker: &mut Checker, term: &Exp, expected_ty: &Exp) {
     let inferred_ty = checker.infer(term).unwrap();
     let last = checker.history().last().unwrap();
     println!("{}", last);
-    assert!(last.node().unwrap().is_success());
-    assert!(is_alpha_eq(&inferred_ty, expected_ty));
+    assert!(last.is_success());
+    assert!(exp_is_alpha_eq(&inferred_ty, expected_ty));
 }
 
 // P: \Prop |- P: \Prop
@@ -320,7 +324,7 @@ fn proof_by_construct() {
         proof_term: Exp::Var(x.clone()),
     });
     println!("{}", der);
-    assert!(der.node().unwrap().is_success());
+    assert!(der.is_success());
 }
 
 // Proof by assumption
@@ -421,7 +425,7 @@ fn solvegoals() {
             ProveGoal {
                 extended_ctx: vec![],
                 goal_prop: p1impp2.clone(),
-                proof_term: Exp::ProofTermRaw {
+                command: Exp::ProofTermRaw {
                     command: Box::new(ProveCommandBy::Construct {
                         proof_term: Exp::Var(pm.clone()),
                     }),
@@ -430,7 +434,7 @@ fn solvegoals() {
             ProveGoal {
                 extended_ctx: vec![],
                 goal_prop: Exp::Var(pp1.clone()),
-                proof_term: Exp::ProofTermRaw {
+                command: Exp::ProofTermRaw {
                     command: Box::new(ProveCommandBy::Construct {
                         proof_term: Exp::Var(p1.clone()),
                     }),

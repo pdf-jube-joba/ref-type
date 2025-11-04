@@ -214,7 +214,7 @@ impl Exp {
 pub struct ProveGoal {
     pub extended_ctx: Context,
     pub goal_prop: Exp,
-    pub proof_term: Exp,
+    pub command: ProveCommandBy,
 }
 
 // given (ctx |= prop)
@@ -222,9 +222,7 @@ pub struct ProveGoal {
 pub enum ProveCommandBy {
     // ctx |= prop
     //   ctx |- proof_term : prop
-    Construct {
-        proof_term: Exp,
-    },
+    Construct(Exp),
     // ctx |= nonempty(ty)
     //   ctx |- elem: ty, ctx |- ty: Set(i)
     ExactElem {
@@ -334,7 +332,7 @@ pub enum Meta {
 pub enum Derivation {
     DerivationSuccess {
         conclusion: TypeJudgement, // => ty is Some
-        premises: Vec<Derivation>,
+        premises: Vec<Derivation>, // => does not contain DerivationFail
         rule: String,
         meta: Meta,
     },
@@ -344,8 +342,43 @@ pub enum Derivation {
         rule: String,
         meta: Meta,
     },
-    SomeGoal(Rc<RefCell<Goal>>),
-    SomeGoalProvehere(Rc<RefCell<ProveGoal>>),
+    GoalGenerated(Rc<RefCell<Goal>>), // this goal is generated here
+    SolveSuccess(Rc<RefCell<Goal>>),  // this goal is solved here (i.e. Goal::Proved)
+    SolveFail(Rc<RefCell<Goal>>),     // this goal is failed to solve here (i.e. Goal::FailToProve)
+}
+
+impl Derivation {
+    pub fn is_success(&self) -> bool {
+        match self {
+            Derivation::DerivationFail { .. } => false,
+            _ => true,
+        }
+    }
+    // we collect by borrow => may be fail
+    pub fn get_all_notyet_proved_goal(
+        &self,
+        res: &mut Vec<Rc<RefCell<Goal>>>,
+    ) -> Result<(), String> {
+        match self {
+            Derivation::GoalGenerated(goal) => {
+                let goal_cell = goal
+                    .try_borrow()
+                    .map_err(|e| format!("Failed to borrow Goal: {}", e))?;
+                if matches!(*goal_cell, Goal::NotYetProved(_)) {
+                    res.push(Rc::clone(goal));
+                }
+                Ok(())
+            }
+            Derivation::SolveSuccess(_) | Derivation::SolveFail(_) => Ok(()), // this is solved
+            Derivation::DerivationSuccess { premises, .. }
+            | Derivation::DerivationFail { premises, .. } => {
+                for p in premises {
+                    p.get_all_notyet_proved_goal(res)?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use crate::syntax::*;
 use either::Either;
 use kernel::{
-    calculus::{contains_as_freevar, subst_map},
+    calculus::{exp_contains_as_freevar, exp_subst_map},
     exp::*,
     inductive::{CtorBinder, InductiveTypeSpecs},
 };
@@ -40,8 +40,8 @@ impl Item {
         match self {
             Item::Definition { name, ty, body } => Item::Definition {
                 name: name.clone(),
-                ty: subst_map(ty, subst_mapping),
-                body: subst_map(body, subst_mapping),
+                ty: exp_subst_map(ty, subst_mapping),
+                body: exp_subst_map(body, subst_mapping),
             },
             Item::Inductive {
                 name,
@@ -61,7 +61,7 @@ impl Item {
                 import_name: import_name.clone(),
                 args: args
                     .iter()
-                    .map(|(v, e)| (v.clone(), subst_map(e, subst_mapping)))
+                    .map(|(v, e)| (v.clone(), exp_subst_map(e, subst_mapping)))
                     .collect(),
             },
         }
@@ -232,7 +232,7 @@ impl GlobalEnvironment {
                                     ));
                                 }
 
-                                let ty_substed = subst_map(ty, &subst_maps);
+                                let ty_substed = exp_subst_map(ty, &subst_maps);
                                 let der =
                                     kernel::derivation::check(&self.elaborator.parameters, arg, ty);
                                 self.logger.log_derivation(der.clone());
@@ -453,11 +453,11 @@ impl Elaborator {
 
                     let mut ctor_binders = vec![];
                     for (v, e) in telescope {
-                        if contains_as_freevar(&e, &type_name) {
+                        if exp_contains_as_freevar(&e, &type_name) {
                             // strict positive case
                             let (inner_binders, inner_tail) = kernel::utils::decompose_prod(e);
                             for (_, it) in inner_binders.iter() {
-                                if contains_as_freevar(it, &type_name) {
+                                if exp_contains_as_freevar(it, &type_name) {
                                     return Err(format!(
                                         "Constructor binder type {it} contains inductive type name {type_name} in non-strictly positive position"
                                     ));
@@ -472,7 +472,7 @@ impl Elaborator {
                             }
 
                             for tail_elm in tail.iter() {
-                                if contains_as_freevar(tail_elm, &type_name) {
+                                if exp_contains_as_freevar(tail_elm, &type_name) {
                                     return Err(format!(
                                         "Constructor binder type tail {tail_elm} contains inductive type name {type_name} in non-strictly positive position"
                                     ));
@@ -496,7 +496,7 @@ impl Elaborator {
                     }
 
                     for tail_elm in tail.iter() {
-                        if contains_as_freevar(tail_elm, &type_name) {
+                        if exp_contains_as_freevar(tail_elm, &type_name) {
                             return Err(format!(
                                 "Constructor type tail {tail_elm} contains inductive type name {type_name}"
                             ));
@@ -795,7 +795,7 @@ impl Elaborator {
                         proof_goals.push(ProveGoal {
                             extended_ctx: extended_ctx_elab,
                             goal_prop: goal_elab,
-                            proof_term: proof_term_elab,
+                            command: proof_term_elab,
                         });
                     }
                     Exp::ProveHere {

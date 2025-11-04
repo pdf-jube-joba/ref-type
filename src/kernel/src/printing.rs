@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::exp::{Derivation, Node, PropositionJudgement, ProveGoal, SortInfer, TypeCheck, TypeInfer, Var};
+use crate::exp::{Derivation, Goal, PropositionJudgement, ProveGoal, TypeJudgement, Var};
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -195,7 +195,7 @@ impl Display for ProveGoal {
         let ProveGoal {
             extended_ctx,
             goal_prop,
-            proof_term,
+            command: proof_term,
         } = self;
         write!(
             f,
@@ -221,45 +221,18 @@ impl Display for PropositionJudgement {
     }
 }
 
-impl Display for Node {
+impl Display for TypeJudgement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Node::TypeCheck(TypeCheck { ctx, term, ty, res }) => {
-                write!(
-                    f,
-                    "[{} |- {} : {}] check ... {}",
-                    print_ctx(ctx),
-                    term,
-                    ty,
-                    if *res { "Success" } else { "Fail" },
-                )
-            }
-            Node::TypeInfer(TypeInfer { ctx, term, ty }) => {
-                write!(
-                    f,
-                    "[{} |- {} : {}] infer",
-                    print_ctx(ctx),
-                    term,
-                    ty.as_ref()
-                        .map(|t| format!("{}", t))
-                        .unwrap_or("???".to_string())
-                )
-            }
-            Node::SortInfer(SortInfer { ctx, ty, sort }) => {
-                write!(
-                    f,
-                    "[{} |- {} : {}] sort infer",
-                    print_ctx(ctx),
-                    ty,
-                    sort.as_ref()
-                        .map(|t| format!("{}", t))
-                        .unwrap_or("???".to_string())
-                )
-            }
-            Node::Prove(prove) => {
-                write!(f, "{}", prove)
-            }
-        }
+        let TypeJudgement { ctx, term, ty } = self;
+        write!(
+            f,
+            "[{} |= {} : {}]",
+            print_ctx(ctx),
+            term,
+            ty.as_ref()
+                .map(|t| format!("{}", t))
+                .unwrap_or("???".to_string())
+        )
     }
 }
 
@@ -267,7 +240,13 @@ pub struct StringTree(String, Vec<StringTree>);
 
 pub fn map_derivation(der: &Derivation) -> StringTree {
     match der {
-        Derivation::Derivation {
+        Derivation::DerivationSuccess {
+            conclusion,
+            premises,
+            rule,
+            meta,
+        }
+        | Derivation::DerivationFail {
             conclusion,
             premises,
             rule,
@@ -285,23 +264,19 @@ pub fn map_derivation(der: &Derivation) -> StringTree {
                     sttree.0 = format!("{} through [{}]", sttree.0, string);
                     sttree
                 }
-                crate::exp::Meta::Fail(string) => StringTree(
-                    format!("{} failed by {} [{}]", conclusion, rule, string),
-                    premises.iter().map(map_derivation).collect(),
-                ),
             }
         }
-        Derivation::UnSolved(provable) => StringTree(format!("Unproved: {}", provable), vec![]),
-        Derivation::Solved { target, num } => {
-            StringTree(format!("Proved: {} at {:p}", target, num), vec![])
+        Derivation::SomeGoal(ref_cell) => {
+            let goal = ref_cell.borrow();
+            StringTree(format!("SomeGoal: {}", goal), vec![])
         }
-        Derivation::SolveFailed { target, num } => {
-            StringTree(format!("ProveFailed: {} at {:p}", target, num), vec![])
-        }
-        Derivation::Prove { tree, proved, num } => StringTree(
-            format!("Proving: {} at {:p}", proved, num),
-            vec![map_derivation(tree)],
-        ),
+        Derivation::SomeGoalSolve(ref_cell) => todo!(),
+    }
+}
+
+pub fn map_goal(der: Goal) -> StringTree {
+    match der {
+        Goal::ProveGoal(pg) => StringTree(format!("ProveGoal: {}", pg), vec![]),
     }
 }
 

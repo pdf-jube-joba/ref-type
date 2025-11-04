@@ -83,7 +83,7 @@ macro_rules! var {
 
 #[macro_export]
 macro_rules! var_exp {
-    ($name:expr) => {
+    ($name: expr) => {
         $crate::exp::Exp::Var(Var::new($name))
     };
 }
@@ -155,7 +155,7 @@ macro_rules! goal {
         $crate::exp::ProveGoal {
             extended_ctx: ($ctx).into(),
             goal_prop: $prop,
-            proof_term: $proof,
+            command: $proof,
         }
     };
 }
@@ -185,7 +185,8 @@ mod tests {
         prod! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("B")};
         goal! {
             vec![(var!("A"), Exp::Sort(Sort::Prop))];
-            Exp::Var(var!("A")) => var_exp!("a")
+            Exp::Var(var!("A")) =>
+                ProveCommandBy::Construct(var_exp!("a"))
         };
     }
 }

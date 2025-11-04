@@ -148,7 +148,7 @@ pub fn acceptable_typespecs(
     let mut local_context = ctx.clone();
     for (x, a) in params.iter() {
         let derivation = infer_sort(&local_context, a);
-        let well_sorted = derivation.node().unwrap().is_success();
+        let well_sorted = derivation.is_success();
         well_derivation.push(derivation);
 
         if !well_sorted {
@@ -167,7 +167,7 @@ pub fn acceptable_typespecs(
     // (ctx, parameters[] |- arity : sort)
     let arity = utils::assoc_prod(indices.clone(), Exp::Sort(*sort));
     let derivation = infer_sort(&local_context, &arity);
-    let well_sorted = derivation.node().unwrap().is_success();
+    let well_sorted = derivation.is_success();
     well_derivation.push(derivation);
 
     if !well_sorted {
@@ -184,7 +184,7 @@ pub fn acceptable_typespecs(
         let cst_type = cst.as_exp_with_type(&Exp::Var(this.clone()));
         // check (ctx |- cst_type : sort)
         let derivation = check(&local_context, &cst_type, &Exp::Sort(*sort));
-        let well_typed = derivation.node().unwrap().is_success();
+        let well_typed = derivation.is_success();
         well_derivation.push(derivation);
 
         if !well_typed {
