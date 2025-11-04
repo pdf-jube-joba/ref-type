@@ -381,7 +381,7 @@ struct RedexShapeInductiveTypeElim {
 fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 1. check e = Elim{ty}(e', q, f[])
     let Exp::IndElim {
-        indty: ty,
+        indspec: ty,
         elim,
         return_type: q,
         cases: f,
@@ -461,7 +461,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         let c = Var::new("c");
         // Elim(THIS, c, q, f[])
         let body = Exp::IndElim {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             elim: Box::new(Exp::Var(c.clone())),
             return_type: q.clone(),
             cases: f.clone(),

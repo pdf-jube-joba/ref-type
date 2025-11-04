@@ -492,7 +492,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typeinfer(constructor_type)
         }
         Exp::IndElim {
-            indty,
+            indspec: indty,
             elim,
             return_type,
             cases,

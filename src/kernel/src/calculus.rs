@@ -77,13 +77,13 @@ pub fn strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         }
         (
             Exp::IndElim {
-                indty: ty1,
+                indspec: ty1,
                 elim: elim1,
                 return_type: ret1,
                 cases: cases1,
             },
             Exp::IndElim {
-                indty: ty2,
+                indspec: ty2,
                 elim: elim2,
                 return_type: ret2,
                 cases: cases2,
@@ -284,7 +284,7 @@ pub fn contains_as_freevar(e: &Exp, v: &Var) -> bool {
         Exp::IndType { parameters, .. } => parameters.iter().any(|arg| contains_as_freevar(arg, v)),
         Exp::IndCtor { parameters, .. } => parameters.iter().any(|arg| contains_as_freevar(arg, v)),
         Exp::IndElim {
-            indty: _, // todo: check indty?
+            indspec: _, // todo: check indty?
             elim,
             return_type,
             cases,
@@ -467,13 +467,13 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (
             Exp::IndElim {
-                indty: ty1,
+                indspec: ty1,
                 elim: elim1,
                 return_type: ret1,
                 cases: cases1,
             },
             Exp::IndElim {
-                indty: ty2,
+                indspec: ty2,
                 elim: elim2,
                 return_type: ret2,
                 cases: cases2,
@@ -689,12 +689,12 @@ pub fn subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             parameters: parameter.iter().map(|arg| subst(arg, v, t)).collect(),
         },
         Exp::IndElim {
-            indty: ty,
+            indspec: ty,
             elim,
             return_type,
             cases,
         } => Exp::IndElim {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             elim: Box::new(subst(elim, v, t)),
             return_type: Box::new(subst(return_type, v, t)),
             cases: cases.iter().map(|case| subst(case, v, t)).collect(),
@@ -882,12 +882,12 @@ pub fn alpha_conversion(e: &Exp) -> Exp {
             parameters: parameter.iter().map(alpha_conversion).collect(),
         },
         Exp::IndElim {
-            indty: ty,
+            indspec: ty,
             elim,
             return_type,
             cases,
         } => Exp::IndElim {
-            indty: ty.clone(),
+            indspec: ty.clone(),
             elim: Box::new(alpha_conversion(elim)),
             return_type: Box::new(alpha_conversion(return_type)),
             cases: cases.iter().map(alpha_conversion).collect(),
@@ -1151,7 +1151,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             })
         }
         Exp::IndElim {
-            indty: ty,
+            indspec: ty,
             elim,
             return_type,
             cases,
@@ -1161,7 +1161,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let cases = cases.iter().map(reduce_if).collect::<Vec<_>>();
 
             changed.then_some(Exp::IndElim {
-                indty: ty.clone(),
+                indspec: ty.clone(),
                 elim: Box::new(elim),
                 return_type: Box::new(return_type),
                 cases,

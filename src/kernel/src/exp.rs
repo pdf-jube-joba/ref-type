@@ -117,7 +117,7 @@ pub enum Exp {
         ty: Box<Exp>,
         body: Box<Exp>, // bind one variable
     },
-    // (var: ty) -> body where var is bound in body but not in ty
+    // (var: ty) => body where var is bound in body but not in ty
     Lam {
         var: Var,
         ty: Box<Exp>,
@@ -135,35 +135,33 @@ pub enum Exp {
     //     val: Box<Exp>,
     //     body: Box<Exp>,
     // },
-    // uncurry with parameter
     IndType {
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        parameters: Vec<Exp>,
+        parameters: Vec<Exp>, // uncurry with parameter
     },
-    // uncurry with parameter
     IndCtor {
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        parameters: Vec<Exp>,
+        parameters: Vec<Exp>, // uncurry with parameter
         idx: usize,
     },
-    // this is primitive recursion (no binding representation)
     IndElim {
-        indty: Rc<crate::inductive::InductiveTypeSpecs>,
+        // this is primitive recursion
+        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         elim: Box<Exp>,
         return_type: Box<Exp>,
-        cases: Vec<Exp>,
+        cases: Vec<Exp>, // no bindings
     },
-    // cast `exp` to `to` and solve all goals of derivation tree given by `fn check` with `withgoals`
+    // cast `exp` to `to`
     Cast {
         exp: Box<Exp>,
         to: Box<Exp>,
     },
-    ProveLater {
-        prop: Box<Exp>,
-    },
     ProveHere {
         exp: Box<Exp>,
         goals: Vec<ProveGoal>,
+    },
+    ProveLater {
+        prop: Box<Exp>,
     },
     ProofTermRaw {
         command: Box<ProveCommandBy>,

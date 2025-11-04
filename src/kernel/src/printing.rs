@@ -68,7 +68,7 @@ impl Display for crate::exp::Exp {
                     .join(", ")
             ),
             crate::exp::Exp::IndElim {
-                indty: ty,
+                indspec: ty,
                 elim,
                 return_type,
                 cases,

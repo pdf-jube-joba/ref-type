@@ -1052,7 +1052,7 @@ impl Elaborator {
                         .collect::<Vec<Exp>>();
 
                     Exp::IndElim {
-                        indty: ind_defs,
+                        indspec: ind_defs,
                         elim: Box::new(eliminated_exp_elab),
                         return_type: Box::new(return_type_elab),
                         cases: cases_elab,
