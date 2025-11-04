@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use super::syntax::*;
 
-
 impl From<Identifier> for kernel::exp::Var {
     fn from(value: Identifier) -> Self {
         kernel::exp::Var::new(&value.0)
