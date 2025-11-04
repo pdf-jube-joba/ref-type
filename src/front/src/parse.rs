@@ -14,7 +14,7 @@ pub enum Token<'a> {
     #[regex(r"\?[a-zA-Z_]+")]
     UnspecifiedVar(&'a str),
     // any non-space sequence that does not include backslash, alnum or '?()$'
-    #[regex(r"[^\s\\A-Za-z0-9?()$]+")]
+    #[regex(r"[^\s\\A-Za-z0-9?(){}$]+")]
     MacroToken(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -30,6 +30,10 @@ pub enum Token<'a> {
     CommentStart,
     #[token("*/")]
     CommentEnd,
+    #[token("{")]
+    LBrace,
+    #[token("}")]
+    RBrace,
     // mapped tokens (will be produced by mapping MacroToken in lex_all)
     Arrow,
     DoubleArrow,
@@ -39,8 +43,6 @@ pub enum Token<'a> {
     Semicolon,
     Period,
     Comma,
-    LBrace,
-    RBrace,
     Equal,
     Exclamation,
 }
@@ -1088,8 +1090,6 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     ";" => Token::Semicolon,
                     "." => Token::Period,
                     "," => Token::Comma,
-                    "{" => Token::LBrace,
-                    "}" => Token::RBrace,
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
                     _ => Token::MacroToken(s),
@@ -1123,7 +1123,14 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
             Ok(Token::Ident(_))
             | Ok(Token::Number(_))
             | Ok(Token::UnspecifiedVar(_))
-            | Ok(Token::LParen | Token::RParen | Token::MathLParen | Token::MathRParen) => {
+            | Ok(
+                Token::LParen
+                | Token::RParen
+                | Token::MathLParen
+                | Token::MathRParen
+                | Token::LBrace
+                | Token::RBrace,
+            ) => {
                 let span = lexer.span();
                 out.push(SpannedToken {
                     kind: tok.unwrap(),

@@ -42,39 +42,38 @@ static INDEX_HTML: &str = include_str!("../index.html");
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     match args.cmd {
-        Cmd::File { file } => run_file_mode(file).await?,
-        Cmd::Serve { port } => run_serve_mode(port).await?,
+        Cmd::File { file } => {
+            let flag = run_file_mode(file).await?;
+            if flag {
+                std::process::exit(1);
+            }
+            Ok(())
+        }
+        Cmd::Serve { port } => {
+            run_serve_mode(port).await?;
+            Ok(())
+        }
     }
-    Ok(())
 }
 
-// ---- ファイルモード ---------------------------------------------
-async fn run_file_mode(path: PathBuf) -> anyhow::Result<()> {
-    // 軽い読み込みなら同期I/OでもOK
-    // let txt = std::fs::read_to_string(&path)?;
-
-    // パースが重くなる可能性があるなら spawn_blocking で逃がす
-    let txt = tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await??;
-
-    // ここで重い処理をする場合も spawn_blocking 推奨
-    let out = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
-    println!("{out}");
-    Ok(())
-}
-fn parse_and_format(src: String) -> String {
+// ---- 共通処理 ---------------------------------------------
+fn parse_and_format(src: String) -> (String, bool) {
     let parsed = front::parse::str_parse_modules(&src);
     match parsed {
         Ok(modules) => {
             let mut global = front::resolver::GlobalEnvironment::default();
             let mut output = String::new();
+            let mut flag = false;
             for module in modules {
                 match global.new_module(&module) {
                     Ok(_) => {}
                     Err(err) => {
                         output.push_str(&format!("Error: {}\n", err));
+                        flag = true;
                     }
                 }
             }
+            output.push_str("--- LOG ---\n");
             for log in global.logs() {
                 match log {
                     either::Either::Left(der) => {
@@ -85,10 +84,24 @@ fn parse_and_format(src: String) -> String {
                     }
                 }
             }
-            output
+            (output, flag)
         }
-        Err(e) => format!("Parse Error: {}\n", e),
+        Err(e) => (format!("Parse Error: {}\n", e), true),
     }
+}
+
+// ---- ファイルモード ---------------------------------------------
+async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
+    // 軽い読み込みなら同期I/OでもOK
+    // let txt = std::fs::read_to_string(&path)?;
+
+    // パースが重くなる可能性があるなら spawn_blocking で逃がす
+    let txt = tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await??;
+
+    // ここで重い処理をする場合も spawn_blocking 推奨
+    let (out, flag) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
+    println!("{out}");
+    Ok(flag)
 }
 
 // ---- サーブモード ------------------------------------------------
@@ -106,35 +119,6 @@ async fn run_serve_mode(port: u16) -> anyhow::Result<()> {
 async fn run_api(Json(req): Json<Req>) -> Json<Resp> {
     // 重いなら spawn_blocking(move || heavy(req.text)) を使う
     let content = req.text;
-    let parsed = front::parse::str_parse_modules(&content);
-    match parsed {
-        Ok(modules) => {
-            let mut global = front::resolver::GlobalEnvironment::default();
-            let mut lines = vec![];
-            for module in modules {
-                match global.new_module(&module) {
-                    Ok(_) => {}
-                    Err(err) => {
-                        lines.push(format!("---Error: {}---\n\n\n", err));
-                    }
-                }
-            }
-            for log in global.logs() {
-                match log {
-                    either::Either::Left(der) => {
-                        lines.push(format!("{der}\n"));
-                    }
-                    either::Either::Right(mes) => {
-                        lines.push(format!("{mes}\n"));
-                    }
-                }
-            }
-            Json(Resp {
-                result: lines.join(""),
-            })
-        }
-        Err(e) => Json(Resp {
-            result: format!("Parse Error: {}", e),
-        }),
-    }
+    let (out, _flag) = parse_and_format(content);
+    Json(Resp { result: out })
 }

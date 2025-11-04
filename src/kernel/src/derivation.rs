@@ -72,6 +72,15 @@ impl Builder {
         }
         unreachable!("infer_sort result should be DerivationSuccess | DerivationFail");
     }
+    fn add_sortset(&mut self, ctx: &Context, exp: &Exp) -> Option<usize> {
+        let sort = self.add_sort(ctx, exp)?;
+        if let Sort::Set(i) = sort {
+            Some(i)
+        } else {
+            None
+        }
+    }
+
     fn add_unproved_goal(&mut self, unproved: PropositionJudgement) {
         self.premises.push(Derivation::GoalGenerated {
             proposition: unproved,
@@ -148,11 +157,14 @@ impl Builder {
             meta: Meta::Usual(meta),
         }
     }
-    fn build_fail_prop(self, fail_reason: String, proposition: PropositionJudgement) -> Derivation {
+    fn build_fail_prop<I>(self, fail_reason: I, proposition: PropositionJudgement) -> Derivation
+    where
+        I: Into<String>,
+    {
         let Meta::Usual(inner) = &self.meta else {
             unreachable!("meta must be Usual in build_fail_prop")
         };
-        let meta = format!("{}; {}", inner, fail_reason);
+        let meta = format!("{}; {}", inner, fail_reason.into());
 
         Derivation::SolveFail {
             conclusion: proposition,
@@ -464,10 +476,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
             // 1. infer (ctx |- elim : IndType(ty, parameters) a[])
             let Some(inferred_indty) = builder.add_infer(ctx, elim) else {
-                return builder.build_fail(
-                    format!("Failed to infer type of eliminator expression {:?}", elim),
-                    make_jd(None),
-                );
+                return builder.build_fail("fail elim", make_jd(None));
             };
             // a[] are well-typed
             // i.e. a[]: t[] where (x[]: t[]) are in indty.indices
@@ -478,53 +487,27 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 parameters, // => well-typed
             } = inferred_indty_base
             else {
-                return builder.build_fail(
-                    format!(
-                        "Eliminator type {:?} is not an inductive type",
-                        inferred_indty_base
-                    ),
-                    make_jd(None),
-                );
+                return builder.build_fail("type of elim is not inductive", make_jd(None));
             };
 
             // 2. check indty is the same as inferred_indty
             if !std::rc::Rc::ptr_eq(indty, &inferred_indty) {
-                return builder.build_fail(
-                    format!(
-                        "Inductive type mismatch: expected {:?}, found {:?}",
-                        indty, inferred_indty
-                    ),
-                    make_jd(None),
-                );
+                return builder.build_fail("inductive type mismatch", make_jd(None));
             }
 
             // 3. infer kind of return_type
             let Some(return_type_kind) = builder.add_infer(ctx, return_type) else {
-                return builder.build_fail(
-                    format!(
-                        "Failed to infer sort of return type expression {:?}",
-                        return_type
-                    ),
-                    make_jd(None),
-                );
+                return builder.build_fail("Failed to infer sort of return", make_jd(None));
             };
             let (telescope, sort) = utils::decompose_prod(normalize(&return_type_kind));
             let Exp::Sort(sort) = sort else {
-                return builder.build_fail(
-                    format!(
-                        "Return type kind {:?} is not ending with a sort",
-                        return_type_kind
-                    ),
-                    make_jd(None),
-                );
+                return builder
+                    .build_fail("Return type kind not ending with a sort", make_jd(None));
             };
 
             // 4. check (ty.sort, sort) can form a elimination
             if indty.sort.relation_of_sort_indelim(sort).is_none() {
-                return builder.build_fail(format!(
-                    "Cannot form eliminator with inductive type sort {:?} and return type sort {:?}",
-                    indty.sort, sort
-                ), make_jd(None));
+                return builder.build_fail("Cannot form eliminator", make_jd(None));
             }
 
             // 5. check convertibility of kind of return_type
@@ -534,12 +517,9 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 sort,
             );
             let current_return_type_kind = utils::assoc_prod(telescope, Exp::Sort(sort));
-            if !convertible(&return_type_kind, &current_return_type_kind) {
+            if !convertible(&current_return_type_kind, &expected_return_type_kind) {
                 return builder.build_fail(
-                    format!(
-                        "Return type kind {:?} is not convertible to expected kind {:?}",
-                        return_type_kind, expected_return_type_kind
-                    ),
+                    "return type kind is not convertible to expected",
                     make_jd(None),
                 );
             }
@@ -547,14 +527,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 6. check each case has type eliminator_type of constructor
             // check length of cases and constructors
             if cases.len() != indty.constructors.len() {
-                return builder.build_fail(
-                    format!(
-                        "Constructor length mismatch: expected {}, found {}",
-                        indty.constructors.len(),
-                        cases.len()
-                    ),
-                    make_jd(None),
-                );
+                return builder.build_fail("Constructor length mismatch", make_jd(None));
             }
 
             // check (ctx |- cases[i] : eliminator_type[i])
@@ -569,13 +542,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                     },
                 );
                 if !builder.add_check(ctx, case, &eliminator_ty) {
-                    return builder.build_fail(
-                        format!(
-                            "Failed to check case {:?} against eliminator type {:?}",
-                            case, eliminator_ty
-                        ),
-                        make_jd(None),
-                    );
+                    return builder.build_fail("Failed to check case", make_jd(None));
                 };
             }
 
@@ -594,10 +561,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 1. check (ctx |- exp : to)
             if !builder.add_check(ctx, exp, to) {
                 return builder.build_fail(
-                    format!(
-                        "Failed to check casted expression {:?} against type {:?}",
-                        exp, to
-                    ),
+                    "Failed to check casted expression against type",
                     make_jd(None),
                 );
             };
@@ -611,10 +575,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 1. check (ctx |- exp : \Prop)
             if !builder.add_check(ctx, prop, &Exp::Sort(Sort::Prop)) {
                 return builder.build_fail(
-                    format!(
-                        "Failed to check proposition {:?} against type Prop in context",
-                        prop
-                    ),
+                    "Failed to check proposition against type Prop in context",
                     make_jd(None),
                 );
             };
@@ -643,14 +604,11 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             //   if fail, early return
             let mut prove_ders: Vec<ProofTree> = vec![];
 
-            for (
-                i,
-                ProveGoal {
-                    extended_ctx,
-                    goal_prop,
-                    command,
-                },
-            ) in goals.iter().enumerate()
+            for ProveGoal {
+                extended_ctx,
+                goal_prop,
+                command,
+            } in goals.iter()
             {
                 let extended_ctx = ctx_extend_ctx(ctx, extended_ctx);
 
@@ -664,12 +622,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
                         if !proposition_is_alpha_eq(&der.conclusion, &as_proposition) {
                             return builder.build_fail(
-                                format!(
-                                    "Proved goal {} proposition {:?} does not match expected proposition {:?}",
-                                    i + 1,
-                                    der.conclusion.prop,
-                                    goal_prop
-                                ),
+                                "Proved goal proposition does not match expected proposition",
                                 make_jd(None),
                             );
                         }
@@ -678,8 +631,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                     }
                     Err(derivation) => {
                         builder.premises.push(derivation);
-                        return builder
-                            .build_fail(format!("Goal {} failed to prove", i + 1), make_jd(None));
+                        return builder.build_fail("Goal failed to prove", make_jd(None));
                     }
                 }
             }
@@ -720,10 +672,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                         ty: conclusion.prop.clone(),
                     };
                     builder.premises.push(derivation_solvefail);
-                    builder.build_fail(
-                        format!("Failed to prove proposition {:?}", as_type_judgement.ty),
-                        as_type_judgement,
-                    )
+                    builder.build_fail("Failed to prove proposition", as_type_judgement)
                 }
             }
         }
@@ -731,17 +680,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.rule("PowerSet");
 
             // 1. check (ctx |- exp : Set(i))
-            let Some(sort) = builder.add_sort(ctx, exp) else {
-                return builder.build_fail(
-                    format!("Failed to infer sort of type {:?}", exp),
-                    make_jd(None),
-                );
-            };
-            let Sort::Set(i) = sort else {
-                return builder.build_fail(
-                    format!("Type {:?} is not of form Set(i)", exp),
-                    make_jd(None),
-                );
+            let Some(i) = builder.add_sortset(ctx, exp) else {
+                return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
 
             // 2. conclude (ctx |- PowerSet(exp) : Set(i))
@@ -756,27 +696,15 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.rule("SubSet");
 
             // 1. check (ctx |- set : Set(i))
-            let Some(sort) = builder.add_sort(ctx, set) else {
-                return builder.build_fail(
-                    format!("Failed to infer sort of type {:?}", set),
-                    make_jd(None),
-                );
-            };
-            let Sort::Set(_i) = sort else {
-                return builder.build_fail(
-                    format!("Type {:?} is not of form Set(i)", set),
-                    make_jd(None),
-                );
+            let Some(_i) = builder.add_sortset(ctx, set) else {
+                return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
 
             // 2. check (ctx::(var, set) |- predicate : \Prop)
             let extend = ctx_extend(ctx, (var.clone(), *set.clone()));
             if !builder.add_check(&extend, predicate, &Exp::Sort(Sort::Prop)) {
                 return builder.build_fail(
-                    format!(
-                        "Failed to check predicate {:?} against type Prop in extended context",
-                        predicate
-                    ),
+                    "Failed to check predicate against type Prop in extended context",
                     make_jd(None),
                 );
             };
@@ -792,17 +720,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.rule("Pred");
 
             // 1. check (ctx |- superset : Set(i))
-            let Some(sort) = builder.add_sort(ctx, superset) else {
-                return builder.build_fail(
-                    format!("Failed to infer sort of type {:?}", superset),
-                    make_jd(None),
-                );
-            };
-            let Sort::Set(_i) = sort else {
-                return builder.build_fail(
-                    format!("Type {:?} is not of form Set(i)", superset),
-                    make_jd(None),
-                );
+            let Some(_i) = builder.add_sortset(ctx, superset) else {
+                return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
 
             // 2. check (ctx |- subset : Power(superset))
@@ -814,10 +733,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 },
             ) {
                 return builder.build_fail(
-                    format!(
-                        "Failed to check subset {:?} against type Power(superset) in context",
-                        subset
-                    ),
+                    "Failed to check subset against type Power(superset) in context",
                     make_jd(None),
                 );
             };
@@ -825,10 +741,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 3. check (ctx |- element : superset)
             if !builder.add_check(ctx, element, superset) {
                 return builder.build_fail(
-                    format!(
-                        "Failed to check element {:?} against type superset in context",
-                        element,
-                    ),
+                    "Failed to check element against type superset in context",
                     make_jd(None),
                 );
             };
@@ -838,17 +751,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
         Exp::TypeLift { superset, subset } => {
             builder.rule("TypeLift");
             // 1. check (ctx |- superset : Set(i))
-            let Some(sort) = builder.add_sort(ctx, superset) else {
-                return builder.build_fail(
-                    format!("Failed to infer sort of type {:?}", superset),
-                    make_jd(None),
-                );
-            };
-            let Sort::Set(i) = sort else {
-                return builder.build_fail(
-                    format!("Type {:?} is not of form Set(i)", superset),
-                    make_jd(None),
-                );
+            let Some(i) = builder.add_sortset(ctx, superset) else {
+                return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
 
             // 2. check (ctx |- subset : Power(superset))
@@ -860,10 +764,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 },
             ) {
                 return builder.build_fail(
-                    format!(
-                        "Failed to check subset {:?} against type Power(superset) in context",
-                        subset
-                    ),
+                    "Failed to check subset against type Power(superset) in context",
                     make_jd(None),
                 );
             };
@@ -875,27 +776,20 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.rule("Equal");
             // 1. infer left type
             let Some(left_ty) = builder.add_infer(ctx, left) else {
-                return builder.build_fail(
-                    format!("Failed to infer type of left expression {:?}", left),
-                    make_jd(None),
-                );
+                return builder
+                    .build_fail("Failed to infer type of left expression", make_jd(None));
             };
 
             // 2. infer right type
             let Some(right_ty) = builder.add_infer(ctx, right) else {
-                return builder.build_fail(
-                    format!("Failed to infer type of right expression {:?}", right),
-                    make_jd(None),
-                );
+                return builder
+                    .build_fail("Failed to infer type of right expression", make_jd(None));
             };
 
             // 3. check convertibility
             if !convertible(&left_ty, &right_ty) {
                 return builder.build_fail(
-                    format!(
-                        "Type mismatch: left type {:?} is not convertible to right type {:?}",
-                        left_ty, right_ty
-                    ),
+                    "Type mismatch: left type is not convertible to right type",
                     make_jd(None),
                 );
             }
@@ -905,17 +799,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
         Exp::Exists { set: ty } => {
             builder.rule("Exists");
             // 1. check (ctx |- ty : Set(i))
-            let Some(_sort) = builder.add_sort(ctx, ty) else {
-                return builder.build_fail(
-                    format!("Failed to infer sort of type {:?}", ty),
-                    make_jd(None),
-                );
-            };
-            let Sort::Set(_) = _sort else {
-                return builder.build_fail(
-                    format!("Type {:?} is not of form Set(i)", ty),
-                    make_jd(None),
-                );
+            let Some(_i) = builder.add_sortset(ctx, ty) else {
+                return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
             // 2. conclude (ctx |- Exists(ty) : \Prop)
             builder.build_typejudgement(make_jd(Some(Exp::Sort(Sort::Prop))))
@@ -924,10 +809,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.rule("Take");
             // 1. infer (ctx |- map: ?map_ty)
             let Some(map_ty) = builder.add_infer(ctx, map) else {
-                return builder.build_fail(
-                    format!("Failed to infer type of map expression {:?}", map),
-                    make_jd(None),
-                );
+                return builder.build_fail("Failed to infer type of map expression", make_jd(None));
             };
 
             // 2. decompose map_ty into domain -> codomain
@@ -937,38 +819,21 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 body: codomain,
             } = normalize(&map_ty)
             else {
-                return builder.build_fail(
-                    format!(
-                        "Inferred type {:?} of map expression {:?} is not a function type",
-                        map_ty, map
-                    ),
-                    make_jd(None),
-                );
+                return builder
+                    .build_fail("Inferred type of map is not a function type", make_jd(None));
             };
 
             // 3. check codomain is independent of var
             if exp_contains_as_freevar(&codomain, &var) {
                 return builder.build_fail(
-                    format!(
-                        "Codomain {:?} depends on variable {:?}, which is not allowed in Take",
-                        codomain, var
-                    ),
+                    "Codomain depends on variable, not allowed in Take",
                     make_jd(None),
                 );
             }
 
             // 4. check (ctx |- map_ty : Set(i)) for some i
-            let Some(sort) = builder.add_sort(ctx, &map_ty) else {
-                return builder.build_fail(
-                    format!("Failed to infer sort of type {:?}", map_ty),
-                    make_jd(None),
-                );
-            };
-            let Sort::Set(_) = sort else {
-                return builder.build_fail(
-                    format!("Type {:?} is not of form Set(i)", map_ty),
-                    make_jd(None),
-                );
+            let Some(_i) = builder.add_sortset(ctx, &map_ty) else {
+                return builder.build_fail("Failed to infer sort of map type", make_jd(None));
             };
 
             // 5. conclude (ctx |- Take(map, domain, codomain) : codomain)
@@ -991,18 +856,12 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Derivation {
 
     // 1. infer type of term
     let Some(inferred_ty) = builder.add_infer(ctx, term) else {
-        return builder.build_fail(
-            format!("Failed to infer type of term {:?}", term),
-            make_jd(None),
-        );
+        return builder.build_fail("Failed to infer type of term", make_jd(None));
     };
 
     // 2. converting inferred_ty to sort
     let Exp::Sort(s) = normalize(&inferred_ty) else {
-        return builder.build_fail(
-            format!("Type {:?} is not convertible to a sort", inferred_ty),
-            make_jd(None),
-        );
+        return builder.build_fail("Type is not convertible to a sort", make_jd(None));
     };
 
     builder.build_typejudgement(make_jd(Some(s)))
@@ -1029,21 +888,16 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTre
 
             // 1. infer (ctx |- proof_term : prop)
             let Some(prop) = builder.add_infer(ctx, proof_term) else {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to infer type of proof term {:?}", proof_term),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to infer type of proof term", make_pp(None))
+                );
             };
 
             // 2. check prop: \Prop
             if !builder.add_check(ctx, &prop, &Exp::Sort(Sort::Prop)) {
-                return Err(builder.build_fail_prop(
-                    format!(
-                        "Inferred type {:?} of proof term {:?} is not of type Prop",
-                        prop, proof_term
-                    ),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Inferred type is not of type Prop", make_pp(None))
+                );
             };
 
             // 3. conclude (ctx |= prop)
@@ -1054,24 +908,14 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTre
 
             // 1. check (ctx |- elem : ty)
             if !builder.add_check(ctx, elem, ty) {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to check element {:?} against type {:?}", elem, ty),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to check element against type", make_pp(None))
+                );
             };
 
             // 2. (check ctx |- ty : Set(i)) for some i
-            let Some(sort) = builder.add_sort(ctx, ty) else {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to infer sort of type {:?}", ty),
-                    make_pp(None),
-                ));
-            };
-            let Sort::Set(_) = sort else {
-                return Err(builder.build_fail_prop(
-                    format!("Type {:?} is not of form Set(i)", ty),
-                    make_pp(None),
-                ));
+            let Some(_i) = builder.add_sortset(ctx, ty) else {
+                return Err(builder.build_fail_prop("Failed to infer sort of type", make_pp(None)));
             };
 
             // 3. conclude (ctx |= Exists(ty))
@@ -1093,33 +937,14 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTre
                 subset: Box::new(subset.clone()),
             };
             if !builder.add_check(ctx, elem, &typelift) {
-                return Err(builder.build_fail_prop(
-                    format!(
-                        "Failed to check element {:?} against type Typelift({:?}, {:?})",
-                        elem, superset, subset
-                    ),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to check subset elimination", make_pp(None))
+                );
             };
 
             // 2. check (ctx |- Typelift(superset, subset) : Set(i)) for some i
-            let Some(_sort) = builder.add_sort(ctx, &typelift) else {
-                return Err(builder.build_fail_prop(
-                    format!(
-                        "Failed to infer sort of type Typelift({:?}, {:?})",
-                        superset, subset
-                    ),
-                    make_pp(None),
-                ));
-            };
-            let Sort::Set(_) = _sort else {
-                return Err(builder.build_fail_prop(
-                    format!(
-                        "Type Typelift({:?}, {:?}) is not of form Set(i)",
-                        superset, subset
-                    ),
-                    make_pp(None),
-                ));
+            let Some(_i) = builder.add_sortset(ctx, &typelift) else {
+                return Err(builder.build_fail_prop("Failed to infer sort of type", make_pp(None)));
             };
 
             // 3. conclude (ctx |= Pred(superset, subset, elem))
@@ -1135,24 +960,14 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTre
 
             // 1. infer (ctx |- elem : ?ty)
             let Some(ty) = builder.add_infer(ctx, elem) else {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to infer type of element {:?}", elem),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to infer type of element", make_pp(None))
+                );
             };
 
             // 2. check (ctx |- ty : Set(i)) for some i
-            let Some(sort) = builder.add_sort(ctx, &ty) else {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to infer sort of type {:?}", ty),
-                    make_pp(None),
-                ));
-            };
-            let Sort::Set(_) = sort else {
-                return Err(builder.build_fail_prop(
-                    format!("Type {:?} is not of form Set(i)", ty),
-                    make_pp(None),
-                ));
+            let Some(_i) = builder.add_sortset(ctx, &ty) else {
+                return Err(builder.build_fail_prop("Failed to infer sort of type", make_pp(None)));
             };
 
             // 3. conclude (ctx |= elem = elem)
@@ -1172,43 +987,29 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTre
             builder.rule("IdElim");
 
             // 1. check (ctx |- ty : Set(i)) for some i
-            let Some(sort) = builder.add_sort(ctx, ty) else {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to infer sort of type {:?}", ty),
-                    make_pp(None),
-                ));
-            };
-            let Sort::Set(_) = sort else {
-                return Err(builder.build_fail_prop(
-                    format!("Type {:?} is not of form Set(i)", ty),
-                    make_pp(None),
-                ));
+            let Some(_i) = builder.add_sortset(ctx, ty) else {
+                return Err(builder.build_fail_prop("Failed to infer sort of type", make_pp(None)));
             };
 
             // 2. check (ctx |- left : ty)
             if builder.add_check(ctx, left, ty) {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to check element {:?} against type {:?}", left, ty),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to infer type of left element", make_pp(None))
+                );
             };
 
             // 3. check (ctx |- right : ty)
             if builder.add_check(ctx, right, ty) {
-                return Err(builder.build_fail_prop(
-                    format!("Failed to check element {:?} against type {:?}", right, ty),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to infer type of right element", make_pp(None))
+                );
             };
 
             // 4. check (ctx::(var, ty) |- predicate : Prop)
             let extend = ctx_extend(ctx, (var.clone(), ty.clone()));
             if builder.add_check(&extend, predicate, &Exp::Sort(Sort::Prop)) {
                 return Err(builder.build_fail_prop(
-                    format!(
-                        "Failed to check predicate {:?} against type Prop in extended context",
-                        predicate
-                    ),
+                    "Failed to check predicate in extended context",
                     make_pp(None),
                 ));
             };
@@ -1260,24 +1061,15 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTre
                 map: Box::new(func.clone()),
             };
             if !builder.add_check(ctx, &take_ty, codomain) {
-                return Err(builder.build_fail_prop(
-                    format!(
-                        "Failed to check Take({:?}, {:?}, {:?}) against type {:?} in context",
-                        func, domain, codomain, codomain
-                    ),
-                    make_pp(None),
-                ));
+                return Err(
+                    builder.build_fail_prop("Failed to check Take against type", make_pp(None))
+                );
             };
 
             // 2. check (ctx |- elem : domain)
             if !builder.add_check(ctx, elem, domain) {
-                return Err(builder.build_fail_prop(
-                    format!(
-                        "Failed to check element {:?} against type {:?}",
-                        elem, domain
-                    ),
-                    make_pp(None),
-                ));
+                return Err(builder
+                    .build_fail_prop("Failed to check element against domain", make_pp(None)));
             };
 
             // 3. conclude (ctx |= Take(func, domain, codomain) = func(elem))

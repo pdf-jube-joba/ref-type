@@ -790,12 +790,8 @@ impl Elaborator {
                         }
                         let goal_elab =
                             self.elab_exp_rec(logger, goal, reference_var, bind_var.clone())?;
-                        let proof_term_elab = self.elab_proof_by(
-                            logger,
-                            proof_term,
-                            reference_var,
-                            bind_var.clone(),
-                        )?;
+                        let proof_term_elab =
+                            self.elab_proof_by(logger, proof_term, reference_var, bind_var.clone())?;
                         proof_goals.push(ProveGoal {
                             extended_ctx: extended_ctx_elab,
                             goal_prop: goal_elab,
