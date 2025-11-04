@@ -1,6 +1,7 @@
 // All judgement functions return a Derivation (the trace) plus a payload indicating success/value.
 // ? for output value
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::inductive::eliminator_type;
@@ -11,19 +12,17 @@ use crate::exp::*;
 
 // 許して
 struct Builder {
-    node: Node,
     premises: Vec<Derivation>,
     rule: String,
     meta: Meta,
 }
 
 impl Builder {
-    fn new(rule: String, meta: &str, candidate: Node) -> Self {
+    fn new(rule: String, meta: &str) -> Self {
         Self {
             premises: vec![],
             meta: Meta::Usual(meta.to_string()),
             rule,
-            node: candidate,
         }
     }
     fn rule(&mut self, rule: &str) {
@@ -33,153 +32,119 @@ impl Builder {
         self.meta = Meta::Through(meta.to_string());
     }
 
-    fn add_check(&mut self, ctx: &Context, term: &Exp, ty: &Exp) -> Option<()> {
-        let premise = check(ctx, term, ty);
-        assert!(matches!(premise.node(), Some(Node::TypeCheck(_))));
-        let TypeCheck { res, .. } = premise.node().unwrap().as_type_check().unwrap();
-        if !*res {
-            self.premises.push(premise);
-            None
-        } else {
-            self.premises.push(premise);
-            Some(())
+    fn add_check(&mut self, ctx: &Context, term: &Exp, ty: &Exp) -> bool {
+        let derivation = check(ctx, term, ty);
+        if let Derivation::DerivationSuccess { .. } = &derivation {
+            self.premises.push(derivation);
+            return true;
         }
+        if let Derivation::DerivationFail { .. } = &derivation {
+            self.premises.push(derivation);
+            return false;
+        }
+        unreachable!("check result should be DerivationSuccess | DerivationFail");
     }
     fn add_infer(&mut self, ctx: &Context, term: &Exp) -> Option<Exp> {
-        let premise = infer(ctx, term);
-        assert!(matches!(premise.node(), Some(Node::TypeInfer(_))));
-        let TypeInfer { ty, .. } = premise.node().unwrap().as_type_infer().unwrap();
-        if let Some(ty) = ty {
-            let ty = ty.clone();
-            self.premises.push(premise);
-            Some(ty)
-        } else {
-            self.premises.push(premise);
-            None
+        let derivation = infer(ctx, term);
+        if let Derivation::DerivationSuccess { conclusion, .. } = &derivation {
+            let ty = conclusion.ty.as_ref().unwrap().clone();
+            self.premises.push(derivation);
+            return Some(ty);
         }
+        if let Derivation::DerivationFail { .. } = &derivation {
+            self.premises.push(derivation);
+            return None;
+        }
+        unreachable!("infer result should be DerivationSuccess | DerivationFail");
     }
     fn add_sort(&mut self, ctx: &Context, ty: &Exp) -> Option<Sort> {
-        let premise = infer_sort(ctx, ty);
-        assert!(matches!(premise.node(), Some(Node::SortInfer(_))));
-        let SortInfer { sort, .. } = premise.node().unwrap().as_sort_infer().unwrap();
-        if let Some(sort) = sort {
+        let derivation = infer_sort(ctx, ty);
+        if let Derivation::DerivationSuccess { conclusion, .. } = &derivation {
+            let Exp::Sort(sort) = conclusion.ty.as_ref().unwrap() else {
+                unreachable!("sort inference must return a sort type")
+            };
             let sort = *sort;
-            self.premises.push(premise);
-            Some(sort)
-        } else {
-            self.premises.push(premise);
-            None
+            self.premises.push(derivation);
+            return Some(sort);
         }
-    }
-    fn add_prove(&mut self, premise: Derivation) -> Option<Exp> {
-        assert!(matches!(premise.node(), Some(Node::Prove(_))));
-        let Prove { prop, .. } = premise.node().unwrap().as_prove().unwrap();
-        if prop.is_none() {
-            self.premises.push(premise);
-            None
-        } else {
-            let prop = prop.clone();
-            self.premises.push(premise);
-            prop
+        if let Derivation::DerivationFail { .. } = &derivation {
+            self.premises.push(derivation);
+            return None;
         }
+        unreachable!("infer_sort result should be DerivationSuccess | DerivationFail");
     }
-    fn add_unproved_goal(&mut self, unproved: Prove) {
-        self.premises.push(Derivation::UnSolved(unproved));
+    fn add_unproved_goal(&mut self, unproved: PropositionJudgement) {
+        let cell = Rc::new(RefCell::new(Goal::NotYetProved(unproved)));
+        self.premises.push(Derivation::SomeGoal(cell));
     }
-    fn add(&mut self, der: Derivation) {
-        self.premises.push(der);
-    }
-    fn solve(&mut self, ders: Vec<Derivation>) -> Result<(), String> {
-        assert!(
-            ders.iter()
-                .all(|der| matches!(der, Derivation::Prove { .. }))
-        );
-        // we solve all goals in first element of premises
-        assert!(!self.premises.is_empty());
+    // fn add(&mut self, der: Derivation) {
+    //     self.premises.push(der);
+    // }
+    // fn solve(&mut self, ders: Vec<Derivation>) -> Result<(), String> {
+    //     assert!(
+    //         ders.iter()
+    //             .all(|der| matches!(der, Derivation::Prove { .. }))
+    //     );
+    //     // we solve all goals in first element of premises
+    //     assert!(!self.premises.is_empty());
 
-        for der in ders {
-            self.premises.push(der);
-        }
+    //     for der in ders {
+    //         self.premises.push(der);
+    //     }
 
-        // head ... check to unproved goals, tails ... goal solvers
-        let ([head, ..], tails) = self.premises.split_at_mut(1) else {
-            unreachable!("premises must have at least one element")
-        };
+    //     // head ... check to unproved goals, tails ... goal solvers
+    //     let ([head, ..], tails) = self.premises.split_at_mut(1) else {
+    //         unreachable!("premises must have at least one element")
+    //     };
 
-        for tail in tails {
-            let Derivation::Prove { proved, num: n, .. } = tail else {
-                unreachable!("Only Prove derivations are allowed here")
-            };
+    //     for tail in tails {
+    //         let Derivation::Prove { proved, num: n, .. } = tail else {
+    //             unreachable!("Only Prove derivations are allowed here")
+    //         };
 
-            let unproved = get_first_goal(head);
-            let Some(unproved) = unproved else {
-                return Err("not found unproved goal".into());
-            };
+    //         let unproved = get_first_goal(head);
+    //         let Some(unproved) = unproved else {
+    //             return Err("not found unproved goal".into());
+    //         };
 
-            let Derivation::UnSolved(unproved_goal) = unproved else {
-                unreachable!("Only UnProved derivations are allowed here")
-            };
-            if is_alpha_eq_prove(unproved_goal, proved) {
-                // solved, remove from premises
-                *unproved = Derivation::Solved {
-                    target: unproved_goal.clone(),
-                    num: n.clone(),
-                };
-            } else {
-                *unproved = Derivation::SolveFailed {
-                    target: unproved_goal.clone(),
-                    num: n.clone(),
-                };
-                return Err("failed to solve goal".into());
-            }
-        }
+    //         let Derivation::UnSolved(unproved_goal) = unproved else {
+    //             unreachable!("Only UnProved derivations are allowed here")
+    //         };
+    //         if is_alpha_eq_prove(unproved_goal, proved) {
+    //             // solved, remove from premises
+    //             *unproved = Derivation::Solved {
+    //                 target: unproved_goal.clone(),
+    //                 num: n.clone(),
+    //             };
+    //         } else {
+    //             *unproved = Derivation::SolveFailed {
+    //                 target: unproved_goal.clone(),
+    //                 num: n.clone(),
+    //             };
+    //             return Err("failed to solve goal".into());
+    //         }
+    //     }
 
-        // if some goal is remained, return error
-        if get_first_goal(head).is_some() {
-            return Err("some goals are remained unsolved".into());
-        }
+    //     // if some goal is remained, return error
+    //     if get_first_goal(head).is_some() {
+    //         return Err("some goals are remained unsolved".into());
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    fn build_typecheck(mut self) -> Derivation {
-        let TypeCheck { res, .. } = self.node.as_type_check_mut().unwrap();
-        *res = true;
-        Derivation::Derivation {
-            conclusion: self.node,
+    fn build_typejudgement(self, judgement: TypeJudgement) -> Derivation {
+        Derivation::DerivationSuccess {
+            conclusion: judgement,
             premises: self.premises,
             rule: self.rule,
             meta: self.meta,
         }
     }
-    fn build_typeinfer(mut self, ty_res: Exp) -> Derivation {
-        assert!(matches!(self.node, Node::TypeInfer(_)));
-        let TypeInfer { ty, .. } = &mut self.node.as_type_infer_mut().unwrap();
-        *ty = Some(ty_res);
-        Derivation::Derivation {
-            conclusion: self.node,
-            premises: self.premises,
-            rule: self.rule,
-            meta: self.meta,
-        }
-    }
-    fn build_sortinfer(mut self, sort_res: Sort) -> Derivation {
-        assert!(matches!(self.node, Node::SortInfer(_)));
-        let SortInfer { sort, .. } = &mut self.node.as_sort_infer_mut().unwrap();
-        *sort = Some(sort_res);
-        Derivation::Derivation {
-            conclusion: self.node,
-            premises: self.premises,
-            rule: self.rule,
-            meta: self.meta,
-        }
-    }
-    fn build_prop(mut self, prop_res: Exp) -> Derivation {
-        assert!(matches!(self.node, Node::Prove(_)));
-        let Prove { prop, .. } = &mut self.node.as_prove_mut().unwrap();
-        *prop = Some(prop_res);
-        Derivation::Derivation {
-            conclusion: self.node,
+    // return proved goal judgement tree
+    fn build_prop(self, proposition: PropositionJudgement) -> Goal {
+        Goal::Proved {
+            conclusion: proposition,
             premises: self.premises,
             rule: self.rule,
             meta: self.meta,
@@ -189,15 +154,11 @@ impl Builder {
     where
         I: Into<String>,
     {
-        assert!(matches!(self.meta, Meta::Usual(_)));
-        let Meta::Usual(meta) = self.meta else {
-            unreachable!("Only Usual meta can build fail")
-        };
-        Derivation::Derivation {
+        Derivation::DerivationFail {
             conclusion: self.node,
             premises: self.premises,
             rule: self.rule,
-            meta: Meta::Fail(format!("{}: {}", meta, fail_reason.into())),
+            meta: Meta::Usual(format!("{}: {}", meta, fail_reason.into())),
         }
     }
 }
@@ -274,7 +235,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Derivation {
         builder.rule("SubsetStrong");
         if is_alpha_eq(superset.as_ref(), &inferred_ty_result) {
             // add goal (ctx |= Pred(inferred_ty, subset, term))
-            builder.add_unproved_goal(Prove {
+            builder.add_unproved_goal(PropositionJudgement {
                 ctx: ctx.clone(),
                 prop: Some(Exp::Pred {
                     superset: Box::new(inferred_ty_result),
@@ -630,7 +591,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             };
 
             // 2. add goal (ctx |= exp)
-            builder.add_unproved_goal(Prove {
+            builder.add_unproved_goal(PropositionJudgement {
                 ctx: ctx.clone(),
                 prop: Some(prop.as_ref().clone()),
             });
@@ -661,7 +622,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             {
                 let extended_ctx = ctx_extend_ctx(ctx, extended_ctx);
 
-                let proved_goal = Prove {
+                let proved_goal = PropositionJudgement {
                     ctx: extended_ctx.clone(),
                     prop: Some(goal_prop.clone()),
                 };
@@ -935,7 +896,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
     let mut builder = Builder::new(
         "Subst Here (prove)".to_string(), // we will change rule name later
         "prove_command",
-        Node::Prove(Prove {
+        Node::Prove(PropositionJudgement {
             ctx: ctx.clone(),
             prop: None,
         }),
@@ -1108,7 +1069,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
                 func: Box::new(apply.clone()),
                 arg: Box::new(left.clone()),
             };
-            builder.add_unproved_goal(Prove {
+            builder.add_unproved_goal(PropositionJudgement {
                 ctx: ctx.clone(),
                 prop: Some(prop1.clone()),
             });
@@ -1118,7 +1079,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Derivation {
                 left: Box::new(left.clone()),
                 right: Box::new(right.clone()),
             };
-            builder.add_unproved_goal(Prove {
+            builder.add_unproved_goal(PropositionJudgement {
                 ctx: ctx.clone(),
                 prop: Some(prop2.clone()),
             });

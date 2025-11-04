@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::exp::{Derivation, Node, Prove, ProveGoal, SortInfer, TypeCheck, TypeInfer, Var};
+use crate::exp::{Derivation, Node, PropositionJudgement, ProveGoal, SortInfer, TypeCheck, TypeInfer, Var};
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -207,9 +207,9 @@ impl Display for ProveGoal {
     }
 }
 
-impl Display for Prove {
+impl Display for PropositionJudgement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Prove { ctx, prop } = self;
+        let PropositionJudgement { ctx, prop } = self;
         write!(
             f,
             "[{} |= {}]",

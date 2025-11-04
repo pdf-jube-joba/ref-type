@@ -1,6 +1,6 @@
 // this file is for core expression definition and its type checking
 
-use std::{fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -312,160 +312,55 @@ pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeCheck {
-    pub ctx: Context,
-    pub term: Exp,
-    pub ty: Exp,
-    pub res: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct TypeInfer {
+pub struct TypeJudgement {
     pub ctx: Context,
     pub term: Exp,
     pub ty: Option<Exp>,
 }
 
 #[derive(Debug, Clone)]
-pub struct SortInfer {
-    pub ctx: Context,
-    pub ty: Exp,
-    pub sort: Option<Sort>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Prove {
+pub struct PropositionJudgement {
     pub ctx: Context,
     pub prop: Option<Exp>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Node {
-    TypeCheck(TypeCheck),
-    TypeInfer(TypeInfer),
-    SortInfer(SortInfer),
-    Prove(Prove),
-}
-
-impl Node {
-    pub fn is_success(&self) -> bool {
-        match self {
-            Node::TypeCheck(tc) => tc.res,
-            Node::TypeInfer(ti) => ti.ty.is_some(),
-            Node::SortInfer(si) => si.sort.is_some(),
-            Node::Prove(p) => p.prop.is_some(),
-        }
-    }
-    pub fn ctx(&self) -> &Context {
-        match self {
-            Node::TypeCheck(tc) => &tc.ctx,
-            Node::TypeInfer(ti) => &ti.ctx,
-            Node::SortInfer(si) => &si.ctx,
-            Node::Prove(p) => &p.ctx,
-        }
-    }
-    pub fn as_type_check(&self) -> Option<&TypeCheck> {
-        match self {
-            Node::TypeCheck(tc) => Some(tc),
-            _ => None,
-        }
-    }
-    pub fn as_type_check_mut(&mut self) -> Option<&mut TypeCheck> {
-        match self {
-            Node::TypeCheck(tc) => Some(tc),
-            _ => None,
-        }
-    }
-    pub fn as_type_infer(&self) -> Option<&TypeInfer> {
-        match self {
-            Node::TypeInfer(ti) => Some(ti),
-            _ => None,
-        }
-    }
-    pub fn as_type_infer_mut(&mut self) -> Option<&mut TypeInfer> {
-        match self {
-            Node::TypeInfer(ti) => Some(ti),
-            _ => None,
-        }
-    }
-    pub fn as_sort_infer(&self) -> Option<&SortInfer> {
-        match self {
-            Node::SortInfer(si) => Some(si),
-            _ => None,
-        }
-    }
-    pub fn as_sort_infer_mut(&mut self) -> Option<&mut SortInfer> {
-        match self {
-            Node::SortInfer(si) => Some(si),
-            _ => None,
-        }
-    }
-    pub fn as_prove(&self) -> Option<&Prove> {
-        match self {
-            Node::Prove(p) => Some(p),
-            _ => None,
-        }
-    }
-    pub fn as_prove_mut(&mut self) -> Option<&mut Prove> {
-        match self {
-            Node::Prove(p) => Some(p),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
 pub enum Meta {
     Usual(String),
     Through(String),
-    Fail(String),
 }
 
 #[derive(Debug, Clone)]
 pub enum Derivation {
-    Derivation {
-        conclusion: Node,
+    DerivationSuccess {
+        conclusion: TypeJudgement, // => ty is Some
         premises: Vec<Derivation>,
         rule: String,
         meta: Meta,
     },
-    // stop derivation at this provable judgment
-    UnSolved(Prove),
-    // proved by another proof tree
-    Solved {
-        target: Prove,
-        num: Rc<()>,
+    DerivationFail {
+        conclusion: TypeJudgement,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
     },
-    // failed to prove by another proof tree
-    SolveFailed {
-        target: Prove,
-        num: Rc<()>,
-    },
-    // the another tree
-    Prove {
-        tree: Box<Derivation>,
-        proved: Prove,
-        num: Rc<()>,
-    },
+    SomeGoal(Rc<RefCell<Goal>>),
+    SomeGoalProvehere(Rc<RefCell<ProveGoal>>),
 }
 
-impl Derivation {
-    pub fn node(&self) -> Option<&Node> {
-        match self {
-            Derivation::Derivation { conclusion, .. } => Some(conclusion),
-            _ => None,
-        }
-    }
-    pub fn node_mut(&mut self) -> Option<&mut Node> {
-        match self {
-            Derivation::Derivation { conclusion, .. } => Some(conclusion),
-            _ => None,
-        }
-    }
-    pub fn get_unproved(&self) -> Option<Prove> {
-        match self {
-            Derivation::UnSolved(p) => Some(p.clone()),
-            _ => None,
-        }
-    }
+#[derive(Debug, Clone)]
+pub enum Goal {
+    NotYetProved(PropositionJudgement),
+    FailToProve {
+        conclusion: PropositionJudgement,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
+    },
+    Proved {
+        conclusion: PropositionJudgement,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
+    },
 }

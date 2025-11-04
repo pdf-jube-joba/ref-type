@@ -620,7 +620,7 @@ pub fn is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp)
     is_alpha_eq_rec(t1, t2, &mut env1, &mut env2)
 }
 
-pub fn is_alpha_eq_prove(p1: &Prove, p2: &Prove) -> bool {
+pub fn is_alpha_eq_prove(p1: &PropositionJudgement, p2: &PropositionJudgement) -> bool {
     match (&p1.prop, &p2.prop) {
         (Some(prop1), Some(prop2)) => is_alpha_eq_under_ctx(&p1.ctx, prop1, &p2.ctx, prop2),
         (None, None) => is_alpha_eq_ctx(&p1.ctx, &p2.ctx),
