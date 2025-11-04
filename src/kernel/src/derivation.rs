@@ -1,7 +1,6 @@
 // All judgement functions return a Derivation (the trace) plus a payload indicating success/value.
 // ? for output value
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::inductive::eliminator_type;
@@ -74,51 +73,45 @@ impl Builder {
         unreachable!("infer_sort result should be DerivationSuccess | DerivationFail");
     }
     fn add_unproved_goal(&mut self, unproved: PropositionJudgement) {
-        let cell = Rc::new(RefCell::new(Goal::NotYetProved(unproved)));
-        self.premises.push(Derivation::GoalGenerated(cell));
+        self.premises.push(Derivation::GoalGenerated {
+            proposition: unproved,
+            solvetree: None,
+        });
     }
 
-    fn solve(&mut self, solve_goals: Vec<Goal>) -> Result<(), String> {
-        assert!(solve_goals.iter().all(|g| matches!(g, Goal::Proved { .. })));
-        let mut goals = vec![];
-        for der in self.premises.iter() {
-            der.get_all_notyet_proved_goal(&mut goals);
-        }
-        if goals.len() != solve_goals.len() {
-            return Err(format!(
-                "Mismatched goal length: expected {}, found {}",
-                goals.len(),
-                solve_goals.len()
-            ));
-        }
-        for (found_goal_ref, proved_goal) in goals.into_iter().zip(solve_goals.into_iter()) {
-            match found_goal_ref.as_ref().try_borrow_mut() {
-                Ok(mut ref_unproved_goal) => {
-                    let unproved_prop: &mut PropositionJudgement = match &mut *ref_unproved_goal {
-                        Goal::NotYetProved(judgement) => judgement,
-                        _ => {
-                            unreachable!("we checked in assert")
-                        }
-                    };
-                    let solved_goal = match &proved_goal {
-                        Goal::Proved { conclusion, .. } => conclusion,
-                        _ => {
-                            unreachable!("we checked in assert")
-                        }
-                    };
-                    if proposition_is_alpha_eq(&unproved_prop, solved_goal) {
-                        *ref_unproved_goal = proved_goal;
-                    } else {
-                        return Err(format!(
-                            "Solved goal {:?} does not match expected goal {:?}",
-                            solved_goal, unproved_prop
-                        ));
-                    }
-                }
-                Err(err) => {
-                    return Err(format!("Failed to borrow goal for solving: {}", err));
-                }
+    fn solve(&mut self, solve_goals: Vec<ProofTree>) -> Result<(), String> {
+        assert!(solve_goals.iter().all(|g| matches!(g, ProofTree { .. })));
+        for goal in solve_goals {
+            let proved_goal = goal.conclusion.clone();
+            let rc_goal = Rc::new(goal);
+
+            self.premises
+                .push(Derivation::SolveSuccess(rc_goal.clone()));
+
+            let Some(first_goal) = self
+                .premises
+                .iter_mut()
+                .find_map(|der| der.get_first_unproved_mut())
+            else {
+                return Err("No unproved goal found when solving".to_string());
+            };
+
+            let Derivation::GoalGenerated {
+                proposition,
+                solvetree,
+            } = first_goal
+            else {
+                unreachable!("Expected GoalGenerated derivation");
+            };
+
+            if !proposition_is_alpha_eq(proposition, &proved_goal) {
+                return Err(format!(
+                    "Solved goal proposition {:?} does not match expected proposition {:?}",
+                    proved_goal, proposition.prop
+                ));
             }
+
+            solvetree.replace(rc_goal.clone());
         }
         Ok(())
     }
@@ -131,8 +124,8 @@ impl Builder {
             meta: self.meta,
         }
     }
-    fn build_prop(self, proposition: PropositionJudgement) -> Goal {
-        Goal::Proved {
+    fn build_prop(self, proposition: PropositionJudgement) -> ProofTree {
+        ProofTree {
             conclusion: proposition,
             premises: self.premises,
             rule: self.rule,
@@ -155,13 +148,13 @@ impl Builder {
             meta: Meta::Usual(meta),
         }
     }
-    fn build_fail_prop(self, fail_reason: String, proposition: PropositionJudgement) -> Goal {
+    fn build_fail_prop(self, fail_reason: String, proposition: PropositionJudgement) -> Derivation {
         let Meta::Usual(inner) = &self.meta else {
             unreachable!("meta must be Usual in build_fail_prop")
         };
         let meta = format!("{}; {}", inner, fail_reason);
 
-        Goal::FailToProve {
+        Derivation::SolveFail {
             conclusion: proposition,
             premises: self.premises,
             rule: self.rule,
@@ -646,9 +639,9 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 );
             };
 
-            // 2. we get all prove derivations (fail or success is cared later)
-            let mut prove_ders: Vec<Goal> = vec![];
-            let mut fail = None;
+            // 2. get proof_tree is success
+            //   if fail, early return
+            let mut prove_ders: Vec<ProofTree> = vec![];
 
             for (
                 i,
@@ -661,37 +654,34 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             {
                 let extended_ctx = ctx_extend_ctx(ctx, extended_ctx);
 
-                let proved_goal = PropositionJudgement {
-                    ctx: extended_ctx.clone(),
-                    prop: Some(goal_prop.clone()),
-                };
-
                 // add (ctx::extended_ctx |- proof_term: goal_prop)
-                let der = prove_command(&extended_ctx, command);
+                match prove_command(&extended_ctx, command) {
+                    Ok(der) => {
+                        let as_proposition = PropositionJudgement {
+                            ctx: extended_ctx.clone(),
+                            prop: Some(goal_prop.clone()),
+                        };
 
-                if matches!(der, Goal::FailToProve { .. }) {
-                    fail = Some(i);
-                }
-
-                prove_ders.push(der);
-            }
-            // if some goals failed, return fail derivation
-            if let Some(i) = fail {
-                for der in prove_ders {
-                    let der = match &der {
-                        Goal::NotYetProved(_) => {
-                            unreachable!(
-                                "All goals should be either Proved or FailToProve at this point"
+                        if !proposition_is_alpha_eq(&der.conclusion, &as_proposition) {
+                            return builder.build_fail(
+                                format!(
+                                    "Proved goal {} proposition {:?} does not match expected proposition {:?}",
+                                    i + 1,
+                                    der.conclusion.prop,
+                                    goal_prop
+                                ),
+                                make_jd(None),
                             );
                         }
-                        Goal::FailToProve { .. } => {
-                            Derivation::SolveFail(Rc::new(RefCell::new(der)))
-                        }
-                        Goal::Proved { .. } => Derivation::SolveSuccess(Rc::new(RefCell::new(der))),
-                    };
+
+                        prove_ders.push(der);
+                    }
+                    Err(derivation) => {
+                        builder.premises.push(derivation);
+                        return builder
+                            .build_fail(format!("Goal {} failed to prove", i + 1), make_jd(None));
+                    }
                 }
-                return builder
-                    .build_fail(format!("Goal {} failed to prove", i + 1), make_jd(None));
             }
 
             // 3. all goals are proved, now solve them
@@ -709,36 +699,33 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 1. get (ctx |= prop) by command
             let goal = prove_command(ctx, command);
 
-            match &goal {
-                Goal::NotYetProved(_) => {
-                    unreachable!(
-                        "prove_command should not return NotYetProved goal in ProofTermRaw"
-                    );
+            match goal {
+                Ok(proof_tree) => {
+                    let as_type_judgement = TypeJudgement {
+                        ctx: proof_tree.conclusion.ctx.clone(),
+                        term: term.clone(),
+                        ty: proof_tree.conclusion.prop.clone(),
+                    };
+                    let der = Derivation::SolveSuccess(Rc::new(proof_tree));
+                    builder.premises.push(der);
+                    builder.build_typejudgement(as_type_judgement)
                 }
-                Goal::FailToProve { conclusion, .. } => {
+                Err(derivation_solvefail) => {
+                    let Derivation::SolveFail { conclusion, .. } = &derivation_solvefail else {
+                        unreachable!("expected SolveFail derivation");
+                    };
                     let as_type_judgement = TypeJudgement {
                         ctx: conclusion.ctx.clone(),
                         term: term.clone(),
                         ty: conclusion.prop.clone(),
                     };
-                    let der = Derivation::SolveFail(Rc::new(RefCell::new(goal)));
-                    builder.premises.push(der);
-                    return builder.build_fail(
+                    builder.premises.push(derivation_solvefail);
+                    builder.build_fail(
                         format!("Failed to prove proposition {:?}", as_type_judgement.ty),
                         as_type_judgement,
-                    );
+                    )
                 }
-                Goal::Proved { conclusion, .. } => {
-                    let as_type_judgement = TypeJudgement {
-                        ctx: conclusion.ctx.clone(),
-                        term: term.clone(),
-                        ty: conclusion.prop.clone(),
-                    };
-                    let der = Derivation::SolveSuccess(Rc::new(RefCell::new(goal)));
-                    builder.premises.push(der);
-                    return builder.build_typejudgement(as_type_judgement);
-                }
-            };
+            }
         }
         Exp::PowerSet { set: exp } => {
             builder.rule("PowerSet");
@@ -1022,7 +1009,8 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Derivation {
 }
 
 // given ctx, return derivation of (ctx |= prop) with prop defined by command
-pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
+// if err, it will return Derivation::SolveFail
+pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Result<ProofTree, Derivation> {
     let mut builder = Builder::new(
         "Subst Here (prove)".to_string(), // we will change rule name later
         "prove_command",
@@ -1041,56 +1029,56 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
 
             // 1. infer (ctx |- proof_term : prop)
             let Some(prop) = builder.add_infer(ctx, proof_term) else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to infer type of proof term {:?}", proof_term),
                     make_pp(None),
-                );
+                ));
             };
 
             // 2. check prop: \Prop
             if !builder.add_check(ctx, &prop, &Exp::Sort(Sort::Prop)) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Inferred type {:?} of proof term {:?} is not of type Prop",
                         prop, proof_term
                     ),
                     make_pp(None),
-                );
+                ));
             };
 
             // 3. conclude (ctx |= prop)
-            builder.build_prop(make_pp(Some(prop)))
+            Ok(builder.build_prop(make_pp(Some(prop))))
         }
         ProveCommandBy::ExactElem { elem, ty } => {
             builder.rule("ExactElem");
 
             // 1. check (ctx |- elem : ty)
             if !builder.add_check(ctx, elem, ty) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to check element {:?} against type {:?}", elem, ty),
                     make_pp(None),
-                );
+                ));
             };
 
             // 2. (check ctx |- ty : Set(i)) for some i
             let Some(sort) = builder.add_sort(ctx, ty) else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to infer sort of type {:?}", ty),
                     make_pp(None),
-                );
+                ));
             };
             let Sort::Set(_) = sort else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Type {:?} is not of form Set(i)", ty),
                     make_pp(None),
-                );
+                ));
             };
 
             // 3. conclude (ctx |= Exists(ty))
             let prop = Exp::Exists {
                 set: Box::new(ty.clone()),
             };
-            builder.build_prop(make_pp(Some(prop)))
+            Ok(builder.build_prop(make_pp(Some(prop))))
         }
         ProveCommandBy::SubsetElim {
             elem,
@@ -1105,33 +1093,33 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
                 subset: Box::new(subset.clone()),
             };
             if !builder.add_check(ctx, elem, &typelift) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Failed to check element {:?} against type Typelift({:?}, {:?})",
                         elem, superset, subset
                     ),
                     make_pp(None),
-                );
+                ));
             };
 
             // 2. check (ctx |- Typelift(superset, subset) : Set(i)) for some i
             let Some(_sort) = builder.add_sort(ctx, &typelift) else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Failed to infer sort of type Typelift({:?}, {:?})",
                         superset, subset
                     ),
                     make_pp(None),
-                );
+                ));
             };
             let Sort::Set(_) = _sort else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Type Typelift({:?}, {:?}) is not of form Set(i)",
                         superset, subset
                     ),
                     make_pp(None),
-                );
+                ));
             };
 
             // 3. conclude (ctx |= Pred(superset, subset, elem))
@@ -1140,31 +1128,31 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
                 subset: Box::new(subset.clone()),
                 element: Box::new(elem.clone()),
             };
-            builder.build_prop(make_pp(Some(prop)))
+            Ok(builder.build_prop(make_pp(Some(prop))))
         }
         ProveCommandBy::IdRefl { elem } => {
             builder.rule("IdRefl");
 
             // 1. infer (ctx |- elem : ?ty)
             let Some(ty) = builder.add_infer(ctx, elem) else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to infer type of element {:?}", elem),
                     make_pp(None),
-                );
+                ));
             };
 
             // 2. check (ctx |- ty : Set(i)) for some i
             let Some(sort) = builder.add_sort(ctx, &ty) else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to infer sort of type {:?}", ty),
                     make_pp(None),
-                );
+                ));
             };
             let Sort::Set(_) = sort else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Type {:?} is not of form Set(i)", ty),
                     make_pp(None),
-                );
+                ));
             };
 
             // 3. conclude (ctx |= elem = elem)
@@ -1172,7 +1160,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
                 left: Box::new(elem.clone()),
                 right: Box::new(elem.clone()),
             };
-            builder.build_prop(make_pp(Some(prop)))
+            Ok(builder.build_prop(make_pp(Some(prop))))
         }
         ProveCommandBy::IdElim {
             left,
@@ -1185,44 +1173,44 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
 
             // 1. check (ctx |- ty : Set(i)) for some i
             let Some(sort) = builder.add_sort(ctx, ty) else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to infer sort of type {:?}", ty),
                     make_pp(None),
-                );
+                ));
             };
             let Sort::Set(_) = sort else {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Type {:?} is not of form Set(i)", ty),
                     make_pp(None),
-                );
+                ));
             };
 
             // 2. check (ctx |- left : ty)
             if builder.add_check(ctx, left, ty) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to check element {:?} against type {:?}", left, ty),
                     make_pp(None),
-                );
+                ));
             };
 
             // 3. check (ctx |- right : ty)
             if builder.add_check(ctx, right, ty) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!("Failed to check element {:?} against type {:?}", right, ty),
                     make_pp(None),
-                );
+                ));
             };
 
             // 4. check (ctx::(var, ty) |- predicate : Prop)
             let extend = ctx_extend(ctx, (var.clone(), ty.clone()));
             if builder.add_check(&extend, predicate, &Exp::Sort(Sort::Prop)) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Failed to check predicate {:?} against type Prop in extended context",
                         predicate
                     ),
                     make_pp(None),
-                );
+                ));
             };
 
             // apply = (var: ty) => predicate
@@ -1257,7 +1245,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
                 func: Box::new(apply.clone()),
                 arg: Box::new(right.clone()),
             };
-            builder.build_prop(make_pp(Some(prop)))
+            Ok(builder.build_prop(make_pp(Some(prop))))
         }
         ProveCommandBy::TakeEq {
             func,
@@ -1272,24 +1260,24 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
                 map: Box::new(func.clone()),
             };
             if !builder.add_check(ctx, &take_ty, codomain) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Failed to check Take({:?}, {:?}, {:?}) against type {:?} in context",
                         func, domain, codomain, codomain
                     ),
                     make_pp(None),
-                );
+                ));
             };
 
             // 2. check (ctx |- elem : domain)
             if !builder.add_check(ctx, elem, domain) {
-                return builder.build_fail_prop(
+                return Err(builder.build_fail_prop(
                     format!(
                         "Failed to check element {:?} against type {:?}",
                         elem, domain
                     ),
                     make_pp(None),
-                );
+                ));
             };
 
             // 3. conclude (ctx |= Take(func, domain, codomain) = func(elem))
@@ -1301,7 +1289,7 @@ pub fn prove_command(ctx: &Context, command: &ProveCommandBy) -> Goal {
                 }),
             };
 
-            builder.build_prop(make_pp(Some(prop)))
+            Ok(builder.build_prop(make_pp(Some(prop))))
         }
         ProveCommandBy::Axiom(_axiom) => todo!("axiom implement later"),
     }

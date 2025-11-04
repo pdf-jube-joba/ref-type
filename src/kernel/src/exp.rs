@@ -1,6 +1,6 @@
 // this file is for core expression definition and its type checking
 
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{fmt::Debug, rc::Rc};
 
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -342,58 +342,57 @@ pub enum Derivation {
         rule: String,
         meta: Meta,
     },
-    GoalGenerated(Rc<RefCell<Goal>>), // this goal is generated here
-    SolveSuccess(Rc<RefCell<Goal>>),  // this goal is solved here (i.e. Goal::Proved)
-    SolveFail(Rc<RefCell<Goal>>),     // this goal is failed to solve here (i.e. Goal::FailToProve)
+    GoalGenerated {
+        proposition: PropositionJudgement,
+        solvetree: Option<Rc<ProofTree>>,
+    }, // this goal is generated here
+    SolveSuccess(Rc<ProofTree>), // this goal is solved here (i.e. Goal::Proved)
+    SolveFail {
+        conclusion: PropositionJudgement,
+        premises: Vec<Derivation>,
+        rule: String,
+        meta: Meta,
+    }, // this goal is failed to solve here (i.e. Goal::FailToProve)
 }
 
 impl Derivation {
     pub fn is_success(&self) -> bool {
-        match self {
-            Derivation::DerivationFail { .. } => false,
-            _ => true,
-        }
+        matches!(
+            self,
+            Derivation::DerivationSuccess { .. } | Derivation::SolveSuccess(_)
+        )
     }
     // we collect by borrow => may be fail
-    pub fn get_all_notyet_proved_goal(
-        &self,
-        res: &mut Vec<Rc<RefCell<Goal>>>,
-    ) -> Result<(), String> {
+    pub fn get_first_unproved_mut(&mut self) -> Option<&mut Derivation> {
         match self {
-            Derivation::GoalGenerated(goal) => {
-                let goal_cell = goal
-                    .try_borrow()
-                    .map_err(|e| format!("Failed to borrow Goal: {}", e))?;
-                if matches!(*goal_cell, Goal::NotYetProved(_)) {
-                    res.push(Rc::clone(goal));
+            Derivation::GoalGenerated {
+                proposition: _,
+                solvetree,
+            } => {
+                if solvetree.is_none() {
+                    Some(self)
+                } else {
+                    None
                 }
-                Ok(())
             }
-            Derivation::SolveSuccess(_) | Derivation::SolveFail(_) => Ok(()), // this is solved
+            Derivation::SolveSuccess(_) | Derivation::SolveFail { .. } => None, // this is solved
             Derivation::DerivationSuccess { premises, .. }
             | Derivation::DerivationFail { premises, .. } => {
-                for p in premises {
-                    p.get_all_notyet_proved_goal(res)?;
+                for premise in premises.iter_mut() {
+                    if let Some(found) = premise.get_first_unproved_mut() {
+                        return Some(found);
+                    }
                 }
-                Ok(())
+                None
             }
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum Goal {
-    NotYetProved(PropositionJudgement),
-    FailToProve {
-        conclusion: PropositionJudgement,
-        premises: Vec<Derivation>,
-        rule: String,
-        meta: Meta,
-    },
-    Proved {
-        conclusion: PropositionJudgement,
-        premises: Vec<Derivation>,
-        rule: String,
-        meta: Meta,
-    },
+pub struct ProofTree {
+    pub conclusion: PropositionJudgement,
+    pub premises: Vec<Derivation>,
+    pub rule: String,
+    pub meta: Meta,
 }

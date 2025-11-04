@@ -38,7 +38,7 @@ impl Checker {
         self.derivations.push(derivation);
         ty
     }
-    fn prove_command(&self, command: &ProveCommandBy) -> crate::exp::Goal {
+    fn prove_command(&self, command: &ProveCommandBy) -> Result<crate::exp::ProofTree, Derivation> {
         crate::derivation::prove_command(&self.context, command)
     }
     fn chk_indspec(
@@ -320,11 +320,9 @@ fn proof_by_construct() {
     let x = var!("x");
     push_var(&mut checker, &xx, Exp::Sort(Sort::Prop));
     push_var(&mut checker, &x, Exp::Var(xx.clone()));
-    let der = checker.prove_command(&ProveCommandBy::Construct {
-        proof_term: Exp::Var(x.clone()),
-    });
-    println!("{}", der);
-    assert!(der.is_success());
+    let der = checker.prove_command(&ProveCommandBy::Construct(Exp::Var(x.clone())));
+    println!("{:?}", der);
+    assert!(der.is_ok());
 }
 
 // Proof by assumption
@@ -425,20 +423,12 @@ fn solvegoals() {
             ProveGoal {
                 extended_ctx: vec![],
                 goal_prop: p1impp2.clone(),
-                command: Exp::ProofTermRaw {
-                    command: Box::new(ProveCommandBy::Construct {
-                        proof_term: Exp::Var(pm.clone()),
-                    }),
-                },
+                command: ProveCommandBy::Construct(Exp::Var(pm.clone())),
             },
             ProveGoal {
                 extended_ctx: vec![],
                 goal_prop: Exp::Var(pp1.clone()),
-                command: Exp::ProofTermRaw {
-                    command: Box::new(ProveCommandBy::Construct {
-                        proof_term: Exp::Var(p1.clone()),
-                    }),
-                },
+                command: ProveCommandBy::Construct(Exp::Var(p1.clone())),
             },
         ];
 
@@ -487,6 +477,6 @@ fn nat_test() {
 
     checker.history().iter().for_each(|der| {
         println!("{}", der);
-        assert!(der.node().unwrap().is_success());
+        assert!(der.is_success());
     });
 }

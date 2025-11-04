@@ -143,7 +143,7 @@ impl GlobalEnvironment {
                 // a parameter may depends on previous parameters
                 self.elaborator.parameters.push((v.clone(), ty.clone()));
 
-                if !der.node().unwrap().is_success() {
+                if !der.is_success() {
                     return Err(format!(
                         "Parameter type checking failed: type {ty} is not a valid type",
                     ));
@@ -160,7 +160,7 @@ impl GlobalEnvironment {
                     Item::Definition { name, ty, body } => {
                         let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
                         self.logger.log_derivation(der.clone());
-                        if !der.node().unwrap().is_success() {
+                        if !der.is_success() {
                             return Err(format!(
                                 "Definition {} type checking failed: body {} does not have type {}",
                                 name.as_str(),
@@ -236,7 +236,7 @@ impl GlobalEnvironment {
                                 let der =
                                     kernel::derivation::check(&self.elaborator.parameters, arg, ty);
                                 self.logger.log_derivation(der.clone());
-                                if !der.node().unwrap().is_success() {
+                                if !der.is_success() {
                                     return Err(format!(
                                         "Imported module argument type checking failed: argument {} does not have type {}",
                                         arg, ty_substed
@@ -790,8 +790,12 @@ impl Elaborator {
                         }
                         let goal_elab =
                             self.elab_exp_rec(logger, goal, reference_var, bind_var.clone())?;
-                        let proof_term_elab =
-                            self.elab_exp_rec(logger, proof_term, reference_var, bind_var.clone())?;
+                        let proof_term_elab = self.elab_proof_by(
+                            logger,
+                            proof_term,
+                            reference_var,
+                            bind_var.clone(),
+                        )?;
                         proof_goals.push(ProveGoal {
                             extended_ctx: extended_ctx_elab,
                             goal_prop: goal_elab,
@@ -1285,109 +1289,9 @@ impl Elaborator {
                 }
                 SExp::ProofBy(proof_by) => {
                     use kernel::exp::ProveCommandBy;
-                    let command: ProveCommandBy = match proof_by {
-                        ProofBy::Construct { term } => {
-                            let term_elab =
-                                self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
-                            ProveCommandBy::Construct {
-                                proof_term: term_elab,
-                            }
-                        }
-                        ProofBy::Exact { term, set } => {
-                            let term_elab =
-                                self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
-                            let set_elab =
-                                self.elab_exp_rec(logger, set, reference_var, bind_var.clone())?;
-                            ProveCommandBy::ExactElem {
-                                elem: term_elab,
-                                ty: set_elab,
-                            }
-                        }
-                        ProofBy::SubsetElim {
-                            superset,
-                            subset,
-                            elem,
-                        } => {
-                            let superset_elab = self.elab_exp_rec(
-                                logger,
-                                superset,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            let subset_elab =
-                                self.elab_exp_rec(logger, subset, reference_var, bind_var.clone())?;
-                            let elem_elab =
-                                self.elab_exp_rec(logger, elem, reference_var, bind_var.clone())?;
-                            ProveCommandBy::SubsetElim {
-                                superset: superset_elab,
-                                subset: subset_elab,
-                                elem: elem_elab,
-                            }
-                        }
-                        ProofBy::IdRefl { term } => {
-                            let term_elab =
-                                self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
-                            ProveCommandBy::IdRefl { elem: term_elab }
-                        }
-                        ProofBy::IdElim {
-                            left,
-                            right,
-                            var,
-                            ty,
-                            predicate,
-                        } => {
-                            let left_elab =
-                                self.elab_exp_rec(logger, left, reference_var, bind_var.clone())?;
-                            let right_elab =
-                                self.elab_exp_rec(logger, right, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
-                            let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let predicate_elab = self.elab_exp_rec(
-                                logger,
-                                predicate,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            ProveCommandBy::IdElim {
-                                left: left_elab,
-                                right: right_elab,
-                                var,
-                                ty: ty_elab,
-                                predicate: predicate_elab,
-                            }
-                        }
-                        ProofBy::TakeEq {
-                            func,
-                            domain,
-                            codomain,
-                            elem,
-                        } => {
-                            let func_elab =
-                                self.elab_exp_rec(logger, func, reference_var, bind_var.clone())?;
-                            let domain_elab =
-                                self.elab_exp_rec(logger, domain, reference_var, bind_var.clone())?;
-                            let codomain_elab = self.elab_exp_rec(
-                                logger,
-                                codomain,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            let elem_elab =
-                                self.elab_exp_rec(logger, elem, reference_var, bind_var.clone())?;
-                            ProveCommandBy::TakeEq {
-                                func: func_elab,
-                                domain: domain_elab,
-                                codomain: codomain_elab,
-                                elem: elem_elab,
-                            }
-                        }
-                        ProofBy::Axiom(_) => {
-                            todo!()
-                        }
-                    };
+                    let command: ProveCommandBy =
+                        self.elab_proof_by(logger, proof_by, reference_var, bind_var.clone())?;
+
                     Exp::ProofTermRaw {
                         command: Box::new(command),
                     }
@@ -1448,6 +1352,97 @@ impl Elaborator {
         };
 
         Ok(kernel::utils::assoc_apply(left_most, tails_elab))
+    }
+
+    fn elab_proof_by(
+        &mut self,
+        logger: &mut Logger,
+        proof_by: &crate::syntax::ProofBy,
+        reference_var: &[Var],
+        bind_var: Vec<Var>,
+    ) -> Result<kernel::exp::ProveCommandBy, String> {
+        use kernel::exp::ProveCommandBy;
+        let elab = match proof_by {
+            ProofBy::Construct { term } => {
+                let term_elab = self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
+                ProveCommandBy::Construct(term_elab)
+            }
+            ProofBy::Exact { term, set } => {
+                let term_elab = self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
+                let set_elab = self.elab_exp_rec(logger, set, reference_var, bind_var.clone())?;
+                ProveCommandBy::ExactElem {
+                    elem: term_elab,
+                    ty: set_elab,
+                }
+            }
+            ProofBy::SubsetElim {
+                superset,
+                subset,
+                elem,
+            } => {
+                let superset_elab =
+                    self.elab_exp_rec(logger, superset, reference_var, bind_var.clone())?;
+                let subset_elab =
+                    self.elab_exp_rec(logger, subset, reference_var, bind_var.clone())?;
+                let elem_elab = self.elab_exp_rec(logger, elem, reference_var, bind_var.clone())?;
+                ProveCommandBy::SubsetElim {
+                    superset: superset_elab,
+                    subset: subset_elab,
+                    elem: elem_elab,
+                }
+            }
+            ProofBy::IdRefl { term } => {
+                let term_elab = self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
+                ProveCommandBy::IdRefl { elem: term_elab }
+            }
+            ProofBy::IdElim {
+                left,
+                right,
+                var,
+                ty,
+                predicate,
+            } => {
+                let left_elab = self.elab_exp_rec(logger, left, reference_var, bind_var.clone())?;
+                let right_elab =
+                    self.elab_exp_rec(logger, right, reference_var, bind_var.clone())?;
+                let var: Var = var.into();
+                let mut bind_var = bind_var.clone();
+                bind_var.push(var.clone());
+                let ty_elab = self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                let predicate_elab =
+                    self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+                ProveCommandBy::IdElim {
+                    left: left_elab,
+                    right: right_elab,
+                    var,
+                    ty: ty_elab,
+                    predicate: predicate_elab,
+                }
+            }
+            ProofBy::TakeEq {
+                func,
+                domain,
+                codomain,
+                elem,
+            } => {
+                let func_elab = self.elab_exp_rec(logger, func, reference_var, bind_var.clone())?;
+                let domain_elab =
+                    self.elab_exp_rec(logger, domain, reference_var, bind_var.clone())?;
+                let codomain_elab =
+                    self.elab_exp_rec(logger, codomain, reference_var, bind_var.clone())?;
+                let elem_elab = self.elab_exp_rec(logger, elem, reference_var, bind_var.clone())?;
+                ProveCommandBy::TakeEq {
+                    func: func_elab,
+                    domain: domain_elab,
+                    codomain: codomain_elab,
+                    elem: elem_elab,
+                }
+            }
+            ProofBy::Axiom(_) => {
+                todo!()
+            }
+        };
+        Ok(elab)
     }
 }
 

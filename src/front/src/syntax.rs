@@ -266,7 +266,7 @@ pub enum Statement {
 pub struct WithGoal {
     pub extended_ctx: Vec<(Identifier, SExp)>, // extended context
     pub goal: SExp,                            // goal to prove
-    pub proof_term: SExp,                      // proof term to fill in
+    pub proof_term: ProofBy,                   // proof term to fill in
 }
 
 #[derive(Debug, Clone)]

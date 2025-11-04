@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
-use crate::exp::{Derivation, Goal, PropositionJudgement, ProveGoal, TypeJudgement, Var};
+use crate::exp::{
+    Derivation, ProofTree, PropositionJudgement, ProveCommandBy, ProveGoal, TypeJudgement, Var,
+};
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -104,52 +106,9 @@ impl Display for crate::exp::Exp {
                         .join(", ")
                 )
             }
-            crate::exp::Exp::ProofTermRaw { command } => match command.as_ref() {
-                crate::exp::ProveCommandBy::Construct { proof_term } => {
-                    write!(f, "construct {}", proof_term)
-                }
-                crate::exp::ProveCommandBy::ExactElem { elem, ty } => {
-                    write!(f, "exact {} : {}", elem, ty)
-                }
-                crate::exp::ProveCommandBy::SubsetElim {
-                    elem,
-                    subset,
-                    superset,
-                } => {
-                    write!(f, "subset_elim {} in {} ⊆ {}", elem, subset, superset)
-                }
-                crate::exp::ProveCommandBy::IdRefl { elem } => {
-                    write!(f, "id_refl {} ", elem)
-                }
-                crate::exp::ProveCommandBy::IdElim {
-                    left: elem1,
-                    right: elem2,
-                    ty,
-                    var,
-                    predicate,
-                } => {
-                    write!(
-                        f,
-                        "id_elim {} = {} with ({}: {}) => {}",
-                        elem1, elem2, var, ty, predicate
-                    )
-                }
-                crate::exp::ProveCommandBy::TakeEq {
-                    func,
-                    domain,
-                    codomain,
-                    elem,
-                } => {
-                    write!(
-                        f,
-                        "take_eq {}({}) in {} -> {} ",
-                        func, elem, domain, codomain
-                    )
-                }
-                crate::exp::ProveCommandBy::Axiom(axiom) => {
-                    write!(f, "axiom {:?}", axiom)
-                }
-            },
+            crate::exp::Exp::ProofTermRaw { command } => {
+                write!(f, "proof_term({})", command)
+            }
             crate::exp::Exp::PowerSet { set } => {
                 write!(f, "Pow({})", set)
             }
@@ -183,6 +142,57 @@ impl Display for crate::exp::Exp {
     }
 }
 
+impl Display for ProveCommandBy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            crate::exp::ProveCommandBy::Construct(proof_term) => {
+                write!(f, "construct {}", proof_term)
+            }
+            crate::exp::ProveCommandBy::ExactElem { elem, ty } => {
+                write!(f, "exact {} : {}", elem, ty)
+            }
+            crate::exp::ProveCommandBy::SubsetElim {
+                elem,
+                subset,
+                superset,
+            } => {
+                write!(f, "subset_elim {} in {} ⊆ {}", elem, subset, superset)
+            }
+            crate::exp::ProveCommandBy::IdRefl { elem } => {
+                write!(f, "id_refl {} ", elem)
+            }
+            crate::exp::ProveCommandBy::IdElim {
+                left: elem1,
+                right: elem2,
+                ty,
+                var,
+                predicate,
+            } => {
+                write!(
+                    f,
+                    "id_elim {} = {} with ({}: {}) => {}",
+                    elem1, elem2, var, ty, predicate
+                )
+            }
+            crate::exp::ProveCommandBy::TakeEq {
+                func,
+                domain,
+                codomain,
+                elem,
+            } => {
+                write!(
+                    f,
+                    "take_eq {}({}) in {} -> {} ",
+                    func, elem, domain, codomain
+                )
+            }
+            crate::exp::ProveCommandBy::Axiom(axiom) => {
+                write!(f, "axiom {:?}", axiom)
+            }
+        }
+    }
+}
+
 fn print_ctx(ctx: &crate::exp::Context) -> String {
     ctx.iter()
         .map(|(var, ty)| format!("{}: {}", var, ty))
@@ -195,14 +205,14 @@ impl Display for ProveGoal {
         let ProveGoal {
             extended_ctx,
             goal_prop,
-            command: proof_term,
+            command,
         } = self;
         write!(
             f,
-            "[..  {} |- {}: {}]",
+            "[..  {} |= {} by {}]",
             print_ctx(extended_ctx),
-            proof_term,
-            goal_prop
+            goal_prop,
+            command,
         )
     }
 }
@@ -266,17 +276,61 @@ pub fn map_derivation(der: &Derivation) -> StringTree {
                 }
             }
         }
-        Derivation::SomeGoal(ref_cell) => {
-            let goal = ref_cell.borrow();
-            StringTree(format!("SomeGoal: {}", goal), vec![])
+        Derivation::GoalGenerated {
+            proposition,
+            solvetree,
+        } => {
+            let str = match solvetree {
+                Some(rc) => {
+                    format!("{proposition}[Solve by {:p}]", rc.as_ref())
+                }
+                None => {
+                    format!("{proposition}[Not yet solved]")
+                }
+            };
+            StringTree(str, vec![])
         }
-        Derivation::SomeGoalSolve(ref_cell) => todo!(),
-    }
-}
-
-pub fn map_goal(der: Goal) -> StringTree {
-    match der {
-        Goal::ProveGoal(pg) => StringTree(format!("ProveGoal: {}", pg), vec![]),
+        Derivation::SolveSuccess(proof_tree) => {
+            let ProofTree {
+                conclusion,
+                premises,
+                rule,
+                meta,
+            } = proof_tree.as_ref();
+            match meta {
+                crate::exp::Meta::Usual(string) => StringTree(
+                    format!("{} by {} [{}]", conclusion, rule, string),
+                    premises.iter().map(map_derivation).collect(),
+                ),
+                crate::exp::Meta::Through(string) => {
+                    // premises.len() == 1 and we print this with meta info
+                    let first = premises.first().unwrap();
+                    let mut sttree = map_derivation(first);
+                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree
+                }
+            }
+        }
+        Derivation::SolveFail {
+            conclusion,
+            premises,
+            rule,
+            meta,
+        } => {
+            match meta {
+                crate::exp::Meta::Usual(string) => StringTree(
+                    format!("{} by {} [{}]", conclusion, rule, string),
+                    premises.iter().map(map_derivation).collect(),
+                ),
+                crate::exp::Meta::Through(string) => {
+                    // premises.len() == 1 and we print this with meta info
+                    let first = premises.first().unwrap();
+                    let mut sttree = map_derivation(first);
+                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree
+                }
+            }
+        }
     }
 }
 
