@@ -44,28 +44,32 @@ impl InductiveTypeSpecs {
         self.constructors[idx].indices.len()
     }
     // type of constructor C_i with given parameters
-    pub fn type_of_constructor(indty: &std::rc::Rc<Self>, idx: usize, parameters: Vec<Exp>) -> Exp {
-        indty.constructors[idx].as_exp_with_type(&Exp::IndType {
-            indspec: indty.clone(),
+    pub fn type_of_constructor(
+        indspec: &std::rc::Rc<Self>,
+        idx: usize,
+        parameters: Vec<Exp>,
+    ) -> Exp {
+        indspec.constructors[idx].as_exp_with_type(&Exp::IndType {
+            indspec: indspec.clone(),
             parameters,
         })
     }
     // (x[]: t[]) -> THIS x[] -> sort
-    pub fn return_type_kind(indty: &std::rc::Rc<Self>, parameters: Vec<Exp>, sort: Sort) -> Exp {
+    pub fn return_type_kind(indspec: &std::rc::Rc<Self>, parameters: Vec<Exp>, sort: Sort) -> Exp {
         // THIS x[] where x[] is ty.arity_arg's variables
         let e = utils::assoc_apply(
             Exp::IndType {
-                indspec: indty.clone(),
+                indspec: indspec.clone(),
                 parameters: parameters.clone(),
             },
-            indty
+            indspec
                 .indices
                 .iter()
                 .map(|(x, _)| Exp::Var(x.clone()))
                 .collect(),
         );
         utils::assoc_prod(
-            indty.indices.clone(),
+            indspec.indices.clone(),
             Exp::Prod {
                 var: Var::new("_"),
                 ty: Box::new(e),
@@ -543,5 +547,199 @@ impl InductiveTypeSpecs {
                 })
                 .collect(),
         }
+    }
+    // generate primitive recursion principle for this inductive type
+    // return (q: (x[]: t[]) -> THIS x[] -> sort) => (f[0]: _) => ... => (f[n]: _) => (x[]: t[]) => (c: q x[]) => elim(THIS, c, q, f[])
+    // which has type of
+    // (q: (x[]: t[]) -> THIS x[] -> sort) -> (f[0]: _) -> ... -> (f[n]: _) -> (x[]: t[]) -> (c: THIS x[]) -> q x[] c ... this is type of induction
+    pub fn primitive_recursion(
+        indspec: &std::rc::Rc<Self>,
+        parameters: Vec<(Var, Exp)>,
+        sort: Sort,
+    ) -> Exp {
+        let parameteres_reflect: Vec<Exp> = parameters.iter().map(|(_, t)| t.clone()).collect();
+        let this = Exp::IndType {
+            indspec: indspec.clone(),
+            parameters: parameteres_reflect.clone(),
+        };
+
+        let mut telescope = vec![];
+
+        // q: (x[]: t[]) -> THIS x[] -> sort
+        let q = Var::new("q");
+        let q_ty = InductiveTypeSpecs::return_type_kind(indspec, parameteres_reflect.clone(), sort);
+        telescope.push((q.clone(), q_ty));
+
+        // f_i: eliminator_type(C_i, q, type of constructor of C_i, THIS) for each constructor C_i
+        let mut cases = vec![];
+        for i in 0..indspec.constructor_len() {
+            let f_i = Var::new(&format!("f{}", i));
+            let ctor = &indspec.constructors[i];
+            let f_i_ty = eliminator_type(
+                ctor,
+                &Exp::Var(q.clone()),
+                &Exp::IndCtor {
+                    indspec: indspec.clone(),
+                    parameters: parameteres_reflect.clone(),
+                    idx: i,
+                },
+                &this,
+            );
+            telescope.push((f_i.clone(), f_i_ty));
+            cases.push(Exp::Var(f_i));
+        }
+
+        let c = Var::new("c");
+        let c_ty = utils::assoc_apply(
+            Exp::IndType {
+                indspec: indspec.clone(),
+                parameters: parameters.iter().map(|(_, t)| t.clone()).collect(),
+            },
+            indspec
+                .indices
+                .iter()
+                .map(|(x, _)| Exp::Var(x.clone()))
+                .collect(),
+        );
+        telescope.push((c.clone(), c_ty));
+
+        // elim(THIS, c, q, f[])
+        let body = Exp::IndElim {
+            indspec: indspec.clone(),
+            elim: Box::new(Exp::Var(c.clone())),
+            return_type: Box::new(Exp::Var(q.clone())),
+            cases,
+        };
+
+        utils::assoc_lam(telescope, body)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_constructor() {
+        let q = Exp::Var(Var::new("q"));
+        let c = Exp::Var(Var::new("c"));
+        let this = Exp::Var(Var::new("THIS"));
+        // trivial case
+        {
+            // | ctor: THIS
+            let ctor = CtorType {
+                telescope: vec![],
+                indices: vec![],
+            };
+            let e = eliminator_type(&ctor, &q, &c, &this);
+            println!("Eliminator type (trivial): {e}");
+            let r = recursor(&ctor, &q, &c, &this);
+            println!("Recursor (trivial): {r}");
+        }
+        // simple case
+        {
+            // | ctor: A -> THIS
+            let another = Var::new("A");
+            let ctor = CtorType {
+                telescope: vec![CtorBinder::Simple((
+                    Var::dummy(),
+                    Exp::Var(another.clone()),
+                ))],
+                indices: vec![],
+            };
+            let e = eliminator_type(&ctor, &q, &c, &this);
+            println!("Eliminator type (trivial): {e}");
+            let r = recursor(&ctor, &q, &c, &this);
+            println!("Recursor (trivial): {r}");
+        }
+        // strictly positive case
+        {
+            // | ctor: (_: THIS) -> THIS
+            let ctor = CtorType {
+                telescope: vec![CtorBinder::StrictPositive {
+                    binders: vec![],
+                    self_indices: vec![],
+                }],
+                indices: vec![],
+            };
+            let e = eliminator_type(&ctor, &q, &c, &this);
+            println!("Eliminator type (trivial): {e}");
+            let r = recursor(&ctor, &q, &c, &this);
+            println!("Recursor (trivial): {r}");
+        }
+    }
+    #[test]
+    fn test_by_unit_inductive() {
+        let specs = InductiveTypeSpecs {
+            names: ("Unit".to_string(), vec!["ut".to_string()]),
+            parameters: vec![],
+            indices: vec![],
+            sort: Sort::Set(0),
+            constructors: vec![CtorType {
+                telescope: vec![],
+                indices: vec![],
+            }],
+        };
+        let (_, res) = acceptable_typespecs(&Context::new(), &specs);
+        let specs = Rc::new(specs);
+        assert!(res.is_ok(), "Unit type should be acceptable");
+        let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
+        println!("Primitive recursion principle for Unit type: {prin_rec}");
+    }
+    #[test]
+    fn test_by_bool_inductive() {
+        let specs = InductiveTypeSpecs {
+            names: (
+                "Bool".to_string(),
+                vec!["true".to_string(), "false".to_string()],
+            ),
+            parameters: vec![],
+            indices: vec![],
+            sort: Sort::Set(0),
+            constructors: vec![
+                CtorType {
+                    telescope: vec![],
+                    indices: vec![],
+                },
+                CtorType {
+                    telescope: vec![],
+                    indices: vec![],
+                },
+            ],
+        };
+        let (_, res) = acceptable_typespecs(&Context::new(), &specs);
+        let specs = Rc::new(specs);
+        assert!(res.is_ok(), "Bool type should be acceptable");
+        let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
+        println!("Primitive recursion principle for Bool type: {prin_rec}");
+    }
+    #[test]
+    fn test_by_natural_number_inductive() {
+        let specs = InductiveTypeSpecs {
+            names: (
+                "Nat".to_string(),
+                vec!["zero".to_string(), "succ".to_string()],
+            ),
+            parameters: vec![],
+            indices: vec![],
+            sort: Sort::Set(0),
+            constructors: vec![
+                CtorType {
+                    telescope: vec![],
+                    indices: vec![],
+                },
+                CtorType {
+                    telescope: vec![CtorBinder::StrictPositive {
+                        binders: vec![],
+                        self_indices: vec![],
+                    }],
+                    indices: vec![],
+                },
+            ],
+        };
+        let (_, res) = acceptable_typespecs(&Context::new(), &specs);
+        let specs = Rc::new(specs);
+        assert!(res.is_ok(), "Nat type should be acceptable");
+        let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
+        println!("Primitive recursion principle for Nat type: {prin_rec}");
     }
 }
