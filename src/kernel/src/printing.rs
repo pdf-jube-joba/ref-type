@@ -77,7 +77,7 @@ impl Display for crate::exp::Exp {
             } => {
                 write!(
                     f,
-                    "elim {} {} : {} with {{{}}}",
+                    "elim {} \\in {} \\return {} with {{{}}}",
                     elim,
                     ty.names.0,
                     return_type,

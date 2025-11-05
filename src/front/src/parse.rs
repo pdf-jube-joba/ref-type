@@ -49,7 +49,7 @@ pub enum Token<'a> {
     Exclamation, // "!"
 }
 
-static RESERVED_SORT_KEYWORDS: &[&str] = &[
+static SORT_KEYWORDS: &[&str] = &[
     "\\Prop",
     "\\PropKind",
     "\\Set",
@@ -142,12 +142,14 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                 });
             }
             Ok(Token::KeyWord(kw)) => {
-                let mapped = if !PROOF_COMMAND_KEYWORDS.contains(&kw)
+                let mapped = if !SORT_KEYWORDS.contains(&kw)
                     && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
                     && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
-                    && !RESERVED_SORT_KEYWORDS.contains(&kw)
+                    && !BLOCK_KEYWORDS.contains(&kw)
+                    && !PROOF_COMMAND_KEYWORDS.contains(&kw)
                     && !PROGRAM_KEYWORDS.contains(&kw)
                 {
+                    // treat as macro token if not reserved keyword
                     Token::MacroToken(kw)
                 } else {
                     Token::KeyWord(kw)
@@ -202,12 +204,6 @@ pub struct SpannedToken<'a> {
 }
 
 #[derive(Debug)]
-pub struct Parser<'a> {
-    tokens: &'a [SpannedToken<'a>],
-    pos: usize,
-}
-
-#[derive(Debug)]
 pub struct ParseError {
     pub msg: String,
     pub start: usize,
@@ -224,6 +220,15 @@ impl ParseError {
     }
 }
 
+#[derive(Debug)]
+pub struct Parser<'a> {
+    tokens: &'a [SpannedToken<'a>],
+    pos: usize,
+}
+
+// `fn bump_if_*` consumes tokens only if matched
+// `fn parse_*` consumes tokens whether succeed or fail, the parser position is advanced
+// `fn try_parse_*` consumes tokens only if matched, otherwise rollbacks
 impl<'a> Parser<'a> {
     pub fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
         Self { tokens, pos: 0 }
@@ -231,10 +236,6 @@ impl<'a> Parser<'a> {
 
     fn peek(&self) -> Option<&Token<'a>> {
         self.tokens.get(self.pos).map(|t| &t.kind)
-    }
-
-    fn peek_n(&self, n: usize) -> Option<&Token<'a>> {
-        self.tokens.get(self.pos + n).map(|t| &t.kind)
     }
 
     fn next(&mut self) -> Option<&SpannedToken<'a>> {
@@ -245,7 +246,7 @@ impl<'a> Parser<'a> {
         t
     }
 
-    fn bump_if(&mut self, expect: &Token<'a>) -> bool
+    fn bump_if_token(&mut self, expect: &Token<'a>) -> bool
     where
         Token<'a>: PartialEq,
     {
@@ -258,7 +259,7 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn bump_keyword(&mut self, kw: &str) -> bool {
+    fn bump_if_keyword(&mut self, kw: &str) -> bool {
         if let Some(Token::KeyWord(s)) = self.peek()
             && *s == kw
         {
@@ -268,9 +269,9 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn expect_token(&mut self, expect: &Token<'a>) -> Result<SpannedToken<'a>, ParseError> {
+    fn expect_token(&mut self, expect: Token<'a>) -> Result<SpannedToken<'a>, ParseError> {
         if let Some(t) = self.tokens.get(self.pos) {
-            if &t.kind == expect {
+            if t.kind == expect {
                 self.pos += 1;
                 Ok(t.clone())
             } else {
@@ -285,12 +286,15 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expect_keyword(&mut self) -> Result<&'a str, ParseError> {
+    fn expect_keyword<'b>(&mut self, kw: &'b str) -> Result<&'a str, ParseError>
+    where
+        'b: 'a,
+    {
         match self.next() {
             Some(t) => match &t.kind {
-                Token::KeyWord(name) => Ok(*name),
+                Token::KeyWord(name) if *name == kw => Ok(*name),
                 other => Err(ParseError {
-                    msg: format!("expected keyword, found {:?}", other),
+                    msg: format!("expected keyword {kw}, found {:?}", other),
                     start: t.start,
                     end: t.end,
                 }),
@@ -348,36 +352,71 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Helper to parse a parenthesized expression.
+    /// "(" <some: parse_inner> ")" where parse_inner is given as a closure.
+    fn parse_parenthesized<F, T>(&mut self, parse_inner: F) -> Result<T, ParseError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, ParseError>,
+    {
+        self.expect_token(Token::LParen)?; // expect '('
+        let result = parse_inner(self)?;
+        self.expect_token(Token::RParen)?; // expect ')'
+        Ok(result)
+    }
+
+    /// Helper to parse a keyword followed by a parenthesized expression.
+    /// <keyword> "(" <some: parse_inner> ")"
+    fn parse_keyword_with_parens<'b, F, T>(
+        &mut self,
+        keyword: &'b str,
+        parse_inner: F,
+    ) -> Result<T, ParseError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, ParseError>,
+        'b: 'a,
+    {
+        self.expect_keyword(keyword)?;
+        self.parse_parenthesized(parse_inner)
+    }
+
+    // Try to parse a parenthesized number (e.g., "(0)").
+    fn try_parse_parenthesized_number(&mut self) -> Result<Option<usize>, ParseError> {
+        let save_pos = self.pos; // Save the current position for rollback.
+
+        if self.bump_if_token(&Token::LParen)
+            && let Ok(number) = self.expect_number()
+            && self.bump_if_token(&Token::RParen)
+        {
+            return Ok(Some(number)); // Successfully parsed "(number)".
+        }
+
+        // Rollback if parsing failed.
+        self.pos = save_pos;
+        Ok(None)
+    }
+
     // Parse a sort expression.
     // \Prop | \PropKind | \Set ( "(" <number> ")" )? | \SetKind ( "(" <number> ")" )?
     fn parse_sort(&mut self) -> Result<kernel::exp::Sort, ParseError> {
-        if self.bump_keyword("\\Prop") {
+        if self.bump_if_keyword("\\Prop") {
             return Ok(kernel::exp::Sort::Prop);
         }
-        if self.bump_keyword("\\PropKind") {
+        if self.bump_if_keyword("\\PropKind") {
             return Ok(kernel::exp::Sort::PropKind);
         }
-        if self.bump_keyword("\\Set") {
-            // check for optional ["(", <number>, ..]
-            if let (Some(Token::LParen), Some(Token::Number(_))) = (self.peek(), self.peek_n(1)) {
-                self.next(); // consume '('
-                let n = self.expect_number()?;
-                self.expect_token(&Token::RParen)?;
-                return Ok(kernel::exp::Sort::Set(n));
-            } else {
-                return Ok(kernel::exp::Sort::Set(0));
+        if self.bump_if_keyword("\\Set") {
+            // check for optional parenthesized number
+            if let Some(number) = self.try_parse_parenthesized_number()? {
+                return Ok(kernel::exp::Sort::Set(number));
             }
+            return Ok(kernel::exp::Sort::Set(0)); // Default to Set(0) if no number is provided.
         }
-        if self.bump_keyword("\\SetKind") {
-            // check for optional ["(", <number>, ..]
-            if let (Some(Token::LParen), Some(Token::Number(_))) = (self.peek(), self.peek_n(1)) {
-                self.next(); // consume '('
-                let n = self.expect_number()?;
-                self.expect_token(&Token::RParen)?;
-                return Ok(kernel::exp::Sort::SetKind(n));
-            } else {
-                return Ok(kernel::exp::Sort::SetKind(0));
+        if self.bump_if_keyword("\\SetKind") {
+            // check for optional parenthesized number
+            if let Some(number) = self.try_parse_parenthesized_number()? {
+                return Ok(kernel::exp::Sort::SetKind(number));
             }
+            return Ok(kernel::exp::Sort::SetKind(0)); // Default to SetKind(0) if no number is provided.
         }
 
         Err(ParseError {
@@ -387,24 +426,83 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_keyword_head(&mut self) -> Result<SExp, ParseError> {
-        // "\elim" <elim: SExp> "\in" <type_name: Ident> "\\return" <return_type: SExp> "{" ("|" <case_name: Ident> "=>" <case_type: SExp> ";")* "}"
-        if self.bump_keyword("\\elim") {
+    fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
+        // simple cases (<keyword> "(" expressions with comma separated ")")
+        if self.bump_if_keyword("\\Proof") {
+            return self.parse_keyword_with_parens("\\Proof", |parser| {
+                parser.parse_sexp().map(|term| SExp::ProveLater {
+                    term: Box::new(term),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\Power") {
+            return self.parse_keyword_with_parens("\\Power", |parser| {
+                parser
+                    .parse_sexp()
+                    .map(|set| SExp::PowerSet { set: Box::new(set) })
+            });
+        }
+        if self.bump_if_keyword("\\Subset") {
+            return self.parse_keyword_with_parens("\\Subset", |parser| {
+                let var = parser.expect_ident()?;
+                parser.expect_token(Token::Comma)?;
+                let set = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let predicate = parser.parse_sexp()?;
+                Ok(SExp::SubSet {
+                    var,
+                    set: Box::new(set),
+                    predicate: Box::new(predicate),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\Pred") {
+            return self.parse_keyword_with_parens("\\Pred", |parser| {
+                let superset = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let subset = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let element = parser.parse_sexp()?;
+                Ok(SExp::Pred {
+                    superset: Box::new(superset),
+                    subset: Box::new(subset),
+                    element: Box::new(element),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\Ty") {
+            return self.parse_keyword_with_parens("\\Ty", |parser| {
+                let superset = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let subset = parser.parse_sexp()?;
+                Ok(SExp::TypeLift {
+                    superset: Box::new(superset),
+                    subset: Box::new(subset),
+                })
+            });
+        }
+        // elimination of inductive type
+        if self.bump_if_keyword("\\elim") {
+            // "\elim" <elim: SExp> "\in" <type_name: Ident> "\\return" <return_type: SExp>
             let elim = self.parse_sexp()?;
-            self.expect_token(&Token::KeyWord("\\in"))?; // expect '\in'
+            self.expect_keyword("\\in")?; // expect '\in'
             let type_name = self.expect_ident()?;
-            self.expect_token(&Token::KeyWord("\\return"))?; // expect '\\return'
+            self.expect_keyword("\\return")?; // expect '\\return'
             let return_type = self.parse_sexp()?;
-            self.expect_token(&Token::LBrace)?; // expect '{'
+
+            // body of case branches
             let mut cases = Vec::new();
-            while self.bump_if(&Token::Pipe) {
-                let case_name = self.expect_ident()?;
-                self.expect_token(&Token::DoubleArrow)?; // expect '=>'
-                let case_type = self.parse_sexp()?;
-                self.expect_token(&Token::Semicolon)?; // expect ';'
+            self.expect_token(Token::LBrace)?; // expect '{'
+            // loop until '}'
+            while !self.bump_if_token(&Token::RBrace) {
+                self.expect_token(Token::Pipe)?; // expect '|'
+                let case_name = self.expect_ident()?; // expect case name
+                self.expect_token(Token::DoubleArrow)?; // expect '=>'
+                let case_type = self.parse_sexp()?; // parse case type
+                self.expect_token(Token::Semicolon)?; // expect ';'
                 cases.push((case_name, case_type));
             }
-            self.expect_token(&Token::RBrace)?; // expect '}'
+
             return Ok(SExp::IndElim {
                 ind_type_name: type_name,
                 elim: Box::new(elim),
@@ -412,76 +510,25 @@ impl<'a> Parser<'a> {
                 cases,
             });
         }
-        if self.bump_keyword("\\Proof") {
-            self.expect_token(&Token::LParen)?; // expect '('
-            let term = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
-            return Ok(SExp::ProveLater {
-                term: Box::new(term),
-            });
-        }
-        if self.bump_keyword("\\Power") {
-            self.expect_token(&Token::LParen)?; // expect '('
-            let set = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
-            return Ok(SExp::PowerSet { set: Box::new(set) });
-        }
-        if self.bump_keyword("\\Subset") {
-            self.expect_token(&Token::LParen)?; // expect '('
-            let var = self.expect_ident()?;
-            self.expect_token(&Token::Comma)?; // expect ','
-            let set = self.parse_sexp()?;
-            self.expect_token(&Token::Comma)?; // expect ','
-            let predicate = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
-            return Ok(SExp::SubSet {
-                var,
-                set: Box::new(set),
-                predicate: Box::new(predicate),
-            });
-        }
-        if self.bump_keyword("\\Pred") {
-            self.expect_token(&Token::LParen)?; // expect '('
-            let superset = self.parse_sexp()?;
-            self.expect_token(&Token::Comma)?; // expect ','
-            let subset = self.parse_sexp()?;
-            self.expect_token(&Token::Comma)?; // expect ','
-            let element = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
-            return Ok(SExp::Pred {
-                superset: Box::new(superset),
-                subset: Box::new(subset),
-                element: Box::new(element),
-            });
-        }
-        if self.bump_keyword("\\Ty") {
-            self.expect_token(&Token::LParen)?; // expect '('
-            let superset = self.parse_sexp()?;
-            self.expect_token(&Token::Comma)?; // expect ','
-            let subset = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
-            return Ok(SExp::TypeLift {
-                superset: Box::new(superset),
-                subset: Box::new(subset),
-            });
-        }
-        if self.bump_keyword("\\exists") {
+        // "\exists" <binding>
+        if self.bump_if_keyword("\\exists") {
             let bind = self.parse_left_arrow_head()?;
             return Ok(SExp::Exists { bind });
         }
-        if self.bump_keyword("\\take") {
+        // "\take" <binding> "=>" <body>
+        if self.bump_if_keyword("\\take") {
             let bind = self.parse_left_arrow_head()?;
-            self.expect_token(&Token::DoubleArrow)?; // expect '=>'
+            self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let body = self.parse_sexp()?;
             return Ok(SExp::Take {
                 bind,
                 body: Box::new(body),
             });
         }
-        if self.bump_keyword("\\block") {
-            self.expect_token(&Token::LBrace)?; // expect '{'
+        if self.bump_if_keyword("\\block") {
+            self.expect_token(Token::LBrace)?; // expect '{'
             let block = self.parse_block()?;
-            self.expect_token(&Token::RBrace)?; // expect '}'
+            self.expect_token(Token::RBrace)?; // expect '}'
             return Ok(SExp::Block(block));
         }
 
@@ -493,49 +540,49 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_proof_command(&mut self) -> Result<SExp, ParseError> {
-        if self.bump_keyword("\\term") {
-            self.expect_token(&Token::LParen)?; // expect '('
+        if self.bump_if_keyword("\\term") {
+            self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
+            self.expect_token(Token::RParen)?; // expect ')'
             return Ok(SExp::ProofBy(ProofBy::Construct {
                 term: Box::new(term),
             }));
         }
 
-        if self.bump_keyword("\\exact") {
-            self.expect_token(&Token::LParen)?; // expect '('
+        if self.bump_if_keyword("\\exact") {
+            self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
-            self.expect_token(&Token::Comma)?; // expect ','
+            self.expect_token(Token::Comma)?; // expect ','
             let set = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
+            self.expect_token(Token::RParen)?; // expect ')'
             return Ok(SExp::ProofBy(ProofBy::Exact {
                 term: Box::new(term),
                 set: Box::new(set),
             }));
         }
 
-        if self.bump_keyword("\\refl") {
-            self.expect_token(&Token::LParen)?; // expect '('
+        if self.bump_if_keyword("\\refl") {
+            self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
+            self.expect_token(Token::RParen)?; // expect ')'
             return Ok(SExp::ProofBy(ProofBy::IdRefl {
                 term: Box::new(term),
             }));
         }
 
         // \\idelim "(" <left: SExp> "=" <right: SExp> "\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
-        if self.bump_keyword("\\idelim") {
-            self.expect_token(&Token::LParen)?; // expect '('
+        if self.bump_if_keyword("\\idelim") {
+            self.expect_token(Token::LParen)?; // expect '('
             let left = self.parse_sexp()?;
-            self.expect_token(&Token::Equal)?; // expect '='
+            self.expect_token(Token::Equal)?; // expect '='
             let right = self.parse_sexp()?;
-            self.expect_token(&Token::KeyWord("\\with"))?; // expect '\with'
+            self.expect_keyword("\\with")?; // expect '\with'
             let var = self.expect_ident()?;
-            self.expect_token(&Token::Colon)?; // expect ':'
+            self.expect_token(Token::Colon)?; // expect ':'
             let ty = self.parse_sexp()?;
-            self.expect_token(&Token::DoubleArrow)?; // expect '=>'
+            self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
-            self.expect_token(&Token::RParen)?; // expect ')'
+            self.expect_token(Token::RParen)?; // expect ')'
             return Ok(SExp::ProofBy(ProofBy::IdElim {
                 left: Box::new(left),
                 right: Box::new(right),
@@ -545,7 +592,7 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        if self.bump_keyword("\\takeelim") {
+        if self.bump_if_keyword("\\takeelim") {
             todo!("takeelim proof command not implemented yet");
         }
 
@@ -559,72 +606,59 @@ impl<'a> Parser<'a> {
     fn parse_block(&mut self) -> Result<Block, ParseError> {
         let mut statements = Vec::new();
 
-        while let Some(tok) = self.peek() {
-            match tok {
-                Token::KeyWord(kw) if BLOCK_KEYWORDS.contains(kw) => {
-                    let stmt = self.parse_block_statement()?;
-                    statements.push(stmt);
+        loop {
+            if self.bump_if_keyword("\\fix") {
+                // "\fix" ("(" RightBind ")" ",")* ";"
+                let mut binds: Vec<RightBind> = Vec::new();
+                while let Some(bind) = self.try_parse_simple_bind_paren()? {
+                    binds.push(bind);
+                    if !self.bump_if_token(&Token::Comma) {
+                        break;
+                    }
                 }
-                Token::KeyWord(kw) if *kw == "\\return" => {
-                    let result = {
-                        self.next(); // consume '\return'
-                        self.parse_sexp()?
-                    };
-                    self.expect_token(&Token::Semicolon)?; // expect ';'
-                    return Ok(Block {
-                        statements,
-                        result: Box::new(result),
-                    });
-                }
-                _ => break, // not a block statement, stop parsing
+                self.expect_token(Token::Semicolon)?; // expect ';'
+                statements.push(Statement::Fix(binds));
+                continue;
             }
+
+            if self.bump_if_keyword("\\let") {
+                // "\let" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
+                let var = self.expect_ident()?;
+                self.expect_token(Token::Colon)?; // expect ':'
+                let ty = self.parse_sexp()?;
+                self.expect_token(Token::Assign)?; // expect ':='
+                let body = self.parse_sexp()?;
+                self.expect_token(Token::Semicolon)?; // expect ';'
+                statements.push(Statement::Let { var, ty, body });
+                continue;
+            }
+
+            if self.bump_if_keyword("\\take") {
+                // "\take" <bind: Bind> ";"
+                let bind = self.parse_left_arrow_head()?;
+                self.expect_token(Token::Semicolon)?; // expect ';'
+                statements.push(Statement::Take { bind });
+                continue;
+            }
+
+            if self.bump_if_keyword("\\return") {
+                // "\return" <exp: SExp> ";"
+                let result = self.parse_sexp()?;
+                self.expect_token(Token::Semicolon)?; // expect ';'
+                return Ok(Block {
+                    statements,
+                    result: Box::new(result),
+                });
+            }
+
+            break; // No more block statements.
         }
+
         Err(ParseError {
             msg: "expected block statement or \\return".into(),
             start: self.pos,
             end: self.pos,
         })
-    }
-
-    fn parse_block_statement(&mut self) -> Result<Statement, ParseError> {
-        match self.peek() {
-            // "\fix" ("(" RightBind ")" ",")* ";"
-            Some(Token::KeyWord(kw)) if *kw == "\\fix" => {
-                self.next(); // consume '\fix'
-                let mut binds: Vec<RightBind> = Vec::new();
-                while let Some(bind) = self.try_parse_simple_bind_paren()? {
-                    binds.push(bind);
-                    if !self.bump_if(&Token::Comma) {
-                        break;
-                    }
-                }
-                self.expect_token(&Token::Semicolon)?; // expect ';'
-                Ok(Statement::Fix(binds))
-            }
-            // \let <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
-            Some(Token::KeyWord(kw)) if *kw == "\\let" => {
-                self.next(); // consume '\let'
-                let var = self.expect_ident()?;
-                self.expect_token(&Token::Colon)?; // expect ':'
-                let ty = self.parse_sexp()?;
-                self.expect_token(&Token::Assign)?; // expect ':='
-                let body = self.parse_sexp()?;
-                self.expect_token(&Token::Semicolon)?; // expect ';'
-                Ok(Statement::Let { var, ty, body })
-            }
-            // "\take" <bind: Bind> ";"
-            Some(Token::KeyWord(kw)) if *kw == "\\take" => {
-                self.next(); // consume '\take'
-                let bind = self.parse_left_arrow_head()?;
-                self.expect_token(&Token::Semicolon)?; // expect ';'
-                Ok(Statement::Take { bind })
-            }
-            _ => Err(ParseError {
-                msg: "expected block statement".into(),
-                start: self.pos,
-                end: self.pos,
-            }),
-        }
     }
 
     // parse an access path
@@ -637,7 +671,7 @@ impl<'a> Parser<'a> {
         path.push(first_ident);
 
         // 2. while next is '.', expect next identifier
-        while self.bump_if(&Token::Period) {
+        while self.bump_if_token(&Token::Period) {
             let next_ident = self.expect_ident()?;
             path.push(next_ident);
         }
@@ -657,7 +691,7 @@ impl<'a> Parser<'a> {
             Some(Token::LParen) => {
                 self.next(); // consume '('
                 let expr = self.parse_sexp()?;
-                self.expect_token(&Token::RParen)?; // expect ')'
+                self.expect_token(Token::RParen)?; // expect ')'
                 Ok(expr)
             }
             Some(Token::MathLParen) => {
@@ -667,27 +701,27 @@ impl<'a> Parser<'a> {
                 while let Ok(tok) = self.parse_one_macro() {
                     tokens.push(tok);
                 }
-                self.expect_token(&Token::MathRParen)?; // expect ')$'
+                self.expect_token(Token::MathRParen)?; // expect ')$'
                 Ok(SExp::MathMacro { tokens })
             }
             Some(Token::Exclamation) => {
                 self.next(); // consume '!'
                 let name = self.expect_ident()?;
-                self.expect_token(&Token::LBrace)?; // expect '{'
+                self.expect_token(Token::LBrace)?; // expect '{'
                 // parse inner macro token sequence
                 let mut tokens = vec![];
                 while let Ok(tok) = self.parse_one_macro() {
                     tokens.push(tok);
                 }
-                self.expect_token(&Token::RBrace)?; // expect '}'
+                self.expect_token(Token::RBrace)?; // expect '}'
                 Ok(SExp::NamedMacro { name, tokens })
             }
-            Some(Token::KeyWord(keyword)) if RESERVED_SORT_KEYWORDS.contains(keyword) => {
+            Some(Token::KeyWord(keyword)) if SORT_KEYWORDS.contains(keyword) => {
                 // check if it's a reserved sort keyword
                 self.parse_sort().map(SExp::Sort)
             }
             Some(Token::KeyWord(keyword)) if EXPRESSION_ATOM_KEYWORDS.contains(keyword) => {
-                self.parse_keyword_head()
+                self.parse_keyword_head_atom()
             }
             Some(Token::KeyWord(keyword)) if PROOF_COMMAND_KEYWORDS.contains(keyword) => {
                 self.parse_proof_command()
@@ -737,7 +771,7 @@ impl<'a> Parser<'a> {
         // 1. parse first atom sequence
         let mut expr = self.parse_atom_sequence()?;
         // 2. while next is pipe, parse next atom sequence and combine
-        while self.bump_if(&Token::Pipe) {
+        while self.bump_if_token(&Token::Pipe) {
             let right = self.parse_atom_sequence()?;
             expr = SExp::App {
                 arg: Box::new(expr),
@@ -752,7 +786,7 @@ impl<'a> Parser<'a> {
     // <exp> \as <exp>
     fn parse_as_expression(&mut self) -> Result<SExp, ParseError> {
         let from_exp = self.parse_piped_atom_sequence()?;
-        if self.bump_keyword("\\as") {
+        if self.bump_if_keyword("\\as") {
             let to_exp = self.parse_piped_atom_sequence()?;
             Ok(SExp::Cast {
                 exp: Box::new(from_exp),
@@ -767,7 +801,7 @@ impl<'a> Parser<'a> {
     // <exp> = <exp>
     fn parse_equal_expression(&mut self) -> Result<SExp, ParseError> {
         let left_exp = self.parse_as_expression()?;
-        if self.bump_if(&Token::Equal) {
+        if self.bump_if_token(&Token::Equal) {
             let right_exp = self.parse_as_expression()?;
             Ok(SExp::Equal {
                 left: Box::new(left_exp),
@@ -788,42 +822,32 @@ impl<'a> Parser<'a> {
     fn try_parse_annotate(&mut self) -> Result<Option<(Vec<Identifier>, SExp)>, ParseError> {
         let save_pos = self.pos;
 
+        // 1. parse identifiers separated by commas
         let mut vars = vec![];
-
-        // 1. [0] = Ident
-        match self.expect_ident() {
-            Ok(v) => {
-                vars.push(v);
-            }
-            Err(_) => {
-                self.pos = save_pos;
-                return Ok(None);
-            }
-        };
-
-        // 2. [1..?n] = ("," Ident)*
         loop {
-            if !self.bump_if(&Token::Comma) {
-                break;
-            }
             match self.expect_ident() {
-                Ok(v) => {
-                    // extend var list
-                    vars.push(v);
-                }
+                Ok(v) => vars.push(v),
                 Err(_) => {
                     self.pos = save_pos;
                     return Ok(None);
                 }
             }
+            if !self.bump_if_token(&Token::Comma) {
+                break;
+            }
         }
-        // 3. expect ":"
-        if !self.bump_if(&Token::Colon) {
+
+        if vars.is_empty() {
+            return Ok(None);
+        }
+
+        // 2. expect ":"
+        if !self.bump_if_token(&Token::Colon) {
             self.pos = save_pos;
             return Ok(None);
         }
 
-        // 4. [2..?len] = SExp
+        // 3. parse the type
         let ty = match self.parse_sexp() {
             Ok(e) => e,
             Err(_) => {
@@ -858,13 +882,13 @@ impl<'a> Parser<'a> {
                     return Ok(None);
                 }
             }
-            if !self.bump_if(&Token::Comma) {
+            if !self.bump_if_token(&Token::Comma) {
                 break;
             }
         }
 
         // expect ":"
-        if !self.bump_if(&Token::Colon) {
+        if !self.bump_if_token(&Token::Colon) {
             self.pos = save_pos;
             return Ok(None);
         }
@@ -901,7 +925,7 @@ impl<'a> Parser<'a> {
         let save_pos = self.pos;
 
         // check "(" "(" <annotate> ... otherwise rollback
-        if !self.bump_if(&Token::LParen) || !self.bump_if(&Token::LParen) {
+        if !self.bump_if_token(&Token::LParen) || !self.bump_if_token(&Token::LParen) {
             self.pos = save_pos;
             return Ok(None);
         }
@@ -923,12 +947,12 @@ impl<'a> Parser<'a> {
         let var = first_var.into_iter().next().unwrap();
 
         // there is "(" "(" <annot> ")" ... now ")" and "|" expected
-        self.expect_token(&Token::RParen)?;
-        self.expect_token(&Token::Pipe)?;
+        self.expect_token(Token::RParen)?;
+        self.expect_token(Token::Pipe)?;
 
         // case 1: Ident ":" SExp
         if let Some((back_var, back_ty)) = self.try_parse_annotate()? {
-            self.expect_token(&Token::RParen)?; // expect closing ')'
+            self.expect_token(Token::RParen)?; // expect closing ')'
 
             if back_var.len() != 1 {
                 return Err(ParseError {
@@ -950,7 +974,7 @@ impl<'a> Parser<'a> {
         // case 2: SExp
         let pred_ty = self.parse_sexp()?;
 
-        self.expect_token(&Token::RParen)?; // expect closing ')'
+        self.expect_token(Token::RParen)?; // expect closing ')'
         Ok(Some(Bind::Subset {
             var,
             ty: Box::new(first_ty),
@@ -986,7 +1010,7 @@ impl<'a> Parser<'a> {
     fn parse_arrow_expr(&mut self) -> Result<SExp, ParseError> {
         let left_head = self.parse_left_arrow_head()?;
 
-        if self.bump_if(&Token::Arrow) {
+        if self.bump_if_token(&Token::Arrow) {
             let right = self.parse_sexp()?;
             return Ok(SExp::Prod {
                 bind: left_head,
@@ -994,7 +1018,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        if self.bump_if(&Token::DoubleArrow) {
+        if self.bump_if_token(&Token::DoubleArrow) {
             let right = self.parse_sexp()?;
             return Ok(SExp::Lam {
                 bind: left_head,
@@ -1049,27 +1073,14 @@ impl<'a> Parser<'a> {
         }
         // 2. challenge one macro token
         // OthetSymbolStart or KeyWord which is not contained in *_KEYWORDS
-        if let Some(tok) = self.peek() {
-            match tok {
-                Token::MacroToken(_) => {
-                    let sym = self.expect_othersymbol()?;
-                    return Ok(MacroExp::Tok(MacroToken(sym.to_string())));
-                }
-                Token::KeyWord(kw)
-                    if !RESERVED_SORT_KEYWORDS.contains(kw)
-                        && !EXPRESSION_ATOM_KEYWORDS.contains(kw)
-                        && !PROGRAM_KEYWORDS.contains(kw) =>
-                {
-                    let kw_str = self.expect_keyword()?;
-                    return Ok(MacroExp::Tok(MacroToken(kw_str.to_string())));
-                }
-                _ => {}
-            }
+        if let Some(Token::MacroToken(_)) = self.peek() {
+            let sym = self.expect_othersymbol()?;
+            return Ok(MacroExp::Tok(MacroToken(sym.to_string())));
         }
         // 3. Parended sequence of macro tokens
-        if self.bump_if(&Token::LParen) {
+        if self.bump_if_token(&Token::LParen) {
             let mut exps = Vec::new();
-            while !self.bump_if(&Token::RParen) {
+            while !self.bump_if_token(&Token::RParen) {
                 let exp = self.parse_one_macro()?;
                 exps.push(exp);
             }
@@ -1084,37 +1095,42 @@ impl<'a> Parser<'a> {
 
     // "\definition" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
-        self.expect_token(&Token::KeyWord("\\definition"))?;
+        self.expect_keyword("\\definition")?;
         let name = self.expect_ident()?;
-        self.expect_token(&Token::Colon)?;
+        self.expect_token(Token::Colon)?;
         let ty = self.parse_sexp()?;
-        self.expect_token(&Token::Assign)?;
+        self.expect_token(Token::Assign)?;
         let body = self.parse_sexp()?;
-        self.expect_token(&Token::Semicolon)?;
+        self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::Definition { name, ty, body })
     }
 
-    // "\import" <module_name: Ident> "(" (<param: Ident> ":=" <arg: SExp ";")* ")" "\as" <import_name: Ident> ";"
+    // "\import" <module_name: Ident> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")" "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
         // 1. "\import" <module_name: Ident> "("
-        self.expect_token(&Token::KeyWord("\\import"))?;
+        self.expect_keyword("\\import")?;
         let module_name = self.expect_ident()?;
-        self.expect_token(&Token::LParen)?;
+        self.expect_token(Token::LParen)?;
 
-        // 2. (<param: Ident> ":=" <arg: SExp> ";" )* until ")" is found
-        let mut assign_pairs = vec![];
-        while !self.bump_if(&Token::RParen) {
-            let param = self.expect_ident()?;
-            self.expect_token(&Token::Assign)?;
-            let arg = self.parse_sexp()?;
-            self.expect_token(&Token::Semicolon)?;
-            assign_pairs.push((param, arg));
+        let mut assign_pairs = Vec::new();
+        if !self.bump_if_token(&Token::RParen) {
+            loop {
+                let param = self.expect_ident()?;
+                self.expect_token(Token::Assign)?; // expect ':='
+                let arg = self.parse_sexp()?;
+                assign_pairs.push((param, arg));
+
+                if self.bump_if_token(&Token::RParen) {
+                    break; // end of parameter list
+                }
+                self.expect_token(Token::Comma)?; // expect ','
+            }
         }
 
         // 3. "\as" <import_name: Ident> ";"
-        self.expect_token(&Token::KeyWord("\\as"))?;
+        self.expect_keyword("\\as")?;
         let import_name = self.expect_ident()?;
-        self.expect_token(&Token::Semicolon)?;
+        self.expect_token(Token::Semicolon)?;
 
         Ok(ModuleItem::Import {
             import_name,
@@ -1127,28 +1143,28 @@ impl<'a> Parser<'a> {
 
     // "|" <ctor_name: Ident> ":" <ctor_type: SExp> ";"
     fn parse_ctor_decl(&mut self) -> Result<(Identifier, SExp), ParseError> {
-        self.expect_token(&Token::Pipe)?;
+        self.expect_token(Token::Pipe)?; // expect '|'
         let ctor_name = self.expect_ident()?;
-        self.expect_token(&Token::Colon)?;
+        self.expect_token(Token::Colon)?; // expect ':'
         let ctor_type = self.parse_sexp()?;
-        self.expect_token(&Token::Semicolon)?;
+        self.expect_token(Token::Semicolon)?; // expect ';'
         Ok((ctor_name, ctor_type))
     }
 
     // "\inductive" <type_name: Ident> ("(" <param: Ident> ":" <ty: SExp> ")")* ":" <arity: SExp> ":=" (<ctor_decl>)* ";"
     fn parse_inductive_decl(&mut self) -> Result<ModuleItem, ParseError> {
-        self.expect_token(&Token::KeyWord("\\inductive"))?;
+        self.expect_keyword("\\inductive")?;
         let type_name = self.expect_ident()?;
 
         let mut parameters = vec![];
         while let Some(bind) = self.try_parse_simple_bind_paren()? {
             parameters.push(bind);
         }
-        self.expect_token(&Token::Colon)?;
+        self.expect_token(Token::Colon)?;
         let arity = self.parse_sexp()?;
 
         // body of constructors
-        self.expect_token(&Token::Assign)?;
+        self.expect_token(Token::Assign)?;
         let mut constructors = vec![];
         loop {
             let save_pos = self.pos;
@@ -1159,7 +1175,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        self.expect_token(&Token::Semicolon)?;
+        self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::Inductive {
             type_name,
             parameters,
@@ -1186,21 +1202,21 @@ impl<'a> Parser<'a> {
             Some(Token::KeyWord(kw)) if *kw == "\\eval" => {
                 self.next();
                 let exp = self.parse_sexp()?;
-                self.expect_token(&Token::Semicolon)?;
+                self.expect_token(Token::Semicolon)?;
                 Ok(Some(ModuleItem::Eval { exp }))
             }
             Some(Token::KeyWord(kw)) if *kw == "\\check" => {
                 self.next();
                 let exp = self.parse_sexp()?;
-                self.expect_token(&Token::Colon)?;
+                self.expect_token(Token::Colon)?;
                 let ty = self.parse_sexp()?;
-                self.expect_token(&Token::Semicolon)?;
+                self.expect_token(Token::Semicolon)?;
                 Ok(Some(ModuleItem::Check { exp, ty }))
             }
             Some(Token::KeyWord(kw)) if *kw == "\\infer" => {
                 self.next();
                 let exp = self.parse_sexp()?;
-                self.expect_token(&Token::Semicolon)?;
+                self.expect_token(Token::Semicolon)?;
                 Ok(Some(ModuleItem::Infer { exp }))
             }
             _ => {
@@ -1211,13 +1227,14 @@ impl<'a> Parser<'a> {
     }
 
     // parse a module
-    // "\module" <module_name: Ident> ("(" (<param: Ident> ":" <ty: SExp> ";")* ")")? "{" (<module_item>)* "}"
+    // "\module" <module_name: Ident> ("(" (<param: Ident> ":" <ty: SExp> ",")* ")")? "{" (<module_item>)* "}"
     pub fn parse_module(&mut self) -> Result<Module, ParseError> {
-        self.expect_token(&Token::KeyWord("\\module"))?;
+        self.expect_keyword("\\module")?;
         let module_name = self.expect_ident()?;
-        let mut parameters = vec![];
-        if self.bump_if(&Token::LParen) {
-            while !self.bump_if(&Token::RParen) {
+
+        let mut parameters = Vec::new();
+        if self.bump_if_token(&Token::LParen) {
+            while !self.bump_if_token(&Token::RParen) {
                 let Some((vars, ty)) = self.try_parse_annotate()? else {
                     return Err(ParseError {
                         msg: "expected parameter annotation in module parameter list".into(),
@@ -1225,21 +1242,25 @@ impl<'a> Parser<'a> {
                         end: self.pos,
                     });
                 };
-                self.expect_token(&Token::Semicolon)?;
                 parameters.push(RightBind {
                     vars,
                     ty: Box::new(ty),
                 });
+
+                if !self.bump_if_token(&Token::Comma) {
+                    self.expect_token(Token::RParen)?; // ensure closing parenthesis
+                    break;
+                }
             }
         }
 
-        // body
-        self.expect_token(&Token::LBrace)?;
-        let mut declarations = vec![];
+        self.expect_token(Token::LBrace)?; // expect '{'
+        let mut declarations = Vec::new();
         while let Some(item) = self.try_parse_module_item()? {
             declarations.push(item);
         }
-        self.expect_token(&Token::RBrace)?;
+        self.expect_token(Token::RBrace)?; // expect '}'
+
         Ok(Module {
             name: module_name,
             parameters,
@@ -1452,7 +1473,7 @@ mod tests {
         print_and_unwrap(r"\definition l : (X : \Set) -> X -> X := (x : X) => x ;");
         print_and_unwrap(r"\definition l: (X, Y: \Set) -> \SetKind := \Set => a;");
         print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
-        print_and_unwrap(r"\import MyModule ( A := B; C := (x: X) => y ;) \as T;");
+        print_and_unwrap(r"\import MyModule ( A := B, C := (x: X) => y) \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
     }
 }
