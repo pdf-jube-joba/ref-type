@@ -35,16 +35,18 @@ pub enum Token<'a> {
     #[token("}")]
     RBrace,
     // mapped tokens (will be produced by mapping MacroToken in lex_all)
-    Arrow,
-    DoubleArrow,
-    Assign,
-    Pipe,
-    Colon,
-    Semicolon,
-    Period,
-    Comma,
-    Equal,
-    Exclamation,
+    // 2 char
+    Arrow,       // "->"
+    DoubleArrow, // "=>"
+    Assign,      // ":="
+    // 1 char
+    Pipe,        // "|"
+    Colon,       // ":"
+    Semicolon,   // ";"
+    Period,      // "."
+    Comma,       // ","
+    Equal,       // "="
+    Exclamation, // "!"
 }
 
 static RESERVED_SORT_KEYWORDS: &[&str] = &[
@@ -286,19 +288,20 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_keyword_head(&mut self) -> Result<SExp, ParseError> {
-        // "\elim" <elim: SExp> "\in" <type_name: Ident> ":" <return_type: SExp> "{" ("|" <case_name: Ident> ":" <case_type: SExp>)* "}"
+        // "\elim" <elim: SExp> "\in" <type_name: Ident> "\\return" <return_type: SExp> "{" ("|" <case_name: Ident> "=>" <case_type: SExp> ";")* "}"
         if self.bump_keyword("\\elim") {
             let elim = self.parse_sexp()?;
             self.expect_token(&Token::KeyWord("\\in"))?; // expect '\in'
             let type_name = self.expect_ident()?;
-            self.expect_token(&Token::Colon)?; // expect ':'
+            self.expect_token(&Token::KeyWord("\\return"))?; // expect '\\return'
             let return_type = self.parse_sexp()?;
             self.expect_token(&Token::LBrace)?; // expect '{'
             let mut cases = Vec::new();
             while self.bump_if(&Token::Pipe) {
                 let case_name = self.expect_ident()?;
-                self.expect_token(&Token::Colon)?; // expect ':'
+                self.expect_token(&Token::DoubleArrow)?; // expect '=>'
                 let case_type = self.parse_sexp()?;
+                self.expect_token(&Token::Semicolon)?; // expect ';'
                 cases.push((case_name, case_type));
             }
             self.expect_token(&Token::RBrace)?; // expect '}'
@@ -1388,6 +1391,7 @@ mod tests {
         print_and_unwrap(r"(x: X) -> Y");
         print_and_unwrap(r"(x: X) => y");
         print_and_unwrap(r"(x: X) -> Y => z");
+        print_and_unwrap(r"X -> Z");
         print_and_unwrap(r"x y z -> Y");
         print_and_unwrap(r"(x y) -> Y");
         print_and_unwrap(r"x y | z -> Y");
@@ -1445,9 +1449,8 @@ mod tests {
             }
         }
         print_and_unwrap(r"\definition id : (X : \Set) -> X -> X := (x : X) => x ;");
-        print_and_unwrap(
-            r"\definition const : (X : \Set) -> (Y : \Set) -> X := (x : X) => (y : Y) => x ;",
-        );
+        print_and_unwrap(r"\definition l : (X : \Set) -> X -> X := (x : X) => x ;");
+        print_and_unwrap(r"\definition l: (X, Y: \Set) -> \SetKind := \Set => a;");
         print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
         print_and_unwrap(r"\import MyModule ( A := B; C := (x: X) => y ;) \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
