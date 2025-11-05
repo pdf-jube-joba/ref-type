@@ -94,6 +94,106 @@ static PROGRAM_KEYWORDS: &[&str] = &[
     "\\infer",
 ];
 
+pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
+    let mut lexer = Token::lexer(input);
+    let mut out = Vec::new();
+
+    let mut comment_level = 0;
+
+    while let Some(tok) = lexer.next() {
+        match tok {
+            Ok(Token::CommentStart) => {
+                comment_level += 1;
+            }
+            Ok(Token::CommentEnd) => {
+                if comment_level == 0 {
+                    return Err(format!(
+                        "unmatched comment end at {}..{}",
+                        lexer.span().start,
+                        lexer.span().end
+                    ));
+                }
+                comment_level -= 1;
+            }
+            Ok(_) if comment_level > 0 => {
+                continue; // skip tokens inside comments
+            }
+            Ok(Token::MacroToken(s)) => {
+                // map known symbol sequences to specific token variants
+                let mapped = match s {
+                    "->" => Token::Arrow,
+                    "=>" => Token::DoubleArrow,
+                    ":=" => Token::Assign,
+                    "|" => Token::Pipe,
+                    ":" => Token::Colon,
+                    ";" => Token::Semicolon,
+                    "." => Token::Period,
+                    "," => Token::Comma,
+                    "=" => Token::Equal,
+                    "!" => Token::Exclamation,
+                    _ => Token::MacroToken(s),
+                };
+
+                let span = lexer.span();
+                out.push(SpannedToken {
+                    kind: mapped,
+                    start: span.start,
+                    end: span.end,
+                });
+            }
+            Ok(Token::KeyWord(kw)) => {
+                let mapped = if !PROOF_COMMAND_KEYWORDS.contains(&kw)
+                    && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
+                    && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
+                    && !RESERVED_SORT_KEYWORDS.contains(&kw)
+                    && !PROGRAM_KEYWORDS.contains(&kw)
+                {
+                    Token::MacroToken(kw)
+                } else {
+                    Token::KeyWord(kw)
+                };
+                let span = lexer.span();
+                out.push(SpannedToken {
+                    kind: mapped,
+                    start: span.start,
+                    end: span.end,
+                });
+            }
+            Ok(Token::Ident(_))
+            | Ok(Token::Number(_))
+            | Ok(Token::UnspecifiedVar(_))
+            | Ok(
+                Token::LParen
+                | Token::RParen
+                | Token::MathLParen
+                | Token::MathRParen
+                | Token::LBrace
+                | Token::RBrace,
+            ) => {
+                let span = lexer.span();
+                out.push(SpannedToken {
+                    kind: tok.unwrap(),
+                    start: span.start,
+                    end: span.end,
+                });
+            }
+            Ok(_) => {
+                unreachable!("logos does not produce other tokens here");
+            }
+            Err(_) => {
+                let span = lexer.span();
+                let bad = &input[span.clone()];
+                return Err(format!(
+                    "lex error at {}..{}: {:?}",
+                    span.start, span.end, bad
+                ));
+            }
+        }
+    }
+
+    Ok(out)
+}
+
 #[derive(Debug, Clone)]
 pub struct SpannedToken<'a> {
     pub kind: Token<'a>,
@@ -1146,106 +1246,6 @@ impl<'a> Parser<'a> {
             declarations,
         })
     }
-}
-
-pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
-    let mut lexer = Token::lexer(input);
-    let mut out = Vec::new();
-
-    let mut comment_level = 0;
-
-    while let Some(tok) = lexer.next() {
-        match tok {
-            Ok(Token::CommentStart) => {
-                comment_level += 1;
-            }
-            Ok(Token::CommentEnd) => {
-                if comment_level == 0 {
-                    return Err(format!(
-                        "unmatched comment end at {}..{}",
-                        lexer.span().start,
-                        lexer.span().end
-                    ));
-                }
-                comment_level -= 1;
-            }
-            Ok(_) if comment_level > 0 => {
-                continue; // skip tokens inside comments
-            }
-            Ok(Token::MacroToken(s)) => {
-                // map known symbol sequences to specific token variants
-                let mapped = match s {
-                    "->" => Token::Arrow,
-                    "=>" => Token::DoubleArrow,
-                    ":=" => Token::Assign,
-                    "|" => Token::Pipe,
-                    ":" => Token::Colon,
-                    ";" => Token::Semicolon,
-                    "." => Token::Period,
-                    "," => Token::Comma,
-                    "=" => Token::Equal,
-                    "!" => Token::Exclamation,
-                    _ => Token::MacroToken(s),
-                };
-
-                let span = lexer.span();
-                out.push(SpannedToken {
-                    kind: mapped,
-                    start: span.start,
-                    end: span.end,
-                });
-            }
-            Ok(Token::KeyWord(kw)) => {
-                let mapped = if !PROOF_COMMAND_KEYWORDS.contains(&kw)
-                    && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
-                    && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
-                    && !RESERVED_SORT_KEYWORDS.contains(&kw)
-                    && !PROGRAM_KEYWORDS.contains(&kw)
-                {
-                    Token::MacroToken(kw)
-                } else {
-                    Token::KeyWord(kw)
-                };
-                let span = lexer.span();
-                out.push(SpannedToken {
-                    kind: mapped,
-                    start: span.start,
-                    end: span.end,
-                });
-            }
-            Ok(Token::Ident(_))
-            | Ok(Token::Number(_))
-            | Ok(Token::UnspecifiedVar(_))
-            | Ok(
-                Token::LParen
-                | Token::RParen
-                | Token::MathLParen
-                | Token::MathRParen
-                | Token::LBrace
-                | Token::RBrace,
-            ) => {
-                let span = lexer.span();
-                out.push(SpannedToken {
-                    kind: tok.unwrap(),
-                    start: span.start,
-                    end: span.end,
-                });
-            }
-            Ok(_) => {
-                unreachable!("logos does not produce other tokens here");
-            }
-            Err(_) => {
-                let span = lexer.span();
-                let bad = &input[span.clone()];
-                return Err(format!(
-                    "lex error at {}..{}: {:?}",
-                    span.start, span.end, bad
-                ));
-            }
-        }
-    }
-
-    Ok(out)
 }
 
 pub fn str_parse_exp(input: &str) -> Result<SExp, String> {
