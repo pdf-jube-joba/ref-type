@@ -113,6 +113,12 @@ pub enum SExp {
     // l3n == 3 => named module's inductive type constructor access
     // too ad-hoc TODO: improve this design
     AccessPath(Vec<Identifier>),
+    // Path { <exp> <exp> }
+    // inductive type or inductive constructor should be given parameters (uncurry style)
+    AccessPathWithParams {
+        path: Vec<Identifier>,
+        params: Vec<SExp>,
+    },
 
     // --- macro
     // shared macro for math symbols

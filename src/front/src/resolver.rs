@@ -556,7 +556,7 @@ impl Elaborator {
                     for tail_elm in tail.iter() {
                         if exp_contains_as_freevar(tail_elm, &type_name) {
                             return Err(format!(
-                                "Constructor type tail {tail_elm} contains inductive type name {type_name}"
+                                "Constructor type tail {tail_elm} contains inductive type name {type_name} in non-strictly positive position"
                             ));
                         }
                     }
@@ -654,237 +654,233 @@ impl Elaborator {
     fn elab_exp_rec(
         &mut self,
         logger: &mut Logger,
-        mut sexp: &crate::syntax::SExp,
+        sexp: &crate::syntax::SExp,
         reference_var: &[Var],
         bind_var: Vec<Var>,
     ) -> Result<Exp, String> {
-        // we need to uncurry with parameters if it's an ind_type or ind_ctor
-        let mut tails = vec![];
-        while let SExp::App {
-            func,
-            arg,
-            piped: _,
-        } = sexp
-        {
-            tails.push(arg.as_ref().clone());
-            sexp = func.as_ref();
-        }
-
-        let mut tails_elab = tails
-            .iter()
-            .rev()
-            .map(|arg| self.elab_exp_rec(logger, arg, reference_var, bind_var.clone()))
-            .collect::<Result<Vec<Exp>, String>>()?;
-
-        let left_most: Exp = 'l: {
-            match sexp {
-                SExp::App { .. } => {
-                    unreachable!("why ?")
-                }
-                SExp::AccessPath(idents) => {
-                    // case len == 1
-                    if let [ident] = &idents[..] {
-                        // case: binded in expression
-                        for v in bind_var.iter().rev() {
-                            // apply tails here
-                            if v.as_str() == ident.0.as_str() {
-                                // return Ok(kernel::utils::assoc_apply(Exp::Var(v.clone()), tails_elab));
-                                break 'l Exp::Var(v.clone());
-                            }
-                        }
-                        // case: binded in reference_var
-                        for v in reference_var.iter().rev() {
-                            if v.as_str() == ident.0.as_str() {
-                                break 'l Exp::Var(v.clone());
-                            }
-                        }
-
-                        // case: current module's defined items
-                        if let Some(body) = self.module_item_definition_name(ident) {
-                            break 'l body.clone();
-                        }
-                        if let Some(indspec) = self.module_item_indtype_name(ident) {
-                            let len = indspec.param_args_len();
-                            if tails_elab.len() < len {
-                                return Err(format!(
-                                    "Inductive type {} expects {} parameters, but only {} were provided",
-                                    ident.0.as_str(),
-                                    len,
-                                    tails_elab.len()
-                                ));
-                            }
-                            let mut pass_parameter = tails_elab.split_off(len);
-                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
-                            break 'l Exp::IndType {
-                                indspec,
-                                parameters: pass_parameter,
-                            };
-                        }
-
-                        // case: current module's parameters
-                        for (v, _) in self.parameters.iter().rev() {
-                            if v.as_str() == ident.0.as_str() {
-                                break 'l Exp::Var(v.clone());
-                            }
-                        }
-
-                        return Err(format!("Unbound identifier: {}", ident));
-                    }
-
-                    // case len == 2
-                    if let [path0, path1] = &idents[..] {
-                        // case: path0 is type name in current module, path1 is constructor name
-                        if let Some((indspec, ctor_idx)) = self.module_item_indctor(path0, path1) {
-                            let len = indspec.param_args_len();
-                            if tails_elab.len() < len {
-                                return Err(format!(
-                                    "Inductive type {} expects {} parameters, but only {} were provided",
-                                    path0.0.as_str(),
-                                    len,
-                                    tails_elab.len()
-                                ));
-                            }
-
-                            let mut pass_parameter = tails_elab.split_off(len);
-                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
-                            break 'l Exp::IndCtor {
-                                indspec,
-                                idx: ctor_idx,
-                                parameters: pass_parameter,
-                            };
-                        }
-
-                        // case: path0 is module named path1 is item name
-                        if let Some(body) = self.named_module_definition_name(path0, path1) {
-                            break 'l body.clone();
-                        }
-                        if let Some(indpecs) = self.named_module_indtype_name(path0, path1) {
-                            let len = indpecs.param_args_len();
-                            if tails_elab.len() < len {
-                                return Err(format!(
-                                    "Inductive type {}.{} expects {} parameters, but only {} were provided",
-                                    path0.0.as_str(),
-                                    path1.0.as_str(),
-                                    len,
-                                    tails_elab.len()
-                                ));
-                            }
-                            let mut pass_parameter = tails_elab.split_off(indpecs.param_args_len());
-                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
-                            break 'l Exp::IndType {
-                                indspec: indpecs,
-                                parameters: pass_parameter,
-                            };
-                        }
-
-                        return Err(format!(
-                            "Unbound identifier: {}.{}",
-                            path0.0.as_str(),
-                            path1.0.as_str()
-                        ));
-                    }
-
-                    // case len == 3
-                    if let [path0, path1, path2] = &idents[..] {
-                        // case: path0 is module name, path1 is inductive type name, path2 is constructor name
-                        if let Some((ind_defs, ctor_idx)) =
-                            self.named_module_indctor(path0, path1, path2)
-                        {
-                            let len = ind_defs.param_args_len();
-                            if tails_elab.len() < len {
-                                return Err(format!(
-                                    "Inductive type {}.{} expects {} parameters, but only {} were provided",
-                                    path1.0.as_str(),
-                                    path2.0.as_str(),
-                                    len,
-                                    tails_elab.len()
-                                ));
-                            }
-                            let mut pass_parameter =
-                                tails_elab.split_off(ind_defs.param_args_len());
-                            std::mem::swap(&mut pass_parameter, &mut tails_elab);
-                            break 'l Exp::IndCtor {
-                                indspec: ind_defs,
-                                idx: ctor_idx,
-                                parameters: pass_parameter,
-                            };
-                        }
-
-                        return Err(format!(
-                            "Unbound identifier: {}.{}.{}",
-                            path0.0.as_str(),
-                            path1.0.as_str(),
-                            path2.0.as_str()
-                        ));
-                    }
-
-                    return Err("too long".to_string());
-                }
-                SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
-                    todo!("macro elaboration not implemented")
-                }
-                SExp::Where { exp, clauses } => {
-                    let mut bind_var = bind_var.clone();
-                    let mut clauses_elab = vec![];
-                    for (v, ty, body) in clauses {
-                        let v: Var = v.into();
-                        bind_var.push(v.clone());
-                        let ty_elab =
-                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                        let body_elab =
-                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                        clauses_elab.push((v, ty_elab, body_elab));
-                    }
-                    let mut exp_elab =
-                        self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
-                    for (v, ty, body) in clauses_elab {
-                        exp_elab = Exp::App {
-                            func: Box::new(Exp::Lam {
-                                var: v,
-                                ty: Box::new(ty),
-                                body: Box::new(exp_elab),
-                            }),
-                            arg: Box::new(body),
+        match sexp {
+            SExp::AccessPath(idents) => {
+                // case len == 1
+                if let [ident] = &idents[..] {
+                    // case: binded in expression
+                    for v in bind_var.iter().rev() {
+                        if v.as_str() == ident.0.as_str() {
+                            return Ok(Exp::Var(v.clone()));
                         }
                     }
-                    exp_elab
-                }
-                SExp::WithProof { exp, proofs } => {
-                    let exp_elab =
-                        self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
-                    let mut proof_goals: Vec<kernel::exp::ProveGoal> = vec![];
-                    for proof in proofs {
-                        let WithGoal {
-                            extended_ctx,
-                            goal,
-                            proof_term,
-                        } = proof;
-                        let mut bind_var = bind_var.clone();
-                        let extended_ctx_elab = self.elab_telescope(logger, extended_ctx)?;
-                        for (v, _) in extended_ctx_elab.iter() {
-                            bind_var.push(v.clone());
+                    // case: binded in reference_var
+                    for v in reference_var.iter().rev() {
+                        if v.as_str() == ident.0.as_str() {
+                            return Ok(Exp::Var(v.clone()));
                         }
-                        let goal_elab =
-                            self.elab_exp_rec(logger, goal, reference_var, bind_var.clone())?;
-                        let proof_term_elab = self.elab_proof_by(
-                            logger,
-                            proof_term,
-                            reference_var,
-                            bind_var.clone(),
-                        )?;
-                        proof_goals.push(ProveGoal {
-                            extended_ctx: extended_ctx_elab,
-                            goal_prop: goal_elab,
-                            command: proof_term_elab,
+                    }
+
+                    // case: current module's defined items
+                    if let Some(body) = self.module_item_definition_name(ident) {
+                        return Ok(body.clone());
+                    }
+                    if let Some(indspec) = self.module_item_indtype_name(ident) {
+                        return Ok(Exp::IndType {
+                            indspec,
+                            parameters: vec![],
                         });
                     }
-                    Exp::ProveHere {
-                        exp: exp_elab.into(),
-                        goals: proof_goals,
+
+                    // case: current module's parameters
+                    for (v, _) in self.parameters.iter().rev() {
+                        if v.as_str() == ident.0.as_str() {
+                            return Ok(Exp::Var(v.clone()));
+                        }
+                    }
+
+                    return Err(format!("Unbound identifier: {}", ident));
+                }
+
+                // case len == 2
+                if let [path0, path1] = &idents[..] {
+                    // case: path0 is type name in current module, path1 is constructor name
+                    if let Some((indspec, ctor_idx)) = self.module_item_indctor(path0, path1) {
+                        return Ok(Exp::IndCtor {
+                            indspec,
+                            idx: ctor_idx,
+                            parameters: vec![],
+                        });
+                    }
+
+                    // case: path0 is module named path1 is item name
+                    if let Some(body) = self.named_module_definition_name(path0, path1) {
+                        return Ok(body.clone());
+                    }
+                    if let Some(indpecs) = self.named_module_indtype_name(path0, path1) {
+                        return Ok(Exp::IndType {
+                            indspec: indpecs,
+                            parameters: vec![],
+                        });
+                    }
+
+                    return Err(format!(
+                        "Unbound identifier: {}.{}",
+                        path0.0.as_str(),
+                        path1.0.as_str()
+                    ));
+                }
+
+                // case len == 3
+                if let [path0, path1, path2] = &idents[..] {
+                    // case: path0 is module name, path1 is inductive type name, path2 is constructor name
+                    if let Some((ind_defs, ctor_idx)) =
+                        self.named_module_indctor(path0, path1, path2)
+                    {
+                        return Ok(Exp::IndCtor {
+                            indspec: ind_defs,
+                            idx: ctor_idx,
+                            parameters: vec![],
+                        });
+                    }
+
+                    return Err(format!(
+                        "Unbound identifier: {}.{}.{}",
+                        path0.0.as_str(),
+                        path1.0.as_str(),
+                        path2.0.as_str()
+                    ));
+                }
+
+                Err("too long".to_string())
+            }
+            SExp::AccessPathWithParams { path, params } => {
+                // it should be InductiveType of InductiveCtor
+                // so, any else case is error
+                let mut params_elab = vec![];
+                for param in params {
+                    let param_elab =
+                        self.elab_exp_rec(logger, param, reference_var, bind_var.clone())?;
+                    params_elab.push(param_elab);
+                }
+
+                // case len == 1 => InductiveType in current module
+                if let [ident] = &path[..] {
+                    if let Some(indspec) = self.module_item_indtype_name(ident) {
+                        return Ok(Exp::IndType {
+                            indspec,
+                            parameters: params_elab,
+                        });
+                    }
+                    return Err(format!(
+                        "Unbound identifier for Inductive Type: {}",
+                        ident.0.as_str()
+                    ));
+                }
+
+                // case len == 2 => InductiveCtor in current module | InductiveType in named module
+                if let [path0, path1] = &path[..] {
+                    // case: path0 is type name in current module, path1 is constructor name
+                    if let Some((indspec, ctor_idx)) = self.module_item_indctor(path0, path1) {
+                        return Ok(Exp::IndCtor {
+                            indspec,
+                            idx: ctor_idx,
+                            parameters: params_elab,
+                        });
+                    }
+
+                    // case: path0 is module named path1 is indtype name
+                    if let Some(indpecs) = self.named_module_indtype_name(path0, path1) {
+                        return Ok(Exp::IndType {
+                            indspec: indpecs,
+                            parameters: params_elab,
+                        });
+                    }
+
+                    return Err(format!(
+                        "Unbound identifier for Inductive Type or Constructor: {}.{}",
+                        path0.0.as_str(),
+                        path1.0.as_str()
+                    ));
+                }
+
+                // case len == 3 => InductiveCtor in named module
+                if let [path0, path1, path2] = &path[..] {
+                    // case: path0 is module name, path1 is inductive type name, path2 is constructor name
+                    if let Some((ind_defs, ctor_idx)) =
+                        self.named_module_indctor(path0, path1, path2)
+                    {
+                        return Ok(Exp::IndCtor {
+                            indspec: ind_defs,
+                            idx: ctor_idx,
+                            parameters: params_elab,
+                        });
+                    }
+
+                    return Err(format!(
+                        "Unbound identifier for Inductive Constructor: {}.{}.{}",
+                        path0.0.as_str(),
+                        path1.0.as_str(),
+                        path2.0.as_str()
+                    ));
+                }
+
+                Err("too long".to_string())
+            }
+            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
+                todo!("macro elaboration not implemented")
+            }
+            SExp::Where { exp, clauses } => {
+                let mut bind_var = bind_var.clone();
+                let mut clauses_elab = vec![];
+                for (v, ty, body) in clauses {
+                    let v: Var = v.into();
+                    bind_var.push(v.clone());
+                    let ty_elab = self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                    let body_elab =
+                        self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                    clauses_elab.push((v, ty_elab, body_elab));
+                }
+                let mut exp_elab =
+                    self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
+                for (v, ty, body) in clauses_elab {
+                    exp_elab = Exp::App {
+                        func: Box::new(Exp::Lam {
+                            var: v,
+                            ty: Box::new(ty),
+                            body: Box::new(exp_elab),
+                        }),
+                        arg: Box::new(body),
                     }
                 }
-                SExp::Sort(sort) => Exp::Sort(*sort),
-                SExp::Prod { bind, body } => match bind {
+                Ok(exp_elab)
+            }
+            SExp::WithProof { exp, proofs } => {
+                let exp_elab = self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
+                let mut proof_goals: Vec<kernel::exp::ProveGoal> = vec![];
+                for proof in proofs {
+                    let WithGoal {
+                        extended_ctx,
+                        goal,
+                        proof_term,
+                    } = proof;
+                    let mut bind_var = bind_var.clone();
+                    let extended_ctx_elab = self.elab_telescope(logger, extended_ctx)?;
+                    for (v, _) in extended_ctx_elab.iter() {
+                        bind_var.push(v.clone());
+                    }
+                    let goal_elab =
+                        self.elab_exp_rec(logger, goal, reference_var, bind_var.clone())?;
+                    let proof_term_elab =
+                        self.elab_proof_by(logger, proof_term, reference_var, bind_var.clone())?;
+                    proof_goals.push(ProveGoal {
+                        extended_ctx: extended_ctx_elab,
+                        goal_prop: goal_elab,
+                        command: proof_term_elab,
+                    });
+                }
+                Ok(Exp::ProveHere {
+                    exp: exp_elab.into(),
+                    goals: proof_goals,
+                })
+            }
+            SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
+            SExp::Prod { bind, body } => {
+                let result = match bind {
                     // A -> B ... (_: A) -> B
                     Bind::Anonymous { ty } => {
                         let ty_elab =
@@ -980,471 +976,458 @@ impl Elaborator {
                             }),
                         }
                     }
-                },
-                SExp::Lam { bind, body } => {
-                    // same as Prod
-                    match bind {
-                        // A => B ... (_: A) => B
-                        Bind::Anonymous { ty } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                            Exp::Lam {
-                                var: Var::dummy(),
-                                ty: Box::new(ty_elab),
-                                body: Box::new(body_elab),
-                            }
+                };
+                Ok(result)
+            }
+            SExp::Lam { bind, body } => {
+                let result = match bind {
+                    // A => B ... (_: A) => B
+                    Bind::Anonymous { ty } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                        Exp::Lam {
+                            var: Var::dummy(),
+                            ty: Box::new(ty_elab),
+                            body: Box::new(body_elab),
                         }
-                        // (x[0], ..., x[n]: A) => B ... (x[0]: A) => ... (x[n]: A) => B
-                        Bind::Named(RightBind { vars, ty }) => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                    }
+                    // (x[0], ..., x[n]: A) => B ... (x[0]: A) => ... (x[n]: A) => B
+                    Bind::Named(RightBind { vars, ty }) => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
 
-                            let mut telescope: Vec<(Var, Exp)> = vec![];
-                            let mut bind_var = bind_var.clone();
+                        let mut telescope: Vec<(Var, Exp)> = vec![];
+                        let mut bind_var = bind_var.clone();
 
-                            for var in vars {
-                                let var: Var = var.into();
-                                telescope.push((var.clone(), ty_elab.clone()));
-                                bind_var.push(var);
-                            }
-
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-
-                            kernel::utils::assoc_lam(telescope, body_elab)
-                        }
-                        // (x: A | P) => B ... (x: Lift(A, {x: A | P})) => B
-                        Bind::Subset { var, ty, predicate } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        for var in vars {
                             let var: Var = var.into();
-                            let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let predicate_elab = self.elab_exp_rec(
-                                logger,
-                                predicate,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-
-                            let subset = Exp::SubSet {
-                                var: var.clone(),
-                                set: Box::new(ty_elab.clone()),
-                                predicate: Box::new(predicate_elab.clone()),
-                            };
-
-                            Exp::Lam {
-                                var: var.clone(),
-                                ty: Box::new(Exp::TypeLift {
-                                    superset: Box::new(ty_elab.clone()),
-                                    subset: Box::new(subset),
-                                }),
-                                body: Box::new(body_elab),
-                            }
+                            telescope.push((var.clone(), ty_elab.clone()));
+                            bind_var.push(var);
                         }
-                        // (x: A | h: P) => B ... (x: Lift(A, {x: A | P})) => (h: P) => B
-                        Bind::SubsetWithProof {
-                            var,
-                            ty,
-                            predicate,
-                            proof_var: proof,
-                        } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
-                            let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let predicate_elab = self.elab_exp_rec(
-                                logger,
-                                predicate,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            let proof: Var = proof.into();
-                            bind_var.push(proof.clone());
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                            let subset = Exp::SubSet {
-                                var: var.clone(),
-                                set: Box::new(ty_elab.clone()),
-                                predicate: Box::new(predicate_elab.clone()),
-                            };
 
-                            Exp::Lam {
-                                var: var.clone(),
-                                ty: Box::new(Exp::TypeLift {
-                                    superset: Box::new(ty_elab.clone()),
-                                    subset: Box::new(subset),
-                                }),
-                                body: Box::new(Exp::Lam {
-                                    var: proof,
-                                    ty: Box::new(predicate_elab),
-                                    body: Box::new(body_elab),
-                                }),
-                            }
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+
+                        kernel::utils::assoc_lam(telescope, body_elab)
+                    }
+                    // (x: A | P) => B ... (x: Lift(A, {x: A | P})) => B
+                    Bind::Subset { var, ty, predicate } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let var: Var = var.into();
+                        let mut bind_var = bind_var.clone();
+                        bind_var.push(var.clone());
+                        let predicate_elab =
+                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+
+                        let subset = Exp::SubSet {
+                            var: var.clone(),
+                            set: Box::new(ty_elab.clone()),
+                            predicate: Box::new(predicate_elab.clone()),
+                        };
+
+                        Exp::Lam {
+                            var: var.clone(),
+                            ty: Box::new(Exp::TypeLift {
+                                superset: Box::new(ty_elab.clone()),
+                                subset: Box::new(subset),
+                            }),
+                            body: Box::new(body_elab),
                         }
                     }
-                }
-                SExp::Cast { exp, to } => {
-                    let exp_elab =
-                        self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
-                    let to_elab = self.elab_exp_rec(logger, to, reference_var, bind_var.clone())?;
-                    Exp::Cast {
-                        exp: Box::new(exp_elab),
-                        to: Box::new(to_elab),
-                    }
-                }
-                SExp::IndElim {
-                    ind_type_name,
-                    elim,
-                    return_type,
-                    cases,
-                } => {
-                    let ind_defs = match self.module_item_indtype_name(ind_type_name) {
-                        Some(indspecs) => indspecs,
-                        None => {
-                            return Err(format!(
-                                "Inductive type {} not found for elimination",
-                                ind_type_name.0.as_str()
-                            ));
-                        }
-                    };
-                    let eliminated_exp_elab =
-                        self.elab_exp_rec(logger, elim, reference_var, bind_var.clone())?;
-                    let return_type_elab =
-                        self.elab_exp_rec(logger, return_type, reference_var, bind_var.clone())?;
-                    let mut cases_elab = vec![];
-                    for (ctor_name, case_exp) in cases {
-                        let ctor_idx = self
-                            .module_item_indctor(ind_type_name, ctor_name)
-                            .ok_or(format!(
-                                "Constructor {} not found in inductive type {} for elimination",
-                                ctor_name.0.as_str(),
-                                ind_type_name.0.as_str()
-                            ))?
-                            .1;
-                        let case_exp_elab =
-                            self.elab_exp_rec(logger, case_exp, reference_var, bind_var.clone())?;
-                        cases_elab.push((ctor_idx, case_exp_elab));
-                    }
-
-                    cases_elab.sort_by_key(|(idx, _)| *idx);
-
-                    let cases_elab = cases_elab
-                        .into_iter()
-                        .map(|(_, case_exp)| case_exp)
-                        .collect::<Vec<Exp>>();
-
-                    Exp::IndElim {
-                        indspec: ind_defs,
-                        elim: Box::new(eliminated_exp_elab),
-                        return_type: Box::new(return_type_elab),
-                        cases: cases_elab,
-                    }
-                }
-                SExp::ProveLater { term } => {
-                    let term_elab =
-                        self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
-                    Exp::ProveLater {
-                        prop: Box::new(term_elab),
-                    }
-                }
-                SExp::PowerSet { set } => {
-                    let power_elab =
-                        self.elab_exp_rec(logger, set, reference_var, bind_var.clone())?;
-                    Exp::PowerSet {
-                        set: Box::new(power_elab),
-                    }
-                }
-                SExp::SubSet {
-                    var,
-                    set,
-                    predicate,
-                } => {
-                    let set_elab =
-                        self.elab_exp_rec(logger, set, reference_var, bind_var.clone())?;
-                    let var: Var = var.into();
-                    let mut bind_var = bind_var.clone();
-                    bind_var.push(var.clone());
-                    let predicate_elab =
-                        self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
-                    Exp::SubSet {
+                    // (x: A | h: P) => B ... (x: Lift(A, {x: A | P})) => (h: P) => B
+                    Bind::SubsetWithProof {
                         var,
-                        set: Box::new(set_elab),
-                        predicate: Box::new(predicate_elab),
-                    }
-                }
-                SExp::Pred {
-                    superset,
-                    subset,
-                    element,
-                } => {
-                    let superset_elab =
-                        self.elab_exp_rec(logger, superset, reference_var, bind_var.clone())?;
-                    let subset_elab =
-                        self.elab_exp_rec(logger, subset, reference_var, bind_var.clone())?;
-                    let elem_elab =
-                        self.elab_exp_rec(logger, element, reference_var, bind_var.clone())?;
-                    Exp::Pred {
-                        superset: Box::new(superset_elab),
-                        subset: Box::new(subset_elab),
-                        element: Box::new(elem_elab),
-                    }
-                }
-                SExp::TypeLift { superset, subset } => {
-                    let superset_elab =
-                        self.elab_exp_rec(logger, superset, reference_var, bind_var.clone())?;
-                    let subset_elab =
-                        self.elab_exp_rec(logger, subset, reference_var, bind_var.clone())?;
-                    Exp::TypeLift {
-                        superset: Box::new(superset_elab),
-                        subset: Box::new(subset_elab),
-                    }
-                }
-                SExp::Equal { left, right } => {
-                    let left_elab =
-                        self.elab_exp_rec(logger, left, reference_var, bind_var.clone())?;
-                    let right_elab =
-                        self.elab_exp_rec(logger, right, reference_var, bind_var.clone())?;
-                    Exp::Equal {
-                        left: Box::new(left_elab),
-                        right: Box::new(right_elab),
-                    }
-                }
-                // this is non emptyness of type
-                SExp::Exists { bind } => {
-                    match bind {
-                        // \exists A ... \exists A
-                        Bind::Anonymous { ty } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            Exp::Exists {
-                                set: Box::new(ty_elab),
-                            }
-                        }
-                        // \exists x: A ... same as Anonymous
-                        Bind::Named(RightBind { vars: _, ty }) => {
-                            // may be we should warning?
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            Exp::Exists {
-                                set: Box::new(ty_elab),
-                            }
-                        }
-                        // \exists (x: A | P) ... \exists Lift(A, {x: A | P})
-                        Bind::Subset { var, ty, predicate } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
-                            let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let predicate_elab = self.elab_exp_rec(
-                                logger,
-                                predicate,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
+                        ty,
+                        predicate,
+                        proof_var: proof,
+                    } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let var: Var = var.into();
+                        let mut bind_var = bind_var.clone();
+                        bind_var.push(var.clone());
+                        let predicate_elab =
+                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+                        let proof: Var = proof.into();
+                        bind_var.push(proof.clone());
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                        let subset = Exp::SubSet {
+                            var: var.clone(),
+                            set: Box::new(ty_elab.clone()),
+                            predicate: Box::new(predicate_elab.clone()),
+                        };
 
-                            let subset = Exp::SubSet {
-                                var: var.clone(),
-                                set: Box::new(ty_elab.clone()),
-                                predicate: Box::new(predicate_elab.clone()),
-                            };
-
-                            Exp::Exists {
-                                set: Box::new(Exp::TypeLift {
-                                    superset: Box::new(ty_elab.clone()),
-                                    subset: Box::new(subset),
-                                }),
-                            }
-                        }
-                        // \exists (x: A | h: P) ... invalid
-                        Bind::SubsetWithProof { .. } => {
-                            return Err(
-                                "Invalid binding in Exists: only Anonymous and Named are allowed"
-                                    .to_string(),
-                            );
-                        }
-                    }
-                }
-                SExp::Take { bind, body } => {
-                    let map = match bind {
-                        Bind::Anonymous { ty } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                            Exp::Prod {
-                                var: Var::dummy(),
-                                ty: Box::new(ty_elab),
+                        Exp::Lam {
+                            var: var.clone(),
+                            ty: Box::new(Exp::TypeLift {
+                                superset: Box::new(ty_elab.clone()),
+                                subset: Box::new(subset),
+                            }),
+                            body: Box::new(Exp::Lam {
+                                var: proof,
+                                ty: Box::new(predicate_elab),
                                 body: Box::new(body_elab),
-                            }
+                            }),
                         }
-                        // \take (x[0], ..., x[n]: A) => body ... \take x[0]: A => ... => \take (x[n]: A) => body
-                        Bind::Named(RightBind { vars, ty }) => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let mut telescope: Vec<(Var, Exp)> = vec![];
-                            let mut bind_var = bind_var.clone();
-                            for var in vars {
-                                let var: Var = var.into();
-                                telescope.push((var.clone(), ty_elab.clone()));
-                                bind_var.push(var);
-                            }
-                            let mut body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-
-                            while let Some((var, ty)) = telescope.pop() {
-                                let map = Exp::Prod {
-                                    var: var.clone(),
-                                    ty: Box::new(ty),
-                                    body: Box::new(body_elab),
-                                };
-                                body_elab = Exp::Take { map: Box::new(map) };
-                            }
-
-                            // EARLY RETURN
-                            return Ok(body_elab);
-                        }
-                        Bind::Subset { var, ty, predicate } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
-                            let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let predicate_elab = self.elab_exp_rec(
-                                logger,
-                                predicate,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-
-                            let subset = Exp::SubSet {
-                                var: var.clone(),
-                                set: Box::new(ty_elab.clone()),
-                                predicate: Box::new(predicate_elab.clone()),
-                            };
-
-                            Exp::Prod {
-                                var: var.clone(),
-                                ty: Box::new(Exp::TypeLift {
-                                    superset: Box::new(ty_elab.clone()),
-                                    subset: Box::new(subset),
-                                }),
-                                body: Box::new(body_elab),
-                            }
-                        }
-                        Bind::SubsetWithProof {
-                            var,
-                            ty,
-                            predicate,
-                            proof_var: proof,
-                        } => {
-                            let ty_elab =
-                                self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
-                            let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let predicate_elab = self.elab_exp_rec(
-                                logger,
-                                predicate,
-                                reference_var,
-                                bind_var.clone(),
-                            )?;
-                            let proof: Var = proof.into();
-                            bind_var.push(proof.clone());
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                            let subset = Exp::SubSet {
-                                var: var.clone(),
-                                set: Box::new(ty_elab.clone()),
-                                predicate: Box::new(predicate_elab.clone()),
-                            };
-
-                            Exp::Prod {
-                                var: var.clone(),
-                                ty: Box::new(Exp::TypeLift {
-                                    superset: Box::new(ty_elab.clone()),
-                                    subset: Box::new(subset),
-                                }),
-                                body: Box::new(Exp::Prod {
-                                    var: proof,
-                                    ty: Box::new(predicate_elab),
-                                    body: Box::new(body_elab),
-                                }),
-                            }
-                        }
-                    };
-                    Exp::Take { map: Box::new(map) }
-                }
-                SExp::ProofBy(proof_by) => {
-                    use kernel::exp::ProveCommandBy;
-                    let command: ProveCommandBy =
-                        self.elab_proof_by(logger, proof_by, reference_var, bind_var.clone())?;
-
-                    Exp::ProofTermRaw {
-                        command: Box::new(command),
                     }
+                };
+                Ok(result)
+            }
+            SExp::Cast { exp, to } => {
+                let exp_elab = self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
+                let to_elab = self.elab_exp_rec(logger, to, reference_var, bind_var.clone())?;
+                Ok(Exp::Cast {
+                    exp: Box::new(exp_elab),
+                    to: Box::new(to_elab),
+                })
+            }
+            SExp::App {
+                func,
+                arg,
+                piped: _,
+            } => {
+                let func_elab = self.elab_exp_rec(logger, func, reference_var, bind_var.clone())?;
+                let arg_elab = self.elab_exp_rec(logger, arg, reference_var, bind_var.clone())?;
+                Ok(Exp::App {
+                    func: Box::new(func_elab),
+                    arg: Box::new(arg_elab),
+                })
+            }
+            SExp::IndElim {
+                ind_type_name,
+                elim,
+                return_type,
+                cases,
+            } => {
+                let ind_defs = match self.module_item_indtype_name(ind_type_name) {
+                    Some(indspecs) => indspecs,
+                    None => {
+                        return Err(format!(
+                            "Inductive type {} not found for elimination",
+                            ind_type_name.0.as_str()
+                        ));
+                    }
+                };
+                let eliminated_exp_elab =
+                    self.elab_exp_rec(logger, elim, reference_var, bind_var.clone())?;
+                let return_type_elab =
+                    self.elab_exp_rec(logger, return_type, reference_var, bind_var.clone())?;
+                let mut cases_elab = vec![];
+                for (ctor_name, case_exp) in cases {
+                    let ctor_idx = self
+                        .module_item_indctor(ind_type_name, ctor_name)
+                        .ok_or(format!(
+                            "Constructor {} not found in inductive type {} for elimination",
+                            ctor_name.0.as_str(),
+                            ind_type_name.0.as_str()
+                        ))?
+                        .1;
+                    let case_exp_elab =
+                        self.elab_exp_rec(logger, case_exp, reference_var, bind_var.clone())?;
+                    cases_elab.push((ctor_idx, case_exp_elab));
                 }
-                SExp::Block(block) => {
-                    let Block {
-                        statements: declarations,
-                        result: term,
-                    } = block;
-                    let mut term = term.as_ref().clone();
-                    for decl in declarations.iter().rev() {
-                        match decl {
-                            Statement::Fix(items) => {
-                                for bind in items.iter().rev() {
-                                    term = SExp::Lam {
-                                        bind: Bind::Named(bind.clone()),
-                                        body: Box::new(term),
-                                    };
-                                }
-                            }
-                            Statement::Let { var, ty, body } => {
-                                term = SExp::App {
-                                    func: Box::new(SExp::Lam {
-                                        bind: Bind::Named(RightBind {
-                                            vars: vec![var.clone()],
-                                            ty: Box::new(ty.clone()),
-                                        }),
-                                        body: Box::new(term),
-                                    }),
-                                    arg: Box::new(body.clone()),
-                                    piped: false,
-                                };
-                            }
-                            Statement::Take { bind } => {
-                                term = SExp::Take {
-                                    bind: bind.clone(),
+
+                cases_elab.sort_by_key(|(idx, _)| *idx);
+
+                let cases_elab = cases_elab
+                    .into_iter()
+                    .map(|(_, case_exp)| case_exp)
+                    .collect::<Vec<Exp>>();
+
+                Ok(Exp::IndElim {
+                    indspec: ind_defs,
+                    elim: Box::new(eliminated_exp_elab),
+                    return_type: Box::new(return_type_elab),
+                    cases: cases_elab,
+                })
+            }
+            SExp::ProveLater { term } => {
+                let term_elab = self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
+                Ok(Exp::ProveLater {
+                    prop: Box::new(term_elab),
+                })
+            }
+            SExp::PowerSet { set } => {
+                let power_elab = self.elab_exp_rec(logger, set, reference_var, bind_var.clone())?;
+                Ok(Exp::PowerSet {
+                    set: Box::new(power_elab),
+                })
+            }
+            SExp::SubSet {
+                var,
+                set,
+                predicate,
+            } => {
+                let set_elab = self.elab_exp_rec(logger, set, reference_var, bind_var.clone())?;
+                let var: Var = var.into();
+                let mut bind_var = bind_var.clone();
+                bind_var.push(var.clone());
+                let predicate_elab =
+                    self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+                Ok(Exp::SubSet {
+                    var,
+                    set: Box::new(set_elab),
+                    predicate: Box::new(predicate_elab),
+                })
+            }
+            SExp::Pred {
+                superset,
+                subset,
+                element,
+            } => {
+                let superset_elab =
+                    self.elab_exp_rec(logger, superset, reference_var, bind_var.clone())?;
+                let subset_elab =
+                    self.elab_exp_rec(logger, subset, reference_var, bind_var.clone())?;
+                let elem_elab =
+                    self.elab_exp_rec(logger, element, reference_var, bind_var.clone())?;
+                Ok(Exp::Pred {
+                    superset: Box::new(superset_elab),
+                    subset: Box::new(subset_elab),
+                    element: Box::new(elem_elab),
+                })
+            }
+            SExp::TypeLift { superset, subset } => {
+                let superset_elab =
+                    self.elab_exp_rec(logger, superset, reference_var, bind_var.clone())?;
+                let subset_elab =
+                    self.elab_exp_rec(logger, subset, reference_var, bind_var.clone())?;
+                Ok(Exp::TypeLift {
+                    superset: Box::new(superset_elab),
+                    subset: Box::new(subset_elab),
+                })
+            }
+            SExp::Equal { left, right } => {
+                let left_elab = self.elab_exp_rec(logger, left, reference_var, bind_var.clone())?;
+                let right_elab =
+                    self.elab_exp_rec(logger, right, reference_var, bind_var.clone())?;
+                Ok(Exp::Equal {
+                    left: Box::new(left_elab),
+                    right: Box::new(right_elab),
+                })
+            }
+            // this is non emptyness of type
+            SExp::Exists { bind } => {
+                let result = match bind {
+                    // \exists A ... \exists A
+                    Bind::Anonymous { ty } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        Exp::Exists {
+                            set: Box::new(ty_elab),
+                        }
+                    }
+                    // \exists x: A ... same as Anonymous
+                    Bind::Named(RightBind { vars: _, ty }) => {
+                        // may be we should warning?
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        Exp::Exists {
+                            set: Box::new(ty_elab),
+                        }
+                    }
+                    // \exists (x: A | P) ... \exists Lift(A, {x: A | P})
+                    Bind::Subset { var, ty, predicate } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let var: Var = var.into();
+                        let mut bind_var = bind_var.clone();
+                        bind_var.push(var.clone());
+                        let predicate_elab =
+                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+
+                        let subset = Exp::SubSet {
+                            var: var.clone(),
+                            set: Box::new(ty_elab.clone()),
+                            predicate: Box::new(predicate_elab.clone()),
+                        };
+
+                        Exp::Exists {
+                            set: Box::new(Exp::TypeLift {
+                                superset: Box::new(ty_elab.clone()),
+                                subset: Box::new(subset),
+                            }),
+                        }
+                    }
+                    // \exists (x: A | h: P) ... invalid
+                    Bind::SubsetWithProof { .. } => {
+                        return Err(
+                            "Invalid binding in Exists: only Anonymous and Named are allowed"
+                                .to_string(),
+                        );
+                    }
+                };
+                Ok(result)
+            }
+            SExp::Take { bind, body } => {
+                let map = match bind {
+                    Bind::Anonymous { ty } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                        Exp::Prod {
+                            var: Var::dummy(),
+                            ty: Box::new(ty_elab),
+                            body: Box::new(body_elab),
+                        }
+                    }
+                    // \take (x[0], ..., x[n]: A) => body ... \take x[0]: A => ... => \take (x[n]: A) => body
+                    Bind::Named(RightBind { vars, ty }) => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let mut telescope: Vec<(Var, Exp)> = vec![];
+                        let mut bind_var = bind_var.clone();
+                        for var in vars {
+                            let var: Var = var.into();
+                            telescope.push((var.clone(), ty_elab.clone()));
+                            bind_var.push(var);
+                        }
+                        let mut body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+
+                        while let Some((var, ty)) = telescope.pop() {
+                            let map = Exp::Prod {
+                                var: var.clone(),
+                                ty: Box::new(ty),
+                                body: Box::new(body_elab),
+                            };
+                            body_elab = Exp::Take { map: Box::new(map) };
+                        }
+
+                        // EARLY RETURN
+                        return Ok(body_elab);
+                    }
+                    Bind::Subset { var, ty, predicate } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let var: Var = var.into();
+                        let mut bind_var = bind_var.clone();
+                        bind_var.push(var.clone());
+                        let predicate_elab =
+                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+
+                        let subset = Exp::SubSet {
+                            var: var.clone(),
+                            set: Box::new(ty_elab.clone()),
+                            predicate: Box::new(predicate_elab.clone()),
+                        };
+
+                        Exp::Prod {
+                            var: var.clone(),
+                            ty: Box::new(Exp::TypeLift {
+                                superset: Box::new(ty_elab.clone()),
+                                subset: Box::new(subset),
+                            }),
+                            body: Box::new(body_elab),
+                        }
+                    }
+                    Bind::SubsetWithProof {
+                        var,
+                        ty,
+                        predicate,
+                        proof_var: proof,
+                    } => {
+                        let ty_elab =
+                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
+                        let var: Var = var.into();
+                        let mut bind_var = bind_var.clone();
+                        bind_var.push(var.clone());
+                        let predicate_elab =
+                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
+                        let proof: Var = proof.into();
+                        bind_var.push(proof.clone());
+                        let body_elab =
+                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+                        let subset = Exp::SubSet {
+                            var: var.clone(),
+                            set: Box::new(ty_elab.clone()),
+                            predicate: Box::new(predicate_elab.clone()),
+                        };
+
+                        Exp::Prod {
+                            var: var.clone(),
+                            ty: Box::new(Exp::TypeLift {
+                                superset: Box::new(ty_elab.clone()),
+                                subset: Box::new(subset),
+                            }),
+                            body: Box::new(Exp::Prod {
+                                var: proof,
+                                ty: Box::new(predicate_elab),
+                                body: Box::new(body_elab),
+                            }),
+                        }
+                    }
+                };
+                Ok(Exp::Take { map: Box::new(map) })
+            }
+            SExp::ProofBy(proof_by) => {
+                use kernel::exp::ProveCommandBy;
+                let command: ProveCommandBy =
+                    self.elab_proof_by(logger, proof_by, reference_var, bind_var.clone())?;
+
+                Ok(Exp::ProofTermRaw {
+                    command: Box::new(command),
+                })
+            }
+            SExp::Block(block) => {
+                let Block {
+                    statements: declarations,
+                    result: term,
+                } = block;
+                let mut term = term.as_ref().clone();
+                for decl in declarations.iter().rev() {
+                    match decl {
+                        Statement::Fix(items) => {
+                            for bind in items.iter().rev() {
+                                term = SExp::Lam {
+                                    bind: Bind::Named(bind.clone()),
                                     body: Box::new(term),
                                 };
                             }
-                            Statement::Sufficient { map, map_ty } => {
-                                term = SExp::App {
-                                    func: Box::new(SExp::Cast {
-                                        exp: Box::new(map.clone()),
-                                        to: Box::new(map_ty.clone()),
+                        }
+                        Statement::Let { var, ty, body } => {
+                            term = SExp::App {
+                                func: Box::new(SExp::Lam {
+                                    bind: Bind::Named(RightBind {
+                                        vars: vec![var.clone()],
+                                        ty: Box::new(ty.clone()),
                                     }),
-                                    arg: Box::new(term),
-                                    piped: false,
-                                };
-                            }
+                                    body: Box::new(term),
+                                }),
+                                arg: Box::new(body.clone()),
+                                piped: false,
+                            };
+                        }
+                        Statement::Take { bind } => {
+                            term = SExp::Take {
+                                bind: bind.clone(),
+                                body: Box::new(term),
+                            };
+                        }
+                        Statement::Sufficient { map, map_ty } => {
+                            term = SExp::App {
+                                func: Box::new(SExp::Cast {
+                                    exp: Box::new(map.clone()),
+                                    to: Box::new(map_ty.clone()),
+                                }),
+                                arg: Box::new(term),
+                                piped: false,
+                            };
                         }
                     }
-                    self.elab_exp_rec(logger, &term, reference_var, bind_var.clone())?
                 }
+                self.elab_exp_rec(logger, &term, reference_var, bind_var.clone())
             }
-        };
-
-        Ok(kernel::utils::assoc_apply(left_most, tails_elab))
+        }
     }
 
     fn elab_proof_by(

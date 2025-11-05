@@ -663,6 +663,7 @@ impl<'a> Parser<'a> {
 
     // parse an access path
     // e.g. `x` or `x.y` or `x.y.z` or ...
+    ///  or with parameter `x {<e0> "," ... ","  <en>}`
     fn parse_access_path(&mut self) -> Result<SExp, ParseError> {
         let mut path = Vec::new();
 
@@ -674,6 +675,20 @@ impl<'a> Parser<'a> {
         while self.bump_if_token(&Token::Period) {
             let next_ident = self.expect_ident()?;
             path.push(next_ident);
+        }
+
+        if self.bump_if_token(&Token::LBrace) {
+            // parse parameters inside '{' ... '}'
+            let mut params = Vec::new();
+            loop {
+                let param = self.parse_sexp()?;
+                params.push(param);
+                if !self.bump_if_token(&Token::Comma) {
+                    break;
+                }
+            }
+            self.expect_token(Token::RBrace)?; // expect '}'
+            return Ok(SExp::AccessPathWithParams { path, params });
         }
 
         Ok(SExp::AccessPath(path))
