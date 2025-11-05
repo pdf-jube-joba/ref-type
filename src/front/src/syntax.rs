@@ -15,8 +15,8 @@ pub struct MacroToken(pub String);
 #[derive(Debug, Clone)]
 pub struct Module {
     pub name: Identifier,
-    pub parameters: Vec<(Identifier, SExp)>, // given parameters for module
-    pub declarations: Vec<ModuleItem>,       // sensitive to order
+    pub parameters: Vec<RightBind>,    // given parameters for module
+    pub declarations: Vec<ModuleItem>, // sensitive to order
 }
 
 // parameter instantiated module
@@ -37,7 +37,7 @@ pub enum ModuleItem {
     },
     Inductive {
         type_name: Identifier,
-        parameters: Vec<(Identifier, SExp)>,
+        parameters: Vec<RightBind>,
         arity: SExp,
         constructors: Vec<(Identifier, SExp)>,
     },
@@ -58,6 +58,16 @@ pub enum ModuleItem {
         before: Vec<Either<MacroToken, Identifier>>,
         after: Vec<Identifier>,
     },
+    Eval {
+        exp: SExp,
+    },
+    Check {
+        exp: SExp,
+        ty: SExp,
+    },
+    Infer {
+        exp: SExp,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -68,16 +78,19 @@ pub enum MacroExp {
 }
 
 #[derive(Debug, Clone)]
+pub struct RightBind {
+    pub vars: Vec<Identifier>,
+    pub ty: Box<SExp>,
+}
+
+#[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), ((x: A) | P), ((x: A) | h: P),
 pub enum Bind {
     Anonymous {
         ty: Box<SExp>,
     },
-    Named {
-        var: Identifier,
-        ty: Box<SExp>,
-    },
+    Named(RightBind),
     Subset {
         var: Identifier,
         ty: Box<SExp>,
@@ -87,7 +100,7 @@ pub enum Bind {
         var: Identifier,
         ty: Box<SExp>,
         predicate: Box<SExp>,
-        proof: Identifier,
+        proof_var: Identifier,
     },
 }
 
@@ -247,7 +260,7 @@ pub struct Block {
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Fix(Vec<(Identifier, SExp)>), // fix x: A; y: B;
+    Fix(Vec<RightBind>), // fix x: A; y: B;
     Let {
         var: Identifier,
         ty: SExp,
@@ -264,9 +277,9 @@ pub enum Statement {
 
 #[derive(Debug, Clone)]
 pub struct WithGoal {
-    pub extended_ctx: Vec<(Identifier, SExp)>, // extended context
-    pub goal: SExp,                            // goal to prove
-    pub proof_term: ProofBy,                   // proof term to fill in
+    pub extended_ctx: Vec<RightBind>, // extended context
+    pub goal: SExp,                   // goal to prove
+    pub proof_term: ProofBy,          // proof term to fill in
 }
 
 #[derive(Debug, Clone)]

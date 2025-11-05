@@ -68,6 +68,12 @@ impl Item {
     }
 }
 
+pub enum Query {
+    Eval { exp: Exp },
+    Checking { exp: Exp, ty: Exp },
+    Infer { exp: Exp },
+}
+
 // do type checking
 pub struct GlobalEnvironment {
     module_templates: Vec<ModuleResolved>,
@@ -156,6 +162,58 @@ impl GlobalEnvironment {
             for item in declarations {
                 self.logger.log(format!("Checking item {:?}", item));
                 let item_elab = self.elaborator.elab_item(&mut self.logger, item)?;
+
+                let item_elab = match item_elab {
+                    Either::Left(left) => left,
+                    Either::Right(right) => {
+                        match right {
+                            Query::Eval { exp } => {
+                                let after = kernel::calculus::normalize(&exp);
+                                self.logger.log(format!("Eval result: {}", after));
+                            }
+                            Query::Checking { exp, ty } => {
+                                let der = kernel::derivation::check(
+                                    &self.elaborator.parameters,
+                                    &exp,
+                                    &ty,
+                                );
+                                self.logger.log_derivation(der.clone());
+                                if der.is_success() {
+                                    self.logger.log(format!(
+                                        "Checking succeeded: expression {} has type {}",
+                                        exp, ty
+                                    ));
+                                } else {
+                                    self.logger.log(format!(
+                                        "Checking failed: expression {} does not have type {}",
+                                        exp, ty
+                                    ));
+                                }
+                            }
+                            Query::Infer { exp } => {
+                                let der =
+                                    kernel::derivation::infer(&self.elaborator.parameters, &exp);
+                                self.logger.log_derivation(der.clone());
+                                match der.result_type() {
+                                    Some(ty) => {
+                                        self.logger.log(format!(
+                                            "Inferred type: expression {} has type {}",
+                                            exp, ty
+                                        ));
+                                    }
+                                    None => {
+                                        self.logger.log(format!(
+                                            "Inference failed: could not infer type for expression {}",
+                                            exp
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                };
+
                 match &item_elab {
                     Item::Definition { name, ty, body } => {
                         let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
@@ -402,7 +460,7 @@ impl Elaborator {
         &mut self,
         logger: &mut Logger,
         item: &crate::syntax::ModuleItem,
-    ) -> Result<Item, String> {
+    ) -> Result<Either<Item, Query>, String> {
         match item {
             ModuleItem::Definition {
                 name: var,
@@ -412,22 +470,22 @@ impl Elaborator {
                 let var: Var = var.into();
                 let ty_elab = self.elab_exp(logger, ty, &[])?;
                 let body_elab = self.elab_exp(logger, body, &[])?;
-                Ok(Item::Definition {
+                Ok(Either::Left(Item::Definition {
                     name: var,
                     ty: ty_elab,
                     body: body_elab,
-                })
+                }))
             }
             ModuleItem::Inductive {
                 type_name,
-                parameters: parameter,
+                parameters,
                 arity,
                 constructors,
             } => {
                 let type_name: Var = type_name.into();
 
                 // elaborate parameters
-                let parameter_elab = self.elab_telescope(logger, parameter)?;
+                let parameter_elab = self.elab_telescope(logger, parameters)?;
 
                 // elaborate arity and decompose to (x[0]: A[0]) -> ... -> (x[n]: A[n]) -> Sort
                 let arity_elab = self.elab_exp(logger, arity, &[])?;
@@ -520,11 +578,11 @@ impl Elaborator {
                     constructors: ctor_type_elabs,
                 };
 
-                Ok(Item::Inductive {
+                Ok(Either::Left(Item::Inductive {
                     name: type_name,
                     ctor_names,
                     ind_defs: std::rc::Rc::new(indtype_specs),
-                })
+                }))
             }
             ModuleItem::Import {
                 path:
@@ -543,13 +601,29 @@ impl Elaborator {
                     })
                     .collect::<Result<Vec<_>, String>>()?;
 
-                Ok(Item::Import {
+                Ok(Either::Left(Item::Import {
                     module_name: Var::new(module_name.0.as_str()),
                     import_name: Var::new(import_name.0.as_str()),
                     args: args_elab,
-                })
+                }))
             }
             ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
+            ModuleItem::Eval { exp } => {
+                let exp_elab = self.elab_exp(logger, exp, &[])?;
+                Ok(Either::Right(Query::Eval { exp: exp_elab }))
+            }
+            ModuleItem::Check { exp, ty } => {
+                let exp_elab = self.elab_exp(logger, exp, &[])?;
+                let ty_elab = self.elab_exp(logger, ty, &[])?;
+                Ok(Either::Right(Query::Checking {
+                    exp: exp_elab,
+                    ty: ty_elab,
+                }))
+            }
+            ModuleItem::Infer { exp } => {
+                let exp_elab = self.elab_exp(logger, exp, &[])?;
+                Ok(Either::Right(Query::Infer { exp: exp_elab }))
+            }
         }
     }
     fn elab_exp(
@@ -563,15 +637,17 @@ impl Elaborator {
     fn elab_telescope(
         &mut self,
         logger: &mut Logger,
-        telescope: &Vec<(Identifier, crate::syntax::SExp)>,
+        telescope: &Vec<RightBind>,
     ) -> Result<Vec<(Var, Exp)>, String> {
         let mut result = vec![];
         let mut reference_var = vec![];
-        for (v, ty) in telescope {
-            let v: Var = v.into();
-            let ty_elab = self.elab_exp(logger, ty, &reference_var)?;
-            reference_var.push(v.clone());
-            result.push((v, ty_elab));
+        for RightBind { vars, ty } in telescope {
+            let ty_elab = self.elab_exp_rec(logger, ty, &reference_var, vec![])?;
+            for var in vars {
+                let var: Var = var.into();
+                result.push((var.clone(), ty_elab.clone()));
+                reference_var.push(var);
+            }
         }
         Ok(result)
     }
@@ -790,8 +866,12 @@ impl Elaborator {
                         }
                         let goal_elab =
                             self.elab_exp_rec(logger, goal, reference_var, bind_var.clone())?;
-                        let proof_term_elab =
-                            self.elab_proof_by(logger, proof_term, reference_var, bind_var.clone())?;
+                        let proof_term_elab = self.elab_proof_by(
+                            logger,
+                            proof_term,
+                            reference_var,
+                            bind_var.clone(),
+                        )?;
                         proof_goals.push(ProveGoal {
                             extended_ctx: extended_ctx_elab,
                             goal_prop: goal_elab,
@@ -817,20 +897,24 @@ impl Elaborator {
                             body: Box::new(body_elab),
                         }
                     }
-                    // (x: A) -> B ... (x: A) -> B
-                    Bind::Named { var, ty } => {
+                    // (x[0], ..., x[n]: A) -> B ... (x[0]: A) -> ... -> (x[n]: A) -> B
+                    Bind::Named(RightBind { vars, ty }) => {
                         let ty_elab =
                             self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                        let var: Var = var.into();
+
+                        let mut telescope: Vec<(Var, Exp)> = vec![];
                         let mut bind_var = bind_var.clone();
-                        bind_var.push(var.clone());
+
+                        for var in vars {
+                            let var: Var = var.into();
+                            telescope.push((var.clone(), ty_elab.clone()));
+                            bind_var.push(var);
+                        }
+
                         let body_elab =
                             self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                        Exp::Prod {
-                            var,
-                            ty: Box::new(ty_elab),
-                            body: Box::new(body_elab),
-                        }
+
+                        kernel::utils::assoc_prod(telescope, body_elab)
                     }
                     // (x: A | P) -> B ... (x: Lift(A, {x: A | P})) -> B
                     Bind::Subset { var, ty, predicate } => {
@@ -864,7 +948,7 @@ impl Elaborator {
                         var,
                         ty,
                         predicate,
-                        proof,
+                        proof_var: proof,
                     } => {
                         let ty_elab =
                             self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
@@ -912,20 +996,24 @@ impl Elaborator {
                                 body: Box::new(body_elab),
                             }
                         }
-                        // (x: A) => B ... (x: A) => B
-                        Bind::Named { var, ty } => {
+                        // (x[0], ..., x[n]: A) => B ... (x[0]: A) => ... (x[n]: A) => B
+                        Bind::Named(RightBind { vars, ty }) => {
                             let ty_elab =
                                 self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
+
+                            let mut telescope: Vec<(Var, Exp)> = vec![];
                             let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
+
+                            for var in vars {
+                                let var: Var = var.into();
+                                telescope.push((var.clone(), ty_elab.clone()));
+                                bind_var.push(var);
+                            }
+
                             let body_elab =
                                 self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                            Exp::Lam {
-                                var,
-                                ty: Box::new(ty_elab),
-                                body: Box::new(body_elab),
-                            }
+
+                            kernel::utils::assoc_lam(telescope, body_elab)
                         }
                         // (x: A | P) => B ... (x: Lift(A, {x: A | P})) => B
                         Bind::Subset { var, ty, predicate } => {
@@ -963,7 +1051,7 @@ impl Elaborator {
                             var,
                             ty,
                             predicate,
-                            proof,
+                            proof_var: proof,
                         } => {
                             let ty_elab =
                                 self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
@@ -1139,7 +1227,7 @@ impl Elaborator {
                             }
                         }
                         // \exists x: A ... same as Anonymous
-                        Bind::Named { var: _, ty } => {
+                        Bind::Named(RightBind { vars: _, ty }) => {
                             // may be we should warning?
                             let ty_elab =
                                 self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
@@ -1196,19 +1284,31 @@ impl Elaborator {
                                 body: Box::new(body_elab),
                             }
                         }
-                        Bind::Named { var, ty } => {
+                        // \take (x[0], ..., x[n]: A) => body ... \take x[0]: A => ... => \take (x[n]: A) => body
+                        Bind::Named(RightBind { vars, ty }) => {
                             let ty_elab =
                                 self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                            let var: Var = var.into();
+                            let mut telescope: Vec<(Var, Exp)> = vec![];
                             let mut bind_var = bind_var.clone();
-                            bind_var.push(var.clone());
-                            let body_elab =
-                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                            Exp::Prod {
-                                var,
-                                ty: Box::new(ty_elab),
-                                body: Box::new(body_elab),
+                            for var in vars {
+                                let var: Var = var.into();
+                                telescope.push((var.clone(), ty_elab.clone()));
+                                bind_var.push(var);
                             }
+                            let mut body_elab =
+                                self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
+
+                            while let Some((var, ty)) = telescope.pop() {
+                                let map = Exp::Prod {
+                                    var: var.clone(),
+                                    ty: Box::new(ty),
+                                    body: Box::new(body_elab),
+                                };
+                                body_elab = Exp::Take { map: Box::new(map) };
+                            }
+
+                            // EARLY RETURN
+                            return Ok(body_elab);
                         }
                         Bind::Subset { var, ty, predicate } => {
                             let ty_elab =
@@ -1244,7 +1344,7 @@ impl Elaborator {
                             var,
                             ty,
                             predicate,
-                            proof,
+                            proof_var: proof,
                         } => {
                             let ty_elab =
                                 self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
@@ -1301,12 +1401,9 @@ impl Elaborator {
                     for decl in declarations.iter().rev() {
                         match decl {
                             Statement::Fix(items) => {
-                                for (var, ty) in items.iter().rev() {
+                                for bind in items.iter().rev() {
                                     term = SExp::Lam {
-                                        bind: Bind::Named {
-                                            var: var.clone(),
-                                            ty: Box::new(ty.clone()),
-                                        },
+                                        bind: Bind::Named(bind.clone()),
                                         body: Box::new(term),
                                     };
                                 }
@@ -1314,10 +1411,10 @@ impl Elaborator {
                             Statement::Let { var, ty, body } => {
                                 term = SExp::App {
                                     func: Box::new(SExp::Lam {
-                                        bind: Bind::Named {
-                                            var: var.clone(),
+                                        bind: Bind::Named(RightBind {
+                                            vars: vec![var.clone()],
                                             ty: Box::new(ty.clone()),
-                                        },
+                                        }),
                                         body: Box::new(term),
                                     }),
                                     arg: Box::new(body.clone()),

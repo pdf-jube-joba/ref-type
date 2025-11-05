@@ -87,6 +87,9 @@ static PROGRAM_KEYWORDS: &[&str] = &[
     "\\inductive",
     "\\mathmacro",
     "\\usermacro",
+    "\\eval",
+    "\\check",
+    "\\infer",
 ];
 
 #[derive(Debug, Clone)]
@@ -482,6 +485,20 @@ impl<'a> Parser<'a> {
 
     fn parse_block_statement(&mut self) -> Result<Statement, ParseError> {
         match self.peek() {
+            // "\fix" ("(" RightBind ")" ",")* ";"
+            Some(Token::KeyWord(kw)) if *kw == "\\fix" => {
+                self.next(); // consume '\fix'
+                let mut binds: Vec<RightBind> = Vec::new();
+                while let Some(bind) = self.try_parse_simple_bind_paren()? {
+                    binds.push(bind);
+                    if !self.bump_if(&Token::Comma) {
+                        break;
+                    }
+                }
+                self.expect_token(&Token::Semicolon)?; // expect ';'
+                Ok(Statement::Fix(binds))
+            }
+            // \let <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
             Some(Token::KeyWord(kw)) if *kw == "\\let" => {
                 self.next(); // consume '\let'
                 let var = self.expect_ident()?;
@@ -492,26 +509,12 @@ impl<'a> Parser<'a> {
                 self.expect_token(&Token::Semicolon)?; // expect ';'
                 Ok(Statement::Let { var, ty, body })
             }
+            // "\take" <bind: Bind> ";"
             Some(Token::KeyWord(kw)) if *kw == "\\take" => {
                 self.next(); // consume '\take'
                 let bind = self.parse_left_arrow_head()?;
                 self.expect_token(&Token::Semicolon)?; // expect ';'
                 Ok(Statement::Take { bind })
-            }
-            Some(Token::KeyWord(kw)) if *kw == "\\fix" => {
-                self.next(); // consume '\fix'
-                let mut binds = Vec::new();
-                loop {
-                    let var = self.expect_ident()?;
-                    self.expect_token(&Token::Colon)?; // expect ':'
-                    let ty = self.parse_sexp()?;
-                    binds.push((var, ty));
-                    if !self.bump_if(&Token::Comma) {
-                        break;
-                    }
-                }
-                self.expect_token(&Token::Semicolon)?; // expect ';'
-                Ok(Statement::Fix(binds))
             }
             _ => Err(ParseError {
                 msg: "expected block statement".into(),
@@ -678,26 +681,46 @@ impl<'a> Parser<'a> {
     }
 
     // Try to parse an annotation
-    // Ident ":" SExp
-    fn try_parse_annotate(&mut self) -> Result<Option<(Identifier, SExp)>, ParseError> {
+    // Ident ("," Ident)* ":" SExp
+    fn try_parse_annotate(&mut self) -> Result<Option<(Vec<Identifier>, SExp)>, ParseError> {
         let save_pos = self.pos;
 
+        let mut vars = vec![];
+
         // 1. [0] = Ident
-        let var = match self.expect_ident() {
-            Ok(v) => v,
+        match self.expect_ident() {
+            Ok(v) => {
+                vars.push(v);
+            }
             Err(_) => {
                 self.pos = save_pos;
                 return Ok(None);
             }
         };
 
-        // 2. [1] = ":"
+        // 2. [1..?n] = ("," Ident)*
+        loop {
+            if !self.bump_if(&Token::Comma) {
+                break;
+            }
+            match self.expect_ident() {
+                Ok(v) => {
+                    // extend var list
+                    vars.push(v);
+                }
+                Err(_) => {
+                    self.pos = save_pos;
+                    return Ok(None);
+                }
+            }
+        }
+        // 3. expect ":"
         if !self.bump_if(&Token::Colon) {
             self.pos = save_pos;
             return Ok(None);
         }
 
-        // 3. [2..?len] = SExp
+        // 4. [2..?len] = SExp
         let ty = match self.parse_sexp() {
             Ok(e) => e,
             Err(_) => {
@@ -706,11 +729,11 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Ok(Some((var, ty)))
+        Ok(Some((vars, ty)))
     }
 
-    // "(" Ident ":" SExp ")"
-    fn try_parse_simple_bind_paren(&mut self) -> Result<Option<(Identifier, SExp)>, ParseError> {
+    // "(" Ident ("," Ident) ":" SExp ")"
+    fn try_parse_simple_bind_paren(&mut self) -> Result<Option<RightBind>, ParseError> {
         let save_pos = self.pos;
 
         // 1. [0] = LParen
@@ -722,11 +745,30 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // 2. [..?len] = binder
-        let (var, ty) = match self.try_parse_annotate()? {
-            Some(pair) => pair,
-            None => {
-                // （他の可能性があるので）rollback する
+        // 2. [1..?n] = Ident ("," Ident)* where [?n] = ":"
+        let mut vars = Vec::new();
+        loop {
+            match self.expect_ident() {
+                Ok(v) => vars.push(v),
+                Err(_) => {
+                    self.pos = save_pos;
+                    return Ok(None);
+                }
+            }
+            if !self.bump_if(&Token::Comma) {
+                break;
+            }
+        }
+
+        // expect ":"
+        if !self.bump_if(&Token::Colon) {
+            self.pos = save_pos;
+            return Ok(None);
+        }
+        // 2. [?n+1..?len-1] = SExp
+        let ty = match self.parse_sexp() {
+            Ok(e) => e,
+            Err(_) => {
                 self.pos = save_pos;
                 return Ok(None);
             }
@@ -734,7 +776,10 @@ impl<'a> Parser<'a> {
 
         // 3. [?len] = RParen
         match self.next() {
-            Some(t) if matches!(t.kind, Token::RParen) => Ok(Some((var, ty))),
+            Some(t) if matches!(t.kind, Token::RParen) => Ok(Some(RightBind {
+                vars,
+                ty: Box::new(ty),
+            })),
             _ => {
                 // これは「バインダっぽく見えたのに閉じてない」ので、ちゃんとエラーを投げていい
                 Err(ParseError {
@@ -757,23 +802,45 @@ impl<'a> Parser<'a> {
             self.pos = save_pos;
             return Ok(None);
         }
-        let Some((var, ty)) = self.try_parse_annotate()? else {
+        let Some((first_var, first_ty)) = self.try_parse_annotate()? else {
             self.pos = save_pos;
             return Ok(None);
         };
+
+        // var should be exactly one ... Err
+        if first_var.len() != 1 {
+            self.pos = save_pos;
+            return Err(ParseError {
+                msg: "expected single identifier in subset bind".into(),
+                start: self.pos,
+                end: self.pos,
+            });
+        }
+
+        let var = first_var.into_iter().next().unwrap();
 
         // there is "(" "(" <annot> ")" ... now ")" and "|" expected
         self.expect_token(&Token::RParen)?;
         self.expect_token(&Token::Pipe)?;
 
         // case 1: Ident ":" SExp
-        if let Some((proof, pred_ty)) = self.try_parse_annotate()? {
+        if let Some((back_var, back_ty)) = self.try_parse_annotate()? {
             self.expect_token(&Token::RParen)?; // expect closing ')'
+
+            if back_var.len() != 1 {
+                return Err(ParseError {
+                    msg: "expected single identifier in proof annotation".into(),
+                    start: self.pos,
+                    end: self.pos,
+                });
+            };
+            let pred_var = back_var.into_iter().next().unwrap();
+
             return Ok(Some(Bind::SubsetWithProof {
                 var,
-                ty: Box::new(ty),
-                predicate: Box::new(pred_ty),
-                proof,
+                ty: Box::new(first_ty),
+                predicate: Box::new(back_ty),
+                proof_var: pred_var,
             }));
         }
 
@@ -783,7 +850,7 @@ impl<'a> Parser<'a> {
         self.expect_token(&Token::RParen)?; // expect closing ')'
         Ok(Some(Bind::Subset {
             var,
-            ty: Box::new(ty),
+            ty: Box::new(first_ty),
             predicate: Box::new(pred_ty),
         }))
     }
@@ -796,15 +863,15 @@ impl<'a> Parser<'a> {
         let save_pos = self.pos;
 
         // try subset bind first
+        // "(" "("
         if let Some(bind) = self.try_parse_subsetbind()? {
             return Ok(Some(bind));
         }
+
         // try simple bind next
-        if let Some((var, ty)) = self.try_parse_simple_bind_paren()? {
-            return Ok(Some(Bind::Named {
-                var,
-                ty: Box::new(ty),
-            }));
+        // "("
+        if let Some(bind) = self.try_parse_simple_bind_paren()? {
+            return Ok(Some(Bind::Named(bind)));
         }
         // rollback if neither worked
         self.pos = save_pos;
@@ -971,8 +1038,8 @@ impl<'a> Parser<'a> {
         let type_name = self.expect_ident()?;
 
         let mut parameters = vec![];
-        while let Some((var, ty)) = self.try_parse_simple_bind_paren()? {
-            parameters.push((var, ty));
+        while let Some(bind) = self.try_parse_simple_bind_paren()? {
+            parameters.push(bind);
         }
         self.expect_token(&Token::Colon)?;
         let arity = self.parse_sexp()?;
@@ -1013,6 +1080,26 @@ impl<'a> Parser<'a> {
                 let ind = self.parse_inductive_decl()?;
                 Ok(Some(ind))
             }
+            Some(Token::KeyWord(kw)) if *kw == "\\eval" => {
+                self.next();
+                let exp = self.parse_sexp()?;
+                self.expect_token(&Token::Semicolon)?;
+                Ok(Some(ModuleItem::Eval { exp }))
+            }
+            Some(Token::KeyWord(kw)) if *kw == "\\check" => {
+                self.next();
+                let exp = self.parse_sexp()?;
+                self.expect_token(&Token::Colon)?;
+                let ty = self.parse_sexp()?;
+                self.expect_token(&Token::Semicolon)?;
+                Ok(Some(ModuleItem::Check { exp, ty }))
+            }
+            Some(Token::KeyWord(kw)) if *kw == "\\infer" => {
+                self.next();
+                let exp = self.parse_sexp()?;
+                self.expect_token(&Token::Semicolon)?;
+                Ok(Some(ModuleItem::Infer { exp }))
+            }
             _ => {
                 self.pos = save_pos;
                 Ok(None)
@@ -1028,7 +1115,7 @@ impl<'a> Parser<'a> {
         let mut parameters = vec![];
         if self.bump_if(&Token::LParen) {
             while !self.bump_if(&Token::RParen) {
-                let Some((var, ty)) = self.try_parse_annotate()? else {
+                let Some((vars, ty)) = self.try_parse_annotate()? else {
                     return Err(ParseError {
                         msg: "expected parameter annotation in module parameter list".into(),
                         start: self.pos,
@@ -1036,7 +1123,10 @@ impl<'a> Parser<'a> {
                     });
                 };
                 self.expect_token(&Token::Semicolon)?;
-                parameters.push((var, ty));
+                parameters.push(RightBind {
+                    vars,
+                    ty: Box::new(ty),
+                });
             }
         }
 
@@ -1248,6 +1338,7 @@ mod tests {
         print_and_unwrap_annotate(r"x: X");
         print_and_unwrap_annotate(r"y: (A -> B)");
         print_and_unwrap_annotate(r"x: X Y | h");
+        print_and_unwrap_annotate(r"x, y, z: X -> Y");
     }
 
     #[test]

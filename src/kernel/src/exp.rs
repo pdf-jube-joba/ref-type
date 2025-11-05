@@ -362,6 +362,12 @@ impl Derivation {
             Derivation::DerivationSuccess { .. } | Derivation::SolveSuccess(_)
         )
     }
+    pub fn result_type(&self) -> Option<&Exp> {
+        match self {
+            Derivation::DerivationSuccess { conclusion, .. } => conclusion.ty.as_ref(),
+            _ => None,
+        }
+    }
     // we collect by borrow => may be fail
     pub fn get_first_unproved_mut(&mut self) -> Option<&mut Derivation> {
         match self {
