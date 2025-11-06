@@ -963,7 +963,12 @@ impl<'a> Parser<'a> {
 
         // there is "(" "(" <annot> ")" ... now ")" and "|" expected
         self.expect_token(Token::RParen)?;
-        self.expect_token(Token::Pipe)?;
+
+        // if not "|", rollback
+        if !self.bump_if_token(&Token::Pipe) {
+            self.pos = save_pos;
+            return Ok(None);
+        }
 
         // case 1: Ident ":" SExp
         if let Some((back_var, back_ty)) = self.try_parse_annotate()? {
@@ -1465,6 +1470,8 @@ mod tests {
         print_and_unwrap(r"((x: X) | h: P) -> (y: Y) -> Z");
         print_and_unwrap(r"((x: P y | F) | h: (u | a) | b ) -> (y: Y) -> Z");
         print_and_unwrap(r"(X -> Y) Z ((t: T) => z)");
+        print_and_unwrap(r"((x: X) => y)");
+        print_and_unwrap(r"((x: X) | P) => y");
     }
     #[test]
     fn parse_special_exp_test() {
