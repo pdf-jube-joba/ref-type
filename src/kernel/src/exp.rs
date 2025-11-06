@@ -368,6 +368,30 @@ impl Derivation {
             _ => None,
         }
     }
+    pub fn get_first_unproved(&self) -> Option<&Derivation> {
+        match self {
+            Derivation::GoalGenerated {
+                proposition: _,
+                solvetree,
+            } => {
+                if solvetree.is_none() {
+                    Some(self)
+                } else {
+                    None
+                }
+            }
+            Derivation::SolveSuccess(_) | Derivation::SolveFail { .. } => None, // this is solved
+            Derivation::DerivationSuccess { premises, .. }
+            | Derivation::DerivationFail { premises, .. } => {
+                for premise in premises.iter() {
+                    if let Some(found) = premise.get_first_unproved() {
+                        return Some(found);
+                    }
+                }
+                None
+            }
+        }
+    }
     // we collect by borrow => may be fail
     pub fn get_first_unproved_mut(&mut self) -> Option<&mut Derivation> {
         match self {

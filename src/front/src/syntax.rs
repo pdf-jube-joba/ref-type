@@ -149,9 +149,9 @@ pub enum SExp {
         clauses: Vec<(Identifier, SExp, SExp)>,
     },
     // solve goals given by type checker
-    WithProof {
+    WithProofs {
         exp: Box<SExp>,
-        proofs: Vec<WithGoal>,
+        proofs: Vec<GoalProof>,
     },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
@@ -297,10 +297,10 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone)]
-pub struct WithGoal {
+pub struct GoalProof {
     pub extended_ctx: Vec<RightBind>, // extended context
     pub goal: SExp,                   // goal to prove
-    pub proof_term: ProofBy,          // proof term to fill in
+    pub proofby: ProofBy,          // proof term to fill in
 }
 
 #[derive(Debug, Clone)]

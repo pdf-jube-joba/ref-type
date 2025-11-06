@@ -67,7 +67,8 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\block",  // block expression
 ];
 
-static EXPRESSION_SEPARATION_KEYWORDS: &[&str] = &["\\as", "\\with", "\\where", "\\in", "\\return"];
+static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
+    &["\\as", "\\with", "\\where", "\\in", "\\return", "\\goal"];
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
@@ -365,21 +366,6 @@ impl<'a> Parser<'a> {
         Ok(result)
     }
 
-    /// Helper to parse a keyword followed by a parenthesized expression.
-    /// <keyword> "(" <some: parse_inner> ")"
-    fn parse_keyword_with_parens<'b, F, T>(
-        &mut self,
-        keyword: &'b str,
-        parse_inner: F,
-    ) -> Result<T, ParseError>
-    where
-        F: FnOnce(&mut Self) -> Result<T, ParseError>,
-        'b: 'a,
-    {
-        self.expect_keyword(keyword)?;
-        self.parse_parenthesized(parse_inner)
-    }
-
     // Try to parse a parenthesized number (e.g., "(0)").
     fn try_parse_parenthesized_number(&mut self) -> Result<Option<usize>, ParseError> {
         let save_pos = self.pos; // Save the current position for rollback.
@@ -430,21 +416,21 @@ impl<'a> Parser<'a> {
     fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
         // simple cases (<keyword> "(" expressions with comma separated ")")
         if self.bump_if_keyword("\\Proof") {
-            return self.parse_keyword_with_parens("\\Proof", |parser| {
+            return self.parse_parenthesized(|parser| {
                 parser.parse_sexp().map(|term| SExp::ProveLater {
                     term: Box::new(term),
                 })
             });
         }
         if self.bump_if_keyword("\\Power") {
-            return self.parse_keyword_with_parens("\\Power", |parser| {
+            return self.parse_parenthesized(|parser| {
                 parser
                     .parse_sexp()
                     .map(|set| SExp::PowerSet { set: Box::new(set) })
             });
         }
         if self.bump_if_keyword("\\Subset") {
-            return self.parse_keyword_with_parens("\\Subset", |parser| {
+            return self.parse_parenthesized(|parser| {
                 let var = parser.expect_ident()?;
                 parser.expect_token(Token::Comma)?;
                 let set = parser.parse_sexp()?;
@@ -458,7 +444,7 @@ impl<'a> Parser<'a> {
             });
         }
         if self.bump_if_keyword("\\Pred") {
-            return self.parse_keyword_with_parens("\\Pred", |parser| {
+            return self.parse_parenthesized(|parser| {
                 let superset = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let subset = parser.parse_sexp()?;
@@ -472,7 +458,7 @@ impl<'a> Parser<'a> {
             });
         }
         if self.bump_if_keyword("\\Ty") {
-            return self.parse_keyword_with_parens("\\Ty", |parser| {
+            return self.parse_parenthesized(|parser| {
                 let superset = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let subset = parser.parse_sexp()?;
@@ -547,14 +533,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_proof_command(&mut self) -> Result<SExp, ParseError> {
+    fn parse_proof_command(&mut self) -> Result<ProofBy, ParseError> {
         if self.bump_if_keyword("\\term") {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SExp::ProofBy(ProofBy::Construct {
+            return Ok(ProofBy::Construct {
                 term: Box::new(term),
-            }));
+            });
         }
 
         if self.bump_if_keyword("\\exact") {
@@ -563,19 +549,19 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::Comma)?; // expect ','
             let set = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SExp::ProofBy(ProofBy::Exact {
+            return Ok(ProofBy::Exact {
                 term: Box::new(term),
                 set: Box::new(set),
-            }));
+            });
         }
 
         if self.bump_if_keyword("\\refl") {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SExp::ProofBy(ProofBy::IdRefl {
+            return Ok(ProofBy::IdRefl {
                 term: Box::new(term),
-            }));
+            });
         }
 
         // \\idelim "(" <left: SExp> "=" <right: SExp> "\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
@@ -591,13 +577,13 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SExp::ProofBy(ProofBy::IdElim {
+            return Ok(ProofBy::IdElim {
                 left: Box::new(left),
                 right: Box::new(right),
                 var,
                 ty: Box::new(ty),
                 predicate: Box::new(predicate),
-            }));
+            });
         }
 
         if self.bump_if_keyword("\\takeelim") {
@@ -750,7 +736,7 @@ impl<'a> Parser<'a> {
                 self.parse_keyword_head_atom()
             }
             Some(Token::KeyWord(keyword)) if PROOF_COMMAND_KEYWORDS.contains(keyword) => {
-                self.parse_proof_command()
+                Ok(SExp::ProofBy(self.parse_proof_command()?))
             }
             Some(Token::KeyWord(keyword)) => Err(ParseError {
                 msg: format!("unexpected keyword in atom: {}", keyword),
@@ -1077,7 +1063,36 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
-        self.parse_arrow_expr()
+        let sexp = self.parse_arrow_expr()?;
+        if self.bump_if_keyword("\\with") {
+            // \\with "{" ("\\goal" <simple_bind_parend>* ":" <sexp> ":=" <sexp> ";" )* "}"
+            self.expect_token(Token::LBrace)?; // expect '{'
+            let mut proofs = vec![];
+            while self.bump_if_keyword("\\goal") {
+                // parse iteration of <simple_bind_parend>*
+                let mut binds = vec![];
+                while let Some(bind) = self.try_parse_simple_bind_paren()? {
+                    binds.push(bind);
+                }
+                self.expect_token(Token::Colon)?;
+                let goal = self.parse_sexp()?;
+                self.expect_token(Token::Assign)?;
+                let proofby = self.parse_proof_command()?;
+                self.expect_token(Token::Semicolon)?;
+                proofs.push(GoalProof {
+                    extended_ctx: binds,
+                    goal,
+                    proofby,
+                });
+            }
+            self.expect_token(Token::RBrace)?; // expect '}'
+            Ok(SExp::WithProofs {
+                exp: Box::new(sexp),
+                proofs,
+            })
+        } else {
+            Ok(sexp)
+        }
     }
 
     pub fn try_parse_sexp(&mut self) -> Result<Option<SExp>, ParseError> {

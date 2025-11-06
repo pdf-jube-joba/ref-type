@@ -115,6 +115,16 @@ impl Default for GlobalEnvironment {
 }
 
 impl GlobalEnvironment {
+    // add derivation log to global log
+    // return Some(true) if derivation is successful without goal
+    // return Some(false) if derivation is successful with unproved goals
+    // return None if derivation is failed
+    pub fn add_der(&mut self, der: Derivation) -> Option<bool> {
+        let is_success = der.is_success();
+        let no_prove = der.get_first_unproved().is_none();
+        self.logger.log_derivation(der);
+        if is_success { Some(no_prove) } else { None }
+    }
     pub fn new_module(&mut self, module: &Module) -> Result<(), String> {
         let Module {
             name,
@@ -144,16 +154,34 @@ impl GlobalEnvironment {
                 self.logger
                     .log(format!("Checking parameter {} : {}", v.as_str(), ty));
                 let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty);
-                self.logger.log_derivation(der.clone());
+                let res = self.add_der(der.clone());
+
+                match res {
+                    Some(true) => {
+                        self.logger.log(format!(
+                            "Parameter {} type checking succeeded: type {} is a well-formed type",
+                            v.as_str(),
+                            ty
+                        ));
+                    }
+                    Some(false) => {
+                        return Err(format!(
+                            "Parameter {} type checking succeeded but has unproved goals: type {} is a well-formed type",
+                            v.as_str(),
+                            ty
+                        ));
+                    }
+                    None => {
+                        return Err(format!(
+                            "Parameter {} type checking failed: type {} is not a well-formed type",
+                            v.as_str(),
+                            ty
+                        ));
+                    }
+                }
 
                 // a parameter may depends on previous parameters
                 self.elaborator.parameters.push((v.clone(), ty.clone()));
-
-                if !der.is_success() {
-                    return Err(format!(
-                        "Parameter type checking failed: type {ty} is not a valid type",
-                    ));
-                }
             }
         }
 
@@ -177,33 +205,49 @@ impl GlobalEnvironment {
                                     &exp,
                                     &ty,
                                 );
-                                self.logger.log_derivation(der.clone());
-                                if der.is_success() {
-                                    self.logger.log(format!(
-                                        "Checking succeeded: expression {} has type {}",
-                                        exp, ty
-                                    ));
-                                } else {
-                                    self.logger.log(format!(
-                                        "Checking failed: expression {} does not have type {}",
-                                        exp, ty
-                                    ));
-                                }
-                            }
-                            Query::Infer { exp } => {
-                                let der =
-                                    kernel::derivation::infer(&self.elaborator.parameters, &exp);
-                                self.logger.log_derivation(der.clone());
-                                match der.result_type() {
-                                    Some(ty) => {
+                                let res = self.add_der(der);
+                                match res {
+                                    Some(true) => {
                                         self.logger.log(format!(
-                                            "Inferred type: expression {} has type {}",
+                                            "Checking succeeded: expression {} has type {}",
+                                            exp, ty
+                                        ));
+                                    }
+                                    Some(false) => {
+                                        self.logger.log(format!(
+                                            "Checking succeeded with unproved goals: expression {} has type {}",
                                             exp, ty
                                         ));
                                     }
                                     None => {
                                         self.logger.log(format!(
-                                            "Inference failed: could not infer type for expression {}",
+                                            "Checking failed: expression {} does not have type {}",
+                                            exp, ty
+                                        ));
+                                    }
+                                }
+                            }
+                            Query::Infer { exp } => {
+                                let der =
+                                    kernel::derivation::infer(&self.elaborator.parameters, &exp);
+                                let ty: Option<Exp> = der.result_type().cloned();
+                                match self.add_der(der) {
+                                    Some(true) => {
+                                        self.logger.log(format!(
+                                            "Inference succeeded: expression {} has type {}",
+                                            exp,
+                                            ty.unwrap()
+                                        ));
+                                    }
+                                    Some(false) => {
+                                        self.logger.log(format!(
+                                            "Inference succeeded with unproved goals: expression {} has type {}",
+                                            exp, ty.unwrap()
+                                        ));
+                                    }
+                                    None => {
+                                        self.logger.log(format!(
+                                            "Inference failed: expression {} has no type",
                                             exp
                                         ));
                                     }
@@ -217,14 +261,32 @@ impl GlobalEnvironment {
                 match &item_elab {
                     Item::Definition { name, ty, body } => {
                         let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
-                        self.logger.log_derivation(der.clone());
-                        if !der.is_success() {
-                            return Err(format!(
-                                "Definition {} type checking failed: body {} does not have type {}",
-                                name.as_str(),
-                                body,
-                                ty
-                            ));
+                        let res = self.add_der(der);
+                        match res {
+                            Some(true) => {
+                                self.logger.log(format!(
+                                    "Definition {} type checking succeeded: body {} has type {}",
+                                    name.as_str(),
+                                    body,
+                                    ty
+                                ));
+                            }
+                            Some(false) => {
+                                return Err(format!(
+                                    "Definition {} type checking succeeded but has unproved goals: body {} has type {}",
+                                    name.as_str(),
+                                    body,
+                                    ty
+                                ));
+                            }
+                            None => {
+                                return Err(format!(
+                                    "Definition {} type checking failed: body {} does not have type {}",
+                                    name.as_str(),
+                                    body,
+                                    ty
+                                ));
+                            }
                         }
                     }
                     Item::Inductive {
@@ -758,14 +820,14 @@ impl Elaborator {
                 }
                 Ok(exp_elab)
             }
-            SExp::WithProof { exp, proofs } => {
+            SExp::WithProofs { exp, proofs } => {
                 let exp_elab = self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
                 let mut proof_goals: Vec<kernel::exp::ProveGoal> = vec![];
                 for proof in proofs {
-                    let WithGoal {
+                    let GoalProof {
                         extended_ctx,
                         goal,
-                        proof_term,
+                        proofby: proof_term,
                     } = proof;
                     let mut bind_var = bind_var.clone();
                     let extended_ctx_elab = self.elab_telescope(logger, extended_ctx)?;
