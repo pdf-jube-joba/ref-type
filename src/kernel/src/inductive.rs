@@ -77,6 +77,12 @@ impl InductiveTypeSpecs {
             },
         )
     }
+    pub fn name_of_constructor(&self, idx: usize) -> &String {
+        &self.names.1[idx]
+    }
+    pub fn ctor_idx_from_name(&self, name: &str) -> Option<usize> {
+        self.names.1.iter().position(|n| n == name)
+    }
 }
 
 /*
@@ -554,20 +560,19 @@ impl InductiveTypeSpecs {
     // (q: (x[]: t[]) -> THIS x[] -> sort) -> (f[0]: _) -> ... -> (f[n]: _) -> (x[]: t[]) -> (c: THIS x[]) -> q x[] c ... this is type of induction
     pub fn primitive_recursion(
         indspec: &std::rc::Rc<Self>,
-        parameters: Vec<(Var, Exp)>,
+        parameters: Vec<Exp>,
         sort: Sort,
     ) -> Exp {
-        let parameteres_reflect: Vec<Exp> = parameters.iter().map(|(_, t)| t.clone()).collect();
         let this = Exp::IndType {
             indspec: indspec.clone(),
-            parameters: parameteres_reflect.clone(),
+            parameters: parameters.clone(),
         };
 
         let mut telescope = vec![];
 
         // q: (x[]: t[]) -> THIS x[] -> sort
         let q = Var::new("q");
-        let q_ty = InductiveTypeSpecs::return_type_kind(indspec, parameteres_reflect.clone(), sort);
+        let q_ty = InductiveTypeSpecs::return_type_kind(indspec, parameters.clone(), sort);
         telescope.push((q.clone(), q_ty));
 
         // f_i: eliminator_type(C_i, q, type of constructor of C_i, THIS) for each constructor C_i
@@ -580,7 +585,7 @@ impl InductiveTypeSpecs {
                 &Exp::Var(q.clone()),
                 &Exp::IndCtor {
                     indspec: indspec.clone(),
-                    parameters: parameteres_reflect.clone(),
+                    parameters: parameters.clone(),
                     idx: i,
                 },
                 &this,
@@ -593,7 +598,7 @@ impl InductiveTypeSpecs {
         let c_ty = utils::assoc_apply(
             Exp::IndType {
                 indspec: indspec.clone(),
-                parameters: parameters.iter().map(|(_, t)| t.clone()).collect(),
+                parameters: parameters.clone(),
             },
             indspec
                 .indices

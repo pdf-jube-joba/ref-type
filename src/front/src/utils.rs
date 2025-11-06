@@ -52,14 +52,4 @@ mod tests {
         let _ = sort!(SET(0));
         let _ = sort!(PROP);
     }
-    #[test]
-    fn assoc_apply_vec_test() {
-        let v = vec![
-            crate::syntax::SExp::AccessPath(vec!["a".to_string().into()]),
-            crate::syntax::SExp::AccessPath(vec!["b".to_string().into()]),
-            crate::syntax::SExp::AccessPath(vec!["c".to_string().into()]),
-        ];
-        let applied = crate::utils::assoc_apply_vec(v);
-        println!("applied: {:?}", applied);
-    }
 }

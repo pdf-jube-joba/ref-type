@@ -59,7 +59,8 @@ static SORT_KEYWORDS: &[&str] = &[
 ];
 
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
-    "\\elim", // ind eliminator
+    "\\elim", // inductive eliminator
+    "\\prec", // eliminator as primitive recursive form
     "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
     "\\exists", // \exists <Bind>
     "\\take",   // \take <Bind> => <body>
@@ -483,10 +484,10 @@ impl<'a> Parser<'a> {
         }
         // elimination of inductive type
         if self.bump_if_keyword("\\elim") {
-            // "\elim" <elim: SExp> "\in" <type_name: Ident> "\\return" <return_type: SExp>
+            // "\elim" <elim: SExp> "\in" <path: Path> "\\return" <return_type: SExp>
             let elim = self.parse_sexp()?;
             self.expect_keyword("\\in")?; // expect '\in'
-            let type_name = self.expect_ident()?;
+            let path = self.parse_access_path()?;
             self.expect_keyword("\\return")?; // expect '\\return'
             let return_type = self.parse_sexp()?;
 
@@ -504,11 +505,18 @@ impl<'a> Parser<'a> {
             }
 
             return Ok(SExp::IndElim {
-                ind_type_name: type_name,
+                path,
                 elim: Box::new(elim),
                 return_type: Box::new(return_type),
                 cases,
             });
+        }
+        if self.bump_if_keyword("\\prec") {
+            // "\prec" <sort: Sort> <path: AccessPath>
+            let sort = self.parse_sort()?;
+            let path = self.parse_access_path()?;
+
+            return Ok(SExp::IndElimPrim { path, sort });
         }
         // "\exists" <binding>
         if self.bump_if_keyword("\\exists") {
@@ -664,7 +672,7 @@ impl<'a> Parser<'a> {
     // parse an access path
     // e.g. `x` or `x.y` or `x.y.z` or ...
     ///  or with parameter `x {<e0> "," ... ","  <en>}`
-    fn parse_access_path(&mut self) -> Result<SExp, ParseError> {
+    fn parse_access_path(&mut self) -> Result<AccessPath, ParseError> {
         let mut path = Vec::new();
 
         // 1. expect first identifier
@@ -688,10 +696,13 @@ impl<'a> Parser<'a> {
                 }
             }
             self.expect_token(Token::RBrace)?; // expect '}'
-            return Ok(SExp::AccessPathWithParams { path, params });
+            return Ok(AccessPath::WithParams {
+                segments: path,
+                parameters: params,
+            });
         }
 
-        Ok(SExp::AccessPath(path))
+        Ok(AccessPath::Plain { segments: path })
     }
 
     // parse a single atom
@@ -701,7 +712,7 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Some(Token::Ident(_)) => {
                 let access_path = self.parse_access_path()?;
-                Ok(access_path)
+                Ok(SExp::AccessPath(access_path))
             }
             Some(Token::LParen) => {
                 self.next(); // consume '('

@@ -5,6 +5,12 @@ use either::Either;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Identifier(pub String);
 
+impl Identifier {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 // token for macros
 // which is (not identifier) /\ (not keyword)
 // e.g. "+", "*", "==>", "||", ...
@@ -104,6 +110,17 @@ pub enum Bind {
     },
 }
 
+#[derive(Debug, Clone)]
+pub enum AccessPath {
+    Plain {
+        segments: Vec<Identifier>,
+    },
+    WithParams {
+        segments: Vec<Identifier>,
+        parameters: Vec<SExp>, // len >= 1
+    },
+}
+
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
@@ -112,13 +129,7 @@ pub enum SExp {
     // len == 2 => named module's item access | current module's inductive type constructor access
     // l3n == 3 => named module's inductive type constructor access
     // too ad-hoc TODO: improve this design
-    AccessPath(Vec<Identifier>),
-    // Path { <exp> <exp> }
-    // inductive type or inductive constructor should be given parameters (uncurry style)
-    AccessPathWithParams {
-        path: Vec<Identifier>,
-        params: Vec<SExp>,
-    },
+    AccessPath(AccessPath),
 
     // --- macro
     // shared macro for math symbols
@@ -172,10 +183,14 @@ pub enum SExp {
     // primitive elimination for inductive type
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {
-        ind_type_name: Identifier,
+        path: AccessPath,
         elim: Box<SExp>,
         return_type: Box<SExp>,
         cases: Vec<(Identifier, SExp)>,
+    },
+    IndElimPrim {
+        path: AccessPath,
+        sort: kernel::exp::Sort,
     },
     // --- set theory
     // \Proof (term) ... "prove this later"

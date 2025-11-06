@@ -338,120 +338,114 @@ pub struct Elaborator {
 // in the case of inductive type of constructors, we need to uncurry with tails
 // the other cases, elaborate with tails
 impl Elaborator {
-    fn module_item_definition_name(&self, name: &Identifier) -> Option<&Exp> {
-        for item in self.items.iter().rev() {
-            if let Item::Definition {
-                name: def_name,
-                ty: _,
-                body,
-            } = item
-                && def_name.as_str() == name.0.as_str()
-            {
-                return Some(body);
-            }
-        }
-        None
-    }
-    fn module_item_indtype_name(
+    // return Either::Left(exp) for Definition
+    // return Either::Right((specs, None)) for IndType
+    // return Either::Right((specs, Some(idx))) for IndCtor
+    #[allow(clippy::type_complexity)]
+    fn get_item_from_path(
         &self,
-        name: &Identifier,
-    ) -> Option<std::rc::Rc<InductiveTypeSpecs>> {
-        for item in self.items.iter().rev() {
-            if let Item::Inductive {
-                name: ind_name,
-                ctor_names: _,
-                ind_defs,
-            } = item
-                && ind_name.as_str() == name.0.as_str()
-            {
-                return Some(ind_defs.clone());
-            }
-        }
-        None
-    }
-    fn module_item_indctor(
-        &self,
-        ind_type_name: &Identifier,
-        ctor_name: &Identifier,
-    ) -> Option<(std::rc::Rc<InductiveTypeSpecs>, usize)> {
-        for item in self.items.iter().rev() {
-            if let Item::Inductive {
-                name: ind_name,
-                ctor_names,
-                ind_defs,
-            } = item
-                && ind_name.as_str() == ind_type_name.0.as_str()
-            {
-                for (idx, ctor_name_item) in ctor_names.iter().enumerate() {
-                    if ctor_name_item.as_str() == ctor_name.0.as_str() {
-                        return Some((ind_defs.clone(), idx));
+        path: &[Identifier],
+    ) -> Option<Either<Exp, (std::rc::Rc<InductiveTypeSpecs>, Option<usize>)>> {
+        match path {
+            // current module's inductive type or definition
+            [ident] => {
+                // check from module item
+                for item in self.items.iter().rev() {
+                    match item {
+                        Item::Definition { name, ty: _, body }
+                            if name.as_str() == ident.0.as_str() =>
+                        {
+                            return Some(Either::Left(body.clone()));
+                        }
+                        Item::Inductive {
+                            name,
+                            ctor_names,
+                            ind_defs,
+                        } if name.as_str() == ident.0.as_str() => {
+                            // check ctor names
+                            for (idx, _) in ctor_names.iter().enumerate() {
+                                if ident.0.as_str() == ctor_names[idx].as_str() {
+                                    return Some(Either::Right((ind_defs.clone(), Some(idx))));
+                                }
+                            }
+                            return Some(Either::Right((ind_defs.clone(), None)));
+                        }
+                        _ => {
+                            continue;
+                        }
                     }
                 }
+
+                None
             }
-        }
-        None
-    }
-    fn named_module_definition_name(
-        &self,
-        module_name: &Identifier,
-        item_name: &Identifier,
-    ) -> Option<&Exp> {
-        let module_realized = self.realized.get(module_name)?;
-        for item in module_realized.items.iter().rev() {
-            if let Item::Definition {
-                name: def_name,
-                ty: _,
-                body,
-            } = item
-                && def_name.as_str() == item_name.0.as_str()
-            {
-                return Some(body);
-            }
-        }
-        None
-    }
-    fn named_module_indtype_name(
-        &self,
-        module_name: &Identifier,
-        indtype_name: &Identifier,
-    ) -> Option<std::rc::Rc<InductiveTypeSpecs>> {
-        let module_realized = self.realized.get(module_name)?;
-        for item in module_realized.items.iter().rev() {
-            if let Item::Inductive {
-                name: ind_name,
-                ctor_names: _,
-                ind_defs,
-            } = item
-                && ind_name.as_str() == indtype_name.0.as_str()
-            {
-                return Some(ind_defs.clone());
-            }
-        }
-        None
-    }
-    fn named_module_indctor(
-        &self,
-        module_name: &Identifier,
-        indtype_name: &Identifier,
-        ctor_name: &Identifier,
-    ) -> Option<(std::rc::Rc<InductiveTypeSpecs>, usize)> {
-        let module_realized = self.realized.get(module_name)?;
-        for item in module_realized.items.iter().rev() {
-            if let Item::Inductive {
-                name: ind_name,
-                ctor_names,
-                ind_defs,
-            } = item
-                && ind_name.as_str() == indtype_name.0.as_str()
-            {
-                for (idx, ctor_name_item) in ctor_names.iter().enumerate() {
-                    if ctor_name_item.as_str() == ctor_name.0.as_str() {
-                        return Some((ind_defs.clone(), idx));
+            // current module's inductive constructor or named module's item
+            [path0, path1] => {
+                // check current module's inductive constructor
+                for item in self.items.iter().rev() {
+                    if let Item::Inductive {
+                        name: ind_name,
+                        ctor_names,
+                        ind_defs,
+                    } = item
+                        && ind_name.as_str() == path0.0.as_str()
+                    {
+                        for (idx, ctor_name_item) in ctor_names.iter().enumerate() {
+                            if ctor_name_item.as_str() == path1.0.as_str() {
+                                return Some(Either::Right((ind_defs.clone(), Some(idx))));
+                            }
+                        }
                     }
                 }
+                // check named module's definition or inductive type
+                let module_realized = self.realized.get(path0)?;
+                for item in module_realized.items.iter().rev() {
+                    match item {
+                        Item::Definition {
+                            name: def_name,
+                            ty: _,
+                            body,
+                        } if def_name.as_str() == path1.0.as_str() => {
+                            return Some(Either::Left(body.clone()));
+                        }
+                        Item::Inductive {
+                            name: ind_name,
+                            ctor_names: _,
+                            ind_defs,
+                        } if ind_name.as_str() == path1.0.as_str() => {
+                            return Some(Either::Right((ind_defs.clone(), None)));
+                        }
+                        _ => {
+                            continue;
+                        }
+                    }
+                }
+
+                None
             }
+            // named module's inductive constructor
+            [path0, path1, path2] => {
+                let module_realized = self.realized.get(path0)?;
+
+                for item in module_realized.items.iter().rev() {
+                    if let Item::Inductive {
+                        name: ind_name,
+                        ctor_names,
+                        ind_defs,
+                    } = item
+                        && ind_name.as_str() == path1.0.as_str()
+                    {
+                        for (idx, ctor_name_item) in ctor_names.iter().enumerate() {
+                            if ctor_name_item.as_str() == path2.0.as_str() {
+                                return Some(Either::Right((ind_defs.clone(), Some(idx))));
+                            }
+                        }
+                    }
+                }
+
+                None
+            }
+            _ => None,
         }
-        None
     }
 }
 
@@ -659,9 +653,25 @@ impl Elaborator {
         bind_var: Vec<Var>,
     ) -> Result<Exp, String> {
         match sexp {
-            SExp::AccessPath(idents) => {
-                // case len == 1
-                if let [ident] = &idents[..] {
+            SExp::AccessPath(path) => {
+                // parameters.len() > 0 <=> AccessPath::WithParams
+                let (idents, parameters) = match path {
+                    AccessPath::Plain { segments } => (segments, vec![]),
+                    AccessPath::WithParams {
+                        segments,
+                        parameters,
+                    } => (segments, parameters.clone()),
+                };
+
+                let parameters_elab = parameters
+                    .iter()
+                    .map(|p| self.elab_exp_rec(logger, p, reference_var, bind_var.clone()))
+                    .collect::<Result<Vec<_>, String>>()?;
+
+                // case: len == 1 && parameters.is_empty() && in bind_var or reference_var or module's parameter => Var
+                if let [ident] = &idents[..]
+                    && parameters.is_empty()
+                {
                     // case: binded in expression
                     for v in bind_var.iter().rev() {
                         if v.as_str() == ident.0.as_str() {
@@ -674,152 +684,51 @@ impl Elaborator {
                             return Ok(Exp::Var(v.clone()));
                         }
                     }
-
-                    // case: current module's defined items
-                    if let Some(body) = self.module_item_definition_name(ident) {
-                        return Ok(body.clone());
-                    }
-                    if let Some(indspec) = self.module_item_indtype_name(ident) {
-                        return Ok(Exp::IndType {
-                            indspec,
-                            parameters: vec![],
-                        });
-                    }
-
-                    // case: current module's parameters
+                    // case: module parameter
                     for (v, _) in self.parameters.iter().rev() {
                         if v.as_str() == ident.0.as_str() {
                             return Ok(Exp::Var(v.clone()));
                         }
                     }
-
-                    return Err(format!("Unbound identifier: {}", ident));
                 }
 
-                // case len == 2
-                if let [path0, path1] = &idents[..] {
-                    // case: path0 is type name in current module, path1 is constructor name
-                    if let Some((indspec, ctor_idx)) = self.module_item_indctor(path0, path1) {
-                        return Ok(Exp::IndCtor {
-                            indspec,
-                            idx: ctor_idx,
-                            parameters: vec![],
-                        });
-                    }
-
-                    // case: path0 is module named path1 is item name
-                    if let Some(body) = self.named_module_definition_name(path0, path1) {
-                        return Ok(body.clone());
-                    }
-                    if let Some(indpecs) = self.named_module_indtype_name(path0, path1) {
-                        return Ok(Exp::IndType {
-                            indspec: indpecs,
-                            parameters: vec![],
-                        });
-                    }
-
+                // otherwise ... get item from path
+                let Some(item) = self.get_item_from_path(idents) else {
                     return Err(format!(
-                        "Unbound identifier: {}.{}",
-                        path0.0.as_str(),
-                        path1.0.as_str()
+                        "Unbound identifier for item: {}",
+                        idents
+                            .iter()
+                            .map(|id| id.0.as_str())
+                            .collect::<Vec<_>>()
+                            .join(".")
                     ));
-                }
+                };
 
-                // case len == 3
-                if let [path0, path1, path2] = &idents[..] {
-                    // case: path0 is module name, path1 is inductive type name, path2 is constructor name
-                    if let Some((ind_defs, ctor_idx)) =
-                        self.named_module_indctor(path0, path1, path2)
-                    {
-                        return Ok(Exp::IndCtor {
-                            indspec: ind_defs,
-                            idx: ctor_idx,
-                            parameters: vec![],
-                        });
+                match item {
+                    Either::Left(body) => {
+                        // definition case ... if parameters exists => Error
+                        if !parameters.is_empty() {
+                            return Err(format!(
+                                "Definition {} does not take parameters",
+                                idents
+                                    .iter()
+                                    .map(|id| id.0.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(".")
+                            ));
+                        }
+                        Ok(body)
                     }
-
-                    return Err(format!(
-                        "Unbound identifier: {}.{}.{}",
-                        path0.0.as_str(),
-                        path1.0.as_str(),
-                        path2.0.as_str()
-                    ));
+                    Either::Right((indspec, None)) => Ok(Exp::IndType {
+                        indspec,
+                        parameters: parameters_elab,
+                    }),
+                    Either::Right((indspec, Some(idx))) => Ok(Exp::IndCtor {
+                        indspec,
+                        idx,
+                        parameters: parameters_elab,
+                    }),
                 }
-
-                Err("too long".to_string())
-            }
-            SExp::AccessPathWithParams { path, params } => {
-                // it should be InductiveType of InductiveCtor
-                // so, any else case is error
-                let mut params_elab = vec![];
-                for param in params {
-                    let param_elab =
-                        self.elab_exp_rec(logger, param, reference_var, bind_var.clone())?;
-                    params_elab.push(param_elab);
-                }
-
-                // case len == 1 => InductiveType in current module
-                if let [ident] = &path[..] {
-                    if let Some(indspec) = self.module_item_indtype_name(ident) {
-                        return Ok(Exp::IndType {
-                            indspec,
-                            parameters: params_elab,
-                        });
-                    }
-                    return Err(format!(
-                        "Unbound identifier for Inductive Type: {}",
-                        ident.0.as_str()
-                    ));
-                }
-
-                // case len == 2 => InductiveCtor in current module | InductiveType in named module
-                if let [path0, path1] = &path[..] {
-                    // case: path0 is type name in current module, path1 is constructor name
-                    if let Some((indspec, ctor_idx)) = self.module_item_indctor(path0, path1) {
-                        return Ok(Exp::IndCtor {
-                            indspec,
-                            idx: ctor_idx,
-                            parameters: params_elab,
-                        });
-                    }
-
-                    // case: path0 is module named path1 is indtype name
-                    if let Some(indpecs) = self.named_module_indtype_name(path0, path1) {
-                        return Ok(Exp::IndType {
-                            indspec: indpecs,
-                            parameters: params_elab,
-                        });
-                    }
-
-                    return Err(format!(
-                        "Unbound identifier for Inductive Type or Constructor: {}.{}",
-                        path0.0.as_str(),
-                        path1.0.as_str()
-                    ));
-                }
-
-                // case len == 3 => InductiveCtor in named module
-                if let [path0, path1, path2] = &path[..] {
-                    // case: path0 is module name, path1 is inductive type name, path2 is constructor name
-                    if let Some((ind_defs, ctor_idx)) =
-                        self.named_module_indctor(path0, path1, path2)
-                    {
-                        return Ok(Exp::IndCtor {
-                            indspec: ind_defs,
-                            idx: ctor_idx,
-                            parameters: params_elab,
-                        });
-                    }
-
-                    return Err(format!(
-                        "Unbound identifier for Inductive Constructor: {}.{}.{}",
-                        path0.0.as_str(),
-                        path1.0.as_str(),
-                        path2.0.as_str()
-                    ));
-                }
-
-                Err("too long".to_string())
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
                 todo!("macro elaboration not implemented")
@@ -879,121 +788,33 @@ impl Elaborator {
                 })
             }
             SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
-            SExp::Prod { bind, body } => {
-                let result = match bind {
+            SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
+                let is_prod = matches!(sexp, SExp::Prod { .. });
+
+                match bind {
                     // A -> B ... (_: A) -> B
-                    Bind::Anonymous { ty } => {
-                        let ty_elab =
-                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                        let body_elab =
-                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                        Exp::Prod {
-                            var: Var::dummy(),
-                            ty: Box::new(ty_elab),
-                            body: Box::new(body_elab),
-                        }
-                    }
-                    // (x[0], ..., x[n]: A) -> B ... (x[0]: A) -> ... -> (x[n]: A) -> B
-                    Bind::Named(RightBind { vars, ty }) => {
-                        let ty_elab =
-                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-
-                        let mut telescope: Vec<(Var, Exp)> = vec![];
-                        let mut bind_var = bind_var.clone();
-
-                        for var in vars {
-                            let var: Var = var.into();
-                            telescope.push((var.clone(), ty_elab.clone()));
-                            bind_var.push(var);
-                        }
-
-                        let body_elab =
-                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-
-                        kernel::utils::assoc_prod(telescope, body_elab)
-                    }
-                    // (x: A | P) -> B ... (x: Lift(A, {x: A | P})) -> B
-                    Bind::Subset { var, ty, predicate } => {
-                        let ty_elab =
-                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                        let var: Var = var.into();
-                        let mut bind_var = bind_var.clone();
-                        bind_var.push(var.clone());
-                        let predicate_elab =
-                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
-                        let body_elab =
-                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-
-                        let subset = Exp::SubSet {
-                            var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
-                        };
-
-                        Exp::Prod {
-                            var: var.clone(),
-                            ty: Box::new(Exp::TypeLift {
-                                superset: Box::new(ty_elab.clone()),
-                                subset: Box::new(subset),
-                            }),
-                            body: Box::new(body_elab),
-                        }
-                    }
-                    // (x: A | h: P) -> B ... (x: Lift(A, {x: A | P})) -> (h: P) -> B
-                    Bind::SubsetWithProof {
-                        var,
-                        ty,
-                        predicate,
-                        proof_var: proof,
-                    } => {
-                        let ty_elab =
-                            self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
-                        let var: Var = var.into();
-                        let mut bind_var = bind_var.clone();
-                        bind_var.push(var.clone());
-                        let predicate_elab =
-                            self.elab_exp_rec(logger, predicate, reference_var, bind_var.clone())?;
-                        let proof: Var = proof.into();
-                        bind_var.push(proof.clone());
-                        let body_elab =
-                            self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                        let subset = Exp::SubSet {
-                            var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
-                        };
-
-                        Exp::Prod {
-                            var: var.clone(),
-                            ty: Box::new(Exp::TypeLift {
-                                superset: Box::new(ty_elab.clone()),
-                                subset: Box::new(subset),
-                            }),
-                            body: Box::new(Exp::Prod {
-                                var: proof,
-                                ty: Box::new(predicate_elab),
-                                body: Box::new(body_elab),
-                            }),
-                        }
-                    }
-                };
-                Ok(result)
-            }
-            SExp::Lam { bind, body } => {
-                let result = match bind {
                     // A => B ... (_: A) => B
                     Bind::Anonymous { ty } => {
                         let ty_elab =
                             self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
                         let body_elab =
                             self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
-                        Exp::Lam {
-                            var: Var::dummy(),
-                            ty: Box::new(ty_elab),
-                            body: Box::new(body_elab),
-                        }
+                        Ok(if is_prod {
+                            Exp::Prod {
+                                var: Var::dummy(),
+                                ty: Box::new(ty_elab),
+                                body: Box::new(body_elab),
+                            }
+                        } else {
+                            Exp::Lam {
+                                var: Var::dummy(),
+                                ty: Box::new(ty_elab),
+                                body: Box::new(body_elab),
+                            }
+                        })
                     }
-                    // (x[0], ..., x[n]: A) => B ... (x[0]: A) => ... (x[n]: A) => B
+                    // (x[0], ..., x[n]: A) -> B ... (x[0]: A) -> ... -> (x[n]: A) -> B
+                    // (x[0], ..., x[n]: A) => B ... (x[0]: A) => ... => (x[n]: A) => B
                     Bind::Named(RightBind { vars, ty }) => {
                         let ty_elab =
                             self.elab_exp_rec(logger, ty, reference_var, bind_var.clone())?;
@@ -1010,8 +831,13 @@ impl Elaborator {
                         let body_elab =
                             self.elab_exp_rec(logger, body, reference_var, bind_var.clone())?;
 
-                        kernel::utils::assoc_lam(telescope, body_elab)
+                        Ok(if is_prod {
+                            kernel::utils::assoc_prod(telescope, body_elab)
+                        } else {
+                            kernel::utils::assoc_lam(telescope, body_elab)
+                        })
                     }
+                    // (x: A | P) -> B ... (x: Lift(A, {x: A | P})) -> B
                     // (x: A | P) => B ... (x: Lift(A, {x: A | P})) => B
                     Bind::Subset { var, ty, predicate } => {
                         let ty_elab =
@@ -1030,15 +856,27 @@ impl Elaborator {
                             predicate: Box::new(predicate_elab.clone()),
                         };
 
-                        Exp::Lam {
-                            var: var.clone(),
-                            ty: Box::new(Exp::TypeLift {
-                                superset: Box::new(ty_elab.clone()),
-                                subset: Box::new(subset),
-                            }),
-                            body: Box::new(body_elab),
-                        }
+                        Ok(if is_prod {
+                            Exp::Prod {
+                                var: var.clone(),
+                                ty: Box::new(Exp::TypeLift {
+                                    superset: Box::new(ty_elab.clone()),
+                                    subset: Box::new(subset),
+                                }),
+                                body: Box::new(body_elab),
+                            }
+                        } else {
+                            Exp::Lam {
+                                var: var.clone(),
+                                ty: Box::new(Exp::TypeLift {
+                                    superset: Box::new(ty_elab.clone()),
+                                    subset: Box::new(subset),
+                                }),
+                                body: Box::new(body_elab),
+                            }
+                        })
                     }
+                    // (x: A | h: P) -> B ... (x: Lift(A, {x: A | P})) -> (h: P) -> B
                     // (x: A | h: P) => B ... (x: Lift(A, {x: A | P})) => (h: P) => B
                     Bind::SubsetWithProof {
                         var,
@@ -1063,21 +901,35 @@ impl Elaborator {
                             predicate: Box::new(predicate_elab.clone()),
                         };
 
-                        Exp::Lam {
-                            var: var.clone(),
-                            ty: Box::new(Exp::TypeLift {
-                                superset: Box::new(ty_elab.clone()),
-                                subset: Box::new(subset),
-                            }),
-                            body: Box::new(Exp::Lam {
-                                var: proof,
-                                ty: Box::new(predicate_elab),
-                                body: Box::new(body_elab),
-                            }),
-                        }
+                        Ok(if is_prod {
+                            Exp::Prod {
+                                var: var.clone(),
+                                ty: Box::new(Exp::TypeLift {
+                                    superset: Box::new(ty_elab.clone()),
+                                    subset: Box::new(subset),
+                                }),
+                                body: Box::new(Exp::Prod {
+                                    var: proof,
+                                    ty: Box::new(predicate_elab),
+                                    body: Box::new(body_elab),
+                                }),
+                            }
+                        } else {
+                            Exp::Lam {
+                                var: var.clone(),
+                                ty: Box::new(Exp::TypeLift {
+                                    superset: Box::new(ty_elab.clone()),
+                                    subset: Box::new(subset),
+                                }),
+                                body: Box::new(Exp::Lam {
+                                    var: proof,
+                                    ty: Box::new(predicate_elab),
+                                    body: Box::new(body_elab),
+                                }),
+                            }
+                        })
                     }
-                };
-                Ok(result)
+                }
             }
             SExp::Cast { exp, to } => {
                 let exp_elab = self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
@@ -1100,34 +952,52 @@ impl Elaborator {
                 })
             }
             SExp::IndElim {
-                ind_type_name,
+                path,
                 elim,
                 return_type,
                 cases,
             } => {
-                let ind_defs = match self.module_item_indtype_name(ind_type_name) {
-                    Some(indspecs) => indspecs,
-                    None => {
-                        return Err(format!(
-                            "Inductive type {} not found for elimination",
-                            ind_type_name.0.as_str()
-                        ));
-                    }
+                let (idents, parameters) = match path {
+                    AccessPath::Plain { segments } => (segments, vec![]),
+                    AccessPath::WithParams {
+                        segments,
+                        parameters,
+                    } => (segments, parameters.clone()),
                 };
+
+                if !parameters.is_empty() {
+                    return Err(format!(
+                        "Inductive type {:?} elimination does not take parameters",
+                        path
+                    ));
+                }
+
+                let item = self.get_item_from_path(idents).ok_or(format!(
+                    "Inductive type {:?} not found for elimination",
+                    path
+                ))?;
+
+                let Either::Right((ind_defs, None)) = item else {
+                    return Err(format!(
+                        "Item {:?} is not an inductive type for elimination",
+                        path
+                    ));
+                };
+
                 let eliminated_exp_elab =
                     self.elab_exp_rec(logger, elim, reference_var, bind_var.clone())?;
                 let return_type_elab =
                     self.elab_exp_rec(logger, return_type, reference_var, bind_var.clone())?;
                 let mut cases_elab = vec![];
                 for (ctor_name, case_exp) in cases {
-                    let ctor_idx = self
-                        .module_item_indctor(ind_type_name, ctor_name)
-                        .ok_or(format!(
-                            "Constructor {} not found in inductive type {} for elimination",
-                            ctor_name.0.as_str(),
-                            ind_type_name.0.as_str()
-                        ))?
-                        .1;
+                    let ctor_idx =
+                        ind_defs
+                            .ctor_idx_from_name(ctor_name.as_str())
+                            .ok_or(format!(
+                                "Constructor name {} not found in inductive type {}",
+                                ctor_name.as_str(),
+                                ind_defs.names.0
+                            ))?;
                     let case_exp_elab =
                         self.elab_exp_rec(logger, case_exp, reference_var, bind_var.clone())?;
                     cases_elab.push((ctor_idx, case_exp_elab));
@@ -1146,6 +1016,36 @@ impl Elaborator {
                     return_type: Box::new(return_type_elab),
                     cases: cases_elab,
                 })
+            }
+            SExp::IndElimPrim { path, sort } => {
+                let (idents, parameters) = match path {
+                    AccessPath::Plain { segments } => (segments, vec![]),
+                    AccessPath::WithParams {
+                        segments,
+                        parameters,
+                    } => (segments, parameters.clone()),
+                };
+
+                let item = self.get_item_from_path(idents).ok_or(format!(
+                    "Inductive type {:?} not found for primitive elimination",
+                    idents
+                ))?;
+                let Either::Right((indspec, None)) = item else {
+                    return Err(format!(
+                        "Item {:?} is not an inductive type for primitive elimination",
+                        idents
+                    ));
+                };
+
+                let parameters_elab = parameters
+                    .iter()
+                    .map(|p| self.elab_exp_rec(logger, p, reference_var, bind_var.clone()))
+                    .collect::<Result<Vec<_>, String>>()?;
+                Ok(kernel::inductive::InductiveTypeSpecs::primitive_recursion(
+                    &indspec,
+                    parameters_elab,
+                    *sort,
+                ))
             }
             SExp::ProveLater { term } => {
                 let term_elab = self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;
