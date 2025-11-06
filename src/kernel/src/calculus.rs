@@ -1213,10 +1213,11 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
     //    else exp
     let mut changed = false;
     let mut reduce_if = |e: &Exp| -> Exp {
-        changed
-            .then(|| reduce_one(e).inspect(|_| changed = true))
-            .flatten()
-            .unwrap_or(e.clone())
+        if !changed && let Some(reduced) = reduce_one(e) {
+            changed = true;
+            return reduced;
+        }
+        e.clone()
     };
 
     match e {
@@ -1463,5 +1464,23 @@ impl Exp {
     }
     pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> Exp {
         exp_subst_map(self, subst_mapping)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{app, lam, prod, var, var_exp};
+    #[test]
+    fn reduce_test() {
+        // ((z: X) => z) Y)
+        let ty = app!(lam!(var!("z"), var_exp!("X"), var_exp!("z")), var_exp!("Y"));
+        let reduced = normalize(&ty);
+        println!("reduced: {:?}", reduced);
+        // (x: ty) -> y
+        let e = prod!(var!("x"), ty, var_exp!("y"));
+        let reduced = reduce_one(&e).unwrap();
+        // (x: Y) -> y
+        println!("reduced: {:?}", reduced);
     }
 }

@@ -70,6 +70,7 @@ impl Item {
 
 pub enum Query {
     Eval { exp: Exp },
+    Normalize { exp: Exp },
     Checking { exp: Exp, ty: Exp },
     Infer { exp: Exp },
 }
@@ -198,6 +199,10 @@ impl GlobalEnvironment {
                             Query::Eval { exp } => {
                                 let after = kernel::calculus::normalize(&exp);
                                 self.logger.log(format!("Eval result: {}", after));
+                            }
+                            Query::Normalize { exp } => {
+                                let after = kernel::calculus::normalize(&exp);
+                                self.logger.log(format!("Normalize result: {}", after));
                             }
                             Query::Checking { exp, ty } => {
                                 let der = kernel::derivation::check(
@@ -667,6 +672,10 @@ impl Elaborator {
             ModuleItem::Eval { exp } => {
                 let exp_elab = self.elab_exp(logger, exp, &[])?;
                 Ok(Either::Right(Query::Eval { exp: exp_elab }))
+            }
+            ModuleItem::Normalize { exp } => {
+                let exp_elab = self.elab_exp(logger, exp, &[])?;
+                Ok(Either::Right(Query::Normalize { exp: exp_elab }))
             }
             ModuleItem::Check { exp, ty } => {
                 let exp_elab = self.elab_exp(logger, exp, &[])?;

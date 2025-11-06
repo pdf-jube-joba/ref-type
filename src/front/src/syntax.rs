@@ -67,6 +67,9 @@ pub enum ModuleItem {
     Eval {
         exp: SExp,
     },
+    Normalize {
+        exp: SExp,
+    },
     Check {
         exp: SExp,
         ty: SExp,

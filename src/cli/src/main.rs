@@ -55,6 +55,30 @@ pub struct StringTree {
     pub children: Vec<StringTree>,
 }
 
+impl StringTree {
+    fn origin_of_error(&self) -> Option<&StringTree> {
+        match &self.head {
+            Node::Error(_) => {
+                if self
+                    .children
+                    .iter()
+                    .all(|tree| matches!(tree.head, Node::Error(_)))
+                {
+                    Some(self)
+                } else {
+                    for child in &self.children {
+                        if let Some(origin) = child.origin_of_error() {
+                            return Some(origin);
+                        }
+                    }
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
 impl From<kernel::printing::StringTree> for StringTree {
     fn from(value: kernel::printing::StringTree) -> Self {
         StringTree {
@@ -147,7 +171,27 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
 
     // ここで重い処理をする場合も spawn_blocking 推奨
     let (out, flag) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
-    println!("{:?}", out);
+    for entry in out {
+        match entry {
+            Log::Derivation(der) => {
+                fn print_tree(tree: &StringTree, indent: usize) {
+                    let indent_str = "  ".repeat(indent);
+                    match &tree.head {
+                        Node::Success(s) => println!("{}Success: {}", indent_str, s),
+                        Node::Error(s) => println!("{}Error: {}", indent_str, s),
+                        Node::Pending(s) => println!("{}Pending: {}", indent_str, s),
+                    }
+                    for child in &tree.children {
+                        print_tree(child, indent + 1);
+                    }
+                }
+                print_tree(&der, 0);
+            }
+            Log::Message(mes) => {
+                println!("{}", mes);
+            }
+        }
+    }
     Ok(flag)
 }
 

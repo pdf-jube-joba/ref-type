@@ -182,6 +182,7 @@ mod tests {
         app! { var_exp!("f"), var_exp!("x") };
         app! { Box::new(var_exp!("f")), var_exp!("x") };
         lam! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("x")};
+        lam! { var!("x"), var_exp!("A"), var_exp!("x")};
         prod! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("B")};
         goal! {
             vec![(var!("A"), Exp::Sort(Sort::Prop))];

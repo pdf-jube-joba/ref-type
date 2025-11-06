@@ -92,6 +92,7 @@ static PROGRAM_KEYWORDS: &[&str] = &[
     "\\mathmacro",
     "\\usermacro",
     "\\eval",
+    "\\normalize",
     "\\check",
     "\\infer",
 ];
@@ -354,8 +355,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Helper to parse a parenthesized expression.
-    /// "(" <some: parse_inner> ")" where parse_inner is given as a closure.
+    // Helper to parse a parenthesized expression.
+    // "(" <some: parse_inner> ")" where parse_inner is given as a closure.
     fn parse_parenthesized<F, T>(&mut self, parse_inner: F) -> Result<T, ParseError>
     where
         F: FnOnce(&mut Self) -> Result<T, ParseError>,
@@ -660,7 +661,7 @@ impl<'a> Parser<'a> {
 
     // parse an access path
     // e.g. `x` or `x.y` or `x.y.z` or ...
-    ///  or with parameter `x {<e0> "," ... ","  <en>}`
+    //  or with parameter `x {<e0> "," ... ","  <en>}` (optional)
     fn parse_access_path(&mut self) -> Result<AccessPath, ParseError> {
         let mut path = Vec::new();
 
@@ -674,21 +675,29 @@ impl<'a> Parser<'a> {
             path.push(next_ident);
         }
 
+        let save_pos = self.pos;
+
+        // trying to parse parameters
+        // may be fail => rollback
         if self.bump_if_token(&Token::LBrace) {
             // parse parameters inside '{' ... '}'
             let mut params = Vec::new();
-            loop {
-                let param = self.parse_sexp()?;
+            while let Ok(param) = self.parse_sexp() {
                 params.push(param);
                 if !self.bump_if_token(&Token::Comma) {
                     break;
                 }
             }
-            self.expect_token(Token::RBrace)?; // expect '}'
-            return Ok(AccessPath::WithParams {
-                segments: path,
-                parameters: params,
-            });
+            if self.bump_if_token(&Token::RBrace) {
+                self.expect_token(Token::RBrace)?; // expect '}'
+                return Ok(AccessPath::WithParams {
+                    segments: path,
+                    parameters: params,
+                });
+            } else {
+                // rollback if not closed
+                self.pos = save_pos;
+            }
         }
 
         Ok(AccessPath::Plain { segments: path })
@@ -812,7 +821,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // pares "=" expression
+    // parse "=" expression
     // <exp> = <exp>
     fn parse_equal_expression(&mut self) -> Result<SExp, ParseError> {
         let left_exp = self.parse_as_expression()?;
@@ -1142,9 +1151,8 @@ impl<'a> Parser<'a> {
         })
     }
 
-    // "\definition" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
+    // <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
-        self.expect_keyword("\\definition")?;
         let name = self.expect_ident()?;
         self.expect_token(Token::Colon)?;
         let ty = self.parse_sexp()?;
@@ -1154,10 +1162,9 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Definition { name, ty, body })
     }
 
-    // "\import" <module_name: Ident> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")" "\as" <import_name: Ident> ";"
+    // <module_name: Ident> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")" "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
-        // 1. "\import" <module_name: Ident> "("
-        self.expect_keyword("\\import")?;
+        // 1. <module_name: Ident> "("
         let module_name = self.expect_ident()?;
         self.expect_token(Token::LParen)?;
 
@@ -1200,9 +1207,8 @@ impl<'a> Parser<'a> {
         Ok((ctor_name, ctor_type))
     }
 
-    // "\inductive" <type_name: Ident> ("(" <param: Ident> ":" <ty: SExp> ")")* ":" <arity: SExp> ":=" (<ctor_decl>)* ";"
+    //  <type_name: Ident> ("(" <param: Ident> ":" <ty: SExp> ")")* ":" <arity: SExp> ":=" (<ctor_decl>)* ";"
     fn parse_inductive_decl(&mut self) -> Result<ModuleItem, ParseError> {
-        self.expect_keyword("\\inductive")?;
         let type_name = self.expect_ident()?;
 
         let mut parameters = vec![];
@@ -1235,44 +1241,42 @@ impl<'a> Parser<'a> {
 
     pub fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
         let save_pos = self.pos;
-        match self.peek() {
-            Some(Token::KeyWord(kw)) if *kw == "\\definition" => {
-                let def = self.parse_definition()?;
-                Ok(Some(def))
-            }
-            Some(Token::KeyWord(kw)) if *kw == "\\import" => {
-                let imp = self.parse_import()?;
-                Ok(Some(imp))
-            }
-            Some(Token::KeyWord(kw)) if *kw == "\\inductive" => {
-                let ind = self.parse_inductive_decl()?;
-                Ok(Some(ind))
-            }
-            Some(Token::KeyWord(kw)) if *kw == "\\eval" => {
-                self.next();
-                let exp = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
-                Ok(Some(ModuleItem::Eval { exp }))
-            }
-            Some(Token::KeyWord(kw)) if *kw == "\\check" => {
-                self.next();
-                let exp = self.parse_sexp()?;
-                self.expect_token(Token::Colon)?;
-                let ty = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
-                Ok(Some(ModuleItem::Check { exp, ty }))
-            }
-            Some(Token::KeyWord(kw)) if *kw == "\\infer" => {
-                self.next();
-                let exp = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
-                Ok(Some(ModuleItem::Infer { exp }))
-            }
-            _ => {
-                self.pos = save_pos;
-                Ok(None)
-            }
+        if self.bump_if_keyword("\\definition") {
+            let def = self.parse_definition()?;
+            return Ok(Some(def));
         }
+        if self.bump_if_keyword("\\import") {
+            let imp = self.parse_import()?;
+            return Ok(Some(imp));
+        }
+        if self.bump_if_keyword("\\inductive") {
+            let ind = self.parse_inductive_decl()?;
+            return Ok(Some(ind));
+        }
+        if self.bump_if_keyword("\\eval") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::Eval { exp }));
+        }
+        if self.bump_if_keyword("\\normalize") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::Normalize { exp }));
+        }
+        if self.bump_if_keyword("\\check") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::Check { exp, ty }));
+        }
+        if self.bump_if_keyword("\\infer") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::Infer { exp }));
+        }
+        self.pos = save_pos;
+        Ok(None)
     }
 
     // parse a module
@@ -1437,19 +1441,19 @@ mod tests {
         print_and_unwrap_complex_bind(r"((x: X) | p1 p2)");
         print_and_unwrap_complex_bind(r"((x: X) | h: p1 p2)");
     }
-    #[test]
-    fn parse_exp_test() {
-        fn print_and_unwrap(input: &'static str) {
-            let result = str_parse_exp(input);
-            match result {
-                Ok(atomlike) => {
-                    println!("Parsed SExp: {:?} => {:?}", input, atomlike);
-                }
-                Err(err) => {
-                    panic!("Error: {}", err);
-                }
+    fn print_and_unwrap(input: &'static str) {
+        let result = str_parse_exp(input);
+        match result {
+            Ok(atomlike) => {
+                println!("Parsed SExp: {:?} => {:?}", input, atomlike);
+            }
+            Err(err) => {
+                panic!("Error: {}", err);
             }
         }
+    }
+    #[test]
+    fn parse_exp_test() {
         // identifier and lambda calcluluses
         print_and_unwrap(r"x");
         print_and_unwrap(r"x y");
@@ -1475,17 +1479,6 @@ mod tests {
     }
     #[test]
     fn parse_special_exp_test() {
-        fn print_and_unwrap(input: &'static str) {
-            let result = str_parse_exp(input);
-            match result {
-                Ok(atomlike) => {
-                    println!("Parsed SExp: {:?} => {:?}", input, atomlike);
-                }
-                Err(err) => {
-                    panic!("Error: {}", err);
-                }
-            }
-        }
         // atom like: sort, access path, math macro, named macro
         print_and_unwrap("x");
         print_and_unwrap(r"\Prop");
@@ -1501,6 +1494,35 @@ mod tests {
         print_and_unwrap(r"x \as Y");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"x \as Y | z = h");
+    }
+    #[test]
+    fn parse_sexp_has_remaining() {
+        // parse an expression with extra tokens remaining
+        fn parse_middle(input: &str) {
+            let tok = lex_all(input).unwrap();
+            let mut parser = Parser::new(&tok);
+            let result = parser.parse_sexp();
+            match result {
+                Ok(exp) => {
+                    println!("Parsed SExp: {:?} => {:?}", input, exp);
+                    if parser.pos < parser.tokens.len() {
+                        let extra = &parser.tokens[parser.pos];
+                        println!(
+                            "  Extra tokens after expression starting at {}..{}: {:?}",
+                            extra.start, extra.end, extra.kind
+                        );
+                    } else {
+                        println!("  No extra tokens remaining.");
+                    }
+                }
+                Err(err) => {
+                    panic!("Error: {:?}", err);
+                }
+            }
+        }
+        parse_middle(r"x ;");
+        parse_middle(r"x {");
+        parse_middle(r"x (( y: Y)");
     }
     #[test]
     fn parse_module_item() {
