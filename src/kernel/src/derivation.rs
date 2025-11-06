@@ -531,18 +531,24 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             }
 
             // check (ctx |- cases[i] : eliminator_type[i])
-            for (case, constructor) in cases.iter().zip(indspec.constructors.iter()) {
+            for idx in 0..indspec.constructor_len() {
+                let ctor = &Exp::IndCtor {
+                    indspec: indspec.clone(),
+                    parameters: parameters.clone(),
+                    idx,
+                };
                 let eliminator_ty = eliminator_type(
-                    constructor,
+                    &indspec.constructors[idx],
                     return_type,
-                    elim,
+                    ctor,
                     &Exp::IndType {
                         indspec: indspec.clone(),
                         parameters: parameters.clone(),
                     },
                 );
-                if !builder.add_check(ctx, case, &eliminator_ty) {
-                    return builder.build_fail("Failed to check case", make_jd(None));
+                if !builder.add_check(ctx, &cases[idx], &eliminator_ty) {
+                    return builder
+                        .build_fail(format!("Failed to check case {idx}"), make_jd(None));
                 };
             }
 
