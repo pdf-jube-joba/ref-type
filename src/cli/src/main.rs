@@ -31,9 +31,52 @@ enum Cmd {
 struct Req {
     text: String,
 }
+
+#[derive(Serialize, Debug)]
+pub enum Node {
+    Success(String),
+    Error(String),
+    Pending(String),
+}
+
+impl From<kernel::printing::Node> for Node {
+    fn from(value: kernel::printing::Node) -> Self {
+        match value {
+            kernel::printing::Node::Success(s) => Node::Success(s),
+            kernel::printing::Node::Error(s) => Node::Error(s),
+            kernel::printing::Node::Pending(s) => Node::Pending(s),
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct StringTree {
+    pub head: Node,
+    pub children: Vec<StringTree>,
+}
+
+impl From<kernel::printing::StringTree> for StringTree {
+    fn from(value: kernel::printing::StringTree) -> Self {
+        StringTree {
+            head: value.head.into(),
+            children: value
+                .children
+                .into_iter()
+                .map(|child| child.into())
+                .collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub enum Log {
+    Derivation(StringTree),
+    Message(String),
+}
+
 #[derive(Serialize)]
 struct Resp {
-    result: String,
+    result: Vec<Log>,
 }
 
 static INDEX_HTML: &str = include_str!("../index.html");
@@ -57,36 +100,40 @@ async fn main() -> anyhow::Result<()> {
 }
 
 // ---- 共通処理 ---------------------------------------------
-fn parse_and_format(src: String) -> (String, bool) {
+fn parse_and_format(src: String) -> (Vec<Log>, bool) {
     let parsed = front::parse::str_parse_modules(&src);
     match parsed {
         Ok(modules) => {
             let mut global = front::resolver::GlobalEnvironment::default();
-            let mut output = String::new();
+            let mut logs: Vec<Log> = vec![];
             let mut flag = false;
             for module in modules {
                 match global.new_module(&module) {
                     Ok(_) => {}
                     Err(err) => {
-                        output.push_str(&format!("Error: {}\n", err));
+                        logs.push(Log::Message(format!("Error: {}\n", err)));
                         flag = true;
                     }
                 }
             }
-            output.push_str("--- LOG ---\n");
-            for log in global.logs() {
-                match log {
+
+            // append internal logs
+            for entry in global.logs() {
+                match entry {
                     either::Either::Left(der) => {
-                        output.push_str(&format!("{der}"));
+                        logs.push(Log::Derivation(
+                            kernel::printing::map_derivation(der).into(),
+                        ));
                     }
                     either::Either::Right(mes) => {
-                        output.push_str(mes);
+                        logs.push(Log::Message(mes.clone()));
                     }
                 }
             }
-            (output, flag)
+
+            (logs, flag)
         }
-        Err(e) => (format!("Parse Error: {}\n", e), true),
+        Err(e) => (vec![Log::Message(format!("Parse Error: {}\n", e))], true),
     }
 }
 
@@ -100,7 +147,7 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
 
     // ここで重い処理をする場合も spawn_blocking 推奨
     let (out, flag) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
-    println!("{out}");
+    println!("{:?}", out);
     Ok(flag)
 }
 

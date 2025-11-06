@@ -498,9 +498,12 @@ impl<'a> Parser<'a> {
             });
         }
         if self.bump_if_keyword("\\prec") {
-            // "\prec" <sort: Sort> <path: AccessPath>
+            // "\prec" "(" <sort: Sort> "," <path: AccessPath> ")"
+            self.expect_token(Token::LParen)?;
             let sort = self.parse_sort()?;
+            self.expect_token(Token::Comma)?;
             let path = self.parse_access_path()?;
+            self.expect_token(Token::RParen)?;
 
             return Ok(SExp::IndElimPrim { path, sort });
         }

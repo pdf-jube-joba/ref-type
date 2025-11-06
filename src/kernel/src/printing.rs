@@ -246,7 +246,16 @@ impl Display for TypeJudgement {
     }
 }
 
-pub struct StringTree(String, Vec<StringTree>);
+pub enum Node {
+    Success(String),
+    Error(String),
+    Pending(String),
+}
+
+pub struct StringTree {
+    pub head: Node,
+    pub children: Vec<StringTree>,
+}
 
 pub fn map_derivation(der: &Derivation) -> StringTree {
     match der {
@@ -255,23 +264,53 @@ pub fn map_derivation(der: &Derivation) -> StringTree {
             premises,
             rule,
             meta,
+        } => {
+            match meta {
+                crate::exp::Meta::Usual(string) => StringTree {
+                    head: Node::Success(format!("{} by {} [{}]", conclusion, rule, string)),
+                    children: premises.iter().map(map_derivation).collect(),
+                },
+                crate::exp::Meta::Through(string) => {
+                    // premises.len() == 1 and we print this with meta info
+                    let first = premises.first().unwrap();
+                    let mut sttree = map_derivation(first);
+                    sttree.head = Node::Success(format!(
+                        "{} through [{}]",
+                        match &sttree.head {
+                            Node::Success(s) => s,
+                            Node::Error(s) => s,
+                            Node::Pending(s) => s,
+                        },
+                        string
+                    ));
+                    sttree
+                }
+            }
         }
-        | Derivation::DerivationFail {
+        Derivation::DerivationFail {
             conclusion,
             premises,
             rule,
             meta,
         } => {
             match meta {
-                crate::exp::Meta::Usual(string) => StringTree(
-                    format!("{} by {} [{}]", conclusion, rule, string),
-                    premises.iter().map(map_derivation).collect(),
-                ),
+                crate::exp::Meta::Usual(string) => StringTree {
+                    head: Node::Error(format!("{} by {} [{}]", conclusion, rule, string)),
+                    children: premises.iter().map(map_derivation).collect(),
+                },
                 crate::exp::Meta::Through(string) => {
                     // premises.len() == 1 and we print this with meta info
                     let first = premises.first().unwrap();
                     let mut sttree = map_derivation(first);
-                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree.head = Node::Error(format!(
+                        "{} through [{}]",
+                        match &sttree.head {
+                            Node::Success(s) => s,
+                            Node::Error(s) => s,
+                            Node::Pending(s) => s,
+                        },
+                        string
+                    ));
                     sttree
                 }
             }
@@ -280,15 +319,14 @@ pub fn map_derivation(der: &Derivation) -> StringTree {
             proposition,
             solvetree,
         } => {
-            let str = match solvetree {
-                Some(rc) => {
-                    format!("{proposition}[Solve by {:p}]", rc.as_ref())
-                }
-                None => {
-                    format!("{proposition}[Not yet solved]")
-                }
+            let head = match solvetree {
+                Some(rc) => Node::Success(format!("{proposition}[Solve by {:p}]", rc.as_ref())),
+                None => Node::Pending(format!("{proposition}[Not yet solved]")),
             };
-            StringTree(str, vec![])
+            StringTree {
+                head,
+                children: vec![],
+            }
         }
         Derivation::SolveSuccess(proof_tree) => {
             let ProofTree {
@@ -298,15 +336,23 @@ pub fn map_derivation(der: &Derivation) -> StringTree {
                 meta,
             } = proof_tree.as_ref();
             match meta {
-                crate::exp::Meta::Usual(string) => StringTree(
-                    format!("{} by {} [{}]", conclusion, rule, string),
-                    premises.iter().map(map_derivation).collect(),
-                ),
+                crate::exp::Meta::Usual(string) => StringTree {
+                    head: Node::Success(format!("{} by {} [{}]", conclusion, rule, string)),
+                    children: premises.iter().map(map_derivation).collect(),
+                },
                 crate::exp::Meta::Through(string) => {
                     // premises.len() == 1 and we print this with meta info
                     let first = premises.first().unwrap();
                     let mut sttree = map_derivation(first);
-                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree.head = Node::Success(format!(
+                        "{} through [{}]",
+                        match &sttree.head {
+                            Node::Success(s) => s,
+                            Node::Error(s) => s,
+                            Node::Pending(s) => s,
+                        },
+                        string
+                    ));
                     sttree
                 }
             }
@@ -318,15 +364,23 @@ pub fn map_derivation(der: &Derivation) -> StringTree {
             meta,
         } => {
             match meta {
-                crate::exp::Meta::Usual(string) => StringTree(
-                    format!("{} by {} [{}]", conclusion, rule, string),
-                    premises.iter().map(map_derivation).collect(),
-                ),
+                crate::exp::Meta::Usual(string) => StringTree {
+                    head: Node::Error(format!("{} by {} [{}]", conclusion, rule, string)),
+                    children: premises.iter().map(map_derivation).collect(),
+                },
                 crate::exp::Meta::Through(string) => {
                     // premises.len() == 1 and we print this with meta info
                     let first = premises.first().unwrap();
                     let mut sttree = map_derivation(first);
-                    sttree.0 = format!("{} through [{}]", sttree.0, string);
+                    sttree.head = Node::Error(format!(
+                        "{} through [{}]",
+                        match &sttree.head {
+                            Node::Success(s) => s,
+                            Node::Error(s) => s,
+                            Node::Pending(s) => s,
+                        },
+                        string
+                    ));
                     sttree
                 }
             }
@@ -338,8 +392,16 @@ fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -
     for _ in 0..indent {
         write!(f, "  ")?;
     }
-    writeln!(f, "{}", tree.0)?;
-    for child in &tree.1 {
+    writeln!(
+        f,
+        "{}",
+        match &tree.head {
+            Node::Success(s) => format!("\x1b[32m{}\x1b[0m", s),
+            Node::Error(s) => format!("\x1b[31m{}\x1b[0m", s),
+            Node::Pending(s) => format!("\x1b[33m{}\x1b[0m", s),
+        }
+    )?;
+    for child in &tree.children {
         fmt_tree(f, child, indent + 1)?;
     }
     Ok(())
