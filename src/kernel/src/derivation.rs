@@ -375,12 +375,12 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typejudgement(make_jd(Some(ret_ty_substituted)))
         }
         Exp::IndType {
-            indspec: indty,
+            indspec,
             parameters,
         } => {
             builder.rule("IndType");
 
-            let parameter_indty_defined = indty.parameters.clone();
+            let parameter_indty_defined = indspec.parameters.clone();
 
             // 1. check parameters length
             if parameters.len() != parameter_indty_defined.len() {
@@ -413,7 +413,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             //  where arity_substituted = (ty.indices[] -> ty.sort)[var_j := parameters[j]] for j in indices
             let arity_substituted = {
                 let mut substituted =
-                    utils::assoc_prod(indty.indices.clone(), Exp::Sort(indty.sort));
+                    utils::assoc_prod(indspec.indices.clone(), Exp::Sort(indspec.sort));
                 for (v, e) in &subst_varexp {
                     substituted = exp_subst(&substituted, v, e);
                 }
@@ -422,13 +422,13 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typejudgement(make_jd(Some(arity_substituted)))
         }
         Exp::IndCtor {
-            indspec: indty,
+            indspec,
             idx,
             parameters,
         } => {
             builder.rule("IndTypeCst");
 
-            let parameter_indty_defined = indty.parameters.clone();
+            let parameter_indty_defined = indspec.parameters.clone();
 
             // 1. check parameter length
             if parameters.len() != parameter_indty_defined.len() {
@@ -459,7 +459,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
             // 3. conclude (ctx |- IndTypeCst(ty, idx, parameter) : ty.Constructors[idx] where THIS = ty)
             let constructor_type = crate::inductive::InductiveTypeSpecs::type_of_constructor(
-                indty,
+                indspec,
                 *idx,
                 parameters.clone(),
             );
@@ -467,7 +467,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             builder.build_typejudgement(make_jd(Some(constructor_type)))
         }
         Exp::IndElim {
-            indspec: indty,
+            indspec,
             elim,
             return_type,
             cases,
@@ -491,7 +491,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             };
 
             // 2. check indty is the same as inferred_indty
-            if !std::rc::Rc::ptr_eq(indty, &inferred_indty) {
+            if !std::rc::Rc::ptr_eq(indspec, &inferred_indty) {
                 return builder.build_fail("inductive type mismatch", make_jd(None));
             }
 
@@ -506,13 +506,13 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             };
 
             // 4. check (ty.sort, sort) can form a elimination
-            if indty.sort.relation_of_sort_indelim(sort).is_none() {
+            if indspec.sort.relation_of_sort_indelim(sort).is_none() {
                 return builder.build_fail("Cannot form eliminator", make_jd(None));
             }
 
             // 5. check convertibility of kind of return_type
             let expected_return_type_kind = crate::inductive::InductiveTypeSpecs::return_type_kind(
-                indty,
+                indspec,
                 parameters.clone(),
                 sort,
             );
@@ -526,18 +526,18 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
 
             // 6. check each case has type eliminator_type of constructor
             // check length of cases and constructors
-            if cases.len() != indty.constructors.len() {
+            if cases.len() != indspec.constructors.len() {
                 return builder.build_fail("Constructor length mismatch", make_jd(None));
             }
 
             // check (ctx |- cases[i] : eliminator_type[i])
-            for (case, constructor) in cases.iter().zip(indty.constructors.iter()) {
+            for (case, constructor) in cases.iter().zip(indspec.constructors.iter()) {
                 let eliminator_ty = eliminator_type(
                     constructor,
                     return_type,
                     elim,
                     &Exp::IndType {
-                        indspec: indty.clone(),
+                        indspec: indspec.clone(),
                         parameters: parameters.clone(),
                     },
                 );
@@ -676,11 +676,11 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
                 }
             }
         }
-        Exp::PowerSet { set: exp } => {
+        Exp::PowerSet { set } => {
             builder.rule("PowerSet");
 
             // 1. check (ctx |- exp : Set(i))
-            let Some(i) = builder.add_sortset(ctx, exp) else {
+            let Some(i) = builder.add_sortset(ctx, set) else {
                 return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
 
@@ -796,10 +796,10 @@ pub fn infer(ctx: &Context, term: &Exp) -> Derivation {
             // 4. conclude (ctx |- Equal(left, right) : \Prop)
             builder.build_typejudgement(make_jd(Some(Exp::Sort(Sort::Prop))))
         }
-        Exp::Exists { set: ty } => {
+        Exp::Exists { set } => {
             builder.rule("Exists");
             // 1. check (ctx |- ty : Set(i))
-            let Some(_i) = builder.add_sortset(ctx, ty) else {
+            let Some(_i) = builder.add_sortset(ctx, set) else {
                 return builder.build_fail("Failed to infer sort of type", make_jd(None));
             };
             // 2. conclude (ctx |- Exists(ty) : \Prop)
@@ -858,6 +858,12 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Derivation {
     let Some(inferred_ty) = builder.add_infer(ctx, term) else {
         return builder.build_fail("Failed to infer type of term", make_jd(None));
     };
+
+    // 2-A. if inferred_ty is already a sort, through
+    if let Exp::Sort(s) = inferred_ty {
+        builder.meta_through("infer_sort");
+        return builder.build_typejudgement(make_jd(Some(s)));
+    }
 
     // 2. converting inferred_ty to sort
     let Exp::Sort(s) = normalize(&inferred_ty) else {

@@ -300,7 +300,7 @@ pub enum Statement {
 pub struct GoalProof {
     pub extended_ctx: Vec<RightBind>, // extended context
     pub goal: SExp,                   // goal to prove
-    pub proofby: ProofBy,          // proof term to fill in
+    pub proofby: ProofBy,             // proof term to fill in
 }
 
 #[derive(Debug, Clone)]

@@ -19,18 +19,18 @@ use kernel::{
 #[derive(Debug, Clone)]
 pub enum Item {
     Definition {
-        name: kernel::exp::Var,
+        name: Var,
         ty: Exp,
         body: Exp,
     },
     Inductive {
-        name: kernel::exp::Var,
-        ctor_names: Vec<kernel::exp::Var>,
+        name: Var,
+        ctor_names: Vec<Var>,
         ind_defs: std::rc::Rc<kernel::inductive::InductiveTypeSpecs>,
     },
     Import {
-        module_name: kernel::exp::Var,
-        import_name: kernel::exp::Var,
+        module_name: Var,
+        import_name: Var,
         args: Vec<(Var, Exp)>,
     },
 }
@@ -822,7 +822,7 @@ impl Elaborator {
             }
             SExp::WithProofs { exp, proofs } => {
                 let exp_elab = self.elab_exp_rec(logger, exp, reference_var, bind_var.clone())?;
-                let mut proof_goals: Vec<kernel::exp::ProveGoal> = vec![];
+                let mut proof_goals: Vec<ProveGoal> = vec![];
                 for proof in proofs {
                     let GoalProof {
                         extended_ctx,
@@ -1332,7 +1332,7 @@ impl Elaborator {
                 Ok(Exp::Take { map: Box::new(map) })
             }
             SExp::ProofBy(proof_by) => {
-                use kernel::exp::ProveCommandBy;
+                use ProveCommandBy;
                 let command: ProveCommandBy =
                     self.elab_proof_by(logger, proof_by, reference_var, bind_var.clone())?;
 
@@ -1398,8 +1398,8 @@ impl Elaborator {
         proof_by: &crate::syntax::ProofBy,
         reference_var: &[Var],
         bind_var: Vec<Var>,
-    ) -> Result<kernel::exp::ProveCommandBy, String> {
-        use kernel::exp::ProveCommandBy;
+    ) -> Result<ProveCommandBy, String> {
+        use ProveCommandBy;
         let elab = match proof_by {
             ProofBy::Construct { term } => {
                 let term_elab = self.elab_exp_rec(logger, term, reference_var, bind_var.clone())?;

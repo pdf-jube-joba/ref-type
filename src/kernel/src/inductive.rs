@@ -147,7 +147,7 @@ pub fn acceptable_typespecs(
 ) -> (Vec<Derivation>, Result<(), String>) {
     let InductiveTypeSpecs {
         names: _,
-        parameters: params,
+        parameters,
         indices,
         sort,
         constructors,
@@ -156,7 +156,7 @@ pub fn acceptable_typespecs(
     // (ctx, parameter.var[..i]: parameter.ty[..i] |- parameter.ty[i] : sort)
     let mut well_derivation = vec![];
     let mut local_context = ctx.clone();
-    for (x, a) in params.iter() {
+    for (x, a) in parameters.iter() {
         let derivation = infer_sort(&local_context, a);
         let well_sorted = derivation.is_success();
         well_derivation.push(derivation);
@@ -391,7 +391,7 @@ struct RedexShapeInductiveTypeElim {
 fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 1. check e = Elim{ty}(e', q, f[])
     let Exp::IndElim {
-        indspec: ty,
+        indspec,
         elim,
         return_type: q,
         cases: f,
@@ -402,7 +402,7 @@ fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     // 2. check e' = Ctor{ty2, idx}{parameter[]} m[]
     let (
         Exp::IndCtor {
-            indspec: ty2,
+            indspec: indspec2,
             idx,
             parameters: parameter,
         },
@@ -413,32 +413,32 @@ fn indelim_shapecheck(e: &Exp) -> Result<RedexShapeInductiveTypeElim, String> {
     };
 
     // 2. check ty == ty2
-    if !std::rc::Rc::ptr_eq(ty, ty2) {
+    if !std::rc::Rc::ptr_eq(indspec, indspec2) {
         return Err("Elim type mismatch".to_string());
     }
 
     // 3. check ty.constructor[idx] exists
-    if *idx >= ty.constructor_len() {
+    if *idx >= indspec.constructor_len() {
         return Err("Constructor index out of bounds".to_string());
     }
 
     // 4. check number of parameter (given to constructor) is match with ty's parameter length
-    if parameter.len() != ty.param_args_len() {
+    if parameter.len() != indspec.param_args_len() {
         return Err("Constructor (parameter) arguments length mismatch".to_string());
     }
 
     // 5. check number of arguments (given to constructor) is match with ty's constructor[idx]'s argument length
-    if m.len() != ty.arg_len_cst(*idx) {
+    if m.len() != indspec.arg_len_cst(*idx) {
         return Err("Constructor (constructor specific) arguments length mismatch".to_string());
     }
 
     // 6. check number of cases is match with ty's constructor length
-    if f.len() != ty.constructor_len() {
+    if f.len() != indspec.constructor_len() {
         return Err("Cases length mismatch".to_string());
     }
 
     Ok(RedexShapeInductiveTypeElim {
-        ty: ty.clone(),
+        ty: indspec.clone(),
         idx: *idx,
         parameter: parameter.clone(),
         m: m.iter().map(|e| (**e).clone()).collect(),
