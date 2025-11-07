@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use crate::exp::{
-    Derivation, ProofTree, PropositionJudgement, ProveCommandBy, ProveGoal, TypeJudgement, Var,
+    DerivationSuccess, PropositionJudgement, ProveCommandBy, ProveGoal, TypeJudgement, Var,
 };
 
 impl Debug for Var {
@@ -248,7 +248,8 @@ impl Display for TypeJudgement {
 
 pub enum Node {
     Success(String),
-    Error(String),
+    ErrorPropagate(String),
+    ErrorCause(String),
     Pending(String),
 }
 
@@ -257,7 +258,7 @@ pub struct StringTree {
     pub children: Vec<StringTree>,
 }
 
-pub fn map_derivation(der: &Derivation) -> StringTree {
+pub fn map_derivation(der: &DerivationSuccess) -> StringTree {
     match der {
         Derivation::DerivationSuccess {
             conclusion,

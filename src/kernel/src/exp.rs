@@ -355,7 +355,72 @@ pub enum DerivationSuccess {
         rule: String,
         phase: String,
     },
+    WellFormedInductive {
+        ctx: Context,
+        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+    },
     Solve(Rc<DerivationSuccess>),
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationFailCaused {
+    TypeJudgement {
+        ctx: Context,
+        term: Exp,
+        ty: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        cause: String,
+        rule: String,
+        phase: String,
+    },
+    ProofJudgement {
+        ctx: Context,
+        prop: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        cause: String,
+        rule: String,
+        phase: String,
+    },
+    SolveFail {
+        solvetree: Rc<DerivationSuccess>,
+        cause: String,
+    },
+    IllFormedInductive {
+        ctx: Context,
+        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        fail: DerivationFail,
+        cause: String,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationFailPropagate {
+    TypeJudgement {
+        ctx: Context,
+        term: Exp,
+        ty: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        fail: DerivationFail,
+        rule: String,
+        phase: String,
+        expect: String,
+    },
+    ProofJudgement {
+        ctx: Context,
+        prop: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        fail: DerivationFail,
+        rule: String,
+        phase: String,
+        expect: String,
+    },
+    SolveFail(DerivationFail),
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationFail {
+    Caused(Box<DerivationFailCaused>),
+    Propagate(Box<DerivationFailPropagate>),
 }
 
 impl DerivationSuccess {
@@ -397,62 +462,7 @@ impl DerivationSuccess {
                 }
                 None
             }
-            DerivationSuccess::Solve(_) => None,
+            DerivationSuccess::WellFormedInductive { .. } | DerivationSuccess::Solve(_) => None,
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum DerivationFailCaused {
-    TypeJudgement {
-        ctx: Context,
-        term: Exp,
-        ty: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        cause: String,
-        rule: String,
-        phase: String,
-    },
-    ProofJudgement {
-        ctx: Context,
-        prop: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        cause: String,
-        rule: String,
-        phase: String,
-    },
-    SolveFail {
-        solvetree: Rc<DerivationSuccess>,
-        cause: String,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub enum DerivationFailPropagate {
-    TypeJudgement {
-        ctx: Context,
-        term: Exp,
-        ty: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        fail: DerivationFail,
-        rule: String,
-        phase: String,
-        expect: String,
-    },
-    ProofJudgement {
-        ctx: Context,
-        prop: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        fail: DerivationFail,
-        rule: String,
-        phase: String,
-        expect: String,
-    },
-    SolveFail(DerivationFail),
-}
-
-#[derive(Debug, Clone)]
-pub enum DerivationFail {
-    Caused(Box<DerivationFailCaused>),
-    Propagate(Box<DerivationFailPropagate>),
 }

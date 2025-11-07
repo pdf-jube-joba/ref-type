@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
-    builder::{check, infer_sort},
+    derivation::{check, infer_sort},
     utils,
 };
 
@@ -144,7 +144,7 @@ impl CtorType {
 pub fn acceptable_typespecs(
     ctx: &Context, // assume well-formed
     inductive_type_specs: &InductiveTypeSpecs,
-) -> (Vec<Derivation>, Result<(), String>) {
+) -> Result<DerivationSuccess, DerivationFail> {
     let InductiveTypeSpecs {
         names: _,
         parameters,
@@ -158,14 +158,20 @@ pub fn acceptable_typespecs(
     let mut local_context = ctx.clone();
     for (x, a) in parameters.iter() {
         let derivation = infer_sort(&local_context, a);
-        let well_sorted = derivation.is_success();
-        well_derivation.push(derivation);
 
-        if !well_sorted {
-            return (
-                well_derivation,
-                Err("Parameter type is not well-sorted".to_string()),
-            );
+        match derivation {
+            Ok(ok) => {
+                well_derivation.push(ok);
+            }
+            Err(err) => {
+                let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
+                    ctx: local_context,
+                    indspec: Rc::new(inductive_type_specs.clone()),
+                    fail: err,
+                    cause: format!("Parameter {x:?} is not well-sorted"),
+                };
+                return Err(DerivationFail::Caused(Box::new(err_der)));
+            }
         }
 
         local_context = ctx_extend(&local_context, (x.clone(), a.clone()));
@@ -177,11 +183,19 @@ pub fn acceptable_typespecs(
     // (ctx, parameters[] |- arity : sort)
     let arity = utils::assoc_prod(indices.clone(), Exp::Sort(*sort));
     let derivation = infer_sort(&local_context, &arity);
-    let well_sorted = derivation.is_success();
-    well_derivation.push(derivation);
-
-    if !well_sorted {
-        return (well_derivation, Err("Arity is not well-sorted".to_string()));
+    match derivation {
+        Ok(ok) => {
+            well_derivation.push(ok);
+        }
+        Err(err) => {
+            let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
+                ctx: local_context,
+                indspec: Rc::new(inductive_type_specs.clone()),
+                fail: err,
+                cause: "Arity is not well-sorted".to_string(),
+            };
+            return Err(DerivationFail::Caused(Box::new(err_der)));
+        }
     }
 
     // 3. check constructors are well-sorted (constructor can depend on parameters and each params)
@@ -194,18 +208,27 @@ pub fn acceptable_typespecs(
         let cst_type = cst.as_exp_with_type(&Exp::Var(this.clone()));
         // check (ctx |- cst_type : sort)
         let derivation = check(&local_context, &cst_type, &Exp::Sort(*sort));
-        let well_typed = derivation.is_success();
-        well_derivation.push(derivation);
-
-        if !well_typed {
-            return (
-                well_derivation,
-                Err(format!("Constructor {cst:?} is not well-sorted")),
-            );
+        match derivation {
+            Ok(ok) => {
+                well_derivation.push(ok);
+            }
+            Err(err) => {
+                let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
+                    ctx: local_context.clone(),
+                    indspec: Rc::new(inductive_type_specs.clone()),
+                    fail: err,
+                    cause: "Constructor is not well-sorted".to_string(),
+                };
+                return Err(DerivationFail::Caused(Box::new(err_der)));
+            }
         }
     }
 
-    (well_derivation, Ok(()))
+    let ok: DerivationSuccess = DerivationSuccess::WellFormedInductive {
+        ctx: ctx.clone(),
+        indspec: Rc::new(inductive_type_specs.clone()),
+    };
+    Ok(ok)
 }
 
 // return type of corresponding eliminator case for the given constructor
@@ -684,9 +707,8 @@ mod tests {
                 indices: vec![],
             }],
         };
-        let (_, res) = acceptable_typespecs(&Context::new(), &specs);
+        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
-        assert!(res.is_ok(), "Unit type should be acceptable");
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Unit type: {prin_rec}");
     }
@@ -711,9 +733,8 @@ mod tests {
                 },
             ],
         };
-        let (_, res) = acceptable_typespecs(&Context::new(), &specs);
+        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
-        assert!(res.is_ok(), "Bool type should be acceptable");
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Bool type: {prin_rec}");
     }
@@ -741,9 +762,8 @@ mod tests {
                 },
             ],
         };
-        let (_, res) = acceptable_typespecs(&Context::new(), &specs);
+        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
-        assert!(res.is_ok(), "Nat type should be acceptable");
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Nat type: {prin_rec}");
     }
