@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
-    derivation::{check, infer_sort},
+    builder::{check, infer_sort},
     utils,
 };
 

@@ -154,7 +154,7 @@ impl GlobalEnvironment {
             for (v, ty) in parameters_elab.iter() {
                 self.logger
                     .log(format!("Checking parameter {} : {}", v.as_str(), ty));
-                let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty);
+                let der = kernel::builder::infer_sort(&self.elaborator.parameters, ty);
                 let res = self.add_der(der.clone());
 
                 match res {
@@ -205,7 +205,7 @@ impl GlobalEnvironment {
                                 self.logger.log(format!("Normalize result: {}", after));
                             }
                             Query::Checking { exp, ty } => {
-                                let der = kernel::derivation::check(
+                                let der = kernel::builder::check(
                                     &self.elaborator.parameters,
                                     &exp,
                                     &ty,
@@ -234,7 +234,7 @@ impl GlobalEnvironment {
                             }
                             Query::Infer { exp } => {
                                 let der =
-                                    kernel::derivation::infer(&self.elaborator.parameters, &exp);
+                                    kernel::builder::infer(&self.elaborator.parameters, &exp);
                                 let ty: Option<Exp> = der.result_type().cloned();
                                 match self.add_der(der) {
                                     Some(true) => {
@@ -265,7 +265,7 @@ impl GlobalEnvironment {
 
                 match &item_elab {
                     Item::Definition { name, ty, body } => {
-                        let der = kernel::derivation::check(&self.elaborator.parameters, body, ty);
+                        let der = kernel::builder::check(&self.elaborator.parameters, body, ty);
                         let res = self.add_der(der);
                         match res {
                             Some(true) => {
@@ -359,7 +359,7 @@ impl GlobalEnvironment {
 
                                 let ty_substed = exp_subst_map(ty, &subst_maps);
                                 let der =
-                                    kernel::derivation::check(&self.elaborator.parameters, arg, ty);
+                                    kernel::builder::check(&self.elaborator.parameters, arg, ty);
                                 self.logger.log_derivation(der.clone());
                                 if !der.is_success() {
                                     return Err(format!(

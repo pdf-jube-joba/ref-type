@@ -6,6 +6,8 @@ pub mod utils;
 pub mod inductive;
 // alpha conversion, substitution, free variables
 pub mod calculus;
+// builder for derivation tree
+pub mod builder;
 // type check, type inference, sort inference
 pub mod derivation;
 // pretty printing

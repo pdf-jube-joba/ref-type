@@ -19,13 +19,13 @@ impl Checker {
         &self.derivations
     }
     fn check(&mut self, term: &Exp, ty: &Exp) -> bool {
-        let derivation = crate::derivation::check(&self.context, term, ty);
+        let derivation = crate::builder::check(&self.context, term, ty);
         let res = derivation.is_success();
         self.derivations.push(derivation);
         res
     }
     fn infer(&mut self, term: &Exp) -> Option<Exp> {
-        let derivation = crate::derivation::infer(&self.context, term);
+        let derivation = crate::builder::infer(&self.context, term);
         let ty = {
             if let crate::exp::Derivation::DerivationSuccess { conclusion, .. } = &derivation {
                 conclusion.ty.clone()
@@ -39,7 +39,7 @@ impl Checker {
         ty
     }
     fn prove_command(&self, command: &ProveCommandBy) -> Result<crate::exp::ProofTree, Derivation> {
-        crate::derivation::prove_command(&self.context, command)
+        crate::builder::prove_command(&self.context, command)
     }
     fn chk_indspec(
         &mut self,
@@ -61,7 +61,7 @@ impl Checker {
         Ok(indspecs)
     }
     fn push(&mut self, var: Var, ty: Exp) -> bool {
-        let der = crate::derivation::infer_sort(&self.context, &ty);
+        let der = crate::builder::infer_sort(&self.context, &ty);
         let res = der.is_success();
         self.derivations.push(der);
         if res {
