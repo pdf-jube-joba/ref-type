@@ -450,3 +450,4 @@ impl Builder {
 }
 
 mod functions;
+use functions::{check, infer, infer_sort};
