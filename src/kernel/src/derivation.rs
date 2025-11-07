@@ -1,13 +1,17 @@
 // All judgement functions return a Derivation (the trace) plus a payload indicating success/value.
 // ? for output value
 
+use std::rc;
 use std::rc::Rc;
 
 use crate::inductive::eliminator_type;
 use crate::utils;
+use functions::{check, infer, infer_sort, prove_command};
 
 use crate::calculus::*;
 use crate::exp::*;
+
+mod functions;
 
 // 許して
 #[derive(Debug, Clone)]
@@ -24,6 +28,7 @@ struct Builder {
 enum Head {
     Check { term: Exp, ty: Exp },
     Infer { term: Exp },
+    InferSort { ty: Exp },
     Prop,
 }
 
@@ -252,6 +257,65 @@ impl Builder {
         }
     }
 
+    fn add_proof(&mut self, ctx: &Context, command: ProveCommandBy) -> Result<Exp, DerivationFail> {
+        let derivation = prove_command(ctx, &command);
+        match derivation {
+            Ok(ok) => {
+                let prop = ok.prop_of().unwrap().clone();
+                self.premises.push(ok);
+                Ok(prop)
+            }
+            Err(err) => {
+                assert!(self.generated_goals.is_empty());
+                let Builder {
+                    ctx,
+                    head,
+                    premises,
+                    generated_goals: _,
+                    rule,
+                    phase,
+                } = self.clone();
+                Err(match head {
+                    Head::Check { term, ty } => DerivationFail::Propagate(Box::new(
+                        DerivationFailPropagate::TypeJudgement {
+                            ctx,
+                            term,
+                            ty: Some(ty.clone()),
+                            premises: premises.clone(),
+                            fail: err,
+                            rule,
+                            phase,
+                            expect: "a proof".to_string(),
+                        },
+                    )),
+                    Head::Infer { term } => DerivationFail::Propagate(Box::new(
+                        DerivationFailPropagate::TypeJudgement {
+                            ctx,
+                            term,
+                            ty: None,
+                            premises: premises.clone(),
+                            fail: err,
+                            rule,
+                            phase,
+                            expect: "a proof".to_string(),
+                        },
+                    )),
+                    Head::Prop => DerivationFail::Propagate(Box::new(
+                        DerivationFailPropagate::ProofJudgement {
+                            ctx,
+                            prop: None,
+                            premises: premises.clone(),
+                            fail: err,
+                            rule,
+                            phase,
+                            expect: "a proof".to_string(),
+                        },
+                    )),
+                })
+            }
+        }
+    }
+
     fn add_unproved_goal(&mut self, ctx: Context, proposition: Exp) {
         self.generated_goals.push(GoalGenerated {
             ctx,
@@ -260,62 +324,81 @@ impl Builder {
         });
     }
 
-    fn solve(mut self, solve_goal: DerivationSuccess) -> Result<Self, DerivationFail> {
-        assert!(matches!(
-            solve_goal,
-            DerivationSuccess::ProofJudgement { .. }
-        ));
-        let rc = Rc::new(solve_goal);
-        self.premises.push(DerivationSuccess::Solve(rc.clone()));
-        let first_goal = self
-            .premises
-            .iter_mut()
-            .find_map(|der| der.first_unproved_mut());
-        match first_goal {
-            Some(goal) => {
-                goal.solvetree = Some(rc);
-                Ok(self)
-            }
-            None => {
-                // error, no unproved goal found => DerivationFail::Caused
-                let Builder {
-                    ctx,
-                    head,
-                    premises,
-                    generated_goals: _,
-                    rule,
-                    phase,
-                } = self;
-                Err(DerivationFail::Caused(Box::new(match head {
-                    Head::Check { term, ty } => DerivationFailCaused::TypeJudgement {
-                        ctx,
-                        term,
-                        ty: Some(ty),
-                        premises,
-                        cause: "no unproved goal found when solving".to_string(),
-                        rule,
-                        phase,
-                    },
-                    Head::Infer { term } => DerivationFailCaused::TypeJudgement {
-                        ctx,
-                        term,
-                        ty: None,
-                        premises,
-                        cause: "no unproved goal found when solving".to_string(),
-                        rule,
-                        phase,
-                    },
-                    Head::Prop => DerivationFailCaused::ProofJudgement {
-                        ctx,
-                        prop: None,
-                        premises,
-                        cause: "no unproved goal found when solving".to_string(),
-                        rule,
-                        phase,
-                    },
-                })))
+    fn resolve_goal(&mut self) -> Result<(), DerivationFail> {
+        let mut rcs = vec![];
+        let mut premises = vec![];
+        let mut rc_premised = vec![];
+
+        for premise in self.premises.drain(..) {
+            if let DerivationSuccess::ProofJudgement { ctx, prop, .. } = &premise {
+                let (ctx, prop) = (ctx.clone(), prop.clone());
+                let rc = rc::Rc::new(premise);
+                rcs.push((rc.clone(), ctx, prop));
+                rc_premised.push(DerivationSuccess::Solve(rc));
+            } else {
+                premises.push(premise);
             }
         }
+
+        self.premises = premises;
+
+        for (rc, ctx, prop) in rcs {
+            let first_goal = self
+                .premises
+                .iter_mut()
+                .find_map(|der| der.first_unproved_mut());
+            match first_goal {
+                Some(goal) => {
+                    if exp_is_alpha_eq_under_ctx(&goal.ctx, &goal.proposition, &ctx, &prop) {
+                        goal.solvetree = Some(rc);
+                    } else {
+                        return Err(self
+                            .clone()
+                            .cause("unproved goal found, but proposition mismatch"));
+                    }
+                }
+                None => {
+                    // error, no unproved goal found => DerivationFail::Caused
+                    let Builder {
+                        ctx,
+                        head,
+                        premises,
+                        generated_goals: _,
+                        rule,
+                        phase,
+                    } = self.clone();
+                    return Err(DerivationFail::Caused(Box::new(match head {
+                        Head::Check { term, ty } => DerivationFailCaused::TypeJudgement {
+                            ctx,
+                            term,
+                            ty: Some(ty),
+                            premises,
+                            cause: "no unproved goal found when solving".to_string(),
+                            rule,
+                            phase,
+                        },
+                        Head::Infer { term } => DerivationFailCaused::TypeJudgement {
+                            ctx,
+                            term,
+                            ty: None,
+                            premises,
+                            cause: "no unproved goal found when solving".to_string(),
+                            rule,
+                            phase,
+                        },
+                        Head::Prop => DerivationFailCaused::ProofJudgement {
+                            ctx,
+                            prop: None,
+                            premises,
+                            cause: "no unproved goal found when solving".to_string(),
+                            rule,
+                            phase,
+                        },
+                    })));
+                }
+            }
+        }
+        todo!()
     }
 
     fn build_check(self, through: bool) -> DerivationSuccess {
@@ -448,6 +531,3 @@ impl Builder {
         }))
     }
 }
-
-mod functions;
-use functions::{check, infer, infer_sort};
