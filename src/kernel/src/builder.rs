@@ -60,7 +60,7 @@ impl Builder {
             phase: "infer_sort".to_string(),
         }
     }
-    pub fn new_prop(ctx: Context) -> Self {
+    pub fn new_command(ctx: Context) -> Self {
         Builder {
             ctx,
             head: Head::Prop,
@@ -97,43 +97,32 @@ impl Builder {
                     rule,
                     phase,
                 } = self.clone();
-                Err(match head {
-                    Head::Check { term, ty } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: Some(ty),
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                    Head::Infer { term } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                    Head::Prop => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::ProofJudgement {
-                            ctx,
-                            prop: Some(ty.clone()),
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                })
+                let head: FailHead = match &head {
+                    Head::Check { term, ty } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: Some(ty.clone()),
+                    },
+                    Head::Infer { term } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: None,
+                    },
+                    Head::Prop => FailHead::ProofJudgement {
+                        ctx: ctx.clone(),
+                        prop: None,
+                    },
+                };
+                Err(DerivationFail::Propagate(Box::new(
+                    DerivationFailPropagate {
+                        head,
+                        premises: premises.clone(),
+                        fail: err,
+                        rule,
+                        phase,
+                        expect: expect.to_string(),
+                    },
+                )))
             }
         }
     }
@@ -160,43 +149,32 @@ impl Builder {
                     rule,
                     phase,
                 } = self.clone();
-                Err(match head {
-                    Head::Check { term, ty } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: Some(ty.clone()),
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                    Head::Infer { term } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                    Head::Prop => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::ProofJudgement {
-                            ctx,
-                            prop: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                })
+                let head = match &head {
+                    Head::Check { term, ty } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: Some(ty.clone()),
+                    },
+                    Head::Infer { term } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: None,
+                    },
+                    Head::Prop => FailHead::ProofJudgement {
+                        ctx: ctx.clone(),
+                        prop: None,
+                    },
+                };
+                Err(DerivationFail::Propagate(Box::new(
+                    DerivationFailPropagate {
+                        head,
+                        premises: premises.clone(),
+                        fail: err,
+                        rule,
+                        phase,
+                        expect: expect.to_string(),
+                    },
+                )))
             }
         }
     }
@@ -225,43 +203,32 @@ impl Builder {
                     rule,
                     phase,
                 } = self.clone();
-                Err(match head {
-                    Head::Check { term, ty } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: Some(ty.clone()),
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                    Head::Infer { term } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                    Head::Prop => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::ProofJudgement {
-                            ctx,
-                            prop: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: expect.to_string(),
-                        },
-                    )),
-                })
+                let head = match &head {
+                    Head::Check { term, ty } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: Some(ty.clone()),
+                    },
+                    Head::Infer { term } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: None,
+                    },
+                    Head::Prop => FailHead::ProofJudgement {
+                        ctx: ctx.clone(),
+                        prop: None,
+                    },
+                };
+                Err(DerivationFail::Propagate(Box::new(
+                    DerivationFailPropagate {
+                        head,
+                        premises: premises.clone(),
+                        fail: err,
+                        rule,
+                        phase,
+                        expect: expect.to_string(),
+                    },
+                )))
             }
         }
     }
@@ -270,11 +237,23 @@ impl Builder {
         &mut self,
         ctx: &Context,
         command: ProveCommandBy,
+        as_solve: bool,
     ) -> Result<Exp, DerivationFail> {
         let derivation = prove_command(ctx, &command);
         match derivation {
-            Ok(ok) => {
+            Ok(mut ok) => {
                 let prop = ok.prop_of().unwrap().clone();
+                if as_solve {
+                    let ok_head = SuccessHead::Solve(rc::Rc::new(ok));
+                    ok = DerivationSuccess {
+                        head: ok_head,
+                        premises: vec![],
+                        generated_goals: vec![],
+                        rule: "as solve".to_string(),
+                        phase: "as solve".to_string(),
+                        through: false,
+                    };
+                }
                 self.premises.push(ok);
                 Ok(prop)
             }
@@ -288,43 +267,32 @@ impl Builder {
                     rule,
                     phase,
                 } = self.clone();
-                Err(match head {
-                    Head::Check { term, ty } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: Some(ty.clone()),
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: "a proof".to_string(),
-                        },
-                    )),
-                    Head::Infer { term } => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: "a proof".to_string(),
-                        },
-                    )),
-                    Head::Prop => DerivationFail::Propagate(Box::new(
-                        DerivationFailPropagate::ProofJudgement {
-                            ctx,
-                            prop: None,
-                            premises: premises.clone(),
-                            fail: err,
-                            rule,
-                            phase,
-                            expect: "a proof".to_string(),
-                        },
-                    )),
-                })
+                let head = match &head {
+                    Head::Check { term, ty } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: Some(ty.clone()),
+                    },
+                    Head::Infer { term } => FailHead::TypeJudgement {
+                        ctx: ctx.clone(),
+                        term: term.clone(),
+                        ty: None,
+                    },
+                    Head::Prop => FailHead::ProofJudgement {
+                        ctx: ctx.clone(),
+                        prop: None,
+                    },
+                };
+                Err(DerivationFail::Propagate(Box::new(
+                    DerivationFailPropagate {
+                        head,
+                        premises: premises.clone(),
+                        fail: err,
+                        rule,
+                        phase,
+                        expect: "proof".to_string(),
+                    },
+                )))
             }
         }
     }
@@ -339,21 +307,18 @@ impl Builder {
 
     pub fn resolve_goal(&mut self) -> Result<(), DerivationFail> {
         let mut rcs = vec![];
-        let mut premises = vec![];
-        let mut rc_premised = vec![];
 
-        for premise in self.premises.drain(..) {
-            if let DerivationSuccess::ProofJudgement { ctx, prop, .. } = &premise {
-                let (ctx, prop) = (ctx.clone(), prop.clone());
-                let rc = rc::Rc::new(premise);
-                rcs.push((rc.clone(), ctx, prop));
-                rc_premised.push(DerivationSuccess::Solve(rc));
-            } else {
-                premises.push(premise);
+        for premise in &self.premises {
+            if let DerivationSuccess {
+                head: SuccessHead::Solve(rc),
+                ..
+            } = premise
+            {
+                let goal_ctx = rc.ctx_of().unwrap().clone();
+                let goal_prop = rc.prop_of().unwrap().clone();
+                rcs.push((rc.clone(), goal_ctx, goal_prop));
             }
         }
-
-        self.premises = premises;
 
         for (rc, ctx, prop) in rcs {
             let first_goal = self
@@ -380,33 +345,28 @@ impl Builder {
                         rule,
                         phase,
                     } = self.clone();
-                    return Err(DerivationFail::Caused(Box::new(match head {
-                        Head::Check { term, ty } => DerivationFailCaused::TypeJudgement {
-                            ctx,
-                            term,
-                            ty: Some(ty),
-                            premises,
-                            cause: "no unproved goal found when solving".to_string(),
-                            rule,
-                            phase,
+                    let head = match &head {
+                        Head::Check { term, ty } => FailHead::TypeJudgement {
+                            ctx: ctx.clone(),
+                            term: term.clone(),
+                            ty: Some(ty.clone()),
                         },
-                        Head::Infer { term } => DerivationFailCaused::TypeJudgement {
-                            ctx,
-                            term,
+                        Head::Infer { term } => FailHead::TypeJudgement {
+                            ctx: ctx.clone(),
+                            term: term.clone(),
                             ty: None,
-                            premises,
-                            cause: "no unproved goal found when solving".to_string(),
-                            rule,
-                            phase,
                         },
-                        Head::Prop => DerivationFailCaused::ProofJudgement {
-                            ctx,
+                        Head::Prop => FailHead::ProofJudgement {
+                            ctx: ctx.clone(),
                             prop: None,
-                            premises,
-                            cause: "no unproved goal found when solving".to_string(),
-                            rule,
-                            phase,
                         },
+                    };
+                    return Err(DerivationFail::Caused(Box::new(DerivationFailCaused {
+                        head,
+                        premises,
+                        rule,
+                        phase,
+                        cause: "no unproved goal found when solving".to_string(),
                     })));
                 }
             }
@@ -426,10 +386,9 @@ impl Builder {
         let Head::Check { term, ty } = head else {
             unreachable!("head must be Check in build_check")
         };
-        DerivationSuccess::TypeJudgement {
-            ctx,
-            term,
-            ty,
+        let head = SuccessHead::TypeJudgement { ctx, term, ty };
+        DerivationSuccess {
+            head,
             premises,
             generated_goals,
             rule,
@@ -449,10 +408,9 @@ impl Builder {
         let Head::Infer { term } = head else {
             unreachable!("head must be Infer in build_infer")
         };
-        DerivationSuccess::TypeJudgement {
-            ctx,
-            term,
-            ty,
+        let head = SuccessHead::TypeJudgement { ctx, term, ty };
+        DerivationSuccess {
+            head,
             premises,
             generated_goals,
             rule,
@@ -472,10 +430,13 @@ impl Builder {
         let Head::Infer { term } = head else {
             unreachable!("head must be Infer in build_sort")
         };
-        DerivationSuccess::TypeJudgement {
-            ctx,
-            term,
+        let head = SuccessHead::TypeJudgement {
+            ctx: ctx.clone(),
+            term: term.clone(),
             ty: Exp::Sort(sort),
+        };
+        DerivationSuccess {
+            head,
             premises,
             generated_goals,
             rule,
@@ -495,13 +456,17 @@ impl Builder {
         let Head::Prop = head else {
             unreachable!("head must be Prop in build_prop")
         };
-        DerivationSuccess::ProofJudgement {
-            ctx,
-            prop,
+        let head = SuccessHead::ProofJudgement {
+            ctx: ctx.clone(),
+            prop: prop.clone(),
+        };
+        DerivationSuccess {
+            head,
             premises,
             generated_goals,
             rule,
             phase,
+            through: false,
         }
     }
     pub fn cause(self, cause: &str) -> DerivationFail {
@@ -514,33 +479,28 @@ impl Builder {
             phase,
         } = self;
         assert!(generated_goals.is_empty());
-        DerivationFail::Caused(Box::new(match head {
-            Head::Check { term, ty } => DerivationFailCaused::TypeJudgement {
-                ctx,
-                term,
-                ty: Some(ty),
-                premises,
-                cause: cause.to_string(),
-                rule,
-                phase,
+        let head = match &head {
+            Head::Check { term, ty } => FailHead::TypeJudgement {
+                ctx: ctx.clone(),
+                term: term.clone(),
+                ty: Some(ty.clone()),
             },
-            Head::Infer { term } => DerivationFailCaused::TypeJudgement {
-                ctx,
-                term,
+            Head::Infer { term } => FailHead::TypeJudgement {
+                ctx: ctx.clone(),
+                term: term.clone(),
                 ty: None,
-                premises,
-                cause: cause.to_string(),
-                rule,
-                phase,
             },
-            Head::Prop => DerivationFailCaused::ProofJudgement {
-                ctx,
+            Head::Prop => FailHead::ProofJudgement {
+                ctx: ctx.clone(),
                 prop: None,
-                premises,
-                cause: cause.to_string(),
-                rule,
-                phase,
             },
+        };
+        DerivationFail::Caused(Box::new(DerivationFailCaused {
+            head,
+            premises,
+            rule,
+            phase,
+            cause: cause.to_string(),
         }))
     }
 }

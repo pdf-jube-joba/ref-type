@@ -1,6 +1,5 @@
 use crate::{
-    calculus::exp_is_alpha_eq,
-    exp::{Context, DerivationSuccess, Exp, ProveCommandBy, ProveGoal, Sort, Var},
+    exp::{Context, DerivationSuccess, Exp, ProveCommandBy, ProveGoal, Sort, SuccessHead, Var},
     inductive::CtorBinder,
     utils::{self, app, lam, prod, prooflater, var},
 };
@@ -26,7 +25,11 @@ impl Checker {
     fn infer(&mut self, term: &Exp) -> Option<Exp> {
         let derivation = crate::derivation::infer(&self.context, term).unwrap();
         let ty = {
-            if let DerivationSuccess::TypeJudgement { ty, .. } = &derivation {
+            if let DerivationSuccess {
+                head: SuccessHead::TypeJudgement { ty, .. },
+                ..
+            } = &derivation
+            {
                 ty.clone()
             } else {
                 panic!("Expected TypeJudgement");
@@ -324,94 +327,89 @@ fn proof_by_assumption() {
     }
 }
 
-// // same but in Exp::Cast and solve all goals
-// // P1: \Prop, P2: \Prop, p1: P1, pm: P1 -> P2 |- (ProofLater(P1 -> P2) ProofLater(P1)): P2
-// #[test]
-// fn solvegoals() {
-//     let mut checker = Checker::default();
-//     let pp1 = var!("P1");
-//     let pp2 = var!("P2");
-//     let p1 = var!("p1");
-//     let pm = var!("pm");
-//     let p1impp2 = prod! {
-//         var: var!("_"),
-//         ty: Exp::Var(pp1.clone()),
-//         body: Exp::Var(pp2.clone()),
-//     };
-//     push_var(&mut checker, &pp1, Exp::Sort(Sort::Prop));
-//     push_var(&mut checker, &pp2, Exp::Sort(Sort::Prop));
-//     push_var(&mut checker, &p1, Exp::Var(pp1.clone()));
-//     push_var(&mut checker, &pm, p1impp2.clone());
+// same but in Exp::Cast and solve all goals
+// P1: \Prop, P2: \Prop, p1: P1, pm: P1 -> P2 |- (ProofLater(P1 -> P2) ProofLater(P1)): P2
+#[test]
+fn solvegoals() {
+    let mut checker = Checker::default();
+    let pp1 = var!("P1");
+    let pp2 = var!("P2");
+    let p1 = var!("p1");
+    let pm = var!("pm");
+    let p1impp2 = prod! {
+        var: var!("_"),
+        ty: Exp::Var(pp1.clone()),
+        body: Exp::Var(pp2.clone()),
+    };
+    checker.push(pp1.clone(), Exp::Sort(Sort::Prop));
+    checker.push(pp2.clone(), Exp::Sort(Sort::Prop));
+    checker.push(p1.clone(), Exp::Var(pp1.clone()));
+    checker.push(pm.clone(), p1impp2.clone());
 
-//     let proof_term = {
-//         // ProofLater(P1 -> P2) ProofLater(P1))
-//         let exp = app! {
-//             func: prooflater!(
-//                 prod!{
-//                     var: var!("_"),
-//                     ty: Exp::Var(pp1.clone()),
-//                     body: Exp::Var(pp2.clone()),
-//                 }
-//             ),
-//             arg: prooflater!(Exp::Var(pp1.clone())),
-//         };
-//         let goals: Vec<_> = vec![
-//             ProveGoal {
-//                 extended_ctx: vec![],
-//                 goal_prop: p1impp2.clone(),
-//                 command: ProveCommandBy::Construct(Exp::Var(pm.clone())),
-//             },
-//             ProveGoal {
-//                 extended_ctx: vec![],
-//                 goal_prop: Exp::Var(pp1.clone()),
-//                 command: ProveCommandBy::Construct(Exp::Var(p1.clone())),
-//             },
-//         ];
+    let proof_term = {
+        // ProofLater(P1 -> P2) ProofLater(P1))
+        let exp = app! {
+            func: prooflater!(
+                prod!{
+                    var: var!("_"),
+                    ty: Exp::Var(pp1.clone()),
+                    body: Exp::Var(pp2.clone()),
+                }
+            ),
+            arg: prooflater!(Exp::Var(pp1.clone())),
+        };
+        let goals: Vec<_> = vec![
+            ProveGoal {
+                extended_ctx: vec![],
+                goal_prop: p1impp2.clone(),
+                command: ProveCommandBy::Construct(Exp::Var(pm.clone())),
+            },
+            ProveGoal {
+                extended_ctx: vec![],
+                goal_prop: Exp::Var(pp1.clone()),
+                command: ProveCommandBy::Construct(Exp::Var(p1.clone())),
+            },
+        ];
 
-//         Exp::ProveHere {
-//             exp: Box::new(exp),
-//             goals,
-//         }
-//     };
+        Exp::ProveHere {
+            exp: Box::new(exp),
+            goals,
+        }
+    };
 
-//     infer_term(&mut checker, &proof_term, &Exp::Var(pp2.clone()));
-// }
+    checker.infer(&proof_term).unwrap();
+}
 
-// /*
-// inductive Nat : Set 0 :=
-// | Zero : Nat
-// | Succ : Nat -> Nat
-// */
-// #[test]
-// fn nat_test() {
-//     let params = vec![];
-//     let indices = vec![];
-//     let sort = Sort::Set(0);
-//     let constructors = vec![
-//         crate::inductive::CtorType {
-//             telescope: vec![],
-//             indices: vec![],
-//         },
-//         crate::inductive::CtorType {
-//             telescope: vec![
-//                 (CtorBinder::StrictPositive {
-//                     binders: vec![],
-//                     self_indices: vec![],
-//                 }),
-//             ],
-//             indices: vec![],
-//         },
-//     ];
+/*
+inductive Nat : Set 0 :=
+| Zero : Nat
+| Succ : Nat -> Nat
+*/
+#[test]
+fn nat_test() {
+    let params = vec![];
+    let indices = vec![];
+    let sort = Sort::Set(0);
+    let constructors = vec![
+        crate::inductive::CtorType {
+            telescope: vec![],
+            indices: vec![],
+        },
+        crate::inductive::CtorType {
+            telescope: vec![
+                (CtorBinder::StrictPositive {
+                    binders: vec![],
+                    self_indices: vec![],
+                }),
+            ],
+            indices: vec![],
+        },
+    ];
 
-//     let mut checker = Checker::default();
-//     let _indspecs = std::rc::Rc::new(
-//         checker
-//             .chk_indspec(params, indices, sort, constructors)
-//             .unwrap(),
-//     );
-
-//     checker.history().iter().for_each(|der| {
-//         println!("{}", der);
-//         assert!(der.is_success());
-//     });
-// }
+    let mut checker = Checker::default();
+    let _indspecs = std::rc::Rc::new(
+        checker
+            .chk_indspec(params, indices, sort, constructors)
+            .unwrap(),
+    );
+}

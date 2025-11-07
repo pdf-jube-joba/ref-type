@@ -1,6 +1,9 @@
 use std::fmt::{Debug, Display};
 
-use crate::exp::{ProveCommandBy, ProveGoal, Var};
+use crate::exp::{
+    DerivationFail, DerivationFailCaused, DerivationFailPropagate, DerivationSuccess, FailHead,
+    GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
+};
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -222,164 +225,226 @@ pub enum Node {
     Pending(String),
 }
 
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Success(s) => write!(f, "\x1b[32m{}\x1b[0m", s),
+            Node::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s),
+            Node::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s),
+            Node::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s),
+        }
+    }
+}
+
 pub struct StringTree {
     pub head: Node,
     pub children: Vec<StringTree>,
 }
 
-// pub fn map_derivation(der: &DerivationSuccess) -> StringTree {
-//     match der {
-//         Derivation::DerivationSuccess {
-//             conclusion,
-//             premises,
-//             rule,
-//             meta,
-//         } => {
-//             match meta {
-//                 crate::exp::Meta::Usual(string) => StringTree {
-//                     head: Node::Success(format!("{} by {} [{}]", conclusion, rule, string)),
-//                     children: premises.iter().map(map_derivation).collect(),
-//                 },
-//                 crate::exp::Meta::Through(string) => {
-//                     // premises.len() == 1 and we print this with meta info
-//                     let first = premises.first().unwrap();
-//                     let mut sttree = map_derivation(first);
-//                     sttree.head = Node::Success(format!(
-//                         "{} through [{}]",
-//                         match &sttree.head {
-//                             Node::Success(s) => s,
-//                             Node::Error(s) => s,
-//                             Node::Pending(s) => s,
-//                         },
-//                         string
-//                     ));
-//                     sttree
-//                 }
-//             }
-//         }
-//         Derivation::DerivationFail {
-//             conclusion,
-//             premises,
-//             rule,
-//             meta,
-//         } => {
-//             match meta {
-//                 crate::exp::Meta::Usual(string) => StringTree {
-//                     head: Node::Error(format!("{} by {} [{}]", conclusion, rule, string)),
-//                     children: premises.iter().map(map_derivation).collect(),
-//                 },
-//                 crate::exp::Meta::Through(string) => {
-//                     // premises.len() == 1 and we print this with meta info
-//                     let first = premises.first().unwrap();
-//                     let mut sttree = map_derivation(first);
-//                     sttree.head = Node::Error(format!(
-//                         "{} through [{}]",
-//                         match &sttree.head {
-//                             Node::Success(s) => s,
-//                             Node::Error(s) => s,
-//                             Node::Pending(s) => s,
-//                         },
-//                         string
-//                     ));
-//                     sttree
-//                 }
-//             }
-//         }
-//         Derivation::GoalGenerated {
-//             proposition,
-//             solvetree,
-//         } => {
-//             let head = match solvetree {
-//                 Some(rc) => Node::Success(format!("{proposition}[Solve by {:p}]", rc.as_ref())),
-//                 None => Node::Pending(format!("{proposition}[Not yet solved]")),
-//             };
-//             StringTree {
-//                 head,
-//                 children: vec![],
-//             }
-//         }
-//         Derivation::SolveSuccess(proof_tree) => {
-//             let ProofTree {
-//                 conclusion,
-//                 premises,
-//                 rule,
-//                 meta,
-//             } = proof_tree.as_ref();
-//             match meta {
-//                 crate::exp::Meta::Usual(string) => StringTree {
-//                     head: Node::Success(format!("{} by {} [{}]", conclusion, rule, string)),
-//                     children: premises.iter().map(map_derivation).collect(),
-//                 },
-//                 crate::exp::Meta::Through(string) => {
-//                     // premises.len() == 1 and we print this with meta info
-//                     let first = premises.first().unwrap();
-//                     let mut sttree = map_derivation(first);
-//                     sttree.head = Node::Success(format!(
-//                         "{} through [{}]",
-//                         match &sttree.head {
-//                             Node::Success(s) => s,
-//                             Node::Error(s) => s,
-//                             Node::Pending(s) => s,
-//                         },
-//                         string
-//                     ));
-//                     sttree
-//                 }
-//             }
-//         }
-//         Derivation::SolveFail {
-//             conclusion,
-//             premises,
-//             rule,
-//             meta,
-//         } => {
-//             match meta {
-//                 crate::exp::Meta::Usual(string) => StringTree {
-//                     head: Node::Error(format!("{} by {} [{}]", conclusion, rule, string)),
-//                     children: premises.iter().map(map_derivation).collect(),
-//                 },
-//                 crate::exp::Meta::Through(string) => {
-//                     // premises.len() == 1 and we print this with meta info
-//                     let first = premises.first().unwrap();
-//                     let mut sttree = map_derivation(first);
-//                     sttree.head = Node::Error(format!(
-//                         "{} through [{}]",
-//                         match &sttree.head {
-//                             Node::Success(s) => s,
-//                             Node::Error(s) => s,
-//                             Node::Pending(s) => s,
-//                         },
-//                         string
-//                     ));
-//                     sttree
-//                 }
-//             }
-//         }
-//     }
-// }
+pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
+    let DerivationSuccess {
+        head,
+        premises,
+        generated_goals,
+        rule,
+        phase,
+        through,
+    } = derivation;
+    if *through {
+        let StringTree { head, children } = map_derivation_success(&premises[0]);
+        StringTree {
+            head: Node::Success(format!("{} throught {}", head, rule)),
+            children,
+        }
+    } else {
+        let head = match head {
+            SuccessHead::TypeJudgement { ctx, term, ty } => Node::Success(format!(
+                "[{} |- {} : {}] {} [{}]",
+                print_ctx(ctx),
+                term,
+                ty,
+                rule,
+                phase
+            )),
+            SuccessHead::ProofJudgement { ctx, prop } => Node::Success(format!(
+                "[{} |= {}] {} [{}]",
+                print_ctx(ctx),
+                prop,
+                rule,
+                phase
+            )),
+            SuccessHead::WellFormednessInductive { ctx, indspec } => Node::Success(format!(
+                "[{} |- wf_inductive {}]",
+                print_ctx(ctx),
+                indspec.names.0
+            )),
+            SuccessHead::Solve(derivation_success) => {
+                let head = map_derivation_success(derivation_success);
+                return StringTree {
+                    head: Node::Success(format!("Solve goal{:p}", derivation_success)),
+                    children: vec![head],
+                };
+            }
+        };
+        let mut v = vec![];
+        for premise in premises {
+            v.push(map_derivation_success(premise));
+        }
+        for goal in generated_goals {
+            let GoalGenerated {
+                ctx,
+                proposition,
+                solvetree,
+            } = goal;
+            let head = match solvetree {
+                Some(rc) => Node::Success(format!(
+                    "!Solved[{} |= {}] via {:p}",
+                    print_ctx(ctx),
+                    proposition,
+                    rc
+                )),
+                None => Node::Pending(format!("!UnSolved[{} |= {}]", print_ctx(ctx), proposition)),
+            };
+            v.push(StringTree {
+                head,
+                children: vec![],
+            });
+        }
+        StringTree { head, children: v }
+    }
+}
 
-// fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -> std::fmt::Result {
-//     for _ in 0..indent {
-//         write!(f, "  ")?;
-//     }
-//     writeln!(
-//         f,
-//         "{}",
-//         match &tree.head {
-//             Node::Success(s) => format!("\x1b[32m{}\x1b[0m", s),
-//             Node::Error(s) => format!("\x1b[31m{}\x1b[0m", s),
-//             Node::Pending(s) => format!("\x1b[33m{}\x1b[0m", s),
-//         }
-//     )?;
-//     for child in &tree.children {
-//         fmt_tree(f, child, indent + 1)?;
-//     }
-//     Ok(())
-// }
+pub fn map_derivation_failcause(derivation: &DerivationFailCaused) -> StringTree {
+    // error exactly caused at here
+    let DerivationFailCaused {
+        head,
+        premises,
+        rule,
+        phase,
+        cause,
+    } = derivation;
+    let head = match head {
+        FailHead::TypeJudgement { ctx, term, ty } => Node::ErrorCause(format!(
+            "[{} |- {} : {}]{{{cause}}} {} [{}]",
+            print_ctx(ctx),
+            term,
+            match ty {
+                Some(ty) => ty.to_string(),
+                None => "<?>".to_string(),
+            },
+            rule,
+            phase
+        )),
+        FailHead::ProofJudgement { ctx, prop } => Node::ErrorCause(format!(
+            "[{} |= {}]{{{cause}}} {} [{}]",
+            print_ctx(ctx),
+            match prop {
+                Some(prop) => prop.to_string(),
+                None => "<?>".to_string(),
+            },
+            rule,
+            phase
+        )),
+        FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorCause(format!(
+            "[{} |- wf_inductive {}] {} [{}]",
+            print_ctx(ctx),
+            indspec.names.0,
+            rule,
+            phase
+        )),
+        FailHead::Solve(derivation_success) => {
+            let tree = map_derivation_success(derivation_success);
+            let head = format!("solved but something wrong{:p}", derivation_success);
+            return StringTree {
+                head: Node::ErrorCause(head),
+                children: vec![tree],
+            };
+        }
+    };
+    let mut v = vec![];
+    for premise in premises {
+        v.push(map_derivation_success(premise));
+    }
+    StringTree { head, children: v }
+}
 
-// impl Display for Derivation {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let tree = map_derivation(self);
-//         fmt_tree(f, &tree, 0)
-//     }
-// }
+fn map_derivation_failpropagate(derivation: &DerivationFailPropagate) -> StringTree {
+    // error propagated from children
+    let DerivationFailPropagate {
+        head,
+        premises,
+        fail,
+        rule,
+        phase,
+        expect,
+    } = derivation;
+    let head = match head {
+        FailHead::TypeJudgement { ctx, term, ty } => Node::ErrorPropagate(format!(
+            "[{} |- {} : {}]{{{expect}}} {} [{}]",
+            print_ctx(ctx),
+            term,
+            match ty {
+                Some(ty) => ty.to_string(),
+                None => "<?>".to_string(),
+            },
+            rule,
+            phase
+        )),
+        FailHead::ProofJudgement { ctx, prop } => Node::ErrorPropagate(format!(
+            "[{} |= {}]{{{expect}}} {} [{}]",
+            print_ctx(ctx),
+            match prop {
+                Some(prop) => prop.to_string(),
+                None => "<?>".to_string(),
+            },
+            rule,
+            phase
+        )),
+        FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorPropagate(format!(
+            "[{} |- wf_inductive {}] {} [{}]",
+            print_ctx(ctx),
+            indspec.names.0,
+            rule,
+            phase
+        )),
+        FailHead::Solve(derivation_success) => {
+            let tree = map_derivation_success(derivation_success);
+            let head = format!("solved but something wrong{:p}", derivation_success);
+            return StringTree {
+                head: Node::ErrorPropagate(head),
+                children: vec![tree],
+            };
+        }
+    };
+    let mut v = vec![];
+    for premise in premises {
+        v.push(map_derivation_success(premise));
+    }
+    v.push(map_derivation_fail(fail));
+    StringTree { head, children: v }
+}
+
+pub fn map_derivation_fail(derivation: &DerivationFail) -> StringTree {
+    match derivation {
+        DerivationFail::Caused(caused) => map_derivation_failcause(caused),
+        DerivationFail::Propagate(propagate) => map_derivation_failpropagate(propagate),
+    }
+}
+
+fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -> std::fmt::Result {
+    for _ in 0..indent {
+        write!(f, "  ")?;
+    }
+    writeln!(f, "{}", &tree.head)?;
+    for child in &tree.children {
+        fmt_tree(f, child, indent + 1)?;
+    }
+    Ok(())
+}
+
+impl Display for DerivationSuccess {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tree = map_derivation_success(self);
+        fmt_tree(f, &tree, 0)
+    }
+}

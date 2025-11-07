@@ -145,6 +145,7 @@ pub fn acceptable_typespecs(
     ctx: &Context, // assume well-formed
     inductive_type_specs: &InductiveTypeSpecs,
 ) -> Result<DerivationSuccess, DerivationFail> {
+    let rc = Rc::new(inductive_type_specs.clone());
     let InductiveTypeSpecs {
         names: _,
         parameters,
@@ -164,14 +165,18 @@ pub fn acceptable_typespecs(
                 well_derivation.push(ok);
             }
             Err(err) => {
-                let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
-                    ctx: local_context,
-                    indspec: Rc::new(inductive_type_specs.clone()),
-                    fail: err,
-                    cause: format!("Parameter {x:?} is not well-sorted"),
+                let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                    head: FailHead::WellFormednessInductive {
+                        ctx: ctx.clone(),
+                        indspec: rc.clone(),
+                    },
                     premises: well_derivation.clone(),
+                    fail: err,
+                    rule: "inductive type well formed".to_string(),
+                    phase: format!("parameter '{}' type check", x),
+                    expect: "Parameter is well-sorted".to_string(),
                 };
-                return Err(DerivationFail::Caused(Box::new(err_der)));
+                return Err(DerivationFail::Propagate(Box::new(err_der)));
             }
         }
 
@@ -189,14 +194,18 @@ pub fn acceptable_typespecs(
             well_derivation.push(ok);
         }
         Err(err) => {
-            let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
-                ctx: local_context,
-                indspec: Rc::new(inductive_type_specs.clone()),
-                fail: err,
-                cause: "Arity is not well-sorted".to_string(),
+            let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                head: FailHead::WellFormednessInductive {
+                    ctx: ctx.clone(),
+                    indspec: rc.clone(),
+                },
                 premises: well_derivation.clone(),
+                fail: err,
+                rule: "inductive type well formed".to_string(),
+                phase: "arity type check".to_string(),
+                expect: "Arity is well-sorted".to_string(),
             };
-            return Err(DerivationFail::Caused(Box::new(err_der)));
+            return Err(DerivationFail::Propagate(Box::new(err_der)));
         }
     }
 
@@ -205,9 +214,9 @@ pub fn acceptable_typespecs(
     let this = Var::new("THIS");
     local_context = ctx_extend(&local_context, (this.clone(), arity.clone()));
 
-    for cst in constructors.iter() {
+    for (i, ctor) in constructors.iter().enumerate() {
         // cst_type(constructor as type) = pos[] -> THIS args[0] ... args[m]
-        let cst_type = cst.as_exp_with_type(&Exp::Var(this.clone()));
+        let cst_type = ctor.as_exp_with_type(&Exp::Var(this.clone()));
         // check (ctx |- cst_type : sort)
         let derivation = check(&local_context, &cst_type, &Exp::Sort(*sort));
         match derivation {
@@ -215,22 +224,35 @@ pub fn acceptable_typespecs(
                 well_derivation.push(ok);
             }
             Err(err) => {
-                let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
-                    ctx: local_context.clone(),
-                    indspec: Rc::new(inductive_type_specs.clone()),
+                let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                    head: FailHead::WellFormednessInductive {
+                        ctx: ctx.clone(),
+                        indspec: rc.clone(),
+                    },
                     premises: well_derivation.clone(),
                     fail: err,
-                    cause: "Constructor is not well-sorted".to_string(),
+                    rule: "inductive type well formed".to_string(),
+                    phase: format!(
+                        "constructor '{}' type check",
+                        inductive_type_specs.name_of_constructor(i)
+                    ),
+                    expect: "Constructor is well-sorted".to_string(),
                 };
-                return Err(DerivationFail::Caused(Box::new(err_der)));
+                return Err(DerivationFail::Propagate(Box::new(err_der)));
             }
         }
     }
-
-    let ok: DerivationSuccess = DerivationSuccess::WellFormedInductive {
-        ctx: ctx.clone(),
-        indspec: Rc::new(inductive_type_specs.clone()),
+    // all checks passed
+    let ok: DerivationSuccess = DerivationSuccess {
+        head: SuccessHead::WellFormednessInductive {
+            ctx: ctx.clone(),
+            indspec: rc,
+        },
         premises: well_derivation,
+        generated_goals: vec![],
+        rule: "inductive type well formed".to_string(),
+        phase: "complete".to_string(),
+        through: false,
     };
     Ok(ok)
 }

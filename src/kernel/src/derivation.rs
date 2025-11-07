@@ -368,7 +368,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
             } in goals.iter()
             {
                 let extended_ctx = ctx_extend_ctx(ctx, extended_ctx);
-                let prop = builder.add_proof(&extended_ctx, command.clone())?;
+                let prop = builder.add_proof(&extended_ctx, command.clone(), true)?;
                 if !convertible(&prop, goal_prop) {
                     return Err(builder.cause("goal proposition mismatch"));
                 }
@@ -382,7 +382,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
         Exp::ProofTermRaw { command } => {
             builder.rule("ProofTermRaw");
             // 1. prove (ctx |= prop) by command
-            let prop = builder.add_proof(ctx, command.as_ref().clone())?;
+            let prop = builder.add_proof(ctx, command.as_ref().clone(), false)?;
             Ok(builder.build_prop(prop))
         }
         Exp::PowerSet { set } => {
@@ -556,12 +556,11 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Deriva
 }
 
 // given ctx, return derivation of (ctx |= prop) with prop defined by command
-// if err, it will return Derivation::SolveFail
 pub fn prove_command(
     ctx: &Context,
     command: &ProveCommandBy,
 ) -> Result<DerivationSuccess, DerivationFail> {
-    let mut builder = Builder::new_prop(ctx.clone());
+    let mut builder = Builder::new_command(ctx.clone());
     match command {
         ProveCommandBy::Construct(exp) => {
             builder.rule("Construct");
@@ -734,7 +733,7 @@ pub fn prove_command(
             };
             Ok(builder.build_prop(prop))
         }
-        ProveCommandBy::Axiom(axiom) => {
+        ProveCommandBy::Axiom(_) => {
             // todo
             todo!("implement axiom proving")
         }

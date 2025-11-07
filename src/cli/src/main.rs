@@ -5,7 +5,7 @@ use axum::{
 };
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, path::PathBuf};
+use std::{fmt::Display, net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
 
 #[derive(Parser, Debug)]
@@ -35,7 +35,8 @@ struct Req {
 #[derive(Serialize, Debug)]
 pub enum Node {
     Success(String),
-    Error(String),
+    ErrorPropagate(String),
+    ErrorCause(String),
     Pending(String),
 }
 
@@ -43,8 +44,20 @@ impl From<kernel::printing::Node> for Node {
     fn from(value: kernel::printing::Node) -> Self {
         match value {
             kernel::printing::Node::Success(s) => Node::Success(s),
-            kernel::printing::Node::Error(s) => Node::Error(s),
+            kernel::printing::Node::ErrorPropagate(s) => Node::ErrorPropagate(s),
+            kernel::printing::Node::ErrorCause(s) => Node::ErrorCause(s),
             kernel::printing::Node::Pending(s) => Node::Pending(s),
+        }
+    }
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Success(s) => write!(f, "\x1b[32m{}\x1b[0m", s),
+            Node::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s),
+            Node::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s),
+            Node::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s),
         }
     }
 }
@@ -53,30 +66,6 @@ impl From<kernel::printing::Node> for Node {
 pub struct StringTree {
     pub head: Node,
     pub children: Vec<StringTree>,
-}
-
-impl StringTree {
-    fn origin_of_error(&self) -> Option<&StringTree> {
-        match &self.head {
-            Node::Error(_) => {
-                if self
-                    .children
-                    .iter()
-                    .all(|tree| matches!(tree.head, Node::Error(_)))
-                {
-                    Some(self)
-                } else {
-                    for child in &self.children {
-                        if let Some(origin) = child.origin_of_error() {
-                            return Some(origin);
-                        }
-                    }
-                    None
-                }
-            }
-            _ => None,
-        }
-    }
 }
 
 impl From<kernel::printing::StringTree> for StringTree {
@@ -134,10 +123,18 @@ fn parse_and_format(src: String) -> (Vec<Log>, bool) {
             for module in modules {
                 match global.new_module(&module) {
                     Ok(_) => {}
-                    Err(err) => {
-                        logs.push(Log::Message(format!("Error: {}\n", err)));
-                        flag = true;
-                    }
+                    Err(err) => match err {
+                        front::resolver::ErrorKind::Msg(msg) => {
+                            logs.push(Log::Message(format!("Error: {}\n", msg)));
+                            flag = true;
+                        }
+                        front::resolver::ErrorKind::DerivationFail(derivation_fail) => {
+                            logs.push(Log::Derivation(
+                                kernel::printing::map_derivation_fail(&derivation_fail).into(),
+                            ));
+                            flag = true;
+                        }
+                    },
                 }
             }
 
@@ -146,7 +143,7 @@ fn parse_and_format(src: String) -> (Vec<Log>, bool) {
                 match entry {
                     either::Either::Left(der) => {
                         logs.push(Log::Derivation(
-                            kernel::printing::map_derivation(der).into(),
+                            kernel::printing::map_derivation_success(der).into(),
                         ));
                     }
                     either::Either::Right(mes) => {
@@ -176,11 +173,7 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
             Log::Derivation(der) => {
                 fn print_tree(tree: &StringTree, indent: usize) {
                     let indent_str = "  ".repeat(indent);
-                    match &tree.head {
-                        Node::Success(s) => println!("{}Success: {}", indent_str, s),
-                        Node::Error(s) => println!("{}Error: {}", indent_str, s),
-                        Node::Pending(s) => println!("{}Pending: {}", indent_str, s),
-                    }
+                    println!("{}{}", indent_str, tree.head);
                     for child in &tree.children {
                         print_tree(child, indent + 1);
                     }

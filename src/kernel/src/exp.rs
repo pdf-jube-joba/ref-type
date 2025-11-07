@@ -317,87 +317,68 @@ pub struct GoalGenerated {
 }
 
 #[derive(Debug, Clone)]
-pub enum DerivationSuccess {
+pub enum SuccessHead {
     TypeJudgement {
         ctx: Context,
         term: Exp,
         ty: Exp,
-        premises: Vec<DerivationSuccess>,
-        generated_goals: Vec<GoalGenerated>,
-        rule: String,
-        phase: String,
-        through: bool,
     },
     ProofJudgement {
         ctx: Context,
         prop: Exp,
-        premises: Vec<DerivationSuccess>,
-        generated_goals: Vec<GoalGenerated>,
-        rule: String,
-        phase: String,
     },
-    WellFormedInductive {
+    WellFormednessInductive {
         ctx: Context,
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        premises: Vec<DerivationSuccess>,
     },
     Solve(Rc<DerivationSuccess>),
 }
 
 #[derive(Debug, Clone)]
-pub enum DerivationFailCaused {
-    TypeJudgement {
-        ctx: Context,
-        term: Exp,
-        ty: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        cause: String,
-        rule: String,
-        phase: String,
-    },
-    ProofJudgement {
-        ctx: Context,
-        prop: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        cause: String,
-        rule: String,
-        phase: String,
-    },
-    SolveFail {
-        solvetree: Rc<DerivationSuccess>,
-        cause: String,
-    },
-    IllFormedInductive {
-        ctx: Context,
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        premises: Vec<DerivationSuccess>,
-        fail: DerivationFail,
-        cause: String,
-    },
+pub struct DerivationSuccess {
+    pub head: SuccessHead,
+    pub premises: Vec<DerivationSuccess>,
+    pub generated_goals: Vec<GoalGenerated>,
+    pub rule: String,
+    pub phase: String,
+    pub through: bool,
 }
 
 #[derive(Debug, Clone)]
-pub enum DerivationFailPropagate {
+pub enum FailHead {
     TypeJudgement {
         ctx: Context,
         term: Exp,
         ty: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        fail: DerivationFail,
-        rule: String,
-        phase: String,
-        expect: String,
     },
     ProofJudgement {
         ctx: Context,
         prop: Option<Exp>,
-        premises: Vec<DerivationSuccess>,
-        fail: DerivationFail,
-        rule: String,
-        phase: String,
-        expect: String,
     },
-    SolveFail(DerivationFail),
+    WellFormednessInductive {
+        ctx: Context,
+        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+    },
+    Solve(Rc<DerivationSuccess>),
+}
+
+#[derive(Debug, Clone)]
+pub struct DerivationFailCaused {
+    pub head: FailHead,
+    pub premises: Vec<DerivationSuccess>,
+    pub rule: String,
+    pub phase: String,
+    pub cause: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DerivationFailPropagate {
+    pub head: FailHead,
+    pub premises: Vec<DerivationSuccess>,
+    pub fail: DerivationFail,
+    pub rule: String,
+    pub phase: String,
+    pub expect: String,
 }
 
 #[derive(Debug, Clone)]
@@ -409,43 +390,54 @@ pub enum DerivationFail {
 impl DerivationSuccess {
     pub fn type_of(&self) -> Option<&Exp> {
         match self {
-            DerivationSuccess::TypeJudgement { ty, .. } => Some(ty),
+            DerivationSuccess {
+                head: SuccessHead::TypeJudgement { ty, .. },
+                ..
+            } => Some(ty),
             _ => None,
         }
     }
     pub fn prop_of(&self) -> Option<&Exp> {
         match self {
-            DerivationSuccess::ProofJudgement { prop, .. } => Some(prop),
+            DerivationSuccess {
+                head: SuccessHead::ProofJudgement { prop, .. },
+                ..
+            } => Some(prop),
+            _ => None,
+        }
+    }
+    pub fn ctx_of(&self) -> Option<&Context> {
+        match self {
+            DerivationSuccess {
+                head: SuccessHead::TypeJudgement { ctx, .. },
+                ..
+            } => Some(ctx),
+            DerivationSuccess {
+                head: SuccessHead::ProofJudgement { ctx, .. },
+                ..
+            } => Some(ctx),
+            DerivationSuccess {
+                head: SuccessHead::WellFormednessInductive { ctx, .. },
+                ..
+            } => Some(ctx),
             _ => None,
         }
     }
     pub fn first_unproved_mut(&mut self) -> Option<&mut GoalGenerated> {
-        match self {
-            DerivationSuccess::TypeJudgement {
-                premises,
-                generated_goals,
-                ..
+        let DerivationSuccess {
+            premises,
+            generated_goals,
+            ..
+        } = self;
+        // first, find from premises
+        for premise in premises.iter_mut() {
+            if let Some(found) = premise.first_unproved_mut() {
+                return Some(found);
             }
-            | DerivationSuccess::ProofJudgement {
-                premises,
-                generated_goals,
-                ..
-            } => {
-                // first, find from premises
-                for premise in premises.iter_mut() {
-                    if let Some(found) = premise.first_unproved_mut() {
-                        return Some(found);
-                    }
-                }
-                // then, find from generated goals
-                for goal in generated_goals.iter_mut() {
-                    if goal.solvetree.is_none() {
-                        return Some(goal);
-                    }
-                }
-                None
-            }
-            DerivationSuccess::WellFormedInductive { .. } | DerivationSuccess::Solve(_) => None,
         }
+        // then, find from generated goals of this tree
+        generated_goals
+            .iter_mut()
+            .find(|goal| goal.solvetree.is_none())
     }
 }
