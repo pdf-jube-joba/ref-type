@@ -169,6 +169,7 @@ pub fn acceptable_typespecs(
                     indspec: Rc::new(inductive_type_specs.clone()),
                     fail: err,
                     cause: format!("Parameter {x:?} is not well-sorted"),
+                    premises: well_derivation.clone(),
                 };
                 return Err(DerivationFail::Caused(Box::new(err_der)));
             }
@@ -193,6 +194,7 @@ pub fn acceptable_typespecs(
                 indspec: Rc::new(inductive_type_specs.clone()),
                 fail: err,
                 cause: "Arity is not well-sorted".to_string(),
+                premises: well_derivation.clone(),
             };
             return Err(DerivationFail::Caused(Box::new(err_der)));
         }
@@ -216,6 +218,7 @@ pub fn acceptable_typespecs(
                 let err_der: DerivationFailCaused = DerivationFailCaused::IllFormedInductive {
                     ctx: local_context.clone(),
                     indspec: Rc::new(inductive_type_specs.clone()),
+                    premises: well_derivation.clone(),
                     fail: err,
                     cause: "Constructor is not well-sorted".to_string(),
                 };
@@ -227,6 +230,7 @@ pub fn acceptable_typespecs(
     let ok: DerivationSuccess = DerivationSuccess::WellFormedInductive {
         ctx: ctx.clone(),
         indspec: Rc::new(inductive_type_specs.clone()),
+        premises: well_derivation,
     };
     Ok(ok)
 }

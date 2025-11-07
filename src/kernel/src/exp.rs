@@ -310,25 +310,6 @@ pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeJudgement {
-    pub ctx: Context,
-    pub term: Exp,
-    pub ty: Option<Exp>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PropositionJudgement {
-    pub ctx: Context,
-    pub prop: Option<Exp>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Meta {
-    Usual(String),
-    Through(String),
-}
-
-#[derive(Debug, Clone)]
 pub struct GoalGenerated {
     pub ctx: Context,
     pub proposition: Exp,
@@ -358,6 +339,7 @@ pub enum DerivationSuccess {
     WellFormedInductive {
         ctx: Context,
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        premises: Vec<DerivationSuccess>,
     },
     Solve(Rc<DerivationSuccess>),
 }
@@ -388,6 +370,7 @@ pub enum DerivationFailCaused {
     IllFormedInductive {
         ctx: Context,
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        premises: Vec<DerivationSuccess>,
         fail: DerivationFail,
         cause: String,
     },
