@@ -1,3 +1,5 @@
+use super::*;
+
 // return (ctx |- term: ty), result is in derivation.node.res
 pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<DerivationSuccess, DerivationFail> {
     let mut builder = Builder::new_check(ctx.clone(), term.clone(), ty.clone());
