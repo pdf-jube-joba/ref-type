@@ -8,6 +8,7 @@ pub mod inductive;
 pub mod calculus;
 // type check, type inference, sort inference
 pub mod derivation;
+pub mod derivation_strict;
 // pretty printing
 pub mod printing;
 #[cfg(test)]

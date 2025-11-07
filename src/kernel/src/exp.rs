@@ -329,6 +329,157 @@ pub enum Meta {
 }
 
 #[derive(Debug, Clone)]
+pub struct GoalGenerated {
+    pub ctx: Context,
+    pub proposition: Exp,
+    pub solvetree: Option<Rc<DerivationSuccess>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationSuccess {
+    TypeJudgement {
+        ctx: Context,
+        term: Exp,
+        ty: Exp,
+        premises: Vec<DerivationSuccess>,
+        generated_goals: Vec<GoalGenerated>,
+        rule: String,
+        phase: String,
+        through: bool,
+    },
+    ProofJudgement {
+        ctx: Context,
+        prop: Exp,
+        premises: Vec<DerivationSuccess>,
+        generated_goals: Vec<GoalGenerated>,
+        rule: String,
+        phase: String,
+    },
+    Solve(Rc<DerivationSuccess>),
+}
+
+impl DerivationSuccess {
+    pub fn type_of(&self) -> Option<&Exp> {
+        match self {
+            DerivationSuccess::TypeJudgement { ty, .. } => Some(ty),
+            _ => None,
+        }
+    }
+    pub fn prop_of(&self) -> Option<&Exp> {
+        match self {
+            DerivationSuccess::ProofJudgement { prop, .. } => Some(prop),
+            _ => None,
+        }
+    }
+    pub fn first_unproved_mut(&mut self) -> Option<&mut GoalGenerated> {
+        match self {
+            DerivationSuccess::TypeJudgement {
+                premises,
+                generated_goals,
+                ..
+            }
+            | DerivationSuccess::ProofJudgement {
+                premises,
+                generated_goals,
+                ..
+            } => {
+                // first, find from premises
+                for premise in premises.iter_mut() {
+                    if let Some(found) = premise.first_unproved_mut() {
+                        return Some(found);
+                    }
+                }
+                // then, find from generated goals
+                for goal in generated_goals.iter_mut() {
+                    if goal.solvetree.is_none() {
+                        return Some(goal);
+                    }
+                }
+                None
+            }
+            DerivationSuccess::Solve(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationFailCaused {
+    TypeJudgement {
+        ctx: Context,
+        term: Exp,
+        ty: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        cause: String,
+        rule: String,
+        phase: String,
+    },
+    ProofJudgement {
+        ctx: Context,
+        prop: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        cause: String,
+        rule: String,
+        phase: String,
+    },
+    SolveFail {
+        solvetree: Rc<DerivationSuccess>,
+        cause: String,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationFailPropagate {
+    TypeJudgement {
+        ctx: Context,
+        term: Exp,
+        ty: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        fail: DerivationFail,
+        rule: String,
+        phase: String,
+        expect: String,
+    },
+    ProofJudgement {
+        ctx: Context,
+        prop: Option<Exp>,
+        premises: Vec<DerivationSuccess>,
+        fail: DerivationFail,
+        rule: String,
+        phase: String,
+        expect: String,
+    },
+    SolveFail(DerivationFail),
+}
+
+#[derive(Debug, Clone)]
+pub enum DerivationFail {
+    Caused(Box<DerivationFailCaused>),
+    Propagate(Box<DerivationFailPropagate>),
+}
+
+// #[derive(Debug, Clone)]
+// pub struct ProofSuccess {
+//     pub ctx: Context,
+//     pub proposition: Exp,
+//     pub premises: Vec<DerivationSuccess>,
+//     pub generated_goals: Vec<GoalGenerated>,
+//     pub rule: String,
+//     pub phase: String,
+// }
+
+// #[derive(Debug, Clone)]
+// pub struct ProofFail {
+//     pub ctx: Context,
+//     pub proposition: Exp,
+//     pub premises: Vec<DerivationSuccess>,
+//     pub generated_goals: Vec<GoalGenerated>,
+//     pub fail: DerivationFail,
+//     pub rule: String,
+//     pub phase: String,
+//     pub meta: String,
+// }
+
+#[derive(Debug, Clone)]
 pub enum Derivation {
     DerivationSuccess {
         conclusion: TypeJudgement, // => ty is Some
