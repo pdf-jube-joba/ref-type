@@ -83,17 +83,17 @@ pub struct GlobalEnvironment {
 }
 
 impl GlobalEnvironment {
-    pub fn logs(&self) -> &Vec<Either<Derivation, String>> {
+    pub fn logs(&self) -> &Vec<Either<DerivationSuccess, String>> {
         &self.logger.log
     }
 }
 
 pub struct Logger {
-    log: Vec<Either<Derivation, String>>,
+    log: Vec<Either<DerivationSuccess, String>>,
 }
 
 impl Logger {
-    pub fn log_derivation(&mut self, der: Derivation) {
+    pub fn log_derivation(&mut self, der: DerivationSuccess) {
         self.log.push(Either::Left(der));
     }
     pub fn log(&mut self, msg: String) {
@@ -115,18 +115,33 @@ impl Default for GlobalEnvironment {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum ErrorKind {
+    Msg(String),
+    DerivationFail(DerivationFail),
+}
+
+impl From<String> for ErrorKind {
+    fn from(msg: String) -> Self {
+        ErrorKind::Msg(msg)
+    }
+}
+
+impl From<DerivationFail> for ErrorKind {
+    fn from(der_fail: DerivationFail) -> Self {
+        ErrorKind::DerivationFail(der_fail)
+    }
+}
+
 impl GlobalEnvironment {
     // add derivation log to global log
     // return Some(true) if derivation is successful without goal
     // return Some(false) if derivation is successful with unproved goals
     // return None if derivation is failed
-    pub fn add_der(&mut self, der: Derivation) -> Option<bool> {
-        let is_success = der.is_success();
-        let no_prove = der.get_first_unproved().is_none();
+    pub fn add_derivation(&mut self, der: DerivationSuccess) {
         self.logger.log_derivation(der);
-        if is_success { Some(no_prove) } else { None }
     }
-    pub fn new_module(&mut self, module: &Module) -> Result<(), String> {
+    pub fn new_module(&mut self, module: &Module) -> Result<(), ErrorKind> {
         let Module {
             name,
             parameters,
@@ -154,32 +169,8 @@ impl GlobalEnvironment {
             for (v, ty) in parameters_elab.iter() {
                 self.logger
                     .log(format!("Checking parameter {} : {}", v.as_str(), ty));
-                let der = kernel::builder::infer_sort(&self.elaborator.parameters, ty);
-                let res = self.add_der(der.clone());
-
-                match res {
-                    Some(true) => {
-                        self.logger.log(format!(
-                            "Parameter {} type checking succeeded: type {} is a well-formed type",
-                            v.as_str(),
-                            ty
-                        ));
-                    }
-                    Some(false) => {
-                        return Err(format!(
-                            "Parameter {} type checking succeeded but has unproved goals: type {} is a well-formed type",
-                            v.as_str(),
-                            ty
-                        ));
-                    }
-                    None => {
-                        return Err(format!(
-                            "Parameter {} type checking failed: type {} is not a well-formed type",
-                            v.as_str(),
-                            ty
-                        ));
-                    }
-                }
+                let der = kernel::derivation::infer_sort(&self.elaborator.parameters, ty)?;
+                self.add_derivation(der);
 
                 // a parameter may depends on previous parameters
                 self.elaborator.parameters.push((v.clone(), ty.clone()));
@@ -205,58 +196,19 @@ impl GlobalEnvironment {
                                 self.logger.log(format!("Normalize result: {}", after));
                             }
                             Query::Checking { exp, ty } => {
-                                let der = kernel::builder::check(
+                                let der = kernel::derivation::check(
                                     &self.elaborator.parameters,
                                     &exp,
                                     &ty,
-                                );
-                                let res = self.add_der(der);
-                                match res {
-                                    Some(true) => {
-                                        self.logger.log(format!(
-                                            "Checking succeeded: expression {} has type {}",
-                                            exp, ty
-                                        ));
-                                    }
-                                    Some(false) => {
-                                        self.logger.log(format!(
-                                            "Checking succeeded with unproved goals: expression {} has type {}",
-                                            exp, ty
-                                        ));
-                                    }
-                                    None => {
-                                        self.logger.log(format!(
-                                            "Checking failed: expression {} does not have type {}",
-                                            exp, ty
-                                        ));
-                                    }
-                                }
+                                )?;
+                                self.add_derivation(der);
                             }
                             Query::Infer { exp } => {
                                 let der =
-                                    kernel::builder::infer(&self.elaborator.parameters, &exp);
-                                let ty: Option<Exp> = der.result_type().cloned();
-                                match self.add_der(der) {
-                                    Some(true) => {
-                                        self.logger.log(format!(
-                                            "Inference succeeded: expression {} has type {}",
-                                            exp,
-                                            ty.unwrap()
-                                        ));
-                                    }
-                                    Some(false) => {
-                                        self.logger.log(format!(
-                                            "Inference succeeded with unproved goals: expression {} has type {}",
-                                            exp, ty.unwrap()
-                                        ));
-                                    }
-                                    None => {
-                                        self.logger.log(format!(
-                                            "Inference failed: expression {} has no type",
-                                            exp
-                                        ));
-                                    }
-                                }
+                                    kernel::derivation::infer(&self.elaborator.parameters, &exp)?;
+                                let ty = der.type_of().unwrap().clone();
+                                self.logger.log(format!("Inferred type: {}", ty));
+                                self.add_derivation(der);
                             }
                         }
                         continue;
@@ -264,55 +216,20 @@ impl GlobalEnvironment {
                 };
 
                 match &item_elab {
-                    Item::Definition { name, ty, body } => {
-                        let der = kernel::builder::check(&self.elaborator.parameters, body, ty);
-                        let res = self.add_der(der);
-                        match res {
-                            Some(true) => {
-                                self.logger.log(format!(
-                                    "Definition {} type checking succeeded: body {} has type {}",
-                                    name.as_str(),
-                                    body,
-                                    ty
-                                ));
-                            }
-                            Some(false) => {
-                                return Err(format!(
-                                    "Definition {} type checking succeeded but has unproved goals: body {} has type {}",
-                                    name.as_str(),
-                                    body,
-                                    ty
-                                ));
-                            }
-                            None => {
-                                return Err(format!(
-                                    "Definition {} type checking failed: body {} does not have type {}",
-                                    name.as_str(),
-                                    body,
-                                    ty
-                                ));
-                            }
-                        }
+                    Item::Definition { name: _, ty, body } => {
+                        let der = kernel::derivation::check(&self.elaborator.parameters, body, ty)?;
+                        self.add_derivation(der);
                     }
                     Item::Inductive {
-                        name,
+                        name: _,
                         ctor_names: _,
                         ind_defs,
                     } => {
-                        let (ders, res) = kernel::inductive::acceptable_typespecs(
+                        let der = kernel::inductive::acceptable_typespecs(
                             &self.elaborator.parameters,
                             ind_defs,
-                        );
-                        for der in ders {
-                            self.logger.log_derivation(der);
-                        }
-                        if let Err(err) = res {
-                            return Err(format!(
-                                "Inductive type {} definition is not acceptable: {}",
-                                name.as_str(),
-                                err
-                            ));
-                        }
+                        )?;
+                        self.add_derivation(der);
                     }
                     Item::Import {
                         module_name,
@@ -325,12 +242,13 @@ impl GlobalEnvironment {
                             .rev()
                             .find(|m| m.name.as_str() == module_name.as_str())
                         {
-                            Some(m) => m,
+                            Some(m) => m.clone(),
                             None => {
                                 return Err(format!(
                                     "Imported module template {} not found",
                                     module_name.as_str()
-                                ));
+                                )
+                                .into());
                             }
                         };
 
@@ -339,7 +257,8 @@ impl GlobalEnvironment {
                                 "Imported module expects {} arguments, but {} were provided",
                                 module_template.parameters.len(),
                                 args.len()
-                            ));
+                            )
+                            .into());
                         }
 
                         // type check
@@ -354,19 +273,16 @@ impl GlobalEnvironment {
                                         "Imported module argument name {} does not match parameter name {}",
                                         v0.as_str(),
                                         v1.as_str()
-                                    ));
+                                    ).into());
                                 }
 
                                 let ty_substed = exp_subst_map(ty, &subst_maps);
-                                let der =
-                                    kernel::builder::check(&self.elaborator.parameters, arg, ty);
-                                self.logger.log_derivation(der.clone());
-                                if !der.is_success() {
-                                    return Err(format!(
-                                        "Imported module argument type checking failed: argument {} does not have type {}",
-                                        arg, ty_substed
-                                    ));
-                                }
+                                let der = kernel::derivation::check(
+                                    &self.elaborator.parameters,
+                                    arg,
+                                    &ty_substed,
+                                )?;
+                                self.add_derivation(der);
                                 subst_maps.push((v1.clone(), arg.clone()));
                             }
                         }
