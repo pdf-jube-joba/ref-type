@@ -108,6 +108,13 @@ impl Sort {
 }
 
 #[derive(Debug, Clone)]
+pub struct DefinedConstant {
+    pub name: String,
+    pub ty: Exp,
+    pub inner: Exp,
+}
+
+#[derive(Debug, Clone)]
 pub enum Exp {
     Sort(Sort),
     Var(Var),
@@ -128,13 +135,7 @@ pub enum Exp {
         func: Box<Exp>,
         arg: Box<Exp>,
     },
-    // // let x: ty = val in body
-    // Let {
-    //     var: Var,
-    //     ty: Box<Exp>,
-    //     val: Box<Exp>,
-    //     body: Box<Exp>,
-    // },
+    DefinedConstant(Rc<DefinedConstant>),
     IndType {
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>, // uncurry with parameter

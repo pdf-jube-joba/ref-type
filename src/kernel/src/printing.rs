@@ -1,8 +1,8 @@
 use std::fmt::{Debug, Display};
 
 use crate::exp::{
-    DerivationFail, DerivationFailCaused, DerivationFailPropagate, DerivationSuccess, FailHead,
-    GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
+    DefinedConstant, DerivationFail, DerivationFailCaused, DerivationFailPropagate,
+    DerivationSuccess, FailHead, GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
 };
 
 impl Debug for Var {
@@ -34,6 +34,16 @@ impl Display for crate::exp::Sort {
     }
 }
 
+impl Display for DefinedConstant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "{}", self.name)
+        } else {
+            write!(f, "{}[:{} :={}]", self.name, self.ty, self.inner)
+        }
+    }
+}
+
 impl Display for crate::exp::Exp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -42,6 +52,9 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Prod { var, ty, body } => write!(f, "({}: {}) -> {}", var, ty, body),
             crate::exp::Exp::Lam { var, ty, body } => write!(f, "({}: {}) => {}", var, ty, body),
             crate::exp::Exp::App { func, arg } => write!(f, "({}) ({})", func, arg),
+            crate::exp::Exp::DefinedConstant(rc) => {
+                write!(f, "{}", rc)
+            }
             crate::exp::Exp::IndType {
                 indspec: ty,
                 parameters,

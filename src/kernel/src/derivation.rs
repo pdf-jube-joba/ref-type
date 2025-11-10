@@ -163,6 +163,18 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
             let ret_ty_substituted = exp_subst(&ret_ty, &var, arg);
             Ok(builder.build_infer(ret_ty_substituted))
         }
+        Exp::DefinedConstant(rc) => {
+            // we assume rc: DefinedConstant is well-typed
+            builder.rule("DefinedConstant");
+
+            let DefinedConstant {
+                name: _,
+                ty,
+                inner: _,
+            } = rc.as_ref();
+            // conclude (ctx |- DefinedConstant(name, ty, inner) : ty)
+            Ok(builder.build_infer(ty.clone()))
+        }
         Exp::IndType {
             indspec,
             parameters,

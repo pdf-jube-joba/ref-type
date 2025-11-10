@@ -1,3 +1,5 @@
+use std::rc;
+
 use crate::inductive::inductive_type_elim_reduce;
 
 use super::exp::*;
@@ -42,6 +44,7 @@ pub fn exp_strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
         (Exp::App { func: f1, arg: a1 }, Exp::App { func: f2, arg: a2 }) => {
             exp_strict_equivalence(f1, f2) && exp_strict_equivalence(a1, a2)
         }
+        (Exp::DefinedConstant(rc1), Exp::DefinedConstant(rc2)) => std::rc::Rc::ptr_eq(rc1, rc2),
         (
             Exp::IndType {
                 indspec: ty1,
@@ -297,6 +300,10 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
         Exp::App { func, arg } => {
             exp_contains_as_freevar(func, v) || exp_contains_as_freevar(arg, v)
         }
+        Exp::DefinedConstant(rc) => {
+            let DefinedConstant { name: _, ty, inner } = rc.as_ref();
+            exp_contains_as_freevar(ty, v) || exp_contains_as_freevar(inner, v)
+        }
         Exp::IndType { parameters, .. } => {
             parameters.iter().any(|arg| exp_contains_as_freevar(arg, v))
         }
@@ -493,6 +500,19 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
         }
         (Exp::App { func: f1, arg: a1 }, Exp::App { func: f2, arg: a2 }) => {
             is_alpha_eq_rec(f1, f2, env1, env2) && is_alpha_eq_rec(a1, a2, env1, env2)
+        }
+        (Exp::DefinedConstant(rc1), Exp::DefinedConstant(rc2)) => {
+            let DefinedConstant {
+                name: _,
+                ty: ty1,
+                inner: inner1,
+            } = rc1.as_ref();
+            let DefinedConstant {
+                name: _,
+                ty: ty2,
+                inner: inner2,
+            } = rc2.as_ref();
+            is_alpha_eq_rec(ty1, ty2, env1, env2) && is_alpha_eq_rec(inner1, inner2, env1, env2)
         }
         (
             Exp::IndType {
@@ -730,6 +750,15 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             func: Box::new(exp_subst(func, v, t)),
             arg: Box::new(exp_subst(arg, v, t)),
         },
+        Exp::DefinedConstant(rc) => {
+            let DefinedConstant { name, ty, inner } = rc.as_ref();
+            // yet another RC
+            Exp::DefinedConstant(rc::Rc::new(DefinedConstant {
+                name: name.clone(),
+                ty: exp_subst(ty, v, t),
+                inner: exp_subst(inner, v, t),
+            }))
+        }
         Exp::IndType {
             indspec: ty,
             parameters,
@@ -975,6 +1004,10 @@ pub fn exp_alpha_conversion(e: &Exp) -> Exp {
             func: Box::new(exp_alpha_conversion(func)),
             arg: Box::new(exp_alpha_conversion(arg)),
         },
+        Exp::DefinedConstant(rc) => {
+            // TODO?: another RC?
+            Exp::DefinedConstant(std::rc::Rc::clone(rc))
+        }
         Exp::IndType {
             indspec: ty,
             parameters,
@@ -1172,6 +1205,14 @@ pub fn exp_reduce_if_top(e: &Exp) -> Option<Exp> {
                 None
             }
         }
+        Exp::DefinedConstant(rc) => {
+            let DefinedConstant {
+                name: _,
+                ty: _,
+                inner,
+            } = rc.as_ref();
+            Some(inner.clone())
+        }
         // Pred(A, {x: B | P}, a)  ==>  P[x := a]
         Exp::Pred {
             superset: _,
@@ -1243,6 +1284,9 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 func: Box::new(func),
                 arg: Box::new(arg),
             })
+        }
+        Exp::DefinedConstant(_) => {
+            unreachable!("we already called exp_reduce_if_top")
         }
         Exp::IndType {
             indspec: ty,
