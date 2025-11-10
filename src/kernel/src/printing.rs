@@ -253,7 +253,7 @@ pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
     if *through {
         let StringTree { head, children } = map_derivation_success(&premises[0]);
         StringTree {
-            head: Node::Success(format!("{} throught {}", head, rule)),
+            head: Node::Success(format!("{} through {}[{}]", head, rule, phase)),
             children,
         }
     } else {
@@ -281,7 +281,7 @@ pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
             SuccessHead::Solve(derivation_success) => {
                 let head = map_derivation_success(derivation_success);
                 return StringTree {
-                    head: Node::Success(format!("Solve goal{:p}", derivation_success)),
+                    head: Node::Success(format!("Solve goal{:p}", *derivation_success)),
                     children: vec![head],
                 };
             }
@@ -301,7 +301,7 @@ pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
                     "!Solved[{} |= {}] via {:p}",
                     print_ctx(ctx),
                     proposition,
-                    rc
+                    *rc
                 )),
                 None => Node::Pending(format!("!UnSolved[{} |= {}]", print_ctx(ctx), proposition)),
             };
@@ -354,7 +354,7 @@ pub fn map_derivation_failcause(derivation: &DerivationFailCaused) -> StringTree
         )),
         FailHead::Solve(derivation_success) => {
             let tree = map_derivation_success(derivation_success);
-            let head = format!("solved but something wrong{:p}", derivation_success);
+            let head = format!("solved but something wrong{:p}", *derivation_success);
             return StringTree {
                 head: Node::ErrorCause(head),
                 children: vec![tree],
@@ -409,7 +409,7 @@ fn map_derivation_failpropagate(derivation: &DerivationFailPropagate) -> StringT
         )),
         FailHead::Solve(derivation_success) => {
             let tree = map_derivation_success(derivation_success);
-            let head = format!("solved but something wrong{:p}", derivation_success);
+            let head = format!("solved but something wrong{:p}", *derivation_success);
             return StringTree {
                 head: Node::ErrorPropagate(head),
                 children: vec![tree],

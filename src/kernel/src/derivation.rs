@@ -374,6 +374,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
                 }
             }
             // 3. check corresponding goals and proved goals match
+            builder.resolve_goal()?;
 
             // 4. conclude (ctx |- ProveHere(exp, goals) : inferred_ty)
             Ok(builder.build_infer(inferred_ty))
@@ -535,12 +536,13 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
     }
 }
 
-// infer_sort: (Derivation, Option<Sort>)
+// infer sort of term
 pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationFail> {
-    let mut builder = Builder::new_infer(ctx.clone(), term.clone());
+    let mut builder = Builder::new_infersort(ctx.clone(), term.clone());
+    builder.rule("Conv");
 
     // 1. infer type of term
-    let inferred_ty = builder.add_infer(ctx, term, "infer ")?;
+    let inferred_ty = builder.add_infer(ctx, term, "infer type of term")?;
 
     // 2-A. if inferred_ty is already a sort, through
     if let Exp::Sort(s) = inferred_ty {

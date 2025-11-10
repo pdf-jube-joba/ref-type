@@ -57,7 +57,7 @@ impl Builder {
             premises: vec![],
             generated_goals: vec![],
             rule: "".to_string(),
-            phase: "infer_sort".to_string(),
+            phase: "infer(sort)".to_string(),
         }
     }
     pub fn new_command(ctx: Context) -> Self {
@@ -316,7 +316,7 @@ impl Builder {
             {
                 let goal_ctx = rc.ctx_of().unwrap().clone();
                 let goal_prop = rc.prop_of().unwrap().clone();
-                rcs.push((rc.clone(), goal_ctx, goal_prop));
+                rcs.push((std::rc::Rc::clone(rc), goal_ctx, goal_prop));
             }
         }
 
@@ -371,7 +371,7 @@ impl Builder {
                 }
             }
         }
-        todo!()
+        Ok(())
     }
 
     pub fn build_check(self, through: bool) -> DerivationSuccess {

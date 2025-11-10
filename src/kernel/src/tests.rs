@@ -64,6 +64,11 @@ impl Checker {
         self.derivations.push(der);
         self.context.push((var, ty));
     }
+    fn print_all(&self) {
+        for der in self.history().iter() {
+            println!("{}", der);
+        }
+    }
 }
 
 // P: \Prop |- P: \Prop
@@ -378,6 +383,7 @@ fn solvegoals() {
     };
 
     checker.infer(&proof_term).unwrap();
+    checker.print_all();
 }
 
 /*
@@ -412,4 +418,5 @@ fn nat_test() {
             .chk_indspec(params, indices, sort, constructors)
             .unwrap(),
     );
+    checker.print_all();
 }
