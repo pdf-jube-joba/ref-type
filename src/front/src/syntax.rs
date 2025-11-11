@@ -35,6 +35,17 @@ pub struct ModuleInstantiated {
 }
 
 #[derive(Debug, Clone)]
+pub enum ModuleAccessPath {
+    FromCurrent {
+        back_parent: usize,
+        args: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+    },
+    FromRoot {
+        args: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub enum ModuleItem {
     Definition {
         name: Identifier,
@@ -47,12 +58,11 @@ pub enum ModuleItem {
         arity: SExp,
         constructors: Vec<(Identifier, SExp)>,
     },
-    // too complicated to implement for now
-    // ChildModule {
-    //     module: Box<Module>,
-    // },
+    ChildModule {
+        module: Box<Module>,
+    },
     Import {
-        path: ModuleInstantiated,
+        path: ModuleAccessPath,
         import_name: Identifier,
     },
     MathMacro {

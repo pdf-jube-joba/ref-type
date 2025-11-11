@@ -117,18 +117,18 @@ fn parse_and_format(src: String) -> (Vec<Log>, bool) {
     let parsed = front::parse::str_parse_modules(&src);
     match parsed {
         Ok(modules) => {
-            let mut global = front::resolver::GlobalEnvironment::default();
+            let mut global = front::elaborator::GlobalEnvironment::default();
             let mut logs: Vec<Log> = vec![];
             let mut flag = false;
             for module in modules {
                 match global.new_module(&module) {
                     Ok(_) => {}
                     Err(err) => match err {
-                        front::resolver::ErrorKind::Msg(msg) => {
+                        front::elaborator::ErrorKind::Msg(msg) => {
                             logs.push(Log::Message(format!("Error: {}\n", msg)));
                             flag = true;
                         }
-                        front::resolver::ErrorKind::DerivationFail(derivation_fail) => {
+                        front::elaborator::ErrorKind::DerivationFail(derivation_fail) => {
                             logs.push(Log::Derivation(
                                 kernel::printing::map_derivation_fail(&derivation_fail).into(),
                             ));

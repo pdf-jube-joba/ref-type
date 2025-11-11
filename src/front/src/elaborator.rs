@@ -16,6 +16,8 @@ use kernel::{
     inductive::{CtorBinder, InductiveTypeSpecs},
 };
 
+mod module_manager;
+
 #[derive(Debug, Clone)]
 pub enum Item {
     Definition {
