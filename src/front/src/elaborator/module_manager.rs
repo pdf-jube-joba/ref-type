@@ -1,6 +1,7 @@
-use crate::syntax::{self, Identifier};
+use crate::syntax::{Identifier, ModuleAccessPath, SExp};
 use kernel::exp::{DefinedConstant, Exp, Var};
 
+#[derive(Debug, Clone)]
 pub enum ModuleItemAccessible {
     Definition {
         rc: std::rc::Rc<kernel::exp::DefinedConstant>,
@@ -21,25 +22,58 @@ pub struct ModuleElaborated {
     pub parent_module: Option<usize>,
 }
 
+impl From<&ModuleElaborated> for ModuleInstantiated {
+    fn from(module: &ModuleElaborated) -> Self {
+        let items = module.items.clone();
+        ModuleInstantiated {
+            name: module.name.clone(),
+            items,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
     pub name: String,
     pub items: Vec<ModuleItemAccessible>,
 }
 
-pub enum AccessPath {
-    FromCurrent {
-        back_parent: usize,
-        children_args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    },
-    FromRoot {
-        children_args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    },
+impl ModuleInstantiated {
+    fn get_def_const(&self, name: &Identifier) -> Option<std::rc::Rc<DefinedConstant>> {
+        for item in self.items.iter() {
+            match item {
+                ModuleItemAccessible::Definition { rc } => {
+                    if rc.as_ref().name.as_str() == name.0.as_str() {
+                        return Some(std::rc::Rc::clone(rc));
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+    fn get_indtype(
+        &self,
+        name: &Identifier,
+    ) -> Option<std::rc::Rc<kernel::inductive::InductiveTypeSpecs>> {
+        for item in self.items.iter() {
+            match item {
+                ModuleItemAccessible::Inductive { ind_defs } => {
+                    if ind_defs.as_ref().names.0.as_str() == name.0.as_str() {
+                        return Some(std::rc::Rc::clone(ind_defs));
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
 }
 
 pub struct AccessResult {
     pub module_index: usize,
     pub instantiated_module: ModuleInstantiated,
-    pub need_to_type_check: Vec<(String, Vec<(String, Exp, Exp)>)>,
+    pub need_to_type_check: Vec<(String, Exp, Exp)>,
 }
 
 pub struct ModuleManager {
@@ -80,6 +114,50 @@ impl ModuleManager {
             self.current = parent_index;
         }
     }
+    pub fn moveto_root(&mut self) {
+        self.current = 0;
+    }
+
+    pub fn current_module_as_instantiated(&self) -> ModuleInstantiated {
+        ModuleInstantiated::from(&self.modules[self.current])
+    }
+
+    pub fn current_context(&self) -> Vec<(String, Vec<(Var, Exp)>)> {
+        let mut context = vec![];
+        let mut index = self.current;
+        loop {
+            let module = &self.modules[index];
+            let params = module
+                .parameters
+                .iter()
+                .map(|(var, ty)| (var.clone(), ty.clone()))
+                .collect();
+            context.push((module.name.clone(), params));
+            if let Some(parent_index) = module.parent_module {
+                index = parent_index;
+            } else {
+                break;
+            }
+        }
+        context.reverse();
+        context
+    }
+    pub fn current_path(&self) -> Vec<String> {
+        let mut path = vec![];
+        let mut index = self.current;
+        loop {
+            let module = &self.modules[index];
+            path.push(module.name.clone());
+            if let Some(parent_index) = module.parent_module {
+                index = parent_index;
+            } else {
+                break;
+            }
+        }
+        path.reverse();
+        path
+    }
+
     pub fn add_def(&mut self, def: DefinedConstant) {
         let rc = std::rc::Rc::new(def);
         let item = ModuleItemAccessible::Definition { rc };
@@ -90,36 +168,26 @@ impl ModuleManager {
         let item = ModuleItemAccessible::Inductive { ind_defs: rc };
         self.modules[self.current].items.push(item);
     }
-    pub fn access_module(&self, access_path: &AccessPath) -> Result<AccessResult, String> {
-        let (mut start, children_args) = match access_path {
-            AccessPath::FromCurrent {
-                back_parent,
-                children_args,
-            } => {
-                let mut index = self.current;
-                for _ in 0..*back_parent {
-                    if let Some(parent_index) = self.modules[index].parent_module {
-                        index = parent_index;
-                    } else {
-                        return Err("Invalid back_parent in AccessPath::FromCurrent".to_string());
-                    }
-                }
-                (index, children_args)
-            }
-            AccessPath::FromRoot { children_args } => (0, children_args),
-        };
+
+    fn access_module(
+        &self,
+        mut from: usize,
+        args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+    ) -> Result<AccessResult, String> {
+        // we delegate "type checking" of arguments to the caller
         let mut need_to_type_check = vec![];
+        // to instantiate, we need to subst items in instantiated module
         let mut subst_mapping_accum = vec![];
 
-        for (child_name, args) in children_args {
-            let child_idx = self.modules[start]
+        for (child_name, args) in args {
+            let child_idx = self.modules[from]
                 .child_modules
                 .iter()
-                .find(|&&idx| self.modules[idx].name == *child_name.0)
+                .find(|&&idx| self.modules[idx].name == child_name.0)
                 .ok_or_else(|| {
                     format!(
                         "Child module '{}' not found in module '{}'",
-                        child_name, self.modules[start].name
+                        child_name, self.modules[from].name
                     )
                 })?;
             let child_module = &self.modules[*child_idx];
@@ -132,46 +200,41 @@ impl ModuleManager {
                     args.len()
                 ));
             }
-            let mut need_to_type_check_child = vec![];
             for ((arg_name, ty), (param_var, arg)) in
                 args.iter().zip(child_module.parameters.iter())
             {
-                if arg_name.0 != param_var.as_str() {
+                if arg_name.as_str() != param_var.as_str() {
                     return Err(format!(
                         "Argument name mismatch for module '{}': expected '{}', got '{}'",
                         child_module.name,
                         param_var.as_str(),
-                        arg_name.0
+                        arg_name.as_str()
                     ));
                 }
-
                 let ty_subst = ty.subst(&subst_mapping_accum);
-
-                need_to_type_check_child.push((
-                    param_var.to_string(),
-                    arg.clone(),
-                    ty_subst.clone(),
-                ));
+                need_to_type_check.push((param_var.to_string(), arg.clone(), ty_subst));
                 subst_mapping_accum.push((param_var.clone(), arg.clone()));
             }
-            need_to_type_check.push((child_module.name.clone(), need_to_type_check_child));
 
-            start = *child_idx;
+            from = *child_idx;
         }
-
         // instantiate with accumulated substitutions
-        let instantiated_items = self.modules[start]
+        let instantiated_items = self.modules[from]
             .items
             .iter()
             .map(|item| match item {
                 ModuleItemAccessible::Definition { rc } => {
-                    let DefinedConstant { name, ty, inner } = rc.as_ref().clone();
+                    let DefinedConstant {
+                        name,
+                        ty,
+                        body: inner,
+                    } = rc.as_ref().clone();
                     let instantiated_ty = ty.subst(&subst_mapping_accum);
                     let instantiated_inner = inner.subst(&subst_mapping_accum);
                     let instantiated_def = DefinedConstant {
                         name,
                         ty: instantiated_ty,
-                        inner: instantiated_inner,
+                        body: instantiated_inner,
                     };
                     ModuleItemAccessible::Definition {
                         rc: std::rc::Rc::new(instantiated_def),
@@ -188,14 +251,36 @@ impl ModuleManager {
             .collect();
 
         let module_instantiated = ModuleInstantiated {
-            name: self.modules[start].name.clone(),
+            name: self.modules[from].name.clone(),
             items: instantiated_items,
         };
 
         Ok(AccessResult {
-            module_index: start,
+            module_index: from,
             instantiated_module: module_instantiated,
             need_to_type_check,
         })
+    }
+
+    pub fn access_from_root(
+        &self,
+        args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+    ) -> Result<AccessResult, String> {
+        self.access_module(0, args)
+    }
+    pub fn access_from_current_parent(
+        &self,
+        back_parent: usize,
+        args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+    ) -> Result<AccessResult, String> {
+        let mut index = self.current;
+        for _ in 0..back_parent {
+            if let Some(parent_index) = self.modules[index].parent_module {
+                index = parent_index;
+            } else {
+                return Err("Cannot go back parent: already at root module".to_string());
+            }
+        }
+        self.access_module(index, args)
     }
 }

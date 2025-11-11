@@ -39,7 +39,7 @@ impl Display for DefinedConstant {
         if f.alternate() {
             write!(f, "{}", self.name)
         } else {
-            write!(f, "{}[:{} :={}]", self.name, self.ty, self.inner)
+            write!(f, "{}[:{} :={}]", self.name, self.ty, self.body)
         }
     }
 }

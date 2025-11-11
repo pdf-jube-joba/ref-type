@@ -301,7 +301,7 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
             exp_contains_as_freevar(func, v) || exp_contains_as_freevar(arg, v)
         }
         Exp::DefinedConstant(rc) => {
-            let DefinedConstant { name: _, ty, inner } = rc.as_ref();
+            let DefinedConstant { name: _, ty, body: inner } = rc.as_ref();
             exp_contains_as_freevar(ty, v) || exp_contains_as_freevar(inner, v)
         }
         Exp::IndType { parameters, .. } => {
@@ -505,12 +505,12 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
             let DefinedConstant {
                 name: _,
                 ty: ty1,
-                inner: inner1,
+                body: inner1,
             } = rc1.as_ref();
             let DefinedConstant {
                 name: _,
                 ty: ty2,
-                inner: inner2,
+                body: inner2,
             } = rc2.as_ref();
             is_alpha_eq_rec(ty1, ty2, env1, env2) && is_alpha_eq_rec(inner1, inner2, env1, env2)
         }
@@ -751,12 +751,12 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             arg: Box::new(exp_subst(arg, v, t)),
         },
         Exp::DefinedConstant(rc) => {
-            let DefinedConstant { name, ty, inner } = rc.as_ref();
+            let DefinedConstant { name, ty, body: inner } = rc.as_ref();
             // yet another RC
             Exp::DefinedConstant(rc::Rc::new(DefinedConstant {
                 name: name.clone(),
                 ty: exp_subst(ty, v, t),
-                inner: exp_subst(inner, v, t),
+                body: exp_subst(inner, v, t),
             }))
         }
         Exp::IndType {
@@ -1209,7 +1209,7 @@ pub fn exp_reduce_if_top(e: &Exp) -> Option<Exp> {
             let DefinedConstant {
                 name: _,
                 ty: _,
-                inner,
+                body: inner,
             } = rc.as_ref();
             Some(inner.clone())
         }

@@ -25,23 +25,14 @@ pub struct Module {
     pub declarations: Vec<ModuleItem>, // sensitive to order
 }
 
-// parameter instantiated module
-// e.g. modA(B := x, C := y)
-// WARNING: we assume the order of arguments is the same as parameters
-#[derive(Debug, Clone)]
-pub struct ModuleInstantiated {
-    pub module_name: Identifier,            // name of the module
-    pub arguments: Vec<(Identifier, SExp)>, // given arguments for parameters
-}
-
 #[derive(Debug, Clone)]
 pub enum ModuleAccessPath {
     FromCurrent {
         back_parent: usize,
-        args: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
     },
     FromRoot {
-        args: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
     },
 }
 
@@ -55,8 +46,9 @@ pub enum ModuleItem {
     Inductive {
         type_name: Identifier,
         parameters: Vec<RightBind>,
-        arity: SExp,
-        constructors: Vec<(Identifier, SExp)>,
+        indices: Vec<RightBind>,
+        sort: kernel::exp::Sort,
+        constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
     },
     ChildModule {
         module: Box<Module>,
@@ -124,13 +116,18 @@ pub enum Bind {
 }
 
 #[derive(Debug, Clone)]
-pub enum AccessPath {
-    Plain {
-        segments: Vec<Identifier>,
+// some access path to access defined constant or inductive type
+// if len >= 1, then it is Indtype with parameters. but len == 0 does not mean it is DefinedConstant (could be Indtype with no parameters)
+pub enum LocalAccess {
+    // accessing inductive type or defined constant
+    Current {
+        access: Identifier,
+        parameters: Vec<SExp>,
     },
-    WithParams {
-        segments: Vec<Identifier>,
-        parameters: Vec<SExp>, // len >= 1
+    Named {
+        access: Identifier,
+        child: Identifier,
+        parameters: Vec<SExp>,
     },
 }
 
@@ -138,11 +135,7 @@ pub enum AccessPath {
 #[derive(Debug, Clone)]
 pub enum SExp {
     // accessessing something
-    // len == 1 => locally binded variable | current module defined item (definition, inductive type name) | module parameter
-    // len == 2 => named module's item access | current module's inductive type constructor access
-    // l3n == 3 => named module's inductive type constructor access
-    // too ad-hoc TODO: improve this design
-    AccessPath(AccessPath),
+    AccessPath(LocalAccess),
 
     // --- macro
     // shared macro for math symbols
@@ -192,17 +185,21 @@ pub enum SExp {
         to: Box<SExp>,
     },
     // --- inductive type
-    // name of inductive type
-    // primitive elimination for inductive type
+    // usual ind type is contained in SExp::AccessPath
+    IndCtor {
+        path: LocalAccess,
+        ctor_name: Identifier,
+    },
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {
-        path: AccessPath,
+        path: LocalAccess,
         elim: Box<SExp>,
         return_type: Box<SExp>,
         cases: Vec<(Identifier, SExp)>,
     },
+    // primitive elimination for inductive type
     IndElimPrim {
-        path: AccessPath,
+        path: LocalAccess,
         sort: kernel::exp::Sort,
     },
     // --- set theory

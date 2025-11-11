@@ -662,7 +662,7 @@ impl<'a> Parser<'a> {
     // parse an access path
     // e.g. `x` or `x.y` or `x.y.z` or ...
     //  or with parameter `x {<e0> "," ... ","  <en>}` (optional)
-    fn parse_access_path(&mut self) -> Result<AccessPath, ParseError> {
+    fn parse_access_path(&mut self) -> Result<LocalAccess, ParseError> {
         let mut path = Vec::new();
 
         // 1. expect first identifier
@@ -690,7 +690,7 @@ impl<'a> Parser<'a> {
             }
             if self.bump_if_token(&Token::RBrace) {
                 self.expect_token(Token::RBrace)?; // expect '}'
-                return Ok(AccessPath::WithParams {
+                return Ok(LocalAccess::WithParams {
                     segments: path,
                     parameters: params,
                 });
@@ -700,7 +700,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Ok(AccessPath::Plain { segments: path })
+        Ok(LocalAccess::Plain { segments: path })
     }
 
     // parse a single atom
