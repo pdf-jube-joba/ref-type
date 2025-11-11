@@ -39,7 +39,7 @@ pub struct ModuleInstantiated {
 }
 
 impl ModuleInstantiated {
-    fn get_def_const(&self, name: &Identifier) -> Option<std::rc::Rc<DefinedConstant>> {
+    pub fn get_def_const(&self, name: &Identifier) -> Option<std::rc::Rc<DefinedConstant>> {
         for item in self.items.iter() {
             match item {
                 ModuleItemAccessible::Definition { rc } => {
@@ -52,7 +52,7 @@ impl ModuleInstantiated {
         }
         None
     }
-    fn get_indtype(
+    pub fn get_indtype(
         &self,
         name: &Identifier,
     ) -> Option<std::rc::Rc<kernel::inductive::InductiveTypeSpecs>> {

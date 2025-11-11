@@ -7,7 +7,6 @@
 // align variables between the two levels to preserve correct correspondence.
 
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use crate::{elaborator::module_manager::AccessResult, syntax::*};
 use kernel::{
@@ -471,8 +470,126 @@ impl GlobalEnvironment {
         }
         Ok(result)
     }
-    fn elab_exp(&mut self, exp: &SExp) -> Result<Exp, ErrorKind> {
-        todo!()
+}
+
+// elaborations
+impl GlobalEnvironment {
+    fn elab_exp(&mut self, sexp: &SExp) -> Result<Exp, ErrorKind> {
+        match sexp {
+            SExp::AccessPath(local_access) => {
+                // variable, or inductive type
+                let (find_from, item_name, parameters) = match local_access {
+                    LocalAccess::Current { access, parameters } => {
+                        // 1. binded in local scope
+                        if let Some(v) = self.local_scope.get_var(access) {
+                            if parameters.is_empty() {
+                                return Ok(Exp::Var(v));
+                            } else {
+                                return Err(ErrorKind::Msg(format!(
+                                    "Variable {} cannot be applied with parameters",
+                                    access.as_str()
+                                )));
+                            }
+                        }
+
+                        // 2. anything in current module
+
+                        let module = self.module_manager.current_module_as_instantiated();
+                        (module, access.clone(), parameters.clone())
+                    }
+                    LocalAccess::Named {
+                        access,
+                        child,
+                        parameters,
+                    } => {
+                        // it should be from imported module
+                        let module = match self.local_scope.get_imported_module(access) {
+                            Some(m) => m.clone(),
+                            None => {
+                                return Err(ErrorKind::Msg(format!(
+                                    "Imported module {} not found",
+                                    access.as_str()
+                                )));
+                            }
+                        };
+                        (module, child.clone(), parameters.clone())
+                    }
+                };
+                // find item_name from find_from
+                if let Some(def_const) = find_from.get_def_const(&item_name) {
+                    if parameters.is_empty() {
+                        return Ok(Exp::DefinedConstant(def_const.clone()));
+                    } else {
+                        return Err(ErrorKind::Msg(format!(
+                            "Defined constant {} cannot be applied with parameters",
+                            item_name.as_str()
+                        )));
+                    }
+                }
+
+                if let Some(indspec) = find_from.get_indtype(&item_name) {
+                    let parameters: Vec<Exp> = parameters
+                        .iter()
+                        .map(|e| self.elab_exp(e))
+                        .collect::<Result<_, _>>()?;
+                    return Ok(Exp::IndType {
+                        indspec: indspec.clone(),
+                        parameters,
+                    });
+                }
+
+                Err(ErrorKind::Msg(format!(
+                    "Access path {:?} not found",
+                    local_access
+                )))
+            }
+            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
+            SExp::Where { exp, clauses } => {
+                let where_def_rcs = vec![];
+                for (name, ty, body) in clauses {
+                    let ty = self.elab_exp(ty)?;
+                    let body = self.elab_exp(body)?;
+                    let def_cst = DefinedConstant {
+                        name: format!("<where {}>", name.as_str()),
+                        ty,
+                        body,
+                    };
+                }
+                todo!()
+            }
+            SExp::WithProofs { exp, proofs } => todo!(),
+            SExp::Sort(sort) => todo!(),
+            SExp::Prod { bind, body } => todo!(),
+            SExp::Lam { bind, body } => todo!(),
+            SExp::App { func, arg, piped } => todo!(),
+            SExp::Cast { exp, to } => todo!(),
+            SExp::IndCtor { path, ctor_name } => todo!(),
+            SExp::IndElim {
+                path,
+                elim,
+                return_type,
+                cases,
+            } => todo!(),
+            SExp::IndElimPrim { path, sort } => todo!(),
+            SExp::ProveLater { term } => todo!(),
+            SExp::PowerSet { set } => todo!(),
+            SExp::SubSet {
+                var,
+                set,
+                predicate,
+            } => todo!(),
+            SExp::Pred {
+                superset,
+                subset,
+                element,
+            } => todo!(),
+            SExp::TypeLift { superset, subset } => todo!(),
+            SExp::Equal { left, right } => todo!(),
+            SExp::Exists { bind } => todo!(),
+            SExp::Take { bind, body } => todo!(),
+            SExp::ProofBy(proof_by) => todo!(),
+            SExp::Block(block) => todo!(),
+        }
     }
 }
 
