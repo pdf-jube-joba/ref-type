@@ -1,4 +1,4 @@
-use crate::syntax::{Identifier, ModuleAccessPath, SExp};
+use crate::syntax::Identifier;
 use kernel::exp::{DefinedConstant, Exp, Var};
 
 #[derive(Debug, Clone)]
@@ -22,55 +22,55 @@ pub struct ModuleElaborated {
     pub parent_module: Option<usize>,
 }
 
-impl From<&ModuleElaborated> for ModuleInstantiated {
-    fn from(module: &ModuleElaborated) -> Self {
-        let items = module.items.clone();
-        ModuleInstantiated {
-            name: module.name.clone(),
-            items,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ModuleInstantiated {
-    pub name: String,
+    // what is substituted for parameters
+    pub parameters_instantiated: Vec<(Var, Exp)>,
     pub items: Vec<ModuleItemAccessible>,
 }
 
+pub enum ItemAccessResult {
+    Definition {
+        rc: std::rc::Rc<DefinedConstant>,
+    },
+    Inductive {
+        ind_defs: std::rc::Rc<kernel::inductive::InductiveTypeSpecs>,
+    },
+    Parameter {
+        exp: Exp,
+    },
+}
+
 impl ModuleInstantiated {
-    pub fn get_def_const(&self, name: &Identifier) -> Option<std::rc::Rc<DefinedConstant>> {
+    pub fn get_item(&self, name: &Identifier) -> Option<ItemAccessResult> {
         for item in self.items.iter() {
             match item {
                 ModuleItemAccessible::Definition { rc } => {
                     if rc.as_ref().name.as_str() == name.0.as_str() {
-                        return Some(std::rc::Rc::clone(rc));
+                        return Some(ItemAccessResult::Definition {
+                            rc: std::rc::Rc::clone(rc),
+                        });
                     }
                 }
-                _ => {}
-            }
-        }
-        None
-    }
-    pub fn get_indtype(
-        &self,
-        name: &Identifier,
-    ) -> Option<std::rc::Rc<kernel::inductive::InductiveTypeSpecs>> {
-        for item in self.items.iter() {
-            match item {
                 ModuleItemAccessible::Inductive { ind_defs } => {
                     if ind_defs.as_ref().names.0.as_str() == name.0.as_str() {
-                        return Some(std::rc::Rc::clone(ind_defs));
+                        return Some(ItemAccessResult::Inductive {
+                            ind_defs: std::rc::Rc::clone(ind_defs),
+                        });
                     }
                 }
-                _ => {}
+            }
+        }
+        for (var, exp) in self.parameters_instantiated.iter() {
+            if var.as_str() == name.0.as_str() {
+                return Some(ItemAccessResult::Parameter { exp: exp.clone() });
             }
         }
         None
     }
 }
 
-pub struct AccessResult {
+pub struct InstantiateResult {
     pub module_index: usize,
     pub instantiated_module: ModuleInstantiated,
     pub need_to_type_check: Vec<(String, Exp, Exp)>,
@@ -119,7 +119,30 @@ impl ModuleManager {
     }
 
     pub fn current_module_as_instantiated(&self) -> ModuleInstantiated {
-        ModuleInstantiated::from(&self.modules[self.current])
+        let ModuleElaborated {
+            name,
+            parameters: _,
+            items,
+            child_modules: _,
+            parent_module: _,
+        } = self.modules.get(self.current).unwrap();
+
+        // reflective setting of parameters
+        // instance : v := "v it self"
+        let pms = self
+            .current_context()
+            .into_iter()
+            .flat_map(|(_, params)| {
+                params
+                    .into_iter()
+                    .map(|(v, _)| (v.clone(), Exp::Var(v.clone())))
+            })
+            .collect();
+
+        ModuleInstantiated {
+            parameters_instantiated: pms,
+            items: items.clone(),
+        }
     }
 
     pub fn current_context(&self) -> Vec<(String, Vec<(Var, Exp)>)> {
@@ -173,7 +196,7 @@ impl ModuleManager {
         &self,
         mut from: usize,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    ) -> Result<AccessResult, String> {
+    ) -> Result<InstantiateResult, String> {
         // we delegate "type checking" of arguments to the caller
         let mut need_to_type_check = vec![];
         // to instantiate, we need to subst items in instantiated module
@@ -200,7 +223,7 @@ impl ModuleManager {
                     args.len()
                 ));
             }
-            for ((arg_name, ty), (param_var, arg)) in
+            for ((arg_name, arg), (param_var, ty)) in
                 args.iter().zip(child_module.parameters.iter())
             {
                 if arg_name.as_str() != param_var.as_str() {
@@ -251,11 +274,11 @@ impl ModuleManager {
             .collect();
 
         let module_instantiated = ModuleInstantiated {
-            name: self.modules[from].name.clone(),
+            parameters_instantiated: subst_mapping_accum,
             items: instantiated_items,
         };
 
-        Ok(AccessResult {
+        Ok(InstantiateResult {
             module_index: from,
             instantiated_module: module_instantiated,
             need_to_type_check,
@@ -265,14 +288,14 @@ impl ModuleManager {
     pub fn access_from_root(
         &self,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    ) -> Result<AccessResult, String> {
+    ) -> Result<InstantiateResult, String> {
         self.access_module(0, args)
     }
     pub fn access_from_current_parent(
         &self,
         back_parent: usize,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    ) -> Result<AccessResult, String> {
+    ) -> Result<InstantiateResult, String> {
         let mut index = self.current;
         for _ in 0..back_parent {
             if let Some(parent_index) = self.modules[index].parent_module {

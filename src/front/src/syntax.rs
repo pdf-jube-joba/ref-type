@@ -131,6 +131,15 @@ pub enum LocalAccess {
     },
 }
 
+impl LocalAccess {
+    pub fn parameters(&self) -> &Vec<SExp> {
+        match self {
+            LocalAccess::Current { parameters, .. } => parameters,
+            LocalAccess::Named { parameters, .. } => parameters,
+        }
+    }
+}
+
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
@@ -205,7 +214,7 @@ pub enum SExp {
     // --- set theory
     // \Proof (term) ... "prove this later"
     ProveLater {
-        term: Box<SExp>,
+        prop: Box<SExp>,
     },
     // \Power(power)
     PowerSet {
@@ -245,13 +254,13 @@ pub enum SExp {
         body: Box<SExp>,
     },
     // --- "proof by" terms
-    ProofBy(ProofBy),
+    ProofTermRaw(SProveCommandBy),
     // --- block of statements
     Block(Block),
 }
 
 #[derive(Debug, Clone)]
-pub enum ProofBy {
+pub enum SProveCommandBy {
     Construct {
         term: Box<SExp>,
     },
@@ -310,7 +319,7 @@ pub enum Statement {
 pub struct GoalProof {
     pub extended_ctx: Vec<RightBind>, // extended context
     pub goal: SExp,                   // goal to prove
-    pub proofby: ProofBy,             // proof term to fill in
+    pub proofby: SProveCommandBy,             // proof term to fill in
 }
 
 #[derive(Debug, Clone)]

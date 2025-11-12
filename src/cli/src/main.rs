@@ -121,7 +121,7 @@ fn parse_and_format(src: String) -> (Vec<Log>, bool) {
             let mut logs: Vec<Log> = vec![];
             let mut flag = false;
             for module in modules {
-                match global.new_module(&module) {
+                match global.add_new_module_to_root(&module) {
                     Ok(_) => {}
                     Err(err) => match err {
                         front::elaborator::ErrorKind::Msg(msg) => {
@@ -141,14 +141,14 @@ fn parse_and_format(src: String) -> (Vec<Log>, bool) {
             // append internal logs
             for entry in global.logs() {
                 match entry {
-                    either::Either::Left(der) => {
+                    front::elaborator::LogEnum::Derivation(derivation_success) => {
                         logs.push(Log::Derivation(
-                            kernel::printing::map_derivation_success(der).into(),
+                            kernel::printing::map_derivation_success(derivation_success).into(),
                         ));
                     }
-                    either::Either::Right(mes) => {
-                        logs.push(Log::Message(mes.clone()));
-                    }
+                    front::elaborator::LogEnum::Message(msg) => {
+                        logs.push(Log::Message(msg.clone()));
+                    },
                 }
             }
 

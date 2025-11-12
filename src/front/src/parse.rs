@@ -47,6 +47,7 @@ pub enum Token<'a> {
     Comma,       // ","
     Equal,       // "="
     Exclamation, // "!"
+    Field,       // "#"
 }
 
 static SORT_KEYWORDS: &[&str] = &[
@@ -95,6 +96,8 @@ static PROGRAM_KEYWORDS: &[&str] = &[
     "\\normalize",
     "\\check",
     "\\infer",
+    "\\root",
+    "\\parent",
 ];
 
 pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
@@ -134,6 +137,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     "," => Token::Comma,
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
+                    "#" => Token::Field,
                     _ => Token::MacroToken(s),
                 };
 
@@ -419,7 +423,7 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\Proof") {
             return self.parse_parenthesized(|parser| {
                 parser.parse_sexp().map(|term| SExp::ProveLater {
-                    term: Box::new(term),
+                    prop: Box::new(term),
                 })
             });
         }
@@ -537,12 +541,12 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_proof_command(&mut self) -> Result<ProofBy, ParseError> {
+    fn parse_proof_command(&mut self) -> Result<SProveCommandBy, ParseError> {
         if self.bump_if_keyword("\\term") {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(ProofBy::Construct {
+            return Ok(SProveCommandBy::Construct {
                 term: Box::new(term),
             });
         }
@@ -553,7 +557,7 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::Comma)?; // expect ','
             let set = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(ProofBy::Exact {
+            return Ok(SProveCommandBy::Exact {
                 term: Box::new(term),
                 set: Box::new(set),
             });
@@ -563,7 +567,7 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(ProofBy::IdRefl {
+            return Ok(SProveCommandBy::IdRefl {
                 term: Box::new(term),
             });
         }
@@ -581,7 +585,7 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(ProofBy::IdElim {
+            return Ok(SProveCommandBy::IdElim {
                 left: Box::new(left),
                 right: Box::new(right),
                 var,
@@ -660,26 +664,26 @@ impl<'a> Parser<'a> {
     }
 
     // parse an access path
-    // e.g. `x` or `x.y` or `x.y.z` or ...
-    //  or with parameter `x {<e0> "," ... ","  <en>}` (optional)
+    // 1. identifier | identifier "{" (SExp ("," SExp)*)? "}" ... current scope
+    // 2. identifier "." identifier | identifier . identifier "{" (SExp ("," SExp)*)? "}" ... named scope
+    // ! no nesting of ".", it appears at most once
     fn parse_access_path(&mut self) -> Result<LocalAccess, ParseError> {
-        let mut path = Vec::new();
-
         // 1. expect first identifier
         let first_ident = self.expect_ident()?;
-        path.push(first_ident);
-
-        // 2. while next is '.', expect next identifier
-        while self.bump_if_token(&Token::Period) {
+        // 2. if ".", expect more identifiers
+        let next_ident: Option<Identifier> = if self.bump_if_token(&Token::Period) {
+            // named scope access
             let next_ident = self.expect_ident()?;
-            path.push(next_ident);
-        }
+            Some(next_ident)
+        } else {
+            None
+        };
 
         let save_pos = self.pos;
 
         // trying to parse parameters
         // may be fail => rollback
-        if self.bump_if_token(&Token::LBrace) {
+        let parameters = if self.bump_if_token(&Token::LBrace) {
             // parse parameters inside '{' ... '}'
             let mut params = Vec::new();
             while let Ok(param) = self.parse_sexp() {
@@ -689,18 +693,27 @@ impl<'a> Parser<'a> {
                 }
             }
             if self.bump_if_token(&Token::RBrace) {
-                self.expect_token(Token::RBrace)?; // expect '}'
-                return Ok(LocalAccess::WithParams {
-                    segments: path,
-                    parameters: params,
-                });
+                // successfully closed
             } else {
                 // rollback if not closed
                 self.pos = save_pos;
             }
-        }
+            params
+        } else {
+            Vec::new()
+        };
 
-        Ok(LocalAccess::Plain { segments: path })
+        match next_ident {
+            Some(child) => Ok(LocalAccess::Named {
+                access: first_ident,
+                child,
+                parameters,
+            }),
+            None => Ok(LocalAccess::Current {
+                access: first_ident,
+                parameters,
+            }),
+        }
     }
 
     // parse a single atom
@@ -710,7 +723,16 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Some(Token::Ident(_)) => {
                 let access_path = self.parse_access_path()?;
-                Ok(SExp::AccessPath(access_path))
+                if self.bump_if_token(&Token::Field) {
+                    // constructor access
+                    let ctor_name = self.expect_ident()?;
+                    Ok(SExp::IndCtor {
+                        path: access_path,
+                        ctor_name,
+                    })
+                } else {
+                    Ok(SExp::AccessPath(access_path))
+                }
             }
             Some(Token::LParen) => {
                 self.next(); // consume '('
@@ -748,7 +770,7 @@ impl<'a> Parser<'a> {
                 self.parse_keyword_head_atom()
             }
             Some(Token::KeyWord(keyword)) if PROOF_COMMAND_KEYWORDS.contains(keyword) => {
-                Ok(SExp::ProofBy(self.parse_proof_command()?))
+                Ok(SExp::ProofTermRaw(self.parse_proof_command()?))
             }
             Some(Token::KeyWord(keyword)) => Err(ParseError {
                 msg: format!("unexpected keyword in atom: {}", keyword),
@@ -1065,6 +1087,44 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // ("(" <Ident> ":" <SExp> ")"" "->")* | (<SExp> "->")*
+    // it consumes "->" after each bind
+    fn parse_rightbind_arrow_lefts(&mut self) -> Result<Vec<RightBind>, ParseError> {
+        let mut binds = Vec::new();
+        loop {
+            let save_pos = self.pos;
+            if let Some(bind) = self.try_parse_simple_bind_paren()? {
+                if self.bump_if_token(&Token::Arrow) {
+                    binds.push(bind);
+                    continue;
+                } else {
+                    self.pos = save_pos;
+                    break;
+                }
+            }
+
+            // try to parse anonymous bind
+            let expr = match self.parse_combined() {
+                Ok(e) => e,
+                Err(_) => {
+                    self.pos = save_pos;
+                    break;
+                }
+            };
+            if self.bump_if_token(&Token::Arrow) {
+                binds.push(RightBind {
+                    vars: vec![],
+                    ty: Box::new(expr),
+                });
+                continue;
+            } else {
+                self.pos = save_pos;
+                break;
+            }
+        }
+        Ok(binds)
+    }
+
     // parse the left-hand side of an arrow expression
     // may be a bind or a simple expression or a parenthesized expression
     // e.g. `x y -> z`, `(x y) -> z`, `(x: y) -> z`, `((x: y) | P) -> z`
@@ -1162,9 +1222,57 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Definition { name, ty, body })
     }
 
-    // <module_name: Ident> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")" "\as" <import_name: Ident> ";"
+    // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
-        // 1. <module_name: Ident> "("
+        let parent_num: Option<usize> = if self.bump_if_keyword("\\root") {
+            None
+        } else {
+            let mut count = 0;
+            while self.bump_if_keyword("\\parent") {
+                count += 1;
+                self.expect_token(Token::Period)?; // expect '.'
+            }
+            Some(count)
+        };
+
+        let save_pos = self.pos;
+        // try to parse named module access path many times
+        let mut calls = vec![];
+        loop {
+            let (mod_name, args) = match self.parse_module_access_path() {
+                Ok(res) => res,
+                Err(_) => {
+                    self.pos = save_pos;
+                    break;
+                }
+            };
+            calls.push((mod_name, args));
+
+            if !self.bump_if_token(&Token::Period) {
+                break;
+            }
+        }
+
+        // 3. "\as" <import_name: Ident> ";"
+        self.expect_keyword("\\as")?;
+        let import_name = self.expect_ident()?;
+        self.expect_token(Token::Semicolon)?;
+
+        let path = match parent_num {
+            Some(num) => ModuleAccessPath::FromCurrent {
+                back_parent: num,
+                calls,
+            },
+            None => ModuleAccessPath::FromRoot { calls },
+        };
+
+        Ok(ModuleItem::Import { path, import_name })
+    }
+
+    // <specified_module: (Identifier, Vec<(Identifier, SExp)>)> = <mod_name> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")"
+    fn parse_module_access_path(
+        &mut self,
+    ) -> Result<(Identifier, Vec<(Identifier, SExp)>), ParseError> {
         let module_name = self.expect_ident()?;
         self.expect_token(Token::LParen)?;
 
@@ -1183,31 +1291,22 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // 3. "\as" <import_name: Ident> ";"
-        self.expect_keyword("\\as")?;
-        let import_name = self.expect_ident()?;
-        self.expect_token(Token::Semicolon)?;
-
-        Ok(ModuleItem::Import {
-            import_name,
-            path: ModuleInstantiated {
-                module_name,
-                arguments: assign_pairs,
-            },
-        })
+        Ok((module_name, assign_pairs))
     }
 
-    // "|" <ctor_name: Ident> ":" <ctor_type: SExp> ";"
-    fn parse_ctor_decl(&mut self) -> Result<(Identifier, SExp), ParseError> {
+    // "|" <ctor_name: Ident> ":" <rightbinds> "->" <SExp> ";"
+    fn parse_ctor_decl(&mut self) -> Result<(Identifier, Vec<RightBind>, SExp), ParseError> {
         self.expect_token(Token::Pipe)?; // expect '|'
         let ctor_name = self.expect_ident()?;
         self.expect_token(Token::Colon)?; // expect ':'
-        let ctor_type = self.parse_sexp()?;
+        let ctor_type = self.parse_rightbind_arrow_lefts()?;
+        // arrow is consumed in parse_rightbind_arrow_lefts
+        let ends = self.parse_sexp()?;
         self.expect_token(Token::Semicolon)?; // expect ';'
-        Ok((ctor_name, ctor_type))
+        Ok((ctor_name, ctor_type, ends))
     }
 
-    //  <type_name: Ident> ("(" <param: Ident> ":" <ty: SExp> ")")* ":" <arity: SExp> ":=" (<ctor_decl>)* ";"
+    //  <type_name: Ident> ("(" <param: Ident> ":" <ty: SExp> ")")* ":" <arity> ":=" (<ctor_decl>)* ";"
     fn parse_inductive_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
 
@@ -1216,15 +1315,18 @@ impl<'a> Parser<'a> {
             parameters.push(bind);
         }
         self.expect_token(Token::Colon)?;
-        let arity = self.parse_sexp()?;
+        // <arity> = <indices> <Sort>
+        // <indices> = <rightbinds>
+        let indices = self.parse_rightbind_arrow_lefts()?;
+        let sort = self.parse_sort()?;
 
         // body of constructors
         self.expect_token(Token::Assign)?;
         let mut constructors = vec![];
         loop {
             let save_pos = self.pos;
-            if let Ok((ctor_name, ctor_type)) = self.parse_ctor_decl() {
-                constructors.push((ctor_name, ctor_type));
+            if let Ok((ctor_name, ctor_type, ends)) = self.parse_ctor_decl() {
+                constructors.push((ctor_name, ctor_type, ends));
             } else {
                 self.pos = save_pos;
                 break;
@@ -1234,7 +1336,8 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Inductive {
             type_name,
             parameters,
-            arity,
+            indices,
+            sort,
             constructors,
         })
     }
