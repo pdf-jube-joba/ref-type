@@ -118,6 +118,14 @@ Coq や Lean の型システムについてのメモをとっておく。
 - https://github.com/coq/coq/wiki/Impredicative-Set
 - https://ionathan.ch/2021/11/24/inconsistencies.html
 
+## later modality と guarded recursion について
+- https://saizan.github.io/vezzosi-lic.pdf
+  - Guarded Recursive Types
+in Type Theory
+- https://www.danielgratzer.com/papers/a-stratified-approach-to-lob-induction.pdf
+- https://iris-project.org/tutorial-pdfs/lecture7-later.pdf
+  - Iris にも later modality を入れているらしい
+
 ## ZFC について
 
 ## その他
@@ -131,3 +139,7 @@ Coq や Lean の型システムについてのメモをとっておく。
   - Fig1 がめっちゃわかりやすい。
 - https://dl.acm.org/doi/abs/10.1017/S0960129501003309
   - 家だと読めなかった
+- https://www.cse.chalmers.se/~ulfn/papers/thesis.pdf
+  - Towards a practical programming language based on dependent type theory
+  - Module system と metavariable ありの制約の解き方についても書いてる
+  - agda の参考？
