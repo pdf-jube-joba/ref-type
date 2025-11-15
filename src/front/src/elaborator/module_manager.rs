@@ -23,7 +23,7 @@ pub struct ModuleElaborated {
 }
 
 #[derive(Debug, Clone)]
-pub struct ModuleInstantiated {
+pub struct InstantiatedModule {
     // what is substituted for parameters
     pub parameters_instantiated: Vec<(Var, Exp)>,
     pub items: Vec<ModuleItemAccessible>,
@@ -36,12 +36,12 @@ pub enum ItemAccessResult {
     Inductive {
         ind_defs: std::rc::Rc<kernel::inductive::InductiveTypeSpecs>,
     },
-    Parameter {
+    Expression {
         exp: Exp,
     },
 }
 
-impl ModuleInstantiated {
+impl InstantiatedModule {
     pub fn get_item(&self, name: &Identifier) -> Option<ItemAccessResult> {
         for item in self.items.iter() {
             match item {
@@ -63,7 +63,7 @@ impl ModuleInstantiated {
         }
         for (var, exp) in self.parameters_instantiated.iter() {
             if var.as_str() == name.0.as_str() {
-                return Some(ItemAccessResult::Parameter { exp: exp.clone() });
+                return Some(ItemAccessResult::Expression { exp: exp.clone() });
             }
         }
         None
@@ -72,7 +72,7 @@ impl ModuleInstantiated {
 
 pub struct InstantiateResult {
     pub module_index: usize,
-    pub instantiated_module: ModuleInstantiated,
+    pub instantiated_module: InstantiatedModule,
     pub need_to_type_check: Vec<(String, Exp, Exp)>,
 }
 
@@ -118,7 +118,7 @@ impl ModuleManager {
         self.current = 0;
     }
 
-    pub fn current_module_as_instantiated(&self) -> ModuleInstantiated {
+    pub fn current_module_as_instantiated(&self) -> InstantiatedModule {
         let ModuleElaborated {
             name,
             parameters: _,
@@ -139,7 +139,7 @@ impl ModuleManager {
             })
             .collect();
 
-        ModuleInstantiated {
+        InstantiatedModule {
             parameters_instantiated: pms,
             items: items.clone(),
         }
@@ -273,7 +273,7 @@ impl ModuleManager {
             })
             .collect();
 
-        let module_instantiated = ModuleInstantiated {
+        let module_instantiated = InstantiatedModule {
             parameters_instantiated: subst_mapping_accum,
             items: instantiated_items,
         };

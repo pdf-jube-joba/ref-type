@@ -1,12 +1,44 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::elaborator::module_manager::ModuleInstantiated;
 use crate::elaborator::{ErrorKind, GlobalEnvironment, ItemAccessResult};
 use crate::syntax::*;
 use kernel::calculus::exp_subst_map;
 use kernel::exp::*;
 use kernel::inductive::InductiveTypeSpecs;
+
+pub trait Handler {
+    fn get_item_from_access_path(
+        &self,
+        access_path: &LocalAccess,
+    ) -> Result<ItemAccessResult, ErrorKind>;
+    fn get_definition_from_access_path(
+        &self,
+        access_path: &LocalAccess,
+    ) -> Result<Rc<DefinedConstant>, ErrorKind> {
+        let item = self.get_item_from_access_path(access_path)?;
+        match item {
+            ItemAccessResult::Definition { rc } => Ok(rc.clone()),
+            _ => Err(ErrorKind::Msg(format!(
+                "Expected definition in path {:?}",
+                access_path
+            ))),
+        }
+    }
+    fn get_inductive_type_from_access_path(
+        &self,
+        access_path: &LocalAccess,
+    ) -> Result<Rc<InductiveTypeSpecs>, ErrorKind> {
+        let item = self.get_item_from_access_path(access_path)?;
+        match item {
+            ItemAccessResult::Inductive { ind_defs } => Ok(ind_defs.clone()),
+            _ => Err(ErrorKind::Msg(format!(
+                "Expected inductive type in path {:?}",
+                access_path
+            ))),
+        }
+    }
+    fn get_item_from_var(&self, var: &Var) -> Result<ItemAccessResult, ErrorKind>;
+}
 
 // local scope during elaboration
 #[derive(Debug, Clone)]
@@ -17,104 +49,122 @@ pub struct LocalScope {
     binded_vars: Vec<Var>,
     // for find decl levels
     decl_binds: Vec<Var>,
-    imported_modules: HashMap<Identifier, ModuleInstantiated>,
 }
 
-// elaborations
-impl GlobalEnvironment {
-    pub fn elab_exp(&mut self, sexp: &SExp) -> Result<Exp, ErrorKind> {
-        assert!(self.local_scope.binded_vars.is_empty());
-        let e = self.elab_exp_rec(sexp);
-        assert!(self.local_scope.binded_vars.is_empty());
-        e
+impl Default for LocalScope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LocalScope {
+    pub fn new() -> Self {
+        LocalScope {
+            binded_vars: vec![],
+            decl_binds: vec![],
+        }
     }
 
-    fn push_binded_var(&mut self, var: Var) {
-        self.local_scope.binded_vars.push(var);
+    pub fn push_decl_var(&mut self, var: Var) {
+        self.decl_binds.push(var);
     }
-    fn pop_binded_var(&mut self) {
-        self.local_scope.binded_vars.pop();
-    }
-    // this modifies bind_vars (length += number of vars)
-    // after call, caller should pop the binded vars
-    fn elab_telescope_rec(&mut self, v: &[RightBind]) -> Result<Vec<(Var, Exp)>, ErrorKind> {
+
+    // does not pop decl_binds
+    pub fn elab_telescope_bind_in_decl(
+        &mut self,
+        binds: &[RightBind],
+        handler: &impl Handler,
+    ) -> Result<Vec<(Var, Exp)>, ErrorKind> {
         let mut result = vec![];
-        for RightBind { vars, ty } in v.iter() {
-            let ty_elab = self.elab_exp(ty)?;
+        for RightBind { vars, ty } in binds.iter() {
+            let ty_elab = self.elab_exp(ty, handler)?;
             for var in vars {
                 let var = Var::new(var.as_str());
                 result.push((var.clone(), ty_elab.clone()));
-                self.push_binded_var(var);
+                self.push_decl_var(var);
             }
         }
         Ok(result)
     }
 
-    fn elab_exp_rec(&mut self, sexp: &SExp) -> Result<Exp, ErrorKind> {
-        match sexp {
+    fn get_var(&self, name: &Identifier) -> Option<Var> {
+        for v in self.binded_vars.iter().rev() {
+            if v.as_str() == name.as_str() {
+                return Some(v.clone());
+            }
+        }
+        for v in self.decl_binds.iter().rev() {
+            if v.as_str() == name.as_str() {
+                return Some(v.clone());
+            }
+        }
+        None
+    }
+
+    fn push_binded_var(&mut self, var: Var) {
+        self.binded_vars.push(var);
+    }
+    fn pop_binded_var(&mut self) {
+        self.binded_vars.pop();
+    }
+
+    pub fn elab_exp(&mut self, exp: &SExp, handler: &impl Handler) -> Result<Exp, ErrorKind> {
+        assert!(self.binded_vars.is_empty());
+        let e = self.elab_exp_rec(exp, handler);
+        assert!(self.binded_vars.is_empty());
+        e
+    }
+
+    pub fn elab_exp_rec(&mut self, exp: &SExp, handler: &impl Handler) -> Result<Exp, ErrorKind> {
+        match exp {
             SExp::AccessPath(local_access) => {
-                // 1. find from local_scope ... if LocalAccess::Current and has Some() get_var
-
-                if let LocalAccess::Current { access, parameters } = local_access {
-                    // 1. binded in local scope
-                    if let Some(v) = self.local_scope.get_var(access) {
-                        if parameters.is_empty() {
-                            return Ok(Exp::Var(v));
-                        } else {
-                            return Err(ErrorKind::Msg(format!(
-                                "Variable {} cannot be applied with parameters",
-                                access.as_str()
-                            )));
-                        }
-                    }
-                }
-
-                // 2. find from modules
-                let item = self.convert_access_path_to_items(local_access)?;
-
+                let item = handler.get_item_from_access_path(local_access)?;
                 match item {
                     ItemAccessResult::Definition { rc } => {
                         if local_access.parameters().is_empty() {
-                            return Ok(Exp::DefinedConstant(rc.clone()));
+                            Ok(Exp::DefinedConstant(rc.clone()))
                         } else {
-                            return Err(ErrorKind::Msg(format!(
+                            Err(format!(
                                 "Defined constant {} cannot be applied with parameters",
                                 rc.name.as_str()
-                            )));
+                            )
+                            .into())
                         }
                     }
                     ItemAccessResult::Inductive { ind_defs } => {
                         let parameters: Vec<Exp> = local_access
                             .parameters()
                             .iter()
-                            .map(|e| self.elab_exp_rec(e))
+                            .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
-                        return Ok(Exp::IndType {
+                        Ok(Exp::IndType {
                             indspec: ind_defs.clone(),
                             parameters,
-                        });
+                        })
                     }
-                    ItemAccessResult::Parameter { exp } => {
+                    ItemAccessResult::Expression { exp } => {
                         if local_access.parameters().is_empty() {
-                            return Ok(exp.clone());
+                            Ok(exp.clone())
                         } else {
-                            return Err(ErrorKind::Msg(format!(
+                            Err(format!(
                                 "Module parameter {} cannot be applied with parameters",
                                 exp
-                            )));
+                            )
+                            .into())
                         }
                     }
                 }
             }
-            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
+            SExp::MathMacro { tokens } => todo!(),
+            SExp::NamedMacro { name, tokens } => todo!(),
             SExp::Where { exp, clauses } => {
                 // elaborate clauses, register name
                 // then subst var to defconst in exp
 
                 let mut where_def_rcs_substmap: Vec<(Var, Exp)> = vec![];
                 for (name, ty, body) in clauses {
-                    let ty = self.elab_exp_rec(ty)?;
-                    let body = self.elab_exp_rec(body)?;
+                    let ty = self.elab_exp_rec(ty, handler)?;
+                    let body = self.elab_exp_rec(body, handler)?;
                     let def_cst = DefinedConstant {
                         name: format!("<where {}>", name.as_str()),
                         ty,
@@ -125,12 +175,12 @@ impl GlobalEnvironment {
                     where_def_rcs_substmap.push((name, Exp::DefinedConstant(def_rc)));
                 }
 
-                let exp_elab = self.elab_exp_rec(exp)?;
+                let exp_elab = self.elab_exp_rec(exp, handler)?;
 
                 Ok(exp_subst_map(&exp_elab, &where_def_rcs_substmap))
             }
             SExp::WithProofs { exp, proofs } => {
-                let exp_elab = self.elab_exp_rec(exp)?;
+                let exp_elab = self.elab_exp_rec(exp, handler)?;
                 let mut proof_goals: Vec<ProveGoal> = vec![];
                 for proof in proofs {
                     let GoalProof {
@@ -138,13 +188,15 @@ impl GlobalEnvironment {
                         goal,
                         proofby: proof_term,
                     } = proof;
-                    let extended_ctx_elab = self.elab_telescope_rec(extended_ctx)?;
-                    //
-                    let goal_elab = self.elab_exp_rec(goal)?;
-                    let proof_term_elab = self.elab_proof_by_rec(proof_term)?;
+
+                    let extended_ctx_elab =
+                        self.elab_telescope_bind_in_decl(extended_ctx, handler)?;
+
+                    let goal_elab = self.elab_exp_rec(goal, handler)?;
+                    let proof_term_elab = self.elab_proof_by_rec(proof_term, handler)?;
 
                     for _ in 0..extended_ctx_elab.len() {
-                        self.pop_binded_var();
+                        self.decl_binds.pop();
                     }
 
                     proof_goals.push(ProveGoal {
@@ -160,11 +212,11 @@ impl GlobalEnvironment {
             }
             SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
-                let is_prod = matches!(sexp, SExp::Prod { .. });
+                let is_prod = matches!(exp, SExp::Prod { .. });
                 match bind {
                     Bind::Anonymous { ty } => {
-                        let ty_elab = self.elab_exp_rec(ty)?;
-                        let body_elab = self.elab_exp_rec(body)?;
+                        let ty_elab = self.elab_exp_rec(ty, handler)?;
+                        let body_elab = self.elab_exp_rec(body, handler)?;
                         Ok(if is_prod {
                             Exp::Prod {
                                 var: Var::dummy(),
@@ -180,7 +232,7 @@ impl GlobalEnvironment {
                         })
                     }
                     Bind::Named(right_bind) => {
-                        let ty_elab = self.elab_exp_rec(&right_bind.ty)?;
+                        let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
 
                         let mut telescope: Vec<(Var, Exp)> = vec![];
                         for var in &right_bind.vars {
@@ -189,7 +241,7 @@ impl GlobalEnvironment {
                             self.push_binded_var(var);
                         }
 
-                        let body_elab = self.elab_exp_rec(body)?;
+                        let body_elab = self.elab_exp_rec(body, handler)?;
 
                         for _ in &right_bind.vars {
                             self.pop_binded_var();
@@ -202,11 +254,11 @@ impl GlobalEnvironment {
                         })
                     }
                     Bind::Subset { var, ty, predicate } => {
-                        let ty_elab = self.elab_exp_rec(ty)?;
+                        let ty_elab = self.elab_exp_rec(ty, handler)?;
                         let var: Var = Var::new(var.as_str());
                         self.push_binded_var(var.clone());
-                        let predicate_elab = self.elab_exp_rec(predicate)?;
-                        let body_elab = self.elab_exp_rec(body)?;
+                        let predicate_elab = self.elab_exp_rec(predicate, handler)?;
+                        let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
 
                         let subset = Exp::SubSet {
@@ -240,13 +292,13 @@ impl GlobalEnvironment {
                         predicate,
                         proof_var,
                     } => {
-                        let ty_elab = self.elab_exp_rec(ty)?;
+                        let ty_elab = self.elab_exp_rec(ty, handler)?;
                         let var: Var = Var::new(var.as_str());
                         self.push_binded_var(var.clone());
-                        let predicate_elab = self.elab_exp_rec(predicate)?;
+                        let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         let proof: Var = Var::new(proof_var.as_str());
                         self.push_binded_var(proof.clone());
-                        let body_elab = self.elab_exp_rec(body)?;
+                        let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
                         self.pop_binded_var();
 
@@ -287,49 +339,41 @@ impl GlobalEnvironment {
                 arg,
                 piped: _,
             } => {
-                let func_elab = self.elab_exp_rec(func)?;
-                let arg_elab = self.elab_exp_rec(arg)?;
+                let func_elab = self.elab_exp_rec(func, handler)?;
+                let arg_elab = self.elab_exp_rec(arg, handler)?;
                 Ok(Exp::App {
                     func: Box::new(func_elab),
                     arg: Box::new(arg_elab),
                 })
             }
             SExp::Cast { exp, to } => {
-                let exp_elab = self.elab_exp_rec(exp)?;
-                let to_elab = self.elab_exp_rec(to)?;
+                let exp_elab = self.elab_exp_rec(exp, handler)?;
+                let to_elab = self.elab_exp_rec(to, handler)?;
                 Ok(Exp::Cast {
                     exp: Box::new(exp_elab),
                     to: Box::new(to_elab),
                 })
             }
             SExp::IndCtor { path, ctor_name } => {
-                let item = self.convert_access_path_to_items(path)?;
-
-                let ItemAccessResult::Inductive { ind_defs: indspec } = item else {
-                    return Err(ErrorKind::Msg(format!(
-                        "Expected inductive type in path {:?}",
-                        path
-                    )));
-                };
+                let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
 
                 let parameters: Vec<Exp> = path
                     .parameters()
                     .iter()
-                    .map(|e| self.elab_exp_rec(e))
+                    .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
-
-                let idx = indspec
+                let idx = indspec_rc
                     .ctor_idx_from_name(ctor_name.as_str())
                     .ok_or_else(|| {
-                        ErrorKind::Msg(format!(
+                        format!(
                             "Constructor {} not found in inductive type {}",
                             ctor_name.as_str(),
-                            indspec.names.0
-                        ))
+                            indspec_rc.names.0
+                        )
                     })?;
 
                 Ok(Exp::IndCtor {
-                    indspec,
+                    indspec: indspec_rc,
                     parameters,
                     idx,
                 })
@@ -340,68 +384,61 @@ impl GlobalEnvironment {
                 return_type,
                 cases,
             } => {
-                let item = self.convert_access_path_to_items(path)?;
-                let ItemAccessResult::Inductive { ind_defs: indspec } = item else {
-                    return Err(ErrorKind::Msg(format!(
-                        "Expected inductive type in path {:?}",
-                        path
-                    )));
-                };
-                let elim_elab = self.elab_exp_rec(elim)?;
-                let return_type_elab = self.elab_exp_rec(return_type)?;
+                let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
+
+                let elim_elab = self.elab_exp_rec(elim, handler)?;
+                let return_type_elab = self.elab_exp_rec(return_type, handler)?;
                 let mut cases_elab: Vec<Exp> = vec![];
                 for (ctor_name, case) in cases {
-                    let case_elab = self.elab_exp_rec(case)?;
-                    let ctor_idx =
-                        indspec
-                            .ctor_idx_from_name(ctor_name.as_str())
-                            .ok_or_else(|| {
-                                ErrorKind::Msg(format!(
-                                    "Constructor {} not found in inductive type {}",
-                                    ctor_name.as_str(),
-                                    indspec.names.0
-                                ))
-                            })?;
+                    let case_elab = self.elab_exp_rec(case, handler)?;
+                    let ctor_idx = indspec_rc
+                        .ctor_idx_from_name(ctor_name.as_str())
+                        .ok_or_else(|| {
+                            format!(
+                                "Constructor {} not found in inductive type {}",
+                                ctor_name.as_str(),
+                                indspec_rc.names.0
+                            )
+                        })?;
                     if ctor_idx != cases_elab.len() {
-                        return Err(ErrorKind::Msg(format!(
+                        return Err(format!(
                             "Constructor cases are not in order in ind elim for inductive type {}",
-                            indspec.names.0
-                        )));
+                            indspec_rc.names.0
+                        )
+                        .into());
                     }
                     cases_elab.push(case_elab);
                 }
+
                 Ok(Exp::IndElim {
-                    indspec,
+                    indspec: indspec_rc,
                     elim: Box::new(elim_elab),
                     return_type: Box::new(return_type_elab),
                     cases: cases_elab,
                 })
             }
             SExp::IndElimPrim { path, sort } => {
-                let item = self.convert_access_path_to_items(path)?;
-                let ItemAccessResult::Inductive { ind_defs: indspec } = item else {
-                    return Err(ErrorKind::Msg(format!(
-                        "Expected inductive type in path {:?}",
-                        path
-                    )));
-                };
+                let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
+
                 let parameters: Vec<Exp> = path
                     .parameters()
                     .iter()
-                    .map(|e| self.elab_exp_rec(e))
+                    .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
                 Ok(InductiveTypeSpecs::primitive_recursion(
-                    &indspec, parameters, *sort,
+                    &indspec_rc,
+                    parameters,
+                    *sort,
                 ))
             }
-            SExp::ProveLater { prop: term } => {
-                let term_elab = self.elab_exp_rec(term)?;
+            SExp::ProveLater { prop } => {
+                let prop_elab = self.elab_exp_rec(prop, handler)?;
                 Ok(Exp::ProveLater {
-                    prop: Box::new(term_elab),
+                    prop: Box::new(prop_elab),
                 })
             }
             SExp::PowerSet { set } => {
-                let set_elab = self.elab_exp_rec(set)?;
+                let set_elab = self.elab_exp_rec(set, handler)?;
                 Ok(Exp::PowerSet {
                     set: Box::new(set_elab),
                 })
@@ -411,10 +448,10 @@ impl GlobalEnvironment {
                 set,
                 predicate,
             } => {
-                let set_elab = self.elab_exp_rec(set)?;
+                let set_elab = self.elab_exp_rec(set, handler)?;
                 let var: Var = Var::new(var.as_str());
                 self.push_binded_var(var.clone());
-                let predicate_elab = self.elab_exp_rec(predicate)?;
+                let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
                 Ok(Exp::SubSet {
                     var: var.clone(),
@@ -427,9 +464,9 @@ impl GlobalEnvironment {
                 subset,
                 element,
             } => {
-                let superset_elab = self.elab_exp_rec(superset)?;
-                let subset_elab = self.elab_exp_rec(subset)?;
-                let element_elab = self.elab_exp_rec(element)?;
+                let superset_elab = self.elab_exp_rec(superset, handler)?;
+                let subset_elab = self.elab_exp_rec(subset, handler)?;
+                let element_elab = self.elab_exp_rec(element, handler)?;
                 Ok(Exp::Pred {
                     superset: Box::new(superset_elab),
                     subset: Box::new(subset_elab),
@@ -437,39 +474,39 @@ impl GlobalEnvironment {
                 })
             }
             SExp::TypeLift { superset, subset } => {
-                let superset_elab = self.elab_exp_rec(superset)?;
-                let subset_elab = self.elab_exp_rec(subset)?;
+                let superset_elab = self.elab_exp_rec(superset, handler)?;
+                let subset_elab = self.elab_exp_rec(subset, handler)?;
                 Ok(Exp::TypeLift {
                     superset: Box::new(superset_elab),
                     subset: Box::new(subset_elab),
                 })
             }
             SExp::Equal { left, right } => {
-                let left_elab = self.elab_exp_rec(left)?;
-                let right_elab = self.elab_exp_rec(right)?;
+                let left_elab = self.elab_exp_rec(left, handler)?;
+                let right_elab = self.elab_exp_rec(right, handler)?;
                 Ok(Exp::Equal {
                     left: Box::new(left_elab),
                     right: Box::new(right_elab),
                 })
             }
-            // this is non emptyness of type ... Exp::Exists { set: Box<Exp> }
             SExp::Exists { bind } => match bind {
-                Bind::Named(_) | Bind::SubsetWithProof { .. } => Err(ErrorKind::Msg(
+                Bind::Named(_) | Bind::SubsetWithProof { .. } => Err(
                     "Elaboration of named bind or subset with proof in Exists is not implemented"
-                        .to_string(),
-                )),
+                        .to_string()
+                        .into(),
+                ),
                 Bind::Anonymous { ty } => {
-                    let ty_elab = self.elab_exp_rec(ty)?;
+                    let ty_elab = self.elab_exp_rec(ty, handler)?;
                     Ok(Exp::Exists {
                         set: Box::new(ty_elab),
                     })
                 }
                 Bind::Subset { var, ty, predicate } => {
                     let subset_as_exp = {
-                        let ty_elab = self.elab_exp_rec(ty)?;
+                        let ty_elab = self.elab_exp_rec(ty, handler)?;
                         let var: Var = Var::new(var.as_str());
                         self.push_binded_var(var.clone());
-                        let predicate_elab = self.elab_exp_rec(predicate)?;
+                        let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
                         Exp::SubSet {
@@ -487,15 +524,15 @@ impl GlobalEnvironment {
                 // elab as SExp::Lam {bind, body}
                 let map = SExp::Lam {
                     bind: bind.clone(),
-                    body: body.clone(),
+                    body: Box::new(body.as_ref().clone()),
                 };
-                let map_elab = self.elab_exp_rec(&map)?;
+                let map_elab = self.elab_exp_rec(&map, handler)?;
                 Ok(Exp::Take {
                     map: Box::new(map_elab),
                 })
             }
-            SExp::ProofTermRaw(proof_by) => {
-                let proof_by_elab = self.elab_proof_by_rec(proof_by)?;
+            SExp::ProofTermRaw(sprove_command_by) => {
+                let proof_by_elab = self.elab_proof_by_rec(sprove_command_by, handler)?;
                 Ok(Exp::ProofTermRaw {
                     command: Box::new(proof_by_elab),
                 })
@@ -547,22 +584,24 @@ impl GlobalEnvironment {
                         }
                     }
                 }
-                self.elab_exp_rec(&term)
+                self.elab_exp_rec(&term, handler)
             }
         }
     }
+
     fn elab_proof_by_rec(
         &mut self,
         proof_by: &SProveCommandBy,
+        handler: &impl Handler,
     ) -> Result<ProveCommandBy, ErrorKind> {
         let elab = match proof_by {
             SProveCommandBy::Construct { term } => {
-                let term_elab = self.elab_exp_rec(term)?;
+                let term_elab = self.elab_exp_rec(term, handler)?;
                 ProveCommandBy::Construct(term_elab)
             }
             SProveCommandBy::Exact { term, set } => {
-                let term_elab = self.elab_exp_rec(term)?;
-                let set_elab = self.elab_exp_rec(set)?;
+                let term_elab = self.elab_exp_rec(term, handler)?;
+                let set_elab = self.elab_exp_rec(set, handler)?;
                 ProveCommandBy::ExactElem {
                     elem: term_elab,
                     ty: set_elab,
@@ -573,9 +612,9 @@ impl GlobalEnvironment {
                 subset,
                 elem,
             } => {
-                let superset_elab = self.elab_exp_rec(superset)?;
-                let subset_elab = self.elab_exp_rec(subset)?;
-                let elem_elab = self.elab_exp_rec(elem)?;
+                let superset_elab = self.elab_exp_rec(superset, handler)?;
+                let subset_elab = self.elab_exp_rec(subset, handler)?;
+                let elem_elab = self.elab_exp_rec(elem, handler)?;
                 ProveCommandBy::SubsetElim {
                     superset: superset_elab,
                     subset: subset_elab,
@@ -583,7 +622,7 @@ impl GlobalEnvironment {
                 }
             }
             SProveCommandBy::IdRefl { term } => {
-                let term_elab = self.elab_exp_rec(term)?;
+                let term_elab = self.elab_exp_rec(term, handler)?;
                 ProveCommandBy::IdRefl { elem: term_elab }
             }
             SProveCommandBy::IdElim {
@@ -593,13 +632,11 @@ impl GlobalEnvironment {
                 ty,
                 predicate,
             } => {
-                let left_elab = self.elab_exp_rec(left)?;
-                let right_elab = self.elab_exp_rec(right)?;
+                let left_elab = self.elab_exp_rec(left, handler)?;
+                let right_elab = self.elab_exp_rec(right, handler)?;
                 let var: Var = var.into();
-                let mut bind_var = vec![];
-                bind_var.push(var.clone());
-                let ty_elab = self.elab_exp_rec(ty)?;
-                let predicate_elab = self.elab_exp_rec(predicate)?;
+                let ty_elab = self.elab_exp_rec(ty, handler)?;
+                let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                 ProveCommandBy::IdElim {
                     left: left_elab,
                     right: right_elab,
@@ -614,10 +651,11 @@ impl GlobalEnvironment {
                 domain,
                 codomain,
             } => {
-                let func_elab = self.elab_exp_rec(func)?;
-                let domain_elab = self.elab_exp_rec(domain)?;
-                let codomain_elab = self.elab_exp_rec(codomain)?;
-                let elem_elab = self.elab_exp_rec(elem)?;
+                let func_elab = self.elab_exp_rec(func, handler)?;
+
+                let domain_elab = self.elab_exp_rec(domain, handler)?;
+                let codomain_elab = self.elab_exp_rec(codomain, handler)?;
+                let elem_elab = self.elab_exp_rec(elem, handler)?;
                 ProveCommandBy::TakeEq {
                     func: func_elab,
                     domain: domain_elab,

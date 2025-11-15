@@ -170,58 +170,33 @@ impl Logger {
     }
 }
 
-// local scope during elaboration
-#[derive(Debug, Clone)]
-pub struct LocalScope {
-    // for find binded variables inside term
-    // lambda abstraction variables, product, subset,
-    // after any call of elab_exp outside the elab_exp, this should be cleared
-    binded_vars: Vec<Var>,
-    // for find decl levels
-    decl_binds: Vec<Var>,
-    imported_modules: HashMap<Identifier, module_manager::ModuleInstantiated>,
-}
-
-impl LocalScope {
-    fn get_var(&self, name: &Identifier) -> Option<Var> {
-        for v in self.binded_vars.iter().rev() {
-            if v.as_str() == name.0.as_str() {
-                return Some(v.clone());
-            }
-        }
-        for v in self.decl_binds.iter().rev() {
-            if v.as_str() == name.0.as_str() {
-                return Some(v.clone());
-            }
-        }
-        None
-    }
-    fn get_imported_module(
-        &self,
-        name: &Identifier,
-    ) -> Option<&module_manager::ModuleInstantiated> {
-        self.imported_modules.get(name)
-    }
-}
-
 // do type checking
 pub struct GlobalEnvironment {
     logger: Logger, // to pass to elaborator
-    local_scope: LocalScope,
     module_manager: module_manager::ModuleManager,
+    current_imported_modules: HashMap<Identifier, module_manager::InstantiatedModule>,
 }
 
 impl Default for GlobalEnvironment {
     fn default() -> Self {
         GlobalEnvironment {
             logger: Logger { log: vec![] },
-            local_scope: LocalScope {
-                binded_vars: vec![],
-                decl_binds: vec![],
-                imported_modules: HashMap::new(),
-            },
             module_manager: module_manager::ModuleManager::new(),
+            current_imported_modules: HashMap::new(),
         }
+    }
+}
+
+impl term_elaborator::Handler for GlobalEnvironment {
+    fn get_item_from_access_path(
+        &self,
+        access_path: &LocalAccess,
+    ) -> Result<ItemAccessResult, ErrorKind> {
+        todo!()
+    }
+
+    fn get_item_from_var(&self, var: &Var) -> Result<ItemAccessResult, ErrorKind> {
+        todo!()
     }
 }
 
@@ -232,12 +207,6 @@ impl GlobalEnvironment {
 }
 
 impl GlobalEnvironment {
-    fn add_decl_var(&mut self, var: Var) {
-        self.local_scope.decl_binds.push(var);
-    }
-    fn clear_decl_vars(&mut self) {
-        self.local_scope.decl_binds.clear();
-    }
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ErrorKind> {
         self.logger.log(format!(
             "top level Elaborating module {}",
@@ -264,8 +233,11 @@ impl GlobalEnvironment {
 
         let mut subst_mapping = vec![];
         let mut parameters_elab = vec![];
+
+        let mut local_scope = term_elaborator::LocalScope::default();
+
         for RightBind { vars, ty } in parameters.iter() {
-            let ty_elab = self.elab_exp(ty)?;
+            let ty_elab = local_scope.elab_exp(ty, self)?;
             let ty_substed = exp_subst_map(&ty_elab, &subst_mapping);
             // check sort of parameter type
             self.logger.infer_sort(&ctx, &ty_substed)?;
@@ -282,11 +254,11 @@ impl GlobalEnvironment {
 
         // 2. elaborate declarations
         for decl in declarations {
-            self.clear_decl_vars();
+            let mut local_scope = term_elaborator::LocalScope::default();
             match decl {
                 ModuleItem::Definition { name, ty, body } => {
-                    let ty_elab = self.elab_exp(ty)?;
-                    let body_elab = self.elab_exp(body)?;
+                    let ty_elab = local_scope.elab_exp(ty, self)?;
+                    let body_elab = local_scope.elab_exp(body, self)?;
                     let name =
                         format!("{}", self.module_manager.current_path().join(".")) + "." + &name.0;
                     let defined_constant = DefinedConstant {
@@ -305,12 +277,13 @@ impl GlobalEnvironment {
                 } => {
                     let type_name: Var = type_name.into();
                     // register type name as binded var
-                    self.add_decl_var(type_name.clone());
+                    local_scope.push_decl_var(type_name.clone());
 
                     // elaborate parameters and indices
                     // binding is memorized in local scope
-                    let parameter_elab = self.elab_telescope_bind_in_decl(parameters)?;
-                    let indices_elab = self.elab_telescope_bind_in_decl(indices)?;
+                    let parameter_elab =
+                        local_scope.elab_telescope_bind_in_decl(parameters, self)?;
+                    let indices_elab = local_scope.elab_telescope_bind_in_decl(indices, self)?;
 
                     // elaborate constructors
                     let mut ctor_names = vec![];
@@ -331,7 +304,7 @@ impl GlobalEnvironment {
                                 }
                                 term
                             };
-                            let term_elab = self.elab_exp(&term)?;
+                            let term_elab = local_scope.elab_exp(&term, self)?;
                             kernel::utils::decompose_prod(term_elab)
                         };
 
@@ -392,8 +365,6 @@ impl GlobalEnvironment {
                             indices: tail,
                         });
                     }
-                    // clear decl vars
-                    self.clear_decl_vars();
 
                     let indspec = InductiveTypeSpecs {
                         names: (
@@ -411,9 +382,7 @@ impl GlobalEnvironment {
                     self.module_manager.add_inductive(indspec);
                 }
                 ModuleItem::ChildModule { module } => {
-                    let save_localscope = self.local_scope.clone();
                     self.module_add_rec(module)?;
-                    self.local_scope = save_localscope;
                 }
                 ModuleItem::Import { path, import_name } => {
                     let access_result = match path {
@@ -424,7 +393,7 @@ impl GlobalEnvironment {
                                     .1
                                     .iter()
                                     .map(|(id, sexp)| {
-                                        let exp_elab = self.elab_exp(sexp)?;
+                                        let exp_elab = local_scope.elab_exp(sexp, self)?;
                                         Ok((id.clone(), exp_elab))
                                     })
                                     .collect::<Result<Vec<_>, ErrorKind>>()?;
@@ -440,7 +409,7 @@ impl GlobalEnvironment {
                                     .1
                                     .iter()
                                     .map(|(id, sexp)| {
-                                        let exp_elab = self.elab_exp(sexp)?;
+                                        let exp_elab = local_scope.elab_exp(sexp, self)?;
                                         Ok((id.clone(), exp_elab))
                                     })
                                     .collect::<Result<Vec<_>, ErrorKind>>()?;
@@ -459,22 +428,21 @@ impl GlobalEnvironment {
                         self.logger.check(&ctx, &arg, &ty)?;
                     }
 
-                    self.local_scope
-                        .imported_modules
+                    self.current_imported_modules
                         .insert(import_name.clone(), instantiated_module);
                 }
                 ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
                 ModuleItem::Eval { exp } => {
-                    let exp_elab = self.elab_exp(exp)?;
+                    let exp_elab = local_scope.elab_exp(exp, self)?;
                     self.logger.query(Query::Eval { exp: exp_elab })?;
                 }
                 ModuleItem::Normalize { exp } => {
-                    let exp_elab = self.elab_exp(exp)?;
+                    let exp_elab = local_scope.elab_exp(exp, self)?;
                     self.logger.query(Query::Normalize { exp: exp_elab })?;
                 }
                 ModuleItem::Check { exp, ty } => {
-                    let exp_elab = self.elab_exp(exp)?;
-                    let ty_elab = self.elab_exp(ty)?;
+                    let exp_elab = local_scope.elab_exp(exp, self)?;
+                    let ty_elab = local_scope.elab_exp(ty, self)?;
                     self.logger.query(Query::Checking {
                         ctx: ctx.clone(),
                         exp: exp_elab,
@@ -482,7 +450,7 @@ impl GlobalEnvironment {
                     })?;
                 }
                 ModuleItem::Infer { exp } => {
-                    let exp_elab = self.elab_exp(exp)?;
+                    let exp_elab = local_scope.elab_exp(exp, self)?;
                     self.logger.query(Query::Infer {
                         ctx: ctx.clone(),
                         exp: exp_elab,
@@ -494,61 +462,5 @@ impl GlobalEnvironment {
         // 3. move back to parent
         self.module_manager.moveto_parent();
         Ok(())
-    }
-    fn elab_telescope_bind_in_decl(
-        &mut self,
-        v: &Vec<RightBind>,
-    ) -> Result<Vec<(Var, Exp)>, ErrorKind> {
-        let mut result = vec![];
-        for RightBind { vars, ty } in v.iter() {
-            let ty_elab = self.elab_exp(ty)?;
-            for var in vars {
-                let var = Var::new(var.as_str());
-                result.push((var.clone(), ty_elab.clone()));
-                self.local_scope.decl_binds.push(var);
-            }
-        }
-        Ok(result)
-    }
-
-    fn convert_access_path_to_items(
-        &self,
-        path: &LocalAccess,
-    ) -> Result<ItemAccessResult, ErrorKind> {
-        let (find_from, item_name) = match path {
-            LocalAccess::Current {
-                access,
-                parameters: _,
-            } => {
-                let module = self.module_manager.current_module_as_instantiated();
-                (module, access.clone())
-            }
-            LocalAccess::Named {
-                access,
-                child,
-                parameters: _,
-            } => {
-                let module = match self.local_scope.get_imported_module(access) {
-                    Some(m) => m.clone(),
-                    None => {
-                        return Err(ErrorKind::Msg(format!(
-                            "Imported module {} not found",
-                            access.as_str()
-                        )));
-                    }
-                };
-                (module, child.clone())
-            }
-        };
-
-        let item = find_from.get_item(&item_name).ok_or_else(|| {
-            ErrorKind::Msg(format!(
-                "Item {} not found in access path {:?}",
-                item_name.as_str(),
-                path
-            ))
-        })?;
-
-        Ok(item)
     }
 }
