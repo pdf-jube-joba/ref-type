@@ -125,6 +125,7 @@ in Type Theory
 - https://www.danielgratzer.com/papers/a-stratified-approach-to-lob-induction.pdf
 - https://iris-project.org/tutorial-pdfs/lecture7-later.pdf
   - Iris にも later modality を入れているらしい
+- https://github.com/JasonGross/lob-paper
 
 ## ZFC について
 
