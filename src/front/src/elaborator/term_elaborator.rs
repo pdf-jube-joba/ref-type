@@ -166,14 +166,13 @@ impl LocalScope {
                             .collect::<Result<_, _>>()?;
                         Ok(Exp::IndCtor {
                             indspec: ind_defs,
-                            parameters: parameters,
+                            parameters,
                             idx: ctor_index,
                         })
                     }
-                    ItemAccessResult::Record {
-                        ind_defs,
-                        field_names,
-                    } => todo!(),
+                    ItemAccessResult::Record(_) => {
+                        todo!()
+                    }
                     ItemAccessResult::Expression { exp } => {
                         if parameters.is_empty() {
                             Ok(exp.clone())

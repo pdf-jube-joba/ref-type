@@ -288,16 +288,8 @@ impl ModuleManager {
                         ind_defs: Rc::new(instantiated_ind_defs),
                     }
                 }
-                ModuleItemAccessible::Record {
-                    ind_defs,
-                    field_names,
-                } => {
-                    let ind = ind_defs.as_ref().clone();
-                    let instantiated_ind_defs = ind.subst(&subst_mapping_accum);
-                    ModuleItemAccessible::Record {
-                        ind_defs: Rc::new(instantiated_ind_defs),
-                        field_names: field_names.clone(),
-                    }
+                _ => {
+                    todo!()
                 }
             })
             .collect();

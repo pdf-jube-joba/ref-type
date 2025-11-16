@@ -265,7 +265,7 @@ pub fn acceptable_typespecs(
 - strpos case: elim_type(((x[]: t[]) -> THIS m[]) -> n, q, c, THIS)
   - = (p: (x[]: t[]) -> THIS m[])
   - -> (_: (x[]: t[]) -> q m[] (p x[]))
-  - -> elim_type(n, (c p), THIS)
+  - -> elim_type(n, q, (c p), THIS)
 */
 pub fn eliminator_type(
     CtorType {
@@ -276,21 +276,10 @@ pub fn eliminator_type(
     c: &Exp,
     this: &Exp, // this should be the inductive type itself (externaly given)
 ) -> Exp {
+    let mut bindstack = vec![];
     let mut c = c.clone();
 
-    // c <- q a[0] ... a[m] c
-    c = {
-        let e = utils::assoc_apply(q.clone(), a.clone());
-        Exp::App {
-            func: Box::new(e),
-            arg: Box::new(c.clone()),
-        }
-    };
-
-    let mut bindstack = vec![];
-
-    // iterate in reverse order (corresponds to recursion)
-    for pos in poss.iter().rev() {
+    for pos in poss.iter() {
         match pos {
             CtorBinder::Simple((x, t)) => {
                 // c <- (c x)
@@ -312,40 +301,50 @@ pub fn eliminator_type(
                     func: Box::new(c),
                     arg: Box::new(Exp::Var(p.clone())),
                 };
-                // push (_: r) where r = (x[]: t[]) -> q m[] (p x[])
-                {
-                    // r = (x[]: t[]) -> q m[] (p x[]) to push in bindstack (_: r)
-                    let r = {
-                        // q m[] (p x[])
-                        let r = Exp::App {
-                            func: Box::new(utils::assoc_apply(q.clone(), m.clone())), // q m[]
-                            arg: Box::new(utils::assoc_apply(
-                                Exp::Var(p.clone()),
-                                xts.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
-                            )), // (p x[])
-                        };
-
-                        // (x[]: t[]) -> q m[] (p x[])
-                        utils::assoc_prod(xts.clone(), r)
-                    };
-
-                    // push in bindstack
-                    bindstack.push((Var::new("_"), r));
-                }
-                // (p: (x[]: t[]) -> THIS m[]) -> foobar
+                // push (p: (x[]: t[]) -> THIS m[])
                 {
                     // (x[]: t[]) -> THIS m[]
                     let r = {
                         let r = utils::assoc_apply(this.clone(), m.clone()); // THIS m[]
                         utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> THIS m[]
                     };
-                    bindstack.push((p, r));
+                    bindstack.push((p.clone(), r));
+                }
+                // push (_: r) where r = (x[]: t[]) -> q m[] (p x[])
+                {
+                    // r = (x[]: t[]) -> q m[] (p x[]) to push in bindstack (_: r)
+                    let r = {
+                        let pxs = utils::assoc_apply(
+                            Exp::Var(p.clone()),
+                            xts.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
+                        ); // (p x[])
+                        let qms = utils::assoc_apply(q.clone(), m.clone()); // q m[]
+
+                        let right = Exp::App {
+                            func: Box::new(qms), // q m[]
+                            arg: Box::new(pxs),  // (p x[])
+                        };
+
+                        // (x[]: t[]) -> q m[] (p x[])
+                        utils::assoc_prod(xts.clone(), right)
+                    };
+
+                    // push in bindstack
+                    bindstack.push((Var::new("_"), r));
                 }
             }
         }
     }
 
-    bindstack.reverse();
+    // c <- q a[0] ... a[m] c
+    c = {
+        let e = utils::assoc_apply(q.clone(), a.clone());
+        Exp::App {
+            func: Box::new(e),
+            arg: Box::new(c.clone()),
+        }
+    };
+
     utils::assoc_prod(bindstack, c)
 }
 
@@ -363,7 +362,7 @@ pub fn recursor(
         telescope: poss,
         indices: _, // a[] but not used
     }: &CtorType,
-    ff: &Exp,
+    q: &Exp,
     f: &Exp,
     this: &Exp, // this should be the inductive type itself (external)
 ) -> Exp {
@@ -391,22 +390,24 @@ pub fn recursor(
                 // f <- (f p ((x[]: t[]) -> q m[] (p x[])))
                 {
                     // (x[]: t[]) -> q m[] (p x[])
-                    let r = {
+                    let right = {
+                        let pxs = utils::assoc_apply(
+                            Exp::Var(p.clone()),
+                            xts.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
+                        ); // (p x[])
+                        let qms = utils::assoc_apply(q.clone(), m.clone()); // q m[]
                         let r = Exp::App {
-                            func: Box::new(utils::assoc_apply(ff.clone(), m.clone())), // q m[]
-                            arg: Box::new(utils::assoc_apply(
-                                Exp::Var(p.clone()),
-                                xts.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
-                            )), // (p x[])
-                        };
+                            func: Box::new(qms),
+                            arg: Box::new(pxs),
+                        }; // q m[] (p x[])
                         utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> ...
                     };
                     f = Exp::App {
-                        func: Box::new(f),
-                        arg: Box::new(Exp::App {
-                            func: Box::new(Exp::Var(p.clone())),
-                            arg: Box::new(r),
+                        func: Box::new(Exp::App {
+                            func: Box::new(f.clone()),
+                            arg: Box::new(Exp::Var(p.clone())),
                         }),
+                        arg: Box::new(right),
                     };
                 }
                 // push (p: (x[]: t[]) -> THIS m[])

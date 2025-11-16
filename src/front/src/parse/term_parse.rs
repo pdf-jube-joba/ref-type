@@ -401,8 +401,8 @@ impl<'a> TermParser<'a> {
             if self.bump_if_keyword("\\fix") {
                 // "\fix" ("(" RightBind ")" ",")* ";"
                 let mut binds: Vec<RightBind> = Vec::new();
-                while let Ok(bind) = self.parse_simple_bind_paren() {
-                    binds.push(bind);
+                while let Ok(bind) = self.parse_simple_binds_paren() {
+                    binds.extend(bind);
                     if !self.bump_if_token(&Token::Comma) {
                         break;
                     }
@@ -685,14 +685,16 @@ impl<'a> TermParser<'a> {
         Ok((vars, ty))
     }
 
-    fn parse_annotate_comma_separated(
-        &mut self,
-    ) -> Result<Vec<(Vec<Identifier>, SExp)>, ParseError> {
+    // parse multiple annotations separated by commas
+    fn parse_annotate_comma_separated(&mut self) -> Result<Vec<RightBind>, ParseError> {
         let mut annotations = vec![];
 
         loop {
             let (vars, ty) = self.parse_annotate()?;
-            annotations.push((vars, ty));
+            annotations.push(RightBind {
+                vars,
+                ty: Box::new(ty),
+            });
 
             if !self.bump_if_token(&Token::Comma) {
                 break;
@@ -702,19 +704,13 @@ impl<'a> TermParser<'a> {
         Ok(annotations)
     }
 
-    // "(" Ident ("," Ident)* ":" SExp ")"
-    fn parse_simple_bind_paren(&mut self) -> Result<RightBind, ParseError> {
-        self.expect_token(Token::LParen)?; // expect '('
-        let (vars, ty) = self.parse_annotate()?;
-        self.expect_token(Token::RParen)?; // expect ')'
-        Ok(RightBind {
-            vars,
-            ty: Box::new(ty),
-        })
+    // "(" <multiple annotations comma separated> ")"
+    fn parse_simple_binds_paren(&mut self) -> Result<Vec<RightBind>, ParseError> {
+        self.parse_parenthesized(|parser| parser.parse_annotate_comma_separated())
     }
 
-    pub fn parse_simple_binds_advanced(&mut self) -> Result<(RightBind, usize), ParseError> {
-        let binds = self.parse_simple_bind_paren()?;
+    pub fn parse_simple_binds_advanced(&mut self) -> Result<(Vec<RightBind>, usize), ParseError> {
+        let binds = self.parse_simple_binds_paren()?;
         let advanced_pos = self.pos;
         Ok((binds, advanced_pos))
     }
@@ -808,7 +804,7 @@ impl<'a> TermParser<'a> {
         let mut binds = vec![];
         // parse right binds until fail
         loop {
-            let bind = match self.try_parse(|parser| parser.parse_simple_bind_paren())? {
+            let bind = match self.try_parse(|parser| parser.parse_simple_binds_paren())? {
                 Some(b) => b,
                 None => {
                     let maybe_body = self.parse_combined()?;
@@ -825,7 +821,7 @@ impl<'a> TermParser<'a> {
                     }
                 }
             };
-            binds.push(bind);
+            binds.extend(bind);
             self.expect_token(Token::Arrow)?; // expect '->' after each bind
         }
     }
@@ -848,8 +844,15 @@ impl<'a> TermParser<'a> {
         }
 
         // 2. try to parse named bind
-        if let Some(rightbind) = self.try_parse(|parser| parser.parse_simple_bind_paren())? {
-            return Ok(Bind::Named(rightbind));
+        if let Some(rightbinds) = self.try_parse(|parser| parser.parse_simple_binds_paren())? {
+            let [rightbind] = rightbinds.as_slice() else {
+                return Err(ParseError {
+                    msg: "expected single right bind in named bind".into(),
+                    start: self.pos,
+                    end: self.pos,
+                });
+            };
+            return Ok(Bind::Named(rightbind.clone()));
         }
 
         // 3. otherwise, parse simple expression as a bind
@@ -868,9 +871,9 @@ impl<'a> TermParser<'a> {
                 let mut binds = vec![];
 
                 while let Some(rightbind) =
-                    self.try_parse(|parser| parser.parse_simple_bind_paren())?
+                    self.try_parse(|parser| parser.parse_simple_binds_paren())?
                 {
-                    binds.push(rightbind);
+                    binds.extend(rightbind);
                 }
 
                 self.expect_token(Token::Colon)?;

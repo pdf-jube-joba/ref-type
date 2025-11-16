@@ -394,7 +394,7 @@ impl<'a> Parser<'a> {
     }
 
     // "(" <ident> ("," <ident>)* ":" <ty: SExp> ")"
-    fn parse_rightbind(&mut self) -> Result<RightBind, ParseError> {
+    fn parse_rightbinds(&mut self) -> Result<Vec<RightBind>, ParseError> {
         let mut term_parser = TermParser::new(&self.tokens[self.pos..]);
         let (rightbind, advanced) = term_parser.parse_simple_binds_advanced()?;
         self.pos += advanced;
@@ -492,8 +492,8 @@ impl<'a> Parser<'a> {
 
         let mut parameters = vec![];
 
-        while let Some(param) = self.try_parse(|p| p.parse_rightbind())? {
-            parameters.push(param);
+        while let Some(param) = self.try_parse(|p| p.parse_rightbinds())? {
+            parameters.extend(param);
         }
 
         self.expect_token(Token::Colon)?;
@@ -579,27 +579,9 @@ impl<'a> Parser<'a> {
         self.expect_keyword("\\module")?;
         let module_name = self.expect_ident()?;
 
-        let mut parameters = Vec::new();
-        if self.bump_if_token(&Token::LParen) {
-            while !self.bump_if_token(&Token::RParen) {
-                let Some((vars, ty)) = self.try_parse_annotate()? else {
-                    return Err(ParseError {
-                        msg: "expected parameter annotation in module parameter list".into(),
-                        start: self.pos,
-                        end: self.pos,
-                    });
-                };
-                parameters.push(RightBind {
-                    vars,
-                    ty: Box::new(ty),
-                });
-
-                if !self.bump_if_token(&Token::Comma) {
-                    self.expect_token(Token::RParen)?; // ensure closing parenthesis
-                    break;
-                }
-            }
-        }
+        let parameters = self
+            .try_parse(|parser| parser.parse_rightbinds())?
+            .unwrap_or_default();
 
         self.expect_token(Token::LBrace)?; // expect '{'
         let mut declarations = Vec::new();

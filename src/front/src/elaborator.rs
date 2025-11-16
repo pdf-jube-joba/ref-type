@@ -226,6 +226,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn get_item_from_var(&self, var: &Identifier) -> Result<ItemAccessResult, ErrorKind> {
         unimplemented!()
     }
+
+    fn field_projection(&self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind> {
+        todo!()
+    }
 }
 
 impl GlobalEnvironment {

@@ -437,13 +437,6 @@ fn map_derivation_failpropagate(derivation: &DerivationFailPropagate) -> StringT
     StringTree { head, children: v }
 }
 
-pub fn map_derivation_fail(derivation: &DerivationFail) -> StringTree {
-    match derivation {
-        DerivationFail::Caused(caused) => map_derivation_failcause(caused),
-        DerivationFail::Propagate(propagate) => map_derivation_failpropagate(propagate),
-    }
-}
-
 fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -> std::fmt::Result {
     for _ in 0..indent {
         write!(f, "  ")?;
@@ -458,6 +451,20 @@ fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -
 impl Display for DerivationSuccess {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tree = map_derivation_success(self);
+        fmt_tree(f, &tree, 0)
+    }
+}
+
+pub fn map_derivation_fail(derivation: &DerivationFail) -> StringTree {
+    match derivation {
+        DerivationFail::Caused(caused) => map_derivation_failcause(caused),
+        DerivationFail::Propagate(propagate) => map_derivation_failpropagate(propagate),
+    }
+}
+
+impl Display for DerivationFail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tree = map_derivation_fail(self);
         fmt_tree(f, &tree, 0)
     }
 }

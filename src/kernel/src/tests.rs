@@ -1,4 +1,5 @@
 use crate::{
+    calculus::reduce_one,
     exp::{Context, DerivationSuccess, Exp, ProveCommandBy, ProveGoal, Sort, SuccessHead, Var},
     inductive::CtorBinder,
     utils::{self, app, lam, prod, prooflater, var},
@@ -18,24 +19,38 @@ impl Checker {
         &self.derivations
     }
     fn check(&mut self, term: &Exp, ty: &Exp) -> bool {
-        let derivation = crate::derivation::check(&self.context, term, ty).unwrap();
-        self.derivations.push(derivation);
+        let derivation = crate::derivation::check(&self.context, term, ty);
+        match derivation {
+            Ok(success) => {
+                self.derivations.push(success);
+            }
+            Err(fail_der) => {
+                print!("Type checking failed:\n{}", fail_der);
+            }
+        }
         true
     }
     fn infer(&mut self, term: &Exp) -> Option<Exp> {
-        let derivation = crate::derivation::infer(&self.context, term).unwrap();
-        let ty = {
-            if let DerivationSuccess {
-                head: SuccessHead::TypeJudgement { ty, .. },
-                ..
-            } = &derivation
-            {
-                ty.clone()
-            } else {
-                panic!("Expected TypeJudgement");
+        let derivation = crate::derivation::infer(&self.context, term);
+
+        let ty = match derivation {
+            Ok(derivation) => {
+                if let DerivationSuccess {
+                    head: SuccessHead::TypeJudgement { ty, .. },
+                    ..
+                } = &derivation
+                {
+                    self.derivations.push(derivation.clone());
+                    ty.clone()
+                } else {
+                    panic!("Expected TypeJudgement");
+                }
+            }
+            Err(fail_der) => {
+                print!("Type inference failed:\n{}", fail_der);
+                return None;
             }
         };
-        self.derivations.push(derivation);
         Some(ty)
     }
     fn prove_command(&self, command: &ProveCommandBy) {
@@ -43,13 +58,14 @@ impl Checker {
     }
     fn chk_indspec(
         &mut self,
+        names: (String, Vec<String>),
         params: Vec<(Var, Exp)>,
         indices: Vec<(Var, Exp)>,
         sort: crate::exp::Sort,
         constructors: Vec<crate::inductive::CtorType>,
     ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
         let indspecs = crate::inductive::InductiveTypeSpecs {
-            names: (String::new(), vec![String::new(); constructors.len()]),
+            names,
             parameters: params.clone(),
             indices: indices.clone(),
             sort,
@@ -413,10 +429,143 @@ fn nat_test() {
     ];
 
     let mut checker = Checker::default();
-    let _indspecs = std::rc::Rc::new(
+    let indspec = std::rc::Rc::new(
         checker
-            .chk_indspec(params, indices, sort, constructors)
+            .chk_indspec(
+                (
+                    "Nat".to_string(),
+                    vec!["Zero".to_string(), "Succ".to_string()],
+                ),
+                params,
+                indices,
+                sort,
+                constructors,
+            )
             .unwrap(),
     );
-    checker.print_all();
+    let nat_astype = Exp::IndType {
+        indspec: indspec.clone(),
+        parameters: vec![],
+    };
+    let nat_ty = Exp::Sort(Sort::Set(0));
+    checker.check(&nat_astype, &nat_ty);
+
+    let nat_zero = Exp::IndCtor {
+        indspec: indspec.clone(),
+        idx: 0,
+        parameters: vec![],
+    };
+    let nat_succ = Exp::IndCtor {
+        indspec: indspec.clone(),
+        idx: 1,
+        parameters: vec![],
+    };
+
+    let prim_rec_nat =
+        crate::inductive::InductiveTypeSpecs::primitive_recursion(&indspec, vec![], Sort::Set(0));
+
+    println!("{}", prim_rec_nat);
+
+    // motive = (n: Nat) => Nat -> Nat: (n: Nat) -> Set(0)
+    let motive = lam! {
+        var: var!("n"),
+        ty: nat_astype.clone(),
+        body: prod! {
+            var: var!("m"),
+            ty: nat_astype.clone(),
+            body: nat_astype.clone(),
+        },
+    };
+
+    let apply0 = app! {
+        func: prim_rec_nat.clone(),
+        arg: motive,
+    };
+
+    checker.infer(&apply0);
+
+    // zero_case = (m: Nat) => m: motive 0
+    let zero_case = {
+        let m_var = var!("m");
+        lam! {
+            var: m_var.clone(),
+            ty: nat_astype.clone(),
+            body: Exp::Var(m_var.clone()),
+        }
+    };
+
+    let apply1 = app! {
+        func: apply0,
+        arg: zero_case,
+    };
+
+    checker.infer(&apply1);
+
+    // succ_case = (n: Nat) => (rec_n: Nat -> Nat) => (m: Nat) => Succ (rec_n m): (n: Nat) -> motive n -> motive (Succ n)
+    let succ_case = {
+        let n_var = var!("n");
+        let rec_n_var = var!("rec_n");
+        let m_var = var!("m");
+        lam! {
+            var: n_var,
+            ty: nat_astype.clone(),
+            body: lam! {
+                var: rec_n_var.clone(),
+                ty: prod! {
+                    var: m_var.clone(),
+                    ty: nat_astype.clone(),
+                    body: nat_astype.clone(),
+                },
+                body: lam! {
+                    var: m_var.clone(),
+                    ty: nat_astype.clone(),
+                    body: app! {
+                        func: nat_succ.clone(),
+                        arg: app! {
+                            func: Exp::Var(rec_n_var.clone()),
+                            arg: Exp::Var(m_var.clone()),
+                        },
+                    },
+                },
+            },
+        }
+    };
+
+    // add: Nat -> Nat -> Nat
+    let nat_add = {
+        let mut app = app! {
+            func: apply1,
+            arg: succ_case,
+        };
+        loop {
+            println!("Reducing: {app}");
+            let Some(app2) = reduce_one(&app) else {
+                break app;
+            };
+            app = app2;
+        }
+    };
+
+    let ty = checker.infer(&nat_add).unwrap();
+    println!("Type of nat_add: {}", ty);
+
+    let nat_one = app! {
+        func: nat_succ.clone(),
+        arg: nat_zero.clone(),
+    };
+
+    let nat_add_zero = app! {
+        func: nat_add.clone(),
+        arg: nat_zero.clone(),
+    };
+
+    let nat_add_one = app! {
+        func: nat_add_zero.clone(),
+        arg: nat_one.clone(),
+    };
+
+    let nat_add_zero_one = app! {
+        func: nat_add_zero.clone(),
+        arg: nat_add_zero.clone(),
+    };
 }
