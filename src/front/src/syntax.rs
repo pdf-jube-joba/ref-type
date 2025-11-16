@@ -12,8 +12,7 @@ impl Identifier {
 }
 
 // token for macros
-// which is (not identifier) /\ (not keyword)
-// e.g. "+", "*", "==>", "||", ...
+//   which is (not identifier) /\ (not keyword)
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MacroToken(pub String);
 
@@ -23,17 +22,6 @@ pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>,    // given parameters for module
     pub declarations: Vec<ModuleItem>, // sensitive to order
-}
-
-#[derive(Debug, Clone)]
-pub enum ModuleAccessPath {
-    FromCurrent {
-        back_parent: usize,
-        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
-    },
-    FromRoot {
-        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +42,7 @@ pub enum ModuleItem {
         module: Box<Module>,
     },
     Import {
-        path: ModuleAccessPath,
+        path: ModuleInstantiatePath,
         import_name: Identifier,
     },
     MathMacro {
@@ -78,6 +66,17 @@ pub enum ModuleItem {
     },
     Infer {
         exp: SExp,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ModuleInstantiatePath {
+    FromCurrent {
+        back_parent: usize,
+        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+    },
+    FromRoot {
+        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
     },
 }
 
@@ -117,7 +116,6 @@ pub enum Bind {
 
 #[derive(Debug, Clone)]
 // some access path to access defined constant or inductive type
-// if len >= 1, then it is Indtype with parameters. but len == 0 does not mean it is DefinedConstant (could be Indtype with no parameters)
 pub enum LocalAccess {
     // accessing inductive type or defined constant
     Current {
@@ -132,7 +130,7 @@ pub enum LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
-    // access something
+    // --- access something
     AccessPath {
         access: LocalAccess,
         parameters: Vec<SExp>,
@@ -149,6 +147,7 @@ pub enum SExp {
         name: Identifier,
         tokens: Vec<MacroExp>,
     },
+
     // --- expression with clauses
     // where clauses to define local variables
     Where {

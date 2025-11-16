@@ -414,7 +414,7 @@ impl GlobalEnvironment {
                 }
                 ModuleItem::Import { path, import_name } => {
                     let access_result = match path {
-                        ModuleAccessPath::FromCurrent { back_parent, calls } => {
+                        ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                             let mut args = vec![];
                             for call in calls {
                                 let args_given_this = call
@@ -430,7 +430,7 @@ impl GlobalEnvironment {
                             self.module_manager
                                 .access_from_current(*back_parent, args)?
                         }
-                        ModuleAccessPath::FromRoot { calls } => {
+                        ModuleInstantiatePath::FromRoot { calls } => {
                             let mut args = vec![];
                             for call in calls {
                                 let args_given_this = call
