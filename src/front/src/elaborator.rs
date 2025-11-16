@@ -223,7 +223,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         }
     }
 
-    fn get_item_from_var(&self, var: &Var) -> Result<ItemAccessResult, ErrorKind> {
+    fn get_item_from_var(&self, var: &Identifier) -> Result<ItemAccessResult, ErrorKind> {
         unimplemented!()
     }
 }

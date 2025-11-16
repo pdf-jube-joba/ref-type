@@ -1,14 +1,24 @@
 use crate::syntax::Identifier;
 use kernel::exp::{DefinedConstant, Exp, Var};
+use std::rc::Rc;
+
+#[derive(Debug, Clone)]
+pub struct RecordSpecs {
+    pub name: Identifier,
+    pub field_names: Vec<Identifier>,
+    pub rc_spec_as_indtype: Rc<kernel::inductive::InductiveTypeSpecs>,
+}
 
 #[derive(Debug, Clone)]
 pub enum ModuleItemAccessible {
     Definition {
-        rc: std::rc::Rc<kernel::exp::DefinedConstant>,
+        rc: Rc<kernel::exp::DefinedConstant>,
     },
     Inductive {
-        ind_defs: std::rc::Rc<kernel::inductive::InductiveTypeSpecs>,
+        ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
+    // we use inductive type to represent record type
+    Record(RecordSpecs),
 }
 
 pub struct ModuleElaborated {
@@ -31,11 +41,16 @@ pub struct InstantiatedModule {
 
 pub enum ItemAccessResult {
     Definition {
-        rc: std::rc::Rc<DefinedConstant>,
+        rc: Rc<DefinedConstant>,
     },
     Inductive {
-        ind_defs: std::rc::Rc<kernel::inductive::InductiveTypeSpecs>,
+        ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
+    InductiveCtor {
+        ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
+        ctor_index: usize,
+    },
+    Record(RecordSpecs),
     Expression {
         exp: Exp,
     },
@@ -47,16 +62,19 @@ impl InstantiatedModule {
             match item {
                 ModuleItemAccessible::Definition { rc } => {
                     if rc.as_ref().name.as_str() == name.0.as_str() {
-                        return Some(ItemAccessResult::Definition {
-                            rc: std::rc::Rc::clone(rc),
-                        });
+                        return Some(ItemAccessResult::Definition { rc: Rc::clone(rc) });
                     }
                 }
                 ModuleItemAccessible::Inductive { ind_defs } => {
                     if ind_defs.as_ref().names.0.as_str() == name.0.as_str() {
                         return Some(ItemAccessResult::Inductive {
-                            ind_defs: std::rc::Rc::clone(ind_defs),
+                            ind_defs: Rc::clone(ind_defs),
                         });
+                    }
+                }
+                ModuleItemAccessible::Record(record_specs) => {
+                    if record_specs.name.as_str() == name.0.as_str() {
+                        return Some(ItemAccessResult::Record(record_specs.clone()));
                     }
                 }
             }
@@ -182,12 +200,12 @@ impl ModuleManager {
     }
 
     pub fn add_def(&mut self, def: DefinedConstant) {
-        let rc = std::rc::Rc::new(def);
+        let rc = Rc::new(def);
         let item = ModuleItemAccessible::Definition { rc };
         self.modules[self.current].items.push(item);
     }
     pub fn add_inductive(&mut self, ind_defs: kernel::inductive::InductiveTypeSpecs) {
-        let rc = std::rc::Rc::new(ind_defs);
+        let rc = Rc::new(ind_defs);
         let item = ModuleItemAccessible::Inductive { ind_defs: rc };
         self.modules[self.current].items.push(item);
     }
@@ -260,14 +278,25 @@ impl ModuleManager {
                         body: instantiated_inner,
                     };
                     ModuleItemAccessible::Definition {
-                        rc: std::rc::Rc::new(instantiated_def),
+                        rc: Rc::new(instantiated_def),
                     }
                 }
                 ModuleItemAccessible::Inductive { ind_defs } => {
                     let ind = ind_defs.as_ref().clone();
                     let instantiated_ind_defs = ind.subst(&subst_mapping_accum);
                     ModuleItemAccessible::Inductive {
-                        ind_defs: std::rc::Rc::new(instantiated_ind_defs),
+                        ind_defs: Rc::new(instantiated_ind_defs),
+                    }
+                }
+                ModuleItemAccessible::Record {
+                    ind_defs,
+                    field_names,
+                } => {
+                    let ind = ind_defs.as_ref().clone();
+                    let instantiated_ind_defs = ind.subst(&subst_mapping_accum);
+                    ModuleItemAccessible::Record {
+                        ind_defs: Rc::new(instantiated_ind_defs),
+                        field_names: field_names.clone(),
                     }
                 }
             })

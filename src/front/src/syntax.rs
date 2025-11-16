@@ -131,6 +131,7 @@ pub enum LocalAccess {
 #[derive(Debug, Clone)]
 pub enum SExp {
     // --- access something
+    // this includes, variable binded by lambda, defined constant, inductive type, inductive type's constructor, record type (itself)
     AccessPath {
         access: LocalAccess,
         parameters: Vec<SExp>,
@@ -184,13 +185,8 @@ pub enum SExp {
         exp: Box<SExp>,
         to: Box<SExp>,
     },
+
     // --- inductive type
-    // usual ind type is contained in SExp::AccessPath
-    IndCtor {
-        path: LocalAccess,
-        ctor_name: Identifier,
-        parameters: Vec<SExp>,
-    },
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {
         path: LocalAccess,
@@ -204,6 +200,20 @@ pub enum SExp {
         parameters: Vec<SExp>,
         sort: kernel::exp::Sort,
     },
+
+    // --- record type
+    // nominal style
+    RecordTypeCtor {
+        access: LocalAccess,
+        parameters: Vec<SExp>,
+        fields: Vec<(Identifier, SExp)>,
+    },
+    // field access
+    RecordFieldAccess {
+        record: Box<SExp>,
+        field: Identifier,
+    },
+
     // --- set theory
     // \Proof (term) ... "prove this later"
     ProveLater {

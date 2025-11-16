@@ -14,7 +14,7 @@ pub enum Token<'a> {
     #[regex(r"\?[a-zA-Z0-9_]*")]
     UnspecifiedVar(&'a str),
     // any non-space sequence that does not include backslash, alnum or '?()$'
-    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]#]+")]
+    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]]+")]
     MacroToken(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -38,8 +38,6 @@ pub enum Token<'a> {
     LBracket,
     #[token("]")]
     RBracket,
-    #[token("#")]
-    Field,
     // mapped tokens (will be produced by mapping MacroToken in lex_all)
     // 2 char
     Arrow,       // "->"
@@ -365,6 +363,22 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // Try to parse with the given parsing function.
+    // ... rollbacks on failure.
+    fn try_parse<T, F>(&mut self, parse_fn: F) -> Result<Option<T>, ParseError>
+    where
+        F: Fn(&mut Self) -> Result<T, ParseError>,
+    {
+        let save_pos = self.pos;
+        match parse_fn(self) {
+            Ok(result) => Ok(Some(result)),
+            Err(_) => {
+                self.pos = save_pos; // rollback
+                Ok(None)
+            }
+        }
+    }
+
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
         let mut term_parser = TermParser::new(&self.tokens[self.pos..]);
         let (sexp, consumed) = term_parser.parse_sexp_advanced()?;
@@ -372,16 +386,19 @@ impl<'a> Parser<'a> {
         Ok(sexp)
     }
 
-    fn parse_arrow_rightbinds(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
+    fn parse_arrow_nosubset(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
         let mut term_parser = TermParser::new(&self.tokens[self.pos..]);
-        let (rightbinds, sexp, consumed) = term_parser.parse_arrow_rightbinds_advanced()?;
+        let (rightbinds, sexp, consumed) = term_parser.parse_arrow_nosubset_advanced()?;
         self.pos += consumed;
         Ok((rightbinds, sexp))
     }
 
-    fn try_parse_rightbind(&mut self) -> Result<RightBind, ParseError> {
+    // "(" <ident> ("," <ident>)* ":" <ty: SExp> ")"
+    fn parse_rightbind(&mut self) -> Result<RightBind, ParseError> {
         let mut term_parser = TermParser::new(&self.tokens[self.pos..]);
-        let res = term_parser.parse_simple_binds_advanced()?;
+        let (rightbind, advanced) = term_parser.parse_simple_binds_advanced()?;
+        self.pos += advanced;
+        Ok(rightbind)
     }
 
     // <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
@@ -408,17 +425,9 @@ impl<'a> Parser<'a> {
             Some(count)
         };
 
-        let save_pos = self.pos;
-        // try to parse named module access path many times
         let mut calls = vec![];
-        loop {
-            let (mod_name, args) = match self.parse_module_access_path() {
-                Ok(res) => res,
-                Err(_) => {
-                    self.pos = save_pos;
-                    break;
-                }
-            };
+
+        while let Some((mod_name, args)) = self.try_parse(|p| p.parse_module_access_path())? {
             calls.push((mod_name, args));
 
             if !self.bump_if_token(&Token::Period) {
@@ -472,7 +481,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::Pipe)?; // expect '|'
         let ctor_name = self.expect_ident()?;
         self.expect_token(Token::Colon)?; // expect ':'
-        let (rightbinds, ends) = self.parse_arrow_rightbinds()?;
+        let (rightbinds, ends) = self.parse_arrow_nosubset()?;
         self.expect_token(Token::Semicolon)?; // expect ';'
         Ok((ctor_name, rightbinds, ends))
     }
@@ -482,13 +491,15 @@ impl<'a> Parser<'a> {
         let type_name = self.expect_ident()?;
 
         let mut parameters = vec![];
-        while let Some(bind) = self.try_parse_rightbind()? {
-            parameters.push(bind);
+
+        while let Some(param) = self.try_parse(|p| p.parse_rightbind())? {
+            parameters.push(param);
         }
+
         self.expect_token(Token::Colon)?;
         // <arity> = <indices> <Sort>
         // <indices> = <rightbinds>
-        let (indices, expect_sort) = self.parse_arrow_rightbinds()?;
+        let (indices, expect_sort) = self.parse_arrow_nosubset()?;
         let sort = match expect_sort {
             SExp::Sort(s) => s,
             _ => {

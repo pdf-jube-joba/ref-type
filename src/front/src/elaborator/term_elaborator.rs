@@ -38,8 +38,10 @@ pub trait Handler {
             ))),
         }
     }
+    fn field_projection(&self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind>;
+
     #[allow(dead_code)]
-    fn get_item_from_var(&self, var: &Var) -> Result<ItemAccessResult, ErrorKind>;
+    fn get_item_from_var(&self, var: &Identifier) -> Result<ItemAccessResult, ErrorKind>;
 }
 
 // local scope during elaboration
@@ -154,6 +156,24 @@ impl LocalScope {
                             parameters,
                         })
                     }
+                    ItemAccessResult::InductiveCtor {
+                        ind_defs,
+                        ctor_index,
+                    } => {
+                        let parameters: Vec<Exp> = parameters
+                            .iter()
+                            .map(|e| self.elab_exp_rec(e, handler))
+                            .collect::<Result<_, _>>()?;
+                        Ok(Exp::IndCtor {
+                            indspec: ind_defs,
+                            parameters: parameters,
+                            idx: ctor_index,
+                        })
+                    }
+                    ItemAccessResult::Record {
+                        ind_defs,
+                        field_names,
+                    } => todo!(),
                     ItemAccessResult::Expression { exp } => {
                         if parameters.is_empty() {
                             Ok(exp.clone())
@@ -365,33 +385,6 @@ impl LocalScope {
                     to: Box::new(to_elab),
                 })
             }
-            SExp::IndCtor {
-                path,
-                ctor_name,
-                parameters,
-            } => {
-                let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
-
-                let parameters: Vec<Exp> = parameters
-                    .iter()
-                    .map(|e| self.elab_exp_rec(e, handler))
-                    .collect::<Result<_, _>>()?;
-                let idx = indspec_rc
-                    .ctor_idx_from_name(ctor_name.as_str())
-                    .ok_or_else(|| {
-                        format!(
-                            "Constructor {} not found in inductive type {}",
-                            ctor_name.as_str(),
-                            indspec_rc.names.0
-                        )
-                    })?;
-
-                Ok(Exp::IndCtor {
-                    indspec: indspec_rc,
-                    parameters,
-                    idx,
-                })
-            }
             SExp::IndElim {
                 path,
                 elim,
@@ -448,6 +441,20 @@ impl LocalScope {
                     *sort,
                 ))
             }
+
+            SExp::RecordTypeCtor {
+                access,
+                parameters,
+                fields,
+            } => {
+                todo!()
+            }
+
+            SExp::RecordFieldAccess { record, field } => {
+                let record_elab = self.elab_exp_rec(record, handler)?;
+                handler.field_projection(&record_elab, field)
+            }
+
             SExp::ProveLater { prop } => {
                 let prop_elab = self.elab_exp_rec(prop, handler)?;
                 Ok(Exp::ProveLater {
