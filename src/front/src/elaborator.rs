@@ -60,8 +60,11 @@ pub struct Logger {
 }
 
 impl Logger {
-    pub fn log(&mut self, msg: String) {
-        self.log.push(LogEnum::Message(msg));
+    pub fn log<T>(&mut self, msg: T)
+    where
+        T: Into<String>,
+    {
+        self.log.push(LogEnum::Message(msg.into()));
     }
     pub fn log_derivation(&mut self, der: DerivationSuccess) {
         self.log.push(LogEnum::Derivation(der));
@@ -87,7 +90,7 @@ impl Logger {
                 let res = kernel::derivation::check(&ctx, &exp, &ty);
                 match res {
                     Ok(derivation) => {
-                        self.log(format!("Type checking succeeded"));
+                        self.log("Type checking succeeded");
                         self.log_derivation(derivation);
                         Ok(())
                     }
@@ -110,7 +113,7 @@ impl Logger {
                 let res = kernel::derivation::infer_sort(&ctx, &exp);
                 match res {
                     Ok(derivation) => {
-                        self.log(format!("Inferred sort"));
+                        self.log("Inferred sort");
                         self.log_derivation(derivation);
                         Ok(())
                     }
@@ -123,7 +126,7 @@ impl Logger {
         let der = kernel::derivation::check(ctx, exp, ty);
         match der {
             Ok(derivation) => {
-                self.log(format!("Type checking succeeded"));
+                self.log("Type checking succeeded");
                 self.log_derivation(derivation);
                 Ok(())
             }
@@ -131,7 +134,7 @@ impl Logger {
         }
     }
     pub fn infer(&mut self, ctx: &Context, exp: &Exp) -> Result<Exp, ErrorKind> {
-        let der = kernel::derivation::infer(&ctx, exp);
+        let der = kernel::derivation::infer(ctx, exp);
         match der {
             Ok(derivation) => {
                 let ty = derivation.type_of().unwrap().clone();
@@ -146,7 +149,7 @@ impl Logger {
         let der = kernel::derivation::infer_sort(ctx, exp);
         match der {
             Ok(derivation) => {
-                self.log(format!("Inferred sort"));
+                self.log("Inferred sort");
                 self.log_derivation(derivation);
                 Ok(())
             }
@@ -161,7 +164,7 @@ impl Logger {
         let der = kernel::inductive::acceptable_typespecs(ctx, indspec);
         match der {
             Ok(derivation) => {
-                self.log(format!("Inductive type specs are well-formed"));
+                self.log("Inductive type specs are well-formed");
                 self.log_derivation(derivation);
                 Ok(())
             }
@@ -192,11 +195,36 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind> {
-        todo!()
+        match access_path {
+            LocalAccess::Current { access } => {
+                let current_module = self.module_manager.current_module_as_instantiated();
+                let item = current_module.get_item(access).ok_or_else(|| {
+                    ErrorKind::Msg(format!(
+                        "Item {} not found in current module",
+                        access.as_str()
+                    ))
+                })?;
+                Ok(item)
+            }
+            LocalAccess::Named { access, child } => {
+                let imported_module =
+                    self.current_imported_modules.get(access).ok_or_else(|| {
+                        ErrorKind::Msg(format!("Imported module {} not found", access))
+                    })?;
+                let item = imported_module.get_item(child).ok_or_else(|| {
+                    ErrorKind::Msg(format!(
+                        "Item {} not found in imported module {}",
+                        child.as_str(),
+                        access.as_str()
+                    ))
+                })?;
+                Ok(item)
+            }
+        }
     }
 
     fn get_item_from_var(&self, var: &Var) -> Result<ItemAccessResult, ErrorKind> {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -260,7 +288,7 @@ impl GlobalEnvironment {
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
                     let name =
-                        format!("{}", self.module_manager.current_path().join(".")) + "." + &name.0;
+                        self.module_manager.current_path().join(".").to_string() + "." + &name.0;
                     let defined_constant = DefinedConstant {
                         name,
                         ty: ty_elab,
@@ -400,7 +428,7 @@ impl GlobalEnvironment {
                                 args.push((call.0.clone(), args_given_this));
                             }
                             self.module_manager
-                                .access_from_current_parent(*back_parent, args)?
+                                .access_from_current(*back_parent, args)?
                         }
                         ModuleAccessPath::FromRoot { calls } => {
                             let mut args = vec![];

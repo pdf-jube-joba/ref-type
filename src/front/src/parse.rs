@@ -11,10 +11,10 @@ pub enum Token<'a> {
     Ident(&'a str),
     #[regex(r"[0-9]+")]
     Number(&'a str),
-    #[regex(r"\?[a-zA-Z_]+")]
+    #[regex(r"\?[a-zA-Z0-9_]*")]
     UnspecifiedVar(&'a str),
     // any non-space sequence that does not include backslash, alnum or '?()$'
-    #[regex(r"[^\s\\A-Za-z0-9?(){}$]+")]
+    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]]+")]
     MacroToken(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -34,6 +34,10 @@ pub enum Token<'a> {
     LBrace,
     #[token("}")]
     RBrace,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
     // mapped tokens (will be produced by mapping MacroToken in lex_all)
     // 2 char
     Arrow,       // "->"
@@ -478,7 +482,7 @@ impl<'a> Parser<'a> {
             // "\elim" <elim: SExp> "\in" <path: Path> "\\return" <return_type: SExp>
             let elim = self.parse_sexp()?;
             self.expect_keyword("\\in")?; // expect '\in'
-            let path = self.parse_access_path()?;
+            let (path, _parameters) = self.parse_access_path()?;
             self.expect_keyword("\\return")?; // expect '\\return'
             let return_type = self.parse_sexp()?;
 
@@ -507,10 +511,16 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::LParen)?;
             let sort = self.parse_sort()?;
             self.expect_token(Token::Comma)?;
-            let path = self.parse_access_path()?;
+            let (path, parameters) = self.parse_access_path()?;
             self.expect_token(Token::RParen)?;
 
-            return Ok(SExp::IndElimPrim { path, sort });
+            let parameters = parameters.unwrap_or_default();
+
+            return Ok(SExp::IndElimPrim {
+                path,
+                parameters,
+                sort,
+            });
         }
         // "\exists" <binding>
         if self.bump_if_keyword("\\exists") {
@@ -664,10 +674,10 @@ impl<'a> Parser<'a> {
     }
 
     // parse an access path
-    // 1. identifier | identifier "{" (SExp ("," SExp)*)? "}" ... current scope
+    // 1. identifier | identifier "[" (SExp ("," SExp)*)? "]" ... current scope
     // 2. identifier "." identifier | identifier . identifier "{" (SExp ("," SExp)*)? "}" ... named scope
     // ! no nesting of ".", it appears at most once
-    fn parse_access_path(&mut self) -> Result<LocalAccess, ParseError> {
+    fn parse_access_path(&mut self) -> Result<(LocalAccess, Option<Vec<SExp>>), ParseError> {
         // 1. expect first identifier
         let first_ident = self.expect_ident()?;
         // 2. if ".", expect more identifiers
@@ -683,7 +693,7 @@ impl<'a> Parser<'a> {
 
         // trying to parse parameters
         // may be fail => rollback
-        let parameters = if self.bump_if_token(&Token::LBrace) {
+        let parameters = if self.bump_if_token(&Token::LBracket) {
             // parse parameters inside '{' ... '}'
             let mut params = Vec::new();
             while let Ok(param) = self.parse_sexp() {
@@ -692,7 +702,7 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            if self.bump_if_token(&Token::RBrace) {
+            if self.bump_if_token(&Token::RBracket) {
                 // successfully closed
             } else {
                 // rollback if not closed
@@ -703,17 +713,23 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
 
-        match next_ident {
-            Some(child) => Ok(LocalAccess::Named {
+        let local_access = match next_ident {
+            Some(child) => LocalAccess::Named {
                 access: first_ident,
                 child,
-                parameters,
-            }),
-            None => Ok(LocalAccess::Current {
+            },
+            None => LocalAccess::Current {
                 access: first_ident,
-                parameters,
-            }),
-        }
+            },
+        };
+        Ok((
+            local_access,
+            if parameters.is_empty() {
+                None
+            } else {
+                Some(parameters)
+            },
+        ))
     }
 
     // parse a single atom
@@ -722,16 +738,21 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Result<SExp, ParseError> {
         match self.peek() {
             Some(Token::Ident(_)) => {
-                let access_path = self.parse_access_path()?;
+                let (access_path, parameters) = self.parse_access_path()?;
                 if self.bump_if_token(&Token::Field) {
                     // constructor access
                     let ctor_name = self.expect_ident()?;
+                    let parameters = parameters.unwrap_or_default();
                     Ok(SExp::IndCtor {
                         path: access_path,
+                        parameters,
                         ctor_name,
                     })
                 } else {
-                    Ok(SExp::AccessPath(access_path))
+                    Ok(SExp::AccessPath {
+                        access: access_path,
+                        parameters: parameters.unwrap_or_default(),
+                    })
                 }
             }
             Some(Token::LParen) => {

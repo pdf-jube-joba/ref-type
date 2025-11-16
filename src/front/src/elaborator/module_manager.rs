@@ -120,7 +120,7 @@ impl ModuleManager {
 
     pub fn current_module_as_instantiated(&self) -> InstantiatedModule {
         let ModuleElaborated {
-            name,
+            name: _,
             parameters: _,
             items,
             child_modules: _,
@@ -291,7 +291,7 @@ impl ModuleManager {
     ) -> Result<InstantiateResult, String> {
         self.access_module(0, args)
     }
-    pub fn access_from_current_parent(
+    pub fn access_from_current(
         &self,
         back_parent: usize,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,

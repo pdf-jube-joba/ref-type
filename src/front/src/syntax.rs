@@ -122,29 +122,21 @@ pub enum LocalAccess {
     // accessing inductive type or defined constant
     Current {
         access: Identifier,
-        parameters: Vec<SExp>,
     },
     Named {
         access: Identifier,
         child: Identifier,
-        parameters: Vec<SExp>,
     },
-}
-
-impl LocalAccess {
-    pub fn parameters(&self) -> &Vec<SExp> {
-        match self {
-            LocalAccess::Current { parameters, .. } => parameters,
-            LocalAccess::Named { parameters, .. } => parameters,
-        }
-    }
 }
 
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
-    // accessessing something
-    AccessPath(LocalAccess),
+    // access something
+    AccessPath {
+        access: LocalAccess,
+        parameters: Vec<SExp>,
+    },
 
     // --- macro
     // shared macro for math symbols
@@ -198,6 +190,7 @@ pub enum SExp {
     IndCtor {
         path: LocalAccess,
         ctor_name: Identifier,
+        parameters: Vec<SExp>,
     },
     // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
     IndElim {
@@ -209,6 +202,7 @@ pub enum SExp {
     // primitive elimination for inductive type
     IndElimPrim {
         path: LocalAccess,
+        parameters: Vec<SExp>,
         sort: kernel::exp::Sort,
     },
     // --- set theory
@@ -319,7 +313,7 @@ pub enum Statement {
 pub struct GoalProof {
     pub extended_ctx: Vec<RightBind>, // extended context
     pub goal: SExp,                   // goal to prove
-    pub proofby: SProveCommandBy,             // proof term to fill in
+    pub proofby: SProveCommandBy,     // proof term to fill in
 }
 
 #[derive(Debug, Clone)]

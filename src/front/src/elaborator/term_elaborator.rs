@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::elaborator::{ErrorKind, GlobalEnvironment, ItemAccessResult};
+use crate::elaborator::{ErrorKind, ItemAccessResult};
 use crate::syntax::*;
 use kernel::calculus::exp_subst_map;
 use kernel::exp::*;
@@ -11,6 +11,7 @@ pub trait Handler {
         &self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind>;
+    #[allow(dead_code)]
     fn get_definition_from_access_path(
         &self,
         access_path: &LocalAccess,
@@ -37,6 +38,7 @@ pub trait Handler {
             ))),
         }
     }
+    #[allow(dead_code)]
     fn get_item_from_var(&self, var: &Var) -> Result<ItemAccessResult, ErrorKind>;
 }
 
@@ -117,11 +119,22 @@ impl LocalScope {
 
     pub fn elab_exp_rec(&mut self, exp: &SExp, handler: &impl Handler) -> Result<Exp, ErrorKind> {
         match exp {
-            SExp::AccessPath(local_access) => {
-                let item = handler.get_item_from_access_path(local_access)?;
+            SExp::AccessPath { access, parameters } => {
+                // this includes (term binding) access path
+
+                // 1. find from binded vars first (if no parameters)
+                if let LocalAccess::Current { access: name } = access
+                    && let Some(var) = self.get_var(name)
+                    && parameters.is_empty()
+                {
+                    return Ok(Exp::Var(var));
+                }
+
+                // 2. others via handler
+                let item = handler.get_item_from_access_path(access)?;
                 match item {
                     ItemAccessResult::Definition { rc } => {
-                        if local_access.parameters().is_empty() {
+                        if parameters.is_empty() {
                             Ok(Exp::DefinedConstant(rc.clone()))
                         } else {
                             Err(format!(
@@ -132,8 +145,7 @@ impl LocalScope {
                         }
                     }
                     ItemAccessResult::Inductive { ind_defs } => {
-                        let parameters: Vec<Exp> = local_access
-                            .parameters()
+                        let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
@@ -143,7 +155,7 @@ impl LocalScope {
                         })
                     }
                     ItemAccessResult::Expression { exp } => {
-                        if local_access.parameters().is_empty() {
+                        if parameters.is_empty() {
                             Ok(exp.clone())
                         } else {
                             Err(format!(
@@ -155,8 +167,7 @@ impl LocalScope {
                     }
                 }
             }
-            SExp::MathMacro { tokens } => todo!(),
-            SExp::NamedMacro { name, tokens } => todo!(),
+            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
             SExp::Where { exp, clauses } => {
                 // elaborate clauses, register name
                 // then subst var to defconst in exp
@@ -354,11 +365,14 @@ impl LocalScope {
                     to: Box::new(to_elab),
                 })
             }
-            SExp::IndCtor { path, ctor_name } => {
+            SExp::IndCtor {
+                path,
+                ctor_name,
+                parameters,
+            } => {
                 let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
 
-                let parameters: Vec<Exp> = path
-                    .parameters()
+                let parameters: Vec<Exp> = parameters
                     .iter()
                     .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
@@ -417,11 +431,14 @@ impl LocalScope {
                     cases: cases_elab,
                 })
             }
-            SExp::IndElimPrim { path, sort } => {
+            SExp::IndElimPrim {
+                path,
+                parameters,
+                sort,
+            } => {
                 let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
 
-                let parameters: Vec<Exp> = path
-                    .parameters()
+                let parameters: Vec<Exp> = parameters
                     .iter()
                     .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
