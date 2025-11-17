@@ -160,7 +160,7 @@ impl<'a> TermParser<'a> {
 
     // Try to parse a parenthesized number (e.g., "(0)").
     fn parse_number_paren(&mut self) -> Result<usize, ParseError> {
-        self.expect_token(Token::LParen);
+        self.expect_token(Token::LParen)?;
         let number = self.expect_number()?;
         self.expect_token(Token::RParen)?;
 
@@ -177,18 +177,16 @@ impl<'a> TermParser<'a> {
             return Ok(kernel::exp::Sort::PropKind);
         }
         if self.bump_if_keyword("\\Set") {
-            let number = match self.try_parse(|parser| parser.parse_number_paren())? {
-                Some(n) => n,
-                None => 0,
-            };
+            let number = self
+                .try_parse(|parser| parser.parse_number_paren())?
+                .unwrap_or_default();
 
             return Ok(kernel::exp::Sort::Set(number));
         }
         if self.bump_if_keyword("\\SetKind") {
-            let number = match self.try_parse(|parser| parser.parse_number_paren())? {
-                Some(n) => n,
-                None => 0,
-            };
+            let number = self
+                .try_parse(|parser| parser.parse_number_paren())?
+                .unwrap_or_default();
             return Ok(kernel::exp::Sort::SetKind(number));
         }
 
@@ -284,15 +282,15 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\prec") {
-            // "\prec" "(" <sort: Sort> "," <path: AccessPath> <parameter> ")"
+            // "\prec" "(" <sort: Sort> "," <path: AccessPath> <parameter>? ")"
             self.expect_token(Token::LParen)?;
             let sort = self.parse_sort()?;
             self.expect_token(Token::Comma)?;
             let path = self.parse_access_path()?;
-            let parameters = match self.try_parse(|parser| parser.parse_parameter())? {
-                Some(params) => params,
-                None => vec![],
-            };
+            let parameters = self
+                .try_parse(|parser| parser.parse_parameter())?
+                .unwrap_or_default();
+
             self.expect_token(Token::RParen)?;
 
             return Ok(SExp::IndElimPrim {
@@ -517,19 +515,18 @@ impl<'a> TermParser<'a> {
             Some(Token::Ident(_)) => {
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
-                let parameters = match self.try_parse(|parser| parser.parse_parameter())? {
-                    Some(params) => params,
-                    None => vec![],
-                };
+                let parameters = self
+                    .try_parse(|parser| parser.parse_parameter())?
+                    .unwrap_or_default();
 
                 match self.try_parse(|parser| parser.parse_record_body())? {
                     Some(fields) => {
                         // record construction
-                        return Ok(SExp::RecordTypeCtor {
+                        Ok(SExp::RecordTypeCtor {
                             access,
                             parameters,
                             fields,
-                        });
+                        })
                     }
                     None => Ok(SExp::AccessPath { access, parameters }),
                 }
@@ -591,16 +588,12 @@ impl<'a> TermParser<'a> {
         // 1. first atom
         let mut expr = self.parse_atom()?;
 
-        loop {
-            if let Some(try_exp) = self.try_parse(|parser| parser.parse_atom())? {
-                expr = SExp::App {
-                    func: Box::new(expr),
-                    arg: Box::new(try_exp),
-                    piped: false,
-                };
-            } else {
-                break;
-            }
+        while let Some(try_exp) = self.try_parse(|parser| parser.parse_atom())? {
+            expr = SExp::App {
+                func: Box::new(expr),
+                arg: Box::new(try_exp),
+                piped: false,
+            };
         }
 
         Ok(expr)

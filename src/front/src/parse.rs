@@ -330,6 +330,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn expect_number(&mut self) -> Result<usize, ParseError> {
         match self.next() {
             Some(t) => match &t.kind {
@@ -351,6 +352,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn expect_othersymbol(&mut self) -> Result<&'a str, ParseError> {
         match self.next() {
             Some(t) => match &t.kind {

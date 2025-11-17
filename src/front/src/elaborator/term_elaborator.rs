@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::elaborator::module_manager::ModItemRecord;
 use crate::elaborator::{ErrorKind, ItemAccessResult};
 use crate::syntax::*;
 use kernel::calculus::exp_subst_map;
@@ -11,7 +12,7 @@ pub trait Handler {
         &self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind>;
-    fn field_projection(&self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind>;
+    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind>;
 }
 
 // local scope during elaboration
@@ -47,7 +48,7 @@ impl LocalScope {
     pub fn elab_telescope_bind_in_decl(
         &mut self,
         binds: &[RightBind],
-        handler: &impl Handler,
+        handler: &mut impl Handler,
     ) -> Result<Vec<(Var, Exp)>, ErrorKind> {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
@@ -82,14 +83,18 @@ impl LocalScope {
         self.binded_vars.pop();
     }
 
-    pub fn elab_exp(&mut self, exp: &SExp, handler: &impl Handler) -> Result<Exp, ErrorKind> {
+    pub fn elab_exp(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, ErrorKind> {
         assert!(self.binded_vars.is_empty());
         let e = self.elab_exp_rec(exp, handler);
         assert!(self.binded_vars.is_empty());
         e
     }
 
-    pub fn elab_exp_rec(&mut self, exp: &SExp, handler: &impl Handler) -> Result<Exp, ErrorKind> {
+    pub fn elab_exp_rec(
+        &mut self,
+        exp: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ErrorKind> {
         match exp {
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
@@ -130,11 +135,11 @@ impl LocalScope {
                             parameters,
                         })
                     }
-                    ItemAccessResult::Record {
-                        type_name: _,
-                        field_names: _,
+                    ItemAccessResult::Record(ModItemRecord {
+                        type_name,
+                        fields: field_names,
                         rc_spec_as_indtype,
-                    } => {
+                    }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
@@ -464,11 +469,11 @@ impl LocalScope {
                 parameters,
                 fields,
             } => {
-                let ItemAccessResult::Record {
-                    type_name: _,
-                    field_names: _,
+                let ItemAccessResult::Record(ModItemRecord {
+                    type_name,
+                    fields: field_names,
                     rc_spec_as_indtype,
-                } = handler.get_item_from_access_path(access)?
+                }) = handler.get_item_from_access_path(access)?
                 else {
                     return Err(format!(
                         "Expected record type in record type ctor access path {:?}",
@@ -655,7 +660,7 @@ impl LocalScope {
     fn elab_proof_by_rec(
         &mut self,
         proof_by: &SProveCommandBy,
-        handler: &impl Handler,
+        handler: &mut impl Handler,
     ) -> Result<ProveCommandBy, ErrorKind> {
         let elab = match proof_by {
             SProveCommandBy::Construct { term } => {

@@ -215,7 +215,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         }
     }
 
-    fn field_projection(&self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind> {
+    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind> {
         let ctx = self
             .module_manager
             .current_context()
@@ -237,7 +237,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
         let ModItemRecord {
             type_name,
-            field_names,
+            fields: field_names,
             rc_spec_as_indtype,
         } = self
             .module_manager
@@ -444,11 +444,11 @@ impl GlobalEnvironment {
 
                     // elaborate fields as constructors
                     let mut telescope = vec![];
-                    let mut field_names = vec![];
+                    let mut fields_get: Vec<(Var, Exp)> = vec![];
                     for (field_name, field_ty) in fields {
-                        field_names.push(field_name.clone());
                         let field_name_var: Var = field_name.into();
                         let field_ty_elab = local_scope.elab_exp(field_ty, self)?;
+                        fields_get.push((field_name_var.clone(), field_ty_elab.clone()));
                         // field may depend on previous fields
                         local_scope.push_decl_var(field_name_var.clone());
                         telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
@@ -467,7 +467,7 @@ impl GlobalEnvironment {
                     self.logger.check_wellformed_indspec(&ctx, &indspec)?;
 
                     self.module_manager
-                        .add_record(type_name.clone(), field_names, indspec);
+                        .add_record(type_name.clone(), fields_get, indspec);
                 }
                 ModuleItem::ChildModule { module } => {
                     self.module_add_rec(module)?;

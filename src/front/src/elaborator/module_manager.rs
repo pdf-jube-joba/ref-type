@@ -19,8 +19,23 @@ pub struct ModItemInductive {
 #[derive(Debug, Clone)]
 pub struct ModItemRecord {
     pub type_name: Identifier,
-    pub field_names: Vec<Identifier>,
+    pub fields: Vec<(Var, Exp)>,
     pub rc_spec_as_indtype: Rc<InductiveTypeSpecs>,
+}
+
+impl ModItemRecord {
+    // get projection expression for field_name, returns None if field_name not found
+    // (e).field_name is converted to
+    // elim (e) \as Type \return T_i { mk: (x_1: T_1) => (x_2: T_2) => ... => x_i })} where i is the index of field_name in field_names
+    pub fn field_projection(&self, field_name: &Identifier) -> Option<Exp> {
+        let idx = self
+            .fields
+            .iter()
+            .position(|fname| fname.0.as_str() == field_name.as_str())?;
+        let var_idx = self.fields[idx].0.clone();
+
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,11 +73,7 @@ pub enum ItemAccessResult {
         ctor_names: Vec<Identifier>,
         ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
-    Record {
-        type_name: Identifier,
-        field_names: Vec<Identifier>,
-        rc_spec_as_indtype: Rc<kernel::inductive::InductiveTypeSpecs>,
-    },
+    Record(ModItemRecord),
     Expression {
         exp: Exp,
     },
@@ -94,15 +105,15 @@ impl InstantiatedModule {
                 }
                 ModuleItemAccessible::Record(ModItemRecord {
                     type_name,
-                    field_names,
+                    fields: field_names,
                     rc_spec_as_indtype,
                 }) => {
                     if type_name.as_str() == name.0.as_str() {
-                        return Some(ItemAccessResult::Record {
+                        return Some(ItemAccessResult::Record(ModItemRecord {
                             type_name: type_name.clone(),
-                            field_names: field_names.clone(),
+                            fields: field_names.clone(),
                             rc_spec_as_indtype: Rc::clone(rc_spec_as_indtype),
-                        });
+                        }));
                     }
                 }
             }
@@ -248,13 +259,13 @@ impl ModuleManager {
     pub fn add_record(
         &mut self,
         type_name: Identifier,
-        field_names: Vec<Identifier>,
+        field_names: Vec<(Var, Exp)>,
         ind_defs: kernel::inductive::InductiveTypeSpecs,
     ) {
         let rc = Rc::new(ind_defs);
         let item = ModuleItemAccessible::Record(ModItemRecord {
             type_name,
-            field_names,
+            fields: field_names,
             rc_spec_as_indtype: rc,
         });
         self.modules[self.current].items.push(item);
@@ -358,13 +369,13 @@ impl ModuleManager {
                 }
                 ModuleItemAccessible::Record(ModItemRecord {
                     type_name,
-                    field_names,
+                    fields: field_names,
                     rc_spec_as_indtype,
                 }) => {
                     let instantiated_spec = rc_spec_as_indtype.subst(&subst_mapping_accum);
                     ModuleItemAccessible::Record(ModItemRecord {
                         type_name: type_name.clone(),
-                        field_names: field_names.clone(),
+                        fields: field_names.clone(),
                         rc_spec_as_indtype: Rc::new(instantiated_spec),
                     })
                 }

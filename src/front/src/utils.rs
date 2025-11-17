@@ -47,15 +47,11 @@ pub fn assoc_apply_vec(mut v: Vec<SExp>) -> SExp {
 
 pub fn decompose_prod(mut e: SExp) -> (Vec<crate::syntax::Bind>, SExp) {
     let mut binds = vec![];
-    loop {
-        match e {
-            SExp::Prod { bind, body } => {
-                binds.push(bind);
-                e = *body;
-            }
-            _ => break,
-        }
+    while let SExp::Prod { bind, body } = e {
+        binds.push(bind);
+        e = *body;
     }
+
     (binds, e)
 }
 
