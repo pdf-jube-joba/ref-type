@@ -1,6 +1,6 @@
 use super::{
-    BLOCK_KEYWORDS, EXPRESSION_ATOM_KEYWORDS, EXPRESSION_SEPARATION_KEYWORDS, PROGRAM_KEYWORDS,
-    PROOF_COMMAND_KEYWORDS, ParseError, SORT_KEYWORDS, SpannedToken, Token,
+    EXPRESSION_ATOM_KEYWORDS, PROOF_COMMAND_KEYWORDS, ParseError, SORT_KEYWORDS, SpannedToken,
+    Token,
 };
 use crate::syntax::*;
 
@@ -679,19 +679,19 @@ impl<'a> TermParser<'a> {
     }
 
     // parse multiple annotations separated by commas
+    // trailing comma is allowed (it consumes trailing comma)
     fn parse_annotate_comma_separated(&mut self) -> Result<Vec<RightBind>, ParseError> {
         let mut annotations = vec![];
 
-        loop {
-            let (vars, ty) = self.parse_annotate()?;
+        // this implementation allows trailing commas
+        while let Some((vars, ty)) = self.try_parse(|parser| parser.parse_annotate())? {
             annotations.push(RightBind {
                 vars,
                 ty: Box::new(ty),
             });
 
-            if !self.bump_if_token(&Token::Comma) {
-                break;
-            }
+            // allow trailing comma
+            self.bump_if_token(&Token::Comma);
         }
 
         Ok(annotations)
@@ -792,7 +792,7 @@ impl<'a> TermParser<'a> {
     }
 
     // parse arrow expression without subset-style binds on the right-hand side
-    // e.g. ([<rightbind> | <sexp> ] "->")* <sexp>
+    // e.g. ([<rightbind> | <sexp>] "->")* <sexp>
     fn parse_arrow_nosubset(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
         let mut binds = vec![];
         // parse right binds until fail
@@ -809,8 +809,7 @@ impl<'a> TermParser<'a> {
                         });
                         continue;
                     } else {
-                        let body = self.parse_sexp()?;
-                        return Ok((binds, body));
+                        return Ok((binds, maybe_body));
                     }
                 }
             };
@@ -953,6 +952,43 @@ mod tests {
         print_and_unwrap_annotate(r"x: X Y | h");
         print_and_unwrap_annotate(r"x, y, z: X -> Y");
     }
+    #[test]
+    fn parse_rightbinds_test() {
+        fn print_and_unwrap_rightbinds(input: &'static str) {
+            let lex = &lex_all(input).expect("lexing failed for rightbinds test");
+            let mut parser = TermParser::new(lex);
+            let result = parser.parse_annotate_comma_separated();
+            match result {
+                Ok(binds) => {
+                    println!("Parsed SExp: {:?} => {:?}", input, binds);
+                }
+                Err(err) => {
+                    panic!("Error: {:?}", err);
+                }
+            }
+        }
+        print_and_unwrap_rightbinds(r"x: X");
+        print_and_unwrap_rightbinds(r"x: X, y: Y");
+        print_and_unwrap_rightbinds(r"x, y: X -> Y, z: Z");
+
+        // use simple_binds_paren
+        fn print_and_unwrap_simplebinds_paren(input: &'static str) {
+            let lex = &lex_all(input).expect("lexing failed for simplebinds paren test");
+            let mut parser = TermParser::new(lex);
+            let result = parser.parse_simple_binds_paren();
+            match result {
+                Ok(binds) => {
+                    println!("Parsed SExp: {:?} => {:?}", input, binds);
+                }
+                Err(err) => {
+                    panic!("Error: {:?}", err);
+                }
+            }
+        }
+        print_and_unwrap_simplebinds_paren(r"(x: X)");
+        print_and_unwrap_simplebinds_paren(r"(x: X, y: Y)");
+        print_and_unwrap_simplebinds_paren(r"(x, y: X -> Y, z: Z)");
+    }
 
     #[test]
     fn parse_bind_test() {
@@ -973,13 +1009,53 @@ mod tests {
         print_and_unwrap_subsetbind(r"((x: X) | p1 p2)");
         print_and_unwrap_subsetbind(r"((x: X) | h: p1 p2)");
     }
+    #[test]
+    fn parse_combined_test() {
+        fn print_and_unwrap_combined(input: &'static str) {
+            let lex = &lex_all(input).expect("lexing failed for combined test");
+            let mut parser = TermParser::new(lex);
+            let result = parser.parse_combined();
+            match result {
+                Ok(atomlike) => {
+                    println!("Parsed SExp: {:?} => {:?}\n\n", input, atomlike);
+                }
+                Err(err) => {
+                    panic!(" {:?}", err);
+                }
+            }
+        }
+        print_and_unwrap_combined(r"x");
+        print_and_unwrap_combined(r"x y");
+        print_and_unwrap_combined(r"x | y");
+        print_and_unwrap_combined(r"x \as Y");
+        print_and_unwrap_combined(r"x = y");
+        print_and_unwrap_combined(r"x \as Y | z = h");
+    }
+    #[test]
+    fn parse_nosubset_arrow_test() {
+        fn print_and_unwrap_nosubset(input: &'static str) {
+            let lex = &lex_all(input).expect("lexing failed for nosubset arrow test");
+            let mut parser = TermParser::new(lex);
+            let result = parser.parse_arrow_nosubset();
+            match result {
+                Ok((binds, body)) => {
+                    println!("Parsed SExp: {:?} => {:?} -> {:?}", input, binds, body);
+                }
+                Err(err) => {
+                    panic!("Error: {:?}", err);
+                }
+            }
+        }
+        print_and_unwrap_nosubset(r"(x: X) -> Y");
+        print_and_unwrap_nosubset(r"(x: X) -> (y: Y) -> Z");
+    }
     fn print_and_unwrap(input: &'static str) {
         let lex = &lex_all(input).expect("lexing failed for exp test");
         let mut parser = TermParser::new(lex);
         let result = parser.parse_sexp();
         match result {
             Ok(atomlike) => {
-                println!("Parsed SExp: {:?} => {:?}", input, atomlike);
+                println!("Parsed SExp: {:?} => {:?}\n\n", input, atomlike);
             }
             Err(err) => {
                 panic!(" {:?}", err);
@@ -1010,6 +1086,20 @@ mod tests {
         print_and_unwrap(r"(X -> Y) Z ((t: T) => z)");
         print_and_unwrap(r"((x: X) => y)");
         print_and_unwrap(r"((x: X) | P) => y");
+    }
+    #[test]
+    fn parse_access_and_record_test() {
+        // access path and record construction
+        print_and_unwrap(r"x");
+        print_and_unwrap(r"x.y");
+        print_and_unwrap(r"x[ A, B, C ]");
+        print_and_unwrap(r"x.y[ A, B ]");
+        print_and_unwrap(r"x { a: A, b: B }");
+        print_and_unwrap(r"x.y { a: A, b: B }");
+        print_and_unwrap(r"x.y[ A, B ] { a: A, b: B }");
+        print_and_unwrap(r"List[Nat]#Nil");
+        print_and_unwrap(r"list.List[Nat]#Nil");
+        print_and_unwrap(r"Group[Nat] { mul: x, e: y } # unit");
     }
     #[test]
     fn parse_special_exp_test() {

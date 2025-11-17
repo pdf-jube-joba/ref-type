@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    elaborator::module_manager::{InstantiateResult, ItemAccessResult, ModItemRecord},
+    elaborator::{
+        module_manager::{InstantiateResult, ItemAccessResult, ModItemRecord},
+        term_elaborator::LocalScope,
+    },
     syntax::*,
 };
 use kernel::{
@@ -272,37 +275,49 @@ impl GlobalEnvironment {
         } = module;
 
         // 1. before adding child, check well-typedness ness of parameters
-        let ctx: Vec<(Var, Exp)> = self
+        {
+            let ctx: Vec<(Var, Exp)> = self
+                .module_manager
+                .current_context()
+                .into_iter()
+                .flat_map(|(_, v)| v)
+                .collect();
+
+            let mut parameters_elab = vec![];
+
+            let mut local_scope = term_elaborator::LocalScope::default();
+
+            for RightBind { vars, ty } in parameters.iter() {
+                let ty_elab = local_scope.elab_exp(ty, self)?;
+                let ext_ctx = ctx
+                    .iter()
+                    .cloned()
+                    .chain(parameters_elab.iter().cloned())
+                    .collect::<Vec<_>>();
+                // check sort of parameter type
+                self.logger.infer_sort(&ext_ctx, &ty_elab)?;
+
+                for v in vars {
+                    let v = Var::new(v.as_str());
+                    parameters_elab.push((v.clone(), ty_elab.clone()));
+                    local_scope.push_decl_var(v);
+                }
+            }
+            // ok => add child module and move to it
+            self.module_manager
+                .add_child_and_moveto(name.0.clone(), parameters_elab);
+        }
+
+        let ctx = self
             .module_manager
             .current_context()
             .into_iter()
             .flat_map(|(_, v)| v)
-            .collect();
-
-        let mut subst_mapping = vec![];
-        let mut parameters_elab = vec![];
-
-        let mut local_scope = term_elaborator::LocalScope::default();
-
-        for RightBind { vars, ty } in parameters.iter() {
-            let ty_elab = local_scope.elab_exp(ty, self)?;
-            let ty_substed = exp_subst_map(&ty_elab, &subst_mapping);
-            // check sort of parameter type
-            self.logger.infer_sort(&ctx, &ty_substed)?;
-
-            for v in vars {
-                let v = Var::new(v.as_str());
-                subst_mapping.push((v.clone(), ty_substed.clone()));
-                parameters_elab.push((v.clone(), ty_substed.clone()));
-            }
-        }
-        // ok => add child module and move to it
-        self.module_manager
-            .add_child_and_moveto(name.0.clone(), parameters_elab);
+            .collect::<Vec<_>>();
 
         // 2. elaborate declarations
         for decl in declarations {
-            let mut local_scope = term_elaborator::LocalScope::default();
+            let mut local_scope = LocalScope::default();
             match decl {
                 ModuleItem::Definition { name, ty, body } => {
                     let ty_elab = local_scope.elab_exp(ty, self)?;
@@ -322,6 +337,17 @@ impl GlobalEnvironment {
                     sort,
                     constructors,
                 } => {
+                    self.logger.log(format!(
+                        "Elaborating inductive type {type_name} {parameters:?}: {indices:?} -> {sort:?}",
+                    ));
+                    self.logger.log(format!(
+                        "With constructors: {:?}",
+                        constructors
+                            .iter()
+                            .map(|(n, r, e)| format!("{} : {:?} {:?}", n.as_str(), r, e))
+                            .collect::<Vec<_>>()
+                    ));
+
                     let type_name_var: Var = type_name.into();
                     // register type name as binded var
                     local_scope.push_decl_var(type_name_var.clone());
@@ -338,6 +364,12 @@ impl GlobalEnvironment {
                     let mut ctor_type_elabs = vec![];
 
                     for (ctor_name, rightbinds, ends) in constructors {
+                        self.logger.log(format!(
+                            "Elaborating constructor {} with rightbinds {:?} and ends {:?}",
+                            ctor_name.as_str(),
+                            rightbinds,
+                            ends
+                        ));
                         let ctor_name_var: Var = ctor_name.into();
                         ctor_names_var.push(ctor_name_var.clone());
                         ctor_names.push(ctor_name.clone());
@@ -353,7 +385,15 @@ impl GlobalEnvironment {
                                 }
                                 term
                             };
+                            self.logger.log(format!(
+                                "----  (before elaboration): {:?}",
+                                term
+                            ));
                             let term_elab = local_scope.elab_exp(&term, self)?;
+                            self.logger.log(format!(
+                                "----> Elaborated constructor term: {}",
+                                term_elab
+                            ));
                             kernel::utils::decompose_prod(term_elab)
                         };
 
@@ -409,6 +449,13 @@ impl GlobalEnvironment {
                                 )));
                             }
                         }
+
+                        self.logger.log(format!(
+                            "Elaborated constructor {} with telescope {:?} and indices {:?}",
+                            ctor_name.as_str(),
+                            ctor_binders,
+                            tail
+                        ));
 
                         ctor_type_elabs.push(kernel::inductive::CtorType {
                             telescope: ctor_binders,

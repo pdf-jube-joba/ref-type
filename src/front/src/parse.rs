@@ -51,7 +51,7 @@ pub enum Token<'a> {
     Comma,       // ","
     Equal,       // "="
     Exclamation, // "!"
-    Field,
+    Field,       // "#"
 }
 
 static SORT_KEYWORDS: &[&str] = &[
@@ -181,7 +181,9 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                 | Token::MathLParen
                 | Token::MathRParen
                 | Token::LBrace
-                | Token::RBrace,
+                | Token::RBrace
+                | Token::LBracket
+                | Token::RBracket,
             ) => {
                 let span = lexer.span();
                 out.push(SpannedToken {
@@ -419,6 +421,7 @@ impl<'a> Parser<'a> {
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
         let parent_num: Option<usize> = if self.bump_if_keyword("\\root") {
+            self.expect_token(Token::Period)?; // expect '.'
             None
         } else {
             let mut count = 0;
@@ -455,7 +458,7 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Import { path, import_name })
     }
 
-    // <specified_module: (Identifier, Vec<(Identifier, SExp)>)> = <mod_name> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")"
+    // <specified_module> = <mod_name> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")"
     fn parse_module_access_path(
         &mut self,
     ) -> Result<(Identifier, Vec<(Identifier, SExp)>), ParseError> {
@@ -501,6 +504,7 @@ impl<'a> Parser<'a> {
         }
 
         self.expect_token(Token::Colon)?;
+
         // <arity> = <indices> <Sort>
         // <indices> = <rightbinds>
         let (indices, expect_sort) = self.parse_arrow_nosubset()?;
@@ -673,6 +677,31 @@ mod tests {
         print_and_unwrap(r"x :: y ++ := z");
         print_and_unwrap(r"\Prop \Set (0)");
         print_and_unwrap(r"(( $( )) )$");
+        print_and_unwrap(r"x.y # name { hello: ");
+    }
+    #[test]
+    fn parse_rightbinds_test() {
+        fn print_and_unwrap(input: &'static str) {
+            let lex = &lex_all(input).unwrap();
+            let mut parser = Parser::new(lex);
+            let binds = parser.parse_rightbinds().unwrap();
+            println!("Parsed RightBinds: {:?} => {:?}", input, binds);
+        }
+        print_and_unwrap(r"(x: X)");
+        print_and_unwrap(r"(x: X, y: Y, z: Z)");
+        print_and_unwrap(r"(P1: \Prop,  p1: P1, )");
+    }
+    #[test]
+    fn pares_ctor_decl_test() {
+        fn print_and_unwrap(input: &'static str) {
+            let lex = &lex_all(input).unwrap();
+            let mut parser = Parser::new(lex);
+            let ctor = parser.parse_ctor_decl().unwrap();
+            println!("Parsed CtorDecl: {:?} => {:?}", input, ctor);
+        }
+        print_and_unwrap(r"| true : Bool ;");
+        print_and_unwrap(r"| succ : Nat -> Nat ;");
+        print_and_unwrap(r"| cons : (X : \Set) -> X -> List X -> List X ;");
     }
     #[test]
     fn parse_module_item() {
@@ -698,5 +727,6 @@ mod tests {
         print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
         print_and_unwrap(r"\import MyModule ( A := B, C := (x: X) => y) \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
+        print_and_unwrap(r"\inductive Nat : \Set := | zero : Nat ; | succ : Nat -> Nat ; ;");
     }
 }
