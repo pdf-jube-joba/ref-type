@@ -51,6 +51,7 @@ pub enum Token<'a> {
     Comma,       // ","
     Equal,       // "="
     Exclamation, // "!"
+    Field,
 }
 
 static SORT_KEYWORDS: &[&str] = &[
@@ -140,6 +141,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     "," => Token::Comma,
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
+                    "#" => Token::Field,
                     _ => Token::MacroToken(s),
                 };
 

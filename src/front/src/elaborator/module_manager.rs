@@ -15,6 +15,8 @@ pub enum ModuleItemAccessible {
         rc: Rc<kernel::exp::DefinedConstant>,
     },
     Inductive {
+        type_name: Identifier,
+        ctor_names: Vec<Identifier>,
         ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
     // we use inductive type to represent record type
@@ -46,10 +48,6 @@ pub enum ItemAccessResult {
     Inductive {
         ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
-    InductiveCtor {
-        ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
-        ctor_index: usize,
-    },
     Record(RecordSpecs),
     Expression {
         exp: Exp,
@@ -65,8 +63,12 @@ impl InstantiatedModule {
                         return Some(ItemAccessResult::Definition { rc: Rc::clone(rc) });
                     }
                 }
-                ModuleItemAccessible::Inductive { ind_defs } => {
-                    if ind_defs.as_ref().names.0.as_str() == name.0.as_str() {
+                ModuleItemAccessible::Inductive {
+                    ind_defs,
+                    type_name,
+                    ctor_names: _,
+                } => {
+                    if type_name.as_str() == name.0.as_str() {
                         return Some(ItemAccessResult::Inductive {
                             ind_defs: Rc::clone(ind_defs),
                         });

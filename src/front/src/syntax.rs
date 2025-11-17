@@ -136,10 +136,15 @@ pub enum LocalAccess {
 #[derive(Debug, Clone)]
 pub enum SExp {
     // --- access something
-    // this includes, variable binded by lambda, defined constant, inductive type, inductive type's constructor, record type (itself)
+    // variable binded by lambda or somethings, defined constant, inductive type, record type (itself)
     AccessPath {
         access: LocalAccess,
         parameters: Vec<SExp>,
+    },
+    // accessing constructor of the inductive type, accessing field of record type
+    AssociatedAccess {
+        base: Box<SExp>,
+        field: Identifier,
     },
 
     // --- macro
@@ -212,11 +217,6 @@ pub enum SExp {
         access: LocalAccess,
         parameters: Vec<SExp>,
         fields: Vec<(Identifier, SExp)>,
-    },
-    // field access
-    RecordFieldAccess {
-        record: Box<SExp>,
-        field: Identifier,
     },
 
     // --- set theory

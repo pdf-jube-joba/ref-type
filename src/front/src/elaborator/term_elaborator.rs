@@ -156,20 +156,6 @@ impl LocalScope {
                             parameters,
                         })
                     }
-                    ItemAccessResult::InductiveCtor {
-                        ind_defs,
-                        ctor_index,
-                    } => {
-                        let parameters: Vec<Exp> = parameters
-                            .iter()
-                            .map(|e| self.elab_exp_rec(e, handler))
-                            .collect::<Result<_, _>>()?;
-                        Ok(Exp::IndCtor {
-                            indspec: ind_defs,
-                            parameters,
-                            idx: ctor_index,
-                        })
-                    }
                     ItemAccessResult::Record(_) => {
                         todo!()
                     }
@@ -184,6 +170,28 @@ impl LocalScope {
                             .into())
                         }
                     }
+                }
+            }
+            // this includes accessing constructor of the inductive type, accessing field of record type
+            // `List[Nat]#nil` or `some_group#unit`
+            SExp::AssociatedAccess { base, field } => {
+                // 1. if base is local access, try to get constructor (parameter is allowed)
+                if let SExp::AccessPath { access, parameters } = base.as_ref() {
+                    let item = handler.get_item_from_access_path(access)?;
+                    match item {
+                        ItemAccessResult::Inductive { ind_defs } => {
+                            todo!()
+                        },
+                        _ => Err(format!(
+                            "Expected inductive constructor or record type in base of associated access {:?}",
+                            base
+                        )
+                        .into()),
+                    }
+                } else {
+                    // 2. otherwise, elab base first, then project field
+                    let base_elab = self.elab_exp_rec(base, handler)?;
+                    handler.field_projection(&base_elab, field)
                 }
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
@@ -447,11 +455,6 @@ impl LocalScope {
                 fields,
             } => {
                 todo!()
-            }
-
-            SExp::RecordFieldAccess { record, field } => {
-                let record_elab = self.elab_exp_rec(record, handler)?;
-                handler.field_projection(&record_elab, field)
             }
 
             SExp::ProveLater { prop } => {

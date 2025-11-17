@@ -613,10 +613,10 @@ impl<'a> TermParser<'a> {
     fn parse_combined(&mut self) -> Result<SExp, ParseError> {
         fn field_access(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let base_exp = parser.parse_atom_sequence()?;
-            if parser.bump_if_token(&Token::Period) {
+            if parser.bump_if_token(&Token::Field) {
                 let field_name = parser.expect_ident()?;
-                Ok(SExp::RecordFieldAccess {
-                    record: Box::new(base_exp),
+                Ok(SExp::AssociatedAccess {
+                    base: Box::new(base_exp),
                     field: field_name,
                 })
             } else {
