@@ -1,8 +1,8 @@
 use std::fmt::{Debug, Display};
 
 use crate::exp::{
-    DefinedConstant, DerivationFail, DerivationFailCaused, DerivationFailPropagate,
-    DerivationSuccess, FailHead, GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
+    DerivationFail, DerivationFailCaused, DerivationFailPropagate, DerivationSuccess, FailHead,
+    GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
 };
 
 // Convert the lower 32 bits of a pointer to a base62 string of fixed length 6.
@@ -29,6 +29,10 @@ fn ptr_lower32bit_base62_fixed(ptr: *const ()) -> String {
     String::from_utf8(buf.to_vec()).unwrap()
 }
 
+fn print_ptr<T>(ptr: *const T) -> String {
+    ptr_lower32bit_base62_fixed(ptr as *const ())
+}
+
 fn print_rc_ptr<T>(rc: &std::rc::Rc<T>) -> String {
     ptr_lower32bit_base62_fixed(std::rc::Rc::as_ptr(rc) as *const ())
 }
@@ -38,7 +42,12 @@ impl Debug for Var {
         if f.alternate() {
             write!(f, "{}[{:p}]", self.as_str(), self.ptr())
         } else {
-            write!(f, "{}\x1b[2m[{:p}]\x1b[0m", self.as_str(), self.ptr())
+            write!(
+                f,
+                "{}\x1b[2m[{}]\x1b[0m",
+                self.as_str(),
+                print_ptr(self.ptr())
+            )
         }
     }
 }
@@ -62,16 +71,6 @@ impl Display for crate::exp::Sort {
     }
 }
 
-impl Display for DefinedConstant {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if f.alternate() {
-            write!(f, "{}", self.name)
-        } else {
-            write!(f, "{}[:{} :={}]", self.name, self.ty, self.body)
-        }
-    }
-}
-
 impl Display for crate::exp::Exp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -81,7 +80,7 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Lam { var, ty, body } => write!(f, "({}: {}) => {}", var, ty, body),
             crate::exp::Exp::App { func, arg } => write!(f, "({}) ({})", func, arg),
             crate::exp::Exp::DefinedConstant(rc) => {
-                write!(f, "{}", rc)
+                write!(f, "{}[: {} := {}]", print_rc_ptr(rc), rc.ty, rc.body)
             }
             crate::exp::Exp::IndType {
                 indspec,

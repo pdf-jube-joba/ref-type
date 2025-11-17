@@ -109,7 +109,6 @@ impl Sort {
 
 #[derive(Debug, Clone)]
 pub struct DefinedConstant {
-    pub name: String,
     pub ty: Exp,
     pub body: Exp,
 }

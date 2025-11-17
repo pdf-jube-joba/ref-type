@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    elaborator::module_manager::{InstantiateResult, ItemAccessResult},
+    elaborator::module_manager::{InstantiateResult, ItemAccessResult, ModItemRecord},
     syntax::*,
 };
 use kernel::{
@@ -235,7 +235,16 @@ impl term_elaborator::Handler for GlobalEnvironment {
             )));
         };
 
-        let rc = self.module_manager.get_item_from_rcspec(indspec)?;
+        let ModItemRecord {
+            type_name,
+            field_names,
+            rc_spec_as_indtype,
+        } = self
+            .module_manager
+            .get_moditem_record_from_rc(&indspec)
+            .ok_or_else(|| ErrorKind::Msg(format!("Inductive type is not a record type",)))?;
+
+        todo!()
     }
 }
 
@@ -301,11 +310,10 @@ impl GlobalEnvironment {
                     let name =
                         self.module_manager.current_path().join(".").to_string() + "." + &name.0;
                     let defined_constant = DefinedConstant {
-                        name,
                         ty: ty_elab,
                         body: body_elab,
                     };
-                    self.module_manager.add_def(defined_constant);
+                    self.module_manager.add_def(name.into(), defined_constant);
                 }
                 ModuleItem::Inductive {
                     type_name,

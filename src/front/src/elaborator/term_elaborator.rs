@@ -110,8 +110,8 @@ impl LocalScope {
                             Ok(Exp::DefinedConstant(rc.clone()))
                         } else {
                             Err(format!(
-                                "Defined constant {} cannot be applied with parameters",
-                                rc.name.as_str()
+                                "Defined constant {:?} cannot be applied with parameters",
+                                access
                             )
                             .into())
                         }
@@ -205,11 +205,7 @@ impl LocalScope {
                 for (name, ty, body) in clauses {
                     let ty = self.elab_exp_rec(ty, handler)?;
                     let body = self.elab_exp_rec(body, handler)?;
-                    let def_cst = DefinedConstant {
-                        name: format!("<where {}>", name.as_str()),
-                        ty,
-                        body,
-                    };
+                    let def_cst = DefinedConstant { ty, body };
                     let def_rc = Rc::new(def_cst);
                     let name: Var = Var::new(name.as_str());
                     where_def_rcs_substmap.push((name, Exp::DefinedConstant(def_rc)));

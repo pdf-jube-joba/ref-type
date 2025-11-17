@@ -167,11 +167,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
             // we assume rc: DefinedConstant is well-typed
             builder.rule("DefinedConstant");
 
-            let DefinedConstant {
-                name: _,
-                ty,
-                body: _,
-            } = rc.as_ref();
+            let DefinedConstant { ty, body: _ } = rc.as_ref();
             // conclude (ctx |- DefinedConstant(name, ty, inner) : ty)
             Ok(builder.build_infer(ty.clone()))
         }
