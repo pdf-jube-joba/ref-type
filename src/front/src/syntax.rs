@@ -38,6 +38,11 @@ pub enum ModuleItem {
         sort: kernel::exp::Sort,
         constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
     },
+    Record {
+        type_name: Identifier,
+        parameters: Vec<RightBind>,
+        fields: Vec<(Identifier, SExp)>,
+    },
     ChildModule {
         module: Box<Module>,
     },

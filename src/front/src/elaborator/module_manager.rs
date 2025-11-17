@@ -89,7 +89,6 @@ impl InstantiatedModule {
 }
 
 pub struct InstantiateResult {
-    pub module_index: usize,
     pub instantiated_module: InstantiatedModule,
     pub need_to_type_check: Vec<(String, Exp, Exp)>,
 }
@@ -209,6 +208,10 @@ impl ModuleManager {
         let item = ModuleItemAccessible::Inductive { ind_defs: rc };
         self.modules[self.current].items.push(item);
     }
+    pub fn add_record(&mut self, record_specs: RecordSpecs) {
+        let item = ModuleItemAccessible::Record(record_specs);
+        self.modules[self.current].items.push(item);
+    }
 
     fn access_module(
         &self,
@@ -300,7 +303,6 @@ impl ModuleManager {
         };
 
         Ok(InstantiateResult {
-            module_index: from,
             instantiated_module: module_instantiated,
             need_to_type_check,
         })

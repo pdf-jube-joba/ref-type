@@ -1,11 +1,3 @@
-// NOTE for GitHub Copilot:
-// In this compiler, variable handling differs between surface expression and kernel expression levels.
-// surface ... `Identifier(String)` for names,
-// kernel ... `Var(std::rc::Rc<String>)` as a global ID mechanism
-//   each Rc pointer is unique,allowing fresh variables and true binding equality by pointer identity.
-// This design makes substitution easier (`subst`), but elaboration must carefully
-// align variables between the two levels to preserve correct correspondence.
-
 use std::collections::HashMap;
 
 use crate::{
@@ -413,6 +405,13 @@ impl GlobalEnvironment {
 
                     self.module_manager.add_inductive(indspec);
                 }
+                ModuleItem::Record {
+                    type_name,
+                    parameters,
+                    fields,
+                } => {
+                    todo!()
+                }
                 ModuleItem::ChildModule { module } => {
                     self.module_add_rec(module)?;
                 }
@@ -451,7 +450,6 @@ impl GlobalEnvironment {
                         }
                     };
                     let InstantiateResult {
-                        module_index: _,
                         instantiated_module,
                         need_to_type_check,
                     } = access_result;
