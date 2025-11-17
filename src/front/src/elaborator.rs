@@ -187,18 +187,24 @@ impl Default for GlobalEnvironment {
 
 impl term_elaborator::Handler for GlobalEnvironment {
     fn get_item_from_access_path(
-        &self,
+        &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind> {
         match access_path {
             LocalAccess::Current { access } => {
                 let current_module = self.module_manager.current_module_as_instantiated();
+                self.logger.log(format!(
+                    "\n\nAccessing {:?}: {:?}\n\n",
+                    access, current_module,
+                ));
                 let item = current_module.get_item(access).ok_or_else(|| {
                     ErrorKind::Msg(format!(
                         "Item {} not found in current module",
                         access.as_str()
                     ))
                 })?;
+                self.logger
+                    .log(format!("Found item {:?} in current module\n\n", item));
                 Ok(item)
             }
             LocalAccess::Named { access, child } => {
@@ -308,6 +314,12 @@ impl GlobalEnvironment {
                 .add_child_and_moveto(name.0.clone(), parameters_elab);
         }
 
+        self.logger.log(format!(
+            "Elaborating module {} with parameters {:?}",
+            name.as_str(),
+            parameters,
+        ));
+
         let ctx = self
             .module_manager
             .current_context()
@@ -315,8 +327,15 @@ impl GlobalEnvironment {
             .flat_map(|(_, v)| v)
             .collect::<Vec<_>>();
 
+        self.logger.log(format!(
+            "current module: {:?}",
+            self.module_manager.current_module_as_instantiated()
+        ));
+
         // 2. elaborate declarations
         for decl in declarations {
+            self.logger
+                .log(format!("Elaborating declaration: {:?}", decl));
             let mut local_scope = LocalScope::default();
             match decl {
                 ModuleItem::Definition { name, ty, body } => {
@@ -385,15 +404,11 @@ impl GlobalEnvironment {
                                 }
                                 term
                             };
-                            self.logger.log(format!(
-                                "----  (before elaboration): {:?}",
-                                term
-                            ));
+                            self.logger
+                                .log(format!("----  (before elaboration): {:?}", term));
                             let term_elab = local_scope.elab_exp(&term, self)?;
-                            self.logger.log(format!(
-                                "----> Elaborated constructor term: {}",
-                                term_elab
-                            ));
+                            self.logger
+                                .log(format!("----> Elaborated constructor term: {}", term_elab));
                             kernel::utils::decompose_prod(term_elab)
                         };
 

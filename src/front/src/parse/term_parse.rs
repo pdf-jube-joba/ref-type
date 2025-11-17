@@ -600,26 +600,34 @@ impl<'a> TermParser<'a> {
     }
 
     // parse a expression with
-    // 1. piped application ... <e: AtomSeq> "|" <e: AtomSeq>
-    // 2. as expression ... <e: PipedAtomSeq> "\as" <e: PipedAtomSeq>
-    // 3. equal expression ... <e: AsExp> "=" <e: AsExp>
+    // 1. record field access
+    // 2. piped application ... <e: AtomSeq> "|" <e: AtomSeq>
+    // 3. as expression ... <e: PipedAtomSeq> "\as" <e: PipedAtomSeq>
+    // 4. equal expression ... <e: AsExp> "=" <e: AsExp>
     fn parse_combined(&mut self) -> Result<SExp, ParseError> {
+        // `<exp> # <field_name> # <field_name> ...`
         fn field_access(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            let base_exp = parser.parse_atom_sequence()?;
-            if parser.bump_if_token(&Token::Field) {
+            let mut expr = parser.parse_atom_sequence()?;
+            while parser.bump_if_token(&Token::Field) {
                 let field_name = parser.expect_ident()?;
-                Ok(SExp::AssociatedAccess {
-                    base: Box::new(base_exp),
+                expr = SExp::AssociatedAccess {
+                    base: Box::new(expr),
                     field: field_name,
-                })
-            } else {
-                Ok(base_exp)
+                };
             }
+            Ok(expr)
         }
 
         fn piped(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let mut expr = field_access(parser)?;
-            // 1. parse first atom sequence
+
+            while let Some(next_field_access) = parser.try_parse(|p| field_access(p))? {
+                expr = SExp::App {
+                    func: Box::new(expr),
+                    arg: Box::new(next_field_access),
+                    piped: false,
+                };
+            }
 
             while parser.bump_if_token(&Token::Pipe) {
                 let right = field_access(parser)?;
@@ -1061,6 +1069,7 @@ mod tests {
                 panic!(" {:?}", err);
             }
         }
+        assert!(parser.pos == parser.tokens.len());
     }
     #[test]
     fn parse_exp_test() {
@@ -1097,6 +1106,8 @@ mod tests {
         print_and_unwrap(r"x { a: A, b: B }");
         print_and_unwrap(r"x.y { a: A, b: B }");
         print_and_unwrap(r"x.y[ A, B ] { a: A, b: B }");
+        print_and_unwrap(r"x#y");
+        print_and_unwrap(r"x#y#z");
         print_and_unwrap(r"List[Nat]#Nil");
         print_and_unwrap(r"list.List[Nat]#Nil");
         print_and_unwrap(r"Group[Nat] { mul: x, e: y } # unit");
@@ -1110,11 +1121,12 @@ mod tests {
         print_and_unwrap(r"\Set(3)");
         print_and_unwrap(r"\Set(3) x");
         print_and_unwrap(r"x \Set(3)");
-        print_and_unwrap(r"x.y.z");
+        print_and_unwrap(r"x.y");
         print_and_unwrap(r"x.a b (c. g)");
         print_and_unwrap(r"x $( y + z )$ l");
         print_and_unwrap(r"x ! mymacro { a + b c } l");
-        // parse as, equal
+        // parse `item access` `pipe`, `as`, `equal`
+        print_and_unwrap(r"x#y#z (x#y x#y) #z");
         print_and_unwrap(r"x \as Y");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"x \as Y | z = h");
@@ -1147,5 +1159,6 @@ mod tests {
         parse_middle(r"x ;");
         parse_middle(r"x {");
         parse_middle(r"x (( y: Y)");
+        parse_middle(r"x#y x#y;");
     }
 }

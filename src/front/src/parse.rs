@@ -724,6 +724,7 @@ mod tests {
         print_and_unwrap(r"\definition id : (X : \Set) -> X -> X := (x : X) => x ;");
         print_and_unwrap(r"\definition l : (X : \Set) -> X -> X := (x : X) => x ;");
         print_and_unwrap(r"\definition l: (X, Y: \Set) -> \SetKind := \Set => a;");
+        print_and_unwrap(r"\definition one: Nat := Nat#succ Nat#zero;");
         print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
         print_and_unwrap(r"\import MyModule ( A := B, C := (x: X) => y) \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");

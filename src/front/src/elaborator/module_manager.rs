@@ -64,6 +64,7 @@ pub struct InstantiatedModule {
     pub items: Vec<ModuleItemAccessible>,
 }
 
+#[derive(Debug, Clone)]
 pub enum ItemAccessResult {
     Definition {
         rc: Rc<DefinedConstant>,
@@ -84,7 +85,7 @@ impl InstantiatedModule {
         for item in self.items.iter() {
             match item {
                 ModuleItemAccessible::Definition(ModItemDefinition { name, body }) => {
-                    if name.as_str() == name.0.as_str() {
+                    if name.as_str() == name.as_str() {
                         return Some(ItemAccessResult::Definition {
                             rc: Rc::clone(body),
                         });
@@ -95,7 +96,7 @@ impl InstantiatedModule {
                     ctor_names,
                     ind_defs,
                 }) => {
-                    if type_name.as_str() == name.0.as_str() {
+                    if type_name.as_str() == name.as_str() {
                         return Some(ItemAccessResult::Inductive {
                             type_name: type_name.clone(),
                             ctor_names: ctor_names.clone(),
@@ -108,7 +109,7 @@ impl InstantiatedModule {
                     fields: field_names,
                     rc_spec_as_indtype,
                 }) => {
-                    if type_name.as_str() == name.0.as_str() {
+                    if type_name.as_str() == name.as_str() {
                         return Some(ItemAccessResult::Record(ModItemRecord {
                             type_name: type_name.clone(),
                             fields: field_names.clone(),

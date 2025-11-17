@@ -115,46 +115,51 @@ async fn main() -> anyhow::Result<()> {
 // ---- 共通処理 ---------------------------------------------
 fn parse_and_format(src: String) -> (Vec<Log>, bool) {
     let parsed = front::parse::str_parse_modules(&src);
-    match parsed {
-        Ok(modules) => {
-            let mut global = front::elaborator::GlobalEnvironment::default();
-            let mut logs: Vec<Log> = vec![];
-            let mut flag = false;
-            for module in modules {
-                match global.add_new_module_to_root(&module) {
-                    Ok(_) => {}
-                    Err(err) => match err {
-                        front::elaborator::ErrorKind::Msg(msg) => {
-                            logs.push(Log::Message(format!("Error: {}\n", msg)));
-                            flag = true;
-                        }
-                        front::elaborator::ErrorKind::DerivationFail(derivation_fail) => {
-                            logs.push(Log::Derivation(
-                                kernel::printing::map_derivation_fail(&derivation_fail).into(),
-                            ));
-                            flag = true;
-                        }
-                    },
-                }
-            }
-
-            // append internal logs
-            for entry in global.logs() {
-                match entry {
-                    front::elaborator::LogEnum::Derivation(derivation_success) => {
-                        logs.push(Log::Derivation(
-                            kernel::printing::map_derivation_success(derivation_success).into(),
-                        ));
-                    }
-                    front::elaborator::LogEnum::Message(msg) => {
-                        logs.push(Log::Message(msg.clone()));
-                    },
-                }
-            }
-
-            (logs, flag)
+    let modules = match parsed {
+        Ok(modules) => modules,
+        Err(e) => {
+            return (vec![Log::Message(format!("Parse Error: {}\n", e))], true);
         }
-        Err(e) => (vec![Log::Message(format!("Parse Error: {}\n", e))], true),
+    };
+
+    let mut global = front::elaborator::GlobalEnvironment::default();
+    let mut logs: Vec<Log> = vec![];
+    let mut err_flag = None;
+    for module in modules {
+        match global.add_new_module_to_root(&module) {
+            Ok(_) => {}
+            Err(err) => match err {
+                front::elaborator::ErrorKind::Msg(msg) => {
+                    err_flag = Some(Log::Message(format!("Error: {}\n", msg)));
+                }
+                front::elaborator::ErrorKind::DerivationFail(derivation_fail) => {
+                    err_flag = Some(Log::Derivation(
+                        kernel::printing::map_derivation_fail(&derivation_fail).into(),
+                    ));
+                }
+            },
+        }
+    }
+
+    // append internal logs
+    for entry in global.logs() {
+        match entry {
+            front::elaborator::LogEnum::Derivation(derivation_success) => {
+                logs.push(Log::Derivation(
+                    kernel::printing::map_derivation_success(derivation_success).into(),
+                ));
+            }
+            front::elaborator::LogEnum::Message(msg) => {
+                logs.push(Log::Message(msg.clone()));
+            }
+        }
+    }
+
+    if let Some(log) = err_flag {
+        logs.push(log);
+        (logs, true)
+    } else {
+        (logs, false)
     }
 }
 

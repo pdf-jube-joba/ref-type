@@ -9,7 +9,7 @@ use kernel::inductive::InductiveTypeSpecs;
 
 pub trait Handler {
     fn get_item_from_access_path(
-        &self,
+        &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind>;
     fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind>;
@@ -130,14 +130,15 @@ impl LocalScope {
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
+
                         Ok(Exp::IndType {
                             indspec: ind_defs.clone(),
                             parameters,
                         })
                     }
                     ItemAccessResult::Record(ModItemRecord {
-                        type_name,
-                        fields: field_names,
+                        type_name: _,
+                        fields: _,
                         rc_spec_as_indtype,
                     }) => {
                         let parameters: Vec<Exp> = parameters
@@ -273,6 +274,25 @@ impl LocalScope {
                         })
                     }
                     Bind::Named(right_bind) => {
+                        if right_bind.vars.is_empty() {
+                            // same as Anonymous
+                            let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
+                            let body_elab = self.elab_exp_rec(body, handler)?;
+                            return Ok(if is_prod {
+                                Exp::Prod {
+                                    var: Var::dummy(),
+                                    ty: Box::new(ty_elab),
+                                    body: Box::new(body_elab),
+                                }
+                            } else {
+                                Exp::Lam {
+                                    var: Var::dummy(),
+                                    ty: Box::new(ty_elab),
+                                    body: Box::new(body_elab),
+                                }
+                            });
+                        }
+
                         let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
 
                         let mut telescope: Vec<(Var, Exp)> = vec![];
@@ -470,8 +490,8 @@ impl LocalScope {
                 fields,
             } => {
                 let ItemAccessResult::Record(ModItemRecord {
-                    type_name,
-                    fields: field_names,
+                    type_name: _,
+                    fields: _,
                     rc_spec_as_indtype,
                 }) = handler.get_item_from_access_path(access)?
                 else {
