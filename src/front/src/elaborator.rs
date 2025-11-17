@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     elaborator::{
-        module_manager::{InstantiateResult, ItemAccessResult, ModItemRecord},
+        module_manager::{InstantiateResult, ItemAccessResult},
         term_elaborator::LocalScope,
     },
     syntax::*,
@@ -121,7 +121,7 @@ impl Logger {
         let der = kernel::derivation::check(ctx, exp, ty);
         match der {
             Ok(derivation) => {
-                self.log("Type checking succeeded");
+                self.log(format!("Type checking succeeded {exp}: {ty}"));
                 self.log_derivation(derivation);
                 Ok(())
             }
@@ -244,16 +244,19 @@ impl term_elaborator::Handler for GlobalEnvironment {
             )));
         };
 
-        let ModItemRecord {
-            type_name,
-            fields: field_names,
-            rc_spec_as_indtype,
-        } = self
+        let record = self
             .module_manager
             .get_moditem_record_from_rc(&indspec)
-            .ok_or_else(|| ErrorKind::Msg(format!("Inductive type is not a record type",)))?;
+            .ok_or_else(|| ErrorKind::Msg("Inductive type is not a record type".to_string()))?;
 
-        todo!()
+        let Some(exp) = record.field_projection(e, field_name, &parameters) else {
+            return Err(ErrorKind::Msg(format!(
+                "Field {} not found in record",
+                field_name.as_str()
+            )));
+        };
+
+        Ok(exp)
     }
 }
 
@@ -528,46 +531,60 @@ impl GlobalEnvironment {
 
                     self.logger.check_wellformed_indspec(&ctx, &indspec)?;
 
-                    self.module_manager
-                        .add_record(type_name.clone(), fields_get, indspec);
+                    self.module_manager.add_record(type_name.clone(), indspec);
                 }
                 ModuleItem::ChildModule { module } => {
                     self.module_add_rec(module)?;
                 }
                 ModuleItem::Import { path, import_name } => {
-                    let access_result = match path {
+                    let (from, calls) = match path {
                         ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-                            let mut args = vec![];
-                            for call in calls {
-                                let args_given_this = call
-                                    .1
-                                    .iter()
-                                    .map(|(id, sexp)| {
-                                        let exp_elab = local_scope.elab_exp(sexp, self)?;
-                                        Ok((id.clone(), exp_elab))
-                                    })
-                                    .collect::<Result<Vec<_>, ErrorKind>>()?;
-                                args.push((call.0.clone(), args_given_this));
-                            }
-                            self.module_manager
-                                .access_from_current(*back_parent, args)?
+                            (Some(*back_parent), calls)
                         }
-                        ModuleInstantiatePath::FromRoot { calls } => {
-                            let mut args = vec![];
-                            for call in calls {
-                                let args_given_this = call
-                                    .1
-                                    .iter()
-                                    .map(|(id, sexp)| {
-                                        let exp_elab = local_scope.elab_exp(sexp, self)?;
-                                        Ok((id.clone(), exp_elab))
+                        ModuleInstantiatePath::FromRoot { calls } => (None, calls),
+                    };
+
+                    let args = calls
+                        .iter()
+                        .map(|call| {
+                            let args_given_this = call
+                                .1
+                                .iter()
+                                .map(|(id, sexp)| {
+                                    let exp_elab = local_scope.elab_exp(sexp, self)?;
+                                    Ok((id.clone(), exp_elab))
+                                })
+                                .collect::<Result<Vec<_>, ErrorKind>>()?;
+                            Ok((call.0.clone(), args_given_this))
+                        })
+                        .collect::<Result<Vec<_>, ErrorKind>>()?;
+
+                    let access_result = match from {
+                        Some(back_parent) => {
+                            self.logger.log(format!(
+                                "Importing module from current, back_parent: {}, calls: {:?}",
+                                back_parent,
+                                args.iter()
+                                    .map(|(id, args)| {
+                                        format!("{} with args {:?}", id.as_str(), args)
                                     })
-                                    .collect::<Result<Vec<_>, ErrorKind>>()?;
-                                args.push((call.0.clone(), args_given_this));
-                            }
+                                    .collect::<Vec<_>>(),
+                            ));
+                            self.module_manager.access_from_current(back_parent, args)?
+                        }
+                        None => {
+                            self.logger.log(format!(
+                                "Importing module from root, calls: {:?}",
+                                args.iter()
+                                    .map(|(id, args)| {
+                                        format!("{} with args {:?}", id.as_str(), args)
+                                    })
+                                    .collect::<Vec<_>>(),
+                            ));
                             self.module_manager.access_from_root(args)?
                         }
                     };
+
                     let InstantiateResult {
                         instantiated_module,
                         need_to_type_check,

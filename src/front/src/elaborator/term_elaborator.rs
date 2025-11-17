@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use crate::elaborator::module_manager::ModItemRecord;
 use crate::elaborator::{ErrorKind, ItemAccessResult};
 use crate::syntax::*;
 use kernel::calculus::exp_subst_map;
@@ -110,9 +109,9 @@ impl LocalScope {
                 // 2. others via handler
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
-                    ItemAccessResult::Definition { rc } => {
+                    ItemAccessResult::Definition(ModItemDefinition { body, .. }) => {
                         if parameters.is_empty() {
-                            Ok(Exp::DefinedConstant(rc.clone()))
+                            Ok(Exp::DefinedConstant(body.clone()))
                         } else {
                             Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
@@ -121,11 +120,11 @@ impl LocalScope {
                             .into())
                         }
                     }
-                    ItemAccessResult::Inductive {
+                    ItemAccessResult::Inductive(ModItemInductive {
                         ind_defs,
                         type_name: _,
                         ctor_names: _,
-                    } => {
+                    }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
@@ -138,7 +137,6 @@ impl LocalScope {
                     }
                     ItemAccessResult::Record(ModItemRecord {
                         type_name: _,
-                        fields: _,
                         rc_spec_as_indtype,
                     }) => {
                         let parameters: Vec<Exp> = parameters
@@ -150,7 +148,7 @@ impl LocalScope {
                             parameters,
                         })
                     }
-                    ItemAccessResult::Expression { exp } => {
+                    ItemAccessResult::Expression(exp) => {
                         if parameters.is_empty() {
                             Ok(exp.clone())
                         } else {
@@ -170,7 +168,7 @@ impl LocalScope {
                 if let SExp::AccessPath { access, parameters } = base.as_ref() {
                     let item = handler.get_item_from_access_path(access)?;
                     match item {
-                        ItemAccessResult::Inductive { ind_defs, type_name, ctor_names  } => {
+                        ItemAccessResult::Inductive(ModItemInductive { ind_defs, type_name, ctor_names  }) => {
                             for (idx, ctor_name) in ctor_names.iter().enumerate() {
                                 if ctor_name.as_str() == field.as_str() {
                                     let parameters: Vec<Exp> = parameters
@@ -421,11 +419,11 @@ impl LocalScope {
                 return_type,
                 cases,
             } => {
-                let ItemAccessResult::Inductive {
+                let ItemAccessResult::Inductive(ModItemInductive {
                     type_name: _,
                     ctor_names,
                     ind_defs,
-                } = handler.get_item_from_access_path(path)?
+                }) = handler.get_item_from_access_path(path)?
                 else {
                     return Err(format!(
                         "Expected inductive type in ind elim access path {:?}",
@@ -462,11 +460,11 @@ impl LocalScope {
                 parameters,
                 sort,
             } => {
-                let ItemAccessResult::Inductive {
+                let ItemAccessResult::Inductive(ModItemInductive {
                     type_name: _,
                     ctor_names: _,
                     ind_defs,
-                } = handler.get_item_from_access_path(path)?
+                }) = handler.get_item_from_access_path(path)?
                 else {
                     return Err(format!(
                         "Expected inductive type in ind elim prim access path {:?}",
@@ -491,7 +489,6 @@ impl LocalScope {
             } => {
                 let ItemAccessResult::Record(ModItemRecord {
                     type_name: _,
-                    fields: _,
                     rc_spec_as_indtype,
                 }) = handler.get_item_from_access_path(access)?
                 else {

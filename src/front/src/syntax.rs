@@ -1,5 +1,9 @@
 // this file describes the surface syntax tree
 use either::Either;
+use kernel::exp::{DefinedConstant, Exp, Var};
+use kernel::inductive::{CtorBinder, InductiveTypeSpecs};
+use kernel::utils;
+use std::rc::Rc;
 
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -346,4 +350,81 @@ pub enum Axiom {
         set2: Box<SExp>,
         superset: Box<SExp>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ModItemDefinition {
+    pub name: Identifier,
+    pub body: Rc<DefinedConstant>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModItemInductive {
+    pub type_name: Identifier,
+    pub ctor_names: Vec<Identifier>,
+    pub ind_defs: Rc<InductiveTypeSpecs>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModItemRecord {
+    pub type_name: Identifier,
+    pub rc_spec_as_indtype: Rc<InductiveTypeSpecs>,
+}
+
+impl ModItemRecord {
+    // get projection expression for field_name, returns None if field_name not found
+    // (e: Record {}) => elim e \in Record return { mk: <primitive_recursion>}
+    // where primitive_recursion = (x1: T1) => ... => xi
+    pub fn field_projection(
+        &self,
+        e: &Exp,
+        field_name: &Identifier,
+        parameters: &Vec<Exp>,
+    ) -> Option<Exp> {
+        // this should always have only one constructor
+        let ctor = &self.rc_spec_as_indtype.constructors[0];
+        let telescope = ctor
+            .telescope
+            .iter()
+            .map(|bind| {
+                let CtorBinder::Simple((id, ty)) = bind else {
+                    unreachable!("record type constructor should only have simple binders");
+                };
+                (id.clone(), ty.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let (field_var, field_ty) = telescope
+            .iter()
+            .find(|(id, _)| id.as_str() == field_name.as_str())?
+            .clone();
+
+        let prec = utils::assoc_lam(telescope, Exp::Var(field_var));
+
+        let elim = Exp::IndElim {
+            indspec: self.rc_spec_as_indtype.clone(),
+            elim: e.clone().into(),
+            return_type: Exp::Prod {
+                var: Var::new("record"),
+                ty: Exp::IndType {
+                    indspec: self.rc_spec_as_indtype.clone(),
+                    parameters: parameters.clone(),
+                }
+                .into(),
+                body: Box::new(field_ty),
+            }
+            .into(),
+            cases: vec![prec],
+        };
+
+        Some(elim)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ModuleItemAccessible {
+    Definition(ModItemDefinition),
+    Inductive(ModItemInductive),
+    // we use inductive type to represent record type
+    Record(ModItemRecord),
 }
