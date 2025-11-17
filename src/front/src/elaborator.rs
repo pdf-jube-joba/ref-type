@@ -215,12 +215,27 @@ impl term_elaborator::Handler for GlobalEnvironment {
         }
     }
 
-    fn get_item_from_var(&self, var: &Identifier) -> Result<ItemAccessResult, ErrorKind> {
-        unimplemented!()
-    }
-
     fn field_projection(&self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind> {
-        todo!()
+        let ctx = self
+            .module_manager
+            .current_context()
+            .into_iter()
+            .flat_map(|(_, v)| v)
+            .collect::<Vec<_>>();
+
+        let infer_type_e = self.logger.infer(&ctx, e)?;
+        let Exp::IndType {
+            indspec,
+            parameters,
+        } = infer_type_e
+        else {
+            return Err(ErrorKind::Msg(format!(
+                "Expected inductive type for field projection, got {}",
+                infer_type_e
+            )));
+        };
+
+        let rc = self.module_manager.get_item_from_rcspec(indspec)?;
     }
 }
 
@@ -299,9 +314,9 @@ impl GlobalEnvironment {
                     sort,
                     constructors,
                 } => {
-                    let type_name: Var = type_name.into();
+                    let type_name_var: Var = type_name.into();
                     // register type name as binded var
-                    local_scope.push_decl_var(type_name.clone());
+                    local_scope.push_decl_var(type_name_var.clone());
 
                     // elaborate parameters and indices
                     // binding is memorized in local scope
@@ -310,12 +325,14 @@ impl GlobalEnvironment {
                     let indices_elab = local_scope.elab_telescope_bind_in_decl(indices, self)?;
 
                     // elaborate constructors
+                    let mut ctor_names_var = vec![];
                     let mut ctor_names = vec![];
                     let mut ctor_type_elabs = vec![];
 
                     for (ctor_name, rightbinds, ends) in constructors {
                         let ctor_name_var: Var = ctor_name.into();
-                        ctor_names.push(ctor_name_var.clone());
+                        ctor_names_var.push(ctor_name_var.clone());
+                        ctor_names.push(ctor_name.clone());
 
                         let (telescope, ends_elab) = {
                             let term = {
@@ -334,28 +351,28 @@ impl GlobalEnvironment {
 
                         let mut ctor_binders = vec![];
                         for (v, e) in telescope {
-                            if exp_contains_as_freevar(&e, &type_name) {
+                            if exp_contains_as_freevar(&e, &type_name_var) {
                                 // strict positive case
                                 let (inner_binders, inner_tail) = kernel::utils::decompose_prod(e);
                                 for (_, it) in inner_binders.iter() {
-                                    if exp_contains_as_freevar(it, &type_name) {
+                                    if exp_contains_as_freevar(it, &type_name_var) {
                                         return Err(ErrorKind::Msg(format!(
-                                            "Ctor {it} contains inductive type name {type_name} in non-strictly positive position"
+                                            "Ctor {it} contains inductive type name {type_name_var} in non-strictly positive position"
                                         )));
                                     }
                                 }
                                 let (head, tail) = kernel::utils::decompose_app(inner_tail);
-                                if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name))
+                                if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name_var))
                                 {
                                     return Err(ErrorKind::Msg(format!(
-                                        "Constructor binder type head does not match inductive type name {type_name}"
+                                        "Constructor binder type head does not match inductive type name {type_name_var}"
                                     )));
                                 }
 
                                 for tail_elm in tail.iter() {
-                                    if exp_contains_as_freevar(tail_elm, &type_name) {
+                                    if exp_contains_as_freevar(tail_elm, &type_name_var) {
                                         return Err(ErrorKind::Msg(format!(
-                                            "Constructor binder type tail {tail_elm} contains inductive type name {type_name} in non-strictly positive position"
+                                            "Constructor binder type tail {tail_elm} contains inductive type name {type_name_var} in non-strictly positive position"
                                         )));
                                     }
                                 }
@@ -370,16 +387,17 @@ impl GlobalEnvironment {
                         }
 
                         let (head, tail) = kernel::utils::decompose_app(ends_elab);
-                        if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name)) {
+                        if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name_var))
+                        {
                             return Err(ErrorKind::Msg(format!(
-                                "Constructor type head does not match inductive type name {type_name}"
+                                "Constructor type head does not match inductive type name {type_name_var}"
                             )));
                         }
 
                         for tail_elm in tail.iter() {
-                            if exp_contains_as_freevar(tail_elm, &type_name) {
+                            if exp_contains_as_freevar(tail_elm, &type_name_var) {
                                 return Err(ErrorKind::Msg(format!(
-                                    "Constructor type tail {tail_elm} contains inductive type name {type_name} in non-strictly positive position"
+                                    "Constructor type tail {tail_elm} contains inductive type name {type_name_var} in non-strictly positive position"
                                 )));
                             }
                         }
@@ -391,10 +409,6 @@ impl GlobalEnvironment {
                     }
 
                     let indspec = InductiveTypeSpecs {
-                        names: (
-                            type_name.as_str().to_string(),
-                            ctor_names.iter().map(|v| v.as_str().to_string()).collect(),
-                        ),
                         parameters: parameter_elab,
                         indices: indices_elab,
                         sort: *sort,
@@ -403,14 +417,49 @@ impl GlobalEnvironment {
 
                     self.logger.check_wellformed_indspec(&ctx, &indspec)?;
 
-                    self.module_manager.add_inductive(indspec);
+                    self.module_manager
+                        .add_inductive(type_name.clone(), ctor_names, indspec);
                 }
                 ModuleItem::Record {
                     type_name,
                     parameters,
+                    sort,
                     fields,
                 } => {
-                    todo!()
+                    // treat record as inductive type with one constructor without recursive definition
+                    // no register of type name as binded var since no recursive definition
+
+                    // elaborate parameters
+                    // binding is memorized in local scope
+                    let parameter_elab =
+                        local_scope.elab_telescope_bind_in_decl(parameters, self)?;
+
+                    // elaborate fields as constructors
+                    let mut telescope = vec![];
+                    let mut field_names = vec![];
+                    for (field_name, field_ty) in fields {
+                        field_names.push(field_name.clone());
+                        let field_name_var: Var = field_name.into();
+                        let field_ty_elab = local_scope.elab_exp(field_ty, self)?;
+                        // field may depend on previous fields
+                        local_scope.push_decl_var(field_name_var.clone());
+                        telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
+                    }
+
+                    let indspec = InductiveTypeSpecs {
+                        parameters: parameter_elab,
+                        indices: vec![],
+                        sort: *sort,
+                        constructors: vec![kernel::inductive::CtorType {
+                            telescope,
+                            indices: vec![],
+                        }],
+                    };
+
+                    self.logger.check_wellformed_indspec(&ctx, &indspec)?;
+
+                    self.module_manager
+                        .add_record(type_name.clone(), field_names, indspec);
                 }
                 ModuleItem::ChildModule { module } => {
                     self.module_add_rec(module)?;

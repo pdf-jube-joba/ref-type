@@ -748,7 +748,6 @@ pub fn prove_command(
             Ok(builder.build_prop(prop))
         }
         ProveCommandBy::Axiom(_) => {
-            // todo
             todo!("implement axiom proving")
         }
     }

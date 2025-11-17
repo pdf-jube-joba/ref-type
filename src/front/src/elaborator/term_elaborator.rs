@@ -11,37 +11,7 @@ pub trait Handler {
         &self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind>;
-    #[allow(dead_code)]
-    fn get_definition_from_access_path(
-        &self,
-        access_path: &LocalAccess,
-    ) -> Result<Rc<DefinedConstant>, ErrorKind> {
-        let item = self.get_item_from_access_path(access_path)?;
-        match item {
-            ItemAccessResult::Definition { rc } => Ok(rc.clone()),
-            _ => Err(ErrorKind::Msg(format!(
-                "Expected definition in path {:?}",
-                access_path
-            ))),
-        }
-    }
-    fn get_inductive_type_from_access_path(
-        &self,
-        access_path: &LocalAccess,
-    ) -> Result<Rc<InductiveTypeSpecs>, ErrorKind> {
-        let item = self.get_item_from_access_path(access_path)?;
-        match item {
-            ItemAccessResult::Inductive { ind_defs } => Ok(ind_defs.clone()),
-            _ => Err(ErrorKind::Msg(format!(
-                "Expected inductive type in path {:?}",
-                access_path
-            ))),
-        }
-    }
     fn field_projection(&self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind>;
-
-    #[allow(dead_code)]
-    fn get_item_from_var(&self, var: &Identifier) -> Result<ItemAccessResult, ErrorKind>;
 }
 
 // local scope during elaboration
@@ -146,7 +116,11 @@ impl LocalScope {
                             .into())
                         }
                     }
-                    ItemAccessResult::Inductive { ind_defs } => {
+                    ItemAccessResult::Inductive {
+                        ind_defs,
+                        type_name: _,
+                        ctor_names: _,
+                    } => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
@@ -156,8 +130,19 @@ impl LocalScope {
                             parameters,
                         })
                     }
-                    ItemAccessResult::Record(_) => {
-                        todo!()
+                    ItemAccessResult::Record {
+                        type_name: _,
+                        field_names: _,
+                        rc_spec_as_indtype,
+                    } => {
+                        let parameters: Vec<Exp> = parameters
+                            .iter()
+                            .map(|e| self.elab_exp_rec(e, handler))
+                            .collect::<Result<_, _>>()?;
+                        Ok(Exp::IndType {
+                            indspec: rc_spec_as_indtype,
+                            parameters,
+                        })
                     }
                     ItemAccessResult::Expression { exp } => {
                         if parameters.is_empty() {
@@ -179,8 +164,25 @@ impl LocalScope {
                 if let SExp::AccessPath { access, parameters } = base.as_ref() {
                     let item = handler.get_item_from_access_path(access)?;
                     match item {
-                        ItemAccessResult::Inductive { ind_defs } => {
-                            todo!()
+                        ItemAccessResult::Inductive { ind_defs, type_name, ctor_names  } => {
+                            for (idx, ctor_name) in ctor_names.iter().enumerate() {
+                                if ctor_name.as_str() == field.as_str() {
+                                    let parameters: Vec<Exp> = parameters
+                                        .iter()
+                                        .map(|e| self.elab_exp_rec(e, handler))
+                                        .collect::<Result<_, _>>()?;
+                                    return Ok(Exp::IndCtor {
+                                        indspec: ind_defs.clone(),
+                                        idx,
+                                        parameters,
+                                    });
+                                }
+                            }
+                            Err(format!(
+                                "Constructor {} not found in inductive type {}",
+                                field.as_str(),
+                                type_name.as_str()
+                            ).into())
                         },
                         _ => Err(format!(
                             "Expected inductive constructor or record type in base of associated access {:?}",
@@ -398,26 +400,29 @@ impl LocalScope {
                 return_type,
                 cases,
             } => {
-                let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
+                let ItemAccessResult::Inductive {
+                    type_name: _,
+                    ctor_names,
+                    ind_defs,
+                } = handler.get_item_from_access_path(path)?
+                else {
+                    return Err(format!(
+                        "Expected inductive type in ind elim access path {:?}",
+                        path
+                    )
+                    .into());
+                };
 
                 let elim_elab = self.elab_exp_rec(elim, handler)?;
                 let return_type_elab = self.elab_exp_rec(return_type, handler)?;
                 let mut cases_elab: Vec<Exp> = vec![];
-                for (ctor_name, case) in cases {
+                for (idx, (ctor_name, case)) in cases.iter().enumerate() {
                     let case_elab = self.elab_exp_rec(case, handler)?;
-                    let ctor_idx = indspec_rc
-                        .ctor_idx_from_name(ctor_name.as_str())
-                        .ok_or_else(|| {
-                            format!(
-                                "Constructor {} not found in inductive type {}",
-                                ctor_name.as_str(),
-                                indspec_rc.names.0
-                            )
-                        })?;
-                    if ctor_idx != cases_elab.len() {
+                    if ctor_names[idx].as_str() != ctor_name.as_str() {
                         return Err(format!(
-                            "Constructor cases are not in order in ind elim for inductive type {}",
-                            indspec_rc.names.0
+                            "Constructor name mismatch in ind elim: expected {}, found {}",
+                            ctor_names[idx].as_str(),
+                            ctor_name.as_str()
                         )
                         .into());
                     }
@@ -425,7 +430,7 @@ impl LocalScope {
                 }
 
                 Ok(Exp::IndElim {
-                    indspec: indspec_rc,
+                    indspec: ind_defs.clone(),
                     elim: Box::new(elim_elab),
                     return_type: Box::new(return_type_elab),
                     cases: cases_elab,
@@ -436,16 +441,25 @@ impl LocalScope {
                 parameters,
                 sort,
             } => {
-                let indspec_rc = handler.get_inductive_type_from_access_path(path)?;
+                let ItemAccessResult::Inductive {
+                    type_name: _,
+                    ctor_names: _,
+                    ind_defs,
+                } = handler.get_item_from_access_path(path)?
+                else {
+                    return Err(format!(
+                        "Expected inductive type in ind elim prim access path {:?}",
+                        path
+                    )
+                    .into());
+                };
 
                 let parameters: Vec<Exp> = parameters
                     .iter()
                     .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
                 Ok(InductiveTypeSpecs::primitive_recursion(
-                    &indspec_rc,
-                    parameters,
-                    *sort,
+                    &ind_defs, parameters, *sort,
                 ))
             }
 
@@ -454,7 +468,34 @@ impl LocalScope {
                 parameters,
                 fields,
             } => {
-                todo!()
+                let ItemAccessResult::Record {
+                    type_name: _,
+                    field_names: _,
+                    rc_spec_as_indtype,
+                } = handler.get_item_from_access_path(access)?
+                else {
+                    return Err(format!(
+                        "Expected record type in record type ctor access path {:?}",
+                        access
+                    )
+                    .into());
+                };
+
+                let parameters: Vec<Exp> = parameters
+                    .iter()
+                    .map(|e| self.elab_exp_rec(e, handler))
+                    .collect::<Result<_, _>>()?;
+                let mut fields_elab: Vec<(Identifier, Exp)> = vec![];
+                for (field_name, field_ty) in fields.iter() {
+                    let field_ty_elab = self.elab_exp_rec(field_ty, handler)?;
+                    fields_elab.push((field_name.clone(), field_ty_elab));
+                }
+
+                Ok(Exp::IndCtor {
+                    indspec: rc_spec_as_indtype.clone(),
+                    parameters,
+                    idx: 0, // record type has only one constructor
+                })
             }
 
             SExp::ProveLater { prop } => {

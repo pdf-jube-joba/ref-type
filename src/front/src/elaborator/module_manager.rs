@@ -3,13 +3,6 @@ use kernel::exp::{DefinedConstant, Exp, Var};
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
-pub struct RecordSpecs {
-    pub name: Identifier,
-    pub field_names: Vec<Identifier>,
-    pub rc_spec_as_indtype: Rc<kernel::inductive::InductiveTypeSpecs>,
-}
-
-#[derive(Debug, Clone)]
 pub enum ModuleItemAccessible {
     Definition {
         rc: Rc<kernel::exp::DefinedConstant>,
@@ -20,7 +13,11 @@ pub enum ModuleItemAccessible {
         ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
     // we use inductive type to represent record type
-    Record(RecordSpecs),
+    Record {
+        type_name: Identifier,
+        field_names: Vec<Identifier>,
+        rc_spec_as_indtype: Rc<kernel::inductive::InductiveTypeSpecs>,
+    },
 }
 
 pub struct ModuleElaborated {
@@ -46,9 +43,15 @@ pub enum ItemAccessResult {
         rc: Rc<DefinedConstant>,
     },
     Inductive {
+        type_name: Identifier,
+        ctor_names: Vec<Identifier>,
         ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>,
     },
-    Record(RecordSpecs),
+    Record {
+        type_name: Identifier,
+        field_names: Vec<Identifier>,
+        rc_spec_as_indtype: Rc<kernel::inductive::InductiveTypeSpecs>,
+    },
     Expression {
         exp: Exp,
     },
@@ -64,19 +67,29 @@ impl InstantiatedModule {
                     }
                 }
                 ModuleItemAccessible::Inductive {
-                    ind_defs,
                     type_name,
-                    ctor_names: _,
+                    ctor_names,
+                    ind_defs,
                 } => {
                     if type_name.as_str() == name.0.as_str() {
                         return Some(ItemAccessResult::Inductive {
+                            type_name: type_name.clone(),
+                            ctor_names: ctor_names.clone(),
                             ind_defs: Rc::clone(ind_defs),
                         });
                     }
                 }
-                ModuleItemAccessible::Record(record_specs) => {
-                    if record_specs.name.as_str() == name.0.as_str() {
-                        return Some(ItemAccessResult::Record(record_specs.clone()));
+                ModuleItemAccessible::Record {
+                    type_name,
+                    field_names,
+                    rc_spec_as_indtype,
+                } => {
+                    if type_name.as_str() == name.0.as_str() {
+                        return Some(ItemAccessResult::Record {
+                            type_name: type_name.clone(),
+                            field_names: field_names.clone(),
+                            rc_spec_as_indtype: Rc::clone(rc_spec_as_indtype),
+                        });
                     }
                 }
             }
@@ -135,6 +148,42 @@ impl ModuleManager {
     }
     pub fn moveto_root(&mut self) {
         self.current = 0;
+    }
+    pub fn get_item_from_rcspec(&self, ind_defs: Rc<kernel::inductive::InductiveTypeSpecs>) -> Result<ItemAccessResult, String> {
+        for module in self.modules.iter() {
+            for item in module.items.iter() {
+                match item {
+                    ModuleItemAccessible::Inductive {
+                        type_name,
+                        ctor_names,
+                        ind_defs: rc,
+                    } => {
+                        if Rc::ptr_eq(&ind_defs, rc) {
+                            return Ok(ItemAccessResult::Inductive {
+                                type_name: type_name.clone(),
+                                ctor_names: ctor_names.clone(),
+                                ind_defs: Rc::clone(rc),
+                            });
+                        }
+                    }
+                    ModuleItemAccessible::Record {
+                        type_name,
+                        field_names,
+                        rc_spec_as_indtype: rc,
+                    } => {
+                        if Rc::ptr_eq(&ind_defs, rc) {
+                            return Ok(ItemAccessResult::Record {
+                                type_name: type_name.clone(),
+                                field_names: field_names.clone(),
+                                rc_spec_as_indtype: Rc::clone(rc),
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Err("Item not found for given Rc<InductiveTypeSpecs>".to_string())
     }
 
     pub fn current_module_as_instantiated(&self) -> InstantiatedModule {
@@ -205,13 +254,32 @@ impl ModuleManager {
         let item = ModuleItemAccessible::Definition { rc };
         self.modules[self.current].items.push(item);
     }
-    pub fn add_inductive(&mut self, ind_defs: kernel::inductive::InductiveTypeSpecs) {
+    pub fn add_inductive(
+        &mut self,
+        type_name: Identifier,
+        ctor_names: Vec<Identifier>,
+        ind_defs: kernel::inductive::InductiveTypeSpecs,
+    ) {
         let rc = Rc::new(ind_defs);
-        let item = ModuleItemAccessible::Inductive { ind_defs: rc };
+        let item = ModuleItemAccessible::Inductive {
+            type_name,
+            ctor_names,
+            ind_defs: rc,
+        };
         self.modules[self.current].items.push(item);
     }
-    pub fn add_record(&mut self, record_specs: RecordSpecs) {
-        let item = ModuleItemAccessible::Record(record_specs);
+    pub fn add_record(
+        &mut self,
+        type_name: Identifier,
+        field_names: Vec<Identifier>,
+        ind_defs: kernel::inductive::InductiveTypeSpecs,
+    ) {
+        let rc = Rc::new(ind_defs);
+        let item = ModuleItemAccessible::Record {
+            type_name,
+            field_names,
+            rc_spec_as_indtype: rc,
+        };
         self.modules[self.current].items.push(item);
     }
 
@@ -286,15 +354,29 @@ impl ModuleManager {
                         rc: Rc::new(instantiated_def),
                     }
                 }
-                ModuleItemAccessible::Inductive { ind_defs } => {
-                    let ind = ind_defs.as_ref().clone();
-                    let instantiated_ind_defs = ind.subst(&subst_mapping_accum);
+                ModuleItemAccessible::Inductive {
+                    type_name,
+                    ctor_names,
+                    ind_defs,
+                } => {
+                    let instantiated_ind_defs = ind_defs.subst(&subst_mapping_accum);
                     ModuleItemAccessible::Inductive {
+                        type_name: type_name.clone(),
+                        ctor_names: ctor_names.clone(),
                         ind_defs: Rc::new(instantiated_ind_defs),
                     }
                 }
-                _ => {
-                    todo!()
+                ModuleItemAccessible::Record {
+                    type_name,
+                    field_names,
+                    rc_spec_as_indtype,
+                } => {
+                    let instantiated_spec = rc_spec_as_indtype.subst(&subst_mapping_accum);
+                    ModuleItemAccessible::Record {
+                        type_name: type_name.clone(),
+                        field_names: field_names.clone(),
+                        rc_spec_as_indtype: Rc::new(instantiated_spec),
+                    }
                 }
             })
             .collect();

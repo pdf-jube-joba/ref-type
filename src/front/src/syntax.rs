@@ -41,6 +41,7 @@ pub enum ModuleItem {
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
+        sort: kernel::exp::Sort,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {
