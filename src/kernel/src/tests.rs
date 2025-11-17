@@ -58,14 +58,12 @@ impl Checker {
     }
     fn chk_indspec(
         &mut self,
-        names: (String, Vec<String>),
         params: Vec<(Var, Exp)>,
         indices: Vec<(Var, Exp)>,
         sort: crate::exp::Sort,
         constructors: Vec<crate::inductive::CtorType>,
     ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
         let indspecs = crate::inductive::InductiveTypeSpecs {
-            names,
             parameters: params.clone(),
             indices: indices.clone(),
             sort,
@@ -431,16 +429,7 @@ fn nat_test() {
     let mut checker = Checker::default();
     let indspec = std::rc::Rc::new(
         checker
-            .chk_indspec(
-                (
-                    "Nat".to_string(),
-                    vec!["Zero".to_string(), "Succ".to_string()],
-                ),
-                params,
-                indices,
-                sort,
-                constructors,
-            )
+            .chk_indspec(params, indices, sort, constructors)
             .unwrap(),
     );
     let nat_astype = Exp::IndType {
@@ -564,8 +553,22 @@ fn nat_test() {
         arg: nat_one.clone(),
     };
 
-    let nat_add_zero_one = app! {
+    let ty = checker.infer(&nat_add_one).unwrap();
+    println!("Type of nat_add_one: {}", ty);
+
+    let mut nat_add_zero_one = app! {
         func: nat_add_zero.clone(),
-        arg: nat_add_zero.clone(),
+        arg: nat_one.clone(),
     };
+
+    let ty = checker.infer(&nat_add_zero_one).unwrap();
+    println!("Type of nat_add_zero_one: {}", ty);
+    let normalized = loop {
+        println!("Reducing: {nat_add_zero_one}");
+        let Some(next) = reduce_one(&nat_add_zero_one) else {
+            break nat_add_zero_one;
+        };
+        nat_add_zero_one = next;
+    };
+    println!("Normalized nat_add_zero_one: {}", normalized);
 }

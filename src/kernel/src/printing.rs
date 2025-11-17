@@ -5,6 +5,34 @@ use crate::exp::{
     DerivationSuccess, FailHead, GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
 };
 
+// Convert the lower 32 bits of a pointer to a base62 string of fixed length 6.
+// 62^6 = 56_800_235_584 > 2^32 = 4_294_967_296
+fn ptr_lower32bit_base62_fixed(ptr: *const ()) -> String {
+    const BASE62: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    let mut n = (ptr as usize & 0xFFFF_FFFF) as u32;
+
+    let mut buf = [0u8; 6];
+    let mut i = 6;
+
+    while n > 0 && i > 0 {
+        i -= 1;
+        buf[i] = BASE62[(n % 62) as usize];
+        n /= 62;
+    }
+
+    while i > 0 {
+        i -= 1;
+        buf[i] = BASE62[0]; // '0'
+    }
+
+    String::from_utf8(buf.to_vec()).unwrap()
+}
+
+fn print_rc_ptr<T>(rc: &std::rc::Rc<T>) -> String {
+    ptr_lower32bit_base62_fixed(std::rc::Rc::as_ptr(rc) as *const ())
+}
+
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {
@@ -56,12 +84,12 @@ impl Display for crate::exp::Exp {
                 write!(f, "{}", rc)
             }
             crate::exp::Exp::IndType {
-                indspec: ty,
+                indspec,
                 parameters,
             } => write!(
                 f,
-                "{}{{{}}}",
-                ty.names.0,
+                "{}[{}]",
+                print_rc_ptr(indspec),
                 parameters
                     .iter()
                     .map(|p| format!("{}", p))
@@ -69,14 +97,14 @@ impl Display for crate::exp::Exp {
                     .join(", ")
             ),
             crate::exp::Exp::IndCtor {
-                indspec: ty,
+                indspec,
                 parameters,
                 idx,
             } => write!(
                 f,
-                "{}.{}{{{}}}",
-                ty.names.0,
-                ty.names.1.get(*idx).unwrap(),
+                "{}.{}[{}]",
+                print_rc_ptr(indspec),
+                idx,
                 parameters
                     .iter()
                     .map(|p| format!("{}", p))
@@ -84,7 +112,7 @@ impl Display for crate::exp::Exp {
                     .join(", ")
             ),
             crate::exp::Exp::IndElim {
-                indspec: ty,
+                indspec,
                 elim,
                 return_type,
                 cases,
@@ -93,7 +121,7 @@ impl Display for crate::exp::Exp {
                     f,
                     "elim {} \\in {} \\return {} with {{{}}}",
                     elim,
-                    ty.names.0,
+                    print_rc_ptr(indspec),
                     return_type,
                     cases
                         .iter()
@@ -289,7 +317,7 @@ pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
             SuccessHead::WellFormednessInductive { ctx, indspec } => Node::Success(format!(
                 "[{} |- wf_inductive {}]",
                 print_ctx(ctx),
-                indspec.names.0
+                print_rc_ptr(indspec),
             )),
             SuccessHead::Solve(derivation_success) => {
                 let head = map_derivation_success(derivation_success);
@@ -361,7 +389,7 @@ pub fn map_derivation_failcause(derivation: &DerivationFailCaused) -> StringTree
         FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorCause(format!(
             "[{} |- wf_inductive {}] {} [{}]",
             print_ctx(ctx),
-            indspec.names.0,
+            print_rc_ptr(indspec),
             rule,
             phase
         )),
@@ -416,7 +444,7 @@ fn map_derivation_failpropagate(derivation: &DerivationFailPropagate) -> StringT
         FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorPropagate(format!(
             "[{} |- wf_inductive {}] {} [{}]",
             print_ctx(ctx),
-            indspec.names.0,
+            print_rc_ptr(indspec),
             rule,
             phase
         )),

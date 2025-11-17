@@ -14,8 +14,6 @@ Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]
 */
 #[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
-    // names of the type and the constructors (to print)
-    pub names: (String, Vec<String>),
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
     // indices of the type
@@ -76,12 +74,6 @@ impl InductiveTypeSpecs {
                 body: Box::new(Exp::Sort(sort)),
             },
         )
-    }
-    pub fn name_of_constructor(&self, idx: usize) -> &String {
-        &self.names.1[idx]
-    }
-    pub fn ctor_idx_from_name(&self, name: &str) -> Option<usize> {
-        self.names.1.iter().position(|n| n == name)
     }
 }
 
@@ -147,7 +139,6 @@ pub fn acceptable_typespecs(
 ) -> Result<DerivationSuccess, DerivationFail> {
     let rc = Rc::new(inductive_type_specs.clone());
     let InductiveTypeSpecs {
-        names: _,
         parameters,
         indices,
         sort,
@@ -232,10 +223,7 @@ pub fn acceptable_typespecs(
                     premises: well_derivation.clone(),
                     fail: err,
                     rule: "inductive type well formed".to_string(),
-                    phase: format!(
-                        "constructor '{}' type check",
-                        inductive_type_specs.name_of_constructor(i)
-                    ),
+                    phase: format!("constructor '{}' type check", i),
                     expect: "Constructor is well-sorted".to_string(),
                 };
                 return Err(DerivationFail::Propagate(Box::new(err_der)));
@@ -564,7 +552,6 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
 impl InductiveTypeSpecs {
     pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> InductiveTypeSpecs {
         InductiveTypeSpecs {
-            names: self.names.clone(),
             parameters: self
                 .parameters
                 .iter()
@@ -725,7 +712,6 @@ mod tests {
     #[test]
     fn test_by_unit_inductive() {
         let specs = InductiveTypeSpecs {
-            names: ("Unit".to_string(), vec!["ut".to_string()]),
             parameters: vec![],
             indices: vec![],
             sort: Sort::Set(0),
@@ -742,10 +728,6 @@ mod tests {
     #[test]
     fn test_by_bool_inductive() {
         let specs = InductiveTypeSpecs {
-            names: (
-                "Bool".to_string(),
-                vec!["true".to_string(), "false".to_string()],
-            ),
             parameters: vec![],
             indices: vec![],
             sort: Sort::Set(0),
@@ -768,10 +750,6 @@ mod tests {
     #[test]
     fn test_by_natural_number_inductive() {
         let specs = InductiveTypeSpecs {
-            names: (
-                "Nat".to_string(),
-                vec!["zero".to_string(), "succ".to_string()],
-            ),
             parameters: vec![],
             indices: vec![],
             sort: Sort::Set(0),
