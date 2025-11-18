@@ -5,6 +5,7 @@ use kernel::exp::{DefinedConstant, Exp, Var};
 use kernel::inductive::InductiveTypeSpecs;
 use std::rc::Rc;
 
+#[derive(Debug, Clone)]
 pub struct ModuleElaborated {
     pub name: String,
     pub parameters: Vec<(Var, Exp)>,
@@ -66,9 +67,16 @@ pub struct InstantiateResult {
     pub need_to_type_check: Vec<(String, Exp, Exp)>,
 }
 
+#[derive(Debug)]
 pub struct ModuleManager {
     modules: Vec<ModuleElaborated>,
     current: usize,
+}
+
+impl Default for ModuleManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModuleManager {
@@ -84,6 +92,12 @@ impl ModuleManager {
             modules: vec![root_module],
             current: 0,
         }
+    }
+    pub fn modules(&self) -> &Vec<ModuleElaborated> {
+        &self.modules
+    }
+    pub fn current_index(&self) -> usize {
+        self.current
     }
     pub fn add_child_and_moveto(&mut self, module_name: String, parameters: Vec<(Var, Exp)>) {
         let parent_index = self.current;

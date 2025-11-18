@@ -103,13 +103,12 @@ pub struct RightBind {
     pub ty: Box<SExp>,
 }
 
+pub struct TelescopeRightbind(pub Vec<RightBind>);
+
 #[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), ((x: A) | P), ((x: A) | h: P),
 pub enum Bind {
-    Anonymous {
-        ty: Box<SExp>,
-    },
     Named(RightBind),
     Subset {
         var: Identifier,
@@ -379,7 +378,7 @@ impl ModItemRecord {
         &self,
         e: &Exp,
         field_name: &Identifier,
-        parameters: &Vec<Exp>,
+        parameters: &[Exp],
     ) -> Option<Exp> {
         // this should always have only one constructor
         let ctor = &self.rc_spec_as_indtype.constructors[0];
@@ -408,7 +407,7 @@ impl ModItemRecord {
                 var: Var::new("record"),
                 ty: Exp::IndType {
                     indspec: self.rc_spec_as_indtype.clone(),
-                    parameters: parameters.clone(),
+                    parameters: parameters.to_vec(),
                 }
                 .into(),
                 body: Box::new(field_ty),

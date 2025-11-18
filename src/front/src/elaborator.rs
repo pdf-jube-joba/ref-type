@@ -8,13 +8,13 @@ use crate::{
     syntax::*,
 };
 use kernel::{
-    calculus::{exp_contains_as_freevar, exp_subst_map},
+    calculus::exp_contains_as_freevar,
     exp::*,
     inductive::{self, CtorBinder, InductiveTypeSpecs},
 };
 
-mod module_manager;
-mod term_elaborator;
+pub mod module_manager;
+pub mod term_elaborator;
 
 pub enum Query {
     Eval { exp: Exp },
@@ -193,10 +193,8 @@ impl term_elaborator::Handler for GlobalEnvironment {
         match access_path {
             LocalAccess::Current { access } => {
                 let current_module = self.module_manager.current_module_as_instantiated();
-                self.logger.log(format!(
-                    "\n\nAccessing {:?}: {:?}\n\n",
-                    access, current_module,
-                ));
+                self.logger
+                    .log(format!("\nAccessing {}: {}\n", access, current_module,));
                 let item = current_module.get_item(access).ok_or_else(|| {
                     ErrorKind::Msg(format!(
                         "Item {} not found in current module",
@@ -204,7 +202,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
                     ))
                 })?;
                 self.logger
-                    .log(format!("Found item {:?} in current module\n\n", item));
+                    .log(format!("\nFound item {} in current module\n", item));
                 Ok(item)
             }
             LocalAccess::Named { access, child } => {
@@ -212,6 +210,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
                     self.current_imported_modules.get(access).ok_or_else(|| {
                         ErrorKind::Msg(format!("Imported module {} not found", access))
                     })?;
+                self.logger.log(format!(
+                    "\nAccessing {} in imported module {}\n",
+                    child, imported_module,
+                ));
                 let item = imported_module.get_item(child).ok_or_else(|| {
                     ErrorKind::Msg(format!(
                         "Item {} not found in imported module {}",
@@ -277,6 +279,9 @@ impl GlobalEnvironment {
         Ok(())
     }
     fn module_add_rec(&mut self, module: &Module) -> Result<(), ErrorKind> {
+        self.logger
+            .log(format!("module manager: {}", self.module_manager));
+
         let Module {
             name,
             parameters,
@@ -318,9 +323,12 @@ impl GlobalEnvironment {
         }
 
         self.logger.log(format!(
-            "Elaborating module {} with parameters {:?}",
+            "Elaborating module {} with parameters {}",
             name.as_str(),
-            parameters,
+            parameters
+                .iter()
+                .map(|bd| format!("{}", bd))
+                .collect::<String>()
         ));
 
         let ctx = self
@@ -331,26 +339,24 @@ impl GlobalEnvironment {
             .collect::<Vec<_>>();
 
         self.logger.log(format!(
-            "current module: {:?}",
+            "current module: {}",
             self.module_manager.current_module_as_instantiated()
         ));
 
         // 2. elaborate declarations
         for decl in declarations {
             self.logger
-                .log(format!("Elaborating declaration: {:?}", decl));
+                .log(format!("Elaborating declaration: {}", decl));
             let mut local_scope = LocalScope::default();
             match decl {
                 ModuleItem::Definition { name, ty, body } => {
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
-                    let name =
-                        self.module_manager.current_path().join(".").to_string() + "." + &name.0;
                     let defined_constant = DefinedConstant {
                         ty: ty_elab,
                         body: body_elab,
                     };
-                    self.module_manager.add_def(name.into(), defined_constant);
+                    self.module_manager.add_def(name.clone(), defined_constant);
                 }
                 ModuleItem::Inductive {
                     type_name,
@@ -360,14 +366,14 @@ impl GlobalEnvironment {
                     constructors,
                 } => {
                     self.logger.log(format!(
-                        "Elaborating inductive type {type_name} {parameters:?}: {indices:?} -> {sort:?}",
+                        "Elaborating inductive type {type_name} {parameters:?}: {indices:?} -> {sort}",
                     ));
                     self.logger.log(format!(
-                        "With constructors: {:?}",
+                        "With constructors: {}",
                         constructors
                             .iter()
-                            .map(|(n, r, e)| format!("{} : {:?} {:?}", n.as_str(), r, e))
-                            .collect::<Vec<_>>()
+                            .map(|(n, r, e)| format!("{} : {:?} {}", n.as_str(), r, e))
+                            .collect::<String>()
                     ));
 
                     let type_name_var: Var = type_name.into();
@@ -387,7 +393,7 @@ impl GlobalEnvironment {
 
                     for (ctor_name, rightbinds, ends) in constructors {
                         self.logger.log(format!(
-                            "Elaborating constructor {} with rightbinds {:?} and ends {:?}",
+                            "Elaborating constructor {} with rightbinds {:?} and ends {}",
                             ctor_name.as_str(),
                             rightbinds,
                             ends
@@ -408,7 +414,7 @@ impl GlobalEnvironment {
                                 term
                             };
                             self.logger
-                                .log(format!("----  (before elaboration): {:?}", term));
+                                .log(format!("----  (before elaboration): {}", term));
                             let term_elab = local_scope.elab_exp(&term, self)?;
                             self.logger
                                 .log(format!("----> Elaborated constructor term: {}", term_elab));
@@ -534,7 +540,9 @@ impl GlobalEnvironment {
                     self.module_manager.add_record(type_name.clone(), indspec);
                 }
                 ModuleItem::ChildModule { module } => {
+                    let save_import = std::mem::take(&mut self.current_imported_modules);
                     self.module_add_rec(module)?;
+                    self.current_imported_modules = save_import;
                 }
                 ModuleItem::Import { path, import_name } => {
                     let (from, calls) = match path {
@@ -562,24 +570,24 @@ impl GlobalEnvironment {
                     let access_result = match from {
                         Some(back_parent) => {
                             self.logger.log(format!(
-                                "Importing module from current, back_parent: {}, calls: {:?}",
+                                "Importing module from current, back_parent: {}, calls: {}",
                                 back_parent,
                                 args.iter()
                                     .map(|(id, args)| {
                                         format!("{} with args {:?}", id.as_str(), args)
                                     })
-                                    .collect::<Vec<_>>(),
+                                    .collect::<String>(),
                             ));
                             self.module_manager.access_from_current(back_parent, args)?
                         }
                         None => {
                             self.logger.log(format!(
-                                "Importing module from root, calls: {:?}",
+                                "Importing module from root, calls: {}",
                                 args.iter()
                                     .map(|(id, args)| {
                                         format!("{} with args {:?}", id.as_str(), args)
                                     })
-                                    .collect::<Vec<_>>(),
+                                    .collect::<String>(),
                             ));
                             self.module_manager.access_from_root(args)?
                         }

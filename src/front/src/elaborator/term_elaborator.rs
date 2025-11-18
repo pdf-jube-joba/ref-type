@@ -254,23 +254,6 @@ impl LocalScope {
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
                 let is_prod = matches!(exp, SExp::Prod { .. });
                 match bind {
-                    Bind::Anonymous { ty } => {
-                        let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let body_elab = self.elab_exp_rec(body, handler)?;
-                        Ok(if is_prod {
-                            Exp::Prod {
-                                var: Var::dummy(),
-                                ty: Box::new(ty_elab),
-                                body: Box::new(body_elab),
-                            }
-                        } else {
-                            Exp::Lam {
-                                var: Var::dummy(),
-                                ty: Box::new(ty_elab),
-                                body: Box::new(body_elab),
-                            }
-                        })
-                    }
                     Bind::Named(right_bind) => {
                         if right_bind.vars.is_empty() {
                             // same as Anonymous
@@ -575,17 +558,24 @@ impl LocalScope {
                 })
             }
             SExp::Exists { bind } => match bind {
-                Bind::Named(_) | Bind::SubsetWithProof { .. } => Err(
-                    "Elaboration of named bind or subset with proof in Exists is not implemented"
-                        .to_string()
-                        .into(),
-                ),
-                Bind::Anonymous { ty } => {
-                    let ty_elab = self.elab_exp_rec(ty, handler)?;
+                Bind::Named(rightbind) => {
+                    if rightbind.vars.len() >= 2 {
+                        return Err(
+                            "Elaboration of multiple named binds in Exists is not implemented"
+                                .to_string()
+                                .into(),
+                        );
+                    }
+                    let ty_elab = self.elab_exp_rec(&rightbind.ty, handler)?;
                     Ok(Exp::Exists {
                         set: Box::new(ty_elab),
                     })
                 }
+                Bind::SubsetWithProof { .. } => Err(
+                    "Elaboration of named bind or subset with proof in Exists is not implemented"
+                        .to_string()
+                        .into(),
+                ),
                 Bind::Subset { var, ty, predicate } => {
                     let subset_as_exp = {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;

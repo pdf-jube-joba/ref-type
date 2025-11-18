@@ -789,14 +789,11 @@ impl<'a> TermParser<'a> {
             });
         }
 
-        match left_head {
-            Bind::Anonymous { ty } => Ok(*ty),
-            _ => Err(ParseError {
-                msg: "expected '->' or '=>' after bind".into(),
-                start: self.pos,
-                end: self.pos,
-            }),
-        }
+        Err(ParseError {
+            msg: "expected '->' or '=>' after bind".into(),
+            start: self.pos,
+            end: self.pos,
+        })
     }
 
     // parse arrow expression without subset-style binds on the right-hand side
@@ -857,11 +854,17 @@ impl<'a> TermParser<'a> {
 
         // 3. otherwise, parse simple expression as a bind
         let expr = self.parse_combined()?;
-        Ok(Bind::Anonymous { ty: Box::new(expr) })
+        Ok(Bind::Named(RightBind {
+            vars: vec![],
+            ty: expr.into(),
+        }))
     }
 
     fn parse_sexp_withgoals(&mut self) -> Result<SExp, ParseError> {
-        let sexp = self.parse_arrow_expr()?;
+        let sexp = self
+            .try_parse(|p| p.parse_arrow_expr())?
+            .map_or_else(|| self.parse_combined(), Ok)?;
+
         if self.bump_if_keyword("\\with") {
             // \\with "{" ("\\goal" <simple_bind_parend>* ":" <sexp> ":=" <sexp> ";" )* "}"
             self.expect_token(Token::LBrace)?; // expect '{'

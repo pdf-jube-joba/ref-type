@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use crate::exp::{
-    DerivationFail, DerivationFailCaused, DerivationFailPropagate, DerivationSuccess, FailHead,
-    GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var,
+    DefinedConstant, DerivationFail, DerivationFailCaused, DerivationFailPropagate, DerivationSuccess, FailHead, GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var
 };
 
 // Convert the lower 32 bits of a pointer to a base62 string of fixed length 6.
@@ -71,6 +70,17 @@ impl Display for crate::exp::Sort {
     }
 }
 
+impl Display for DefinedConstant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[: {} := {}]",
+            self.ty,
+            self.body
+        )
+    }
+}
+
 impl Display for crate::exp::Exp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -80,7 +90,7 @@ impl Display for crate::exp::Exp {
             crate::exp::Exp::Lam { var, ty, body } => write!(f, "({}: {}) => {}", var, ty, body),
             crate::exp::Exp::App { func, arg } => write!(f, "({}) ({})", func, arg),
             crate::exp::Exp::DefinedConstant(rc) => {
-                write!(f, "{}[: {} := {}]", print_rc_ptr(rc), rc.ty, rc.body)
+                write!(f, "{}{}", print_rc_ptr(rc), rc)
             }
             crate::exp::Exp::IndType {
                 indspec,
