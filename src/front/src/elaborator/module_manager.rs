@@ -1,5 +1,6 @@
 use crate::syntax::{
-    Identifier, ModItemDefinition, ModItemInductive, ModItemRecord, ModuleItemAccessible,
+    Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord,
+    ModuleItemAccessible,
 };
 use kernel::exp::{DefinedConstant, Exp, Var};
 use kernel::inductive::InductiveTypeSpecs;
@@ -15,6 +16,7 @@ pub struct ModuleElaborated {
     // index of parent module in ModuleManager.modules
     // only None for the root module
     pub parent_module: Option<usize>,
+    pub imports: Vec<(Identifier, InstantiatedModule)>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +89,7 @@ impl ModuleManager {
             items: vec![],
             child_modules: vec![],
             parent_module: None,
+            imports: vec![],
         };
         ModuleManager {
             modules: vec![root_module],
@@ -107,6 +110,7 @@ impl ModuleManager {
             items: vec![],
             child_modules: vec![],
             parent_module: Some(parent_index),
+            imports: vec![],
         };
         self.modules.push(new_module);
         let new_index = self.modules.len() - 1;
@@ -120,33 +124,6 @@ impl ModuleManager {
     }
     pub fn moveto_root(&mut self) {
         self.current = 0;
-    }
-
-    pub fn current_module_as_instantiated(&self) -> InstantiatedModule {
-        let ModuleElaborated {
-            name: _,
-            parameters: _,
-            items,
-            child_modules: _,
-            parent_module: _,
-        } = self.modules.get(self.current).unwrap();
-
-        // reflective setting of parameters
-        // instance : v := "v it self"
-        let pms = self
-            .current_context()
-            .into_iter()
-            .flat_map(|(_, params)| {
-                params
-                    .into_iter()
-                    .map(|(v, _)| (v.clone(), Exp::Var(v.clone())))
-            })
-            .collect();
-
-        InstantiatedModule {
-            parameters_instantiated: pms,
-            items: items.clone(),
-        }
     }
 
     pub fn current_context(&self) -> Vec<(String, Vec<(Var, Exp)>)> {
@@ -215,6 +192,11 @@ impl ModuleManager {
             rc_spec_as_indtype: rc,
         });
         self.modules[self.current].items.push(item);
+    }
+    pub fn add_import(&mut self, import_name: Identifier, instantiated_module: InstantiatedModule) {
+        self.modules[self.current]
+            .imports
+            .push((import_name, instantiated_module));
     }
 
     pub fn get_moditem_record_from_rc(&self, rc: &Rc<InductiveTypeSpecs>) -> Option<ModItemRecord> {
@@ -337,25 +319,104 @@ impl ModuleManager {
         })
     }
 
-    pub fn access_from_root(
+    pub fn instantiate_module(
         &self,
+        back_parent: Option<usize>, // if None, from root
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
     ) -> Result<InstantiateResult, String> {
-        self.access_module(0, args)
-    }
-    pub fn access_from_current(
-        &self,
-        back_parent: usize,
-        args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    ) -> Result<InstantiateResult, String> {
-        let mut index = self.current;
-        for _ in 0..back_parent {
-            if let Some(parent_index) = self.modules[index].parent_module {
-                index = parent_index;
-            } else {
-                return Err("Cannot go back parent: already at root module".to_string());
+        match back_parent {
+            Some(n) => {
+                let mut index = self.current;
+                for _ in 0..n {
+                    if let Some(parent_index) = self.modules[index].parent_module {
+                        index = parent_index;
+                    } else {
+                        return Err("Cannot go back parent: already at root module".to_string());
+                    }
+                }
+                self.access_module(index, args)
+            }
+            None => {
+                // from root
+                self.access_module(0, args)
             }
         }
-        self.access_module(index, args)
+    }
+
+    pub fn get_item(&self, access: &LocalAccess) -> Option<ItemAccessResult> {
+        match access {
+            LocalAccess::Current { access } => {
+                // from module items in current to parent
+                let mut index = self.current;
+                loop {
+                    // find from item names
+                    for item in self.modules[index].items.iter() {
+                        match item {
+                            ModuleItemAccessible::Definition(
+                                item @ ModItemDefinition { name, .. },
+                            ) => {
+                                if name.as_str() == access.as_str() {
+                                    return Some(ItemAccessResult::Definition(item.clone()));
+                                }
+                            }
+                            ModuleItemAccessible::Inductive(
+                                item @ ModItemInductive { type_name, .. },
+                            ) => {
+                                if type_name.as_str() == access.as_str() {
+                                    return Some(ItemAccessResult::Inductive(item.clone()));
+                                }
+                            }
+                            ModuleItemAccessible::Record(
+                                item @ ModItemRecord { type_name, .. },
+                            ) => {
+                                if type_name.as_str() == access.as_str() {
+                                    return Some(ItemAccessResult::Record(item.clone()));
+                                }
+                            }
+                        }
+                    }
+                    // find from parameters
+                    for (var, _) in self.modules[index].parameters.iter() {
+                        if var.as_str() == access.as_str() {
+                            return Some(ItemAccessResult::Expression(Exp::Var(var.clone())));
+                        }
+                    }
+
+                    // move to parent
+                    if let Some(parent_index) = self.modules[index].parent_module {
+                        index = parent_index;
+                    } else {
+                        break;
+                    }
+                }
+                None
+            }
+            LocalAccess::Named { access, child } => {
+                // from named imported module
+                for (import_name, instantiated_module) in self.modules[self.current].imports.iter()
+                {
+                    if import_name.as_str() == access.as_str() {
+                        return instantiated_module.get_item(child);
+                    }
+                }
+                None
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_module_manager_add_and_move() {
+        let mut module_manager = ModuleManager::new();
+        module_manager.add_child_and_moveto("Test1".to_string(), vec![]);
+        module_manager.add_child_and_moveto("Child1".to_string(), vec![]);
+        assert_eq!(module_manager.current_index(), 2);
+        module_manager.moveto_parent();
+        assert_eq!(module_manager.current_index(), 1);
+        module_manager.moveto_parent();
+        assert_eq!(module_manager.current_index(), 0);
     }
 }

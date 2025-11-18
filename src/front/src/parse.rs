@@ -555,6 +555,12 @@ impl<'a> Parser<'a> {
             let ind = self.parse_inductive_decl()?;
             return Ok(Some(ind));
         }
+        if self.peek() == Some(&Token::KeyWord("\\module")) {
+            let module = self.parse_module()?;
+            return Ok(Some(ModuleItem::ChildModule {
+                module: module.into(),
+            }));
+        }
         if self.bump_if_keyword("\\eval") {
             let exp = self.parse_sexp()?;
             self.expect_token(Token::Semicolon)?;

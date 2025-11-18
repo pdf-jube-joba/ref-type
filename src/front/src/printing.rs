@@ -625,8 +625,11 @@ impl Display for ModuleElaborated {
             items,
             child_modules,
             parent_module,
+            imports,
         } = self;
         write!(f, "ModuleElaborated {{ name: {}, ", name)?;
+
+        // parameters
         write!(f, "parameters: [")?;
         for (i, (var, ty)) in parameters.iter().enumerate() {
             if i > 0 {
@@ -635,6 +638,8 @@ impl Display for ModuleElaborated {
             write!(f, "{var}: {ty}")?;
         }
         write!(f, "], ")?;
+
+        // items
         write!(f, "items: [")?;
         for (i, item) in items.iter().enumerate() {
             if i > 0 {
@@ -643,6 +648,18 @@ impl Display for ModuleElaborated {
             write!(f, "{}", item)?;
         }
         write!(f, "], ")?;
+
+        // imports
+        write!(f, "imports: [")?;
+        for (i, (import_name, instantiated_module)) in imports.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{} := {}", import_name, instantiated_module)?;
+        }
+        write!(f, "], ")?;
+
+        // child modules
         write!(f, "child_modules: [")?;
         for (i, child) in child_modules.iter().enumerate() {
             if i > 0 {
@@ -651,6 +668,8 @@ impl Display for ModuleElaborated {
             write!(f, "{}", child)?;
         }
         write!(f, "], ")?;
+
+        // parent_module
         write!(f, "parent_module: {:?} ", parent_module)?;
         write!(f, "}}")
     }

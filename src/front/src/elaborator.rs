@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     elaborator::{
         module_manager::{InstantiateResult, ItemAccessResult},
@@ -172,7 +170,6 @@ impl Logger {
 pub struct GlobalEnvironment {
     logger: Logger, // to pass to elaborator
     module_manager: module_manager::ModuleManager,
-    current_imported_modules: HashMap<Identifier, module_manager::InstantiatedModule>,
 }
 
 impl Default for GlobalEnvironment {
@@ -180,7 +177,6 @@ impl Default for GlobalEnvironment {
         GlobalEnvironment {
             logger: Logger { log: vec![] },
             module_manager: module_manager::ModuleManager::new(),
-            current_imported_modules: HashMap::new(),
         }
     }
 }
@@ -190,40 +186,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ErrorKind> {
-        match access_path {
-            LocalAccess::Current { access } => {
-                let current_module = self.module_manager.current_module_as_instantiated();
-                self.logger
-                    .log(format!("\nAccessing {}: {}\n", access, current_module,));
-                let item = current_module.get_item(access).ok_or_else(|| {
-                    ErrorKind::Msg(format!(
-                        "Item {} not found in current module",
-                        access.as_str()
-                    ))
-                })?;
-                self.logger
-                    .log(format!("\nFound item {} in current module\n", item));
-                Ok(item)
-            }
-            LocalAccess::Named { access, child } => {
-                let imported_module =
-                    self.current_imported_modules.get(access).ok_or_else(|| {
-                        ErrorKind::Msg(format!("Imported module {} not found", access))
-                    })?;
-                self.logger.log(format!(
-                    "\nAccessing {} in imported module {}\n",
-                    child, imported_module,
-                ));
-                let item = imported_module.get_item(child).ok_or_else(|| {
-                    ErrorKind::Msg(format!(
-                        "Item {} not found in imported module {}",
-                        child.as_str(),
-                        access.as_str()
-                    ))
-                })?;
-                Ok(item)
-            }
-        }
+        self.module_manager.get_item(access_path).ok_or_else(|| {
+            ErrorKind::Msg(format!(
+                "Module item not found for access path: {}",
+                access_path
+            ))
+        })
     }
 
     fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind> {
@@ -279,8 +247,7 @@ impl GlobalEnvironment {
         Ok(())
     }
     fn module_add_rec(&mut self, module: &Module) -> Result<(), ErrorKind> {
-        self.logger
-            .log(format!("module manager: {}", self.module_manager));
+        self.logger.log(format!("before: {}", self.module_manager));
 
         let Module {
             name,
@@ -337,11 +304,6 @@ impl GlobalEnvironment {
             .into_iter()
             .flat_map(|(_, v)| v)
             .collect::<Vec<_>>();
-
-        self.logger.log(format!(
-            "current module: {}",
-            self.module_manager.current_module_as_instantiated()
-        ));
 
         // 2. elaborate declarations
         for decl in declarations {
@@ -540,9 +502,7 @@ impl GlobalEnvironment {
                     self.module_manager.add_record(type_name.clone(), indspec);
                 }
                 ModuleItem::ChildModule { module } => {
-                    let save_import = std::mem::take(&mut self.current_imported_modules);
                     self.module_add_rec(module)?;
-                    self.current_imported_modules = save_import;
                 }
                 ModuleItem::Import { path, import_name } => {
                     let (from, calls) = match path {
@@ -567,31 +527,12 @@ impl GlobalEnvironment {
                         })
                         .collect::<Result<Vec<_>, ErrorKind>>()?;
 
-                    let access_result = match from {
-                        Some(back_parent) => {
-                            self.logger.log(format!(
-                                "Importing module from current, back_parent: {}, calls: {}",
-                                back_parent,
-                                args.iter()
-                                    .map(|(id, args)| {
-                                        format!("{} with args {:?}", id.as_str(), args)
-                                    })
-                                    .collect::<String>(),
-                            ));
-                            self.module_manager.access_from_current(back_parent, args)?
-                        }
-                        None => {
-                            self.logger.log(format!(
-                                "Importing module from root, calls: {}",
-                                args.iter()
-                                    .map(|(id, args)| {
-                                        format!("{} with args {:?}", id.as_str(), args)
-                                    })
-                                    .collect::<String>(),
-                            ));
-                            self.module_manager.access_from_root(args)?
-                        }
-                    };
+                    let access_result = self
+                        .module_manager
+                        .instantiate_module(from, args)
+                        .map_err(|e| {
+                            ErrorKind::Msg(format!("Module instantiation failed: {}", e))
+                        })?;
 
                     let InstantiateResult {
                         instantiated_module,
@@ -602,8 +543,8 @@ impl GlobalEnvironment {
                         self.logger.check(&ctx, &arg, &ty)?;
                     }
 
-                    self.current_imported_modules
-                        .insert(import_name.clone(), instantiated_module);
+                    self.module_manager
+                        .add_import(import_name.clone(), instantiated_module);
                 }
                 ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
                 ModuleItem::Eval { exp } => {
@@ -635,6 +576,7 @@ impl GlobalEnvironment {
 
         // 3. move back to parent
         self.module_manager.moveto_parent();
+        self.logger.log(format!("after: {}", self.module_manager));
         Ok(())
     }
 }
