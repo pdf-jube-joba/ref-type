@@ -43,7 +43,7 @@ impl Debug for Var {
         } else {
             write!(
                 f,
-                "{}\x1b[2m[{}]\x1b[0m",
+                "{}[{}]", // "{}\x1b[2m[{}]\x1b[0m",
                 self.as_str(),
                 print_ptr(self.ptr())
             )
@@ -278,7 +278,7 @@ pub enum Node {
 impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Success(s) => write!(f, "\x1b[32m{}\x1b[0m", s),
+            Node::Success(s) => write!(f, "{}", s), // "\x1b[32m{}\x1b[0m"
             Node::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s),
             Node::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s),
             Node::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s),

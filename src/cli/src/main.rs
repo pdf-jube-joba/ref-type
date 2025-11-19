@@ -54,10 +54,10 @@ impl From<kernel::printing::Node> for Node {
 impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Success(s) => write!(f, "\x1b[32m{}\x1b[0m", s),
-            Node::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s),
-            Node::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s),
-            Node::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s),
+            Node::Success(s) => write!(f, "{}", s), // "\x1b[32m{}\x1b[0m"
+            Node::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s), // "\x1b[31m{}\x1b[0m"
+            Node::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s), // "\x1b[31;1m{}\x1b[0m"
+            Node::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s), // "\x1b[33m{}\x1b[0m"
         }
     }
 }
