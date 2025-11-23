@@ -358,7 +358,7 @@ pub fn recursor(
 
     let mut bindstack = vec![];
 
-    for pos in poss.iter().rev() {
+    for pos in poss.iter() {
         match pos {
             CtorBinder::Simple((x, t)) => {
                 // f <- (f x)
@@ -388,7 +388,7 @@ pub fn recursor(
                             func: Box::new(qms),
                             arg: Box::new(pxs),
                         }; // q m[] (p x[])
-                        utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> ...
+                        utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> q m[] (p x[])
                     };
                     f = Exp::App {
                         func: Box::new(Exp::App {
@@ -411,7 +411,6 @@ pub fn recursor(
         }
     }
 
-    bindstack.reverse();
     utils::assoc_lam(bindstack, f)
 }
 
