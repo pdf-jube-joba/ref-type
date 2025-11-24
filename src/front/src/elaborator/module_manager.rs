@@ -66,7 +66,7 @@ impl InstantiatedModule {
 
 pub struct InstantiateResult {
     pub instantiated_module: InstantiatedModule,
-    pub need_to_type_check: Vec<(String, Exp, Exp)>,
+    pub need_to_type_check: Vec<(Var, Exp, Exp)>,
 }
 
 #[derive(Debug)]
@@ -259,7 +259,7 @@ impl ModuleManager {
                     ));
                 }
                 let ty_subst = ty.subst(&subst_mapping_accum);
-                need_to_type_check.push((param_var.to_string(), arg.clone(), ty_subst));
+                need_to_type_check.push((param_var.clone(), arg.clone(), ty_subst));
                 subst_mapping_accum.push((param_var.clone(), arg.clone()));
             }
 

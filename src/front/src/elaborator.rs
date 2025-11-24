@@ -3,6 +3,7 @@ use crate::{
         module_manager::{InstantiateResult, ItemAccessResult},
         term_elaborator::LocalScope,
     },
+    logger::Logger,
     syntax::*,
 };
 use kernel::{
@@ -22,150 +23,6 @@ pub enum Query {
     InferSort { ctx: Context, exp: Exp },
 }
 
-#[derive(Debug, Clone)]
-pub enum ErrorKind {
-    Msg(String),
-    DerivationFail(DerivationFail),
-}
-
-impl From<String> for ErrorKind {
-    fn from(msg: String) -> Self {
-        ErrorKind::Msg(msg)
-    }
-}
-
-impl From<DerivationFail> for ErrorKind {
-    fn from(err: DerivationFail) -> Self {
-        ErrorKind::DerivationFail(err)
-    }
-}
-
-pub enum LogEnum {
-    Derivation(DerivationSuccess),
-    Message(String),
-}
-
-// log any derivation steps and messages
-// any call of `kernel::derivation` should be call via this logger
-// do not use kernel::derivation directly
-pub struct Logger {
-    log: Vec<LogEnum>,
-}
-
-impl Logger {
-    pub fn log<T>(&mut self, msg: T)
-    where
-        T: Into<String>,
-    {
-        self.log.push(LogEnum::Message(msg.into()));
-    }
-    pub fn log_derivation(&mut self, der: DerivationSuccess) {
-        self.log.push(LogEnum::Derivation(der));
-    }
-    pub fn query(&mut self, query: Query) -> Result<(), ErrorKind> {
-        match query {
-            Query::Eval { exp } => match kernel::calculus::reduce_one(&exp) {
-                Some(reduced) => {
-                    self.log(format!("One step reduction: {}", reduced));
-                    Ok(())
-                }
-                None => {
-                    self.log("Expression is in normal form".to_string());
-                    Ok(())
-                }
-            },
-            Query::Normalize { exp } => {
-                let normalized = kernel::calculus::normalize(&exp);
-                self.log(format!("Normalized expression: {}", normalized));
-                Ok(())
-            }
-            Query::Checking { ctx, exp, ty } => {
-                let res = kernel::derivation::check(&ctx, &exp, &ty);
-                match res {
-                    Ok(derivation) => {
-                        self.log("Type checking succeeded");
-                        self.log_derivation(derivation);
-                        Ok(())
-                    }
-                    Err(err) => Err(ErrorKind::DerivationFail(err)),
-                }
-            }
-            Query::Infer { ctx, exp } => {
-                let res = kernel::derivation::infer(&ctx, &exp);
-                match res {
-                    Ok(derivation) => {
-                        let ty = derivation.type_of().unwrap();
-                        self.log(format!("Inferred type: {}", ty));
-                        self.log_derivation(derivation);
-                        Ok(())
-                    }
-                    Err(err) => Err(ErrorKind::DerivationFail(err)),
-                }
-            }
-            Query::InferSort { ctx, exp } => {
-                let res = kernel::derivation::infer_sort(&ctx, &exp);
-                match res {
-                    Ok(derivation) => {
-                        self.log("Inferred sort");
-                        self.log_derivation(derivation);
-                        Ok(())
-                    }
-                    Err(err) => Err(ErrorKind::DerivationFail(err)),
-                }
-            }
-        }
-    }
-    pub fn check(&mut self, ctx: &Context, exp: &Exp, ty: &Exp) -> Result<(), ErrorKind> {
-        let der = kernel::derivation::check(ctx, exp, ty);
-        match der {
-            Ok(derivation) => {
-                self.log(format!("Type checking succeeded {exp}: {ty}"));
-                self.log_derivation(derivation);
-                Ok(())
-            }
-            Err(err) => Err(ErrorKind::DerivationFail(err)),
-        }
-    }
-    pub fn infer(&mut self, ctx: &Context, exp: &Exp) -> Result<Exp, ErrorKind> {
-        let der = kernel::derivation::infer(ctx, exp);
-        match der {
-            Ok(derivation) => {
-                let ty = derivation.type_of().unwrap().clone();
-                self.log(format!("Inferred type: {}", ty));
-                self.log_derivation(derivation);
-                Ok(ty)
-            }
-            Err(err) => Err(ErrorKind::DerivationFail(err)),
-        }
-    }
-    pub fn infer_sort(&mut self, ctx: &Context, exp: &Exp) -> Result<(), ErrorKind> {
-        let der = kernel::derivation::infer_sort(ctx, exp);
-        match der {
-            Ok(derivation) => {
-                self.log("Inferred sort");
-                self.log_derivation(derivation);
-                Ok(())
-            }
-            Err(err) => Err(ErrorKind::DerivationFail(err)),
-        }
-    }
-    pub fn check_wellformed_indspec(
-        &mut self,
-        ctx: &Context,
-        indspec: &inductive::InductiveTypeSpecs,
-    ) -> Result<(), ErrorKind> {
-        let der = kernel::inductive::acceptable_typespecs(ctx, indspec);
-        match der {
-            Ok(derivation) => {
-                self.log("Inductive type specs are well-formed");
-                self.log_derivation(derivation);
-                Ok(())
-            }
-            Err(err) => Err(ErrorKind::DerivationFail(err)),
-        }
-    }
-}
-
 // do type checking
 pub struct GlobalEnvironment {
     logger: Logger, // to pass to elaborator
@@ -175,7 +32,7 @@ pub struct GlobalEnvironment {
 impl Default for GlobalEnvironment {
     fn default() -> Self {
         GlobalEnvironment {
-            logger: Logger { log: vec![] },
+            logger: Logger::new(),
             module_manager: module_manager::ModuleManager::new(),
         }
     }
@@ -185,16 +42,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
-    ) -> Result<ItemAccessResult, ErrorKind> {
-        self.module_manager.get_item(access_path).ok_or_else(|| {
-            ErrorKind::Msg(format!(
-                "Module item not found for access path: {}",
-                access_path
-            ))
-        })
+    ) -> Result<ItemAccessResult, String> {
+        self.module_manager
+            .get_item(access_path)
+            .ok_or(format!("Failed to access item at path",))
     }
 
-    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind> {
+    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, String> {
         let ctx = self
             .module_manager
             .current_context()
@@ -202,7 +56,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .flat_map(|(_, v)| v)
             .collect::<Vec<_>>();
 
-        let infer_type_e = self.logger.infer(&ctx, e)?;
+        let infer_type_e = self.logger.with_infer(&ctx, e)?;
         let Exp::IndType {
             indspec,
             parameters,

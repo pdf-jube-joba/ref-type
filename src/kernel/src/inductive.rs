@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use serde::Serialize;
+
 use crate::{
     derivation::{check, infer_sort},
     utils,
@@ -12,7 +14,7 @@ use super::exp::*;
 Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]) -> sort := list of
 | constructor[] = [{telescope1[] -> NAME indices1[]}]
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct InductiveTypeSpecs {
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
@@ -80,7 +82,7 @@ impl InductiveTypeSpecs {
 /*
 constructor of type (telescope[0] -> ... -> telescope[n] -> THIS indices[0] ... indices[m])
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CtorType {
     // binders
     pub telescope: Vec<CtorBinder>,
@@ -88,7 +90,7 @@ pub struct CtorType {
     pub indices: Vec<Exp>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum CtorBinder {
     // recursive case
     // (_: {(x[]: t[]) -> THIS m[]}) where THIS should be the inductive type itself
@@ -136,7 +138,7 @@ impl CtorType {
 pub fn acceptable_typespecs(
     ctx: &Context, // assume well-formed
     inductive_type_specs: &InductiveTypeSpecs,
-) -> Result<DerivationSuccess, DerivationFail> {
+) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let rc = Rc::new(inductive_type_specs.clone());
     let InductiveTypeSpecs {
         parameters,
@@ -156,18 +158,22 @@ pub fn acceptable_typespecs(
                 well_derivation.push(ok);
             }
             Err(err) => {
-                let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                let err_der = DerivationFail {
+                    base: Box::new(DerivationBase {
+                        premises: well_derivation.clone(),
+                        rule: "inductive type well formed".to_string(),
+                        phase: format!("parameter '{:?}' type check", x),
+                    }),
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
                         indspec: rc.clone(),
                     },
-                    premises: well_derivation.clone(),
-                    fail: err,
-                    rule: "inductive type well formed".to_string(),
-                    phase: format!("parameter '{}' type check", x),
-                    expect: "Parameter is well-sorted".to_string(),
+                    kind: FailKind::Propagate {
+                        fail: err,
+                        expect: "Parameter is well-sorted".to_string(),
+                    },
                 };
-                return Err(DerivationFail::Propagate(Box::new(err_der)));
+                return Err(Box::new(err_der));
             }
         }
 
@@ -185,18 +191,22 @@ pub fn acceptable_typespecs(
             well_derivation.push(ok);
         }
         Err(err) => {
-            let err_der: DerivationFailPropagate = DerivationFailPropagate {
+            let err_der = DerivationFail {
+                base: Box::new(DerivationBase {
+                    premises: well_derivation.clone(),
+                    rule: "inductive type well formed".to_string(),
+                    phase: "arity type check".to_string(),
+                }),
                 head: FailHead::WellFormednessInductive {
                     ctx: ctx.clone(),
                     indspec: rc.clone(),
                 },
-                premises: well_derivation.clone(),
-                fail: err,
-                rule: "inductive type well formed".to_string(),
-                phase: "arity type check".to_string(),
-                expect: "Arity is well-sorted".to_string(),
+                kind: FailKind::Propagate {
+                    fail: err,
+                    expect: "Arity is well-sorted".to_string(),
+                },
             };
-            return Err(DerivationFail::Propagate(Box::new(err_der)));
+            return Err(Box::new(err_der));
         }
     }
 
@@ -215,18 +225,22 @@ pub fn acceptable_typespecs(
                 well_derivation.push(ok);
             }
             Err(err) => {
-                let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                let err_der = DerivationFail {
+                    base: Box::new(DerivationBase {
+                        premises: well_derivation.clone(),
+                        rule: "inductive type well formed".to_string(),
+                        phase: format!("constructor '{}' type check", i),
+                    }),
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
                         indspec: rc.clone(),
                     },
-                    premises: well_derivation.clone(),
-                    fail: err,
-                    rule: "inductive type well formed".to_string(),
-                    phase: format!("constructor '{}' type check", i),
-                    expect: "Constructor is well-sorted".to_string(),
+                    kind: FailKind::Propagate {
+                        fail: err,
+                        expect: "Constructor is well-sorted".to_string(),
+                    },
                 };
-                return Err(DerivationFail::Propagate(Box::new(err_der)));
+                return Err(Box::new(err_der));
             }
         }
     }
@@ -236,10 +250,12 @@ pub fn acceptable_typespecs(
             ctx: ctx.clone(),
             indspec: rc,
         },
-        premises: well_derivation,
+        base: DerivationBase {
+            premises: well_derivation,
+            rule: "inductive type well formed".to_string(),
+            phase: "complete".to_string(),
+        },
         generated_goals: vec![],
-        rule: "inductive type well formed".to_string(),
-        phase: "complete".to_string(),
         through: false,
     };
     Ok(ok)
@@ -358,7 +374,7 @@ pub fn recursor(
 
     let mut bindstack = vec![];
 
-    for pos in poss.iter().rev() {
+    for pos in poss.iter() {
         match pos {
             CtorBinder::Simple((x, t)) => {
                 // f <- (f x)
@@ -388,7 +404,7 @@ pub fn recursor(
                             func: Box::new(qms),
                             arg: Box::new(pxs),
                         }; // q m[] (p x[])
-                        utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> ...
+                        utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> q m[] (p x[])
                     };
                     f = Exp::App {
                         func: Box::new(Exp::App {
@@ -411,7 +427,6 @@ pub fn recursor(
         }
     }
 
-    bindstack.reverse();
     utils::assoc_lam(bindstack, f)
 }
 
@@ -673,9 +688,9 @@ mod tests {
                 indices: vec![],
             };
             let e = eliminator_type(&ctor, &q, &c, &this);
-            println!("Eliminator type (trivial): {e}");
+            println!("Eliminator type (trivial): {e:?}");
             let r = recursor(&ctor, &q, &c, &this);
-            println!("Recursor (trivial): {r}");
+            println!("Recursor (trivial): {r:?}");
         }
         // simple case
         {
@@ -689,9 +704,9 @@ mod tests {
                 indices: vec![],
             };
             let e = eliminator_type(&ctor, &q, &c, &this);
-            println!("Eliminator type (trivial): {e}");
+            println!("Eliminator type (trivial): {e:?}");
             let r = recursor(&ctor, &q, &c, &this);
-            println!("Recursor (trivial): {r}");
+            println!("Recursor (trivial): {r:?}");
         }
         // strictly positive case
         {
@@ -704,9 +719,9 @@ mod tests {
                 indices: vec![],
             };
             let e = eliminator_type(&ctor, &q, &c, &this);
-            println!("Eliminator type (trivial): {e}");
+            println!("Eliminator type (trivial): {e:?}");
             let r = recursor(&ctor, &q, &c, &this);
-            println!("Recursor (trivial): {r}");
+            println!("Recursor (trivial): {r:?}");
         }
     }
     #[test]
@@ -723,7 +738,7 @@ mod tests {
         let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
-        println!("Primitive recursion principle for Unit type: {prin_rec}");
+        println!("Primitive recursion principle for Unit type: {prin_rec:?}");
     }
     #[test]
     fn test_by_bool_inductive() {
@@ -745,7 +760,7 @@ mod tests {
         let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
-        println!("Primitive recursion principle for Bool type: {prin_rec}");
+        println!("Primitive recursion principle for Bool type: {prin_rec:?}");
     }
     #[test]
     fn test_by_natural_number_inductive() {
@@ -770,6 +785,6 @@ mod tests {
         let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
-        println!("Primitive recursion principle for Nat type: {prin_rec}");
+        println!("Primitive recursion principle for Nat type: {prin_rec:?}");
     }
 }

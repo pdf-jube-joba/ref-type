@@ -152,11 +152,10 @@ impl LocalScope {
                         if parameters.is_empty() {
                             Ok(exp.clone())
                         } else {
-                            Err(format!(
-                                "Module parameter {} cannot be applied with parameters",
-                                exp
+                            Err(
+                                format!("Module parameter cannot be applied with parameters",)
+                                    .into(),
                             )
-                            .into())
                         }
                     }
                 }

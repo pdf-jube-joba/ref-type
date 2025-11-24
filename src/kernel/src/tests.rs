@@ -25,7 +25,7 @@ impl Checker {
                 self.derivations.push(success);
             }
             Err(fail_der) => {
-                print!("Type checking failed:\n{}", fail_der);
+                print!("Type checking failed:\n{:?}", fail_der);
             }
         }
         true
@@ -47,7 +47,7 @@ impl Checker {
                 }
             }
             Err(fail_der) => {
-                print!("Type inference failed:\n{}", fail_der);
+                print!("Type inference failed:\n{:?}", fail_der);
                 return None;
             }
         };
@@ -80,7 +80,7 @@ impl Checker {
     }
     fn print_all(&self) {
         for der in self.history().iter() {
-            println!("{}", der);
+            println!("{:?}", der);
         }
     }
 }
@@ -453,7 +453,7 @@ fn nat_test() {
     let prim_rec_nat =
         crate::inductive::InductiveTypeSpecs::primitive_recursion(&indspec, vec![], Sort::Set(0));
 
-    println!("{}", prim_rec_nat);
+    println!("{:?}", prim_rec_nat);
 
     // motive = (n: Nat) => Nat -> Nat: (n: Nat) -> Set(0)
     let motive = lam! {
@@ -527,7 +527,7 @@ fn nat_test() {
             arg: succ_case,
         };
         loop {
-            println!("Reducing: {app}");
+            println!("Reducing: {app:?}");
             let Some(app2) = reduce_one(&app) else {
                 break app;
             };
@@ -536,7 +536,7 @@ fn nat_test() {
     };
 
     let ty = checker.infer(&nat_add).unwrap();
-    println!("Type of nat_add: {}", ty);
+    println!("Type of nat_add: {:?}", ty);
 
     let nat_one = app! {
         func: nat_succ.clone(),
@@ -554,7 +554,7 @@ fn nat_test() {
     };
 
     let ty = checker.infer(&nat_add_one).unwrap();
-    println!("Type of nat_add_one: {}", ty);
+    println!("Type of nat_add_one: {:?}", ty);
 
     let mut nat_add_zero_one = app! {
         func: nat_add_zero.clone(),
@@ -562,13 +562,13 @@ fn nat_test() {
     };
 
     let ty = checker.infer(&nat_add_zero_one).unwrap();
-    println!("Type of nat_add_zero_one: {}", ty);
+    println!("Type of nat_add_zero_one: {:?}", ty);
     let normalized = loop {
-        println!("Reducing: {nat_add_zero_one}");
+        println!("Reducing: {nat_add_zero_one:?}");
         let Some(next) = reduce_one(&nat_add_zero_one) else {
             break nat_add_zero_one;
         };
         nat_add_zero_one = next;
     };
-    println!("Normalized nat_add_zero_one: {}", normalized);
+    println!("Normalized nat_add_zero_one: {:?}", normalized);
 }
