@@ -113,16 +113,19 @@ impl Builder {
                         prop: None,
                     },
                 };
-                Err(DerivationFail::Propagate(Box::new(
-                    DerivationFailPropagate {
-                        head,
-                        premises: premises.clone(),
-                        fail: err,
-                        rule,
-                        phase,
+                let base = DerivationBase {
+                    premises: premises.clone(),
+                    rule,
+                    phase,
+                };
+                Err(DerivationFail {
+                    base,
+                    head,
+                    kind: FailKind::Propagate {
+                        fail: Box::new(err),
                         expect: expect.to_string(),
                     },
-                )))
+                })
             }
         }
     }
@@ -165,16 +168,19 @@ impl Builder {
                         prop: None,
                     },
                 };
-                Err(DerivationFail::Propagate(Box::new(
-                    DerivationFailPropagate {
-                        head,
-                        premises: premises.clone(),
-                        fail: err,
-                        rule,
-                        phase,
+                let base = DerivationBase {
+                    premises: premises.clone(),
+                    rule,
+                    phase,
+                };
+                Err(DerivationFail {
+                    base,
+                    head,
+                    kind: FailKind::Propagate {
+                        fail: Box::new(err),
                         expect: expect.to_string(),
                     },
-                )))
+                })
             }
         }
     }
@@ -219,16 +225,19 @@ impl Builder {
                         prop: None,
                     },
                 };
-                Err(DerivationFail::Propagate(Box::new(
-                    DerivationFailPropagate {
-                        head,
-                        premises: premises.clone(),
-                        fail: err,
-                        rule,
-                        phase,
+                let base = DerivationBase {
+                    premises: premises.clone(),
+                    rule,
+                    phase,
+                };
+                Err(DerivationFail {
+                    base,
+                    head,
+                    kind: FailKind::Propagate {
+                        fail: Box::new(err),
                         expect: expect.to_string(),
                     },
-                )))
+                })
             }
         }
     }
@@ -247,10 +256,12 @@ impl Builder {
                     let ok_head = SuccessHead::Solve(rc::Rc::new(ok));
                     ok = DerivationSuccess {
                         head: ok_head,
-                        premises: vec![],
+                        base: DerivationBase {
+                            premises: vec![],
+                            rule: "as solve".to_string(),
+                            phase: "as solve".to_string(),
+                        },
                         generated_goals: vec![],
-                        rule: "as solve".to_string(),
-                        phase: "as solve".to_string(),
                         through: false,
                     };
                 }
@@ -283,16 +294,19 @@ impl Builder {
                         prop: None,
                     },
                 };
-                Err(DerivationFail::Propagate(Box::new(
-                    DerivationFailPropagate {
-                        head,
-                        premises: premises.clone(),
-                        fail: err,
-                        rule,
-                        phase,
+                let base = DerivationBase {
+                    premises: premises.clone(),
+                    rule,
+                    phase,
+                };
+                Err(DerivationFail {
+                    base,
+                    head,
+                    kind: FailKind::Propagate {
+                        fail: Box::new(err),
                         expect: "proof".to_string(),
                     },
-                )))
+                })
             }
         }
     }
@@ -361,13 +375,18 @@ impl Builder {
                             prop: None,
                         },
                     };
-                    return Err(DerivationFail::Caused(Box::new(DerivationFailCaused {
-                        head,
+                    let base = DerivationBase {
                         premises,
                         rule,
                         phase,
-                        cause: "no unproved goal found when solving".to_string(),
-                    })));
+                    };
+                    return Err(DerivationFail {
+                        base,
+                        head,
+                        kind: FailKind::Caused {
+                            cause: "no unproved goal found when solving".to_string(),
+                        },
+                    });
                 }
             }
         }
@@ -389,10 +408,12 @@ impl Builder {
         let head = SuccessHead::TypeJudgement { ctx, term, ty };
         DerivationSuccess {
             head,
-            premises,
+            base: DerivationBase {
+                premises,
+                rule,
+                phase,
+            },
             generated_goals,
-            rule,
-            phase,
             through,
         }
     }
@@ -411,10 +432,12 @@ impl Builder {
         let head = SuccessHead::TypeJudgement { ctx, term, ty };
         DerivationSuccess {
             head,
-            premises,
+            base: DerivationBase {
+                premises,
+                rule,
+                phase,
+            },
             generated_goals,
-            rule,
-            phase,
             through: false,
         }
     }
@@ -437,10 +460,12 @@ impl Builder {
         };
         DerivationSuccess {
             head,
-            premises,
+            base: DerivationBase {
+                premises,
+                rule,
+                phase,
+            },
             generated_goals,
-            rule,
-            phase,
             through,
         }
     }
@@ -462,10 +487,12 @@ impl Builder {
         };
         DerivationSuccess {
             head,
-            premises,
+            base: DerivationBase {
+                premises,
+                rule,
+                phase,
+            },
             generated_goals,
-            rule,
-            phase,
             through: false,
         }
     }
@@ -495,12 +522,17 @@ impl Builder {
                 prop: None,
             },
         };
-        DerivationFail::Caused(Box::new(DerivationFailCaused {
-            head,
+        let base = DerivationBase {
             premises,
             rule,
             phase,
-            cause: cause.to_string(),
-        }))
+        };
+        DerivationFail {
+            base,
+            head,
+            kind: FailKind::Caused {
+                cause: cause.to_string(),
+            },
+        }
     }
 }

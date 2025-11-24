@@ -317,6 +317,13 @@ pub struct GoalGenerated {
 }
 
 #[derive(Debug, Clone)]
+pub struct DerivationBase {
+    pub premises: Vec<DerivationSuccess>,
+    pub rule: String,
+    pub phase: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum SuccessHead {
     TypeJudgement {
         ctx: Context,
@@ -336,11 +343,9 @@ pub enum SuccessHead {
 
 #[derive(Debug, Clone)]
 pub struct DerivationSuccess {
+    pub base: DerivationBase,
     pub head: SuccessHead,
-    pub premises: Vec<DerivationSuccess>,
     pub generated_goals: Vec<GoalGenerated>,
-    pub rule: String,
-    pub phase: String,
     pub through: bool,
 }
 
@@ -363,28 +368,16 @@ pub enum FailHead {
 }
 
 #[derive(Debug, Clone)]
-pub struct DerivationFailCaused {
-    pub head: FailHead,
-    pub premises: Vec<DerivationSuccess>,
-    pub rule: String,
-    pub phase: String,
-    pub cause: String,
+pub enum FailKind {
+    Caused { cause: String },
+    Propagate { fail: Box<DerivationFail>, expect: String },
 }
 
 #[derive(Debug, Clone)]
-pub struct DerivationFailPropagate {
+pub struct DerivationFail {
+    pub base: DerivationBase,
     pub head: FailHead,
-    pub premises: Vec<DerivationSuccess>,
-    pub fail: DerivationFail,
-    pub rule: String,
-    pub phase: String,
-    pub expect: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum DerivationFail {
-    Caused(Box<DerivationFailCaused>),
-    Propagate(Box<DerivationFailPropagate>),
+    pub kind: FailKind,
 }
 
 impl DerivationSuccess {
@@ -425,7 +418,7 @@ impl DerivationSuccess {
     }
     pub fn first_unproved_mut(&mut self) -> Option<&mut GoalGenerated> {
         let DerivationSuccess {
-            premises,
+            base: DerivationBase { premises, .. },
             generated_goals,
             ..
         } = self;

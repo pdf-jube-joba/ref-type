@@ -156,18 +156,22 @@ pub fn acceptable_typespecs(
                 well_derivation.push(ok);
             }
             Err(err) => {
-                let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                let err_der = DerivationFail {
+                    base: DerivationBase {
+                        premises: well_derivation.clone(),
+                        rule: "inductive type well formed".to_string(),
+                        phase: format!("parameter '{}' type check", x),
+                    },
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
                         indspec: rc.clone(),
                     },
-                    premises: well_derivation.clone(),
-                    fail: err,
-                    rule: "inductive type well formed".to_string(),
-                    phase: format!("parameter '{}' type check", x),
-                    expect: "Parameter is well-sorted".to_string(),
+                    kind: FailKind::Propagate {
+                        fail: Box::new(err),
+                        expect: "Parameter is well-sorted".to_string(),
+                    },
                 };
-                return Err(DerivationFail::Propagate(Box::new(err_der)));
+                return Err(err_der);
             }
         }
 
@@ -185,18 +189,22 @@ pub fn acceptable_typespecs(
             well_derivation.push(ok);
         }
         Err(err) => {
-            let err_der: DerivationFailPropagate = DerivationFailPropagate {
+            let err_der = DerivationFail {
+                base: DerivationBase {
+                    premises: well_derivation.clone(),
+                    rule: "inductive type well formed".to_string(),
+                    phase: "arity type check".to_string(),
+                },
                 head: FailHead::WellFormednessInductive {
                     ctx: ctx.clone(),
                     indspec: rc.clone(),
                 },
-                premises: well_derivation.clone(),
-                fail: err,
-                rule: "inductive type well formed".to_string(),
-                phase: "arity type check".to_string(),
-                expect: "Arity is well-sorted".to_string(),
+                kind: FailKind::Propagate {
+                    fail: Box::new(err),
+                    expect: "Arity is well-sorted".to_string(),
+                },
             };
-            return Err(DerivationFail::Propagate(Box::new(err_der)));
+            return Err(err_der);
         }
     }
 
@@ -215,18 +223,22 @@ pub fn acceptable_typespecs(
                 well_derivation.push(ok);
             }
             Err(err) => {
-                let err_der: DerivationFailPropagate = DerivationFailPropagate {
+                let err_der = DerivationFail {
+                    base: DerivationBase {
+                        premises: well_derivation.clone(),
+                        rule: "inductive type well formed".to_string(),
+                        phase: format!("constructor '{}' type check", i),
+                    },
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
                         indspec: rc.clone(),
                     },
-                    premises: well_derivation.clone(),
-                    fail: err,
-                    rule: "inductive type well formed".to_string(),
-                    phase: format!("constructor '{}' type check", i),
-                    expect: "Constructor is well-sorted".to_string(),
+                    kind: FailKind::Propagate {
+                        fail: Box::new(err),
+                        expect: "Constructor is well-sorted".to_string(),
+                    },
                 };
-                return Err(DerivationFail::Propagate(Box::new(err_der)));
+                return Err(err_der);
             }
         }
     }
@@ -236,10 +248,12 @@ pub fn acceptable_typespecs(
             ctx: ctx.clone(),
             indspec: rc,
         },
-        premises: well_derivation,
+        base: DerivationBase {
+            premises: well_derivation,
+            rule: "inductive type well formed".to_string(),
+            phase: "complete".to_string(),
+        },
         generated_goals: vec![],
-        rule: "inductive type well formed".to_string(),
-        phase: "complete".to_string(),
         through: false,
     };
     Ok(ok)

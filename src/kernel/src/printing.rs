@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use crate::exp::{
-    DefinedConstant, DerivationFail, DerivationFailCaused, DerivationFailPropagate, DerivationSuccess, FailHead, GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var
+    DefinedConstant, DerivationBase, DerivationFail, DerivationSuccess, FailHead, FailKind, GoalGenerated, ProveCommandBy, ProveGoal, SuccessHead, Var
 };
 
 // Convert the lower 32 bits of a pointer to a base62 string of fixed length 6.
@@ -294,10 +294,12 @@ pub struct StringTree {
 pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
     let DerivationSuccess {
         head,
-        premises,
+        base: DerivationBase {
+            premises,
+            rule,
+            phase,
+        },
         generated_goals,
-        rule,
-        phase,
         through,
     } = derivation;
     if *through {
@@ -364,116 +366,6 @@ pub fn map_derivation_success(derivation: &DerivationSuccess) -> StringTree {
     }
 }
 
-pub fn map_derivation_failcause(derivation: &DerivationFailCaused) -> StringTree {
-    // error exactly caused at here
-    let DerivationFailCaused {
-        head,
-        premises,
-        rule,
-        phase,
-        cause,
-    } = derivation;
-    let head = match head {
-        FailHead::TypeJudgement { ctx, term, ty } => Node::ErrorCause(format!(
-            "[{} |- {} : {}]{{{cause}}} {} [{}]",
-            print_ctx(ctx),
-            term,
-            match ty {
-                Some(ty) => ty.to_string(),
-                None => "<?>".to_string(),
-            },
-            rule,
-            phase
-        )),
-        FailHead::ProofJudgement { ctx, prop } => Node::ErrorCause(format!(
-            "[{} |= {}]{{{cause}}} {} [{}]",
-            print_ctx(ctx),
-            match prop {
-                Some(prop) => prop.to_string(),
-                None => "<?>".to_string(),
-            },
-            rule,
-            phase
-        )),
-        FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorCause(format!(
-            "[{} |- wf_inductive {}] {} [{}]",
-            print_ctx(ctx),
-            print_rc_ptr(indspec),
-            rule,
-            phase
-        )),
-        FailHead::Solve(derivation_success) => {
-            let tree = map_derivation_success(derivation_success);
-            let head = format!("solved but something wrong{:p}", *derivation_success);
-            return StringTree {
-                head: Node::ErrorCause(head),
-                children: vec![tree],
-            };
-        }
-    };
-    let mut v = vec![];
-    for premise in premises {
-        v.push(map_derivation_success(premise));
-    }
-    StringTree { head, children: v }
-}
-
-fn map_derivation_failpropagate(derivation: &DerivationFailPropagate) -> StringTree {
-    // error propagated from children
-    let DerivationFailPropagate {
-        head,
-        premises,
-        fail,
-        rule,
-        phase,
-        expect,
-    } = derivation;
-    let head = match head {
-        FailHead::TypeJudgement { ctx, term, ty } => Node::ErrorPropagate(format!(
-            "[{} |- {} : {}]{{{expect}}} {} [{}]",
-            print_ctx(ctx),
-            term,
-            match ty {
-                Some(ty) => ty.to_string(),
-                None => "<?>".to_string(),
-            },
-            rule,
-            phase
-        )),
-        FailHead::ProofJudgement { ctx, prop } => Node::ErrorPropagate(format!(
-            "[{} |= {}]{{{expect}}} {} [{}]",
-            print_ctx(ctx),
-            match prop {
-                Some(prop) => prop.to_string(),
-                None => "<?>".to_string(),
-            },
-            rule,
-            phase
-        )),
-        FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorPropagate(format!(
-            "[{} |- wf_inductive {}] {} [{}]",
-            print_ctx(ctx),
-            print_rc_ptr(indspec),
-            rule,
-            phase
-        )),
-        FailHead::Solve(derivation_success) => {
-            let tree = map_derivation_success(derivation_success);
-            let head = format!("solved but something wrong{:p}", *derivation_success);
-            return StringTree {
-                head: Node::ErrorPropagate(head),
-                children: vec![tree],
-            };
-        }
-    };
-    let mut v = vec![];
-    for premise in premises {
-        v.push(map_derivation_success(premise));
-    }
-    v.push(map_derivation_fail(fail));
-    StringTree { head, children: v }
-}
-
 fn fmt_tree(f: &mut std::fmt::Formatter<'_>, tree: &StringTree, indent: usize) -> std::fmt::Result {
     for _ in 0..indent {
         write!(f, "  ")?;
@@ -493,9 +385,111 @@ impl Display for DerivationSuccess {
 }
 
 pub fn map_derivation_fail(derivation: &DerivationFail) -> StringTree {
-    match derivation {
-        DerivationFail::Caused(caused) => map_derivation_failcause(caused),
-        DerivationFail::Propagate(propagate) => map_derivation_failpropagate(propagate),
+    let DerivationFail {
+        base:
+            DerivationBase {
+                premises,
+                rule,
+                phase,
+            },
+        head,
+        kind,
+    } = derivation;
+
+    let render = |node: Node, premises: &Vec<DerivationSuccess>, extra_child: Option<StringTree>| {
+        let mut children = premises.iter().map(map_derivation_success).collect::<Vec<_>>();
+        if let Some(child) = extra_child {
+            children.push(child);
+        }
+        StringTree {
+            head: node,
+            children,
+        }
+    };
+
+    match kind {
+        FailKind::Caused { cause } => {
+            let head = match head {
+                FailHead::TypeJudgement { ctx, term, ty } => Node::ErrorCause(format!(
+                    "[{} |- {} : {}]{{{cause}}} {} [{}]",
+                    print_ctx(ctx),
+                    term,
+                    match ty {
+                        Some(ty) => ty.to_string(),
+                        None => "<?>".to_string(),
+                    },
+                    rule,
+                    phase
+                )),
+                FailHead::ProofJudgement { ctx, prop } => Node::ErrorCause(format!(
+                    "[{} |= {}]{{{cause}}} {} [{}]",
+                    print_ctx(ctx),
+                    match prop {
+                        Some(prop) => prop.to_string(),
+                        None => "<?>".to_string(),
+                    },
+                    rule,
+                    phase
+                )),
+                FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorCause(format!(
+                    "[{} |- wf_inductive {}] {} [{}]",
+                    print_ctx(ctx),
+                    print_rc_ptr(indspec),
+                    rule,
+                    phase
+                )),
+                FailHead::Solve(derivation_success) => {
+                    let tree = map_derivation_success(derivation_success);
+                    let head = format!("solved but something wrong{:p}", *derivation_success);
+                    return StringTree {
+                        head: Node::ErrorCause(head),
+                        children: vec![tree],
+                    };
+                }
+            };
+            render(head, premises, None)
+        }
+        FailKind::Propagate { fail, expect } => {
+            let head = match head {
+                FailHead::TypeJudgement { ctx, term, ty } => Node::ErrorPropagate(format!(
+                    "[{} |- {} : {}]{{{expect}}} {} [{}]",
+                    print_ctx(ctx),
+                    term,
+                    match ty {
+                        Some(ty) => ty.to_string(),
+                        None => "<?>".to_string(),
+                    },
+                    rule,
+                    phase
+                )),
+                FailHead::ProofJudgement { ctx, prop } => Node::ErrorPropagate(format!(
+                    "[{} |= {}]{{{expect}}} {} [{}]",
+                    print_ctx(ctx),
+                    match prop {
+                        Some(prop) => prop.to_string(),
+                        None => "<?>".to_string(),
+                    },
+                    rule,
+                    phase
+                )),
+                FailHead::WellFormednessInductive { ctx, indspec } => Node::ErrorPropagate(format!(
+                    "[{} |- wf_inductive {}] {} [{}]",
+                    print_ctx(ctx),
+                    print_rc_ptr(indspec),
+                    rule,
+                    phase
+                )),
+                FailHead::Solve(derivation_success) => {
+                    let tree = map_derivation_success(derivation_success);
+                    let head = format!("solved but something wrong{:p}", *derivation_success);
+                    return StringTree {
+                        head: Node::ErrorPropagate(head),
+                        children: vec![tree],
+                    };
+                }
+            };
+            render(head, premises, Some(map_derivation_fail(fail)))
+        }
     }
 }
 
