@@ -1,13 +1,19 @@
 use crate::exp::Var;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use std::rc::Rc;
+use std::{fmt::Debug, rc::Rc};
+
+impl Debug for Var {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ptr_val = self.ptr() as usize;
+        write!(f, "{}[{:016x}]", self.as_str(), ptr_val)
+    }
+}
 
 impl Serialize for Var {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // ポインタを 16進文字列にする（今の print_ptr と同じノリでOK）
         let ptr_val = self.ptr() as usize;
         let ptr_str = format!("{ptr_val:016x}");
 

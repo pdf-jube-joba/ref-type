@@ -162,7 +162,7 @@ pub fn acceptable_typespecs(
                     base: Box::new(DerivationBase {
                         premises: well_derivation.clone(),
                         rule: "inductive type well formed".to_string(),
-                        phase: format!("parameter '{}' type check", x),
+                        phase: format!("parameter '{:?}' type check", x),
                     }),
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
@@ -688,9 +688,9 @@ mod tests {
                 indices: vec![],
             };
             let e = eliminator_type(&ctor, &q, &c, &this);
-            println!("Eliminator type (trivial): {e}");
+            println!("Eliminator type (trivial): {e:?}");
             let r = recursor(&ctor, &q, &c, &this);
-            println!("Recursor (trivial): {r}");
+            println!("Recursor (trivial): {r:?}");
         }
         // simple case
         {
@@ -704,9 +704,9 @@ mod tests {
                 indices: vec![],
             };
             let e = eliminator_type(&ctor, &q, &c, &this);
-            println!("Eliminator type (trivial): {e}");
+            println!("Eliminator type (trivial): {e:?}");
             let r = recursor(&ctor, &q, &c, &this);
-            println!("Recursor (trivial): {r}");
+            println!("Recursor (trivial): {r:?}");
         }
         // strictly positive case
         {
@@ -719,9 +719,9 @@ mod tests {
                 indices: vec![],
             };
             let e = eliminator_type(&ctor, &q, &c, &this);
-            println!("Eliminator type (trivial): {e}");
+            println!("Eliminator type (trivial): {e:?}");
             let r = recursor(&ctor, &q, &c, &this);
-            println!("Recursor (trivial): {r}");
+            println!("Recursor (trivial): {r:?}");
         }
     }
     #[test]
@@ -738,7 +738,7 @@ mod tests {
         let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
-        println!("Primitive recursion principle for Unit type: {prin_rec}");
+        println!("Primitive recursion principle for Unit type: {prin_rec:?}");
     }
     #[test]
     fn test_by_bool_inductive() {
@@ -760,7 +760,7 @@ mod tests {
         let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
-        println!("Primitive recursion principle for Bool type: {prin_rec}");
+        println!("Primitive recursion principle for Bool type: {prin_rec:?}");
     }
     #[test]
     fn test_by_natural_number_inductive() {
@@ -785,6 +785,6 @@ mod tests {
         let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
-        println!("Primitive recursion principle for Nat type: {prin_rec}");
+        println!("Primitive recursion principle for Nat type: {prin_rec:?}");
     }
 }
