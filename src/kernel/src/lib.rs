@@ -1,5 +1,7 @@
 // expression language, includes Derivation (tree structure of derivation)
 pub mod exp;
+// for serialize
+pub mod serialize;
 // macros, and compose/decompose expressions
 pub mod utils;
 // inductive types and constructors

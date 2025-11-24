@@ -1,6 +1,8 @@
-// this file is for core expression definition and its type checking
-
 use std::{fmt::Debug, rc::Rc};
+
+use serde::{Deserialize, Serialize};
+
+use crate::serialize::{serialize_opt_rc_ptr, serialize_rc_ptr};
 
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -24,7 +26,7 @@ impl Var {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Sort {
     Set(usize),     // predicative SET(i):
     SetKind(usize), // SET(i): SETKind(i)
@@ -107,13 +109,13 @@ impl Sort {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DefinedConstant {
     pub ty: Exp,
     pub body: Exp,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Exp {
     Sort(Sort),
     Var(Var),
@@ -134,18 +136,21 @@ pub enum Exp {
         func: Box<Exp>,
         arg: Box<Exp>,
     },
-    DefinedConstant(Rc<DefinedConstant>),
+    DefinedConstant(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DefinedConstant>),
     IndType {
+        #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>, // uncurry with parameter
     },
     IndCtor {
+        #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         parameters: Vec<Exp>, // uncurry with parameter
         idx: usize,
     },
     IndElim {
         // this is primitive recursion
+        #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
         elim: Box<Exp>,
         return_type: Box<Exp>,
@@ -210,7 +215,7 @@ impl Exp {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProveGoal {
     pub extended_ctx: Context,
     pub goal_prop: Exp,
@@ -218,7 +223,7 @@ pub struct ProveGoal {
 }
 
 // given (ctx |= prop)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum ProveCommandBy {
     // ctx |= prop
     //   ctx |- proof_term : prop
@@ -264,7 +269,7 @@ pub enum ProveCommandBy {
     Axiom(Axiom),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Axiom {
     ExcludedMiddle {
         ctx: Context,
@@ -309,21 +314,22 @@ pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
     None
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GoalGenerated {
     pub ctx: Context,
     pub proposition: Exp,
+    #[serde(serialize_with = "serialize_opt_rc_ptr")]
     pub solvetree: Option<Rc<DerivationSuccess>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DerivationBase {
     pub premises: Vec<DerivationSuccess>,
     pub rule: String,
     pub phase: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum SuccessHead {
     TypeJudgement {
         ctx: Context,
@@ -336,12 +342,13 @@ pub enum SuccessHead {
     },
     WellFormednessInductive {
         ctx: Context,
+        #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
     },
-    Solve(Rc<DerivationSuccess>),
+    Solve(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DerivationSuccess>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DerivationSuccess {
     pub base: DerivationBase,
     pub head: SuccessHead,
@@ -349,7 +356,7 @@ pub struct DerivationSuccess {
     pub through: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum FailHead {
     TypeJudgement {
         ctx: Context,
@@ -362,18 +369,24 @@ pub enum FailHead {
     },
     WellFormednessInductive {
         ctx: Context,
+        #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
     },
-    Solve(Rc<DerivationSuccess>),
+    Solve(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DerivationSuccess>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum FailKind {
-    Caused { cause: String },
-    Propagate { fail: Box<DerivationFail>, expect: String },
+    Caused {
+        cause: String,
+    },
+    Propagate {
+        fail: Box<DerivationFail>,
+        expect: String,
+    },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DerivationFail {
     pub base: DerivationBase,
     pub head: FailHead,

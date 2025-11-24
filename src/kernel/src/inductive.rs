@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use serde::Serialize;
+
 use crate::{
     derivation::{check, infer_sort},
     utils,
@@ -12,7 +14,7 @@ use super::exp::*;
 Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]) -> sort := list of
 | constructor[] = [{telescope1[] -> NAME indices1[]}]
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct InductiveTypeSpecs {
     // type parameters
     pub parameters: Vec<(Var, Exp)>,
@@ -80,7 +82,7 @@ impl InductiveTypeSpecs {
 /*
 constructor of type (telescope[0] -> ... -> telescope[n] -> THIS indices[0] ... indices[m])
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CtorType {
     // binders
     pub telescope: Vec<CtorBinder>,
@@ -88,7 +90,7 @@ pub struct CtorType {
     pub indices: Vec<Exp>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum CtorBinder {
     // recursive case
     // (_: {(x[]: t[]) -> THIS m[]}) where THIS should be the inductive type itself
