@@ -15,24 +15,24 @@ pub enum LogPayload {
     Message, // 純粋なテキストメッセージだけ
     DerivationSuccess(DerivationSuccess),
     DerivationFail(DerivationFail),
-    QueryReduce {
-        exp: Exp,
-        result: Option<Exp>,
-    },
-    QueryNormal {
-        exp: Exp,
-        result: Exp,
-    },
-    QueryCheck {
+    Check {
         ctx: Context,
         exp: Exp,
         ty: Exp,
         result: bool,
     },
-    QueryInfer {
+    Infer {
         ctx: Context,
         exp: Exp,
         result: Option<Exp>,
+    },
+    Reduce {
+        exp: Exp,
+        result: Option<Exp>,
+    },
+    Normal {
+        exp: Exp,
+        result: Exp,
     },
 }
 
@@ -41,10 +41,6 @@ pub struct LogRecord {
     pub level: LogLevel,
     pub tags: Vec<String>,
     pub message: String,
-
-    pub module: &'static str,
-    pub file: &'static str,
-    pub line: u32,
 
     pub payload: LogPayload,
 }
@@ -71,17 +67,11 @@ impl Logger {
         tags: Vec<String>,
         message: String,
         payload: LogPayload,
-        module: &'static str,
-        file: &'static str,
-        line: u32,
     ) {
         let record = LogRecord {
             level,
             tags,
             message,
-            module,
-            file,
-            line,
             payload,
         };
         self.push(record);
@@ -100,6 +90,41 @@ impl Logger {
     pub fn clear(&mut self) {
         self.records.clear();
     }
+
+    pub fn with_infer(&mut self, ctx: &Context, exp: &Exp) -> Option<Exp> {
+        let infer_ty = kernel::derivation::infer(ctx, exp);
+        match infer_ty {
+            Ok(derivation_success) => {
+                let result: Option<Exp> = derivation_success.type_of().cloned();
+                let payload = LogPayload::Infer {
+                    ctx: ctx.clone(),
+                    exp: exp.clone(),
+                    result: result.clone(),
+                };
+                self.record(
+                    LogLevel::Debug,
+                    vec!["query".to_string(), "infer".to_string()],
+                    format!("Infer query for expression: {:?}", exp),
+                    payload,
+                );
+                result
+            }
+            Err(derivation_fail) => {
+                let payload = LogPayload::Infer {
+                    ctx: ctx.clone(),
+                    exp: exp.clone(),
+                    result: None,
+                };
+                self.record(
+                    LogLevel::Warn,
+                    vec!["query".to_string(), "infer".to_string()],
+                    format!("Infer query failed for expression: {:?}", exp),
+                    payload,
+                );
+                None
+            }
+        }
+    }
 }
 
 #[macro_export]
@@ -112,9 +137,6 @@ macro_rules! log_msg {
             tags,
             msg,
             $crate::logging::LogPayload::Message,
-            module_path!(),
-            file!(),
-            line!(),
         );
     }};
 }
@@ -129,9 +151,6 @@ macro_rules! log_derivation_success {
             tags,
             msg,
             $crate::logging::LogPayload::DerivationSuccess($der),
-            module_path!(),
-            file!(),
-            line!(),
         );
     }};
 }
@@ -146,9 +165,6 @@ macro_rules! log_derivation_fail {
             tags,
             msg,
             $crate::logging::LogPayload::DerivationFail($der),
-            module_path!(),
-            file!(),
-            line!(),
         );
     }};
 }
