@@ -6,7 +6,7 @@ use crate::utils;
 use std::rc::Rc;
 
 // return (ctx |- term: ty), result is in derivation.node.res
-pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<DerivationSuccess, DerivationFail> {
+pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let mut builder = Builder::new_check(ctx.clone(), term.clone(), ty.clone());
 
     // 1. infer (ctx |- term : ?inferred_ty)
@@ -83,7 +83,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<DerivationSuccess, D
 }
 
 // infer: (Derivation, Option<Exp>) where Option<Exp> = Some(ty) on success
-pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationFail> {
+pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let mut builder = Builder::new_infer(ctx.clone(), term.clone());
 
     match term {
@@ -545,7 +545,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationF
 }
 
 // infer sort of term
-pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, DerivationFail> {
+pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let mut builder = Builder::new_infersort(ctx.clone(), term.clone());
     builder.rule("Conv");
 
@@ -569,7 +569,7 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Deriva
 pub fn prove_command(
     ctx: &Context,
     command: &ProveCommandBy,
-) -> Result<DerivationSuccess, DerivationFail> {
+) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let mut builder = Builder::new_command(ctx.clone());
     match command {
         ProveCommandBy::Construct(exp) => {
@@ -749,7 +749,7 @@ pub fn prove_command(
     }
 }
 
-pub fn check_wellformed_ctx(ctx: &Context) -> (Vec<DerivationSuccess>, Option<DerivationFail>) {
+pub fn check_wellformed_ctx(ctx: &Context) -> (Vec<DerivationSuccess>, Option<Box<DerivationFail>>) {
     let mut ders = vec![];
     let mut cur_ctx = vec![];
     for (v, ty) in ctx {

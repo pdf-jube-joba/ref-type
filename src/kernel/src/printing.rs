@@ -385,16 +385,13 @@ impl Display for DerivationSuccess {
 }
 
 pub fn map_derivation_fail(derivation: &DerivationFail) -> StringTree {
-    let DerivationFail {
-        base:
-            DerivationBase {
-                premises,
-                rule,
-                phase,
-            },
-        head,
-        kind,
-    } = derivation;
+    let DerivationFail { base, head, kind } = derivation;
+
+    let DerivationBase {
+        premises,
+        rule,
+        phase,
+    } = base.as_ref();
 
     let render = |node: Node, premises: &Vec<DerivationSuccess>, extra_child: Option<StringTree>| {
         let mut children = premises.iter().map(map_derivation_success).collect::<Vec<_>>();

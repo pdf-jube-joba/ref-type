@@ -25,7 +25,7 @@ pub enum Query {
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
     Msg(String),
-    DerivationFail(DerivationFail),
+    DerivationFail(Box<DerivationFail>),
 }
 
 impl From<String> for ErrorKind {
@@ -34,8 +34,8 @@ impl From<String> for ErrorKind {
     }
 }
 
-impl From<DerivationFail> for ErrorKind {
-    fn from(err: DerivationFail) -> Self {
+impl From<Box<DerivationFail>> for ErrorKind {
+    fn from(err: Box<DerivationFail>) -> Self {
         ErrorKind::DerivationFail(err)
     }
 }

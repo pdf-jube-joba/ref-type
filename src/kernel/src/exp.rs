@@ -388,7 +388,7 @@ pub enum FailKind {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DerivationFail {
-    pub base: DerivationBase,
+    pub base: Box<DerivationBase>,
     pub head: FailHead,
     pub kind: FailKind,
 }

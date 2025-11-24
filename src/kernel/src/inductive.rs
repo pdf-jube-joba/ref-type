@@ -138,7 +138,7 @@ impl CtorType {
 pub fn acceptable_typespecs(
     ctx: &Context, // assume well-formed
     inductive_type_specs: &InductiveTypeSpecs,
-) -> Result<DerivationSuccess, DerivationFail> {
+) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let rc = Rc::new(inductive_type_specs.clone());
     let InductiveTypeSpecs {
         parameters,
@@ -159,21 +159,21 @@ pub fn acceptable_typespecs(
             }
             Err(err) => {
                 let err_der = DerivationFail {
-                    base: DerivationBase {
+                    base: Box::new(DerivationBase {
                         premises: well_derivation.clone(),
                         rule: "inductive type well formed".to_string(),
                         phase: format!("parameter '{}' type check", x),
-                    },
+                    }),
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
                         indspec: rc.clone(),
                     },
                     kind: FailKind::Propagate {
-                        fail: Box::new(err),
+                        fail: err,
                         expect: "Parameter is well-sorted".to_string(),
                     },
                 };
-                return Err(err_der);
+                return Err(Box::new(err_der));
             }
         }
 
@@ -192,21 +192,21 @@ pub fn acceptable_typespecs(
         }
         Err(err) => {
             let err_der = DerivationFail {
-                base: DerivationBase {
+                base: Box::new(DerivationBase {
                     premises: well_derivation.clone(),
                     rule: "inductive type well formed".to_string(),
                     phase: "arity type check".to_string(),
-                },
+                }),
                 head: FailHead::WellFormednessInductive {
                     ctx: ctx.clone(),
                     indspec: rc.clone(),
                 },
                 kind: FailKind::Propagate {
-                    fail: Box::new(err),
+                    fail: err,
                     expect: "Arity is well-sorted".to_string(),
                 },
             };
-            return Err(err_der);
+            return Err(Box::new(err_der));
         }
     }
 
@@ -226,21 +226,21 @@ pub fn acceptable_typespecs(
             }
             Err(err) => {
                 let err_der = DerivationFail {
-                    base: DerivationBase {
+                    base: Box::new(DerivationBase {
                         premises: well_derivation.clone(),
                         rule: "inductive type well formed".to_string(),
                         phase: format!("constructor '{}' type check", i),
-                    },
+                    }),
                     head: FailHead::WellFormednessInductive {
                         ctx: ctx.clone(),
                         indspec: rc.clone(),
                     },
                     kind: FailKind::Propagate {
-                        fail: Box::new(err),
+                        fail: err,
                         expect: "Constructor is well-sorted".to_string(),
                     },
                 };
-                return Err(err_der);
+                return Err(Box::new(err_der));
             }
         }
     }
