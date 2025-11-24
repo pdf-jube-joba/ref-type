@@ -120,7 +120,6 @@ impl Logger {
     }
 }
 
-#[macro_export]
 macro_rules! log_msg {
     ($ctx:expr, $level:expr, [$($tag:expr),*], $($arg:tt)*) => {{
         let msg = format!($($arg)*);
@@ -134,7 +133,6 @@ macro_rules! log_msg {
     }};
 }
 
-#[macro_export]
 macro_rules! log_derivation_success {
     ($ctx:expr, $level:expr, [$($tag:expr),*], $der:expr, $($arg:tt)*) => {{
         let msg = format!($($arg)*);
@@ -148,7 +146,6 @@ macro_rules! log_derivation_success {
     }};
 }
 
-#[macro_export]
 macro_rules! log_derivation_fail {
     ($ctx:expr, $level:expr, [$($tag:expr),*], $der:expr, $($arg:tt)*) => {{
         let msg = format!($($arg)*);

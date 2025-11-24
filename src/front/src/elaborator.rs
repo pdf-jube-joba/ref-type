@@ -14,6 +14,7 @@ use kernel::{
 
 pub mod module_manager;
 pub mod term_elaborator;
+use crate::logger::log_msg;
 
 pub enum Query {
     Eval { exp: Exp },
@@ -49,6 +50,8 @@ impl term_elaborator::Handler for GlobalEnvironment {
     }
 
     fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, String> {
+        self.logger.log
+
         let ctx = self
             .module_manager
             .current_context()
@@ -56,7 +59,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .flat_map(|(_, v)| v)
             .collect::<Vec<_>>();
 
-        let infer_type_e = self.logger.with_infer(&ctx, e)?;
+        let infer_type_e = self.logger.with_infer(&ctx, e).ok_or_else(|| {
+            format!(
+                "Failed to infer type of expression {} for field projection",
+                e
+            )
+        })?;
         let Exp::IndType {
             indspec,
             parameters,

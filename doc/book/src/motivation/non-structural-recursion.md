@@ -228,22 +228,35 @@ $$ M(n) = \begin{cases}
   - rewriting system をそのまま内部で表現できるか？
 
 ## とりあえず最近調べたことと考えたことをメモしておく。
-- プログラムという構文的な要素と、それが表している意味的な要素を分ける？
-  - プログラム側は関数の外延性が成り立たない
-  - 意味側は関数の外延性が成り立つ、集合論の関数みたいなオブジェクト
-  - プログラム側の記述に対して検証を行う
-    - `fix` の well-foundedness をこっちで証明して、意味論側に持ってくる
-    - 何ができれば検証可能かはわからない、
-      - relation として functional であることが示せればいいかも。
-  - eval と quote みたいに書く？
-    - この場合、"1stepだけ簡約して試す"とかがないと、これをそのまま簡約すると明らかに危ない
-- これは value/computation の差をとらえているのに近いので、コンパイルを考えるなら rust みたいに place もあってほしい
-  - 型理論からだと線形型とか分離論理とかが真っ先に出てくるっぽい
-  - 欲を言えば、参照についても適当に扱いたい
-  - value が基本で、 computation は eval によって value を生み出して、 place は value を受け取る？
-    - これだと場所が継続っぽくなりすぎている気がする。
-    - それと、 place の側が eval に対応するようなものを持っていないので、非対称。
+やろうとしていることは
+- 言語のレイヤーを分ける
+  - consistent な数学側の言語で証明が書けて、普通の数学も記述できる ... description 用のレイヤー
+    - description 用の言語は項が canonical じゃなくてもいいし、コンパイルもできなくてもいい。
+    - その代わり、普通の集合論を記述できる程度には強くないといけない。
+    - 関数の外延性が成り立つ...値としての関数
+  - プログラミング言語としても、GC なしで所有権っぽいことができるコンパイル言語がほしい ... computation 用のレイヤー
+    - できれば pointer も扱いたい
+    - ここで書かれたプログラム自体の検証も（数学側で）書けるとうれしい
+    - non-structural recursion の記述もここで
+    - 関数の外延性が成り立たない
+  - pure type system としてsortを別に用意する感じ。
+  - computation 用の言語は項が canonical になることを要求する：最終的には value になる
+  - 例でいくと、 2つの数のGCDについて：
+    - description 側の言語としては一意性をもとに定義することができて、 computation 側の言語としては Euclidean algorithm で計算ができる。
+      - 性質による定義はある意味で計算ができるとは限らない。
+      - euclidean algorithm はそのままだと structural な recursion にはなっていない。
+- computation 側について
+  - linear logic よりは rust っぽい place/value の方が好き
+    - 型の側に 情報を載せずに、項の側のチェックを使って comsume されたかどうかを管理したい
+    - place からの value の取り出しについては、 move と duplicate を明示的に書く
+  - pointer の扱いについては全然考えることができてない
+  - 高階な関数をどうするか
+    - 実行時に存在する値としての関数（ jump 先として指定されている place ？）とコード上の関数を分けれないか
+  - value/computation の区別ができる必要があって、
+- 何かしらの自己言及ができないといけない？
+  - quasi-quotation とかを使って、 fix で記述されたコード"自体"について記述して、それが正しいことについて書かないといけない
+  - eval によってプログラムの側から値の側に送る
 
-$L\"ob$ の定理というのがあるらしい：
-様相論理の中で、証明可能性論理とかに出てくる。
-自己言及的なことができる：guarded recursion の中でも登場する。
+関係しているかも？
+- guarded recursion/later modality/Löb's theorem/provability logic
+- CBPV/linear logic/computational effect

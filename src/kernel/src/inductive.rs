@@ -787,4 +787,39 @@ mod tests {
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Nat type: {prin_rec:?}");
     }
+    #[test]
+    fn test_by_polymorphic_list_inductive() {
+        let a = Var::new("A");
+        let specs = InductiveTypeSpecs {
+            parameters: vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
+            indices: vec![],
+            sort: Sort::Set(0),
+            constructors: vec![
+                // nil: List[A]
+                CtorType {
+                    telescope: vec![],
+                    indices: vec![],
+                },
+                // cons: (head: A) -> (tail: List[A]) -> List[A]
+                CtorType {
+                    telescope: vec![
+                        CtorBinder::Simple((Var::new("head"), Exp::Var(a.clone()))),
+                        CtorBinder::StrictPositive {
+                            binders: vec![(Var::new("tail"), Exp::Var(a.clone()))],
+                            self_indices: vec![],
+                        },
+                    ],
+                    indices: vec![],
+                },
+            ],
+        };
+        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
+        let specs = Rc::new(specs);
+        let prin_rec = InductiveTypeSpecs::primitive_recursion(
+            &specs,
+            vec![Exp::Var(a.clone())],
+            Sort::Set(0),
+        );
+        println!("Primitive recursion principle for List type: {prin_rec:?}");
+    }
 }
