@@ -6,8 +6,6 @@ pub mod utils;
 pub mod logger;
 // string -> surface
 pub mod parse;
-// surface -> string
-pub mod printing;
 // surface -> core
 pub mod elaborator;
 #[cfg(test)]

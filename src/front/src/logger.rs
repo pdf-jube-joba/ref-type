@@ -91,34 +91,27 @@ impl Logger {
         self.records.clear();
     }
 
+    // call kernel::derivation::check and log the result and log derivation
     pub fn with_infer(&mut self, ctx: &Context, exp: &Exp) -> Option<Exp> {
         let infer_ty = kernel::derivation::infer(ctx, exp);
         match infer_ty {
             Ok(derivation_success) => {
                 let result: Option<Exp> = derivation_success.type_of().cloned();
-                let payload = LogPayload::Infer {
-                    ctx: ctx.clone(),
-                    exp: exp.clone(),
-                    result: result.clone(),
-                };
+                let payload = LogPayload::DerivationSuccess(derivation_success);
                 self.record(
                     LogLevel::Debug,
-                    vec!["query".to_string(), "infer".to_string()],
-                    format!("Infer query for expression: {:?}", exp),
+                    vec!["infer".to_string()],
+                    "infer success".to_string(),
                     payload,
                 );
                 result
             }
             Err(derivation_fail) => {
-                let payload = LogPayload::Infer {
-                    ctx: ctx.clone(),
-                    exp: exp.clone(),
-                    result: None,
-                };
+                let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
                     LogLevel::Warn,
-                    vec!["query".to_string(), "infer".to_string()],
-                    format!("Infer query failed for expression: {:?}", exp),
+                    vec!["infer".to_string()],
+                    "infer failed".to_string(),
                     payload,
                 );
                 None
