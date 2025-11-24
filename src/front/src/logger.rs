@@ -1,4 +1,4 @@
-use kernel::exp::{DerivationFail, DerivationSuccess};
+use kernel::exp::{Context, DerivationFail, DerivationSuccess, Exp};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -15,6 +15,25 @@ pub enum LogPayload {
     Message, // 純粋なテキストメッセージだけ
     DerivationSuccess(DerivationSuccess),
     DerivationFail(DerivationFail),
+    QueryReduce {
+        exp: Exp,
+        result: Option<Exp>,
+    },
+    QueryNormal {
+        exp: Exp,
+        result: Exp,
+    },
+    QueryCheck {
+        ctx: Context,
+        exp: Exp,
+        ty: Exp,
+        result: bool,
+    },
+    QueryInfer {
+        ctx: Context,
+        exp: Exp,
+        result: Option<Exp>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
