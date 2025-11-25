@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::elaborator::{ErrorKind, ItemAccessResult};
+use crate::elaborator::ItemAccessResult;
 use crate::syntax::*;
 use kernel::calculus::exp_subst_map;
 use kernel::exp::*;
@@ -10,8 +10,8 @@ pub trait Handler {
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
-    ) -> Result<ItemAccessResult, ErrorKind>;
-    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, ErrorKind>;
+    ) -> Result<ItemAccessResult, String>;
+    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, String>;
 }
 
 // local scope during elaboration
@@ -48,7 +48,7 @@ impl LocalScope {
         &mut self,
         binds: &[RightBind],
         handler: &mut impl Handler,
-    ) -> Result<Vec<(Var, Exp)>, ErrorKind> {
+    ) -> Result<Vec<(Var, Exp)>, String> {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
@@ -82,18 +82,14 @@ impl LocalScope {
         self.binded_vars.pop();
     }
 
-    pub fn elab_exp(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, ErrorKind> {
+    pub fn elab_exp(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         assert!(self.binded_vars.is_empty());
         let e = self.elab_exp_rec(exp, handler);
         assert!(self.binded_vars.is_empty());
         e
     }
 
-    pub fn elab_exp_rec(
-        &mut self,
-        exp: &SExp,
-        handler: &mut impl Handler,
-    ) -> Result<Exp, ErrorKind> {
+    pub fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         match exp {
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
@@ -667,7 +663,7 @@ impl LocalScope {
         &mut self,
         proof_by: &SProveCommandBy,
         handler: &mut impl Handler,
-    ) -> Result<ProveCommandBy, ErrorKind> {
+    ) -> Result<ProveCommandBy, String> {
         let elab = match proof_by {
             SProveCommandBy::Construct { term } => {
                 let term_elab = self.elab_exp_rec(term, handler)?;
@@ -708,7 +704,7 @@ impl LocalScope {
             } => {
                 let left_elab = self.elab_exp_rec(left, handler)?;
                 let right_elab = self.elab_exp_rec(right, handler)?;
-                let var: Var = var.into();
+                let var: Var = Var::new(var.as_str());
                 let ty_elab = self.elab_exp_rec(ty, handler)?;
                 let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                 ProveCommandBy::IdElim {

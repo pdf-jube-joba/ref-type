@@ -1,12 +1,12 @@
 // this file describes the surface syntax tree
-use either::Either;
 use kernel::exp::{DefinedConstant, Exp, Var};
 use kernel::inductive::{CtorBinder, InductiveTypeSpecs};
 use kernel::utils;
+use serde::Serialize;
 use std::rc::Rc;
 
 // identifier for any naming
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Identifier(pub String);
 
 impl Identifier {
@@ -17,18 +17,24 @@ impl Identifier {
 
 // token for macros
 //   which is (not identifier) /\ (not keyword)
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct MacroToken(pub String);
 
 // module definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>,    // given parameters for module
     pub declarations: Vec<ModuleItem>, // sensitive to order
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+pub enum MacroSeqAtom {
+    Tok(MacroToken),
+    Id(Identifier),
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum ModuleItem {
     Definition {
         name: Identifier,
@@ -56,13 +62,13 @@ pub enum ModuleItem {
         import_name: Identifier,
     },
     MathMacro {
-        before: Vec<Either<MacroToken, Identifier>>,
-        after: Vec<Either<SExp, Identifier>>,
+        before: Vec<MacroSeqAtom>,
+        after: Vec<SExp>,
     },
     UserMacro {
         name: Identifier,
-        before: Vec<Either<MacroToken, Identifier>>,
-        after: Vec<Identifier>,
+        before: Vec<MacroSeqAtom>,
+        after: Vec<SExp>,
     },
     Eval {
         exp: SExp,
@@ -79,7 +85,7 @@ pub enum ModuleItem {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum ModuleInstantiatePath {
     FromCurrent {
         back_parent: usize,
@@ -90,14 +96,14 @@ pub enum ModuleInstantiatePath {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum MacroExp {
     Exp(SExp),
     Tok(MacroToken),
     Seq(Vec<MacroExp>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RightBind {
     pub vars: Vec<Identifier>,
     pub ty: Box<SExp>,
@@ -105,7 +111,7 @@ pub struct RightBind {
 
 pub struct TelescopeRightbind(pub Vec<RightBind>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 // general binding syntax
 // A = (_: A), (x: A), ((x: A) | P), ((x: A) | h: P),
 pub enum Bind {
@@ -123,7 +129,7 @@ pub enum Bind {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 // some access path to access defined constant or inductive type
 pub enum LocalAccess {
     // accessing inductive type or defined constant
@@ -137,7 +143,7 @@ pub enum LocalAccess {
 }
 
 // this is internal representation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum SExp {
     // --- access something
     // variable binded by lambda or somethings, defined constant, inductive type, record type (itself)
@@ -271,7 +277,7 @@ pub enum SExp {
     Block(Block),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum SProveCommandBy {
     Construct {
         term: Box<SExp>,
@@ -304,13 +310,13 @@ pub enum SProveCommandBy {
     Axiom(Axiom),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Block {
     pub statements: Vec<Statement>, // sensitive to order
     pub result: Box<SExp>,          // returning term of the block
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Fix(Vec<RightBind>), // fix x: A; y: B;
     Let {
@@ -327,14 +333,14 @@ pub enum Statement {
     }, // suffices A by (h: A -> B);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct GoalProof {
     pub extended_ctx: Vec<RightBind>, // extended context
     pub goal: SExp,                   // goal to prove
     pub proofby: SProveCommandBy,     // proof term to fill in
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Axiom {
     AxiomLEM {
         proposition: Box<SExp>,
