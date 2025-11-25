@@ -581,12 +581,27 @@ impl<'a> TermParser<'a> {
             }),
         }
     }
+    
+    // parse field access
+    // <atom>("#" Ident)*
+    // this includes atom parsing
+    fn field_access(&mut self) -> Result<SExp, ParseError> {
+        let mut expr = self.parse_atom()?;
+        while self.bump_if_token(&Token::Field) {
+            let field_name = self.expect_ident()?;
+            expr = SExp::AssociatedAccess {
+                base: Box::new(expr),
+                field: field_name,
+            };
+        }
+        Ok(expr)
+    }
 
     // parse a sequence of atoms (AtomLike)
     // e.g. `x`, `(x)`, `x y`, `x (y z)`, `(x y) z`
     fn parse_atom_sequence(&mut self) -> Result<SExp, ParseError> {
         // 1. first atom
-        let mut expr = self.parse_atom()?;
+        let mut expr = self.field_access()?;
 
         while let Some(try_exp) = self.try_parse(|parser| parser.parse_atom())? {
             expr = SExp::App {
@@ -605,32 +620,12 @@ impl<'a> TermParser<'a> {
     // 3. as expression ... <e: PipedAtomSeq> "\as" <e: PipedAtomSeq>
     // 4. equal expression ... <e: AsExp> "=" <e: AsExp>
     fn parse_combined(&mut self) -> Result<SExp, ParseError> {
-        // `<exp> # <field_name> # <field_name> ...`
-        fn field_access(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            let mut expr = parser.parse_atom_sequence()?;
-            while parser.bump_if_token(&Token::Field) {
-                let field_name = parser.expect_ident()?;
-                expr = SExp::AssociatedAccess {
-                    base: Box::new(expr),
-                    field: field_name,
-                };
-            }
-            Ok(expr)
-        }
 
         fn piped(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            let mut expr = field_access(parser)?;
-
-            while let Some(next_field_access) = parser.try_parse(|p| field_access(p))? {
-                expr = SExp::App {
-                    func: Box::new(expr),
-                    arg: Box::new(next_field_access),
-                    piped: false,
-                };
-            }
+            let mut expr = parser.parse_atom_sequence()?;
 
             while parser.bump_if_token(&Token::Pipe) {
-                let right = field_access(parser)?;
+                let right = parser.parse_atom_sequence()?;
                 expr = SExp::App {
                     arg: Box::new(expr),
                     func: Box::new(right),
