@@ -45,10 +45,10 @@ pub enum TreeNode {
 impl Display for TreeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TreeNode::Success(s) => write!(f, "{}", s), // "\x1b[32m{}\x1b[0m"
-            TreeNode::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s), // "\x1b[31m{}\x1b[0m"
-            TreeNode::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s), // "\x1b[31;1m{}\x1b[0m"
-            TreeNode::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s), // "\x1b[33m{}\x1b[0m"
+            TreeNode::Success(s) => write!(f, "\x1b[90m{}\x1b[0m", s),
+            TreeNode::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s),
+            TreeNode::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s),
+            TreeNode::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s),
         }
     }
 }
@@ -68,6 +68,7 @@ pub enum Log {
 #[derive(Serialize)]
 struct Resp {
     result: Vec<Log>,
+    error: Option<String>,
 }
 
 static INDEX_HTML: &str = include_str!("../index.html");
@@ -77,8 +78,8 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     match args.cmd {
         Cmd::File { file } => {
-            let flag = run_file_mode(file).await?;
-            if flag {
+            let err = run_file_mode(file).await?;
+            if err.is_some() {
                 std::process::exit(1);
             }
             Ok(())
@@ -91,42 +92,42 @@ async fn main() -> anyhow::Result<()> {
 }
 
 // ---- 共通処理 ---------------------------------------------
-fn parse_and_format(src: String) -> (Vec<Log>, bool) {
+fn parse_and_format(src: String) -> (Vec<Log>, Option<String>) {
     let parsed = front::parse::str_parse_modules(&src);
     let modules = match parsed {
         Ok(modules) => modules,
         Err(e) => {
-            return (vec![Log::Message(format!("Parse Error: {}\n", e))], true);
+            let msg = format!("Parse Error: {}\n", e);
+            return (vec![Log::Message(msg.clone())], Some(msg));
         }
     };
 
     let mut global = front::elaborator::GlobalEnvironment::default();
     let mut logs: Vec<Log> = vec![];
-    let mut err_flag = None;
     for module in modules {
         match global.add_new_module_to_root(&module) {
             Ok(_) => {}
             Err(err) => {
-                err_flag = Some(Log::Message(format!("Elaboration Error: {}\n", err)));
+                let msg = format!("Elaboration Error: {}\n", err);
+                logs.push(Log::Message(msg.clone()));
+                push_internal_logs(&global, &mut logs);
+                return (logs, Some(msg));
             }
         }
     }
 
-    // append internal logs
+    push_internal_logs(&global, &mut logs);
+    (logs, None)
+}
+
+fn push_internal_logs(global: &front::elaborator::GlobalEnvironment, logs: &mut Vec<Log>) {
     for entry in global.logger().records() {
         logs.push(printing::log_record_to_log(entry));
-    }
-
-    if let Some(log) = err_flag {
-        logs.push(log);
-        (logs, true)
-    } else {
-        (logs, false)
     }
 }
 
 // ---- ファイルモード ---------------------------------------------
-async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
+async fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
     // 軽い読み込みなら同期I/OでもOK
     // let txt = std::fs::read_to_string(&path)?;
 
@@ -134,7 +135,7 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
     let txt = tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await??;
 
     // ここで重い処理をする場合も spawn_blocking 推奨
-    let (out, flag) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
+    let (out, err_message) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
     for entry in out {
         match entry {
             Log::Derivation(der) => {
@@ -152,7 +153,11 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<bool> {
             }
         }
     }
-    Ok(flag)
+    if let Some(msg) = &err_message {
+        let trimmed = msg.trim_end_matches('\n');
+        eprintln!("\x1b[31m{}\x1b[0m", trimmed);
+    }
+    Ok(err_message)
 }
 
 // ---- サーブモード ------------------------------------------------
@@ -170,6 +175,9 @@ async fn run_serve_mode(port: u16) -> anyhow::Result<()> {
 async fn run_api(Json(req): Json<Req>) -> Json<Resp> {
     // 重いなら spawn_blocking(move || heavy(req.text)) を使う
     let content = req.text;
-    let (out, _flag) = parse_and_format(content);
-    Json(Resp { result: out })
+    let (out, err) = parse_and_format(content);
+    Json(Resp {
+        result: out,
+        error: err,
+    })
 }
