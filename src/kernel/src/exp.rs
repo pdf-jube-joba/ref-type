@@ -285,16 +285,13 @@ pub enum ProveCommandBy {
 #[derive(Debug, Clone, Serialize)]
 pub enum Axiom {
     ExcludedMiddle {
-        ctx: Context,
         prop: Exp,
     },
     FunctionExtensionality {
-        ctx: Context,
         func1: Exp,
         func2: Exp,
     },
     EmsemblesExtensionality {
-        ctx: Context,
         set1: Exp,
         set2: Exp,
         superset: Exp,

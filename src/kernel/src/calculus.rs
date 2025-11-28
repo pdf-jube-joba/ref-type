@@ -278,9 +278,41 @@ pub fn command_strict_equivalence(command1: &ProveCommandBy, command2: &ProveCom
                 && exp_strict_equivalence(codomain1, codomain2)
                 && exp_strict_equivalence(elem1, elem2)
         }
-        (ProveCommandBy::Axiom(_), ProveCommandBy::Axiom(_)) => {
-            todo!("axiom later fix")
-        }
+        (ProveCommandBy::Axiom(axiom1), ProveCommandBy::Axiom(axiom2)) => match (axiom1, axiom2) {
+            (Axiom::ExcludedMiddle { prop: prop1 }, Axiom::ExcludedMiddle { prop: prop2 }) => {
+                exp_strict_equivalence(prop1, prop2)
+            }
+            (
+                Axiom::EmsemblesExtensionality {
+                    set1: set1_1,
+                    set2: set2_1,
+                    superset: superset_1,
+                },
+                Axiom::EmsemblesExtensionality {
+                    set1: set1_2,
+                    set2: set2_2,
+                    superset: superset_2,
+                },
+            ) => {
+                exp_strict_equivalence(set1_1, set1_2)
+                    && exp_strict_equivalence(set2_1, set2_2)
+                    && exp_strict_equivalence(superset_1, superset_2)
+            }
+            (
+                Axiom::FunctionExtensionality {
+                    func1: func1_1,
+                    func2: func_2_1,
+                },
+                Axiom::FunctionExtensionality {
+                    func1: func1_2,
+                    func2: func_2_2,
+                },
+            ) => {
+                exp_strict_equivalence(func1_1, func1_2)
+                    && exp_strict_equivalence(func_2_1, func_2_2)
+            }
+            _ => false,
+        },
         _ => false,
     }
 }
@@ -311,11 +343,34 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
             parameters.iter().any(|arg| exp_contains_as_freevar(arg, v))
         }
         Exp::IndElim {
-            indspec: _, // todo: check indty?
+            indspec,
             elim,
             return_type,
             cases,
         } => {
+            let crate::inductive::InductiveTypeSpecs {
+                parameters,
+                indices,
+                sort: _,
+                constructors,
+            } = indspec.as_ref();
+            'inner: {
+                for (var, arg) in parameters.iter().chain(indices.iter()) {
+                    if var.is_eq_ptr(v) {
+                        break 'inner;
+                    }
+                    if exp_contains_as_freevar(arg, v) {
+                        return true;
+                    }
+                }
+                for ctor in constructors {
+                    let dummy = Var::dummy();
+                    let as_exp = ctor.as_exp_with_type(&Exp::Var(dummy.clone()));
+                    if exp_contains_as_freevar(&as_exp, v) {
+                        return true;
+                    }
+                }
+            }
             exp_contains_as_freevar(elim, v)
                 || exp_contains_as_freevar(return_type, v)
                 || cases.iter().any(|case| exp_contains_as_freevar(case, v))
@@ -330,46 +385,7 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                         || command_contains_as_free_var(&goal.command, v)
                 })
         }
-        Exp::ProofTermRaw { command } => match command.as_ref() {
-            ProveCommandBy::Construct(proof_term) => exp_contains_as_freevar(proof_term, v),
-            ProveCommandBy::ExactElem { elem, ty } => {
-                exp_contains_as_freevar(elem, v) || exp_contains_as_freevar(ty, v)
-            }
-            ProveCommandBy::SubsetElim {
-                elem,
-                subset,
-                superset,
-            } => {
-                exp_contains_as_freevar(elem, v)
-                    || exp_contains_as_freevar(subset, v)
-                    || exp_contains_as_freevar(superset, v)
-            }
-            ProveCommandBy::IdRefl { elem } => exp_contains_as_freevar(elem, v),
-            ProveCommandBy::IdElim {
-                left,
-                right,
-                ty,
-                var,
-                predicate,
-            } => {
-                exp_contains_as_freevar(left, v)
-                    || exp_contains_as_freevar(right, v)
-                    || exp_contains_as_freevar(ty, v)
-                    || (!var.is_eq_ptr(v) && exp_contains_as_freevar(predicate, v))
-            }
-            ProveCommandBy::TakeEq {
-                func,
-                domain,
-                codomain,
-                elem,
-            } => {
-                exp_contains_as_freevar(func, v)
-                    || exp_contains_as_freevar(domain, v)
-                    || exp_contains_as_freevar(codomain, v)
-                    || exp_contains_as_freevar(elem, v)
-            }
-            ProveCommandBy::Axiom(axiom) => todo!("axiom later fix {:?}", axiom),
-        },
+        Exp::ProofTermRaw { command } => command_contains_as_free_var(command, v),
         Exp::PowerSet { set } => exp_contains_as_freevar(set, v),
         Exp::SubSet {
             var,
@@ -438,7 +454,21 @@ fn command_contains_as_free_var(command: &ProveCommandBy, v: &Var) -> bool {
                 || exp_contains_as_freevar(codomain, v)
                 || exp_contains_as_freevar(elem, v)
         }
-        ProveCommandBy::Axiom(axiom) => todo!("axiom later fix {:?}", axiom),
+        ProveCommandBy::Axiom(axiom) => match axiom {
+            Axiom::ExcludedMiddle { prop } => exp_contains_as_freevar(prop, v),
+            Axiom::EmsemblesExtensionality {
+                set1,
+                set2,
+                superset,
+            } => {
+                exp_contains_as_freevar(set1, v)
+                    || exp_contains_as_freevar(set2, v)
+                    || exp_contains_as_freevar(superset, v)
+            }
+            Axiom::FunctionExtensionality { func1, func2 } => {
+                exp_contains_as_freevar(func1, v) || exp_contains_as_freevar(func2, v)
+            }
+        },
     }
 }
 
@@ -806,57 +836,7 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
                 .collect(),
         },
         Exp::ProofTermRaw { command } => Exp::ProofTermRaw {
-            command: match command.as_ref() {
-                ProveCommandBy::Construct(proof_term) => {
-                    ProveCommandBy::Construct(exp_subst(proof_term, v, t))
-                }
-                ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
-                    elem: exp_subst(elem, v, t),
-                    ty: exp_subst(ty, v, t),
-                },
-                ProveCommandBy::SubsetElim {
-                    elem,
-                    subset,
-                    superset,
-                } => ProveCommandBy::SubsetElim {
-                    elem: exp_subst(elem, v, t),
-                    subset: exp_subst(subset, v, t),
-                    superset: exp_subst(superset, v, t),
-                },
-                ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
-                    elem: exp_subst(elem, v, t),
-                },
-                ProveCommandBy::IdElim {
-                    left,
-                    right,
-                    ty,
-                    var,
-                    predicate,
-                } => ProveCommandBy::IdElim {
-                    left: exp_subst(left, v, t),
-                    right: exp_subst(right, v, t),
-                    ty: exp_subst(ty, v, t),
-                    var: var.clone(),
-                    predicate: if !v.is_eq_ptr(var) {
-                        exp_subst(predicate, v, t)
-                    } else {
-                        predicate.clone()
-                    },
-                },
-                ProveCommandBy::TakeEq {
-                    func,
-                    domain,
-                    codomain,
-                    elem,
-                } => ProveCommandBy::TakeEq {
-                    func: exp_subst(func, v, t),
-                    domain: exp_subst(domain, v, t),
-                    codomain: exp_subst(codomain, v, t),
-                    elem: exp_subst(elem, v, t),
-                },
-                ProveCommandBy::Axiom(_) => todo!("axiom later fix"),
-            }
-            .into(),
+            command: command_subst(command, v, t).into(),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
             set: Box::new(exp_subst(exp, v, t)),
@@ -955,7 +935,24 @@ pub fn command_subst(command: &ProveCommandBy, v: &Var, t: &Exp) -> ProveCommand
             codomain: exp_subst(codomain, v, t),
             elem: exp_subst(elem, v, t),
         },
-        ProveCommandBy::Axiom(_) => todo!("axiom later fix"),
+        ProveCommandBy::Axiom(axiom) => ProveCommandBy::Axiom(match axiom {
+            Axiom::ExcludedMiddle { prop } => Axiom::ExcludedMiddle {
+                prop: exp_subst(prop, v, t),
+            },
+            Axiom::EmsemblesExtensionality {
+                set1,
+                set2,
+                superset,
+            } => Axiom::EmsemblesExtensionality {
+                set1: exp_subst(set1, v, t),
+                set2: exp_subst(set2, v, t),
+                superset: exp_subst(superset, v, t),
+            },
+            Axiom::FunctionExtensionality { func1, func2 } => Axiom::FunctionExtensionality {
+                func1: exp_subst(func1, v, t),
+                func2: exp_subst(func2, v, t),
+            },
+        }),
     }
 }
 
@@ -1188,7 +1185,24 @@ pub fn command_alpha_conversion(command: &ProveCommandBy) -> ProveCommandBy {
             codomain: exp_alpha_conversion(codomain),
             elem: exp_alpha_conversion(elem),
         },
-        ProveCommandBy::Axiom(_) => todo!("axiom later fix"),
+        ProveCommandBy::Axiom(axiom) => ProveCommandBy::Axiom(match axiom {
+            Axiom::ExcludedMiddle { prop } => Axiom::ExcludedMiddle {
+                prop: exp_alpha_conversion(prop),
+            },
+            Axiom::EmsemblesExtensionality {
+                set1,
+                set2,
+                superset,
+            } => Axiom::EmsemblesExtensionality {
+                set1: exp_alpha_conversion(set1),
+                set2: exp_alpha_conversion(set2),
+                superset: exp_alpha_conversion(superset),
+            },
+            Axiom::FunctionExtensionality { func1, func2 } => Axiom::FunctionExtensionality {
+                func1: exp_alpha_conversion(func1),
+                func2: exp_alpha_conversion(func2),
+            },
+        }),
     }
 }
 
@@ -1358,56 +1372,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             })
         }
         Exp::ProofTermRaw { command } => {
-            let new_command = match command.as_ref() {
-                ProveCommandBy::Construct(proof_term) => {
-                    ProveCommandBy::Construct(reduce_if(proof_term))
-                }
-                ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
-                    elem: reduce_if(elem),
-                    ty: reduce_if(ty),
-                },
-                ProveCommandBy::SubsetElim {
-                    elem,
-                    subset,
-                    superset,
-                } => ProveCommandBy::SubsetElim {
-                    elem: reduce_if(elem),
-                    subset: reduce_if(subset),
-                    superset: reduce_if(superset),
-                },
-                ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
-                    elem: reduce_if(elem),
-                },
-                ProveCommandBy::IdElim {
-                    left,
-                    right,
-                    ty,
-                    var,
-                    predicate,
-                } => ProveCommandBy::IdElim {
-                    left: reduce_if(left),
-                    right: reduce_if(right),
-                    ty: reduce_if(ty),
-                    var: var.clone(),
-                    predicate: reduce_if(predicate),
-                },
-                ProveCommandBy::TakeEq {
-                    func,
-                    domain,
-                    codomain,
-                    elem,
-                } => ProveCommandBy::TakeEq {
-                    func: reduce_if(func),
-                    domain: reduce_if(domain),
-                    codomain: reduce_if(codomain),
-                    elem: reduce_if(elem),
-                },
-                ProveCommandBy::Axiom(_) => {
-                    todo!("axiom later fix")
-                }
-            };
-
-            changed.then_some(Exp::ProofTermRaw {
+            reduce_one_command(command).map(|new_command| Exp::ProofTermRaw {
                 command: new_command.into(),
             })
         }
@@ -1472,6 +1437,80 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             changed.then_some(Exp::Take { map: Box::new(map) })
         }
     }
+}
+
+pub fn reduce_one_command(command: &ProveCommandBy) -> Option<ProveCommandBy> {
+    let mut changed = false;
+    let mut reduce_if = |e: &Exp| -> Exp {
+        if !changed && let Some(reduced) = reduce_one(e) {
+            changed = true;
+            return reduced;
+        }
+        e.clone()
+    };
+
+    let new_command = match command {
+        ProveCommandBy::Construct(proof_term) => ProveCommandBy::Construct(reduce_if(proof_term)),
+        ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
+            elem: reduce_if(elem),
+            ty: reduce_if(ty),
+        },
+        ProveCommandBy::SubsetElim {
+            elem,
+            subset,
+            superset,
+        } => ProveCommandBy::SubsetElim {
+            elem: reduce_if(elem),
+            subset: reduce_if(subset),
+            superset: reduce_if(superset),
+        },
+        ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
+            elem: reduce_if(elem),
+        },
+        ProveCommandBy::IdElim {
+            left,
+            right,
+            ty,
+            var,
+            predicate,
+        } => ProveCommandBy::IdElim {
+            left: reduce_if(left),
+            right: reduce_if(right),
+            ty: reduce_if(ty),
+            var: var.clone(),
+            predicate: reduce_if(predicate),
+        },
+        ProveCommandBy::TakeEq {
+            func,
+            domain,
+            codomain,
+            elem,
+        } => ProveCommandBy::TakeEq {
+            func: reduce_if(func),
+            domain: reduce_if(domain),
+            codomain: reduce_if(codomain),
+            elem: reduce_if(elem),
+        },
+        ProveCommandBy::Axiom(axiom) => ProveCommandBy::Axiom(match axiom {
+            Axiom::ExcludedMiddle { prop } => Axiom::ExcludedMiddle {
+                prop: reduce_if(prop),
+            },
+            Axiom::EmsemblesExtensionality {
+                set1,
+                set2,
+                superset,
+            } => Axiom::EmsemblesExtensionality {
+                set1: reduce_if(set1),
+                set2: reduce_if(set2),
+                superset: reduce_if(superset),
+            },
+            Axiom::FunctionExtensionality { func1, func2 } => Axiom::FunctionExtensionality {
+                func1: reduce_if(func1),
+                func2: reduce_if(func2),
+            },
+        }),
+    };
+    changed.then_some(new_command)
 }
 
 pub fn normalize(e: &Exp) -> Exp {

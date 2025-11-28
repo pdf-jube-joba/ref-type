@@ -741,8 +741,26 @@ impl LocalScope {
                     elem: elem_elab,
                 }
             }
-            SProveCommandBy::Axiom(_) => {
-                todo!("not yet implemented axiom")
+            SProveCommandBy::Axiom(axiom) => {
+                let axiom = match axiom {
+                    crate::syntax::Axiom::AxiomLEM { proposition } => {
+                        let proposition_elab = self.elab_exp_rec(proposition, handler)?;
+                        kernel::exp::Axiom::ExcludedMiddle {
+                            prop: proposition_elab,
+                        }
+                    }
+                    crate::syntax::Axiom::AxiomFunctionExt {
+                        func1,
+                        func2,
+                        domain,
+                    } => todo!(),
+                    crate::syntax::Axiom::AxiomEmsembleExt {
+                        set1,
+                        set2,
+                        superset,
+                    } => todo!(),
+                };
+                ProveCommandBy::Axiom(axiom)
             }
         };
         Ok(elab)

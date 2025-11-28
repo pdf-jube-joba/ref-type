@@ -750,8 +750,125 @@ pub fn prove_command(
             };
             Ok(builder.build_prop(prop))
         }
-        ProveCommandBy::Axiom(_) => {
-            todo!("implement axiom proving")
+        ProveCommandBy::Axiom(axiom) => {
+            match axiom {
+                Axiom::ExcludedMiddle { prop: _ } => {
+                    todo!("we looking for a better way to handle classical axioms")
+                }
+                Axiom::FunctionExtensionality { func1, func2 } => {
+                    // 1. infer (ctx |- func1 : ?ty1)
+                    let ty1 = builder.add_infer(ctx, func1, "infer function 1 type")?;
+
+                    // 2. check (ctx |- func2 : ty1)
+                    builder.add_check(ctx, func2, &ty1, "check function 2 type")?;
+
+                    // 3. decompose ty1 into (domain -> codomain)
+                    let Exp::Prod {
+                        var: _,
+                        ty: domain,
+                        body: _codomain,
+                    } = normalize(&ty1)
+                    else {
+                        return Err(builder.cause("func1 type is not a product"));
+                    };
+
+                    // 4. add goal (ctx |= forall (x: domain), func1(x) = func2(x))
+                    let var_x = Var::new("x");
+                    let prop = Exp::Prod {
+                        var: var_x.clone(),
+                        ty: domain.clone(),
+                        body: Box::new(Exp::Equal {
+                            left: Box::new(Exp::App {
+                                func: Box::new(func1.clone()),
+                                arg: Box::new(Exp::Var(var_x.clone())),
+                            }),
+                            right: Box::new(Exp::App {
+                                func: Box::new(func2.clone()),
+                                arg: Box::new(Exp::Var(var_x.clone())),
+                            }),
+                        }),
+                    };
+                    builder.add_unproved_goal(ctx.clone(), prop);
+
+                    // 5. conclude (ctx |= func1 = func2)
+                    let prop_eq = Exp::Equal {
+                        left: Box::new(func1.clone()),
+                        right: Box::new(func2.clone()),
+                    };
+                    Ok(builder.build_prop(prop_eq))
+                }
+                Axiom::EmsemblesExtensionality {
+                    set1,
+                    set2,
+                    superset,
+                } => {
+                    // 1. check (ctx |- set1 : PowerSet(superset))
+                    builder.add_check(
+                        ctx,
+                        set1,
+                        &Exp::PowerSet {
+                            set: Box::new(superset.clone()),
+                        },
+                        "check set1 type",
+                    )?;
+                    // 2. check (ctx |- set2 : PowerSet(superset))
+                    builder.add_check(
+                        ctx,
+                        set2,
+                        &Exp::PowerSet {
+                            set: Box::new(superset.clone()),
+                        },
+                        "check set2 type",
+                    )?;
+                    // 3. add 2 goals
+                    // 3-1 (ctx |= forall (x: superset), Pred(superset, set1, x) -> Pred(superset, set2, x))
+                    let var_x = Var::new("x");
+                    let prop1 = Exp::Prod {
+                        var: var_x.clone(),
+                        ty: Box::new(superset.clone()),
+                        body: Box::new(Exp::Prod {
+                            var: Var::new("H1"),
+                            ty: Box::new(Exp::Pred {
+                                superset: Box::new(superset.clone()),
+                                subset: Box::new(set1.clone()),
+                                element: Box::new(Exp::Var(var_x.clone())),
+                            }),
+                            body: Box::new(Exp::Pred {
+                                superset: Box::new(superset.clone()),
+                                subset: Box::new(set2.clone()),
+                                element: Box::new(Exp::Var(var_x.clone())),
+                            }),
+                        }),
+                    };
+                    builder.add_unproved_goal(ctx.clone(), prop1);
+                    // 3-2 (ctx |= forall (x: superset), Pred(superset, set2, x) -> Pred(superset, set1, x))
+                    let var_y = Var::new("y");
+                    let prop2 = Exp::Prod {
+                        var: var_y.clone(),
+                        ty: Box::new(superset.clone()),
+                        body: Box::new(Exp::Prod {
+                            var: Var::new("H2"),
+                            ty: Box::new(Exp::Pred {
+                                superset: Box::new(superset.clone()),
+                                subset: Box::new(set2.clone()),
+                                element: Box::new(Exp::Var(var_y.clone())),
+                            }),
+                            body: Box::new(Exp::Pred {
+                                superset: Box::new(superset.clone()),
+                                subset: Box::new(set1.clone()),
+                                element: Box::new(Exp::Var(var_y.clone())),
+                            }),
+                        }),
+                    };
+                    builder.add_unproved_goal(ctx.clone(), prop2);
+                    // 4. conclude (ctx |= set1 = set2)
+                    let prop_eq = Exp::Equal {
+                        left: Box::new(set1.clone()),
+                        right: Box::new(set2.clone()),
+                    };
+                    Ok(builder.build_prop(prop_eq))
+                }
+            }
         }
     }
 }
