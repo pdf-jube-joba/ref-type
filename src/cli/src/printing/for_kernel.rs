@@ -1,11 +1,11 @@
-use crate::{StringTree, TreeNode};
+use crate::{printing::ptr_lower32bit_base62_fixed, StringTree, TreeNode};
 use kernel::exp::{
     Context, DefinedConstant, DerivationBase, DerivationFail, DerivationSuccess, Exp, FailHead,
     FailKind, GoalGenerated, ProveCommandBy, ProveGoal, Sort, SuccessHead, Var,
 };
 
 fn format_var(var: &Var) -> String {
-    var.as_str().to_string()
+    format!("{}[{}]", var.as_str(), ptr_lower32bit_base62_fixed(var.ptr() as *const ()))
 }
 
 pub(super) fn format_sort(sort: &Sort) -> String {

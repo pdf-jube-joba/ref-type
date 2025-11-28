@@ -20,6 +20,22 @@ fn ptr_64bit_base62_fixed(ptr: *const ()) -> String {
     String::from_utf8(buf.to_vec()).unwrap()
 }
 
+// Convert the lower 32 bit of pointer to a fixed-length base62 string.
+// 62^6 = 3.52 * 10^12 > 2^
+fn ptr_lower32bit_base62_fixed(ptr: *const ()) -> String {
+    const BASE62: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    let mut n = (ptr as u64) & 0xffffffff;
+    let mut buf = [0u8; 6];
+
+    for i in (0..6).rev() {
+        buf[i] = BASE62[(n % 62) as usize];
+        n /= 62;
+    }
+
+    String::from_utf8(buf.to_vec()).unwrap()
+}
+
 fn print_rc_ptr<T>(rc: &std::rc::Rc<T>) -> String {
     ptr_64bit_base62_fixed(std::rc::Rc::as_ptr(rc) as *const ())
 }
