@@ -6,7 +6,11 @@ use crate::utils;
 use std::rc::Rc;
 
 // return (ctx |- term: ty), result is in derivation.node.res
-pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<DerivationSuccess, Box<DerivationFail>> {
+pub fn check(
+    ctx: &Context,
+    term: &Exp,
+    ty: &Exp,
+) -> Result<DerivationSuccess, Box<DerivationFail>> {
     let mut builder = Builder::new_check(ctx.clone(), term.clone(), ty.clone());
 
     // 1. infer (ctx |- term : ?inferred_ty)
@@ -749,7 +753,9 @@ pub fn prove_command(
     }
 }
 
-pub fn check_wellformed_ctx(ctx: &Context) -> (Vec<DerivationSuccess>, Option<Box<DerivationFail>>) {
+pub fn check_wellformed_ctx(
+    ctx: &Context,
+) -> (Vec<DerivationSuccess>, Option<Box<DerivationFail>>) {
     let mut ders = vec![];
     let mut cur_ctx = vec![];
     for (v, ty) in ctx {

@@ -234,7 +234,8 @@ impl ModuleManager {
                 .ok_or_else(|| {
                     format!(
                         "Child module '{}' not found in module '{}'",
-                        child_name.as_str(), self.modules[from].name
+                        child_name.as_str(),
+                        self.modules[from].name
                     )
                 })?;
             let child_module = &self.modules[*child_idx];

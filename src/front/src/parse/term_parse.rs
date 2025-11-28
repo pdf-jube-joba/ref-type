@@ -507,7 +507,8 @@ impl<'a> TermParser<'a> {
 
     // parse a single atom
     // 1-A. `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
-    // 1-B. `x <field_body>`, `x.y <field_body>`, `x.y[params] <field_body>`
+    // 1-B. `x#ctor`, `x.y#ctor`, `x.y[params]#ctor`
+    // 1-C. `x <field_body>`, `x.y <field_body>`, `x.y[params] <field_body>`
     // 2. `(<expr>)`, `$( ... )$`, `! name { ... }`
     // 3. something start with keyword (sort, etc.)
     fn parse_atom(&mut self) -> Result<SExp, ParseError> {
@@ -518,6 +519,16 @@ impl<'a> TermParser<'a> {
                 let parameters = self
                     .try_parse(|parser| parser.parse_parameter())?
                     .unwrap_or_default();
+
+                // field access case or record construction case
+                if self.bump_if_token(&Token::Field) {
+                    // field access case
+                    let field_name = self.expect_ident()?;
+                    return Ok(SExp::AssociatedAccess {
+                        base: Box::new(SExp::AccessPath { access, parameters }),
+                        field: field_name,
+                    });
+                }
 
                 match self.try_parse(|parser| parser.parse_record_body())? {
                     Some(fields) => {
@@ -581,9 +592,9 @@ impl<'a> TermParser<'a> {
             }),
         }
     }
-    
+
     // parse field access
-    // <atom>("#" Ident)*
+    // <atom>("#" Ident)?
     // this includes atom parsing
     fn field_access(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
@@ -603,7 +614,7 @@ impl<'a> TermParser<'a> {
         // 1. first atom
         let mut expr = self.field_access()?;
 
-        while let Some(try_exp) = self.try_parse(|parser| parser.parse_atom())? {
+        while let Some(try_exp) = self.try_parse(|parser| parser.field_access())? {
             expr = SExp::App {
                 func: Box::new(expr),
                 arg: Box::new(try_exp),
@@ -616,11 +627,10 @@ impl<'a> TermParser<'a> {
 
     // parse a expression with
     // 1. record field access
-    // 2. piped application ... <e: AtomSeq> "|" <e: AtomSeq>
-    // 3. as expression ... <e: PipedAtomSeq> "\as" <e: PipedAtomSeq>
+    // 2. piped application ... <e: AsExp> "|" <e: AsExp>
+    // 3. as expression ... <e: AsExp> "\as" <e: AsExp>
     // 4. equal expression ... <e: AsExp> "=" <e: AsExp>
     fn parse_combined(&mut self) -> Result<SExp, ParseError> {
-
         fn piped(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let mut expr = parser.parse_atom_sequence()?;
 
@@ -1055,6 +1065,37 @@ mod tests {
         print_and_unwrap_nosubset(r"(x: X) -> Y");
         print_and_unwrap_nosubset(r"(x: X) -> (y: Y) -> Z");
     }
+    #[test]
+    fn parse_atom_test() {
+        fn print_and_unwrap(input: &'static str) {
+            let lex = &lex_all(input).expect("lexing failed for atom test");
+            let mut parser = TermParser::new(lex);
+            let result = parser.parse_atom();
+            match result {
+                Ok(atomlike) => {
+                    println!("Parsed SExp: {:?} => {:?}\n\n", input, atomlike);
+                }
+                Err(err) => {
+                    panic!(" {:?}", err);
+                }
+            }
+            assert!(parser.pos == parser.tokens.len());
+        }
+        print_and_unwrap(r"x");
+        print_and_unwrap(r"(x)");
+        print_and_unwrap(r"x.y");
+        print_and_unwrap(r"x[ A, B, C ]");
+        print_and_unwrap(r"x.y[ A, B ]");
+        print_and_unwrap(r"x { a: A, b: B }");
+        print_and_unwrap(r"x.y { a: A, b: B }");
+        print_and_unwrap(r"x.y[ A, B ] { a: A, b: B }");
+        print_and_unwrap(r"x#y"); // x#y#z is "combined expression" ... not tested here
+        print_and_unwrap(r"List[Nat]#Nil");
+        print_and_unwrap(r"list.List[Nat]#Nil");
+        print_and_unwrap(r"Group[Nat] { mul: x, e: y }");
+        print_and_unwrap(r"$( x + y )$");
+        print_and_unwrap(r"! mymacro { a + b c }");
+    }
     fn print_and_unwrap(input: &'static str) {
         let lex = &lex_all(input).expect("lexing failed for exp test");
         let mut parser = TermParser::new(lex);
@@ -1123,11 +1164,17 @@ mod tests {
         print_and_unwrap(r"x.a b (c. g)");
         print_and_unwrap(r"x $( y + z )$ l");
         print_and_unwrap(r"x ! mymacro { a + b c } l");
-        // parse `item access` `pipe`, `as`, `equal`
-        print_and_unwrap(r"x#y#z (x#y x#y) #z");
+        print_and_unwrap(r"x#y#z");
         print_and_unwrap(r"x \as Y");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"x \as Y | z = h");
+    }
+    #[test]
+    fn parse_complex_cases_test() {
+        print_and_unwrap(r"x#y x#y");
+        print_and_unwrap(r"(x)#y");
+        print_and_unwrap(r"x x#y");
+        print_and_unwrap(r"x#y#z x#y#z");
     }
     #[test]
     fn parse_sexp_has_remaining() {
