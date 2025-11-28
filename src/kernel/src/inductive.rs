@@ -805,7 +805,7 @@ mod tests {
                     telescope: vec![
                         CtorBinder::Simple((Var::new("head"), Exp::Var(a.clone()))),
                         CtorBinder::StrictPositive {
-                            binders: vec![(Var::new("tail"), Exp::Var(a.clone()))],
+                            binders: vec![],
                             self_indices: vec![],
                         },
                     ],

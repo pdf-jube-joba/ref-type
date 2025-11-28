@@ -89,7 +89,7 @@ impl LocalScope {
         e
     }
 
-    pub fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
+    fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         match exp {
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
