@@ -265,7 +265,10 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
                 *idx,
                 parameters.clone(),
             );
-            Ok(builder.build_infer(constructor_type))
+
+            let subst_constructor_type = exp_subst_map(&constructor_type, &subst_varexp);
+
+            Ok(builder.build_infer(subst_constructor_type))
         }
         Exp::IndElim {
             indspec,

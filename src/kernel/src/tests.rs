@@ -23,12 +23,13 @@ impl Checker {
         match derivation {
             Ok(success) => {
                 self.derivations.push(success);
+                true
             }
             Err(fail_der) => {
                 print!("Type checking failed:\n{:?}", fail_der);
+                false
             }
         }
-        true
     }
     fn infer(&mut self, term: &Exp) -> Option<Exp> {
         let derivation = crate::derivation::infer(&self.context, term);
@@ -571,4 +572,45 @@ fn nat_test() {
         nat_add_zero_one = next;
     };
     println!("Normalized nat_add_zero_one: {:?}", normalized);
+}
+
+#[test]
+/*
+inductive Test(A: Set): Set :=
+| with_a: A -> Test
+*/
+fn parametrized_inductive() {
+    let var_a = var!("A");
+    let params = vec![(var_a.clone(), Exp::Sort(Sort::Set(0)))];
+    let indices = vec![];
+    let sort = Sort::Set(0);
+    let constructors = vec![crate::inductive::CtorType {
+        telescope: vec![CtorBinder::Simple((Var::dummy(), Exp::Var(var_a.clone())))],
+        indices: vec![],
+    }];
+    let mut checker = Checker::default();
+    let i = checker
+        .chk_indspec(params, indices, sort, constructors)
+        .unwrap();
+    let indspec = std::rc::Rc::new(i);
+
+    let var_b = var!("B");
+    checker.push(var_b.clone(), Exp::Sort(Sort::Set(0)));
+
+    // we expect Test[B]#with_a : B -> Test[B]
+    let with_b = Exp::IndCtor {
+        indspec: indspec.clone(),
+        idx: 0,
+        parameters: vec![Exp::Var(var_b.clone())],
+    };
+
+    let expected_ty = prod! {
+        var: var!("_"),
+        ty: Exp::Var(var_b.clone()),
+        body: Exp::IndType {
+            indspec: indspec.clone(),
+            parameters: vec![Exp::Var(var_b.clone())],
+        },
+    };
+    assert!(checker.check(&with_b, &expected_ty));
 }
