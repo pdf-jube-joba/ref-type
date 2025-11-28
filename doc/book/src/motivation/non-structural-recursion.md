@@ -249,6 +249,7 @@ $$ M(n) = \begin{cases}
   - linear logic よりは rust っぽい place/value の方が好き
     - 型の側に 情報を載せずに、項の側のチェックを使って comsume されたかどうかを管理したい
     - place からの value の取り出しについては、 move と duplicate を明示的に書く
+    - 後から思ったのが、自然に place を使えなくするなら確かに linear logic みたいになりそう（どの場所が使えるかという情報が自然に context に保存されているので）
   - pointer の扱いについては全然考えることができてない
   - 高階な関数をどうするか
     - 実行時に存在する値としての関数（ jump 先として指定されている place ？）とコード上の関数を分けれないか
