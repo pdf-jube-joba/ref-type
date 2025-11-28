@@ -576,7 +576,7 @@ impl<'a> Display for FrontFmt<'a, ModItemDefinition> {
         write!(
             f,
             "\\def {}: {} := {}",
-            FrontFmt(&self.0.name),
+            FrontFmt(&self.0.def_name),
             for_kernel::format_exp(&defined_const.ty),
             for_kernel::format_exp(&defined_const.body)
         )

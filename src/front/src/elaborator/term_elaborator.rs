@@ -85,7 +85,7 @@ impl LocalScope {
     pub fn elab_exp(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         assert!(self.binded_vars.is_empty());
         let e = self.elab_exp_rec(exp, handler);
-        assert!(self.binded_vars.is_empty());
+        assert!(e.is_err() || self.binded_vars.is_empty());
         e
     }
 

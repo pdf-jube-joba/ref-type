@@ -173,8 +173,21 @@ impl GlobalEnvironment {
             let mut local_scope = LocalScope::default();
             match decl {
                 ModuleItem::Definition { name, ty, body } => {
+                    self.logger.record(
+                        LogLevel::Debug,
+                        vec!["elaborator".to_string(), "definition".to_string()],
+                        format!("Elaborating definition {}", name.as_str()),
+                        LogPayload::Message,
+                    );
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
+                    // check body : ty
+                    if !self.logger.check(&ctx, &body_elab, &ty_elab) {
+                        return Err(format!(
+                            "Definition {} body does not check against declared type",
+                            name.as_str()
+                        ));
+                    }
                     let defined_constant = DefinedConstant {
                         ty: ty_elab,
                         body: body_elab,

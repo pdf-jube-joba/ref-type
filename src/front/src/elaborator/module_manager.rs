@@ -38,8 +38,8 @@ impl InstantiatedModule {
     pub fn get_item(&self, name: &Identifier) -> Option<ItemAccessResult> {
         for item in self.items.iter() {
             match item {
-                ModuleItemAccessible::Definition(item @ ModItemDefinition { name, .. }) => {
-                    if name.as_str() == name.as_str() {
+                ModuleItemAccessible::Definition(item @ ModItemDefinition { def_name, .. }) => {
+                    if def_name.as_str() == name.as_str() {
                         return Some(ItemAccessResult::Definition(item.clone()));
                     }
                 }
@@ -164,7 +164,7 @@ impl ModuleManager {
 
     pub fn add_def(&mut self, name: Identifier, def: DefinedConstant) {
         let rc = Rc::new(def);
-        let item = ModuleItemAccessible::Definition(ModItemDefinition { name, body: rc });
+        let item = ModuleItemAccessible::Definition(ModItemDefinition { def_name: name, body: rc });
         self.modules[self.current].items.push(item);
     }
     pub fn add_inductive(
@@ -271,7 +271,7 @@ impl ModuleManager {
             .items
             .iter()
             .map(|item| match item {
-                ModuleItemAccessible::Definition(ModItemDefinition { name, body: rc }) => {
+                ModuleItemAccessible::Definition(ModItemDefinition { def_name: name, body: rc }) => {
                     let DefinedConstant { ty, body: inner } = rc.as_ref().clone();
                     let instantiated_ty = ty.subst(&subst_mapping_accum);
                     let instantiated_inner = inner.subst(&subst_mapping_accum);
@@ -280,7 +280,7 @@ impl ModuleManager {
                         body: instantiated_inner,
                     };
                     ModuleItemAccessible::Definition(ModItemDefinition {
-                        name: name.clone(),
+                        def_name: name.clone(),
                         body: Rc::new(instantiated_def),
                     })
                 }
@@ -354,7 +354,7 @@ impl ModuleManager {
                     for item in self.modules[index].items.iter() {
                         match item {
                             ModuleItemAccessible::Definition(
-                                item @ ModItemDefinition { name, .. },
+                                item @ ModItemDefinition { def_name: name, .. },
                             ) => {
                                 if name.as_str() == access.as_str() {
                                     return Some(ItemAccessResult::Definition(item.clone()));

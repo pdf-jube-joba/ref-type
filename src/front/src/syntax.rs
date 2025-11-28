@@ -359,7 +359,7 @@ pub enum Axiom {
 
 #[derive(Debug, Clone)]
 pub struct ModItemDefinition {
-    pub name: Identifier,
+    pub def_name: Identifier,
     pub body: Rc<DefinedConstant>,
 }
 

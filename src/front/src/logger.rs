@@ -155,7 +155,7 @@ impl Logger {
             Err(derivation_fail) => {
                 let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
-                    LogLevel::Warn,
+                    LogLevel::Error,
                     vec!["infer".to_string()],
                     "infer failed".to_string(),
                     payload,
@@ -193,7 +193,7 @@ impl Logger {
             Err(derivation_fail) => {
                 let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
-                    LogLevel::Warn,
+                    LogLevel::Error,
                     vec!["check".to_string()],
                     "check failed".to_string(),
                     payload,
@@ -229,7 +229,7 @@ impl Logger {
             Err(derivation_fail) => {
                 let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
-                    LogLevel::Warn,
+                    LogLevel::Error,
                     vec!["check_wellformed_indspec".to_string()],
                     "check_wellformed_indspec failed".to_string(),
                     payload,
