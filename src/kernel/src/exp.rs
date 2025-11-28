@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::serialize::{serialize_opt_rc_ptr, serialize_rc_ptr};
 
 // variable is represented as std::rc::Rc<String>
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone)]
 pub struct Var(Rc<String>);
 
 impl Var {
@@ -23,6 +23,12 @@ impl Var {
     }
     pub fn dummy() -> Self {
         Var(Rc::new("_".to_string()))
+    }
+}
+
+impl PartialEq for Var {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr() == other.ptr()
     }
 }
 
@@ -211,6 +217,13 @@ impl Exp {
                 set: Box::new(set),
                 predicate: Box::new(predicate),
             }),
+        }
+    }
+    pub fn as_var(&self) -> Option<&Var> {
+        if let Exp::Var(v) = self {
+            Some(v)
+        } else {
+            None
         }
     }
 }

@@ -1499,15 +1499,15 @@ impl Exp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{app, lam, prod, var, var_exp};
+    use crate::{app, lam, prod, var, var_str};
     #[test]
     fn reduce_test() {
         // ((z: X) => z) Y)
-        let ty = app!(lam!(var!("z"), var_exp!("X"), var_exp!("z")), var_exp!("Y"));
+        let ty = app!(lam!(var!("z"), var_str!("X"), var_str!("z")), var_str!("Y"));
         let reduced = normalize(&ty);
         println!("reduced: {:?}", reduced);
         // (x: ty) -> y
-        let e = prod!(var!("x"), ty, var_exp!("y"));
+        let e = prod!(var!("x"), ty, var_str!("y"));
         let reduced = reduce_one(&e).unwrap();
         // (x: Y) -> y
         println!("reduced: {:?}", reduced);

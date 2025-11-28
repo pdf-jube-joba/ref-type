@@ -212,13 +212,10 @@ impl GlobalEnvironment {
                     let indices_elab = local_scope.elab_telescope_bind_in_decl(indices, self)?;
 
                     // elaborate constructors
-                    let mut ctor_names_var = vec![];
                     let mut ctor_names = vec![];
                     let mut ctor_type_elabs = vec![];
 
                     for (ctor_name, rightbinds, ends) in constructors {
-                        let ctor_name_var: Var = Var::new(ctor_name.as_str());
-                        ctor_names_var.push(ctor_name_var.clone());
                         ctor_names.push(ctor_name.clone());
 
                         let (telescope, ends_elab) = {

@@ -32,6 +32,7 @@ pub fn assoc_prod(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
     body
 }
 
+// a0 a1 ... an  ==>  (a0, [a1, ..., an])
 pub fn decompose_app(mut e: Exp) -> (Exp, Vec<Exp>) {
     let mut args = vec![];
     while let Exp::App { func, arg } = e {
@@ -53,13 +54,13 @@ pub fn decompose_app_ref(e: &Exp) -> (&Exp, Vec<&Exp>) {
     (e, args)
 }
 
+// (x1 : A1) ... (xn : An) -> B  ==>  ([(x1, A1), ..., (xn, An)], B)
 pub fn decompose_prod(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
     let mut vars = vec![];
     while let Exp::Prod { var, ty, body } = e {
         vars.push((var, *ty));
         e = *body;
     }
-    vars.reverse();
     (vars, e)
 }
 
@@ -70,7 +71,6 @@ pub fn decompose_prod_ref(e: &Exp) -> (Vec<(&Var, &Exp)>, &Exp) {
         vars.push((var, ty.as_ref()));
         e = body.as_ref();
     }
-    vars.reverse();
     (vars, e)
 }
 
@@ -82,9 +82,16 @@ macro_rules! var {
 }
 
 #[macro_export]
-macro_rules! var_exp {
+macro_rules! var_str {
     ($name: expr) => {
         $crate::exp::Exp::Var(Var::new($name))
+    };
+}
+
+#[macro_export]
+macro_rules! var_exp {
+    ($name: expr) => {
+        $crate::exp::Exp::Var($name.clone())
     };
 }
 
@@ -167,27 +174,70 @@ macro_rules! prooflater {
     };
 }
 
-pub use {app, goal, lam, prod, prooflater, var, var_exp};
+pub use {app, goal, lam, prod, prooflater, var, var_str};
 
 #[cfg(test)]
 mod tests {
+    // there is no PartialEq for Exp ... do not test
     use super::*;
     #[test]
     fn test_macros() {
         var!("x");
         var!("y");
         var!("z");
-        app! { func: var_exp!("f"), arg: var_exp!("x") };
-        app! { arg: var_exp!("x"), func: var_exp!("f") };
-        app! { var_exp!("f"), var_exp!("x") };
-        app! { Box::new(var_exp!("f")), var_exp!("x") };
-        lam! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("x")};
-        lam! { var!("x"), var_exp!("A"), var_exp!("x")};
-        prod! { var: var!("x"), ty: var_exp!("A"), body: var_exp!("B")};
+        app! { func: var_str!("f"), arg: var_str!("x") };
+        app! { arg: var_str!("x"), func: var_str!("f") };
+        app! { var_str!("f"), var_str!("x") };
+        app! { Box::new(var_str!("f")), var_str!("x") };
+        lam! { var: var!("x"), ty: var_str!("A"), body: var_str!("x")};
+        lam! { var!("x"), var_str!("A"), var_str!("x")};
+        prod! { var: var!("x"), ty: var_str!("A"), body: var_str!("B")};
         goal! {
             vec![(var!("A"), Exp::Sort(Sort::Prop))];
             Exp::Var(var!("A")) =>
-                ProveCommandBy::Construct(var_exp!("a"))
+                ProveCommandBy::Construct(var_str!("a"))
         };
+    }
+    #[test]
+    fn test_decompose_app() {
+        let f_var = var!("f");
+        let x_var = var!("x");
+        let y_var = var!("y");
+
+        // f x y
+        let app_exp = app!(
+            func: app!(
+                func: var_exp!(f_var),
+                arg: var_exp!(x_var),
+            ),
+            arg: var_exp!(y_var)
+        );
+        let (func, args) = decompose_app(app_exp);
+        assert_eq!(args.len(), 2);
+        assert_eq!(func.as_var().unwrap(), &f_var);
+        assert_eq!(args[0].as_var().unwrap(), &x_var);
+        assert_eq!(args[1].as_var().unwrap(), &y_var);
+    }
+    #[test]
+    fn test_decompose_prod() {
+        let x_var = var!("x");
+        let y_var = var!("y");
+        let t_var = var!("T");
+        let body = var_str!("body");
+
+        // (x : T) -> (y : T) -> body
+        let prod_exp = prod!(
+            var: x_var.clone(),
+            ty: var_str!(t_var.as_str()),
+            body: prod!(
+                var: y_var.clone(),
+                ty: var_str!(t_var.as_str()),
+                body: body.clone()
+            )
+        );
+        let (vars, _) = decompose_prod(prod_exp);
+        assert_eq!(vars.len(), 2);
+        assert_eq!(vars[0].0, x_var);
+        assert_eq!(vars[1].0, y_var);
     }
 }

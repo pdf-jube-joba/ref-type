@@ -707,6 +707,7 @@ mod tests {
         }
         print_and_unwrap(r"| true : Bool ;");
         print_and_unwrap(r"| succ : Nat -> Nat ;");
+        print_and_unwrap(r"| u: A -> B -> U ;");
         print_and_unwrap(r"| cons : (X : \Set) -> X -> List X -> List X ;");
     }
     #[test]

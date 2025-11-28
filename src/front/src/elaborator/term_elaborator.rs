@@ -224,8 +224,16 @@ impl LocalScope {
                         proofby: proof_term,
                     } = proof;
 
-                    let extended_ctx_elab =
-                        self.elab_telescope_bind_in_decl(extended_ctx, handler)?;
+                    let mut extended_ctx_elab: Vec<(Var, Exp)> = vec![];
+
+                    for RightBind { vars, ty } in extended_ctx.iter() {
+                        let ty_elab = self.elab_exp_rec(ty, handler)?;
+                        for var in vars {
+                            let var: Var = Var::new(var.as_str());
+                            self.push_binded_var(var.clone());
+                            extended_ctx_elab.push((var.clone(), ty_elab.clone()));
+                        }
+                    }
 
                     let goal_elab = self.elab_exp_rec(goal, handler)?;
                     let proof_term_elab = self.elab_proof_by_rec(proof_term, handler)?;
