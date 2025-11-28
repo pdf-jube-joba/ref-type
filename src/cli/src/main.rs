@@ -32,53 +32,31 @@ struct Req {
     text: String,
 }
 
+mod printing;
+
 #[derive(Serialize, Debug)]
-pub enum Node {
+pub enum TreeNode {
     Success(String),
     ErrorPropagate(String),
     ErrorCause(String),
     Pending(String),
 }
 
-impl From<kernel::printing::Node> for Node {
-    fn from(value: kernel::printing::Node) -> Self {
-        match value {
-            kernel::printing::Node::Success(s) => Node::Success(s),
-            kernel::printing::Node::ErrorPropagate(s) => Node::ErrorPropagate(s),
-            kernel::printing::Node::ErrorCause(s) => Node::ErrorCause(s),
-            kernel::printing::Node::Pending(s) => Node::Pending(s),
-        }
-    }
-}
-
-impl Display for Node {
+impl Display for TreeNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Success(s) => write!(f, "{}", s), // "\x1b[32m{}\x1b[0m"
-            Node::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s), // "\x1b[31m{}\x1b[0m"
-            Node::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s), // "\x1b[31;1m{}\x1b[0m"
-            Node::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s), // "\x1b[33m{}\x1b[0m"
+            TreeNode::Success(s) => write!(f, "{}", s), // "\x1b[32m{}\x1b[0m"
+            TreeNode::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s), // "\x1b[31m{}\x1b[0m"
+            TreeNode::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s), // "\x1b[31;1m{}\x1b[0m"
+            TreeNode::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s), // "\x1b[33m{}\x1b[0m"
         }
     }
 }
 
 #[derive(Serialize, Debug)]
 pub struct StringTree {
-    pub head: Node,
+    pub head: TreeNode,
     pub children: Vec<StringTree>,
-}
-
-impl From<kernel::printing::StringTree> for StringTree {
-    fn from(value: kernel::printing::StringTree) -> Self {
-        StringTree {
-            head: value.head.into(),
-            children: value
-                .children
-                .into_iter()
-                .map(|child| child.into())
-                .collect(),
-        }
-    }
 }
 
 #[derive(Serialize, Debug)]
@@ -128,31 +106,15 @@ fn parse_and_format(src: String) -> (Vec<Log>, bool) {
     for module in modules {
         match global.add_new_module_to_root(&module) {
             Ok(_) => {}
-            Err(err) => match err {
-                front::elaborator::ErrorKind::Msg(msg) => {
-                    err_flag = Some(Log::Message(format!("Error: {}\n", msg)));
-                }
-                front::elaborator::ErrorKind::DerivationFail(derivation_fail) => {
-                    err_flag = Some(Log::Derivation(
-                        kernel::printing::map_derivation_fail(&derivation_fail).into(),
-                    ));
-                }
-            },
+            Err(err) => {
+                err_flag = Some(Log::Message(format!("Elaboration Error: {}\n", err)));
+            }
         }
     }
 
     // append internal logs
-    for entry in global.logs() {
-        match entry {
-            front::elaborator::LogEnum::Derivation(derivation_success) => {
-                logs.push(Log::Derivation(
-                    kernel::printing::map_derivation_success(derivation_success).into(),
-                ));
-            }
-            front::elaborator::LogEnum::Message(msg) => {
-                logs.push(Log::Message(msg.clone()));
-            }
-        }
+    for entry in global.logger().records() {
+        logs.push(printing::log_record_to_log(entry));
     }
 
     if let Some(log) = err_flag {
