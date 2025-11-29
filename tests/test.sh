@@ -5,29 +5,42 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # プロジェクトのルート (cargo run を実行したい場所)
-# もしこの test.sh と Cargo.toml が同じリポジトリ内のどこかにあって、
-# "cargo run" をどこでやるべきかが明確なら、そこに合わせてください。
-# ここではとりあえず SCRIPT_DIR の親に Cargo.toml がある想定にする:
 PROJECT_DIR="$SCRIPT_DIR/.."
 
-echo "=== OK cases ==="
-for f in "$SCRIPT_DIR/ok"/*.txt; do
-    echo "--- running OK: $f"
-    (cd "$PROJECT_DIR" && cargo run -- file "$f") || {
-        echo "ERROR: OK case failed: $f"
-        exit 1
-    }
-done
+run_cases() {
+    local label="$1"
+    local dir="$2"
+    local expect_fail="$3"
 
-echo "=== NG cases ==="
-for f in "$SCRIPT_DIR/ng"/*.txt; do
-    echo "--- running NG: $f"
-    if (cd "$PROJECT_DIR" && cargo run -- file "$f"); then
-        echo "ERROR: NG case unexpectedly succeeded: $f"
-        exit 1
-    else
-        echo "NG case correctly failed: $f"
+    echo "=== $label cases ==="
+
+    # dir 配下の .txt ファイルを全部再帰的に収集
+    mapfile -t files < <(find "$dir" -type f -name '*.txt' | sort)
+
+    if [ ${#files[@]} -eq 0 ]; then
+        echo "No .txt files found in $dir"
+        return
     fi
-done
+
+    for f in "${files[@]}"; do
+        echo "--- running $label: $f"
+        if (cd "$PROJECT_DIR" && cargo run -- file "$f"); then
+            if [ "$expect_fail" = "true" ]; then
+                echo "ERROR: $label case unexpectedly succeeded: $f"
+                exit 1
+            fi
+        else
+            if [ "$expect_fail" = "false" ]; then
+                echo "ERROR: $label case failed: $f"
+                exit 1
+            else
+                echo "$label case correctly failed: $f"
+            fi
+        fi
+    done
+}
+
+run_cases "OK" "$SCRIPT_DIR/ok" "false"
+run_cases "NG" "$SCRIPT_DIR/ng" "true"
 
 echo "All tests passed 🎉"
