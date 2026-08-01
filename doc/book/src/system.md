@@ -10,8 +10,8 @@
 - $\mathcal{R} =$ union of
     - $\{(*^s_{i}, *^s_{i}, *^s_{i}), (*^s_{i}, \sq^s_{i}, \sq^s_{i}), (\sq^s_{i}, \sq^s_{i}, \sq^s_{i})\}$ ... $*^s_i$ は ふつうの dependent + omega 
     - $\{(\sq^s_{i}, *^s_{i}, *^s_{i+1})\}$ ... impredicative っぽいものを level をあげる
-    - $\{(*^p, *^p), (\sq^p, *^p), (\sq^p, \sq^p)\}$ ... $*^p$ は impredicative だけど dependent product はない。
-    - $\{(*^s_i, *^p), (*^s_i, \sq^p)\}$ ... $*^s$ についての命題を用意するため。
+    - $\{(*^p, *^p, *^p), (\sq^p, *^p. *^p), (\sq^p, \sq^p, \sq^p)\}$ ... $*^p$ は impredicative だけど dependent product はない。
+    - $\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}$ ... $*^s$ についての命題を用意するため。
 
 普通の変数を $x$ とする。
 $s$ や $s_i$ は $\mathcal{S}$ の元とする。
@@ -44,7 +44,7 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
         | --- | --- |
         | equality type | $ t = t$ |
         | existence | $\exists t$ |
-        | take operator | $\Take t$ |
+        | take operator | $\Take(X,T,f)$ |
 - context: $\Gamma=$
     | category | definition |
     | --- | --- |
@@ -78,7 +78,7 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | weak.type | $\Gamma :: (x: t: s) \vdash t_1: t_2$ | $\Gamma \vdash^s t_1: t_2$ <br> $\text{WF}(\Gamma :: (x: t: s))$ | $x \notin \Gamma$ |
 | variable | $\Gamma :: (x: t: s) \vdash x^s: t: s$ | $\text{WF}(\Gamma :: (x: t: s))$ |
 | conversion | $\Gamma \vdash t: T_2: s$ | $\Gamma \vdash t: T_1: s$ <br> $\Gamma \vdash T_2: s$ | $T_1 \equiv^\beta T_2$ |
-| dep.form | $\Gamma \vdash (\Pi x:t. T): s_3$ | $\Gamma \vdash t: s_1$ <br> $\Gamma:: (x: t: s) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}$ <br> $x \notin \Gamma $
+| dep.form | $\Gamma \vdash (\Pi x:t. T): s_3$ | $\Gamma \vdash t: s_1$ <br> $\Gamma:: (x: t: s_1) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}$ <br> $x \notin \Gamma $
 | dep.intro | $\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3$ | $\Gamma \vdash (\Pi x^{s_1}:t. M): s_3$ <br> $\Gamma:: (x:t: s_1) \vdash m: M: s_2$ | $x \notin \Gamma$ |
 | dep.elim | $\Gamma \vdash (f @ a): T[x := a]: s_3$ | $\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_2$ <br> $\Gamma \vdash a: t: s_1$ | |
 | type.elem | $\Gamma \vdash A: s: s'$ | $\Gamma \vdash A: s$, $\Gamma \vdash s: s'$|
@@ -113,10 +113,10 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | --- | --- | --- |
 | exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
 | exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash e : t : *^s$ |
-| take elim set | $\Gamma \vdash^{*^s} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^s \\ \Gamma \vdash f: X \to T: *^s \\ \Gamma \vDash \exists X, \\
+| take elim set | $\Gamma \vdash^{*^s} \Take(X,T,f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^s \\ \Gamma \vdash f: X \to T: *^s \\ \Gamma \vDash \exists X, \\
     \Gamma \vDash (x_1: X) \to (x_2: X) \to f @ x_1 = f @ x_2$ |
-| take elim prop | $\Gamma \vdash^{*^p} (\Take f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X $ |
-| take equal | $\Gamma \vDash \Take f = f @ t$ | $\Gamma \vdash \Take f: T: *^s \\ \Gamma \vdash f: X \to T \\ \Gamma \vdash t: X: *^s$ |
+| take elim prop | $\Gamma \vdash^{*^p} \Take(X,T,f): T$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X $ |
+| take equal | $\Gamma \vDash \Take(X,T,f) = f @ t$ | $\Gamma \vdash \Take(X,T,f): T: *^s \\ \Gamma \vdash f: X \to T \\ \Gamma \vdash t: X: *^s$ |
 
 課題：
 - judgement を stratified （ $\Gamma \vdash^s t: T$） にしなくてもいいのでは...
