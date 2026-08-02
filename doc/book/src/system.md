@@ -63,9 +63,9 @@ Context は普通に定義して、メタ変数 $\Gamma$ で表す。
 | category | definition |
 | --- | --- |
 | well formed context | $\text{WF}(\Gamma)$ |
-| sort | $\Gamma \vdash t: s$ |
+| sorting | $\Gamma \vdash t: s$ |
 | typing | $\Gamma \vdash t: t: s$ |
-| probable | $\Gamma \vDash t$ |
+| provable | $\Gamma \vDash t$ |
 
 ## derivation
 ### pure type system 部分

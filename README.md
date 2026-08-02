@@ -9,3 +9,14 @@ proof checker を作る。 **コンパイルすることは忘れて** 単に形
     - src/core/ はライブラリとしてのコア部分
     - src/terminal/ は CUI 用のプログラム
     - src/USAGE.md は CUI の使い方
+
+# メモ
+Cauchy から Dedekint の方向は
+```
+ ((n : Nat) -> ∃ q : Rat, P n q)
+  ->
+  ∃ a : Nat -> Rat, (n : Nat) -> P n (a n)
+```
+がほしいらしい。
+
+Choice か Hilbert epsilon みたいなものでどうにかなる？
