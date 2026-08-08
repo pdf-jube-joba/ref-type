@@ -266,11 +266,10 @@ bracket type を考えているのは type しかない世界で type = proposit
 なので、 elimination はまさに $\Take f$ のような形にはなっている。
 この場合には $*^p$ でも $=$ を考えていることになるので、 $*^p$ と $*^s$ を分ける必要がないから elimination は 1 つになる。
 
-```note
-bracket type を思い出したので読んだら考えていたことが載っていたのでよかった。
-それと、 logic enriched type theory というのを知ったが、これかなり分け方が似ている。
-あと重要なこと：Take が $\exists$ と同じように型から取り出すだけの形にはできないように思えるのが、Take は $\exists$ に対する elim だから？
-```
+> [!note]
+> bracket type を思い出したので読んだら考えていたことが載っていたのでよかった。
+> それと、 logic enriched type theory というのを知ったが、これかなり分け方が似ている。
+> あと重要なこと：Take が $\exists$ と同じように型から取り出すだけの形にはできないように思えるのが、Take は $\exists$ に対する elim だから？
 
 今回考えている体系では、 type (set) の世界と prop の世界を分けているので、
 elimination は2つないといけない。
@@ -321,3 +320,9 @@ $*^s_i: *^s_{i+1}: *^s_{i+2}$ のような sort にしていたのを、$*^s_i: 
 
 これによって、すべての sort が、 $*: \sq$ のみの axiom になって、 injective になった。
 （ cumulative を入れているので、 PTS の injective の議論はそのまま使えるとは限らない。）
+
+## global choice について
+$\exists X$ を $\lvert X \rvert$ と書くことにする。
+classical indefinite choice として $((x: A) \to \lvert B \rvert) \to \lvert (x: A) \to B \rvert$ があってもいいと思った。
+
+ライブラリとして関数外延性や集合外延性と同様に axioms みたいなものを作ってそこに入れてもよさそう。
