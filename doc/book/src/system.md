@@ -17,7 +17,7 @@
 $s$ や $s_i$ は $\mathcal{S}$ の元とする。
 
 > [!note]
-> - 変数に sort をつけて \(x^s\) にする
+> - 変数に sort をつけて $x^s$ にする
 > - typing に sort をつける
 
 ## Term, Context, Judgement
