@@ -3,14 +3,16 @@
 ただし、まだ formal に定義できていない部分は載ってない。
 
 ## Sort
+以降は特別に書かない限り $i \in \mathbb{N}$
+
 - $\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\}$
     - $*^s_{i}, \sq^s_{i}$ は set 用の sort
     - $*^p, \sq^p$ は proposition 用の sort
 - $\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\}$
 - $\mathcal{R} =$ union of
     - $\{(*^s_{i}, *^s_{i}, *^s_{i}), (*^s_{i}, \sq^s_{i}, \sq^s_{i}), (\sq^s_{i}, \sq^s_{i}, \sq^s_{i})\}$ ... $*^s_i$ は ふつうの dependent + omega 
-    - $\{(\sq^s_{i}, *^s_{i}, *^s_{i+1})\}$ ... impredicative っぽいものを level $i$ をあげて回避する
-    - $\{(*^p, *^p, *^p), (\sq^p, *^p. *^p), (\sq^p, \sq^p, \sq^p)\}$ ... $*^p$ は impredicative だけど dependent product はない。
+    - $\{(\sq^s_{i}, *^s_{i}, *^s_{i+1})\}$ ... level をあげることで PTS における impredicative っぽいものを回避する
+    - $\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}$ ... $*^p$ は impredicative だけど依存型のような $(*^p, \sq^p, \sq^p)$ はない。
     - $\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}$ ... $*^s$ についての命題を用意するため。
 
 普通の変数を $x$ とする。
@@ -64,6 +66,8 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
 
 ## reduction
 - $\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t$
+  - conversion を judgement に含めないことにするのでこれ単体で述べておく。
+    なお、 $A \equiv B$ を仮定しない。（意図的）
 - これ以外は普通のもの。
 
 ## derivation
@@ -72,14 +76,14 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
 | --- | --- | --- | --- |
 | empty | $\text{WF}(\emptyset)$ | | |
 | axiom | $\emptyset \vdash s_1: s_2$ | | $(s_1, s_2) \in \mathcal{A}$ |
-| start | $\text{WF}(\Gamma::(x: t: s))$ | $\vdash \Gamma$, <br> $\Gamma \vdash t: s$ | $x \notin \Gamma$ |
+| start | $\text{WF}(\Gamma::(x: t: s))$ | $\text{WF}(\Gamma)$, <br> $\Gamma \vdash t: s$ | $x \notin \Gamma$ |
 | weak sort | $\Gamma :: (x: t: s) \vdash t_1: s'$ | $\Gamma \vdash t_1: s'$ <br> $\text{WF}(\Gamma :: (x: t: s))$ | $x \notin \Gamma$ |
-| weak type | $\Gamma :: (x: t: s) \vdash t_1: t_2: s$ | $\Gamma \vdash t_1: t_2$ <br> $\text{WF}(\Gamma :: (x: t: s))$ | $x \notin \Gamma$ |
+| weak type | $\Gamma :: (x: t: s) \vdash t_1: t_2: s$ | $\Gamma \vdash t_1: t_2: s$ <br> $\text{WF}(\Gamma :: (x: t: s))$ | $x \notin \Gamma$ |
 | variable | $\Gamma :: (x: t: s) \vdash x^s: t: s$ | $\text{WF}(\Gamma :: (x: t: s))$ |
 | conversion | $\Gamma \vdash t: T_2: s$ | $\Gamma \vdash t: T_1: s$ <br> $\Gamma \vdash T_2: s$ | $T_1 \equiv^\beta T_2$ |
 | dep form | $\Gamma \vdash (\Pi x^{s_1}:t. T): s_3$ | $\Gamma \vdash t: s_1$ <br> $\Gamma:: (x: t: s_1) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}$ <br> $x \notin \Gamma $
 | dep intro | $\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3$ | $\Gamma \vdash (\Pi x^{s_1}:t. M): s_3$ <br> $\Gamma:: (x:t: s_1) \vdash m: M: s_2$ | $x \notin \Gamma$ |
-| dep elim | $\Gamma \vdash (f @ a): T[x := a]: s_3$ | $\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_2$ <br> $\Gamma \vdash a: t: s_1$ | |
+| dep elim | $\Gamma \vdash (f @ a): T[x := a]: s_2$ | $\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3$ <br> $\Gamma \vdash a: t: s_1$ | |
 | type elem | $\Gamma \vdash A: s: s'$ | $\Gamma \vdash A: s$, $\Gamma \vdash s: s'$|
 
 ### provable
@@ -128,3 +132,6 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
     - 基本的には $\mathcal{R}$ と同じものを使ってよい。
     - impredicative にならないように、 $(*^s, *^p, *^s) \in \mathcal{R}$ にすること。
         - これが必要になるのはおかしい気がする（ subtype で対応するべきだから。）
+- reduction では $\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t$ としたが、
+  同値関係としての $\beta$ を定めるときには、
+  $\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t$ if $A \cong B$ のようにしてもいいかも。
