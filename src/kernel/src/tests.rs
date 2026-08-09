@@ -293,6 +293,137 @@ fn powerset() {
     );
 }
 
+#[test]
+fn powerset_level_is_preserved() {
+    let mut checker = Checker::default();
+    let xx = var!("X");
+    checker.push(xx.clone(), Exp::Sort(Sort::Set(1)));
+
+    let inferred = checker
+        .infer(&Exp::PowerSet {
+            set: Box::new(Exp::Var(xx.clone())),
+        })
+        .unwrap();
+
+    assert!(matches!(inferred, Exp::Sort(Sort::Set(1))));
+}
+
+#[test]
+fn equality_requires_set_carrier() {
+    let pp = var!("P");
+    let p = var!("p");
+    let ctx = vec![
+        (pp.clone(), Exp::Sort(Sort::Prop)),
+        (p.clone(), Exp::Var(pp.clone())),
+    ];
+
+    let result = crate::derivation::infer(
+        &ctx,
+        &Exp::Equal {
+            left: Box::new(Exp::Var(p.clone())),
+            right: Box::new(Exp::Var(p.clone())),
+        },
+    );
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn context_wellformedness_uses_prefix_context() {
+    let x = var!("x");
+    let y = var!("y");
+    let ctx = vec![
+        (x.clone(), Exp::Var(y.clone())),
+        (y.clone(), Exp::Sort(Sort::Set(0))),
+    ];
+
+    let (_, fail) = crate::derivation::check_wellformed_ctx(&ctx);
+
+    assert!(fail.is_some());
+}
+
+#[test]
+fn take_uses_explicit_domain_and_codomain() {
+    let xx = var!("X");
+    let tt = var!("T");
+    let f = var!("f");
+    let ctx = vec![
+        (xx.clone(), Exp::Sort(Sort::Set(0))),
+        (tt.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            f.clone(),
+            Exp::Prod {
+                var: var!("_"),
+                ty: Box::new(Exp::Var(xx.clone())),
+                body: Box::new(Exp::Var(tt.clone())),
+            },
+        ),
+    ];
+
+    let take = Exp::Take {
+        domain: Box::new(Exp::Var(xx.clone())),
+        codomain: Box::new(Exp::Var(tt.clone())),
+        map: Box::new(Exp::Var(f.clone())),
+    };
+
+    let derivation = crate::derivation::infer(&ctx, &take).unwrap();
+
+    assert!(crate::calculus::exp_is_alpha_eq(
+        derivation.type_of().unwrap(),
+        &Exp::Var(tt.clone())
+    ));
+    assert_eq!(derivation.generated_goals.len(), 2);
+}
+
+#[test]
+fn take_eq_matches_system_shape() {
+    let xx = var!("X");
+    let tt = var!("T");
+    let f = var!("f");
+    let x = var!("x");
+    let ctx = vec![
+        (xx.clone(), Exp::Sort(Sort::Set(0))),
+        (tt.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            f.clone(),
+            Exp::Prod {
+                var: var!("_"),
+                ty: Box::new(Exp::Var(xx.clone())),
+                body: Box::new(Exp::Var(tt.clone())),
+            },
+        ),
+        (x.clone(), Exp::Var(xx.clone())),
+    ];
+
+    let derivation = crate::derivation::prove_command(
+        &ctx,
+        &ProveCommandBy::TakeEq {
+            func: Exp::Var(f.clone()),
+            domain: Exp::Var(xx.clone()),
+            codomain: Exp::Var(tt.clone()),
+            elem: Exp::Var(x.clone()),
+        },
+    )
+    .unwrap();
+
+    let expected = Exp::Equal {
+        left: Box::new(Exp::Take {
+            domain: Box::new(Exp::Var(xx.clone())),
+            codomain: Box::new(Exp::Var(tt.clone())),
+            map: Box::new(Exp::Var(f.clone())),
+        }),
+        right: Box::new(Exp::App {
+            func: Box::new(Exp::Var(f.clone())),
+            arg: Box::new(Exp::Var(x.clone())),
+        }),
+    };
+
+    assert!(crate::calculus::exp_is_alpha_eq(
+        derivation.prop_of().unwrap(),
+        &expected
+    ));
+}
+
 // Proof by construct proof term
 // X: \Prop, x: X |= X by ctx |- x: X
 #[test]

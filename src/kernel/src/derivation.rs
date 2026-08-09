@@ -144,6 +144,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
                 ty: ty.clone(),
                 body: Box::new(body_ty),
             };
+            builder.add_sort(ctx, &lam_ty, "lambda product type should be well-sorted")?;
             Ok(builder.build_infer(lam_ty))
         }
         Exp::App { func, arg } => {
@@ -406,12 +407,12 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
 
             // 1. check (ctx |- set : Set(?i))
             let sort = builder.add_sort(ctx, set, "check set sort")?;
-            if !matches!(sort, Sort::Set(_)) {
+            let Sort::Set(level) = sort else {
                 return Err(builder.cause("set is not of Set(i)"));
-            }
+            };
 
             // 2. conclude (ctx |- PowerSet(set) : Set(i))
-            Ok(builder.build_infer(Exp::Sort(Sort::Set(0)))) // Replace `0` with the correct sort level if needed
+            Ok(builder.build_infer(Exp::Sort(Sort::Set(level))))
         }
         Exp::SubSet {
             var,
@@ -472,9 +473,9 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
 
             // 1. check (ctx |- superset : Set(i))
             let sort = builder.add_sort(ctx, superset, "check superset sort")?;
-            if !matches!(sort, Sort::Set(_)) {
+            let Sort::Set(level) = sort else {
                 return Err(builder.cause("superset is not of Set(i)"));
-            }
+            };
 
             // 2. check (ctx |- subset : PowerSet(superset))
             builder.add_check(
@@ -487,7 +488,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
             )?;
 
             // 3. conclude (ctx |- TypeLift(superset, subset) : Set(i))
-            Ok(builder.build_infer(Exp::Sort(Sort::Set(0)))) // Replace `0` with the correct sort level if needed
+            Ok(builder.build_infer(Exp::Sort(Sort::Set(level))))
         }
         Exp::Equal { left, right } => {
             builder.rule("Equal");
@@ -495,13 +496,14 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
             // 1. infer (ctx |- left : ?ty)
             let left_ty = builder.add_infer(ctx, left, "infer left type")?;
 
-            // 2. infer (ctx |- right : ?ty)
-            let right_ty = builder.add_infer(ctx, right, "infer right type")?;
-
-            // 3. check convertibility of left_ty and right_ty
-            if !convertible(&left_ty, &right_ty) {
-                return Err(builder.cause("type mismatch between left and right"));
+            // 2. check (ctx |- left_ty : Set(i))
+            let sort = builder.add_sort(ctx, &left_ty, "infer equality carrier sort")?;
+            if !matches!(sort, Sort::Set(_)) {
+                return Err(builder.cause("equality carrier is not of Set(i)"));
             }
+
+            // 3. check (ctx |- right : left_ty)
+            builder.add_check(ctx, right, &left_ty, "check right element type")?;
 
             // 4. conclude (ctx |- Equal(left, right) : \Prop)
             Ok(builder.build_infer(Exp::Sort(Sort::Prop)))
@@ -518,35 +520,77 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
             // 2. conclude (ctx |- Exists(set) : \Prop)
             Ok(builder.build_infer(Exp::Sort(Sort::Prop)))
         }
-        Exp::Take { map } => {
+        Exp::Take {
+            domain,
+            codomain,
+            map,
+        } => {
             builder.rule("Take");
 
-            // 1. infer (ctx |- map : ?map_ty)
-            let map_ty = builder.add_infer(ctx, map, "infer map type")?;
+            // 1. check (ctx |- domain : Set(i))
+            let domain_sort = builder.add_sort(ctx, domain, "check take domain sort")?;
+            if !matches!(domain_sort, Sort::Set(_)) {
+                return Err(builder.cause("take domain is not of Set(i)"));
+            }
 
-            // 2. decompose map_ty into (domain -> codomain)
-            let Exp::Prod {
-                var,
-                ty: _domain,
-                body: codomain,
-            } = normalize(&map_ty)
-            else {
-                return Err(builder.cause("map type is not a function type"));
+            // 2. check codomain sort and (ctx |- map : domain -> codomain)
+            let codomain_sort = builder.add_sort(ctx, codomain, "check take codomain sort")?;
+            let map_ty = Exp::Prod {
+                var: Var::dummy(),
+                ty: domain.clone(),
+                body: codomain.clone(),
             };
+            builder.add_check(ctx, map, &map_ty, "check take map type")?;
 
-            // 3. check codomain is independent of var
-            if exp_contains_as_freevar(&codomain, &var) {
-                return Err(builder.cause("codomain depends on variable"));
+            // 3. check (ctx |- map_ty : sort) with the expected sort side.
+            let map_ty_sort = builder.add_sort(ctx, &map_ty, "check take map type sort")?;
+
+            // 4. prepare proof obligations from take elim.
+            let mut proof_obligations = vec![Exp::Exists {
+                set: domain.clone(),
+            }];
+            match codomain_sort {
+                Sort::Set(_) => {
+                    if !matches!(map_ty_sort, Sort::Set(_)) {
+                        return Err(builder.cause("take map type is not of Set(i)"));
+                    }
+
+                    let x1 = Var::new("x1");
+                    let x2 = Var::new("x2");
+                    let uniqueness = Exp::Prod {
+                        var: x1.clone(),
+                        ty: domain.clone(),
+                        body: Box::new(Exp::Prod {
+                            var: x2.clone(),
+                            ty: domain.clone(),
+                            body: Box::new(Exp::Equal {
+                                left: Box::new(Exp::App {
+                                    func: map.clone(),
+                                    arg: Box::new(Exp::Var(x1)),
+                                }),
+                                right: Box::new(Exp::App {
+                                    func: map.clone(),
+                                    arg: Box::new(Exp::Var(x2)),
+                                }),
+                            }),
+                        }),
+                    };
+                    proof_obligations.push(uniqueness);
+                }
+                Sort::Prop => {
+                    if map_ty_sort != Sort::Prop {
+                        return Err(builder.cause("take map type is not of Prop"));
+                    }
+                }
+                _ => return Err(builder.cause("take codomain is neither Set(i) nor Prop")),
             }
 
-            // 4. check (ctx |- map_ty : Set(i))
-            let sort = builder.add_sort(ctx, &map_ty, "check map type sort")?;
-            if !matches!(sort, Sort::Set(_)) {
-                return Err(builder.cause("map type is not of Set(i)"));
+            for goal in proof_obligations {
+                builder.add_unproved_goal(ctx.clone(), goal);
             }
 
-            // 5. conclude (ctx |- Take(map) : codomain)
-            Ok(builder.build_infer(*codomain))
+            // 5. conclude (ctx |- Take(domain, codomain, map) : codomain)
+            Ok(builder.build_infer(codomain.as_ref().clone()))
         }
     }
 }
@@ -722,11 +766,13 @@ pub fn prove_command(
         } => {
             builder.rule("TakeEq");
 
-            // 1. check (ctx |- Take(func) : codomain)
-            let take_ty = Exp::Take {
+            // 1. check (ctx |- Take(domain, codomain, func) : codomain)
+            let take = Exp::Take {
+                domain: Box::new(domain.clone()),
+                codomain: Box::new(codomain.clone()),
                 map: Box::new(func.clone()),
             };
-            builder.add_check(ctx, &take_ty, codomain, "check take type")?;
+            builder.add_check(ctx, &take, codomain, "check take type")?;
 
             // 2. check (ctx |- func : (domain -> codomain))
             let func_ty = Exp::Prod {
@@ -739,14 +785,17 @@ pub fn prove_command(
             // 3. check (ctx |- elem : domain)
             builder.add_check(ctx, elem, domain, "check element type")?;
 
-            // 4. conclude (ctx |= elem = Take(func)(elem))
-            let take_app = Exp::App {
-                func: Box::new(take_ty),
+            // 4. check (ctx |- func @ elem : codomain)
+            let mapped_elem = Exp::App {
+                func: Box::new(func.clone()),
                 arg: Box::new(elem.clone()),
             };
+            builder.add_check(ctx, &mapped_elem, codomain, "check mapped element type")?;
+
+            // 5. conclude (ctx |= Take(domain, codomain, func) = func @ elem)
             let prop = Exp::Equal {
-                left: Box::new(elem.clone()),
-                right: Box::new(take_app),
+                left: Box::new(take),
+                right: Box::new(mapped_elem),
             };
             Ok(builder.build_prop(prop))
         }
@@ -877,9 +926,30 @@ pub fn check_wellformed_ctx(
     ctx: &Context,
 ) -> (Vec<DerivationSuccess>, Option<Box<DerivationFail>>) {
     let mut ders = vec![];
-    let mut cur_ctx = vec![];
+    let mut cur_ctx: Context = vec![];
     for (v, ty) in ctx {
-        let der = infer_sort(ctx, ty);
+        if cur_ctx.iter().any(|(existing, _)| existing.is_eq_ptr(v)) {
+            return (
+                ders,
+                Some(Box::new(DerivationFail {
+                    base: Box::new(DerivationBase {
+                        premises: vec![],
+                        rule: "context well formed".to_string(),
+                        phase: "duplicate variable".to_string(),
+                    }),
+                    head: FailHead::TypeJudgement {
+                        ctx: cur_ctx,
+                        term: Exp::Var(v.clone()),
+                        ty: None,
+                    },
+                    kind: FailKind::Caused {
+                        cause: "variable already exists in context".to_string(),
+                    },
+                })),
+            );
+        }
+
+        let der = infer_sort(&cur_ctx, ty);
         match der {
             Ok(success) => {
                 ders.push(success);

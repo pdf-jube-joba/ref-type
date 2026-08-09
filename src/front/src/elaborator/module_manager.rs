@@ -164,7 +164,10 @@ impl ModuleManager {
 
     pub fn add_def(&mut self, name: Identifier, def: DefinedConstant) {
         let rc = Rc::new(def);
-        let item = ModuleItemAccessible::Definition(ModItemDefinition { def_name: name, body: rc });
+        let item = ModuleItemAccessible::Definition(ModItemDefinition {
+            def_name: name,
+            body: rc,
+        });
         self.modules[self.current].items.push(item);
     }
     pub fn add_inductive(
@@ -271,7 +274,10 @@ impl ModuleManager {
             .items
             .iter()
             .map(|item| match item {
-                ModuleItemAccessible::Definition(ModItemDefinition { def_name: name, body: rc }) => {
+                ModuleItemAccessible::Definition(ModItemDefinition {
+                    def_name: name,
+                    body: rc,
+                }) => {
                     let DefinedConstant { ty, body: inner } = rc.as_ref().clone();
                     let instantiated_ty = ty.subst(&subst_mapping_accum);
                     let instantiated_inner = inner.subst(&subst_mapping_accum);

@@ -204,6 +204,8 @@ pub enum Exp {
         set: Box<Exp>,
     },
     Take {
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
         map: Box<Exp>,
     },
 }
@@ -284,18 +286,9 @@ pub enum ProveCommandBy {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Axiom {
-    ExcludedMiddle {
-        prop: Exp,
-    },
-    FunctionExtensionality {
-        func1: Exp,
-        func2: Exp,
-    },
-    EmsemblesExtensionality {
-        set1: Exp,
-        set2: Exp,
-        superset: Exp,
-    },
+    ExcludedMiddle { prop: Exp },
+    FunctionExtensionality { func1: Exp, func2: Exp },
+    EmsemblesExtensionality { set1: Exp, set2: Exp, superset: Exp },
 }
 
 pub type Context = Vec<(Var, Exp)>;
