@@ -11,7 +11,7 @@ the not so simple model CoC を参考にする。
 - $V_i$: set であって、 inaccessible とかいうやつだが、必要なのは、
   - べき集合で閉じること
   - dependent prod に対応するもので閉じること。
-- $U$: $\mathbb{B}$ を含む、 inaccessible みたいなやつ。
+- $U$: prop の $\sq^p$ 用。 $(*^s_i, \sq^p, \sq^p)$ があるので、 $V_i \in U$ である必要がありそう。また、Boolean は含んでいないといけない。
 
 普通のラムダ部分は論文に習えばいい。
 ただし、 proof-term かどうかとか、 well-sorted ness を考える必要がある。
@@ -30,11 +30,26 @@ sort が $(s_1, s_2, s_2) \in \mathcal{R}$ の形なので、 sort-elem function
 - $e(\exists t) = \square$
 - $e(\Take f) = *^s$
 
-解釈は任意の $\Gamma$ と $t$ に対して $\lvert \Gamma \Vdash t \rvert$ は次。
+これを使って項の属する universe を決め打ちできる。
+
+## 解釈について
+$\Gamma$ と $t$ に対して、各 集合 $\lvert \Gamma \Vdash t \rvert _{\gamma}$ を定める。
+
+> [!note]
+> 集合論は項が変数のみで、 $x = y \Leftrightarrow (z \in x \leftrightarrow z \in y)$ をもとに、各集合の記述を項ではなくて命題に任せる。
+> だから一回述語論理用の変数の集合 $\text{Var}$ と、集合論の命題 $\text{Logic}$ みたいなのがあったときに、
+> 集合を与えることは、だいたい $v \in \text{Var}$ と $p \in \text{Logic}$ を与えることと同じ。
+> この2つを合わせて、 $x \in v \Leftrightarrow p$ みたいにして集合を記述している。
+>
+> だからモデルの定義先としての集合を記述する場合、各 hoge に対して $x \in \text{Var}$ を割り当てつつ、 $p \in \text{Logic}$ （もしかしたら実は $x$ に言及していないかもしれない命題） も受け取って、命題（複数の場合は命題の集合集合）を出力する必要がある。
+
+### 規則
+
 - PTS っぽいところ
   - $\lvert \Gamma \Vdash *^p \rvert = \mathbb{B}$
+  - $\lvert \Gamma \Vdash \sq^p \rvert = U$
   - $\lvert \Gamma \Vdash *^s_i \rvert = V_i$
-  - $\lvert \Gamma \Vdash \square \rvert = U$
+  - $\lvert \Gamma \Vdash \square^s_i \rvert = V_{i+1}$
   - $\lvert \Gamma \Vdash p \rvert = \bullet$
     - $\Uparrow$ if $e(p) = *^p$
   - $\lvert \Gamma \Vdash x^\square \rvert _\gamma = \pi_i \gamma$ if $x^\square$ is $i$-th
@@ -52,9 +67,13 @@ sort が $(s_1, s_2, s_2) \in \mathcal{R}$ の形なので、 sort-elem function
   - $\lvert \Gamma \Vdash a = b \rvert _\gamma = \{\bullet \mid \lvert \Gamma \Vdash a \rvert _\gamma = \lvert \Gamma \Vdash b \rvert _\gamma\}$
   - $\lvert \Gamma \Vdash \exists t \rvert _\gamma = \{ \bullet \mid \lvert \Gamma \vdash t \rvert _\gamma \not = \emptyset \} $
   - $\lvert \Gamma \Vdash \Take f \rvert _\gamma = y \mathrel{\text{s.t.}} \exists x, (x, y) \in \lvert \Gamma \vdash f \rvert _\gamma$
-    <br> これの型が $X \to Y$ なら $f \subset X \times Y$ なのでこう書けるはず。
+    これの型が $X \to Y$ なら $f \subset X \times Y$ なのでこう書けるはず。
     $\text{s.t}$ の意味が不明瞭に見えるけれど、そもそも集合自体、自由変数で導入した後に論理式で定義を用いるのでよい。
     （ $z \in \{y \in x \mid \phi(y, x)\}$ が $(k \in l \leftrightarrow \phi(y, k)) \rightarrow z \in l$  になるのと同じ。）
+
+> [!note]
+> AI による指摘： mal-formed なものに対してもうまく take が定義されてほしいので、 $\lvert \text{Take}(X, T, f) \rvert = \bigcup_{x \in X} f(x)$ にするとよいらしい。
+> 同じようなもんだと思うが。
 
 subst は大丈夫だと思うので飛ばす。
 reduction に対してどうふるまうかがみたい。

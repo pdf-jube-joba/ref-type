@@ -5,7 +5,8 @@ https://www.cs.ru.nl/~herman/PUBS/BRATurModel.pdf
 locally Cartersian-closed categories にモデルを持つのに都合がいい。
 （例： $\omega$-set の圏）
 
-メモ： $A \to B$ という巨大なものを、internal な表現にできる圏なので、 $A \to B$ を翻訳しやすい？
+> [!note]
+> $A \to B$ という巨大なものを、internal な表現にできる圏なので、 $A \to B$ を翻訳しやすい？
 
 practical なモデルも、 lift を使っている。
 さらに、 type を set + eq.rel. として interpretation を考えるので、関数空間は extensional になるから、 PTS の性質を示すには使いにくい。
