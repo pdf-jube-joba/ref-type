@@ -1,164 +1,75 @@
 # formalization TODO
 
-Lean による形式化の今後のロードマップをここにまとめる。
-対象は `doc/book/src/system.md` にある foundational theory であり、
-目標は最終的に「十分強い集合論的仮定のもとで、この体系の model が作れる」ことを Lean 上で示すこと。
+対象は `doc/book/src/system.md` に対応する `formalization/lean/RefType/system.lean` の体系。目標は、Lean 上で universe-like な意味構造を仮定し、`System.Derives` の soundness から空文脈で `falseProp = (P : *^p) -> P` が証明できないことを示すこと。
 
 ## 現在の状態
 
-- `formalization/lean/RefType.lean`
-  - stratified syntax (`TyExpr`, `TmExpr`)
-  - `subset s A P : TmExpr`
-  - `typeLift A B`, `pred A B t : TyExpr` with `B : TmExpr`
-  - sort (`USort`)
-  - de Bruijn index
-  - shift / substitution の骨格
-  - reduction (`TyReduces`, `TmReduces`)
-  - judgement を 1 本にまとめた `Derives`
-- まだ metatheory は入っていない。
-- substitution は total definition だが、代数則はまだ証明していない。
+- `RefType/Sort.lean`
+  - sort と sort/product の計算規則を定義している。
+- `RefType/system.lean`
+  - `doc/book/src/system.md` に対応する単一構文・単一 de Bruijn namespace の体系。
+  - `typeElem` と `typeSort` を含む。
+  - `System.falsePropFormed` で `falseProp` の formation は確認済み。
+- `RefType/Model.lean`
+  - 直接モデルに必要な `UniverseTower` の最初の枠だけを置いている。
 
 ## 方針
 
-- syntax は stratified のまま進める。
-- judgement は mutual inductive にせず、`Derives : Context -> Sequent -> Prop` を維持する。
-- binder 名は使わず、de Bruijn index を使う。
-- named presentation は文書・コメント・将来の pretty printer で扱い、証明本体では使わない。
-- strong normalization は狙わず、set-theoretic model による soundness から relative consistency を出す。
-
-## 推奨ファイル分割
-
-現在は次のように分割している。今後の補題もこの責務に従って配置する。
-
-- `formalization/lean/RefType/Syntax.lean`
-  - `USort`
-  - `VarKind`
-  - `TyExpr`, `TmExpr`
-  - term-level subset と、明示的な `typeLift` による type-level lifting
-  - notation
-
-- `formalization/lean/RefType/Subst.lean`
-  - `liftTyFrom`, `liftTmFrom`
-  - `substTy`, `substTm`
-  - substitution 用の補助定義
-
-- `formalization/lean/RefType/Reduction.lean`
-  - `TyReduces`, `TmReduces`
-  - `TyBetaEq`, `TmBetaEq`
-  - reduction の notation
-
-- `formalization/lean/RefType/Judgement.lean`
-  - `Decl`, `Context`, `Lookup`
-  - `Sequent`, `Derives`
-  - judgement notation
-
-- `formalization/lean/RefType/BasicLemmas.lean`
-  - lookup と shift/substitution の基本補題
-  - context に関する補題
-  - convertibility の基本補題
-
-- `formalization/lean/RefType/Structural.lean`
-  - weakening
-  - substitution
-  - exchange を入れるならここ
-
-- `formalization/lean/RefType/Inversion.lean`
-  - generation / inversion lemma
-  - sort classification
-  - uniqueness 系
-
-- `formalization/lean/RefType/SubjectReduction.lean`
-  - subject reduction
-  - reduction compatibility
-
-- `formalization/lean/RefType/Model/SyntaxFree.lean`
-  - model constructionに必要な意味論的補助定義
-
-- `formalization/lean/RefType/Model/Interpretation.lean`
-  - syntax の解釈
-  - context valuation
-
-- `formalization/lean/RefType/Model/Soundness.lean`
-  - typing / provability soundness
-
-- `formalization/lean/RefType/Consistency.lean`
-  - `falseProp` やそれに対応する矛盾命題が導出不能であること
-
-- `formalization/lean/RefType.lean`
-  - 上記の import をまとめる入口ファイルにする
+- 証明対象は `System.Derives` に固定する。
+- Lean 内で FOL と ZFC を定義しない。
+- ZFC + universe 仮定に相当する部分は、Lean の `structure` として `UniverseTower` にまとめる。
+- consistency theorem は `UniverseTower` を仮定した相対無矛盾性として述べる。
+- strong normalization ではなく、モデル soundness から無矛盾性を出す。
 
 ## 実装順序
 
-### Phase 1: syntax の安定化
+### Phase 1: 元体系の点検
 
-- [x] `RefType.lean` を上記のファイル構成に分割する
-- [x] substitution を total definition にする
-- [ ] notation を最終的なものに寄せる
-- [ ] `Derives` の constructor 本体で `WF`, `HasSort`, `HasType`, `Provable` の補助略記を使う
+- [x] `USort` を `RefType/Sort.lean` に分離する。
+- [x] 主入口 `RefType.lean` を `Sort` / `System` / `Model` 中心にする。
+- [x] `system.lean` に `typeSort` を追加する。
+- [x] `System.falsePropFormed` を証明する。
+- [ ] `doc/book/src/system.md` の各規則と `System.Derives` の対応を再点検する。
+- [ ] `takeEq` など、doc/book と前提がずれていないか確認する。
 
-### Phase 2: substitution 基盤
+### Phase 2: 構文メタ理論
 
-- [ ] `liftTyFrom` / `liftTmFrom` の基本性質
-- [ ] `substTy` / `substTm` の基本性質
-- [ ] shift と subst の交換則
-- [ ] ty-variable と tm-variable の namespace が干渉しないこと
+- [ ] `Expr.liftFrom` の基本補題。
+- [ ] `Expr.subst` の基本補題。
+- [ ] lookup weakening。
+- [ ] derivation weakening。
+- [ ] substitution lemma。
+- [ ] typing/context regularity。
+- [ ] product generation と application generation。
+- [ ] `TypedStep` / `TypedConv` を定義し、raw `BetaEq` を `typeConv` の根拠にしない。
+- [ ] `typedStep_subject` / `typedStep_sound` / `typedConv_sound` を証明する。
 
-### Phase 3: structural metatheory
+### Phase 3: 意味構造
 
-- [ ] lookup weakening
-- [ ] derivation weakening
-- [ ] substitution lemma for types
-- [ ] substitution lemma for terms
-- [ ] provability を含む形での substitution
+- [ ] `UniverseTower` に product 閉包を追加する。
+- [ ] powerset 閉包を追加する。
+- [ ] proposition を二値的・proof-irrelevant に読むための field を追加する。
+- [ ] equality / exists / take に必要な演算と性質を追加する。
+- [ ] `takeSet` は global choice ではなく、集合モデルでは `⋃ { f x | x ∈ X }`
+  として解釈できることを `UniverseTower` の field に反映する。
+- [ ] expression interpretation を定義する。
+- [ ] context valuation を定義する。
 
-### Phase 4: inversion と分類
+### Phase 4: Soundness
 
-- [ ] sort axiom inversion
-- [ ] product / lambda / application inversion
-- [ ] `hasSort` と `hasType` の分類補題
-- [ ] sort の uniqueness / type の uniqueness の候補整理
+- [ ] weakening と substitution の意味論的補題。
+- [ ] `TypedStep` と `TypedConv` が意味を保つこと。
+- [ ] `System.Derives` の同時 induction で soundness を証明する。
 
-### Phase 5: reduction 側
+### Phase 5: Consistency
 
-- [ ] substitution が reduction を保つこと
-- [ ] one-step subject reduction
-- [ ] beta-equivalence に関する compatibility
-- [ ] 必要なら confluence ではなく convertibility に必要な最小限だけ示す
+- [ ] `falseProp` の意味が false になることを計算する。
+- [ ] `not ([] |=₀ falseProp)` を証明する。
+- [ ] `not (exists t s, [] |-₀ t : falseProp :: s)` を証明する。
 
-### Phase 6: model の準備
+## 注意点
 
-- [ ] Lean 内でどのメタ理論を仮定するか明文化する
-- [ ] `Set_i` を powerset で閉じた universe として読むための仮定を整理する
-- [ ] `Prop` を proof-irrelevant に解釈する方針を固定する
-- [ ] `Take(X,T,f)` の意味論を non-computational operator として与える
-
-### Phase 7: soundness
-
-- [ ] context interpretation
-- [ ] type interpretation
-- [ ] term interpretation
-- [ ] provability interpretation
-- [ ] 各 derivation rule の soundness
-
-### Phase 8: consistency
-
-- [ ] `falseProp` の意味論的解釈を計算する
-- [ ] 空文脈で `|- t : falseProp` が起こらないことを示す
-- [ ] 必要なら `forall P : Prop, P` に対応する矛盾命題でも同様に示す
-
-## 技術的に注意する点
-
-- de Bruijn index にしたので alpha-equivalence は消えたが、shift/substitution の補題は必須になる。
-- substitution は total になった。今後は停止性ではなく、shift/substitution の代数則と simp interface を先に固める。
-- `Take(X,T,f)` は domain と codomain を明示する。choice 自体は reduction に入れず、model construction では non-computational operator として扱う。
-- `Power A : Set_i` を同じ階層に置くなら、単純な predicative hierarchy では足りない。各 `Set_i` を powerset で閉じた universe として解釈する必要がある。
-- Lean の中で示す consistency は、Lean 自身の絶対的 consistency ではなく、十分強い集合論的仮定に対する relative consistency になる。
-
-## 短期タスク
-
-直近でやるべきことは次の順。
-
-1. term/type 両 namespace の shift/substitution 代数則を証明する
-2. type-variable carrier membership の derived judgement を設計する
-3. erasure soundness と elaboration completeness の前提を確定する
-4. derivation weakening / substitution を証明する
+- `typeSort` により、`falseProp` formation は元体系の通常の導出として扱える。
+- `Take(X,T,f)` は reduction ではなくモデル側で解釈する。`takeSet` は
+  global choice ではなく、非空かつ定値な image の union として扱う。
+- Lean で示すのは Lean 自身や ZFC 自身の無矛盾性ではなく、`UniverseTower` を仮定した相対無矛盾性。
