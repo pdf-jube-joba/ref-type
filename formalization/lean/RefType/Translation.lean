@@ -17,9 +17,9 @@ mutual
 
   inductive ErasesTy : List VarKind → TyExpr → Original.Expr → Prop where
     | sort : ErasesTy layout (.sort s) (.sort s)
-    | var :
+    | var {s} :
         mergedIndex layout .ty i = some j →
-        ErasesTy layout (.var i) (.var j)
+        ErasesTy layout (.var i) (.var s j)
     | prodTm :
         ErasesTy layout A A₀ →
         ErasesTy (.tm :: layout) B B₀ →
@@ -49,9 +49,9 @@ mutual
         ErasesTy layout (.exists_ A) (.exists_ A₀)
 
   inductive ErasesTm : List VarKind → TmExpr → Original.Expr → Prop where
-    | var :
+    | var {s} :
         mergedIndex layout .tm i = some j →
-        ErasesTm layout (.var i) (.var j)
+        ErasesTm layout (.var i) (.var s j)
     | lam :
         ErasesTy layout A A₀ →
         ErasesTm (.tm :: layout) body body₀ →
