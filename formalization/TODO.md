@@ -16,6 +16,8 @@
 ## 方針
 
 - 証明対象は `System.Derives` に固定する。
+- 自然言語の証明は `lean/proof.md`、Lean 固有の設計は
+  `lean/formalization.md` に分離する。
 - Lean 内で FOL と ZFC を定義しない。
 - ZFC + universe 仮定に相当する部分は、Lean の `structure` として `UniverseTower` にまとめる。
 - consistency theorem は `UniverseTower` を仮定した相対無矛盾性として述べる。
@@ -34,32 +36,57 @@
 
 ### Phase 2: 構文メタ理論
 
-- [ ] `Expr.liftFrom` の基本補題。
-- [ ] `Expr.subst` の基本補題。
+- [ ] 一般の renaming / substitution action を定義し、`liftFrom` / `subst` を
+  その特殊例として扱う。
+- [ ] renaming の identity / composition / binder lifting と substitution の
+  基本代数則。
 - [ ] lookup weakening。
 - [ ] derivation weakening。
-- [ ] substitution lemma。
-- [ ] typing/context regularity。
+- [ ] sorting / typing / provability の substitution lemma。
+- [ ] `wf_of_sort` / `wf_of_type` / `wf_of_provable`。
+- [ ] `typing_regular_type` / `provable_regular`。
+- [ ] sort uniqueness。
+- [ ] 一般の type uniqueness の代わりに term sort uniqueness を証明する。
 - [ ] product generation と application generation。
-- [ ] `TypedStep` / `TypedConv` を定義し、raw `BetaEq` を `typeConv` の根拠にしない。
-- [ ] `typedStep_subject` / `typedStep_sound` / `typedConv_sound` を証明する。
+- [ ] `lean/proof.md` 3.3 に従って `take_generation` を証明し、現在の `takeEq` から
+  元の `takeSet` の nonempty / mapping / constancy premises を復元する。
+- [ ] parallel reduction / complete development を定義し、raw `Reduces` の
+  confluence と `BetaEq` の joinability を証明する。
+- [ ] `lean/proof.md` 3.4 の証明に従い、sorting / typing / provability の subject
+  reduction を同時に Lean 化する。`predSubset` は subset generation から
+  `A ≃β B` を回収する。
 
 ### Phase 3: 意味構造
 
 - [ ] `UniverseTower` に product 閉包を追加する。
 - [ ] powerset 閉包を追加する。
-- [ ] proposition を二値的・proof-irrelevant に読むための field を追加する。
+- [ ] `El` / `sort_el` と sort closure を追加する。
+- [ ] proposition を二値的・proof-irrelevant に読むための `prop_cases` /
+  `proof_mem_iff` を追加する。
+- [ ] proof product と data product を分けた introduction / elimination / beta law を
+  追加する。
 - [ ] equality / exists / take に必要な演算と性質を追加する。
 - [ ] `takeSet` は global choice ではなく、集合モデルでは `⋃ { f x | x ∈ X }`
   として解釈できることを `UniverseTower` の field に反映する。
-- [ ] expression interpretation を定義する。
-- [ ] context valuation を定義する。
+- [ ] raw expression interpretation は作らず、導出添字付きの `SortDenotes` /
+  `TypeDenotes` / `ProvDenotes` を定義する。
+- [ ] `DerivesPlus` の WF field 添字付きの `ValidCtx` を定義し、proof-sort の
+  head を canonical `proofVal` にする。
 
-### Phase 4: Soundness
+### Phase 4: Denotation と Soundness
 
-- [ ] weakening と substitution の意味論的補題。
-- [ ] `TypedStep` と `TypedConv` が意味を保つこと。
-- [ ] `System.Derives` の同時 induction で soundness を証明する。
+- [ ] WF、typing regularity、provability regularity、typed join diagram を保持する
+  `DerivesPlus : Context -> Sequent -> Type` と `TypedPath` / `TypedJoin` を定義する。
+- [ ] `DerivesPlus` の depth、annotated regularity / subject reduction、erase、
+  `Derives -> Nonempty DerivesPlus` という elaboration を証明する。
+- [ ] sort / type / provability denotation の存在と一意性。
+- [ ] `proof_denotation_canonical`。
+- [ ] typing/provability denotation と sorting denotation の regularity coherence。
+- [ ] renaming / weakening / substitution の意味論的補題。
+- [ ] `DerivesPlus` の depth に関する強い帰納法で denotation existence、fundamental
+  theorem、sorting / typed-term の one-step 意味保存、path invariance、coherence
+  をまとめて証明する。
+- [ ] elaboration と coherence から元の `Derives` の judgement soundness を得る。
 
 ### Phase 5: Consistency
 
@@ -69,6 +96,12 @@
 
 ## 注意点
 
+- 一般の type uniqueness は `typeLiftIntro` により成り立たない。必要なのは
+  sort uniqueness と outer constructor ごとの generation / injectivity である。
+- raw `BetaEq` の問題は `predSubset` 単独ではない。graph application では
+  `predSubset` の両辺は domain 外でともに false にできるが、その後の raw beta
+  は domain 外で意味を保存しない。raw rule は変更せず、derivable endpoint の
+  sorting と全中間点を `TypedJoin` に注釈して処理する。
 - `typeSort` により、`falseProp` formation は元体系の通常の導出として扱える。
 - `Take(X,T,f)` は reduction ではなくモデル側で解釈する。`takeSet` は
   global choice ではなく、非空かつ定値な image の union として扱う。
