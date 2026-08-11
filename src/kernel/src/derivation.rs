@@ -239,6 +239,9 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
             if parameters.len() != parameter_indty_defined.len() {
                 return Err(builder.cause("mismatch length"));
             }
+            if *idx >= indspec.constructors.len() {
+                return Err(builder.cause("constructor index out of bounds"));
+            }
 
             // 2. check (ctx |- parameter[i] : parameter_ty_defined[i]) for each i
             //   (we need to substitute previous parameters into later parameter types)
@@ -294,6 +297,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
             if !Rc::ptr_eq(indspec, &inferred_indty) {
                 return Err(builder.cause("inductive type mismatch"));
             }
+            let subst_varexp = indspec.parameter_subst_mapping(&parameters);
 
             // 3. infer kind of return_type
             let return_type_kind = builder.add_infer(ctx, return_type, "infer return type kind")?;
@@ -324,13 +328,14 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<DerivationSuccess, Box<Derivat
             }
 
             for (idx, case) in cases.iter().enumerate() {
+                let ctor_type = indspec.constructors[idx].subst(&subst_varexp);
                 let ctor = Exp::IndCtor {
                     indspec: indspec.clone(),
                     parameters: parameters.clone(),
                     idx,
                 };
                 let eliminator_ty = eliminator_type(
-                    &indspec.constructors[idx],
+                    &ctor_type,
                     return_type,
                     &ctor,
                     &Exp::IndType {

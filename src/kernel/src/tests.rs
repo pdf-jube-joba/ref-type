@@ -424,6 +424,30 @@ fn take_eq_matches_system_shape() {
     ));
 }
 
+#[test]
+fn inductive_constructor_index_out_of_bounds_fails() {
+    let specs = std::rc::Rc::new(crate::inductive::InductiveTypeSpecs {
+        parameters: vec![],
+        indices: vec![],
+        sort: Sort::Set(0),
+        constructors: vec![crate::inductive::CtorType {
+            telescope: vec![],
+            indices: vec![],
+        }],
+    });
+
+    let result = crate::derivation::infer(
+        &Context::new(),
+        &Exp::IndCtor {
+            indspec: specs,
+            parameters: vec![],
+            idx: 1,
+        },
+    );
+
+    assert!(result.is_err());
+}
+
 // Proof by construct proof term
 // X: \Prop, x: X |= X by ctx |- x: X
 #[test]
