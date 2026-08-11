@@ -1,115 +1,163 @@
-# `System` の直接モデルによる相対無矛盾性
+# `system.md` の体系の相対無矛盾性
 
-## 1. 主定理と証明の基礎
+## 1. 対象とする体系
 
-対象は `doc/book/src/system.md` および `RefType.System.Derives` の体系である。
-`Gamma |- A :: s` を sorting、`Gamma |- e : A :: s` を typing、
-`Gamma |= P` を provability と書く。`->` は `Reduces`、`->*` はその反射推移閉包、
-`≃beta` は `BetaEq` である。
+この文書の目的は、[`doc/book/src/system.md`](../doc/book/src/system.md) で定義された体系の
+相対無矛盾性だけを数学的に示すことである。Lean のデータ型、構成子、de Bruijn index、
+実装用証明書、strict positivity、再帰定義の実装方法は扱わない。それらは
+[`formalization/lean/formalization.md`](lean/formalization.md) に分離する。
 
-外部の集合論として ZFC に加え、推移的な Grothendieck universe の列
+以下では `system.md` の規則表を定義とする。特に次を変更しない。
+
+- 変数は sort annotation を持つ名前付き変数である。束縛変数は alpha-renaming してよい。
+- primitive weakening は sorting と typing の二規則である。provability weakening は後で
+  admissible rule として導く。
+- dependent elimination の primitive premise は function typing と argument typing の二つだけで、
+  substituted codomain の sorting は premise ではない。これは regularity と substitution から導く。
+- reduction は通常の beta reduction、その全 congruence、および
+
+  ```text
+  Pred(A,{x:B | P},t) -> (lambda x:B.P) t
+  ```
+
+  である。この規則に `A ≡beta B` という side condition は加えない。
+
+sort を次の略記で書く。
 
 ```text
-U_0 in U_1 in U_2 in ... in U_omega in W
+Set_i   = *^s_i,       Kind_i = square^s_i,
+Prop    = *^p,         PropKind = square^p.
 ```
 
-が存在すると仮定する。`U_omega` はすべての `U_i` を含み、`W` は
-`U_omega` を含む。この仮定は、可算個の strongly inaccessible cardinal と、
-それらより大きい strongly inaccessible cardinal があるという仮定から得られる。
-Lean ではこの集合論自体を形式化せず、以下で取り出す演算と閉包則を
-`UniverseTower` の field として仮定する。
+`Gamma |- A :: s` を sorting、`Gamma |- e : A :: s` を typing、`Gamma |= P` を
+provability と書く。`M -> N` は一段 reduction、`->*` はその反射推移閉包、`≡beta` は
+reduction が生成する反射・対称・推移閉包である。
+
+外部の集合論として ZFC と、推移的な Grothendieck universe の tower
+
+```text
+U_0 in U_1 in ... in U_omega in W
+```
+
+を仮定する。`U_omega` はすべての `U_i` を含む Grothendieck universe であり、`W` も
+Grothendieck universe である。例えば順序型 `omega+2` の strongly inaccessible cardinal の
+狭義増加列があればよい。単なる `union_i U_i` は dependent product に閉じない可能性が
+あるため、`U_omega` の代わりにはしない。
 
 > [!important]
-> **定理（相対無矛盾性）** 上の universe tower が存在するなら、空文脈で
+> **主定理。** この仮定のもとで、空文脈では
 >
 > ```text
 > falseProp = (P : Prop) -> P
 > ```
 >
-> は証明できない。また、`falseProp` を型に持つ項も存在しない。
+> は provable でなく、`falseProp` を型に持つ項も存在しない。
 
-証明は次の順で行う。
-
-1. reduction と typing だけに関する構文メタ理論を証明する。
-2. conversion に sorting 導出を注釈した有限の導出へ元の導出を変換する。
-3. tower 上に導出依存の解釈を定義する。
-4. 注釈付き導出の高さに関する強い帰納法で、soundness、reduction の意味保存、
-   coherence を同時に証明する。
-5. `falseProp` の意味が空命題であることから矛盾を得る。
-
-この順序では、意味論を subject reduction の証明に使わず、soundness の
-`typeConv` case で未証明の conversion invariance を呼び出すこともない。
+証明は、構文的メタ理論、集合モデル、soundness、`falseProp` の意味計算の順に行う。
 
 ## 2. 集合モデル
 
-### 2.1 sort の領域
+### 2.1 sort
 
-意味値全体を `W` の要素とする。各 sort の領域と sort 自身の値を次で定める。
+意味値は `W` の要素である。各 sort の領域 `D_s` と sort term 自身の値 `S_s` を
 
 ```text
-D_(set i)       = U_i,       S_(set i)       = U_i,
-D_(setKind i)   = U_(i+1),   S_(setKind i)   = U_(i+1),
-D_prop          = {0,1},     S_prop          = {0,1},
-D_propKind      = U_omega,   S_propKind      = U_omega.
+D_(Set_i)    = U_i,        S_(Set_i)    = U_i,
+D_(Kind_i)   = U_(i+1),    S_(Kind_i)   = U_(i+1),
+D_Prop       = {0,1},      S_Prop       = {0,1},
+D_PropKind   = U_omega,    S_PropKind   = U_omega
 ```
 
-ここで `0=empty`、`bullet=empty`、`1={bullet}` とする。従って任意の sort `s` と
-値 `a` について
+とする。`0=empty`、`bullet=empty`、`1={bullet}` とする。tower の推移性と有限集合への
+閉包から、すべての `S_s` は `W` の要素であり、
 
 ```text
 a in S_s  iff  a in D_s
 ```
 
-である。`U_i in U_(i+1)` と `{0,1} in U_omega` から sort axiom も満たされる。
+である。`U_i in U_(i+1)` と `{0,1} in U_omega` により `system.md` の二つの axiom
+`(Set_i,Kind_i)` と `(Prop,PropKind)` が成り立つ。
 
-命題値は `0` と `1` だけであり、集合としての所属は
-
-```text
-v in p  iff  v=bullet and p=1
-```
-
-を満たす。従って証明項をすべて `bullet` に潰しても membership は正しく保存
-される。meta-level の命題 `Q` の真理値を `truth(Q)` と書く。
-
-### 2.2 dependent product、lambda、application
-
-`A` と family `B(x)` に対し、product の結果 sort が `prop` でなければ
+`p in D_Prop` なら
 
 ```text
-Pi(A,B) = { f | f is a functional graph with domain A
-                and app(f,x) in B(x) for every x in A }.
+v in p  iff  v=bullet and p=1.                         (proof_mem)
 ```
 
-`Lam(A,m)` は `{(x,m(x)) | x in A}` という graph とする。application は全域化し、
-functional graph の domain 内ではその値、domain 外または graph でない値では
-`0` を返す。この定義から
+meta-level proposition `Q` に対し、`Q` が真なら `1`、偽なら `0` を返す値を `truth(Q)` と
+書く。排中律により定義でき、
 
 ```text
-x in A                         => app(Lam(A,m),x)=m(x),
-f in Pi(A,B) and x in A        => app(f,x) in B(x),
-(forall x in A, m(x) in B(x))  => Lam(A,m) in Pi(A,B)
+truth(Q) in D_Prop,
+truth(Q)=1 iff Q,
+truth(Q)=0 iff not Q
 ```
 
-が従う。graph、product は family の `A` 上での値だけに依存する。
+を満たす。
 
-product の結果 sort が `prop` なら、function set を作らず
+### 2.2 family、product、lambda、application
+
+family は `W` 内の functional graph で表す。graph application `app(f,x)` は、`f` が
+functional graph で `x` が domain に属するときその値を返し、それ以外は `0` を返す。
+従ってすべての `W`-valued input で全域である。
+
+`system.md` の product rule `(r,q,z) in R` を考える。`z != Prop` のとき
 
 ```text
-Pi(A,B) = truth(forall x in A, B(x)=1)
+Pi_z(A,B) = { f | f is a functional graph with domain A
+                 and app(f,x) in B(x) for every x in A },
+Lam_z(A,m) = { (x,m(x)) | x in A },
+App_q(f,x) = app(f,x).
 ```
 
-とする。この product の証明項は `bullet` である。これが impredicative な
-`prop` を proof-irrelevant に解釈する箇所である。
+sort table を直接調べると、`(r,q,z) in R` のもとで
 
-Grothendieck universe の dependent product に対する閉包性から、
-`prodResult? r q = some z` の各 non-proposition case で `Pi(A,B) in D_z` が
-成り立つ。特に `(setKind i,set i,set(i+1))` では domain と product が
-`U_(i+1)` に入り、`(set i,propKind,propKind)` では `U_omega` の閉包性を使う。
+```text
+z=Prop iff q=Prop.                                      (prop-branch)
+```
 
-### 2.3 power、subset、equality、existence
+従って上の data branch では `q!=Prop` でもあり、
 
-well-formed な入力では次の通常の集合を使い、それ以外の入力では `0` を返して
-演算を全域化する。
+```text
+x in A
+  => App_q(Lam_z(A,m),x)=m(x),
+f in Pi_z(A,B) and x in A
+  => App_q(f,x) in B(x),
+(forall x in A, m(x) in B(x))
+  => Lam_z(A,m) in Pi_z(A,B).
+```
+
+`z=Prop` のときは proof-irrelevant に
+
+```text
+Pi_Prop(A,B) = truth(forall x in A, B(x)=1),
+Lam_Prop(A,m) = bullet,
+App_Prop(f,x) = bullet
+```
+
+とする。このとき
+
+```text
+(forall x in A, B(x)=1) => bullet in Pi_Prop(A,B),
+f in Pi_Prop(A,B) and x in A => bullet in B(x).
+```
+
+後者は `f in Pi_Prop(A,B)` から product が `1`、従って全 fiber が `1` となるためである。
+
+`system.md` の non-proposition product case ごとの閉包は次の通りである。
+
+- `(Set_i,Set_i,Set_i)` は `U_i` の dependent-product closure。
+- `(Set_i,Kind_i,Kind_i)`、`(Kind_i,Kind_i,Kind_i)`、
+  `(Kind_i,Set_i,Set_(i+1))` は `U_(i+1)` の closure。
+- `(PropKind,PropKind,PropKind)` は `U_omega` の closure。
+- `(Set_i,PropKind,PropKind)` は `U_i subset U_omega` と `U_omega` の closure。
+
+proposition result の `(Prop,Prop,Prop)`、`(PropKind,Prop,Prop)`、
+`(Set_i,Prop,Prop)` は `truth` の定義から閉じる。これで `R` の全 case が尽きる。
+
+### 2.3 集合演算
+
+すべての `W`-valued input に対して
 
 ```text
 Power(A)       = { B | B subset A },
@@ -117,392 +165,243 @@ Subset(A,P)    = { x in A | P(x)=1 },
 Pred(A,B,t)    = truth(t in B),
 TypeLift(A,B)  = B,
 Eq(a,b)        = truth(a=b),
-Exists(A)      = truth(exists x, x in A).
+Exists(A)      = truth(exists x, x in A)
 ```
 
-`Pred` の第一引数は formation にだけ使う。`A in U_i` なら powerset とすべての
-subset は `U_i` に入る。`B in Power(A)` なら `B in U_i` かつ `B subset A` で
-あるため、`TypeLift` の formation、introduction、weakening は通常の subset
-membership になる。
+とする。`P(x)` は family graph の全域 application である。`A in U_i` なら powerset と
+すべての subset は `U_i` に入る。`B in Power(A)` なら `B subset A` かつ `B in U_i` なので、
+type lift の formation、introduction、weakening は通常の subset membership で解釈できる。
 
-### 2.4 `take`
+### 2.4 take
 
-set-valued な `take` は全入力について
+set-valued な take を
 
 ```text
 Take(X,T,f) = union { app(f,x) | x in X }
 ```
 
-と定める。`X` が非空で `f` が `X` 上で定値 `y` を取り、`y in T` なら image は
-singleton `{y}` なので
+とする。`X` が非空で `f` が `X` 上で定値 `y` を取り、`y in T` なら image は `{y}` であり、
 
 ```text
-Take(X,T,f)=y,    Take(X,T,f) in T.
+Take(X,T,f)=union {y}=y in T.                           (take-law)
 ```
 
-これは代表元を選ばないため global choice を使わない。proposition-valued な
-`take` の項値は `bullet` とする。
+これは代表元を定義により選ばないので global choice を使わない。proposition-valued take の
+項値は `bullet` とする。
+
+Grothendieck universe の pairing、replacement、powerset、separation、union により、ここまでの
+すべての演算は `W`-valued である。ordinary argument の等号と、domain 上の family の
+pointwise equality を保つ。特に `Pi`、`Lam`、`Subset` は family の domain 上の値だけに依存する。
 
 > [!important]
-> **補題（モデルの閉包性）** 上で定義した値、membership、product、lambda、
-> application、power、subset、predicate、type lift、equality、existence、take は、
-> `System` の各 formation rule に対応する sort closure と、各 introduction /
-> elimination rule に対応する membership law を満たす。
+> **モデル補題。** 上の演算は `system.md` の全 formation rule に必要な sort closure、
+> introduction / elimination rule に必要な membership law、data beta law、および
+> `Pred(A,Subset(B,P),t)` に必要な truth law を同時に満たす。
 
-**証明。** proposition product は真理値の定義から従う。non-proposition product
-は各 `U_i` と `U_omega` の dependent product closure から従う。power と subset は
-powerset closure と separation、graph と `take` は replacement、pairing、union
-から得られる。`take` の二法則は前項の singleton 計算である。残りは各演算の定義を
-展開すればよい。従って、以下で仮定する意味論的 law はこの集合モデルで同時に
-実現され、互いに矛盾する公理の寄せ集めではない。□
+これは上の定義と universe closure を rule ごとに展開すれば得られる。`Pred` reduction の
+意味保存にはさらに derivability から `A` と `B` の値が等しく、`t in B` であることを使う。
+これは4節の subject reduction と5節の soundness で確認する。
 
-## 3. 構文メタ理論
+## 3. 構文的メタ理論
 
-この節は意味論を一切使わない。
+この節では意味論を使わない。変数は capture を避けて alpha-renaming し、以下では束縛変数が
+文脈に新しいものとして選ばれているとする。
 
 ### 3.1 renaming、weakening、substitution
 
-de Bruijn index の一般 renaming `rename xi` と simultaneous substitution
-`substitute sigma` を考える。binder の下では `xi` と `sigma` を通常通り lift
-する。現在の `liftFrom` と `subst` はそれぞれ一変数の場合である。
-
 > [!important]
-> **補題（renaming と substitution の代数則）** identity、composition、binder
-> 下での lift、renaming と substitution の交換、および
+> **補題（renaming と substitution）。** sorting、typing、provability は capture-avoiding
+> renaming で保存される。また `Gamma |- u:A::r` のとき、
 >
 > ```text
-> M =>par M', N =>par N'  implies  M[N] =>par M'[N']
+> Gamma,x:A::r,Delta |- B::s       => Gamma,Delta[u/x] |- B[u/x]::s,
+> Gamma,x:A::r,Delta |- e:B::s     => Gamma,Delta[u/x] |- e[u/x]:B[u/x]::s,
+> Gamma,x:A::r,Delta |= P          => Gamma,Delta[u/x] |= P[u/x].
 > ```
->
-> が成り立つ。ここで `=>par` は3.2節の parallel reduction である。
 
-**証明。** 最初の四つは式の構造帰納法である。variable case は index の大小で
-場合分けし、binder case では帰納法の仮定を lifted renaming / substitution に
-適用する。最後の主張は parallel reduction の導出帰納法であり、ordinary beta
-case では substitution composition、`predSubset` case でも同じ binder 用の等式を
-使う。□
+**証明。** 文脈 `Delta` の長さと導出の同時帰納法である。variable case は `x` 自身、`x` より
+新しい変数、古い変数に分ける。binder の下では置換を lift する代わりに、名前付き表示では
+束縛変数を fresh に取り直す。conversion case は reduction と beta equivalence が substitution
+で保存されることを使う。take の定値性 premise では二つの binder の双方を fresh にする。□
+
+`system.md` の weak sort / weak type を反復すると任意位置への weakening が得られる。
+provability weakening は primitive rule ではないが、
+
+```text
+Gamma |= P
+=> Gamma |- Proof P : P :: Prop
+=> Gamma,x:A::s |- Proof P : P :: Prop
+=> Gamma,x:A::s |= P
+```
+
+により admissible である。古い変数の rule も、variable rule と weak type の反復で得られる。
 
 > [!important]
-> **補題（構文的 weakening）** `d::Gamma` が well-formed なら、`Gamma` で導出
-> できる sorting、typing、provability を一段 lift した判断は `d::Gamma` で導出
-> できる。
+> **補題（context conversion）。** `Gamma |- A::s`、`Gamma |- A'::s`、`A≡beta A'` とする。
+> well-formed context 中の宣言 `x:A::s` を `x:A'::s` に置き換えても、WF、sorting、typing、
+> provability は同じ raw judgement のまま保存される。
 
-**証明。** `sortWeak`、`typeWeak`、`propWeak` そのものである。任意位置への挿入版は
-renaming theorem を導出に関して証明して得る。□
-
-> [!important]
-> **補題（構文的 substitution）** `Gamma |- u : A :: r` とする。
->
-> 1. `x:A::r,Gamma |- B :: s` なら `Gamma |- B[u] :: s`。
-> 2. `x:A::r,Gamma |- e : B :: s` なら `Gamma |- e[u] : B[u] :: s`。
-> 3. `x:A::r,Gamma |= P` なら `Gamma |= P[u]`。
-
-**証明。** 三判断の導出に関する同時帰納法を行う。variable zero は `u`、successor
-は一段下げた variable になる。binder case では `u` を lift する。`typeConv` case
-では `A≃beta B` から substitution compatibility により
-`A[u]≃beta B[u]` を得る。`takeSet` の二重 binder では substitution を二度 lift
-する。その他は同じ constructor を帰納法の仮定へ適用する。□
+**証明。** 置換位置より新しい宣言の個数と導出の同時帰納法。`x` の variable case では
+variable rule が与える型 `A'` を conversion で `A` に戻す。新しい宣言の formation と binder
+body も同時に輸送する。conversion が renaming で保存されるため任意位置で同じ議論ができる。□
 
 ### 3.2 confluence
 
-parallel reduction は、全 constructor の reflexive congruence、ordinary beta
+parallel reduction `=>` を、全 term constructor の reflexive congruence、parallel beta、
+および
 
 ```text
-app (lam s A body) arg =>par body'[arg']
+Pred(A,Subset(B,P),t) => (lambda x:B'.P') t',
+Pred(A,Subset(B,P),t) => P'[t'/x]
 ```
 
-および `predSubset` の次の二規則を持つ。
+で定める。prime は対応する subterm の parallel reduct であり、消える第一引数 `A` にも
+parallel premise を置く。第二規則は `Pred` reduction と直後の beta を同時に縮める。
+
+complete development `M*` は root redex を generic congruence より先に match して
 
 ```text
-pred A (subset s B P) t =>par app (lam s B' P') t',
-pred A (subset s B P) t =>par P'[t'].
+((lambda x:A.M) N)*       = M*[N*/x],
+Pred(A,Subset(B,P),t)*     = P*[t*/x]
 ```
 
-各右辺の prime は対応する部分式の parallel reduct である。第二規則は
-`predSubset` の直後に現れる ordinary beta も同時に進める。
-
-complete development `M*` は構造再帰で定め、redex case だけ次とする。
-
-```text
-(app (lam s A body) arg)*       = body*[arg*],
-(pred A (subset s B P) t)*      = P*[t*].
-```
-
-ここで縮めるのは元の項に由来する residual であり、「新たに現れるすべての redex
-を再帰的に正規化する」という意味ではない。従って自己適用を含む untyped term
-に対しても `M*` は構造再帰で全域に定義される。
+とし、他は全 immediate subterm に `*` を適用する。これは構造再帰であって normalization
+ではない。
 
 > [!important]
-> **補題（parallel complete development）** `M =>par N` なら
-> `N =>par M*` である。
+> **補題（complete development）。** `M=>N` なら `N=>M*`。
 
-**証明。** `M` の構造に関する帰納法と、`M=>par N` の最後の規則の inversion を
-使う。通常の beta の contraction case は parallel substitution 補題を使う。
-`predSubset` では三つの場合がある。
+**証明。** `M` の構造と parallel derivation の同時帰納法。beta contraction は parallel
+substitution を使う。`Pred/Subset` overlap は、congruence のまま進む場合、lambda application
+まで進む場合、substitution 後まで進む場合の三つであり、第二の特殊規則、parallel beta、
+parallel substitution でそれぞれ `P*[t*/x]` に進む。reduction により lambda や subset head が
+新たに現れた場合はその redexを縮めず、congruence で complete development へ進める。□
 
-1. congruence のまま `pred A' (subset B' P') t'` へ進んだ場合は、第二の特殊規則で
-   `P*[t*]` へ進む。
-2. `app (lam B' P') t'` へ進んだ場合は ordinary parallel beta で進む。
-3. 既に `P'[t']` へ進んだ場合は parallel substitution 補題で進む。
-
-いずれも帰納法の仮定から `P'=>par P*` と `t'=>par t*` が得られ、同じ
-`P*[t*]` に到達する。他の constructor は congruence だけなので直ちに従う。□
+一段 reduction は parallel reduction に含まれ、parallel reduction は `->*` に含まれる。
+従って complete development 補題から diamond、さらに
 
 > [!important]
-> **定理（confluence）** `M ->* M1` かつ `M ->* M2` なら、ある `N` が存在して
-> `M1 ->* N` かつ `M2 ->* N` である。
+> **定理（confluence）。** `M->*M1` かつ `M->*M2` なら共通 reduct が存在する。
 
-**証明。** 構造帰納法で `M=>par M`。一段 reduction は parallel reduction に
-含まれ、parallel reduction は `->*` に含まれる。前補題から parallel reduction
-は diamond property を持つので、その反射推移閉包は confluent である。包含関係を
-使って `->*` へ戻す。□
+が得られる。特に `A≡beta B` なら `A` と `B` は joinable である。
 
-> [!important]
-> **系（joinability）** `A≃beta B` なら、ある `C` が存在して
-> `A->*C` かつ `B->*C` である。
+`sort`、variable、product、lambda、proof mark、power、subset、type lift、equality、exists、take
+は単独では outer head を変える root reduction を持たない。従って二つの異なる不活性 head は
+beta-convertible でなく、product、power、type lift の beta equivalence から対応する component
+の joinability が得られる。
 
-**証明。** `BetaEq` の導出帰納法。step は `C=B`、対称 case は二経路を交換する。
-transitive case は二つの join diagram の中央から出る二経路を confluence で合流
-させる。□
-
-### 3.3 canonical origin、regularity、sort uniqueness
-
-typing の最後には `typeConv`、三つの weakening、`typeLiftIntro`、
-`typeLiftWeak` のように項の outer constructor を作らない規則が並び得る。
-また `typeElem` / `typeSort` は sorting と typing の間を移る。これらを
-**detour** と呼ぶ。`typeElem` ではその sorting premise へ、`typeSort` ではその
-typing premise へ移り、他の detour でも strict premise へ移る。従って sorting と
-typing の導出木を同時に反転すれば有限回で構文の outer constructor に対応する
-formation / introduction rule に着く。
+### 3.3 regularity、generation、sort uniqueness
 
 > [!important]
-> **補題（canonical origin）** sorting と typing の導出を同時に反転して detour
-> を除くと、式または項の outer constructor に対応する core rule に到達する。
-> 途中の `typeElem/typeSort` は universe object とその sorting origin を、
-> `typeConv` は表示型との beta conversion を、`typeLiftIntro/Weak` は元の base
-> typing を記録する。
-> 特に次が成り立つ。
->
-> 1. subset が `power A` を型に持つなら、その構文上の base `B` と `A` は
->    beta-convertible であり、`B` と predicate の formation を復元できる。
-> 2. application の typing から function、argument、codomain の typing を復元
->    できる。function が lambda なら、その body typing と構文上の domain まで
->    復元できる。
-> 3. `take X T f` が set sort の項なら、同じ構文上の `X,T,f` を持つ `takeSet`
->    の四 premise を復元できる。
-
-**証明。** sorting / typing 導出の高さに関する同時帰納法。weakening と conversion
-は premise へ帰納法を適用して結果を transport する。`typeElem` と `typeSort` は
-互いの新しい導出を作らず、現在の constructor が保持する strict premise へ進む。
-`typeLiftWeak` はその premise へ、`typeLiftIntro` は同じ項の base typing premise へ
-進むので高さが真に減る。
-core rule では outer constructor を比較する。表示型が `power` や `prod` の場合、
-joinability と、これらの head を変える root reduction がないことから domain と
-codomain の conversion を取り出す。異なる不活性 head は共通 reduct を持たない。
-これで三つの特殊形を含む全 case が尽きる。□
-
-> [!important]
-> **補題（regularity）** 導出可能な判断の文脈は well-formed であり、
+> **補題（regularity）。** 導出可能な judgement の文脈は well formed であり、
 >
 > ```text
-> Gamma |- e : A :: s  =>  Gamma |- A :: s,
-> Gamma |= P            =>  Gamma |- P :: prop.
+> Gamma |- e:A::s  => Gamma |- A::s,
+> Gamma |= P       => Gamma |- P::Prop.
 > ```
 
-**証明。** 四判断の導出に関する同時帰納法。variable は lookup された宣言型の
-formation を renaming で現在位置まで運ぶ。PTS の introduction / elimination と
-`typeConv` は明示された型 formation を使う。`typeLiftWeak`、`subsetProp`、
-`takeEq` は canonical origin から base、predicate、application の formation を
-復元する。`equalElim` は `P` の formation と `b:A` から lambda/application の
-formation を再構成する。他の proposition rule は対応する formation ruleを直接
-使う。各 premise の文脈 well-formedness も同じ帰納法で得られる。□
+regularity と同時に、product 型を表示型に持つ typing、power 型を表示型に持つ subset typing、
+および take typing について、conversion や structural detour より前の最後の formation / typing
+rule とその premise を回収する generation lemma も示す。表示型が conversion を経ている場合は、
+3.2節の confluence と不活性 head の識別により、対応する component が joinable であることまで
+回収する。
+
+**証明。** WF、sorting、typing、provability の導出と上の generation statement に関する同時
+強帰納法。各 detour では strict premise に進むので導出高が減る。dependent elimination case が
+重要である。function typing の product generation から product formation
+
+```text
+Gamma |- A::r,
+Gamma,x:A::r |- B::q,
+(r,q,z) in R
+```
+
+を回収し、argument typing と substitution 補題から `Gamma |- B[a/x]::q` を得る。従って
+`system.md` の dependent elimination にこの sorting premise を追加する必要はない。
+
+type lift weak と subset property では、入力 typing の canonical origin を辿って
+`B:Power(A)` と `A::Set_i` を回収する。take equal では第一 premise の take origin から
+`X,T,f` の formation と function typingを回収し、第二 premiseと合わせて equality formation を
+作る。他の case は規則の premise または帰納法の仮定から直接従う。□
+
+ここで canonical origin とは、weakening、conversion、type elem / type sort、type lift intro /
+weak を有限回取り除き、raw term の outer constructor を作った最後の rule とその premise を
+記録する generation lemma である。type lift intro / weak の前後の型を beta-convertible とは
+しない。一般の type uniqueness は実際に偽である。
 
 > [!important]
-> **補題（sort uniqueness）** `Gamma |- A :: s` と `Gamma |- A :: t` なら
-> `s=t` である。
+> **補題（sort と term-sort の一意性）。** 同じ raw expression の二つの sorting
+> `Gamma|-A::s`、`Gamma|-A::t` から `s=t`。同じ raw term の二つの typing
+> `Gamma|-e:A::s`、`Gamma|-e:B::t` からも `s=t`。
 
-**証明。** 二導出の高さの和に関する帰納法。weakening を剥がし、`typeSort` は
-canonical origin で `A` の core typing まで進む。sort axiom の target と
-`prodResult?` は関数なので結果が一意である。power、typeLift、predicate、equality、
-exists は規則により結果 sort が固定される。表示型の conversion が介在する場合は
-joinability と head discrimination で同じ core head に帰着する。
-`typeLiftIntro/Weak` は sorting rule ではなく、sort object を別の sort objectへ
-変換することもできない。従ってすべての case で `s=t`。□
+**証明。** 二つの canonical origin の高さの和に関する強い帰納法。direct formation rule は
+raw head により一意である。product result は `R` の表の関数性、sort axiom は `A` の関数性、
+power、predicate、type lift、equality、exists は規則に書かれた sort で決まる。lambda は body
+の低い term-sort uniqueness と `R`、application は argument と function の低い uniqueness と
+`R` を使う。take set と take prop の混在は同じ `T` の低い sort uniqueness で排除される。
+type elem / type sort の往復は strict premise に進むので高さが減る。□
 
-> [!important]
-> **補題（term sort uniqueness）** `Gamma |- e:A::s` と
-> `Gamma |- e:B::t` なら `s=t` である。表示型 `A` と `B` が
-> beta-convertible であるとは限らない。
-
-**証明。** canonical origin で両導出の detour を剥がし、core rule の組を調べる。
-variable の sort annotation、proof term、subset、take、lambda/application の
-result sort は、それぞれ lookup、構文、または `prodResult?` と subterm の sort
-uniqueness により一意である。`typeConv` は sort を保存し、`typeLiftIntro/Weak` は
-どちらも `set i` の内部だけで型を変える。`typeElem` に到達した側は、その sorting
-origin と functional な `axiomTarget?` に帰着する。異なる core head は同じ raw
-term を結論できない。従って `s=t`。□
-
-一般の type uniqueness は成り立たない。文脈に `A::set i` と `t:A` を置き、
-`B={x:A | x=x}` とすれば `t:A` と `t:TypeLift(A,B)` が得られる。`A` を variable
-にすれば二型の head は異なり、beta-convertible ではない。以後この偽の補題は
-使用しない。
+一般の type uniqueness は使わない。例えば `t:A` とし、
+`B={x:A | x=x}` とすれば `t:A` と `t:TypeLift(A,B)` が導けるが、二型は一般には
+beta-convertible でない。
 
 ### 3.4 subject reduction
 
-sorting だけを単独で帰納法にかけると、predicate や equality の congruence case
-で typed subterm を扱えない。そこで次の三主張を同時に示す。
-
 > [!important]
-> **定理（subject reduction）** 次が同時に成り立つ。
->
-> 1. `Gamma |- A :: s`、`A->A'` なら `Gamma |- A' :: s`。
-> 2. `Gamma |- e : A :: s`、`e->e'` なら `Gamma |- e' : A :: s`。
-> 3. `Gamma |= P`、`P->P'` なら `Gamma |= P'`。
->
-> また `Gamma |- e:A::s`、`A->A'` なら `Gamma |- e:A'::s`。
+> **定理（subject reduction）。** sorting、typing、provability は主式の一段 reduction で
+> 保存される。また `Gamma|-e:A::s`、`A->A'` なら `Gamma|-e:A'::s`。
 
-**証明。** 最初の三主張は導出の高さと reduction 導出の組に関する同時帰納法。
-まず canonical origin で detour を剥がす。congruence case では、型位置には第1、
-項位置には第2、proposition 位置には第3の帰納法の仮定を適用して、同じ core rule
-を再構成する。subset の base が進んで表示型が `power A'` になった場合などは、
-`power A'≃beta power A` と `typeConv` で元の表示型へ戻す。
+**証明。** 三 judgement の導出と reduction の同時帰納法。weakening は reduction を一段下の
+term に反映して帰納法を適用する。binder domain の reduction には context conversion、body
+には binder 下の帰納法を使う。application argument の reductionで表示型が `B[a/x]` から
+`B[a'/x]` に変わる場合は substitution compatibility と conversion を使う。
 
-ここでいう congruence case は `prodDom/prodCodom`、`lamTy/lamBody`、
-`appFn/appArg`、`prove`、`power`、`subsetBase/subsetPred`、
-`typeLiftLeft/typeLiftRight`、`predLeft/predMid/predRight`、
-`equalLeft/equalRight`、`exists_`、`takeDomain/takeCodomain/takeFunction` のすべてで
-ある。従って `Reduces` の constructor で残る root case は ordinary `beta` と
-`predSubset` だけである。
+root beta は application と lambda の generation から body typing、domain typing、codomain
+formation を回収して substitution する。`Pred/Subset` root は subset generation により
+構文上の base `B` と predicate側の base `A` が beta-convertible であることを回収する。
+argument を `B` へ convert して target application を形成する。
 
-ordinary beta は lambda/application generation と構文的 substitution を使う。
-`predSubset`
+take domain / codomain / function の reductionでは、function typing、existence、定値性 premise を
+それぞれ subject reduction と context conversion で輸送する。定値性 proposition で `f` が二回
+現れる場合は、一方ずつ進めた二つの一段 congruence を conversion で連結する。生成した target
+導出へ帰納法を再適用せず、source の strict premise だけへ再帰するため整礎的である。□
+
+## 4. conversion を展開した有限導出
+
+soundness の conversion case で「beta-convertible な型は同じ意味」と言うには reduction の
+意味保存が必要であり、reduction の beta case には subterm の typing soundness が必要になる。
+これらを別々に先取りすると循環する。
+
+この循環を避けるため、各 conversion use `A≡beta B` を、confluence が与える共通 reduct `C` と
 
 ```text
-pred A (subset (set i) B P) t
-  -> app (lam (set i) B P) t
+A=A0 -> A1 -> ... -> C,
+B=B0 -> B1 -> ... -> C
 ```
 
-では source の `predForm` と subset generation から
+に展開する。subject reduction により全中間点に同じ sort の sorting derivationを付ける。
+また各 typing / provability derivation に、regularity が与える型 / proposition formation と
+文脈 WF を付ける。このようなものを**正則導出**と呼ぶ。
+
+元の有限導出から正則導出を作れる。conversion 以外は premise を先に正則化して同じ rule を
+適用する。conversion は source type formation と target sorting に joinability と subject
+reduction を適用する。逆に注釈を忘れれば元の導出になる。
+
+正則導出と、その中に付けた finite path、endpoint derivation、context transport、substitution
+derivationをすべて有限木の node と数える。node の rank を
 
 ```text
-Gamma |- t : A :: set i,    A≃beta B,
-x:B::set i,Gamma |- P :: prop
+1 + max(rank of its proper annotated subobjects)
 ```
 
-を得る。conversion で `t:B` とし、`P` に `typeElem`、続いて `lamIntro` と
-`appElim` を適用すると target は `prop` に sort される。typing/provability 版は
-この sorting と `typeElem`、`typeConv`、`provableIntro` を使う。
+とする。元の導出を正則化するときは、先に完成した premise と有限 path から新しい node を
+一度だけ作り、node 自身をその subobject に戻さない。従って rank は well founded である。
+以下では、この数学的な有限展開が有限かつ整礎的であることだけを使う。
 
-`takeDomain` では `X->X'` に第1主張を適用し、function type、`exists X`、定値性の
-二重 product をそれぞれ type conversion と第3主張で `X'` へ transport して
-`takeSet/takeProp` を再適用する。`takeCodomain` も同様で、再構成後の表示型 `T'`
-を `typeConv` で元の `T` へ戻す。`takeFunction` では第2主張で `f'` の function
-typing を得て、定値性 proposition 内の二つの `f` occurrence を第3主張を反復して
-`f'` へ進める。従って三つの `take` congruence も generic というだけで premise を
-失ってはいない。
+## 5. 導出に沿う解釈
 
-最後の主張は regularity で `A'::s` を第1主張から得て、一段 reduction が
-`A≃beta A'` を与えることから `typeConv` を一回適用する。意味論は使っていない。□
-
-## 4. conversion を注釈した導出
-
-元の `typeConv` は raw な `BetaEq` だけを持つ。そのまま導出帰納法で soundness を
-証明すると、conversion の意味保存と soundness が循環する。循環を有限データへ
-展開するため、証明専用の完全注釈付き判断 `Derives+` を導入する。
-
-`Derives+` は元の規則と同じだが、`typeConv` は `A≃beta B` の代わりに、ある `C`
-への二本の typed path を保持する。
-
-```text
-A=A0 -> A1 -> ... -> Am=C,
-B=B0 -> B1 -> ... -> Bn=C.
-```
-
-path の各節点には `Gamma |-+ Ai :: s` または `Gamma |-+ Bj :: s` の導出を添える。
-各次節点の導出は3.4節の subject reduction で直前の注釈付き導出から構成したものを
-そのまま保存する。共通終点に二つの導出がある場合も両方を有限データとして保存する。
-
-さらに、WF 以外のすべての node はその文脈の WF 導出を保持し、typing node
-`Gamma |-+ e:A::s` は `Gamma |-+ A::s` を、provability node `Gamma |=+ P` は
-`Gamma |-+ P::prop` を保持する。これらは3.3節の regularity で作る証拠である。
-後から regularity 導出を組み立てると元の node より高くなる場合があるため、意味論で
-使う証拠を最初から node の field にしておくことが重要である。
-
-注釈付き導出の高さは、constructor と、内部の path および節点導出すべてを含む木の
-高さとする。
-
-> [!important]
-> **補題（注釈付き regularity と subject reduction）** 3.3節の regularity と
-> 3.4節の四つの subject reduction は、すべての `Derives` を `Derives+` に置き
-> 換えても成り立つ。subject reduction が作る target 導出には、source 導出から
-> 再帰的に作った WF、formation、conversion path をすべて保持できる。
-
-**証明。** 3.3節と3.4節の証明を注釈付き導出に対して繰り返す。`typeConv` case
-では既に constructor 内にある二本の path を再利用し、新しい conversion が必要な
-場合は confluence で join diagram を合成する。再帰は source の strict premise
-または reduction の strict subderivation にだけ行うため、有限の注釈付き導出が
-得られる。□
-
-> [!important]
-> **補題（erase）** `Derives+ Gamma J` なら `Derives Gamma J` である。
-
-**証明。** 注釈付き導出の帰納法。`typeConv` では左 path、逆向きの右 pathを
-`BetaEq.step/symm/trans` で連結して `A≃beta B` を復元し、元の `typeConv` を使う。□
-
-> [!important]
-> **補題（elaboration）** `Derives Gamma J` なら `Derives+ Gamma J` である。
-
-**証明。** 元の導出に関する帰納法。`typeConv` 以外は帰納法の仮定を同じ規則へ
-入れ、WF と formation field は既に elaboration 済みの premise に注釈付き
-regularity / canonical origin を適用して構成する。元の regularity 導出をもう一度
-elaborate する再帰呼出しは行わない。`typeConv` では source typing の regularity と
-target sorting を使い、
-joinability から共通 reduct `C` を取る。3.4節の subject reduction を各 step に
-適用して二本の path の全節点を注釈する。source typing と target sorting は現在の
-`typeConv` の真の premise なので既に elaboration 済みであり、path の後続導出は
-前補題の注釈付き regularity / subject reduction でそれらから直接構成する。従って
-現在の node を再帰的に呼び出しておらず、有限の `Derives+` が得られる。□
-
-従って以後 `Derives+` の soundness を示せば元の体系へ戻せる。
-
-## 5. 導出依存の解釈
-
-### 5.1 valuation
-
-論理的にはまず5.2節の denotation relation を全 valuation 上で定義し、その relation
-を使って `Valid` を定義する。denotation relation の定義自体は valuation の
-validity を要求しないため、定義は循環しない。説明上、文脈の意味を先に示す。
-
-注釈付き WF 導出 `hGamma` に対する妥当な valuation を帰納的に定める。
-
-```text
-Valid(empty, []).
-Valid(extend hGamma hA, v::rho)
-  iff Valid(hGamma,rho)
-      and a is the value denoted by hA at rho
-      and v in a.
-```
-
-`s=prop` なら最後の membership から自動的に `v=bullet` が従う。空型を宣言した
-well-formed context には valuation がないが、soundness は妥当な valuation を
-仮定する条件文なので問題ない。
-
-> [!important]
-> **補題（valuation と lookup）** `Valid(hGamma,rho)` なら tail valuation は元の
-> context に妥当である。また `Lookup Gamma i A s` なら、`rho[i]` は lookup された
-> 型の解釈に属する。
-
-**証明。** 前者は `Valid` の inversion。後者は lookup 導出の帰納法で、`here` は
-head membership、`there` は帰納法の仮定と semantic renaming を使う。ここで必要な
-semantic renaming の variable case は valuation の index 計算だけであり、lookup
-soundness を仮定しない。従ってこの補題と5.2節の semantic renaming を、lookup と
-denotation 導出の高さの和に関して同時に証明できる。□
-
-### 5.2 denotation relation
-
-同じ raw lambda、application、take が proof と data の双方に使われるため、raw
-expression だけの全域関数は定義しない。注釈付き導出 `h` と valuation `rho` に
-対する Prop-valued relation を使う。
+同じ raw lambda、application、take が proof branch と data branch の双方に使われるため、
+raw term だけから意味値を決めない。正則導出に沿って意味関係を定義する。
 
 ```text
 SortDenotes(h,rho,a),
@@ -510,227 +409,178 @@ TypeDenotes(h,rho,Aval,eVal),
 ProvDenotes(h,rho,p).
 ```
 
-`TypeDenotes` は必ず node の formation field `hA` に対する
-`SortDenotes(hA,rho,Aval)` を含み、その上で項値を定める。`ProvDenotes` は node の
-proposition formation field `hP` を使い
+typing relation は型の sorting derivation の witness `Aval` も含む。provability relation は
+regularity で付けた `P::Prop` の sorting valueをそのまま `p` とする。
+
+context valuation は
 
 ```text
-ProvDenotes(h,rho,p)  iff  SortDenotes(hP,rho,p)
+Valid(empty,[]),
+Valid(Gamma,x:A::s; rho,v)
+  iff Valid(Gamma,rho)
+      and SortDenotes(A,rho,Aval)
+      and v in Aval
 ```
 
-とする。従って typing / provability と regularity sorting の接続は定義から失われ
-ない。各 provability constructor の soundness は、この `p` が `1` であることを
-示す問題になる。
+である。同じ raw context の異なる WF derivation に対する validity の一致は、6節の coherence と
+同時に示す。
 
-主要 clause は次の通り。
+解釈 clause は2節の演算を rule に従って適用する。
 
-| 導出 | 値 |
-| --- | --- |
-| sort axiom | `S_s` |
-| variable | valuation の対応成分 |
-| `typeElem` / `typeSort` | premise が記録した値 |
-| `prodForm` | `Pi(A,x |-> B(x))` |
-| `lamIntro` | result sort が `prop` なら `bullet`、それ以外は `Lam` |
-| `appElim` | term sort が `prop` なら `bullet`、それ以外は `app` |
-| `typeConv` | source の項値と target sorting の型値 |
-| proof term | `bullet` |
-| `power/subset/pred/typeLift/equal/exists` | 2.3節の対応する値 |
-| `takeSet` | `Take(X,T,f)` |
-| `takeProp` | `bullet` |
+- sort axiom は `S_s`。
+- variable は valuation の対応成分。
+- type elem は sorting premise の値、type sort は typing premise の項値。
+- product、lambda、application は `Pi_z`、`Lam_z`、`App_q`。
+- proof mark と proposition-valued take は `bullet`。
+- power、subset、predicate、type lift、equality、exists、set-valued take は2節の同名演算。
+- conversion は source term の項値を保ち、target sorting の型値と組にする。
 
-binder body は `x in A` ごとの拡張 valuation における denotation relation で family
-を定める。二つの選び方は domain 上で同じであれば `Pi` と `Lam` の外延性により
-同じ値になる。
+binder body の family は、各 `x in A` に対する body denotation の graphとして定める。6節の
+低い-rank denotation existence と coherence により値は一意に存在するので、replacement で
+graphを集合にできる。代表元の global choice は不要である。
+
+renaming、weakening、substitution で構造的に対応させた二導出は、対応する valuation のもとで
+同じ値を表す。これは導出の構造帰納法で、binder では fresh variable、application では
+semantic substitution
+
+```text
+[[B[a/x]]]rho = [[B]](aVal,rho)
+```
+
+を使う。この段階では構造的に対応する witness だけを比較し、任意の別導出との一致を
+仮定しない。
+
+## 6. soundness と coherence
+
+正則導出の rank に関する強い帰納法で、次を同時に証明する。
+
+1. 同じ raw context の WF derivation は同じ valuation を valid とする。
+2. 各 sorting、typing、provability denotation が存在する。
+3. sorting value は `D_s` に入り、typing は `Aval in D_s` と `eVal in Aval` を満たし、
+   provability value は `1` である。
+4. 注釈された一段 reduction、finite path、conversion join の両端は同じ値を表す。
+5. 同じ judgement の二つの正則導出、および同じ導出の二 witness は同じ値を表す。さらに、
+   同じ raw term の二つの typing は、表示型が異なっていても同じ項値を表す。
+
+帰納法の同じ rank では 1、context transport、reduction / path invariance、existence、
+fundamental property、coherence の順に証明する。後の段階が前の段階を使う場合を除き、
+すべての呼出しは proper annotated subobject に対するものなので rank が減る。coherence が
+同じ rank の fundamental propertyを使うのは provability の二値が双方 `1` であると示す場合
+だけである。
+
+主要 rule case を確認する。
+
+- weakening は valid valuation の tail と semantic weakening。
+- variable は context validity の対応成分。
+- type elem / type sort は `a in S_s iff a in D_s`。
+- product は universe closure。
+- lambda の result sort が `Prop` なら全 fiber が `1` なので proof product が `1`。
+  それ以外は graph introduction。
+- application の result sort が `Prop` なら function membership から全 fiber が `1`。
+  それ以外は graph elimination。primitive rule にない `B[a/x]::q` は3.3節で導いた sorting と
+  semantic substitution を使う。
+- conversion は注釈された二 path の reduction invariance と共通終点の coherence。
+- provability / proof mark は `(proof_mem)`。
+- power、subset、predicate、type lift は powerset、separation、subset membership。
+- equality formation / reflexivity は truth law。
+- equality elimination は equality premiseから `aVal=bVal` を得る。最後の premiseを beta と
+  semantic substitution で `P(aVal)=1` にし、等しい値を代入して `P(bVal)=1`、逆向き beta で
+  conclusionへ戻す。
+- exists introduction は項値を witness にする。
+
+take set では existence premise から `x0 in XVal` を得る。function typing から `fVal` は
+`XVal` から `TVal` への graph である。二重 proof product の定値性 premiseを展開すると、
+
+```text
+forall x,y in XVal, app(fVal,x)=app(fVal,y).
+```
+
+`y0=app(fVal,x0)` とすれば `y0 in TVal` で image は `{y0}`。`(take-law)` により
+`Take(XVal,TVal,fVal)=y0 in TVal`。
+
+take prop では function typing から proof product が `1`、従って各 `x in XVal` で
+`TVal=1`。existence で一つの `x` を得て `TVal=1`、よって `bullet in TVal`。
+
+take equal では第一 premise の canonical take origin から同じ `X,T,f` の take set premises を
+回収する。上の議論で `fVal` が `XVal` 上の定値 graph と分かり、第二 premiseから
+`tVal in XVal`。従って `(take-law)` により
+
+```text
+Take(XVal,TVal,fVal)=app(fVal,tVal),
+```
+
+なので equality value は `1`。異なる generation / formation derivation が与える値は低い rank
+の coherence で合わせる。
+
+reduction invariance の root beta は、data branchなら graph beta と semantic substitution、
+proof branchなら両辺が `bullet` であることを使う。sortingされた type-level application の
+term sort は axiom target、すなわち `Kind_i` または `PropKind` なので data branchである。
+
+`Pred/Subset` reduction では generation から base `A` と `B` の denotation が等しく、
+argument value が `B` に属することを得る。従って source value は
+
+```text
+truth(tVal in BVal and PVal(tVal)=1)=PVal(tVal),
+```
+
+これは target application の graph beta value に等しい。
+
+coherence では、二導出の weakening、conversion、type elem / type sort、type lift intro / weak
+を canonical origin まで有限回剥がす。conversion は低い rank の path invariance、type lift
+intro / weak は共通の base typing が表す項値に帰着する。同じ outer constructor の二つの core
+rule は、strict premise の coherence と `Pi`、`Lam`、`Subset` の domain 上の外延性で一致する。
+同じ raw term が異なる表示型を持つ場合も、二つの canonical origin に同じ議論を行う。term-sort
+uniqueness により proof branch と data branch が混在せず、一般の type uniqueness は必要ない。
+provability の二導出は fundamental property により命題値がともに `1` なので一致する。これで
+上の5の cross-typing case を含む全 coherence case が閉じる。
+
+これで `system.md` の primitive 29規則、すなわち PTS / WF 12規則、provability 2規則、
+power / subset / type lift 7規則、equality 3規則、choice 5規則の全 case が尽きる。
 
 > [!important]
-> **補題（semantic renaming と substitution）** 妥当な valuation の対応する
-> 挿入・置換に対し、renaming / substitution 後の注釈付き導出が表す値は元の値と
-> 等しい。特に `u0` が `u` の項値なら
+> **Soundness。** valid valuation `rho` のもとで
 >
 > ```text
-> [[B[u]]]rho = [[B]](u0::rho).
+> Gamma |- A::s       => [[A]]rho in D_s,
+> Gamma |- e:A::s     => [[A]]rho in D_s and [[e]]rho in [[A]]rho,
+> Gamma |= P          => [[P]]rho=1.
 > ```
 
-**証明。** denotation relation と注釈付き導出に関する同時帰納法。variable case は
-valuation の計算と前項の lookup induction、binder case は lifted
-renaming/substitution を使う。
-`typeConv` の path 自体も構文的 renaming/substitution で transport し、各節点に
-帰納法の仮定を適用する。proof-valued variable は両側とも `bullet`。□
-
-## 6. 基本定理
-
-ここが循環を解消する中心である。次の五主張を一つの強い帰納法で証明する。
-
-> [!important]
-> **定理（denotation、fundamental theorem、各 invariance、coherence）**
-> 妥当な valuation のもとで次が成り立つ。
->
-> 1. **Denotation existence:** sorting、typing、provability の各導出を表す値が
->    存在する。
-> 2. **Fundamental theorem:** sorting 値は `D_s` に属し、typing の型値は `D_s`
->    に属し、項値は型値に属する。provability の命題値は `1` である。
-> 3. **Step invariance:** subject reduction で結んだ一段 reduction の source と
->    target は同じ値を表す。typed term reduction についても項値が等しい。
-> 4. **Path invariance:** 注釈付き path の両端は同じ値を表す。
-> 5. **Coherence:** 同じ judgement の二つの注釈付き導出は同じ値を表す。同じ
->    導出に対する denotation relation の値も一意である。さらに typing が記録する
->    型値はその node の formation field の sorting 値と等しく、provability の
->    命題値もその node の proposition formation field の sorting 値と等しい。
->    同じ raw term の二つの typing は、表示型が異なっていても同じ項値を表す。
-
-**証明。** 関係する注釈付き導出、path、join diagram の高さの最大値 `n` に関する
-強い帰納法を行う。`typeConv` node 内の二本の path と全節点の導出、各 node が
-保持する WF / formation 導出は、その node より真に低い。従って conversion case
-で path invariance や共通終点の coherence を使うときも、`equalElim` などで
-regularity sorting の step invariance を使うときも、帰納法の仮定の高さは必ず
-`n` 未満である。これが従来の循環した「三定理の同時帰納法」との違いである。
-
-高さ `n` の段階では、まず denotation existence と fundamental theorem、次に
-step/path invariance、最後に coherence を示す。binder family は各
-`x in A` に対する低い body 導出の denotation の一意性で定まるため、replacement
-でその graph を集合にできる。ここで任意の候補から代表を選ぶ global choice は
-使わない。
-
-まず step invariance を確認する。
-
-- ordinary beta が sorting された type-level application の場合、canonical
-  origin から argument typing を得る。fundamental theorem の低い導出に対する
-  帰納法の仮定により argument 値は lambda domain に入る。graph beta と semantic
-  substitution から両辺の値が等しい。
-- typed term の ordinary beta で結果 sort が `prop` なら両項値は `bullet`。
-  それ以外は前項と同じ graph beta を使う。
-- `predSubset` では subset generation と fundamental theorem から `t in B`。
-  source は `truth(t in B and P(t)=1)`、target は domain 内の graph beta により
-  `P(t)` なので等しい。なお全域 application の定義では `t notin B` の場合も両辺
-  は `0` だが、derivable source ではその場合は起こらない。
-- congruence は reduction 位置に応じて sorting、typing、provability 版の低い
-  step invariance と、各意味演算の外延性を使う。binder body は任意の
-  `x in A` で拡張した妥当な valuation に帰納法の仮定を適用する。
-
-path invariance は各一段の step invariance と等式の推移性から従う。左右の path
-の共通終点に異なる導出が付いている場合は、高さの低い coherence を使う。
-
-次に fundamental theorem を導出規則ごとに確認する。
-
-### 6.1 PTS と proof
-
-- `wfEmpty` / `wfExtend` を含む WF judgement の意味は `True` とする。soundness は
-  「すべての valuation が
-  valid」という主張ではない。sorting / typing / provability case で、対応する
-  WF 導出に妥当な valuation を仮定する。
-- `sortAxiom` は `S_s in D_t`。
-- weakening は valid tail、semantic renaming、premise の帰納法の仮定。
-- variable は lookup 補題。
-- `typeElem` と `typeSort` は `a in S_s iff a in D_s` の二方向。
-- `prodForm` は各 `x in A` で valid context を拡張し、body の帰納法の仮定と
-  product closure を使う。
-- `lamIntro` の result sort が `prop` なら、body proof の membership から各 fiber
-  が `1` であり product も `1`。従って `bullet` が属する。non-proposition なら
-  body 値を graph にして lambda introduction law を使う。
-- `appElim` の term sort が `prop` なら product truth から該当 fiber が `1`。
-  それ以外は graph elimination。最後に semantic substitution で `B[a]` の値へ
-  書き換える。
-- `typeConv` は source typing の帰納法の仮定から `eVal in Aval`。注釈された左右
-  path の path invariance、source typing とその formation field の coherence、
-  共通終点の coherence から `Aval=Bval`。従って `eVal in Bval`。ここでは現在の
-  soundness theorem 自身を再帰呼出ししない。
-- `provableIntro` は proposition に要素があることから命題値が `1`。
-- `proveTerm` は premise が `1` であることから `bullet in 1`。
-
-### 6.2 subset、equality、existence、take
-
-- `powerForm` は powerset closure。`subsetForm` は
-  `Subset(A,P) in Power(A)`。
-- `predForm` は `truth(t in B) in D_prop`。
-- `typeLiftForm` は `B in Power(A)` から `B in D_(set i)`。
-- `typeLiftIntro` と `subsetProp` は `Pred(A,B,t)=1 iff t in B`。
-  `typeLiftWeak` は `B subset A`。
-- `equalForm` と `equalRefl` は truth value と反射律。
-- `equalElim` は equality premise から `aVal=bVal`。最後の premise と
-  beta step invariance から `P(aVal)=1` を得て、等しい値で置換し
-  `P(bVal)=1`。もう一度 beta step invariance で conclusion の applicationへ戻す。
-- `existsForm` は truth value、`existsIntro` は項値を witness にする。
-- `takeSet` では existence から `X` が非空。function typing から `f` は `X` を
-  `T` へ写す。二重 proposition product と equality の soundness から `f` は
-  `X` 上で定値。2.4節の law で `Take(X,T,f) in T`。
-- `takeProp` では proposition product が `1` なので各 `x in X` で `T=1`。
-  existence から一つの `x` があるため `T=1`、従って `bullet in T`。
-- `takeEq` は canonical origin で元の `takeSet` の四 premise を得る。第二 premise
-  の `t in X` と定値性から `Take(X,T,f)=app(f,t)` なので equality は `1`。
-
-最後に coherence を示す。二導出の最後の detour を canonical origin まで剥がす。
-`typeConv` は低い path invariance、`typeLiftIntro/Weak` は保存している base term
-値、weakening は semantic renaming に帰着する。同じ outer constructor の二つの
-core rule は、低い subderivation の coherence と `Pi`、`Lam`、`Subset` の外延性で
-一致する。application や lambda の subterm が異なる表示型で導出されている場合は、
-term sort uniqueness と、低い同一 raw term に対する term coherence を使う。
-sorting / typing で異なる core rule が同じ judgement を結論し得る
-`typeElem/typeSort` の迂回は、低い premise の coherence に帰着する。それ以外の
-異なる不活性 head は canonical origin と head discrimination で除かれる。
-provability には `equalRefl` と `provableIntro` のように異なる core rule が同じ
-judgement を与える場合があるが、その段階で既に示した fundamental theorem により
-双方の命題値が `1` なので一致する。typing / provability と各 formation field の
-cross-relation coherence は各 constructor の定義を展開し、低い premise の
-coherence と path invariance を使って示す。これで五主張の全 case が閉じ、強い
-帰納法が完了する。□
-
-> [!important]
-> **系（元の体系の soundness）** 元の導出と妥当な valuation `rho` に対し、
->
-> 1. `Gamma |- A :: s` なら `[[A]]_rho in D_s`。
-> 2. `Gamma |- e : A :: s` なら `[[A]]_rho in D_s` かつ
->    `[[e]]_rho in [[A]]_rho`。
-> 3. `Gamma |= P` なら `[[P]]_rho=1`。
-
-**証明。** 元の導出を elaboration し、fundamental theorem を適用する。別の
-elaboration を選んでも coherence により値は同じである。□
+元の導出を正則化して上の同時定理を適用する。正則化の選択によらないことは coherence から
+従う。
 
 ## 7. `falseProp`
 
-> [!important]
-> **補題（formation）** 空文脈で `falseProp :: prop` が成り立つ。
-
-**証明。** sort axiom から `sort prop :: propKind`。文脈に
-`P : sort prop :: propKind` を追加すると variable rule で
-`P : sort prop :: propKind`、`typeSort` で `P :: prop`。product formation の
-`(propKind,prop,prop)` を使って `(P:Prop)->P :: prop`。□
-
-> [!important]
-> **補題（意味計算）** 空 valuation における任意の elaboration で
-> `[[falseProp]]=0` である。
-
-**証明。** formation の標準導出では
+空文脈で `Prop::PropKind`。`P:Prop::PropKind` を文脈に加えると variable rule と type sort から
+`P::Prop`。`(PropKind,Prop,Prop) in R` により
 
 ```text
-[[falseProp]] = Pi(S_prop, P |-> P)
-              = truth(forall P in {0,1}, P=1).
+falseProp=(P:Prop)->P :: Prop.
 ```
 
-`0 in S_prop` だが `0!=1` なので右辺は `0`。同じ sorting judgement の他の
-elaboration も coherence によりこの値と等しい。□
-
-## 8. 無矛盾性
-
-> [!important]
-> **定理（provability の無矛盾性）** 空文脈で `falseProp` は証明できない。
-
-**証明。** `[] |= falseProp` と仮定する。空 valuation は空文脈に妥当である。
-soundness により `[[falseProp]]=1`、意味計算により `[[falseProp]]=0`。これは
-`0!=1` に反する。□
-
-> [!important]
-> **定理（項の不存在）** 空文脈で `t : falseProp :: s` を満たす `t,s` は存在
-> しない。
-
-**証明。** regularity から `falseProp::s`。formation と sort uniqueness から
-`s=prop`。soundness、typing と sorting の coherence、意味計算から
+標準 formation derivation の空 valuation で
 
 ```text
-[[t]] in [[falseProp]] = 0.
+[[falseProp]]
+  = Pi_Prop(S_Prop, P |-> P)
+  = truth(forall P in {0,1}, P=1)
+  = 0,
 ```
 
-しかし `0=empty` は要素を持たないので矛盾。□
+最後は `0 in {0,1}` かつ `0!=1` による。別の formation derivation も coherence により同じ
+値を持つ。
 
-以上で、外部集合論における universe tower の存在を仮定した `System` の相対
-無矛盾性が示された。一般の type uniqueness、strong normalization、term 全体の
-normalization、global choice は使用していない。
+空文脈で `falseProp` が provable と仮定すると、空 valuation は valid なので soundness から
+`[[falseProp]]=1`。上の計算は `0` を与え、`0!=1` に反する。
+
+また `Gamma` を空として `t:falseProp::s` があると仮定する。regularity と sort uniqueness から
+`s=Prop`。soundness と formation coherence から
+
+```text
+[[t]] in [[falseProp]]=0,
+```
+
+となるが空集合に要素はない。従ってそのような項も存在しない。これで主定理が示された。□
+
+従って、ZFC と1節の universe tower の存在が無矛盾なら、`system.md` の体系も、少なくとも
+`falseProp` の provability および inhabitance を矛盾とする意味で無矛盾である。

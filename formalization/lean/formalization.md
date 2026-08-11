@@ -2,7 +2,7 @@
 
 ## 1. 役割
 
-この文書は [proof.md](./proof.md) の自然言語証明を Lean へ移すための設計だけを
+この文書は [proof.md](../proof.md) の自然言語証明を Lean へ移すための設計だけを
 扱う。数学的証明の本体は `proof.md` に置き、ここでは次を記す。
 
 - Lean 上の定義の形。
@@ -10,10 +10,33 @@
 - 必要な構文補題と theorem dependency。
 - `System.Derives` の各 case と自然言語証明の対応。
 
-証明対象は `RefType.System.Derives` の original system である。raw `BetaEq` は
-維持する。sorting / typing / provability subject reduction を証明し、証明専用の
-完全注釈付き導出へ elaboration して soundness の循環を切る。original system の
-conversion rule 自体は変更しない。
+証明対象の定義は `doc/book/src/system.md` である。`RefType.System.Derives` はその Lean
+実装候補であって、両者の一致を証明せずに定義の代わりとしてはならない。raw `BetaEq` は
+維持し、original system の conversion rule 自体は変更しない。sorting / typing /
+provability subject reduction を証明し、証明専用の完全注釈付き導出へ elaboration して
+soundness の循環を切る。
+
+### 1.1 現在の Lean presentation との差
+
+`system.md` を正本として照合すると、現在の `RefType.System.Derives` には次の差がある。
+
+1. `system.md` は名前付き変数、右端への文脈拡張、freshness side conditionを使い、Lean は
+   逆順のリスト、de Bruijn index、`Lookup` を使う。さらに Lean の `var` は任意位置の lookup を
+   直接受ける一方、`system.md` の primitive variable rule は文脈末尾の変数だけを扱い、
+   古い変数は `weak type` の反復で導く。
+   これは導出可能性を変えない表現上の差なので、alpha-renaming、最新変数の lookup、weakening
+   による古い変数の lookup の両方向を含む対応を証明する。
+2. Lean の `propWeak` は `system.md` の primitive rule ではない。ただし `proveTerm`、
+   `typeWeak`、`provableIntro` の合成で admissible なので、追加 constructor を残すなら
+   `system.md` の導出へ erase できることを証明する。実装を単純にするなら削除する。
+3. Lean の `appElim` は `B[a]` の sorting premise を余分に持つ。`system.md` の rule は
+   function typing と argument typing の二 premise だけである。formalization では constructor
+   を正本に合わせて二 premise に戻すか、元の導出から product generation、regularity、
+   substitution によりこの sorting を構成して Lean presentation へ移す equivalence theoremを
+   先に証明しなければならない。追加 premise を object theory の仮定として proof.md に持ち込まない。
+
+以後 `Derives` に言及する箇所は、この差を解消した presentation、または
+`system.md` との導出可能性の同値が証明済みの presentationを意味する。
 
 ## 2. ファイル構成
 
@@ -128,11 +151,12 @@ forall x, El x A -> B x = B' x
 `resultSort != prop` を前提として持たせる。`pi_prop_true_iff` は
 `resultSort = prop` の場合に使う。
 
-以下の sort inversion lemma を `Sort.lean` に置く。
+以下の sort inversion lemma を `Sort.lean` に置く。自然言語証明では命題分岐の判定に
+両方向を使うので、片方向だけで済ませない。
 
 ```lean
-prodResult_prop_body :
-  prodResult? r q = some .prop -> q = .prop
+prodResult_prop_iff :
+  prodResult? r q = some z -> (z = .prop ↔ q = .prop)
 
 prodResult_nonprop : ...
 ```
@@ -221,7 +245,9 @@ type_subst
 provable_subst
 ```
 
-`sortWeak` / `typeWeak` / `propWeak` は一般 renaming theorem の系にする。
+`sortWeak` / `typeWeak` は一般 renaming theorem の系にする。provability weakening は
+`proveTerm`、`typeWeak`、`provableIntro` から導く。現在の `propWeak` constructor を残す場合も、
+この admissibility derivation へ erase する。
 
 ## 5. confluence
 
@@ -323,6 +349,12 @@ Gamma |= pred A B t
 `BetaEq.trans`、`typeConv`、`provableIntro` で `pred A B t` を証明し、
 `typeLiftIntro` を適用する。`head_var_ne_typeLift` という head discrimination
 で `A` と `typeLift A B` が convert しない instance を示す。
+
+`system.md` の `dep elim` は result type sorting を premise に持たない。従って
+`typing_regular_type` の application case では、function typing の product generation から
+codomain formation を回収し、argument typing と `sort_subst` から `B[a]` の sorting を構成する。
+現在の Lean constructor にある第三 premise を regularity proof でそのまま使うだけでは、
+`system.md` の定理を証明したことにならない。
 
 ### 6.2 head discrimination
 
@@ -476,9 +508,12 @@ cons:
   ValidCtx hGamma rho ->
   SortDenotes hA rho a ->
   El v a ->
-  (s = prop -> v = proofVal) ->
   ValidCtx (wfExtend hGamma hA) (v :: rho)
 ```
+
+`s = prop -> v = proofVal` は `ValidCtx` constructor の field にしない。これは declaration
+sorting の fundamental theorem と `proof_mem_iff` から後で従う性質であり、validity の定義に
+入れると proof canonicality を先取りする。
 
 補題:
 
@@ -503,7 +538,7 @@ semantic_subst
 ```
 
 `DerivesPlus` は `Type` に住むため proof irrelevance では同一視しない。同じ
-judgement の二つの elaboration が同じ値を表すことを、8.2節の depth に関する
+judgement の二つの elaboration が同じ値を表すことを、8.2節の rank に関する
 coherence theorem で示す。`TypeDenotes` と `SortDenotes`、`ProvDenotes` と
 `SortDenotes` の regularity coherence も同じ bundled theorem に含める。
 
@@ -541,16 +576,21 @@ typing soundness の `typeConv` case は `betaEq_sort_sound` を使う。別々�
 単純な順番で証明すると循環する。
 
 この循環は proof.md 4節の注釈付き presentation で切る。注釈付き証明木は高さを
-取り出すため `Prop` ではなく `Type` に置く。
+取り出すため `Prop` ではなく `Type` に置く。ここでは主要 object だけを略記し、完全な
+mutual family は12節で定める。
 
 ```text
 DerivesPlus : Context -> Sequent -> Type
+TypedStep : ... -> Type
 TypedPath : Context -> USort -> Expr -> Expr -> Type
+TypedConv : Context -> USort -> Expr -> Expr -> Type
 TypedJoin : Context -> USort -> Expr -> Expr -> Type
 ```
 
-`DerivesPlus` は元の constructor を複製するが、`typeConv` は raw `BetaEq` の代わり
-に `TypedJoin Gamma s A B` を持つ。`TypedPath` の各 step は `Reduces` と両端の
+`DerivesPlus` は1.1節で正本と対応を取った constructor を複製し、`typeConv` は raw
+`BetaEq` の代わりに `TypedConv Gamma s A B` を持つ。`TypedConv` は step、symmetry、
+transitivity、dependent substitutionを表し、joinability から作る場合は完成済み
+`TypedJoin` を経由する。`TypedPath` の各 step は `Reduces` と両端の
 `DerivesPlus Gamma (.hasSort _ s)` を持つ。`TypedJoin` は共通 reduct `C` と
 `A ->* C`, `B ->* C` に対応する二本の `TypedPath` を持つ。
 
@@ -561,13 +601,11 @@ TypedJoin : Context -> USort -> Expr -> Expr -> Type
 regularity theorem で後から作った導出は元の node より深くなり得るため、意味論が
 参照する formation evidence を最初から strict subobject にする。
 
-これらは相互 inductive にするか、path node が endpoint の `DerivesPlus` を明示的に
-保持する strictly-positive な構造として定義する。各型に全 subobject を数える
+これらは12節の九種類の tagged mutual family として strictly-positive に定義する。各型の
+全 recursive subobject を数える
 
 ```lean
-depthDerives : DerivesPlus Gamma J -> Nat
-depthPath : TypedPath Gamma s A B -> Nat
-depthJoin : TypedJoin Gamma s A B -> Nat
+rank : AnnotatedObject k rawIndex -> Nat
 ```
 
 を定義する。元の導出からは Type-valued witness を直接返さず、Prop-valued な
@@ -588,7 +626,7 @@ elaborate しない。
 Lean meta-level の proof object の選択であり、object theory の `take` や集合モデル
 の global choice ではない。
 
-soundness は次の五主張を、関係する `depth` の最大値に関する強い帰納法でまとめて
+soundness は次の主張を、関係する `rank` の最大値に関する強い帰納法でまとめて
 証明する。
 
 ```text
@@ -603,11 +641,11 @@ prov_regular_coherent
 ```
 
 `DerivesPlus.typeConv` 内の path、共通終点の二導出、source/target premise、各 node
-の WF / regularity field はすべて node より depth が小さい。従って type
+の WF / regularity field はすべて node より rank が小さい。従って type
 conversion の fundamental case は低い `path_invariant` と
 `denotation_coherent` だけを使い、`equalElim` なども低い regularity sorting を
-参照できる。高さ `n` ごとに existence と fundamental、step/path invariance、
-coherence の順で証明すれば、同じ高さの provability coherence は双方が
+参照できる。rank `n` ごとに validity / transport、step/path invariance、existence、
+fundamental、coherence の順で証明すれば、同じ rank の provability coherence は双方が
 `propTrue` であることから処理できる。
 
 これは証明用 presentation の変更であり、original system の規則を typed
@@ -636,20 +674,22 @@ provable_sound :
 `Nonempty` から witness を取り、上の theorem を適用して得る。別の elaboration を
 選んだ場合の値の一致は `denotation_coherent` を使う。
 
-## 9. 各 constructor の対応
+## 9. Lean constructor と `system.md` の規則の対応
 
-proof.md 6節との対応は次の通り。
+proof.md 6節との対応は次の通り。`propWeak` と三 premise 版 `appElim` は現在の Lean
+presentation にだけ存在する差であり、1.1節の admissibility / equivalence を経由して扱う。
 
 | constructor | 主に使う補題または field |
 | --- | --- |
 | `wfEmpty`, `wfExtend` | `ValidCtx.nil/cons` |
 | `sortAxiom` | `sortAxiom_mem` |
-| weakening 3種 | `semantic_rename`, `valid_tail` |
+| `sortWeak`, `typeWeak` | `semantic_rename`, `valid_tail` |
+| Lean の `propWeak` | `proveTerm + typeWeak + provableIntro` への erase |
 | `var` | `lookup_sound` |
 | `typeElem`, `typeSort` | `sort_el` |
 | `prodForm` | `pi_sort`, `valid_cons` |
 | `lamIntro` | `lam_data_intro` または `pi_prop_true_iff` |
-| `appElim` | `pi_data_elim` または `pi_prop_true_iff`, `semantic_subst` |
+| `appElim` | product generation で result sorting を導出後、`pi_data_elim` または `pi_prop_true_iff`, `semantic_subst` |
 | `typeConv` | `path_invariant`, `denotation_coherent` |
 | `provableIntro`, `proveTerm` | `proof_mem_iff` |
 | `powerForm`, `subsetForm` | `power_sort`, `subset_mem_power` |
@@ -710,14 +750,133 @@ theorem no_false_term (M : UniverseTower) :
 3. regularity、sort uniqueness、head discrimination。
 4. subset/beta/take generation。
 5. sorting / typing / provability subject reduction の同時証明。
-6. `DerivesPlus`, `TypedPath`, `TypedJoin`, depth、erase/elaboration。
+6. 九種類の完全注釈付き object、rank、erase/elaboration。
 7. annotated regularity と annotated subject reduction。
 8. `UniverseTower` の全 field。
 9. denotation relations と `ValidCtx`、semantic renaming/substitution。
 10. denotation existence、fundamental theorem、step/path invariance、coherence の
-    depth に関する強い帰納法。
+    rank に関する強い帰納法。
 11. 元の体系の soundness。
 12. `falseProp_denotes_false`、`consistency`、`no_false_term`。
 
 各段階で theorem statement を先に置き、後続段階が未証明 theorem やモデル field
 として soundness 全体を仮定しないことを確認する。
+
+## 12. 完全注釈付き object の実装設計
+
+8.2節の `DerivesPlus/TypedPath/TypedJoin` は概要である。dependent application、context
+conversion、canonical generation、同じ raw context の異なる WF proof まで含めて rank 帰納法を
+実装する場合は、次の九種類を一つの tagged mutual family として扱う。
+
+| object | raw index |
+| --- | --- |
+| `DerivesPlus` | context と sequent |
+| `LookupPlus` | context、index、type、sort |
+| `SubstPlus` | object kind、source/target index、argument、prefix |
+| `TypedStep` | judgement kind、context、source/target expression、`Reduces` |
+| `TypedPath` | context、sort、source/target expression、forward path |
+| `TypedConv` | context、sort、二 endpoint |
+| `TypedJoin` | context、sort、二始点と共通終点 |
+| `CtxConvPlus` | object kind、source/target index と二 context |
+| `OriginPlus` | context と sorting または typing sequent |
+
+index に recursive proof object を入れない。endpoint derivation、formation、WF、path、transport
+certificate は positive field とし、raw index の一致は equality field で要求する。九種類を
+有限和で tag 付けすれば indexed W-type と同じ strictly-positive な形になる。
+
+### 12.1 `DerivesPlus` と regularity field
+
+`DerivesPlus` は、1.1節で `system.md` と対応を取った規則を複製する。WF 以外の node は
+context WF、typing node は表示型の sorting、provability node は proposition sorting を
+strict child として保持する。sorting / typing node は `OriginPlus` も保持する。
+
+`typeConv` は raw `BetaEq` だけでなく完成済みの `TypedConv` を持つ。`appElim` は primitive
+第三 premise に依存せず、product generation と `SubstPlus` で構成した result sorting を
+regularity field として持つ。Lean の `propWeak` を一時的に残す場合、その erase は
+admissibility derivation にする。
+
+### 12.2 transport object
+
+`SubstPlus` と `CtxConvPlus` は judgement だけでなく九種類の tagged object 全体を輸送する。
+source constructor の tag を写し、対応する各 recursive field の transport certificate を child
+に持つ。variable substitution は zero / newer / older、binder は lifted substitution と一段長い
+prefix を別 constructor にする。
+
+`CtxConvPlus` は置き換える宣言型の完成済み `TypedConv`、source / target object、prefix の
+source / target formation を持つ。WF extend では tail WF と declaration formation、derivation
+rule では全 premise、path / conversion / lookup / origin ではその各 recursive field の
+`CtxConvPlus` を保存する。これにより target が単に同じ raw judgement の任意の導出ではなく、
+source の構造的 transport であることを inversion できる。外部 certificate を target 自身の
+field に戻してはならない。
+
+### 12.3 step、conversion、origin
+
+`TypedStep` は source / target derivation と、次の construction trace のいずれかを持つ。
+
+- `core`: beta、`predSubset`、または直接の congruence reconstruction。
+- `congruence`: strict subterm の低い `TypedStep`。
+- `structuralDetour`: weakening または `typeElem/typeSort` の低い step と transport。
+- `conversionDetour`: 低い step と既存 `TypedConv`。
+- `valueDetour`: 低い base step と再適用する `typeLiftIntro/typeLiftWeak` の premise。
+
+`TypedConv` は `refl`、sorting `TypedStep` の順向き / 逆向き、`trans` に加え、dependent
+application 用の `substStep` を持つ。`substStep` は binder body formation、同じ表示型を保つ
+argument step、二つの構造的 substituted endpoint、`SubstPlus` を child にする。
+`TypedJoin` は左右の `TypedPath` と、raw には同じ共通終点だが別々であり得る二つの endpoint
+derivationを保持する。
+
+`OriginPlus` は `core/structuralDetour/conversionDetour/valueDetour` のいずれかである。
+`valueDetour` は前後の型の `TypedConv` を要求せず、rule tag、strict premise、base typing origin
+だけを持つ。一般の type uniqueness が偽であるため、この区別を conversion detour に統合しては
+ならない。owner 自身を index や child にせず、owner と同じ rule tag、premise、transport field
+を constructor equality で照合する。
+
+### 12.4 rank と構成順
+
+全 recursive child を数えて
+
+```text
+rank(o) = 1 + max { rank(c) | c is a recursive child of o }
+```
+
+とする。source / target endpoint、stored WF / formation、origin、substitution、context transport、
+path はすべて owner より低い。raw syntax、sort、raw `Reduces/BetaEq` proof、renaming index map の
+ように再帰性を持たないデータだけを leaf としてよい。
+
+構成依存は
+
+```text
+annotated renaming/substitution
+  -> structural context transport
+  -> annotated one-step subject reduction
+  -> finite path lifting
+  -> typed join
+  -> elaboration
+```
+
+の一方向にする。一段 subject reduction が使う context transport は完成済み `TypedConv` を入力に
+取る構造的版だけであり、raw `BetaEq` から join を作る一般版ではない。elaboration の
+`typeConv` case は premise を先に elaboration し、その endpoint sorting から finite path を作り、
+最後に owner を一度だけ包む。
+
+### 12.5 bundled induction の phase
+
+一つの instance に現れる全 object の最大 rankを `n` とし、同じ rank 内の phase を
+
+```text
+0 = same-context validity
+1 = lookup / context-transport invariance
+2 = step / conversion / path / join invariance
+3 = denotation existence
+4 = fundamental theorem
+5 = coherence
+```
+
+とする。`(n,phase)` の辞書式強い帰納法を使う。phase 0 / 1 が existence、fundamental、
+coherence を使うのは head declaration、endpoint、premise など rank が低い object に対して
+だけである。phase 2 の相互参照も certificate child へ進む。rankを保つ唯一の後向き参照は
+coherence が完成済み fundamental theorem を使う場合で、`4<5` により減少する。
+
+この schema、Lean の `Prop` elimination 回避、`Nonempty DerivesPlus` からの witness 選択、
+de Bruijn transport はすべて Lean 実装上の事項であり、`system.md` の数学的無矛盾性証明そのもの
+には含めない。

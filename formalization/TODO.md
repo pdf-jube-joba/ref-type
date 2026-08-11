@@ -1,13 +1,14 @@
 # formalization TODO
 
-対象は `doc/book/src/system.md` に対応する `formalization/lean/RefType/system.lean` の体系。目標は、Lean 上で universe-like な意味構造を仮定し、`System.Derives` の soundness から空文脈で `falseProp = (P : *^p) -> P` が証明できないことを示すこと。
+対象の正本は `doc/book/src/system.md` の体系。目標は、Lean 上で universe-like な意味構造を仮定し、正本と導出可能性が同値な presentation の soundness から、空文脈で `falseProp = (P : *^p) -> P` が証明できないことを示すこと。
 
 ## 現在の状態
 
 - `RefType/Sort.lean`
   - sort と sort/product の計算規則を定義している。
 - `RefType/system.lean`
-  - `doc/book/src/system.md` に対応する単一構文・単一 de Bruijn namespace の体系。
+  - `doc/book/src/system.md` の Lean 実装候補である単一構文・単一 de Bruijn namespace の体系。
+  - 現在は context / variable presentation、`propWeak`、`appElim` の前提に差がある。
   - `typeElem` と `typeSort` を含む。
   - `System.falsePropFormed` で `falseProp` の formation は確認済み。
 - `RefType/Model.lean`
@@ -15,8 +16,8 @@
 
 ## 方針
 
-- 証明対象は `System.Derives` に固定する。
-- 自然言語の証明は `lean/proof.md`、Lean 固有の設計は
+- 証明対象は `doc/book/src/system.md` に固定し、`System.Derives` は正本との同値を証明してから使う。
+- 自然言語の証明は `proof.md`、Lean 固有の設計は
   `lean/formalization.md` に分離する。
 - Lean 内で FOL と ZFC を定義しない。
 - ZFC + universe 仮定に相当する部分は、Lean の `structure` として `UniverseTower` にまとめる。
@@ -31,8 +32,13 @@
 - [x] 主入口 `RefType.lean` を `Sort` / `System` / `Model` 中心にする。
 - [x] `system.lean` に `typeSort` を追加する。
 - [x] `System.falsePropFormed` を証明する。
-- [ ] `doc/book/src/system.md` の各規則と `System.Derives` の対応を再点検する。
-- [ ] `takeEq` など、doc/book と前提がずれていないか確認する。
+- [x] `doc/book/src/system.md` の各規則と `System.Derives` の対応を再点検する。
+- [x] `takeEq` など、doc/book と前提がずれていないか確認する。
+- [ ] 名前付き・右拡張の context / variable 規則と、逆順 de Bruijn / `Lookup` presentation の
+  導出可能性の同値を証明する。
+- [ ] `propWeak` を admissible weakening へ erase する。
+- [ ] `appElim` の追加 sorting premise を product generation と substitution から構成し、
+  二 premise 版との導出可能性の同値を証明する。
 
 ### Phase 2: 構文メタ理論
 
@@ -48,11 +54,11 @@
 - [ ] sort uniqueness。
 - [ ] 一般の type uniqueness の代わりに term sort uniqueness を証明する。
 - [ ] product generation と application generation。
-- [ ] `lean/proof.md` 3.3 に従って `take_generation` を証明し、現在の `takeEq` から
+- [ ] `proof.md` 3.3 に従って `take_generation` を証明し、現在の `takeEq` から
   元の `takeSet` の nonempty / mapping / constancy premises を復元する。
 - [ ] parallel reduction / complete development を定義し、raw `Reduces` の
   confluence と `BetaEq` の joinability を証明する。
-- [ ] `lean/proof.md` 3.4 の証明に従い、sorting / typing / provability の subject
+- [ ] `proof.md` 3.4 の証明に従い、sorting / typing / provability の subject
   reduction を同時に Lean 化する。`predSubset` は subset generation から
   `A ≃β B` を回収する。
 
@@ -76,14 +82,14 @@
 ### Phase 4: Denotation と Soundness
 
 - [ ] WF、typing regularity、provability regularity、typed join diagram を保持する
-  `DerivesPlus : Context -> Sequent -> Type` と `TypedPath` / `TypedJoin` を定義する。
-- [ ] `DerivesPlus` の depth、annotated regularity / subject reduction、erase、
+  九種類の完全注釈付き object を定義する。
+- [ ] 完全注釈付き object の rank、annotated regularity / subject reduction、erase、
   `Derives -> Nonempty DerivesPlus` という elaboration を証明する。
 - [ ] sort / type / provability denotation の存在と一意性。
 - [ ] `proof_denotation_canonical`。
 - [ ] typing/provability denotation と sorting denotation の regularity coherence。
 - [ ] renaming / weakening / substitution の意味論的補題。
-- [ ] `DerivesPlus` の depth に関する強い帰納法で denotation existence、fundamental
+- [ ] 完全注釈付き object の rank に関する強い帰納法で denotation existence、fundamental
   theorem、sorting / typed-term の one-step 意味保存、path invariance、coherence
   をまとめて証明する。
 - [ ] elaboration と coherence から元の `Derives` の judgement soundness を得る。
