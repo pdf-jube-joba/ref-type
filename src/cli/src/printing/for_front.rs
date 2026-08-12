@@ -9,7 +9,7 @@ use front::{
     syntax::{
         Bind, Block, Identifier, LocalAccess, MacroToken, ModItemDefinition, ModItemInductive,
         ModItemRecord, Module, ModuleBody, ModuleItem, ModuleItemAccessible, RightBind, SExp,
-        SProveCommandBy, Statement,
+        Statement,
     },
 };
 
@@ -104,13 +104,6 @@ impl<'a> Display for FrontFmt<'a, SExp> {
                 }
                 write!(f, "}}")
             }
-            SExp::WithProofs { exp, proofs } => {
-                write!(f, "with_proofs {} {{ ", FrontFmt(exp))?;
-                for proof in proofs {
-                    write!(f, "{:?} ", proof)?;
-                }
-                write!(f, "}}")
-            }
             SExp::Sort(sort) => write!(f, "{:?}", sort),
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
                 let is_prod = matches!(self.0, SExp::Prod { .. });
@@ -198,7 +191,13 @@ impl<'a> Display for FrontFmt<'a, SExp> {
                     write!(f, "{} {}", FrontFmt(func), FrontFmt(arg))
                 }
             }
-            SExp::Cast { exp, to } => write!(f, "{} \\as {}", FrontFmt(exp), FrontFmt(to)),
+            SExp::Cast { exp, to, proof } => {
+                write!(f, "{} \\as {}", FrontFmt(exp), FrontFmt(to))?;
+                if let Some(proof) = proof {
+                    write!(f, " \\by {}", FrontFmt(proof))?;
+                }
+                Ok(())
+            }
             SExp::IndElim {
                 path,
                 elim,
@@ -246,7 +245,6 @@ impl<'a> Display for FrontFmt<'a, SExp> {
                 }
                 write!(f, "}}")
             }
-            SExp::ProveLater { prop } => write!(f, "prove_later {}", FrontFmt(prop)),
             SExp::PowerSet { set } => write!(f, "PowerSet({})", FrontFmt(set)),
             SExp::SubSet {
                 var,
@@ -310,46 +308,92 @@ impl<'a> Display for FrontFmt<'a, SExp> {
                     FrontFmt(proof_var)
                 ),
             },
-            SExp::Take { bind, body } => match bind {
-                Bind::Named(right_bind) => {
-                    let vars_str = right_bind
-                        .vars
-                        .iter()
-                        .map(|v| format!("{}", FrontFmt(v)))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    write!(
+            SExp::Take {
+                bind,
+                body,
+                existence,
+                uniqueness,
+            } => {
+                match bind {
+                    Bind::Named(right_bind) => {
+                        let vars_str = right_bind
+                            .vars
+                            .iter()
+                            .map(|v| format!("{}", FrontFmt(v)))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        write!(
+                            f,
+                            "\\take ({}: {}) => {}",
+                            vars_str,
+                            FrontFmt(right_bind.ty.as_ref()),
+                            FrontFmt(body)
+                        )
+                    }
+                    Bind::Subset { var, ty, predicate } => write!(
                         f,
-                        "\\take ({}: {}) => {}",
-                        vars_str,
-                        FrontFmt(right_bind.ty.as_ref()),
+                        "\\take ({}: {} | {}) => {}",
+                        FrontFmt(var),
+                        FrontFmt(ty),
+                        FrontFmt(predicate),
                         FrontFmt(body)
-                    )
+                    ),
+                    Bind::SubsetWithProof {
+                        var,
+                        ty,
+                        predicate,
+                        proof_var,
+                    } => write!(
+                        f,
+                        "\\take ({}: {} | {}: {}) => {}",
+                        FrontFmt(var),
+                        FrontFmt(ty),
+                        FrontFmt(predicate),
+                        FrontFmt(proof_var),
+                        FrontFmt(body)
+                    ),
+                }?;
+                write!(f, " \\by ({})", FrontFmt(existence))?;
+                if let Some(uniqueness) = uniqueness {
+                    write!(f, ", {}", FrontFmt(uniqueness))?;
                 }
-                Bind::Subset { var, ty, predicate } => write!(
-                    f,
-                    "\\take ({}: {} | {}) => {}",
-                    FrontFmt(var),
-                    FrontFmt(ty),
-                    FrontFmt(predicate),
-                    FrontFmt(body)
-                ),
-                Bind::SubsetWithProof {
-                    var,
-                    ty,
-                    predicate,
-                    proof_var,
-                } => write!(
-                    f,
-                    "\\take ({}: {} | {}: {}) => {}",
-                    FrontFmt(var),
-                    FrontFmt(ty),
-                    FrontFmt(predicate),
-                    FrontFmt(proof_var),
-                    FrontFmt(body)
-                ),
-            },
-            SExp::ProofTermRaw(sprove_command_by) => write!(f, "{}", FrontFmt(sprove_command_by)),
+                Ok(())
+            }
+            SExp::ExistsIntro { element, set } => {
+                write!(f, "\\exact({}, {})", FrontFmt(element), FrontFmt(set))
+            }
+            SExp::SubsetElim {
+                element,
+                subset,
+                superset,
+            } => write!(
+                f,
+                "\\subsetelim({}, {}, {})",
+                FrontFmt(superset),
+                FrontFmt(subset),
+                FrontFmt(element)
+            ),
+            SExp::IdRefl { element } => write!(f, "\\refl({})", FrontFmt(element)),
+            SExp::IdElim {
+                left,
+                right,
+                var,
+                ty,
+                predicate,
+                base,
+                equality,
+            } => write!(
+                f,
+                "\\idelim({} = {} \\with {}: {} => {}) \\by ({}, {})",
+                FrontFmt(left),
+                FrontFmt(right),
+                FrontFmt(var),
+                FrontFmt(ty),
+                FrontFmt(predicate),
+                FrontFmt(base),
+                FrontFmt(equality)
+            ),
+            SExp::TakeEq { .. } => write!(f, "{:?}", self.0),
             SExp::Block(block) => {
                 write!(f, "\\block {{ ")?;
                 let Block { statements, result } = block;
@@ -358,58 +402,6 @@ impl<'a> Display for FrontFmt<'a, SExp> {
                 }
                 write!(f, "return {}; }}", FrontFmt(result))
             }
-        }
-    }
-}
-
-impl<'a> Display for FrontFmt<'a, SProveCommandBy> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.0 {
-            SProveCommandBy::Construct { term } => write!(f, "\\construct {}", FrontFmt(term)),
-            SProveCommandBy::Exact { term, set } => {
-                write!(f, "\\exact {} : {}", FrontFmt(term), FrontFmt(set))
-            }
-            SProveCommandBy::SubsetElim {
-                superset,
-                subset,
-                elem,
-            } => write!(
-                f,
-                "\\subset_elim {}, {}, {}",
-                FrontFmt(superset),
-                FrontFmt(subset),
-                FrontFmt(elem)
-            ),
-            SProveCommandBy::IdRefl { term } => write!(f, "\\id_refl {}", FrontFmt(term)),
-            SProveCommandBy::IdElim {
-                left,
-                right,
-                var,
-                ty,
-                predicate,
-            } => write!(
-                f,
-                "\\id_elim {}, {}, {}, {}, {}",
-                FrontFmt(left),
-                FrontFmt(right),
-                FrontFmt(var),
-                FrontFmt(ty),
-                FrontFmt(predicate)
-            ),
-            SProveCommandBy::TakeEq {
-                func,
-                elem,
-                domain,
-                codomain,
-            } => write!(
-                f,
-                "\\take_eq {}, {}, {}, {}",
-                FrontFmt(func),
-                FrontFmt(elem),
-                FrontFmt(domain),
-                FrontFmt(codomain)
-            ),
-            SProveCommandBy::Axiom(axiom) => write!(f, "\\axiom {:?}", axiom),
         }
     }
 }
@@ -434,42 +426,40 @@ impl<'a> Display for FrontFmt<'a, Statement> {
                     FrontFmt(body)
                 )
             }
-            Statement::Take { bind } => match bind {
-                Bind::Named(right_bind) => {
-                    let vars_str = right_bind
-                        .vars
-                        .iter()
-                        .map(|v| format!("{}", FrontFmt(v)))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    write!(
+            Statement::Take {
+                bind,
+                existence,
+                uniqueness,
+            } => {
+                match bind {
+                    Bind::Named(right_bind) => write!(f, "\\take {} ", FrontFmt(right_bind)),
+                    Bind::Subset { var, ty, predicate } => write!(
                         f,
-                        "\\take ({}: {}) ",
-                        vars_str,
-                        FrontFmt(right_bind.ty.as_ref())
-                    )
+                        "\\take ({}: {} | {}) ",
+                        FrontFmt(var),
+                        FrontFmt(ty),
+                        FrontFmt(predicate)
+                    ),
+                    Bind::SubsetWithProof {
+                        var,
+                        ty,
+                        predicate,
+                        proof_var,
+                    } => write!(
+                        f,
+                        "\\take ({}: {} | {}: {}) ",
+                        FrontFmt(var),
+                        FrontFmt(ty),
+                        FrontFmt(predicate),
+                        FrontFmt(proof_var)
+                    ),
+                }?;
+                write!(f, "\\by ({})", FrontFmt(existence))?;
+                if let Some(uniqueness) = uniqueness {
+                    write!(f, ", {}", FrontFmt(uniqueness))?;
                 }
-                Bind::Subset { var, ty, predicate } => write!(
-                    f,
-                    "\\take ({}: {} | {}) ",
-                    FrontFmt(var),
-                    FrontFmt(ty),
-                    FrontFmt(predicate)
-                ),
-                Bind::SubsetWithProof {
-                    var,
-                    ty,
-                    predicate,
-                    proof_var,
-                } => write!(
-                    f,
-                    "\\take ({}: {} | {}: {}) ",
-                    FrontFmt(var),
-                    FrontFmt(ty),
-                    FrontFmt(predicate),
-                    FrontFmt(proof_var)
-                ),
-            },
+                Ok(())
+            }
             Statement::Sufficient { map, map_ty } => {
                 write!(f, "\\sufficient {}: {}", FrontFmt(map), FrontFmt(map_ty))
             }

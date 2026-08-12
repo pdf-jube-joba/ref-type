@@ -66,28 +66,18 @@ static SORT_KEYWORDS: &[&str] = &[
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\elim", // inductive eliminator
     "\\prec", // eliminator as primitive recursive form
-    "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
+    "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
     "\\exists", // \exists <Bind>
     "\\take",   // \take <Bind> => <body>
     "\\block",  // block expression
 ];
 
 static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
-    &["\\as", "\\with", "\\where", "\\in", "\\return", "\\goal"];
+    &["\\as", "\\by", "\\with", "\\where", "\\in", "\\return"];
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
-static PROOF_COMMAND_KEYWORDS: &[&str] = &[
-    "\\term",
-    "\\exact",
-    "\\bysub",
-    "\\refl",
-    "\\idelim",
-    "\\takeelim",
-    "\\axiom:LEM",
-    "\\axiom:FE",
-    "\\axiom:EE",
-];
+static PROOF_TERM_KEYWORDS: &[&str] = &["\\exact", "\\bysub", "\\refl", "\\idelim", "\\takeelim"];
 
 static PROGRAM_KEYWORDS: &[&str] = &[
     "\\module",
@@ -157,7 +147,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
                     && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
                     && !BLOCK_KEYWORDS.contains(&kw)
-                    && !PROOF_COMMAND_KEYWORDS.contains(&kw)
+                    && !PROOF_TERM_KEYWORDS.contains(&kw)
                     && !PROGRAM_KEYWORDS.contains(&kw)
                 {
                     // treat as macro token if not reserved keyword

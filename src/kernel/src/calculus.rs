@@ -105,44 +105,21 @@ pub fn exp_strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                     .zip(cases2.iter())
                     .all(|(c1, c2)| exp_strict_equivalence(c1, c2))
         }
-        (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
-            exp_strict_equivalence(e1, e2) && exp_strict_equivalence(t1, t2)
-        }
-        (Exp::ProveLater { prop: e1 }, Exp::ProveLater { prop: e2 }) => {
-            exp_strict_equivalence(e1, e2)
-        }
         (
-            Exp::ProveHere {
-                exp: exp1,
-                goals: goals1,
+            Exp::Cast {
+                exp: e1,
+                to: t1,
+                proof: p1,
             },
-            Exp::ProveHere {
-                exp: exp2,
-                goals: goals2,
+            Exp::Cast {
+                exp: e2,
+                to: t2,
+                proof: p2,
             },
         ) => {
-            exp_strict_equivalence(exp1, exp2)
-                && goals1.len() == goals2.len()
-                && goals1.iter().zip(goals2.iter()).all(|(g1, g2)| {
-                    exp_strict_equivalence(&g1.goal_prop, &g2.goal_prop)
-                        && command_strict_equivalence(&g1.command, &g2.command)
-                        && {
-                            if g1.extended_ctx.len() != g2.extended_ctx.len() {
-                                return false;
-                            }
-                            for ((var1, exp1), (var2, exp2)) in
-                                g1.extended_ctx.iter().zip(g2.extended_ctx.iter())
-                            {
-                                if !var1.is_eq_ptr(var2) || !exp_strict_equivalence(exp1, exp2) {
-                                    return false;
-                                }
-                            }
-                            true
-                        }
-                })
-        }
-        (Exp::ProofTermRaw { command: command1 }, Exp::ProofTermRaw { command: command2 }) => {
-            command_strict_equivalence(command1, command2)
+            exp_strict_equivalence(e1, e2)
+                && exp_strict_equivalence(t1, t2)
+                && option_exp_equivalence(p1.as_deref(), p2.as_deref())
         }
         (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => exp_strict_equivalence(e1, e2),
         (
@@ -203,131 +180,121 @@ pub fn exp_strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                 domain: d1,
                 codomain: c1,
                 map: m1,
+                existence: e1,
+                uniqueness: u1,
             },
             Exp::Take {
                 domain: d2,
                 codomain: c2,
                 map: m2,
+                existence: e2,
+                uniqueness: u2,
             },
         ) => {
             exp_strict_equivalence(d1, d2)
                 && exp_strict_equivalence(c1, c2)
                 && exp_strict_equivalence(m1, m2)
+                && exp_strict_equivalence(e1, e2)
+                && option_exp_equivalence(u1.as_deref(), u2.as_deref())
+        }
+        (
+            Exp::ExistsIntro {
+                element: e1,
+                set: s1,
+            },
+            Exp::ExistsIntro {
+                element: e2,
+                set: s2,
+            },
+        ) => exp_strict_equivalence(e1, e2) && exp_strict_equivalence(s1, s2),
+        (
+            Exp::SubsetElim {
+                element: e1,
+                subset: b1,
+                superset: s1,
+            },
+            Exp::SubsetElim {
+                element: e2,
+                subset: b2,
+                superset: s2,
+            },
+        ) => {
+            exp_strict_equivalence(e1, e2)
+                && exp_strict_equivalence(b1, b2)
+                && exp_strict_equivalence(s1, s2)
+        }
+        (Exp::IdRefl { element: e1 }, Exp::IdRefl { element: e2 }) => {
+            exp_strict_equivalence(e1, e2)
+        }
+        (
+            Exp::IdElim {
+                left: l1,
+                right: r1,
+                ty: t1,
+                var: v1,
+                predicate: p1,
+                base: b1,
+                equality: e1,
+            },
+            Exp::IdElim {
+                left: l2,
+                right: r2,
+                ty: t2,
+                var: v2,
+                predicate: p2,
+                base: b2,
+                equality: e2,
+            },
+        ) => {
+            v1.is_eq_ptr(v2)
+                && [
+                    (&**l1, &**l2),
+                    (&**r1, &**r2),
+                    (&**t1, &**t2),
+                    (&**p1, &**p2),
+                    (&**b1, &**b2),
+                    (&**e1, &**e2),
+                ]
+                .into_iter()
+                .all(|(a, b)| exp_strict_equivalence(a, b))
+        }
+        (
+            Exp::TakeEq {
+                func: f1,
+                domain: d1,
+                codomain: c1,
+                element: e1,
+                existence: x1,
+                uniqueness: u1,
+            },
+            Exp::TakeEq {
+                func: f2,
+                domain: d2,
+                codomain: c2,
+                element: e2,
+                existence: x2,
+                uniqueness: u2,
+            },
+        ) => {
+            [
+                (&**f1, &**f2),
+                (&**d1, &**d2),
+                (&**c1, &**c2),
+                (&**e1, &**e2),
+                (&**x1, &**x2),
+            ]
+            .into_iter()
+            .all(|(a, b)| exp_strict_equivalence(a, b))
+                && option_exp_equivalence(u1.as_deref(), u2.as_deref())
         }
         _ => false,
     }
 }
 
-pub fn command_strict_equivalence(command1: &ProveCommandBy, command2: &ProveCommandBy) -> bool {
-    match (command1, command2) {
-        (ProveCommandBy::Construct(pt1), ProveCommandBy::Construct(pt2)) => {
-            exp_strict_equivalence(pt1, pt2)
-        }
-        (
-            ProveCommandBy::ExactElem {
-                elem: elem1,
-                ty: ty1,
-            },
-            ProveCommandBy::ExactElem {
-                elem: elem2,
-                ty: ty2,
-            },
-        ) => exp_strict_equivalence(elem1, elem2) && exp_strict_equivalence(ty1, ty2),
-        (ProveCommandBy::IdRefl { elem: elem1 }, ProveCommandBy::IdRefl { elem: elem2 }) => {
-            exp_strict_equivalence(elem1, elem2)
-        }
-        (
-            ProveCommandBy::IdElim {
-                left: left1,
-                right: right1,
-                ty: ty1,
-                var: var1,
-                predicate: predicate1,
-            },
-            ProveCommandBy::IdElim {
-                left: left2,
-                right: right2,
-                ty: ty2,
-                var: var2,
-                predicate: predicate2,
-            },
-        ) => {
-            var1.is_eq_ptr(var2)
-                && exp_strict_equivalence(left1, left2)
-                && exp_strict_equivalence(right1, right2)
-                && exp_strict_equivalence(ty1, ty2)
-                && exp_strict_equivalence(predicate1, predicate2)
-        }
-        (
-            ProveCommandBy::SubsetElim {
-                elem: elem1,
-                subset: subset1,
-                superset: superset1,
-            },
-            ProveCommandBy::SubsetElim {
-                elem: elem2,
-                subset: subset2,
-                superset: superset2,
-            },
-        ) => {
-            exp_strict_equivalence(elem1, elem2)
-                && exp_strict_equivalence(subset1, subset2)
-                && exp_strict_equivalence(superset1, superset2)
-        }
-        (
-            ProveCommandBy::TakeEq {
-                func: func1,
-                domain: domain1,
-                codomain: codomain1,
-                elem: elem1,
-            },
-            ProveCommandBy::TakeEq {
-                func: func2,
-                domain: domain2,
-                codomain: codomain2,
-                elem: elem2,
-            },
-        ) => {
-            exp_strict_equivalence(func1, func2)
-                && exp_strict_equivalence(domain1, domain2)
-                && exp_strict_equivalence(codomain1, codomain2)
-                && exp_strict_equivalence(elem1, elem2)
-        }
-        (ProveCommandBy::Axiom(axiom1), ProveCommandBy::Axiom(axiom2)) => match (axiom1, axiom2) {
-            (Axiom::ExcludedMiddle { prop: prop1 }, Axiom::ExcludedMiddle { prop: prop2 }) => {
-                exp_strict_equivalence(prop1, prop2)
-            }
-            (
-                Axiom::EmsemblesExtensionality {
-                    set1: set1_1,
-                    set2: set2_1,
-                    superset: superset_1,
-                },
-                Axiom::EmsemblesExtensionality {
-                    set1: set1_2,
-                    set2: set2_2,
-                    superset: superset_2,
-                },
-            ) => {
-                exp_strict_equivalence(set1_1, set1_2)
-                    && exp_strict_equivalence(set2_1, set2_2)
-                    && exp_strict_equivalence(superset_1, superset_2)
-            }
-            (
-                Axiom::FunctionExtensionality {
-                    func1: func1_1,
-                    func2: func_2_1,
-                },
-                Axiom::FunctionExtensionality {
-                    func1: func1_2,
-                    func2: func_2_2,
-                },
-            ) => {
-                exp_strict_equivalence(func1_1, func1_2)
-                    && exp_strict_equivalence(func_2_1, func_2_2)
-            }
-            _ => false,
-        },
+fn option_exp_equivalence(e1: Option<&Exp>, e2: Option<&Exp>) -> bool {
+    match (e1, e2) {
+        (Some(e1), Some(e2)) => exp_strict_equivalence(e1, e2),
+        (None, None) => true,
         _ => false,
     }
 }
@@ -390,17 +357,13 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                 || exp_contains_as_freevar(return_type, v)
                 || cases.iter().any(|case| exp_contains_as_freevar(case, v))
         }
-        Exp::Cast { exp, to } => exp_contains_as_freevar(exp, v) || exp_contains_as_freevar(to, v),
-        Exp::ProveLater { prop } => exp_contains_as_freevar(prop, v),
-        Exp::ProveHere { exp, goals } => {
+        Exp::Cast { exp, to, proof } => {
             exp_contains_as_freevar(exp, v)
-                || goals.iter().any(|goal| {
-                    goal.extended_ctx.iter().any(|(var, _)| var.is_eq_ptr(v))
-                        || exp_contains_as_freevar(&goal.goal_prop, v)
-                        || command_contains_as_free_var(&goal.command, v)
-                })
+                || exp_contains_as_freevar(to, v)
+                || proof
+                    .as_deref()
+                    .is_some_and(|p| exp_contains_as_freevar(p, v))
         }
-        Exp::ProofTermRaw { command } => command_contains_as_free_var(command, v),
         Exp::PowerSet { set } => exp_contains_as_freevar(set, v),
         Exp::SubSet {
             var,
@@ -430,68 +393,63 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
             domain,
             codomain,
             map,
+            existence,
+            uniqueness,
         } => {
             exp_contains_as_freevar(domain, v)
                 || exp_contains_as_freevar(codomain, v)
                 || exp_contains_as_freevar(map, v)
+                || exp_contains_as_freevar(existence, v)
+                || uniqueness
+                    .as_deref()
+                    .is_some_and(|p| exp_contains_as_freevar(p, v))
         }
-    }
-}
-
-fn command_contains_as_free_var(command: &ProveCommandBy, v: &Var) -> bool {
-    match command {
-        ProveCommandBy::Construct(proof_term) => exp_contains_as_freevar(proof_term, v),
-        ProveCommandBy::ExactElem { elem, ty } => {
-            exp_contains_as_freevar(elem, v) || exp_contains_as_freevar(ty, v)
+        Exp::ExistsIntro { element, set } => {
+            exp_contains_as_freevar(element, v) || exp_contains_as_freevar(set, v)
         }
-        ProveCommandBy::SubsetElim {
-            elem,
+        Exp::SubsetElim {
+            element,
             subset,
             superset,
         } => {
-            exp_contains_as_freevar(elem, v)
+            exp_contains_as_freevar(element, v)
                 || exp_contains_as_freevar(subset, v)
                 || exp_contains_as_freevar(superset, v)
         }
-        ProveCommandBy::IdRefl { elem } => exp_contains_as_freevar(elem, v),
-        ProveCommandBy::IdElim {
+        Exp::IdRefl { element } => exp_contains_as_freevar(element, v),
+        Exp::IdElim {
             left,
             right,
             ty,
             var,
             predicate,
+            base,
+            equality,
         } => {
             exp_contains_as_freevar(left, v)
                 || exp_contains_as_freevar(right, v)
                 || exp_contains_as_freevar(ty, v)
                 || (!var.is_eq_ptr(v) && exp_contains_as_freevar(predicate, v))
+                || exp_contains_as_freevar(base, v)
+                || exp_contains_as_freevar(equality, v)
         }
-        ProveCommandBy::TakeEq {
+        Exp::TakeEq {
             func,
             domain,
             codomain,
-            elem,
+            element,
+            existence,
+            uniqueness,
         } => {
             exp_contains_as_freevar(func, v)
                 || exp_contains_as_freevar(domain, v)
                 || exp_contains_as_freevar(codomain, v)
-                || exp_contains_as_freevar(elem, v)
+                || exp_contains_as_freevar(element, v)
+                || exp_contains_as_freevar(existence, v)
+                || uniqueness
+                    .as_deref()
+                    .is_some_and(|p| exp_contains_as_freevar(p, v))
         }
-        ProveCommandBy::Axiom(axiom) => match axiom {
-            Axiom::ExcludedMiddle { prop } => exp_contains_as_freevar(prop, v),
-            Axiom::EmsemblesExtensionality {
-                set1,
-                set2,
-                superset,
-            } => {
-                exp_contains_as_freevar(set1, v)
-                    || exp_contains_as_freevar(set2, v)
-                    || exp_contains_as_freevar(superset, v)
-            }
-            Axiom::FunctionExtensionality { func1, func2 } => {
-                exp_contains_as_freevar(func1, v) || exp_contains_as_freevar(func2, v)
-            }
-        },
     }
 }
 
@@ -625,28 +583,21 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                     .zip(cases2.iter())
                     .all(|(c1, c2)| is_alpha_eq_rec(c1, c2, env1, env2))
         }
-        (Exp::Cast { exp: e1, to: t1 }, Exp::Cast { exp: e2, to: t2 }) => {
-            is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(t1, t2, env1, env2)
-        }
-        (Exp::ProveLater { prop: e1 }, Exp::ProveLater { prop: e2 }) => {
-            is_alpha_eq_rec(e1, e2, env1, env2)
-        }
         (
-            Exp::ProveHere {
-                exp: exp1,
-                goals: _,
+            Exp::Cast {
+                exp: e1,
+                to: t1,
+                proof: p1,
             },
-            Exp::ProveHere {
-                exp: exp2,
-                goals: _,
+            Exp::Cast {
+                exp: e2,
+                to: t2,
+                proof: p2,
             },
         ) => {
-            // here we ignore proof goals
-            is_alpha_eq_rec(exp1, exp2, env1, env2)
-        }
-        (Exp::ProofTermRaw { command: _ }, Exp::ProofTermRaw { command: _ }) => {
-            // here we ignore proof terms
-            true
+            is_alpha_eq_rec(e1, e2, env1, env2)
+                && is_alpha_eq_rec(t1, t2, env1, env2)
+                && option_alpha_eq(p1.as_deref(), p2.as_deref(), env1, env2)
         }
         (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => {
             is_alpha_eq_rec(e1, e2, env1, env2)
@@ -716,17 +667,124 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 domain: d1,
                 codomain: c1,
                 map: m1,
+                existence: e1,
+                uniqueness: u1,
             },
             Exp::Take {
                 domain: d2,
                 codomain: c2,
                 map: m2,
+                existence: e2,
+                uniqueness: u2,
             },
         ) => {
             is_alpha_eq_rec(d1, d2, env1, env2)
                 && is_alpha_eq_rec(c1, c2, env1, env2)
                 && is_alpha_eq_rec(m1, m2, env1, env2)
+                && is_alpha_eq_rec(e1, e2, env1, env2)
+                && option_alpha_eq(u1.as_deref(), u2.as_deref(), env1, env2)
         }
+        (
+            Exp::ExistsIntro {
+                element: e1,
+                set: s1,
+            },
+            Exp::ExistsIntro {
+                element: e2,
+                set: s2,
+            },
+        ) => is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(s1, s2, env1, env2),
+        (
+            Exp::SubsetElim {
+                element: e1,
+                subset: b1,
+                superset: s1,
+            },
+            Exp::SubsetElim {
+                element: e2,
+                subset: b2,
+                superset: s2,
+            },
+        ) => {
+            is_alpha_eq_rec(e1, e2, env1, env2)
+                && is_alpha_eq_rec(b1, b2, env1, env2)
+                && is_alpha_eq_rec(s1, s2, env1, env2)
+        }
+        (Exp::IdRefl { element: e1 }, Exp::IdRefl { element: e2 }) => {
+            is_alpha_eq_rec(e1, e2, env1, env2)
+        }
+        (
+            Exp::IdElim {
+                left: l1,
+                right: r1,
+                ty: t1,
+                var: v1,
+                predicate: p1,
+                base: b1,
+                equality: q1,
+            },
+            Exp::IdElim {
+                left: l2,
+                right: r2,
+                ty: t2,
+                var: v2,
+                predicate: p2,
+                base: b2,
+                equality: q2,
+            },
+        ) => {
+            is_alpha_eq_rec(l1, l2, env1, env2)
+                && is_alpha_eq_rec(r1, r2, env1, env2)
+                && is_alpha_eq_rec(t1, t2, env1, env2)
+                && {
+                    env1.push(v1.clone());
+                    env2.push(v2.clone());
+                    let equal = is_alpha_eq_rec(p1, p2, env1, env2);
+                    env1.pop();
+                    env2.pop();
+                    equal
+                }
+                && is_alpha_eq_rec(b1, b2, env1, env2)
+                && is_alpha_eq_rec(q1, q2, env1, env2)
+        }
+        (
+            Exp::TakeEq {
+                func: f1,
+                domain: d1,
+                codomain: c1,
+                element: e1,
+                existence: x1,
+                uniqueness: u1,
+            },
+            Exp::TakeEq {
+                func: f2,
+                domain: d2,
+                codomain: c2,
+                element: e2,
+                existence: x2,
+                uniqueness: u2,
+            },
+        ) => {
+            is_alpha_eq_rec(f1, f2, env1, env2)
+                && is_alpha_eq_rec(d1, d2, env1, env2)
+                && is_alpha_eq_rec(c1, c2, env1, env2)
+                && is_alpha_eq_rec(e1, e2, env1, env2)
+                && is_alpha_eq_rec(x1, x2, env1, env2)
+                && option_alpha_eq(u1.as_deref(), u2.as_deref(), env1, env2)
+        }
+        _ => false,
+    }
+}
+
+fn option_alpha_eq(
+    e1: Option<&Exp>,
+    e2: Option<&Exp>,
+    env1: &mut Vec<Var>,
+    env2: &mut Vec<Var>,
+) -> bool {
+    match (e1, e2) {
+        (Some(e1), Some(e2)) => is_alpha_eq_rec(e1, e2, env1, env2),
+        (None, None) => true,
         _ => false,
     }
 }
@@ -851,30 +909,10 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             return_type: Box::new(exp_subst(return_type, v, t)),
             cases: cases.iter().map(|case| exp_subst(case, v, t)).collect(),
         },
-        Exp::Cast { exp, to } => Exp::Cast {
+        Exp::Cast { exp, to, proof } => Exp::Cast {
             exp: Box::new(exp_subst(exp, v, t)),
             to: Box::new(exp_subst(to, v, t)),
-        },
-        Exp::ProveLater { prop: exp } => Exp::ProveLater {
-            prop: Box::new(exp_subst(exp, v, t)),
-        },
-        Exp::ProveHere { exp, goals } => Exp::ProveHere {
-            exp: Box::new(exp_subst(exp, v, t)),
-            goals: goals
-                .iter()
-                .map(|goal| ProveGoal {
-                    extended_ctx: goal
-                        .extended_ctx
-                        .iter()
-                        .map(|(var, exp)| (var.clone(), exp_subst(exp, v, t)))
-                        .collect::<Vec<_>>(),
-                    goal_prop: exp_subst(&goal.goal_prop, v, t),
-                    command: command_subst(&goal.command, v, t),
-                })
-                .collect(),
-        },
-        Exp::ProofTermRaw { command } => Exp::ProofTermRaw {
-            command: command_subst(command, v, t).into(),
+            proof: proof.as_deref().map(|p| Box::new(exp_subst(p, v, t))),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
             set: Box::new(exp_subst(exp, v, t)),
@@ -922,81 +960,67 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             domain,
             codomain,
             map,
+            existence,
+            uniqueness,
         } => Exp::Take {
             domain: Box::new(exp_subst(domain, v, t)),
             codomain: Box::new(exp_subst(codomain, v, t)),
             map: Box::new(exp_subst(map, v, t)),
+            existence: Box::new(exp_subst(existence, v, t)),
+            uniqueness: uniqueness.as_deref().map(|p| Box::new(exp_subst(p, v, t))),
         },
-    }
-}
-
-pub fn command_subst(command: &ProveCommandBy, v: &Var, t: &Exp) -> ProveCommandBy {
-    match command {
-        ProveCommandBy::Construct(proof_term) => {
-            ProveCommandBy::Construct(exp_subst(proof_term, v, t))
-        }
-        ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
-            elem: exp_subst(elem, v, t),
-            ty: exp_subst(ty, v, t),
+        Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
+            element: Box::new(exp_subst(element, v, t)),
+            set: Box::new(exp_subst(set, v, t)),
         },
-        ProveCommandBy::SubsetElim {
-            elem,
+        Exp::SubsetElim {
+            element,
             subset,
             superset,
-        } => ProveCommandBy::SubsetElim {
-            elem: exp_subst(elem, v, t),
-            subset: exp_subst(subset, v, t),
-            superset: exp_subst(superset, v, t),
+        } => Exp::SubsetElim {
+            element: Box::new(exp_subst(element, v, t)),
+            subset: Box::new(exp_subst(subset, v, t)),
+            superset: Box::new(exp_subst(superset, v, t)),
         },
-        ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
-            elem: exp_subst(elem, v, t),
+        Exp::IdRefl { element } => Exp::IdRefl {
+            element: Box::new(exp_subst(element, v, t)),
         },
-        ProveCommandBy::IdElim {
+        Exp::IdElim {
             left,
             right,
             ty,
             var,
             predicate,
-        } => ProveCommandBy::IdElim {
-            left: exp_subst(left, v, t),
-            right: exp_subst(right, v, t),
-            ty: exp_subst(ty, v, t),
+            base,
+            equality,
+        } => Exp::IdElim {
+            left: Box::new(exp_subst(left, v, t)),
+            right: Box::new(exp_subst(right, v, t)),
+            ty: Box::new(exp_subst(ty, v, t)),
             var: var.clone(),
             predicate: if !v.is_eq_ptr(var) {
-                exp_subst(predicate, v, t)
+                Box::new(exp_subst(predicate, v, t))
             } else {
                 predicate.clone()
             },
+            base: Box::new(exp_subst(base, v, t)),
+            equality: Box::new(exp_subst(equality, v, t)),
         },
-        ProveCommandBy::TakeEq {
+        Exp::TakeEq {
             func,
             domain,
             codomain,
-            elem,
-        } => ProveCommandBy::TakeEq {
-            func: exp_subst(func, v, t),
-            domain: exp_subst(domain, v, t),
-            codomain: exp_subst(codomain, v, t),
-            elem: exp_subst(elem, v, t),
+            element,
+            existence,
+            uniqueness,
+        } => Exp::TakeEq {
+            func: Box::new(exp_subst(func, v, t)),
+            domain: Box::new(exp_subst(domain, v, t)),
+            codomain: Box::new(exp_subst(codomain, v, t)),
+            element: Box::new(exp_subst(element, v, t)),
+            existence: Box::new(exp_subst(existence, v, t)),
+            uniqueness: uniqueness.as_deref().map(|p| Box::new(exp_subst(p, v, t))),
         },
-        ProveCommandBy::Axiom(axiom) => ProveCommandBy::Axiom(match axiom {
-            Axiom::ExcludedMiddle { prop } => Axiom::ExcludedMiddle {
-                prop: exp_subst(prop, v, t),
-            },
-            Axiom::EmsemblesExtensionality {
-                set1,
-                set2,
-                superset,
-            } => Axiom::EmsemblesExtensionality {
-                set1: exp_subst(set1, v, t),
-                set2: exp_subst(set2, v, t),
-                superset: exp_subst(superset, v, t),
-            },
-            Axiom::FunctionExtensionality { func1, func2 } => Axiom::FunctionExtensionality {
-                func1: exp_subst(func1, v, t),
-                func2: exp_subst(func2, v, t),
-            },
-        }),
     }
 }
 
@@ -1073,68 +1097,10 @@ pub fn exp_alpha_conversion(e: &Exp) -> Exp {
             return_type: Box::new(exp_alpha_conversion(return_type)),
             cases: cases.iter().map(exp_alpha_conversion).collect(),
         },
-        Exp::Cast { exp, to } => Exp::Cast {
+        Exp::Cast { exp, to, proof } => Exp::Cast {
             exp: Box::new(exp_alpha_conversion(exp)),
             to: Box::new(exp_alpha_conversion(to)),
-        },
-
-        Exp::ProveLater { prop: exp } => Exp::ProveLater {
-            prop: Box::new(exp_alpha_conversion(exp)),
-        },
-        Exp::ProveHere { exp, goals } => Exp::ProveHere {
-            exp: Box::new(exp_alpha_conversion(exp)),
-            goals: goals
-                .iter()
-                .map(|goal| {
-                    let ProveGoal {
-                        extended_ctx,
-                        goal_prop,
-                        command: proof_term,
-                    } = goal;
-
-                    let mut subst_map = vec![];
-                    for (var, _) in extended_ctx.iter() {
-                        let new_var = Var::new(var.as_str());
-                        subst_map.push((var.clone(), new_var));
-                    }
-
-                    let mut new_ctx = vec![];
-                    for (i, (_, e)) in extended_ctx.iter().enumerate() {
-                        let mut new_e = exp_alpha_conversion(e);
-                        for (old_var, new_var) in subst_map.iter() {
-                            new_e = exp_subst(&new_e, old_var, &Exp::Var(new_var.clone()));
-                        }
-                        new_ctx.push((subst_map[i].1.clone(), new_e));
-                    }
-
-                    let goal_prop = {
-                        let mut new_goal_prop = exp_alpha_conversion(goal_prop);
-                        for (old_var, new_var) in subst_map.iter() {
-                            new_goal_prop =
-                                exp_subst(&new_goal_prop, old_var, &Exp::Var(new_var.clone()));
-                        }
-                        new_goal_prop
-                    };
-
-                    let proof_term = {
-                        let mut new_proof_term = command_alpha_conversion(proof_term);
-                        for (old_var, new_var) in subst_map.iter() {
-                            new_proof_term =
-                                command_subst(&new_proof_term, old_var, &Exp::Var(new_var.clone()));
-                        }
-                        new_proof_term
-                    };
-
-                    ProveGoal {
-                        extended_ctx: new_ctx,
-                        goal_prop,
-                        command: proof_term,
-                    }
-                })
-                .collect(),
-        },
-        Exp::ProofTermRaw { command } => Exp::ProofTermRaw {
-            command: command_alpha_conversion(command).into(),
+            proof: proof.as_deref().map(|p| Box::new(exp_alpha_conversion(p))),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
             set: Box::new(exp_alpha_conversion(exp)),
@@ -1179,80 +1145,74 @@ pub fn exp_alpha_conversion(e: &Exp) -> Exp {
             domain,
             codomain,
             map,
+            existence,
+            uniqueness,
         } => Exp::Take {
             domain: Box::new(exp_alpha_conversion(domain)),
             codomain: Box::new(exp_alpha_conversion(codomain)),
             map: Box::new(exp_alpha_conversion(map)),
+            existence: Box::new(exp_alpha_conversion(existence)),
+            uniqueness: uniqueness
+                .as_deref()
+                .map(|p| Box::new(exp_alpha_conversion(p))),
         },
-    }
-}
-
-pub fn command_alpha_conversion(command: &ProveCommandBy) -> ProveCommandBy {
-    match command {
-        ProveCommandBy::Construct(proof_term) => {
-            ProveCommandBy::Construct(exp_alpha_conversion(proof_term))
-        }
-        ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
-            elem: exp_alpha_conversion(elem),
-            ty: exp_alpha_conversion(ty),
+        Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
+            element: Box::new(exp_alpha_conversion(element)),
+            set: Box::new(exp_alpha_conversion(set)),
         },
-        ProveCommandBy::SubsetElim {
-            elem,
+        Exp::SubsetElim {
+            element,
             subset,
             superset,
-        } => ProveCommandBy::SubsetElim {
-            elem: exp_alpha_conversion(elem),
-            subset: exp_alpha_conversion(subset),
-            superset: exp_alpha_conversion(superset),
+        } => Exp::SubsetElim {
+            element: Box::new(exp_alpha_conversion(element)),
+            subset: Box::new(exp_alpha_conversion(subset)),
+            superset: Box::new(exp_alpha_conversion(superset)),
         },
-        ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
-            elem: exp_alpha_conversion(elem),
+        Exp::IdRefl { element } => Exp::IdRefl {
+            element: Box::new(exp_alpha_conversion(element)),
         },
-        ProveCommandBy::IdElim {
+        Exp::IdElim {
             left,
             right,
             ty,
             var,
             predicate,
+            base,
+            equality,
         } => {
             let new_var = Var::new(var.as_str());
-            ProveCommandBy::IdElim {
-                left: exp_alpha_conversion(left),
-                right: exp_alpha_conversion(right),
-                ty: exp_alpha_conversion(ty),
+            Exp::IdElim {
+                left: Box::new(exp_alpha_conversion(left)),
+                right: Box::new(exp_alpha_conversion(right)),
+                ty: Box::new(exp_alpha_conversion(ty)),
                 var: new_var.clone(),
-                predicate: exp_subst(&exp_alpha_conversion(predicate), var, &Exp::Var(new_var)),
+                predicate: Box::new(exp_subst(
+                    &exp_alpha_conversion(predicate),
+                    var,
+                    &Exp::Var(new_var),
+                )),
+                base: Box::new(exp_alpha_conversion(base)),
+                equality: Box::new(exp_alpha_conversion(equality)),
             }
         }
-        ProveCommandBy::TakeEq {
+        Exp::TakeEq {
             func,
             domain,
             codomain,
-            elem,
-        } => ProveCommandBy::TakeEq {
-            func: exp_alpha_conversion(func),
-            domain: exp_alpha_conversion(domain),
-            codomain: exp_alpha_conversion(codomain),
-            elem: exp_alpha_conversion(elem),
+            element,
+            existence,
+            uniqueness,
+        } => Exp::TakeEq {
+            func: Box::new(exp_alpha_conversion(func)),
+            domain: Box::new(exp_alpha_conversion(domain)),
+            codomain: Box::new(exp_alpha_conversion(codomain)),
+            element: Box::new(exp_alpha_conversion(element)),
+            existence: Box::new(exp_alpha_conversion(existence)),
+            uniqueness: uniqueness
+                .as_deref()
+                .map(|p| Box::new(exp_alpha_conversion(p))),
         },
-        ProveCommandBy::Axiom(axiom) => ProveCommandBy::Axiom(match axiom {
-            Axiom::ExcludedMiddle { prop } => Axiom::ExcludedMiddle {
-                prop: exp_alpha_conversion(prop),
-            },
-            Axiom::EmsemblesExtensionality {
-                set1,
-                set2,
-                superset,
-            } => Axiom::EmsemblesExtensionality {
-                set1: exp_alpha_conversion(set1),
-                set2: exp_alpha_conversion(set2),
-                superset: exp_alpha_conversion(superset),
-            },
-            Axiom::FunctionExtensionality { func1, func2 } => Axiom::FunctionExtensionality {
-                func1: exp_alpha_conversion(func1),
-                func2: exp_alpha_conversion(func2),
-            },
-        }),
     }
 }
 
@@ -1386,44 +1346,15 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 cases,
             })
         }
-        Exp::Cast { exp, to } => {
+        Exp::Cast { exp, to, proof } => {
             let exp = reduce_if(exp);
             let to = reduce_if(to);
+            let proof = proof.as_deref().map(&mut reduce_if).map(Box::new);
 
             changed.then_some(Exp::Cast {
                 exp: Box::new(exp),
                 to: Box::new(to),
-            })
-        }
-        Exp::ProveLater { prop: exp } => {
-            let exp = reduce_if(exp);
-            changed.then_some(Exp::ProveLater {
-                prop: Box::new(exp),
-            })
-        }
-        Exp::ProveHere { exp, goals } => {
-            let exp = reduce_if(exp);
-            let goals = goals
-                .iter()
-                .map(|goal| ProveGoal {
-                    extended_ctx: goal
-                        .extended_ctx
-                        .iter()
-                        .map(|(var, exp)| (var.clone(), reduce_if(exp)))
-                        .collect::<Vec<_>>(),
-                    goal_prop: reduce_if(&goal.goal_prop),
-                    command: goal.command.clone(),
-                })
-                .collect();
-
-            changed.then_some(Exp::ProveHere {
-                exp: Box::new(exp),
-                goals,
-            })
-        }
-        Exp::ProofTermRaw { command } => {
-            reduce_one_command(command).map(|new_command| Exp::ProofTermRaw {
-                command: new_command.into(),
+                proof,
             })
         }
         Exp::PowerSet { set: exp } => {
@@ -1485,92 +1416,100 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             domain,
             codomain,
             map,
+            existence,
+            uniqueness,
         } => {
             let domain = reduce_if(domain);
             let codomain = reduce_if(codomain);
             let map = reduce_if(map);
+            let existence = reduce_if(existence);
+            let uniqueness = uniqueness.as_deref().map(&mut reduce_if).map(Box::new);
 
             changed.then_some(Exp::Take {
                 domain: Box::new(domain),
                 codomain: Box::new(codomain),
                 map: Box::new(map),
+                existence: Box::new(existence),
+                uniqueness,
             })
         }
-    }
-}
-
-pub fn reduce_one_command(command: &ProveCommandBy) -> Option<ProveCommandBy> {
-    let mut changed = false;
-    let mut reduce_if = |e: &Exp| -> Exp {
-        if !changed && let Some(reduced) = reduce_one(e) {
-            changed = true;
-            return reduced;
+        Exp::ExistsIntro { element, set } => {
+            let element = reduce_if(element);
+            let set = reduce_if(set);
+            changed.then_some(Exp::ExistsIntro {
+                element: Box::new(element),
+                set: Box::new(set),
+            })
         }
-        e.clone()
-    };
-
-    let new_command = match command {
-        ProveCommandBy::Construct(proof_term) => ProveCommandBy::Construct(reduce_if(proof_term)),
-        ProveCommandBy::ExactElem { elem, ty } => ProveCommandBy::ExactElem {
-            elem: reduce_if(elem),
-            ty: reduce_if(ty),
-        },
-        ProveCommandBy::SubsetElim {
-            elem,
+        Exp::SubsetElim {
+            element,
             subset,
             superset,
-        } => ProveCommandBy::SubsetElim {
-            elem: reduce_if(elem),
-            subset: reduce_if(subset),
-            superset: reduce_if(superset),
-        },
-        ProveCommandBy::IdRefl { elem } => ProveCommandBy::IdRefl {
-            elem: reduce_if(elem),
-        },
-        ProveCommandBy::IdElim {
+        } => {
+            let element = reduce_if(element);
+            let subset = reduce_if(subset);
+            let superset = reduce_if(superset);
+            changed.then_some(Exp::SubsetElim {
+                element: Box::new(element),
+                subset: Box::new(subset),
+                superset: Box::new(superset),
+            })
+        }
+        Exp::IdRefl { element } => {
+            let element = reduce_if(element);
+            changed.then_some(Exp::IdRefl {
+                element: Box::new(element),
+            })
+        }
+        Exp::IdElim {
             left,
             right,
             ty,
             var,
             predicate,
-        } => ProveCommandBy::IdElim {
-            left: reduce_if(left),
-            right: reduce_if(right),
-            ty: reduce_if(ty),
-            var: var.clone(),
-            predicate: reduce_if(predicate),
-        },
-        ProveCommandBy::TakeEq {
+            base,
+            equality,
+        } => {
+            let left = reduce_if(left);
+            let right = reduce_if(right);
+            let ty = reduce_if(ty);
+            let predicate = reduce_if(predicate);
+            let base = reduce_if(base);
+            let equality = reduce_if(equality);
+            changed.then_some(Exp::IdElim {
+                left: Box::new(left),
+                right: Box::new(right),
+                ty: Box::new(ty),
+                var: var.clone(),
+                predicate: Box::new(predicate),
+                base: Box::new(base),
+                equality: Box::new(equality),
+            })
+        }
+        Exp::TakeEq {
             func,
             domain,
             codomain,
-            elem,
-        } => ProveCommandBy::TakeEq {
-            func: reduce_if(func),
-            domain: reduce_if(domain),
-            codomain: reduce_if(codomain),
-            elem: reduce_if(elem),
-        },
-        ProveCommandBy::Axiom(axiom) => ProveCommandBy::Axiom(match axiom {
-            Axiom::ExcludedMiddle { prop } => Axiom::ExcludedMiddle {
-                prop: reduce_if(prop),
-            },
-            Axiom::EmsemblesExtensionality {
-                set1,
-                set2,
-                superset,
-            } => Axiom::EmsemblesExtensionality {
-                set1: reduce_if(set1),
-                set2: reduce_if(set2),
-                superset: reduce_if(superset),
-            },
-            Axiom::FunctionExtensionality { func1, func2 } => Axiom::FunctionExtensionality {
-                func1: reduce_if(func1),
-                func2: reduce_if(func2),
-            },
-        }),
-    };
-    changed.then_some(new_command)
+            element,
+            existence,
+            uniqueness,
+        } => {
+            let func = reduce_if(func);
+            let domain = reduce_if(domain);
+            let codomain = reduce_if(codomain);
+            let element = reduce_if(element);
+            let existence = reduce_if(existence);
+            let uniqueness = uniqueness.as_deref().map(&mut reduce_if).map(Box::new);
+            changed.then_some(Exp::TakeEq {
+                func: Box::new(func),
+                domain: Box::new(domain),
+                codomain: Box::new(codomain),
+                element: Box::new(element),
+                existence: Box::new(existence),
+                uniqueness,
+            })
+        }
+    }
 }
 
 pub fn normalize(e: &Exp) -> Exp {

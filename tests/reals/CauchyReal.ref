@@ -6,13 +6,6 @@
  * to one representative.  Kernel equality is therefore the right equality
  * for reals once extensionality of subsets of CauchySeq is supplied.
  */
-\module CauchyReal(
-  Rat: \Set,
-  zeroRat: Rat,
-  ltRat: Rat -> Rat -> \Prop,
-  subRat: Rat -> Rat -> Rat,
-  absRat: Rat -> Rat,
-) {
   /* Natural indices and their inductive non-strict order. */
   \inductive Nat: \Set :=
   | zero: Nat;
@@ -23,10 +16,6 @@
   | refl: (n: Nat) -> NatLe n n;
   | step: (lower, upper: Nat) ->
       NatLe lower upper -> NatLe lower (Nat#succ upper);
-  ;
-
-  \inductive And(P, Q: \Prop): \Prop :=
-  | intro: P -> Q -> And;
   ;
 
   \definition Positive: Rat -> \Prop :=
@@ -150,10 +139,7 @@
 
     \definition class: CauchySeq -> Real :=
       (x: CauchySeq) =>
-        ClassOf x \as Real \with {
-          \goal: \Pred(\Power(CauchySeq), ClassSet, ClassOf x) :=
-            \term(classIsClass x);
-        };
+        ClassOf x \as Real \by classIsClass x;
 
     /*
      * Arithmetic is first formed as a relational image of whole classes.
@@ -182,23 +168,16 @@
         negCauchy: (x: CauchySeq) ->
           \Pred(Sequence, CauchySet, NegSeq x),
       ) {
+        \import \root.Logic() \as Logic;
+
         \definition ConstCauchy: Rat -> CauchySeq :=
-          (a: Rat) => ConstSeq a \as CauchySeq \with {
-            \goal: \Pred(Sequence, CauchySet, ConstSeq a) :=
-              \term(constCauchy a);
-          };
+          (a: Rat) => ConstSeq a \as CauchySeq \by constCauchy a;
 
         \definition AddCauchy: CauchySeq -> CauchySeq -> CauchySeq :=
-          (x, y: CauchySeq) => AddSeq x y \as CauchySeq \with {
-            \goal: \Pred(Sequence, CauchySet, AddSeq x y) :=
-              \term(addCauchy x y);
-          };
+          (x, y: CauchySeq) => AddSeq x y \as CauchySeq \by addCauchy x y;
 
         \definition NegCauchy: CauchySeq -> CauchySeq :=
-          (x: CauchySeq) => NegSeq x \as CauchySeq \with {
-            \goal: \Pred(Sequence, CauchySet, NegSeq x) :=
-              \term(negCauchy x);
-          };
+          (x: CauchySeq) => NegSeq x \as CauchySeq \by negCauchy x;
 
         \definition AddClass:
           Real -> Real -> \Power(CauchySeq) :=
@@ -206,10 +185,10 @@
             \Subset(z, CauchySeq,
               \exists \Ty(CauchySeq,
                 \Subset(a, CauchySeq,
-                  And[mem x a,
+                  Logic.And[mem x a,
                     \exists \Ty(CauchySeq,
                       \Subset(b, CauchySeq,
-                        And[mem y b,
+                        Logic.And[mem y b,
                           Equivalent z (AddCauchy a b)]))])));
 
         \definition NegClass: Real -> \Power(CauchySeq) :=
@@ -217,7 +196,7 @@
             \Subset(z, CauchySeq,
               \exists \Ty(CauchySeq,
                 \Subset(a, CauchySeq,
-                  And[mem x a, Equivalent z (NegCauchy a)])));
+                  Logic.And[mem x a, Equivalent z (NegCauchy a)])));
 
         \module ClassClosed(
           addClassIsClass: (x, y: Real) ->
@@ -229,16 +208,10 @@
             (a: Rat) => class (ConstCauchy a);
 
           \definition add: Real -> Real -> Real :=
-            (x, y: Real) => AddClass x y \as Real \with {
-              \goal: \Pred(\Power(CauchySeq), ClassSet, AddClass x y) :=
-                \term(addClassIsClass x y);
-            };
+            (x, y: Real) => AddClass x y \as Real \by addClassIsClass x y;
 
           \definition neg: Real -> Real :=
-            (x: Real) => NegClass x \as Real \with {
-              \goal: \Pred(\Power(CauchySeq), ClassSet, NegClass x) :=
-                \term(negClassIsClass x);
-            };
+            (x: Real) => NegClass x \as Real \by negClassIsClass x;
 
           \definition sub: Real -> Real -> Real :=
             (x, y: Real) => add x (neg y);
@@ -248,4 +221,3 @@
       }
     }
   }
-}

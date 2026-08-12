@@ -1,4 +1,4 @@
-use crate::{Log, StringTree, TreeNode};
+use crate::Log;
 use front::logger::{LogLevel, LogPayload, LogRecord};
 
 mod for_front;
@@ -42,14 +42,6 @@ fn print_rc_ptr<T>(rc: &std::rc::Rc<T>) -> String {
 
 pub fn log_record_to_log(record: &front::logger::LogRecord) -> Log {
     match &record.payload {
-        LogPayload::DerivationSuccess(derivation) => Log::Derivation(annotate_tree(
-            for_kernel::derivation_success_tree(derivation),
-            record,
-        )),
-        LogPayload::DerivationFail(derivation) => Log::Derivation(annotate_tree(
-            for_kernel::derivation_fail_tree(derivation),
-            record,
-        )),
         LogPayload::Exp(exp) => Log::Message(format_record(
             record,
             Some(format!("exp = {}", for_kernel::format_exp(exp))),
@@ -59,20 +51,6 @@ pub fn log_record_to_log(record: &front::logger::LogRecord) -> Log {
             Some(format!("ctx = [{}]", for_kernel::format_ctx(ctx))),
         )),
         LogPayload::Message => Log::Message(format_record(record, None)),
-    }
-}
-
-fn annotate_tree(tree: StringTree, record: &LogRecord) -> StringTree {
-    let prefix = record_prefix(&record.level, &record.tags);
-    let base = format!("{prefix} {}", record.message);
-    StringTree {
-        head: match tree.head {
-            TreeNode::Success(s) => TreeNode::Success(format!("{base} :: {s}")),
-            TreeNode::ErrorPropagate(s) => TreeNode::ErrorPropagate(format!("{base} :: {s}")),
-            TreeNode::ErrorCause(s) => TreeNode::ErrorCause(format!("{base} :: {s}")),
-            TreeNode::Pending(s) => TreeNode::Pending(format!("{base} :: {s}")),
-        },
-        children: tree.children,
     }
 }
 

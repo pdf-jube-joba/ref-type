@@ -214,45 +214,6 @@ impl LocalScope {
 
                 Ok(exp_subst_map(&exp_elab, &where_def_rcs_substmap))
             }
-            SExp::WithProofs { exp, proofs } => {
-                let exp_elab = self.elab_exp_rec(exp, handler)?;
-                let mut proof_goals: Vec<ProveGoal> = vec![];
-                for proof in proofs {
-                    let GoalProof {
-                        extended_ctx,
-                        goal,
-                        proofby: proof_term,
-                    } = proof;
-
-                    let mut extended_ctx_elab: Vec<(Var, Exp)> = vec![];
-
-                    for RightBind { vars, ty } in extended_ctx.iter() {
-                        let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        for var in vars {
-                            let var: Var = Var::new(var.as_str());
-                            self.push_binded_var(var.clone());
-                            extended_ctx_elab.push((var.clone(), ty_elab.clone()));
-                        }
-                    }
-
-                    let goal_elab = self.elab_exp_rec(goal, handler)?;
-                    let proof_term_elab = self.elab_proof_by_rec(proof_term, handler)?;
-
-                    for _ in 0..extended_ctx_elab.len() {
-                        self.decl_binds.pop();
-                    }
-
-                    proof_goals.push(ProveGoal {
-                        extended_ctx: extended_ctx_elab,
-                        goal_prop: goal_elab,
-                        command: proof_term_elab,
-                    });
-                }
-                Ok(Exp::ProveHere {
-                    exp: exp_elab.into(),
-                    goals: proof_goals,
-                })
-            }
             SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
                 let is_prod = matches!(exp, SExp::Prod { .. });
@@ -391,12 +352,17 @@ impl LocalScope {
                     arg: Box::new(arg_elab),
                 })
             }
-            SExp::Cast { exp, to } => {
+            SExp::Cast { exp, to, proof } => {
                 let exp_elab = self.elab_exp_rec(exp, handler)?;
                 let to_elab = self.elab_exp_rec(to, handler)?;
+                let proof_elab = proof
+                    .as_deref()
+                    .map(|proof| self.elab_exp_rec(proof, handler))
+                    .transpose()?;
                 Ok(Exp::Cast {
                     exp: Box::new(exp_elab),
                     to: Box::new(to_elab),
+                    proof: proof_elab.map(Box::new),
                 })
             }
             SExp::IndElim {
@@ -502,12 +468,6 @@ impl LocalScope {
                 })
             }
 
-            SExp::ProveLater { prop } => {
-                let prop_elab = self.elab_exp_rec(prop, handler)?;
-                Ok(Exp::ProveLater {
-                    prop: Box::new(prop_elab),
-                })
-            }
             SExp::PowerSet { set } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
                 Ok(Exp::PowerSet {
@@ -598,9 +558,14 @@ impl LocalScope {
                     })
                 }
             },
-            SExp::Take { bind, body } => {
+            SExp::Take {
+                bind,
+                body,
+                existence,
+                uniqueness,
+            } => {
                 let (map_body, codomain) = match body.as_ref() {
-                    SExp::Cast { exp, to } => (exp.as_ref(), Some(to.as_ref())),
+                    SExp::Cast { exp, to, .. } => (exp.as_ref(), Some(to.as_ref())),
                     _ => (body.as_ref(), None),
                 };
 
@@ -667,14 +632,77 @@ impl LocalScope {
                     domain: Box::new(domain_elab),
                     codomain: Box::new(codomain_elab),
                     map: Box::new(map_elab),
+                    existence: Box::new(self.elab_exp_rec(existence, handler)?),
+                    uniqueness: uniqueness
+                        .as_deref()
+                        .map(|proof| self.elab_exp_rec(proof, handler))
+                        .transpose()?
+                        .map(Box::new),
                 })
             }
-            SExp::ProofTermRaw(sprove_command_by) => {
-                let proof_by_elab = self.elab_proof_by_rec(sprove_command_by, handler)?;
-                Ok(Exp::ProofTermRaw {
-                    command: Box::new(proof_by_elab),
+            SExp::ExistsIntro { element, set } => Ok(Exp::ExistsIntro {
+                element: Box::new(self.elab_exp_rec(element, handler)?),
+                set: Box::new(self.elab_exp_rec(set, handler)?),
+            }),
+            SExp::SubsetElim {
+                element,
+                subset,
+                superset,
+            } => Ok(Exp::SubsetElim {
+                element: Box::new(self.elab_exp_rec(element, handler)?),
+                subset: Box::new(self.elab_exp_rec(subset, handler)?),
+                superset: Box::new(self.elab_exp_rec(superset, handler)?),
+            }),
+            SExp::IdRefl { element } => Ok(Exp::IdRefl {
+                element: Box::new(self.elab_exp_rec(element, handler)?),
+            }),
+            SExp::IdElim {
+                left,
+                right,
+                var,
+                ty,
+                predicate,
+                base,
+                equality,
+            } => {
+                let left = Box::new(self.elab_exp_rec(left, handler)?);
+                let right = Box::new(self.elab_exp_rec(right, handler)?);
+                let ty = Box::new(self.elab_exp_rec(ty, handler)?);
+                let var = Var::new(var.as_str());
+                self.push_binded_var(var.clone());
+                let predicate = Box::new(self.elab_exp_rec(predicate, handler)?);
+                self.pop_binded_var();
+                let base = Box::new(self.elab_exp_rec(base, handler)?);
+                let equality = Box::new(self.elab_exp_rec(equality, handler)?);
+                Ok(Exp::IdElim {
+                    left,
+                    right,
+                    var,
+                    ty,
+                    predicate,
+                    base,
+                    equality,
                 })
             }
+            SExp::TakeEq {
+                func,
+                domain,
+                codomain,
+                element,
+                existence,
+                uniqueness,
+            } => Ok(Exp::TakeEq {
+                func: Box::new(self.elab_exp_rec(func, handler)?),
+                domain: Box::new(self.elab_exp_rec(domain, handler)?),
+                codomain: Box::new(self.elab_exp_rec(codomain, handler)?),
+                element: Box::new(self.elab_exp_rec(element, handler)?),
+                existence: Box::new(self.elab_exp_rec(existence, handler)?),
+                uniqueness: uniqueness
+                    .as_deref()
+                    .map(|p| self.elab_exp_rec(p, handler))
+                    .transpose()?
+                    .map(Box::new),
+            }),
             SExp::Block(block) => {
                 let Block {
                     statements: declarations,
@@ -704,10 +732,16 @@ impl LocalScope {
                                 piped: false,
                             };
                         }
-                        Statement::Take { bind } => {
+                        Statement::Take {
+                            bind,
+                            existence,
+                            uniqueness,
+                        } => {
                             term = SExp::Take {
                                 bind: bind.clone(),
                                 body: Box::new(term),
+                                existence: Box::new(existence.clone()),
+                                uniqueness: uniqueness.clone().map(Box::new),
                             };
                         }
                         Statement::Sufficient { map, map_ty } => {
@@ -715,6 +749,7 @@ impl LocalScope {
                                 func: Box::new(SExp::Cast {
                                     exp: Box::new(map.clone()),
                                     to: Box::new(map_ty.clone()),
+                                    proof: None,
                                 }),
                                 arg: Box::new(term),
                                 piped: false,
@@ -725,104 +760,5 @@ impl LocalScope {
                 self.elab_exp_rec(&term, handler)
             }
         }
-    }
-
-    fn elab_proof_by_rec(
-        &mut self,
-        proof_by: &SProveCommandBy,
-        handler: &mut impl Handler,
-    ) -> Result<ProveCommandBy, String> {
-        let elab = match proof_by {
-            SProveCommandBy::Construct { term } => {
-                let term_elab = self.elab_exp_rec(term, handler)?;
-                ProveCommandBy::Construct(term_elab)
-            }
-            SProveCommandBy::Exact { term, set } => {
-                let term_elab = self.elab_exp_rec(term, handler)?;
-                let set_elab = self.elab_exp_rec(set, handler)?;
-                ProveCommandBy::ExactElem {
-                    elem: term_elab,
-                    ty: set_elab,
-                }
-            }
-            SProveCommandBy::SubsetElim {
-                superset,
-                subset,
-                elem,
-            } => {
-                let superset_elab = self.elab_exp_rec(superset, handler)?;
-                let subset_elab = self.elab_exp_rec(subset, handler)?;
-                let elem_elab = self.elab_exp_rec(elem, handler)?;
-                ProveCommandBy::SubsetElim {
-                    superset: superset_elab,
-                    subset: subset_elab,
-                    elem: elem_elab,
-                }
-            }
-            SProveCommandBy::IdRefl { term } => {
-                let term_elab = self.elab_exp_rec(term, handler)?;
-                ProveCommandBy::IdRefl { elem: term_elab }
-            }
-            SProveCommandBy::IdElim {
-                left,
-                right,
-                var,
-                ty,
-                predicate,
-            } => {
-                let left_elab = self.elab_exp_rec(left, handler)?;
-                let right_elab = self.elab_exp_rec(right, handler)?;
-                let var: Var = Var::new(var.as_str());
-                let ty_elab = self.elab_exp_rec(ty, handler)?;
-                let predicate_elab = self.elab_exp_rec(predicate, handler)?;
-                ProveCommandBy::IdElim {
-                    left: left_elab,
-                    right: right_elab,
-                    var,
-                    ty: ty_elab,
-                    predicate: predicate_elab,
-                }
-            }
-            SProveCommandBy::TakeEq {
-                func,
-                elem,
-                domain,
-                codomain,
-            } => {
-                let func_elab = self.elab_exp_rec(func, handler)?;
-
-                let domain_elab = self.elab_exp_rec(domain, handler)?;
-                let codomain_elab = self.elab_exp_rec(codomain, handler)?;
-                let elem_elab = self.elab_exp_rec(elem, handler)?;
-                ProveCommandBy::TakeEq {
-                    func: func_elab,
-                    domain: domain_elab,
-                    codomain: codomain_elab,
-                    elem: elem_elab,
-                }
-            }
-            SProveCommandBy::Axiom(axiom) => {
-                let axiom = match axiom {
-                    crate::syntax::Axiom::AxiomLEM { proposition } => {
-                        let proposition_elab = self.elab_exp_rec(proposition, handler)?;
-                        kernel::exp::Axiom::ExcludedMiddle {
-                            prop: proposition_elab,
-                        }
-                    }
-                    crate::syntax::Axiom::AxiomFunctionExt {
-                        func1,
-                        func2,
-                        domain,
-                    } => todo!(),
-                    crate::syntax::Axiom::AxiomEmsembleExt {
-                        set1,
-                        set2,
-                        superset,
-                    } => todo!(),
-                };
-                ProveCommandBy::Axiom(axiom)
-            }
-        };
-        Ok(elab)
     }
 }

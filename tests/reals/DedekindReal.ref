@@ -4,30 +4,7 @@
  * Rat and its strict order are parameters: this file constructs the
  * completion, independently of a particular implementation of rationals.
  */
-\module DedekindReal(
-  Rat: \Set,
-  lt: Rat -> Rat -> \Prop,
-  setExt:
-    (A, B: \Power(Rat)) ->
-      ((x: Rat) -> \Pred(Rat, A, x) -> \Pred(Rat, B, x)) ->
-      ((x: Rat) -> \Pred(Rat, B, x) -> \Pred(Rat, A, x)) ->
-      A = B,
-) {
-  /* Small logical vocabulary used by the cut laws. */
-  \inductive False: \Prop :=
-  ;
-
-  \definition Not: \Prop -> \Prop :=
-    (P: \Prop) => P -> False;
-
-  \inductive And(P, Q: \Prop): \Prop :=
-  | intro: P -> Q -> And;
-  ;
-
-  \inductive Or(P, Q: \Prop): \Prop :=
-  | left: P -> Or;
-  | right: Q -> Or;
-  ;
+\import \root.Logic() \as Logic;
 
   /* Membership in a rational lower set. */
   \definition In: \Power(Rat) -> Rat -> \Prop :=
@@ -40,7 +17,7 @@
 
   \definition Proper: \Power(Rat) -> \Prop :=
     (L: \Power(Rat)) =>
-      \exists \Ty(Rat, \Subset(q, Rat, Not (In L q)));
+      \exists \Ty(Rat, \Subset(q, Rat, Logic.Not (In L q)));
 
   /* It is downward closed and has no greatest member. */
   \definition Lower: \Power(Rat) -> \Prop :=
@@ -50,19 +27,19 @@
   \definition Rounded: \Power(Rat) -> \Prop :=
     (L: \Power(Rat)) =>
       (p: Rat) -> In L p ->
-        \exists \Ty(Rat, \Subset(q, Rat, And[In L q, lt p q]));
+        \exists \Ty(Rat, \Subset(q, Rat, Logic.And[In L q, lt p q]));
 
   /* Locatedness is the constructive replacement for deciding membership. */
   \definition Located: \Power(Rat) -> \Prop :=
     (L: \Power(Rat)) =>
-      (p, q: Rat) -> lt p q -> Or[In L p, Not (In L q)];
+      (p, q: Rat) -> lt p q -> Logic.Or[In L p, Logic.Not (In L q)];
 
   \definition IsCut: \Power(Rat) -> \Prop :=
     (L: \Power(Rat)) =>
-      And[Inhabited L,
-        And[Proper L,
-          And[Lower L,
-            And[Rounded L, Located L]]]];
+      Logic.And[Inhabited L,
+        Logic.And[Proper L,
+          Logic.And[Lower L,
+            Logic.And[Rounded L, Located L]]]];
 
   /* Real is the refinement of rational lower sets by the cut laws. */
   \definition CutSet: \Power(\Power(Rat)) :=
@@ -90,7 +67,7 @@
   \definition Lt: Real -> Real -> \Prop :=
     (x, y: Real) =>
       \exists \Ty(Rat,
-        \Subset(q, Rat, And[Not (mem x q), mem y q]));
+        \Subset(q, Rat, Logic.And[Logic.Not (mem x q), mem y q]));
 
   /*
    * Arithmetic lower sets.  The nested Closed module asks for exactly the
@@ -102,6 +79,8 @@
     negRat: Rat -> Rat,
     zeroRat: Rat,
   ) {
+    \import \root.Logic() \as Logic;
+
     \definition RatLower: Rat -> \Power(Rat) :=
       (a: Rat) => \Subset(q, Rat, lt q a);
 
@@ -110,17 +89,17 @@
         \Subset(q, Rat,
           \exists \Ty(Rat,
             \Subset(a, Rat,
-              And[mem x a,
+              Logic.And[mem x a,
                 \exists \Ty(Rat,
                   \Subset(b, Rat,
-                    And[mem y b, lt q (addRat a b)]))])));
+                    Logic.And[mem y b, lt q (addRat a b)]))])));
 
     \definition NegLower: Real -> \Power(Rat) :=
       (x: Real) =>
         \Subset(q, Rat,
           \exists \Ty(Rat,
             \Subset(r, Rat,
-              And[Not (mem x r), lt q (negRat r)])));
+              Logic.And[Logic.Not (mem x r), lt q (negRat r)])));
 
     \module Closed(
       ratCut: (a: Rat) ->
@@ -131,22 +110,13 @@
         \Pred(\Power(Rat), CutSet, NegLower x),
     ) {
       \definition ofRat: Rat -> Real :=
-        (a: Rat) => RatLower a \as Real \with {
-          \goal: \Pred(\Power(Rat), CutSet, RatLower a) :=
-            \term(ratCut a);
-        };
+        (a: Rat) => RatLower a \as Real \by ratCut a;
 
       \definition add: Real -> Real -> Real :=
-        (x, y: Real) => SumLower x y \as Real \with {
-          \goal: \Pred(\Power(Rat), CutSet, SumLower x y) :=
-            \term(sumCut x y);
-        };
+        (x, y: Real) => SumLower x y \as Real \by sumCut x y;
 
       \definition neg: Real -> Real :=
-        (x: Real) => NegLower x \as Real \with {
-          \goal: \Pred(\Power(Rat), CutSet, NegLower x) :=
-            \term(negCut x);
-        };
+        (x: Real) => NegLower x \as Real \by negCut x;
 
       \definition sub: Real -> Real -> Real :=
         (x, y: Real) => add x (neg y);
@@ -155,4 +125,3 @@
 
     }
   }
-}

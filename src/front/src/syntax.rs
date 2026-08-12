@@ -181,11 +181,6 @@ pub enum SExp {
         exp: Box<SExp>,
         clauses: Vec<(Identifier, SExp, SExp)>,
     },
-    // solve goals given by type checker
-    WithProofs {
-        exp: Box<SExp>,
-        proofs: Vec<GoalProof>,
-    },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
     Sort(kernel::exp::Sort),
@@ -210,6 +205,7 @@ pub enum SExp {
     Cast {
         exp: Box<SExp>,
         to: Box<SExp>,
+        proof: Option<Box<SExp>>,
     },
 
     // --- inductive type
@@ -236,10 +232,6 @@ pub enum SExp {
     },
 
     // --- set theory
-    // \Proof (term) ... "prove this later"
-    ProveLater {
-        prop: Box<SExp>,
-    },
     // \Power(power)
     PowerSet {
         set: Box<SExp>,
@@ -276,29 +268,20 @@ pub enum SExp {
     Take {
         bind: Bind, // updated to use the new Bind structure
         body: Box<SExp>,
+        existence: Box<SExp>,
+        uniqueness: Option<Box<SExp>>,
     },
-    // --- "proof by" terms
-    ProofTermRaw(SProveCommandBy),
-    // --- block of statements
-    Block(Block),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum SProveCommandBy {
-    Construct {
-        term: Box<SExp>,
-    },
-    Exact {
-        term: Box<SExp>,
+    ExistsIntro {
+        element: Box<SExp>,
         set: Box<SExp>,
     },
     SubsetElim {
-        superset: Box<SExp>,
+        element: Box<SExp>,
         subset: Box<SExp>,
-        elem: Box<SExp>,
+        superset: Box<SExp>,
     },
     IdRefl {
-        term: Box<SExp>,
+        element: Box<SExp>,
     },
     IdElim {
         left: Box<SExp>,
@@ -306,14 +289,19 @@ pub enum SProveCommandBy {
         var: Identifier,
         ty: Box<SExp>,
         predicate: Box<SExp>,
+        base: Box<SExp>,
+        equality: Box<SExp>,
     },
     TakeEq {
         func: Box<SExp>,
-        elem: Box<SExp>,
         domain: Box<SExp>,
         codomain: Box<SExp>,
+        element: Box<SExp>,
+        existence: Box<SExp>,
+        uniqueness: Option<Box<SExp>>,
     },
-    Axiom(Axiom),
+    // --- block of statements
+    Block(Block),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -332,35 +320,13 @@ pub enum Statement {
     }, // have x: A := t;
     Take {
         bind: Bind,
+        existence: SExp,
+        uniqueness: Option<SExp>,
     },
     Sufficient {
         map: SExp,
         map_ty: SExp,
     }, // suffices A by (h: A -> B);
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct GoalProof {
-    pub extended_ctx: Vec<RightBind>, // extended context
-    pub goal: SExp,                   // goal to prove
-    pub proofby: SProveCommandBy,     // proof term to fill in
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum Axiom {
-    AxiomLEM {
-        proposition: Box<SExp>,
-    },
-    AxiomFunctionExt {
-        func1: Box<SExp>,
-        func2: Box<SExp>,
-        domain: Box<SExp>,
-    },
-    AxiomEmsembleExt {
-        set1: Box<SExp>,
-        set2: Box<SExp>,
-        superset: Box<SExp>,
-    },
 }
 
 #[derive(Debug, Clone)]
