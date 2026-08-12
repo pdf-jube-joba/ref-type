@@ -8,8 +8,8 @@ use front::{
     },
     syntax::{
         Bind, Block, Identifier, LocalAccess, MacroToken, ModItemDefinition, ModItemInductive,
-        ModItemRecord, Module, ModuleItem, ModuleItemAccessible, RightBind, SExp, SProveCommandBy,
-        Statement,
+        ModItemRecord, Module, ModuleBody, ModuleItem, ModuleItemAccessible, RightBind, SExp,
+        SProveCommandBy, Statement,
     },
 };
 
@@ -558,15 +558,20 @@ impl<'a> Display for FrontFmt<'a, Module> {
         let Module {
             name,
             parameters,
-            declarations,
+            body,
         } = self.0;
         write!(f, "\\module {}", FrontFmt(name))?;
         display_vec_rightbinds(parameters, f)?;
-        write!(f, " {{ ")?;
-        for decl in declarations {
-            write!(f, "{}; ", FrontFmt(decl))?;
+        match body {
+            ModuleBody::External => write!(f, ";"),
+            ModuleBody::Inline(declarations) => {
+                write!(f, " {{ ")?;
+                for decl in declarations {
+                    write!(f, "{}; ", FrontFmt(decl))?;
+                }
+                write!(f, "}}")
+            }
         }
-        write!(f, "}}")
     }
 }
 

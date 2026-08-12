@@ -24,8 +24,14 @@ pub struct MacroToken(pub String);
 #[derive(Debug, Clone, Serialize)]
 pub struct Module {
     pub name: Identifier,
-    pub parameters: Vec<RightBind>,    // given parameters for module
-    pub declarations: Vec<ModuleItem>, // sensitive to order
+    pub parameters: Vec<RightBind>, // given parameters for module
+    pub body: ModuleBody,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ModuleBody {
+    Inline(Vec<ModuleItem>), // sensitive to order
+    External,
 }
 
 #[derive(Debug, Clone, Serialize)]

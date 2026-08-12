@@ -102,6 +102,10 @@ fn parse_and_format(src: String) -> (Vec<Log>, Option<String>) {
         }
     };
 
+    elaborate_and_format(modules)
+}
+
+fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Option<String>) {
     let mut global = front::elaborator::GlobalEnvironment::default();
     let mut logs: Vec<Log> = vec![];
     for module in modules {
@@ -128,14 +132,16 @@ fn push_internal_logs(global: &front::elaborator::GlobalEnvironment, logs: &mut 
 
 // ---- ファイルモード ---------------------------------------------
 async fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
-    // 軽い読み込みなら同期I/OでもOK
-    // let txt = std::fs::read_to_string(&path)?;
-
-    // パースが重くなる可能性があるなら spawn_blocking で逃がす
-    let txt = tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await??;
-
-    // ここで重い処理をする場合も spawn_blocking 推奨
-    let (out, err_message) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
+    let loaded =
+        tokio::task::spawn_blocking(move || front::module_loader::load_modules_from_root(&path))
+            .await?;
+    let (out, err_message) = match loaded {
+        Ok(modules) => tokio::task::spawn_blocking(move || elaborate_and_format(modules)).await?,
+        Err(error) => {
+            let message = format!("Module Load Error: {}\n", error);
+            (vec![Log::Message(message.clone())], Some(message))
+        }
+    };
     for entry in out {
         match entry {
             Log::Derivation(der) => {

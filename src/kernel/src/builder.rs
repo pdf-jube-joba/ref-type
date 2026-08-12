@@ -341,7 +341,13 @@ impl Builder {
                 .find_map(|der| der.first_unproved_mut());
             match first_goal {
                 Some(goal) => {
-                    if exp_is_alpha_eq_under_ctx(&goal.ctx, &goal.proposition, &ctx, &prop) {
+                    // A generated goal may contain an unfolded expected type (for example,
+                    // SubsetStrong normalizes a refinement before creating its membership
+                    // goal), while the supplied proof still mentions the defined constant.
+                    // Compare normal forms so definitionally equal propositions resolve.
+                    let expected = normalize(&goal.proposition);
+                    let actual = normalize(&prop);
+                    if exp_is_alpha_eq_under_ctx(&goal.ctx, &expected, &ctx, &actual) {
                         goal.solvetree = Some(rc);
                     } else {
                         return Err(self

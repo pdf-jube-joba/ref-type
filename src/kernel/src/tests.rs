@@ -1,9 +1,13 @@
 use crate::{
     calculus::reduce_one,
-    exp::{Context, DerivationSuccess, Exp, ProveCommandBy, ProveGoal, Sort, SuccessHead, Var},
+    exp::{
+        Context, DefinedConstant, DerivationSuccess, Exp, ProveCommandBy, ProveGoal, Sort,
+        SuccessHead, Var,
+    },
     inductive::CtorBinder,
     utils::{self, app, lam, prod, prooflater, var},
 };
+use std::rc::Rc;
 // rustfmt doens not allow us variable starts with Uppercase letter
 // ... => we use double lowercase letters
 // e.g. A -> aa, P -> pp, P1 -> pp1 etc.
@@ -554,6 +558,38 @@ fn solvegoals() {
 
     checker.infer(&proof_term).unwrap();
     checker.print_all();
+}
+
+// Goal resolution must use definitional equality, not only syntactic alpha equality.
+// P: Prop, Alias := P, p: Alias |- ProofLater(P): P
+#[test]
+fn solve_goal_unfolds_defined_proposition() {
+    let pp = var!("P");
+    let proof = var!("p");
+    let alias = Exp::DefinedConstant(Rc::new(DefinedConstant {
+        ty: Exp::Sort(Sort::Prop),
+        body: Exp::Var(pp.clone()),
+    }));
+    let ctx = vec![(pp.clone(), Exp::Sort(Sort::Prop)), (proof.clone(), alias)];
+
+    let term = Exp::ProveHere {
+        exp: Box::new(Exp::ProveLater {
+            prop: Box::new(Exp::Var(pp.clone())),
+        }),
+        goals: vec![ProveGoal {
+            extended_ctx: vec![],
+            goal_prop: Exp::Var(pp.clone()),
+            command: ProveCommandBy::Construct(Exp::Var(proof)),
+        }],
+    };
+
+    let mut derivation = crate::derivation::infer(&ctx, &term).unwrap();
+
+    assert!(derivation.first_unproved_mut().is_none());
+    assert!(crate::calculus::exp_is_alpha_eq(
+        derivation.type_of().unwrap(),
+        &Exp::Var(pp)
+    ));
 }
 
 /*

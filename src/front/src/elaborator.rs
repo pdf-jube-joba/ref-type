@@ -122,8 +122,15 @@ impl GlobalEnvironment {
         let Module {
             name,
             parameters,
-            declarations,
+            body,
         } = module;
+
+        let ModuleBody::Inline(declarations) = body else {
+            return Err(format!(
+                "External module '{}' was not resolved; use the file loader",
+                name.as_str()
+            ));
+        };
 
         // 1. before adding child, check well-typedness ness of parameters
         {
