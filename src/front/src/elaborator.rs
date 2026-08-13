@@ -3,14 +3,14 @@ use crate::{
         module_manager::{InstantiateResult, ItemAccessResult},
         term_elaborator::LocalScope,
     },
-    log_derivation_fail, log_derivation_success, log_msg, log_record,
+    log_msg, log_record,
     logger::{LogLevel, LogPayload, Logger},
     syntax::*,
 };
 use kernel::{
     calculus::exp_contains_as_freevar,
     exp::*,
-    inductive::{self, CtorBinder, InductiveTypeSpecs},
+    inductive::{CtorBinder, InductiveTypeSpecs},
 };
 
 pub mod module_manager;
@@ -122,8 +122,15 @@ impl GlobalEnvironment {
         let Module {
             name,
             parameters,
-            declarations,
+            body,
         } = module;
+
+        let ModuleBody::Inline(declarations) = body else {
+            return Err(format!(
+                "External module '{}' was not resolved; use the file loader",
+                name.as_str()
+            ));
+        };
 
         // 1. before adding child, check well-typedness ness of parameters
         {

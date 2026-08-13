@@ -66,28 +66,18 @@ static SORT_KEYWORDS: &[&str] = &[
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\elim", // inductive eliminator
     "\\prec", // eliminator as primitive recursive form
-    "\\Proof", "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
+    "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
     "\\exists", // \exists <Bind>
     "\\take",   // \take <Bind> => <body>
     "\\block",  // block expression
 ];
 
 static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
-    &["\\as", "\\with", "\\where", "\\in", "\\return", "\\goal"];
+    &["\\as", "\\by", "\\with", "\\where", "\\in", "\\return"];
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
-static PROOF_COMMAND_KEYWORDS: &[&str] = &[
-    "\\term",
-    "\\exact",
-    "\\bysub",
-    "\\refl",
-    "\\idelim",
-    "\\takeelim",
-    "\\axiom:LEM",
-    "\\axiom:FE",
-    "\\axiom:EE",
-];
+static PROOF_TERM_KEYWORDS: &[&str] = &["\\exact", "\\bysub", "\\refl", "\\idelim", "\\takeelim"];
 
 static PROGRAM_KEYWORDS: &[&str] = &[
     "\\module",
@@ -157,7 +147,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
                     && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
                     && !BLOCK_KEYWORDS.contains(&kw)
-                    && !PROOF_COMMAND_KEYWORDS.contains(&kw)
+                    && !PROOF_TERM_KEYWORDS.contains(&kw)
                     && !PROGRAM_KEYWORDS.contains(&kw)
                 {
                     // treat as macro token if not reserved keyword
@@ -587,8 +577,8 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    // parse a module
-    // "\module" <module_name: Ident> ("(" (<param: Ident> ":" <ty: SExp> ",")* ")")? "{" (<module_item>)* "}"
+    // parse an inline or external module
+    // "\module" <module_name: Ident> <parameters>? ("{" (<module_item>)* "}" | ";")
     pub fn parse_module(&mut self) -> Result<Module, ParseError> {
         self.expect_keyword("\\module")?;
         let module_name = self.expect_ident()?;
@@ -597,18 +587,28 @@ impl<'a> Parser<'a> {
             .try_parse(|parser| parser.parse_rightbinds())?
             .unwrap_or_default();
 
-        self.expect_token(Token::LBrace)?; // expect '{'
-        let mut declarations = Vec::new();
-        while let Some(item) = self.try_parse_module_item()? {
-            declarations.push(item);
-        }
-        self.expect_token(Token::RBrace)?; // expect '}'
+        let body = if self.bump_if_token(&Token::Semicolon) {
+            ModuleBody::External
+        } else {
+            self.expect_token(Token::LBrace)?; // expect '{'
+            let declarations = self.parse_module_items()?;
+            self.expect_token(Token::RBrace)?; // expect '}'
+            ModuleBody::Inline(declarations)
+        };
 
         Ok(Module {
             name: module_name,
             parameters,
-            declarations,
+            body,
         })
+    }
+
+    fn parse_module_items(&mut self) -> Result<Vec<ModuleItem>, ParseError> {
+        let mut declarations = Vec::new();
+        while let Some(item) = self.try_parse_module_item()? {
+            declarations.push(item);
+        }
+        Ok(declarations)
     }
 }
 
@@ -643,6 +643,25 @@ pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, String> {
     }
 
     Ok(modules)
+}
+
+/// Parse an external module file. Its contents are the module body directly.
+pub fn str_parse_module_items(input: &str) -> Result<Vec<ModuleItem>, String> {
+    let v = lex_all(input)?;
+    let mut parser = Parser::new(&v);
+    let declarations = parser
+        .parse_module_items()
+        .map_err(|e| format!("parse error: {} ({}..{})", e.msg, e.start, e.end))?;
+
+    if parser.pos < parser.tokens.len() {
+        let extra = &parser.tokens[parser.pos];
+        return Err(format!(
+            "expected a module item at {}..{}, found {:?}",
+            extra.start, extra.end, extra.kind
+        ));
+    }
+
+    Ok(declarations)
 }
 
 #[cfg(test)]

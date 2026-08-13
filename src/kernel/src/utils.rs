@@ -156,25 +156,7 @@ macro_rules! prod {
     };
 }
 
-#[macro_export]
-macro_rules! goal {
-    ( $ctx:expr ; $prop:expr => $proof:expr) => {
-        $crate::exp::ProveGoal {
-            extended_ctx: ($ctx).into(),
-            goal_prop: $prop,
-            command: $proof,
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! prooflater {
-    ($p:expr) => {
-        $crate::exp::Exp::ProveLater { prop: $p.into() }
-    };
-}
-
-pub use {app, goal, lam, prod, prooflater, var, var_str};
+pub use {app, lam, prod, var, var_str};
 
 #[cfg(test)]
 mod tests {
@@ -192,11 +174,6 @@ mod tests {
         lam! { var: var!("x"), ty: var_str!("A"), body: var_str!("x")};
         lam! { var!("x"), var_str!("A"), var_str!("x")};
         prod! { var: var!("x"), ty: var_str!("A"), body: var_str!("B")};
-        goal! {
-            vec![(var!("A"), Exp::Sort(Sort::Prop))];
-            Exp::Var(var!("A")) =>
-                ProveCommandBy::Construct(var_str!("a"))
-        };
     }
     #[test]
     fn test_decompose_app() {

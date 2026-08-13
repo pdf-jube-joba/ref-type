@@ -1,9 +1,10 @@
 use crate::{
     calculus::reduce_one,
-    exp::{Context, DerivationSuccess, Exp, ProveCommandBy, ProveGoal, Sort, SuccessHead, Var},
+    exp::{Context, DefinedConstant, Exp, JudgementSuccess, Sort, SuccessHead, Var},
     inductive::CtorBinder,
-    utils::{self, app, lam, prod, prooflater, var},
+    utils::{self, app, lam, prod, var},
 };
+use std::rc::Rc;
 // rustfmt doens not allow us variable starts with Uppercase letter
 // ... => we use double lowercase letters
 // e.g. A -> aa, P -> pp, P1 -> pp1 etc.
@@ -11,11 +12,11 @@ use crate::{
 #[derive(Debug, Default)]
 pub struct Checker {
     context: Context,
-    derivations: Vec<DerivationSuccess>,
+    derivations: Vec<JudgementSuccess>,
 }
 
 impl Checker {
-    fn history(&self) -> &Vec<DerivationSuccess> {
+    fn history(&self) -> &Vec<JudgementSuccess> {
         &self.derivations
     }
     fn check(&mut self, term: &Exp, ty: &Exp) -> bool {
@@ -36,7 +37,7 @@ impl Checker {
 
         let ty = match derivation {
             Ok(derivation) => {
-                if let DerivationSuccess {
+                if let JudgementSuccess {
                     head: SuccessHead::TypeJudgement { ty, .. },
                     ..
                 } = &derivation
@@ -53,9 +54,6 @@ impl Checker {
             }
         };
         Some(ty)
-    }
-    fn prove_command(&self, command: &ProveCommandBy) {
-        crate::derivation::prove_command(&self.context, command).unwrap();
     }
     fn chk_indspec(
         &mut self,
@@ -293,8 +291,308 @@ fn powerset() {
     );
 }
 
-// Proof by construct proof term
-// X: \Prop, x: X |= X by ctx |- x: X
+#[test]
+fn powerset_level_is_preserved() {
+    let mut checker = Checker::default();
+    let xx = var!("X");
+    checker.push(xx.clone(), Exp::Sort(Sort::Set(1)));
+
+    let inferred = checker
+        .infer(&Exp::PowerSet {
+            set: Box::new(Exp::Var(xx.clone())),
+        })
+        .unwrap();
+
+    assert!(matches!(inferred, Exp::Sort(Sort::Set(1))));
+}
+
+#[test]
+fn equality_requires_set_carrier() {
+    let pp = var!("P");
+    let p = var!("p");
+    let ctx = vec![
+        (pp.clone(), Exp::Sort(Sort::Prop)),
+        (p.clone(), Exp::Var(pp.clone())),
+    ];
+
+    let result = crate::derivation::infer(
+        &ctx,
+        &Exp::Equal {
+            left: Box::new(Exp::Var(p.clone())),
+            right: Box::new(Exp::Var(p.clone())),
+        },
+    );
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn context_wellformedness_uses_prefix_context() {
+    let x = var!("x");
+    let y = var!("y");
+    let ctx = vec![
+        (x.clone(), Exp::Var(y.clone())),
+        (y.clone(), Exp::Sort(Sort::Set(0))),
+    ];
+
+    let (_, fail) = crate::derivation::check_wellformed_ctx(&ctx);
+
+    assert!(fail.is_some());
+}
+
+#[test]
+fn take_uses_explicit_domain_and_codomain() {
+    let xx = var!("X");
+    let tt = var!("T");
+    let f = var!("f");
+    let exists = var!("exists");
+    let unique = var!("unique");
+    let x1 = var!("x1");
+    let x2 = var!("x2");
+    let uniqueness_ty = Exp::Prod {
+        var: x1.clone(),
+        ty: Box::new(Exp::Var(xx.clone())),
+        body: Box::new(Exp::Prod {
+            var: x2.clone(),
+            ty: Box::new(Exp::Var(xx.clone())),
+            body: Box::new(Exp::Equal {
+                left: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x1))),
+                right: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x2))),
+            }),
+        }),
+    };
+    let ctx = vec![
+        (xx.clone(), Exp::Sort(Sort::Set(0))),
+        (tt.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            f.clone(),
+            Exp::Prod {
+                var: var!("_"),
+                ty: Box::new(Exp::Var(xx.clone())),
+                body: Box::new(Exp::Var(tt.clone())),
+            },
+        ),
+        (
+            exists.clone(),
+            Exp::Exists {
+                set: Box::new(Exp::Var(xx.clone())),
+            },
+        ),
+        (unique.clone(), uniqueness_ty),
+    ];
+
+    let take = Exp::Take {
+        domain: Box::new(Exp::Var(xx.clone())),
+        codomain: Box::new(Exp::Var(tt.clone())),
+        map: Box::new(Exp::Var(f.clone())),
+        existence: Box::new(Exp::Var(exists)),
+        uniqueness: Some(Box::new(Exp::Var(unique))),
+    };
+
+    let derivation = crate::derivation::infer(&ctx, &take).unwrap();
+
+    assert!(crate::calculus::exp_is_alpha_eq(
+        derivation.type_of().unwrap(),
+        &Exp::Var(tt.clone())
+    ));
+}
+
+#[test]
+fn set_valued_take_rejects_missing_uniqueness_proof() {
+    let xx = var!("X");
+    let tt = var!("T");
+    let f = var!("f");
+    let exists = var!("exists");
+    let ctx = vec![
+        (xx.clone(), Exp::Sort(Sort::Set(0))),
+        (tt.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            f.clone(),
+            Exp::Prod {
+                var: var!("_"),
+                ty: Box::new(Exp::Var(xx.clone())),
+                body: Box::new(Exp::Var(tt.clone())),
+            },
+        ),
+        (
+            exists.clone(),
+            Exp::Exists {
+                set: Box::new(Exp::Var(xx.clone())),
+            },
+        ),
+    ];
+
+    let take = Exp::Take {
+        domain: Box::new(Exp::Var(xx)),
+        codomain: Box::new(Exp::Var(tt)),
+        map: Box::new(Exp::Var(f)),
+        existence: Box::new(Exp::Var(exists)),
+        uniqueness: None,
+    };
+
+    assert!(crate::derivation::infer(&ctx, &take).is_err());
+}
+
+#[test]
+fn refinement_cast_rejects_missing_membership_proof() {
+    let aa = var!("A");
+    let subset = var!("S");
+    let x = var!("x");
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            subset.clone(),
+            Exp::PowerSet {
+                set: Box::new(Exp::Var(aa.clone())),
+            },
+        ),
+        (x.clone(), Exp::Var(aa.clone())),
+    ];
+    let cast = Exp::Cast {
+        exp: Box::new(Exp::Var(x)),
+        to: Box::new(Exp::TypeLift {
+            superset: Box::new(Exp::Var(aa)),
+            subset: Box::new(Exp::Var(subset)),
+        }),
+        proof: None,
+    };
+
+    assert!(crate::derivation::infer(&ctx, &cast).is_err());
+}
+
+#[test]
+fn identity_elimination_checks_its_explicit_premise_proofs() {
+    let aa = var!("A");
+    let pp = var!("P");
+    let x = var!("x");
+    let proof = var!("p");
+    let binder = var!("y");
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (pp.clone(), Exp::Sort(Sort::Prop)),
+        (x.clone(), Exp::Var(aa.clone())),
+        (proof.clone(), Exp::Var(pp.clone())),
+    ];
+    let term = Exp::IdElim {
+        left: Box::new(Exp::Var(x.clone())),
+        right: Box::new(Exp::Var(x.clone())),
+        ty: Box::new(Exp::Var(aa)),
+        var: binder,
+        predicate: Box::new(Exp::Var(pp.clone())),
+        base: Box::new(Exp::Var(proof)),
+        equality: Box::new(Exp::IdRefl {
+            element: Box::new(Exp::Var(x)),
+        }),
+    };
+
+    let inferred = crate::derivation::infer(&ctx, &term).unwrap();
+    assert!(crate::calculus::convertible(
+        inferred.type_of().unwrap(),
+        &Exp::Var(pp)
+    ));
+}
+
+#[test]
+fn take_eq_matches_system_shape() {
+    let xx = var!("X");
+    let tt = var!("T");
+    let f = var!("f");
+    let x = var!("x");
+    let exists = var!("exists");
+    let unique = var!("unique");
+    let x1 = var!("x1");
+    let x2 = var!("x2");
+    let uniqueness_ty = Exp::Prod {
+        var: x1.clone(),
+        ty: Box::new(Exp::Var(xx.clone())),
+        body: Box::new(Exp::Prod {
+            var: x2.clone(),
+            ty: Box::new(Exp::Var(xx.clone())),
+            body: Box::new(Exp::Equal {
+                left: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x1))),
+                right: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x2))),
+            }),
+        }),
+    };
+    let ctx = vec![
+        (xx.clone(), Exp::Sort(Sort::Set(0))),
+        (tt.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            f.clone(),
+            Exp::Prod {
+                var: var!("_"),
+                ty: Box::new(Exp::Var(xx.clone())),
+                body: Box::new(Exp::Var(tt.clone())),
+            },
+        ),
+        (x.clone(), Exp::Var(xx.clone())),
+        (
+            exists.clone(),
+            Exp::Exists {
+                set: Box::new(Exp::Var(xx.clone())),
+            },
+        ),
+        (unique.clone(), uniqueness_ty),
+    ];
+
+    let derivation = crate::derivation::infer(
+        &ctx,
+        &Exp::TakeEq {
+            func: Box::new(Exp::Var(f.clone())),
+            domain: Box::new(Exp::Var(xx.clone())),
+            codomain: Box::new(Exp::Var(tt.clone())),
+            element: Box::new(Exp::Var(x.clone())),
+            existence: Box::new(Exp::Var(exists.clone())),
+            uniqueness: Some(Box::new(Exp::Var(unique.clone()))),
+        },
+    )
+    .unwrap();
+
+    let expected = Exp::Equal {
+        left: Box::new(Exp::Take {
+            domain: Box::new(Exp::Var(xx.clone())),
+            codomain: Box::new(Exp::Var(tt.clone())),
+            map: Box::new(Exp::Var(f.clone())),
+            existence: Box::new(Exp::Var(exists)),
+            uniqueness: Some(Box::new(Exp::Var(unique))),
+        }),
+        right: Box::new(Exp::App {
+            func: Box::new(Exp::Var(f.clone())),
+            arg: Box::new(Exp::Var(x.clone())),
+        }),
+    };
+
+    assert!(crate::calculus::exp_is_alpha_eq(
+        derivation.type_of().unwrap(),
+        &expected
+    ));
+}
+
+#[test]
+fn inductive_constructor_index_out_of_bounds_fails() {
+    let specs = std::rc::Rc::new(crate::inductive::InductiveTypeSpecs {
+        parameters: vec![],
+        indices: vec![],
+        sort: Sort::Set(0),
+        constructors: vec![crate::inductive::CtorType {
+            telescope: vec![],
+            indices: vec![],
+        }],
+    });
+
+    let result = crate::derivation::infer(
+        &Context::new(),
+        &Exp::IndCtor {
+            indspec: specs,
+            parameters: vec![],
+            idx: 1,
+        },
+    );
+
+    assert!(result.is_err());
+}
+
+// A proof is an ordinary term whose type is a proposition.
 #[test]
 fn proof_by_construct() {
     let mut checker = Checker::default();
@@ -302,12 +600,10 @@ fn proof_by_construct() {
     let x = var!("x");
     checker.push(xx.clone(), Exp::Sort(Sort::Prop));
     checker.push(x.clone(), Exp::Var(xx.clone()));
-    checker.prove_command(&ProveCommandBy::Construct(Exp::Var(x.clone())));
+    assert!(checker.check(&Exp::Var(x.clone()), &Exp::Var(xx.clone())));
 }
 
-// Proof by assumption
-// P1: \Prop, P2: \Prop, p1: P1, pm: P1 -> P2 |- (ProofLater(P1 -> P2) ProofLater(P1)): P2
-// ... generated ctx |= P1 -> P2, ctx |= P1 (unproved)
+// Proof by assumption is ordinary application.
 #[test]
 fn proof_by_assumption() {
     let mut checker = Checker::default();
@@ -328,18 +624,7 @@ fn proof_by_assumption() {
         },
     );
 
-    let proof_term = Exp::App {
-        func: Box::new(Exp::ProveLater {
-            prop: Box::new(Exp::Prod {
-                var: var!("_"),
-                ty: Box::new(Exp::Var(pp1.clone())),
-                body: Box::new(Exp::Var(pp2.clone())),
-            }),
-        }),
-        arg: Box::new(Exp::ProveLater {
-            prop: Box::new(Exp::Var(pp1.clone())),
-        }),
-    };
+    let proof_term = app!(Exp::Var(pm), Exp::Var(p1));
 
     checker.infer(&proof_term).unwrap();
     for der in checker.history().iter() {
@@ -347,8 +632,7 @@ fn proof_by_assumption() {
     }
 }
 
-// same but in Exp::Cast and solve all goals
-// P1: \Prop, P2: \Prop, p1: P1, pm: P1 -> P2 |- (ProofLater(P1 -> P2) ProofLater(P1)): P2
+// Explicit proof terms need no separate goal-resolution pass.
 #[test]
 fn solvegoals() {
     let mut checker = Checker::default();
@@ -366,39 +650,24 @@ fn solvegoals() {
     checker.push(p1.clone(), Exp::Var(pp1.clone()));
     checker.push(pm.clone(), p1impp2.clone());
 
-    let proof_term = {
-        // ProofLater(P1 -> P2) ProofLater(P1))
-        let exp = app! {
-            func: prooflater!(
-                prod!{
-                    var: var!("_"),
-                    ty: Exp::Var(pp1.clone()),
-                    body: Exp::Var(pp2.clone()),
-                }
-            ),
-            arg: prooflater!(Exp::Var(pp1.clone())),
-        };
-        let goals: Vec<_> = vec![
-            ProveGoal {
-                extended_ctx: vec![],
-                goal_prop: p1impp2.clone(),
-                command: ProveCommandBy::Construct(Exp::Var(pm.clone())),
-            },
-            ProveGoal {
-                extended_ctx: vec![],
-                goal_prop: Exp::Var(pp1.clone()),
-                command: ProveCommandBy::Construct(Exp::Var(p1.clone())),
-            },
-        ];
-
-        Exp::ProveHere {
-            exp: Box::new(exp),
-            goals,
-        }
-    };
+    let proof_term = app!(Exp::Var(pm), Exp::Var(p1));
 
     checker.infer(&proof_term).unwrap();
     checker.print_all();
+}
+
+// Ordinary checking uses definitional equality for proposition types.
+#[test]
+fn solve_goal_unfolds_defined_proposition() {
+    let pp = var!("P");
+    let proof = var!("p");
+    let alias = Exp::DefinedConstant(Rc::new(DefinedConstant {
+        ty: Exp::Sort(Sort::Prop),
+        body: Exp::Var(pp.clone()),
+    }));
+    let ctx = vec![(pp.clone(), Exp::Sort(Sort::Prop)), (proof.clone(), alias)];
+
+    crate::derivation::check(&ctx, &Exp::Var(proof), &Exp::Var(pp)).unwrap();
 }
 
 /*

@@ -2,7 +2,7 @@ use std::{fmt::Debug, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::serialize::{serialize_opt_rc_ptr, serialize_rc_ptr};
+use crate::serialize::serialize_rc_ptr;
 
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone)]
@@ -166,16 +166,7 @@ pub enum Exp {
     Cast {
         exp: Box<Exp>,
         to: Box<Exp>,
-    },
-    ProveHere {
-        exp: Box<Exp>,
-        goals: Vec<ProveGoal>,
-    },
-    ProveLater {
-        prop: Box<Exp>,
-    },
-    ProofTermRaw {
-        command: Box<ProveCommandBy>,
+        proof: Option<Box<Exp>>,
     },
     PowerSet {
         set: Box<Exp>,
@@ -204,7 +195,40 @@ pub enum Exp {
         set: Box<Exp>,
     },
     Take {
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
         map: Box<Exp>,
+        existence: Box<Exp>,
+        uniqueness: Option<Box<Exp>>,
+    },
+    ExistsIntro {
+        element: Box<Exp>,
+        set: Box<Exp>,
+    },
+    SubsetElim {
+        element: Box<Exp>,
+        subset: Box<Exp>,
+        superset: Box<Exp>,
+    },
+    IdRefl {
+        element: Box<Exp>,
+    },
+    IdElim {
+        left: Box<Exp>,
+        right: Box<Exp>,
+        ty: Box<Exp>,
+        var: Var,
+        predicate: Box<Exp>,
+        base: Box<Exp>,
+        equality: Box<Exp>,
+    },
+    TakeEq {
+        func: Box<Exp>,
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
+        element: Box<Exp>,
+        existence: Box<Exp>,
+        uniqueness: Option<Box<Exp>>,
     },
 }
 
@@ -228,89 +252,12 @@ impl Exp {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct ProveGoal {
-    pub extended_ctx: Context,
-    pub goal_prop: Exp,
-    pub command: ProveCommandBy,
-}
-
-// given (ctx |= prop)
-#[derive(Debug, Clone, Serialize)]
-pub enum ProveCommandBy {
-    // ctx |= prop
-    //   ctx |- proof_term : prop
-    Construct(Exp),
-    // ctx |= nonempty(ty)
-    //   ctx |- elem: ty, ctx |- ty: Set(i)
-    ExactElem {
-        elem: Exp,
-        ty: Exp,
-    },
-    // ctx |= Pred(supserset, subset, elem)
-    //   ctx |- elem: Typelift(superset, subset), ctx |- Typelift(superset, subset): Set(i)
-    SubsetElim {
-        elem: Exp,
-        subset: Exp,
-        superset: Exp,
-    },
-    // ctx |= elem = elem
-    //   ctx |- elem: ty, ctx |- ty: Set(i)
-    IdRefl {
-        elem: Exp,
-    },
-    // ctx |= ((var: ty) => predicate) elem2
-    //   ctx |- elem1: ty, ctx |- elem2: ty, ctx |- ty: Set(i), ctx::(var, ty) |- predicate: Prop
-    //   ctx |= ((var: ty) => predicate) elem1, ctx |= elem1 = elem2
-    IdElim {
-        left: Exp,
-        right: Exp,
-        ty: Exp,
-        var: Var,
-        predicate: Exp,
-    },
-    // ctx |= Take f = f elem
-    //  ctx |- func: (_: domain) -> codomain, ctx |- elem: domain
-    //  ctx |- Take f: docomain
-    TakeEq {
-        func: Exp,
-        domain: Exp,
-        codomain: Exp,
-        elem: Exp,
-    },
-    // axioms
-    Axiom(Axiom),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum Axiom {
-    ExcludedMiddle {
-        prop: Exp,
-    },
-    FunctionExtensionality {
-        func1: Exp,
-        func2: Exp,
-    },
-    EmsemblesExtensionality {
-        set1: Exp,
-        set2: Exp,
-        superset: Exp,
-    },
-}
-
 pub type Context = Vec<(Var, Exp)>;
 
 /// Return a new context that is `ctx` extended with one (Var, Exp)
 pub fn ctx_extend(ctx: &Context, varty: (Var, Exp)) -> Context {
     let mut new_ctx = ctx.clone();
     new_ctx.push(varty);
-    new_ctx
-}
-
-/// Return a new context that is `ctx` extended by `other` (append other's bindings)
-pub fn ctx_extend_ctx(ctx: &Context, other: &Context) -> Context {
-    let mut new_ctx = ctx.clone();
-    new_ctx.extend(other.iter().cloned());
     new_ctx
 }
 
@@ -325,135 +272,60 @@ pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct GoalGenerated {
-    pub ctx: Context,
-    pub proposition: Exp,
-    #[serde(serialize_with = "serialize_opt_rc_ptr")]
-    pub solvetree: Option<Rc<DerivationSuccess>>,
+pub enum SuccessHead {
+    Checked,
+    TypeJudgement { ty: Exp },
+    WellFormednessInductive,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct DerivationBase {
-    pub premises: Vec<DerivationSuccess>,
+pub struct JudgementSuccess {
+    pub head: SuccessHead,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorFrame {
     pub rule: String,
     pub phase: String,
+    pub expected: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum SuccessHead {
-    TypeJudgement {
-        ctx: Context,
-        term: Exp,
-        ty: Exp,
-    },
-    ProofJudgement {
-        ctx: Context,
-        prop: Exp,
-    },
-    WellFormednessInductive {
-        ctx: Context,
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-    },
-    Solve(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DerivationSuccess>),
+pub struct JudgementError {
+    pub cause: String,
+    pub frames: Vec<ErrorFrame>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct DerivationSuccess {
-    pub base: DerivationBase,
-    pub head: SuccessHead,
-    pub generated_goals: Vec<GoalGenerated>,
-    pub through: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum FailHead {
-    TypeJudgement {
-        ctx: Context,
-        term: Exp,
-        ty: Option<Exp>,
-    },
-    ProofJudgement {
-        ctx: Context,
-        prop: Option<Exp>,
-    },
-    WellFormednessInductive {
-        ctx: Context,
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-    },
-    Solve(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DerivationSuccess>),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum FailKind {
-    Caused {
-        cause: String,
-    },
-    Propagate {
-        fail: Box<DerivationFail>,
-        expect: String,
-    },
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct DerivationFail {
-    pub base: Box<DerivationBase>,
-    pub head: FailHead,
-    pub kind: FailKind,
-}
-
-impl DerivationSuccess {
+impl JudgementSuccess {
     pub fn type_of(&self) -> Option<&Exp> {
         match self {
-            DerivationSuccess {
-                head: SuccessHead::TypeJudgement { ty, .. },
-                ..
+            JudgementSuccess {
+                head: SuccessHead::TypeJudgement { ty },
             } => Some(ty),
             _ => None,
         }
     }
-    pub fn prop_of(&self) -> Option<&Exp> {
-        match self {
-            DerivationSuccess {
-                head: SuccessHead::ProofJudgement { prop, .. },
-                ..
-            } => Some(prop),
-            _ => None,
+}
+
+impl JudgementError {
+    pub fn caused(cause: impl Into<String>) -> Self {
+        Self {
+            cause: cause.into(),
+            frames: Vec::new(),
         }
     }
-    pub fn ctx_of(&self) -> Option<&Context> {
-        match self {
-            DerivationSuccess {
-                head: SuccessHead::TypeJudgement { ctx, .. },
-                ..
-            } => Some(ctx),
-            DerivationSuccess {
-                head: SuccessHead::ProofJudgement { ctx, .. },
-                ..
-            } => Some(ctx),
-            DerivationSuccess {
-                head: SuccessHead::WellFormednessInductive { ctx, .. },
-                ..
-            } => Some(ctx),
-            _ => None,
-        }
-    }
-    pub fn first_unproved_mut(&mut self) -> Option<&mut GoalGenerated> {
-        let DerivationSuccess {
-            base: DerivationBase { premises, .. },
-            generated_goals,
-            ..
-        } = self;
-        // first, find from premises
-        for premise in premises.iter_mut() {
-            if let Some(found) = premise.first_unproved_mut() {
-                return Some(found);
-            }
-        }
-        // then, find from generated goals of this tree
-        generated_goals
-            .iter_mut()
-            .find(|goal| goal.solvetree.is_none())
+
+    pub fn with_frame(
+        mut self,
+        rule: impl Into<String>,
+        phase: impl Into<String>,
+        expected: impl Into<String>,
+    ) -> Self {
+        self.frames.push(ErrorFrame {
+            rule: rule.into(),
+            phase: phase.into(),
+            expected: expected.into(),
+        });
+        self
     }
 }

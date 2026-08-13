@@ -24,6 +24,7 @@
   - [property of CoC](./survey/property_CoC.md)
   - [ZFC](./survey/ZFC.md)
   - [locally nameless](./survey/implementation.md)
+  - [fixpoint](./survey/fixpoint.md)
 - [read](./reading/reading.md)
   - [strong normalization for the CoC](./reading/strong_normalization_for_the_CoC.md)
   - [simple model construction for the CoC](./reading/simple_model_construction_for_the_CoC.md)

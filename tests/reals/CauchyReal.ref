@@ -1,0 +1,223 @@
+/*
+ * Cauchy reals over an abstract implementation of the rationals.
+ *
+ * A real is not a chosen Cauchy sequence.  It is an actual equivalence
+ * class: a subset of CauchySeq containing exactly the sequences equivalent
+ * to one representative.  Kernel equality is therefore the right equality
+ * for reals once extensionality of subsets of CauchySeq is supplied.
+ */
+  /* Natural indices and their inductive non-strict order. */
+  \inductive Nat: \Set :=
+  | zero: Nat;
+  | succ: Nat -> Nat;
+  ;
+
+  \inductive NatLe: (lower: Nat) -> (upper: Nat) -> \Prop :=
+  | refl: (n: Nat) -> NatLe n n;
+  | step: (lower, upper: Nat) ->
+      NatLe lower upper -> NatLe lower (Nat#succ upper);
+  ;
+
+  \definition Positive: Rat -> \Prop :=
+    (eps: Rat) => ltRat zeroRat eps;
+
+  \definition Sequence: \Set := Nat -> Rat;
+
+  /* N witnesses that all entries after N are eps-close. */
+  \definition CauchyAt: Sequence -> Rat -> Nat -> \Prop :=
+    (seq: Sequence) => (eps: Rat) => (N: Nat) =>
+      (m, n: Nat) -> NatLe N m -> NatLe N n ->
+        ltRat (absRat (subRat (seq m) (seq n))) eps;
+
+  \definition IsCauchy: Sequence -> \Prop :=
+    (seq: Sequence) =>
+      (eps: Rat) -> Positive eps ->
+        \exists \Ty(Nat, \Subset(N, Nat, CauchyAt seq eps N));
+
+  \definition CauchySet: \Power(Sequence) :=
+    \Subset(seq, Sequence, IsCauchy seq);
+
+  \definition CauchySeq: \Set :=
+    \Ty(Sequence, CauchySet);
+
+  \definition at: CauchySeq -> Nat -> Rat :=
+    (x: CauchySeq) => (n: Nat) => (x \as Sequence) n;
+
+  /* The difference of two representatives tends to zero. */
+  \definition EquivalentAt:
+    CauchySeq -> CauchySeq -> Rat -> Nat -> \Prop :=
+    (x, y: CauchySeq) => (eps: Rat) => (N: Nat) =>
+      (n: Nat) -> NatLe N n ->
+        ltRat (absRat (subRat (at x n) (at y n))) eps;
+
+  \definition Equivalent: CauchySeq -> CauchySeq -> \Prop :=
+    (x, y: CauchySeq) =>
+      (eps: Rat) -> Positive eps ->
+        \exists \Ty(Nat, \Subset(N, Nat, EquivalentAt x y eps N));
+
+  /*
+   * The metric laws must make Equivalent an equivalence relation.  The
+   * quotient construction also receives set extensionality explicitly;
+   * neither fact follows merely from the names of the rational operations.
+   */
+  \module Quotient(
+    setExt:
+      (A, B: \Power(CauchySeq)) ->
+        ((x: CauchySeq) ->
+          \Pred(CauchySeq, A, x) -> \Pred(CauchySeq, B, x)) ->
+        ((x: CauchySeq) ->
+          \Pred(CauchySeq, B, x) -> \Pred(CauchySeq, A, x)) ->
+        A = B,
+    equivalentRefl:
+      (x: CauchySeq) -> Equivalent x x,
+    equivalentSym:
+      (x, y: CauchySeq) -> Equivalent x y -> Equivalent y x,
+    equivalentTrans:
+      (x, y, z: CauchySeq) ->
+        Equivalent x y -> Equivalent y z -> Equivalent x z,
+  ) {
+    /* The equivalence class represented by x. */
+    \definition ClassOf: CauchySeq -> \Power(CauchySeq) :=
+      (x: CauchySeq) =>
+        \Subset(y, CauchySeq, Equivalent x y);
+
+    /* Equivalent representatives determine the same subset. */
+    \definition classOfEq:
+      (x, y: CauchySeq) -> Equivalent x y -> ClassOf x = ClassOf y :=
+      (x, y: CauchySeq) => (xy: Equivalent x y) =>
+        setExt (ClassOf x) (ClassOf y)
+          ((z: CauchySeq) => (xz: Equivalent x z) =>
+            equivalentTrans y x z (equivalentSym x y xy) xz)
+          ((z: CauchySeq) => (yz: Equivalent y z) =>
+            equivalentTrans x y z xy yz);
+
+    /*
+     * IsClass is the impredicative existential
+     *   exists x: CauchySeq, C = ClassOf x.
+     * Thus ClassSet is precisely the image of ClassOf.
+     */
+    \definition IsClass: \Power(CauchySeq) -> \Prop :=
+      (C: \Power(CauchySeq)) =>
+        (P: \Prop) ->
+          ((x: CauchySeq) -> C = ClassOf x -> P) -> P;
+
+    \definition ClassSet: \Power(\Power(CauchySeq)) :=
+      \Subset(C, \Power(CauchySeq), IsClass C);
+
+    /* The quotient CauchySeq / Equivalent. */
+    \definition Real: \Set :=
+      \Ty(\Power(CauchySeq), ClassSet);
+
+    \definition mem: Real -> CauchySeq -> \Prop :=
+      (x: Real) => (seq: CauchySeq) =>
+        \Pred(CauchySeq, x, seq);
+
+    /* Equality of reals is kernel equality of their equivalence classes. */
+    \definition Eq: Real -> Real -> \Prop :=
+      (x, y: Real) => x = y;
+
+    \definition eqByExt:
+      (x, y: Real) ->
+        ((seq: CauchySeq) -> mem x seq -> mem y seq) ->
+        ((seq: CauchySeq) -> mem y seq -> mem x seq) ->
+        Eq x y :=
+      (x, y: Real) =>
+        (xy: (seq: CauchySeq) -> mem x seq -> mem y seq) =>
+        (yx: (seq: CauchySeq) -> mem y seq -> mem x seq) =>
+          setExt x y xy yx;
+
+    /* Every representative gives a genuine member of the quotient. */
+    \definition classIsClass:
+      (x: CauchySeq) -> IsClass (ClassOf x) :=
+      (x: CauchySeq) =>
+        (P: \Prop) =>
+        (intro: (y: CauchySeq) -> ClassOf x = ClassOf y -> P) =>
+          intro x
+            (setExt (ClassOf x) (ClassOf x)
+              ((z: CauchySeq) => (xz: Equivalent x z) => xz)
+              ((z: CauchySeq) => (xz: Equivalent x z) => xz));
+
+    \definition class: CauchySeq -> Real :=
+      (x: CauchySeq) =>
+        ClassOf x \as Real \by classIsClass x;
+
+    /*
+     * Arithmetic is first formed as a relational image of whole classes.
+     * No representative is selected.  The closure obligations state that
+     * these images are again single equivalence classes.
+     */
+    \module Operations(
+      addRat: Rat -> Rat -> Rat,
+      negRat: Rat -> Rat,
+    ) {
+      \definition ConstSeq: Rat -> Sequence :=
+        (a: Rat) => (n: Nat) => a;
+
+      \definition AddSeq: CauchySeq -> CauchySeq -> Sequence :=
+        (x, y: CauchySeq) => (n: Nat) =>
+          addRat (at x n) (at y n);
+
+      \definition NegSeq: CauchySeq -> Sequence :=
+        (x: CauchySeq) => (n: Nat) => negRat (at x n);
+
+      \module SequenceClosed(
+        constCauchy: (a: Rat) ->
+          \Pred(Sequence, CauchySet, ConstSeq a),
+        addCauchy: (x, y: CauchySeq) ->
+          \Pred(Sequence, CauchySet, AddSeq x y),
+        negCauchy: (x: CauchySeq) ->
+          \Pred(Sequence, CauchySet, NegSeq x),
+      ) {
+        \import \root.Logic() \as Logic;
+
+        \definition ConstCauchy: Rat -> CauchySeq :=
+          (a: Rat) => ConstSeq a \as CauchySeq \by constCauchy a;
+
+        \definition AddCauchy: CauchySeq -> CauchySeq -> CauchySeq :=
+          (x, y: CauchySeq) => AddSeq x y \as CauchySeq \by addCauchy x y;
+
+        \definition NegCauchy: CauchySeq -> CauchySeq :=
+          (x: CauchySeq) => NegSeq x \as CauchySeq \by negCauchy x;
+
+        \definition AddClass:
+          Real -> Real -> \Power(CauchySeq) :=
+          (x, y: Real) =>
+            \Subset(z, CauchySeq,
+              \exists \Ty(CauchySeq,
+                \Subset(a, CauchySeq,
+                  Logic.And[mem x a,
+                    \exists \Ty(CauchySeq,
+                      \Subset(b, CauchySeq,
+                        Logic.And[mem y b,
+                          Equivalent z (AddCauchy a b)]))])));
+
+        \definition NegClass: Real -> \Power(CauchySeq) :=
+          (x: Real) =>
+            \Subset(z, CauchySeq,
+              \exists \Ty(CauchySeq,
+                \Subset(a, CauchySeq,
+                  Logic.And[mem x a, Equivalent z (NegCauchy a)])));
+
+        \module ClassClosed(
+          addClassIsClass: (x, y: Real) ->
+            IsClass (AddClass x y),
+          negClassIsClass: (x: Real) ->
+            IsClass (NegClass x),
+        ) {
+          \definition ofRat: Rat -> Real :=
+            (a: Rat) => class (ConstCauchy a);
+
+          \definition add: Real -> Real -> Real :=
+            (x, y: Real) => AddClass x y \as Real \by addClassIsClass x y;
+
+          \definition neg: Real -> Real :=
+            (x: Real) => NegClass x \as Real \by negClassIsClass x;
+
+          \definition sub: Real -> Real -> Real :=
+            (x, y: Real) => add x (neg y);
+
+          \definition zero: Real := ofRat zeroRat;
+        }
+      }
+    }
+  }

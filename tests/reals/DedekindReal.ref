@@ -1,0 +1,127 @@
+/*
+ * Constructive real numbers as located, rounded Dedekind cuts.
+ *
+ * Rat and its strict order are parameters: this file constructs the
+ * completion, independently of a particular implementation of rationals.
+ */
+\import \root.Logic() \as Logic;
+
+  /* Membership in a rational lower set. */
+  \definition In: \Power(Rat) -> Rat -> \Prop :=
+    (L: \Power(Rat)) => (q: Rat) => \Pred(Rat, L, q);
+
+  /* A lower set is inhabited and proper. */
+  \definition Inhabited: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      \exists \Ty(Rat, \Subset(q, Rat, In L q));
+
+  \definition Proper: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      \exists \Ty(Rat, \Subset(q, Rat, Logic.Not (In L q)));
+
+  /* It is downward closed and has no greatest member. */
+  \definition Lower: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      (p, q: Rat) -> lt p q -> In L q -> In L p;
+
+  \definition Rounded: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      (p: Rat) -> In L p ->
+        \exists \Ty(Rat, \Subset(q, Rat, Logic.And[In L q, lt p q]));
+
+  /* Locatedness is the constructive replacement for deciding membership. */
+  \definition Located: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      (p, q: Rat) -> lt p q -> Logic.Or[In L p, Logic.Not (In L q)];
+
+  \definition IsCut: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      Logic.And[Inhabited L,
+        Logic.And[Proper L,
+          Logic.And[Lower L,
+            Logic.And[Rounded L, Located L]]]];
+
+  /* Real is the refinement of rational lower sets by the cut laws. */
+  \definition CutSet: \Power(\Power(Rat)) :=
+    \Subset(L, \Power(Rat), IsCut L);
+
+  \definition Real: \Set :=
+    \Ty(\Power(Rat), CutSet);
+
+  /* A real weakens to its underlying rational lower set. */
+  \definition mem: Real -> Rat -> \Prop :=
+    (x: Real) => (q: Rat) => In x q;
+
+  /* Kernel equality is extensional on cuts through the setExt parameter. */
+  \definition Le: Real -> Real -> \Prop :=
+    (x, y: Real) => (q: Rat) -> mem x q -> mem y q;
+
+  \definition Eq: Real -> Real -> \Prop :=
+    (x, y: Real) => x = y;
+
+  \definition eqByExt:
+    (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
+    (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+      setExt x y xy yx;
+
+  \definition Lt: Real -> Real -> \Prop :=
+    (x, y: Real) =>
+      \exists \Ty(Rat,
+        \Subset(q, Rat, Logic.And[Logic.Not (mem x q), mem y q]));
+
+  /*
+   * Arithmetic lower sets.  The nested Closed module asks for exactly the
+   * closure lemmas needed to refine these sets back to Real.  This keeps the
+   * construction honest while allowing any ordered-rational implementation.
+   */
+  \module Operations(
+    addRat: Rat -> Rat -> Rat,
+    negRat: Rat -> Rat,
+    zeroRat: Rat,
+  ) {
+    \import \root.Logic() \as Logic;
+
+    \definition RatLower: Rat -> \Power(Rat) :=
+      (a: Rat) => \Subset(q, Rat, lt q a);
+
+    \definition SumLower: Real -> Real -> \Power(Rat) :=
+      (x, y: Real) =>
+        \Subset(q, Rat,
+          \exists \Ty(Rat,
+            \Subset(a, Rat,
+              Logic.And[mem x a,
+                \exists \Ty(Rat,
+                  \Subset(b, Rat,
+                    Logic.And[mem y b, lt q (addRat a b)]))])));
+
+    \definition NegLower: Real -> \Power(Rat) :=
+      (x: Real) =>
+        \Subset(q, Rat,
+          \exists \Ty(Rat,
+            \Subset(r, Rat,
+              Logic.And[Logic.Not (mem x r), lt q (negRat r)])));
+
+    \module Closed(
+      ratCut: (a: Rat) ->
+        \Pred(\Power(Rat), CutSet, RatLower a),
+      sumCut: (x, y: Real) ->
+        \Pred(\Power(Rat), CutSet, SumLower x y),
+      negCut: (x: Real) ->
+        \Pred(\Power(Rat), CutSet, NegLower x),
+    ) {
+      \definition ofRat: Rat -> Real :=
+        (a: Rat) => RatLower a \as Real \by ratCut a;
+
+      \definition add: Real -> Real -> Real :=
+        (x, y: Real) => SumLower x y \as Real \by sumCut x y;
+
+      \definition neg: Real -> Real :=
+        (x: Real) => NegLower x \as Real \by negCut x;
+
+      \definition sub: Real -> Real -> Real :=
+        (x, y: Real) => add x (neg y);
+
+      \definition zero: Real := ofRat zeroRat;
+
+    }
+  }

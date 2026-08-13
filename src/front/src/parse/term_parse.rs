@@ -1,6 +1,5 @@
 use super::{
-    EXPRESSION_ATOM_KEYWORDS, PROOF_COMMAND_KEYWORDS, ParseError, SORT_KEYWORDS, SpannedToken,
-    Token,
+    EXPRESSION_ATOM_KEYWORDS, PROOF_TERM_KEYWORDS, ParseError, SORT_KEYWORDS, SpannedToken, Token,
 };
 use crate::syntax::*;
 
@@ -199,13 +198,6 @@ impl<'a> TermParser<'a> {
 
     fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
         // simple cases (<keyword> "(" expressions with comma separated ")")
-        if self.bump_if_keyword("\\Proof") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|term| SExp::ProveLater {
-                    prop: Box::new(term),
-                })
-            });
-        }
         if self.bump_if_keyword("\\Power") {
             return self.parse_parenthesized(|parser| {
                 parser
@@ -309,9 +301,20 @@ impl<'a> TermParser<'a> {
             let bind = self.parse_left_arrow_head()?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let body = self.parse_sexp()?;
+            self.expect_keyword("\\by")?;
+            self.expect_token(Token::LParen)?;
+            let existence = self.parse_sexp()?;
+            let uniqueness = if self.bump_if_token(&Token::Comma) {
+                Some(Box::new(self.parse_sexp()?))
+            } else {
+                None
+            };
+            self.expect_token(Token::RParen)?;
             return Ok(SExp::Take {
                 bind,
                 body: Box::new(body),
+                existence: Box::new(existence),
+                uniqueness,
             });
         }
         if self.bump_if_keyword("\\block") {
@@ -328,25 +331,31 @@ impl<'a> TermParser<'a> {
         })
     }
 
-    fn parse_proof_command(&mut self) -> Result<SProveCommandBy, ParseError> {
-        if self.bump_if_keyword("\\term") {
-            self.expect_token(Token::LParen)?; // expect '('
-            let term = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SProveCommandBy::Construct {
-                term: Box::new(term),
-            });
-        }
-
+    fn parse_proof_term(&mut self) -> Result<SExp, ParseError> {
         if self.bump_if_keyword("\\exact") {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
             self.expect_token(Token::Comma)?; // expect ','
             let set = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SProveCommandBy::Exact {
-                term: Box::new(term),
+            return Ok(SExp::ExistsIntro {
+                element: Box::new(term),
                 set: Box::new(set),
+            });
+        }
+
+        if self.bump_if_keyword("\\bysub") {
+            self.expect_token(Token::LParen)?;
+            let superset = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let subset = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let element = self.parse_sexp()?;
+            self.expect_token(Token::RParen)?;
+            return Ok(SExp::SubsetElim {
+                element: Box::new(element),
+                subset: Box::new(subset),
+                superset: Box::new(superset),
             });
         }
 
@@ -354,35 +363,68 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SProveCommandBy::IdRefl {
-                term: Box::new(term),
+            return Ok(SExp::IdRefl {
+                element: Box::new(term),
             });
         }
 
         // \\idelim "(" <left: SExp> "=" <right: SExp> "\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
         if self.bump_if_keyword("\\idelim") {
             self.expect_token(Token::LParen)?; // expect '('
-            let left = self.parse_sexp()?;
+            let left = self.parse_atom_sequence()?;
             self.expect_token(Token::Equal)?; // expect '='
             let right = self.parse_sexp()?;
             self.expect_keyword("\\with")?; // expect '\with'
             let var = self.expect_ident()?;
             self.expect_token(Token::Colon)?; // expect ':'
-            let ty = self.parse_sexp()?;
+            let ty = self.parse_combined()?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SProveCommandBy::IdElim {
+            self.expect_keyword("\\by")?;
+            self.expect_token(Token::LParen)?;
+            let base = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let equality = self.parse_sexp()?;
+            self.expect_token(Token::RParen)?;
+            return Ok(SExp::IdElim {
                 left: Box::new(left),
                 right: Box::new(right),
                 var,
                 ty: Box::new(ty),
                 predicate: Box::new(predicate),
+                base: Box::new(base),
+                equality: Box::new(equality),
             });
         }
 
         if self.bump_if_keyword("\\takeelim") {
-            todo!("takeelim proof command not implemented yet");
+            self.expect_token(Token::LParen)?;
+            let func = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let element = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let domain = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let codomain = self.parse_sexp()?;
+            self.expect_token(Token::RParen)?;
+            self.expect_keyword("\\by")?;
+            self.expect_token(Token::LParen)?;
+            let existence = self.parse_sexp()?;
+            let uniqueness = if self.bump_if_token(&Token::Comma) {
+                Some(Box::new(self.parse_sexp()?))
+            } else {
+                None
+            };
+            self.expect_token(Token::RParen)?;
+            return Ok(SExp::TakeEq {
+                func: Box::new(func),
+                domain: Box::new(domain),
+                codomain: Box::new(codomain),
+                element: Box::new(element),
+                existence: Box::new(existence),
+                uniqueness,
+            });
         }
 
         Err(ParseError {
@@ -423,10 +465,23 @@ impl<'a> TermParser<'a> {
             }
 
             if self.bump_if_keyword("\\take") {
-                // "\take" <bind: Bind> ";"
+                // "\take" <bind: Bind> "\by" "(" proof ("," proof)? ")" ";"
                 let bind = self.parse_left_arrow_head()?;
+                self.expect_keyword("\\by")?;
+                self.expect_token(Token::LParen)?;
+                let existence = self.parse_sexp()?;
+                let uniqueness = if self.bump_if_token(&Token::Comma) {
+                    Some(self.parse_sexp()?)
+                } else {
+                    None
+                };
+                self.expect_token(Token::RParen)?;
                 self.expect_token(Token::Semicolon)?; // expect ';'
-                statements.push(Statement::Take { bind });
+                statements.push(Statement::Take {
+                    bind,
+                    existence,
+                    uniqueness,
+                });
                 continue;
             }
 
@@ -577,8 +632,8 @@ impl<'a> TermParser<'a> {
             Some(Token::KeyWord(keyword)) if EXPRESSION_ATOM_KEYWORDS.contains(keyword) => {
                 self.parse_keyword_head_atom()
             }
-            Some(Token::KeyWord(keyword)) if PROOF_COMMAND_KEYWORDS.contains(keyword) => {
-                Ok(SExp::ProofTermRaw(self.parse_proof_command()?))
+            Some(Token::KeyWord(keyword)) if PROOF_TERM_KEYWORDS.contains(keyword) => {
+                self.parse_proof_term()
             }
             Some(Token::KeyWord(keyword)) => Err(ParseError {
                 msg: format!("unexpected keyword in atom: {}", keyword),
@@ -651,6 +706,11 @@ impl<'a> TermParser<'a> {
                 Ok(SExp::Cast {
                     exp: Box::new(from_exp),
                     to: Box::new(to_exp),
+                    proof: if parser.bump_if_keyword("\\by") {
+                        Some(Box::new(piped(parser)?))
+                    } else {
+                        None
+                    },
                 })
             } else {
                 Ok(from_exp)
@@ -866,43 +926,8 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_sexp_withgoals(&mut self) -> Result<SExp, ParseError> {
-        let sexp = self
-            .try_parse(|p| p.parse_arrow_expr())?
-            .map_or_else(|| self.parse_combined(), Ok)?;
-
-        if self.bump_if_keyword("\\with") {
-            // \\with "{" ("\\goal" <simple_bind_parend>* ":" <sexp> ":=" <sexp> ";" )* "}"
-            self.expect_token(Token::LBrace)?; // expect '{'
-            let mut proofs = vec![];
-            while self.bump_if_keyword("\\goal") {
-                // parse iteration of <simple_bind_parend>*
-                let mut binds = vec![];
-
-                while let Some(rightbind) =
-                    self.try_parse(|parser| parser.parse_simple_binds_paren())?
-                {
-                    binds.extend(rightbind);
-                }
-
-                self.expect_token(Token::Colon)?;
-                let goal = self.parse_sexp()?;
-                self.expect_token(Token::Assign)?;
-                let proofby = self.parse_proof_command()?;
-                self.expect_token(Token::Semicolon)?;
-                proofs.push(GoalProof {
-                    extended_ctx: binds,
-                    goal,
-                    proofby,
-                });
-            }
-            self.expect_token(Token::RBrace)?; // expect '}'
-            Ok(SExp::WithProofs {
-                exp: Box::new(sexp),
-                proofs,
-            })
-        } else {
-            Ok(sexp)
-        }
+        self.try_parse(|p| p.parse_arrow_expr())?
+            .map_or_else(|| self.parse_combined(), Ok)
     }
 
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
@@ -1166,6 +1191,11 @@ mod tests {
         print_and_unwrap(r"x ! mymacro { a + b c } l");
         print_and_unwrap(r"x#y#z");
         print_and_unwrap(r"x \as Y");
+        print_and_unwrap(r"x \as Y \by p");
+        print_and_unwrap(r"\exact(x, X)");
+        print_and_unwrap(r"\refl(x)");
+        print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by (pa, eq)");
+        print_and_unwrap(r"\take (x: X) => f x \by (existsX, uniqueF)");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"x \as Y | z = h");
     }

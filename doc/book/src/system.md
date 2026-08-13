@@ -73,6 +73,8 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
 
 ## derivation
 ### pure type system 部分
+PTS とは書いているが、普通のとは違って stratified されています。
+
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
 | empty | $\text{WF}(\emptyset)$ | | |
@@ -85,7 +87,8 @@ $s$ や $s_i$ は $\mathcal{S}$ の元とする。
 | dep form | $\Gamma \vdash (\Pi x^{s_1}:t. T): s_3$ | $\Gamma \vdash t: s_1$ <br> $\Gamma:: (x: t: s_1) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}$ <br> $x \notin \Gamma $
 | dep intro | $\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3$ | $\Gamma \vdash (\Pi x^{s_1}:t. M): s_3$ <br> $\Gamma:: (x:t: s_1) \vdash m: M: s_2$ | $x \notin \Gamma$ |
 | dep elim | $\Gamma \vdash (f @ a): T[x := a]: s_2$ | $\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3$ <br> $\Gamma \vdash a: t: s_1$ | |
-| type elem | $\Gamma \vdash A: s: s'$ | $\Gamma \vdash A: s$, $\Gamma \vdash s: s'$|
+| type elem | $\Gamma \vdash A: s: s'$ | $\Gamma \vdash A: s$, $\Gamma \vdash s: s'$ |
+| type sort | $\Gamma \vdash A: s$ | $\Gamma \vdash A: s: s'$ |
 
 ### provable
 | category | conclusion | premises |

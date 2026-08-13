@@ -255,91 +255,21 @@
   }
 
   // render helpers
-  function nodeTextAndClass(nodeObj) {
-    // nodeObj is externally tagged enum like { "Success": "..." }
-    if (nodeObj == null) return { text: "", cls: "pending" };
-    if (typeof nodeObj === 'string') return { text: nodeObj, cls: 'pending' };
-    if (typeof nodeObj === 'object') {
-      const keys = Object.keys(nodeObj);
-      if (keys.length === 0) return { text: JSON.stringify(nodeObj), cls: 'pending' };
-      const k = keys[0];
-      const v = nodeObj[k];
-      let cls = k.toLowerCase();
-      if (cls === "errorpropagate") cls = "error-propagate";
-      if (cls === "errorcause") cls = "error-cause";
-      return { text: v, cls };
-    }
-    return { text: String(nodeObj), cls: 'pending' };
-  }
-
-  function renderTreeNode(tree) {
-    // tree: { head: Node, children: [tree...] }
-    const { head, children } = tree;
-    const info = nodeTextAndClass(head);
-
-    const details = document.createElement('details');
-    details.classList.add(info.cls);
-
-    const summary = document.createElement('summary');
-    const badge = document.createElement('span');
-    badge.className = 'badge';
-    badge.textContent = info.cls.toUpperCase();
-
-    const headText = document.createElement('span');
-    headText.className = 'head-text';
-    headText.textContent = info.text;
-
-    summary.appendChild(badge);
-    summary.appendChild(headText);
-    details.appendChild(summary);
-
-    if (children && children.length > 0) {
-      const childWrap = document.createElement('div');
-      childWrap.className = 'child-list';
-      for (const c of children) {
-        childWrap.appendChild(renderTreeNode(c));
-      }
-      details.appendChild(childWrap);
-    }
-
-    return details;
-  }
-
   function renderLogs(logs) {
     output.innerHTML = '';
     if (!Array.isArray(logs)) return;
     for (const entry of logs) {
-      if (entry.Derivation) {
-        // older representation: { Derivation: Tree }
-        const tree = entry.Derivation;
-        const node = renderTreeNode(tree);
-        output.appendChild(node);
-      } else if (entry.Derivation !== undefined) {
-        // fallback
-        const node = renderTreeNode(entry.Derivation);
-        output.appendChild(node);
-      } else if (entry.Message || entry.message) {
+      if (entry.Message || entry.message) {
         const msg = entry.Message || entry.message;
         const div = document.createElement('div');
         div.className = 'message';
         div.textContent = msg;
         output.appendChild(div);
-      } else if (entry.Log && entry.Log.Derivation) {
-        // defensive
-        const node = renderTreeNode(entry.Log.Derivation);
-        output.appendChild(node);
       } else {
-        // new format: either { "Derivation": { head: ..., children: [...] } } or { "Message": "..." } or direct objects
-        if (entry.head && entry.children) {
-          output.appendChild(renderTreeNode(entry));
-        } else if (entry.head) {
-          output.appendChild(renderTreeNode(entry));
-        } else {
-          const div = document.createElement('div');
-          div.className = 'message';
-          div.textContent = JSON.stringify(entry, null, 2);
-          output.appendChild(div);
-        }
+        const div = document.createElement('div');
+        div.className = 'message';
+        div.textContent = JSON.stringify(entry, null, 2);
+        output.appendChild(div);
       }
     }
   }

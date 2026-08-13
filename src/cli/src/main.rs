@@ -5,7 +5,7 @@ use axum::{
 };
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, net::SocketAddr, path::PathBuf};
+use std::{net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
 
 #[derive(Parser, Debug)]
@@ -18,7 +18,12 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Cmd {
     /// ファイルをパースして結果を標準出力に出す
-    File { file: PathBuf },
+    File {
+        file: PathBuf,
+        /// typing の span/event を木構造で表示する
+        #[arg(long)]
+        trace: bool,
+    },
 
     /// ローカルサーバを起動して / と /run を提供する
     Serve {
@@ -35,33 +40,7 @@ struct Req {
 mod printing;
 
 #[derive(Serialize, Debug)]
-pub enum TreeNode {
-    Success(String),
-    ErrorPropagate(String),
-    ErrorCause(String),
-    Pending(String),
-}
-
-impl Display for TreeNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TreeNode::Success(s) => write!(f, "\x1b[90m{}\x1b[0m", s),
-            TreeNode::ErrorPropagate(s) => write!(f, "\x1b[31m{}\x1b[0m", s),
-            TreeNode::ErrorCause(s) => write!(f, "\x1b[31;1m{}\x1b[0m", s),
-            TreeNode::Pending(s) => write!(f, "\x1b[33m{}\x1b[0m", s),
-        }
-    }
-}
-
-#[derive(Serialize, Debug)]
-pub struct StringTree {
-    pub head: TreeNode,
-    pub children: Vec<StringTree>,
-}
-
-#[derive(Serialize, Debug)]
 pub enum Log {
-    Derivation(StringTree),
     Message(String),
 }
 
@@ -77,7 +56,8 @@ static INDEX_HTML: &str = include_str!("../index.html");
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     match args.cmd {
-        Cmd::File { file } => {
+        Cmd::File { file, trace } => {
+            init_tracing(trace)?;
             let err = run_file_mode(file).await?;
             if err.is_some() {
                 std::process::exit(1);
@@ -85,10 +65,28 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Cmd::Serve { port } => {
+            init_tracing(false)?;
             run_serve_mode(port).await?;
             Ok(())
         }
     }
+}
+
+fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
+    use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+
+    let default_filter = if show_typing_tree {
+        "ref_type::typing=debug"
+    } else {
+        "ref_type::typing=off"
+    };
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter));
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(tracing_tree::HierarchicalLayer::new(2))
+        .try_init()?;
+    Ok(())
 }
 
 // ---- 共通処理 ---------------------------------------------
@@ -102,6 +100,10 @@ fn parse_and_format(src: String) -> (Vec<Log>, Option<String>) {
         }
     };
 
+    elaborate_and_format(modules)
+}
+
+fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Option<String>) {
     let mut global = front::elaborator::GlobalEnvironment::default();
     let mut logs: Vec<Log> = vec![];
     for module in modules {
@@ -128,26 +130,18 @@ fn push_internal_logs(global: &front::elaborator::GlobalEnvironment, logs: &mut 
 
 // ---- ファイルモード ---------------------------------------------
 async fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
-    // 軽い読み込みなら同期I/OでもOK
-    // let txt = std::fs::read_to_string(&path)?;
-
-    // パースが重くなる可能性があるなら spawn_blocking で逃がす
-    let txt = tokio::task::spawn_blocking(move || std::fs::read_to_string(path)).await??;
-
-    // ここで重い処理をする場合も spawn_blocking 推奨
-    let (out, err_message) = tokio::task::spawn_blocking(move || parse_and_format(txt)).await?;
+    let loaded =
+        tokio::task::spawn_blocking(move || front::module_loader::load_modules_from_root(&path))
+            .await?;
+    let (out, err_message) = match loaded {
+        Ok(modules) => tokio::task::spawn_blocking(move || elaborate_and_format(modules)).await?,
+        Err(error) => {
+            let message = format!("Module Load Error: {}\n", error);
+            (vec![Log::Message(message.clone())], Some(message))
+        }
+    };
     for entry in out {
         match entry {
-            Log::Derivation(der) => {
-                fn print_tree(tree: &StringTree, indent: usize) {
-                    let indent_str = "  ".repeat(indent);
-                    println!("{}{}", indent_str, tree.head);
-                    for child in &tree.children {
-                        print_tree(child, indent + 1);
-                    }
-                }
-                print_tree(&der, 0);
-            }
             Log::Message(mes) => {
                 println!("{}", mes);
             }

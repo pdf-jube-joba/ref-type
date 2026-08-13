@@ -1,4 +1,4 @@
-// expression language, includes Derivation (tree structure of derivation)
+// expression language and lightweight judgement results
 pub mod exp;
 // for serialize and Debug implementations
 pub mod serialize;
@@ -8,8 +8,6 @@ pub mod utils;
 pub mod inductive;
 // alpha conversion, substitution, free variables
 pub mod calculus;
-// builder for derivation tree
-pub mod builder;
 // type check, type inference, sort inference
 pub mod derivation;
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use kernel::exp::{Context, DerivationFail, DerivationSuccess, Exp};
+use kernel::exp::{Context, Exp};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -13,8 +13,6 @@ pub enum LogLevel {
 #[derive(Debug, Clone, Serialize)]
 pub enum LogPayload {
     Message, // 純粋なテキストメッセージだけ
-    DerivationSuccess(DerivationSuccess),
-    DerivationFail(DerivationFail),
     Exp(Exp),
     Ctx(Context),
 }
@@ -124,79 +122,38 @@ impl Logger {
         normalized
     }
 
-    // call kernel::derivation::check and log the result and log derivation
+    // Call the kernel. Detailed typing diagnostics are emitted as tracing spans.
     pub fn infer(&mut self, ctx: &Context, exp: &Exp) -> Option<Exp> {
-        self.record(
-            LogLevel::Trace,
-            vec!["infer".to_string()],
-            "infer called".to_string(),
-            LogPayload::Exp(exp.clone()),
-        );
-        self.record(
-            LogLevel::Trace,
-            vec!["infer".to_string()],
-            "context for infer".to_string(),
-            LogPayload::Ctx(ctx.clone()),
-        );
-
         let infer_ty = kernel::derivation::infer(ctx, exp);
         match infer_ty {
             Ok(derivation_success) => {
                 let result: Option<Exp> = derivation_success.type_of().cloned();
-                let payload = LogPayload::DerivationSuccess(derivation_success);
-                self.record(
-                    LogLevel::Debug,
-                    vec!["infer".to_string()],
-                    "infer success".to_string(),
-                    payload,
-                );
                 result
             }
             Err(derivation_fail) => {
-                let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
                     LogLevel::Error,
                     vec!["infer".to_string()],
-                    "infer failed".to_string(),
-                    payload,
+                    format!("infer failed: {:?}", derivation_fail),
+                    LogPayload::Message,
                 );
                 None
             }
         }
     }
     pub fn check(&mut self, ctx: &Context, exp: &Exp, expected_type: &Exp) -> bool {
-        self.record(
-            LogLevel::Trace,
-            vec!["check".to_string()],
-            "check called".to_string(),
-            LogPayload::Exp(exp.clone()),
-        );
-        self.record(
-            LogLevel::Trace,
-            vec!["check".to_string()],
-            "expected type for check".to_string(),
-            LogPayload::Exp(expected_type.clone()),
-        );
-
         let result = kernel::derivation::check(ctx, exp, expected_type);
         match result {
             Ok(derivation_success) => {
-                let payload = LogPayload::DerivationSuccess(derivation_success);
-                self.record(
-                    LogLevel::Debug,
-                    vec!["check".to_string()],
-                    "check success".to_string(),
-                    payload,
-                );
+                let _ = derivation_success;
                 true
             }
             Err(derivation_fail) => {
-                let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
                     LogLevel::Error,
                     vec!["check".to_string()],
-                    "check failed".to_string(),
-                    payload,
+                    format!("check failed: {:?}", derivation_fail),
+                    LogPayload::Message,
                 );
                 false
             }
@@ -207,32 +164,18 @@ impl Logger {
         ctx: &Context,
         indspec: &kernel::inductive::InductiveTypeSpecs,
     ) -> bool {
-        self.record(
-            LogLevel::Trace,
-            vec!["check_wellformed_indspec".to_string()],
-            "check_wellformed_indspec called".to_string(),
-            LogPayload::Message,
-        );
-
         let result = kernel::inductive::acceptable_typespecs(ctx, indspec);
         match result {
             Ok(derivation_success) => {
-                let payload = LogPayload::DerivationSuccess(derivation_success);
-                self.record(
-                    LogLevel::Debug,
-                    vec!["check_wellformed_indspec".to_string()],
-                    "check_wellformed_indspec success".to_string(),
-                    payload,
-                );
+                let _ = derivation_success;
                 true
             }
             Err(derivation_fail) => {
-                let payload = LogPayload::DerivationFail(*derivation_fail);
                 self.record(
                     LogLevel::Error,
                     vec!["check_wellformed_indspec".to_string()],
-                    "check_wellformed_indspec failed".to_string(),
-                    payload,
+                    format!("check_wellformed_indspec failed: {:?}", derivation_fail),
+                    LogPayload::Message,
                 );
                 false
             }
@@ -267,34 +210,6 @@ macro_rules! log_msg {
             tags,
             msg,
             $crate::logger::LogPayload::Message,
-        );
-    }};
-}
-
-#[macro_export]
-macro_rules! log_derivation_success {
-    ($ctx:expr, $level:expr, [$($tag:expr),*], $der:expr, $($arg:tt)*) => {{
-        let msg = format!($($arg)*);
-        let tags = vec![$($tag.to_string()),*];
-        $ctx.record(
-            $level,
-            tags,
-            msg,
-            $crate::logger::LogPayload::DerivationSuccess($der),
-        );
-    }};
-}
-
-#[macro_export]
-macro_rules! log_derivation_fail {
-    ($ctx:expr, $level:expr, [$($tag:expr),*], $der:expr, $($arg:tt)*) => {{
-        let msg = format!($($arg)*);
-        let tags = vec![$($tag.to_string()),*];
-        $ctx.record(
-            $level,
-            tags,
-            msg,
-            $crate::logger::LogPayload::DerivationFail($der),
         );
     }};
 }

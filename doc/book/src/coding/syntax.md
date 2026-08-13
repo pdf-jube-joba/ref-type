@@ -105,10 +105,6 @@
   - idrefl `"\idrefl" 'exp "\in" 'exp` ... $\Gamma \vdash a = a$ if $\Gamma \vdash a: A$
   - idelim `"\idelim" 'exp "=" 'exp "\with" "(" 'var ":" 'ty ")" "=>" 'exp` ... $\Gamma \vdash (\lambda x: A. P) a_2$ if $\Gamma \vdash a_1 = a_2$, $\Gamma \vdash a_1, a_2: A$, $\Gamma x: A \vdash P_1$, $\Gamma \vdash (\lambda x: A. P) a_1$
   - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp` ... $\Gamma \vdash \Take f = t$ if $\Gamma \vdash \Take f, t: X: *^s$
-  - axioms = either
-    - law of excluded middle `"\axiom:LEM" 'exp ";"`
-    - functional extensionality `"\axiom:FE" 'exp "=" 'exp ":" 'exp "->" 'exp`
-    - set extensionality `"\axiom:SE" 'exp "=" 'exp "\subset" 'exp `
   - abort: `\abort`
 
 ## module

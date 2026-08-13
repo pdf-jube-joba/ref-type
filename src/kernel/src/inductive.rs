@@ -39,9 +39,9 @@ impl InductiveTypeSpecs {
     pub fn param_args_len(&self) -> usize {
         self.parameters.len()
     }
-    // number of indices of the idx-th constructor
+    // number of arguments of the idx-th constructor
     pub fn arg_len_cst(&self, idx: usize) -> usize {
-        self.constructors[idx].indices.len()
+        self.constructors[idx].telescope.len()
     }
     // type of constructor C_i with given parameters
     pub fn type_of_constructor(
@@ -56,20 +56,22 @@ impl InductiveTypeSpecs {
     }
     // (x[]: t[]) -> THIS x[] -> sort
     pub fn return_type_kind(indspec: &std::rc::Rc<Self>, parameters: Vec<Exp>, sort: Sort) -> Exp {
+        let subst_mapping = indspec.parameter_subst_mapping(&parameters);
+        let indices = indspec
+            .indices
+            .iter()
+            .map(|(x, t)| (x.clone(), t.subst(&subst_mapping)))
+            .collect::<Vec<_>>();
         // THIS x[] where x[] is ty.arity_arg's variables
         let e = utils::assoc_apply(
             Exp::IndType {
                 indspec: indspec.clone(),
                 parameters: parameters.clone(),
             },
-            indspec
-                .indices
-                .iter()
-                .map(|(x, _)| Exp::Var(x.clone()))
-                .collect(),
+            indices.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
         );
         utils::assoc_prod(
-            indspec.indices.clone(),
+            indices,
             Exp::Prod {
                 var: Var::new("_"),
                 ty: Box::new(e),
@@ -132,14 +134,49 @@ impl CtorType {
             utils::assoc_apply(this.clone(), self.indices.clone()),
         )
     }
+
+    pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> CtorType {
+        CtorType {
+            telescope: self
+                .telescope
+                .iter()
+                .map(|binder| match binder {
+                    CtorBinder::StrictPositive {
+                        binders: xts,
+                        self_indices: m,
+                    } => CtorBinder::StrictPositive {
+                        binders: xts
+                            .iter()
+                            .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
+                            .collect(),
+                        self_indices: m.iter().map(|t| t.subst(subst_mapping)).collect(),
+                    },
+                    CtorBinder::Simple((x, t)) => {
+                        CtorBinder::Simple((x.clone(), t.subst(subst_mapping)))
+                    }
+                })
+                .collect(),
+            indices: self
+                .indices
+                .iter()
+                .map(|t| t.subst(subst_mapping))
+                .collect(),
+        }
+    }
 }
 
 // check well-formedness of inductive type specifications
 pub fn acceptable_typespecs(
     ctx: &Context, // assume well-formed
     inductive_type_specs: &InductiveTypeSpecs,
-) -> Result<DerivationSuccess, Box<DerivationFail>> {
-    let rc = Rc::new(inductive_type_specs.clone());
+) -> Result<JudgementSuccess, Box<JudgementError>> {
+    let span = tracing::debug_span!(
+        target: "ref_type::typing",
+        "well_formed_inductive",
+        rule = "InductiveWellFormed",
+        ctx_len = ctx.len(),
+    );
+    let _entered = span.enter();
     let InductiveTypeSpecs {
         parameters,
         indices,
@@ -148,32 +185,18 @@ pub fn acceptable_typespecs(
     } = inductive_type_specs;
     // 1. check parameters are well-sorted (parameters can depend on previous parameters)
     // (ctx, parameter.var[..i]: parameter.ty[..i] |- parameter.ty[i] : sort)
-    let mut well_derivation = vec![];
     let mut local_context = ctx.clone();
     for (x, a) in parameters.iter() {
         let derivation = infer_sort(&local_context, a);
 
         match derivation {
-            Ok(ok) => {
-                well_derivation.push(ok);
-            }
+            Ok(_) => {}
             Err(err) => {
-                let err_der = DerivationFail {
-                    base: Box::new(DerivationBase {
-                        premises: well_derivation.clone(),
-                        rule: "inductive type well formed".to_string(),
-                        phase: format!("parameter '{:?}' type check", x),
-                    }),
-                    head: FailHead::WellFormednessInductive {
-                        ctx: ctx.clone(),
-                        indspec: rc.clone(),
-                    },
-                    kind: FailKind::Propagate {
-                        fail: err,
-                        expect: "Parameter is well-sorted".to_string(),
-                    },
-                };
-                return Err(Box::new(err_der));
+                return Err(Box::new(err.with_frame(
+                    "InductiveWellFormed",
+                    format!("parameter '{:?}' type check", x),
+                    "parameter is well-sorted",
+                )));
             }
         }
 
@@ -187,26 +210,13 @@ pub fn acceptable_typespecs(
     let arity = utils::assoc_prod(indices.clone(), Exp::Sort(*sort));
     let derivation = infer_sort(&local_context, &arity);
     match derivation {
-        Ok(ok) => {
-            well_derivation.push(ok);
-        }
+        Ok(_) => {}
         Err(err) => {
-            let err_der = DerivationFail {
-                base: Box::new(DerivationBase {
-                    premises: well_derivation.clone(),
-                    rule: "inductive type well formed".to_string(),
-                    phase: "arity type check".to_string(),
-                }),
-                head: FailHead::WellFormednessInductive {
-                    ctx: ctx.clone(),
-                    indspec: rc.clone(),
-                },
-                kind: FailKind::Propagate {
-                    fail: err,
-                    expect: "Arity is well-sorted".to_string(),
-                },
-            };
-            return Err(Box::new(err_der));
+            return Err(Box::new(err.with_frame(
+                "InductiveWellFormed",
+                "arity type check",
+                "arity is well-sorted",
+            )));
         }
     }
 
@@ -221,42 +231,20 @@ pub fn acceptable_typespecs(
         // check (ctx |- cst_type : sort)
         let derivation = check(&local_context, &cst_type, &Exp::Sort(*sort));
         match derivation {
-            Ok(ok) => {
-                well_derivation.push(ok);
-            }
+            Ok(_) => {}
             Err(err) => {
-                let err_der = DerivationFail {
-                    base: Box::new(DerivationBase {
-                        premises: well_derivation.clone(),
-                        rule: "inductive type well formed".to_string(),
-                        phase: format!("constructor '{}' type check", i),
-                    }),
-                    head: FailHead::WellFormednessInductive {
-                        ctx: ctx.clone(),
-                        indspec: rc.clone(),
-                    },
-                    kind: FailKind::Propagate {
-                        fail: err,
-                        expect: "Constructor is well-sorted".to_string(),
-                    },
-                };
-                return Err(Box::new(err_der));
+                return Err(Box::new(err.with_frame(
+                    "InductiveWellFormed",
+                    format!("constructor '{}' type check", i),
+                    "constructor is well-sorted",
+                )));
             }
         }
     }
     // all checks passed
-    let ok: DerivationSuccess = DerivationSuccess {
-        head: SuccessHead::WellFormednessInductive {
-            ctx: ctx.clone(),
-            indspec: rc,
-        },
-        base: DerivationBase {
-            premises: well_derivation,
-            rule: "inductive type well formed".to_string(),
-            phase: "complete".to_string(),
-        },
-        generated_goals: vec![],
-        through: false,
+    tracing::debug!(target: "ref_type::typing", outcome = "success");
+    let ok = JudgementSuccess {
+        head: SuccessHead::WellFormednessInductive,
     };
     Ok(ok)
 }
@@ -404,7 +392,7 @@ pub fn recursor(
                             func: Box::new(qms),
                             arg: Box::new(pxs),
                         }; // q m[] (p x[])
-                        utils::assoc_prod(xts.clone(), r) // (x[]: t[]) -> q m[] (p x[])
+                        utils::assoc_lam(xts.clone(), r) // (x[]: t[]) => q m[] (p x[])
                     };
                     f = Exp::App {
                         func: Box::new(Exp::App {
@@ -518,6 +506,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
     } = indelim_shapecheck(e)?;
 
     // B. reduce
+    let subst_mapping = ty.parameter_subst_mapping(&parameter);
     // ff = (x[]: a[]) => (c: (THIS x[])) => Elim(THIS, c, q, f[])
     let ff = {
         // new variable "c"
@@ -531,7 +520,11 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         };
 
         // indices (x[]: a[])
-        let indices: Vec<(Var, Exp)> = ty.indices.clone();
+        let indices: Vec<(Var, Exp)> = ty
+            .indices
+            .iter()
+            .map(|(x, t)| (x.clone(), t.subst(&subst_mapping)))
+            .collect();
 
         // (c: (THIS x[])) => Elim(Type, c, q, f[]) where x[] are in variables in arities
         let body = Exp::Lam {
@@ -551,7 +544,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
     };
 
     let recursor = recursor(
-        &ty.constructors[idx],
+        &ty.constructors[idx].subst(&subst_mapping),
         &ff,
         &f[idx],
         &Exp::IndType {
@@ -565,6 +558,14 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
 }
 
 impl InductiveTypeSpecs {
+    pub(crate) fn parameter_subst_mapping(&self, parameters: &[Exp]) -> Vec<(Var, Exp)> {
+        self.parameters
+            .iter()
+            .zip(parameters.iter())
+            .map(|((v, _), e)| (v.clone(), e.clone()))
+            .collect()
+    }
+
     pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> InductiveTypeSpecs {
         InductiveTypeSpecs {
             parameters: self
@@ -581,28 +582,7 @@ impl InductiveTypeSpecs {
             constructors: self
                 .constructors
                 .iter()
-                .map(|cst| CtorType {
-                    telescope: cst
-                        .telescope
-                        .iter()
-                        .map(|binder| match binder {
-                            CtorBinder::StrictPositive {
-                                binders: xts,
-                                self_indices: m,
-                            } => CtorBinder::StrictPositive {
-                                binders: xts
-                                    .iter()
-                                    .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
-                                    .collect(),
-                                self_indices: m.iter().map(|t| t.subst(subst_mapping)).collect(),
-                            },
-                            CtorBinder::Simple((x, t)) => {
-                                CtorBinder::Simple((x.clone(), t.subst(subst_mapping)))
-                            }
-                        })
-                        .collect(),
-                    indices: cst.indices.iter().map(|t| t.subst(subst_mapping)).collect(),
-                })
+                .map(|cst| cst.subst(subst_mapping))
                 .collect(),
         }
     }
@@ -626,14 +606,15 @@ impl InductiveTypeSpecs {
         let q = Var::new("q");
         let q_ty = InductiveTypeSpecs::return_type_kind(indspec, parameters.clone(), sort);
         telescope.push((q.clone(), q_ty));
+        let subst_mapping = indspec.parameter_subst_mapping(&parameters);
 
         // f_i: eliminator_type(C_i, q, type of constructor of C_i, THIS) for each constructor C_i
         let mut cases = vec![];
         for i in 0..indspec.constructor_len() {
             let f_i = Var::new(&format!("f{}", i));
-            let ctor = &indspec.constructors[i];
+            let ctor = indspec.constructors[i].subst(&subst_mapping);
             let f_i_ty = eliminator_type(
-                ctor,
+                &ctor,
                 &Exp::Var(q.clone()),
                 &Exp::IndCtor {
                     indspec: indspec.clone(),
@@ -647,17 +628,19 @@ impl InductiveTypeSpecs {
         }
 
         let c = Var::new("c");
+        let indices = indspec
+            .indices
+            .iter()
+            .map(|(x, t)| (x.clone(), t.subst(&subst_mapping)))
+            .collect::<Vec<_>>();
         let c_ty = utils::assoc_apply(
             Exp::IndType {
                 indspec: indspec.clone(),
                 parameters: parameters.clone(),
             },
-            indspec
-                .indices
-                .iter()
-                .map(|(x, _)| Exp::Var(x.clone()))
-                .collect(),
+            indices.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
         );
+        telescope.extend(indices);
         telescope.push((c.clone(), c_ty));
 
         // elim(THIS, c, q, f[])
@@ -675,6 +658,30 @@ impl InductiveTypeSpecs {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calculus::{exp_contains_as_freevar, exp_is_alpha_eq, normalize};
+    use crate::{app, lam, var};
+
+    fn nat_specs() -> Rc<InductiveTypeSpecs> {
+        Rc::new(InductiveTypeSpecs {
+            parameters: vec![],
+            indices: vec![],
+            sort: Sort::Set(0),
+            constructors: vec![
+                CtorType {
+                    telescope: vec![],
+                    indices: vec![],
+                },
+                CtorType {
+                    telescope: vec![CtorBinder::StrictPositive {
+                        binders: vec![],
+                        self_indices: vec![],
+                    }],
+                    indices: vec![],
+                },
+            ],
+        })
+    }
+
     #[test]
     fn test_constructor() {
         let q = Exp::Var(Var::new("q"));
@@ -724,6 +731,131 @@ mod tests {
             println!("Recursor (trivial): {r:?}");
         }
     }
+
+    #[test]
+    fn constructor_argument_redex_reduces() {
+        let specs = nat_specs();
+        acceptable_typespecs(&Context::new(), &specs).unwrap();
+
+        let nat = Exp::IndType {
+            indspec: specs.clone(),
+            parameters: vec![],
+        };
+        let zero = Exp::IndCtor {
+            indspec: specs.clone(),
+            parameters: vec![],
+            idx: 0,
+        };
+        let succ = Exp::IndCtor {
+            indspec: specs.clone(),
+            parameters: vec![],
+            idx: 1,
+        };
+        let n = var!("n");
+        let ih = var!("ih");
+        let motive = lam!(n.clone(), nat.clone(), nat.clone());
+        let succ_case = lam!(
+            n,
+            nat.clone(),
+            lam!(
+                ih.clone(),
+                nat.clone(),
+                app!(func: succ.clone(), arg: Exp::Var(ih))
+            )
+        );
+
+        let redex = Exp::IndElim {
+            indspec: specs.clone(),
+            elim: Box::new(app!(func: succ.clone(), arg: zero.clone())),
+            return_type: Box::new(motive),
+            cases: vec![zero.clone(), succ_case],
+        };
+
+        let expected = app!(func: succ, arg: zero);
+        assert!(exp_is_alpha_eq(&normalize(&redex), &expected));
+    }
+
+    #[test]
+    fn strict_positive_ih_is_lambda_term() {
+        let a = var!("A");
+        let x = var!("x");
+        let p = Var::new("p");
+        let q = Exp::Var(var!("q"));
+        let f = Exp::Var(var!("f"));
+        let this = Exp::Var(var!("THIS"));
+        let ctor = CtorType {
+            telescope: vec![CtorBinder::StrictPositive {
+                binders: vec![(x.clone(), Exp::Var(a))],
+                self_indices: vec![],
+            }],
+            indices: vec![],
+        };
+
+        let rec = recursor(&ctor, &q, &f, &this);
+        let Exp::Lam { body, .. } = rec else {
+            panic!("expected recursive argument lambda");
+        };
+        let Exp::App { arg: ih_arg, .. } = body.as_ref() else {
+            panic!("expected case function application");
+        };
+        assert!(matches!(ih_arg.as_ref(), Exp::Lam { .. }));
+
+        // keep the generated binder live enough to guard against accidental dummy changes
+        assert!(!exp_contains_as_freevar(ih_arg, &p));
+    }
+
+    #[test]
+    fn primitive_recursion_substitutes_parameters() {
+        let a = Var::new("A");
+        let b = Var::new("B");
+        let specs = Rc::new(InductiveTypeSpecs {
+            parameters: vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
+            indices: vec![],
+            sort: Sort::Set(0),
+            constructors: vec![CtorType {
+                telescope: vec![CtorBinder::Simple((Var::new("head"), Exp::Var(a.clone())))],
+                indices: vec![],
+            }],
+        });
+
+        let rec = InductiveTypeSpecs::primitive_recursion(
+            &specs,
+            vec![Exp::Var(b.clone())],
+            Sort::Set(0),
+        );
+
+        assert!(!exp_contains_as_freevar(&rec, &a));
+        assert!(exp_contains_as_freevar(&rec, &b));
+    }
+
+    #[test]
+    fn primitive_recursion_binds_indices() {
+        let a = Var::new("A");
+        let b = Var::new("B");
+        let i = Var::new("i");
+        let x = Var::new("x");
+        let specs = Rc::new(InductiveTypeSpecs {
+            parameters: vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
+            indices: vec![(i.clone(), Exp::Var(a.clone()))],
+            sort: Sort::Set(0),
+            constructors: vec![CtorType {
+                telescope: vec![CtorBinder::Simple((x.clone(), Exp::Var(a.clone())))],
+                indices: vec![Exp::Var(x)],
+            }],
+        });
+
+        acceptable_typespecs(&Context::new(), &specs).unwrap();
+        let rec = InductiveTypeSpecs::primitive_recursion(
+            &specs,
+            vec![Exp::Var(b.clone())],
+            Sort::Set(0),
+        );
+
+        assert!(!exp_contains_as_freevar(&rec, &a));
+        assert!(!exp_contains_as_freevar(&rec, &i));
+        assert!(exp_contains_as_freevar(&rec, &b));
+    }
+
     #[test]
     fn test_by_unit_inductive() {
         let specs = InductiveTypeSpecs {

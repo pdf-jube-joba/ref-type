@@ -14,11 +14,11 @@ run_cases() {
 
     echo "=== $label cases ==="
 
-    # dir 配下の .txt ファイルを全部再帰的に収集
-    mapfile -t files < <(find "$dir" -type f -name '*.txt' | sort)
+    # dir 配下の .ref ファイルを全部再帰的に収集
+    mapfile -t files < <(find "$dir" -type f -name '*.ref' | sort)
 
     if [ ${#files[@]} -eq 0 ]; then
-        echo "No .txt files found in $dir"
+        echo "No .ref files found in $dir"
         return
     fi
 
@@ -42,5 +42,8 @@ run_cases() {
 
 run_cases "OK" "$SCRIPT_DIR/ok" "false"
 run_cases "NG" "$SCRIPT_DIR/ng" "true"
+
+echo "=== MULTI-FILE cases ==="
+(cd "$PROJECT_DIR" && cargo run -- file "$SCRIPT_DIR/projects/multifile/root.ref")
 
 echo "All tests passed 🎉"

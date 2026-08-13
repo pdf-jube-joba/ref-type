@@ -1,13 +1,12 @@
-import RefType.Syntax
+import RefType.Sort
 
-namespace RefType.Original
+namespace RefType.System
 
 abbrev OSort := RefType.USort
 
-/-! The unstratified presentation from `doc/book/src/system.md`.  Unlike the
-proof-oriented syntax in `RefType`, every object belongs to one expression
-grammar and variables carry the sort annotation written as `x^s` in the
-document. -/
+/-! The single-syntax presentation from `doc/book/src/system.md`.  Every object
+belongs to one expression grammar, and variables carry the sort annotation
+written as `x^s` in the document. -/
 
 inductive Expr where
   | sort : OSort → Expr
@@ -182,6 +181,9 @@ inductive Derives : Context → Sequent → Prop where
       Derives Γ (.hasSort A s) →
       Derives Γ (.hasSort (.sort s) t) →
       Derives Γ (.hasType A (.sort s) t)
+  | typeSort {Γ A s t} :
+      Derives Γ (.hasType A (.sort s) t) →
+      Derives Γ (.hasSort A s)
   | prodForm {Γ binderSort A B bodySort resultSort} :
       Derives Γ (.hasSort A binderSort) →
       Derives ({ sort := binderSort, ty := A } :: Γ) (.hasSort B bodySort) →
@@ -288,4 +290,19 @@ notation:55 Γ " |-₀ " A " :: " s => HasSort Γ A s
 notation:55 Γ " |-₀ " e " : " A " :: " s => HasType Γ e A s
 notation:55 Γ " |=₀ " P => Provable Γ P
 
-end RefType.Original
+theorem falsePropFormed : HasSort [] falseProp RefType.USort.prop := by
+  have hProp : HasSort [] (.sort .prop) .propKind :=
+    Derives.sortAxiom rfl
+  have hctx : WF ([{ sort := .propKind, ty := .sort .prop }] : Context) :=
+    Derives.wfExtend Derives.wfEmpty hProp
+  have hvarType :
+      HasType [{ sort := .propKind, ty := .sort .prop }]
+        (.var .propKind 0) (.sort .prop) .propKind :=
+    Derives.var hctx Lookup.here
+  have hbody :
+      HasSort [{ sort := .propKind, ty := .sort .prop }]
+        (.var .propKind 0) .prop :=
+    Derives.typeSort hvarType
+  exact Derives.prodForm hProp hbody rfl
+
+end RefType.System
