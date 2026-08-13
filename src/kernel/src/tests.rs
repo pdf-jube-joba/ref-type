@@ -1,5 +1,8 @@
 use crate::{
-    calculus::reduce_one,
+    calculus::{
+        convertible, erase, erased_convertible, erased_normal, exp_is_alpha_eq, normalize,
+        reduce_one,
+    },
     exp::{Context, DefinedConstant, Exp, Sort, Var},
     inductive::CtorBinder,
     utils::{self, app, lam, prod, var},
@@ -408,10 +411,35 @@ fn set_valued_take_rejects_missing_uniqueness_proof() {
 }
 
 #[test]
-fn refinement_cast_rejects_missing_membership_proof() {
+fn subset_intro_rejects_a_non_power_subset() {
+    let aa = var!("A");
+    let not_subset = var!("not_subset");
+    let x = var!("x");
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (not_subset.clone(), Exp::Var(aa.clone())),
+        (x.clone(), Exp::Var(aa.clone())),
+    ];
+    let intro = Exp::SubsetIntro {
+        superset: Box::new(Exp::Var(aa)),
+        subset: Box::new(Exp::Var(not_subset.clone())),
+        element: Box::new(Exp::Var(x)),
+        proof: Box::new(Exp::Var(not_subset)),
+    };
+
+    assert!(crate::derivation::infer(&ctx, &intro).is_err());
+}
+
+#[test]
+fn subset_intro_checks_membership_and_erases_to_its_element() {
     let aa = var!("A");
     let subset = var!("S");
     let x = var!("x");
+    let proof = var!("p");
+    let refinement = Exp::TypeLift {
+        superset: Box::new(Exp::Var(aa.clone())),
+        subset: Box::new(Exp::Var(subset.clone())),
+    };
     let ctx = vec![
         (aa.clone(), Exp::Sort(Sort::Set(0))),
         (
@@ -420,18 +448,218 @@ fn refinement_cast_rejects_missing_membership_proof() {
                 set: Box::new(Exp::Var(aa.clone())),
             },
         ),
-        (x.clone(), Exp::Var(aa.clone())),
+        (x.clone(), refinement.clone()),
+        (
+            proof.clone(),
+            Exp::Pred {
+                superset: Box::new(Exp::Var(aa.clone())),
+                subset: Box::new(Exp::Var(subset.clone())),
+                element: Box::new(Exp::Var(x.clone())),
+            },
+        ),
     ];
-    let cast = Exp::Cast {
-        exp: Box::new(Exp::Var(x)),
-        to: Box::new(Exp::TypeLift {
-            superset: Box::new(Exp::Var(aa)),
-            subset: Box::new(Exp::Var(subset)),
-        }),
-        proof: None,
+    let intro = Exp::SubsetIntro {
+        superset: Box::new(Exp::Var(aa)),
+        subset: Box::new(Exp::Var(subset)),
+        element: Box::new(Exp::Var(x.clone())),
+        proof: Box::new(Exp::Var(proof)),
     };
 
-    assert!(crate::derivation::infer(&ctx, &cast).is_err());
+    let inferred = crate::derivation::infer(&ctx, &intro).unwrap();
+    assert!(exp_is_alpha_eq(&inferred, &refinement));
+    assert!(exp_is_alpha_eq(&normalize(&intro), &intro));
+    assert!(exp_is_alpha_eq(&erased_normal(&intro), &Exp::Var(x)));
+    assert!(exp_is_alpha_eq(&erase(&erase(&intro)), &erase(&intro)));
+}
+
+#[test]
+fn erased_normalization_exposes_computational_redexes() {
+    let aa = var!("A");
+    let x = var!("x");
+    let a = var!("a");
+    let wrapped_identity = Exp::SubsetIntro {
+        superset: Box::new(Exp::Var(aa.clone())),
+        subset: Box::new(Exp::Var(var!("X"))),
+        element: Box::new(Exp::Lam {
+            var: x.clone(),
+            ty: Box::new(Exp::Var(aa)),
+            body: Box::new(Exp::Var(x)),
+        }),
+        proof: Box::new(Exp::Var(var!("p"))),
+    };
+    let application = Exp::App {
+        func: Box::new(wrapped_identity),
+        arg: Box::new(Exp::Var(a.clone())),
+    };
+
+    assert!(!exp_is_alpha_eq(
+        &normalize(&application),
+        &Exp::Var(a.clone())
+    ));
+    assert!(exp_is_alpha_eq(&erased_normal(&application), &Exp::Var(a)));
+}
+
+#[test]
+fn erased_conversion_applies_inside_type_constructor_arguments() {
+    let aa = var!("A");
+    let subset = var!("S");
+    let a = var!("a");
+    let proof = var!("p");
+    let constructor = var!("F");
+    let value = var!("value");
+    let binder = var!("x");
+    let intro = Exp::SubsetIntro {
+        superset: Box::new(Exp::Var(aa.clone())),
+        subset: Box::new(Exp::Var(subset.clone())),
+        element: Box::new(Exp::Var(a.clone())),
+        proof: Box::new(Exp::Var(proof.clone())),
+    };
+    let indexed_by_intro = Exp::App {
+        func: Box::new(Exp::Var(constructor.clone())),
+        arg: Box::new(intro),
+    };
+    let indexed_by_element = Exp::App {
+        func: Box::new(Exp::Var(constructor.clone())),
+        arg: Box::new(Exp::Var(a.clone())),
+    };
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            subset.clone(),
+            Exp::PowerSet {
+                set: Box::new(Exp::Var(aa.clone())),
+            },
+        ),
+        (a.clone(), Exp::Var(aa.clone())),
+        (
+            proof,
+            Exp::Pred {
+                superset: Box::new(Exp::Var(aa.clone())),
+                subset: Box::new(Exp::Var(subset)),
+                element: Box::new(Exp::Var(a)),
+            },
+        ),
+        (
+            constructor,
+            Exp::Prod {
+                var: binder,
+                ty: Box::new(Exp::Var(aa)),
+                body: Box::new(Exp::Sort(Sort::Set(0))),
+            },
+        ),
+        (value.clone(), indexed_by_intro.clone()),
+    ];
+
+    assert!(!convertible(&indexed_by_intro, &indexed_by_element));
+    assert!(erased_convertible(&indexed_by_intro, &indexed_by_element));
+    assert!(crate::derivation::check(&ctx, &Exp::Var(value), &indexed_by_element).is_ok());
+}
+
+#[test]
+fn equality_uses_the_base_carrier_of_distinct_refinements() {
+    let aa = var!("A");
+    let left_subset = var!("Left");
+    let right_subset = var!("Right");
+    let a = var!("a");
+    let left_proof = var!("left_proof");
+    let right_proof = var!("right_proof");
+    let left_refinement = Exp::TypeLift {
+        superset: Box::new(Exp::Var(aa.clone())),
+        subset: Box::new(Exp::Var(left_subset.clone())),
+    };
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            left_subset.clone(),
+            Exp::PowerSet {
+                set: Box::new(Exp::Var(aa.clone())),
+            },
+        ),
+        (
+            right_subset.clone(),
+            Exp::PowerSet {
+                set: Box::new(Exp::Var(aa.clone())),
+            },
+        ),
+        (a.clone(), Exp::Var(aa.clone())),
+        (
+            left_proof.clone(),
+            Exp::Pred {
+                superset: Box::new(Exp::Var(aa.clone())),
+                subset: Box::new(Exp::Var(left_subset.clone())),
+                element: Box::new(Exp::Var(a.clone())),
+            },
+        ),
+        (
+            right_proof.clone(),
+            Exp::Pred {
+                superset: Box::new(Exp::Var(aa.clone())),
+                subset: Box::new(Exp::Var(right_subset.clone())),
+                element: Box::new(Exp::Var(a.clone())),
+            },
+        ),
+    ];
+    let left = Exp::SubsetIntro {
+        superset: Box::new(Exp::Var(aa.clone())),
+        subset: Box::new(Exp::Var(left_subset)),
+        element: Box::new(Exp::Var(a.clone())),
+        proof: Box::new(Exp::Var(left_proof)),
+    };
+    let right = Exp::SubsetIntro {
+        superset: Box::new(Exp::Var(aa)),
+        subset: Box::new(Exp::Var(right_subset)),
+        element: Box::new(Exp::Var(a.clone())),
+        proof: Box::new(Exp::Var(right_proof)),
+    };
+    let equality = Exp::Equal {
+        left: Box::new(left.clone()),
+        right: Box::new(right.clone()),
+    };
+
+    assert!(crate::derivation::check(&ctx, &Exp::Var(a), &left_refinement).is_err());
+    assert!(!convertible(&left, &right));
+    assert!(erased_convertible(&left, &right));
+    assert!(crate::derivation::infer(&ctx, &equality).is_ok());
+}
+
+#[test]
+fn equality_follows_nested_refinements_to_the_base_carrier() {
+    let aa = var!("A");
+    let outer_subset = var!("Outer");
+    let inner_subset = var!("Inner");
+    let a = var!("a");
+    let deeply_refined = var!("deeply_refined");
+    let outer_refinement = Exp::TypeLift {
+        superset: Box::new(Exp::Var(aa.clone())),
+        subset: Box::new(Exp::Var(outer_subset.clone())),
+    };
+    let inner_refinement = Exp::TypeLift {
+        superset: Box::new(outer_refinement.clone()),
+        subset: Box::new(Exp::Var(inner_subset.clone())),
+    };
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            outer_subset,
+            Exp::PowerSet {
+                set: Box::new(Exp::Var(aa.clone())),
+            },
+        ),
+        (
+            inner_subset,
+            Exp::PowerSet {
+                set: Box::new(outer_refinement),
+            },
+        ),
+        (a.clone(), Exp::Var(aa)),
+        (deeply_refined.clone(), inner_refinement),
+    ];
+    let equality = Exp::Equal {
+        left: Box::new(Exp::Var(a)),
+        right: Box::new(Exp::Var(deeply_refined)),
+    };
+
+    assert!(crate::derivation::infer(&ctx, &equality).is_ok());
 }
 
 #[test]

@@ -112,8 +112,7 @@ impl LocalScope {
                             Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
                                 access
-                            )
-                            .into())
+                            ))
                         }
                     }
                     ItemAccessResult::Inductive(ModItemInductive {
@@ -148,10 +147,7 @@ impl LocalScope {
                         if parameters.is_empty() {
                             Ok(exp.clone())
                         } else {
-                            Err(
-                                format!("Module parameter cannot be applied with parameters",)
-                                    .into(),
-                            )
+                            Err("Module parameter cannot be applied with parameters".to_string())
                         }
                     }
                 }
@@ -163,7 +159,11 @@ impl LocalScope {
                 if let SExp::AccessPath { access, parameters } = base.as_ref() {
                     let item = handler.get_item_from_access_path(access)?;
                     match item {
-                        ItemAccessResult::Inductive(ModItemInductive { ind_defs, type_name, ctor_names  }) => {
+                        ItemAccessResult::Inductive(ModItemInductive {
+                            ind_defs,
+                            type_name,
+                            ctor_names,
+                        }) => {
                             for (idx, ctor_name) in ctor_names.iter().enumerate() {
                                 if ctor_name.as_str() == field.as_str() {
                                     let parameters: Vec<Exp> = parameters
@@ -181,13 +181,12 @@ impl LocalScope {
                                 "Constructor {} not found in inductive type {}",
                                 field.as_str(),
                                 type_name.as_str()
-                            ).into())
-                        },
+                            ))
+                        }
                         _ => Err(format!(
                             "Expected inductive constructor or record type in base of associated access {:?}",
                             base
-                        )
-                        .into()),
+                        )),
                     }
                 } else {
                     // 2. otherwise, elab base first, then project field
@@ -352,17 +351,21 @@ impl LocalScope {
                     arg: Box::new(arg_elab),
                 })
             }
-            SExp::Cast { exp, to, proof } => {
-                let exp_elab = self.elab_exp_rec(exp, handler)?;
-                let to_elab = self.elab_exp_rec(to, handler)?;
-                let proof_elab = proof
-                    .as_deref()
-                    .map(|proof| self.elab_exp_rec(proof, handler))
-                    .transpose()?;
-                Ok(Exp::Cast {
-                    exp: Box::new(exp_elab),
-                    to: Box::new(to_elab),
-                    proof: proof_elab.map(Box::new),
+            SExp::SubsetIntro {
+                superset,
+                subset,
+                element,
+                proof,
+            } => {
+                let superset_elab = self.elab_exp_rec(superset, handler)?;
+                let subset_elab = self.elab_exp_rec(subset, handler)?;
+                let element_elab = self.elab_exp_rec(element, handler)?;
+                let proof_elab = self.elab_exp_rec(proof, handler)?;
+                Ok(Exp::SubsetIntro {
+                    superset: Box::new(superset_elab),
+                    subset: Box::new(subset_elab),
+                    element: Box::new(element_elab),
+                    proof: Box::new(proof_elab),
                 })
             }
             SExp::IndElim {
@@ -380,8 +383,7 @@ impl LocalScope {
                     return Err(format!(
                         "Expected inductive type in ind elim access path {:?}",
                         path
-                    )
-                    .into());
+                    ));
                 };
 
                 let elim_elab = self.elab_exp_rec(elim, handler)?;
@@ -394,8 +396,7 @@ impl LocalScope {
                             "Constructor name mismatch in ind elim: expected {}, found {}",
                             ctor_names[idx].as_str(),
                             ctor_name.as_str()
-                        )
-                        .into());
+                        ));
                     }
                     cases_elab.push(case_elab);
                 }
@@ -421,8 +422,7 @@ impl LocalScope {
                     return Err(format!(
                         "Expected inductive type in ind elim prim access path {:?}",
                         path
-                    )
-                    .into());
+                    ));
                 };
 
                 let parameters: Vec<Exp> = parameters
@@ -447,8 +447,7 @@ impl LocalScope {
                     return Err(format!(
                         "Expected record type in record type ctor access path {:?}",
                         access
-                    )
-                    .into());
+                    ));
                 };
 
                 let parameters: Vec<Exp> = parameters
@@ -525,8 +524,7 @@ impl LocalScope {
                     if rightbind.vars.len() >= 2 {
                         return Err(
                             "Elaboration of multiple named binds in Exists is not implemented"
-                                .to_string()
-                                .into(),
+                                .to_string(),
                         );
                     }
                     let ty_elab = self.elab_exp_rec(&rightbind.ty, handler)?;
@@ -536,8 +534,7 @@ impl LocalScope {
                 }
                 Bind::SubsetWithProof { .. } => Err(
                     "Elaboration of named bind or subset with proof in Exists is not implemented"
-                        .to_string()
-                        .into(),
+                        .to_string(),
                 ),
                 Bind::Subset { var, ty, predicate } => {
                     let subset_as_exp = {
@@ -564,10 +561,7 @@ impl LocalScope {
                 existence,
                 uniqueness,
             } => {
-                let (map_body, codomain) = match body.as_ref() {
-                    SExp::Cast { exp, to, .. } => (exp.as_ref(), Some(to.as_ref())),
-                    _ => (body.as_ref(), None),
-                };
+                let map_body = body.as_ref();
 
                 let (domain_elab, map_elab, codomain_elab) = match bind {
                     Bind::Named(right_bind) => {
@@ -581,10 +575,7 @@ impl LocalScope {
                         let domain_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
                         self.push_binded_var(var.clone());
                         let map_body_elab = self.elab_exp_rec(map_body, handler)?;
-                        let codomain_elab = match codomain {
-                            Some(codomain) => self.elab_exp_rec(codomain, handler)?,
-                            None => map_body_elab.clone(),
-                        };
+                        let codomain_elab = map_body_elab.clone();
                         self.pop_binded_var();
 
                         let map_elab = Exp::Lam {
@@ -600,10 +591,7 @@ impl LocalScope {
                         self.push_binded_var(var.clone());
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         let map_body_elab = self.elab_exp_rec(map_body, handler)?;
-                        let codomain_elab = match codomain {
-                            Some(codomain) => self.elab_exp_rec(codomain, handler)?,
-                            None => map_body_elab.clone(),
-                        };
+                        let codomain_elab = map_body_elab.clone();
                         self.pop_binded_var();
 
                         let subset = Exp::SubSet {
@@ -744,13 +732,9 @@ impl LocalScope {
                                 uniqueness: uniqueness.clone().map(Box::new),
                             };
                         }
-                        Statement::Sufficient { map, map_ty } => {
+                        Statement::Sufficient { map, map_ty: _ } => {
                             term = SExp::App {
-                                func: Box::new(SExp::Cast {
-                                    exp: Box::new(map.clone()),
-                                    to: Box::new(map_ty.clone()),
-                                    proof: None,
-                                }),
+                                func: Box::new(map.clone()),
                                 arg: Box::new(term),
                                 piped: false,
                             };

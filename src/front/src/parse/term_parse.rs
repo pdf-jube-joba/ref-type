@@ -244,6 +244,23 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
+        if self.bump_if_keyword("\\subsetinto") {
+            return self.parse_parenthesized(|parser| {
+                let superset = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let subset = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let element = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let proof = parser.parse_sexp()?;
+                Ok(SExp::SubsetIntro {
+                    superset: Box::new(superset),
+                    subset: Box::new(subset),
+                    element: Box::new(element),
+                    proof: Box::new(proof),
+                })
+            });
+        }
         // elimination of inductive type
         if self.bump_if_keyword("\\elim") {
             // "\elim" <elim: SExp> "\in" <path: Path> "\\return" <return_type: SExp>
@@ -683,8 +700,7 @@ impl<'a> TermParser<'a> {
     // parse a expression with
     // 1. record field access
     // 2. piped application ... <e: AsExp> "|" <e: AsExp>
-    // 3. as expression ... <e: AsExp> "\as" <e: AsExp>
-    // 4. equal expression ... <e: AsExp> "=" <e: AsExp>
+    // 3. equal expression ... <e> "=" <e>
     fn parse_combined(&mut self) -> Result<SExp, ParseError> {
         fn piped(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let mut expr = parser.parse_atom_sequence()?;
@@ -700,21 +716,7 @@ impl<'a> TermParser<'a> {
             Ok(expr)
         }
         fn as_exp(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            let from_exp = piped(parser)?;
-            if parser.bump_if_keyword("\\as") {
-                let to_exp = piped(parser)?;
-                Ok(SExp::Cast {
-                    exp: Box::new(from_exp),
-                    to: Box::new(to_exp),
-                    proof: if parser.bump_if_keyword("\\by") {
-                        Some(Box::new(piped(parser)?))
-                    } else {
-                        None
-                    },
-                })
-            } else {
-                Ok(from_exp)
-            }
+            piped(parser)
         }
         fn equal_exp(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let left_exp = as_exp(parser)?;
@@ -1068,9 +1070,9 @@ mod tests {
         print_and_unwrap_combined(r"x");
         print_and_unwrap_combined(r"x y");
         print_and_unwrap_combined(r"x | y");
-        print_and_unwrap_combined(r"x \as Y");
+        print_and_unwrap_combined(r"\subsetinto(A, X, x, p)");
         print_and_unwrap_combined(r"x = y");
-        print_and_unwrap_combined(r"x \as Y | z = h");
+        print_and_unwrap_combined(r"\subsetinto(A, X, x, p) | z = h");
     }
     #[test]
     fn parse_nosubset_arrow_test() {
@@ -1190,14 +1192,13 @@ mod tests {
         print_and_unwrap(r"x $( y + z )$ l");
         print_and_unwrap(r"x ! mymacro { a + b c } l");
         print_and_unwrap(r"x#y#z");
-        print_and_unwrap(r"x \as Y");
-        print_and_unwrap(r"x \as Y \by p");
+        print_and_unwrap(r"\subsetinto(A, X, x, p)");
         print_and_unwrap(r"\exact(x, X)");
         print_and_unwrap(r"\refl(x)");
         print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by (pa, eq)");
         print_and_unwrap(r"\take (x: X) => f x \by (existsX, uniqueF)");
         print_and_unwrap(r"x = y");
-        print_and_unwrap(r"x \as Y | z = h");
+        print_and_unwrap(r"\subsetinto(A, X, x, p) | z = h");
     }
     #[test]
     fn parse_complex_cases_test() {

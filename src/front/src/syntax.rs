@@ -201,11 +201,13 @@ pub enum SExp {
         arg: Box<SExp>,
         piped: bool, // (x | f) to indicate piped application
     },
-    // type annotation (exp as ty)
-    Cast {
-        exp: Box<SExp>,
-        to: Box<SExp>,
-        proof: Option<Box<SExp>>,
+    // subset introduction: `subset` is checked against `PowerSet(superset)`,
+    // `element` against `superset`, and `proof` against their membership.
+    SubsetIntro {
+        superset: Box<SExp>,
+        subset: Box<SExp>,
+        element: Box<SExp>,
+        proof: Box<SExp>,
     },
 
     // --- inductive type

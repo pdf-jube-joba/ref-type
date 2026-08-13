@@ -78,14 +78,17 @@ pub(super) fn format_exp(exp: &Exp) -> String {
             format_exp(return_type),
             cases.iter().map(format_exp).collect::<Vec<_>>().join(", ")
         ),
-        Exp::Cast { exp, to, proof } => format!(
-            "{} as {}{}",
-            format_exp(exp),
-            format_exp(to),
-            proof
-                .as_deref()
-                .map(|p| format!(" by {}", format_exp(p)))
-                .unwrap_or_default()
+        Exp::SubsetIntro {
+            superset,
+            subset,
+            element,
+            proof,
+        } => format!(
+            "subset_intro({}, {}, {}, {})",
+            format_exp(superset),
+            format_exp(subset),
+            format_exp(element),
+            format_exp(proof),
         ),
         Exp::PowerSet { set } => format!("Pow({})", format_exp(set)),
         Exp::SubSet {

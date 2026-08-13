@@ -66,10 +66,14 @@ static SORT_KEYWORDS: &[&str] = &[
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\elim", // inductive eliminator
     "\\prec", // eliminator as primitive recursive form
-    "\\Power", "\\Subset", "\\Pred", "\\Ty",     // usuals
-    "\\exists", // \exists <Bind>
-    "\\take",   // \take <Bind> => <body>
-    "\\block",  // block expression
+    "\\Power",
+    "\\Subset",
+    "\\Pred",
+    "\\Ty",
+    "\\subsetinto", // usuals
+    "\\exists",     // \exists <Bind>
+    "\\take",       // \take <Bind> => <body>
+    "\\block",      // block expression
 ];
 
 static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =

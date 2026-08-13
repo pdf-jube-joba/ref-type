@@ -38,7 +38,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
     ) -> Result<ItemAccessResult, String> {
         self.module_manager
             .get_item(access_path)
-            .ok_or(format!("Failed to access item at path",))
+            .ok_or("Failed to access item at path".to_string())
     }
 
     fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, String> {
@@ -58,9 +58,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .flat_map(|(_, v)| v)
             .collect::<Vec<_>>();
 
-        let infer_type_e = self.logger.infer(&ctx, e).ok_or(format!(
-            "Failed to infer type of expression for field projection",
-        ))?;
+        let infer_type_e = self
+            .logger
+            .infer(&ctx, e)
+            .ok_or("Failed to infer type of expression for field projection".to_string())?;
 
         log_record!(
             self.logger,
@@ -75,7 +76,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             parameters,
         } = infer_type_e
         else {
-            return Err(format!("Expected inductive type for field projection, got",));
+            return Err("Expected inductive type for field projection".to_string());
         };
 
         let record = self
@@ -155,7 +156,7 @@ impl GlobalEnvironment {
                 // check sort of parameter type
                 self.logger
                     .infer(&ext_ctx, &ty_elab)
-                    .ok_or(format!("Failed to infer type of parameter type",))?;
+                    .ok_or("Failed to infer type of parameter type".to_string())?;
 
                 for v in vars {
                     let v = Var::new(v.as_str());

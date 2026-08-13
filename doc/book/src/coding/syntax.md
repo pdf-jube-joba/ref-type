@@ -58,6 +58,15 @@
 - 型チェックの中で proof の構成が要求されることがある...expression の一部として組み込んだりすることにする。
   - 型チェックある所に proof あるので全部に `'proof` 句がくるように syntax を調整しないと。
 
+### subset introduction
+`2: 2N` でゴールが生成されるのが普通に使いずらかったため、
+体系としては存在しないが実装上は存在する項として、 `SubsetIntro(A: Set, X: Power A, a: A, p: Pred(A, X, a))` を定義している。
+表面構文は `\subsetinto(A, X, a, p)` で、型は `\Ty(A, X)` と推論される。`A` と `X` を直接持たせ、refinement type から台集合を逆算しない。
+
+通常の簡約は `SubsetIntro` を保持する。計算内容を比較する `erase` / `erased_normal` / `erased_convertible` では `a` に消去する。
+
+これを使うと、検査時に「未証明のゴール」が生成されなくてよくなる。
+
 ## 全体
 ここは core calculus + α ぐらい。
 
@@ -84,6 +93,7 @@
     - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
     - record.proj: `'exp "#" 'name`
     - proof.term: `\Proof 'exp`
+    - subset.intro: `"\subsetinto(" 'exp "," 'exp "," 'exp "," 'exp ")"`
     - power.set: `'\Power 'exp`
     - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
     - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`

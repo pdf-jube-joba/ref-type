@@ -191,13 +191,19 @@ impl<'a> Display for FrontFmt<'a, SExp> {
                     write!(f, "{} {}", FrontFmt(func), FrontFmt(arg))
                 }
             }
-            SExp::Cast { exp, to, proof } => {
-                write!(f, "{} \\as {}", FrontFmt(exp), FrontFmt(to))?;
-                if let Some(proof) = proof {
-                    write!(f, " \\by {}", FrontFmt(proof))?;
-                }
-                Ok(())
-            }
+            SExp::SubsetIntro {
+                superset,
+                subset,
+                element,
+                proof,
+            } => write!(
+                f,
+                "\\subsetinto({}, {}, {}, {})",
+                FrontFmt(superset),
+                FrontFmt(subset),
+                FrontFmt(element),
+                FrontFmt(proof)
+            ),
             SExp::IndElim {
                 path,
                 elim,

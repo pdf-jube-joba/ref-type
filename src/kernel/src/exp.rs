@@ -162,11 +162,13 @@ pub enum Exp {
         return_type: Box<Exp>,
         cases: Vec<Exp>, // no bindings
     },
-    // cast `exp` to `to`
-    Cast {
-        exp: Box<Exp>,
-        to: Box<Exp>,
-        proof: Option<Box<Exp>>,
+    // Introduce `element` into `subset` of `superset` using `proof`.
+    // This is a typing annotation and erases to `element` computationally.
+    SubsetIntro {
+        superset: Box<Exp>,
+        subset: Box<Exp>,
+        element: Box<Exp>,
+        proof: Box<Exp>,
     },
     PowerSet {
         set: Box<Exp>,

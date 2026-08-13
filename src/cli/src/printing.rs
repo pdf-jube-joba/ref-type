@@ -60,11 +60,11 @@ fn format_record(record: &LogRecord, extra: Option<String>) -> String {
         record_prefix(&record.level, &record.tags),
         record.message
     );
-    if let Some(extra) = extra {
-        if !extra.is_empty() {
-            base.push_str(" | ");
-            base.push_str(&extra);
-        }
+    if let Some(extra) = extra
+        && !extra.is_empty()
+    {
+        base.push_str(" | ");
+        base.push_str(&extra);
     }
     base
 }

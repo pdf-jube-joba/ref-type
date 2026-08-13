@@ -1,0 +1,62 @@
+\module SubsetIntro(
+    A: \Set(0),
+    P: A -> \Prop,
+    a, b: A,
+    pa: P a,
+    ab: a = b,
+) {
+    /* A subset and its corresponding refinement type may be named normally. */
+    \definition XSet: \Power(A) := \Subset(x, A, P x);
+    \definition X: \Set(0) := \Ty(A, XSet);
+
+    /* Membership is checked at this construction boundary. */
+    \definition xa: X := \subsetinto(A, XSet, a, pa);
+
+    /* Equality elimination transports the assumed proof `pa: P a` to `P b`. */
+    \definition pb: P b :=
+        \idelim(a = b \with x: A => P x) \by (pa, ab);
+    \definition xb: X := \subsetinto(A, XSet, b, pb);
+
+    /* Refinement values weaken implicitly to their carrier. */
+    \definition forget: (x: X) -> A :=
+        (x: X) => x;
+    \definition underlying_a: A := xa;
+    \definition underlying_b: A := xb;
+
+    /* SubsetIntro erases when observed through the carrier. */
+    \definition property_a: P a :=
+        \bysub(A, \Subset(x, A, P x), xa);
+    \definition property_b: P b :=
+        \bysub(A, \Subset(x, A, P x), xb);
+
+    /* Reusing a checked value does not repeat its introduction proof. */
+    \definition reuse: (x: X) -> X :=
+        (x: X) => x;
+    \definition reuse_a: X := reuse xa;
+    \definition reuse_b: X := reuse xb;
+
+    /* Both checked values may pass through ordinary higher-order code. */
+    \definition apply_both: ((x: X) -> (y: X) -> A) -> A :=
+        (f: (x: X) -> (y: X) -> A) => f xa xb;
+
+    /* Weakening also exposes a carrier function in function position. */
+    \definition Endo: \Set(0) := A -> A;
+    \definition GoodEndoSet: \Power(Endo) :=
+        \Subset(f, Endo, f = f);
+    \definition GoodEndo: \Set(0) :=
+        \Ty(Endo, GoodEndoSet);
+    \definition identity: Endo := (x: A) => x;
+    \definition checked_identity: GoodEndo :=
+        \subsetinto(Endo, GoodEndoSet, identity, \refl(identity));
+    \definition applied: A := checked_identity a;
+
+    /* Equality forgets distinct refinements when they share a carrier. */
+    \definition ReflexiveSet: \Power(A) :=
+        \Subset(x, A, x = x);
+    \definition Reflexive: \Set(0) :=
+        \Ty(A, ReflexiveSet);
+    \definition reflexive_a: Reflexive :=
+        \subsetinto(A, ReflexiveSet, a, \refl(a));
+    \definition same_underlying_value: xa = reflexive_a :=
+        \refl(xa);
+}

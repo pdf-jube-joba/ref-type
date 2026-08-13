@@ -106,20 +106,23 @@ pub fn exp_strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
                     .all(|(c1, c2)| exp_strict_equivalence(c1, c2))
         }
         (
-            Exp::Cast {
-                exp: e1,
-                to: t1,
+            Exp::SubsetIntro {
+                superset: a1,
+                subset: s1,
+                element: e1,
                 proof: p1,
             },
-            Exp::Cast {
-                exp: e2,
-                to: t2,
+            Exp::SubsetIntro {
+                superset: a2,
+                subset: s2,
+                element: e2,
                 proof: p2,
             },
         ) => {
-            exp_strict_equivalence(e1, e2)
-                && exp_strict_equivalence(t1, t2)
-                && option_exp_equivalence(p1.as_deref(), p2.as_deref())
+            exp_strict_equivalence(a1, a2)
+                && exp_strict_equivalence(s1, s2)
+                && exp_strict_equivalence(e1, e2)
+                && exp_strict_equivalence(p1, p2)
         }
         (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => exp_strict_equivalence(e1, e2),
         (
@@ -351,12 +354,16 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                 || exp_contains_as_freevar(return_type, v)
                 || cases.iter().any(|case| exp_contains_as_freevar(case, v))
         }
-        Exp::Cast { exp, to, proof } => {
-            exp_contains_as_freevar(exp, v)
-                || exp_contains_as_freevar(to, v)
-                || proof
-                    .as_deref()
-                    .is_some_and(|p| exp_contains_as_freevar(p, v))
+        Exp::SubsetIntro {
+            superset,
+            subset,
+            element,
+            proof,
+        } => {
+            exp_contains_as_freevar(superset, v)
+                || exp_contains_as_freevar(subset, v)
+                || exp_contains_as_freevar(element, v)
+                || exp_contains_as_freevar(proof, v)
         }
         Exp::PowerSet { set } => exp_contains_as_freevar(set, v),
         Exp::SubSet {
@@ -578,20 +585,23 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                     .all(|(c1, c2)| is_alpha_eq_rec(c1, c2, env1, env2))
         }
         (
-            Exp::Cast {
-                exp: e1,
-                to: t1,
+            Exp::SubsetIntro {
+                superset: a1,
+                subset: s1,
+                element: e1,
                 proof: p1,
             },
-            Exp::Cast {
-                exp: e2,
-                to: t2,
+            Exp::SubsetIntro {
+                superset: a2,
+                subset: s2,
+                element: e2,
                 proof: p2,
             },
         ) => {
-            is_alpha_eq_rec(e1, e2, env1, env2)
-                && is_alpha_eq_rec(t1, t2, env1, env2)
-                && option_alpha_eq(p1.as_deref(), p2.as_deref(), env1, env2)
+            is_alpha_eq_rec(a1, a2, env1, env2)
+                && is_alpha_eq_rec(s1, s2, env1, env2)
+                && is_alpha_eq_rec(e1, e2, env1, env2)
+                && is_alpha_eq_rec(p1, p2, env1, env2)
         }
         (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => {
             is_alpha_eq_rec(e1, e2, env1, env2)
@@ -903,10 +913,16 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             return_type: Box::new(exp_subst(return_type, v, t)),
             cases: cases.iter().map(|case| exp_subst(case, v, t)).collect(),
         },
-        Exp::Cast { exp, to, proof } => Exp::Cast {
-            exp: Box::new(exp_subst(exp, v, t)),
-            to: Box::new(exp_subst(to, v, t)),
-            proof: proof.as_deref().map(|p| Box::new(exp_subst(p, v, t))),
+        Exp::SubsetIntro {
+            superset,
+            subset,
+            element,
+            proof,
+        } => Exp::SubsetIntro {
+            superset: Box::new(exp_subst(superset, v, t)),
+            subset: Box::new(exp_subst(subset, v, t)),
+            element: Box::new(exp_subst(element, v, t)),
+            proof: Box::new(exp_subst(proof, v, t)),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
             set: Box::new(exp_subst(exp, v, t)),
@@ -1091,10 +1107,16 @@ pub fn exp_alpha_conversion(e: &Exp) -> Exp {
             return_type: Box::new(exp_alpha_conversion(return_type)),
             cases: cases.iter().map(exp_alpha_conversion).collect(),
         },
-        Exp::Cast { exp, to, proof } => Exp::Cast {
-            exp: Box::new(exp_alpha_conversion(exp)),
-            to: Box::new(exp_alpha_conversion(to)),
-            proof: proof.as_deref().map(|p| Box::new(exp_alpha_conversion(p))),
+        Exp::SubsetIntro {
+            superset,
+            subset,
+            element,
+            proof,
+        } => Exp::SubsetIntro {
+            superset: Box::new(exp_alpha_conversion(superset)),
+            subset: Box::new(exp_alpha_conversion(subset)),
+            element: Box::new(exp_alpha_conversion(element)),
+            proof: Box::new(exp_alpha_conversion(proof)),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
             set: Box::new(exp_alpha_conversion(exp)),
@@ -1206,6 +1228,154 @@ pub fn exp_alpha_conversion(e: &Exp) -> Exp {
             uniqueness: uniqueness
                 .as_deref()
                 .map(|p| Box::new(exp_alpha_conversion(p))),
+        },
+    }
+}
+
+/// Remove refinement-introduction certificates while preserving their
+/// computational element.  This operation is purely syntactic: callers are
+/// responsible for establishing that the input is well typed.
+pub fn erase(e: &Exp) -> Exp {
+    match e {
+        Exp::Sort(sort) => Exp::Sort(*sort),
+        Exp::Var(var) => Exp::Var(var.clone()),
+        Exp::Prod { var, ty, body } => Exp::Prod {
+            var: var.clone(),
+            ty: Box::new(erase(ty)),
+            body: Box::new(erase(body)),
+        },
+        Exp::Lam { var, ty, body } => Exp::Lam {
+            var: var.clone(),
+            ty: Box::new(erase(ty)),
+            body: Box::new(erase(body)),
+        },
+        Exp::App { func, arg } => Exp::App {
+            func: Box::new(erase(func)),
+            arg: Box::new(erase(arg)),
+        },
+        // Defined constants are transparent.  Unfolding here ensures that a
+        // certificate stored in a checked definition is erased as well.
+        Exp::DefinedConstant(rc) => erase(&rc.body),
+        Exp::IndType {
+            indspec,
+            parameters,
+        } => Exp::IndType {
+            indspec: indspec.clone(),
+            parameters: parameters.iter().map(erase).collect(),
+        },
+        Exp::IndCtor {
+            indspec,
+            parameters,
+            idx,
+        } => Exp::IndCtor {
+            indspec: indspec.clone(),
+            parameters: parameters.iter().map(erase).collect(),
+            idx: *idx,
+        },
+        Exp::IndElim {
+            indspec,
+            elim,
+            return_type,
+            cases,
+        } => Exp::IndElim {
+            indspec: indspec.clone(),
+            elim: Box::new(erase(elim)),
+            return_type: Box::new(erase(return_type)),
+            cases: cases.iter().map(erase).collect(),
+        },
+        Exp::SubsetIntro { element, .. } => erase(element),
+        Exp::PowerSet { set } => Exp::PowerSet {
+            set: Box::new(erase(set)),
+        },
+        Exp::SubSet {
+            var,
+            set,
+            predicate,
+        } => Exp::SubSet {
+            var: var.clone(),
+            set: Box::new(erase(set)),
+            predicate: Box::new(erase(predicate)),
+        },
+        Exp::Pred {
+            superset,
+            subset,
+            element,
+        } => Exp::Pred {
+            superset: Box::new(erase(superset)),
+            subset: Box::new(erase(subset)),
+            element: Box::new(erase(element)),
+        },
+        Exp::TypeLift { superset, subset } => Exp::TypeLift {
+            superset: Box::new(erase(superset)),
+            subset: Box::new(erase(subset)),
+        },
+        Exp::Equal { left, right } => Exp::Equal {
+            left: Box::new(erase(left)),
+            right: Box::new(erase(right)),
+        },
+        Exp::Exists { set } => Exp::Exists {
+            set: Box::new(erase(set)),
+        },
+        Exp::Take {
+            domain,
+            codomain,
+            map,
+            existence,
+            uniqueness,
+        } => Exp::Take {
+            domain: Box::new(erase(domain)),
+            codomain: Box::new(erase(codomain)),
+            map: Box::new(erase(map)),
+            existence: Box::new(erase(existence)),
+            uniqueness: uniqueness.as_deref().map(erase).map(Box::new),
+        },
+        Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
+            element: Box::new(erase(element)),
+            set: Box::new(erase(set)),
+        },
+        Exp::SubsetElim {
+            element,
+            subset,
+            superset,
+        } => Exp::SubsetElim {
+            element: Box::new(erase(element)),
+            subset: Box::new(erase(subset)),
+            superset: Box::new(erase(superset)),
+        },
+        Exp::IdRefl { element } => Exp::IdRefl {
+            element: Box::new(erase(element)),
+        },
+        Exp::IdElim {
+            left,
+            right,
+            ty,
+            var,
+            predicate,
+            base,
+            equality,
+        } => Exp::IdElim {
+            left: Box::new(erase(left)),
+            right: Box::new(erase(right)),
+            ty: Box::new(erase(ty)),
+            var: var.clone(),
+            predicate: Box::new(erase(predicate)),
+            base: Box::new(erase(base)),
+            equality: Box::new(erase(equality)),
+        },
+        Exp::TakeEq {
+            func,
+            domain,
+            codomain,
+            element,
+            existence,
+            uniqueness,
+        } => Exp::TakeEq {
+            func: Box::new(erase(func)),
+            domain: Box::new(erase(domain)),
+            codomain: Box::new(erase(codomain)),
+            element: Box::new(erase(element)),
+            existence: Box::new(erase(existence)),
+            uniqueness: uniqueness.as_deref().map(erase).map(Box::new),
         },
     }
 }
@@ -1340,15 +1510,22 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 cases,
             })
         }
-        Exp::Cast { exp, to, proof } => {
-            let exp = reduce_if(exp);
-            let to = reduce_if(to);
-            let proof = proof.as_deref().map(&mut reduce_if).map(Box::new);
+        Exp::SubsetIntro {
+            superset,
+            subset,
+            element,
+            proof,
+        } => {
+            let superset = reduce_if(superset);
+            let subset = reduce_if(subset);
+            let element = reduce_if(element);
+            let proof = reduce_if(proof);
 
-            changed.then_some(Exp::Cast {
-                exp: Box::new(exp),
-                to: Box::new(to),
-                proof,
+            changed.then_some(Exp::SubsetIntro {
+                superset: Box::new(superset),
+                subset: Box::new(subset),
+                element: Box::new(element),
+                proof: Box::new(proof),
             })
         }
         Exp::PowerSet { set: exp } => {
@@ -1514,9 +1691,23 @@ pub fn normalize(e: &Exp) -> Exp {
     current
 }
 
-// inefficient but simple
+/// Definitional conversion without erasing refinement certificates.
 pub fn convertible(e1: &Exp, e2: &Exp) -> bool {
     exp_is_alpha_eq(&normalize(e1), &normalize(e2))
+}
+
+/// Computational normal form.  Erasure precedes normalization so that
+/// removing a certificate may expose a beta redex or an eliminator redex.
+pub fn erased_normal(e: &Exp) -> Exp {
+    normalize(&erase(e))
+}
+
+/// Computational equality modulo refinement certificates.
+///
+/// This function deliberately does not type-check its arguments.  Typing
+/// rules using it must establish well-typedness independently.
+pub fn erased_convertible(e1: &Exp, e2: &Exp) -> bool {
+    exp_is_alpha_eq(&erased_normal(e1), &erased_normal(e2))
 }
 
 impl Exp {
