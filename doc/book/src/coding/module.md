@@ -128,3 +128,69 @@ module testB(
   definition aa: A := double a;
 }
 ```
+
+## 実装について
+surface 側で定義しているけれど、 kernel 側では context にしてしまう。
+```
+mod A(
+  P1: Set,
+) {
+  mod B(
+    P2: Set,
+  ) {
+    mod B2(
+      P22: Set,
+    ) {
+      definition t: P2 -> P22 -> Nat := (_: P2) => (_: P22) => Nat;
+    }
+  }
+
+  mod C(
+    P3: Set,
+  ) {
+    definition X: P3 -> P3 -> Nat := $root.A(P1 := P1).B(P2 := P3).B2(P22 := P3).t;
+    definition Y: P3 -> P3 -> Nat := $parent.B(P2 := P3).B2(P22 := P3).t;
+
+    import $parent.B(P2 := P3) as CB;
+    definition Z: P3 -> P3 -> Nat := CB.B2(P22 := P3).t;
+  }
+}
+
+```
+こういう状況で `mod C` の検査をしているときにどうするか...
+`mod C` の検査時に、 elaborator には次が入っている？
+- `[["A", [(Var("P1")], Set)], ["C", [(Var("P3"), Set)]]]`
+
+このとき、
+- root の場合には、素直に代入をしていけばいい。
+- parent の場合には、 root から同じ変数への代入を下と考えればいい。
+- name の場合には事前に代入したものから再びたどっていく
+
+いずれにせよ、 ModPath の解決後を持っておけばいい？
+- `$root.A(P1 := P1).B(P2 := P3).B2(P22 := P3)` も `$parent.B(P2 := P3).B2(P22 := P3)` も、
+  `"B2"` で指定される module に対して、 `P1 := P1, P2 := P3, P22 := P3` をしてからその item を得る。
+
+全然実装がわからなかったので、 しばらく full-path でのみとする。
+なんかもう全然わからない。
+```
+mod A(P: Set) {
+  inductive U: Set := U1: A.
+}
+
+mod B() {
+  // 1. は accept, 2. は reject
+  definition x: $root.A(P := Nat).U := $root.A(P := Nat).U::U1;
+  definition x: $root.A(P := Nat).U := $root.A(P := Nat2).U::U1; 
+}
+
+mod B2() {
+  import B() as BB;
+
+  // これはどうする？
+  definition x: $root.A(P := Nat).U := BB.x;
+}
+```
+
+理想的には、 access path を覚えておく ... それが一致したら同じとみなす。
+
+nest をやめる。

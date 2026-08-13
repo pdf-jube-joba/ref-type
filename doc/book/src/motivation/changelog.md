@@ -303,7 +303,7 @@ $f = g \in A \to B \Leftrightarrow \forall k: () \to A, f \circ k = g \circ k$ �
 $\Take$ が $(A -> B)$　を $A \to () \to B$ に分解する操作であることを考えると、
 $\Take f = \Take g$ が関数の外延性を自然に導出する気がした。
 
-## Proof irrelecant で proof term Omit ($\Gamma \vDash P$) のない体系？
+## Proof irrelevant で proof term Omit ($\Gamma \vDash P$) のない体系？
 実装を書いていて思ったのが、 $\Gamma \vDash P$ は理論的には別にあってもいいが、
 項の側を増やして代替することができそう。
 - $\Gamma \vdash \Proof: P$ if $\Gamma \vdash p: P$ とする。（証明できるなら代わりに書いていいぐらいの項としての $\Proof$
@@ -320,9 +320,3 @@ $*^s_i: *^s_{i+1}: *^s_{i+2}$ のような sort にしていたのを、$*^s_i: 
 
 これによって、すべての sort が、 $*: \sq$ のみの axiom になって、 injective になった。
 （ cumulative を入れているので、 PTS の injective の議論はそのまま使えるとは限らない。）
-
-## global choice について
-$\exists X$ を $\lvert X \rvert$ と書くことにする。
-classical indefinite choice として $((x: A) \to \lvert B \rvert) \to \lvert (x: A) \to B \rvert$ があってもいいと思った。
-
-ライブラリとして関数外延性や集合外延性と同様に axioms みたいなものを作ってそこに入れてもよさそう。

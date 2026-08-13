@@ -1,9 +1,10 @@
 # 体系について
-とりあえず、現在考えている体系をここにまとめる。
-ただし、まだ formal に定義できていない部分は載ってない。
+とりあえず、現在考えている core calculus をここにまとめる。
+ただし、まだ定義できていない部分は載ってない。
 
 ## Sort
-以降は特別に書かない限り $i \in \mathbb{N}$
+purr type system のような形で $S, A, R$ の組を次のように定義する。
+以降は特別に書かない限り $i \in \mathbb{N}$ とする。
 
 - $\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\}$
     - $*^s_{i}, \sq^s_{i}$ は set 用の sort
