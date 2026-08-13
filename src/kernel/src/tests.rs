@@ -1,6 +1,6 @@
 use crate::{
     calculus::reduce_one,
-    exp::{Context, DefinedConstant, Exp, JudgementSuccess, Sort, SuccessHead, Var},
+    exp::{Context, DefinedConstant, Exp, Sort, Var},
     inductive::CtorBinder,
     utils::{self, app, lam, prod, var},
 };
@@ -12,20 +12,13 @@ use std::rc::Rc;
 #[derive(Debug, Default)]
 pub struct Checker {
     context: Context,
-    derivations: Vec<JudgementSuccess>,
 }
 
 impl Checker {
-    fn history(&self) -> &Vec<JudgementSuccess> {
-        &self.derivations
-    }
     fn check(&mut self, term: &Exp, ty: &Exp) -> bool {
         let derivation = crate::derivation::check(&self.context, term, ty);
         match derivation {
-            Ok(success) => {
-                self.derivations.push(success);
-                true
-            }
+            Ok(()) => true,
             Err(fail_der) => {
                 print!("Type checking failed:\n{:?}", fail_der);
                 false
@@ -36,18 +29,7 @@ impl Checker {
         let derivation = crate::derivation::infer(&self.context, term);
 
         let ty = match derivation {
-            Ok(derivation) => {
-                if let JudgementSuccess {
-                    head: SuccessHead::TypeJudgement { ty, .. },
-                    ..
-                } = &derivation
-                {
-                    self.derivations.push(derivation.clone());
-                    ty.clone()
-                } else {
-                    panic!("Expected TypeJudgement");
-                }
-            }
+            Ok(ty) => ty,
             Err(fail_der) => {
                 print!("Type inference failed:\n{:?}", fail_der);
                 return None;
@@ -62,25 +44,19 @@ impl Checker {
         sort: crate::exp::Sort,
         constructors: Vec<crate::inductive::CtorType>,
     ) -> Result<crate::inductive::InductiveTypeSpecs, String> {
-        let indspecs = crate::inductive::InductiveTypeSpecs {
-            parameters: params.clone(),
-            indices: indices.clone(),
+        let indspecs = crate::inductive::InductiveTypeSpecs::new(
+            &self.context,
+            params.clone(),
+            indices.clone(),
             sort,
-            constructors: constructors.clone(),
-        };
-        let _res = crate::inductive::acceptable_typespecs(&self.context, &indspecs).unwrap();
-        self.derivations.push(_res);
+            constructors.clone(),
+        )
+        .unwrap();
         Ok(indspecs)
     }
     fn push(&mut self, var: Var, ty: Exp) {
-        let der = crate::derivation::infer_sort(&self.context, &ty).unwrap();
-        self.derivations.push(der);
+        crate::derivation::infer_sort(&self.context, &ty).unwrap();
         self.context.push((var, ty));
-    }
-    fn print_all(&self) {
-        for der in self.history().iter() {
-            println!("{:?}", der);
-        }
     }
 }
 
@@ -335,9 +311,7 @@ fn context_wellformedness_uses_prefix_context() {
         (y.clone(), Exp::Sort(Sort::Set(0))),
     ];
 
-    let (_, fail) = crate::derivation::check_wellformed_ctx(&ctx);
-
-    assert!(fail.is_some());
+    assert!(crate::derivation::check_wellformed_ctx(&ctx).is_err());
 }
 
 #[test]
@@ -392,7 +366,7 @@ fn take_uses_explicit_domain_and_codomain() {
     let derivation = crate::derivation::infer(&ctx, &take).unwrap();
 
     assert!(crate::calculus::exp_is_alpha_eq(
-        derivation.type_of().unwrap(),
+        &derivation,
         &Exp::Var(tt.clone())
     ));
 }
@@ -486,10 +460,7 @@ fn identity_elimination_checks_its_explicit_premise_proofs() {
     };
 
     let inferred = crate::derivation::infer(&ctx, &term).unwrap();
-    assert!(crate::calculus::convertible(
-        inferred.type_of().unwrap(),
-        &Exp::Var(pp)
-    ));
+    assert!(crate::calculus::convertible(&inferred, &Exp::Var(pp)));
 }
 
 #[test]
@@ -562,23 +533,24 @@ fn take_eq_matches_system_shape() {
         }),
     };
 
-    assert!(crate::calculus::exp_is_alpha_eq(
-        derivation.type_of().unwrap(),
-        &expected
-    ));
+    assert!(crate::calculus::exp_is_alpha_eq(&derivation, &expected));
 }
 
 #[test]
 fn inductive_constructor_index_out_of_bounds_fails() {
-    let specs = std::rc::Rc::new(crate::inductive::InductiveTypeSpecs {
-        parameters: vec![],
-        indices: vec![],
-        sort: Sort::Set(0),
-        constructors: vec![crate::inductive::CtorType {
-            telescope: vec![],
-            indices: vec![],
-        }],
-    });
+    let specs = std::rc::Rc::new(
+        crate::inductive::InductiveTypeSpecs::new(
+            &Context::new(),
+            vec![],
+            vec![],
+            Sort::Set(0),
+            vec![crate::inductive::CtorType {
+                telescope: vec![],
+                indices: vec![],
+            }],
+        )
+        .unwrap(),
+    );
 
     let result = crate::derivation::infer(
         &Context::new(),
@@ -627,9 +599,6 @@ fn proof_by_assumption() {
     let proof_term = app!(Exp::Var(pm), Exp::Var(p1));
 
     checker.infer(&proof_term).unwrap();
-    for der in checker.history().iter() {
-        println!("{:?}", der);
-    }
 }
 
 // Explicit proof terms need no separate goal-resolution pass.
@@ -653,7 +622,6 @@ fn solvegoals() {
     let proof_term = app!(Exp::Var(pm), Exp::Var(p1));
 
     checker.infer(&proof_term).unwrap();
-    checker.print_all();
 }
 
 // Ordinary checking uses definitional equality for proposition types.

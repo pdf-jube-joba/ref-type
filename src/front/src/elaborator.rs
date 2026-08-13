@@ -298,16 +298,23 @@ impl GlobalEnvironment {
                         });
                     }
 
-                    let indspec = InductiveTypeSpecs {
-                        parameters: parameter_elab,
-                        indices: indices_elab,
-                        sort: *sort,
-                        constructors: ctor_type_elabs,
-                    };
-
-                    if !self.logger.check_wellformed_indspec(&ctx, &indspec) {
-                        return Err("Ill-formed inductive type specification".to_string());
-                    }
+                    let indspec = InductiveTypeSpecs::new(
+                        &ctx,
+                        parameter_elab,
+                        indices_elab,
+                        *sort,
+                        ctor_type_elabs,
+                    )
+                    .map_err(|error| {
+                        log_msg!(
+                            self.logger,
+                            LogLevel::Error,
+                            ["inductive type construction"],
+                            "inductive type construction failed: {:?}",
+                            error,
+                        );
+                        "Ill-formed inductive type specification".to_string()
+                    })?;
 
                     self.module_manager
                         .add_inductive(type_name.clone(), ctor_names, indspec);
@@ -338,19 +345,26 @@ impl GlobalEnvironment {
                         telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
                     }
 
-                    let indspec = InductiveTypeSpecs {
-                        parameters: parameter_elab,
-                        indices: vec![],
-                        sort: *sort,
-                        constructors: vec![kernel::inductive::CtorType {
+                    let indspec = InductiveTypeSpecs::new(
+                        &ctx,
+                        parameter_elab,
+                        vec![],
+                        *sort,
+                        vec![kernel::inductive::CtorType {
                             telescope,
                             indices: vec![],
                         }],
-                    };
-
-                    if !self.logger.check_wellformed_indspec(&ctx, &indspec) {
-                        return Err("Ill-formed record type specification".to_string());
-                    }
+                    )
+                    .map_err(|error| {
+                        log_msg!(
+                            self.logger,
+                            LogLevel::Error,
+                            ["record type construction"],
+                            "record type construction failed: {:?}",
+                            error,
+                        );
+                        "Ill-formed record type specification".to_string()
+                    })?;
 
                     self.module_manager.add_record(type_name.clone(), indspec);
                 }
@@ -382,7 +396,7 @@ impl GlobalEnvironment {
 
                     let access_result = self
                         .module_manager
-                        .instantiate_module(from, args)
+                        .instantiate_module(from, args, &ctx)
                         .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
                     let InstantiateResult {

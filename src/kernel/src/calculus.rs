@@ -330,14 +330,8 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
             return_type,
             cases,
         } => {
-            let crate::inductive::InductiveTypeSpecs {
-                parameters,
-                indices,
-                sort: _,
-                constructors,
-            } = indspec.as_ref();
             'inner: {
-                for (var, arg) in parameters.iter().chain(indices.iter()) {
+                for (var, arg) in indspec.parameters().iter().chain(indspec.indices().iter()) {
                     if var.is_eq_ptr(v) {
                         break 'inner;
                     }
@@ -345,7 +339,7 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                         return true;
                     }
                 }
-                for ctor in constructors {
+                for ctor in indspec.constructors() {
                     let dummy = Var::dummy();
                     let as_exp = ctor.as_exp_with_type(&Exp::Var(dummy.clone()));
                     if exp_contains_as_freevar(&as_exp, v) {

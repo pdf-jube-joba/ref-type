@@ -359,7 +359,7 @@ impl ModItemRecord {
         parameters: &[Exp],
     ) -> Option<Exp> {
         // this should always have only one constructor
-        let ctor = &self.rc_spec_as_indtype.constructors[0];
+        let ctor = &self.rc_spec_as_indtype.constructors()[0];
         let telescope = ctor
             .telescope
             .iter()

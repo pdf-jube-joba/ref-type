@@ -126,10 +126,7 @@ impl Logger {
     pub fn infer(&mut self, ctx: &Context, exp: &Exp) -> Option<Exp> {
         let infer_ty = kernel::derivation::infer(ctx, exp);
         match infer_ty {
-            Ok(derivation_success) => {
-                let result: Option<Exp> = derivation_success.type_of().cloned();
-                result
-            }
+            Ok(ty) => Some(ty),
             Err(derivation_fail) => {
                 self.record(
                     LogLevel::Error,
@@ -144,37 +141,12 @@ impl Logger {
     pub fn check(&mut self, ctx: &Context, exp: &Exp, expected_type: &Exp) -> bool {
         let result = kernel::derivation::check(ctx, exp, expected_type);
         match result {
-            Ok(derivation_success) => {
-                let _ = derivation_success;
-                true
-            }
+            Ok(()) => true,
             Err(derivation_fail) => {
                 self.record(
                     LogLevel::Error,
                     vec!["check".to_string()],
                     format!("check failed: {:?}", derivation_fail),
-                    LogPayload::Message,
-                );
-                false
-            }
-        }
-    }
-    pub fn check_wellformed_indspec(
-        &mut self,
-        ctx: &Context,
-        indspec: &kernel::inductive::InductiveTypeSpecs,
-    ) -> bool {
-        let result = kernel::inductive::acceptable_typespecs(ctx, indspec);
-        match result {
-            Ok(derivation_success) => {
-                let _ = derivation_success;
-                true
-            }
-            Err(derivation_fail) => {
-                self.record(
-                    LogLevel::Error,
-                    vec!["check_wellformed_indspec".to_string()],
-                    format!("check_wellformed_indspec failed: {:?}", derivation_fail),
                     LogPayload::Message,
                 );
                 false

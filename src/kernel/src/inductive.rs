@@ -14,19 +14,56 @@ use super::exp::*;
 Inductive NAME (parameters.var[]: parameters.ty[]): (indices.var[]: indices.ty[]) -> sort := list of
 | constructor[] = [{telescope1[] -> NAME indices1[]}]
 */
+/// A validated inductive type specification.
+///
+/// Its fields are private so values from outside the kernel can only be created
+/// through [`InductiveTypeSpecs::new`] or another validating operation.
 #[derive(Debug, Clone, Serialize)]
 pub struct InductiveTypeSpecs {
     // type parameters
-    pub parameters: Vec<(Var, Exp)>,
+    parameters: Vec<(Var, Exp)>,
     // indices of the type
-    pub indices: Vec<(Var, Exp)>,
+    indices: Vec<(Var, Exp)>,
     // sort of the type
-    pub sort: Sort,
+    sort: Sort,
     // constructors
-    pub constructors: Vec<CtorType>,
+    constructors: Vec<CtorType>,
 }
 
 impl InductiveTypeSpecs {
+    pub fn new(
+        ctx: &Context,
+        parameters: Vec<(Var, Exp)>,
+        indices: Vec<(Var, Exp)>,
+        sort: Sort,
+        constructors: Vec<CtorType>,
+    ) -> Result<Self, Box<JudgementError>> {
+        let specs = Self {
+            parameters,
+            indices,
+            sort,
+            constructors,
+        };
+        specs.validate(ctx)?;
+        Ok(specs)
+    }
+
+    pub fn parameters(&self) -> &[(Var, Exp)] {
+        &self.parameters
+    }
+
+    pub fn indices(&self) -> &[(Var, Exp)] {
+        &self.indices
+    }
+
+    pub fn sort(&self) -> Sort {
+        self.sort
+    }
+
+    pub fn constructors(&self) -> &[CtorType] {
+        &self.constructors
+    }
+
     // arity = (indices.var[]: indices.ty[]) -> sort
     pub fn arity(&self) -> Exp {
         utils::assoc_prod(self.indices.clone(), Exp::Sort(self.sort))
@@ -78,6 +115,52 @@ impl InductiveTypeSpecs {
                 body: Box::new(Exp::Sort(sort)),
             },
         )
+    }
+
+    fn validate(&self, ctx: &Context) -> Result<(), Box<JudgementError>> {
+        let span = tracing::debug_span!(
+            target: "ref_type::typing",
+            "construct_inductive_type_specs",
+            ctx_len = ctx.len(),
+        );
+        let _entered = span.enter();
+
+        let mut local_context = ctx.clone();
+        for (x, parameter_ty) in &self.parameters {
+            infer_sort(&local_context, parameter_ty).map_err(|error| {
+                Box::new(error.with_frame(
+                    "InductiveTypeSpecs::new",
+                    format!("parameter '{:?}' type check", x),
+                    "parameter is well-sorted",
+                ))
+            })?;
+            local_context = ctx_extend(&local_context, (x.clone(), parameter_ty.clone()));
+        }
+
+        let arity = self.arity();
+        infer_sort(&local_context, &arity).map_err(|error| {
+            Box::new(error.with_frame(
+                "InductiveTypeSpecs::new",
+                "arity type check",
+                "arity is well-sorted",
+            ))
+        })?;
+
+        let this = Var::new("THIS");
+        local_context = ctx_extend(&local_context, (this.clone(), arity));
+        for (index, constructor) in self.constructors.iter().enumerate() {
+            let constructor_ty = constructor.as_exp_with_type(&Exp::Var(this.clone()));
+            check(&local_context, &constructor_ty, &Exp::Sort(self.sort)).map_err(|error| {
+                Box::new(error.with_frame(
+                    "InductiveTypeSpecs::new",
+                    format!("constructor '{}' type check", index),
+                    "constructor is well-sorted",
+                ))
+            })?;
+        }
+
+        tracing::debug!(target: "ref_type::typing", outcome = "success");
+        Ok(())
     }
 }
 
@@ -163,90 +246,6 @@ impl CtorType {
                 .collect(),
         }
     }
-}
-
-// check well-formedness of inductive type specifications
-pub fn acceptable_typespecs(
-    ctx: &Context, // assume well-formed
-    inductive_type_specs: &InductiveTypeSpecs,
-) -> Result<JudgementSuccess, Box<JudgementError>> {
-    let span = tracing::debug_span!(
-        target: "ref_type::typing",
-        "well_formed_inductive",
-        rule = "InductiveWellFormed",
-        ctx_len = ctx.len(),
-    );
-    let _entered = span.enter();
-    let InductiveTypeSpecs {
-        parameters,
-        indices,
-        sort,
-        constructors,
-    } = inductive_type_specs;
-    // 1. check parameters are well-sorted (parameters can depend on previous parameters)
-    // (ctx, parameter.var[..i]: parameter.ty[..i] |- parameter.ty[i] : sort)
-    let mut local_context = ctx.clone();
-    for (x, a) in parameters.iter() {
-        let derivation = infer_sort(&local_context, a);
-
-        match derivation {
-            Ok(_) => {}
-            Err(err) => {
-                return Err(Box::new(err.with_frame(
-                    "InductiveWellFormed",
-                    format!("parameter '{:?}' type check", x),
-                    "parameter is well-sorted",
-                )));
-            }
-        }
-
-        local_context = ctx_extend(&local_context, (x.clone(), a.clone()));
-    }
-    // after this, local_context contains all parameters
-
-    // 2. check arity is well-sorted (arity can depend on parameters and previous arities)
-    // arity = indices[] -> sort
-    // (ctx, parameters[] |- arity : sort)
-    let arity = utils::assoc_prod(indices.clone(), Exp::Sort(*sort));
-    let derivation = infer_sort(&local_context, &arity);
-    match derivation {
-        Ok(_) => {}
-        Err(err) => {
-            return Err(Box::new(err.with_frame(
-                "InductiveWellFormed",
-                "arity type check",
-                "arity is well-sorted",
-            )));
-        }
-    }
-
-    // 3. check constructors are well-sorted (constructor can depend on parameters and each params)
-    // adding (Var("THIS"): arity) to local_context and check each constructor under this context
-    let this = Var::new("THIS");
-    local_context = ctx_extend(&local_context, (this.clone(), arity.clone()));
-
-    for (i, ctor) in constructors.iter().enumerate() {
-        // cst_type(constructor as type) = pos[] -> THIS args[0] ... args[m]
-        let cst_type = ctor.as_exp_with_type(&Exp::Var(this.clone()));
-        // check (ctx |- cst_type : sort)
-        let derivation = check(&local_context, &cst_type, &Exp::Sort(*sort));
-        match derivation {
-            Ok(_) => {}
-            Err(err) => {
-                return Err(Box::new(err.with_frame(
-                    "InductiveWellFormed",
-                    format!("constructor '{}' type check", i),
-                    "constructor is well-sorted",
-                )));
-            }
-        }
-    }
-    // all checks passed
-    tracing::debug!(target: "ref_type::typing", outcome = "success");
-    let ok = JudgementSuccess {
-        head: SuccessHead::WellFormednessInductive,
-    };
-    Ok(ok)
 }
 
 // return type of corresponding eliminator case for the given constructor
@@ -566,25 +565,28 @@ impl InductiveTypeSpecs {
             .collect()
     }
 
-    pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> InductiveTypeSpecs {
-        InductiveTypeSpecs {
-            parameters: self
-                .parameters
+    /// Apply a substitution and validate the resulting specification in `ctx`.
+    pub fn instantiate(
+        &self,
+        ctx: &Context,
+        subst_mapping: &[(Var, Exp)],
+    ) -> Result<InductiveTypeSpecs, Box<JudgementError>> {
+        InductiveTypeSpecs::new(
+            ctx,
+            self.parameters
                 .iter()
                 .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
                 .collect(),
-            indices: self
-                .indices
+            self.indices
                 .iter()
                 .map(|(x, t)| (x.clone(), t.subst(subst_mapping)))
                 .collect(),
-            sort: self.sort,
-            constructors: self
-                .constructors
+            self.sort,
+            self.constructors
                 .iter()
                 .map(|cst| cst.subst(subst_mapping))
                 .collect(),
-        }
+        )
     }
     // generate primitive recursion principle for this inductive type
     // return (q: (x[]: t[]) -> THIS x[] -> sort) => (f[0]: _) => ... => (f[n]: _) => (x[]: t[]) => (c: q x[]) => elim(THIS, c, q, f[])
@@ -661,12 +663,21 @@ mod tests {
     use crate::calculus::{exp_contains_as_freevar, exp_is_alpha_eq, normalize};
     use crate::{app, lam, var};
 
+    fn specs(
+        parameters: Vec<(Var, Exp)>,
+        indices: Vec<(Var, Exp)>,
+        sort: Sort,
+        constructors: Vec<CtorType>,
+    ) -> InductiveTypeSpecs {
+        InductiveTypeSpecs::new(&Context::new(), parameters, indices, sort, constructors).unwrap()
+    }
+
     fn nat_specs() -> Rc<InductiveTypeSpecs> {
-        Rc::new(InductiveTypeSpecs {
-            parameters: vec![],
-            indices: vec![],
-            sort: Sort::Set(0),
-            constructors: vec![
+        Rc::new(specs(
+            vec![],
+            vec![],
+            Sort::Set(0),
+            vec![
                 CtorType {
                     telescope: vec![],
                     indices: vec![],
@@ -679,7 +690,20 @@ mod tests {
                     indices: vec![],
                 },
             ],
-        })
+        ))
+    }
+
+    #[test]
+    fn construction_rejects_an_ill_sorted_parameter() {
+        let result = InductiveTypeSpecs::new(
+            &Context::new(),
+            vec![(Var::new("A"), Exp::Var(Var::new("missing")))],
+            vec![],
+            Sort::Set(0),
+            vec![],
+        );
+
+        assert!(result.is_err());
     }
 
     #[test]
@@ -735,7 +759,6 @@ mod tests {
     #[test]
     fn constructor_argument_redex_reduces() {
         let specs = nat_specs();
-        acceptable_typespecs(&Context::new(), &specs).unwrap();
 
         let nat = Exp::IndType {
             indspec: specs.clone(),
@@ -808,15 +831,15 @@ mod tests {
     fn primitive_recursion_substitutes_parameters() {
         let a = Var::new("A");
         let b = Var::new("B");
-        let specs = Rc::new(InductiveTypeSpecs {
-            parameters: vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
-            indices: vec![],
-            sort: Sort::Set(0),
-            constructors: vec![CtorType {
+        let specs = Rc::new(specs(
+            vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
+            vec![],
+            Sort::Set(0),
+            vec![CtorType {
                 telescope: vec![CtorBinder::Simple((Var::new("head"), Exp::Var(a.clone())))],
                 indices: vec![],
             }],
-        });
+        ));
 
         let rec = InductiveTypeSpecs::primitive_recursion(
             &specs,
@@ -834,17 +857,16 @@ mod tests {
         let b = Var::new("B");
         let i = Var::new("i");
         let x = Var::new("x");
-        let specs = Rc::new(InductiveTypeSpecs {
-            parameters: vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
-            indices: vec![(i.clone(), Exp::Var(a.clone()))],
-            sort: Sort::Set(0),
-            constructors: vec![CtorType {
+        let specs = Rc::new(specs(
+            vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
+            vec![(i.clone(), Exp::Var(a.clone()))],
+            Sort::Set(0),
+            vec![CtorType {
                 telescope: vec![CtorBinder::Simple((x.clone(), Exp::Var(a.clone())))],
                 indices: vec![Exp::Var(x)],
             }],
-        });
+        ));
 
-        acceptable_typespecs(&Context::new(), &specs).unwrap();
         let rec = InductiveTypeSpecs::primitive_recursion(
             &specs,
             vec![Exp::Var(b.clone())],
@@ -858,27 +880,26 @@ mod tests {
 
     #[test]
     fn test_by_unit_inductive() {
-        let specs = InductiveTypeSpecs {
-            parameters: vec![],
-            indices: vec![],
-            sort: Sort::Set(0),
-            constructors: vec![CtorType {
+        let specs = specs(
+            vec![],
+            vec![],
+            Sort::Set(0),
+            vec![CtorType {
                 telescope: vec![],
                 indices: vec![],
             }],
-        };
-        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
+        );
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Unit type: {prin_rec:?}");
     }
     #[test]
     fn test_by_bool_inductive() {
-        let specs = InductiveTypeSpecs {
-            parameters: vec![],
-            indices: vec![],
-            sort: Sort::Set(0),
-            constructors: vec![
+        let specs = specs(
+            vec![],
+            vec![],
+            Sort::Set(0),
+            vec![
                 CtorType {
                     telescope: vec![],
                     indices: vec![],
@@ -888,19 +909,18 @@ mod tests {
                     indices: vec![],
                 },
             ],
-        };
-        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
+        );
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Bool type: {prin_rec:?}");
     }
     #[test]
     fn test_by_natural_number_inductive() {
-        let specs = InductiveTypeSpecs {
-            parameters: vec![],
-            indices: vec![],
-            sort: Sort::Set(0),
-            constructors: vec![
+        let specs = specs(
+            vec![],
+            vec![],
+            Sort::Set(0),
+            vec![
                 CtorType {
                     telescope: vec![],
                     indices: vec![],
@@ -913,8 +933,7 @@ mod tests {
                     indices: vec![],
                 },
             ],
-        };
-        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
+        );
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(&specs, vec![], Sort::Set(0));
         println!("Primitive recursion principle for Nat type: {prin_rec:?}");
@@ -922,11 +941,11 @@ mod tests {
     #[test]
     fn test_by_polymorphic_list_inductive() {
         let a = Var::new("A");
-        let specs = InductiveTypeSpecs {
-            parameters: vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
-            indices: vec![],
-            sort: Sort::Set(0),
-            constructors: vec![
+        let specs = specs(
+            vec![(a.clone(), Exp::Sort(Sort::Set(0)))],
+            vec![],
+            Sort::Set(0),
+            vec![
                 // nil: List[A]
                 CtorType {
                     telescope: vec![],
@@ -944,8 +963,7 @@ mod tests {
                     indices: vec![],
                 },
             ],
-        };
-        let _res = acceptable_typespecs(&Context::new(), &specs).unwrap();
+        );
         let specs = Rc::new(specs);
         let prin_rec = InductiveTypeSpecs::primitive_recursion(
             &specs,

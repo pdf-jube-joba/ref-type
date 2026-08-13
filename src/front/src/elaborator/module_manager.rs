@@ -2,7 +2,7 @@ use crate::syntax::{
     Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord,
     ModuleItemAccessible,
 };
-use kernel::exp::{DefinedConstant, Exp, Var};
+use kernel::exp::{Context, DefinedConstant, Exp, Var};
 use kernel::inductive::InductiveTypeSpecs;
 use std::rc::Rc;
 
@@ -223,6 +223,7 @@ impl ModuleManager {
         &self,
         mut from: usize,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+        ctx: &Context,
     ) -> Result<InstantiateResult, String> {
         // we delegate "type checking" of arguments to the caller
         let mut need_to_type_check = vec![];
@@ -285,35 +286,41 @@ impl ModuleManager {
                         ty: instantiated_ty,
                         body: instantiated_inner,
                     };
-                    ModuleItemAccessible::Definition(ModItemDefinition {
+                    Ok(ModuleItemAccessible::Definition(ModItemDefinition {
                         def_name: name.clone(),
                         body: Rc::new(instantiated_def),
-                    })
+                    }))
                 }
                 ModuleItemAccessible::Inductive(ModItemInductive {
                     type_name,
                     ctor_names,
                     ind_defs,
                 }) => {
-                    let instantiated_ind_defs = ind_defs.subst(&subst_mapping_accum);
-                    ModuleItemAccessible::Inductive(ModItemInductive {
+                    let instantiated_ind_defs = ind_defs
+                        .instantiate(ctx, &subst_mapping_accum)
+                        .map_err(|error| {
+                            format!("Inductive type instantiation failed: {error:?}")
+                        })?;
+                    Ok(ModuleItemAccessible::Inductive(ModItemInductive {
                         type_name: type_name.clone(),
                         ctor_names: ctor_names.clone(),
                         ind_defs: Rc::new(instantiated_ind_defs),
-                    })
+                    }))
                 }
                 ModuleItemAccessible::Record(ModItemRecord {
                     type_name,
                     rc_spec_as_indtype,
                 }) => {
-                    let instantiated_spec = rc_spec_as_indtype.subst(&subst_mapping_accum);
-                    ModuleItemAccessible::Record(ModItemRecord {
+                    let instantiated_spec = rc_spec_as_indtype
+                        .instantiate(ctx, &subst_mapping_accum)
+                        .map_err(|error| format!("Record type instantiation failed: {error:?}"))?;
+                    Ok(ModuleItemAccessible::Record(ModItemRecord {
                         type_name: type_name.clone(),
                         rc_spec_as_indtype: Rc::new(instantiated_spec),
-                    })
+                    }))
                 }
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
 
         let module_instantiated = InstantiatedModule {
             parameters_instantiated: subst_mapping_accum,
@@ -330,6 +337,7 @@ impl ModuleManager {
         &self,
         back_parent: Option<usize>, // if None, from root
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+        ctx: &Context,
     ) -> Result<InstantiateResult, String> {
         match back_parent {
             Some(n) => {
@@ -341,11 +349,11 @@ impl ModuleManager {
                         return Err("Cannot go back parent: already at root module".to_string());
                     }
                 }
-                self.access_module(index, args)
+                self.access_module(index, args, ctx)
             }
             None => {
                 // from root
-                self.access_module(0, args)
+                self.access_module(0, args, ctx)
             }
         }
     }

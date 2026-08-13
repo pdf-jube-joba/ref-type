@@ -272,18 +272,6 @@ pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum SuccessHead {
-    Checked,
-    TypeJudgement { ty: Exp },
-    WellFormednessInductive,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct JudgementSuccess {
-    pub head: SuccessHead,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct ErrorFrame {
     pub rule: String,
     pub phase: String,
@@ -294,17 +282,6 @@ pub struct ErrorFrame {
 pub struct JudgementError {
     pub cause: String,
     pub frames: Vec<ErrorFrame>,
-}
-
-impl JudgementSuccess {
-    pub fn type_of(&self) -> Option<&Exp> {
-        match self {
-            JudgementSuccess {
-                head: SuccessHead::TypeJudgement { ty },
-            } => Some(ty),
-            _ => None,
-        }
-    }
 }
 
 impl JudgementError {

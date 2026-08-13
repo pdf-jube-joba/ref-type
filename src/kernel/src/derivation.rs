@@ -15,35 +15,23 @@ macro_rules! add_check {
 
 macro_rules! add_infer {
     ($rule:expr, $phase:expr, $ctx:expr, $term:expr, $expected:expr $(,)?) => {
-        infer($ctx, $term)
-            .map(|result| result.type_of().expect("infer must produce a type").clone())
-            .map_err(|error| propagate(error, $rule, $phase, $expected))
+        infer($ctx, $term).map_err(|error| propagate(error, $rule, $phase, $expected))
     };
 }
 
 macro_rules! add_sort {
     ($rule:expr, $phase:expr, $ctx:expr, $term:expr, $expected:expr $(,)?) => {
-        infer_sort($ctx, $term)
-            .map(|result| match result.type_of() {
-                Some(Exp::Sort(sort)) => *sort,
-                _ => unreachable!("infer_sort must produce a sort"),
-            })
-            .map_err(|error| propagate(error, $rule, $phase, $expected))
+        infer_sort($ctx, $term).map_err(|error| propagate(error, $rule, $phase, $expected))
     };
 }
 
-fn success_checked() -> JudgementSuccess {
+fn success_checked() {
     debug!(target: "ref_type::typing", outcome = "success");
-    JudgementSuccess {
-        head: SuccessHead::Checked,
-    }
 }
 
-fn success_type(ty: Exp) -> JudgementSuccess {
+fn success_type(ty: Exp) -> Exp {
     debug!(target: "ref_type::typing", outcome = "success", result = ?ty);
-    JudgementSuccess {
-        head: SuccessHead::TypeJudgement { ty },
-    }
+    ty
 }
 
 fn failure(rule: &str, phase: &str, cause: &str) -> Box<JudgementError> {
@@ -52,16 +40,21 @@ fn failure(rule: &str, phase: &str, cause: &str) -> Box<JudgementError> {
 }
 
 fn propagate(
-    error: Box<JudgementError>,
+    mut error: Box<JudgementError>,
     rule: &str,
     phase: &str,
     expected: &str,
 ) -> Box<JudgementError> {
-    Box::new(error.with_frame(rule, phase, expected))
+    error.frames.push(ErrorFrame {
+        rule: rule.to_owned(),
+        phase: phase.to_owned(),
+        expected: expected.to_owned(),
+    });
+    error
 }
 
 // Check (ctx |- term : ty).
-pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<JudgementSuccess, Box<JudgementError>> {
+pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<(), Box<JudgementError>> {
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "check",
@@ -79,7 +72,8 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<JudgementSuccess, Bo
 
     // 2-if. inferred_ty == ty by strict equivalence => this function through the result
     if exp_strict_equivalence(ty, &inferred_ty) {
-        return Ok(success_checked());
+        success_checked();
+        return Ok(());
     }
 
     // 2. check (ctx |- ty : ?s) for some sort s
@@ -92,13 +86,15 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<JudgementSuccess, Bo
     // 3-A-if. check ty =(alpha)= inferred_ty
     // conclude (ctx |- term : ty) by conversion rule
     if convertible(&ty, &inferred_ty_result) {
-        return Ok(success_checked());
+        success_checked();
+        return Ok(());
     }
 
     // 3-B-if inferred_ty == s1, ty == s2 ... lift universe rule
     if let (Exp::Sort(s1), Exp::Sort(s2)) = (&inferred_ty_result, &ty) {
         if s1.can_lift_to(*s2) {
-            return Ok(success_checked());
+            success_checked();
+            return Ok(());
         } else {
             // if inferred_ty == s1, ty == s2 with s1 not liftable to s2 ... fails
             return Err(failure(rule, phase, "fail universe lift"));
@@ -113,7 +109,8 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<JudgementSuccess, Bo
     } = &inferred_ty_result
     {
         if exp_is_alpha_eq(superset.as_ref(), &ty) {
-            return Ok(success_checked());
+            success_checked();
+            return Ok(());
         } else {
             // if inferred_ty =(alpha)= TypeLift(ty1, some) with ty1 != ty ... fails
             return Err(failure(rule, phase, "fail subset weak"));
@@ -125,7 +122,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<JudgementSuccess, Bo
 }
 
 // Infer a type while emitting the rule traversal through tracing spans.
-pub fn infer(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<JudgementError>> {
+pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "infer",
@@ -241,7 +238,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Judgemen
             indspec,
             parameters,
         } => {
-            let parameter_indty_defined = indspec.parameters.clone();
+            let parameter_indty_defined = indspec.parameters();
 
             // 1. check parameters length
             if parameters.len() != parameter_indty_defined.len() {
@@ -279,7 +276,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Judgemen
             //  where arity_substituted = (ty.indices[] -> ty.sort)[var_j := parameters[j]] for j in indices
             let arity_substituted = {
                 let mut substituted =
-                    utils::assoc_prod(indspec.indices.clone(), Exp::Sort(indspec.sort));
+                    utils::assoc_prod(indspec.indices().to_vec(), Exp::Sort(indspec.sort()));
                 for (v, e) in &subst_varexp {
                     substituted = exp_subst(&substituted, v, e);
                 }
@@ -292,13 +289,13 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Judgemen
             idx,
             parameters,
         } => {
-            let parameter_indty_defined = indspec.parameters.clone();
+            let parameter_indty_defined = indspec.parameters();
 
             // 1. check parameter length
             if parameters.len() != parameter_indty_defined.len() {
                 return Err(failure(rule, phase, "mismatch length"));
             }
-            if *idx >= indspec.constructors.len() {
+            if *idx >= indspec.constructor_len() {
                 return Err(failure(rule, phase, "constructor index out of bounds"));
             }
 
@@ -376,7 +373,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Judgemen
             };
 
             // 4. check (ty.sort, sort) can form an elimination
-            if indspec.sort.relation_of_sort_indelim(sort).is_none() {
+            if indspec.sort().relation_of_sort_indelim(sort).is_none() {
                 return Err(failure(rule, phase, "cannot form eliminator"));
             }
 
@@ -396,12 +393,12 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Judgemen
             }
 
             // 6. check each case has type eliminator_type of constructor
-            if cases.len() != indspec.constructors.len() {
+            if cases.len() != indspec.constructor_len() {
                 return Err(failure(rule, phase, "constructor length mismatch"));
             }
 
             for (idx, case) in cases.iter().enumerate() {
-                let ctor_type = indspec.constructors[idx].subst(&subst_varexp);
+                let ctor_type = indspec.constructors()[idx].subst(&subst_varexp);
                 let ctor = Exp::IndCtor {
                     indspec: indspec.clone(),
                     parameters: parameters.clone(),
@@ -729,7 +726,7 @@ fn exp_rule(term: &Exp) -> &'static str {
 }
 
 // infer sort of term
-pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<JudgementError>> {
+pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<Sort, Box<JudgementError>> {
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "infer_sort",
@@ -746,7 +743,8 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Jud
 
     // 2-A. if inferred_ty is already a sort, through
     if let Exp::Sort(s) = inferred_ty {
-        return Ok(success_type(Exp::Sort(s)));
+        debug!(target: "ref_type::typing", outcome = "success", result = ?s);
+        return Ok(s);
     }
 
     // 2. converting inferred_ty to sort
@@ -754,13 +752,11 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<JudgementSuccess, Box<Jud
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
 
-    Ok(success_type(Exp::Sort(s)))
+    debug!(target: "ref_type::typing", outcome = "success", result = ?s);
+    Ok(s)
 }
 
-fn infer_proof_constructor(
-    ctx: &Context,
-    term: &Exp,
-) -> Result<JudgementSuccess, Box<JudgementError>> {
+fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
     let rule = exp_rule(term);
     let phase = "infer";
     match term {
@@ -959,33 +955,21 @@ fn infer_proof_constructor(
     }
 }
 
-pub fn check_wellformed_ctx(ctx: &Context) -> (Vec<JudgementSuccess>, Option<Box<JudgementError>>) {
-    let mut ders = vec![];
+pub fn check_wellformed_ctx(ctx: &Context) -> Result<(), Box<JudgementError>> {
     let mut cur_ctx: Context = vec![];
     for (v, ty) in ctx {
         if cur_ctx.iter().any(|(existing, _)| existing.is_eq_ptr(v)) {
-            return (
-                ders,
-                Some(Box::new(
-                    JudgementError::caused("variable already exists in context").with_frame(
-                        "ContextWellFormed",
-                        "duplicate variable",
-                        "unique context variable",
-                    ),
-                )),
-            );
+            return Err(Box::new(
+                JudgementError::caused("variable already exists in context").with_frame(
+                    "ContextWellFormed",
+                    "duplicate variable",
+                    "unique context variable",
+                ),
+            ));
         }
 
-        let der = infer_sort(&cur_ctx, ty);
-        match der {
-            Ok(success) => {
-                ders.push(success);
-                cur_ctx.push((v.clone(), ty.clone()));
-            }
-            Err(fail) => {
-                return (ders, Some(fail));
-            }
-        }
+        infer_sort(&cur_ctx, ty)?;
+        cur_ctx.push((v.clone(), ty.clone()));
     }
-    (ders, None)
+    Ok(())
 }
