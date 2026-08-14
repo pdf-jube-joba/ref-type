@@ -1,0 +1,44 @@
+/* Proof constructors nested inside applications and subset introduction. */
+\module NestedProofs(
+    A: \Set(0),
+    P: A -> \Prop,
+    a, b, c: A,
+    pa: P a,
+    ab: a = b,
+    bc: b = c,
+    consume: (x: A) -> P x -> P x,
+) {
+    \definition pb: P b :=
+        \idelim(a = b \with x: A => P x) \by (pa, ab);
+    \definition pc: P c :=
+        \idelim(b = c \with x: A => P x) \by (pb, bc);
+
+    /* App checks an IdElim result as a dependent proof argument. */
+    \definition consume_transported: P b :=
+        consume b (\idelim(a = b \with x: A => P x) \by (pa, ab));
+    \definition consume_twice_transported: P c :=
+        consume c
+            (\idelim(b = c \with x: A => P x)
+             \by (\idelim(a = b \with x: A => P x) \by (pa, ab), bc));
+
+    \definition PSet: \Power(A) := \Subset(x, A, P x);
+    \definition PA: \Set(0) := \Ty(A, PSet);
+    /* SubsetIntro checks an IdElim tree as its membership certificate. */
+    \definition refined_b: PA :=
+        \subsetinto(
+            A,
+            PSet,
+            b,
+            \idelim(a = b \with x: A => P x) \by (pa, ab)
+        );
+    \definition refined_c: PA :=
+        \subsetinto(
+            A,
+            PSet,
+            c,
+            \idelim(b = c \with x: A => P x) \by (pb, bc)
+        );
+
+    \definition nested_exists: \exists A :=
+        \exact(((f: A -> A) => f b) ((x: A) => x), A);
+}

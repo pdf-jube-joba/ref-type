@@ -1,0 +1,34 @@
+/* Take inference nested under applications and equality proof checking. */
+\module NestedChoice(
+    X, A: \Set(0),
+    P: \Prop,
+    x: X,
+    a: A,
+    proof: P,
+    existsX: \exists X,
+    chooseEndo: X -> (A -> A),
+    uniqueEndo:
+        (x1: X) -> (x2: X) -> chooseEndo x1 = chooseEndo x2,
+    chooseProofEndo: X -> (P -> P),
+) {
+    \definition chosen_endo: A -> A :=
+        \take (y: X) => chooseEndo y \by (existsX, uniqueEndo);
+    \definition apply_chosen: A := chosen_endo a;
+
+    /* infer(App) must infer and validate Take before checking its argument. */
+    \definition directly_apply_take: A :=
+        (\take (y: X) => chooseEndo y \by (existsX, uniqueEndo)) a;
+    \definition take_under_higher_order_application: A :=
+        ((f: A -> A) => f a)
+        (\take (y: X) => chooseEndo y \by (existsX, uniqueEndo));
+
+    /* Proposition-valued Take can itself be used in function position. */
+    \definition chosen_proof_endo: P -> P :=
+        \take (y: X) => chooseProofEndo y \by (existsX);
+    \definition directly_apply_proof_take: P :=
+        (\take (y: X) => chooseProofEndo y \by (existsX)) proof;
+
+    \definition chosen_at_x: chosen_endo = chooseEndo x :=
+        \takeelim((y: X) => chooseEndo y, x, X, A -> A)
+        \by (existsX, uniqueEndo);
+}

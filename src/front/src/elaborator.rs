@@ -82,6 +82,19 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
         Ok(exp)
     }
+
+    fn infer(&mut self, local_ctx: &Context, e: &Exp) -> Result<Exp, String> {
+        let ctx = self
+            .module_manager
+            .current_context()
+            .into_iter()
+            .flat_map(|(_, bindings)| bindings)
+            .chain(local_ctx.iter().cloned())
+            .collect::<Vec<_>>();
+        self.logger
+            .infer(&ctx, e)
+            .ok_or("Failed to infer elaborated expression".to_string())
+    }
 }
 
 impl GlobalEnvironment {
@@ -153,7 +166,7 @@ impl GlobalEnvironment {
                 for v in vars {
                     let v = Var::new(v.as_str());
                     parameters_elab.push((v.clone(), ty_elab.clone()));
-                    local_scope.push_decl_var(v);
+                    local_scope.push_typed_decl_var(v, ty_elab.clone());
                 }
             }
             // ok => add child module and move to it
@@ -334,7 +347,8 @@ impl GlobalEnvironment {
                         let field_ty_elab = local_scope.elab_exp(field_ty, self)?;
                         fields_get.push((field_name_var.clone(), field_ty_elab.clone()));
                         // field may depend on previous fields
-                        local_scope.push_decl_var(field_name_var.clone());
+                        local_scope
+                            .push_typed_decl_var(field_name_var.clone(), field_ty_elab.clone());
                         telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
                     }
 
