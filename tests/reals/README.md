@@ -1,5 +1,18 @@
 # 実数の形式化
 
+[`Rat.ref`](Rat.ref) は、通常の inductive type と primitive recursor から `Nat`、
+自然数対による整数、正の自然数を分母とする分数を順に構成する。格納した分母 `d` は
+`succ d` を表すので、零分母は構文的に作れない。代表元上の `addFraction`、
+`subFraction`、`mulFraction` は実際に計算する関数であり、`FractionEq` は整数対の
+等号を使った交差積である。
+
+`Quotient` は同値関係を parameter に取り、`ClassOf x` として得られる
+`Power(Fraction)` だけを refinement した型 `Rat` を作る。演算は代表元を選ばず、
+同値類全体の relational image として定義する。`ClassClosed` に congruence の証明を
+渡すと `add`、`sub`、`mul : Rat -> Rat -> Rat` が得られる。除算は
+`Prop -> Set` の関数を避けるため、非零な固定除数 `y` とその証明を受け取る
+`DivideBy` module の `divBy : Rat -> Rat` として定義する。
+
 [`DedekindReal.ref`](DedekindReal.ref) は、実数を located・rounded Dedekind cut として
 定義する。`Rat : Set` と `lt : Rat -> Rat -> Prop` を受け取り、次を構成する。
 
@@ -18,14 +31,16 @@
 relational image として定義する。`SequenceClosed` は列演算が Cauchy 性を保つ証明、
 `ClassClosed` はその image が一つの同値類になる証明を parameter に要求する。
 
-[`root.ref`](root.ref) が両moduleのルートである。`False`、`Not`、`And`、`Or` は
+[`root.ref`](root.ref) が各 module のルートである。`False`、`Not`、`And`、`Or` は
 [`Logic.ref`](Logic.ref) にまとめ、Dedekind側とCauchy側から必要な結合子をimportする。
 
 ## 仮定と現在の制限
 
-`Rat` の実装はこのファイルの外にある。Dedekind cut が実数として期待どおりに
-振る舞うには、`lt` が稠密線形順序であり、加法・反数と両立することが必要で
-ある。任意の `Rat` と `lt` だけでは、`Real` が inhabited であることさえ従わない。
+Dedekind/Cauchy module は引き続き抽象的な `Rat` を引数に取る。`Rat.ref` の具体的な
+商を接続するには、自然数算術から `FractionEq` の同値関係則と各演算の congruence
+を証明する必要がある。Dedekind cut が実数として期待どおりに振る舞うには、さらに
+`lt` が稠密線形順序であり、加法・反数と両立することが必要である。任意の `Rat` と
+`lt` だけでは、`Real` が inhabited であることさえ従わない。
 
 `Operations.Closed` は、`RatLower`、`SumLower`、`NegLower` が切断になるという
 閉性証明を引数に要求する。`ofRat`、`add`、`neg` はそれぞれの refinement cast に
@@ -35,7 +50,7 @@ relational image として定義する。`SequenceClosed` は列演算が Cauchy
 kernel の `=` は集合の外延性を自動では使わない。このため両構成とも、対象となる
 carrier に特殊化した集合外延性を module parameter として受け取る。Dedekind 側の
 `eqByExt` と Cauchy 側の `eqByExt` は、双方向の包含から kernel 等号を構成する。
-乗法・逆数・完備性定理はまだ含めていない。
+Dedekind/Cauchy 実数上の乗法・逆数・完備性定理はまだ含めていない。
 
 Cauchy 構成では primitive な quotient type は使わず、`Power(CauchySeq)` のうち
 実際に `ClassOf x` として得られる集合だけを refinement して商集合を作る。
@@ -48,4 +63,4 @@ Cauchy 構成では primitive な quotient type は使わず、`Power(CauchySeq)
 cargo run --quiet -- file tests/reals/root.ref >/dev/null
 ```
 
-コマンドは各 obligation の証明項をその場で検査して成功する。
+コマンドは各定義と、module parameter として残した obligation の型を検査する。

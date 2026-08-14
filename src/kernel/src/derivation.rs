@@ -372,6 +372,10 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
         } => {
             // 1. infer (ctx |- elim : IndType(ty, parameters) a[])
             let inferred_indty = add_infer!(rule, phase, ctx, elim, "infer eliminator type")?;
+            // A refinement of an inductive type has the same computational
+            // eliminator as its explicitly recorded carrier.  Observe that
+            // carrier locally instead of globally erasing refinement types.
+            let inferred_indty = base_carrier(&inferred_indty);
             let (inferred_indty_base, a) = utils::decompose_app(inferred_indty);
             let Exp::IndType {
                 indspec: inferred_indty,

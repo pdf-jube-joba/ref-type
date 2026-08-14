@@ -1345,7 +1345,12 @@ pub(crate) fn expose_product(ty: &Exp) -> Option<(Var, Exp, Exp)> {
 }
 
 /// Follow explicit refinement carriers without recursively erasing the term.
-fn ambient_carrier(ty: &Exp) -> Exp {
+/// Follow explicit refinement carriers to the underlying type.
+///
+/// Unlike `erase`, this is a type-directed head observation: it does not make
+/// refinement introduction and its carrier interchangeable throughout
+/// conversion.
+pub(crate) fn base_carrier(ty: &Exp) -> Exp {
     let mut current = type_head_normal(ty);
     loop {
         match current {
@@ -1362,8 +1367,8 @@ fn ambient_carrier(ty: &Exp) -> Exp {
 /// establish that both inputs are well typed in the same context, and remains
 /// responsible for checking that the returned carrier has a set sort.
 pub(crate) fn common_ambient_carrier(left_ty: &Exp, right_ty: &Exp) -> Option<Exp> {
-    let left_carrier = ambient_carrier(left_ty);
-    let right_carrier = ambient_carrier(right_ty);
+    let left_carrier = base_carrier(left_ty);
+    let right_carrier = base_carrier(right_ty);
     erased_convertible(&left_carrier, &right_carrier).then_some(left_carrier)
 }
 
