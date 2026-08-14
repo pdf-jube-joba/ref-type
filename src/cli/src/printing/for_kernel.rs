@@ -142,19 +142,6 @@ pub(super) fn format_exp(exp: &Exp) -> String {
             format_exp(map),
             format_exp(existence),
         ),
-        Exp::TakeSetUnchecked {
-            domain,
-            codomain,
-            map,
-        } => format!(
-            "TakeSetUnchecked({}, {}, {})",
-            format_exp(domain),
-            format_exp(codomain),
-            format_exp(map),
-        ),
-        Exp::TakePropUnchecked { proposition } => {
-            format!("TakePropUnchecked({})", format_exp(proposition))
-        }
         Exp::ExistsIntro { element, set } => {
             format!("exact({}, {})", format_exp(element), format_exp(set))
         }
@@ -169,7 +156,7 @@ pub(super) fn format_exp(exp: &Exp) -> String {
             format_exp(element)
         ),
         Exp::IdRefl { element } => format!("refl({})", format_exp(element)),
-        Exp::IdElim { .. } | Exp::TakeEq { .. } | Exp::TakeEqUnchecked { .. } => {
+        Exp::IdElim { .. } | Exp::TakeEq { .. } => {
             format!("{:?}", exp)
         }
     }

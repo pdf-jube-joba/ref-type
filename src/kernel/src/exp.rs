@@ -203,23 +203,11 @@ pub enum Exp {
         existence: Box<Exp>,
         uniqueness: Box<Exp>,
     },
-    // Internal erased forms. They deliberately have no typing rules and are
-    // produced only by `calculus::erase`.
-    TakeSetUnchecked {
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        map: Box<Exp>,
-    },
     TakeProp {
         domain: Box<Exp>,
         proposition: Box<Exp>,
         map: Box<Exp>,
         existence: Box<Exp>,
-    },
-    // Erased proposition-valued Take. Keeping the proposition prevents
-    // erased proofs of different propositions from becoming convertible.
-    TakePropUnchecked {
-        proposition: Box<Exp>,
     },
     ExistsIntro {
         element: Box<Exp>,
@@ -249,13 +237,6 @@ pub enum Exp {
         element: Box<Exp>,
         existence: Box<Exp>,
         uniqueness: Box<Exp>,
-    },
-    // same as takesetunchecked but for equality. This is used to erase the proof of existence and uniqueness.
-    TakeEqUnchecked {
-        func: Box<Exp>,
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        element: Box<Exp>,
     },
 }
 

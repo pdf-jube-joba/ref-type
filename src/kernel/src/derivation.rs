@@ -97,47 +97,6 @@ fn propagate(
     error
 }
 
-// A refinement may always be forgotten to its carrier.  Propagate that
-// one-way relation through product codomains so that, for example,
-// `(x: X) => x` checks against `(x: X) -> A` when `X` refines `A`.
-fn can_weaken_normal_to(inferred: &Exp, expected: &Exp) -> bool {
-    if exp_is_alpha_eq(inferred, expected) {
-        return true;
-    }
-
-    match (inferred, expected) {
-        (Exp::TypeLift { superset, .. }, expected) => can_weaken_normal_to(superset, expected),
-        (
-            Exp::Prod {
-                var: inferred_var,
-                ty: inferred_domain,
-                body: inferred_body,
-            },
-            Exp::Prod {
-                var: expected_var,
-                ty: expected_domain,
-                body: expected_body,
-            },
-        ) if exp_is_alpha_eq(inferred_domain, expected_domain) => {
-            let expected_body =
-                exp_subst(expected_body, expected_var, &Exp::Var(inferred_var.clone()));
-            can_weaken_normal_to(inferred_body, &expected_body)
-        }
-        _ => false,
-    }
-}
-
-/// Forget every refinement layer and return the outermost ambient type.
-fn base_carrier(ty: &Exp) -> Exp {
-    let mut current = erased_normal(ty);
-    loop {
-        let Exp::TypeLift { superset, .. } = current else {
-            return current;
-        };
-        current = *superset;
-    }
-}
-
 // Check (ctx |- term : ty).
 pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<(), Box<JudgementError>> {
     let span = tracing::debug_span!(
@@ -167,15 +126,15 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<(), Box<JudgementErr
     // 2. check (ctx |- ty : ?s) for some sort s
     let _sort = add_sort!(rule, phase, ctx, ty, "infer given")?;
 
-    // 3. Compare the checked types modulo erased proof annotations.
-    let inferred_ty_result = erased_normal(&inferred_ty);
-    let normalized_ty = erased_normal(ty);
-
-    if exp_is_alpha_eq(&normalized_ty, &inferred_ty_result) {
+    // 3. Compare the original, checked types. Erasure remains internal to
+    // conversion and its result is never sent back through typing.
+    if erased_convertible(ty, &inferred_ty) {
         return Ok(());
     }
 
     // 3-B-if inferred_ty == s1, ty == s2 ... lift universe rule
+    let inferred_ty_result = type_head_normal(&inferred_ty);
+    let normalized_ty = type_head_normal(ty);
     if let (Exp::Sort(s1), Exp::Sort(s2)) = (&inferred_ty_result, &normalized_ty) {
         if s1.can_lift_to(*s2) {
             return Ok(());
@@ -186,7 +145,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<(), Box<JudgementErr
     }
 
     // 3-C. conclude by the one-way subset weakening relation.
-    if can_weaken_normal_to(&inferred_ty_result, &normalized_ty) {
+    if can_weaken_to(&inferred_ty, ty) {
         return Ok(());
     }
 
@@ -277,13 +236,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 func,
                 "infer function type for application"
             )?;
-            let normalized_func_ty = base_carrier(&func_ty);
-            let Exp::Prod {
-                var,
-                ty: arg_ty,
-                body: ret_ty,
-            } = normalized_func_ty
-            else {
+            let Some((var, arg_ty, ret_ty)) = expose_product(&func_ty) else {
                 return Err(failure(rule, phase, "type is not a product"));
             };
 
@@ -437,7 +390,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             // 3. infer kind of return_type
             let return_type_kind =
                 add_infer!(rule, phase, ctx, return_type, "infer return type kind")?;
-            let (telescope, sort) = utils::decompose_prod(erased_normal(&return_type_kind));
+            let (telescope, sort) = utils::decompose_prod(type_head_normal(&return_type_kind));
             let Exp::Sort(sort) = sort else {
                 return Err(failure(
                     rule,
@@ -639,24 +592,16 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             // layers on both sides. Equality is formed only when their base
             // carriers agree.
             let right_ty = add_infer!(rule, phase, ctx, right, "infer right type")?;
-            let left_carrier = base_carrier(&left_ty);
-            let right_carrier = base_carrier(&right_ty);
-            if !exp_is_alpha_eq(&left_carrier, &right_carrier) {
+            let Some(carrier) = common_ambient_carrier(&left_ty, &right_ty) else {
                 return Err(failure(
                     rule,
                     phase,
                     "equality operands have different base carriers",
                 ));
-            }
+            };
 
             // 3. check that the base carrier is a set.
-            let sort = add_sort!(
-                rule,
-                phase,
-                ctx,
-                &left_carrier,
-                "infer equality carrier sort"
-            )?;
+            let sort = add_sort!(rule, phase, ctx, &carrier, "infer equality carrier sort")?;
             if !matches!(sort, Sort::Set(_)) {
                 return Err(failure(rule, phase, "equality carrier is not of Set(i)"));
             }
@@ -782,13 +727,6 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
 
             Ok(proposition.as_ref().clone())
         }
-        Exp::TakeSetUnchecked { .. }
-        | Exp::TakePropUnchecked { .. }
-        | Exp::TakeEqUnchecked { .. } => Err(failure(
-            rule,
-            phase,
-            "internal erased Take form has no typing rule",
-        )),
         Exp::ExistsIntro { .. }
         | Exp::SubsetElim { .. }
         | Exp::IdRefl { .. }
@@ -817,14 +755,11 @@ fn exp_rule(term: &Exp) -> &'static str {
         Exp::Exists { .. } => "Exists",
         Exp::TakeSet { .. } => "TakeSet",
         Exp::TakeProp { .. } => "TakeProp",
-        Exp::TakeSetUnchecked { .. } => "TakeSetUnchecked",
-        Exp::TakePropUnchecked { .. } => "TakePropUnchecked",
         Exp::ExistsIntro { .. } => "ExistsIntro",
         Exp::SubsetElim { .. } => "SubsetElim",
         Exp::IdRefl { .. } => "IdRefl",
         Exp::IdElim { .. } => "IdElim",
         Exp::TakeEq { .. } => "TakeEq",
-        Exp::TakeEqUnchecked { .. } => "TakeEqUnchecked",
     }
 }
 
@@ -850,7 +785,7 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<Sort, Box<JudgementError>
     }
 
     // 2. converting inferred_ty to sort
-    let Exp::Sort(s) = erased_normal(&inferred_ty) else {
+    let Exp::Sort(s) = type_head_normal(&inferred_ty) else {
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
 

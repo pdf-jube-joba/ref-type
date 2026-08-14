@@ -334,9 +334,7 @@ $*^s_i: *^s_{i+1}: *^s_{i+2}$ のような sort にしていたのを、$*^s_i: 
 - takeprop: \(X: *^s, P: *^p, f: X \to P, p: \exists X\) をとる。
   - erase 後は命題 \(P\) だけを保持する
 
-証明欄を除去した後の構造を明示するため、比較専用の内部項を入れる。
-- `TakeSetUnchecked`: \(X: *^s, T: *^s, f: X \to T\)
-- `TakePropUnchecked`: \(P: *^p\)
-- `TakeEqUnchecked`: \(f, X, T, x\)
-
-erase 後にはそっちにいく。
+Take の証明欄は `Exp` から除去せず、checked な項のまま保持する。
+ただし computational な convertibility では、takeset と takeeq の存在・一意性証明、
+takeprop の domain・map・存在証明を比較しない。
+比較専用の unchecked な項は持たない。

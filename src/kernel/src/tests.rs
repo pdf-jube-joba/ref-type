@@ -462,10 +462,7 @@ fn take_proof_fields_are_irrelevant_for_erased_conversion() {
     };
     assert!(!convertible(&take_set_left, &take_set_right));
     assert!(erased_convertible(&take_set_left, &take_set_right));
-    assert!(matches!(
-        erase(&take_set_left),
-        Exp::TakeSetUnchecked { .. }
-    ));
+    assert!(matches!(erase(&take_set_left), Exp::TakeSet { .. }));
     let different_map = Exp::TakeSet {
         domain: Box::new(Exp::Var(var!("X"))),
         codomain: Box::new(Exp::Var(var!("T"))),
@@ -489,10 +486,7 @@ fn take_proof_fields_are_irrelevant_for_erased_conversion() {
     };
     assert!(!convertible(&take_prop_left, &take_prop_right));
     assert!(erased_convertible(&take_prop_left, &take_prop_right));
-    assert!(matches!(
-        erase(&take_prop_left),
-        Exp::TakePropUnchecked { .. }
-    ));
+    assert!(matches!(erase(&take_prop_left), Exp::TakeProp { .. }));
     let different_proposition = Exp::TakeProp {
         domain: Box::new(Exp::Var(var!("X"))),
         proposition: Box::new(Exp::Var(var!("Q"))),
@@ -519,32 +513,7 @@ fn take_proof_fields_are_irrelevant_for_erased_conversion() {
     };
     assert!(!convertible(&take_eq_left, &take_eq_right));
     assert!(erased_convertible(&take_eq_left, &take_eq_right));
-    assert!(matches!(erase(&take_eq_left), Exp::TakeEqUnchecked { .. }));
-}
-
-#[test]
-fn internal_erased_take_forms_are_idempotent_but_not_typable() {
-    let forms = [
-        Exp::TakeSetUnchecked {
-            domain: Box::new(Exp::Var(var!("X"))),
-            codomain: Box::new(Exp::Var(var!("T"))),
-            map: Box::new(Exp::Var(var!("f"))),
-        },
-        Exp::TakePropUnchecked {
-            proposition: Box::new(Exp::Var(var!("P"))),
-        },
-        Exp::TakeEqUnchecked {
-            func: Box::new(Exp::Var(var!("f"))),
-            domain: Box::new(Exp::Var(var!("X"))),
-            codomain: Box::new(Exp::Var(var!("T"))),
-            element: Box::new(Exp::Var(var!("x"))),
-        },
-    ];
-
-    for form in forms {
-        assert!(exp_is_alpha_eq(&erase(&form), &form));
-        assert!(crate::derivation::infer(&vec![], &form).is_err());
-    }
+    assert!(matches!(erase(&take_eq_left), Exp::TakeEq { .. }));
 }
 
 #[test]
@@ -690,6 +659,44 @@ fn erased_conversion_applies_inside_type_constructor_arguments() {
     assert!(!convertible(&indexed_by_intro, &indexed_by_element));
     assert!(erased_convertible(&indexed_by_intro, &indexed_by_element));
     assert!(crate::derivation::check(&ctx, &Exp::Var(value), &indexed_by_element).is_ok());
+}
+
+#[test]
+fn application_observes_a_product_through_its_refinement_carrier() {
+    let aa = var!("A");
+    let functions = var!("Functions");
+    let function = var!("function");
+    let argument = var!("argument");
+    let binder = var!("x");
+    let product = Exp::Prod {
+        var: binder,
+        ty: Box::new(Exp::Var(aa.clone())),
+        body: Box::new(Exp::Var(aa.clone())),
+    };
+    let ctx = vec![
+        (aa.clone(), Exp::Sort(Sort::Set(0))),
+        (
+            functions.clone(),
+            Exp::PowerSet {
+                set: Box::new(product.clone()),
+            },
+        ),
+        (
+            function.clone(),
+            Exp::TypeLift {
+                superset: Box::new(product),
+                subset: Box::new(Exp::Var(functions)),
+            },
+        ),
+        (argument.clone(), Exp::Var(aa.clone())),
+    ];
+    let application = Exp::App {
+        func: Box::new(Exp::Var(function)),
+        arg: Box::new(Exp::Var(argument)),
+    };
+
+    let inferred = crate::derivation::infer(&ctx, &application).unwrap();
+    assert!(exp_is_alpha_eq(&inferred, &Exp::Var(aa)));
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use std::rc;
+use std::{ops::Deref, rc};
 
 use crate::inductive::inductive_type_elim_reduce;
 
@@ -116,16 +116,6 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                 || exp_contains_as_freevar(map, v)
                 || exp_contains_as_freevar(existence, v)
         }
-        Exp::TakeSetUnchecked {
-            domain,
-            codomain,
-            map,
-        } => {
-            exp_contains_as_freevar(domain, v)
-                || exp_contains_as_freevar(codomain, v)
-                || exp_contains_as_freevar(map, v)
-        }
-        Exp::TakePropUnchecked { proposition } => exp_contains_as_freevar(proposition, v),
         Exp::ExistsIntro { element, set } => {
             exp_contains_as_freevar(element, v) || exp_contains_as_freevar(set, v)
         }
@@ -170,23 +160,29 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                 || exp_contains_as_freevar(existence, v)
                 || exp_contains_as_freevar(uniqueness, v)
         }
-        Exp::TakeEqUnchecked {
-            func,
-            domain,
-            codomain,
-            element,
-        } => {
-            exp_contains_as_freevar(func, v)
-                || exp_contains_as_freevar(domain, v)
-                || exp_contains_as_freevar(codomain, v)
-                || exp_contains_as_freevar(element, v)
-        }
     }
 }
 
-// WARNING we ignore raw proof terms (it behaves like ProofLater(p))
-// i.e. ctx |- p1, p2: P: \Prop => p1 == p2
-fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>) -> bool {
+struct AlphaEqEnv {
+    bound: Vec<Var>,
+    take_proofs_irrelevant: bool,
+}
+
+impl Deref for AlphaEqEnv {
+    type Target = Vec<Var>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.bound
+    }
+}
+
+impl std::ops::DerefMut for AlphaEqEnv {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.bound
+    }
+}
+
+fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut AlphaEqEnv, env2: &mut AlphaEqEnv) -> bool {
     match (e1, e2) {
         (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
         (Exp::Var(v1), Exp::Var(v2)) => {
@@ -374,26 +370,6 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 && is_alpha_eq_rec(e1, e2, env1, env2)
         }
         (
-            Exp::TakeSetUnchecked {
-                domain: d1,
-                codomain: c1,
-                map: m1,
-            },
-            Exp::TakeSetUnchecked {
-                domain: d2,
-                codomain: c2,
-                map: m2,
-            },
-        ) => {
-            is_alpha_eq_rec(d1, d2, env1, env2)
-                && is_alpha_eq_rec(c1, c2, env1, env2)
-                && is_alpha_eq_rec(m1, m2, env1, env2)
-        }
-        (
-            Exp::TakePropUnchecked { proposition: p1 },
-            Exp::TakePropUnchecked { proposition: p2 },
-        ) => is_alpha_eq_rec(p1, p2, env1, env2),
-        (
             Exp::TypeLift {
                 superset: s1,
                 subset: sub1,
@@ -435,8 +411,8 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
             is_alpha_eq_rec(d1, d2, env1, env2)
                 && is_alpha_eq_rec(c1, c2, env1, env2)
                 && is_alpha_eq_rec(m1, m2, env1, env2)
-                && is_alpha_eq_rec(e1, e2, env1, env2)
-                && is_alpha_eq_rec(u1, u2, env1, env2)
+                && (env1.take_proofs_irrelevant
+                    || (is_alpha_eq_rec(e1, e2, env1, env2) && is_alpha_eq_rec(u1, u2, env1, env2)))
         }
         (
             Exp::TakeProp {
@@ -452,10 +428,11 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 existence: e2,
             },
         ) => {
-            is_alpha_eq_rec(d1, d2, env1, env2)
-                && is_alpha_eq_rec(p1, p2, env1, env2)
-                && is_alpha_eq_rec(m1, m2, env1, env2)
-                && is_alpha_eq_rec(e1, e2, env1, env2)
+            is_alpha_eq_rec(p1, p2, env1, env2)
+                && (env1.take_proofs_irrelevant
+                    || (is_alpha_eq_rec(d1, d2, env1, env2)
+                        && is_alpha_eq_rec(m1, m2, env1, env2)
+                        && is_alpha_eq_rec(e1, e2, env1, env2)))
         }
         (
             Exp::ExistsIntro {
@@ -542,34 +519,41 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 && is_alpha_eq_rec(d1, d2, env1, env2)
                 && is_alpha_eq_rec(c1, c2, env1, env2)
                 && is_alpha_eq_rec(e1, e2, env1, env2)
-                && is_alpha_eq_rec(x1, x2, env1, env2)
-                && is_alpha_eq_rec(u1, u2, env1, env2)
-        }
-        (
-            Exp::TakeEqUnchecked {
-                func: f1,
-                domain: d1,
-                codomain: c1,
-                element: e1,
-            },
-            Exp::TakeEqUnchecked {
-                func: f2,
-                domain: d2,
-                codomain: c2,
-                element: e2,
-            },
-        ) => {
-            is_alpha_eq_rec(f1, f2, env1, env2)
-                && is_alpha_eq_rec(d1, d2, env1, env2)
-                && is_alpha_eq_rec(c1, c2, env1, env2)
-                && is_alpha_eq_rec(e1, e2, env1, env2)
+                && (env1.take_proofs_irrelevant
+                    || (is_alpha_eq_rec(x1, x2, env1, env2) && is_alpha_eq_rec(u1, u2, env1, env2)))
         }
         _ => false,
     }
 }
 
 pub fn exp_is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
-    is_alpha_eq_rec(e1, e2, &mut vec![], &mut vec![])
+    is_alpha_eq_rec(
+        e1,
+        e2,
+        &mut AlphaEqEnv {
+            bound: vec![],
+            take_proofs_irrelevant: false,
+        },
+        &mut AlphaEqEnv {
+            bound: vec![],
+            take_proofs_irrelevant: false,
+        },
+    )
+}
+
+fn exp_is_alpha_eq_ignoring_take_proofs(e1: &Exp, e2: &Exp) -> bool {
+    is_alpha_eq_rec(
+        e1,
+        e2,
+        &mut AlphaEqEnv {
+            bound: vec![],
+            take_proofs_irrelevant: true,
+        },
+        &mut AlphaEqEnv {
+            bound: vec![],
+            take_proofs_irrelevant: true,
+        },
+    )
 }
 
 pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
@@ -728,18 +712,6 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             map: Box::new(exp_subst(map, v, t)),
             existence: Box::new(exp_subst(existence, v, t)),
         },
-        Exp::TakeSetUnchecked {
-            domain,
-            codomain,
-            map,
-        } => Exp::TakeSetUnchecked {
-            domain: Box::new(exp_subst(domain, v, t)),
-            codomain: Box::new(exp_subst(codomain, v, t)),
-            map: Box::new(exp_subst(map, v, t)),
-        },
-        Exp::TakePropUnchecked { proposition } => Exp::TakePropUnchecked {
-            proposition: Box::new(exp_subst(proposition, v, t)),
-        },
         Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
             element: Box::new(exp_subst(element, v, t)),
             set: Box::new(exp_subst(set, v, t)),
@@ -792,17 +764,6 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             existence: Box::new(exp_subst(existence, v, t)),
             uniqueness: Box::new(exp_subst(uniqueness, v, t)),
         },
-        Exp::TakeEqUnchecked {
-            func,
-            domain,
-            codomain,
-            element,
-        } => Exp::TakeEqUnchecked {
-            func: Box::new(exp_subst(func, v, t)),
-            domain: Box::new(exp_subst(domain, v, t)),
-            codomain: Box::new(exp_subst(codomain, v, t)),
-            element: Box::new(exp_subst(element, v, t)),
-        },
     }
 }
 
@@ -814,9 +775,10 @@ pub fn exp_subst_map(e: &Exp, v: &[(Var, Exp)]) -> Exp {
     res
 }
 
-/// Remove proof-only annotations while preserving computational content.
-/// This operation is purely syntactic: callers are responsible for
-/// establishing that the input is well typed.
+/// Expose the computational content of `SubsetIntro` recursively.
+///
+/// Take constructors remain checked terms here. Their proof irrelevance is
+/// handled only by `erased_convertible`.
 pub fn erase(e: &Exp) -> Exp {
     match e {
         Exp::Sort(sort) => Exp::Sort(*sort),
@@ -902,32 +864,25 @@ pub fn erase(e: &Exp) -> Exp {
             domain,
             codomain,
             map,
-            existence: _,
-            uniqueness: _,
-        } => Exp::TakeSetUnchecked {
+            existence,
+            uniqueness,
+        } => Exp::TakeSet {
             domain: Box::new(erase(domain)),
             codomain: Box::new(erase(codomain)),
             map: Box::new(erase(map)),
+            existence: Box::new(erase(existence)),
+            uniqueness: Box::new(erase(uniqueness)),
         },
         Exp::TakeProp {
-            domain: _,
-            proposition,
-            map: _,
-            existence: _,
-        } => Exp::TakePropUnchecked {
-            proposition: Box::new(erase(proposition)),
-        },
-        Exp::TakeSetUnchecked {
             domain,
-            codomain,
+            proposition,
             map,
-        } => Exp::TakeSetUnchecked {
+            existence,
+        } => Exp::TakeProp {
             domain: Box::new(erase(domain)),
-            codomain: Box::new(erase(codomain)),
-            map: Box::new(erase(map)),
-        },
-        Exp::TakePropUnchecked { proposition } => Exp::TakePropUnchecked {
             proposition: Box::new(erase(proposition)),
+            map: Box::new(erase(map)),
+            existence: Box::new(erase(existence)),
         },
         Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
             element: Box::new(erase(element)),
@@ -967,24 +922,15 @@ pub fn erase(e: &Exp) -> Exp {
             domain,
             codomain,
             element,
-            existence: _,
-            uniqueness: _,
-        } => Exp::TakeEqUnchecked {
+            existence,
+            uniqueness,
+        } => Exp::TakeEq {
             func: Box::new(erase(func)),
             domain: Box::new(erase(domain)),
             codomain: Box::new(erase(codomain)),
             element: Box::new(erase(element)),
-        },
-        Exp::TakeEqUnchecked {
-            func,
-            domain,
-            codomain,
-            element,
-        } => Exp::TakeEqUnchecked {
-            func: Box::new(erase(func)),
-            domain: Box::new(erase(domain)),
-            codomain: Box::new(erase(codomain)),
-            element: Box::new(erase(element)),
+            existence: Box::new(erase(existence)),
+            uniqueness: Box::new(erase(uniqueness)),
         },
     }
 }
@@ -1054,27 +1000,6 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 var: var.clone(),
                 ty: Box::new(ty),
                 body: Box::new(body),
-            })
-        }
-        Exp::TakeSetUnchecked {
-            domain,
-            codomain,
-            map,
-        } => {
-            let domain = reduce_if(domain);
-            let codomain = reduce_if(codomain);
-            let map = reduce_if(map);
-
-            changed.then_some(Exp::TakeSetUnchecked {
-                domain: Box::new(domain),
-                codomain: Box::new(codomain),
-                map: Box::new(map),
-            })
-        }
-        Exp::TakePropUnchecked { proposition } => {
-            let proposition = reduce_if(proposition);
-            changed.then_some(Exp::TakePropUnchecked {
-                proposition: Box::new(proposition),
             })
         }
         Exp::Lam { var, ty, body } => {
@@ -1328,23 +1253,6 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 uniqueness: Box::new(uniqueness),
             })
         }
-        Exp::TakeEqUnchecked {
-            func,
-            domain,
-            codomain,
-            element,
-        } => {
-            let func = reduce_if(func);
-            let domain = reduce_if(domain);
-            let codomain = reduce_if(codomain);
-            let element = reduce_if(element);
-            changed.then_some(Exp::TakeEqUnchecked {
-                func: Box::new(func),
-                domain: Box::new(domain),
-                codomain: Box::new(codomain),
-                element: Box::new(element),
-            })
-        }
     }
 }
 
@@ -1361,18 +1269,133 @@ pub fn convertible(e1: &Exp, e2: &Exp) -> bool {
     exp_is_alpha_eq(&normalize(e1), &normalize(e2))
 }
 
-/// Computational normal form.  Erasure precedes normalization so that
-/// removing a certificate may expose a beta redex or an eliminator redex.
+/// Computational normal form. Erasure precedes normalization so that
+/// removing a `SubsetIntro` certificate may expose another reduction.
 pub fn erased_normal(e: &Exp) -> Exp {
     normalize(&erase(e))
 }
 
-/// Computational equality modulo refinement certificates.
+/// Computational equality modulo `SubsetIntro` certificates and the proof
+/// fields of checked Take constructors.
 ///
 /// This function deliberately does not type-check its arguments.  Typing
 /// rules using it must establish well-typedness independently.
 pub fn erased_convertible(e1: &Exp, e2: &Exp) -> bool {
-    exp_is_alpha_eq(&erased_normal(e1), &erased_normal(e2))
+    exp_is_alpha_eq_ignoring_take_proofs(&erased_normal(e1), &erased_normal(e2))
+}
+
+/// Normalize a term and additionally make `SubsetIntro` transparent along
+/// its elimination spine. Annotations below the head are retained.
+pub(crate) fn type_head_normal(ty: &Exp) -> Exp {
+    fn reduce_head_once(ty: &Exp) -> Option<Exp> {
+        if let Exp::SubsetIntro { element, .. } = ty {
+            return Some(element.as_ref().clone());
+        }
+        if let Some(reduced) = exp_reduce_if_top(ty) {
+            return Some(reduced);
+        }
+
+        match ty {
+            Exp::App { func, arg } => reduce_head_once(func).map(|func| Exp::App {
+                func: Box::new(func),
+                arg: arg.clone(),
+            }),
+            Exp::Pred {
+                superset,
+                subset,
+                element,
+            } => reduce_head_once(subset).map(|subset| Exp::Pred {
+                superset: superset.clone(),
+                subset: Box::new(subset),
+                element: element.clone(),
+            }),
+            Exp::IndElim {
+                indspec,
+                elim,
+                return_type,
+                cases,
+            } => reduce_head_once(elim).map(|elim| Exp::IndElim {
+                indspec: indspec.clone(),
+                elim: Box::new(elim),
+                return_type: return_type.clone(),
+                cases: cases.clone(),
+            }),
+            _ => None,
+        }
+    }
+
+    let mut current = normalize(ty);
+    while let Some(next) = reduce_head_once(&current) {
+        current = normalize(&next);
+    }
+    current
+}
+
+/// Observe a product through refinement carriers and transparent type
+/// annotations. No recursively erased term is produced.
+pub(crate) fn expose_product(ty: &Exp) -> Option<(Var, Exp, Exp)> {
+    let mut current = type_head_normal(ty);
+    loop {
+        match current {
+            Exp::Prod { var, ty, body } => return Some((var, *ty, *body)),
+            Exp::TypeLift { superset, .. } => current = type_head_normal(&superset),
+            _ => return None,
+        }
+    }
+}
+
+/// Follow explicit refinement carriers without recursively erasing the term.
+fn ambient_carrier(ty: &Exp) -> Exp {
+    let mut current = type_head_normal(ty);
+    loop {
+        match current {
+            Exp::TypeLift { superset, .. } => current = type_head_normal(&superset),
+            _ => return current,
+        }
+    }
+}
+
+/// Find a common ambient carrier for two already inferred types.
+///
+/// This is a syntactic calculation: `TypeLift` contains its `superset`
+/// explicitly, and conversion itself needs no context. The caller must first
+/// establish that both inputs are well typed in the same context, and remains
+/// responsible for checking that the returned carrier has a set sort.
+pub(crate) fn common_ambient_carrier(left_ty: &Exp, right_ty: &Exp) -> Option<Exp> {
+    let left_carrier = ambient_carrier(left_ty);
+    let right_carrier = ambient_carrier(right_ty);
+    erased_convertible(&left_carrier, &right_carrier).then_some(left_carrier)
+}
+
+/// Test the one-way refinement weakening relation, propagating it through
+/// product codomains.
+pub(crate) fn can_weaken_to(inferred: &Exp, expected: &Exp) -> bool {
+    if erased_convertible(inferred, expected) {
+        return true;
+    }
+
+    let inferred = type_head_normal(inferred);
+    let expected = type_head_normal(expected);
+    match (&inferred, &expected) {
+        (Exp::TypeLift { superset, .. }, expected) => can_weaken_to(superset, expected),
+        (
+            Exp::Prod {
+                var: inferred_var,
+                ty: inferred_domain,
+                body: inferred_body,
+            },
+            Exp::Prod {
+                var: expected_var,
+                ty: expected_domain,
+                body: expected_body,
+            },
+        ) if erased_convertible(inferred_domain, expected_domain) => {
+            let expected_body =
+                exp_subst(expected_body, expected_var, &Exp::Var(inferred_var.clone()));
+            can_weaken_to(inferred_body, &expected_body)
+        }
+        _ => false,
+    }
 }
 
 impl Exp {
