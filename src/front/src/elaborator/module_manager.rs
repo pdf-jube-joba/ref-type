@@ -96,12 +96,6 @@ impl ModuleManager {
             current: 0,
         }
     }
-    pub fn modules(&self) -> &Vec<ModuleElaborated> {
-        &self.modules
-    }
-    pub fn current_index(&self) -> usize {
-        self.current
-    }
     pub fn add_child_and_moveto(&mut self, module_name: String, parameters: Vec<(Var, Exp)>) {
         let parent_index = self.current;
         let new_module = ModuleElaborated {
@@ -146,22 +140,6 @@ impl ModuleManager {
         context.reverse();
         context
     }
-    pub fn current_path(&self) -> Vec<String> {
-        let mut path = vec![];
-        let mut index = self.current;
-        loop {
-            let module = &self.modules[index];
-            path.push(module.name.clone());
-            if let Some(parent_index) = module.parent_module {
-                index = parent_index;
-            } else {
-                break;
-            }
-        }
-        path.reverse();
-        path
-    }
-
     pub fn add_def(&mut self, name: Identifier, def: DefinedConstant) {
         let rc = Rc::new(def);
         let item = ModuleItemAccessible::Definition(ModItemDefinition {
@@ -428,10 +406,10 @@ mod tests {
         let mut module_manager = ModuleManager::new();
         module_manager.add_child_and_moveto("Test1".to_string(), vec![]);
         module_manager.add_child_and_moveto("Child1".to_string(), vec![]);
-        assert_eq!(module_manager.current_index(), 2);
+        assert_eq!(module_manager.current, 2);
         module_manager.moveto_parent();
-        assert_eq!(module_manager.current_index(), 1);
+        assert_eq!(module_manager.current, 1);
         module_manager.moveto_parent();
-        assert_eq!(module_manager.current_index(), 0);
+        assert_eq!(module_manager.current, 0);
     }
 }

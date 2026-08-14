@@ -162,14 +162,6 @@ pub enum Exp {
         return_type: Box<Exp>,
         cases: Vec<Exp>, // no bindings
     },
-    // Introduce `element` into `subset` of `superset` using `proof`.
-    // This is a typing annotation and erases to `element` computationally.
-    SubsetIntro {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        element: Box<Exp>,
-        proof: Box<Exp>,
-    },
     PowerSet {
         set: Box<Exp>,
     },
@@ -188,6 +180,14 @@ pub enum Exp {
         superset: Box<Exp>,
         subset: Box<Exp>,
     },
+    // Introduce `element` into `subset` of `superset` using `proof`.
+    // This is a typing annotation and erases to `element` computationally.
+    SubsetIntro {
+        superset: Box<Exp>,
+        subset: Box<Exp>,
+        element: Box<Exp>,
+        proof: Box<Exp>,
+    },
     Equal {
         left: Box<Exp>,
         right: Box<Exp>,
@@ -196,12 +196,30 @@ pub enum Exp {
     Exists {
         set: Box<Exp>,
     },
-    Take {
+    TakeSet {
         domain: Box<Exp>,
         codomain: Box<Exp>,
         map: Box<Exp>,
         existence: Box<Exp>,
-        uniqueness: Option<Box<Exp>>,
+        uniqueness: Box<Exp>,
+    },
+    // Internal erased forms. They deliberately have no typing rules and are
+    // produced only by `calculus::erase`.
+    TakeSetUnchecked {
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
+        map: Box<Exp>,
+    },
+    TakeProp {
+        domain: Box<Exp>,
+        proposition: Box<Exp>,
+        map: Box<Exp>,
+        existence: Box<Exp>,
+    },
+    // Erased proposition-valued Take. Keeping the proposition prevents
+    // erased proofs of different propositions from becoming convertible.
+    TakePropUnchecked {
+        proposition: Box<Exp>,
     },
     ExistsIntro {
         element: Box<Exp>,
@@ -230,21 +248,18 @@ pub enum Exp {
         codomain: Box<Exp>,
         element: Box<Exp>,
         existence: Box<Exp>,
-        uniqueness: Option<Box<Exp>>,
+        uniqueness: Box<Exp>,
+    },
+    // same as takesetunchecked but for equality. This is used to erase the proof of existence and uniqueness.
+    TakeEqUnchecked {
+        func: Box<Exp>,
+        domain: Box<Exp>,
+        codomain: Box<Exp>,
+        element: Box<Exp>,
     },
 }
 
 impl Exp {
-    pub fn refinement(v: Var, set: Exp, predicate: Exp) -> Exp {
-        Exp::TypeLift {
-            superset: Box::new(set.clone()),
-            subset: Box::new(Exp::SubSet {
-                var: v,
-                set: Box::new(set),
-                predicate: Box::new(predicate),
-            }),
-        }
-    }
     pub fn as_var(&self) -> Option<&Var> {
         if let Exp::Var(v) = self {
             Some(v)
@@ -271,40 +286,4 @@ pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
         }
     }
     None
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ErrorFrame {
-    pub rule: String,
-    pub phase: String,
-    pub expected: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct JudgementError {
-    pub cause: String,
-    pub frames: Vec<ErrorFrame>,
-}
-
-impl JudgementError {
-    pub fn caused(cause: impl Into<String>) -> Self {
-        Self {
-            cause: cause.into(),
-            frames: Vec::new(),
-        }
-    }
-
-    pub fn with_frame(
-        mut self,
-        rule: impl Into<String>,
-        phase: impl Into<String>,
-        expected: impl Into<String>,
-    ) -> Self {
-        self.frames.push(ErrorFrame {
-            rule: rule.into(),
-            phase: phase.into(),
-            expected: expected.into(),
-        });
-        self
-    }
 }

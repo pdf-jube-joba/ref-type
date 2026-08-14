@@ -1,7 +1,6 @@
 use crate::Log;
 use front::logger::{LogLevel, LogPayload, LogRecord};
 
-mod for_front;
 mod for_kernel;
 
 // Convert the whole 64 bit pointer to a fixed-length base62 string.

@@ -326,43 +326,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    #[allow(dead_code)]
-    fn expect_number(&mut self) -> Result<usize, ParseError> {
-        match self.next() {
-            Some(t) => match &t.kind {
-                Token::Number(num_str) => match num_str.parse::<usize>() {
-                    Ok(n) => Ok(n),
-                    Err(_) => Err(ParseError {
-                        msg: format!("invalid number: {}", num_str),
-                        start: t.start,
-                        end: t.end,
-                    }),
-                },
-                other => Err(ParseError {
-                    msg: format!("expected number, found {:?}", other),
-                    start: t.start,
-                    end: t.end,
-                }),
-            },
-            None => Err(ParseError::eof_error("number")),
-        }
-    }
-
-    #[allow(dead_code)]
-    fn expect_othersymbol(&mut self) -> Result<&'a str, ParseError> {
-        match self.next() {
-            Some(t) => match &t.kind {
-                Token::MacroToken(sym_str) => Ok(sym_str),
-                other => Err(ParseError {
-                    msg: format!("expected other symbol, found {:?}", other),
-                    start: t.start,
-                    end: t.end,
-                }),
-            },
-            None => Err(ParseError::eof_error("other symbol")),
-        }
-    }
-
     // Try to parse with the given parsing function.
     // ... rollbacks on failure.
     fn try_parse<T, F>(&mut self, parse_fn: F) -> Result<Option<T>, ParseError>

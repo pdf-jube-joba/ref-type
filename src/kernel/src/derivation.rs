@@ -2,8 +2,45 @@ use crate::calculus::*;
 use crate::exp::*;
 use crate::inductive::eliminator_type;
 use crate::utils;
+use serde::Serialize;
 use std::rc::Rc;
 use tracing::{debug, error};
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorFrame {
+    pub rule: String,
+    pub phase: String,
+    pub expected: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JudgementError {
+    pub cause: String,
+    pub frames: Vec<ErrorFrame>,
+}
+
+impl JudgementError {
+    pub fn caused(cause: impl Into<String>) -> Self {
+        Self {
+            cause: cause.into(),
+            frames: Vec::new(),
+        }
+    }
+
+    pub fn with_frame(
+        mut self,
+        rule: impl Into<String>,
+        phase: impl Into<String>,
+        expected: impl Into<String>,
+    ) -> Self {
+        self.frames.push(ErrorFrame {
+            rule: rule.into(),
+            phase: phase.into(),
+            expected: expected.into(),
+        });
+        self
+    }
+}
 
 macro_rules! add_check {
     ($rule:expr, $phase:expr, $ctx:expr, $term:expr, $ty:expr, $expected:expr $(,)?) => {
@@ -15,23 +52,30 @@ macro_rules! add_check {
 
 macro_rules! add_infer {
     ($rule:expr, $phase:expr, $ctx:expr, $term:expr, $expected:expr $(,)?) => {
-        infer($ctx, $term).map_err(|error| propagate(error, $rule, $phase, $expected))
+        infer($ctx, $term)
+            .inspect(|ty| {
+                debug!(
+                    target: "ref_type::typing",
+                    premise = $expected,
+                    result = ?ty,
+                );
+            })
+            .map_err(|error| propagate(error, $rule, $phase, $expected))
     };
 }
 
 macro_rules! add_sort {
     ($rule:expr, $phase:expr, $ctx:expr, $term:expr, $expected:expr $(,)?) => {
-        infer_sort($ctx, $term).map_err(|error| propagate(error, $rule, $phase, $expected))
+        infer_sort($ctx, $term)
+            .inspect(|sort| {
+                debug!(
+                    target: "ref_type::typing",
+                    premise = $expected,
+                    result = ?sort,
+                );
+            })
+            .map_err(|error| propagate(error, $rule, $phase, $expected))
     };
-}
-
-fn success_checked() {
-    debug!(target: "ref_type::typing", outcome = "success");
-}
-
-fn success_type(ty: Exp) -> Exp {
-    debug!(target: "ref_type::typing", outcome = "success", result = ?ty);
-    ty
 }
 
 fn failure(rule: &str, phase: &str, cause: &str) -> Box<JudgementError> {
@@ -56,13 +100,13 @@ fn propagate(
 // A refinement may always be forgotten to its carrier.  Propagate that
 // one-way relation through product codomains so that, for example,
 // `(x: X) => x` checks against `(x: X) -> A` when `X` refines `A`.
-fn can_weaken_to(inferred: &Exp, expected: &Exp) -> bool {
-    if erased_convertible(inferred, expected) {
+fn can_weaken_normal_to(inferred: &Exp, expected: &Exp) -> bool {
+    if exp_is_alpha_eq(inferred, expected) {
         return true;
     }
 
     match (inferred, expected) {
-        (Exp::TypeLift { superset, .. }, expected) => can_weaken_to(superset, expected),
+        (Exp::TypeLift { superset, .. }, expected) => can_weaken_normal_to(superset, expected),
         (
             Exp::Prod {
                 var: inferred_var,
@@ -74,10 +118,10 @@ fn can_weaken_to(inferred: &Exp, expected: &Exp) -> bool {
                 ty: expected_domain,
                 body: expected_body,
             },
-        ) if erased_convertible(inferred_domain, expected_domain) => {
+        ) if exp_is_alpha_eq(inferred_domain, expected_domain) => {
             let expected_body =
                 exp_subst(expected_body, expected_var, &Exp::Var(inferred_var.clone()));
-            can_weaken_to(inferred_body, &expected_body)
+            can_weaken_normal_to(inferred_body, &expected_body)
         }
         _ => false,
     }
@@ -90,7 +134,7 @@ fn base_carrier(ty: &Exp) -> Exp {
         let Exp::TypeLift { superset, .. } = current else {
             return current;
         };
-        current = erased_normal(&superset);
+        current = *superset;
     }
 }
 
@@ -111,30 +155,29 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<(), Box<JudgementErr
     // 1. infer (ctx |- term : ?inferred_ty)
     let inferred_ty = add_infer!(rule, phase, ctx, term, "infer given term")?;
 
-    // 2-if. inferred_ty == ty by strict equivalence => this function through the result
-    if exp_strict_equivalence(ty, &inferred_ty) {
-        success_checked();
+    // Top-level kinds have no sort of their own.  An already identical
+    // inferred type must therefore be accepted before checking the expected
+    // type's sort.
+    if matches!(ty, Exp::Sort(sort) if sort.type_of_sort().is_none())
+        && exp_is_alpha_eq(ty, &inferred_ty)
+    {
         return Ok(());
     }
 
     // 2. check (ctx |- ty : ?s) for some sort s
     let _sort = add_sort!(rule, phase, ctx, ty, "infer given")?;
 
-    // 3 get normal(inferred_ty) & normal(ty)
+    // 3. Compare the checked types modulo erased proof annotations.
     let inferred_ty_result = erased_normal(&inferred_ty);
-    let ty = erased_normal(ty);
+    let normalized_ty = erased_normal(ty);
 
-    // 3-A-if. check ty =(alpha)= inferred_ty
-    // conclude (ctx |- term : ty) by conversion rule
-    if erased_convertible(&ty, &inferred_ty_result) {
-        success_checked();
+    if exp_is_alpha_eq(&normalized_ty, &inferred_ty_result) {
         return Ok(());
     }
 
     // 3-B-if inferred_ty == s1, ty == s2 ... lift universe rule
-    if let (Exp::Sort(s1), Exp::Sort(s2)) = (&inferred_ty_result, &ty) {
+    if let (Exp::Sort(s1), Exp::Sort(s2)) = (&inferred_ty_result, &normalized_ty) {
         if s1.can_lift_to(*s2) {
-            success_checked();
             return Ok(());
         } else {
             // if inferred_ty == s1, ty == s2 with s1 not liftable to s2 ... fails
@@ -143,8 +186,7 @@ pub fn check(ctx: &Context, term: &Exp, ty: &Exp) -> Result<(), Box<JudgementErr
     }
 
     // 3-C. conclude by the one-way subset weakening relation.
-    if can_weaken_to(&inferred_ty_result, &ty) {
-        success_checked();
+    if can_weaken_normal_to(&inferred_ty_result, &normalized_ty) {
         return Ok(());
     }
 
@@ -171,7 +213,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             match sort.type_of_sort() {
                 Some(sort_of_sort) => {
                     let ty = Exp::Sort(sort_of_sort);
-                    Ok(success_type(ty))
+                    Ok(ty)
                 }
                 None => Err(failure(rule, phase, "no sort of sort found")),
             }
@@ -179,7 +221,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
         Exp::Var(index) => {
             // 1. conclude (ctx |- var : ?ty) where (var: ty) in ctx
             match ctx_get(ctx, index) {
-                Some(ty) => Ok(success_type(ty.clone())),
+                Some(ty) => Ok(ty.clone()),
                 None => Err(failure(rule, phase, "var not found")),
             }
         }
@@ -199,7 +241,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
 
             // 3) (s1, s2) から product sort s3 を得る
             match s1.relation_of_sort(s2) {
-                Some(s3) => Ok(success_type(Exp::Sort(s3))),
+                Some(s3) => Ok(Exp::Sort(s3)),
                 None => Err(failure(rule, phase, "no (s1, s2, s3) relation for product")),
             }
         }
@@ -224,7 +266,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 &lam_ty,
                 "lambda product type should be well-sorted"
             )?;
-            Ok(success_type(lam_ty))
+            Ok(lam_ty)
         }
         Exp::App { func, arg } => {
             // 1. infer (ctx |- func : ?(x: arg_ty) -> ret_ty)
@@ -235,10 +277,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 func,
                 "infer function type for application"
             )?;
-            let mut normalized_func_ty = erased_normal(&func_ty);
-            while let Exp::TypeLift { superset, .. } = normalized_func_ty {
-                normalized_func_ty = erased_normal(&superset);
-            }
+            let normalized_func_ty = base_carrier(&func_ty);
             let Exp::Prod {
                 var,
                 ty: arg_ty,
@@ -260,14 +299,14 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
 
             // 3. conclude (ctx |- App(func, arg) : ret_ty[var := arg])
             let ret_ty_substituted = exp_subst(&ret_ty, &var, arg);
-            Ok(success_type(ret_ty_substituted))
+            Ok(ret_ty_substituted)
         }
         Exp::DefinedConstant(rc) => {
             // we assume rc: DefinedConstant is well-typed
 
             let DefinedConstant { ty, body: _ } = rc.as_ref();
             // conclude (ctx |- DefinedConstant(name, ty, inner) : ty)
-            Ok(success_type(ty.clone()))
+            Ok(ty.clone())
         }
         Exp::IndType {
             indspec,
@@ -317,7 +356,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 }
                 substituted
             };
-            Ok(success_type(arity_substituted))
+            Ok(arity_substituted)
         }
         Exp::IndCtor {
             indspec,
@@ -370,7 +409,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
 
             let subst_constructor_type = exp_subst_map(&constructor_type, &subst_varexp);
 
-            Ok(success_type(subst_constructor_type))
+            Ok(subst_constructor_type)
         }
         Exp::IndElim {
             indspec,
@@ -456,7 +495,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 func: Box::new(utils::assoc_apply(*return_type.clone(), a.clone())),
                 arg: elim.clone(),
             };
-            Ok(success_type(ty))
+            Ok(ty)
         }
         // Introduce an element into an explicitly given subset of a carrier.
         Exp::SubsetIntro {
@@ -501,10 +540,10 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 "check refinement membership proof"
             )?;
 
-            Ok(success_type(Exp::TypeLift {
+            Ok(Exp::TypeLift {
                 superset: superset.clone(),
                 subset: subset.clone(),
-            }))
+            })
         }
         Exp::PowerSet { set } => {
             // 1. check (ctx |- set : Set(?i))
@@ -514,7 +553,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             };
 
             // 2. conclude (ctx |- PowerSet(set) : Set(i))
-            Ok(success_type(Exp::Sort(Sort::Set(level))))
+            Ok(Exp::Sort(Sort::Set(level)))
         }
         Exp::SubSet {
             var,
@@ -539,7 +578,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             )?;
 
             // 3. conclude (ctx |- SubSet(var, set, predicate) : PowerSet(set))
-            Ok(success_type(Exp::PowerSet { set: set.clone() }))
+            Ok(Exp::PowerSet { set: set.clone() })
         }
         Exp::Pred {
             superset,
@@ -568,7 +607,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             add_check!(rule, phase, ctx, element, superset, "check element type")?;
 
             // 4. conclude (ctx |- Pred(superset, subset, element) : \Prop)
-            Ok(success_type(Exp::Sort(Sort::Prop)))
+            Ok(Exp::Sort(Sort::Prop))
         }
         Exp::TypeLift { superset, subset } => {
             // 1. check (ctx |- superset : Set(i))
@@ -590,7 +629,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             )?;
 
             // 3. conclude (ctx |- TypeLift(superset, subset) : Set(i))
-            Ok(success_type(Exp::Sort(Sort::Set(level))))
+            Ok(Exp::Sort(Sort::Set(level)))
         }
         Exp::Equal { left, right } => {
             // 1. infer (ctx |- left : ?ty)
@@ -602,7 +641,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             let right_ty = add_infer!(rule, phase, ctx, right, "infer right type")?;
             let left_carrier = base_carrier(&left_ty);
             let right_carrier = base_carrier(&right_ty);
-            if !erased_convertible(&left_carrier, &right_carrier) {
+            if !exp_is_alpha_eq(&left_carrier, &right_carrier) {
                 return Err(failure(
                     rule,
                     phase,
@@ -622,26 +661,8 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 return Err(failure(rule, phase, "equality carrier is not of Set(i)"));
             }
 
-            // 4. check both operands in the base carrier.
-            add_check!(
-                rule,
-                phase,
-                ctx,
-                left,
-                &left_carrier,
-                "check left element type"
-            )?;
-            add_check!(
-                rule,
-                phase,
-                ctx,
-                right,
-                &left_carrier,
-                "check right element type"
-            )?;
-
-            // 5. conclude (ctx |- Equal(left, right) : \Prop)
-            Ok(success_type(Exp::Sort(Sort::Prop)))
+            // 4. conclude (ctx |- Equal(left, right) : \Prop)
+            Ok(Exp::Sort(Sort::Prop))
         }
         Exp::Exists { set } => {
             // 1. check (ctx |- set : Set(i))
@@ -651,9 +672,9 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             }
 
             // 2. conclude (ctx |- Exists(set) : \Prop)
-            Ok(success_type(Exp::Sort(Sort::Prop)))
+            Ok(Exp::Sort(Sort::Prop))
         }
-        Exp::Take {
+        Exp::TakeSet {
             domain,
             codomain,
             map,
@@ -666,8 +687,11 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 return Err(failure(rule, phase, "take domain is not of Set(i)"));
             }
 
-            // 2. check codomain sort and (ctx |- map : domain -> codomain)
+            // 2. check the set-valued codomain and map.
             let codomain_sort = add_sort!(rule, phase, ctx, codomain, "check take codomain sort")?;
+            if !matches!(codomain_sort, Sort::Set(_)) {
+                return Err(failure(rule, phase, "TakeSet codomain is not of Set(i)"));
+            }
             let map_ty = Exp::Prod {
                 var: Var::dummy(),
                 ty: domain.clone(),
@@ -675,10 +699,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             };
             add_check!(rule, phase, ctx, map, &map_ty, "check take map type")?;
 
-            // 3. check (ctx |- map_ty : sort) with the expected sort side.
-            let map_ty_sort = add_sort!(rule, phase, ctx, &map_ty, "check take map type sort")?;
-
-            // 4. check the proof premises carried by the term.
+            // 3. check the proof premises carried by the term.
             let existence_prop = Exp::Exists {
                 set: domain.clone(),
             };
@@ -690,72 +711,84 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
                 &existence_prop,
                 "check take existence proof",
             )?;
-            match codomain_sort {
-                Sort::Set(_) => {
-                    if !matches!(map_ty_sort, Sort::Set(_)) {
-                        return Err(failure(rule, phase, "take map type is not of Set(i)"));
-                    }
-
-                    let x1 = Var::new("x1");
-                    let x2 = Var::new("x2");
-                    let uniqueness_prop = Exp::Prod {
-                        var: x1.clone(),
-                        ty: domain.clone(),
-                        body: Box::new(Exp::Prod {
-                            var: x2.clone(),
-                            ty: domain.clone(),
-                            body: Box::new(Exp::Equal {
-                                left: Box::new(Exp::App {
-                                    func: map.clone(),
-                                    arg: Box::new(Exp::Var(x1)),
-                                }),
-                                right: Box::new(Exp::App {
-                                    func: map.clone(),
-                                    arg: Box::new(Exp::Var(x2)),
-                                }),
-                            }),
+            let x1 = Var::new("x1");
+            let x2 = Var::new("x2");
+            let uniqueness_prop = Exp::Prod {
+                var: x1.clone(),
+                ty: domain.clone(),
+                body: Box::new(Exp::Prod {
+                    var: x2.clone(),
+                    ty: domain.clone(),
+                    body: Box::new(Exp::Equal {
+                        left: Box::new(Exp::App {
+                            func: map.clone(),
+                            arg: Box::new(Exp::Var(x1)),
                         }),
-                    };
-                    let Some(uniqueness) = uniqueness else {
-                        return Err(failure(
-                            rule,
-                            phase,
-                            "set-valued take requires a uniqueness proof",
-                        ));
-                    };
-                    add_check!(
-                        rule,
-                        phase,
-                        ctx,
-                        uniqueness,
-                        &uniqueness_prop,
-                        "check take uniqueness proof",
-                    )?;
-                }
-                Sort::Prop => {
-                    if map_ty_sort != Sort::Prop {
-                        return Err(failure(rule, phase, "take map type is not of Prop"));
-                    }
-                    if uniqueness.is_some() {
-                        return Err(failure(
-                            rule,
-                            phase,
-                            "proposition-valued take has no uniqueness proof",
-                        ));
-                    }
-                }
-                _ => {
-                    return Err(failure(
-                        rule,
-                        phase,
-                        "take codomain is neither Set(i) nor Prop",
-                    ));
-                }
+                        right: Box::new(Exp::App {
+                            func: map.clone(),
+                            arg: Box::new(Exp::Var(x2)),
+                        }),
+                    }),
+                }),
+            };
+            add_check!(
+                rule,
+                phase,
+                ctx,
+                uniqueness,
+                &uniqueness_prop,
+                "check take uniqueness proof",
+            )?;
+
+            // 4. conclude (ctx |- TakeSet(domain, codomain, map) : codomain)
+            Ok(codomain.as_ref().clone())
+        }
+        Exp::TakeProp {
+            domain,
+            proposition,
+            map,
+            existence,
+        } => {
+            // 1. check (ctx |- domain : Set(i))
+            let domain_sort = add_sort!(rule, phase, ctx, domain, "check take domain sort")?;
+            if !matches!(domain_sort, Sort::Set(_)) {
+                return Err(failure(rule, phase, "take domain is not of Set(i)"));
             }
 
-            // 5. conclude (ctx |- Take(domain, codomain, map) : codomain)
-            Ok(success_type(codomain.as_ref().clone()))
+            // 2. check the proposition-valued codomain and map.
+            let proposition_sort =
+                add_sort!(rule, phase, ctx, proposition, "check take proposition sort")?;
+            if proposition_sort != Sort::Prop {
+                return Err(failure(rule, phase, "TakeProp codomain is not of Prop"));
+            }
+            let map_ty = Exp::Prod {
+                var: Var::dummy(),
+                ty: domain.clone(),
+                body: proposition.clone(),
+            };
+            add_check!(rule, phase, ctx, map, &map_ty, "check take map type")?;
+            // 3. check the existence proof; no uniqueness proof is part of
+            // the proposition-valued constructor.
+            add_check!(
+                rule,
+                phase,
+                ctx,
+                existence,
+                &Exp::Exists {
+                    set: domain.clone(),
+                },
+                "check take existence proof",
+            )?;
+
+            Ok(proposition.as_ref().clone())
         }
+        Exp::TakeSetUnchecked { .. }
+        | Exp::TakePropUnchecked { .. }
+        | Exp::TakeEqUnchecked { .. } => Err(failure(
+            rule,
+            phase,
+            "internal erased Take form has no typing rule",
+        )),
         Exp::ExistsIntro { .. }
         | Exp::SubsetElim { .. }
         | Exp::IdRefl { .. }
@@ -782,12 +815,16 @@ fn exp_rule(term: &Exp) -> &'static str {
         Exp::TypeLift { .. } => "TypeLift",
         Exp::Equal { .. } => "Equal",
         Exp::Exists { .. } => "Exists",
-        Exp::Take { .. } => "Take",
+        Exp::TakeSet { .. } => "TakeSet",
+        Exp::TakeProp { .. } => "TakeProp",
+        Exp::TakeSetUnchecked { .. } => "TakeSetUnchecked",
+        Exp::TakePropUnchecked { .. } => "TakePropUnchecked",
         Exp::ExistsIntro { .. } => "ExistsIntro",
         Exp::SubsetElim { .. } => "SubsetElim",
         Exp::IdRefl { .. } => "IdRefl",
         Exp::IdElim { .. } => "IdElim",
         Exp::TakeEq { .. } => "TakeEq",
+        Exp::TakeEqUnchecked { .. } => "TakeEqUnchecked",
     }
 }
 
@@ -809,7 +846,6 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<Sort, Box<JudgementError>
 
     // 2-A. if inferred_ty is already a sort, through
     if let Exp::Sort(s) = inferred_ty {
-        debug!(target: "ref_type::typing", outcome = "success", result = ?s);
         return Ok(s);
     }
 
@@ -818,7 +854,6 @@ pub fn infer_sort(ctx: &Context, term: &Exp) -> Result<Sort, Box<JudgementError>
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
 
-    debug!(target: "ref_type::typing", outcome = "success", result = ?s);
     Ok(s)
 }
 
@@ -841,7 +876,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
 
             // 3. return Exists(ty) as the term's inferred type
             let prop = Exp::Exists { set: ty.clone() };
-            Ok(success_type(prop))
+            Ok(prop)
         }
         Exp::SubsetElim {
             element: elem,
@@ -874,7 +909,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
                 subset: subset.clone(),
                 element: elem.clone(),
             };
-            Ok(success_type(prop))
+            Ok(prop)
         }
         Exp::IdRefl { element: elem } => {
             // 1. infer (ctx |- elem : ?ty)
@@ -891,7 +926,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
                 left: elem.clone(),
                 right: elem.clone(),
             };
-            Ok(success_type(prop))
+            Ok(prop)
         }
         Exp::IdElim {
             left,
@@ -965,7 +1000,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
                 func: Box::new(apply.clone()),
                 arg: right.clone(),
             };
-            Ok(success_type(prop))
+            Ok(prop)
         }
         Exp::TakeEq {
             func,
@@ -976,7 +1011,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
             uniqueness,
         } => {
             // 1. check (ctx |- Take(domain, codomain, func) : codomain)
-            let take = Exp::Take {
+            let take = Exp::TakeSet {
                 domain: domain.clone(),
                 codomain: codomain.clone(),
                 map: func.clone(),
@@ -985,37 +1020,22 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
             };
             add_check!(rule, phase, ctx, &take, codomain, "check take type")?;
 
-            // 2. check (ctx |- func : (domain -> codomain))
-            let func_ty = Exp::Prod {
-                var: Var::dummy(),
-                ty: domain.clone(),
-                body: codomain.clone(),
-            };
-            add_check!(rule, phase, ctx, func, &func_ty, "check function type")?;
-
-            // 3. check (ctx |- elem : domain)
+            // 2. check (ctx |- elem : domain)
             add_check!(rule, phase, ctx, elem, domain, "check element type")?;
 
-            // 4. check (ctx |- func @ elem : codomain)
+            // 3. form (func @ elem); its type follows from the checked Take
+            // and element premises.
             let mapped_elem = Exp::App {
                 func: func.clone(),
                 arg: elem.clone(),
             };
-            add_check!(
-                rule,
-                phase,
-                ctx,
-                &mapped_elem,
-                codomain,
-                "check mapped element type"
-            )?;
 
-            // 5. return the equality as the term's inferred type
+            // 4. return the equality as the term's inferred type
             let prop = Exp::Equal {
                 left: Box::new(take),
                 right: Box::new(mapped_elem),
             };
-            Ok(success_type(prop))
+            Ok(prop)
         }
         _ => unreachable!("infer_proof_constructor called for a non-proof constructor"),
     }

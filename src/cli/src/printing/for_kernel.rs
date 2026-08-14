@@ -116,7 +116,7 @@ pub(super) fn format_exp(exp: &Exp) -> String {
         }
         Exp::Equal { left, right } => format!("{} = {}", format_exp(left), format_exp(right)),
         Exp::Exists { set } => format!("\\exists {}", format_exp(set)),
-        Exp::Take {
+        Exp::TakeSet {
             domain,
             codomain,
             map,
@@ -128,11 +128,33 @@ pub(super) fn format_exp(exp: &Exp) -> String {
             format_exp(codomain),
             format_exp(map),
             format_exp(existence),
-            uniqueness
-                .as_deref()
-                .map(format_exp)
-                .unwrap_or_else(|| "-".into())
+            format_exp(uniqueness)
         ),
+        Exp::TakeProp {
+            domain,
+            proposition,
+            map,
+            existence,
+        } => format!(
+            "\\TakeProp({}, {}, {}) by ({})",
+            format_exp(domain),
+            format_exp(proposition),
+            format_exp(map),
+            format_exp(existence),
+        ),
+        Exp::TakeSetUnchecked {
+            domain,
+            codomain,
+            map,
+        } => format!(
+            "TakeSetUnchecked({}, {}, {})",
+            format_exp(domain),
+            format_exp(codomain),
+            format_exp(map),
+        ),
+        Exp::TakePropUnchecked { proposition } => {
+            format!("TakePropUnchecked({})", format_exp(proposition))
+        }
         Exp::ExistsIntro { element, set } => {
             format!("exact({}, {})", format_exp(element), format_exp(set))
         }
@@ -147,7 +169,9 @@ pub(super) fn format_exp(exp: &Exp) -> String {
             format_exp(element)
         ),
         Exp::IdRefl { element } => format!("refl({})", format_exp(element)),
-        Exp::IdElim { .. } | Exp::TakeEq { .. } => format!("{:?}", exp),
+        Exp::IdElim { .. } | Exp::TakeEq { .. } | Exp::TakeEqUnchecked { .. } => {
+            format!("{:?}", exp)
+        }
     }
 }
 

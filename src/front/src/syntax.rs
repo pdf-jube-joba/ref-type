@@ -267,11 +267,16 @@ pub enum SExp {
     },
     // --- opaque description (specified but not constructed)
     // \take (x: A) => t or \take (x: A | P) => t
-    Take {
+    TakeSet {
         bind: Bind, // updated to use the new Bind structure
         body: Box<SExp>,
         existence: Box<SExp>,
-        uniqueness: Option<Box<SExp>>,
+        uniqueness: Box<SExp>,
+    },
+    TakeProp {
+        bind: Bind,
+        body: Box<SExp>,
+        existence: Box<SExp>,
     },
     ExistsIntro {
         element: Box<SExp>,
@@ -300,7 +305,7 @@ pub enum SExp {
         codomain: Box<SExp>,
         element: Box<SExp>,
         existence: Box<SExp>,
-        uniqueness: Option<Box<SExp>>,
+        uniqueness: Box<SExp>,
     },
     // --- block of statements
     Block(Block),
@@ -320,10 +325,14 @@ pub enum Statement {
         ty: SExp,
         body: SExp,
     }, // have x: A := t;
-    Take {
+    TakeSet {
         bind: Bind,
         existence: SExp,
-        uniqueness: Option<SExp>,
+        uniqueness: SExp,
+    },
+    TakeProp {
+        bind: Bind,
+        existence: SExp,
     },
     Sufficient {
         map: SExp,

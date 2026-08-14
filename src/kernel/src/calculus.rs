@@ -4,304 +4,6 @@ use crate::inductive::inductive_type_elim_reduce;
 
 use super::exp::*;
 
-// same variable as ptr
-pub fn exp_strict_equivalence(e1: &Exp, e2: &Exp) -> bool {
-    match (e1, e2) {
-        (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
-        (Exp::Var(v1), Exp::Var(v2)) => v1.is_eq_ptr(v2),
-        (
-            Exp::Prod {
-                var: var1,
-                ty: ty1,
-                body: body1,
-            },
-            Exp::Prod {
-                var: var2,
-                ty: ty2,
-                body: body2,
-            },
-        ) => {
-            var1.is_eq_ptr(var2)
-                && exp_strict_equivalence(ty1, ty2)
-                && exp_strict_equivalence(body1, body2)
-        }
-        (
-            Exp::Lam {
-                var: var1,
-                ty: ty1,
-                body: body1,
-            },
-            Exp::Lam {
-                var: var2,
-                ty: ty2,
-                body: body2,
-            },
-        ) => {
-            var1.is_eq_ptr(var2)
-                && exp_strict_equivalence(ty1, ty2)
-                && exp_strict_equivalence(body1, body2)
-        }
-        (Exp::App { func: f1, arg: a1 }, Exp::App { func: f2, arg: a2 }) => {
-            exp_strict_equivalence(f1, f2) && exp_strict_equivalence(a1, a2)
-        }
-        (Exp::DefinedConstant(rc1), Exp::DefinedConstant(rc2)) => std::rc::Rc::ptr_eq(rc1, rc2),
-        (
-            Exp::IndType {
-                indspec: ty1,
-                parameters: parameter1,
-            },
-            Exp::IndType {
-                indspec: ty2,
-                parameters: parameter2,
-            },
-        ) => {
-            std::rc::Rc::ptr_eq(ty1, ty2)
-                && parameter1.len() == parameter2.len()
-                && parameter1
-                    .iter()
-                    .zip(parameter2.iter())
-                    .all(|(a1, a2)| exp_strict_equivalence(a1, a2))
-        }
-        (
-            Exp::IndCtor {
-                indspec: ty1,
-                idx: idx1,
-                parameters: parameter1,
-            },
-            Exp::IndCtor {
-                indspec: ty2,
-                idx: idx2,
-                parameters: parameter2,
-            },
-        ) => {
-            std::rc::Rc::ptr_eq(ty1, ty2)
-                && idx1 == idx2
-                && parameter1.len() == parameter2.len()
-                && parameter1
-                    .iter()
-                    .zip(parameter2.iter())
-                    .all(|(a1, a2)| exp_strict_equivalence(a1, a2))
-        }
-        (
-            Exp::IndElim {
-                indspec: ty1,
-                elim: elim1,
-                return_type: ret1,
-                cases: cases1,
-            },
-            Exp::IndElim {
-                indspec: ty2,
-                elim: elim2,
-                return_type: ret2,
-                cases: cases2,
-            },
-        ) => {
-            std::rc::Rc::ptr_eq(ty1, ty2)
-                && exp_strict_equivalence(elim1, elim2)
-                && exp_strict_equivalence(ret1, ret2)
-                && cases1.len() == cases2.len()
-                && cases1
-                    .iter()
-                    .zip(cases2.iter())
-                    .all(|(c1, c2)| exp_strict_equivalence(c1, c2))
-        }
-        (
-            Exp::SubsetIntro {
-                superset: a1,
-                subset: s1,
-                element: e1,
-                proof: p1,
-            },
-            Exp::SubsetIntro {
-                superset: a2,
-                subset: s2,
-                element: e2,
-                proof: p2,
-            },
-        ) => {
-            exp_strict_equivalence(a1, a2)
-                && exp_strict_equivalence(s1, s2)
-                && exp_strict_equivalence(e1, e2)
-                && exp_strict_equivalence(p1, p2)
-        }
-        (Exp::PowerSet { set: e1 }, Exp::PowerSet { set: e2 }) => exp_strict_equivalence(e1, e2),
-        (
-            Exp::SubSet {
-                var: var1,
-                set: e1,
-                predicate: p1,
-            },
-            Exp::SubSet {
-                var: var2,
-                set: e2,
-                predicate: p2,
-            },
-        ) => {
-            var1.is_eq_ptr(var2) && exp_strict_equivalence(e1, e2) && exp_strict_equivalence(p1, p2)
-        }
-        (
-            Exp::Pred {
-                superset: s1,
-                subset: sub1,
-                element: e1,
-            },
-            Exp::Pred {
-                superset: s2,
-                subset: sub2,
-                element: e2,
-            },
-        ) => {
-            exp_strict_equivalence(s1, s2)
-                && exp_strict_equivalence(sub1, sub2)
-                && exp_strict_equivalence(e1, e2)
-        }
-        (
-            Exp::TypeLift {
-                superset: s1,
-                subset: sub1,
-            },
-            Exp::TypeLift {
-                superset: s2,
-                subset: sub2,
-            },
-        ) => exp_strict_equivalence(s1, s2) && exp_strict_equivalence(sub1, sub2),
-        (
-            Exp::Equal {
-                left: l1,
-                right: r1,
-            },
-            Exp::Equal {
-                left: l2,
-                right: r2,
-            },
-        ) => exp_strict_equivalence(l1, l2) && exp_strict_equivalence(r1, r2),
-        (Exp::Exists { set: set1 }, Exp::Exists { set: set2 }) => {
-            exp_strict_equivalence(set1, set2)
-        }
-        (
-            Exp::Take {
-                domain: d1,
-                codomain: c1,
-                map: m1,
-                existence: e1,
-                uniqueness: u1,
-            },
-            Exp::Take {
-                domain: d2,
-                codomain: c2,
-                map: m2,
-                existence: e2,
-                uniqueness: u2,
-            },
-        ) => {
-            exp_strict_equivalence(d1, d2)
-                && exp_strict_equivalence(c1, c2)
-                && exp_strict_equivalence(m1, m2)
-                && exp_strict_equivalence(e1, e2)
-                && option_exp_equivalence(u1.as_deref(), u2.as_deref())
-        }
-        (
-            Exp::ExistsIntro {
-                element: e1,
-                set: s1,
-            },
-            Exp::ExistsIntro {
-                element: e2,
-                set: s2,
-            },
-        ) => exp_strict_equivalence(e1, e2) && exp_strict_equivalence(s1, s2),
-        (
-            Exp::SubsetElim {
-                element: e1,
-                subset: b1,
-                superset: s1,
-            },
-            Exp::SubsetElim {
-                element: e2,
-                subset: b2,
-                superset: s2,
-            },
-        ) => {
-            exp_strict_equivalence(e1, e2)
-                && exp_strict_equivalence(b1, b2)
-                && exp_strict_equivalence(s1, s2)
-        }
-        (Exp::IdRefl { element: e1 }, Exp::IdRefl { element: e2 }) => {
-            exp_strict_equivalence(e1, e2)
-        }
-        (
-            Exp::IdElim {
-                left: l1,
-                right: r1,
-                ty: t1,
-                var: v1,
-                predicate: p1,
-                base: b1,
-                equality: e1,
-            },
-            Exp::IdElim {
-                left: l2,
-                right: r2,
-                ty: t2,
-                var: v2,
-                predicate: p2,
-                base: b2,
-                equality: e2,
-            },
-        ) => {
-            v1.is_eq_ptr(v2)
-                && [
-                    (&**l1, &**l2),
-                    (&**r1, &**r2),
-                    (&**t1, &**t2),
-                    (&**p1, &**p2),
-                    (&**b1, &**b2),
-                    (&**e1, &**e2),
-                ]
-                .into_iter()
-                .all(|(a, b)| exp_strict_equivalence(a, b))
-        }
-        (
-            Exp::TakeEq {
-                func: f1,
-                domain: d1,
-                codomain: c1,
-                element: e1,
-                existence: x1,
-                uniqueness: u1,
-            },
-            Exp::TakeEq {
-                func: f2,
-                domain: d2,
-                codomain: c2,
-                element: e2,
-                existence: x2,
-                uniqueness: u2,
-            },
-        ) => {
-            [
-                (&**f1, &**f2),
-                (&**d1, &**d2),
-                (&**c1, &**c2),
-                (&**e1, &**e2),
-                (&**x1, &**x2),
-            ]
-            .into_iter()
-            .all(|(a, b)| exp_strict_equivalence(a, b))
-                && option_exp_equivalence(u1.as_deref(), u2.as_deref())
-        }
-        _ => false,
-    }
-}
-
-fn option_exp_equivalence(e1: Option<&Exp>, e2: Option<&Exp>) -> bool {
-    match (e1, e2) {
-        (Some(e1), Some(e2)) => exp_strict_equivalence(e1, e2),
-        (None, None) => true,
-        _ => false,
-    }
-}
-
 pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
     match e {
         Exp::Sort(_) => false,
@@ -390,7 +92,7 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
             exp_contains_as_freevar(left, v) || exp_contains_as_freevar(right, v)
         }
         Exp::Exists { set } => exp_contains_as_freevar(set, v),
-        Exp::Take {
+        Exp::TakeSet {
             domain,
             codomain,
             map,
@@ -401,10 +103,29 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                 || exp_contains_as_freevar(codomain, v)
                 || exp_contains_as_freevar(map, v)
                 || exp_contains_as_freevar(existence, v)
-                || uniqueness
-                    .as_deref()
-                    .is_some_and(|p| exp_contains_as_freevar(p, v))
+                || exp_contains_as_freevar(uniqueness, v)
         }
+        Exp::TakeProp {
+            domain,
+            proposition,
+            map,
+            existence,
+        } => {
+            exp_contains_as_freevar(domain, v)
+                || exp_contains_as_freevar(proposition, v)
+                || exp_contains_as_freevar(map, v)
+                || exp_contains_as_freevar(existence, v)
+        }
+        Exp::TakeSetUnchecked {
+            domain,
+            codomain,
+            map,
+        } => {
+            exp_contains_as_freevar(domain, v)
+                || exp_contains_as_freevar(codomain, v)
+                || exp_contains_as_freevar(map, v)
+        }
+        Exp::TakePropUnchecked { proposition } => exp_contains_as_freevar(proposition, v),
         Exp::ExistsIntro { element, set } => {
             exp_contains_as_freevar(element, v) || exp_contains_as_freevar(set, v)
         }
@@ -447,9 +168,18 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
                 || exp_contains_as_freevar(codomain, v)
                 || exp_contains_as_freevar(element, v)
                 || exp_contains_as_freevar(existence, v)
-                || uniqueness
-                    .as_deref()
-                    .is_some_and(|p| exp_contains_as_freevar(p, v))
+                || exp_contains_as_freevar(uniqueness, v)
+        }
+        Exp::TakeEqUnchecked {
+            func,
+            domain,
+            codomain,
+            element,
+        } => {
+            exp_contains_as_freevar(func, v)
+                || exp_contains_as_freevar(domain, v)
+                || exp_contains_as_freevar(codomain, v)
+                || exp_contains_as_freevar(element, v)
         }
     }
 }
@@ -644,6 +374,26 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 && is_alpha_eq_rec(e1, e2, env1, env2)
         }
         (
+            Exp::TakeSetUnchecked {
+                domain: d1,
+                codomain: c1,
+                map: m1,
+            },
+            Exp::TakeSetUnchecked {
+                domain: d2,
+                codomain: c2,
+                map: m2,
+            },
+        ) => {
+            is_alpha_eq_rec(d1, d2, env1, env2)
+                && is_alpha_eq_rec(c1, c2, env1, env2)
+                && is_alpha_eq_rec(m1, m2, env1, env2)
+        }
+        (
+            Exp::TakePropUnchecked { proposition: p1 },
+            Exp::TakePropUnchecked { proposition: p2 },
+        ) => is_alpha_eq_rec(p1, p2, env1, env2),
+        (
             Exp::TypeLift {
                 superset: s1,
                 subset: sub1,
@@ -667,14 +417,14 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
             is_alpha_eq_rec(ty1, ty2, env1, env2)
         }
         (
-            Exp::Take {
+            Exp::TakeSet {
                 domain: d1,
                 codomain: c1,
                 map: m1,
                 existence: e1,
                 uniqueness: u1,
             },
-            Exp::Take {
+            Exp::TakeSet {
                 domain: d2,
                 codomain: c2,
                 map: m2,
@@ -686,7 +436,26 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 && is_alpha_eq_rec(c1, c2, env1, env2)
                 && is_alpha_eq_rec(m1, m2, env1, env2)
                 && is_alpha_eq_rec(e1, e2, env1, env2)
-                && option_alpha_eq(u1.as_deref(), u2.as_deref(), env1, env2)
+                && is_alpha_eq_rec(u1, u2, env1, env2)
+        }
+        (
+            Exp::TakeProp {
+                domain: d1,
+                proposition: p1,
+                map: m1,
+                existence: e1,
+            },
+            Exp::TakeProp {
+                domain: d2,
+                proposition: p2,
+                map: m2,
+                existence: e2,
+            },
+        ) => {
+            is_alpha_eq_rec(d1, d2, env1, env2)
+                && is_alpha_eq_rec(p1, p2, env1, env2)
+                && is_alpha_eq_rec(m1, m2, env1, env2)
+                && is_alpha_eq_rec(e1, e2, env1, env2)
         }
         (
             Exp::ExistsIntro {
@@ -774,64 +543,33 @@ fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut Vec<Var>, env2: &mut Vec<Var>)
                 && is_alpha_eq_rec(c1, c2, env1, env2)
                 && is_alpha_eq_rec(e1, e2, env1, env2)
                 && is_alpha_eq_rec(x1, x2, env1, env2)
-                && option_alpha_eq(u1.as_deref(), u2.as_deref(), env1, env2)
+                && is_alpha_eq_rec(u1, u2, env1, env2)
         }
-        _ => false,
-    }
-}
-
-fn option_alpha_eq(
-    e1: Option<&Exp>,
-    e2: Option<&Exp>,
-    env1: &mut Vec<Var>,
-    env2: &mut Vec<Var>,
-) -> bool {
-    match (e1, e2) {
-        (Some(e1), Some(e2)) => is_alpha_eq_rec(e1, e2, env1, env2),
-        (None, None) => true,
+        (
+            Exp::TakeEqUnchecked {
+                func: f1,
+                domain: d1,
+                codomain: c1,
+                element: e1,
+            },
+            Exp::TakeEqUnchecked {
+                func: f2,
+                domain: d2,
+                codomain: c2,
+                element: e2,
+            },
+        ) => {
+            is_alpha_eq_rec(f1, f2, env1, env2)
+                && is_alpha_eq_rec(d1, d2, env1, env2)
+                && is_alpha_eq_rec(c1, c2, env1, env2)
+                && is_alpha_eq_rec(e1, e2, env1, env2)
+        }
         _ => false,
     }
 }
 
 pub fn exp_is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
     is_alpha_eq_rec(e1, e2, &mut vec![], &mut vec![])
-}
-
-pub fn ctx_is_alpha_eq(ctx1: &Context, ctx2: &Context) -> bool {
-    if ctx1.len() != ctx2.len() {
-        return false;
-    }
-
-    let mut env1 = vec![];
-    let mut env2 = vec![];
-
-    for ((var1, exp1), (var2, exp2)) in ctx1.iter().zip(ctx2.iter()) {
-        if !is_alpha_eq_rec(exp1, exp2, &mut env1, &mut env2) {
-            return false;
-        }
-        env1.push(var1.clone());
-        env2.push(var2.clone());
-    }
-
-    true
-}
-
-pub fn exp_is_alpha_eq_under_ctx(ctx1: &Context, t1: &Exp, ctx2: &Context, t2: &Exp) -> bool {
-    if !ctx_is_alpha_eq(ctx1, ctx2) {
-        return false;
-    }
-
-    let mut env1 = vec![];
-    let mut env2 = vec![];
-
-    for (var1, _) in ctx1.iter() {
-        env1.push(var1.clone());
-    }
-    for (var2, _) in ctx2.iter() {
-        env2.push(var2.clone());
-    }
-
-    is_alpha_eq_rec(t1, t2, &mut env1, &mut env2)
 }
 
 pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
@@ -966,18 +704,41 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
         Exp::Exists { set: ty } => Exp::Exists {
             set: Box::new(exp_subst(ty, v, t)),
         },
-        Exp::Take {
+        Exp::TakeSet {
             domain,
             codomain,
             map,
             existence,
             uniqueness,
-        } => Exp::Take {
+        } => Exp::TakeSet {
             domain: Box::new(exp_subst(domain, v, t)),
             codomain: Box::new(exp_subst(codomain, v, t)),
             map: Box::new(exp_subst(map, v, t)),
             existence: Box::new(exp_subst(existence, v, t)),
-            uniqueness: uniqueness.as_deref().map(|p| Box::new(exp_subst(p, v, t))),
+            uniqueness: Box::new(exp_subst(uniqueness, v, t)),
+        },
+        Exp::TakeProp {
+            domain,
+            proposition,
+            map,
+            existence,
+        } => Exp::TakeProp {
+            domain: Box::new(exp_subst(domain, v, t)),
+            proposition: Box::new(exp_subst(proposition, v, t)),
+            map: Box::new(exp_subst(map, v, t)),
+            existence: Box::new(exp_subst(existence, v, t)),
+        },
+        Exp::TakeSetUnchecked {
+            domain,
+            codomain,
+            map,
+        } => Exp::TakeSetUnchecked {
+            domain: Box::new(exp_subst(domain, v, t)),
+            codomain: Box::new(exp_subst(codomain, v, t)),
+            map: Box::new(exp_subst(map, v, t)),
+        },
+        Exp::TakePropUnchecked { proposition } => Exp::TakePropUnchecked {
+            proposition: Box::new(exp_subst(proposition, v, t)),
         },
         Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
             element: Box::new(exp_subst(element, v, t)),
@@ -1029,7 +790,18 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             codomain: Box::new(exp_subst(codomain, v, t)),
             element: Box::new(exp_subst(element, v, t)),
             existence: Box::new(exp_subst(existence, v, t)),
-            uniqueness: uniqueness.as_deref().map(|p| Box::new(exp_subst(p, v, t))),
+            uniqueness: Box::new(exp_subst(uniqueness, v, t)),
+        },
+        Exp::TakeEqUnchecked {
+            func,
+            domain,
+            codomain,
+            element,
+        } => Exp::TakeEqUnchecked {
+            func: Box::new(exp_subst(func, v, t)),
+            domain: Box::new(exp_subst(domain, v, t)),
+            codomain: Box::new(exp_subst(codomain, v, t)),
+            element: Box::new(exp_subst(element, v, t)),
         },
     }
 }
@@ -1042,199 +814,9 @@ pub fn exp_subst_map(e: &Exp, v: &[(Var, Exp)]) -> Exp {
     res
 }
 
-// any bindings in e should be renamed to avoid some problems
-// free variable is not affected (ptr_copy)
-pub fn exp_alpha_conversion(e: &Exp) -> Exp {
-    match e {
-        Exp::Sort(sort) => Exp::Sort(*sort),
-        Exp::Var(var) => Exp::Var(var.clone()),
-        Exp::Prod { var, ty, body } => {
-            let new_var = Var::new(var.as_str());
-            Exp::Prod {
-                var: new_var.clone(),
-                ty: Box::new(exp_alpha_conversion(ty)),
-                body: Box::new(exp_subst(
-                    &exp_alpha_conversion(body),
-                    var,
-                    &Exp::Var(new_var),
-                )),
-            }
-        }
-        Exp::Lam { var, ty, body } => {
-            let new_var = Var::new(var.as_str());
-            Exp::Lam {
-                var: new_var.clone(),
-                ty: Box::new(exp_alpha_conversion(ty)),
-                body: Box::new(exp_subst(
-                    &exp_alpha_conversion(body),
-                    var,
-                    &Exp::Var(new_var),
-                )),
-            }
-        }
-        Exp::App { func, arg } => Exp::App {
-            func: Box::new(exp_alpha_conversion(func)),
-            arg: Box::new(exp_alpha_conversion(arg)),
-        },
-        Exp::DefinedConstant(rc) => {
-            // TODO?: another RC?
-            Exp::DefinedConstant(std::rc::Rc::clone(rc))
-        }
-        Exp::IndType {
-            indspec: ty,
-            parameters,
-        } => Exp::IndType {
-            indspec: ty.clone(),
-            parameters: parameters.iter().map(exp_alpha_conversion).collect(),
-        },
-        Exp::IndCtor {
-            indspec: ty,
-            idx,
-            parameters: parameter,
-        } => Exp::IndCtor {
-            indspec: ty.clone(),
-            idx: *idx,
-            parameters: parameter.iter().map(exp_alpha_conversion).collect(),
-        },
-        Exp::IndElim {
-            indspec: ty,
-            elim,
-            return_type,
-            cases,
-        } => Exp::IndElim {
-            indspec: ty.clone(),
-            elim: Box::new(exp_alpha_conversion(elim)),
-            return_type: Box::new(exp_alpha_conversion(return_type)),
-            cases: cases.iter().map(exp_alpha_conversion).collect(),
-        },
-        Exp::SubsetIntro {
-            superset,
-            subset,
-            element,
-            proof,
-        } => Exp::SubsetIntro {
-            superset: Box::new(exp_alpha_conversion(superset)),
-            subset: Box::new(exp_alpha_conversion(subset)),
-            element: Box::new(exp_alpha_conversion(element)),
-            proof: Box::new(exp_alpha_conversion(proof)),
-        },
-        Exp::PowerSet { set: exp } => Exp::PowerSet {
-            set: Box::new(exp_alpha_conversion(exp)),
-        },
-        Exp::SubSet {
-            var,
-            set: exp,
-            predicate,
-        } => {
-            let new_var = Var::new(var.as_str());
-            Exp::SubSet {
-                var: new_var.clone(),
-                set: Box::new(exp_alpha_conversion(exp)),
-                predicate: Box::new(exp_subst(
-                    &exp_alpha_conversion(predicate),
-                    var,
-                    &Exp::Var(new_var),
-                )),
-            }
-        }
-        Exp::Pred {
-            superset,
-            subset,
-            element,
-        } => Exp::Pred {
-            superset: Box::new(exp_alpha_conversion(superset)),
-            subset: Box::new(exp_alpha_conversion(subset)),
-            element: Box::new(exp_alpha_conversion(element)),
-        },
-        Exp::TypeLift { superset, subset } => Exp::TypeLift {
-            superset: Box::new(exp_alpha_conversion(superset)),
-            subset: Box::new(exp_alpha_conversion(subset)),
-        },
-        Exp::Equal { left, right } => Exp::Equal {
-            left: Box::new(exp_alpha_conversion(left)),
-            right: Box::new(exp_alpha_conversion(right)),
-        },
-        Exp::Exists { set: ty } => Exp::Exists {
-            set: Box::new(exp_alpha_conversion(ty)),
-        },
-        Exp::Take {
-            domain,
-            codomain,
-            map,
-            existence,
-            uniqueness,
-        } => Exp::Take {
-            domain: Box::new(exp_alpha_conversion(domain)),
-            codomain: Box::new(exp_alpha_conversion(codomain)),
-            map: Box::new(exp_alpha_conversion(map)),
-            existence: Box::new(exp_alpha_conversion(existence)),
-            uniqueness: uniqueness
-                .as_deref()
-                .map(|p| Box::new(exp_alpha_conversion(p))),
-        },
-        Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
-            element: Box::new(exp_alpha_conversion(element)),
-            set: Box::new(exp_alpha_conversion(set)),
-        },
-        Exp::SubsetElim {
-            element,
-            subset,
-            superset,
-        } => Exp::SubsetElim {
-            element: Box::new(exp_alpha_conversion(element)),
-            subset: Box::new(exp_alpha_conversion(subset)),
-            superset: Box::new(exp_alpha_conversion(superset)),
-        },
-        Exp::IdRefl { element } => Exp::IdRefl {
-            element: Box::new(exp_alpha_conversion(element)),
-        },
-        Exp::IdElim {
-            left,
-            right,
-            ty,
-            var,
-            predicate,
-            base,
-            equality,
-        } => {
-            let new_var = Var::new(var.as_str());
-            Exp::IdElim {
-                left: Box::new(exp_alpha_conversion(left)),
-                right: Box::new(exp_alpha_conversion(right)),
-                ty: Box::new(exp_alpha_conversion(ty)),
-                var: new_var.clone(),
-                predicate: Box::new(exp_subst(
-                    &exp_alpha_conversion(predicate),
-                    var,
-                    &Exp::Var(new_var),
-                )),
-                base: Box::new(exp_alpha_conversion(base)),
-                equality: Box::new(exp_alpha_conversion(equality)),
-            }
-        }
-        Exp::TakeEq {
-            func,
-            domain,
-            codomain,
-            element,
-            existence,
-            uniqueness,
-        } => Exp::TakeEq {
-            func: Box::new(exp_alpha_conversion(func)),
-            domain: Box::new(exp_alpha_conversion(domain)),
-            codomain: Box::new(exp_alpha_conversion(codomain)),
-            element: Box::new(exp_alpha_conversion(element)),
-            existence: Box::new(exp_alpha_conversion(existence)),
-            uniqueness: uniqueness
-                .as_deref()
-                .map(|p| Box::new(exp_alpha_conversion(p))),
-        },
-    }
-}
-
-/// Remove refinement-introduction certificates while preserving their
-/// computational element.  This operation is purely syntactic: callers are
-/// responsible for establishing that the input is well typed.
+/// Remove proof-only annotations while preserving computational content.
+/// This operation is purely syntactic: callers are responsible for
+/// establishing that the input is well typed.
 pub fn erase(e: &Exp) -> Exp {
     match e {
         Exp::Sort(sort) => Exp::Sort(*sort),
@@ -1316,18 +898,36 @@ pub fn erase(e: &Exp) -> Exp {
         Exp::Exists { set } => Exp::Exists {
             set: Box::new(erase(set)),
         },
-        Exp::Take {
+        Exp::TakeSet {
             domain,
             codomain,
             map,
-            existence,
-            uniqueness,
-        } => Exp::Take {
+            existence: _,
+            uniqueness: _,
+        } => Exp::TakeSetUnchecked {
             domain: Box::new(erase(domain)),
             codomain: Box::new(erase(codomain)),
             map: Box::new(erase(map)),
-            existence: Box::new(erase(existence)),
-            uniqueness: uniqueness.as_deref().map(erase).map(Box::new),
+        },
+        Exp::TakeProp {
+            domain: _,
+            proposition,
+            map: _,
+            existence: _,
+        } => Exp::TakePropUnchecked {
+            proposition: Box::new(erase(proposition)),
+        },
+        Exp::TakeSetUnchecked {
+            domain,
+            codomain,
+            map,
+        } => Exp::TakeSetUnchecked {
+            domain: Box::new(erase(domain)),
+            codomain: Box::new(erase(codomain)),
+            map: Box::new(erase(map)),
+        },
+        Exp::TakePropUnchecked { proposition } => Exp::TakePropUnchecked {
+            proposition: Box::new(erase(proposition)),
         },
         Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
             element: Box::new(erase(element)),
@@ -1367,15 +967,24 @@ pub fn erase(e: &Exp) -> Exp {
             domain,
             codomain,
             element,
-            existence,
-            uniqueness,
-        } => Exp::TakeEq {
+            existence: _,
+            uniqueness: _,
+        } => Exp::TakeEqUnchecked {
             func: Box::new(erase(func)),
             domain: Box::new(erase(domain)),
             codomain: Box::new(erase(codomain)),
             element: Box::new(erase(element)),
-            existence: Box::new(erase(existence)),
-            uniqueness: uniqueness.as_deref().map(erase).map(Box::new),
+        },
+        Exp::TakeEqUnchecked {
+            func,
+            domain,
+            codomain,
+            element,
+        } => Exp::TakeEqUnchecked {
+            func: Box::new(erase(func)),
+            domain: Box::new(erase(domain)),
+            codomain: Box::new(erase(codomain)),
+            element: Box::new(erase(element)),
         },
     }
 }
@@ -1445,6 +1054,27 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
                 var: var.clone(),
                 ty: Box::new(ty),
                 body: Box::new(body),
+            })
+        }
+        Exp::TakeSetUnchecked {
+            domain,
+            codomain,
+            map,
+        } => {
+            let domain = reduce_if(domain);
+            let codomain = reduce_if(codomain);
+            let map = reduce_if(map);
+
+            changed.then_some(Exp::TakeSetUnchecked {
+                domain: Box::new(domain),
+                codomain: Box::new(codomain),
+                map: Box::new(map),
+            })
+        }
+        Exp::TakePropUnchecked { proposition } => {
+            let proposition = reduce_if(proposition);
+            changed.then_some(Exp::TakePropUnchecked {
+                proposition: Box::new(proposition),
             })
         }
         Exp::Lam { var, ty, body } => {
@@ -1583,7 +1213,7 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let ty = reduce_if(ty);
             changed.then_some(Exp::Exists { set: Box::new(ty) })
         }
-        Exp::Take {
+        Exp::TakeSet {
             domain,
             codomain,
             map,
@@ -1594,14 +1224,32 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let codomain = reduce_if(codomain);
             let map = reduce_if(map);
             let existence = reduce_if(existence);
-            let uniqueness = uniqueness.as_deref().map(&mut reduce_if).map(Box::new);
+            let uniqueness = reduce_if(uniqueness);
 
-            changed.then_some(Exp::Take {
+            changed.then_some(Exp::TakeSet {
                 domain: Box::new(domain),
                 codomain: Box::new(codomain),
                 map: Box::new(map),
                 existence: Box::new(existence),
-                uniqueness,
+                uniqueness: Box::new(uniqueness),
+            })
+        }
+        Exp::TakeProp {
+            domain,
+            proposition,
+            map,
+            existence,
+        } => {
+            let domain = reduce_if(domain);
+            let proposition = reduce_if(proposition);
+            let map = reduce_if(map);
+            let existence = reduce_if(existence);
+
+            changed.then_some(Exp::TakeProp {
+                domain: Box::new(domain),
+                proposition: Box::new(proposition),
+                map: Box::new(map),
+                existence: Box::new(existence),
             })
         }
         Exp::ExistsIntro { element, set } => {
@@ -1670,14 +1318,31 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let codomain = reduce_if(codomain);
             let element = reduce_if(element);
             let existence = reduce_if(existence);
-            let uniqueness = uniqueness.as_deref().map(&mut reduce_if).map(Box::new);
+            let uniqueness = reduce_if(uniqueness);
             changed.then_some(Exp::TakeEq {
                 func: Box::new(func),
                 domain: Box::new(domain),
                 codomain: Box::new(codomain),
                 element: Box::new(element),
                 existence: Box::new(existence),
-                uniqueness,
+                uniqueness: Box::new(uniqueness),
+            })
+        }
+        Exp::TakeEqUnchecked {
+            func,
+            domain,
+            codomain,
+            element,
+        } => {
+            let func = reduce_if(func);
+            let domain = reduce_if(domain);
+            let codomain = reduce_if(codomain);
+            let element = reduce_if(element);
+            changed.then_some(Exp::TakeEqUnchecked {
+                func: Box::new(func),
+                domain: Box::new(domain),
+                codomain: Box::new(codomain),
+                element: Box::new(element),
             })
         }
     }
@@ -1711,9 +1376,6 @@ pub fn erased_convertible(e1: &Exp, e2: &Exp) -> bool {
 }
 
 impl Exp {
-    pub fn alpha_convert(&self) -> Exp {
-        exp_alpha_conversion(self)
-    }
     pub fn subst(&self, subst_mapping: &[(Var, Exp)]) -> Exp {
         exp_subst_map(self, subst_mapping)
     }

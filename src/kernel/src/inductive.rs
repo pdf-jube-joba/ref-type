@@ -3,7 +3,7 @@ use std::rc::Rc;
 use serde::Serialize;
 
 use crate::{
-    derivation::{check, infer_sort},
+    derivation::{JudgementError, check, infer_sort},
     utils,
 };
 

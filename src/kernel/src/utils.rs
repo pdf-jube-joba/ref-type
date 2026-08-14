@@ -64,16 +64,6 @@ pub fn decompose_prod(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
     (vars, e)
 }
 
-pub fn decompose_prod_ref(e: &Exp) -> (Vec<(&Var, &Exp)>, &Exp) {
-    let mut vars = vec![];
-    let mut e = e;
-    while let Exp::Prod { var, ty, body } = e {
-        vars.push((var, ty.as_ref()));
-        e = body.as_ref();
-    }
-    (vars, e)
-}
-
 #[macro_export]
 macro_rules! var {
     ($name:expr) => {

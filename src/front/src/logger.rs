@@ -1,4 +1,4 @@
-use kernel::exp::{Context, Exp};
+use kernel::exp::{Context, Exp, Sort};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,36 +25,14 @@ pub struct LogRecord {
     pub payload: LogPayload,
 }
 
+#[derive(Default)]
 pub struct Logger {
     records: Vec<LogRecord>,
 }
 
-impl Default for Logger {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Logger {
-    /// 新しい空のロガー
-    pub fn new() -> Self {
-        Self {
-            records: Vec::new(),
-        }
-    }
-
     pub fn records(&self) -> &[LogRecord] {
         &self.records
-    }
-    pub fn into_records(self) -> Vec<LogRecord> {
-        self.records
-    }
-    pub fn clear(&mut self) {
-        self.records.clear();
-    }
-
-    pub fn push(&mut self, record: LogRecord) {
-        self.records.push(record);
     }
 
     pub fn record(
@@ -70,7 +48,7 @@ impl Logger {
             message,
             payload,
         };
-        self.push(record);
+        self.records.push(record);
     }
 
     pub fn reduce_one(&mut self, e: Exp) -> Option<Exp> {
@@ -126,12 +104,34 @@ impl Logger {
     pub fn infer(&mut self, ctx: &Context, exp: &Exp) -> Option<Exp> {
         let infer_ty = kernel::derivation::infer(ctx, exp);
         match infer_ty {
-            Ok(ty) => Some(ty),
+            Ok(ty) => {
+                self.record(
+                    LogLevel::Debug,
+                    vec!["infer".to_string()],
+                    "infer success".to_string(),
+                    LogPayload::Exp(ty.clone()),
+                );
+                Some(ty)
+            }
             Err(derivation_fail) => {
                 self.record(
                     LogLevel::Error,
                     vec!["infer".to_string()],
                     format!("infer failed: {:?}", derivation_fail),
+                    LogPayload::Message,
+                );
+                None
+            }
+        }
+    }
+    pub fn infer_sort(&mut self, ctx: &Context, exp: &Exp) -> Option<Sort> {
+        match kernel::derivation::infer_sort(ctx, exp) {
+            Ok(sort) => Some(sort),
+            Err(derivation_fail) => {
+                self.record(
+                    LogLevel::Error,
+                    vec!["infer_sort".to_string()],
+                    format!("infer sort failed: {:?}", derivation_fail),
                     LogPayload::Message,
                 );
                 None
@@ -152,9 +152,6 @@ impl Logger {
                 false
             }
         }
-    }
-    pub fn log_msg(&mut self, level: LogLevel, tags: Vec<String>, message: String) {
-        self.record(level, tags, message, LogPayload::Message);
     }
 }
 

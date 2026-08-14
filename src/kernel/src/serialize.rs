@@ -33,14 +33,3 @@ where
     let s_repr = format!("{ptr:016x}");
     s.serialize_str(&s_repr)
 }
-
-/// same idea, but for Option<Rc<T>>
-pub fn serialize_opt_rc_ptr<S, T>(opt: &Option<Rc<T>>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    match opt {
-        Some(rc) => serialize_rc_ptr(rc, s),
-        None => s.serialize_none(),
-    }
-}

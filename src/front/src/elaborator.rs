@@ -16,14 +16,6 @@ use kernel::{
 pub mod module_manager;
 pub mod term_elaborator;
 
-pub enum Query {
-    Eval { exp: Exp },
-    Normalize { exp: Exp },
-    Checking { ctx: Context, exp: Exp, ty: Exp },
-    Infer { ctx: Context, exp: Exp },
-    InferSort { ctx: Context, exp: Exp },
-}
-
 // do type checking
 #[derive(Default)]
 pub struct GlobalEnvironment {
@@ -155,8 +147,8 @@ impl GlobalEnvironment {
                     .collect::<Vec<_>>();
                 // check sort of parameter type
                 self.logger
-                    .infer(&ext_ctx, &ty_elab)
-                    .ok_or("Failed to infer type of parameter type".to_string())?;
+                    .infer_sort(&ext_ctx, &ty_elab)
+                    .ok_or("Failed to infer sort of parameter type".to_string())?;
 
                 for v in vars {
                     let v = Var::new(v.as_str());

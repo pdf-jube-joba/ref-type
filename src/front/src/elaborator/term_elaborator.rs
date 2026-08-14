@@ -89,6 +89,60 @@ impl LocalScope {
         e
     }
 
+    fn elab_take_parts(
+        &mut self,
+        bind: &Bind,
+        body: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<(Exp, Exp, Exp), String> {
+        match bind {
+            Bind::Named(right_bind) => {
+                if right_bind.vars.len() != 1 {
+                    return Err("\\take currently expects exactly one named variable".into());
+                }
+
+                let var = Var::new(right_bind.vars[0].as_str());
+                let domain = self.elab_exp_rec(&right_bind.ty, handler)?;
+                self.push_binded_var(var.clone());
+                let codomain = self.elab_exp_rec(body, handler)?;
+                self.pop_binded_var();
+                let map = Exp::Lam {
+                    var,
+                    ty: Box::new(domain.clone()),
+                    body: Box::new(codomain.clone()),
+                };
+                Ok((domain, map, codomain))
+            }
+            Bind::Subset { var, ty, predicate } => {
+                let carrier = self.elab_exp_rec(ty, handler)?;
+                let var = Var::new(var.as_str());
+                self.push_binded_var(var.clone());
+                let predicate = self.elab_exp_rec(predicate, handler)?;
+                let codomain = self.elab_exp_rec(body, handler)?;
+                self.pop_binded_var();
+
+                let subset = Exp::SubSet {
+                    var: var.clone(),
+                    set: Box::new(carrier.clone()),
+                    predicate: Box::new(predicate),
+                };
+                let domain = Exp::TypeLift {
+                    superset: Box::new(carrier),
+                    subset: Box::new(subset),
+                };
+                let map = Exp::Lam {
+                    var,
+                    ty: Box::new(domain.clone()),
+                    body: Box::new(codomain.clone()),
+                };
+                Ok((domain, map, codomain))
+            }
+            Bind::SubsetWithProof { .. } => {
+                Err("\\take with proof bind is not supported by kernel Take(X,T,f)".into())
+            }
+        }
+    }
+
     fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         match exp {
             SExp::AccessPath { access, parameters } => {
@@ -555,77 +609,32 @@ impl LocalScope {
                     })
                 }
             },
-            SExp::Take {
+            SExp::TakeSet {
                 bind,
                 body,
                 existence,
                 uniqueness,
             } => {
-                let map_body = body.as_ref();
-
-                let (domain_elab, map_elab, codomain_elab) = match bind {
-                    Bind::Named(right_bind) => {
-                        if right_bind.vars.len() != 1 {
-                            return Err(
-                                "\\take currently expects exactly one named variable".into()
-                            );
-                        }
-
-                        let var = Var::new(right_bind.vars[0].as_str());
-                        let domain_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
-                        self.push_binded_var(var.clone());
-                        let map_body_elab = self.elab_exp_rec(map_body, handler)?;
-                        let codomain_elab = map_body_elab.clone();
-                        self.pop_binded_var();
-
-                        let map_elab = Exp::Lam {
-                            var,
-                            ty: Box::new(domain_elab.clone()),
-                            body: Box::new(map_body_elab),
-                        };
-                        (domain_elab, map_elab, codomain_elab)
-                    }
-                    Bind::Subset { var, ty, predicate } => {
-                        let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone());
-                        let predicate_elab = self.elab_exp_rec(predicate, handler)?;
-                        let map_body_elab = self.elab_exp_rec(map_body, handler)?;
-                        let codomain_elab = map_body_elab.clone();
-                        self.pop_binded_var();
-
-                        let subset = Exp::SubSet {
-                            var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab),
-                        };
-                        let domain_elab = Exp::TypeLift {
-                            superset: Box::new(ty_elab),
-                            subset: Box::new(subset),
-                        };
-                        let map_elab = Exp::Lam {
-                            var,
-                            ty: Box::new(domain_elab.clone()),
-                            body: Box::new(map_body_elab),
-                        };
-                        (domain_elab, map_elab, codomain_elab)
-                    }
-                    Bind::SubsetWithProof { .. } => {
-                        return Err(
-                            "\\take with proof bind is not supported by kernel Take(X,T,f)".into(),
-                        );
-                    }
-                };
-                Ok(Exp::Take {
-                    domain: Box::new(domain_elab),
-                    codomain: Box::new(codomain_elab),
-                    map: Box::new(map_elab),
+                let (domain, map, codomain) = self.elab_take_parts(bind, body, handler)?;
+                Ok(Exp::TakeSet {
+                    domain: Box::new(domain),
+                    codomain: Box::new(codomain),
+                    map: Box::new(map),
                     existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                    uniqueness: uniqueness
-                        .as_deref()
-                        .map(|proof| self.elab_exp_rec(proof, handler))
-                        .transpose()?
-                        .map(Box::new),
+                    uniqueness: Box::new(self.elab_exp_rec(uniqueness, handler)?),
+                })
+            }
+            SExp::TakeProp {
+                bind,
+                body,
+                existence,
+            } => {
+                let (domain, map, proposition) = self.elab_take_parts(bind, body, handler)?;
+                Ok(Exp::TakeProp {
+                    domain: Box::new(domain),
+                    proposition: Box::new(proposition),
+                    map: Box::new(map),
+                    existence: Box::new(self.elab_exp_rec(existence, handler)?),
                 })
             }
             SExp::ExistsIntro { element, set } => Ok(Exp::ExistsIntro {
@@ -685,11 +694,7 @@ impl LocalScope {
                 codomain: Box::new(self.elab_exp_rec(codomain, handler)?),
                 element: Box::new(self.elab_exp_rec(element, handler)?),
                 existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                uniqueness: uniqueness
-                    .as_deref()
-                    .map(|p| self.elab_exp_rec(p, handler))
-                    .transpose()?
-                    .map(Box::new),
+                uniqueness: Box::new(self.elab_exp_rec(uniqueness, handler)?),
             }),
             SExp::Block(block) => {
                 let Block {
@@ -720,16 +725,23 @@ impl LocalScope {
                                 piped: false,
                             };
                         }
-                        Statement::Take {
+                        Statement::TakeSet {
                             bind,
                             existence,
                             uniqueness,
                         } => {
-                            term = SExp::Take {
+                            term = SExp::TakeSet {
                                 bind: bind.clone(),
                                 body: Box::new(term),
                                 existence: Box::new(existence.clone()),
-                                uniqueness: uniqueness.clone().map(Box::new),
+                                uniqueness: Box::new(uniqueness.clone()),
+                            };
+                        }
+                        Statement::TakeProp { bind, existence } => {
+                            term = SExp::TakeProp {
+                                bind: bind.clone(),
+                                body: Box::new(term),
+                                existence: Box::new(existence.clone()),
                             };
                         }
                         Statement::Sufficient { map, map_ty: _ } => {

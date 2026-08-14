@@ -358,12 +358,12 @@ fn take_uses_explicit_domain_and_codomain() {
         (unique.clone(), uniqueness_ty),
     ];
 
-    let take = Exp::Take {
+    let take = Exp::TakeSet {
         domain: Box::new(Exp::Var(xx.clone())),
         codomain: Box::new(Exp::Var(tt.clone())),
         map: Box::new(Exp::Var(f.clone())),
         existence: Box::new(Exp::Var(exists)),
-        uniqueness: Some(Box::new(Exp::Var(unique))),
+        uniqueness: Box::new(Exp::Var(unique)),
     };
 
     let derivation = crate::derivation::infer(&ctx, &take).unwrap();
@@ -375,7 +375,7 @@ fn take_uses_explicit_domain_and_codomain() {
 }
 
 #[test]
-fn set_valued_take_rejects_missing_uniqueness_proof() {
+fn take_prop_rejects_a_set_valued_codomain() {
     let xx = var!("X");
     let tt = var!("T");
     let f = var!("f");
@@ -399,15 +399,152 @@ fn set_valued_take_rejects_missing_uniqueness_proof() {
         ),
     ];
 
-    let take = Exp::Take {
+    let take = Exp::TakeProp {
         domain: Box::new(Exp::Var(xx)),
-        codomain: Box::new(Exp::Var(tt)),
+        proposition: Box::new(Exp::Var(tt)),
         map: Box::new(Exp::Var(f)),
         existence: Box::new(Exp::Var(exists)),
-        uniqueness: None,
     };
 
     assert!(crate::derivation::infer(&ctx, &take).is_err());
+}
+
+#[test]
+fn take_prop_requires_only_an_existence_proof() {
+    let xx = var!("X");
+    let pp = var!("P");
+    let f = var!("f");
+    let exists = var!("exists");
+    let ctx = vec![
+        (xx.clone(), Exp::Sort(Sort::Set(0))),
+        (pp.clone(), Exp::Sort(Sort::Prop)),
+        (
+            f.clone(),
+            Exp::Prod {
+                var: var!("_"),
+                ty: Box::new(Exp::Var(xx.clone())),
+                body: Box::new(Exp::Var(pp.clone())),
+            },
+        ),
+        (
+            exists.clone(),
+            Exp::Exists {
+                set: Box::new(Exp::Var(xx.clone())),
+            },
+        ),
+    ];
+    let take = Exp::TakeProp {
+        domain: Box::new(Exp::Var(xx)),
+        proposition: Box::new(Exp::Var(pp.clone())),
+        map: Box::new(Exp::Var(f)),
+        existence: Box::new(Exp::Var(exists)),
+    };
+
+    let inferred = crate::derivation::infer(&ctx, &take).unwrap();
+    assert!(exp_is_alpha_eq(&inferred, &Exp::Var(pp)));
+}
+
+#[test]
+fn take_proof_fields_are_irrelevant_for_erased_conversion() {
+    let take_set_left = Exp::TakeSet {
+        domain: Box::new(Exp::Var(var!("X"))),
+        codomain: Box::new(Exp::Var(var!("T"))),
+        map: Box::new(Exp::Var(var!("f"))),
+        existence: Box::new(Exp::Var(var!("exists_left"))),
+        uniqueness: Box::new(Exp::Var(var!("unique_left"))),
+    };
+    let take_set_right = Exp::TakeSet {
+        domain: Box::new(Exp::Var(var!("X"))),
+        codomain: Box::new(Exp::Var(var!("T"))),
+        map: Box::new(Exp::Var(var!("f"))),
+        existence: Box::new(Exp::Var(var!("exists_right"))),
+        uniqueness: Box::new(Exp::Var(var!("unique_right"))),
+    };
+    assert!(!convertible(&take_set_left, &take_set_right));
+    assert!(erased_convertible(&take_set_left, &take_set_right));
+    assert!(matches!(
+        erase(&take_set_left),
+        Exp::TakeSetUnchecked { .. }
+    ));
+    let different_map = Exp::TakeSet {
+        domain: Box::new(Exp::Var(var!("X"))),
+        codomain: Box::new(Exp::Var(var!("T"))),
+        map: Box::new(Exp::Var(var!("g"))),
+        existence: Box::new(Exp::Var(var!("exists_right"))),
+        uniqueness: Box::new(Exp::Var(var!("unique_right"))),
+    };
+    assert!(!erased_convertible(&take_set_left, &different_map));
+
+    let take_prop_left = Exp::TakeProp {
+        domain: Box::new(Exp::Var(var!("X"))),
+        proposition: Box::new(Exp::Var(var!("P"))),
+        map: Box::new(Exp::Var(var!("proof_map_left"))),
+        existence: Box::new(Exp::Var(var!("exists_left"))),
+    };
+    let take_prop_right = Exp::TakeProp {
+        domain: Box::new(Exp::Var(var!("Y"))),
+        proposition: Box::new(Exp::Var(var!("P"))),
+        map: Box::new(Exp::Var(var!("proof_map_right"))),
+        existence: Box::new(Exp::Var(var!("exists_right"))),
+    };
+    assert!(!convertible(&take_prop_left, &take_prop_right));
+    assert!(erased_convertible(&take_prop_left, &take_prop_right));
+    assert!(matches!(
+        erase(&take_prop_left),
+        Exp::TakePropUnchecked { .. }
+    ));
+    let different_proposition = Exp::TakeProp {
+        domain: Box::new(Exp::Var(var!("X"))),
+        proposition: Box::new(Exp::Var(var!("Q"))),
+        map: Box::new(Exp::Var(var!("proof_map_left"))),
+        existence: Box::new(Exp::Var(var!("exists_left"))),
+    };
+    assert!(!erased_convertible(&take_prop_left, &different_proposition));
+
+    let take_eq_left = Exp::TakeEq {
+        func: Box::new(Exp::Var(var!("f"))),
+        domain: Box::new(Exp::Var(var!("X"))),
+        codomain: Box::new(Exp::Var(var!("T"))),
+        element: Box::new(Exp::Var(var!("x"))),
+        existence: Box::new(Exp::Var(var!("exists_left"))),
+        uniqueness: Box::new(Exp::Var(var!("unique_left"))),
+    };
+    let take_eq_right = Exp::TakeEq {
+        func: Box::new(Exp::Var(var!("f"))),
+        domain: Box::new(Exp::Var(var!("X"))),
+        codomain: Box::new(Exp::Var(var!("T"))),
+        element: Box::new(Exp::Var(var!("x"))),
+        existence: Box::new(Exp::Var(var!("exists_right"))),
+        uniqueness: Box::new(Exp::Var(var!("unique_right"))),
+    };
+    assert!(!convertible(&take_eq_left, &take_eq_right));
+    assert!(erased_convertible(&take_eq_left, &take_eq_right));
+    assert!(matches!(erase(&take_eq_left), Exp::TakeEqUnchecked { .. }));
+}
+
+#[test]
+fn internal_erased_take_forms_are_idempotent_but_not_typable() {
+    let forms = [
+        Exp::TakeSetUnchecked {
+            domain: Box::new(Exp::Var(var!("X"))),
+            codomain: Box::new(Exp::Var(var!("T"))),
+            map: Box::new(Exp::Var(var!("f"))),
+        },
+        Exp::TakePropUnchecked {
+            proposition: Box::new(Exp::Var(var!("P"))),
+        },
+        Exp::TakeEqUnchecked {
+            func: Box::new(Exp::Var(var!("f"))),
+            domain: Box::new(Exp::Var(var!("X"))),
+            codomain: Box::new(Exp::Var(var!("T"))),
+            element: Box::new(Exp::Var(var!("x"))),
+        },
+    ];
+
+    for form in forms {
+        assert!(exp_is_alpha_eq(&erase(&form), &form));
+        assert!(crate::derivation::infer(&vec![], &form).is_err());
+    }
 }
 
 #[test]
@@ -742,18 +879,18 @@ fn take_eq_matches_system_shape() {
             codomain: Box::new(Exp::Var(tt.clone())),
             element: Box::new(Exp::Var(x.clone())),
             existence: Box::new(Exp::Var(exists.clone())),
-            uniqueness: Some(Box::new(Exp::Var(unique.clone()))),
+            uniqueness: Box::new(Exp::Var(unique.clone())),
         },
     )
     .unwrap();
 
     let expected = Exp::Equal {
-        left: Box::new(Exp::Take {
+        left: Box::new(Exp::TakeSet {
             domain: Box::new(Exp::Var(xx.clone())),
             codomain: Box::new(Exp::Var(tt.clone())),
             map: Box::new(Exp::Var(f.clone())),
             existence: Box::new(Exp::Var(exists)),
-            uniqueness: Some(Box::new(Exp::Var(unique))),
+            uniqueness: Box::new(Exp::Var(unique)),
         }),
         right: Box::new(Exp::App {
             func: Box::new(Exp::Var(f.clone())),

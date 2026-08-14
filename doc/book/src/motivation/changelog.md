@@ -320,3 +320,23 @@ $*^s_i: *^s_{i+1}: *^s_{i+2}$ のような sort にしていたのを、$*^s_i: 
 
 これによって、すべての sort が、 $*: \sq$ のみの axiom になって、 injective になった。
 （ cumulative を入れているので、 PTS の injective の議論はそのまま使えるとは限らない。）
+
+## 実装側の話になるが、証明を後から与える方法をやめた
+型システムの中でどこでゴールが生成されたかわかりずらいので、
+ゴールが生成されるところをわかるようにした。
+結果として、 $2: 2N$ ではなくなってしまった。
+代わりに、 $(2, \text{evenSucc}(\text{evenZero})): 2N$ だが $(2, \text{evenSucc}(\text{evenZero})): N$ であるような感じになった。
+
+- subsetintro: \(A: *^s, X: \text{Power}(A), a: A, p: \text{Pred}(A, X, a)\) をとる。
+  - term としては \(a\) と同様に振る舞う
+- takeset: \(X: * ^s, T: * ^s, f: X \to T, p: \exists X, q: f x_1 = f x_2\) をとる。
+  - term としては \(X: * ^s, T: * ^s, f: X \to T\) と同様に振る舞う
+- takeprop: \(X: *^s, P: *^p, f: X \to P, p: \exists X\) をとる。
+  - erase 後は命題 \(P\) だけを保持する
+
+証明欄を除去した後の構造を明示するため、比較専用の内部項を入れる。
+- `TakeSetUnchecked`: \(X: *^s, T: *^s, f: X \to T\)
+- `TakePropUnchecked`: \(P: *^p\)
+- `TakeEqUnchecked`: \(f, X, T, x\)
+
+erase 後にはそっちにいく。

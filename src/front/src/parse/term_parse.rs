@@ -321,17 +321,23 @@ impl<'a> TermParser<'a> {
             self.expect_keyword("\\by")?;
             self.expect_token(Token::LParen)?;
             let existence = self.parse_sexp()?;
-            let uniqueness = if self.bump_if_token(&Token::Comma) {
-                Some(Box::new(self.parse_sexp()?))
-            } else {
-                None
-            };
+            let uniqueness = self
+                .bump_if_token(&Token::Comma)
+                .then(|| self.parse_sexp())
+                .transpose()?;
             self.expect_token(Token::RParen)?;
-            return Ok(SExp::Take {
-                bind,
-                body: Box::new(body),
-                existence: Box::new(existence),
-                uniqueness,
+            return Ok(match uniqueness {
+                Some(uniqueness) => SExp::TakeSet {
+                    bind,
+                    body: Box::new(body),
+                    existence: Box::new(existence),
+                    uniqueness: Box::new(uniqueness),
+                },
+                None => SExp::TakeProp {
+                    bind,
+                    body: Box::new(body),
+                    existence: Box::new(existence),
+                },
             });
         }
         if self.bump_if_keyword("\\block") {
@@ -428,11 +434,8 @@ impl<'a> TermParser<'a> {
             self.expect_keyword("\\by")?;
             self.expect_token(Token::LParen)?;
             let existence = self.parse_sexp()?;
-            let uniqueness = if self.bump_if_token(&Token::Comma) {
-                Some(Box::new(self.parse_sexp()?))
-            } else {
-                None
-            };
+            self.expect_token(Token::Comma)?;
+            let uniqueness = self.parse_sexp()?;
             self.expect_token(Token::RParen)?;
             return Ok(SExp::TakeEq {
                 func: Box::new(func),
@@ -440,7 +443,7 @@ impl<'a> TermParser<'a> {
                 codomain: Box::new(codomain),
                 element: Box::new(element),
                 existence: Box::new(existence),
-                uniqueness,
+                uniqueness: Box::new(uniqueness),
             });
         }
 
@@ -487,17 +490,19 @@ impl<'a> TermParser<'a> {
                 self.expect_keyword("\\by")?;
                 self.expect_token(Token::LParen)?;
                 let existence = self.parse_sexp()?;
-                let uniqueness = if self.bump_if_token(&Token::Comma) {
-                    Some(self.parse_sexp()?)
-                } else {
-                    None
-                };
+                let uniqueness = self
+                    .bump_if_token(&Token::Comma)
+                    .then(|| self.parse_sexp())
+                    .transpose()?;
                 self.expect_token(Token::RParen)?;
                 self.expect_token(Token::Semicolon)?; // expect ';'
-                statements.push(Statement::Take {
-                    bind,
-                    existence,
-                    uniqueness,
+                statements.push(match uniqueness {
+                    Some(uniqueness) => Statement::TakeSet {
+                        bind,
+                        existence,
+                        uniqueness,
+                    },
+                    None => Statement::TakeProp { bind, existence },
                 });
                 continue;
             }
@@ -1197,6 +1202,7 @@ mod tests {
         print_and_unwrap(r"\refl(x)");
         print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by (pa, eq)");
         print_and_unwrap(r"\take (x: X) => f x \by (existsX, uniqueF)");
+        print_and_unwrap(r"\take (x: X) => P \by (existsX)");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"\subsetinto(A, X, x, p) | z = h");
     }
