@@ -1,17 +1,18 @@
 # 実数の形式化
 
 [`Rat.ref`](Rat.ref) は、通常の inductive type と primitive recursor から `Nat`、
-自然数対による整数、正の自然数を分母とする分数を順に構成する。格納した分母 `d` は
-`succ d` を表すので、零分母は構文的に作れない。代表元上の `addFraction`、
-`subFraction`、`mulFraction` は実際に計算する関数であり、`FractionEq` は整数対の
-等号を使った交差積である。
+自然数対による整数を構成する。`NonZeroInteger = {z : Integer | z != 0}` を積閉集合
+`S` とし、分数は `Integer × S` を一要素コンストラクタの inductive type で表す。
+`Localization` は `S` 上の乗法と、その台の整数乗法との一致を parameter に取る。
+代表元上の `addFraction`、`subFraction`、`mulFraction` は実際に計算する関数であり、
+`FractionEq` は整数対の等号を使った交差積である。
 
 `Quotient` は同値関係を parameter に取り、`ClassOf x` として得られる
 `Power(Fraction)` だけを refinement した型 `Rat` を作る。演算は代表元を選ばず、
 同値類全体の relational image として定義する。`ClassClosed` に congruence の証明を
-渡すと `add`、`sub`、`mul : Rat -> Rat -> Rat` が得られる。除算は
-`Prop -> Set` の関数を避けるため、非零な固定除数 `y` とその証明を受け取る
-`DivideBy` module の `divBy : Rat -> Rat` として定義する。
+渡すと `add`、`sub`、`mul : Rat -> Rat -> Rat` が得られる。非零有理数は
+`NonZeroRat` refinement として表し、除算は `div : Rat -> NonZeroRat -> Rat` とする。
+その relational image は `z * y = x` によって定義する。
 
 [`DedekindReal.ref`](DedekindReal.ref) は、実数を located・rounded Dedekind cut として
 定義する。`Rat : Set` と `lt : Rat -> Rat -> Prop` を受け取り、次を構成する。

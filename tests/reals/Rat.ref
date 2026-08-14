@@ -1,12 +1,6 @@
-/*
- * Rationals as the localization of the integers at their nonzero elements.
- *
- * Products are encoded by one-constructor inductive types because the core
- * language does not yet have a primitive product or Sigma type.
- */
+/* Rationals as the localization of Integer at its nonzero elements. */
 \import \root.Logic() \as Logic;
 
-/* Natural numbers and primitive-recursive arithmetic. */
 \inductive Nat: \Set :=
 | zero: Nat;
 | succ: Nat -> Nat;
@@ -32,46 +26,44 @@
 
 \definition oneNat: Nat := Nat#succ Nat#zero;
 
-/* (a, b) represents the integer a - b. */
-\inductive IntegerPair: \Set :=
-| pair: Nat -> Nat -> IntegerPair;
+/* The pair (a,b) represents a-b. */
+\inductive Integer: \Set :=
+| pair: Nat -> Nat -> Integer;
 ;
 
-\definition positive: IntegerPair -> Nat :=
-  (z: IntegerPair) =>
-    \prec(\Set, IntegerPair)
-      ((z: IntegerPair) => Nat)
+\definition positive: Integer -> Nat :=
+  (z: Integer) =>
+    \prec(\Set, Integer)
+      ((z: Integer) => Nat)
       ((a, b: Nat) => a)
       z;
 
-\definition negative: IntegerPair -> Nat :=
-  (z: IntegerPair) =>
-    \prec(\Set, IntegerPair)
-      ((z: IntegerPair) => Nat)
+\definition negative: Integer -> Nat :=
+  (z: Integer) =>
+    \prec(\Set, Integer)
+      ((z: Integer) => Nat)
       ((a, b: Nat) => b)
       z;
 
-\definition integer: Nat -> Nat -> IntegerPair :=
-  (a, b: Nat) => IntegerPair#pair a b;
+\definition integer: Nat -> Nat -> Integer :=
+  (a, b: Nat) => Integer#pair a b;
 
-\definition zeroInteger: IntegerPair :=
-  integer zeroNat zeroNat;
+\definition zeroInteger: Integer := integer zeroNat zeroNat;
 
-\definition oneInteger: IntegerPair :=
-  integer oneNat zeroNat;
+\definition oneInteger: Integer := integer oneNat zeroNat;
 
-\definition negInteger: IntegerPair -> IntegerPair :=
-  (x: IntegerPair) => integer (negative x) (positive x);
+\definition negInteger: Integer -> Integer :=
+  (x: Integer) => integer (negative x) (positive x);
 
-\definition addInteger: IntegerPair -> IntegerPair -> IntegerPair :=
-  (x, y: IntegerPair) =>
+\definition addInteger: Integer -> Integer -> Integer :=
+  (x, y: Integer) =>
     integer
       (natAdd (positive x) (positive y))
       (natAdd (negative x) (negative y));
 
 /* (a-b)(c-d) = (ac+bd) - (ad+bc). */
-\definition mulInteger: IntegerPair -> IntegerPair -> IntegerPair :=
-  (x, y: IntegerPair) =>
+\definition mulInteger: Integer -> Integer -> Integer :=
+  (x, y: Integer) =>
     integer
       (natAdd
         (natMul (positive x) (positive y))
@@ -80,322 +72,259 @@
         (natMul (positive x) (negative y))
         (natMul (negative x) (positive y)));
 
-\definition subInteger: IntegerPair -> IntegerPair -> IntegerPair :=
-  (x, y: IntegerPair) => addInteger x (negInteger y);
+\definition subInteger: Integer -> Integer -> Integer :=
+  (x, y: Integer) => addInteger x (negInteger y);
 
-/* a-b and c-d represent the same integer iff a+d = c+b. */
-\definition IntegerEq: IntegerPair -> IntegerPair -> \Prop :=
-  (x, y: IntegerPair) =>
+\definition IntegerEq: Integer -> Integer -> \Prop :=
+  (x, y: Integer) =>
     natAdd (positive x) (negative y) =
       natAdd (positive y) (negative x);
 
-\definition IntegerNonZero: IntegerPair -> \Prop :=
-  (x: IntegerPair) => Logic.Not (IntegerEq x zeroInteger);
+\definition IntegerNonZero: Integer -> \Prop :=
+  (x: Integer) => Logic.Not (IntegerEq x zeroInteger);
 
-\definition NonZeroIntegerSet: \Power(IntegerPair) :=
-  \Subset(x, IntegerPair, IntegerNonZero x);
+\definition NonZeroIntegerSet: \Power(Integer) :=
+  \Subset(x, Integer, IntegerNonZero x);
 
-/* The multiplicative set used for localization. */
+/* S = Integer ∖ {0}, the multiplicative set used for localization. */
 \definition NonZeroInteger: \Set :=
-  \Ty(IntegerPair, NonZeroIntegerSet);
+  \Ty(Integer, NonZeroIntegerSet);
 
-/* A raw fraction is an unrestricted numerator-denominator pair. */
-\inductive RawFraction: \Set :=
-| fraction: IntegerPair -> IntegerPair -> RawFraction;
+\definition underlyingNonZero: NonZeroInteger -> Integer :=
+  (x: NonZeroInteger) => x;
+
+/* A fraction is directly a pair Integer × S. */
+\inductive Fraction: \Set :=
+| fraction: Integer -> NonZeroInteger -> Fraction;
 ;
 
-\definition numerator: RawFraction -> IntegerPair :=
-  (x: RawFraction) =>
-    \prec(\Set, RawFraction)
-      ((x: RawFraction) => IntegerPair)
-      ((n, d: IntegerPair) => n)
-      x;
-
-\definition denominator: RawFraction -> IntegerPair :=
-  (x: RawFraction) =>
-    \prec(\Set, RawFraction)
-      ((x: RawFraction) => IntegerPair)
-      ((n, d: IntegerPair) => d)
-      x;
-
-\definition rawFraction: IntegerPair -> IntegerPair -> RawFraction :=
-  (n, d: IntegerPair) => RawFraction#fraction n d;
-
-\definition DenominatorNonZero: RawFraction -> \Prop :=
-  (x: RawFraction) => IntegerNonZero (denominator x);
-
-\definition ValidFractionSet: \Power(RawFraction) :=
-  \Subset(x, RawFraction, DenominatorNonZero x);
-
-/* IntegerPair × NonZeroInteger, represented as a refinement. */
-\definition Fraction: \Set :=
-  \Ty(RawFraction, ValidFractionSet);
-
-\definition rawAdd: Fraction -> Fraction -> RawFraction :=
-  (x, y: Fraction) =>
-    rawFraction
-      (addInteger
-        (mulInteger (numerator x) (denominator y))
-        (mulInteger (numerator y) (denominator x)))
-      (mulInteger (denominator x) (denominator y));
-
-\definition rawNeg: Fraction -> RawFraction :=
+\definition numerator: Fraction -> Integer :=
   (x: Fraction) =>
-    rawFraction (negInteger (numerator x)) (denominator x);
+    \prec(\Set, Fraction)
+      ((x: Fraction) => Integer)
+      ((n: Integer) => (d: NonZeroInteger) => n)
+      x;
 
-\definition rawSub: Fraction -> Fraction -> RawFraction :=
-  (x, y: Fraction) =>
-    rawFraction
-      (subInteger
-        (mulInteger (numerator x) (denominator y))
-        (mulInteger (numerator y) (denominator x)))
-      (mulInteger (denominator x) (denominator y));
+\definition denominatorNonZero: Fraction -> NonZeroInteger :=
+  (x: Fraction) =>
+    \prec(\Set, Fraction)
+      ((x: Fraction) => NonZeroInteger)
+      ((n: Integer) => (d: NonZeroInteger) => d)
+      x;
 
-\definition rawMul: Fraction -> Fraction -> RawFraction :=
-  (x, y: Fraction) =>
-    rawFraction
-      (mulInteger (numerator x) (numerator y))
-      (mulInteger (denominator x) (denominator y));
+\definition denominator: Fraction -> Integer :=
+  (x: Fraction) => underlyingNonZero (denominatorNonZero x);
 
-\definition NumeratorNonZero: Fraction -> \Prop :=
-  (x: Fraction) => IntegerNonZero (numerator x);
+\definition fraction: Integer -> NonZeroInteger -> Fraction :=
+  (n: Integer) => (d: NonZeroInteger) => Fraction#fraction n d;
 
-\definition NonZeroFractionSet: \Power(Fraction) :=
-  \Subset(x, Fraction, NumeratorNonZero x);
-
-\definition NonZeroFraction: \Set :=
-  \Ty(Fraction, NonZeroFractionSet);
-
-\definition rawInv: NonZeroFraction -> RawFraction :=
-  (x: NonZeroFraction) =>
-    rawFraction (denominator x) (numerator x);
-
-\definition rawDiv: Fraction -> NonZeroFraction -> RawFraction :=
-  (x: Fraction) => (y: NonZeroFraction) =>
-    rawFraction
-      (mulInteger (numerator x) (denominator y))
-      (mulInteger (denominator x) (numerator y));
-
-/* Equality before quotienting is cross-multiplication modulo IntegerEq. */
+/* Equality before quotienting is equality after cross multiplication. */
 \definition FractionEq: Fraction -> Fraction -> \Prop :=
   (x, y: Fraction) =>
     IntegerEq
       (mulInteger (numerator x) (denominator y))
       (mulInteger (numerator y) (denominator x));
 
-/*
- * The closure parameters are precisely the multiplicative-closure facts for
- * NonZeroInteger and the arithmetic laws needed to form the localization.
- */
-\module Quotient(
-  addValid: (x, y: Fraction) ->
-    \Pred(RawFraction, ValidFractionSet, rawAdd x y),
-  negValid: (x: Fraction) ->
-    \Pred(RawFraction, ValidFractionSet, rawNeg x),
-  subValid: (x, y: Fraction) ->
-    \Pred(RawFraction, ValidFractionSet, rawSub x y),
-  mulValid: (x, y: Fraction) ->
-    \Pred(RawFraction, ValidFractionSet, rawMul x y),
-  invValid: (x: NonZeroFraction) ->
-    \Pred(RawFraction, ValidFractionSet, rawInv x),
-  divValid: (x: Fraction) -> (y: NonZeroFraction) ->
-    \Pred(RawFraction, ValidFractionSet, rawDiv x y),
-  setExt:
-    (A, B: \Power(Fraction)) ->
-      ((x: Fraction) ->
-        \Pred(Fraction, A, x) -> \Pred(Fraction, B, x)) ->
-      ((x: Fraction) ->
-        \Pred(Fraction, B, x) -> \Pred(Fraction, A, x)) ->
-      A = B,
-  fractionEqRefl:
-    (x: Fraction) -> FractionEq x x,
-  fractionEqSym:
-    (x, y: Fraction) -> FractionEq x y -> FractionEq y x,
-  fractionEqTrans:
-    (x, y, z: Fraction) ->
-      FractionEq x y -> FractionEq y z -> FractionEq x z,
-) {
-  \import \root.Logic() \as QuotientLogic;
+\definition NumeratorNonZero: Fraction -> \Prop :=
+  (x: Fraction) => IntegerNonZero (numerator x);
 
+/*
+ * mulNonZero is multiplication internal to S.  Its correctness equation is
+ * the computational content of multiplicative closure.
+ */
+\module Localization(
+  mulNonZero: NonZeroInteger -> NonZeroInteger -> NonZeroInteger,
+  mulNonZeroCorrect: (x, y: NonZeroInteger) ->
+    IntegerEq
+      (underlyingNonZero (mulNonZero x y))
+      (mulInteger (underlyingNonZero x) (underlyingNonZero y)),
+) {
   \definition addFraction: Fraction -> Fraction -> Fraction :=
     (x, y: Fraction) =>
-      \subsetinto(
-        RawFraction, ValidFractionSet,
-        rawAdd x y, addValid x y);
+      fraction
+        (addInteger
+          (mulInteger (numerator x) (denominator y))
+          (mulInteger (numerator y) (denominator x)))
+        (mulNonZero (denominatorNonZero x) (denominatorNonZero y));
 
   \definition negFraction: Fraction -> Fraction :=
     (x: Fraction) =>
-      \subsetinto(
-        RawFraction, ValidFractionSet,
-        rawNeg x, negValid x);
+      fraction (negInteger (numerator x)) (denominatorNonZero x);
 
   \definition subFraction: Fraction -> Fraction -> Fraction :=
     (x, y: Fraction) =>
-      \subsetinto(
-        RawFraction, ValidFractionSet,
-        rawSub x y, subValid x y);
+      fraction
+        (subInteger
+          (mulInteger (numerator x) (denominator y))
+          (mulInteger (numerator y) (denominator x)))
+        (mulNonZero (denominatorNonZero x) (denominatorNonZero y));
 
   \definition mulFraction: Fraction -> Fraction -> Fraction :=
     (x, y: Fraction) =>
-      \subsetinto(
-        RawFraction, ValidFractionSet,
-        rawMul x y, mulValid x y);
+      fraction
+        (mulInteger (numerator x) (numerator y))
+        (mulNonZero (denominatorNonZero x) (denominatorNonZero y));
 
-  \definition invFraction: NonZeroFraction -> Fraction :=
-    (x: NonZeroFraction) =>
-      \subsetinto(
-        RawFraction, ValidFractionSet,
-        rawInv x, invValid x);
-
-  \definition divFraction: Fraction -> NonZeroFraction -> Fraction :=
-    (x: Fraction) => (y: NonZeroFraction) =>
-      \subsetinto(
-        RawFraction, ValidFractionSet,
-        rawDiv x y, divValid x y);
-
-  \definition ClassOf: Fraction -> \Power(Fraction) :=
-    (x: Fraction) =>
-      \Subset(y, Fraction, FractionEq x y);
-
-  \definition classOfEq:
-    (x, y: Fraction) -> FractionEq x y -> ClassOf x = ClassOf y :=
-    (x, y: Fraction) => (xy: FractionEq x y) =>
-      setExt (ClassOf x) (ClassOf y)
-        ((z: Fraction) => (xz: FractionEq x z) =>
-          fractionEqTrans y x z (fractionEqSym x y xy) xz)
-        ((z: Fraction) => (yz: FractionEq y z) =>
-          fractionEqTrans x y z xy yz);
-
-  /* Impredicative existence of x with C = ClassOf x. */
-  \definition IsClass: \Power(Fraction) -> \Prop :=
-    (C: \Power(Fraction)) =>
-      (P: \Prop) ->
-        ((x: Fraction) -> C = ClassOf x -> P) -> P;
-
-  \definition ClassSet: \Power(\Power(Fraction)) :=
-    \Subset(C, \Power(Fraction), IsClass C);
-
-  /* The localization Fraction / FractionEq. */
-  \definition Rat: \Set :=
-    \Ty(\Power(Fraction), ClassSet);
-
-  \definition mem: Rat -> Fraction -> \Prop :=
-    (x: Rat) => (a: Fraction) =>
-      \Pred(Fraction, x, a);
-
-  \definition Eq: Rat -> Rat -> \Prop :=
-    (x, y: Rat) => x = y;
-
-  \definition eqByExt:
-    (x, y: Rat) ->
-      ((a: Fraction) -> mem x a -> mem y a) ->
-      ((a: Fraction) -> mem y a -> mem x a) ->
-      Eq x y :=
-    (x, y: Rat) =>
-      (xy: (a: Fraction) -> mem x a -> mem y a) =>
-      (yx: (a: Fraction) -> mem y a -> mem x a) =>
-        setExt x y xy yx;
-
-  \definition classIsClass:
-    (x: Fraction) -> IsClass (ClassOf x) :=
-    (x: Fraction) =>
-      (P: \Prop) =>
-      (intro: (y: Fraction) -> ClassOf x = ClassOf y -> P) =>
-        intro x (\refl(ClassOf x));
-
-  \definition class: Fraction -> Rat :=
-    (x: Fraction) =>
-      \subsetinto(
-        \Power(Fraction), ClassSet,
-        ClassOf x, classIsClass x);
-
-  /* A nonzero rational has a nonzero representative. */
-  \definition IsNonZero: Rat -> \Prop :=
-    (x: Rat) =>
-      \exists \Ty(NonZeroFraction,
-        \Subset(a, NonZeroFraction, mem x a));
-
-  \definition NonZeroRatSet: \Power(Rat) :=
-    \Subset(x, Rat, IsNonZero x);
-
-  \definition NonZeroRat: \Set :=
-    \Ty(Rat, NonZeroRatSet);
-
-  /* Relational images avoid selecting representatives of quotient values. */
-  \definition AddClass: Rat -> Rat -> \Power(Fraction) :=
-    (x, y: Rat) =>
-      \Subset(z, Fraction,
-        \exists \Ty(Fraction,
-          \Subset(a, Fraction,
-            QuotientLogic.And[mem x a,
-              \exists \Ty(Fraction,
-                \Subset(b, Fraction,
-                  QuotientLogic.And[mem y b,
-                    FractionEq z (addFraction a b)]))])));
-
-  \definition SubClass: Rat -> Rat -> \Power(Fraction) :=
-    (x, y: Rat) =>
-      \Subset(z, Fraction,
-        \exists \Ty(Fraction,
-          \Subset(a, Fraction,
-            QuotientLogic.And[mem x a,
-              \exists \Ty(Fraction,
-                \Subset(b, Fraction,
-                  QuotientLogic.And[mem y b,
-                    FractionEq z (subFraction a b)]))])));
-
-  \definition MulClass: Rat -> Rat -> \Power(Fraction) :=
-    (x, y: Rat) =>
-      \Subset(z, Fraction,
-        \exists \Ty(Fraction,
-          \Subset(a, Fraction,
-            QuotientLogic.And[mem x a,
-              \exists \Ty(Fraction,
-                \Subset(b, Fraction,
-                  QuotientLogic.And[mem y b,
-                    FractionEq z (mulFraction a b)]))])));
-
-  \definition DivClass: Rat -> NonZeroRat -> \Power(Fraction) :=
-    (x: Rat) => (y: NonZeroRat) =>
-      \Subset(z, Fraction,
-        \exists \Ty(Fraction,
-          \Subset(a, Fraction,
-            QuotientLogic.And[mem x a,
-              \exists \Ty(NonZeroFraction,
-                \Subset(b, NonZeroFraction,
-                  QuotientLogic.And[mem y b,
-                    FractionEq z (divFraction a b)]))])));
-
-  /* Congruence and the field laws make each relational image one class. */
-  \module ClassClosed(
-    addClassIsClass: (x, y: Rat) -> IsClass (AddClass x y),
-    subClassIsClass: (x, y: Rat) -> IsClass (SubClass x y),
-    mulClassIsClass: (x, y: Rat) -> IsClass (MulClass x y),
-    divClassIsClass: (x: Rat) -> (y: NonZeroRat) ->
-      IsClass (DivClass x y),
+  /*
+   * The quotient interface is abstract in the relation to avoid repeatedly
+   * normalizing the concrete cross-multiplication formula.  Instantiate it
+   * with FractionEq and the arithmetic proofs above.
+   */
+  \module Quotient(
+    equivalent: Fraction -> Fraction -> \Prop,
+    setExt:
+      (A, B: \Power(Fraction)) ->
+        ((x: Fraction) ->
+          \Pred(Fraction, A, x) -> \Pred(Fraction, B, x)) ->
+        ((x: Fraction) ->
+          \Pred(Fraction, B, x) -> \Pred(Fraction, A, x)) ->
+        A = B,
+    equivalentRefl:
+      (x: Fraction) -> equivalent x x,
+    equivalentSym:
+      (x, y: Fraction) -> equivalent x y -> equivalent y x,
+    equivalentTrans:
+      (x, y, z: Fraction) ->
+        equivalent x y -> equivalent y z -> equivalent x z,
   ) {
-    \definition add: Rat -> Rat -> Rat :=
+    \import \root.Logic() \as QuotientLogic;
+
+    \definition ClassOf: Fraction -> \Power(Fraction) :=
+      (x: Fraction) => \Subset(y, Fraction, equivalent x y);
+
+    \definition classOfEq:
+      (x, y: Fraction) -> equivalent x y -> ClassOf x = ClassOf y :=
+      (x, y: Fraction) => (xy: equivalent x y) =>
+        setExt (ClassOf x) (ClassOf y)
+          ((z: Fraction) => (xz: equivalent x z) =>
+            equivalentTrans y x z (equivalentSym x y xy) xz)
+          ((z: Fraction) => (yz: equivalent y z) =>
+            equivalentTrans x y z xy yz);
+
+    \definition IsClass: \Power(Fraction) -> \Prop :=
+      (C: \Power(Fraction)) =>
+        (P: \Prop) -> ((x: Fraction) -> C = ClassOf x -> P) -> P;
+
+    \definition ClassSet: \Power(\Power(Fraction)) :=
+      \Subset(C, \Power(Fraction), IsClass C);
+
+    \definition Rat: \Set :=
+      \Ty(\Power(Fraction), ClassSet);
+
+    \definition mem: Rat -> Fraction -> \Prop :=
+      (x: Rat) => (a: Fraction) => \Pred(Fraction, x, a);
+
+    \definition Eq: Rat -> Rat -> \Prop :=
+      (x, y: Rat) => x = y;
+
+    \definition eqByExt:
+      (x, y: Rat) ->
+        ((a: Fraction) -> mem x a -> mem y a) ->
+        ((a: Fraction) -> mem y a -> mem x a) -> Eq x y :=
       (x, y: Rat) =>
+        (xy: (a: Fraction) -> mem x a -> mem y a) =>
+        (yx: (a: Fraction) -> mem y a -> mem x a) =>
+          setExt x y xy yx;
+
+    \definition classIsClass:
+      (x: Fraction) -> IsClass (ClassOf x) :=
+      (x: Fraction) =>
+        (P: \Prop) =>
+        (intro: (y: Fraction) -> ClassOf x = ClassOf y -> P) =>
+          intro x (\refl(ClassOf x));
+
+    \definition class: Fraction -> Rat :=
+      (x: Fraction) =>
         \subsetinto(
           \Power(Fraction), ClassSet,
-          AddClass x y, addClassIsClass x y);
+          ClassOf x, classIsClass x);
 
-    \definition sub: Rat -> Rat -> Rat :=
+    \definition IsNonZero: Rat -> \Prop :=
+      (x: Rat) =>
+        (a: Fraction) -> mem x a -> NumeratorNonZero a;
+
+    \definition NonZeroRatSet: \Power(Rat) :=
+      \Subset(x, Rat, IsNonZero x);
+
+    \definition NonZeroRat: \Set :=
+      \Ty(Rat, NonZeroRatSet);
+
+    \definition AddClass: Rat -> Rat -> \Power(Fraction) :=
       (x, y: Rat) =>
-        \subsetinto(
-          \Power(Fraction), ClassSet,
-          SubClass x y, subClassIsClass x y);
+        \Subset(z, Fraction,
+          \exists \Ty(Fraction,
+            \Subset(a, Fraction,
+              QuotientLogic.And[mem x a,
+                \exists \Ty(Fraction,
+                  \Subset(b, Fraction,
+                    QuotientLogic.And[mem y b,
+                      equivalent z (addFraction a b)]))])));
 
-    \definition mul: Rat -> Rat -> Rat :=
+    \definition SubClass: Rat -> Rat -> \Power(Fraction) :=
       (x, y: Rat) =>
-        \subsetinto(
-          \Power(Fraction), ClassSet,
-          MulClass x y, mulClassIsClass x y);
+        \Subset(z, Fraction,
+          \exists \Ty(Fraction,
+            \Subset(a, Fraction,
+              QuotientLogic.And[mem x a,
+                \exists \Ty(Fraction,
+                  \Subset(b, Fraction,
+                    QuotientLogic.And[mem y b,
+                      equivalent z (subFraction a b)]))])));
 
-    \definition div: Rat -> NonZeroRat -> Rat :=
+    \definition MulClass: Rat -> Rat -> \Power(Fraction) :=
+      (x, y: Rat) =>
+        \Subset(z, Fraction,
+          \exists \Ty(Fraction,
+            \Subset(a, Fraction,
+              QuotientLogic.And[mem x a,
+                \exists \Ty(Fraction,
+                  \Subset(b, Fraction,
+                    QuotientLogic.And[mem y b,
+                      equivalent z (mulFraction a b)]))])));
+
+    /* z is x/y exactly when z*y=x; y is separately refined as nonzero. */
+    \definition DivClass: Rat -> NonZeroRat -> \Power(Fraction) :=
       (x: Rat) => (y: NonZeroRat) =>
-        \subsetinto(
-          \Power(Fraction), ClassSet,
-          DivClass x y, divClassIsClass x y);
+        \Subset(z, Fraction,
+          \exists \Ty(Fraction,
+            \Subset(a, Fraction,
+              QuotientLogic.And[mem x a,
+                \exists \Ty(Fraction,
+                  \Subset(b, Fraction,
+                    QuotientLogic.And[mem y b,
+                      QuotientLogic.And[NumeratorNonZero b,
+                        equivalent (mulFraction z b) a]]))])));
+
+    \module ClassClosed(
+      addClassIsClass: (x, y: Rat) -> IsClass (AddClass x y),
+      subClassIsClass: (x, y: Rat) -> IsClass (SubClass x y),
+      mulClassIsClass: (x, y: Rat) -> IsClass (MulClass x y),
+      divClassIsClass: (x: Rat) -> (y: NonZeroRat) ->
+        IsClass (DivClass x y),
+    ) {
+      \definition add: Rat -> Rat -> Rat :=
+        (x, y: Rat) =>
+          \subsetinto(
+            \Power(Fraction), ClassSet,
+            AddClass x y, addClassIsClass x y);
+
+      \definition sub: Rat -> Rat -> Rat :=
+        (x, y: Rat) =>
+          \subsetinto(
+            \Power(Fraction), ClassSet,
+            SubClass x y, subClassIsClass x y);
+
+      \definition mul: Rat -> Rat -> Rat :=
+        (x, y: Rat) =>
+          \subsetinto(
+            \Power(Fraction), ClassSet,
+            MulClass x y, mulClassIsClass x y);
+
+      \definition div: Rat -> NonZeroRat -> Rat :=
+        (x: Rat) => (y: NonZeroRat) =>
+          \subsetinto(
+            \Power(Fraction), ClassSet,
+            DivClass x y, divClassIsClass x y);
+    }
   }
 }
