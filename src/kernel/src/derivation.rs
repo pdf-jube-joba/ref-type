@@ -19,6 +19,51 @@ pub struct JudgementError {
     pub frames: Vec<ErrorFrame>,
 }
 
+pub struct CheckSession<'arena, 'context> {
+    arena: &'arena Arena,
+    context: &'context mut Context,
+}
+
+impl<'arena, 'context> CheckSession<'arena, 'context> {
+    pub fn new(arena: &'arena Arena, context: &'context mut Context) -> Self {
+        Self { arena, context }
+    }
+
+    pub fn arena(&self) -> &'arena Arena {
+        self.arena
+    }
+
+    pub fn context(&self) -> &Context {
+        self.context
+    }
+
+    pub fn push(&mut self, var: Var, ty: Exp) {
+        self.context.push((var, ty));
+    }
+
+    pub fn pop(&mut self) {
+        self.context
+            .pop()
+            .expect("CheckSession context stack underflow");
+    }
+
+    pub fn check(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
+        check(self, term, ty)
+    }
+
+    pub fn infer(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
+        infer(self, term)
+    }
+
+    pub fn infer_sort(&mut self, term: Exp) -> Result<Sort, Box<JudgementError>> {
+        infer_sort(self, term)
+    }
+
+    pub fn check_wellformed_context(&mut self) -> Result<(), Box<JudgementError>> {
+        check_wellformed_context(self)
+    }
+}
+
 impl JudgementError {
     pub fn caused(cause: impl Into<String>) -> Self {
         Self {
@@ -43,16 +88,17 @@ impl JudgementError {
 }
 
 macro_rules! add_check {
-    ($arena:expr, $rule:expr, $phase:expr, $ctx:expr, $term:expr, $ty:expr, $expected:expr $(,)?) => {
-        check($arena, $ctx, $term, $ty)
+    ($session:expr, $rule:expr, $phase:expr, $term:expr, $ty:expr, $expected:expr $(,)?) => {
+        $session
+            .check($term, $ty)
             .map(|_| ())
             .map_err(|error| propagate(error, $rule, $phase, $expected))
     };
 }
 
 macro_rules! add_infer {
-    ($arena:expr, $rule:expr, $phase:expr, $ctx:expr, $term:expr, $expected:expr $(,)?) => {
-        infer($arena, $ctx, $term)
+    ($session:expr, $rule:expr, $phase:expr, $term:expr, $expected:expr $(,)?) => {
+        $session.infer($term)
             .inspect(|ty| {
                 debug!(target: "ref_type::typing", premise = $expected, result = ?ty);
             })
@@ -61,8 +107,8 @@ macro_rules! add_infer {
 }
 
 macro_rules! add_sort {
-    ($arena:expr, $rule:expr, $phase:expr, $ctx:expr, $term:expr, $expected:expr $(,)?) => {
-        infer_sort($arena, $ctx, $term)
+    ($session:expr, $rule:expr, $phase:expr, $term:expr, $expected:expr $(,)?) => {
+        $session.infer_sort($term)
             .inspect(|sort| {
                 debug!(target: "ref_type::typing", premise = $expected, result = ?sort);
             })
@@ -89,26 +135,31 @@ fn propagate(
     error
 }
 
-pub fn check(arena: &Arena, ctx: &Context, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
+fn check(
+    session: &mut CheckSession<'_, '_>,
+    term: Exp,
+    ty: Exp,
+) -> Result<(), Box<JudgementError>> {
+    let arena = session.arena;
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "check",
         rule = "Check",
-        ctx_len = ctx.len(),
+        ctx_len = session.context.len(),
         term = ?term,
         expected = ?ty,
     );
     let _entered = span.enter();
     let rule = "Check";
     let phase = "check";
-    let inferred_ty = add_infer!(arena, rule, phase, ctx, term, "infer given term")?;
+    let inferred_ty = add_infer!(session, rule, phase, term, "infer given term")?;
 
     if matches!(arena.get(ty), Node::Sort(sort) if sort.type_of_sort().is_none())
         && exp_is_alpha_eq(arena, ty, inferred_ty)
     {
         return Ok(());
     }
-    add_sort!(arena, rule, phase, ctx, ty, "infer expected type sort")?;
+    add_sort!(session, rule, phase, ty, "infer expected type sort")?;
     if erased_convertible(arena, ty, inferred_ty) {
         return Ok(());
     }
@@ -129,13 +180,14 @@ pub fn check(arena: &Arena, ctx: &Context, term: Exp, ty: Exp) -> Result<(), Box
     Err(failure(rule, phase, "ty, inferred_ty not convertible"))
 }
 
-pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<JudgementError>> {
+fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena;
     let rule = exp_rule(arena, term);
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "infer",
         rule,
-        ctx_len = ctx.len(),
+        ctx_len = session.context.len(),
         term = ?term,
     );
     let _entered = span.enter();
@@ -146,53 +198,54 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
             .type_of_sort()
             .map(|sort| arena.sort(sort))
             .ok_or_else(|| failure(rule, phase, "no sort of sort found")),
-        Node::Bound(index) => ctx
-            .get(ctx.len().checked_sub(index + 1).ok_or_else(|| {
-                failure(rule, phase, "bound variable index is outside the context")
-            })?)
+        Node::Bound(index) => session
+            .context
+            .get(
+                session
+                    .context
+                    .len()
+                    .checked_sub(index + 1)
+                    .ok_or_else(|| {
+                        failure(rule, phase, "bound variable index is outside the context")
+                    })?,
+            )
             .map(|(_, ty)| shift_bound_indices(arena, *ty, index + 1, 0))
             .ok_or_else(|| failure(rule, phase, "bound variable index is outside the context")),
-        Node::Var(var) => ctx_get(ctx, &var).ok_or_else(|| failure(rule, phase, "var not found")),
+        Node::Var(var) => {
+            ctx_get(session.context, &var).ok_or_else(|| failure(rule, phase, "var not found"))
+        }
         Node::Prod { var, ty, body } => {
-            let domain_sort =
-                add_sort!(arena, rule, phase, ctx, ty, "infer domain sort for product")?;
-            let mut extended = ctx.clone();
-            extended.push((var, ty));
+            let domain_sort = add_sort!(session, rule, phase, ty, "infer domain sort for product")?;
+            session.push(var, ty);
             let body_sort = add_sort!(
-                arena,
+                session,
                 rule,
                 phase,
-                &extended,
                 body,
                 "infer codomain sort for product"
-            )?;
+            );
+            session.pop();
+            let body_sort = body_sort?;
             domain_sort
                 .relation_of_sort(body_sort)
                 .map(|sort| arena.sort(sort))
                 .ok_or_else(|| failure(rule, phase, "no sort relation for product"))
         }
         Node::Lam { var, ty, body } => {
-            add_sort!(arena, rule, phase, ctx, ty, "infer domain sort for lambda")?;
-            let mut extended = ctx.clone();
-            extended.push((var.clone(), ty));
-            let body_ty = add_infer!(
-                arena,
-                rule,
-                phase,
-                &extended,
-                body,
-                "infer body type for lambda"
-            )?;
+            add_sort!(session, rule, phase, ty, "infer domain sort for lambda")?;
+            session.push(var.clone(), ty);
+            let body_ty = add_infer!(session, rule, phase, body, "infer body type for lambda");
+            session.pop();
+            let body_ty = body_ty?;
             let lambda_ty = arena.alloc(Node::Prod {
                 var,
                 ty,
                 body: body_ty,
             });
             add_sort!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 lambda_ty,
                 "lambda product type should be well-sorted"
             )?;
@@ -200,10 +253,9 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
         }
         Node::App { func, arg } => {
             let func_ty = add_infer!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 func,
                 "infer function type for application"
             )?;
@@ -211,10 +263,9 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
                 return Err(failure(rule, phase, "type is not a product"));
             };
             add_check!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 arg,
                 arg_ty,
                 "check argument type for application"
@@ -226,7 +277,7 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
             indspec,
             parameters,
         } => {
-            check_parameters(arena, rule, phase, ctx, &parameters, indspec.parameters())?;
+            check_parameters(session, rule, phase, &parameters, indspec.parameters())?;
             let substitutions = indspec.parameter_subst_mapping(&parameters);
             Ok(exp_subst_map(arena, indspec.arity(arena), &substitutions))
         }
@@ -238,7 +289,7 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
             if idx >= indspec.constructor_len() {
                 return Err(failure(rule, phase, "constructor index out of bounds"));
             }
-            check_parameters(arena, rule, phase, ctx, &parameters, indspec.parameters())?;
+            check_parameters(session, rule, phase, &parameters, indspec.parameters())?;
             let substitutions = indspec.parameter_subst_mapping(&parameters);
             let constructor = crate::inductive::InductiveTypeSpecs::type_of_constructor(
                 arena, &indspec, idx, parameters,
@@ -250,65 +301,62 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
             elim,
             return_type,
             cases,
-        } => infer_ind_elim(arena, ctx, rule, phase, indspec, elim, return_type, cases),
+        } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, cases),
         Node::SubsetIntro {
             superset,
             subset,
             element,
             proof,
         } => {
-            let sort = add_sort!(arena, rule, phase, ctx, superset, "check carrier sort")?;
+            let sort = add_sort!(session, rule, phase, superset, "check carrier sort")?;
             if !matches!(sort, Sort::Set(_)) {
                 return Err(failure(rule, phase, "SubsetIntro carrier is not Set(i)"));
             }
             let power = arena.alloc(Node::PowerSet { set: superset });
-            add_check!(arena, rule, phase, ctx, subset, power, "check subset")?;
-            add_check!(arena, rule, phase, ctx, element, superset, "check element")?;
+            add_check!(session, rule, phase, subset, power, "check subset")?;
+            add_check!(session, rule, phase, element, superset, "check element")?;
             let membership = arena.alloc(Node::Pred {
                 superset,
                 subset,
                 element,
             });
             add_check!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 proof,
                 membership,
                 "check membership proof"
             )?;
             Ok(arena.alloc(Node::TypeLift { superset, subset }))
         }
-        Node::PowerSet { set } => {
-            match add_sort!(arena, rule, phase, ctx, set, "check set sort")? {
-                Sort::Set(level) => Ok(arena.sort(Sort::Set(level))),
-                _ => Err(failure(rule, phase, "set is not of Set(i)")),
-            }
-        }
+        Node::PowerSet { set } => match add_sort!(session, rule, phase, set, "check set sort")? {
+            Sort::Set(level) => Ok(arena.sort(Sort::Set(level))),
+            _ => Err(failure(rule, phase, "set is not of Set(i)")),
+        },
         Node::SubSet {
             var,
             set,
             predicate,
         } => {
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, set, "check set sort")?,
+                add_sort!(session, rule, phase, set, "check set sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "set is not of Set(i)"));
             }
-            let mut extended = ctx.clone();
-            extended.push((var, set));
+            session.push(var, set);
             let proposition = arena.sort(Sort::Prop);
-            add_check!(
-                arena,
+            let result = add_check!(
+                session,
                 rule,
                 phase,
-                &extended,
                 predicate,
                 proposition,
                 "check predicate"
-            )?;
+            );
+            session.pop();
+            result?;
             Ok(arena.alloc(Node::PowerSet { set }))
         }
         Node::Pred {
@@ -317,18 +365,17 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
             element,
         } => {
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, superset, "check superset sort")?,
+                add_sort!(session, rule, phase, superset, "check superset sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "superset is not of Set(i)"));
             }
             let power = arena.alloc(Node::PowerSet { set: superset });
-            add_check!(arena, rule, phase, ctx, subset, power, "check subset type")?;
+            add_check!(session, rule, phase, subset, power, "check subset type")?;
             add_check!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 element,
                 superset,
                 "check element type"
@@ -337,22 +384,22 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
         }
         Node::TypeLift { superset, subset } => {
             let Sort::Set(level) =
-                add_sort!(arena, rule, phase, ctx, superset, "check superset sort")?
+                add_sort!(session, rule, phase, superset, "check superset sort")?
             else {
                 return Err(failure(rule, phase, "superset is not of Set(i)"));
             };
             let power = arena.alloc(Node::PowerSet { set: superset });
-            add_check!(arena, rule, phase, ctx, subset, power, "check subset type")?;
+            add_check!(session, rule, phase, subset, power, "check subset type")?;
             Ok(arena.sort(Sort::Set(level)))
         }
         Node::Equal { left, right } => {
-            let left_ty = add_infer!(arena, rule, phase, ctx, left, "infer left type")?;
-            let right_ty = add_infer!(arena, rule, phase, ctx, right, "infer right type")?;
+            let left_ty = add_infer!(session, rule, phase, left, "infer left type")?;
+            let right_ty = add_infer!(session, rule, phase, right, "infer right type")?;
             let Some(carrier) = common_ambient_carrier(arena, left_ty, right_ty) else {
                 return Err(failure(rule, phase, "different equality carriers"));
             };
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, carrier, "infer carrier sort")?,
+                add_sort!(session, rule, phase, carrier, "infer carrier sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "equality carrier is not Set(i)"));
@@ -361,7 +408,7 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
         }
         Node::Exists { set } => {
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, set, "check set sort")?,
+                add_sort!(session, rule, phase, set, "check set sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "set is not of Set(i)"));
@@ -375,30 +422,30 @@ pub fn infer(arena: &Arena, ctx: &Context, term: Exp) -> Result<Exp, Box<Judgeme
             existence,
             uniqueness,
         } => infer_take_set(
-            arena, ctx, rule, phase, domain, codomain, map, existence, uniqueness,
+            session, rule, phase, domain, codomain, map, existence, uniqueness,
         ),
         Node::TakeProp {
             domain,
             proposition,
             map,
             existence,
-        } => infer_take_prop(arena, ctx, rule, phase, domain, proposition, map, existence),
+        } => infer_take_prop(session, rule, phase, domain, proposition, map, existence),
         Node::ExistsIntro { .. }
         | Node::SubsetElim { .. }
         | Node::IdRefl { .. }
         | Node::IdElim { .. }
-        | Node::TakeEq { .. } => infer_proof_constructor(arena, ctx, term),
+        | Node::TakeEq { .. } => infer_proof_constructor(session, term),
     }
 }
 
 fn check_parameters(
-    arena: &Arena,
+    session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    ctx: &Context,
     parameters: &[Exp],
     expected: &[(Var, Exp)],
 ) -> Result<(), Box<JudgementError>> {
+    let arena = session.arena;
     if parameters.len() != expected.len() {
         return Err(failure(rule, phase, "mismatch parameter length"));
     }
@@ -406,10 +453,9 @@ fn check_parameters(
     for (parameter, (var, parameter_ty)) in parameters.iter().zip(expected) {
         let expected_ty = exp_subst_map(arena, *parameter_ty, &substitutions);
         add_check!(
-            arena,
+            session,
             rule,
             phase,
-            ctx,
             *parameter,
             expected_ty,
             "parameter type mismatch"
@@ -421,8 +467,7 @@ fn check_parameters(
 
 #[allow(clippy::too_many_arguments)]
 fn infer_ind_elim(
-    arena: &Arena,
-    ctx: &Context,
+    session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
     indspec: Rc<crate::inductive::InductiveTypeSpecs>,
@@ -430,7 +475,8 @@ fn infer_ind_elim(
     return_type: Exp,
     cases: Vec<Exp>,
 ) -> Result<Exp, Box<JudgementError>> {
-    let inferred = add_infer!(arena, rule, phase, ctx, elim, "infer eliminator type")?;
+    let arena = session.arena;
+    let inferred = add_infer!(session, rule, phase, elim, "infer eliminator type")?;
     let inferred = base_carrier(arena, inferred);
     let (head, indices) = utils::decompose_app(arena, inferred);
     let Node::IndType {
@@ -444,14 +490,7 @@ fn infer_ind_elim(
         return Err(failure(rule, phase, "inductive type mismatch"));
     }
     let substitutions = indspec.parameter_subst_mapping(&parameters);
-    let return_kind = add_infer!(
-        arena,
-        rule,
-        phase,
-        ctx,
-        return_type,
-        "infer return type kind"
-    )?;
+    let return_kind = add_infer!(session, rule, phase, return_type, "infer return type kind")?;
     let (telescope, result) = utils::decompose_prod(arena, type_head_normal(arena, return_kind));
     let Node::Sort(sort) = arena.get(result) else {
         return Err(failure(rule, phase, "return kind does not end in sort"));
@@ -484,7 +523,7 @@ fn infer_ind_elim(
             idx: index,
         });
         let case_ty = eliminator_type(arena, &constructor_ty, return_type, constructor, this);
-        add_check!(arena, rule, phase, ctx, *case, case_ty, "check case type")?;
+        add_check!(session, rule, phase, *case, case_ty, "check case type")?;
     }
     let motive = utils::assoc_apply(arena, return_type, indices);
     Ok(arena.alloc(Node::App {
@@ -495,8 +534,7 @@ fn infer_ind_elim(
 
 #[allow(clippy::too_many_arguments)]
 fn infer_take_set(
-    arena: &Arena,
-    ctx: &Context,
+    session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
     domain: Exp,
@@ -505,11 +543,12 @@ fn infer_take_set(
     existence: Exp,
     uniqueness: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena;
     if !matches!(
-        add_sort!(arena, rule, phase, ctx, domain, "check domain sort")?,
+        add_sort!(session, rule, phase, domain, "check domain sort")?,
         Sort::Set(_)
     ) || !matches!(
-        add_sort!(arena, rule, phase, ctx, codomain, "check codomain sort")?,
+        add_sort!(session, rule, phase, codomain, "check codomain sort")?,
         Sort::Set(_)
     ) {
         return Err(failure(
@@ -523,17 +562,9 @@ fn infer_take_set(
         ty: domain,
         body: codomain,
     });
-    add_check!(arena, rule, phase, ctx, map, map_ty, "check map type")?;
+    add_check!(session, rule, phase, map, map_ty, "check map type")?;
     let exists = arena.alloc(Node::Exists { set: domain });
-    add_check!(
-        arena,
-        rule,
-        phase,
-        ctx,
-        existence,
-        exists,
-        "check existence"
-    )?;
+    add_check!(session, rule, phase, existence, exists, "check existence")?;
 
     let x1 = Var::new("x1");
     let x2 = Var::new("x2");
@@ -560,10 +591,9 @@ fn infer_take_set(
         body: inner,
     });
     add_check!(
-        arena,
+        session,
         rule,
         phase,
-        ctx,
         uniqueness,
         uniqueness_ty,
         "check uniqueness"
@@ -573,8 +603,7 @@ fn infer_take_set(
 
 #[allow(clippy::too_many_arguments)]
 fn infer_take_prop(
-    arena: &Arena,
-    ctx: &Context,
+    session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
     domain: Exp,
@@ -582,21 +611,14 @@ fn infer_take_prop(
     map: Exp,
     existence: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena;
     if !matches!(
-        add_sort!(arena, rule, phase, ctx, domain, "check domain sort")?,
+        add_sort!(session, rule, phase, domain, "check domain sort")?,
         Sort::Set(_)
     ) {
         return Err(failure(rule, phase, "take domain is not Set(i)"));
     }
-    if add_sort!(
-        arena,
-        rule,
-        phase,
-        ctx,
-        proposition,
-        "check proposition sort"
-    )? != Sort::Prop
-    {
+    if add_sort!(session, rule, phase, proposition, "check proposition sort")? != Sort::Prop {
         return Err(failure(rule, phase, "TakeProp codomain is not Prop"));
     }
     let map_ty = arena.alloc(Node::Prod {
@@ -604,17 +626,9 @@ fn infer_take_prop(
         ty: domain,
         body: proposition,
     });
-    add_check!(arena, rule, phase, ctx, map, map_ty, "check map")?;
+    add_check!(session, rule, phase, map, map_ty, "check map")?;
     let exists = arena.alloc(Node::Exists { set: domain });
-    add_check!(
-        arena,
-        rule,
-        phase,
-        ctx,
-        existence,
-        exists,
-        "check existence"
-    )?;
+    add_check!(session, rule, phase, existence, exists, "check existence")?;
     Ok(proposition)
 }
 
@@ -647,10 +661,11 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
     }
 }
 
-pub fn infer_sort(arena: &Arena, ctx: &Context, term: Exp) -> Result<Sort, Box<JudgementError>> {
+fn infer_sort(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Sort, Box<JudgementError>> {
+    let arena = session.arena;
     let rule = "Conv";
     let phase = "infer(sort)";
-    let inferred_ty = add_infer!(arena, rule, phase, ctx, term, "infer type of term")?;
+    let inferred_ty = add_infer!(session, rule, phase, term, "infer type of term")?;
     if let Node::Sort(sort) = arena.get(inferred_ty) {
         return Ok(sort);
     }
@@ -662,17 +677,17 @@ pub fn infer_sort(arena: &Arena, ctx: &Context, term: Exp) -> Result<Sort, Box<J
 }
 
 fn infer_proof_constructor(
-    arena: &Arena,
-    ctx: &Context,
+    session: &mut CheckSession<'_, '_>,
     term: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena;
     let rule = exp_rule(arena, term);
     let phase = "infer";
     match arena.get(term) {
         Node::ExistsIntro { element, set } => {
-            add_check!(arena, rule, phase, ctx, element, set, "check element")?;
+            add_check!(session, rule, phase, element, set, "check element")?;
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, set, "infer set sort")?,
+                add_sort!(session, rule, phase, set, "infer set sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
@@ -686,10 +701,9 @@ fn infer_proof_constructor(
         } => {
             let lifted = arena.alloc(Node::TypeLift { superset, subset });
             add_check!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 element,
                 lifted,
                 "check subset elimination"
@@ -701,9 +715,9 @@ fn infer_proof_constructor(
             }))
         }
         Node::IdRefl { element } => {
-            let ty = add_infer!(arena, rule, phase, ctx, element, "infer element type")?;
+            let ty = add_infer!(session, rule, phase, element, "infer element type")?;
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, ty, "infer type sort")?,
+                add_sort!(session, rule, phase, ty, "infer type sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
@@ -723,25 +737,18 @@ fn infer_proof_constructor(
             equality,
         } => {
             if !matches!(
-                add_sort!(arena, rule, phase, ctx, ty, "infer type sort")?,
+                add_sort!(session, rule, phase, ty, "infer type sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
             }
-            add_check!(arena, rule, phase, ctx, left, ty, "check left")?;
-            add_check!(arena, rule, phase, ctx, right, ty, "check right")?;
-            let mut extended = ctx.clone();
-            extended.push((var.clone(), ty));
+            add_check!(session, rule, phase, left, ty, "check left")?;
+            add_check!(session, rule, phase, right, ty, "check right")?;
+            session.push(var.clone(), ty);
             let prop = arena.sort(Sort::Prop);
-            add_check!(
-                arena,
-                rule,
-                phase,
-                &extended,
-                predicate,
-                prop,
-                "check predicate"
-            )?;
+            let result = add_check!(session, rule, phase, predicate, prop, "check predicate");
+            session.pop();
+            result?;
             let apply = arena.alloc(Node::Lam {
                 var,
                 ty,
@@ -751,13 +758,12 @@ fn infer_proof_constructor(
                 func: apply,
                 arg: left,
             });
-            add_check!(arena, rule, phase, ctx, base, base_prop, "check base")?;
+            add_check!(session, rule, phase, base, base_prop, "check base")?;
             let equality_prop = arena.alloc(Node::Equal { left, right });
             add_check!(
-                arena,
+                session,
                 rule,
                 phase,
-                ctx,
                 equality,
                 equality_prop,
                 "check equality"
@@ -782,8 +788,8 @@ fn infer_proof_constructor(
                 existence,
                 uniqueness,
             });
-            add_check!(arena, rule, phase, ctx, take, codomain, "check take")?;
-            add_check!(arena, rule, phase, ctx, element, domain, "check element")?;
+            add_check!(session, rule, phase, take, codomain, "check take")?;
+            add_check!(session, rule, phase, element, domain, "check element")?;
             let mapped = arena.alloc(Node::App { func, arg: element });
             Ok(arena.alloc(Node::Equal {
                 left: take,
@@ -794,10 +800,21 @@ fn infer_proof_constructor(
     }
 }
 
-pub fn check_wellformed_ctx(arena: &Arena, ctx: &Context) -> Result<(), Box<JudgementError>> {
-    let mut current = vec![];
-    for (var, ty) in ctx {
-        if current
+fn check_wellformed_context(session: &mut CheckSession<'_, '_>) -> Result<(), Box<JudgementError>> {
+    let original = std::mem::take(session.context);
+    let result = check_context_entries(session, &original);
+    session.context.clear();
+    *session.context = original;
+    result
+}
+
+fn check_context_entries(
+    session: &mut CheckSession<'_, '_>,
+    entries: &Context,
+) -> Result<(), Box<JudgementError>> {
+    for (var, ty) in entries {
+        if session
+            .context
             .iter()
             .any(|(existing, _): &(Var, Exp)| existing.is_eq_ptr(var))
         {
@@ -809,8 +826,8 @@ pub fn check_wellformed_ctx(arena: &Arena, ctx: &Context) -> Result<(), Box<Judg
                 ),
             ));
         }
-        infer_sort(arena, &current, *ty)?;
-        current.push((var.clone(), *ty));
+        session.infer_sort(*ty)?;
+        session.push(var.clone(), *ty);
     }
     Ok(())
 }

@@ -107,6 +107,7 @@
 
 ### 2. persistent context
 
+- **実施済み (2026-08-15):** `CheckSession` が現在のcontextを保持し、binder下では明示的なpush/popで復元する方式へ移行した。kernel内のcontext全体cloneは廃止した。
 - `Context = Vec<(Var, Exp)>` の全体cloneをやめる。
 - contextを `ContextId` で参照するpersistent stackにする。
 - extendは新しい末尾nodeを一つ作るだけにする。
@@ -145,6 +146,8 @@
 
 キャッシュは各再帰関数へ個別に渡さず、`CheckSession` が所有する。
 
+`CheckSession`への`check` / `infer` / `infer_sort`とcontextの集約は実施済み。以下のcache群と`ContextId`は未実装。
+
 ```rust
 struct CheckSession<'env> {
     globals: &'env GlobalEnvironment,
@@ -180,6 +183,87 @@ struct CheckCaches {
 - 同一nodeのWHNFや型を繰り返し計算しない。
 - environment更新時に古いcacheを誤って利用しない。
 - 一つのproject/file検査中はdefinitionをまたいでcacheを再利用できる。
+
+## Phase 3.5: 物理表現とend-to-end経路の改善
+
+Phase 3の`NodeId`化後にも残るarena参照、名前探索、front AST、CLI起動のコストを削減する。これらは型体系や受理されるプログラムを変更しない実装上の最適化として扱う。
+
+### 1. clone-freeなarena参照とcompact node
+
+現在の`Arena::get`は`RefCell`をborrowし、`Node`をcloneして返す。`NodeId`自体は軽量でも、`Rc<DefinedConstant>`、`Rc<InductiveTypeSpecs>`、`Vec<Exp>`、`Rc<String>`を含むnodeでは参照カウント操作、heap payloadのclone/drop、cache localityの悪化が残る。
+
+- `DefinedConstant`、inductive specification、free variableを`DefId`、`InductiveId`、`SymbolId`で参照する。
+- 可変長のparameters、cases、argumentsはarena内の連続領域へ置き、`ExpSliceId`または`(start, len)`で参照する。
+- `Node`を可能な限り`Copy`に近い固定長表現へ縮小する。
+- `Arena::get`を単純なindexed readにし、node参照ごとの`Rc`操作と`Vec` cloneをなくす。
+- allocation時の`RefCell` borrowも測定し、`&mut Arena`、append-only chunk、専用builderのいずれが適切か比較する。
+- compact化前後でnode size、arena容量、`Arena::get`、node clone/drop、RSSを測定する。
+
+### 2. namespaceとmodule lookupの索引化
+
+module item、parameter、import、child moduleの線形探索と、lookup結果のowned cloneを避ける。
+
+- moduleごとに`SymbolId -> ItemId`、`SymbolId -> ModuleId`、`SymbolId -> ImportId`の索引を持つ。
+- module parameterも`SymbolId -> Exp`で引けるようにする。
+- record projection用に`InductiveId -> RecordId`の逆引きを持ち、全module・全itemの走査をなくす。
+- item accessは大きなitemをcloneせず、`ItemId`またはborrowed viewを返す。
+- lookupの平均・最大比較回数とitem clone数を計測する。
+
+### 3. front ASTと識別子の共有
+
+kernelだけでなくparser/elaborator側の`String`、`Box<SExp>`、binder、module itemのcloneを減らす。
+
+- `Identifier(String)`をinternし、比較・lookupには`SymbolId`を使う。
+- surface ASTもarenaと`SurfaceNodeId`で表現する案を比較する。
+- source textをfile単位で保持し、表示名は文字列の複製ではなくsource spanまたはintern tableから得る。
+- inductive constructorやmacro展開で一時的な`SExp`を組み直さず、telescopeやiteratorから直接elaborateする。
+- parserとelaboratorのallocation数、AST clone数、文字列format時間を個別に測定する。
+
+### 4. application spineとtelescopeのcompact表現
+
+深い二分木の`App`や連続した`Prod` / `Lam`を毎回走査・再構築するコストを減らす。
+
+- applicationを必要に応じて`head + argument slice`として扱い、一回の走査でheadと全argumentsを得る。
+- 頻繁に使うなら`AppSpine { head, args: ExpSliceId }`のようなarena表現を比較する。
+- 連続binderをtelescope viewとして扱い、分解と再結合を反復しない。
+- multi-argument beta reductionとconversionのargument列比較を直接行う。
+- binary `App`を維持する場合も、同一呼び出し中にspine分解結果を再利用する。
+
+### 5. conversion用closure evaluator / NbEの比較
+
+beta reductionとconversionで代入済みASTを大量に構築する入力に対して、Normalization by Evaluationまたはclosure evaluatorを実験する。
+
+- lambda bodyとenvironmentをclosureとして保持し、beta reduction時に項全体を即座に書き換えない。
+- bound variableはlevelまたはenvironment indexで参照する。
+- conversionはsemantic value同士で比較し、完全なreadbackは表示または完全正規形が必要な場合だけ行う。
+- 現行のWHNF＋遅延代入方式と、時間、allocation、実装複雑度、診断品質を比較する。
+- 採用する場合もraw syntax上のreduction仕様とは分離し、kernelの意味を変えないことを確認する。
+
+### 6. one-shot CLIの固定費削減
+
+小さい入力ではchecker本体よりruntime初期化やtask切り替えが支配的になり得るため、file modeとserver modeの実行経路を分ける。
+
+- file modeではTokio runtimeと複数回の`spawn_blocking`を経由せず、同期的にload、parse、elaborateする。
+- 必要なら同期checker binaryとAxum server binaryを分離し、server依存をone-shot checkerから外す。
+- server modeではproject environmentとparse/check cacheをrequest間で再利用できるか検討する。
+- 空入力、小ファイル、実数形式化についてprocess起動込みとchecker本体のみの時間を別々に測定する。
+
+### 7. release buildの調整
+
+実装上の主要ボトルネックを除去した後、コード変更を伴わないbuild設定も比較する。
+
+- 配布用`release`とdebug symbolを持つ`profiling` profileを分離する。
+- ThinLTO、`codegen-units = 1`、symbol stripを個別に測定する。
+- ローカルまたは配布先CPUを限定できる場合は`target-cpu=native`相当を比較する。
+- 代表入力が安定しているため、PGOを試し、通常testと異なる入力で退行しないことを確認する。
+- binary size、clean build時間、実行時間を併記し、速度だけで設定を決めない。
+
+### 完了条件
+
+- `Arena::get`とnode clone/dropが主要なself-timeでなくなる。
+- 名前解決がmodule/item数に対する線形走査にならない。
+- 小ファイルではone-shot CLIの固定費、実数形式化ではfront/kernelの処理時間を分離して追跡できる。
+- spine表現やNbEのような大きな変更は、現行方式とのベンチマークと複雑度比較に基づいて採否を決める。
 
 ## Phase 4: checker 構造の整理
 

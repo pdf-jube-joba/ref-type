@@ -5,7 +5,7 @@ use crate::{
         convertible, erased_convertible, erased_normal, exp_is_alpha_eq, exp_subst, instantiate,
         normalize, whnf,
     },
-    derivation::{check, infer, infer_sort},
+    derivation::CheckSession,
     exp::{Arena, Context, Exp, Node, Sort, Var},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
 };
@@ -50,19 +50,23 @@ impl Fixture {
 
 #[test]
 fn sort_and_identity_lambda_infer() {
-    let fixture = Fixture::new();
+    let mut fixture = Fixture::new();
     let set = fixture.arena.sort(Sort::Set(0));
     let set_kind = fixture.arena.sort(Sort::SetKind(0));
     assert!(exp_is_alpha_eq(
         &fixture.arena,
-        infer(&fixture.arena, &fixture.context, set).unwrap(),
+        CheckSession::new(&fixture.arena, &mut fixture.context)
+            .infer(set)
+            .unwrap(),
         set_kind,
     ));
 
     let binder = Var::new("x");
     let body = fixture.arena.bound(0);
     let identity = fixture.lam(binder.clone(), set, body);
-    let inferred = infer(&fixture.arena, &fixture.context, identity).unwrap();
+    let inferred = CheckSession::new(&fixture.arena, &mut fixture.context)
+        .infer(identity)
+        .unwrap();
     let expected = fixture.prod(binder, set, set);
     assert!(exp_is_alpha_eq(&fixture.arena, inferred, expected));
 }
@@ -124,7 +128,9 @@ fn application_infers_dependent_result() {
     let function_ty = fixture.prod(Var::new("x"), set, fixture.arena.bound(0));
     let function = fixture.push("f", function_ty);
     let application = fixture.app(function, argument);
-    let inferred = infer(&fixture.arena, &fixture.context, application).unwrap();
+    let inferred = CheckSession::new(&fixture.arena, &mut fixture.context)
+        .infer(application)
+        .unwrap();
     assert_eq!(inferred, argument);
 }
 
@@ -152,7 +158,9 @@ fn refinement_introduction_erases_to_its_element() {
         superset: carrier,
         subset,
     });
-    check(&fixture.arena, &fixture.context, intro, lifted).unwrap();
+    CheckSession::new(&fixture.arena, &mut fixture.context)
+        .check(intro, lifted)
+        .unwrap();
     assert_eq!(erased_normal(&fixture.arena, intro), element);
     assert!(erased_convertible(&fixture.arena, intro, element));
 }
@@ -177,7 +185,9 @@ fn equality_uses_the_base_refinement_carrier() {
     let right = fixture.push("right", right_ty);
     let equality = fixture.arena.alloc(Node::Equal { left, right });
     assert_eq!(
-        infer_sort(&fixture.arena, &fixture.context, equality).unwrap(),
+        CheckSession::new(&fixture.arena, &mut fixture.context)
+            .infer_sort(equality)
+            .unwrap(),
         Sort::Prop
     );
 }
@@ -196,7 +206,7 @@ fn defined_constants_are_transparent_for_reduction() {
 
 #[test]
 fn inductive_constructor_and_eliminator_reduce() {
-    let fixture = Fixture::new();
+    let mut fixture = Fixture::new();
     let zero = CtorType {
         telescope: vec![],
         indices: vec![],
@@ -210,8 +220,7 @@ fn inductive_constructor_and_eliminator_reduce() {
     };
     let spec = Rc::new(
         InductiveTypeSpecs::new(
-            &fixture.arena,
-            &fixture.context,
+            &mut CheckSession::new(&fixture.arena, &mut fixture.context),
             vec![],
             vec![],
             Sort::Set(0),
@@ -228,5 +237,22 @@ fn inductive_constructor_and_eliminator_reduce() {
         parameters: vec![],
         idx: 0,
     });
-    assert!(check(&fixture.arena, &fixture.context, zero, nat).is_ok());
+    assert!(
+        CheckSession::new(&fixture.arena, &mut fixture.context)
+            .check(zero, nat)
+            .is_ok()
+    );
+}
+
+#[test]
+fn session_restores_context_after_failed_binder_inference() {
+    let mut fixture = Fixture::new();
+    let set = fixture.arena.sort(Sort::Set(0));
+    let invalid_body = fixture.arena.bound(1);
+    let invalid_lambda = fixture.lam(Var::new("x"), set, invalid_body);
+    let mut session = CheckSession::new(&fixture.arena, &mut fixture.context);
+    let initial_len = session.context().len();
+
+    assert!(session.infer(invalid_lambda).is_err());
+    assert_eq!(session.context().len(), initial_len);
 }

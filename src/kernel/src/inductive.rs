@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::{
     calculus::exp_subst_map,
-    derivation::{JudgementError, check, infer_sort},
+    derivation::{CheckSession, JudgementError},
     utils,
 };
 
@@ -20,8 +20,7 @@ pub struct InductiveTypeSpecs {
 
 impl InductiveTypeSpecs {
     pub fn new(
-        arena: &Arena,
-        ctx: &Context,
+        session: &mut CheckSession<'_, '_>,
         parameters: Vec<(Var, Exp)>,
         indices: Vec<(Var, Exp)>,
         sort: Sort,
@@ -33,7 +32,7 @@ impl InductiveTypeSpecs {
             sort,
             constructors,
         };
-        specs.validate(arena, ctx)?;
+        specs.validate(session)?;
         Ok(specs)
     }
 
@@ -112,28 +111,39 @@ impl InductiveTypeSpecs {
         utils::assoc_prod(arena, indices, result)
     }
 
-    fn validate(&self, arena: &Arena, ctx: &Context) -> Result<(), Box<JudgementError>> {
+    fn validate(&self, session: &mut CheckSession<'_, '_>) -> Result<(), Box<JudgementError>> {
+        let context_mark = session.context().len();
+        let result = self.validate_inner(session);
+        while session.context().len() > context_mark {
+            session.pop();
+        }
+        result
+    }
+
+    fn validate_inner(
+        &self,
+        session: &mut CheckSession<'_, '_>,
+    ) -> Result<(), Box<JudgementError>> {
         let span = tracing::debug_span!(
             target: "ref_type::typing",
             "construct_inductive_type_specs",
-            ctx_len = ctx.len(),
+            ctx_len = session.context().len(),
         );
         let _entered = span.enter();
 
-        let mut local_context = ctx.clone();
         for (var, parameter_ty) in &self.parameters {
-            infer_sort(arena, &local_context, *parameter_ty).map_err(|error| {
+            session.infer_sort(*parameter_ty).map_err(|error| {
                 Box::new(error.with_frame(
                     "InductiveTypeSpecs::new",
                     format!("parameter '{var:?}' type check"),
                     "parameter is well-sorted",
                 ))
             })?;
-            local_context.push((var.clone(), *parameter_ty));
+            session.push(var.clone(), *parameter_ty);
         }
 
-        let arity = self.arity(arena);
-        infer_sort(arena, &local_context, arity).map_err(|error| {
+        let arity = self.arity(session.arena());
+        session.infer_sort(arity).map_err(|error| {
             Box::new(error.with_frame(
                 "InductiveTypeSpecs::new",
                 "arity type check",
@@ -142,18 +152,20 @@ impl InductiveTypeSpecs {
         })?;
 
         let this = Var::new("THIS");
-        local_context.push((this.clone(), arity));
-        let this_exp = arena.var(this);
-        let expected_sort = arena.sort(self.sort);
+        session.push(this.clone(), arity);
+        let this_exp = session.arena().var(this);
+        let expected_sort = session.arena().sort(self.sort);
         for (index, constructor) in self.constructors.iter().enumerate() {
-            let constructor_ty = constructor.as_exp_with_type(arena, this_exp);
-            check(arena, &local_context, constructor_ty, expected_sort).map_err(|error| {
-                Box::new(error.with_frame(
-                    "InductiveTypeSpecs::new",
-                    format!("constructor '{index}' type check"),
-                    "constructor is well-sorted",
-                ))
-            })?;
+            let constructor_ty = constructor.as_exp_with_type(session.arena(), this_exp);
+            session
+                .check(constructor_ty, expected_sort)
+                .map_err(|error| {
+                    Box::new(error.with_frame(
+                        "InductiveTypeSpecs::new",
+                        format!("constructor '{index}' type check"),
+                        "constructor is well-sorted",
+                    ))
+                })?;
         }
 
         tracing::debug!(target: "ref_type::typing", outcome = "success");
@@ -170,27 +182,26 @@ impl InductiveTypeSpecs {
 
     pub fn instantiate(
         &self,
-        arena: &Arena,
-        ctx: &Context,
+        session: &mut CheckSession<'_, '_>,
         substitutions: &[(Var, Exp)],
     ) -> Result<Self, Box<JudgementError>> {
-        Self::new(
-            arena,
-            ctx,
-            self.parameters
-                .iter()
-                .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, substitutions)))
-                .collect(),
-            self.indices
-                .iter()
-                .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, substitutions)))
-                .collect(),
-            self.sort,
-            self.constructors
-                .iter()
-                .map(|constructor| constructor.subst(arena, substitutions))
-                .collect(),
-        )
+        let arena = session.arena();
+        let parameters = self
+            .parameters
+            .iter()
+            .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, substitutions)))
+            .collect();
+        let indices = self
+            .indices
+            .iter()
+            .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, substitutions)))
+            .collect();
+        let constructors = self
+            .constructors
+            .iter()
+            .map(|constructor| constructor.subst(arena, substitutions))
+            .collect();
+        Self::new(session, parameters, indices, self.sort, constructors)
     }
 
     pub fn primitive_recursion(

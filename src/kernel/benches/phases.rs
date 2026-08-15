@@ -2,7 +2,7 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use kernel::calculus::{convertible, exp_is_alpha_eq, instantiate, normalize, whnf};
-use kernel::derivation::infer;
+use kernel::derivation::CheckSession;
 use kernel::exp::{Arena, Context, Exp, Node, Sort, Var};
 
 const WARMUP_ITERATIONS: u64 = 64;
@@ -24,7 +24,7 @@ fn main() {
     let alpha_left = nested_products(&arena, 64, "left");
     let alpha_right = nested_products(&arena, 64, "right");
     let inferred_term = nested_lambdas(&arena, 16);
-    let empty_context = Context::new();
+    let mut empty_context = Context::new();
     let inputs = arena.mark();
 
     let substituted = instantiate(&arena, substitution_body, &binder, substitution_argument);
@@ -39,7 +39,11 @@ fn main() {
     assert!(convertible(&arena, reducible, normal_form));
     arena.rewind(inputs);
     assert!(exp_is_alpha_eq(&arena, alpha_left, alpha_right));
-    assert!(infer(&arena, &empty_context, inferred_term).is_ok());
+    assert!(
+        CheckSession::new(&arena, &mut empty_context)
+            .infer(inferred_term)
+            .is_ok()
+    );
     arena.rewind(inputs);
 
     println!("kernel phase benchmarks");
@@ -82,11 +86,10 @@ fn main() {
         ));
     });
     run_benchmark("typing/infer", || {
-        black_box(infer(
-            &arena,
-            black_box(&empty_context),
-            black_box(inferred_term),
-        ))
+        black_box(
+            CheckSession::new(&arena, black_box(&mut empty_context))
+                .infer(black_box(inferred_term)),
+        )
         .expect("benchmark term should infer");
         arena.rewind(inputs);
     });

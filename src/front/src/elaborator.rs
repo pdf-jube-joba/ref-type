@@ -9,6 +9,7 @@ use crate::{
 };
 use kernel::{
     calculus::exp_contains_as_freevar,
+    derivation::CheckSession,
     exp::*,
     inductive::{CtorBinder, InductiveTypeSpecs},
 };
@@ -48,7 +49,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             field_name.as_str(),
         );
 
-        let ctx = self
+        let mut ctx = self
             .module_manager
             .current_context()
             .into_iter()
@@ -57,7 +58,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
         let infer_type_e = self
             .logger
-            .infer(&self.arena, &ctx, e)
+            .infer(&self.arena, &mut ctx, e)
             .ok_or("Failed to infer type of expression for field projection".to_string())?;
 
         log_record!(
@@ -88,17 +89,21 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(exp)
     }
 
-    fn infer(&mut self, local_ctx: &Context, e: Exp) -> Result<Exp, String> {
-        let ctx = self
+    fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String> {
+        let mut ctx = self
             .module_manager
             .current_context()
             .into_iter()
             .flat_map(|(_, bindings)| bindings)
-            .chain(local_ctx.iter().cloned())
             .collect::<Vec<_>>();
-        self.logger
-            .infer(&self.arena, &ctx, e)
-            .ok_or("Failed to infer elaborated expression".to_string())
+        let module_context_len = ctx.len();
+        ctx.append(local_ctx);
+        let result = self
+            .logger
+            .infer(&self.arena, &mut ctx, e)
+            .ok_or("Failed to infer elaborated expression".to_string());
+        *local_ctx = ctx.split_off(module_context_len);
+        result
     }
 }
 
@@ -149,7 +154,7 @@ impl GlobalEnvironment {
 
         // 1. before adding child, check well-typedness ness of parameters
         {
-            let ctx: Vec<(Var, Exp)> = self
+            let mut ctx: Vec<(Var, Exp)> = self
                 .module_manager
                 .current_context()
                 .into_iter()
@@ -162,19 +167,15 @@ impl GlobalEnvironment {
 
             for RightBind { vars, ty } in parameters.iter() {
                 let ty_elab = local_scope.elab_exp(ty, self)?;
-                let ext_ctx = ctx
-                    .iter()
-                    .cloned()
-                    .chain(parameters_elab.iter().cloned())
-                    .collect::<Vec<_>>();
                 // check sort of parameter type
                 self.logger
-                    .infer_sort(&self.arena, &ext_ctx, ty_elab)
+                    .infer_sort(&self.arena, &mut ctx, ty_elab)
                     .ok_or("Failed to infer sort of parameter type".to_string())?;
 
                 for v in vars {
                     let v = Var::new(v.as_str());
                     parameters_elab.push((v.clone(), ty_elab));
+                    ctx.push((v.clone(), ty_elab));
                     local_scope.push_typed_decl_var(v, ty_elab);
                 }
             }
@@ -183,7 +184,7 @@ impl GlobalEnvironment {
                 .add_child_and_moveto(name.0.clone(), parameters_elab);
         }
 
-        let ctx = self
+        let mut ctx = self
             .module_manager
             .current_context()
             .into_iter()
@@ -204,7 +205,7 @@ impl GlobalEnvironment {
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
                     // check body : ty
-                    if !self.logger.check(&self.arena, &ctx, body_elab, ty_elab) {
+                    if !self.logger.check(&self.arena, &mut ctx, body_elab, ty_elab) {
                         return Err(format!(
                             "Definition {} body does not check against declared type",
                             name.as_str()
@@ -320,8 +321,7 @@ impl GlobalEnvironment {
                     }
 
                     let indspec = InductiveTypeSpecs::new(
-                        &self.arena,
-                        &ctx,
+                        &mut CheckSession::new(&self.arena, &mut ctx),
                         parameter_elab,
                         indices_elab,
                         *sort,
@@ -368,8 +368,7 @@ impl GlobalEnvironment {
                     }
 
                     let indspec = InductiveTypeSpecs::new(
-                        &self.arena,
-                        &ctx,
+                        &mut CheckSession::new(&self.arena, &mut ctx),
                         parameter_elab,
                         vec![],
                         *sort,
@@ -419,7 +418,11 @@ impl GlobalEnvironment {
 
                     let access_result = self
                         .module_manager
-                        .instantiate_module(&self.arena, from, args, &ctx)
+                        .instantiate_module(
+                            &mut CheckSession::new(&self.arena, &mut ctx),
+                            from,
+                            args,
+                        )
                         .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
                     let InstantiateResult {
@@ -428,7 +431,7 @@ impl GlobalEnvironment {
                     } = access_result;
 
                     for (_, arg, ty) in need_to_type_check {
-                        if !self.logger.check(&self.arena, &ctx, arg, ty) {
+                        if !self.logger.check(&self.arena, &mut ctx, arg, ty) {
                             return Err(
                                 "Module instantiation argument type check failed".to_string()
                             );
@@ -450,11 +453,11 @@ impl GlobalEnvironment {
                 ModuleItem::Check { exp, ty } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     let ty_elab = local_scope.elab_exp(ty, self)?;
-                    self.logger.check(&self.arena, &ctx, exp_elab, ty_elab);
+                    self.logger.check(&self.arena, &mut ctx, exp_elab, ty_elab);
                 }
                 ModuleItem::Infer { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.infer(&self.arena, &ctx, exp_elab);
+                    self.logger.infer(&self.arena, &mut ctx, exp_elab);
                 }
             }
         }

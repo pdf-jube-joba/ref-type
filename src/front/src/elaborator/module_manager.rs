@@ -3,7 +3,8 @@ use crate::syntax::{
     ModuleItemAccessible,
 };
 use kernel::calculus::exp_subst_map;
-use kernel::exp::{Arena, Context, DefinedConstant, Exp, Var};
+use kernel::derivation::CheckSession;
+use kernel::exp::{Arena, DefinedConstant, Exp, Var};
 use kernel::inductive::InductiveTypeSpecs;
 use std::rc::Rc;
 
@@ -200,11 +201,11 @@ impl ModuleManager {
 
     fn access_module(
         &self,
-        arena: &Arena,
+        session: &mut CheckSession<'_, '_>,
         mut from: usize,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-        ctx: &Context,
     ) -> Result<InstantiateResult, String> {
+        let arena = session.arena();
         // we delegate "type checking" of arguments to the caller
         let mut need_to_type_check = vec![];
         // to instantiate, we need to subst items in instantiated module
@@ -277,7 +278,7 @@ impl ModuleManager {
                     ind_defs,
                 }) => {
                     let instantiated_ind_defs = ind_defs
-                        .instantiate(arena, ctx, &subst_mapping_accum)
+                        .instantiate(session, &subst_mapping_accum)
                         .map_err(|error| {
                             format!("Inductive type instantiation failed: {error:?}")
                         })?;
@@ -292,7 +293,7 @@ impl ModuleManager {
                     rc_spec_as_indtype,
                 }) => {
                     let instantiated_spec = rc_spec_as_indtype
-                        .instantiate(arena, ctx, &subst_mapping_accum)
+                        .instantiate(session, &subst_mapping_accum)
                         .map_err(|error| format!("Record type instantiation failed: {error:?}"))?;
                     Ok(ModuleItemAccessible::Record(ModItemRecord {
                         type_name: type_name.clone(),
@@ -315,10 +316,9 @@ impl ModuleManager {
 
     pub fn instantiate_module(
         &self,
-        arena: &Arena,
+        session: &mut CheckSession<'_, '_>,
         back_parent: Option<usize>, // if None, from root
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-        ctx: &Context,
     ) -> Result<InstantiateResult, String> {
         match back_parent {
             Some(n) => {
@@ -330,11 +330,11 @@ impl ModuleManager {
                         return Err("Cannot go back parent: already at root module".to_string());
                     }
                 }
-                self.access_module(arena, index, args, ctx)
+                self.access_module(session, index, args)
             }
             None => {
                 // from root
-                self.access_module(arena, 0, args, ctx)
+                self.access_module(session, 0, args)
             }
         }
     }

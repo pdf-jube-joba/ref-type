@@ -321,13 +321,6 @@ impl Arena {
 
 pub type Context = Vec<(Var, Exp)>;
 
-/// Return a new context that is `ctx` extended with one (Var, Exp)
-pub fn ctx_extend(ctx: &Context, varty: (Var, Exp)) -> Context {
-    let mut new_ctx = ctx.clone();
-    new_ctx.push(varty);
-    new_ctx
-}
-
 /// Lookup a variable in the context by pointer-equality (same semantics as previous implementation)
 pub fn ctx_get(ctx: &Context, var: &Var) -> Option<Exp> {
     for (v, ty) in ctx.iter().rev() {

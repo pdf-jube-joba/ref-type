@@ -1,4 +1,7 @@
-use kernel::exp::{Arena, Context, Exp, Sort};
+use kernel::{
+    derivation::CheckSession,
+    exp::{Arena, Context, Exp, Sort},
+};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -101,8 +104,8 @@ impl Logger {
     }
 
     // Call the kernel. Detailed typing diagnostics are emitted as tracing spans.
-    pub fn infer(&mut self, arena: &Arena, ctx: &Context, exp: Exp) -> Option<Exp> {
-        let infer_ty = kernel::derivation::infer(arena, ctx, exp);
+    pub fn infer(&mut self, arena: &Arena, ctx: &mut Context, exp: Exp) -> Option<Exp> {
+        let infer_ty = CheckSession::new(arena, ctx).infer(exp);
         match infer_ty {
             Ok(ty) => {
                 self.record(
@@ -124,8 +127,8 @@ impl Logger {
             }
         }
     }
-    pub fn infer_sort(&mut self, arena: &Arena, ctx: &Context, exp: Exp) -> Option<Sort> {
-        match kernel::derivation::infer_sort(arena, ctx, exp) {
+    pub fn infer_sort(&mut self, arena: &Arena, ctx: &mut Context, exp: Exp) -> Option<Sort> {
+        match CheckSession::new(arena, ctx).infer_sort(exp) {
             Ok(sort) => Some(sort),
             Err(derivation_fail) => {
                 self.record(
@@ -138,8 +141,14 @@ impl Logger {
             }
         }
     }
-    pub fn check(&mut self, arena: &Arena, ctx: &Context, exp: Exp, expected_type: Exp) -> bool {
-        let result = kernel::derivation::check(arena, ctx, exp, expected_type);
+    pub fn check(
+        &mut self,
+        arena: &Arena,
+        ctx: &mut Context,
+        exp: Exp,
+        expected_type: Exp,
+    ) -> bool {
+        let result = CheckSession::new(arena, ctx).check(exp, expected_type);
         match result {
             Ok(()) => true,
             Err(derivation_fail) => {

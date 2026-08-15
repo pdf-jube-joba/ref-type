@@ -11,7 +11,7 @@ pub trait Handler {
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, String>;
     fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String>;
-    fn infer(&mut self, local_ctx: &Context, e: Exp) -> Result<Exp, String>;
+    fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String>;
 }
 
 // local scope during elaboration
@@ -122,7 +122,7 @@ impl LocalScope {
                     ty: domain,
                     body: map_body,
                 });
-                let map_ty = handler.infer(&self.typing_binds, map)?;
+                let map_ty = handler.infer(&mut self.typing_binds, map)?;
                 let Node::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
                     return Err("failed to infer a product type for \\take map".into());
                 };
@@ -157,7 +157,7 @@ impl LocalScope {
                     ty: domain,
                     body: map_body,
                 });
-                let map_ty = handler.infer(&self.typing_binds, map)?;
+                let map_ty = handler.infer(&mut self.typing_binds, map)?;
                 let Node::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
                     return Err("failed to infer a product type for \\take map".into());
                 };
