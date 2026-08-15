@@ -1,5 +1,5 @@
 // this file describes the surface syntax tree
-use kernel::exp::{DefinedConstant, Exp, Var};
+use kernel::exp::{Arena, DefinedConstant, Exp, Node, Var};
 use kernel::inductive::{CtorBinder, InductiveTypeSpecs};
 use kernel::utils;
 use serde::Serialize;
@@ -365,7 +365,8 @@ impl ModItemRecord {
     // where primitive_recursion = (x1: T1) => ... => xi
     pub fn field_projection(
         &self,
-        e: &Exp,
+        arena: &Arena,
+        e: Exp,
         field_name: &Identifier,
         parameters: &[Exp],
     ) -> Option<Exp> {
@@ -378,7 +379,7 @@ impl ModItemRecord {
                 let CtorBinder::Simple((id, ty)) = bind else {
                     unreachable!("record type constructor should only have simple binders");
                 };
-                (id.clone(), ty.clone())
+                (id.clone(), *ty)
             })
             .collect::<Vec<_>>();
 
@@ -387,25 +388,23 @@ impl ModItemRecord {
             .find(|(id, _)| id.as_str() == field_name.as_str())?
             .clone();
 
-        let prec = utils::assoc_lam(telescope, Exp::Var(field_var));
-
-        let elim = Exp::IndElim {
+        let field = arena.var(field_var);
+        let prec = utils::assoc_lam(arena, telescope, field);
+        let record_ty = arena.alloc(Node::IndType {
             indspec: self.rc_spec_as_indtype.clone(),
-            elim: e.clone().into(),
-            return_type: Exp::Prod {
-                var: Var::new("record"),
-                ty: Exp::IndType {
-                    indspec: self.rc_spec_as_indtype.clone(),
-                    parameters: parameters.to_vec(),
-                }
-                .into(),
-                body: Rc::new(field_ty),
-            }
-            .into(),
+            parameters: parameters.to_vec(),
+        });
+        let return_type = arena.alloc(Node::Prod {
+            var: Var::new("record"),
+            ty: record_ty,
+            body: field_ty,
+        });
+        Some(arena.alloc(Node::IndElim {
+            indspec: self.rc_spec_as_indtype.clone(),
+            elim: e,
+            return_type,
             cases: vec![prec],
-        };
-
-        Some(elim)
+        }))
     }
 }
 

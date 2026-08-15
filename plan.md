@@ -130,7 +130,7 @@
 
 ### AST 表現
 
-- `Box<Exp>` 中心の所有木から、arena上の `NodeId` または共有された `Rc<Exp>` / `Arc<Exp>` へ移行する。
+- **実施済み (2026-08-15):** kernel の項を単一の arena 上の `NodeId` に完全移行し、`Rc<Exp>` / `Box<Exp>` を廃止した。arena は `GlobalEnvironment` が所有する。
 - hash-consingにより同じ部分項を共有する。
 - nodeごとに次をside tableへ保存できるようにする。
   - 構造hash
@@ -138,7 +138,7 @@
   - size
   - WHNF
   - sortや型の既知情報
-- alpha 同値を安価にするため、kernel syntaxはde Bruijn indexを基本とする。
+- **実施済み (2026-08-15):** kernel syntax の束縛変数をde Bruijn index化した。
 - 表示用の名前はsurface syntaxまたはsource mapに残す。
 
 ### メモ化環境
@@ -299,7 +299,7 @@ struct CheckCaches {
 6. `exp_subst_map`を一走査の同時代入へ変更する。
 7. module instantiateをclosure化する。
 8. persistent contextと`CheckSession`を導入する。
-9. 測定結果を基にarena/de Bruijn移行の費用対効果を判断する。
+9. ~~測定結果を基にarena/de Bruijn移行の費用対効果を判断する。~~ 完全移行と再計測を実施済み。
 10. 実装上のボトルネックを除去した後に、型体系そのものの削減案を選ぶ。
 
 最初の目標は、既存の型体系とtest結果を維持したまま、実数形式化のrelease検査時間を安定して短縮することである。

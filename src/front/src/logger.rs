@@ -1,4 +1,4 @@
-use kernel::exp::{Context, Exp, Sort};
+use kernel::exp::{Arena, Context, Exp, Sort};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -51,22 +51,22 @@ impl Logger {
         self.records.push(record);
     }
 
-    pub fn reduce_one(&mut self, e: Exp) -> Option<Exp> {
+    pub fn reduce_one(&mut self, arena: &Arena, e: Exp) -> Option<Exp> {
         self.record(
             LogLevel::Trace,
             vec!["reduce_one".to_string()],
             "reduce_one called".to_string(),
-            LogPayload::Exp(e.clone()),
+            LogPayload::Exp(e),
         );
 
-        let reduced = kernel::calculus::reduce_one(&e);
+        let reduced = kernel::calculus::reduce_one(arena, e);
         match reduced {
             Some(reduced_exp) => {
                 self.record(
                     LogLevel::Debug,
                     vec!["reduce_one".to_string()],
                     "reduce_one success".to_string(),
-                    LogPayload::Exp(reduced_exp.clone()),
+                    LogPayload::Exp(reduced_exp),
                 );
                 Some(reduced_exp)
             }
@@ -82,34 +82,34 @@ impl Logger {
         }
     }
 
-    pub fn normalize(&mut self, e: Exp) -> Exp {
+    pub fn normalize(&mut self, arena: &Arena, e: Exp) -> Exp {
         self.record(
             LogLevel::Trace,
             vec!["normalize".to_string()],
             "normalize called".to_string(),
-            LogPayload::Exp(e.clone()),
+            LogPayload::Exp(e),
         );
 
-        let normalized = kernel::calculus::normalize(&e);
+        let normalized = kernel::calculus::normalize(arena, e);
         self.record(
             LogLevel::Debug,
             vec!["normalize".to_string()],
             "normalize success".to_string(),
-            LogPayload::Exp(normalized.clone()),
+            LogPayload::Exp(normalized),
         );
         normalized
     }
 
     // Call the kernel. Detailed typing diagnostics are emitted as tracing spans.
-    pub fn infer(&mut self, ctx: &Context, exp: &Exp) -> Option<Exp> {
-        let infer_ty = kernel::derivation::infer(ctx, exp);
+    pub fn infer(&mut self, arena: &Arena, ctx: &Context, exp: Exp) -> Option<Exp> {
+        let infer_ty = kernel::derivation::infer(arena, ctx, exp);
         match infer_ty {
             Ok(ty) => {
                 self.record(
                     LogLevel::Debug,
                     vec!["infer".to_string()],
                     "infer success".to_string(),
-                    LogPayload::Exp(ty.clone()),
+                    LogPayload::Exp(ty),
                 );
                 Some(ty)
             }
@@ -124,8 +124,8 @@ impl Logger {
             }
         }
     }
-    pub fn infer_sort(&mut self, ctx: &Context, exp: &Exp) -> Option<Sort> {
-        match kernel::derivation::infer_sort(ctx, exp) {
+    pub fn infer_sort(&mut self, arena: &Arena, ctx: &Context, exp: Exp) -> Option<Sort> {
+        match kernel::derivation::infer_sort(arena, ctx, exp) {
             Ok(sort) => Some(sort),
             Err(derivation_fail) => {
                 self.record(
@@ -138,8 +138,8 @@ impl Logger {
             }
         }
     }
-    pub fn check(&mut self, ctx: &Context, exp: &Exp, expected_type: &Exp) -> bool {
-        let result = kernel::derivation::check(ctx, exp, expected_type);
+    pub fn check(&mut self, arena: &Arena, ctx: &Context, exp: Exp, expected_type: Exp) -> bool {
+        let result = kernel::derivation::check(arena, ctx, exp, expected_type);
         match result {
             Ok(()) => true,
             Err(derivation_fail) => {

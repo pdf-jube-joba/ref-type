@@ -1,4 +1,4 @@
-use std::{fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
@@ -121,26 +121,43 @@ pub struct DefinedConstant {
     pub body: Exp,
 }
 
+/// A stable index into an [`Arena`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NodeId(u32);
+
+impl NodeId {
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// The expression handle used throughout the kernel.
+pub type Exp = NodeId;
+
 #[derive(Debug, Clone, Serialize)]
-pub enum Exp {
+pub enum Node {
     Sort(Sort),
+    /// A locally bound variable, counted outwards from the occurrence.
+    /// `Bound(0)` refers to the nearest enclosing binder.
+    Bound(usize),
+    /// A free variable. Module parameters and context entries remain named.
     Var(Var),
     // (var: ty) -> body where var is bound in body but not in ty
     Prod {
         var: Var,
-        ty: Rc<Exp>,
-        body: Rc<Exp>, // bind one variable
+        ty: Exp,
+        body: Exp, // bind one variable
     },
     // (var: ty) => body where var is bound in body but not in ty
     Lam {
         var: Var,
-        ty: Rc<Exp>,
-        body: Rc<Exp>, // bind one variable
+        ty: Exp,
+        body: Exp, // bind one variable
     },
     // usual application (f x)
     App {
-        func: Rc<Exp>,
-        arg: Rc<Exp>,
+        func: Exp,
+        arg: Exp,
     },
     DefinedConstant(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DefinedConstant>),
     IndType {
@@ -158,94 +175,146 @@ pub enum Exp {
         // this is primitive recursion
         #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        elim: Rc<Exp>,
-        return_type: Rc<Exp>,
+        elim: Exp,
+        return_type: Exp,
         cases: Vec<Exp>, // no bindings
     },
     PowerSet {
-        set: Rc<Exp>,
+        set: Exp,
     },
     // {var: set | predicate} where var is bound in predicate but not in A
     SubSet {
         var: Var,
-        set: Rc<Exp>,
-        predicate: Rc<Exp>,
+        set: Exp,
+        predicate: Exp,
     },
     Pred {
-        superset: Rc<Exp>,
-        subset: Rc<Exp>,
-        element: Rc<Exp>,
+        superset: Exp,
+        subset: Exp,
+        element: Exp,
     },
     TypeLift {
-        superset: Rc<Exp>,
-        subset: Rc<Exp>,
+        superset: Exp,
+        subset: Exp,
     },
     // Introduce `element` into `subset` of `superset` using `proof`.
     // This is a typing annotation and erases to `element` computationally.
     SubsetIntro {
-        superset: Rc<Exp>,
-        subset: Rc<Exp>,
-        element: Rc<Exp>,
-        proof: Rc<Exp>,
+        superset: Exp,
+        subset: Exp,
+        element: Exp,
+        proof: Exp,
     },
     Equal {
-        left: Rc<Exp>,
-        right: Rc<Exp>,
+        left: Exp,
+        right: Exp,
     },
     // just non-emptyness proposition
     Exists {
-        set: Rc<Exp>,
+        set: Exp,
     },
     TakeSet {
-        domain: Rc<Exp>,
-        codomain: Rc<Exp>,
-        map: Rc<Exp>,
-        existence: Rc<Exp>,
-        uniqueness: Rc<Exp>,
+        domain: Exp,
+        codomain: Exp,
+        map: Exp,
+        existence: Exp,
+        uniqueness: Exp,
     },
     TakeProp {
-        domain: Rc<Exp>,
-        proposition: Rc<Exp>,
-        map: Rc<Exp>,
-        existence: Rc<Exp>,
+        domain: Exp,
+        proposition: Exp,
+        map: Exp,
+        existence: Exp,
     },
     ExistsIntro {
-        element: Rc<Exp>,
-        set: Rc<Exp>,
+        element: Exp,
+        set: Exp,
     },
     SubsetElim {
-        element: Rc<Exp>,
-        subset: Rc<Exp>,
-        superset: Rc<Exp>,
+        element: Exp,
+        subset: Exp,
+        superset: Exp,
     },
     IdRefl {
-        element: Rc<Exp>,
+        element: Exp,
     },
     IdElim {
-        left: Rc<Exp>,
-        right: Rc<Exp>,
-        ty: Rc<Exp>,
+        left: Exp,
+        right: Exp,
+        ty: Exp,
         var: Var,
-        predicate: Rc<Exp>,
-        base: Rc<Exp>,
-        equality: Rc<Exp>,
+        predicate: Exp,
+        base: Exp,
+        equality: Exp,
     },
     TakeEq {
-        func: Rc<Exp>,
-        domain: Rc<Exp>,
-        codomain: Rc<Exp>,
-        element: Rc<Exp>,
-        existence: Rc<Exp>,
-        uniqueness: Rc<Exp>,
+        func: Exp,
+        domain: Exp,
+        codomain: Exp,
+        element: Exp,
+        existence: Exp,
+        uniqueness: Exp,
     },
 }
 
-impl Exp {
-    pub fn as_var(&self) -> Option<&Var> {
-        if let Exp::Var(v) = self {
-            Some(v)
-        } else {
-            None
+#[derive(Debug, Clone, Copy)]
+pub struct ArenaMark(usize);
+
+/// Append-only storage for every kernel expression node.
+#[derive(Debug, Default)]
+pub struct Arena {
+    nodes: RefCell<Vec<Node>>,
+}
+
+impl Arena {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn alloc(&self, node: Node) -> Exp {
+        let mut nodes = self.nodes.borrow_mut();
+        let index = u32::try_from(nodes.len()).expect("expression arena exceeded u32::MAX");
+        nodes.push(node);
+        NodeId(index)
+    }
+
+    /// Return a shallow copy. Child expressions remain cheap `NodeId`s.
+    pub fn get(&self, id: Exp) -> Node {
+        self.nodes.borrow()[id.index()].clone()
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.borrow().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.borrow().is_empty()
+    }
+
+    pub fn mark(&self) -> ArenaMark {
+        ArenaMark(self.len())
+    }
+
+    pub fn rewind(&mut self, mark: ArenaMark) {
+        self.nodes.get_mut().truncate(mark.0);
+    }
+
+    pub fn sort(&self, sort: Sort) -> Exp {
+        self.alloc(Node::Sort(sort))
+    }
+
+    pub fn bound(&self, index: usize) -> Exp {
+        self.alloc(Node::Bound(index))
+    }
+
+    pub fn var(&self, var: Var) -> Exp {
+        self.alloc(Node::Var(var))
+    }
+
+    pub fn as_var(&self, exp: Exp) -> Option<Var> {
+        match self.get(exp) {
+            Node::Var(var) => Some(var),
+            _ => None,
         }
     }
 }
@@ -260,10 +329,10 @@ pub fn ctx_extend(ctx: &Context, varty: (Var, Exp)) -> Context {
 }
 
 /// Lookup a variable in the context by pointer-equality (same semantics as previous implementation)
-pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
+pub fn ctx_get(ctx: &Context, var: &Var) -> Option<Exp> {
     for (v, ty) in ctx.iter().rev() {
         if v.is_eq_ptr(var) {
-            return Some(ty);
+            return Some(*ty);
         }
     }
     None

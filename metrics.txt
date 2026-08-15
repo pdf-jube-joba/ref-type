@@ -19,7 +19,9 @@ Record the measurement metadata.
         break
       fi
     done
+    profile_runs=100
     echo "$measurement_prefix"
+    echo "profile_runs=$profile_runs"
     date --iso-8601=seconds
     git rev-parse HEAD
     rustc --version
@@ -34,15 +36,20 @@ Run the benchmark three times with the same executable, input, and output redire
         >/dev/null
     done
 
-When recording sampled call stacks, prefix output names with the measurement timestamp.
+When recording sampled call stacks, run the benchmark 100 times and prefix output names with the measurement timestamp.
 
     perf-wsl record \
       -F 99 \
       -g \
       --call-graph dwarf,16000 \
       -o "data/${measurement_prefix}-perf.data" \
-      -- target/release/cli file tests/reals/root.ref \
-      >/dev/null
+      -- bash -c '
+        run=0
+        while (( run < $1 )); do
+          target/release/cli file tests/reals/root.ref >/dev/null
+          ((run += 1))
+        done
+      ' _ "$profile_runs"
 
 Report functions with at least 1% self overhead.
 
@@ -73,8 +80,12 @@ Generate a flame graph from the same recording.
     flamegraph \
       --perfdata "data/${measurement_prefix}-perf.data" \
       --deterministic \
-      --title 'ref-type tests/reals/root.ref' \
+      --title 'ref-type tests/reals/root.ref x100' \
       -o "data/${measurement_prefix}-flamegraph.svg"
+
+Run the kernel phase benchmarks in the bench profile.
+
+    cargo bench -p kernel --bench phases
 
 Append the metadata, timing output, recording summary, and report tables below. Do not add interpretations to this file.
 
@@ -291,3 +302,227 @@ run=3 elapsed_seconds=0.12 max_rss_kb=5664
     13.14%     0.00%  [.] kernel::derivation::infer_sort                                                                                                                      -      -
     10.57%     0.00%  [.] kernel::calculus::is_alpha_eq_rec::_$u7b$$u7b$closure$u7d$$u7d$::hcc0259d9dd89310d (inlined)                                                        -      -
     10.09%     0.00%  [.] kernel::calculus::is_alpha_eq_rec::_$u7b$$u7b$closure$u7d$$u7d$::hf748b9b318ac4556 (inlined)                                                        -      -
+
+20260815-102830-701031570
+2026-08-15T10:28:31+09:00
+14b578d19c6fb4be5cbf60f78af0935d6913fe25
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+perf version 6.8.12
+
+run=1 elapsed_seconds=0.04 max_rss_kb=5616
+run=2 elapsed_seconds=0.04 max_rss_kb=5424
+run=3 elapsed_seconds=0.04 max_rss_kb=5480
+
+[ perf record: Woken up 5 times to write data ]
+[ perf record: Captured and wrote 1.853 MB data/20260815-102830-701031570-perf.data (118 samples) ]
+
+# Total Lost Samples: 0
+# Samples: 118  of event 'cycles:Pu'
+
+# Self overhead
+# Overhead  Symbol                                                                                                              IPC   [IPC Coverage]
+    83.35%  [.] kernel::calculus::exp_subst_child                                                                               -      -
+    15.30%  [.] front::parse::term_parse::TermParser::parse_combined::equal_exp::h33a331a9130124d8  -      -
+
+# Kernel inclusive overhead
+# Children      Self  Symbol
+    83.35%     0.00%  [.] kernel::calculus::erased_convertible (inlined)                                                                                                        -      -
+    83.35%     0.00%  [.] kernel::calculus::exp_is_convertible_with_mode (inlined)                                                                                              -      -
+    83.35%     0.00%  [.] kernel::calculus::exp_reduce_head_once (inlined)                                                                                                      -      -
+    83.35%     0.00%  [.] kernel::calculus::exp_reduce_if_top                                                                                                                   -      -
+    83.35%     0.00%  [.] kernel::calculus::exp_subst (inlined)                                                                                                                 -      -
+    83.35%    83.35%  [.] kernel::calculus::exp_subst_child                                                                                                                     -      -
+    83.35%     0.00%  [.] kernel::calculus::exp_subst_tracking                                                                                                                  -      -
+    83.35%     0.00%  [.] kernel::calculus::exp_whnf_with_mode (inlined)                                                                                                        -      -
+    83.35%     0.00%  [.] kernel::calculus::instantiate                                                                                                                         -      -
+    83.35%     0.00%  [.] kernel::calculus::is_alpha_eq_rec (inlined)                                                                                                           -      -
+    83.35%     0.00%  [.] kernel::calculus::is_alpha_eq_rec::_$u7b$$u7b$closure$u7d$$u7d$::h02a576b7cd7cad3d (inlined)                                                          -      -
+    83.35%     0.00%  [.] kernel::calculus::is_alpha_eq_rec::_$u7b$$u7b$closure$u7d$$u7d$::h1308364ce1644469 (inlined)                                                          -      -
+    83.35%     0.00%  [.] kernel::derivation::check                                                                                                                             -      -
+    83.35%     0.00%  [.] kernel::derivation::infer                                                                                                                             -      -
+
+20260815-103404-601972976
+profile_runs=100
+2026-08-15T10:34:05+09:00
+14b578d19c6fb4be5cbf60f78af0935d6913fe25
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+perf version 6.8.12
+
+run=1 elapsed_seconds=0.04 max_rss_kb=5604
+run=2 elapsed_seconds=0.04 max_rss_kb=5488
+run=3 elapsed_seconds=0.05 max_rss_kb=5552
+
+[ perf record: Woken up 568 times to write data ]
+Warning:
+1 out of order events recorded.
+[ perf record: Captured and wrote 163.569 MB data/20260815-103404-601972976-perf.data (10420 samples) ]
+
+# Total Lost Samples: 0
+# Samples: 10K of event 'cycles:Pu'
+
+# Self overhead
+# Overhead  Symbol                                                                                                                                                                                                                                                                                       IPC   [IPC Coverage]
+     9.78%  [.] kernel::calculus::transform_bound_variables                                                                                                                                                                                                                                              -      -
+     7.49%  [.] kernel::calculus::exp_whnf_with_mode::hca61c33d05b9b41f                                                                                                                                                                                                    -      -
+     7.23%  [.] core::ptr::drop_in_place<kernel::exp::Exp>::h8d4a60e3a23c4950                                                                                                                                                                                        -      -
+     6.34%  [.] malloc                                                                                                                                                                                                                                                                                   -      -
+     5.47%  [.] cfree                                                                                                                                                                                                                                                                                    -      -
+     4.94%  [.] kernel::calculus::is_alpha_eq_rec::ha368e3c1ee60ee86                                                                                                                                                                                                       -      -
+     4.46%  [.] kernel::calculus::transform_bound_child                                                                                                                                                                                                                                                  -      -
+     4.45%  [.] kernel::calculus::exp_subst_tracking                                                                                                                                                                                                                                                     -      -
+     3.11%  [.] kernel::calculus::exp_reduce_if_top                                                                                                                                                                                                                                                      -      -
+     2.27%  [.] <alloc::string::String as core::fmt::Write>::write_str                                                                                                                                                                                                                                   -      -
+     2.17%  [.] front::parse::term_parse::TermParser::field_access                                                                                                                                                                                                                                       -      -
+     1.80%  [.] __rustc[4425a7e20b4c8619]::__rust_no_alloc_shim_is_unstable_v2                                                                                                                                                                                                                        -      -
+     1.73%  [.] core::ptr::drop_in_place<kernel::exp::Exp>::h8d4a60e3a23c4950                                                                                                                                                                                          -      -
+     1.49%  [.] front::parse::term_parse::TermParser::parse_atom                                                                                                                                                                                                                                         -      -
+     1.31%  [.] alloc::fmt::format::format_inner                                                                                                                                                                                                                                                         -      -
+     1.30%  [.] kernel::calculus::exp_subst_child                                                                                                                                                                                                                                                        -      -
+     1.30%  [.] core::ptr::drop_in_place<kernel::exp::Exp>::h8d4a60e3a23c4950                                                                                                                                                                                        -      -
+     1.28%  [.] 0x00000000000ab260                                                                                                                                                                                                                                                                       -      -
+     1.28%  [.] core::fmt::Formatter::debug_tuple_field1_finish                                                                                                                                                                                                                                          -      -
+     1.25%  [.] alloc::rc::Rc<T,A>::drop_slow                                                                                                                                                                                                                                                            -      -
+     1.23%  [.] 0x0000000000188c04                                                                                                                                                                                                                                                                       -      -
+     1.18%  [.] front::parse::term_parse::TermParser::parse_parameter                                                                                                                                                                                                                                    -      -
+     1.18%  [.] front::parse::term_parse::TermParser::parse_combined::equal_exp::h33a331a9130124d8                                                                                                                                                                           -      -
+     1.10%  [.] 0x00000000000a9d05                                                                                                                                                                                                                                                                       -      -
+     1.03%  [.] __rustc[4425a7e20b4c8619]::__rust_alloc                                                                                                                                                                                                                                               -      -
+     1.01%  [.] <str as core::fmt::Debug>::fmt                                                                                                                                                                                                                                                           -      -
+
+# Kernel inclusive overhead
+# Children      Self  Symbol
+    24.38%     0.00%  [.] kernel::derivation::check                                                                                                                                                                                                                                                                                              -      -
+    18.90%     0.00%  [.] kernel::derivation::infer                                                                                                                                                                                                                                                                                              -      -
+    15.77%     0.46%  [.] kernel::calculus::instantiate                                                                                                                                                                                                                                                                                          -      -
+    15.35%     0.80%  [.] kernel::calculus::exp_reduce_if_top                                                                                                                                                                                                                                                                                    -      -
+    12.46%     0.00%  [.] kernel::derivation::check                                                                                                                                                                                                                                                                                              -      -
+    12.16%     6.46%  [.] kernel::calculus::transform_bound_variables                                                                                                                                                                                                                                                                            -      -
+    11.44%     0.00%  [.] kernel::derivation::infer                                                                                                                                                                                                                                                                                              -      -
+    11.20%     0.83%  [.] kernel::calculus::transform_bound_child                                                                                                                                                                                                                                                                                -      -
+    10.67%     0.00%  [.] kernel::derivation::infer                                                                                                                                                                                                                                                                                              -      -
+     9.92%     0.00%  [.] kernel::derivation::check                                                                                                                                                                                                                                                                                              -      -
+     8.83%     0.00%  [.] kernel::derivation::infer_sort                                                                                                                                                                                                                                                                                         -      -
+     7.96%     0.00%  [.] kernel::calculus::instantiate                                                                                                                                                                                                                                                                                          -      -
+     7.51%     0.70%  [.] kernel::calculus::exp_reduce_if_top                                                                                                                                                                                                                                                                                    -      -
+     7.51%     0.00%  [.] kernel::derivation::check                                                                                                                                                                                                                                                                                              -      -
+     7.09%     0.00%  [.] kernel::derivation::infer                                                                                                                                                                                                                                                                                              -      -
+     7.06%     1.11%  [.] kernel::calculus::exp_reduce_if_top                                                                                                                                                                                                                                                                                    -      -
+     6.79%     0.00%  [.] kernel::derivation::infer_sort                                                                                                                                                                                                                                                                                         -      -
+     6.68%     1.08%  [.] kernel::calculus::transform_bound_child                                                                                                                                                                                                                                                                                -      -
+     6.68%     1.97%  [.] kernel::calculus::transform_bound_variables                                                                                                                                                                                                                                                                            -      -
+     5.96%     0.00%  [.] kernel::derivation::infer_sort                                                                                                                                                                                                                                                                                         -      -
+
+2026-08-15T10:50:01+09:00
+14b578d19c6fb4be5cbf60f78af0935d6913fe25
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+
+kernel phase benchmarks
+benchmark                              median          min          p95  iter/sample
+substitution/instantiate            113.79 us    100.25 us    136.17 us          256
+reduction/whnf                       41.01 us     37.77 us     47.80 us          512
+reduction/normalize                 950.02 us    907.73 us      1.03 ms           32
+conversion/convertible               39.72 us     37.41 us     46.74 us         1024
+equality/alpha_eq                     1.57 us      1.50 us      1.64 us        16384
+typing/infer                         36.31 us     35.53 us     37.26 us         1024
+
+2026-08-15T10:58:26+09:00
+14b578d19c6fb4be5cbf60f78af0935d6913fe25
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+
+kernel phase benchmarks
+benchmark                              median          min          p95  iter/sample
+substitution/instantiate             85.94 us     79.28 us    110.31 us          256
+reduction/whnf                       42.44 us     39.56 us     68.51 us          512
+reduction/normalize                 985.57 us    896.45 us      1.09 ms           16
+conversion/convertible               43.36 us     40.67 us     50.68 us          512
+equality/alpha_eq                     1.77 us      1.59 us      2.14 us        16384
+typing/infer                         36.39 us     34.75 us     43.82 us         1024
+arena/substitution/instantiate       42.50 us     41.07 us     48.97 us          512
+arena/reduction/whnf                 21.98 us     20.98 us     23.70 us         1024
+arena/reduction/normalize            39.19 us     37.10 us     49.74 us          512
+arena/conversion/convertible         21.11 us     20.40 us     24.55 us         1024
+arena/equality/alpha_eq              390.0 ns     364.0 ns     422.0 ns        65536
+
+20260815-112947-894764243
+2026-08-15T11:29:47+09:00
+a6a4fb119f0c8f137d98b43e5c51d8e08da42b57
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+perf version 6.8.12
+
+run=1 elapsed_seconds=0.01 max_rss_kb=6048
+run=2 elapsed_seconds=0.01 max_rss_kb=6168
+run=3 elapsed_seconds=0.01 max_rss_kb=6104
+
+kernel phase benchmarks
+benchmark                              median          min          p95  iter/sample
+substitution/instantiate            124.08 us    113.63 us    140.65 us          256
+reduction/whnf                       56.45 us     51.19 us     72.49 us          512
+reduction/normalize                 106.35 us    104.98 us    109.95 us          256
+conversion/convertible               51.92 us     50.22 us     53.72 us          512
+equality/alpha_eq                     2.07 us      2.05 us      2.11 us        16384
+typing/infer                         16.69 us     16.39 us     16.88 us         2048
+
+[ perf record: Woken up 376 times to write data ]
+Warning:
+1 out of order events recorded.
+[ perf record: Captured and wrote 106.810 MB data/20260815-112947-894764243-perf.data (6757 samples) ]
+
+# Total Lost Samples: 0
+# Samples: 6K of event 'cycles:Pu'
+
+# Self overhead
+# Overhead  Symbol
+    18.13%  [.] kernel::exp::Arena::get
+    14.05%  [.] kernel::calculus::transform
+     6.17%  [.] core::ptr::drop_in_place<kernel::exp::Node>
+     4.40%  [.] alloc::fmt::format::format_inner
+     4.12%  [.] kernel::exp::Arena::alloc
+     3.80%  [.] kernel::calculus::exp_reduce_if_top
+     2.34%  [.] front::parse::term_parse::TermParser::parse_atom
+     2.33%  [.] core::ptr::drop_in_place<kernel::exp::Node>
+     2.26%  [k] 0xffffffff98001320
+     2.14%  [.] kernel::calculus::transform::{{closure}}
+     2.07%  [.] malloc
+     2.05%  [.] core::ptr::drop_in_place<front::syntax::SExp>
+     1.98%  [.] kernel::derivation::infer
+     1.97%  [.] core::fmt::write
+     1.95%  [.] front::parse::term_parse::TermParser::expect_ident
+     1.94%  [.] 0x00000000000ab66e
+     1.91%  [.] kernel::calculus::transform
+     1.90%  [.] front::elaborator::module_manager::ModuleManager::get_item
+     1.87%  [.] cfree
+     1.78%  [.] kernel::calculus::is_alpha_eq_rec
+     1.78%  [.] front::parse::term_parse::TermParser::parse_combined::piped
+     1.70%  [.] <front::syntax::Bind as core::clone::Clone>::clone
+     1.68%  [.] <alloc::string::String as core::fmt::Write>::write_str
+     1.53%  [.] core::fmt::Formatter::debug_tuple_field1_finish
+     1.45%  [.] realloc
+     1.40%  [.] front::parse::term_parse::TermParser::parse_atom_sequence
+     1.40%  [.] <str as core::fmt::Debug>::fmt
+     1.23%  [.] front::parse::term_parse::TermParser::field_access
+     1.13%  [.] front::parse::term_parse::TermParser::parse_parameter
+     1.10%  [.] 0x00000000000a9ce6
+     1.07%  [.] <alloc::vec::Vec<T,A> as core::clone::Clone>::clone
+
+# Kernel inclusive overhead
+# Children      Self  Symbol
+    50.04%     0.00%  [.] kernel::derivation::check
+    39.89%     1.98%  [.] kernel::derivation::infer
+    15.89%     0.00%  [.] kernel::derivation::infer_sort
+    14.33%     0.00%  [.] kernel::calculus::transform::{{closure}}
+    13.92%     3.80%  [.] kernel::calculus::exp_reduce_if_top
+    12.11%     0.00%  [.] kernel::calculus::instantiate
+     4.29%     0.00%  [.] kernel::calculus::transform::{{closure}}
+     4.28%     0.00%  [.] kernel::derivation::check
+     4.26%     0.00%  [.] kernel::derivation::check
+     4.26%     0.00%  [.] kernel::derivation::check
+     4.05%     2.14%  [.] kernel::calculus::transform::{{closure}}
+     4.04%     0.00%  [.] kernel::calculus::transform::{{closure}}
+     4.04%     0.00%  [.] kernel::derivation::check
+     3.99%     0.00%  [.] kernel::calculus::eq_slices
+     3.99%     0.00%  [.] kernel::calculus::eq_slices
+     3.99%     0.00%  [.] kernel::derivation::check
+     3.99%     0.00%  [.] kernel::derivation::check
+     3.84%     0.00%  [.] kernel::derivation::check
+     3.80%     0.00%  [.] kernel::calculus::expose_product
+     3.65%     0.00%  [.] kernel::derivation::infer

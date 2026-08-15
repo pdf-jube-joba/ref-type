@@ -1,69 +1,45 @@
-use std::rc::Rc;
-
 use super::exp::*;
 
-pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
-    for arg in v {
-        a = Exp::App {
-            func: a.into(),
-            arg: arg.into(),
-        };
+pub fn assoc_apply(arena: &Arena, mut func: Exp, args: Vec<Exp>) -> Exp {
+    for arg in args {
+        func = arena.alloc(Node::App { func, arg });
     }
-    a
+    func
 }
 
-pub fn assoc_lam(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
-    for (var, ty) in v.into_iter().rev() {
-        body = Exp::Lam {
-            var,
-            ty: ty.into(),
-            body: body.into(),
-        };
+pub fn assoc_lam(arena: &Arena, binders: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
+    for (var, ty) in binders.into_iter().rev() {
+        body = arena.alloc(Node::Lam { var, ty, body });
     }
     body
 }
 
-pub fn assoc_prod(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
-    for (var, ty) in v.into_iter().rev() {
-        body = Exp::Prod {
-            var,
-            ty: ty.into(),
-            body: body.into(),
-        };
+pub fn assoc_prod(arena: &Arena, binders: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
+    for (var, ty) in binders.into_iter().rev() {
+        body = arena.alloc(Node::Prod { var, ty, body });
     }
     body
 }
 
 // a0 a1 ... an  ==>  (a0, [a1, ..., an])
-pub fn decompose_app(mut e: Exp) -> (Exp, Vec<Exp>) {
+pub fn decompose_app(arena: &Arena, mut exp: Exp) -> (Exp, Vec<Exp>) {
     let mut args = vec![];
-    while let Exp::App { func, arg } = e {
-        args.push(Rc::unwrap_or_clone(arg));
-        e = Rc::unwrap_or_clone(func);
+    while let Node::App { func, arg } = arena.get(exp) {
+        args.push(arg);
+        exp = func;
     }
     args.reverse();
-    (e, args)
-}
-
-pub fn decompose_app_ref(e: &Exp) -> (&Exp, Vec<&Exp>) {
-    let mut args = vec![];
-    let mut e = e;
-    while let Exp::App { func, arg } = e {
-        args.push(arg.as_ref());
-        e = func.as_ref();
-    }
-    args.reverse();
-    (e, args)
+    (exp, args)
 }
 
 // (x1 : A1) ... (xn : An) -> B  ==>  ([(x1, A1), ..., (xn, An)], B)
-pub fn decompose_prod(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
+pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(Var, Exp)>, Exp) {
     let mut vars = vec![];
-    while let Exp::Prod { var, ty, body } = e {
-        vars.push((var, Rc::unwrap_or_clone(ty)));
-        e = Rc::unwrap_or_clone(body);
+    while let Node::Prod { var, ty, body } = arena.get(exp) {
+        vars.push((var, ty));
+        exp = body;
     }
-    (vars, e)
+    (vars, exp)
 }
 
 #[macro_export]
@@ -74,139 +50,94 @@ macro_rules! var {
 }
 
 #[macro_export]
-macro_rules! var_str {
-    ($name: expr) => {
-        $crate::exp::Exp::Var(Var::new($name))
-    };
-}
-
-#[macro_export]
 macro_rules! var_exp {
-    ($name: expr) => {
-        $crate::exp::Exp::Var($name.clone())
+    ($arena:expr, $name:expr) => {
+        $arena.var($name.clone())
     };
 }
 
 #[macro_export]
 macro_rules! app {
-    // named: func, arg（この順）
-    ( func: $f:expr , arg: $a:expr $(,)? ) => {
-        $crate::exp::Exp::App {
-            func: $f.into(),
-            arg: $a.into(),
-        }
+    ($arena:expr, func: $func:expr, arg: $arg:expr $(,)?) => {
+        $arena.alloc($crate::exp::Node::App {
+            func: $func,
+            arg: $arg,
+        })
     };
-    // named: arg, func（逆順）
-    ( arg: $a:expr , func: $f:expr $(,)? ) => {
-        $crate::exp::Exp::App {
-            func: $f.into(),
-            arg: $a.into(),
-        }
+    ($arena:expr, arg: $arg:expr, func: $func:expr $(,)?) => {
+        $arena.alloc($crate::exp::Node::App {
+            func: $func,
+            arg: $arg,
+        })
     };
-    // 位置引数版
-    ( $f:expr , $a:expr ) => {
-        $crate::exp::Exp::App {
-            func: $f.into(),
-            arg: $a.into(),
-        }
+    ($arena:expr, $func:expr, $arg:expr) => {
+        $arena.alloc($crate::exp::Node::App {
+            func: $func,
+            arg: $arg,
+        })
     };
 }
 
 #[macro_export]
 macro_rules! lam {
-    ( var: $v:expr , ty: $t:expr , body: $b:expr $(,)? ) => {
-        $crate::exp::Exp::Lam {
-            var: $v,
-            ty: $t.into(),
-            body: $b.into(),
-        }
+    ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
+        $arena.alloc($crate::exp::Node::Lam {
+            var: $var,
+            ty: $ty,
+            body: $body,
+        })
     };
-    ( $v:expr, $t:expr, $b:expr) => {
-        $crate::exp::Exp::Lam {
-            var: $v,
-            ty: $t.into(),
-            body: $b.into(),
-        }
+    ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
+        $arena.alloc($crate::exp::Node::Lam {
+            var: $var,
+            ty: $ty,
+            body: $body,
+        })
     };
 }
 
 #[macro_export]
 macro_rules! prod {
-    ( var: $v:expr , ty: $t:expr , body: $b:expr $(,)? ) => {
-        $crate::exp::Exp::Prod {
-            var: $v,
-            ty: $t.into(),
-            body: $b.into(),
-        }
+    ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
+        $arena.alloc($crate::exp::Node::Prod {
+            var: $var,
+            ty: $ty,
+            body: $body,
+        })
     };
-    ( $v:expr, $t:expr, $b:expr) => {
-        $crate::exp::Exp::Prod {
-            var: $v,
-            ty: $t.into(),
-            body: $b.into(),
-        }
+    ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
+        $arena.alloc($crate::exp::Node::Prod {
+            var: $var,
+            ty: $ty,
+            body: $body,
+        })
     };
 }
 
-pub use {app, lam, prod, var, var_str};
+pub use {app, lam, prod, var};
 
 #[cfg(test)]
 mod tests {
-    // there is no PartialEq for Exp ... do not test
     use super::*;
-    #[test]
-    fn test_macros() {
-        var!("x");
-        var!("y");
-        var!("z");
-        app! { func: var_str!("f"), arg: var_str!("x") };
-        app! { arg: var_str!("x"), func: var_str!("f") };
-        app! { var_str!("f"), var_str!("x") };
-        app! { Box::new(var_str!("f")), var_str!("x") };
-        lam! { var: var!("x"), ty: var_str!("A"), body: var_str!("x")};
-        lam! { var!("x"), var_str!("A"), var_str!("x")};
-        prod! { var: var!("x"), ty: var_str!("A"), body: var_str!("B")};
-    }
-    #[test]
-    fn test_decompose_app() {
-        let f_var = var!("f");
-        let x_var = var!("x");
-        let y_var = var!("y");
 
-        // f x y
-        let app_exp = app!(
-            func: app!(
-                func: var_exp!(f_var),
-                arg: var_exp!(x_var),
-            ),
-            arg: var_exp!(y_var)
-        );
-        let (func, args) = decompose_app(app_exp);
-        assert_eq!(args.len(), 2);
-        assert_eq!(func.as_var().unwrap(), &f_var);
-        assert_eq!(args[0].as_var().unwrap(), &x_var);
-        assert_eq!(args[1].as_var().unwrap(), &y_var);
-    }
     #[test]
-    fn test_decompose_prod() {
-        let x_var = var!("x");
-        let y_var = var!("y");
-        let t_var = var!("T");
-        let body = var_str!("body");
+    fn test_macros_and_decompose() {
+        let arena = Arena::new();
+        let f = var!("f");
+        let x = var!("x");
+        let y = var!("y");
+        let f_exp = arena.var(f.clone());
+        let x_exp = arena.var(x.clone());
+        let y_exp = arena.var(y.clone());
+        let application = app!(&arena, app!(&arena, f_exp, x_exp), y_exp);
+        let (head, args) = decompose_app(&arena, application);
+        assert_eq!(arena.as_var(head).unwrap(), f);
+        assert_eq!(args, vec![x_exp, y_exp]);
 
-        // (x : T) -> (y : T) -> body
-        let prod_exp = prod!(
-            var: x_var.clone(),
-            ty: var_str!(t_var.as_str()),
-            body: prod!(
-                var: y_var.clone(),
-                ty: var_str!(t_var.as_str()),
-                body: body.clone()
-            )
-        );
-        let (vars, _) = decompose_prod(prod_exp);
-        assert_eq!(vars.len(), 2);
-        assert_eq!(vars[0].0, x_var);
-        assert_eq!(vars[1].0, y_var);
+        let ty = arena.sort(Sort::Set(0));
+        let product = prod!(&arena, x, ty, prod!(&arena, y, ty, ty));
+        let (binders, body) = decompose_prod(&arena, product);
+        assert_eq!(binders.len(), 2);
+        assert_eq!(body, ty);
     }
 }

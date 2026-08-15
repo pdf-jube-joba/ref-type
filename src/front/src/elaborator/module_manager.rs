@@ -2,7 +2,8 @@ use crate::syntax::{
     Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord,
     ModuleItemAccessible,
 };
-use kernel::exp::{Context, DefinedConstant, Exp, Var};
+use kernel::calculus::exp_subst_map;
+use kernel::exp::{Arena, Context, DefinedConstant, Exp, Var};
 use kernel::inductive::InductiveTypeSpecs;
 use std::rc::Rc;
 
@@ -57,7 +58,7 @@ impl InstantiatedModule {
         }
         for (var, exp) in self.parameters_instantiated.iter() {
             if var.as_str() == name.0.as_str() {
-                return Some(ItemAccessResult::Expression(exp.clone()));
+                return Some(ItemAccessResult::Expression(*exp));
             }
         }
         None
@@ -128,7 +129,7 @@ impl ModuleManager {
             let params = module
                 .parameters
                 .iter()
-                .map(|(var, ty)| (var.clone(), ty.clone()))
+                .map(|(var, ty)| (var.clone(), *ty))
                 .collect();
             context.push((module.name.clone(), params));
             if let Some(parent_index) = module.parent_module {
@@ -199,6 +200,7 @@ impl ModuleManager {
 
     fn access_module(
         &self,
+        arena: &Arena,
         mut from: usize,
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
         ctx: &Context,
@@ -241,9 +243,9 @@ impl ModuleManager {
                         arg_name.as_str()
                     ));
                 }
-                let ty_subst = ty.subst(&subst_mapping_accum);
-                need_to_type_check.push((param_var.clone(), arg.clone(), ty_subst));
-                subst_mapping_accum.push((param_var.clone(), arg.clone()));
+                let ty_subst = exp_subst_map(arena, *ty, &subst_mapping_accum);
+                need_to_type_check.push((param_var.clone(), *arg, ty_subst));
+                subst_mapping_accum.push((param_var.clone(), *arg));
             }
 
             from = *child_idx;
@@ -258,8 +260,8 @@ impl ModuleManager {
                     body: rc,
                 }) => {
                     let DefinedConstant { ty, body: inner } = rc.as_ref().clone();
-                    let instantiated_ty = ty.subst(&subst_mapping_accum);
-                    let instantiated_inner = inner.subst(&subst_mapping_accum);
+                    let instantiated_ty = exp_subst_map(arena, ty, &subst_mapping_accum);
+                    let instantiated_inner = exp_subst_map(arena, inner, &subst_mapping_accum);
                     let instantiated_def = DefinedConstant {
                         ty: instantiated_ty,
                         body: instantiated_inner,
@@ -275,7 +277,7 @@ impl ModuleManager {
                     ind_defs,
                 }) => {
                     let instantiated_ind_defs = ind_defs
-                        .instantiate(ctx, &subst_mapping_accum)
+                        .instantiate(arena, ctx, &subst_mapping_accum)
                         .map_err(|error| {
                             format!("Inductive type instantiation failed: {error:?}")
                         })?;
@@ -290,7 +292,7 @@ impl ModuleManager {
                     rc_spec_as_indtype,
                 }) => {
                     let instantiated_spec = rc_spec_as_indtype
-                        .instantiate(ctx, &subst_mapping_accum)
+                        .instantiate(arena, ctx, &subst_mapping_accum)
                         .map_err(|error| format!("Record type instantiation failed: {error:?}"))?;
                     Ok(ModuleItemAccessible::Record(ModItemRecord {
                         type_name: type_name.clone(),
@@ -313,6 +315,7 @@ impl ModuleManager {
 
     pub fn instantiate_module(
         &self,
+        arena: &Arena,
         back_parent: Option<usize>, // if None, from root
         args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
         ctx: &Context,
@@ -327,16 +330,16 @@ impl ModuleManager {
                         return Err("Cannot go back parent: already at root module".to_string());
                     }
                 }
-                self.access_module(index, args, ctx)
+                self.access_module(arena, index, args, ctx)
             }
             None => {
                 // from root
-                self.access_module(0, args, ctx)
+                self.access_module(arena, 0, args, ctx)
             }
         }
     }
 
-    pub fn get_item(&self, access: &LocalAccess) -> Option<ItemAccessResult> {
+    pub fn get_item(&self, arena: &Arena, access: &LocalAccess) -> Option<ItemAccessResult> {
         match access {
             LocalAccess::Current { access } => {
                 // from module items in current to parent
@@ -371,7 +374,7 @@ impl ModuleManager {
                     // find from parameters
                     for (var, _) in self.modules[index].parameters.iter() {
                         if var.as_str() == access.as_str() {
-                            return Some(ItemAccessResult::Expression(Exp::Var(var.clone())));
+                            return Some(ItemAccessResult::Expression(arena.var(var.clone())));
                         }
                     }
 

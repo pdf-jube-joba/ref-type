@@ -39,15 +39,15 @@ fn print_rc_ptr<T>(rc: &std::rc::Rc<T>) -> String {
     ptr_64bit_base62_fixed(std::rc::Rc::as_ptr(rc) as *const ())
 }
 
-pub fn log_record_to_log(record: &front::logger::LogRecord) -> Log {
+pub fn log_record_to_log(arena: &kernel::exp::Arena, record: &front::logger::LogRecord) -> Log {
     match &record.payload {
         LogPayload::Exp(exp) => Log::Message(format_record(
             record,
-            Some(format!("exp = {}", for_kernel::format_exp(exp))),
+            Some(format!("exp = {}", for_kernel::format_exp(arena, *exp))),
         )),
         LogPayload::Ctx(ctx) => Log::Message(format_record(
             record,
-            Some(format!("ctx = [{}]", for_kernel::format_ctx(ctx))),
+            Some(format!("ctx = [{}]", for_kernel::format_ctx(arena, ctx))),
         )),
         LogPayload::Message => Log::Message(format_record(record, None)),
     }
