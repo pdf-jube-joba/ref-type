@@ -31,7 +31,7 @@
 
 ### IDと所有権
 
-- 公開済みの`DefId`、`InductiveId`、`ModuleId`、`ModuleInstanceId`は常に有効な実体を指す。
+- 公開済みの`DefId`、`InductiveId`、`ModuleId`、`ModuleInstanceId`、`ModuleParamId`は常に有効な実体を指す。
 - tableは原則append-onlyとし、IDが指すitemを移動・再利用しない。
 - kernelへ渡る項では名前解決を終え、定義と帰納型は安定IDで参照する。
 - incrementalityや削除を導入する場合は、generationまたはenvironment revisionを設計してからIDを再利用する。
@@ -122,7 +122,12 @@ formattingと文字列処理がprofile上位にあるため、ここは現在も
 
 #### 名前とNode payload
 
-- free variableとbinder表示名には`Rc<String>`が残る。
+- 式中の非local変数参照は`ModuleParamId { module, position }`に限定されている。
+- local binderはde Bruijn indexで参照し、`Prod`、`Lam`、telescope、contextには表示用の`SymbolId`だけを持つ。
+- `NamedVar`、`VarId`、binderごとの`Rc<String>`、`instantiate`の名前付き変数fallbackは削除済みである。
+- module parameterはmoduleを先に予約し、parameterをsource順に`ModuleEnv`へ追加するため、後続parameterの型から安定IDで参照できる。
+- inductiveは`InductiveId`を先に予約し、constructorの自己参照を最初から`IndType`としてelaborateする。
+- module名、item名、import名には引き続き`String`を使う。
 - module名、item名、import名にも`String`を使う。
 - `Node`内のparametersとcasesは`Vec<Exp>`であり、`Arena::get`のshallow cloneでもVecのclone/dropが発生する。
 - child moduleとmodule parameterの名前探索は線形である。
@@ -226,7 +231,7 @@ module parameter数に比例したASTの反復走査をなくす。
 
 #### 方針
 
-1. 複数の`Var -> Exp`を一つのsubstitution environmentとして引けるようにする。
+1. 複数の`ModuleParamId -> Exp`を一つのsubstitution environmentとして引けるようにする。
 2. 一回のNode走査ですべてのfree variableを置換する。
 3. binder深さに応じたde Bruijn shiftを各replacementへ正しく適用する。
 4. 現在の逐次代入と同じ意味になるよう、依存するparameterの置換順序またはsubstitution compositionを明示する。
@@ -256,8 +261,8 @@ module parameter数に比例したASTの反復走査をなくす。
 #### 方針
 
 1. crate単位の`SymbolInterner`を導入する。
-2. free variable、module名、item名、import名を`SymbolId`で保持する。
-3. binderの意味的identityと表示名を分け、表示名は`SymbolId`またはsource spanに置く。
+2. `NamedVar`の表示名、module名、item名、import名を`SymbolId`で保持する。
+3. `VarId`による意味的identityは維持し、表示名だけを`SymbolId`またはsource spanに置く。
 4. moduleごとにchild名とparameter名のindexを持つ。
 5. `InductiveId -> RecordMetadata`の直接indexを持つ。
 6. lookup APIは大きなfront itemをcloneせず、IDまたはborrowed viewを返す。

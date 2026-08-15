@@ -1,9 +1,9 @@
 use crate::syntax::{Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord};
 use kernel::calculus::{exp_subst_map, remap_global_ids};
 use kernel::derivation::CheckSession;
-use kernel::environment::{CrateEnv, ModuleItem};
+use kernel::environment::{CrateEnv, ModuleItem, ModuleParameter};
 use kernel::exp::{
-    Context, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, Var,
+    Context, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId,
 };
 use kernel::inductive::InductiveTypeSpecs;
 use std::collections::HashMap;
@@ -48,10 +48,20 @@ impl ModuleManager {
         &mut self,
         env: &mut CrateEnv,
         module_name: String,
-        parameters: Vec<(Var, Exp)>,
+        parameters: Vec<ModuleParameter>,
     ) -> Result<(), String> {
         self.current = env.add_child_module(self.current, module_name, parameters)?;
         Ok(())
+    }
+
+    pub fn reserve_child_and_moveto(
+        &mut self,
+        env: &mut CrateEnv,
+        module_name: String,
+    ) -> ModuleId {
+        let id = env.reserve_child_module(self.current, module_name);
+        self.current = id;
+        id
     }
 
     pub fn moveto_parent(&mut self, env: &CrateEnv) {
@@ -68,12 +78,18 @@ impl ModuleManager {
         self.current = ModuleId(0);
     }
 
-    pub fn current_context(&self, env: &CrateEnv) -> Vec<(String, Vec<(Var, Exp)>)> {
+    pub fn current_context(&self, env: &CrateEnv) -> Context {
         let mut context = Vec::new();
         let mut current = self.current;
         loop {
             let module = env.module(current);
-            context.push((module.name().to_owned(), module.parameters().to_vec()));
+            context.push(
+                module
+                    .parameters()
+                    .iter()
+                    .map(|parameter| (parameter.name, parameter.ty))
+                    .collect::<Context>(),
+            );
             if let Some(parent) = module.parent() {
                 current = parent;
             } else {
@@ -81,7 +97,7 @@ impl ModuleManager {
             }
         }
         context.reverse();
-        context
+        context.into_iter().flatten().collect()
     }
 
     pub fn add_def(
@@ -108,6 +124,23 @@ impl ModuleManager {
         spec: InductiveTypeSpecs,
     ) -> Result<(), String> {
         let inductive = env.add_inductive(self.current, spec);
+        env.publish_item(
+            self.current,
+            ModuleItem::Inductive {
+                name: type_name.0,
+                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
+                inductive,
+            },
+        )
+    }
+
+    pub fn publish_reserved_inductive(
+        &mut self,
+        env: &mut CrateEnv,
+        type_name: Identifier,
+        constructor_names: Vec<Identifier>,
+        inductive: InductiveId,
+    ) -> Result<(), String> {
         env.publish_item(
             self.current,
             ModuleItem::Inductive {
@@ -209,18 +242,18 @@ impl ModuleManager {
                     arguments.len(),
                 ));
             }
-            for ((argument_name, argument), (parameter, parameter_ty)) in
-                arguments.iter().zip(parameters)
+            for ((position, (argument_name, argument)), parameter) in
+                arguments.iter().enumerate().zip(parameters)
             {
-                if argument_name.as_str() != parameter.as_str() {
+                if argument_name.as_str() != env.symbol(parameter.name) {
                     return Err(format!(
                         "Argument name mismatch for module '{}': expected '{}', got '{}'",
                         child_name.as_str(),
-                        parameter.as_str(),
+                        env.symbol(parameter.name),
                         argument_name.as_str(),
                     ));
                 }
-                let expected = exp_subst_map(env.arena(), parameter_ty, &substitutions);
+                let expected = exp_subst_map(env.arena(), parameter.ty, &substitutions);
                 CheckSession::new(env, self.current, context)
                     .check(*argument, expected)
                     .map_err(|error| {
@@ -230,7 +263,13 @@ impl ModuleManager {
                             argument_name.as_str(),
                         )
                     })?;
-                substitutions.push((parameter, *argument));
+                substitutions.push((
+                    ModuleParamId {
+                        module: child,
+                        position: position as u32,
+                    },
+                    *argument,
+                ));
             }
             source = child;
             route.push(child);
@@ -281,26 +320,12 @@ impl ModuleManager {
                         inductive,
                     } => {
                         let spec = env.inductive(inductive).clone();
-                        let instantiated = spec
-                            .instantiate(
-                                &mut CheckSession::new(env, self.current, context),
-                                &substitutions,
-                            )
-                            .map_err(|error| {
-                                format!("Inductive type instantiation failed: {error:?}")
-                            })?;
+                        let instantiated = spec.instantiate(env.arena(), &substitutions);
                         PendingItem::Inductive(name, constructor_names, inductive, instantiated)
                     }
                     ModuleItem::Record { name, inductive } => {
                         let spec = env.inductive(inductive).clone();
-                        let instantiated = spec
-                            .instantiate(
-                                &mut CheckSession::new(env, self.current, context),
-                                &substitutions,
-                            )
-                            .map_err(|error| {
-                                format!("Record type instantiation failed: {error:?}")
-                            })?;
+                        let instantiated = spec.instantiate(env.arena(), &substitutions);
                         PendingItem::Record(name, inductive, instantiated)
                     }
                 });
@@ -383,12 +408,21 @@ impl ModuleManager {
                     if let Some(item) = current.item(access.as_str()) {
                         return Some(convert_item(item));
                     }
-                    if let Some((var, _)) = current
+                    if let Some(parameter) = current
                         .parameters()
                         .iter()
-                        .find(|(var, _)| var.as_str() == access.as_str())
+                        .find(|parameter| env.symbol(parameter.name) == access.as_str())
                     {
-                        return Some(ItemAccessResult::Expression(env.arena().var(var.clone())));
+                        return Some(ItemAccessResult::Expression(
+                            env.arena().module_param(ModuleParamId {
+                                module,
+                                position: current
+                                    .parameters()
+                                    .iter()
+                                    .position(|p| p.name == parameter.name)
+                                    .unwrap() as u32,
+                            }),
+                        ));
                     }
                     module = current.parent()?;
                 }
@@ -436,6 +470,13 @@ mod tests {
     use super::*;
     use kernel::exp::{Node, Sort};
     use kernel::inductive::{CtorType, InductiveTypeSpecs};
+
+    fn parameter(env: &mut CrateEnv, name: &str, ty: Exp) -> ModuleParameter {
+        ModuleParameter {
+            name: env.intern(name),
+            ty,
+        }
+    }
 
     #[test]
     fn module_navigation_uses_persistent_module_envs() {
@@ -538,8 +579,9 @@ mod tests {
         let mut manager = ModuleManager::new();
         let mut env = CrateEnv::new();
         let set = env.arena().sort(Sort::Set(0));
+        let parameter = parameter(&mut env, "A", set);
         manager
-            .add_child_and_moveto(&mut env, "Parameterized".into(), vec![(Var::new("A"), set)])
+            .add_child_and_moveto(&mut env, "Parameterized".into(), vec![parameter])
             .unwrap();
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_parent(&env);
@@ -571,8 +613,8 @@ mod tests {
         );
         assert!(env.module(env.root_module()).instances().is_empty());
 
-        let carrier = Var::new("Carrier");
-        let argument = env.arena().var(carrier.clone());
+        let carrier = env.intern("Carrier");
+        let argument = env.arena().bound(0);
         let mut context = vec![(carrier, set)];
         assert!(
             manager
@@ -593,9 +635,8 @@ mod tests {
         manager
             .add_child_and_moveto(&mut env, "Source".into(), vec![])
             .unwrap();
-        let source = manager.current();
-        let spec = InductiveTypeSpecs::new(
-            &mut CheckSession::new(&env, source, &mut Vec::new()),
+        let _source = manager.current();
+        let spec = InductiveTypeSpecs::unchecked(
             vec![],
             vec![],
             Sort::Set(0),
@@ -603,8 +644,7 @@ mod tests {
                 telescope: vec![],
                 indices: vec![],
             }],
-        )
-        .unwrap();
+        );
         manager
             .add_inductive(
                 &mut env,
@@ -669,11 +709,21 @@ mod tests {
         let mut manager = ModuleManager::new();
         let mut env = CrateEnv::new();
         let set = env.arena().sort(Sort::Set(0));
-        let parameter = Var::new("A");
+        let parameter = env.intern("A");
         manager
-            .add_child_and_moveto(&mut env, "Parent".into(), vec![(parameter.clone(), set)])
+            .add_child_and_moveto(
+                &mut env,
+                "Parent".into(),
+                vec![ModuleParameter {
+                    name: parameter,
+                    ty: set,
+                }],
+            )
             .unwrap();
-        let parameter_exp = env.arena().var(parameter);
+        let parameter_exp = env.arena().module_param(ModuleParamId {
+            module: manager.current(),
+            position: 0,
+        });
         manager
             .add_def(
                 &mut env,
@@ -712,8 +762,8 @@ mod tests {
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_root();
 
-        let carrier = Var::new("Carrier");
-        let argument = env.arena().var(carrier.clone());
+        let carrier = env.intern("Carrier");
+        let argument = env.arena().bound(0);
         let mut context = vec![(carrier, set)];
         let instance = manager
             .instantiate_module(
@@ -744,7 +794,11 @@ mod tests {
         };
         assert_ne!(remapped_parent, parent_definition);
         let child = env.arena().alloc(Node::DefinedConstant(*child_definition));
-        assert_eq!(kernel::calculus::whnf(&env, child), argument);
+        assert!(kernel::calculus::exp_is_alpha_eq(
+            &env,
+            kernel::calculus::whnf(&env, child),
+            argument,
+        ));
     }
 
     #[test]
@@ -753,11 +807,21 @@ mod tests {
         let mut env = CrateEnv::new();
         let set = env.arena().sort(Sort::Set(0));
 
-        let parameter = Var::new("A");
+        let parameter = env.intern("A");
         manager
-            .add_child_and_moveto(&mut env, "Param".into(), vec![(parameter.clone(), set)])
+            .add_child_and_moveto(
+                &mut env,
+                "Param".into(),
+                vec![ModuleParameter {
+                    name: parameter,
+                    ty: set,
+                }],
+            )
             .unwrap();
-        let parameter_exp = env.arena().var(parameter);
+        let parameter_exp = env.arena().module_param(ModuleParamId {
+            module: manager.current(),
+            position: 0,
+        });
         manager
             .add_def(
                 &mut env,
@@ -771,16 +835,22 @@ mod tests {
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_parent(&env);
 
-        let outer_parameter = Var::new("A");
+        let outer_parameter = env.intern("A");
         manager
             .add_child_and_moveto(
                 &mut env,
                 "Outer".into(),
-                vec![(outer_parameter.clone(), set)],
+                vec![ModuleParameter {
+                    name: outer_parameter,
+                    ty: set,
+                }],
             )
             .unwrap();
-        let outer_context_var = outer_parameter.clone();
-        let outer_argument = env.arena().var(outer_parameter);
+        let outer_context_var = outer_parameter;
+        let outer_argument = env.arena().module_param(ModuleParamId {
+            module: manager.current(),
+            position: 0,
+        });
         let dependency = manager
             .instantiate_module(
                 &mut env,
@@ -823,8 +893,8 @@ mod tests {
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_parent(&env);
 
-        let carrier = Var::new("Carrier");
-        let argument = env.arena().var(carrier.clone());
+        let carrier = env.intern("Carrier");
+        let argument = env.arena().bound(0);
         let instance = manager
             .instantiate_module(
                 &mut env,
@@ -841,6 +911,10 @@ mod tests {
             unreachable!()
         };
         let result = env.arena().alloc(Node::DefinedConstant(*definition));
-        assert_eq!(kernel::calculus::whnf(&env, result), argument);
+        assert!(kernel::calculus::exp_is_alpha_eq(
+            &env,
+            kernel::calculus::whnf(&env, result),
+            argument,
+        ));
     }
 }

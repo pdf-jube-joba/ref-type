@@ -7,14 +7,14 @@ pub fn assoc_apply(arena: &Arena, mut func: Exp, args: Vec<Exp>) -> Exp {
     func
 }
 
-pub fn assoc_lam(arena: &Arena, binders: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
+pub fn assoc_lam(arena: &Arena, binders: Vec<(SymbolId, Exp)>, mut body: Exp) -> Exp {
     for (var, ty) in binders.into_iter().rev() {
         body = arena.alloc(Node::Lam { var, ty, body });
     }
     body
 }
 
-pub fn assoc_prod(arena: &Arena, binders: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
+pub fn assoc_prod(arena: &Arena, binders: Vec<(SymbolId, Exp)>, mut body: Exp) -> Exp {
     for (var, ty) in binders.into_iter().rev() {
         body = arena.alloc(Node::Prod { var, ty, body });
     }
@@ -33,27 +33,13 @@ pub fn decompose_app(arena: &Arena, mut exp: Exp) -> (Exp, Vec<Exp>) {
 }
 
 // (x1 : A1) ... (xn : An) -> B  ==>  ([(x1, A1), ..., (xn, An)], B)
-pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(Var, Exp)>, Exp) {
+pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(SymbolId, Exp)>, Exp) {
     let mut vars = vec![];
     while let Node::Prod { var, ty, body } = arena.get(exp) {
         vars.push((var, ty));
         exp = body;
     }
     (vars, exp)
-}
-
-#[macro_export]
-macro_rules! var {
-    ($name:expr) => {
-        $crate::exp::Var::new($name)
-    };
-}
-
-#[macro_export]
-macro_rules! var_exp {
-    ($arena:expr, $name:expr) => {
-        $arena.var($name.clone())
-    };
 }
 
 #[macro_export]
@@ -114,24 +100,33 @@ macro_rules! prod {
     };
 }
 
-pub use {app, lam, prod, var};
+pub use {app, lam, prod};
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exp::{ModuleId, ModuleParamId};
 
     #[test]
     fn test_macros_and_decompose() {
         let arena = Arena::new();
-        let f = var!("f");
-        let x = var!("x");
-        let y = var!("y");
-        let f_exp = arena.var(f.clone());
-        let x_exp = arena.var(x.clone());
-        let y_exp = arena.var(y.clone());
+        let x = SymbolId(2);
+        let y = SymbolId(3);
+        let f_exp = arena.module_param(ModuleParamId {
+            module: ModuleId(0),
+            position: 0,
+        });
+        let x_exp = arena.module_param(ModuleParamId {
+            module: ModuleId(0),
+            position: 1,
+        });
+        let y_exp = arena.module_param(ModuleParamId {
+            module: ModuleId(0),
+            position: 2,
+        });
         let application = app!(&arena, app!(&arena, f_exp, x_exp), y_exp);
         let (head, args) = decompose_app(&arena, application);
-        assert_eq!(arena.as_var(head).unwrap(), f);
+        assert_eq!(arena.as_module_param(head).unwrap().position, 0);
         assert_eq!(args, vec![x_exp, y_exp]);
 
         let ty = arena.sort(Sort::Set(0));

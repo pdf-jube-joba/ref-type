@@ -1,6 +1,6 @@
 use crate::elaborator::ItemAccessResult;
 use crate::syntax::*;
-use kernel::calculus::{exp_contains_as_freevar, exp_contains_bound, exp_subst_map};
+use kernel::calculus::{exp_contains_bound, instantiate};
 use kernel::environment::CrateEnv;
 use kernel::exp::*;
 use kernel::inductive::InductiveTypeSpecs;
@@ -14,6 +14,8 @@ pub trait Handler {
     ) -> Result<ItemAccessResult, String>;
     fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String>;
     fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String>;
+    fn intern(&mut self, name: &str) -> SymbolId;
+    fn symbol(&self, symbol: SymbolId) -> &str;
 }
 
 // local scope during elaboration
@@ -22,9 +24,9 @@ pub struct LocalScope {
     // for find binded variables inside term
     // lambda abstraction variables, product, subset,
     // after any call of elab_exp outside the elab_exp, this should be cleared
-    binded_vars: Vec<Var>,
+    binded_vars: Vec<SymbolId>,
     // for find decl levels
-    decl_binds: Vec<Var>,
+    decl_binds: Vec<(SymbolId, Option<Exp>)>,
     // Types of local variables known to the elaborator. Module variables are
     // supplied by the handler and therefore do not appear here.
     typing_binds: Context,
@@ -45,12 +47,21 @@ impl LocalScope {
         }
     }
 
-    pub fn push_decl_var(&mut self, var: Var) {
-        self.decl_binds.push(var);
+    pub fn push_decl_var(&mut self, var: SymbolId) {
+        self.decl_binds.push((var, None));
     }
 
-    pub fn push_typed_decl_var(&mut self, var: Var, ty: Exp) {
-        self.decl_binds.push(var.clone());
+    pub fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
+        self.decl_binds.push((var, Some(exp)));
+    }
+
+    pub fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
+        self.decl_binds.push((var, None));
+        self.typing_binds.push((var, ty));
+    }
+
+    pub fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
+        self.decl_binds.push((var, Some(exp)));
         self.typing_binds.push((var, ty));
     }
 
@@ -59,35 +70,35 @@ impl LocalScope {
         &mut self,
         binds: &[RightBind],
         handler: &mut impl Handler,
-    ) -> Result<Vec<(Var, Exp)>, String> {
+    ) -> Result<Vec<(SymbolId, Exp)>, String> {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
             for var in vars {
-                let var = Var::new(var.as_str());
-                result.push((var.clone(), ty_elab));
+                let var = handler.intern(var.as_str());
+                result.push((var, ty_elab));
                 self.push_typed_decl_var(var, ty_elab);
             }
         }
         Ok(result)
     }
 
-    fn get_var(&self, arena: &Arena, name: &Identifier) -> Option<Exp> {
+    fn get_var(&self, arena: &Arena, name: &Identifier, handler: &impl Handler) -> Option<Exp> {
         for (index, v) in self.binded_vars.iter().rev().enumerate() {
-            if v.as_str() == name.as_str() {
+            if handler.symbol(*v) == name.as_str() {
                 return Some(arena.bound(index));
             }
         }
-        for v in self.decl_binds.iter().rev() {
-            if v.as_str() == name.as_str() {
-                return Some(arena.var(v.clone()));
+        for (index, (v, exp)) in self.decl_binds.iter().rev().enumerate() {
+            if handler.symbol(*v) == name.as_str() {
+                return Some(exp.unwrap_or_else(|| arena.bound(self.binded_vars.len() + index)));
             }
         }
         None
     }
 
-    fn push_binded_var(&mut self, var: Var, ty: Exp) {
-        self.binded_vars.push(var.clone());
+    fn push_binded_var(&mut self, var: SymbolId, ty: Exp) {
+        self.binded_vars.push(var);
         self.typing_binds.push((var, ty));
     }
     fn pop_binded_var(&mut self) {
@@ -114,13 +125,13 @@ impl LocalScope {
                     return Err("\\take currently expects exactly one named variable".into());
                 }
 
-                let var = Var::new(right_bind.vars[0].as_str());
+                let var = handler.intern(right_bind.vars[0].as_str());
                 let domain = self.elab_exp_rec(&right_bind.ty, handler)?;
-                self.push_binded_var(var.clone(), domain);
+                self.push_binded_var(var, domain);
                 let map_body = self.elab_exp_rec(body, handler)?;
                 self.pop_binded_var();
                 let map = handler.arena().alloc(Node::Lam {
-                    var: var.clone(),
+                    var,
                     ty: domain,
                     body: map_body,
                 });
@@ -128,22 +139,21 @@ impl LocalScope {
                 let Node::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
                     return Err("failed to infer a product type for \\take map".into());
                 };
-                if exp_contains_bound(handler.arena(), codomain, 0)
-                    || exp_contains_as_freevar(handler.env(), codomain, &var)
-                {
+                if exp_contains_bound(handler.arena(), codomain, 0) {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
+                let codomain = instantiate(handler.arena(), codomain, domain);
                 Ok((domain, map, codomain))
             }
             Bind::Subset { var, ty, predicate } => {
                 let carrier = self.elab_exp_rec(ty, handler)?;
-                let var = Var::new(var.as_str());
-                self.push_binded_var(var.clone(), carrier);
+                let var = handler.intern(var.as_str());
+                self.push_binded_var(var, carrier);
                 let predicate = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
 
                 let subset = handler.arena().alloc(Node::SubSet {
-                    var: var.clone(),
+                    var,
                     set: carrier,
                     predicate,
                 });
@@ -151,11 +161,11 @@ impl LocalScope {
                     superset: carrier,
                     subset,
                 });
-                self.push_binded_var(var.clone(), domain);
+                self.push_binded_var(var, domain);
                 let map_body = self.elab_exp_rec(body, handler)?;
                 self.pop_binded_var();
                 let map = handler.arena().alloc(Node::Lam {
-                    var: var.clone(),
+                    var,
                     ty: domain,
                     body: map_body,
                 });
@@ -163,11 +173,10 @@ impl LocalScope {
                 let Node::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
                     return Err("failed to infer a product type for \\take map".into());
                 };
-                if exp_contains_bound(handler.arena(), codomain, 0)
-                    || exp_contains_as_freevar(handler.env(), codomain, &var)
-                {
+                if exp_contains_bound(handler.arena(), codomain, 0) {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
+                let codomain = instantiate(handler.arena(), codomain, domain);
                 Ok((domain, map, codomain))
             }
             Bind::SubsetWithProof { .. } => {
@@ -183,7 +192,7 @@ impl LocalScope {
 
                 // 1. find from binded vars first (if no parameters)
                 if let LocalAccess::Current { access: name } = access
-                    && let Some(var) = self.get_var(handler.arena(), name)
+                    && let Some(var) = self.get_var(handler.arena(), name, handler)
                     && parameters.is_empty()
                 {
                     return Ok(var);
@@ -283,25 +292,28 @@ impl LocalScope {
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
             SExp::Where { exp, clauses } => {
-                // elaborate clauses, register name
-                // then subst var to defconst in exp
-
-                let mut where_def_rcs_substmap: Vec<(Var, Exp)> = vec![];
-                for (name, ty, body) in clauses {
-                    let ty = self.elab_exp_rec(ty, handler)?;
-                    let body = self.elab_exp_rec(body, handler)?;
-                    let _ty = ty;
-                    let name: Var = Var::new(name.as_str());
-                    where_def_rcs_substmap.push((name, body));
-                }
-
-                let exp_elab = self.elab_exp_rec(exp, handler)?;
-
-                Ok(exp_subst_map(
-                    handler.arena(),
-                    exp_elab,
-                    &where_def_rcs_substmap,
-                ))
+                let declaration_mark = self.decl_binds.len();
+                let result = (|| {
+                    for (name, ty, body) in clauses {
+                        let ty = self.elab_exp_rec(ty, handler)?;
+                        let body = self.elab_exp_rec(body, handler)?;
+                        let inferred = handler.infer(&mut self.typing_binds, body)?;
+                        if !kernel::calculus::convertible(handler.env(), inferred, ty) {
+                            return Err(format!(
+                                "where definition '{}' does not match its declared type",
+                                name.as_str(),
+                            ));
+                        }
+                        let name = handler.intern(name.as_str());
+                        // `where` is non-recursive and definitions are processed in order.
+                        // Store the elaborated body as the declaration's referent, so later
+                        // clauses and the result expression inline it directly.
+                        self.push_decl_var_exp(name, body);
+                    }
+                    self.elab_exp_rec(exp, handler)
+                })();
+                self.decl_binds.truncate(declaration_mark);
+                result
             }
             SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
@@ -311,8 +323,8 @@ impl LocalScope {
                         if right_bind.vars.is_empty() {
                             // same as Anonymous
                             let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
-                            let var = Var::dummy();
-                            self.push_binded_var(var.clone(), ty_elab);
+                            let var = SymbolId::ANONYMOUS;
+                            self.push_binded_var(var, ty_elab);
                             let body_elab = self.elab_exp_rec(body, handler)?;
                             self.pop_binded_var();
                             return Ok(if is_prod {
@@ -332,10 +344,10 @@ impl LocalScope {
 
                         let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
 
-                        let mut telescope: Vec<(Var, Exp)> = vec![];
+                        let mut telescope: Vec<(SymbolId, Exp)> = vec![];
                         for var in &right_bind.vars {
-                            let var: Var = Var::new(var.as_str());
-                            telescope.push((var.clone(), ty_elab));
+                            let var = handler.intern(var.as_str());
+                            telescope.push((var, ty_elab));
                             self.push_binded_var(var, ty_elab);
                         }
 
@@ -353,13 +365,13 @@ impl LocalScope {
                     }
                     Bind::Subset { var, ty, predicate } => {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var: Var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone(), ty_elab);
+                        let var = handler.intern(var.as_str());
+                        self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
                         let subset = handler.arena().alloc(Node::SubSet {
-                            var: var.clone(),
+                            var,
                             set: ty_elab,
                             predicate: predicate_elab,
                         });
@@ -368,19 +380,19 @@ impl LocalScope {
                             superset: ty_elab,
                             subset,
                         });
-                        self.push_binded_var(var.clone(), refined_ty);
+                        self.push_binded_var(var, refined_ty);
                         let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
 
                         Ok(if is_prod {
                             handler.arena().alloc(Node::Prod {
-                                var: var.clone(),
+                                var,
                                 ty: refined_ty,
                                 body: body_elab,
                             })
                         } else {
                             handler.arena().alloc(Node::Lam {
-                                var: var.clone(),
+                                var,
                                 ty: refined_ty,
                                 body: body_elab,
                             })
@@ -393,13 +405,13 @@ impl LocalScope {
                         proof_var,
                     } => {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var: Var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone(), ty_elab);
+                        let var = handler.intern(var.as_str());
+                        self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
                         let subset = handler.arena().alloc(Node::SubSet {
-                            var: var.clone(),
+                            var,
                             set: ty_elab,
                             predicate: predicate_elab,
                         });
@@ -407,9 +419,9 @@ impl LocalScope {
                             superset: ty_elab,
                             subset,
                         });
-                        self.push_binded_var(var.clone(), refined_ty);
-                        let proof: Var = Var::new(proof_var.as_str());
-                        self.push_binded_var(proof.clone(), predicate_elab);
+                        self.push_binded_var(var, refined_ty);
+                        let proof = handler.intern(proof_var.as_str());
+                        self.push_binded_var(proof, predicate_elab);
                         let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
                         self.pop_binded_var();
@@ -421,13 +433,13 @@ impl LocalScope {
 
                         Ok(if is_prod {
                             handler.arena().alloc(Node::Prod {
-                                var: var.clone(),
+                                var,
                                 ty: refined_ty,
                                 body: body_elab,
                             })
                         } else {
                             handler.arena().alloc(Node::Lam {
-                                var: var.clone(),
+                                var,
                                 ty: refined_ty,
                                 body: body_elab,
                             })
@@ -577,12 +589,12 @@ impl LocalScope {
                 predicate,
             } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
-                let var: Var = Var::new(var.as_str());
-                self.push_binded_var(var.clone(), set_elab);
+                let var = handler.intern(var.as_str());
+                self.push_binded_var(var, set_elab);
                 let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
                 Ok(handler.arena().alloc(Node::SubSet {
-                    var: var.clone(),
+                    var,
                     set: set_elab,
                     predicate: predicate_elab,
                 }))
@@ -635,13 +647,13 @@ impl LocalScope {
                 Bind::Subset { var, ty, predicate } => {
                     let subset_as_exp = {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var: Var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone(), ty_elab);
+                        let var = handler.intern(var.as_str());
+                        self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
                         handler.arena().alloc(Node::SubSet {
-                            var: var.clone(),
+                            var,
                             set: ty_elab,
                             predicate: predicate_elab,
                         })
@@ -715,8 +727,8 @@ impl LocalScope {
                 let left = self.elab_exp_rec(left, handler)?;
                 let right = self.elab_exp_rec(right, handler)?;
                 let ty = self.elab_exp_rec(ty, handler)?;
-                let var = Var::new(var.as_str());
-                self.push_binded_var(var.clone(), ty);
+                let var = handler.intern(var.as_str());
+                self.push_binded_var(var, ty);
                 let predicate = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
                 let base = self.elab_exp_rec(base, handler)?;

@@ -1,5 +1,8 @@
 use crate::{
-    exp::{Arena, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, Var},
+    exp::{
+        Arena, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId,
+        SymbolId,
+    },
     inductive::InductiveTypeSpecs,
 };
 use std::collections::HashMap;
@@ -21,6 +24,18 @@ pub enum ModuleItem {
     },
 }
 
+#[derive(Debug, Clone)]
+pub struct ModuleParameter {
+    pub name: SymbolId,
+    pub ty: Exp,
+}
+
+impl ModuleParameter {
+    pub fn id(&self, module: ModuleId, position: u32) -> ModuleParamId {
+        ModuleParamId { module, position }
+    }
+}
+
 impl ModuleItem {
     pub fn name(&self) -> &str {
         match self {
@@ -36,7 +51,7 @@ pub struct ModuleInstance {
     pub id: ModuleInstanceId,
     pub source: ModuleId,
     pub materialized: ModuleId,
-    pub arguments: Vec<(Var, Exp)>,
+    pub arguments: Vec<(ModuleParamId, Exp)>,
 }
 
 #[derive(Debug)]
@@ -45,9 +60,9 @@ pub struct ModuleEnv {
     name: String,
     parent: Option<ModuleId>,
     children: Vec<ModuleId>,
-    parameters: Vec<(Var, Exp)>,
+    parameters: Vec<ModuleParameter>,
     definitions: Vec<DefinedConstant>,
-    inductives: Vec<InductiveTypeSpecs>,
+    inductives: Vec<Option<InductiveTypeSpecs>>,
     items: Vec<ModuleItem>,
     names: HashMap<String, usize>,
     instances: Vec<ModuleInstance>,
@@ -59,7 +74,7 @@ impl ModuleEnv {
         id: ModuleId,
         name: String,
         parent: Option<ModuleId>,
-        parameters: Vec<(Var, Exp)>,
+        parameters: Vec<ModuleParameter>,
     ) -> Self {
         Self {
             id,
@@ -92,7 +107,7 @@ impl ModuleEnv {
         &self.children
     }
 
-    pub fn parameters(&self) -> &[(Var, Exp)] {
+    pub fn parameters(&self) -> &[ModuleParameter] {
         &self.parameters
     }
 
@@ -100,7 +115,7 @@ impl ModuleEnv {
         &self.definitions
     }
 
-    pub fn inductives(&self) -> &[InductiveTypeSpecs] {
+    pub fn inductives(&self) -> &[Option<InductiveTypeSpecs>] {
         &self.inductives
     }
 
@@ -124,6 +139,8 @@ impl ModuleEnv {
 #[derive(Debug)]
 pub struct CrateEnv {
     arena: Arena,
+    symbols: Vec<String>,
+    symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
 }
 
@@ -135,10 +152,37 @@ impl Default for CrateEnv {
 
 impl CrateEnv {
     pub fn new() -> Self {
+        let anonymous = "_".to_string();
+        let root = "root".to_string();
+        let mut symbol_ids = HashMap::new();
+        symbol_ids.insert(anonymous.clone(), SymbolId::ANONYMOUS);
+        symbol_ids.insert(root.clone(), SymbolId(1));
         Self {
             arena: Arena::new(),
+            symbols: vec![anonymous, root],
+            symbol_ids,
             modules: vec![ModuleEnv::new(ModuleId(0), "root".into(), None, vec![])],
         }
+    }
+
+    pub fn intern(&mut self, name: &str) -> SymbolId {
+        if let Some(symbol) = self.symbol_ids.get(name) {
+            return *symbol;
+        }
+        let index = u32::try_from(self.symbols.len()).expect("symbol table exceeded u32::MAX");
+        let symbol = SymbolId(index);
+        let name = name.to_string();
+        self.symbols.push(name.clone());
+        self.symbol_ids.insert(name, symbol);
+        symbol
+    }
+
+    pub fn symbol(&self, symbol: SymbolId) -> &str {
+        &self.symbols[symbol.index()]
+    }
+
+    pub fn find_symbol(&self, name: &str) -> Option<SymbolId> {
+        self.symbol_ids.get(name).copied()
     }
 
     pub fn arena(&self) -> &Arena {
@@ -161,9 +205,17 @@ impl CrateEnv {
         &mut self,
         parent: ModuleId,
         name: String,
-        parameters: Vec<(Var, Exp)>,
+        parameters: Vec<ModuleParameter>,
     ) -> Result<ModuleId, String> {
         Ok(self.add_module_entry(name, Some(parent), parameters))
+    }
+
+    pub fn reserve_child_module(&mut self, parent: ModuleId, name: String) -> ModuleId {
+        self.add_module_entry(name, Some(parent), vec![])
+    }
+
+    pub fn add_module_parameter(&mut self, module: ModuleId, parameter: ModuleParameter) {
+        self.module_mut(module).parameters.push(parameter);
     }
 
     pub fn publish_child_module(&mut self, child: ModuleId) -> Result<(), String> {
@@ -178,7 +230,7 @@ impl CrateEnv {
         &mut self,
         name: String,
         parent: Option<ModuleId>,
-        parameters: Vec<(Var, Exp)>,
+        parameters: Vec<ModuleParameter>,
     ) -> ModuleId {
         let index = u32::try_from(self.modules.len()).expect("module table exceeded u32::MAX");
         let id = ModuleId(index);
@@ -193,6 +245,10 @@ impl CrateEnv {
 
     pub fn module_mut(&mut self, id: ModuleId) -> &mut ModuleEnv {
         &mut self.modules[id.index()]
+    }
+
+    pub fn module_parameter_opt(&self, id: ModuleParamId) -> Option<&ModuleParameter> {
+        self.module(id.module).parameters.get(id.position as usize)
     }
 
     pub fn add_definition(&mut self, module: ModuleId, definition: DefinedConstant) -> DefId {
@@ -212,15 +268,29 @@ impl CrateEnv {
         module: ModuleId,
         inductive: InductiveTypeSpecs,
     ) -> InductiveId {
+        let id = self.reserve_inductive(module);
+        self.define_inductive(id, inductive);
+        id
+    }
+
+    pub fn reserve_inductive(&mut self, module: ModuleId) -> InductiveId {
         let module_env = self.module_mut(module);
         let index = u32::try_from(module_env.inductives.len())
             .expect("module inductive table exceeded u32::MAX");
-        module_env.inductives.push(inductive);
+        module_env.inductives.push(None);
         InductiveId { module, index }
     }
 
+    pub fn define_inductive(&mut self, id: InductiveId, inductive: InductiveTypeSpecs) {
+        let slot = &mut self.module_mut(id.module).inductives[id.index as usize];
+        assert!(slot.is_none(), "inductive ID was already defined");
+        *slot = Some(inductive);
+    }
+
     pub fn inductive(&self, id: InductiveId) -> &InductiveTypeSpecs {
-        &self.module(id.module).inductives[id.index as usize]
+        self.module(id.module).inductives[id.index as usize]
+            .as_ref()
+            .expect("reserved inductive ID was used before definition")
     }
 
     pub fn add_instance(
@@ -228,7 +298,7 @@ impl CrateEnv {
         owner: ModuleId,
         source: ModuleId,
         materialized: ModuleId,
-        arguments: Vec<(Var, Exp)>,
+        arguments: Vec<(ModuleParamId, Exp)>,
     ) -> ModuleInstanceId {
         let owner_env = self.module_mut(owner);
         let local = u32::try_from(owner_env.instances.len())

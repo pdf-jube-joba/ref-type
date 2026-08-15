@@ -5,9 +5,9 @@ use crate::{
     syntax::*,
 };
 use kernel::{
-    calculus::exp_contains_as_freevar,
+    calculus::exp_contains_inductive,
     derivation::CheckSession,
-    environment::CrateEnv,
+    environment::{CrateEnv, ModuleParameter},
     exp::*,
     inductive::{CtorBinder, InductiveTypeSpecs},
 };
@@ -32,6 +32,14 @@ impl term_elaborator::Handler for GlobalEnvironment {
         self.crate_env.arena()
     }
 
+    fn intern(&mut self, name: &str) -> SymbolId {
+        self.crate_env.intern(name)
+    }
+
+    fn symbol(&self, symbol: SymbolId) -> &str {
+        self.crate_env.symbol(symbol)
+    }
+
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -51,12 +59,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             field_name.as_str(),
         );
 
-        let mut ctx = self
-            .module_manager
-            .current_context(&self.crate_env)
-            .into_iter()
-            .flat_map(|(_, v)| v)
-            .collect::<Vec<_>>();
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
 
         let infer_type_e = self
             .logger
@@ -92,12 +95,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
     }
 
     fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String> {
-        let mut ctx = self
-            .module_manager
-            .current_context(&self.crate_env)
-            .into_iter()
-            .flat_map(|(_, bindings)| bindings)
-            .collect::<Vec<_>>();
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
         let module_context_len = ctx.len();
         ctx.append(local_ctx);
         let result = self
@@ -160,14 +158,12 @@ impl GlobalEnvironment {
 
         // 1. before adding child, check well-typedness ness of parameters
         {
-            let mut ctx: Vec<(Var, Exp)> = self
+            let reserved_module = self
                 .module_manager
-                .current_context(&self.crate_env)
-                .into_iter()
-                .flat_map(|(_, v)| v)
-                .collect();
+                .reserve_child_and_moveto(&mut self.crate_env, name.0.clone());
+            let mut ctx = self.module_manager.current_context(&self.crate_env);
 
-            let mut parameters_elab = vec![];
+            let mut parameter_position = 0_u32;
 
             let mut local_scope = term_elaborator::LocalScope::default();
 
@@ -184,26 +180,27 @@ impl GlobalEnvironment {
                     .ok_or("Failed to infer sort of parameter type".to_string())?;
 
                 for v in vars {
-                    let v = Var::new(v.as_str());
-                    parameters_elab.push((v.clone(), ty_elab));
-                    ctx.push((v.clone(), ty_elab));
-                    local_scope.push_typed_decl_var(v, ty_elab);
+                    let symbol = self.crate_env.intern(v.as_str());
+                    let position = parameter_position;
+                    let parameter_exp = self.crate_env.arena().module_param(ModuleParamId {
+                        module: reserved_module,
+                        position,
+                    });
+                    self.crate_env.add_module_parameter(
+                        reserved_module,
+                        ModuleParameter {
+                            name: symbol,
+                            ty: ty_elab,
+                        },
+                    );
+                    parameter_position += 1;
+                    ctx.push((symbol, ty_elab));
+                    local_scope.push_typed_decl_var_exp(symbol, ty_elab, parameter_exp);
                 }
             }
-            // ok => add child module and move to it
-            self.module_manager.add_child_and_moveto(
-                &mut self.crate_env,
-                name.0.clone(),
-                parameters_elab,
-            )?;
         }
 
-        let mut ctx = self
-            .module_manager
-            .current_context(&self.crate_env)
-            .into_iter()
-            .flat_map(|(_, v)| v)
-            .collect::<Vec<_>>();
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
 
         // 2. elaborate declarations
         for decl in declarations {
@@ -248,9 +245,16 @@ impl GlobalEnvironment {
                     sort,
                     constructors,
                 } => {
-                    let type_name_var: Var = Var::new(type_name.as_str());
+                    let type_name_var = self.crate_env.intern(type_name.as_str());
+                    let inductive = self
+                        .crate_env
+                        .reserve_inductive(self.module_manager.current());
+                    let type_name_exp = self.crate_env.arena().alloc(Node::IndType {
+                        indspec: inductive,
+                        parameters: vec![],
+                    });
                     // register type name as binded var
-                    local_scope.push_decl_var(type_name_var.clone());
+                    local_scope.push_decl_var_exp(type_name_var, type_name_exp);
 
                     // elaborate parameters and indices
                     // binding is memorized in local scope
@@ -282,13 +286,16 @@ impl GlobalEnvironment {
 
                         let mut ctor_binders = vec![];
                         for (v, e) in telescope {
-                            if exp_contains_as_freevar(&self.crate_env, e, &type_name_var) {
+                            if exp_contains_inductive(self.crate_env.arena(), e, inductive) {
                                 // strict positive case
                                 let (inner_binders, inner_tail) =
                                     kernel::utils::decompose_prod(self.crate_env.arena(), e);
                                 for (_, it) in inner_binders.iter() {
-                                    if exp_contains_as_freevar(&self.crate_env, *it, &type_name_var)
-                                    {
+                                    if exp_contains_inductive(
+                                        self.crate_env.arena(),
+                                        *it,
+                                        inductive,
+                                    ) {
                                         return Err(
                                             "Ctor contains inductive type name  in non-strictly positive position".to_string(),
                                         );
@@ -298,7 +305,7 @@ impl GlobalEnvironment {
                                     self.crate_env.arena(),
                                     inner_tail,
                                 );
-                                if !matches!(self.crate_env.arena().get(head), Node::Var(head_var) if head_var.is_eq_ptr(&type_name_var))
+                                if !matches!(self.crate_env.arena().get(head), Node::IndType { indspec, .. } if indspec == inductive)
                                 {
                                     return Err(
                                         "Constructor binder type head does not match inductive type name {type_name_var}".to_string(),
@@ -306,10 +313,10 @@ impl GlobalEnvironment {
                                 }
 
                                 for tail_elm in tail.iter() {
-                                    if exp_contains_as_freevar(
-                                        &self.crate_env,
+                                    if exp_contains_inductive(
+                                        self.crate_env.arena(),
                                         *tail_elm,
-                                        &type_name_var,
+                                        inductive,
                                     ) {
                                         return Err(
                                             "Constructor binder type tail contains inductive type name in non-strictly positive position".to_string(),
@@ -328,14 +335,15 @@ impl GlobalEnvironment {
 
                         let (head, tail) =
                             kernel::utils::decompose_app(self.crate_env.arena(), ends_elab);
-                        if !matches!(self.crate_env.arena().get(head), Node::Var(head_var) if head_var.is_eq_ptr(&type_name_var))
+                        if !matches!(self.crate_env.arena().get(head), Node::IndType { indspec, .. } if indspec == inductive)
                         {
                             return Err("Constructor type head does not match inductive type name"
                                 .to_string());
                         }
 
                         for tail_elm in tail.iter() {
-                            if exp_contains_as_freevar(&self.crate_env, *tail_elm, &type_name_var) {
+                            if exp_contains_inductive(self.crate_env.arena(), *tail_elm, inductive)
+                            {
                                 return Err(
                                     "Constructor type tail contains inductive type name in non-strictly positive position".to_string(),
                                 );
@@ -348,7 +356,13 @@ impl GlobalEnvironment {
                         });
                     }
 
-                    let indspec = InductiveTypeSpecs::new(
+                    let indspec = InductiveTypeSpecs::unchecked(
+                        parameter_elab,
+                        indices_elab,
+                        *sort,
+                        ctor_type_elabs,
+                    );
+                    /* let indspec = InductiveTypeSpecs::new(
                         &mut CheckSession::new(
                             &self.crate_env,
                             self.module_manager.current(),
@@ -368,13 +382,26 @@ impl GlobalEnvironment {
                             error,
                         );
                         "Ill-formed inductive type specification".to_string()
-                    })?;
+                    })?; */
 
-                    self.module_manager.add_inductive(
+                    self.crate_env.define_inductive(inductive, indspec);
+                    let spec = self.crate_env.inductive(inductive).clone();
+                    spec.validate(
+                        &mut CheckSession::new(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut ctx,
+                        ),
+                        inductive,
+                    )
+                    .map_err(|error| {
+                        format!("Ill-formed inductive type specification: {error:?}")
+                    })?;
+                    self.module_manager.publish_reserved_inductive(
                         &mut self.crate_env,
                         type_name.clone(),
                         ctor_names,
-                        indspec,
+                        inductive,
                     )?;
                 }
                 ModuleItem::Record {
@@ -393,17 +420,26 @@ impl GlobalEnvironment {
 
                     // elaborate fields as constructors
                     let mut telescope = vec![];
-                    let mut fields_get: Vec<(Var, Exp)> = vec![];
+                    let mut fields_get: Vec<(SymbolId, Exp)> = vec![];
                     for (field_name, field_ty) in fields {
-                        let field_name_var: Var = Var::new(field_name.as_str());
+                        let field_name_var = self.crate_env.intern(field_name.as_str());
                         let field_ty_elab = local_scope.elab_exp(field_ty, self)?;
-                        fields_get.push((field_name_var.clone(), field_ty_elab));
+                        fields_get.push((field_name_var, field_ty_elab));
                         // field may depend on previous fields
-                        local_scope.push_typed_decl_var(field_name_var.clone(), field_ty_elab);
+                        local_scope.push_typed_decl_var(field_name_var, field_ty_elab);
                         telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
                     }
 
-                    let indspec = InductiveTypeSpecs::new(
+                    let indspec = InductiveTypeSpecs::unchecked(
+                        parameter_elab,
+                        vec![],
+                        *sort,
+                        vec![kernel::inductive::CtorType {
+                            telescope,
+                            indices: vec![],
+                        }],
+                    );
+                    /* let indspec = InductiveTypeSpecs::new(
                         &mut CheckSession::new(
                             &self.crate_env,
                             self.module_manager.current(),
@@ -426,7 +462,7 @@ impl GlobalEnvironment {
                             error,
                         );
                         "Ill-formed record type specification".to_string()
-                    })?;
+                    })?; */
 
                     self.module_manager.add_record(
                         &mut self.crate_env,

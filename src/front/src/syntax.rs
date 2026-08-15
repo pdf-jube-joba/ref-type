@@ -1,5 +1,5 @@
 // this file describes the surface syntax tree
-use kernel::exp::{DefId, Exp, InductiveId, Node, Var};
+use kernel::exp::{DefId, Exp, InductiveId, Node, SymbolId};
 use kernel::inductive::CtorBinder;
 use kernel::utils;
 use serde::Serialize;
@@ -380,23 +380,24 @@ impl ModItemRecord {
                 let CtorBinder::Simple((id, ty)) = bind else {
                     unreachable!("record type constructor should only have simple binders");
                 };
-                (id.clone(), *ty)
+                (*id, *ty)
             })
             .collect::<Vec<_>>();
 
-        let (field_var, field_ty) = telescope
+        let (field_index, (_field_var, field_ty)) = telescope
             .iter()
-            .find(|(id, _)| id.as_str() == field_name.as_str())?
-            .clone();
+            .enumerate()
+            .find(|(_, (id, _))| env.symbol(*id) == field_name.as_str())?;
+        let field_ty = *field_ty;
 
-        let field = arena.var(field_var);
+        let field = arena.bound(telescope.len() - field_index - 1);
         let prec = utils::assoc_lam(arena, telescope, field);
         let record_ty = arena.alloc(Node::IndType {
             indspec: self.inductive,
             parameters: parameters.to_vec(),
         });
         let return_type = arena.alloc(Node::Prod {
-            var: Var::new("record"),
+            var: env.find_symbol("record").unwrap_or(SymbolId::ANONYMOUS),
             ty: record_ty,
             body: field_ty,
         });

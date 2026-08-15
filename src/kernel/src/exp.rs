@@ -1,33 +1,22 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::cell::RefCell;
 
 use serde::{Deserialize, Serialize};
 
-// variable is represented as std::rc::Rc<String>
-#[derive(Clone)]
-pub struct Var(Rc<String>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SymbolId(pub u32);
 
-impl Var {
-    pub fn new(name: &str) -> Self {
-        Var(Rc::new(name.to_string()))
-    }
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-    pub fn ptr(&self) -> *const String {
-        Rc::as_ptr(&self.0)
-    }
-    pub fn is_eq_ptr(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-    pub fn dummy() -> Self {
-        Var(Rc::new("_".to_string()))
+impl SymbolId {
+    pub const ANONYMOUS: Self = Self(0);
+
+    pub fn index(self) -> usize {
+        self.0 as usize
     }
 }
 
-impl PartialEq for Var {
-    fn eq(&self, other: &Self) -> bool {
-        self.ptr() == other.ptr()
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ModuleParamId {
+    pub module: ModuleId,
+    pub position: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -165,17 +154,17 @@ pub enum Node {
     /// A locally bound variable, counted outwards from the occurrence.
     /// `Bound(0)` refers to the nearest enclosing binder.
     Bound(usize),
-    /// A free variable. Module parameters and context entries remain named.
-    Var(Var),
+    /// A parameter of a module. Locally bound variables use [`Node::Bound`].
+    ModuleParam(ModuleParamId),
     // (var: ty) -> body where var is bound in body but not in ty
     Prod {
-        var: Var,
+        var: SymbolId,
         ty: Exp,
         body: Exp, // bind one variable
     },
     // (var: ty) => body where var is bound in body but not in ty
     Lam {
-        var: Var,
+        var: SymbolId,
         ty: Exp,
         body: Exp, // bind one variable
     },
@@ -206,7 +195,7 @@ pub enum Node {
     },
     // {var: set | predicate} where var is bound in predicate but not in A
     SubSet {
-        var: Var,
+        var: SymbolId,
         set: Exp,
         predicate: Exp,
     },
@@ -264,7 +253,7 @@ pub enum Node {
         left: Exp,
         right: Exp,
         ty: Exp,
-        var: Var,
+        var: SymbolId,
         predicate: Exp,
         base: Exp,
         equality: Exp,
@@ -280,7 +269,9 @@ pub enum Node {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ArenaMark(usize);
+pub struct ArenaMark {
+    nodes: usize,
+}
 
 /// Append-only storage for every kernel expression node.
 #[derive(Debug, Default)]
@@ -314,11 +305,11 @@ impl Arena {
     }
 
     pub fn mark(&self) -> ArenaMark {
-        ArenaMark(self.len())
+        ArenaMark { nodes: self.len() }
     }
 
     pub fn rewind(&self, mark: ArenaMark) {
-        self.nodes.borrow_mut().truncate(mark.0);
+        self.nodes.borrow_mut().truncate(mark.nodes);
     }
 
     pub fn sort(&self, sort: Sort) -> Exp {
@@ -329,26 +320,16 @@ impl Arena {
         self.alloc(Node::Bound(index))
     }
 
-    pub fn var(&self, var: Var) -> Exp {
-        self.alloc(Node::Var(var))
+    pub fn module_param(&self, parameter: ModuleParamId) -> Exp {
+        self.alloc(Node::ModuleParam(parameter))
     }
 
-    pub fn as_var(&self, exp: Exp) -> Option<Var> {
+    pub fn as_module_param(&self, exp: Exp) -> Option<ModuleParamId> {
         match self.get(exp) {
-            Node::Var(var) => Some(var),
+            Node::ModuleParam(parameter) => Some(parameter),
             _ => None,
         }
     }
 }
 
-pub type Context = Vec<(Var, Exp)>;
-
-/// Lookup a variable in the context by pointer-equality (same semantics as previous implementation)
-pub fn ctx_get(ctx: &Context, var: &Var) -> Option<Exp> {
-    for (v, ty) in ctx.iter().rev() {
-        if v.is_eq_ptr(var) {
-            return Some(*ty);
-        }
-    }
-    None
-}
+pub type Context = Vec<(SymbolId, Exp)>;

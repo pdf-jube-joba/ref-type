@@ -54,7 +54,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         self.context
     }
 
-    pub fn push(&mut self, var: Var, ty: Exp) {
+    pub fn push(&mut self, var: SymbolId, ty: Exp) {
         self.context.push((var, ty));
     }
 
@@ -228,9 +228,11 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )
             .map(|(_, ty)| shift_bound_indices(arena, *ty, index + 1, 0))
             .ok_or_else(|| failure(rule, phase, "bound variable index is outside the context")),
-        Node::Var(var) => {
-            ctx_get(session.context, &var).ok_or_else(|| failure(rule, phase, "var not found"))
-        }
+        Node::ModuleParam(parameter) => session
+            .env()
+            .module_parameter_opt(parameter)
+            .map(|parameter| parameter.ty)
+            .ok_or_else(|| failure(rule, phase, "module parameter not found")),
         Node::Prod { var, ty, body } => {
             let domain_sort = add_sort!(session, rule, phase, ty, "infer domain sort for product")?;
             session.push(var, ty);
@@ -250,7 +252,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         }
         Node::Lam { var, ty, body } => {
             add_sort!(session, rule, phase, ty, "infer domain sort for lambda")?;
-            session.push(var.clone(), ty);
+            session.push(var, ty);
             let body_ty = add_infer!(session, rule, phase, body, "infer body type for lambda");
             session.pop();
             let body_ty = body_ty?;
@@ -276,7 +278,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 func,
                 "infer function type for application"
             )?;
-            let Some((var, arg_ty, ret_ty)) = expose_product(session.env(), func_ty) else {
+            let Some((_var, arg_ty, ret_ty)) = expose_product(session.env(), func_ty) else {
                 return Err(failure(rule, phase, "type is not a product"));
             };
             add_check!(
@@ -287,7 +289,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 arg_ty,
                 "check argument type for application"
             )?;
-            Ok(instantiate(arena, ret_ty, &var, arg))
+            Ok(instantiate(arena, ret_ty, arg))
         }
         Node::DefinedConstant(definition) => Ok(session.env().definition(definition).ty),
         Node::IndType {
@@ -297,8 +299,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             let env = session.env();
             let spec = env.inductive(indspec);
             check_parameters(session, rule, phase, &parameters, spec.parameters())?;
-            let substitutions = spec.parameter_subst_mapping(&parameters);
-            Ok(exp_subst_map(arena, spec.arity(arena), &substitutions))
+            Ok(instantiate_telescope(arena, spec.arity(arena), &parameters))
         }
         Node::IndCtor {
             indspec,
@@ -311,11 +312,10 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 return Err(failure(rule, phase, "constructor index out of bounds"));
             }
             check_parameters(session, rule, phase, &parameters, spec.parameters())?;
-            let substitutions = spec.parameter_subst_mapping(&parameters);
             let constructor = crate::inductive::InductiveTypeSpecs::type_of_constructor(
                 arena, indspec, spec, idx, parameters,
             );
-            Ok(exp_subst_map(arena, constructor, &substitutions))
+            Ok(constructor)
         }
         Node::IndElim {
             indspec,
@@ -464,15 +464,15 @@ fn check_parameters(
     rule: &str,
     phase: &str,
     parameters: &[Exp],
-    expected: &[(Var, Exp)],
+    expected: &[(SymbolId, Exp)],
 ) -> Result<(), Box<JudgementError>> {
     let arena = session.arena();
     if parameters.len() != expected.len() {
         return Err(failure(rule, phase, "mismatch parameter length"));
     }
-    let mut substitutions = vec![];
-    for (parameter, (var, parameter_ty)) in parameters.iter().zip(expected) {
-        let expected_ty = exp_subst_map(arena, *parameter_ty, &substitutions);
+    let mut preceding = Vec::new();
+    for (parameter, (_, parameter_ty)) in parameters.iter().zip(expected) {
+        let expected_ty = instantiate_telescope(arena, *parameter_ty, &preceding);
         add_check!(
             session,
             rule,
@@ -481,7 +481,7 @@ fn check_parameters(
             expected_ty,
             "parameter type mismatch"
         )?;
-        substitutions.push((var.clone(), *parameter));
+        preceding.push(*parameter);
     }
     Ok(())
 }
@@ -512,7 +512,6 @@ fn infer_ind_elim(
     }
     let env = session.env();
     let spec = env.inductive(indspec);
-    let substitutions = spec.parameter_subst_mapping(&parameters);
     let return_kind = add_infer!(session, rule, phase, return_type, "infer return type kind")?;
     let (telescope, result) = utils::decompose_prod(arena, type_head_normal(env, return_kind));
     let Node::Sort(sort) = arena.get(result) else {
@@ -540,7 +539,7 @@ fn infer_ind_elim(
         parameters: parameters.clone(),
     });
     for (index, case) in cases.iter().enumerate() {
-        let constructor_ty = spec.constructors()[index].subst(arena, &substitutions);
+        let constructor_ty = spec.constructors()[index].instantiate_parameters(arena, &parameters);
         let constructor = arena.alloc(Node::IndCtor {
             indspec,
             parameters: parameters.clone(),
@@ -582,16 +581,16 @@ fn infer_take_set(
         ));
     }
     let map_ty = arena.alloc(Node::Prod {
-        var: Var::dummy(),
+        var: SymbolId::ANONYMOUS,
         ty: domain,
-        body: codomain,
+        body: shift_bound_indices(arena, codomain, 1, 0),
     });
     add_check!(session, rule, phase, map, map_ty, "check map type")?;
     let exists = arena.alloc(Node::Exists { set: domain });
     add_check!(session, rule, phase, existence, exists, "check existence")?;
 
-    let x1 = Var::new("x1");
-    let x2 = Var::new("x2");
+    let x1 = SymbolId::ANONYMOUS;
+    let x2 = SymbolId::ANONYMOUS;
     let map = shift_bound_indices(arena, map, 2, 0);
     let map_x1 = arena.alloc(Node::App {
         func: map,
@@ -607,7 +606,7 @@ fn infer_take_set(
     });
     let inner = arena.alloc(Node::Prod {
         var: x2,
-        ty: domain,
+        ty: shift_bound_indices(arena, domain, 1, 0),
         body: equality,
     });
     let uniqueness_ty = arena.alloc(Node::Prod {
@@ -647,9 +646,9 @@ fn infer_take_prop(
         return Err(failure(rule, phase, "TakeProp codomain is not Prop"));
     }
     let map_ty = arena.alloc(Node::Prod {
-        var: Var::dummy(),
+        var: SymbolId::ANONYMOUS,
         ty: domain,
-        body: proposition,
+        body: shift_bound_indices(arena, proposition, 1, 0),
     });
     add_check!(session, rule, phase, map, map_ty, "check map")?;
     let exists = arena.alloc(Node::Exists { set: domain });
@@ -661,7 +660,7 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
     match arena.get(term) {
         Node::Sort(_) => "Sort",
         Node::Bound(_) => "Bound",
-        Node::Var(_) => "Var",
+        Node::ModuleParam(_) => "ModuleParam",
         Node::Prod { .. } => "Prod",
         Node::Lam { .. } => "Lam",
         Node::App { .. } => "App",
@@ -769,7 +768,7 @@ fn infer_proof_constructor(
             }
             add_check!(session, rule, phase, left, ty, "check left")?;
             add_check!(session, rule, phase, right, ty, "check right")?;
-            session.push(var.clone(), ty);
+            session.push(var, ty);
             let prop = arena.sort(Sort::Prop);
             let result = add_check!(session, rule, phase, predicate, prop, "check predicate");
             session.pop();
@@ -838,21 +837,8 @@ fn check_context_entries(
     entries: &Context,
 ) -> Result<(), Box<JudgementError>> {
     for (var, ty) in entries {
-        if session
-            .context
-            .iter()
-            .any(|(existing, _): &(Var, Exp)| existing.is_eq_ptr(var))
-        {
-            return Err(Box::new(
-                JudgementError::caused("variable already exists in context").with_frame(
-                    "ContextWellFormed",
-                    "duplicate variable",
-                    "unique context variable",
-                ),
-            ));
-        }
         session.infer_sort(*ty)?;
-        session.push(var.clone(), *ty);
+        session.push(*var, *ty);
     }
     Ok(())
 }

@@ -3,24 +3,6 @@ use front::logger::{LogLevel, LogPayload, LogRecord};
 
 mod for_kernel;
 
-// Convert the whole 64 bit pointer to a fixed-length base62 string.
-// 62^12 = 3.22 * 10^21 > 2^64 = 1.84 * 10^19
-// Convert the lower 32 bit of pointer to a fixed-length base62 string.
-// 62^6 = 3.52 * 10^12 > 2^
-fn ptr_lower32bit_base62_fixed(ptr: *const ()) -> String {
-    const BASE62: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
-    let mut n = (ptr as u64) & 0xffffffff;
-    let mut buf = [0u8; 6];
-
-    for i in (0..6).rev() {
-        buf[i] = BASE62[(n % 62) as usize];
-        n /= 62;
-    }
-
-    String::from_utf8(buf.to_vec()).unwrap()
-}
-
 pub fn log_record_to_log(
     env: &kernel::environment::CrateEnv,
     record: &front::logger::LogRecord,

@@ -1,11 +1,11 @@
 use crate::{
     calculus::{
-        convertible, erased_convertible, erased_normal, exp_is_alpha_eq, exp_subst, instantiate,
-        normalize, whnf,
+        convertible, erased_convertible, erased_normal, exp_is_alpha_eq, exp_subst_module_param,
+        instantiate, instantiate_outer_telescope, instantiate_telescope, normalize, whnf,
     },
     derivation::CheckSession,
-    environment::CrateEnv,
-    exp::{Context, Exp, Node, Sort, Var},
+    environment::{CrateEnv, ModuleParameter},
+    exp::{Context, Exp, ModuleId, ModuleParamId, Node, Sort, SymbolId},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
 };
 
@@ -22,9 +22,17 @@ impl Fixture {
         }
     }
 
-    fn var(&self, name: &str) -> (Var, Exp) {
-        let var = Var::new(name);
-        let exp = self.env.arena().var(var.clone());
+    fn var(&self, name: &str) -> (SymbolId, Exp) {
+        let position = match name {
+            "target" => 10,
+            "stable" => 11,
+            _ => 12,
+        };
+        let var = SymbolId(position);
+        let exp = self.env.arena().module_param(ModuleParamId {
+            module: ModuleId(0),
+            position,
+        });
         (var, exp)
     }
 
@@ -32,16 +40,23 @@ impl Fixture {
         self.env.arena().alloc(Node::App { func, arg })
     }
 
-    fn prod(&self, var: Var, ty: Exp, body: Exp) -> Exp {
+    fn prod(&self, var: SymbolId, ty: Exp, body: Exp) -> Exp {
         self.env.arena().alloc(Node::Prod { var, ty, body })
     }
 
-    fn lam(&self, var: Var, ty: Exp, body: Exp) -> Exp {
+    fn lam(&self, var: SymbolId, ty: Exp, body: Exp) -> Exp {
         self.env.arena().alloc(Node::Lam { var, ty, body })
     }
 
     fn push(&mut self, name: &str, ty: Exp) -> Exp {
-        let (var, exp) = self.var(name);
+        let var = self.env.intern(name);
+        let position = self.context.len() as u32;
+        self.env
+            .add_module_parameter(ModuleId(0), ModuleParameter { name: var, ty });
+        let exp = self.env.arena().module_param(ModuleParamId {
+            module: ModuleId(0),
+            position,
+        });
         self.context.push((var, ty));
         exp
     }
@@ -64,9 +79,9 @@ fn sort_and_identity_lambda_infer() {
         set_kind,
     ));
 
-    let binder = Var::new("x");
+    let binder = fixture.env.intern("x");
     let body = fixture.env.arena().bound(0);
-    let identity = fixture.lam(binder.clone(), set, body);
+    let identity = fixture.lam(binder, set, body);
     let inferred = CheckSession::new(
         &fixture.env,
         fixture.env.root_module(),
@@ -82,7 +97,7 @@ fn sort_and_identity_lambda_infer() {
 fn beta_reduction_stops_at_whnf() {
     let fixture = Fixture::new();
     let set = fixture.env.arena().sort(Sort::Set(0));
-    let identity = fixture.lam(Var::new("x"), set, fixture.env.arena().bound(0));
+    let identity = fixture.lam(SymbolId::ANONYMOUS, set, fixture.env.arena().bound(0));
     let redex = fixture.app(identity, set);
     assert_eq!(whnf(&fixture.env, redex), set);
     assert_eq!(normalize(&fixture.env, redex), set);
@@ -94,13 +109,43 @@ fn de_bruijn_instantiation_shifts_an_open_argument() {
     let fixture = Fixture::new();
     let set = fixture.env.arena().sort(Sort::Set(0));
     let inner_reference_to_outer = fixture.env.arena().bound(1);
-    let body = fixture.lam(Var::new("inner"), set, inner_reference_to_outer);
+    let body = fixture.lam(SymbolId::ANONYMOUS, set, inner_reference_to_outer);
     let open_argument = fixture.env.arena().bound(0);
-    let result = instantiate(fixture.env.arena(), body, &Var::new("outer"), open_argument);
+    let result = instantiate(fixture.env.arena(), body, open_argument);
     let Node::Lam { body, .. } = fixture.env.arena().get(result) else {
         panic!("expected lambda");
     };
     assert!(matches!(fixture.env.arena().get(body), Node::Bound(1)));
+}
+
+#[test]
+fn telescope_instantiation_does_not_resubstitute_open_arguments() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let open = fixture.app(arena.bound(1), arena.bound(0));
+    let arguments = [arena.bound(1), arena.bound(0)];
+
+    let result = instantiate_telescope(arena, open, &arguments);
+    let Node::App { func, arg } = arena.get(result) else {
+        panic!("expected application");
+    };
+    assert!(matches!(arena.get(func), Node::Bound(1)));
+    assert!(matches!(arena.get(arg), Node::Bound(0)));
+}
+
+#[test]
+fn outer_telescope_instantiation_shifts_arguments_past_inner_binders() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let open = fixture.app(arena.bound(2), arena.bound(1));
+    let arguments = [arena.bound(1), arena.bound(0)];
+
+    let result = instantiate_outer_telescope(arena, open, &arguments, 1);
+    let Node::App { func, arg } = arena.get(result) else {
+        panic!("expected application");
+    };
+    assert!(matches!(arena.get(func), Node::Bound(2)));
+    assert!(matches!(arena.get(arg), Node::Bound(1)));
 }
 
 #[test]
@@ -110,7 +155,15 @@ fn substitution_reuses_unchanged_node_ids() {
     let (_, stable) = fixture.var("stable");
     let application = fixture.app(stable, target_exp);
     let replacement = fixture.env.arena().sort(Sort::Set(0));
-    let substituted = exp_subst(fixture.env.arena(), application, &target, replacement);
+    let substituted = exp_subst_module_param(
+        fixture.env.arena(),
+        application,
+        ModuleParamId {
+            module: ModuleId(0),
+            position: target.index() as u32,
+        },
+        replacement,
+    );
     let Node::App { func, arg } = fixture.env.arena().get(substituted) else {
         panic!("expected application");
     };
@@ -122,8 +175,37 @@ fn substitution_reuses_unchanged_node_ids() {
 fn alpha_equivalence_ignores_binder_names() {
     let fixture = Fixture::new();
     let set = fixture.env.arena().sort(Sort::Set(0));
-    let left = fixture.lam(Var::new("left"), set, fixture.env.arena().bound(0));
-    let right = fixture.lam(Var::new("right"), set, fixture.env.arena().bound(0));
+    let left = fixture.lam(SymbolId(1), set, fixture.env.arena().bound(0));
+    let right = fixture.lam(SymbolId(2), set, fixture.env.arena().bound(0));
+    assert!(exp_is_alpha_eq(&fixture.env, left, right));
+}
+
+#[test]
+fn free_variable_identity_does_not_depend_on_display_name() {
+    let fixture = Fixture::new();
+    let left = fixture.env.arena().module_param(ModuleParamId {
+        module: ModuleId(0),
+        position: 100,
+    });
+    let right = fixture.env.arena().module_param(ModuleParamId {
+        module: ModuleId(0),
+        position: 101,
+    });
+
+    assert!(!exp_is_alpha_eq(&fixture.env, left, right));
+}
+
+#[test]
+fn named_occurrences_owned_by_binders_are_alpha_equivalent() {
+    let fixture = Fixture::new();
+    let set = fixture.env.arena().sort(Sort::Set(0));
+    let left_var = SymbolId(1);
+    let right_var = SymbolId(2);
+    let left_body = fixture.env.arena().bound(0);
+    let right_body = fixture.env.arena().bound(0);
+    let left = fixture.lam(left_var, set, left_body);
+    let right = fixture.lam(right_var, set, right_body);
+
     assert!(exp_is_alpha_eq(&fixture.env, left, right));
 }
 
@@ -132,7 +214,7 @@ fn application_infers_dependent_result() {
     let mut fixture = Fixture::new();
     let set = fixture.env.arena().sort(Sort::Set(0));
     let argument = fixture.push("A", set);
-    let function_ty = fixture.prod(Var::new("x"), set, fixture.env.arena().bound(0));
+    let function_ty = fixture.prod(SymbolId::ANONYMOUS, set, fixture.env.arena().bound(0));
     let function = fixture.push("f", function_ty);
     let application = fixture.app(function, argument);
     let inferred = CheckSession::new(
@@ -240,18 +322,7 @@ fn inductive_constructor_and_eliminator_reduce() {
         }],
         indices: vec![],
     };
-    let spec = InductiveTypeSpecs::new(
-        &mut CheckSession::new(
-            &fixture.env,
-            fixture.env.root_module(),
-            &mut fixture.context,
-        ),
-        vec![],
-        vec![],
-        Sort::Set(0),
-        vec![zero, successor],
-    )
-    .unwrap();
+    let spec = InductiveTypeSpecs::unchecked(vec![], vec![], Sort::Set(0), vec![zero, successor]);
     let spec = fixture.env.add_inductive(fixture.env.root_module(), spec);
     let nat = fixture.env.arena().alloc(Node::IndType {
         indspec: spec,
@@ -274,11 +345,44 @@ fn inductive_constructor_and_eliminator_reduce() {
 }
 
 #[test]
+fn inductive_validation_rejects_unclassified_self_reference() {
+    let mut fixture = Fixture::new();
+    let inductive = fixture.env.reserve_inductive(fixture.env.root_module());
+    let this = fixture.env.arena().alloc(Node::IndType {
+        indspec: inductive,
+        parameters: vec![],
+    });
+    let spec = InductiveTypeSpecs::unchecked(
+        vec![],
+        vec![],
+        Sort::Set(0),
+        vec![CtorType {
+            telescope: vec![CtorBinder::Simple((SymbolId::ANONYMOUS, this))],
+            indices: vec![],
+        }],
+    );
+    fixture.env.define_inductive(inductive, spec);
+    let spec = fixture.env.inductive(inductive).clone();
+
+    assert!(
+        spec.validate(
+            &mut CheckSession::new(
+                &fixture.env,
+                fixture.env.root_module(),
+                &mut fixture.context,
+            ),
+            inductive,
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn session_restores_context_after_failed_binder_inference() {
     let mut fixture = Fixture::new();
     let set = fixture.env.arena().sort(Sort::Set(0));
     let invalid_body = fixture.env.arena().bound(1);
-    let invalid_lambda = fixture.lam(Var::new("x"), set, invalid_body);
+    let invalid_lambda = fixture.lam(SymbolId::ANONYMOUS, set, invalid_body);
     let mut session = CheckSession::new(
         &fixture.env,
         fixture.env.root_module(),

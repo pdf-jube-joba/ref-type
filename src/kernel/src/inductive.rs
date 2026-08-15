@@ -2,7 +2,10 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::{
-    calculus::exp_subst_map,
+    calculus::{
+        exp_contains_inductive, exp_subst_map, instantiate_outer_telescope, remap_ambient_indices,
+        shift_bound_indices,
+    },
     derivation::{CheckSession, JudgementError},
     environment::CrateEnv,
     utils,
@@ -12,8 +15,8 @@ use super::exp::*;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InductiveTypeSpecs {
-    parameters: Vec<(Var, Exp)>,
-    indices: Vec<(Var, Exp)>,
+    parameters: Vec<(SymbolId, Exp)>,
+    indices: Vec<(SymbolId, Exp)>,
     sort: Sort,
     constructors: Vec<CtorType>,
 }
@@ -30,12 +33,12 @@ impl InductiveTypeSpecs {
             parameters: self
                 .parameters
                 .iter()
-                .map(|(var, ty)| (var.clone(), remap(*ty)))
+                .map(|(var, ty)| (*var, remap(*ty)))
                 .collect(),
             indices: self
                 .indices
                 .iter()
-                .map(|(var, ty)| (var.clone(), remap(*ty)))
+                .map(|(var, ty)| (*var, remap(*ty)))
                 .collect(),
             sort: self.sort,
             constructors: self
@@ -46,28 +49,25 @@ impl InductiveTypeSpecs {
         }
     }
 
-    pub fn new(
-        session: &mut CheckSession<'_, '_>,
-        parameters: Vec<(Var, Exp)>,
-        indices: Vec<(Var, Exp)>,
+    pub fn unchecked(
+        parameters: Vec<(SymbolId, Exp)>,
+        indices: Vec<(SymbolId, Exp)>,
         sort: Sort,
         constructors: Vec<CtorType>,
-    ) -> Result<Self, Box<JudgementError>> {
-        let specs = Self {
+    ) -> Self {
+        Self {
             parameters,
             indices,
             sort,
             constructors,
-        };
-        specs.validate(session)?;
-        Ok(specs)
+        }
     }
 
-    pub fn parameters(&self) -> &[(Var, Exp)] {
+    pub fn parameters(&self) -> &[(SymbolId, Exp)] {
         &self.parameters
     }
 
-    pub fn indices(&self) -> &[(Var, Exp)] {
+    pub fn indices(&self) -> &[(SymbolId, Exp)] {
         &self.indices
     }
 
@@ -103,11 +103,12 @@ impl InductiveTypeSpecs {
         idx: usize,
         parameters: Vec<Exp>,
     ) -> Exp {
+        let constructor = indspec.constructors[idx].instantiate_parameters(arena, &parameters);
         let this = arena.alloc(Node::IndType {
             indspec: inductive,
             parameters,
         });
-        indspec.constructors[idx].as_exp_with_type(arena, this)
+        constructor.as_exp_with_type(arena, this)
     }
 
     pub fn return_type_kind(
@@ -117,32 +118,29 @@ impl InductiveTypeSpecs {
         parameters: Vec<Exp>,
         sort: Sort,
     ) -> Exp {
-        let substitutions = indspec.parameter_subst_mapping(&parameters);
-        let indices = indspec
-            .indices
-            .iter()
-            .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, &substitutions)))
-            .collect::<Vec<_>>();
+        let indices = indspec.instantiate_indices(arena, &parameters);
         let this = arena.alloc(Node::IndType {
             indspec: inductive,
             parameters,
         });
-        let index_arguments = indices
-            .iter()
-            .map(|(var, _)| arena.var(var.clone()))
-            .collect();
-        let applied = utils::assoc_apply(arena, this, index_arguments);
+        let index_arguments = bound_arguments(arena, indices.len());
+        let shifted_this = shift_bound_indices(arena, this, indices.len(), 0);
+        let applied = utils::assoc_apply(arena, shifted_this, index_arguments);
         let result = arena.alloc(Node::Prod {
-            var: Var::dummy(),
+            var: SymbolId::ANONYMOUS,
             ty: applied,
             body: arena.sort(sort),
         });
         utils::assoc_prod(arena, indices, result)
     }
 
-    fn validate(&self, session: &mut CheckSession<'_, '_>) -> Result<(), Box<JudgementError>> {
+    pub fn validate(
+        &self,
+        session: &mut CheckSession<'_, '_>,
+        inductive: InductiveId,
+    ) -> Result<(), Box<JudgementError>> {
         let context_mark = session.context().len();
-        let result = self.validate_inner(session);
+        let result = self.validate_inner(session, inductive);
         while session.context().len() > context_mark {
             session.pop();
         }
@@ -152,6 +150,7 @@ impl InductiveTypeSpecs {
     fn validate_inner(
         &self,
         session: &mut CheckSession<'_, '_>,
+        inductive: InductiveId,
     ) -> Result<(), Box<JudgementError>> {
         let span = tracing::debug_span!(
             target: "ref_type::typing",
@@ -159,6 +158,8 @@ impl InductiveTypeSpecs {
             ctx_len = session.context().len(),
         );
         let _entered = span.enter();
+
+        self.validate_strict_positivity(session.arena(), inductive)?;
 
         for (var, parameter_ty) in &self.parameters {
             session.infer_sort(*parameter_ty).map_err(|error| {
@@ -168,7 +169,7 @@ impl InductiveTypeSpecs {
                     "parameter is well-sorted",
                 ))
             })?;
-            session.push(var.clone(), *parameter_ty);
+            session.push(*var, *parameter_ty);
         }
 
         let arity = self.arity(session.arena());
@@ -180,9 +181,11 @@ impl InductiveTypeSpecs {
             ))
         })?;
 
-        let this = Var::new("THIS");
-        session.push(this.clone(), arity);
-        let this_exp = session.arena().var(this);
+        let parameter_arguments = bound_arguments(session.arena(), self.parameters.len());
+        let this_exp = session.arena().alloc(Node::IndType {
+            indspec: inductive,
+            parameters: parameter_arguments,
+        });
         let expected_sort = session.arena().sort(self.sort);
         for (index, constructor) in self.constructors.iter().enumerate() {
             let constructor_ty = constructor.as_exp_with_type(session.arena(), this_exp);
@@ -201,36 +204,91 @@ impl InductiveTypeSpecs {
         Ok(())
     }
 
-    pub(crate) fn parameter_subst_mapping(&self, parameters: &[Exp]) -> Vec<(Var, Exp)> {
-        self.parameters
-            .iter()
-            .zip(parameters)
-            .map(|((var, _), expression)| (var.clone(), *expression))
-            .collect()
+    fn validate_strict_positivity(
+        &self,
+        arena: &Arena,
+        inductive: InductiveId,
+    ) -> Result<(), Box<JudgementError>> {
+        let reject = |location: String| {
+            Box::new(JudgementError::caused(format!(
+                "inductive type occurs outside a declared strictly-positive position: {location}"
+            ))
+            .with_frame(
+                "InductiveTypeSpecs::validate",
+                "strict positivity",
+                "recursive occurrences use CtorBinder::StrictPositive",
+            ))
+        };
+
+        for (index, (_, ty)) in self.parameters.iter().enumerate() {
+            if exp_contains_inductive(arena, *ty, inductive) {
+                return Err(reject(format!("parameter {index}")));
+            }
+        }
+        for (index, (_, ty)) in self.indices.iter().enumerate() {
+            if exp_contains_inductive(arena, *ty, inductive) {
+                return Err(reject(format!("index {index}")));
+            }
+        }
+        for (constructor_index, constructor) in self.constructors.iter().enumerate() {
+            for (binder_index, binder) in constructor.telescope.iter().enumerate() {
+                match binder {
+                    CtorBinder::Simple((_, ty)) => {
+                        if exp_contains_inductive(arena, *ty, inductive) {
+                            return Err(reject(format!(
+                                "constructor {constructor_index}, simple binder {binder_index}"
+                            )));
+                        }
+                    }
+                    CtorBinder::StrictPositive {
+                        binders,
+                        self_indices,
+                    } => {
+                        for (inner_index, (_, ty)) in binders.iter().enumerate() {
+                            if exp_contains_inductive(arena, *ty, inductive) {
+                                return Err(reject(format!(
+                                    "constructor {constructor_index}, recursive binder {binder_index}, domain {inner_index}"
+                                )));
+                            }
+                        }
+                        for (index, self_index) in self_indices.iter().enumerate() {
+                            if exp_contains_inductive(arena, *self_index, inductive) {
+                                return Err(reject(format!(
+                                    "constructor {constructor_index}, recursive binder {binder_index}, index {index}"
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+            for (index, result_index) in constructor.indices.iter().enumerate() {
+                if exp_contains_inductive(arena, *result_index, inductive) {
+                    return Err(reject(format!(
+                        "constructor {constructor_index}, result index {index}"
+                    )));
+                }
+            }
+        }
+        Ok(())
     }
 
-    pub fn instantiate(
-        &self,
-        session: &mut CheckSession<'_, '_>,
-        substitutions: &[(Var, Exp)],
-    ) -> Result<Self, Box<JudgementError>> {
-        let arena = session.arena();
+    pub fn instantiate(&self, arena: &Arena, substitutions: &[(ModuleParamId, Exp)]) -> Self {
         let parameters = self
             .parameters
             .iter()
-            .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, substitutions)))
+            .map(|(var, ty)| (*var, exp_subst_map(arena, *ty, substitutions)))
             .collect();
         let indices = self
             .indices
             .iter()
-            .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, substitutions)))
+            .map(|(var, ty)| (*var, exp_subst_map(arena, *ty, substitutions)))
             .collect();
         let constructors = self
             .constructors
             .iter()
-            .map(|constructor| constructor.subst(arena, substitutions))
+            .map(|constructor| constructor.subst_module_params(arena, substitutions))
             .collect();
-        Self::new(session, parameters, indices, self.sort, constructors)
+        Self::unchecked(parameters, indices, self.sort, constructors)
     }
 
     pub fn primitive_recursion(
@@ -245,48 +303,61 @@ impl InductiveTypeSpecs {
             parameters: parameters.clone(),
         });
         let mut telescope = vec![];
-        let q = Var::new("q");
+        let q = SymbolId::ANONYMOUS;
         let q_ty = Self::return_type_kind(arena, inductive, indspec, parameters.clone(), sort);
-        telescope.push((q.clone(), q_ty));
-        let substitutions = indspec.parameter_subst_mapping(&parameters);
+        telescope.push((q, q_ty));
 
         let mut cases = vec![];
         for index in 0..indspec.constructor_len() {
-            let case_var = Var::new(&format!("f{index}"));
-            let constructor = indspec.constructors[index].subst(arena, &substitutions);
-            let q_exp = arena.var(q.clone());
+            let case_var = SymbolId::ANONYMOUS;
+            let constructor =
+                indspec.constructors[index].instantiate_parameters(arena, &parameters);
+            let q_exp = arena.bound(telescope.len() - 1);
             let constructor_exp = arena.alloc(Node::IndCtor {
                 indspec: inductive,
                 parameters: parameters.clone(),
                 idx: index,
             });
             let case_ty = eliminator_type(arena, &constructor, q_exp, constructor_exp, this);
-            telescope.push((case_var.clone(), case_ty));
-            cases.push(arena.var(case_var));
+            telescope.push((case_var, case_ty));
         }
 
-        let c = Var::new("c");
-        let indices = indspec
-            .indices
-            .iter()
-            .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, &substitutions)))
-            .collect::<Vec<_>>();
-        let index_arguments = indices
-            .iter()
-            .map(|(var, _)| arena.var(var.clone()))
-            .collect();
-        let c_ty = utils::assoc_apply(arena, this, index_arguments);
+        let c = SymbolId::ANONYMOUS;
+        let indices = indspec.instantiate_indices(arena, &parameters);
+        let case_count = indspec.constructor_len();
+        let index_arguments = bound_arguments(arena, indices.len());
+        let shifted_this = shift_bound_indices(arena, this, telescope.len() + indices.len(), 0);
+        let c_ty = utils::assoc_apply(arena, shifted_this, index_arguments);
         telescope.extend(indices);
-        telescope.push((c.clone(), c_ty));
+        telescope.push((c, c_ty));
 
+        let final_len = telescope.len();
+        cases.extend((0..case_count).map(|index| arena.bound(final_len - 1 - (1 + index))));
         let body = arena.alloc(Node::IndElim {
             indspec: inductive,
-            elim: arena.var(c),
-            return_type: arena.var(q),
+            elim: arena.bound(0),
+            return_type: arena.bound(final_len - 1),
             cases,
         });
         utils::assoc_lam(arena, telescope, body)
     }
+
+    fn instantiate_indices(&self, arena: &Arena, parameters: &[Exp]) -> Vec<(SymbolId, Exp)> {
+        self.indices
+            .iter()
+            .enumerate()
+            .map(|(inner, (name, ty))| {
+                (
+                    *name,
+                    instantiate_outer_telescope(arena, *ty, parameters, inner),
+                )
+            })
+            .collect()
+    }
+}
+
+fn bound_arguments(arena: &Arena, len: usize) -> Vec<Exp> {
+    (0..len).rev().map(|index| arena.bound(index)).collect()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -298,10 +369,10 @@ pub struct CtorType {
 #[derive(Debug, Clone, Serialize)]
 pub enum CtorBinder {
     StrictPositive {
-        binders: Vec<(Var, Exp)>,
+        binders: Vec<(SymbolId, Exp)>,
         self_indices: Vec<Exp>,
     },
-    Simple((Var, Exp)),
+    Simple((SymbolId, Exp)),
 }
 
 impl CtorType {
@@ -321,13 +392,10 @@ impl CtorType {
                         binders,
                         self_indices,
                     } => CtorBinder::StrictPositive {
-                        binders: binders
-                            .iter()
-                            .map(|(var, ty)| (var.clone(), remap(*ty)))
-                            .collect(),
+                        binders: binders.iter().map(|(var, ty)| (*var, remap(*ty))).collect(),
                         self_indices: self_indices.iter().map(|index| remap(*index)).collect(),
                     },
-                    CtorBinder::Simple((var, ty)) => CtorBinder::Simple((var.clone(), remap(*ty))),
+                    CtorBinder::Simple((var, ty)) => CtorBinder::Simple((*var, remap(*ty))),
                 })
                 .collect(),
             indices: self.indices.iter().map(|index| remap(*index)).collect(),
@@ -337,23 +405,30 @@ impl CtorType {
     pub fn as_exp_with_type(&self, arena: &Arena, this: Exp) -> Exp {
         let mut telescope = vec![];
         for binder in &self.telescope {
+            let outer = telescope.len();
             match binder {
                 CtorBinder::StrictPositive {
                     binders,
                     self_indices,
                 } => {
-                    let applied = utils::assoc_apply(arena, this, self_indices.clone());
+                    let shifted_this = shift_bound_indices(arena, this, outer + binders.len(), 0);
+                    let applied = utils::assoc_apply(arena, shifted_this, self_indices.clone());
                     let ty = utils::assoc_prod(arena, binders.clone(), applied);
-                    telescope.push((Var::dummy(), ty));
+                    telescope.push((SymbolId::ANONYMOUS, ty));
                 }
-                CtorBinder::Simple((var, ty)) => telescope.push((var.clone(), *ty)),
+                CtorBinder::Simple((var, ty)) => telescope.push((*var, *ty)),
             }
         }
-        let result = utils::assoc_apply(arena, this, self.indices.clone());
+        let shifted_this = shift_bound_indices(arena, this, telescope.len(), 0);
+        let result = utils::assoc_apply(arena, shifted_this, self.indices.clone());
         utils::assoc_prod(arena, telescope, result)
     }
 
-    pub fn subst(&self, arena: &Arena, substitutions: &[(Var, Exp)]) -> Self {
+    pub fn subst_module_params(
+        &self,
+        arena: &Arena,
+        substitutions: &[(ModuleParamId, Exp)],
+    ) -> Self {
         Self {
             telescope: self
                 .telescope
@@ -365,9 +440,7 @@ impl CtorType {
                     } => CtorBinder::StrictPositive {
                         binders: binders
                             .iter()
-                            .map(|(var, ty)| {
-                                (var.clone(), exp_subst_map(arena, *ty, substitutions))
-                            })
+                            .map(|(var, ty)| (*var, exp_subst_map(arena, *ty, substitutions)))
                             .collect(),
                         self_indices: self_indices
                             .iter()
@@ -375,7 +448,7 @@ impl CtorType {
                             .collect(),
                     },
                     CtorBinder::Simple((var, ty)) => {
-                        CtorBinder::Simple((var.clone(), exp_subst_map(arena, *ty, substitutions)))
+                        CtorBinder::Simple((*var, exp_subst_map(arena, *ty, substitutions)))
                     }
                 })
                 .collect(),
@@ -385,6 +458,61 @@ impl CtorType {
                 .map(|index| exp_subst_map(arena, *index, substitutions))
                 .collect(),
         }
+    }
+
+    pub fn instantiate_parameters(&self, arena: &Arena, parameters: &[Exp]) -> Self {
+        let mut outer = 0;
+        let telescope = self
+            .telescope
+            .iter()
+            .map(|binder| {
+                let result = match binder {
+                    CtorBinder::Simple((name, ty)) => CtorBinder::Simple((
+                        *name,
+                        instantiate_outer_telescope(arena, *ty, parameters, outer),
+                    )),
+                    CtorBinder::StrictPositive {
+                        binders,
+                        self_indices,
+                    } => CtorBinder::StrictPositive {
+                        binders: binders
+                            .iter()
+                            .enumerate()
+                            .map(|(inner, (name, ty))| {
+                                (
+                                    *name,
+                                    instantiate_outer_telescope(
+                                        arena,
+                                        *ty,
+                                        parameters,
+                                        outer + inner,
+                                    ),
+                                )
+                            })
+                            .collect(),
+                        self_indices: self_indices
+                            .iter()
+                            .map(|index| {
+                                instantiate_outer_telescope(
+                                    arena,
+                                    *index,
+                                    parameters,
+                                    outer + binders.len(),
+                                )
+                            })
+                            .collect(),
+                    },
+                };
+                outer += 1;
+                result
+            })
+            .collect();
+        let indices = self
+            .indices
+            .iter()
+            .map(|index| instantiate_outer_telescope(arena, *index, parameters, outer))
+            .collect();
+        Self { telescope, indices }
     }
 }
 
@@ -397,45 +525,91 @@ pub fn eliminator_type(
 ) -> Exp {
     let mut telescope = vec![];
     let mut applied_constructor = constructor_term;
+    let mut constructor_positions = Vec::new();
     for binder in &constructor.telescope {
+        let original_outer = constructor_positions.len();
         match binder {
             CtorBinder::Simple((var, ty)) => {
+                let ty = rebase_from_constructor(
+                    arena,
+                    *ty,
+                    0,
+                    original_outer,
+                    &constructor_positions,
+                    telescope.len(),
+                );
+                applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
                 applied_constructor = arena.alloc(Node::App {
                     func: applied_constructor,
-                    arg: arena.var(var.clone()),
+                    arg: arena.bound(0),
                 });
-                telescope.push((var.clone(), *ty));
+                telescope.push((*var, ty));
+                constructor_positions.push(telescope.len() - 1);
             }
             CtorBinder::StrictPositive {
                 binders,
                 self_indices,
             } => {
-                let recursive_var = Var::new("p");
+                let recursive_binders = rebase_nested_telescope(
+                    arena,
+                    binders,
+                    original_outer,
+                    &constructor_positions,
+                    telescope.len(),
+                );
+                let nested_mapping = constructor_mapping(
+                    binders.len(),
+                    original_outer,
+                    &constructor_positions,
+                    telescope.len(),
+                );
+                let recursive_indices = self_indices
+                    .iter()
+                    .map(|index| remap_ambient_indices(arena, *index, &nested_mapping))
+                    .collect::<Vec<_>>();
+                let shifted_this =
+                    shift_bound_indices(arena, this, telescope.len() + binders.len(), 0);
+                let recursive_result =
+                    utils::assoc_apply(arena, shifted_this, recursive_indices.clone());
+                let recursive_ty =
+                    utils::assoc_prod(arena, recursive_binders.clone(), recursive_result);
+
+                applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
                 applied_constructor = arena.alloc(Node::App {
                     func: applied_constructor,
-                    arg: arena.var(recursive_var.clone()),
+                    arg: arena.bound(0),
                 });
-                let recursive_result = utils::assoc_apply(arena, this, self_indices.clone());
-                let recursive_ty = utils::assoc_prod(arena, binders.clone(), recursive_result);
-                telescope.push((recursive_var.clone(), recursive_ty));
+                telescope.push((SymbolId::ANONYMOUS, recursive_ty));
+                constructor_positions.push(telescope.len() - 1);
 
-                let recursive_arguments = binders
-                    .iter()
-                    .map(|(var, _)| arena.var(var.clone()))
-                    .collect();
+                let recursive_arguments = bound_arguments(arena, binders.len());
                 let recursive_call =
-                    utils::assoc_apply(arena, arena.var(recursive_var), recursive_arguments);
-                let motive = utils::assoc_apply(arena, q, self_indices.clone());
+                    utils::assoc_apply(arena, arena.bound(binders.len()), recursive_arguments);
+                let shifted_q = shift_bound_indices(arena, q, telescope.len() + binders.len(), 0);
+                let motive = utils::assoc_apply(arena, shifted_q, recursive_indices);
                 let hypothesis_result = arena.alloc(Node::App {
                     func: motive,
                     arg: recursive_call,
                 });
-                let hypothesis_ty = utils::assoc_prod(arena, binders.clone(), hypothesis_result);
-                telescope.push((Var::dummy(), hypothesis_ty));
+                let hypothesis_ty = utils::assoc_prod(arena, recursive_binders, hypothesis_result);
+                telescope.push((SymbolId::ANONYMOUS, hypothesis_ty));
+                applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
             }
         }
     }
-    let motive = utils::assoc_apply(arena, q, constructor.indices.clone());
+    let mapping = constructor_mapping(
+        0,
+        constructor_positions.len(),
+        &constructor_positions,
+        telescope.len(),
+    );
+    let indices = constructor
+        .indices
+        .iter()
+        .map(|index| remap_ambient_indices(arena, *index, &mapping))
+        .collect();
+    let shifted_q = shift_bound_indices(arena, q, telescope.len(), 0);
+    let motive = utils::assoc_apply(arena, shifted_q, indices);
     let result = arena.alloc(Node::App {
         func: motive,
         arg: applied_constructor,
@@ -446,50 +620,131 @@ pub fn eliminator_type(
 pub fn recursor(arena: &Arena, constructor: &CtorType, q: Exp, case: Exp, this: Exp) -> Exp {
     let mut result = case;
     let mut telescope = vec![];
+    let mut constructor_positions = Vec::new();
     for binder in &constructor.telescope {
+        let original_outer = constructor_positions.len();
         match binder {
             CtorBinder::Simple((var, ty)) => {
+                let ty = rebase_from_constructor(
+                    arena,
+                    *ty,
+                    0,
+                    original_outer,
+                    &constructor_positions,
+                    telescope.len(),
+                );
+                result = shift_bound_indices(arena, result, 1, 0);
                 result = arena.alloc(Node::App {
                     func: result,
-                    arg: arena.var(var.clone()),
+                    arg: arena.bound(0),
                 });
-                telescope.push((var.clone(), *ty));
+                telescope.push((*var, ty));
+                constructor_positions.push(telescope.len() - 1);
             }
             CtorBinder::StrictPositive {
                 binders,
                 self_indices,
             } => {
-                let recursive_var = Var::new("p");
-                let recursive_arguments = binders
-                    .iter()
-                    .map(|(var, _)| arena.var(var.clone()))
-                    .collect();
-                let recursive_call = utils::assoc_apply(
+                let recursive_binders = rebase_nested_telescope(
                     arena,
-                    arena.var(recursive_var.clone()),
-                    recursive_arguments,
+                    binders,
+                    original_outer,
+                    &constructor_positions,
+                    telescope.len(),
                 );
-                let motive = utils::assoc_apply(arena, q, self_indices.clone());
+                let nested_mapping = constructor_mapping(
+                    binders.len(),
+                    original_outer,
+                    &constructor_positions,
+                    telescope.len(),
+                );
+                let recursive_indices = self_indices
+                    .iter()
+                    .map(|index| remap_ambient_indices(arena, *index, &nested_mapping))
+                    .collect::<Vec<_>>();
+                let recursive_arguments = bound_arguments(arena, binders.len());
+                let recursive_call =
+                    utils::assoc_apply(arena, arena.bound(binders.len()), recursive_arguments);
+                let shifted_q =
+                    shift_bound_indices(arena, q, telescope.len() + 1 + binders.len(), 0);
+                let motive = utils::assoc_apply(arena, shifted_q, recursive_indices.clone());
                 let hypothesis_body = arena.alloc(Node::App {
                     func: motive,
                     arg: recursive_call,
                 });
-                let hypothesis = utils::assoc_lam(arena, binders.clone(), hypothesis_body);
+                let hypothesis =
+                    utils::assoc_lam(arena, recursive_binders.clone(), hypothesis_body);
+                result = shift_bound_indices(arena, result, 1, 0);
                 let with_argument = arena.alloc(Node::App {
                     func: result,
-                    arg: arena.var(recursive_var.clone()),
+                    arg: arena.bound(0),
                 });
                 result = arena.alloc(Node::App {
                     func: with_argument,
                     arg: hypothesis,
                 });
-                let recursive_result = utils::assoc_apply(arena, this, self_indices.clone());
-                let recursive_ty = utils::assoc_prod(arena, binders.clone(), recursive_result);
-                telescope.push((recursive_var, recursive_ty));
+                let shifted_this =
+                    shift_bound_indices(arena, this, telescope.len() + binders.len(), 0);
+                let recursive_result = utils::assoc_apply(arena, shifted_this, recursive_indices);
+                let recursive_ty = utils::assoc_prod(arena, recursive_binders, recursive_result);
+                telescope.push((SymbolId::ANONYMOUS, recursive_ty));
+                constructor_positions.push(telescope.len() - 1);
             }
         }
     }
     utils::assoc_lam(arena, telescope, result)
+}
+
+fn constructor_mapping(
+    inner: usize,
+    original_outer: usize,
+    positions: &[usize],
+    generated_len: usize,
+) -> Vec<usize> {
+    let mut mapping = (0..inner).collect::<Vec<_>>();
+    mapping.extend((0..original_outer).map(|old_index| {
+        let declaration = original_outer - 1 - old_index;
+        inner + generated_len - 1 - positions[declaration]
+    }));
+    mapping
+}
+
+fn rebase_from_constructor(
+    arena: &Arena,
+    exp: Exp,
+    inner: usize,
+    original_outer: usize,
+    positions: &[usize],
+    generated_len: usize,
+) -> Exp {
+    let mapping = constructor_mapping(inner, original_outer, positions, generated_len);
+    remap_ambient_indices(arena, exp, &mapping)
+}
+
+fn rebase_nested_telescope(
+    arena: &Arena,
+    binders: &[(SymbolId, Exp)],
+    original_outer: usize,
+    positions: &[usize],
+    generated_len: usize,
+) -> Vec<(SymbolId, Exp)> {
+    binders
+        .iter()
+        .enumerate()
+        .map(|(inner, (name, ty))| {
+            (
+                *name,
+                rebase_from_constructor(
+                    arena,
+                    *ty,
+                    inner,
+                    original_outer,
+                    positions,
+                    generated_len,
+                ),
+            )
+        })
+        .collect()
 }
 
 struct RedexShape {
@@ -558,37 +813,32 @@ pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, Strin
         cases,
     } = indelim_shapecheck(env, exp)?;
     let spec = env.inductive(inductive);
-    let substitutions = spec.parameter_subst_mapping(&parameters);
-
-    let c = Var::new("c");
-    let body = arena.alloc(Node::IndElim {
-        indspec: inductive,
-        elim: arena.var(c.clone()),
-        return_type,
-        cases: cases.clone(),
-    });
-    let indices = spec
-        .indices
-        .iter()
-        .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, &substitutions)))
-        .collect::<Vec<_>>();
+    let indices = spec.instantiate_indices(arena, &parameters);
     let this = arena.alloc(Node::IndType {
         indspec: inductive,
         parameters: parameters.clone(),
     });
-    let index_arguments = indices
-        .iter()
-        .map(|(var, _)| arena.var(var.clone()))
-        .collect();
-    let c_ty = utils::assoc_apply(arena, this, index_arguments);
+    let index_arguments = bound_arguments(arena, indices.len());
+    let shifted_this = shift_bound_indices(arena, this, indices.len(), 0);
+    let c_ty = utils::assoc_apply(arena, shifted_this, index_arguments);
+    let body_depth = indices.len() + 1;
+    let body = arena.alloc(Node::IndElim {
+        indspec: inductive,
+        elim: arena.bound(0),
+        return_type: shift_bound_indices(arena, return_type, body_depth, 0),
+        cases: cases
+            .iter()
+            .map(|case| shift_bound_indices(arena, *case, body_depth, 0))
+            .collect(),
+    });
     let body = arena.alloc(Node::Lam {
-        var: c,
+        var: SymbolId::ANONYMOUS,
         ty: c_ty,
         body,
     });
     let motive = utils::assoc_lam(arena, indices, body);
 
-    let constructor = spec.constructors[index].subst(arena, &substitutions);
+    let constructor = spec.constructors[index].instantiate_parameters(arena, &parameters);
     let recursive = recursor(arena, &constructor, motive, cases[index], this);
     Ok(utils::assoc_apply(arena, recursive, arguments))
 }

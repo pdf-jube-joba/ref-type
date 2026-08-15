@@ -1,15 +1,20 @@
-use crate::printing::ptr_lower32bit_base62_fixed;
 use kernel::{
     environment::CrateEnv,
-    exp::{Context, DefinedConstant, Exp, Node, Sort, Var},
+    exp::{Context, DefinedConstant, Exp, ModuleParamId, Node, Sort, SymbolId},
 };
 
-fn format_var(var: &Var) -> String {
-    format!(
-        "{}[{}]",
-        var.as_str(),
-        ptr_lower32bit_base62_fixed(var.ptr() as *const ())
-    )
+fn format_named_var(env: &CrateEnv, var: SymbolId) -> String {
+    env.symbol(var).to_string()
+}
+
+fn format_var(env: &CrateEnv, var: ModuleParamId) -> String {
+    let name = env
+        .module(var.module)
+        .parameters()
+        .get(var.position as usize)
+        .map(|parameter| env.symbol(parameter.name))
+        .unwrap_or("?");
+    format!("{}[{}:{}]", name, var.module.0, var.position)
 }
 
 pub(super) fn format_sort(sort: &Sort) -> String {
@@ -29,12 +34,22 @@ pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
     match arena.get(exp) {
         Node::Sort(sort) => format_sort(&sort),
         Node::Bound(index) => format!("#{index}"),
-        Node::Var(var) => format_var(&var),
+        Node::ModuleParam(var) => format_var(env, var),
         Node::Prod { var, ty, body } => {
-            format!("({}: {}) -> {}", format_var(&var), child(ty), child(body))
+            format!(
+                "({}: {}) -> {}",
+                format_named_var(env, var),
+                child(ty),
+                child(body)
+            )
         }
         Node::Lam { var, ty, body } => {
-            format!("({}: {}) => {}", format_var(&var), child(ty), child(body))
+            format!(
+                "({}: {}) => {}",
+                format_named_var(env, var),
+                child(ty),
+                child(body)
+            )
         }
         Node::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
         Node::DefinedConstant(definition) => format!(
@@ -103,7 +118,7 @@ pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             predicate,
         } => format!(
             "{{ {}: {} | {} }}",
-            format_var(&var),
+            format_named_var(env, var),
             child(set),
             child(predicate)
         ),
@@ -168,7 +183,7 @@ pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
 
 pub(super) fn format_ctx(env: &CrateEnv, ctx: &Context) -> String {
     ctx.iter()
-        .map(|(var, ty)| format!("{}: {}", format_var(var), format_exp(env, *ty)))
+        .map(|(var, ty)| format!("{}: {}", env.symbol(*var), format_exp(env, *ty)))
         .collect::<Vec<_>>()
         .join(", ")
 }

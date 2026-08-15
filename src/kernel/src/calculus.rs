@@ -4,42 +4,45 @@ use std::collections::HashMap;
 
 use super::exp::*;
 
-pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
+pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModuleParamId) -> bool {
     let arena = env.arena();
     match arena.get(exp) {
         Node::Sort(_) | Node::Bound(_) => false,
-        Node::Var(candidate) => candidate.is_eq_ptr(var),
+        Node::ModuleParam(candidate) => candidate == parameter,
         Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
-            exp_contains_as_freevar(env, ty, var) || exp_contains_as_freevar(env, body, var)
+            exp_contains_module_param(env, ty, parameter)
+                || exp_contains_module_param(env, body, parameter)
         }
         Node::App { func, arg } => {
-            exp_contains_as_freevar(env, func, var) || exp_contains_as_freevar(env, arg, var)
+            exp_contains_module_param(env, func, parameter)
+                || exp_contains_module_param(env, arg, parameter)
         }
         Node::DefinedConstant(definition) => {
             let definition = env.definition(definition);
-            exp_contains_as_freevar(env, definition.ty, var)
-                || exp_contains_as_freevar(env, definition.body, var)
+            exp_contains_module_param(env, definition.ty, parameter)
+                || exp_contains_module_param(env, definition.body, parameter)
         }
         Node::IndType { parameters, .. } | Node::IndCtor { parameters, .. } => parameters
             .into_iter()
-            .any(|argument| exp_contains_as_freevar(env, argument, var)),
+            .any(|argument| exp_contains_module_param(env, argument, parameter)),
         Node::IndElim {
             elim,
             return_type,
             cases,
             ..
         } => {
-            exp_contains_as_freevar(env, elim, var)
-                || exp_contains_as_freevar(env, return_type, var)
+            exp_contains_module_param(env, elim, parameter)
+                || exp_contains_module_param(env, return_type, parameter)
                 || cases
                     .into_iter()
-                    .any(|case| exp_contains_as_freevar(env, case, var))
+                    .any(|case| exp_contains_module_param(env, case, parameter))
         }
         Node::PowerSet { set } | Node::Exists { set } | Node::IdRefl { element: set } => {
-            exp_contains_as_freevar(env, set, var)
+            exp_contains_module_param(env, set, parameter)
         }
         Node::SubSet { set, predicate, .. } => {
-            exp_contains_as_freevar(env, set, var) || exp_contains_as_freevar(env, predicate, var)
+            exp_contains_module_param(env, set, parameter)
+                || exp_contains_module_param(env, predicate, parameter)
         }
         Node::Pred {
             superset,
@@ -52,13 +55,14 @@ pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
             element,
         } => [superset, subset, element]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(env, child, var)),
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::TypeLift { superset, subset }
         | Node::Equal {
             left: superset,
             right: subset,
         } => {
-            exp_contains_as_freevar(env, superset, var) || exp_contains_as_freevar(env, subset, var)
+            exp_contains_module_param(env, superset, parameter)
+                || exp_contains_module_param(env, subset, parameter)
         }
         Node::SubsetIntro {
             superset,
@@ -73,7 +77,7 @@ pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
             existence: proof,
         } => [superset, subset, element, proof]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(env, child, var)),
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::TakeSet {
             domain,
             codomain,
@@ -82,9 +86,10 @@ pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
             uniqueness,
         } => [domain, codomain, map, existence, uniqueness]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(env, child, var)),
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::ExistsIntro { element, set } => {
-            exp_contains_as_freevar(env, element, var) || exp_contains_as_freevar(env, set, var)
+            exp_contains_module_param(env, element, parameter)
+                || exp_contains_module_param(env, set, parameter)
         }
         Node::IdElim {
             left,
@@ -96,7 +101,7 @@ pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
             ..
         } => [left, right, ty, predicate, base, equality]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(env, child, var)),
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::TakeEq {
             func,
             domain,
@@ -106,8 +111,31 @@ pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
             uniqueness,
         } => [func, domain, codomain, element, existence, uniqueness]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(env, child, var)),
+            .any(|child| exp_contains_module_param(env, child, parameter)),
     }
+}
+
+pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
+    fn contains(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
+        let node = arena.get(exp);
+        if matches!(
+            node,
+            Node::IndType { indspec, .. }
+                | Node::IndCtor { indspec, .. }
+                | Node::IndElim { indspec, .. }
+                if indspec == inductive
+        ) {
+            return true;
+        }
+        let mut found = false;
+        let _ = map_children(node, |child| {
+            found |= contains(arena, child, inductive);
+            child
+        });
+        found
+    }
+
+    contains(arena, exp, inductive)
 }
 
 #[derive(Clone, Copy)]
@@ -136,31 +164,32 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
     match (arena.get(left), arena.get(right)) {
         (Node::Sort(left), Node::Sort(right)) => left == right,
         (Node::Bound(left), Node::Bound(right)) => left == right,
-        (Node::Var(left), Node::Var(right)) => left.as_str() == right.as_str(),
+        (Node::ModuleParam(left), Node::ModuleParam(right)) => left == right,
         (
             Node::Prod {
+                var: left_var,
                 ty: left_ty,
                 body: left_body,
-                ..
             },
             Node::Prod {
+                var: right_var,
                 ty: right_ty,
                 body: right_body,
-                ..
             },
         )
         | (
             Node::Lam {
+                var: left_var,
                 ty: left_ty,
                 body: left_body,
-                ..
             },
             Node::Lam {
+                var: right_var,
                 ty: right_ty,
                 body: right_body,
-                ..
             },
         ) => {
+            let _ = (left_var, right_var);
             is_alpha_eq_rec(env, left_ty, right_ty, mode)
                 && is_alpha_eq_rec(env, left_body, right_body, mode)
         }
@@ -249,16 +278,17 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
         }
         (
             Node::SubSet {
+                var: left_var,
                 set: left_set,
                 predicate: left_predicate,
-                ..
             },
             Node::SubSet {
+                var: right_var,
                 set: right_set,
                 predicate: right_predicate,
-                ..
             },
         ) => {
+            let _ = (left_var, right_var);
             is_alpha_eq_rec(env, left_set, right_set, mode)
                 && is_alpha_eq_rec(env, left_predicate, right_predicate, mode)
         }
@@ -371,6 +401,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 left: left_left,
                 right: left_right,
                 ty: left_ty,
+                var: left_var,
                 predicate: left_predicate,
                 base: left_base,
                 equality: left_equality,
@@ -380,31 +411,35 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 left: right_left,
                 right: right_right,
                 ty: right_ty,
+                var: right_var,
                 predicate: right_predicate,
                 base: right_base,
                 equality: right_equality,
                 ..
             },
-        ) => eq_slices(
-            env,
-            &[
-                left_left,
-                left_right,
-                left_ty,
-                left_predicate,
-                left_base,
-                left_equality,
-            ],
-            &[
-                right_left,
-                right_right,
-                right_ty,
-                right_predicate,
-                right_base,
-                right_equality,
-            ],
-            mode,
-        ),
+        ) => {
+            let _ = (left_var, right_var);
+            eq_slices(
+                env,
+                &[
+                    left_left,
+                    left_right,
+                    left_ty,
+                    left_predicate,
+                    left_base,
+                    left_equality,
+                ],
+                &[
+                    right_left,
+                    right_right,
+                    right_ty,
+                    right_predicate,
+                    right_base,
+                    right_equality,
+                ],
+                mode,
+            )
+        }
         (
             Node::TakeEq {
                 func: left_func,
@@ -486,7 +521,7 @@ where
         transformed
     };
     let transformed = match node {
-        Node::Sort(_) | Node::Bound(_) | Node::Var(_) => return exp,
+        Node::Sort(_) | Node::Bound(_) | Node::ModuleParam(_) => return exp,
         Node::Prod { var, ty, body } => Node::Prod {
             var,
             ty: child(ty, depth),
@@ -535,7 +570,7 @@ where
 
 fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
     match &mut node {
-        Node::Sort(_) | Node::Bound(_) | Node::Var(_) => {}
+        Node::Sort(_) | Node::Bound(_) | Node::ModuleParam(_) => {}
         Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
             *ty = map(*ty);
             *body = map(*body);
@@ -769,9 +804,14 @@ pub fn remap_global_ids(
     remap(arena, exp, definitions, inductives)
 }
 
-pub fn exp_subst(arena: &Arena, exp: Exp, var: &Var, replacement: Exp) -> Exp {
+pub fn exp_subst_module_param(
+    arena: &Arena,
+    exp: Exp,
+    parameter: ModuleParamId,
+    replacement: Exp,
+) -> Exp {
     transform(arena, exp, 0, &mut |node, depth| match node {
-        Node::Var(candidate) if candidate.is_eq_ptr(var) => {
+        Node::ModuleParam(candidate) if *candidate == parameter => {
             Some(shift_bound_indices(arena, replacement, depth, 0))
         }
         _ => None,
@@ -788,26 +828,72 @@ pub(crate) fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff
 }
 
 /// Replace the outermost locally bound variable in `body` with `argument`.
-pub fn instantiate(arena: &Arena, body: Exp, binder: &Var, argument: Exp) -> Exp {
-    let instantiated = transform(arena, body, 0, &mut |node, depth| match node {
-        Node::Bound(index) if *index == depth => {
-            Some(shift_bound_indices(arena, argument, depth, 0))
-        }
-        Node::Bound(index) if *index > depth => Some(arena.alloc(Node::Bound(index - 1))),
-        _ => None,
-    });
-    if instantiated == body {
-        exp_subst(arena, body, binder, argument)
-    } else {
-        instantiated
+pub fn instantiate(arena: &Arena, body: Exp, argument: Exp) -> Exp {
+    instantiate_at(arena, body, argument, 0)
+}
+
+/// Instantiate one binder in the ambient context, leaving `inner` more recent
+/// ambient binders in place.
+pub fn instantiate_at(arena: &Arena, body: Exp, argument: Exp, inner: usize) -> Exp {
+    instantiate_telescope_at(arena, body, std::slice::from_ref(&argument), inner)
+}
+
+/// Instantiate an expression whose ambient telescope consists of `arguments`
+/// in declaration order. `Bound(0)` denotes the last telescope entry.
+pub fn instantiate_telescope(arena: &Arena, exp: Exp, arguments: &[Exp]) -> Exp {
+    instantiate_telescope_at(arena, exp, arguments, 0)
+}
+
+pub fn instantiate_outer_telescope(
+    arena: &Arena,
+    exp: Exp,
+    arguments: &[Exp],
+    inner: usize,
+) -> Exp {
+    instantiate_telescope_at(arena, exp, arguments, inner)
+}
+
+fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: usize) -> Exp {
+    if arguments.is_empty() {
+        return exp;
     }
+
+    transform(arena, exp, 0, &mut |node, depth| match node {
+        Node::Bound(index) if *index >= depth + inner => {
+            let ambient = *index - depth;
+            let telescope_index = ambient - inner;
+            if telescope_index < arguments.len() {
+                let argument = arguments[arguments.len() - 1 - telescope_index];
+                Some(shift_bound_indices(arena, argument, depth + inner, 0))
+            } else {
+                Some(arena.alloc(Node::Bound(index - arguments.len())))
+            }
+        }
+        _ => None,
+    })
+}
+
+/// Rebase references to an implicit ambient context. `mapping[i]` is the new
+/// de Bruijn index for the old ambient index `i`; syntactic binders inside the
+/// expression are preserved.
+pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp {
+    transform(arena, exp, 0, &mut |node, depth| match node {
+        Node::Bound(index) if *index >= depth => {
+            let ambient = *index - depth;
+            mapping
+                .get(ambient)
+                .filter(|mapped| **mapped != ambient)
+                .map(|mapped| arena.alloc(Node::Bound(depth + *mapped)))
+        }
+        _ => None,
+    })
 }
 
 pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
     fn contains(arena: &Arena, exp: Exp, target: usize, depth: usize) -> bool {
         match arena.get(exp) {
             Node::Bound(index) => index == target + depth,
-            Node::Sort(_) | Node::Var(_) | Node::DefinedConstant(_) => false,
+            Node::Sort(_) | Node::ModuleParam(_) | Node::DefinedConstant(_) => false,
             Node::Prod { ty, body, .. }
             | Node::Lam { ty, body, .. }
             | Node::SubSet {
@@ -842,9 +928,9 @@ pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
     contains(arena, exp, target, 0)
 }
 
-pub fn exp_subst_map(arena: &Arena, mut exp: Exp, substitutions: &[(Var, Exp)]) -> Exp {
-    for (var, replacement) in substitutions {
-        exp = exp_subst(arena, exp, var, *replacement);
+pub fn exp_subst_map(arena: &Arena, mut exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
+    for (parameter, replacement) in substitutions {
+        exp = exp_subst_module_param(arena, exp, *parameter, *replacement);
     }
     exp
 }
@@ -870,16 +956,14 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     let arena = env.arena();
     match arena.get(exp) {
         Node::App { func, arg } => match arena.get(func) {
-            Node::Lam { var, body, .. } => Some(instantiate(arena, body, &var, arg)),
+            Node::Lam { body, .. } => Some(instantiate(arena, body, arg)),
             _ => None,
         },
         Node::DefinedConstant(definition) => Some(env.definition(definition).body),
         Node::Pred {
             subset, element, ..
         } => match arena.get(subset) {
-            Node::SubSet { var, predicate, .. } => {
-                Some(instantiate(arena, predicate, &var, element))
-            }
+            Node::SubSet { predicate, .. } => Some(instantiate(arena, predicate, element)),
             _ => None,
         },
         Node::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
@@ -993,7 +1077,7 @@ pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {
     exp_whnf_with_mode(env, ty, true)
 }
 
-pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(Var, Exp, Exp)> {
+pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(SymbolId, Exp, Exp)> {
     let arena = env.arena();
     let mut current = type_head_normal(env, ty);
     loop {
@@ -1038,13 +1122,11 @@ pub(crate) fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> boo
                 ..
             },
             Node::Prod {
-                var: expected_var,
                 ty: expected_domain,
                 body: expected_body,
+                ..
             },
         ) if erased_convertible(env, inferred_domain, expected_domain) => {
-            let free = arena.var(expected_var.clone());
-            let expected_body = instantiate(arena, expected_body, &expected_var, free);
             can_weaken_to(env, inferred_body, expected_body)
         }
         _ => false,
