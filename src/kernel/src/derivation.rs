@@ -189,7 +189,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             let s1 = add_sort!(rule, phase, ctx, ty, "infer domain sort for product")?;
 
             // 2) infer (ctx, (var, ty) |- body : ?s2)
-            let extend = ctx_extend(ctx, (var.clone(), *(*ty).clone()));
+            let extend = ctx_extend(ctx, (var.clone(), ty.as_ref().clone()));
             let s2 = add_sort!(
                 rule,
                 phase,
@@ -209,14 +209,14 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             let _sort = add_sort!(rule, phase, ctx, ty, "infer domain sort for lambda")?;
 
             // 2. infer (ctx, (var, ty) |- body : ?body_ty)
-            let extend = ctx_extend(ctx, (var.clone(), *ty.clone()));
+            let extend = ctx_extend(ctx, (var.clone(), ty.as_ref().clone()));
             let body_ty = add_infer!(rule, phase, &extend, body, "infer body type for lambda")?;
 
             // 3. conclude (ctx |- Lam(var, ty, body) : lam_ty)
             let lam_ty = Exp::Prod {
                 var: var.clone(),
                 ty: ty.clone(),
-                body: Box::new(body_ty),
+                body: Rc::new(body_ty),
             };
             add_sort!(
                 rule,
@@ -449,7 +449,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
 
             // 7. conclude (ctx |- IndTypeElim(ty, elim, return_type, sort, cases) : q a[] c)
             let ty = Exp::App {
-                func: Box::new(utils::assoc_apply(*return_type.clone(), a.clone())),
+                func: Rc::new(utils::assoc_apply(return_type.as_ref().clone(), a.clone())),
                 arg: elim.clone(),
             };
             Ok(ty)
@@ -524,7 +524,7 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             }
 
             // 2. check (ctx, (var, set) |- predicate : \Prop)
-            let extended_ctx = ctx_extend(ctx, (var.clone(), *set.clone()));
+            let extended_ctx = ctx_extend(ctx, (var.clone(), set.as_ref().clone()));
             add_check!(
                 rule,
                 phase,
@@ -665,17 +665,17 @@ pub fn infer(ctx: &Context, term: &Exp) -> Result<Exp, Box<JudgementError>> {
             let uniqueness_prop = Exp::Prod {
                 var: x1.clone(),
                 ty: domain.clone(),
-                body: Box::new(Exp::Prod {
+                body: Rc::new(Exp::Prod {
                     var: x2.clone(),
                     ty: domain.clone(),
-                    body: Box::new(Exp::Equal {
-                        left: Box::new(Exp::App {
+                    body: Rc::new(Exp::Equal {
+                        left: Rc::new(Exp::App {
                             func: map.clone(),
-                            arg: Box::new(Exp::Var(x1)),
+                            arg: Rc::new(Exp::Var(x1)),
                         }),
-                        right: Box::new(Exp::App {
+                        right: Rc::new(Exp::App {
                             func: map.clone(),
-                            arg: Box::new(Exp::Var(x2)),
+                            arg: Rc::new(Exp::Var(x2)),
                         }),
                     }),
                 }),
@@ -889,7 +889,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
             add_check!(rule, phase, ctx, right, ty, "check right element type")?;
 
             // 4. check (ctx::(var, ty) |- predicate : Prop)
-            let extend = ctx_extend(ctx, (var.clone(), *ty.clone()));
+            let extend = ctx_extend(ctx, (var.clone(), ty.as_ref().clone()));
             add_check!(
                 rule,
                 phase,
@@ -908,7 +908,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
 
             // 5. check the base case carried by the eliminator.
             let base_prop = Exp::App {
-                func: Box::new(apply.clone()),
+                func: Rc::new(apply.clone()),
                 arg: left.clone(),
             };
             add_check!(
@@ -936,7 +936,7 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
 
             // 7. return predicate(right) as the term's inferred type
             let prop = Exp::App {
-                func: Box::new(apply.clone()),
+                func: Rc::new(apply.clone()),
                 arg: right.clone(),
             };
             Ok(prop)
@@ -971,8 +971,8 @@ fn infer_proof_constructor(ctx: &Context, term: &Exp) -> Result<Exp, Box<Judgeme
 
             // 4. return the equality as the term's inferred type
             let prop = Exp::Equal {
-                left: Box::new(take),
-                right: Box::new(mapped_elem),
+                left: Rc::new(take),
+                right: Rc::new(mapped_elem),
             };
             Ok(prop)
         }

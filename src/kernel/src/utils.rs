@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use super::exp::*;
 
 pub fn assoc_apply(mut a: Exp, v: Vec<Exp>) -> Exp {
@@ -36,8 +38,8 @@ pub fn assoc_prod(v: Vec<(Var, Exp)>, mut body: Exp) -> Exp {
 pub fn decompose_app(mut e: Exp) -> (Exp, Vec<Exp>) {
     let mut args = vec![];
     while let Exp::App { func, arg } = e {
-        args.push(*arg);
-        e = *func;
+        args.push(Rc::unwrap_or_clone(arg));
+        e = Rc::unwrap_or_clone(func);
     }
     args.reverse();
     (e, args)
@@ -58,8 +60,8 @@ pub fn decompose_app_ref(e: &Exp) -> (&Exp, Vec<&Exp>) {
 pub fn decompose_prod(mut e: Exp) -> (Vec<(Var, Exp)>, Exp) {
     let mut vars = vec![];
     while let Exp::Prod { var, ty, body } = e {
-        vars.push((var, *ty));
-        e = *body;
+        vars.push((var, Rc::unwrap_or_clone(ty)));
+        e = Rc::unwrap_or_clone(body);
     }
     (vars, e)
 }

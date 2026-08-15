@@ -120,8 +120,8 @@ impl LocalScope {
                 self.pop_binded_var();
                 let map = Exp::Lam {
                     var: var.clone(),
-                    ty: Box::new(domain.clone()),
-                    body: Box::new(map_body),
+                    ty: Rc::new(domain.clone()),
+                    body: Rc::new(map_body),
                 };
                 let map_ty = handler.infer(&self.typing_binds, &map)?;
                 let Exp::Prod { body: codomain, .. } = map_ty else {
@@ -130,7 +130,7 @@ impl LocalScope {
                 if exp_contains_as_freevar(&codomain, &var) {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
-                Ok((domain, map, *codomain))
+                Ok((domain, map, Rc::unwrap_or_clone(codomain)))
             }
             Bind::Subset { var, ty, predicate } => {
                 let carrier = self.elab_exp_rec(ty, handler)?;
@@ -141,20 +141,20 @@ impl LocalScope {
 
                 let subset = Exp::SubSet {
                     var: var.clone(),
-                    set: Box::new(carrier.clone()),
-                    predicate: Box::new(predicate),
+                    set: Rc::new(carrier.clone()),
+                    predicate: Rc::new(predicate),
                 };
                 let domain = Exp::TypeLift {
-                    superset: Box::new(carrier),
-                    subset: Box::new(subset),
+                    superset: Rc::new(carrier),
+                    subset: Rc::new(subset),
                 };
                 self.push_binded_var(var.clone(), domain.clone());
                 let map_body = self.elab_exp_rec(body, handler)?;
                 self.pop_binded_var();
                 let map = Exp::Lam {
                     var: var.clone(),
-                    ty: Box::new(domain.clone()),
-                    body: Box::new(map_body),
+                    ty: Rc::new(domain.clone()),
+                    body: Rc::new(map_body),
                 };
                 let map_ty = handler.infer(&self.typing_binds, &map)?;
                 let Exp::Prod { body: codomain, .. } = map_ty else {
@@ -163,7 +163,7 @@ impl LocalScope {
                 if exp_contains_as_freevar(&codomain, &var) {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
-                Ok((domain, map, *codomain))
+                Ok((domain, map, Rc::unwrap_or_clone(codomain)))
             }
             Bind::SubsetWithProof { .. } => {
                 Err("\\take with proof bind is not supported by kernel Take(X,T,f)".into())
@@ -307,14 +307,14 @@ impl LocalScope {
                             return Ok(if is_prod {
                                 Exp::Prod {
                                     var: Var::dummy(),
-                                    ty: Box::new(ty_elab),
-                                    body: Box::new(body_elab),
+                                    ty: Rc::new(ty_elab),
+                                    body: Rc::new(body_elab),
                                 }
                             } else {
                                 Exp::Lam {
                                     var: Var::dummy(),
-                                    ty: Box::new(ty_elab),
-                                    body: Box::new(body_elab),
+                                    ty: Rc::new(ty_elab),
+                                    body: Rc::new(body_elab),
                                 }
                             });
                         }
@@ -349,13 +349,13 @@ impl LocalScope {
 
                         let subset = Exp::SubSet {
                             var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
+                            set: Rc::new(ty_elab.clone()),
+                            predicate: Rc::new(predicate_elab.clone()),
                         };
 
                         let refined_ty = Exp::TypeLift {
-                            superset: Box::new(ty_elab.clone()),
-                            subset: Box::new(subset),
+                            superset: Rc::new(ty_elab.clone()),
+                            subset: Rc::new(subset),
                         };
                         self.push_binded_var(var.clone(), refined_ty.clone());
                         let body_elab = self.elab_exp_rec(body, handler)?;
@@ -364,14 +364,14 @@ impl LocalScope {
                         Ok(if is_prod {
                             Exp::Prod {
                                 var: var.clone(),
-                                ty: Box::new(refined_ty),
-                                body: Box::new(body_elab),
+                                ty: Rc::new(refined_ty),
+                                body: Rc::new(body_elab),
                             }
                         } else {
                             Exp::Lam {
                                 var: var.clone(),
-                                ty: Box::new(refined_ty),
-                                body: Box::new(body_elab),
+                                ty: Rc::new(refined_ty),
+                                body: Rc::new(body_elab),
                             }
                         })
                     }
@@ -389,12 +389,12 @@ impl LocalScope {
 
                         let subset = Exp::SubSet {
                             var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
+                            set: Rc::new(ty_elab.clone()),
+                            predicate: Rc::new(predicate_elab.clone()),
                         };
                         let refined_ty = Exp::TypeLift {
-                            superset: Box::new(ty_elab),
-                            subset: Box::new(subset),
+                            superset: Rc::new(ty_elab),
+                            subset: Rc::new(subset),
                         };
                         self.push_binded_var(var.clone(), refined_ty.clone());
                         let proof: Var = Var::new(proof_var.as_str());
@@ -402,22 +402,22 @@ impl LocalScope {
                         let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
                         self.pop_binded_var();
-                        let body_elab = Box::new(Exp::Prod {
+                        let body_elab = Rc::new(Exp::Prod {
                             var: proof,
-                            ty: Box::new(predicate_elab),
-                            body: Box::new(body_elab),
+                            ty: Rc::new(predicate_elab),
+                            body: Rc::new(body_elab),
                         });
 
                         Ok(if is_prod {
                             Exp::Prod {
                                 var: var.clone(),
-                                ty: Box::new(refined_ty),
+                                ty: Rc::new(refined_ty),
                                 body: body_elab,
                             }
                         } else {
                             Exp::Lam {
                                 var: var.clone(),
-                                ty: Box::new(refined_ty),
+                                ty: Rc::new(refined_ty),
                                 body: body_elab,
                             }
                         })
@@ -432,8 +432,8 @@ impl LocalScope {
                 let func_elab = self.elab_exp_rec(func, handler)?;
                 let arg_elab = self.elab_exp_rec(arg, handler)?;
                 Ok(Exp::App {
-                    func: Box::new(func_elab),
-                    arg: Box::new(arg_elab),
+                    func: Rc::new(func_elab),
+                    arg: Rc::new(arg_elab),
                 })
             }
             SExp::SubsetIntro {
@@ -447,10 +447,10 @@ impl LocalScope {
                 let element_elab = self.elab_exp_rec(element, handler)?;
                 let proof_elab = self.elab_exp_rec(proof, handler)?;
                 Ok(Exp::SubsetIntro {
-                    superset: Box::new(superset_elab),
-                    subset: Box::new(subset_elab),
-                    element: Box::new(element_elab),
-                    proof: Box::new(proof_elab),
+                    superset: Rc::new(superset_elab),
+                    subset: Rc::new(subset_elab),
+                    element: Rc::new(element_elab),
+                    proof: Rc::new(proof_elab),
                 })
             }
             SExp::IndElim {
@@ -488,8 +488,8 @@ impl LocalScope {
 
                 Ok(Exp::IndElim {
                     indspec: ind_defs.clone(),
-                    elim: Box::new(elim_elab),
-                    return_type: Box::new(return_type_elab),
+                    elim: Rc::new(elim_elab),
+                    return_type: Rc::new(return_type_elab),
                     cases: cases_elab,
                 })
             }
@@ -555,7 +555,7 @@ impl LocalScope {
             SExp::PowerSet { set } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
                 Ok(Exp::PowerSet {
-                    set: Box::new(set_elab),
+                    set: Rc::new(set_elab),
                 })
             }
             SExp::SubSet {
@@ -570,8 +570,8 @@ impl LocalScope {
                 self.pop_binded_var();
                 Ok(Exp::SubSet {
                     var: var.clone(),
-                    set: Box::new(set_elab),
-                    predicate: Box::new(predicate_elab),
+                    set: Rc::new(set_elab),
+                    predicate: Rc::new(predicate_elab),
                 })
             }
             SExp::Pred {
@@ -583,25 +583,25 @@ impl LocalScope {
                 let subset_elab = self.elab_exp_rec(subset, handler)?;
                 let element_elab = self.elab_exp_rec(element, handler)?;
                 Ok(Exp::Pred {
-                    superset: Box::new(superset_elab),
-                    subset: Box::new(subset_elab),
-                    element: Box::new(element_elab),
+                    superset: Rc::new(superset_elab),
+                    subset: Rc::new(subset_elab),
+                    element: Rc::new(element_elab),
                 })
             }
             SExp::TypeLift { superset, subset } => {
                 let superset_elab = self.elab_exp_rec(superset, handler)?;
                 let subset_elab = self.elab_exp_rec(subset, handler)?;
                 Ok(Exp::TypeLift {
-                    superset: Box::new(superset_elab),
-                    subset: Box::new(subset_elab),
+                    superset: Rc::new(superset_elab),
+                    subset: Rc::new(subset_elab),
                 })
             }
             SExp::Equal { left, right } => {
                 let left_elab = self.elab_exp_rec(left, handler)?;
                 let right_elab = self.elab_exp_rec(right, handler)?;
                 Ok(Exp::Equal {
-                    left: Box::new(left_elab),
-                    right: Box::new(right_elab),
+                    left: Rc::new(left_elab),
+                    right: Rc::new(right_elab),
                 })
             }
             SExp::Exists { bind } => match bind {
@@ -614,7 +614,7 @@ impl LocalScope {
                     }
                     let ty_elab = self.elab_exp_rec(&rightbind.ty, handler)?;
                     Ok(Exp::Exists {
-                        set: Box::new(ty_elab),
+                        set: Rc::new(ty_elab),
                     })
                 }
                 Bind::SubsetWithProof { .. } => Err(
@@ -631,12 +631,12 @@ impl LocalScope {
 
                         Exp::SubSet {
                             var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
+                            set: Rc::new(ty_elab.clone()),
+                            predicate: Rc::new(predicate_elab.clone()),
                         }
                     };
                     Ok(Exp::Exists {
-                        set: Box::new(subset_as_exp),
+                        set: Rc::new(subset_as_exp),
                     })
                 }
             },
@@ -648,11 +648,11 @@ impl LocalScope {
             } => {
                 let (domain, map, codomain) = self.elab_take_parts(bind, body, handler)?;
                 Ok(Exp::TakeSet {
-                    domain: Box::new(domain),
-                    codomain: Box::new(codomain),
-                    map: Box::new(map),
-                    existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                    uniqueness: Box::new(self.elab_exp_rec(uniqueness, handler)?),
+                    domain: Rc::new(domain),
+                    codomain: Rc::new(codomain),
+                    map: Rc::new(map),
+                    existence: Rc::new(self.elab_exp_rec(existence, handler)?),
+                    uniqueness: Rc::new(self.elab_exp_rec(uniqueness, handler)?),
                 })
             }
             SExp::TakeProp {
@@ -662,27 +662,27 @@ impl LocalScope {
             } => {
                 let (domain, map, proposition) = self.elab_take_parts(bind, body, handler)?;
                 Ok(Exp::TakeProp {
-                    domain: Box::new(domain),
-                    proposition: Box::new(proposition),
-                    map: Box::new(map),
-                    existence: Box::new(self.elab_exp_rec(existence, handler)?),
+                    domain: Rc::new(domain),
+                    proposition: Rc::new(proposition),
+                    map: Rc::new(map),
+                    existence: Rc::new(self.elab_exp_rec(existence, handler)?),
                 })
             }
             SExp::ExistsIntro { element, set } => Ok(Exp::ExistsIntro {
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-                set: Box::new(self.elab_exp_rec(set, handler)?),
+                element: Rc::new(self.elab_exp_rec(element, handler)?),
+                set: Rc::new(self.elab_exp_rec(set, handler)?),
             }),
             SExp::SubsetElim {
                 element,
                 subset,
                 superset,
             } => Ok(Exp::SubsetElim {
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-                subset: Box::new(self.elab_exp_rec(subset, handler)?),
-                superset: Box::new(self.elab_exp_rec(superset, handler)?),
+                element: Rc::new(self.elab_exp_rec(element, handler)?),
+                subset: Rc::new(self.elab_exp_rec(subset, handler)?),
+                superset: Rc::new(self.elab_exp_rec(superset, handler)?),
             }),
             SExp::IdRefl { element } => Ok(Exp::IdRefl {
-                element: Box::new(self.elab_exp_rec(element, handler)?),
+                element: Rc::new(self.elab_exp_rec(element, handler)?),
             }),
             SExp::IdElim {
                 left,
@@ -693,15 +693,15 @@ impl LocalScope {
                 base,
                 equality,
             } => {
-                let left = Box::new(self.elab_exp_rec(left, handler)?);
-                let right = Box::new(self.elab_exp_rec(right, handler)?);
-                let ty = Box::new(self.elab_exp_rec(ty, handler)?);
+                let left = Rc::new(self.elab_exp_rec(left, handler)?);
+                let right = Rc::new(self.elab_exp_rec(right, handler)?);
+                let ty = Rc::new(self.elab_exp_rec(ty, handler)?);
                 let var = Var::new(var.as_str());
                 self.push_binded_var(var.clone(), ty.as_ref().clone());
-                let predicate = Box::new(self.elab_exp_rec(predicate, handler)?);
+                let predicate = Rc::new(self.elab_exp_rec(predicate, handler)?);
                 self.pop_binded_var();
-                let base = Box::new(self.elab_exp_rec(base, handler)?);
-                let equality = Box::new(self.elab_exp_rec(equality, handler)?);
+                let base = Rc::new(self.elab_exp_rec(base, handler)?);
+                let equality = Rc::new(self.elab_exp_rec(equality, handler)?);
                 Ok(Exp::IdElim {
                     left,
                     right,
@@ -720,12 +720,12 @@ impl LocalScope {
                 existence,
                 uniqueness,
             } => Ok(Exp::TakeEq {
-                func: Box::new(self.elab_exp_rec(func, handler)?),
-                domain: Box::new(self.elab_exp_rec(domain, handler)?),
-                codomain: Box::new(self.elab_exp_rec(codomain, handler)?),
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-                existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                uniqueness: Box::new(self.elab_exp_rec(uniqueness, handler)?),
+                func: Rc::new(self.elab_exp_rec(func, handler)?),
+                domain: Rc::new(self.elab_exp_rec(domain, handler)?),
+                codomain: Rc::new(self.elab_exp_rec(codomain, handler)?),
+                element: Rc::new(self.elab_exp_rec(element, handler)?),
+                existence: Rc::new(self.elab_exp_rec(existence, handler)?),
+                uniqueness: Rc::new(self.elab_exp_rec(uniqueness, handler)?),
             }),
             SExp::Block(block) => {
                 let Block {

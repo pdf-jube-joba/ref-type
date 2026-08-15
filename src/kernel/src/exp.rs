@@ -128,19 +128,19 @@ pub enum Exp {
     // (var: ty) -> body where var is bound in body but not in ty
     Prod {
         var: Var,
-        ty: Box<Exp>,
-        body: Box<Exp>, // bind one variable
+        ty: Rc<Exp>,
+        body: Rc<Exp>, // bind one variable
     },
     // (var: ty) => body where var is bound in body but not in ty
     Lam {
         var: Var,
-        ty: Box<Exp>,
-        body: Box<Exp>, // bind one variable
+        ty: Rc<Exp>,
+        body: Rc<Exp>, // bind one variable
     },
     // usual application (f x)
     App {
-        func: Box<Exp>,
-        arg: Box<Exp>,
+        func: Rc<Exp>,
+        arg: Rc<Exp>,
     },
     DefinedConstant(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DefinedConstant>),
     IndType {
@@ -158,85 +158,85 @@ pub enum Exp {
         // this is primitive recursion
         #[serde(serialize_with = "serialize_rc_ptr")]
         indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        elim: Box<Exp>,
-        return_type: Box<Exp>,
+        elim: Rc<Exp>,
+        return_type: Rc<Exp>,
         cases: Vec<Exp>, // no bindings
     },
     PowerSet {
-        set: Box<Exp>,
+        set: Rc<Exp>,
     },
     // {var: set | predicate} where var is bound in predicate but not in A
     SubSet {
         var: Var,
-        set: Box<Exp>,
-        predicate: Box<Exp>,
+        set: Rc<Exp>,
+        predicate: Rc<Exp>,
     },
     Pred {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        element: Box<Exp>,
+        superset: Rc<Exp>,
+        subset: Rc<Exp>,
+        element: Rc<Exp>,
     },
     TypeLift {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
+        superset: Rc<Exp>,
+        subset: Rc<Exp>,
     },
     // Introduce `element` into `subset` of `superset` using `proof`.
     // This is a typing annotation and erases to `element` computationally.
     SubsetIntro {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        element: Box<Exp>,
-        proof: Box<Exp>,
+        superset: Rc<Exp>,
+        subset: Rc<Exp>,
+        element: Rc<Exp>,
+        proof: Rc<Exp>,
     },
     Equal {
-        left: Box<Exp>,
-        right: Box<Exp>,
+        left: Rc<Exp>,
+        right: Rc<Exp>,
     },
     // just non-emptyness proposition
     Exists {
-        set: Box<Exp>,
+        set: Rc<Exp>,
     },
     TakeSet {
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        map: Box<Exp>,
-        existence: Box<Exp>,
-        uniqueness: Box<Exp>,
+        domain: Rc<Exp>,
+        codomain: Rc<Exp>,
+        map: Rc<Exp>,
+        existence: Rc<Exp>,
+        uniqueness: Rc<Exp>,
     },
     TakeProp {
-        domain: Box<Exp>,
-        proposition: Box<Exp>,
-        map: Box<Exp>,
-        existence: Box<Exp>,
+        domain: Rc<Exp>,
+        proposition: Rc<Exp>,
+        map: Rc<Exp>,
+        existence: Rc<Exp>,
     },
     ExistsIntro {
-        element: Box<Exp>,
-        set: Box<Exp>,
+        element: Rc<Exp>,
+        set: Rc<Exp>,
     },
     SubsetElim {
-        element: Box<Exp>,
-        subset: Box<Exp>,
-        superset: Box<Exp>,
+        element: Rc<Exp>,
+        subset: Rc<Exp>,
+        superset: Rc<Exp>,
     },
     IdRefl {
-        element: Box<Exp>,
+        element: Rc<Exp>,
     },
     IdElim {
-        left: Box<Exp>,
-        right: Box<Exp>,
-        ty: Box<Exp>,
+        left: Rc<Exp>,
+        right: Rc<Exp>,
+        ty: Rc<Exp>,
         var: Var,
-        predicate: Box<Exp>,
-        base: Box<Exp>,
-        equality: Box<Exp>,
+        predicate: Rc<Exp>,
+        base: Rc<Exp>,
+        equality: Rc<Exp>,
     },
     TakeEq {
-        func: Box<Exp>,
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        element: Box<Exp>,
-        existence: Box<Exp>,
-        uniqueness: Box<Exp>,
+        func: Rc<Exp>,
+        domain: Rc<Exp>,
+        codomain: Rc<Exp>,
+        element: Rc<Exp>,
+        existence: Rc<Exp>,
+        uniqueness: Rc<Exp>,
     },
 }
 

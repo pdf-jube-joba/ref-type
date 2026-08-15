@@ -399,7 +399,7 @@ impl ModItemRecord {
                     parameters: parameters.to_vec(),
                 }
                 .into(),
-                body: Box::new(field_ty),
+                body: Rc::new(field_ty),
             }
             .into(),
             cases: vec![prec],

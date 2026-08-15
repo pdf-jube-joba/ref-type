@@ -111,8 +111,8 @@ impl InductiveTypeSpecs {
             indices,
             Exp::Prod {
                 var: Var::new("_"),
-                ty: Box::new(e),
-                body: Box::new(Exp::Sort(sort)),
+                ty: Rc::new(e),
+                body: Rc::new(Exp::Sort(sort)),
             },
         )
     }
@@ -275,8 +275,8 @@ pub fn eliminator_type(
             CtorBinder::Simple((x, t)) => {
                 // c <- (c x)
                 c = Exp::App {
-                    func: Box::new(c),
-                    arg: Box::new(Exp::Var(x.clone())),
+                    func: Rc::new(c),
+                    arg: Rc::new(Exp::Var(x.clone())),
                 };
                 // push (x: t)
                 bindstack.push((x.clone(), t.clone()));
@@ -289,8 +289,8 @@ pub fn eliminator_type(
                 let p = Var::new("p");
                 // c <- (c p)
                 c = Exp::App {
-                    func: Box::new(c),
-                    arg: Box::new(Exp::Var(p.clone())),
+                    func: Rc::new(c),
+                    arg: Rc::new(Exp::Var(p.clone())),
                 };
                 // push (p: (x[]: t[]) -> THIS m[])
                 {
@@ -312,8 +312,8 @@ pub fn eliminator_type(
                         let qms = utils::assoc_apply(q.clone(), m.clone()); // q m[]
 
                         let right = Exp::App {
-                            func: Box::new(qms), // q m[]
-                            arg: Box::new(pxs),  // (p x[])
+                            func: Rc::new(qms), // q m[]
+                            arg: Rc::new(pxs),  // (p x[])
                         };
 
                         // (x[]: t[]) -> q m[] (p x[])
@@ -331,8 +331,8 @@ pub fn eliminator_type(
     c = {
         let e = utils::assoc_apply(q.clone(), a.clone());
         Exp::App {
-            func: Box::new(e),
-            arg: Box::new(c.clone()),
+            func: Rc::new(e),
+            arg: Rc::new(c.clone()),
         }
     };
 
@@ -366,8 +366,8 @@ pub fn recursor(
             CtorBinder::Simple((x, t)) => {
                 // f <- (f x)
                 f = Exp::App {
-                    func: Box::new(f),
-                    arg: Box::new(Exp::Var(x.clone())),
+                    func: Rc::new(f),
+                    arg: Rc::new(Exp::Var(x.clone())),
                 };
                 // push (x: t)
                 bindstack.push((x.clone(), t.clone()));
@@ -388,17 +388,17 @@ pub fn recursor(
                         ); // (p x[])
                         let qms = utils::assoc_apply(q.clone(), m.clone()); // q m[]
                         let r = Exp::App {
-                            func: Box::new(qms),
-                            arg: Box::new(pxs),
+                            func: Rc::new(qms),
+                            arg: Rc::new(pxs),
                         }; // q m[] (p x[])
                         utils::assoc_lam(xts.clone(), r) // (x[]: t[]) => q m[] (p x[])
                     };
                     f = Exp::App {
-                        func: Box::new(Exp::App {
-                            func: Box::new(f.clone()),
-                            arg: Box::new(Exp::Var(p.clone())),
+                        func: Rc::new(Exp::App {
+                            func: Rc::new(f.clone()),
+                            arg: Rc::new(Exp::Var(p.clone())),
                         }),
-                        arg: Box::new(right),
+                        arg: Rc::new(right),
                     };
                 }
                 // push (p: (x[]: t[]) -> THIS m[])
@@ -422,7 +422,7 @@ struct RedexShapeInductiveTypeElim {
     idx: usize,
     parameter: Vec<Exp>,
     m: Vec<Exp>,
-    q: Box<Exp>,
+    q: Rc<Exp>,
     f: Vec<Exp>,
 }
 
@@ -513,7 +513,7 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         // Elim(THIS, c, q, f[])
         let body = Exp::IndElim {
             indspec: ty.clone(),
-            elim: Box::new(Exp::Var(c.clone())),
+            elim: Rc::new(Exp::Var(c.clone())),
             return_type: q.clone(),
             cases: f.clone(),
         };
@@ -528,14 +528,14 @@ pub fn inductive_type_elim_reduce(e: &Exp) -> Result<Exp, String> {
         // (c: (THIS x[])) => Elim(Type, c, q, f[]) where x[] are in variables in arities
         let body = Exp::Lam {
             var: c.clone(),
-            ty: Box::new(utils::assoc_apply(
+            ty: Rc::new(utils::assoc_apply(
                 Exp::IndType {
                     indspec: ty.clone(),
                     parameters: parameter.clone(),
                 },
                 indices.iter().map(|(x, _)| Exp::Var(x.clone())).collect(),
             )),
-            body: Box::new(body),
+            body: Rc::new(body),
         };
 
         // (x[]: a[]) => (c: (Type x[])) => Elim(Type, c, q, f[])
@@ -648,8 +648,8 @@ impl InductiveTypeSpecs {
         // elim(THIS, c, q, f[])
         let body = Exp::IndElim {
             indspec: indspec.clone(),
-            elim: Box::new(Exp::Var(c.clone())),
-            return_type: Box::new(Exp::Var(q.clone())),
+            elim: Rc::new(Exp::Var(c.clone())),
+            return_type: Rc::new(Exp::Var(q.clone())),
             cases,
         };
 
@@ -789,8 +789,8 @@ mod tests {
 
         let redex = Exp::IndElim {
             indspec: specs.clone(),
-            elim: Box::new(app!(func: succ.clone(), arg: zero.clone())),
-            return_type: Box::new(motive),
+            elim: Rc::new(app!(func: succ.clone(), arg: zero.clone())),
+            return_type: Rc::new(motive),
             cases: vec![zero.clone(), succ_case],
         };
 

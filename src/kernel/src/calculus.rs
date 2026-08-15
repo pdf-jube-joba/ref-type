@@ -1,4 +1,4 @@
-use std::{ops::Deref, rc};
+use std::{borrow::Cow, ops::Deref, rc};
 
 use crate::inductive::inductive_type_elim_reduce;
 
@@ -166,6 +166,8 @@ pub fn exp_contains_as_freevar(e: &Exp, v: &Var) -> bool {
 struct AlphaEqEnv {
     bound: Vec<Var>,
     take_proofs_irrelevant: bool,
+    reduce_to_whnf: bool,
+    erase_subset_intro: bool,
 }
 
 impl Deref for AlphaEqEnv {
@@ -183,6 +185,15 @@ impl std::ops::DerefMut for AlphaEqEnv {
 }
 
 fn is_alpha_eq_rec(e1: &Exp, e2: &Exp, env1: &mut AlphaEqEnv, env2: &mut AlphaEqEnv) -> bool {
+    let whnf1 = env1
+        .reduce_to_whnf
+        .then(|| exp_whnf_with_mode(e1, env1.erase_subset_intro));
+    let whnf2 = env2
+        .reduce_to_whnf
+        .then(|| exp_whnf_with_mode(e2, env2.erase_subset_intro));
+    let e1 = whnf1.as_ref().map_or(e1, Cow::as_ref);
+    let e2 = whnf2.as_ref().map_or(e2, Cow::as_ref);
+
     match (e1, e2) {
         (Exp::Sort(s1), Exp::Sort(s2)) => s1 == s2,
         (Exp::Var(v1), Exp::Var(v2)) => {
@@ -533,34 +544,60 @@ pub fn exp_is_alpha_eq(e1: &Exp, e2: &Exp) -> bool {
         &mut AlphaEqEnv {
             bound: vec![],
             take_proofs_irrelevant: false,
+            reduce_to_whnf: false,
+            erase_subset_intro: false,
         },
         &mut AlphaEqEnv {
             bound: vec![],
             take_proofs_irrelevant: false,
+            reduce_to_whnf: false,
+            erase_subset_intro: false,
         },
     )
 }
 
-fn exp_is_alpha_eq_ignoring_take_proofs(e1: &Exp, e2: &Exp) -> bool {
+fn exp_is_convertible_with_mode(e1: &Exp, e2: &Exp, erase_proofs: bool) -> bool {
     is_alpha_eq_rec(
         e1,
         e2,
         &mut AlphaEqEnv {
             bound: vec![],
-            take_proofs_irrelevant: true,
+            take_proofs_irrelevant: erase_proofs,
+            reduce_to_whnf: true,
+            erase_subset_intro: erase_proofs,
         },
         &mut AlphaEqEnv {
             bound: vec![],
-            take_proofs_irrelevant: true,
+            take_proofs_irrelevant: erase_proofs,
+            reduce_to_whnf: true,
+            erase_subset_intro: erase_proofs,
         },
     )
 }
 
+fn exp_subst_child(e: &rc::Rc<Exp>, v: &Var, t: &Exp, parent_changed: &mut bool) -> rc::Rc<Exp> {
+    let mut child_changed = false;
+    let substituted = exp_subst_tracking(e, v, t, &mut child_changed);
+    if child_changed {
+        *parent_changed = true;
+        rc::Rc::new(substituted)
+    } else {
+        e.clone()
+    }
+}
+
 pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
+    let mut changed = false;
+    let substituted = exp_subst_tracking(e, v, t, &mut changed);
+    if changed { substituted } else { e.clone() }
+}
+
+fn exp_subst_tracking(e: &Exp, v: &Var, t: &Exp, changed: &mut bool) -> Exp {
     match e {
         Exp::Sort(sort) => Exp::Sort(*sort),
         Exp::Var(var) => {
             if var.is_eq_ptr(v) {
+                *changed = true;
                 t.clone()
             } else {
                 e.clone()
@@ -570,14 +607,14 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             if var.is_eq_ptr(v) {
                 Exp::Prod {
                     var: var.clone(),
-                    ty: Box::new(exp_subst(ty, v, t)),
+                    ty: exp_subst_child(ty, v, t, changed),
                     body: body.clone(),
                 }
             } else {
                 Exp::Prod {
                     var: var.clone(),
-                    ty: Box::new(exp_subst(ty, v, t)),
-                    body: Box::new(exp_subst(body, v, t)),
+                    ty: exp_subst_child(ty, v, t, changed),
+                    body: exp_subst_child(body, v, t, changed),
                 }
             }
         }
@@ -585,27 +622,27 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             if var.is_eq_ptr(v) {
                 Exp::Lam {
                     var: var.clone(),
-                    ty: Box::new(exp_subst(ty, v, t)),
+                    ty: exp_subst_child(ty, v, t, changed),
                     body: body.clone(),
                 }
             } else {
                 Exp::Lam {
                     var: var.clone(),
-                    ty: Box::new(exp_subst(ty, v, t)),
-                    body: Box::new(exp_subst(body, v, t)),
+                    ty: exp_subst_child(ty, v, t, changed),
+                    body: exp_subst_child(body, v, t, changed),
                 }
             }
         }
         Exp::App { func, arg } => Exp::App {
-            func: Box::new(exp_subst(func, v, t)),
-            arg: Box::new(exp_subst(arg, v, t)),
+            func: exp_subst_child(func, v, t, changed),
+            arg: exp_subst_child(arg, v, t, changed),
         },
         Exp::DefinedConstant(rc) => {
             let DefinedConstant { ty, body: inner } = rc.as_ref();
             // yet another RC
             Exp::DefinedConstant(rc::Rc::new(DefinedConstant {
-                ty: exp_subst(ty, v, t),
-                body: exp_subst(inner, v, t),
+                ty: exp_subst_tracking(ty, v, t, changed),
+                body: exp_subst_tracking(inner, v, t, changed),
             }))
         }
         Exp::IndType {
@@ -613,7 +650,10 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             parameters,
         } => Exp::IndType {
             indspec: ty.clone(),
-            parameters: parameters.iter().map(|arg| exp_subst(arg, v, t)).collect(),
+            parameters: parameters
+                .iter()
+                .map(|arg| exp_subst_tracking(arg, v, t, changed))
+                .collect(),
         },
         Exp::IndCtor {
             indspec: ty,
@@ -622,7 +662,10 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
         } => Exp::IndCtor {
             indspec: ty.clone(),
             idx: *idx,
-            parameters: parameter.iter().map(|arg| exp_subst(arg, v, t)).collect(),
+            parameters: parameter
+                .iter()
+                .map(|arg| exp_subst_tracking(arg, v, t, changed))
+                .collect(),
         },
         Exp::IndElim {
             indspec: ty,
@@ -631,9 +674,12 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             cases,
         } => Exp::IndElim {
             indspec: ty.clone(),
-            elim: Box::new(exp_subst(elim, v, t)),
-            return_type: Box::new(exp_subst(return_type, v, t)),
-            cases: cases.iter().map(|case| exp_subst(case, v, t)).collect(),
+            elim: exp_subst_child(elim, v, t, changed),
+            return_type: exp_subst_child(return_type, v, t, changed),
+            cases: cases
+                .iter()
+                .map(|case| exp_subst_tracking(case, v, t, changed))
+                .collect(),
         },
         Exp::SubsetIntro {
             superset,
@@ -641,13 +687,13 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             element,
             proof,
         } => Exp::SubsetIntro {
-            superset: Box::new(exp_subst(superset, v, t)),
-            subset: Box::new(exp_subst(subset, v, t)),
-            element: Box::new(exp_subst(element, v, t)),
-            proof: Box::new(exp_subst(proof, v, t)),
+            superset: exp_subst_child(superset, v, t, changed),
+            subset: exp_subst_child(subset, v, t, changed),
+            element: exp_subst_child(element, v, t, changed),
+            proof: exp_subst_child(proof, v, t, changed),
         },
         Exp::PowerSet { set: exp } => Exp::PowerSet {
-            set: Box::new(exp_subst(exp, v, t)),
+            set: exp_subst_child(exp, v, t, changed),
         },
         Exp::SubSet {
             var,
@@ -657,14 +703,14 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             if var.is_eq_ptr(v) {
                 Exp::SubSet {
                     var: var.clone(),
-                    set: Box::new(exp_subst(exp, v, t)),
+                    set: exp_subst_child(exp, v, t, changed),
                     predicate: predicate.clone(),
                 }
             } else {
                 Exp::SubSet {
                     var: var.clone(),
-                    set: Box::new(exp_subst(exp, v, t)),
-                    predicate: Box::new(exp_subst(predicate, v, t)),
+                    set: exp_subst_child(exp, v, t, changed),
+                    predicate: exp_subst_child(predicate, v, t, changed),
                 }
             }
         }
@@ -673,20 +719,20 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             subset,
             element,
         } => Exp::Pred {
-            superset: Box::new(exp_subst(superset, v, t)),
-            subset: Box::new(exp_subst(subset, v, t)),
-            element: Box::new(exp_subst(element, v, t)),
+            superset: exp_subst_child(superset, v, t, changed),
+            subset: exp_subst_child(subset, v, t, changed),
+            element: exp_subst_child(element, v, t, changed),
         },
         Exp::TypeLift { superset, subset } => Exp::TypeLift {
-            superset: Box::new(exp_subst(superset, v, t)),
-            subset: Box::new(exp_subst(subset, v, t)),
+            superset: exp_subst_child(superset, v, t, changed),
+            subset: exp_subst_child(subset, v, t, changed),
         },
         Exp::Equal { left, right } => Exp::Equal {
-            left: Box::new(exp_subst(left, v, t)),
-            right: Box::new(exp_subst(right, v, t)),
+            left: exp_subst_child(left, v, t, changed),
+            right: exp_subst_child(right, v, t, changed),
         },
         Exp::Exists { set: ty } => Exp::Exists {
-            set: Box::new(exp_subst(ty, v, t)),
+            set: exp_subst_child(ty, v, t, changed),
         },
         Exp::TakeSet {
             domain,
@@ -695,11 +741,11 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             existence,
             uniqueness,
         } => Exp::TakeSet {
-            domain: Box::new(exp_subst(domain, v, t)),
-            codomain: Box::new(exp_subst(codomain, v, t)),
-            map: Box::new(exp_subst(map, v, t)),
-            existence: Box::new(exp_subst(existence, v, t)),
-            uniqueness: Box::new(exp_subst(uniqueness, v, t)),
+            domain: exp_subst_child(domain, v, t, changed),
+            codomain: exp_subst_child(codomain, v, t, changed),
+            map: exp_subst_child(map, v, t, changed),
+            existence: exp_subst_child(existence, v, t, changed),
+            uniqueness: exp_subst_child(uniqueness, v, t, changed),
         },
         Exp::TakeProp {
             domain,
@@ -707,26 +753,26 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             map,
             existence,
         } => Exp::TakeProp {
-            domain: Box::new(exp_subst(domain, v, t)),
-            proposition: Box::new(exp_subst(proposition, v, t)),
-            map: Box::new(exp_subst(map, v, t)),
-            existence: Box::new(exp_subst(existence, v, t)),
+            domain: exp_subst_child(domain, v, t, changed),
+            proposition: exp_subst_child(proposition, v, t, changed),
+            map: exp_subst_child(map, v, t, changed),
+            existence: exp_subst_child(existence, v, t, changed),
         },
         Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
-            element: Box::new(exp_subst(element, v, t)),
-            set: Box::new(exp_subst(set, v, t)),
+            element: exp_subst_child(element, v, t, changed),
+            set: exp_subst_child(set, v, t, changed),
         },
         Exp::SubsetElim {
             element,
             subset,
             superset,
         } => Exp::SubsetElim {
-            element: Box::new(exp_subst(element, v, t)),
-            subset: Box::new(exp_subst(subset, v, t)),
-            superset: Box::new(exp_subst(superset, v, t)),
+            element: exp_subst_child(element, v, t, changed),
+            subset: exp_subst_child(subset, v, t, changed),
+            superset: exp_subst_child(superset, v, t, changed),
         },
         Exp::IdRefl { element } => Exp::IdRefl {
-            element: Box::new(exp_subst(element, v, t)),
+            element: exp_subst_child(element, v, t, changed),
         },
         Exp::IdElim {
             left,
@@ -737,17 +783,17 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             base,
             equality,
         } => Exp::IdElim {
-            left: Box::new(exp_subst(left, v, t)),
-            right: Box::new(exp_subst(right, v, t)),
-            ty: Box::new(exp_subst(ty, v, t)),
+            left: exp_subst_child(left, v, t, changed),
+            right: exp_subst_child(right, v, t, changed),
+            ty: exp_subst_child(ty, v, t, changed),
             var: var.clone(),
             predicate: if !v.is_eq_ptr(var) {
-                Box::new(exp_subst(predicate, v, t))
+                exp_subst_child(predicate, v, t, changed)
             } else {
                 predicate.clone()
             },
-            base: Box::new(exp_subst(base, v, t)),
-            equality: Box::new(exp_subst(equality, v, t)),
+            base: exp_subst_child(base, v, t, changed),
+            equality: exp_subst_child(equality, v, t, changed),
         },
         Exp::TakeEq {
             func,
@@ -757,12 +803,12 @@ pub fn exp_subst(e: &Exp, v: &Var, t: &Exp) -> Exp {
             existence,
             uniqueness,
         } => Exp::TakeEq {
-            func: Box::new(exp_subst(func, v, t)),
-            domain: Box::new(exp_subst(domain, v, t)),
-            codomain: Box::new(exp_subst(codomain, v, t)),
-            element: Box::new(exp_subst(element, v, t)),
-            existence: Box::new(exp_subst(existence, v, t)),
-            uniqueness: Box::new(exp_subst(uniqueness, v, t)),
+            func: exp_subst_child(func, v, t, changed),
+            domain: exp_subst_child(domain, v, t, changed),
+            codomain: exp_subst_child(codomain, v, t, changed),
+            element: exp_subst_child(element, v, t, changed),
+            existence: exp_subst_child(existence, v, t, changed),
+            uniqueness: exp_subst_child(uniqueness, v, t, changed),
         },
     }
 }
@@ -785,17 +831,17 @@ pub fn erase(e: &Exp) -> Exp {
         Exp::Var(var) => Exp::Var(var.clone()),
         Exp::Prod { var, ty, body } => Exp::Prod {
             var: var.clone(),
-            ty: Box::new(erase(ty)),
-            body: Box::new(erase(body)),
+            ty: rc::Rc::new(erase(ty)),
+            body: rc::Rc::new(erase(body)),
         },
         Exp::Lam { var, ty, body } => Exp::Lam {
             var: var.clone(),
-            ty: Box::new(erase(ty)),
-            body: Box::new(erase(body)),
+            ty: rc::Rc::new(erase(ty)),
+            body: rc::Rc::new(erase(body)),
         },
         Exp::App { func, arg } => Exp::App {
-            func: Box::new(erase(func)),
-            arg: Box::new(erase(arg)),
+            func: rc::Rc::new(erase(func)),
+            arg: rc::Rc::new(erase(arg)),
         },
         // Defined constants are transparent.  Unfolding here ensures that a
         // certificate stored in a checked definition is erased as well.
@@ -823,13 +869,13 @@ pub fn erase(e: &Exp) -> Exp {
             cases,
         } => Exp::IndElim {
             indspec: indspec.clone(),
-            elim: Box::new(erase(elim)),
-            return_type: Box::new(erase(return_type)),
+            elim: rc::Rc::new(erase(elim)),
+            return_type: rc::Rc::new(erase(return_type)),
             cases: cases.iter().map(erase).collect(),
         },
         Exp::SubsetIntro { element, .. } => erase(element),
         Exp::PowerSet { set } => Exp::PowerSet {
-            set: Box::new(erase(set)),
+            set: rc::Rc::new(erase(set)),
         },
         Exp::SubSet {
             var,
@@ -837,28 +883,28 @@ pub fn erase(e: &Exp) -> Exp {
             predicate,
         } => Exp::SubSet {
             var: var.clone(),
-            set: Box::new(erase(set)),
-            predicate: Box::new(erase(predicate)),
+            set: rc::Rc::new(erase(set)),
+            predicate: rc::Rc::new(erase(predicate)),
         },
         Exp::Pred {
             superset,
             subset,
             element,
         } => Exp::Pred {
-            superset: Box::new(erase(superset)),
-            subset: Box::new(erase(subset)),
-            element: Box::new(erase(element)),
+            superset: rc::Rc::new(erase(superset)),
+            subset: rc::Rc::new(erase(subset)),
+            element: rc::Rc::new(erase(element)),
         },
         Exp::TypeLift { superset, subset } => Exp::TypeLift {
-            superset: Box::new(erase(superset)),
-            subset: Box::new(erase(subset)),
+            superset: rc::Rc::new(erase(superset)),
+            subset: rc::Rc::new(erase(subset)),
         },
         Exp::Equal { left, right } => Exp::Equal {
-            left: Box::new(erase(left)),
-            right: Box::new(erase(right)),
+            left: rc::Rc::new(erase(left)),
+            right: rc::Rc::new(erase(right)),
         },
         Exp::Exists { set } => Exp::Exists {
-            set: Box::new(erase(set)),
+            set: rc::Rc::new(erase(set)),
         },
         Exp::TakeSet {
             domain,
@@ -867,11 +913,11 @@ pub fn erase(e: &Exp) -> Exp {
             existence,
             uniqueness,
         } => Exp::TakeSet {
-            domain: Box::new(erase(domain)),
-            codomain: Box::new(erase(codomain)),
-            map: Box::new(erase(map)),
-            existence: Box::new(erase(existence)),
-            uniqueness: Box::new(erase(uniqueness)),
+            domain: rc::Rc::new(erase(domain)),
+            codomain: rc::Rc::new(erase(codomain)),
+            map: rc::Rc::new(erase(map)),
+            existence: rc::Rc::new(erase(existence)),
+            uniqueness: rc::Rc::new(erase(uniqueness)),
         },
         Exp::TakeProp {
             domain,
@@ -879,26 +925,26 @@ pub fn erase(e: &Exp) -> Exp {
             map,
             existence,
         } => Exp::TakeProp {
-            domain: Box::new(erase(domain)),
-            proposition: Box::new(erase(proposition)),
-            map: Box::new(erase(map)),
-            existence: Box::new(erase(existence)),
+            domain: rc::Rc::new(erase(domain)),
+            proposition: rc::Rc::new(erase(proposition)),
+            map: rc::Rc::new(erase(map)),
+            existence: rc::Rc::new(erase(existence)),
         },
         Exp::ExistsIntro { element, set } => Exp::ExistsIntro {
-            element: Box::new(erase(element)),
-            set: Box::new(erase(set)),
+            element: rc::Rc::new(erase(element)),
+            set: rc::Rc::new(erase(set)),
         },
         Exp::SubsetElim {
             element,
             subset,
             superset,
         } => Exp::SubsetElim {
-            element: Box::new(erase(element)),
-            subset: Box::new(erase(subset)),
-            superset: Box::new(erase(superset)),
+            element: rc::Rc::new(erase(element)),
+            subset: rc::Rc::new(erase(subset)),
+            superset: rc::Rc::new(erase(superset)),
         },
         Exp::IdRefl { element } => Exp::IdRefl {
-            element: Box::new(erase(element)),
+            element: rc::Rc::new(erase(element)),
         },
         Exp::IdElim {
             left,
@@ -909,13 +955,13 @@ pub fn erase(e: &Exp) -> Exp {
             base,
             equality,
         } => Exp::IdElim {
-            left: Box::new(erase(left)),
-            right: Box::new(erase(right)),
-            ty: Box::new(erase(ty)),
+            left: rc::Rc::new(erase(left)),
+            right: rc::Rc::new(erase(right)),
+            ty: rc::Rc::new(erase(ty)),
             var: var.clone(),
-            predicate: Box::new(erase(predicate)),
-            base: Box::new(erase(base)),
-            equality: Box::new(erase(equality)),
+            predicate: rc::Rc::new(erase(predicate)),
+            base: rc::Rc::new(erase(base)),
+            equality: rc::Rc::new(erase(equality)),
         },
         Exp::TakeEq {
             func,
@@ -925,12 +971,12 @@ pub fn erase(e: &Exp) -> Exp {
             existence,
             uniqueness,
         } => Exp::TakeEq {
-            func: Box::new(erase(func)),
-            domain: Box::new(erase(domain)),
-            codomain: Box::new(erase(codomain)),
-            element: Box::new(erase(element)),
-            existence: Box::new(erase(existence)),
-            uniqueness: Box::new(erase(uniqueness)),
+            func: rc::Rc::new(erase(func)),
+            domain: rc::Rc::new(erase(domain)),
+            codomain: rc::Rc::new(erase(codomain)),
+            element: rc::Rc::new(erase(element)),
+            existence: rc::Rc::new(erase(existence)),
+            uniqueness: rc::Rc::new(erase(uniqueness)),
         },
     }
 }
@@ -971,6 +1017,67 @@ pub fn exp_reduce_if_top(e: &Exp) -> Option<Exp> {
     }
 }
 
+/// Reduce only along the elimination spine needed to reveal the outer
+/// constructor. Unlike `reduce_one`, this does not search unrelated children.
+fn exp_reduce_head_once(e: &Exp, erase_subset_intro: bool) -> Option<Exp> {
+    if erase_subset_intro && let Exp::SubsetIntro { element, .. } = e {
+        return Some(element.as_ref().clone());
+    }
+
+    if let Some(reduced) = exp_reduce_if_top(e) {
+        return Some(reduced);
+    }
+
+    match e {
+        Exp::App { func, arg } => match exp_whnf_with_mode(func, erase_subset_intro) {
+            Cow::Borrowed(_) => None,
+            Cow::Owned(func) => Some(Exp::App {
+                func: rc::Rc::new(func),
+                arg: arg.clone(),
+            }),
+        },
+        Exp::Pred {
+            superset,
+            subset,
+            element,
+        } => match exp_whnf_with_mode(subset, erase_subset_intro) {
+            Cow::Borrowed(_) => None,
+            Cow::Owned(subset) => Some(Exp::Pred {
+                superset: superset.clone(),
+                subset: rc::Rc::new(subset),
+                element: element.clone(),
+            }),
+        },
+        Exp::IndElim {
+            indspec,
+            elim,
+            return_type,
+            cases,
+        } => match exp_whnf_with_mode(elim, erase_subset_intro) {
+            Cow::Borrowed(_) => None,
+            Cow::Owned(elim) => Some(Exp::IndElim {
+                indspec: indspec.clone(),
+                elim: rc::Rc::new(elim),
+                return_type: return_type.clone(),
+                cases: cases.clone(),
+            }),
+        },
+        _ => None,
+    }
+}
+
+/// Weak-head normalize an expression without reducing under constructors or
+/// traversing arguments that are not needed to expose the head.
+fn exp_whnf_with_mode<'a>(e: &'a Exp, erase_subset_intro: bool) -> Cow<'a, Exp> {
+    let mut current = Cow::Borrowed(e);
+    loop {
+        match exp_reduce_head_once(current.as_ref(), erase_subset_intro) {
+            Some(next) => current = Cow::Owned(next),
+            None => return current,
+        }
+    }
+}
+
 pub fn reduce_one(e: &Exp) -> Option<Exp> {
     if let Some(e) = exp_reduce_if_top(e) {
         return Some(e);
@@ -998,8 +1105,8 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
 
             changed.then_some(Exp::Prod {
                 var: var.clone(),
-                ty: Box::new(ty),
-                body: Box::new(body),
+                ty: rc::Rc::new(ty),
+                body: rc::Rc::new(body),
             })
         }
         Exp::Lam { var, ty, body } => {
@@ -1008,8 +1115,8 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
 
             changed.then_some(Exp::Lam {
                 var: var.clone(),
-                ty: Box::new(ty),
-                body: Box::new(body),
+                ty: rc::Rc::new(ty),
+                body: rc::Rc::new(body),
             })
         }
         Exp::App { func, arg } => {
@@ -1017,8 +1124,8 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let arg = reduce_if(arg);
 
             changed.then_some(Exp::App {
-                func: Box::new(func),
-                arg: Box::new(arg),
+                func: rc::Rc::new(func),
+                arg: rc::Rc::new(arg),
             })
         }
         Exp::DefinedConstant(_) => {
@@ -1060,8 +1167,8 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
 
             changed.then_some(Exp::IndElim {
                 indspec: ty.clone(),
-                elim: Box::new(elim),
-                return_type: Box::new(return_type),
+                elim: rc::Rc::new(elim),
+                return_type: rc::Rc::new(return_type),
                 cases,
             })
         }
@@ -1077,15 +1184,17 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let proof = reduce_if(proof);
 
             changed.then_some(Exp::SubsetIntro {
-                superset: Box::new(superset),
-                subset: Box::new(subset),
-                element: Box::new(element),
-                proof: Box::new(proof),
+                superset: rc::Rc::new(superset),
+                subset: rc::Rc::new(subset),
+                element: rc::Rc::new(element),
+                proof: rc::Rc::new(proof),
             })
         }
         Exp::PowerSet { set: exp } => {
             let exp = reduce_if(exp);
-            changed.then_some(Exp::PowerSet { set: Box::new(exp) })
+            changed.then_some(Exp::PowerSet {
+                set: rc::Rc::new(exp),
+            })
         }
         Exp::SubSet {
             var,
@@ -1097,8 +1206,8 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
 
             changed.then_some(Exp::SubSet {
                 var: var.clone(),
-                set: Box::new(exp),
-                predicate: Box::new(predicate),
+                set: rc::Rc::new(exp),
+                predicate: rc::Rc::new(predicate),
             })
         }
         Exp::Pred {
@@ -1111,9 +1220,9 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let element = reduce_if(element);
 
             changed.then_some(Exp::Pred {
-                superset: Box::new(superset),
-                subset: Box::new(subset),
-                element: Box::new(element),
+                superset: rc::Rc::new(superset),
+                subset: rc::Rc::new(subset),
+                element: rc::Rc::new(element),
             })
         }
         Exp::TypeLift { superset, subset } => {
@@ -1121,8 +1230,8 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let subset = reduce_if(subset);
 
             changed.then_some(Exp::TypeLift {
-                superset: Box::new(superset),
-                subset: Box::new(subset),
+                superset: rc::Rc::new(superset),
+                subset: rc::Rc::new(subset),
             })
         }
         Exp::Equal { left, right } => {
@@ -1130,13 +1239,15 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let right = reduce_if(right);
 
             changed.then_some(Exp::Equal {
-                left: Box::new(left),
-                right: Box::new(right),
+                left: rc::Rc::new(left),
+                right: rc::Rc::new(right),
             })
         }
         Exp::Exists { set: ty } => {
             let ty = reduce_if(ty);
-            changed.then_some(Exp::Exists { set: Box::new(ty) })
+            changed.then_some(Exp::Exists {
+                set: rc::Rc::new(ty),
+            })
         }
         Exp::TakeSet {
             domain,
@@ -1152,11 +1263,11 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let uniqueness = reduce_if(uniqueness);
 
             changed.then_some(Exp::TakeSet {
-                domain: Box::new(domain),
-                codomain: Box::new(codomain),
-                map: Box::new(map),
-                existence: Box::new(existence),
-                uniqueness: Box::new(uniqueness),
+                domain: rc::Rc::new(domain),
+                codomain: rc::Rc::new(codomain),
+                map: rc::Rc::new(map),
+                existence: rc::Rc::new(existence),
+                uniqueness: rc::Rc::new(uniqueness),
             })
         }
         Exp::TakeProp {
@@ -1171,18 +1282,18 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let existence = reduce_if(existence);
 
             changed.then_some(Exp::TakeProp {
-                domain: Box::new(domain),
-                proposition: Box::new(proposition),
-                map: Box::new(map),
-                existence: Box::new(existence),
+                domain: rc::Rc::new(domain),
+                proposition: rc::Rc::new(proposition),
+                map: rc::Rc::new(map),
+                existence: rc::Rc::new(existence),
             })
         }
         Exp::ExistsIntro { element, set } => {
             let element = reduce_if(element);
             let set = reduce_if(set);
             changed.then_some(Exp::ExistsIntro {
-                element: Box::new(element),
-                set: Box::new(set),
+                element: rc::Rc::new(element),
+                set: rc::Rc::new(set),
             })
         }
         Exp::SubsetElim {
@@ -1194,15 +1305,15 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let subset = reduce_if(subset);
             let superset = reduce_if(superset);
             changed.then_some(Exp::SubsetElim {
-                element: Box::new(element),
-                subset: Box::new(subset),
-                superset: Box::new(superset),
+                element: rc::Rc::new(element),
+                subset: rc::Rc::new(subset),
+                superset: rc::Rc::new(superset),
             })
         }
         Exp::IdRefl { element } => {
             let element = reduce_if(element);
             changed.then_some(Exp::IdRefl {
-                element: Box::new(element),
+                element: rc::Rc::new(element),
             })
         }
         Exp::IdElim {
@@ -1221,13 +1332,13 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let base = reduce_if(base);
             let equality = reduce_if(equality);
             changed.then_some(Exp::IdElim {
-                left: Box::new(left),
-                right: Box::new(right),
-                ty: Box::new(ty),
+                left: rc::Rc::new(left),
+                right: rc::Rc::new(right),
+                ty: rc::Rc::new(ty),
                 var: var.clone(),
-                predicate: Box::new(predicate),
-                base: Box::new(base),
-                equality: Box::new(equality),
+                predicate: rc::Rc::new(predicate),
+                base: rc::Rc::new(base),
+                equality: rc::Rc::new(equality),
             })
         }
         Exp::TakeEq {
@@ -1245,12 +1356,12 @@ pub fn reduce_one(e: &Exp) -> Option<Exp> {
             let existence = reduce_if(existence);
             let uniqueness = reduce_if(uniqueness);
             changed.then_some(Exp::TakeEq {
-                func: Box::new(func),
-                domain: Box::new(domain),
-                codomain: Box::new(codomain),
-                element: Box::new(element),
-                existence: Box::new(existence),
-                uniqueness: Box::new(uniqueness),
+                func: rc::Rc::new(func),
+                domain: rc::Rc::new(domain),
+                codomain: rc::Rc::new(codomain),
+                element: rc::Rc::new(element),
+                existence: rc::Rc::new(existence),
+                uniqueness: rc::Rc::new(uniqueness),
             })
         }
     }
@@ -1266,7 +1377,7 @@ pub fn normalize(e: &Exp) -> Exp {
 
 /// Definitional conversion without erasing refinement certificates.
 pub fn convertible(e1: &Exp, e2: &Exp) -> bool {
-    exp_is_alpha_eq(&normalize(e1), &normalize(e2))
+    exp_is_convertible_with_mode(e1, e2, false)
 }
 
 /// Computational normal form. Erasure precedes normalization so that
@@ -1281,54 +1392,13 @@ pub fn erased_normal(e: &Exp) -> Exp {
 /// This function deliberately does not type-check its arguments.  Typing
 /// rules using it must establish well-typedness independently.
 pub fn erased_convertible(e1: &Exp, e2: &Exp) -> bool {
-    exp_is_alpha_eq_ignoring_take_proofs(&erased_normal(e1), &erased_normal(e2))
+    exp_is_convertible_with_mode(e1, e2, true)
 }
 
-/// Normalize a term and additionally make `SubsetIntro` transparent along
-/// its elimination spine. Annotations below the head are retained.
+/// Reveal the outer type constructor and make `SubsetIntro` transparent only
+/// along its elimination spine. Unrelated children are not normalized.
 pub(crate) fn type_head_normal(ty: &Exp) -> Exp {
-    fn reduce_head_once(ty: &Exp) -> Option<Exp> {
-        if let Exp::SubsetIntro { element, .. } = ty {
-            return Some(element.as_ref().clone());
-        }
-        if let Some(reduced) = exp_reduce_if_top(ty) {
-            return Some(reduced);
-        }
-
-        match ty {
-            Exp::App { func, arg } => reduce_head_once(func).map(|func| Exp::App {
-                func: Box::new(func),
-                arg: arg.clone(),
-            }),
-            Exp::Pred {
-                superset,
-                subset,
-                element,
-            } => reduce_head_once(subset).map(|subset| Exp::Pred {
-                superset: superset.clone(),
-                subset: Box::new(subset),
-                element: element.clone(),
-            }),
-            Exp::IndElim {
-                indspec,
-                elim,
-                return_type,
-                cases,
-            } => reduce_head_once(elim).map(|elim| Exp::IndElim {
-                indspec: indspec.clone(),
-                elim: Box::new(elim),
-                return_type: return_type.clone(),
-                cases: cases.clone(),
-            }),
-            _ => None,
-        }
-    }
-
-    let mut current = normalize(ty);
-    while let Some(next) = reduce_head_once(&current) {
-        current = normalize(&next);
-    }
-    current
+    exp_whnf_with_mode(ty, true).into_owned()
 }
 
 /// Observe a product through refinement carriers and transparent type
@@ -1337,7 +1407,13 @@ pub(crate) fn expose_product(ty: &Exp) -> Option<(Var, Exp, Exp)> {
     let mut current = type_head_normal(ty);
     loop {
         match current {
-            Exp::Prod { var, ty, body } => return Some((var, *ty, *body)),
+            Exp::Prod { var, ty, body } => {
+                return Some((
+                    var,
+                    rc::Rc::unwrap_or_clone(ty),
+                    rc::Rc::unwrap_or_clone(body),
+                ));
+            }
             Exp::TypeLift { superset, .. } => current = type_head_normal(&superset),
             _ => return None,
         }

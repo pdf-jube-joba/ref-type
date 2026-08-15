@@ -1,7 +1,7 @@
 use crate::{
     calculus::{
-        convertible, erase, erased_convertible, erased_normal, exp_is_alpha_eq, normalize,
-        reduce_one,
+        convertible, erase, erased_convertible, erased_normal, exp_is_alpha_eq, exp_subst,
+        normalize, reduce_one,
     },
     exp::{Context, DefinedConstant, Exp, Sort, Var},
     inductive::CtorBinder,
@@ -157,15 +157,15 @@ fn modusponens_ctx() {
         f.clone(),
         Exp::Prod {
             var: var!("_"),
-            ty: Box::new(Exp::Var(aa.clone())),
-            body: Box::new(Exp::Var(bb.clone())),
+            ty: Rc::new(Exp::Var(aa.clone())),
+            body: Rc::new(Exp::Var(bb.clone())),
         },
     );
     checker.push(a.clone(), Exp::Var(aa.clone()));
     checker.check(
         &Exp::App {
-            func: Box::new(Exp::Var(f.clone())),
-            arg: Box::new(Exp::Var(a.clone())),
+            func: Rc::new(Exp::Var(f.clone())),
+            arg: Rc::new(Exp::Var(a.clone())),
         },
         &Exp::Var(bb.clone()),
     );
@@ -188,8 +188,8 @@ fn modusponens_popped() {
             f.clone(),
             Exp::Prod {
                 var: var!("_"),
-                ty: Box::new(Exp::Var(aa.clone())),
-                body: Box::new(Exp::Var(bb.clone())),
+                ty: Rc::new(Exp::Var(aa.clone())),
+                body: Rc::new(Exp::Var(bb.clone())),
             },
         ),
         (a.clone(), Exp::Var(aa.clone())),
@@ -201,8 +201,8 @@ fn modusponens_popped() {
     let term = utils::assoc_lam(
         telescope.clone(),
         Exp::App {
-            func: Box::new(Exp::Var(f.clone())),
-            arg: Box::new(Exp::Var(a.clone())),
+            func: Rc::new(Exp::Var(f.clone())),
+            arg: Rc::new(Exp::Var(a.clone())),
         },
     );
     let ty = utils::assoc_prod(telescope, Exp::Var(bb.clone()));
@@ -245,14 +245,66 @@ fn type_level_reduction() {
     checker.check(
         &Exp::Var(x.clone()),
         &Exp::App {
-            func: Box::new(Exp::Lam {
+            func: Rc::new(Exp::Lam {
                 var: yy.clone(),
-                ty: Box::new(Exp::Sort(Sort::Prop)),
-                body: Box::new(Exp::Var(yy.clone())),
+                ty: Rc::new(Exp::Sort(Sort::Prop)),
+                body: Rc::new(Exp::Var(yy.clone())),
             }),
-            arg: Box::new(Exp::Var(xx.clone())),
+            arg: Rc::new(Exp::Var(xx.clone())),
         },
     );
+}
+
+#[test]
+fn conversion_reduces_below_the_head_constructor() {
+    let aa = var!("A");
+    let x = var!("x");
+    let y = var!("y");
+    let z = var!("z");
+    let left = Exp::Prod {
+        var: x.clone(),
+        ty: Rc::new(Exp::Var(aa.clone())),
+        body: Rc::new(Exp::App {
+            func: Rc::new(Exp::Lam {
+                var: y.clone(),
+                ty: Rc::new(Exp::Var(aa.clone())),
+                body: Rc::new(Exp::Var(y)),
+            }),
+            arg: Rc::new(Exp::Var(x)),
+        }),
+    };
+    let right = Exp::Prod {
+        var: z.clone(),
+        ty: Rc::new(Exp::Var(aa)),
+        body: Rc::new(Exp::Var(z)),
+    };
+
+    assert!(!exp_is_alpha_eq(&left, &right));
+    assert!(convertible(&left, &right));
+}
+
+#[test]
+fn substitution_shares_unchanged_subtrees() {
+    let x = var!("x");
+    let y = var!("y");
+    let z = var!("z");
+    let untouched = Rc::new(Exp::Lam {
+        var: z.clone(),
+        ty: Rc::new(Exp::Sort(Sort::Prop)),
+        body: Rc::new(Exp::Var(z)),
+    });
+    let term = Exp::App {
+        func: Rc::new(Exp::Var(x.clone())),
+        arg: untouched.clone(),
+    };
+
+    let substituted = exp_subst(&term, &x, &Exp::Var(y.clone()));
+    let Exp::App { func, arg } = substituted else {
+        panic!("substitution changed the outer constructor");
+    };
+
+    assert!(func.as_var().is_some_and(|var| var.is_eq_ptr(&y)));
+    assert!(Rc::ptr_eq(&arg, &untouched));
 }
 
 // Power set
@@ -264,7 +316,7 @@ fn powerset() {
     checker.push(xx.clone(), Exp::Sort(Sort::Set(0)));
     checker.check(
         &Exp::PowerSet {
-            set: Box::new(Exp::Var(xx.clone())),
+            set: Rc::new(Exp::Var(xx.clone())),
         },
         &Exp::Sort(Sort::Set(0)),
     );
@@ -278,7 +330,7 @@ fn powerset_level_is_preserved() {
 
     let inferred = checker
         .infer(&Exp::PowerSet {
-            set: Box::new(Exp::Var(xx.clone())),
+            set: Rc::new(Exp::Var(xx.clone())),
         })
         .unwrap();
 
@@ -297,8 +349,8 @@ fn equality_requires_set_carrier() {
     let result = crate::derivation::infer(
         &ctx,
         &Exp::Equal {
-            left: Box::new(Exp::Var(p.clone())),
-            right: Box::new(Exp::Var(p.clone())),
+            left: Rc::new(Exp::Var(p.clone())),
+            right: Rc::new(Exp::Var(p.clone())),
         },
     );
 
@@ -328,13 +380,13 @@ fn take_uses_explicit_domain_and_codomain() {
     let x2 = var!("x2");
     let uniqueness_ty = Exp::Prod {
         var: x1.clone(),
-        ty: Box::new(Exp::Var(xx.clone())),
-        body: Box::new(Exp::Prod {
+        ty: Rc::new(Exp::Var(xx.clone())),
+        body: Rc::new(Exp::Prod {
             var: x2.clone(),
-            ty: Box::new(Exp::Var(xx.clone())),
-            body: Box::new(Exp::Equal {
-                left: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x1))),
-                right: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x2))),
+            ty: Rc::new(Exp::Var(xx.clone())),
+            body: Rc::new(Exp::Equal {
+                left: Rc::new(app!(Exp::Var(f.clone()), Exp::Var(x1))),
+                right: Rc::new(app!(Exp::Var(f.clone()), Exp::Var(x2))),
             }),
         }),
     };
@@ -345,25 +397,25 @@ fn take_uses_explicit_domain_and_codomain() {
             f.clone(),
             Exp::Prod {
                 var: var!("_"),
-                ty: Box::new(Exp::Var(xx.clone())),
-                body: Box::new(Exp::Var(tt.clone())),
+                ty: Rc::new(Exp::Var(xx.clone())),
+                body: Rc::new(Exp::Var(tt.clone())),
             },
         ),
         (
             exists.clone(),
             Exp::Exists {
-                set: Box::new(Exp::Var(xx.clone())),
+                set: Rc::new(Exp::Var(xx.clone())),
             },
         ),
         (unique.clone(), uniqueness_ty),
     ];
 
     let take = Exp::TakeSet {
-        domain: Box::new(Exp::Var(xx.clone())),
-        codomain: Box::new(Exp::Var(tt.clone())),
-        map: Box::new(Exp::Var(f.clone())),
-        existence: Box::new(Exp::Var(exists)),
-        uniqueness: Box::new(Exp::Var(unique)),
+        domain: Rc::new(Exp::Var(xx.clone())),
+        codomain: Rc::new(Exp::Var(tt.clone())),
+        map: Rc::new(Exp::Var(f.clone())),
+        existence: Rc::new(Exp::Var(exists)),
+        uniqueness: Rc::new(Exp::Var(unique)),
     };
 
     let derivation = crate::derivation::infer(&ctx, &take).unwrap();
@@ -387,23 +439,23 @@ fn take_prop_rejects_a_set_valued_codomain() {
             f.clone(),
             Exp::Prod {
                 var: var!("_"),
-                ty: Box::new(Exp::Var(xx.clone())),
-                body: Box::new(Exp::Var(tt.clone())),
+                ty: Rc::new(Exp::Var(xx.clone())),
+                body: Rc::new(Exp::Var(tt.clone())),
             },
         ),
         (
             exists.clone(),
             Exp::Exists {
-                set: Box::new(Exp::Var(xx.clone())),
+                set: Rc::new(Exp::Var(xx.clone())),
             },
         ),
     ];
 
     let take = Exp::TakeProp {
-        domain: Box::new(Exp::Var(xx)),
-        proposition: Box::new(Exp::Var(tt)),
-        map: Box::new(Exp::Var(f)),
-        existence: Box::new(Exp::Var(exists)),
+        domain: Rc::new(Exp::Var(xx)),
+        proposition: Rc::new(Exp::Var(tt)),
+        map: Rc::new(Exp::Var(f)),
+        existence: Rc::new(Exp::Var(exists)),
     };
 
     assert!(crate::derivation::infer(&ctx, &take).is_err());
@@ -422,22 +474,22 @@ fn take_prop_requires_only_an_existence_proof() {
             f.clone(),
             Exp::Prod {
                 var: var!("_"),
-                ty: Box::new(Exp::Var(xx.clone())),
-                body: Box::new(Exp::Var(pp.clone())),
+                ty: Rc::new(Exp::Var(xx.clone())),
+                body: Rc::new(Exp::Var(pp.clone())),
             },
         ),
         (
             exists.clone(),
             Exp::Exists {
-                set: Box::new(Exp::Var(xx.clone())),
+                set: Rc::new(Exp::Var(xx.clone())),
             },
         ),
     ];
     let take = Exp::TakeProp {
-        domain: Box::new(Exp::Var(xx)),
-        proposition: Box::new(Exp::Var(pp.clone())),
-        map: Box::new(Exp::Var(f)),
-        existence: Box::new(Exp::Var(exists)),
+        domain: Rc::new(Exp::Var(xx)),
+        proposition: Rc::new(Exp::Var(pp.clone())),
+        map: Rc::new(Exp::Var(f)),
+        existence: Rc::new(Exp::Var(exists)),
     };
 
     let inferred = crate::derivation::infer(&ctx, &take).unwrap();
@@ -447,69 +499,69 @@ fn take_prop_requires_only_an_existence_proof() {
 #[test]
 fn take_proof_fields_are_irrelevant_for_erased_conversion() {
     let take_set_left = Exp::TakeSet {
-        domain: Box::new(Exp::Var(var!("X"))),
-        codomain: Box::new(Exp::Var(var!("T"))),
-        map: Box::new(Exp::Var(var!("f"))),
-        existence: Box::new(Exp::Var(var!("exists_left"))),
-        uniqueness: Box::new(Exp::Var(var!("unique_left"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        codomain: Rc::new(Exp::Var(var!("T"))),
+        map: Rc::new(Exp::Var(var!("f"))),
+        existence: Rc::new(Exp::Var(var!("exists_left"))),
+        uniqueness: Rc::new(Exp::Var(var!("unique_left"))),
     };
     let take_set_right = Exp::TakeSet {
-        domain: Box::new(Exp::Var(var!("X"))),
-        codomain: Box::new(Exp::Var(var!("T"))),
-        map: Box::new(Exp::Var(var!("f"))),
-        existence: Box::new(Exp::Var(var!("exists_right"))),
-        uniqueness: Box::new(Exp::Var(var!("unique_right"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        codomain: Rc::new(Exp::Var(var!("T"))),
+        map: Rc::new(Exp::Var(var!("f"))),
+        existence: Rc::new(Exp::Var(var!("exists_right"))),
+        uniqueness: Rc::new(Exp::Var(var!("unique_right"))),
     };
     assert!(!convertible(&take_set_left, &take_set_right));
     assert!(erased_convertible(&take_set_left, &take_set_right));
     assert!(matches!(erase(&take_set_left), Exp::TakeSet { .. }));
     let different_map = Exp::TakeSet {
-        domain: Box::new(Exp::Var(var!("X"))),
-        codomain: Box::new(Exp::Var(var!("T"))),
-        map: Box::new(Exp::Var(var!("g"))),
-        existence: Box::new(Exp::Var(var!("exists_right"))),
-        uniqueness: Box::new(Exp::Var(var!("unique_right"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        codomain: Rc::new(Exp::Var(var!("T"))),
+        map: Rc::new(Exp::Var(var!("g"))),
+        existence: Rc::new(Exp::Var(var!("exists_right"))),
+        uniqueness: Rc::new(Exp::Var(var!("unique_right"))),
     };
     assert!(!erased_convertible(&take_set_left, &different_map));
 
     let take_prop_left = Exp::TakeProp {
-        domain: Box::new(Exp::Var(var!("X"))),
-        proposition: Box::new(Exp::Var(var!("P"))),
-        map: Box::new(Exp::Var(var!("proof_map_left"))),
-        existence: Box::new(Exp::Var(var!("exists_left"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        proposition: Rc::new(Exp::Var(var!("P"))),
+        map: Rc::new(Exp::Var(var!("proof_map_left"))),
+        existence: Rc::new(Exp::Var(var!("exists_left"))),
     };
     let take_prop_right = Exp::TakeProp {
-        domain: Box::new(Exp::Var(var!("Y"))),
-        proposition: Box::new(Exp::Var(var!("P"))),
-        map: Box::new(Exp::Var(var!("proof_map_right"))),
-        existence: Box::new(Exp::Var(var!("exists_right"))),
+        domain: Rc::new(Exp::Var(var!("Y"))),
+        proposition: Rc::new(Exp::Var(var!("P"))),
+        map: Rc::new(Exp::Var(var!("proof_map_right"))),
+        existence: Rc::new(Exp::Var(var!("exists_right"))),
     };
     assert!(!convertible(&take_prop_left, &take_prop_right));
     assert!(erased_convertible(&take_prop_left, &take_prop_right));
     assert!(matches!(erase(&take_prop_left), Exp::TakeProp { .. }));
     let different_proposition = Exp::TakeProp {
-        domain: Box::new(Exp::Var(var!("X"))),
-        proposition: Box::new(Exp::Var(var!("Q"))),
-        map: Box::new(Exp::Var(var!("proof_map_left"))),
-        existence: Box::new(Exp::Var(var!("exists_left"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        proposition: Rc::new(Exp::Var(var!("Q"))),
+        map: Rc::new(Exp::Var(var!("proof_map_left"))),
+        existence: Rc::new(Exp::Var(var!("exists_left"))),
     };
     assert!(!erased_convertible(&take_prop_left, &different_proposition));
 
     let take_eq_left = Exp::TakeEq {
-        func: Box::new(Exp::Var(var!("f"))),
-        domain: Box::new(Exp::Var(var!("X"))),
-        codomain: Box::new(Exp::Var(var!("T"))),
-        element: Box::new(Exp::Var(var!("x"))),
-        existence: Box::new(Exp::Var(var!("exists_left"))),
-        uniqueness: Box::new(Exp::Var(var!("unique_left"))),
+        func: Rc::new(Exp::Var(var!("f"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        codomain: Rc::new(Exp::Var(var!("T"))),
+        element: Rc::new(Exp::Var(var!("x"))),
+        existence: Rc::new(Exp::Var(var!("exists_left"))),
+        uniqueness: Rc::new(Exp::Var(var!("unique_left"))),
     };
     let take_eq_right = Exp::TakeEq {
-        func: Box::new(Exp::Var(var!("f"))),
-        domain: Box::new(Exp::Var(var!("X"))),
-        codomain: Box::new(Exp::Var(var!("T"))),
-        element: Box::new(Exp::Var(var!("x"))),
-        existence: Box::new(Exp::Var(var!("exists_right"))),
-        uniqueness: Box::new(Exp::Var(var!("unique_right"))),
+        func: Rc::new(Exp::Var(var!("f"))),
+        domain: Rc::new(Exp::Var(var!("X"))),
+        codomain: Rc::new(Exp::Var(var!("T"))),
+        element: Rc::new(Exp::Var(var!("x"))),
+        existence: Rc::new(Exp::Var(var!("exists_right"))),
+        uniqueness: Rc::new(Exp::Var(var!("unique_right"))),
     };
     assert!(!convertible(&take_eq_left, &take_eq_right));
     assert!(erased_convertible(&take_eq_left, &take_eq_right));
@@ -527,10 +579,10 @@ fn subset_intro_rejects_a_non_power_subset() {
         (x.clone(), Exp::Var(aa.clone())),
     ];
     let intro = Exp::SubsetIntro {
-        superset: Box::new(Exp::Var(aa)),
-        subset: Box::new(Exp::Var(not_subset.clone())),
-        element: Box::new(Exp::Var(x)),
-        proof: Box::new(Exp::Var(not_subset)),
+        superset: Rc::new(Exp::Var(aa)),
+        subset: Rc::new(Exp::Var(not_subset.clone())),
+        element: Rc::new(Exp::Var(x)),
+        proof: Rc::new(Exp::Var(not_subset)),
     };
 
     assert!(crate::derivation::infer(&ctx, &intro).is_err());
@@ -543,32 +595,32 @@ fn subset_intro_checks_membership_and_erases_to_its_element() {
     let x = var!("x");
     let proof = var!("p");
     let refinement = Exp::TypeLift {
-        superset: Box::new(Exp::Var(aa.clone())),
-        subset: Box::new(Exp::Var(subset.clone())),
+        superset: Rc::new(Exp::Var(aa.clone())),
+        subset: Rc::new(Exp::Var(subset.clone())),
     };
     let ctx = vec![
         (aa.clone(), Exp::Sort(Sort::Set(0))),
         (
             subset.clone(),
             Exp::PowerSet {
-                set: Box::new(Exp::Var(aa.clone())),
+                set: Rc::new(Exp::Var(aa.clone())),
             },
         ),
         (x.clone(), refinement.clone()),
         (
             proof.clone(),
             Exp::Pred {
-                superset: Box::new(Exp::Var(aa.clone())),
-                subset: Box::new(Exp::Var(subset.clone())),
-                element: Box::new(Exp::Var(x.clone())),
+                superset: Rc::new(Exp::Var(aa.clone())),
+                subset: Rc::new(Exp::Var(subset.clone())),
+                element: Rc::new(Exp::Var(x.clone())),
             },
         ),
     ];
     let intro = Exp::SubsetIntro {
-        superset: Box::new(Exp::Var(aa)),
-        subset: Box::new(Exp::Var(subset)),
-        element: Box::new(Exp::Var(x.clone())),
-        proof: Box::new(Exp::Var(proof)),
+        superset: Rc::new(Exp::Var(aa)),
+        subset: Rc::new(Exp::Var(subset)),
+        element: Rc::new(Exp::Var(x.clone())),
+        proof: Rc::new(Exp::Var(proof)),
     };
 
     let inferred = crate::derivation::infer(&ctx, &intro).unwrap();
@@ -584,18 +636,18 @@ fn erased_normalization_exposes_computational_redexes() {
     let x = var!("x");
     let a = var!("a");
     let wrapped_identity = Exp::SubsetIntro {
-        superset: Box::new(Exp::Var(aa.clone())),
-        subset: Box::new(Exp::Var(var!("X"))),
-        element: Box::new(Exp::Lam {
+        superset: Rc::new(Exp::Var(aa.clone())),
+        subset: Rc::new(Exp::Var(var!("X"))),
+        element: Rc::new(Exp::Lam {
             var: x.clone(),
-            ty: Box::new(Exp::Var(aa)),
-            body: Box::new(Exp::Var(x)),
+            ty: Rc::new(Exp::Var(aa)),
+            body: Rc::new(Exp::Var(x)),
         }),
-        proof: Box::new(Exp::Var(var!("p"))),
+        proof: Rc::new(Exp::Var(var!("p"))),
     };
     let application = Exp::App {
-        func: Box::new(wrapped_identity),
-        arg: Box::new(Exp::Var(a.clone())),
+        func: Rc::new(wrapped_identity),
+        arg: Rc::new(Exp::Var(a.clone())),
     };
 
     assert!(!exp_is_alpha_eq(
@@ -615,42 +667,42 @@ fn erased_conversion_applies_inside_type_constructor_arguments() {
     let value = var!("value");
     let binder = var!("x");
     let intro = Exp::SubsetIntro {
-        superset: Box::new(Exp::Var(aa.clone())),
-        subset: Box::new(Exp::Var(subset.clone())),
-        element: Box::new(Exp::Var(a.clone())),
-        proof: Box::new(Exp::Var(proof.clone())),
+        superset: Rc::new(Exp::Var(aa.clone())),
+        subset: Rc::new(Exp::Var(subset.clone())),
+        element: Rc::new(Exp::Var(a.clone())),
+        proof: Rc::new(Exp::Var(proof.clone())),
     };
     let indexed_by_intro = Exp::App {
-        func: Box::new(Exp::Var(constructor.clone())),
-        arg: Box::new(intro),
+        func: Rc::new(Exp::Var(constructor.clone())),
+        arg: Rc::new(intro),
     };
     let indexed_by_element = Exp::App {
-        func: Box::new(Exp::Var(constructor.clone())),
-        arg: Box::new(Exp::Var(a.clone())),
+        func: Rc::new(Exp::Var(constructor.clone())),
+        arg: Rc::new(Exp::Var(a.clone())),
     };
     let ctx = vec![
         (aa.clone(), Exp::Sort(Sort::Set(0))),
         (
             subset.clone(),
             Exp::PowerSet {
-                set: Box::new(Exp::Var(aa.clone())),
+                set: Rc::new(Exp::Var(aa.clone())),
             },
         ),
         (a.clone(), Exp::Var(aa.clone())),
         (
             proof,
             Exp::Pred {
-                superset: Box::new(Exp::Var(aa.clone())),
-                subset: Box::new(Exp::Var(subset)),
-                element: Box::new(Exp::Var(a)),
+                superset: Rc::new(Exp::Var(aa.clone())),
+                subset: Rc::new(Exp::Var(subset)),
+                element: Rc::new(Exp::Var(a)),
             },
         ),
         (
             constructor,
             Exp::Prod {
                 var: binder,
-                ty: Box::new(Exp::Var(aa)),
-                body: Box::new(Exp::Sort(Sort::Set(0))),
+                ty: Rc::new(Exp::Var(aa)),
+                body: Rc::new(Exp::Sort(Sort::Set(0))),
             },
         ),
         (value.clone(), indexed_by_intro.clone()),
@@ -670,29 +722,29 @@ fn application_observes_a_product_through_its_refinement_carrier() {
     let binder = var!("x");
     let product = Exp::Prod {
         var: binder,
-        ty: Box::new(Exp::Var(aa.clone())),
-        body: Box::new(Exp::Var(aa.clone())),
+        ty: Rc::new(Exp::Var(aa.clone())),
+        body: Rc::new(Exp::Var(aa.clone())),
     };
     let ctx = vec![
         (aa.clone(), Exp::Sort(Sort::Set(0))),
         (
             functions.clone(),
             Exp::PowerSet {
-                set: Box::new(product.clone()),
+                set: Rc::new(product.clone()),
             },
         ),
         (
             function.clone(),
             Exp::TypeLift {
-                superset: Box::new(product),
-                subset: Box::new(Exp::Var(functions)),
+                superset: Rc::new(product),
+                subset: Rc::new(Exp::Var(functions)),
             },
         ),
         (argument.clone(), Exp::Var(aa.clone())),
     ];
     let application = Exp::App {
-        func: Box::new(Exp::Var(function)),
-        arg: Box::new(Exp::Var(argument)),
+        func: Rc::new(Exp::Var(function)),
+        arg: Rc::new(Exp::Var(argument)),
     };
 
     let inferred = crate::derivation::infer(&ctx, &application).unwrap();
@@ -708,56 +760,56 @@ fn equality_uses_the_base_carrier_of_distinct_refinements() {
     let left_proof = var!("left_proof");
     let right_proof = var!("right_proof");
     let left_refinement = Exp::TypeLift {
-        superset: Box::new(Exp::Var(aa.clone())),
-        subset: Box::new(Exp::Var(left_subset.clone())),
+        superset: Rc::new(Exp::Var(aa.clone())),
+        subset: Rc::new(Exp::Var(left_subset.clone())),
     };
     let ctx = vec![
         (aa.clone(), Exp::Sort(Sort::Set(0))),
         (
             left_subset.clone(),
             Exp::PowerSet {
-                set: Box::new(Exp::Var(aa.clone())),
+                set: Rc::new(Exp::Var(aa.clone())),
             },
         ),
         (
             right_subset.clone(),
             Exp::PowerSet {
-                set: Box::new(Exp::Var(aa.clone())),
+                set: Rc::new(Exp::Var(aa.clone())),
             },
         ),
         (a.clone(), Exp::Var(aa.clone())),
         (
             left_proof.clone(),
             Exp::Pred {
-                superset: Box::new(Exp::Var(aa.clone())),
-                subset: Box::new(Exp::Var(left_subset.clone())),
-                element: Box::new(Exp::Var(a.clone())),
+                superset: Rc::new(Exp::Var(aa.clone())),
+                subset: Rc::new(Exp::Var(left_subset.clone())),
+                element: Rc::new(Exp::Var(a.clone())),
             },
         ),
         (
             right_proof.clone(),
             Exp::Pred {
-                superset: Box::new(Exp::Var(aa.clone())),
-                subset: Box::new(Exp::Var(right_subset.clone())),
-                element: Box::new(Exp::Var(a.clone())),
+                superset: Rc::new(Exp::Var(aa.clone())),
+                subset: Rc::new(Exp::Var(right_subset.clone())),
+                element: Rc::new(Exp::Var(a.clone())),
             },
         ),
     ];
     let left = Exp::SubsetIntro {
-        superset: Box::new(Exp::Var(aa.clone())),
-        subset: Box::new(Exp::Var(left_subset)),
-        element: Box::new(Exp::Var(a.clone())),
-        proof: Box::new(Exp::Var(left_proof)),
+        superset: Rc::new(Exp::Var(aa.clone())),
+        subset: Rc::new(Exp::Var(left_subset)),
+        element: Rc::new(Exp::Var(a.clone())),
+        proof: Rc::new(Exp::Var(left_proof)),
     };
     let right = Exp::SubsetIntro {
-        superset: Box::new(Exp::Var(aa)),
-        subset: Box::new(Exp::Var(right_subset)),
-        element: Box::new(Exp::Var(a.clone())),
-        proof: Box::new(Exp::Var(right_proof)),
+        superset: Rc::new(Exp::Var(aa)),
+        subset: Rc::new(Exp::Var(right_subset)),
+        element: Rc::new(Exp::Var(a.clone())),
+        proof: Rc::new(Exp::Var(right_proof)),
     };
     let equality = Exp::Equal {
-        left: Box::new(left.clone()),
-        right: Box::new(right.clone()),
+        left: Rc::new(left.clone()),
+        right: Rc::new(right.clone()),
     };
 
     assert!(crate::derivation::check(&ctx, &Exp::Var(a), &left_refinement).is_err());
@@ -774,33 +826,33 @@ fn equality_follows_nested_refinements_to_the_base_carrier() {
     let a = var!("a");
     let deeply_refined = var!("deeply_refined");
     let outer_refinement = Exp::TypeLift {
-        superset: Box::new(Exp::Var(aa.clone())),
-        subset: Box::new(Exp::Var(outer_subset.clone())),
+        superset: Rc::new(Exp::Var(aa.clone())),
+        subset: Rc::new(Exp::Var(outer_subset.clone())),
     };
     let inner_refinement = Exp::TypeLift {
-        superset: Box::new(outer_refinement.clone()),
-        subset: Box::new(Exp::Var(inner_subset.clone())),
+        superset: Rc::new(outer_refinement.clone()),
+        subset: Rc::new(Exp::Var(inner_subset.clone())),
     };
     let ctx = vec![
         (aa.clone(), Exp::Sort(Sort::Set(0))),
         (
             outer_subset,
             Exp::PowerSet {
-                set: Box::new(Exp::Var(aa.clone())),
+                set: Rc::new(Exp::Var(aa.clone())),
             },
         ),
         (
             inner_subset,
             Exp::PowerSet {
-                set: Box::new(outer_refinement),
+                set: Rc::new(outer_refinement),
             },
         ),
         (a.clone(), Exp::Var(aa)),
         (deeply_refined.clone(), inner_refinement),
     ];
     let equality = Exp::Equal {
-        left: Box::new(Exp::Var(a)),
-        right: Box::new(Exp::Var(deeply_refined)),
+        left: Rc::new(Exp::Var(a)),
+        right: Rc::new(Exp::Var(deeply_refined)),
     };
 
     assert!(crate::derivation::infer(&ctx, &equality).is_ok());
@@ -820,14 +872,14 @@ fn identity_elimination_checks_its_explicit_premise_proofs() {
         (proof.clone(), Exp::Var(pp.clone())),
     ];
     let term = Exp::IdElim {
-        left: Box::new(Exp::Var(x.clone())),
-        right: Box::new(Exp::Var(x.clone())),
-        ty: Box::new(Exp::Var(aa)),
+        left: Rc::new(Exp::Var(x.clone())),
+        right: Rc::new(Exp::Var(x.clone())),
+        ty: Rc::new(Exp::Var(aa)),
         var: binder,
-        predicate: Box::new(Exp::Var(pp.clone())),
-        base: Box::new(Exp::Var(proof)),
-        equality: Box::new(Exp::IdRefl {
-            element: Box::new(Exp::Var(x)),
+        predicate: Rc::new(Exp::Var(pp.clone())),
+        base: Rc::new(Exp::Var(proof)),
+        equality: Rc::new(Exp::IdRefl {
+            element: Rc::new(Exp::Var(x)),
         }),
     };
 
@@ -847,13 +899,13 @@ fn take_eq_matches_system_shape() {
     let x2 = var!("x2");
     let uniqueness_ty = Exp::Prod {
         var: x1.clone(),
-        ty: Box::new(Exp::Var(xx.clone())),
-        body: Box::new(Exp::Prod {
+        ty: Rc::new(Exp::Var(xx.clone())),
+        body: Rc::new(Exp::Prod {
             var: x2.clone(),
-            ty: Box::new(Exp::Var(xx.clone())),
-            body: Box::new(Exp::Equal {
-                left: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x1))),
-                right: Box::new(app!(Exp::Var(f.clone()), Exp::Var(x2))),
+            ty: Rc::new(Exp::Var(xx.clone())),
+            body: Rc::new(Exp::Equal {
+                left: Rc::new(app!(Exp::Var(f.clone()), Exp::Var(x1))),
+                right: Rc::new(app!(Exp::Var(f.clone()), Exp::Var(x2))),
             }),
         }),
     };
@@ -864,15 +916,15 @@ fn take_eq_matches_system_shape() {
             f.clone(),
             Exp::Prod {
                 var: var!("_"),
-                ty: Box::new(Exp::Var(xx.clone())),
-                body: Box::new(Exp::Var(tt.clone())),
+                ty: Rc::new(Exp::Var(xx.clone())),
+                body: Rc::new(Exp::Var(tt.clone())),
             },
         ),
         (x.clone(), Exp::Var(xx.clone())),
         (
             exists.clone(),
             Exp::Exists {
-                set: Box::new(Exp::Var(xx.clone())),
+                set: Rc::new(Exp::Var(xx.clone())),
             },
         ),
         (unique.clone(), uniqueness_ty),
@@ -881,27 +933,27 @@ fn take_eq_matches_system_shape() {
     let derivation = crate::derivation::infer(
         &ctx,
         &Exp::TakeEq {
-            func: Box::new(Exp::Var(f.clone())),
-            domain: Box::new(Exp::Var(xx.clone())),
-            codomain: Box::new(Exp::Var(tt.clone())),
-            element: Box::new(Exp::Var(x.clone())),
-            existence: Box::new(Exp::Var(exists.clone())),
-            uniqueness: Box::new(Exp::Var(unique.clone())),
+            func: Rc::new(Exp::Var(f.clone())),
+            domain: Rc::new(Exp::Var(xx.clone())),
+            codomain: Rc::new(Exp::Var(tt.clone())),
+            element: Rc::new(Exp::Var(x.clone())),
+            existence: Rc::new(Exp::Var(exists.clone())),
+            uniqueness: Rc::new(Exp::Var(unique.clone())),
         },
     )
     .unwrap();
 
     let expected = Exp::Equal {
-        left: Box::new(Exp::TakeSet {
-            domain: Box::new(Exp::Var(xx.clone())),
-            codomain: Box::new(Exp::Var(tt.clone())),
-            map: Box::new(Exp::Var(f.clone())),
-            existence: Box::new(Exp::Var(exists)),
-            uniqueness: Box::new(Exp::Var(unique)),
+        left: Rc::new(Exp::TakeSet {
+            domain: Rc::new(Exp::Var(xx.clone())),
+            codomain: Rc::new(Exp::Var(tt.clone())),
+            map: Rc::new(Exp::Var(f.clone())),
+            existence: Rc::new(Exp::Var(exists)),
+            uniqueness: Rc::new(Exp::Var(unique)),
         }),
-        right: Box::new(Exp::App {
-            func: Box::new(Exp::Var(f.clone())),
-            arg: Box::new(Exp::Var(x.clone())),
+        right: Rc::new(Exp::App {
+            func: Rc::new(Exp::Var(f.clone())),
+            arg: Rc::new(Exp::Var(x.clone())),
         }),
     };
 
@@ -963,8 +1015,8 @@ fn proof_by_assumption() {
         pm.clone(),
         Exp::Prod {
             var: var!("_"),
-            ty: Box::new(Exp::Var(pp1.clone())),
-            body: Box::new(Exp::Var(pp2.clone())),
+            ty: Rc::new(Exp::Var(pp1.clone())),
+            body: Rc::new(Exp::Var(pp2.clone())),
         },
     );
 
