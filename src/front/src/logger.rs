@@ -1,6 +1,7 @@
 use kernel::{
     derivation::CheckSession,
-    exp::{Arena, Context, Exp, Sort},
+    environment::CrateEnv,
+    exp::{Context, Exp, ModuleId, Sort},
 };
 use serde::Serialize;
 
@@ -54,7 +55,7 @@ impl Logger {
         self.records.push(record);
     }
 
-    pub fn reduce_one(&mut self, arena: &Arena, e: Exp) -> Option<Exp> {
+    pub fn reduce_one(&mut self, env: &CrateEnv, e: Exp) -> Option<Exp> {
         self.record(
             LogLevel::Trace,
             vec!["reduce_one".to_string()],
@@ -62,7 +63,7 @@ impl Logger {
             LogPayload::Exp(e),
         );
 
-        let reduced = kernel::calculus::reduce_one(arena, e);
+        let reduced = kernel::calculus::reduce_one(env, e);
         match reduced {
             Some(reduced_exp) => {
                 self.record(
@@ -85,7 +86,7 @@ impl Logger {
         }
     }
 
-    pub fn normalize(&mut self, arena: &Arena, e: Exp) -> Exp {
+    pub fn normalize(&mut self, env: &CrateEnv, e: Exp) -> Exp {
         self.record(
             LogLevel::Trace,
             vec!["normalize".to_string()],
@@ -93,7 +94,7 @@ impl Logger {
             LogPayload::Exp(e),
         );
 
-        let normalized = kernel::calculus::normalize(arena, e);
+        let normalized = kernel::calculus::normalize(env, e);
         self.record(
             LogLevel::Debug,
             vec!["normalize".to_string()],
@@ -104,8 +105,14 @@ impl Logger {
     }
 
     // Call the kernel. Detailed typing diagnostics are emitted as tracing spans.
-    pub fn infer(&mut self, arena: &Arena, ctx: &mut Context, exp: Exp) -> Option<Exp> {
-        let infer_ty = CheckSession::new(arena, ctx).infer(exp);
+    pub fn infer(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut Context,
+        exp: Exp,
+    ) -> Option<Exp> {
+        let infer_ty = CheckSession::new(env, module, ctx).infer(exp);
         match infer_ty {
             Ok(ty) => {
                 self.record(
@@ -127,8 +134,14 @@ impl Logger {
             }
         }
     }
-    pub fn infer_sort(&mut self, arena: &Arena, ctx: &mut Context, exp: Exp) -> Option<Sort> {
-        match CheckSession::new(arena, ctx).infer_sort(exp) {
+    pub fn infer_sort(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut Context,
+        exp: Exp,
+    ) -> Option<Sort> {
+        match CheckSession::new(env, module, ctx).infer_sort(exp) {
             Ok(sort) => Some(sort),
             Err(derivation_fail) => {
                 self.record(
@@ -143,12 +156,13 @@ impl Logger {
     }
     pub fn check(
         &mut self,
-        arena: &Arena,
+        env: &CrateEnv,
+        module: ModuleId,
         ctx: &mut Context,
         exp: Exp,
         expected_type: Exp,
     ) -> bool {
-        let result = CheckSession::new(arena, ctx).check(exp, expected_type);
+        let result = CheckSession::new(env, module, ctx).check(exp, expected_type);
         match result {
             Ok(()) => true,
             Err(derivation_fail) => {

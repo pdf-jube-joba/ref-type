@@ -1,10 +1,10 @@
-use std::rc::Rc;
-
 use serde::Serialize;
+use std::collections::HashMap;
 
 use crate::{
     calculus::exp_subst_map,
     derivation::{CheckSession, JudgementError},
+    environment::CrateEnv,
     utils,
 };
 
@@ -19,6 +19,33 @@ pub struct InductiveTypeSpecs {
 }
 
 impl InductiveTypeSpecs {
+    pub fn remap_global_ids(
+        &self,
+        arena: &Arena,
+        definitions: &HashMap<DefId, DefId>,
+        inductives: &HashMap<InductiveId, InductiveId>,
+    ) -> Self {
+        let remap = |exp| crate::calculus::remap_global_ids(arena, exp, definitions, inductives);
+        Self {
+            parameters: self
+                .parameters
+                .iter()
+                .map(|(var, ty)| (var.clone(), remap(*ty)))
+                .collect(),
+            indices: self
+                .indices
+                .iter()
+                .map(|(var, ty)| (var.clone(), remap(*ty)))
+                .collect(),
+            sort: self.sort,
+            constructors: self
+                .constructors
+                .iter()
+                .map(|constructor| constructor.remap_global_ids(arena, definitions, inductives))
+                .collect(),
+        }
+    }
+
     pub fn new(
         session: &mut CheckSession<'_, '_>,
         parameters: Vec<(Var, Exp)>,
@@ -71,12 +98,13 @@ impl InductiveTypeSpecs {
 
     pub fn type_of_constructor(
         arena: &Arena,
-        indspec: &Rc<Self>,
+        inductive: InductiveId,
+        indspec: &Self,
         idx: usize,
         parameters: Vec<Exp>,
     ) -> Exp {
         let this = arena.alloc(Node::IndType {
-            indspec: indspec.clone(),
+            indspec: inductive,
             parameters,
         });
         indspec.constructors[idx].as_exp_with_type(arena, this)
@@ -84,7 +112,8 @@ impl InductiveTypeSpecs {
 
     pub fn return_type_kind(
         arena: &Arena,
-        indspec: &Rc<Self>,
+        inductive: InductiveId,
+        indspec: &Self,
         parameters: Vec<Exp>,
         sort: Sort,
     ) -> Exp {
@@ -95,7 +124,7 @@ impl InductiveTypeSpecs {
             .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, &substitutions)))
             .collect::<Vec<_>>();
         let this = arena.alloc(Node::IndType {
-            indspec: indspec.clone(),
+            indspec: inductive,
             parameters,
         });
         let index_arguments = indices
@@ -206,17 +235,18 @@ impl InductiveTypeSpecs {
 
     pub fn primitive_recursion(
         arena: &Arena,
-        indspec: &Rc<Self>,
+        inductive: InductiveId,
+        indspec: &Self,
         parameters: Vec<Exp>,
         sort: Sort,
     ) -> Exp {
         let this = arena.alloc(Node::IndType {
-            indspec: indspec.clone(),
+            indspec: inductive,
             parameters: parameters.clone(),
         });
         let mut telescope = vec![];
         let q = Var::new("q");
-        let q_ty = Self::return_type_kind(arena, indspec, parameters.clone(), sort);
+        let q_ty = Self::return_type_kind(arena, inductive, indspec, parameters.clone(), sort);
         telescope.push((q.clone(), q_ty));
         let substitutions = indspec.parameter_subst_mapping(&parameters);
 
@@ -226,7 +256,7 @@ impl InductiveTypeSpecs {
             let constructor = indspec.constructors[index].subst(arena, &substitutions);
             let q_exp = arena.var(q.clone());
             let constructor_exp = arena.alloc(Node::IndCtor {
-                indspec: indspec.clone(),
+                indspec: inductive,
                 parameters: parameters.clone(),
                 idx: index,
             });
@@ -250,7 +280,7 @@ impl InductiveTypeSpecs {
         telescope.push((c.clone(), c_ty));
 
         let body = arena.alloc(Node::IndElim {
-            indspec: indspec.clone(),
+            indspec: inductive,
             elim: arena.var(c),
             return_type: arena.var(q),
             cases,
@@ -275,6 +305,35 @@ pub enum CtorBinder {
 }
 
 impl CtorType {
+    fn remap_global_ids(
+        &self,
+        arena: &Arena,
+        definitions: &HashMap<DefId, DefId>,
+        inductives: &HashMap<InductiveId, InductiveId>,
+    ) -> Self {
+        let remap = |exp| crate::calculus::remap_global_ids(arena, exp, definitions, inductives);
+        Self {
+            telescope: self
+                .telescope
+                .iter()
+                .map(|binder| match binder {
+                    CtorBinder::StrictPositive {
+                        binders,
+                        self_indices,
+                    } => CtorBinder::StrictPositive {
+                        binders: binders
+                            .iter()
+                            .map(|(var, ty)| (var.clone(), remap(*ty)))
+                            .collect(),
+                        self_indices: self_indices.iter().map(|index| remap(*index)).collect(),
+                    },
+                    CtorBinder::Simple((var, ty)) => CtorBinder::Simple((var.clone(), remap(*ty))),
+                })
+                .collect(),
+            indices: self.indices.iter().map(|index| remap(*index)).collect(),
+        }
+    }
+
     pub fn as_exp_with_type(&self, arena: &Arena, this: Exp) -> Exp {
         let mut telescope = vec![];
         for binder in &self.telescope {
@@ -434,7 +493,7 @@ pub fn recursor(arena: &Arena, constructor: &CtorType, q: Exp, case: Exp, this: 
 }
 
 struct RedexShape {
-    spec: Rc<InductiveTypeSpecs>,
+    inductive: InductiveId,
     index: usize,
     parameters: Vec<Exp>,
     arguments: Vec<Exp>,
@@ -442,7 +501,8 @@ struct RedexShape {
     cases: Vec<Exp>,
 }
 
-fn indelim_shapecheck(arena: &Arena, exp: Exp) -> Result<RedexShape, String> {
+fn indelim_shapecheck(env: &CrateEnv, exp: Exp) -> Result<RedexShape, String> {
+    let arena = env.arena();
     let Node::IndElim {
         indspec,
         elim,
@@ -461,23 +521,24 @@ fn indelim_shapecheck(arena: &Arena, exp: Exp) -> Result<RedexShape, String> {
     else {
         return Err("Elim is not an InductiveTypeCst".into());
     };
-    if !Rc::ptr_eq(&indspec, &constructor_spec) {
+    if indspec != constructor_spec {
         return Err("Elim type mismatch".into());
     }
-    if idx >= indspec.constructor_len() {
+    let spec = env.inductive(indspec);
+    if idx >= spec.constructor_len() {
         return Err("Constructor index out of bounds".into());
     }
-    if parameters.len() != indspec.param_args_len() {
+    if parameters.len() != spec.param_args_len() {
         return Err("Constructor parameter arguments length mismatch".into());
     }
-    if arguments.len() != indspec.arg_len_cst(idx) {
+    if arguments.len() != spec.arg_len_cst(idx) {
         return Err("Constructor arguments length mismatch".into());
     }
-    if cases.len() != indspec.constructor_len() {
+    if cases.len() != spec.constructor_len() {
         return Err("Cases length mismatch".into());
     }
     Ok(RedexShape {
-        spec: indspec,
+        inductive: indspec,
         index: idx,
         parameters,
         arguments,
@@ -486,20 +547,22 @@ fn indelim_shapecheck(arena: &Arena, exp: Exp) -> Result<RedexShape, String> {
     })
 }
 
-pub fn inductive_type_elim_reduce(arena: &Arena, exp: Exp) -> Result<Exp, String> {
+pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, String> {
+    let arena = env.arena();
     let RedexShape {
-        spec,
+        inductive,
         index,
         parameters,
         arguments,
         return_type,
         cases,
-    } = indelim_shapecheck(arena, exp)?;
+    } = indelim_shapecheck(env, exp)?;
+    let spec = env.inductive(inductive);
     let substitutions = spec.parameter_subst_mapping(&parameters);
 
     let c = Var::new("c");
     let body = arena.alloc(Node::IndElim {
-        indspec: spec.clone(),
+        indspec: inductive,
         elim: arena.var(c.clone()),
         return_type,
         cases: cases.clone(),
@@ -510,7 +573,7 @@ pub fn inductive_type_elim_reduce(arena: &Arena, exp: Exp) -> Result<Exp, String
         .map(|(var, ty)| (var.clone(), exp_subst_map(arena, *ty, &substitutions)))
         .collect::<Vec<_>>();
     let this = arena.alloc(Node::IndType {
-        indspec: spec.clone(),
+        indspec: inductive,
         parameters: parameters.clone(),
     });
     let index_arguments = indices

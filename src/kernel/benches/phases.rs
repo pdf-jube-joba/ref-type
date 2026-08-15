@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use kernel::calculus::{convertible, exp_is_alpha_eq, instantiate, normalize, whnf};
 use kernel::derivation::CheckSession;
+use kernel::environment::CrateEnv;
 use kernel::exp::{Arena, Context, Exp, Node, Sort, Var};
 
 const WARMUP_ITERATIONS: u64 = 64;
@@ -11,36 +12,37 @@ const TARGET_SAMPLE_TIME: Duration = Duration::from_millis(20);
 const MAX_ITERATIONS_PER_SAMPLE: u64 = 1 << 30;
 
 fn main() {
-    let mut arena = Arena::new();
+    let env = CrateEnv::new();
+    let arena = env.arena();
     let binder = Var::new("x");
-    let substitution_body = balanced_application(&arena, 8, None);
-    let substitution_argument = beta_chain(&arena, 8);
-    let expected_substitution = balanced_application(&arena, 8, Some(substitution_argument));
-    let reducible = beta_chain(&arena, 48);
+    let substitution_body = balanced_application(arena, 8, None);
+    let substitution_argument = beta_chain(arena, 8);
+    let expected_substitution = balanced_application(arena, 8, Some(substitution_argument));
+    let reducible = beta_chain(arena, 48);
     let normal_form = arena.sort(Sort::Set(0));
-    let reducible_leaf = beta_chain(&arena, 8);
-    let under_constructors = product_tree(&arena, 6, reducible_leaf, "n");
-    let normalized_constructors = product_tree(&arena, 6, normal_form, "n");
-    let alpha_left = nested_products(&arena, 64, "left");
-    let alpha_right = nested_products(&arena, 64, "right");
-    let inferred_term = nested_lambdas(&arena, 16);
+    let reducible_leaf = beta_chain(arena, 8);
+    let under_constructors = product_tree(arena, 6, reducible_leaf, "n");
+    let normalized_constructors = product_tree(arena, 6, normal_form, "n");
+    let alpha_left = nested_products(arena, 64, "left");
+    let alpha_right = nested_products(arena, 64, "right");
+    let inferred_term = nested_lambdas(arena, 16);
     let mut empty_context = Context::new();
     let inputs = arena.mark();
 
-    let substituted = instantiate(&arena, substitution_body, &binder, substitution_argument);
-    assert!(exp_is_alpha_eq(&arena, substituted, expected_substitution));
+    let substituted = instantiate(arena, substitution_body, &binder, substitution_argument);
+    assert!(exp_is_alpha_eq(&env, substituted, expected_substitution));
     arena.rewind(inputs);
-    let reduced = whnf(&arena, reducible);
-    assert!(exp_is_alpha_eq(&arena, reduced, normal_form));
+    let reduced = whnf(&env, reducible);
+    assert!(exp_is_alpha_eq(&env, reduced, normal_form));
     arena.rewind(inputs);
-    let normalized = normalize(&arena, under_constructors);
-    assert!(exp_is_alpha_eq(&arena, normalized, normalized_constructors));
+    let normalized = normalize(&env, under_constructors);
+    assert!(exp_is_alpha_eq(&env, normalized, normalized_constructors));
     arena.rewind(inputs);
-    assert!(convertible(&arena, reducible, normal_form));
+    assert!(convertible(&env, reducible, normal_form));
     arena.rewind(inputs);
-    assert!(exp_is_alpha_eq(&arena, alpha_left, alpha_right));
+    assert!(exp_is_alpha_eq(&env, alpha_left, alpha_right));
     assert!(
-        CheckSession::new(&arena, &mut empty_context)
+        CheckSession::new(&env, env.root_module(), &mut empty_context)
             .infer(inferred_term)
             .is_ok()
     );
@@ -54,7 +56,7 @@ fn main() {
 
     run_benchmark("substitution/instantiate", || {
         let result = instantiate(
-            &arena,
+            arena,
             black_box(substitution_body),
             &binder,
             black_box(substitution_argument),
@@ -63,16 +65,16 @@ fn main() {
         arena.rewind(inputs);
     });
     run_benchmark("reduction/whnf", || {
-        black_box(whnf(&arena, black_box(reducible)));
+        black_box(whnf(&env, black_box(reducible)));
         arena.rewind(inputs);
     });
     run_benchmark("reduction/normalize", || {
-        black_box(normalize(&arena, black_box(under_constructors)));
+        black_box(normalize(&env, black_box(under_constructors)));
         arena.rewind(inputs);
     });
     run_benchmark("conversion/convertible", || {
         black_box(convertible(
-            &arena,
+            &env,
             black_box(reducible),
             black_box(normal_form),
         ));
@@ -80,14 +82,14 @@ fn main() {
     });
     run_benchmark("equality/alpha_eq", || {
         black_box(exp_is_alpha_eq(
-            &arena,
+            &env,
             black_box(alpha_left),
             black_box(alpha_right),
         ));
     });
     run_benchmark("typing/infer", || {
         black_box(
-            CheckSession::new(&arena, black_box(&mut empty_context))
+            CheckSession::new(&env, env.root_module(), black_box(&mut empty_context))
                 .infer(black_box(inferred_term)),
         )
         .expect("benchmark term should infer");

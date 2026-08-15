@@ -1,10 +1,12 @@
 use crate::elaborator::ItemAccessResult;
 use crate::syntax::*;
 use kernel::calculus::{exp_contains_as_freevar, exp_contains_bound, exp_subst_map};
+use kernel::environment::CrateEnv;
 use kernel::exp::*;
 use kernel::inductive::InductiveTypeSpecs;
 
 pub trait Handler {
+    fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
     fn get_item_from_access_path(
         &mut self,
@@ -127,7 +129,7 @@ impl LocalScope {
                     return Err("failed to infer a product type for \\take map".into());
                 };
                 if exp_contains_bound(handler.arena(), codomain, 0)
-                    || exp_contains_as_freevar(handler.arena(), codomain, &var)
+                    || exp_contains_as_freevar(handler.env(), codomain, &var)
                 {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
@@ -162,7 +164,7 @@ impl LocalScope {
                     return Err("failed to infer a product type for \\take map".into());
                 };
                 if exp_contains_bound(handler.arena(), codomain, 0)
-                    || exp_contains_as_freevar(handler.arena(), codomain, &var)
+                    || exp_contains_as_freevar(handler.env(), codomain, &var)
                 {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
@@ -190,9 +192,9 @@ impl LocalScope {
                 // 2. others via handler
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
-                    ItemAccessResult::Definition(ModItemDefinition { body, .. }) => {
+                    ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
                         if parameters.is_empty() {
-                            Ok(handler.arena().alloc(Node::DefinedConstant(body.clone())))
+                            Ok(handler.arena().alloc(Node::DefinedConstant(definition)))
                         } else {
                             Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
@@ -201,7 +203,7 @@ impl LocalScope {
                         }
                     }
                     ItemAccessResult::Inductive(ModItemInductive {
-                        ind_defs,
+                        inductive,
                         type_name: _,
                         ctor_names: _,
                     }) => {
@@ -211,20 +213,20 @@ impl LocalScope {
                             .collect::<Result<_, _>>()?;
 
                         Ok(handler.arena().alloc(Node::IndType {
-                            indspec: ind_defs.clone(),
+                            indspec: inductive,
                             parameters,
                         }))
                     }
                     ItemAccessResult::Record(ModItemRecord {
                         type_name: _,
-                        rc_spec_as_indtype,
+                        inductive,
                     }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
                         Ok(handler.arena().alloc(Node::IndType {
-                            indspec: rc_spec_as_indtype,
+                            indspec: inductive,
                             parameters,
                         }))
                     }
@@ -245,7 +247,7 @@ impl LocalScope {
                     let item = handler.get_item_from_access_path(access)?;
                     match item {
                         ItemAccessResult::Inductive(ModItemInductive {
-                            ind_defs,
+                            inductive,
                             type_name,
                             ctor_names,
                         }) => {
@@ -256,7 +258,7 @@ impl LocalScope {
                                         .map(|e| self.elab_exp_rec(e, handler))
                                         .collect::<Result<_, _>>()?;
                                     return Ok(handler.arena().alloc(Node::IndCtor {
-                                        indspec: ind_defs.clone(),
+                                        indspec: inductive,
                                         idx,
                                         parameters,
                                     }));
@@ -288,11 +290,9 @@ impl LocalScope {
                 for (name, ty, body) in clauses {
                     let ty = self.elab_exp_rec(ty, handler)?;
                     let body = self.elab_exp_rec(body, handler)?;
-                    let def_cst = DefinedConstant { ty, body };
-                    let def_rc = std::rc::Rc::new(def_cst);
+                    let _ty = ty;
                     let name: Var = Var::new(name.as_str());
-                    let definition = handler.arena().alloc(Node::DefinedConstant(def_rc));
-                    where_def_rcs_substmap.push((name, definition));
+                    where_def_rcs_substmap.push((name, body));
                 }
 
                 let exp_elab = self.elab_exp_rec(exp, handler)?;
@@ -473,7 +473,7 @@ impl LocalScope {
                 let ItemAccessResult::Inductive(ModItemInductive {
                     type_name: _,
                     ctor_names,
-                    ind_defs,
+                    inductive,
                 }) = handler.get_item_from_access_path(path)?
                 else {
                     return Err(format!(
@@ -498,7 +498,7 @@ impl LocalScope {
                 }
 
                 Ok(handler.arena().alloc(Node::IndElim {
-                    indspec: ind_defs.clone(),
+                    indspec: inductive,
                     elim: elim_elab,
                     return_type: return_type_elab,
                     cases: cases_elab,
@@ -512,7 +512,7 @@ impl LocalScope {
                 let ItemAccessResult::Inductive(ModItemInductive {
                     type_name: _,
                     ctor_names: _,
-                    ind_defs,
+                    inductive,
                 }) = handler.get_item_from_access_path(path)?
                 else {
                     return Err(format!(
@@ -527,7 +527,8 @@ impl LocalScope {
                     .collect::<Result<_, _>>()?;
                 Ok(InductiveTypeSpecs::primitive_recursion(
                     handler.arena(),
-                    &ind_defs,
+                    inductive,
+                    handler.env().inductive(inductive),
                     parameters,
                     *sort,
                 ))
@@ -540,7 +541,7 @@ impl LocalScope {
             } => {
                 let ItemAccessResult::Record(ModItemRecord {
                     type_name: _,
-                    rc_spec_as_indtype,
+                    inductive,
                 }) = handler.get_item_from_access_path(access)?
                 else {
                     return Err(format!(
@@ -560,7 +561,7 @@ impl LocalScope {
                 }
 
                 Ok(handler.arena().alloc(Node::IndCtor {
-                    indspec: rc_spec_as_indtype.clone(),
+                    indspec: inductive,
                     parameters,
                     idx: 0, // record type has only one constructor
                 }))

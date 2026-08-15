@@ -1,9 +1,8 @@
 // this file describes the surface syntax tree
-use kernel::exp::{Arena, DefinedConstant, Exp, Node, Var};
-use kernel::inductive::{CtorBinder, InductiveTypeSpecs};
+use kernel::exp::{DefId, Exp, InductiveId, Node, Var};
+use kernel::inductive::CtorBinder;
 use kernel::utils;
 use serde::Serialize;
-use std::rc::Rc;
 
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -343,20 +342,20 @@ pub enum Statement {
 #[derive(Debug, Clone)]
 pub struct ModItemDefinition {
     pub def_name: Identifier,
-    pub body: Rc<DefinedConstant>,
+    pub definition: DefId,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModItemInductive {
     pub type_name: Identifier,
     pub ctor_names: Vec<Identifier>,
-    pub ind_defs: Rc<InductiveTypeSpecs>,
+    pub inductive: InductiveId,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModItemRecord {
     pub type_name: Identifier,
-    pub rc_spec_as_indtype: Rc<InductiveTypeSpecs>,
+    pub inductive: InductiveId,
 }
 
 impl ModItemRecord {
@@ -365,13 +364,15 @@ impl ModItemRecord {
     // where primitive_recursion = (x1: T1) => ... => xi
     pub fn field_projection(
         &self,
-        arena: &Arena,
+        env: &kernel::environment::CrateEnv,
         e: Exp,
         field_name: &Identifier,
         parameters: &[Exp],
     ) -> Option<Exp> {
+        let arena = env.arena();
+        let spec = env.inductive(self.inductive);
         // this should always have only one constructor
-        let ctor = &self.rc_spec_as_indtype.constructors()[0];
+        let ctor = &spec.constructors()[0];
         let telescope = ctor
             .telescope
             .iter()
@@ -391,7 +392,7 @@ impl ModItemRecord {
         let field = arena.var(field_var);
         let prec = utils::assoc_lam(arena, telescope, field);
         let record_ty = arena.alloc(Node::IndType {
-            indspec: self.rc_spec_as_indtype.clone(),
+            indspec: self.inductive,
             parameters: parameters.to_vec(),
         });
         let return_type = arena.alloc(Node::Prod {
@@ -400,7 +401,7 @@ impl ModItemRecord {
             body: field_ty,
         });
         Some(arena.alloc(Node::IndElim {
-            indspec: self.rc_spec_as_indtype.clone(),
+            indspec: self.inductive,
             elim: e,
             return_type,
             cases: vec![prec],

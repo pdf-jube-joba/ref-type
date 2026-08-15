@@ -124,7 +124,7 @@ fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Optio
 
 fn push_internal_logs(global: &front::elaborator::GlobalEnvironment, logs: &mut Vec<Log>) {
     for entry in global.logger().records() {
-        logs.push(printing::log_record_to_log(global.arena(), entry));
+        logs.push(printing::log_record_to_log(global.crate_env(), entry));
     }
 }
 

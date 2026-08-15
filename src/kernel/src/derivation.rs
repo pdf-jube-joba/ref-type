@@ -1,9 +1,9 @@
 use crate::calculus::*;
+use crate::environment::CrateEnv;
 use crate::exp::*;
 use crate::inductive::eliminator_type;
 use crate::utils;
 use serde::Serialize;
-use std::rc::Rc;
 use tracing::{debug, error};
 
 #[derive(Debug, Clone, Serialize)]
@@ -19,18 +19,35 @@ pub struct JudgementError {
     pub frames: Vec<ErrorFrame>,
 }
 
-pub struct CheckSession<'arena, 'context> {
-    arena: &'arena Arena,
+pub struct CheckSession<'env, 'context> {
+    env: &'env CrateEnv,
+    current_module: ModuleId,
     context: &'context mut Context,
 }
 
-impl<'arena, 'context> CheckSession<'arena, 'context> {
-    pub fn new(arena: &'arena Arena, context: &'context mut Context) -> Self {
-        Self { arena, context }
+impl<'env, 'context> CheckSession<'env, 'context> {
+    pub fn new(
+        env: &'env CrateEnv,
+        current_module: ModuleId,
+        context: &'context mut Context,
+    ) -> Self {
+        Self {
+            env,
+            current_module,
+            context,
+        }
     }
 
-    pub fn arena(&self) -> &'arena Arena {
-        self.arena
+    pub fn env(&self) -> &'env CrateEnv {
+        self.env
+    }
+
+    pub fn arena(&self) -> &'env Arena {
+        self.env.arena()
+    }
+
+    pub fn current_module(&self) -> ModuleId {
+        self.current_module
     }
 
     pub fn context(&self) -> &Context {
@@ -140,7 +157,7 @@ fn check(
     term: Exp,
     ty: Exp,
 ) -> Result<(), Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "check",
@@ -155,17 +172,17 @@ fn check(
     let inferred_ty = add_infer!(session, rule, phase, term, "infer given term")?;
 
     if matches!(arena.get(ty), Node::Sort(sort) if sort.type_of_sort().is_none())
-        && exp_is_alpha_eq(arena, ty, inferred_ty)
+        && exp_is_alpha_eq(session.env(), ty, inferred_ty)
     {
         return Ok(());
     }
     add_sort!(session, rule, phase, ty, "infer expected type sort")?;
-    if erased_convertible(arena, ty, inferred_ty) {
+    if erased_convertible(session.env(), ty, inferred_ty) {
         return Ok(());
     }
 
-    let inferred_head = type_head_normal(arena, inferred_ty);
-    let expected_head = type_head_normal(arena, ty);
+    let inferred_head = type_head_normal(session.env(), inferred_ty);
+    let expected_head = type_head_normal(session.env(), ty);
     if let (Node::Sort(inferred), Node::Sort(expected)) =
         (arena.get(inferred_head), arena.get(expected_head))
     {
@@ -174,14 +191,14 @@ fn check(
         }
         return Err(failure(rule, phase, "fail universe lift"));
     }
-    if can_weaken_to(arena, inferred_ty, ty) {
+    if can_weaken_to(session.env(), inferred_ty, ty) {
         return Ok(());
     }
     Err(failure(rule, phase, "ty, inferred_ty not convertible"))
 }
 
 fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     let rule = exp_rule(arena, term);
     let span = tracing::debug_span!(
         target: "ref_type::typing",
@@ -259,7 +276,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 func,
                 "infer function type for application"
             )?;
-            let Some((var, arg_ty, ret_ty)) = expose_product(arena, func_ty) else {
+            let Some((var, arg_ty, ret_ty)) = expose_product(session.env(), func_ty) else {
                 return Err(failure(rule, phase, "type is not a product"));
             };
             add_check!(
@@ -272,27 +289,31 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(instantiate(arena, ret_ty, &var, arg))
         }
-        Node::DefinedConstant(definition) => Ok(definition.ty),
+        Node::DefinedConstant(definition) => Ok(session.env().definition(definition).ty),
         Node::IndType {
             indspec,
             parameters,
         } => {
-            check_parameters(session, rule, phase, &parameters, indspec.parameters())?;
-            let substitutions = indspec.parameter_subst_mapping(&parameters);
-            Ok(exp_subst_map(arena, indspec.arity(arena), &substitutions))
+            let env = session.env();
+            let spec = env.inductive(indspec);
+            check_parameters(session, rule, phase, &parameters, spec.parameters())?;
+            let substitutions = spec.parameter_subst_mapping(&parameters);
+            Ok(exp_subst_map(arena, spec.arity(arena), &substitutions))
         }
         Node::IndCtor {
             indspec,
             idx,
             parameters,
         } => {
-            if idx >= indspec.constructor_len() {
+            let env = session.env();
+            let spec = env.inductive(indspec);
+            if idx >= spec.constructor_len() {
                 return Err(failure(rule, phase, "constructor index out of bounds"));
             }
-            check_parameters(session, rule, phase, &parameters, indspec.parameters())?;
-            let substitutions = indspec.parameter_subst_mapping(&parameters);
+            check_parameters(session, rule, phase, &parameters, spec.parameters())?;
+            let substitutions = spec.parameter_subst_mapping(&parameters);
             let constructor = crate::inductive::InductiveTypeSpecs::type_of_constructor(
-                arena, &indspec, idx, parameters,
+                arena, indspec, spec, idx, parameters,
             );
             Ok(exp_subst_map(arena, constructor, &substitutions))
         }
@@ -395,7 +416,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         Node::Equal { left, right } => {
             let left_ty = add_infer!(session, rule, phase, left, "infer left type")?;
             let right_ty = add_infer!(session, rule, phase, right, "infer right type")?;
-            let Some(carrier) = common_ambient_carrier(arena, left_ty, right_ty) else {
+            let Some(carrier) = common_ambient_carrier(session.env(), left_ty, right_ty) else {
                 return Err(failure(rule, phase, "different equality carriers"));
             };
             if !matches!(
@@ -445,7 +466,7 @@ fn check_parameters(
     parameters: &[Exp],
     expected: &[(Var, Exp)],
 ) -> Result<(), Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     if parameters.len() != expected.len() {
         return Err(failure(rule, phase, "mismatch parameter length"));
     }
@@ -470,14 +491,14 @@ fn infer_ind_elim(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+    indspec: InductiveId,
     elim: Exp,
     return_type: Exp,
     cases: Vec<Exp>,
 ) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     let inferred = add_infer!(session, rule, phase, elim, "infer eliminator type")?;
-    let inferred = base_carrier(arena, inferred);
+    let inferred = base_carrier(session.env(), inferred);
     let (head, indices) = utils::decompose_app(arena, inferred);
     let Node::IndType {
         indspec: inferred_spec,
@@ -486,39 +507,42 @@ fn infer_ind_elim(
     else {
         return Err(failure(rule, phase, "type of elim is not inductive"));
     };
-    if !Rc::ptr_eq(&indspec, &inferred_spec) {
+    if indspec != inferred_spec {
         return Err(failure(rule, phase, "inductive type mismatch"));
     }
-    let substitutions = indspec.parameter_subst_mapping(&parameters);
+    let env = session.env();
+    let spec = env.inductive(indspec);
+    let substitutions = spec.parameter_subst_mapping(&parameters);
     let return_kind = add_infer!(session, rule, phase, return_type, "infer return type kind")?;
-    let (telescope, result) = utils::decompose_prod(arena, type_head_normal(arena, return_kind));
+    let (telescope, result) = utils::decompose_prod(arena, type_head_normal(env, return_kind));
     let Node::Sort(sort) = arena.get(result) else {
         return Err(failure(rule, phase, "return kind does not end in sort"));
     };
-    if indspec.sort().relation_of_sort_indelim(sort).is_none() {
+    if spec.sort().relation_of_sort_indelim(sort).is_none() {
         return Err(failure(rule, phase, "cannot form eliminator"));
     }
     let expected_kind = crate::inductive::InductiveTypeSpecs::return_type_kind(
         arena,
-        &indspec,
+        indspec,
+        spec,
         parameters.clone(),
         sort,
     );
     let current_kind = utils::assoc_prod(arena, telescope, arena.sort(sort));
-    if !erased_convertible(arena, current_kind, expected_kind) {
+    if !erased_convertible(env, current_kind, expected_kind) {
         return Err(failure(rule, phase, "unexpected return type kind"));
     }
-    if cases.len() != indspec.constructor_len() {
+    if cases.len() != spec.constructor_len() {
         return Err(failure(rule, phase, "constructor length mismatch"));
     }
     let this = arena.alloc(Node::IndType {
-        indspec: indspec.clone(),
+        indspec,
         parameters: parameters.clone(),
     });
     for (index, case) in cases.iter().enumerate() {
-        let constructor_ty = indspec.constructors()[index].subst(arena, &substitutions);
+        let constructor_ty = spec.constructors()[index].subst(arena, &substitutions);
         let constructor = arena.alloc(Node::IndCtor {
-            indspec: indspec.clone(),
+            indspec,
             parameters: parameters.clone(),
             idx: index,
         });
@@ -543,7 +567,7 @@ fn infer_take_set(
     existence: Exp,
     uniqueness: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     if !matches!(
         add_sort!(session, rule, phase, domain, "check domain sort")?,
         Sort::Set(_)
@@ -568,13 +592,14 @@ fn infer_take_set(
 
     let x1 = Var::new("x1");
     let x2 = Var::new("x2");
+    let map = shift_bound_indices(arena, map, 2, 0);
     let map_x1 = arena.alloc(Node::App {
         func: map,
-        arg: arena.var(x1.clone()),
+        arg: arena.bound(1),
     });
     let map_x2 = arena.alloc(Node::App {
         func: map,
-        arg: arena.var(x2.clone()),
+        arg: arena.bound(0),
     });
     let equality = arena.alloc(Node::Equal {
         left: map_x1,
@@ -611,7 +636,7 @@ fn infer_take_prop(
     map: Exp,
     existence: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     if !matches!(
         add_sort!(session, rule, phase, domain, "check domain sort")?,
         Sort::Set(_)
@@ -662,14 +687,14 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
 }
 
 fn infer_sort(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Sort, Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     let rule = "Conv";
     let phase = "infer(sort)";
     let inferred_ty = add_infer!(session, rule, phase, term, "infer type of term")?;
     if let Node::Sort(sort) = arena.get(inferred_ty) {
         return Ok(sort);
     }
-    let normalized = type_head_normal(arena, inferred_ty);
+    let normalized = type_head_normal(session.env(), inferred_ty);
     let Node::Sort(sort) = arena.get(normalized) else {
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
@@ -680,7 +705,7 @@ fn infer_proof_constructor(
     session: &mut CheckSession<'_, '_>,
     term: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena;
+    let arena = session.arena();
     let rule = exp_rule(arena, term);
     let phase = "infer";
     match arena.get(term) {

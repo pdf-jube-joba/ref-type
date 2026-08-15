@@ -1,6 +1,6 @@
 use crate::exp::Var;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use std::{fmt::Debug, rc::Rc};
+use std::fmt::Debug;
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -22,14 +22,4 @@ impl Serialize for Var {
         st.serialize_field("ptr", &ptr_str)?;
         st.end()
     }
-}
-
-/// serialize Rc<T> as pointer string
-pub fn serialize_rc_ptr<S, T>(rc: &Rc<T>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let ptr = Rc::as_ptr(rc) as usize;
-    let s_repr = format!("{ptr:016x}");
-    s.serialize_str(&s_repr)
 }

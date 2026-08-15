@@ -1,5 +1,8 @@
 use crate::printing::ptr_lower32bit_base62_fixed;
-use kernel::exp::{Arena, Context, DefinedConstant, Exp, Node, Sort, Var};
+use kernel::{
+    environment::CrateEnv,
+    exp::{Context, DefinedConstant, Exp, Node, Sort, Var},
+};
 
 fn format_var(var: &Var) -> String {
     format!(
@@ -20,8 +23,9 @@ pub(super) fn format_sort(sort: &Sort) -> String {
     }
 }
 
-pub(super) fn format_exp(arena: &Arena, exp: Exp) -> String {
-    let child = |exp| format_exp(arena, exp);
+pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
+    let arena = env.arena();
+    let child = |exp| format_exp(env, exp);
     match arena.get(exp) {
         Node::Sort(sort) => format_sort(&sort),
         Node::Bound(index) => format!("#{index}"),
@@ -34,16 +38,18 @@ pub(super) fn format_exp(arena: &Arena, exp: Exp) -> String {
         }
         Node::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
         Node::DefinedConstant(definition) => format!(
-            "{}{}",
-            super::print_rc_ptr(&definition),
-            format_defined_constant(arena, &definition)
+            "def({}:{}){}",
+            definition.module.0,
+            definition.index,
+            format_defined_constant(env, env.definition(definition))
         ),
         Node::IndType {
             indspec,
             parameters,
         } => format!(
-            "{}[{}]",
-            super::print_rc_ptr(&indspec),
+            "ind({}:{})[{}]",
+            indspec.module.0,
+            indspec.index,
             parameters
                 .into_iter()
                 .map(child)
@@ -55,8 +61,9 @@ pub(super) fn format_exp(arena: &Arena, exp: Exp) -> String {
             parameters,
             idx,
         } => format!(
-            "{}.{}[{}]",
-            super::print_rc_ptr(&indspec),
+            "ind({}:{}).{}[{}]",
+            indspec.module.0,
+            indspec.index,
             idx,
             parameters
                 .into_iter()
@@ -70,9 +77,10 @@ pub(super) fn format_exp(arena: &Arena, exp: Exp) -> String {
             return_type,
             cases,
         } => format!(
-            "elim {} \\in {} \\return {} with {{{}}}",
+            "elim {} \\in ind({}:{}) \\return {} with {{{}}}",
             child(elim),
-            super::print_rc_ptr(&indspec),
+            indspec.module.0,
+            indspec.index,
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
@@ -158,17 +166,17 @@ pub(super) fn format_exp(arena: &Arena, exp: Exp) -> String {
     }
 }
 
-pub(super) fn format_ctx(arena: &Arena, ctx: &Context) -> String {
+pub(super) fn format_ctx(env: &CrateEnv, ctx: &Context) -> String {
     ctx.iter()
-        .map(|(var, ty)| format!("{}: {}", format_var(var), format_exp(arena, *ty)))
+        .map(|(var, ty)| format!("{}: {}", format_var(var), format_exp(env, *ty)))
         .collect::<Vec<_>>()
         .join(", ")
 }
 
-fn format_defined_constant(arena: &Arena, definition: &DefinedConstant) -> String {
+fn format_defined_constant(env: &CrateEnv, definition: &DefinedConstant) -> String {
     format!(
         "[: {} := {}]",
-        format_exp(arena, definition.ty),
-        format_exp(arena, definition.body)
+        format_exp(env, definition.ty),
+        format_exp(env, definition.body)
     )
 }

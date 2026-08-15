@@ -2,8 +2,6 @@ use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::serialize::serialize_rc_ptr;
-
 // variable is represented as std::rc::Rc<String>
 #[derive(Clone)]
 pub struct Var(Rc<String>);
@@ -121,6 +119,33 @@ pub struct DefinedConstant {
     pub body: Exp,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ModuleId(pub u32);
+
+impl ModuleId {
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ModuleInstanceId {
+    pub owner: ModuleId,
+    pub local: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DefId {
+    pub module: ModuleId,
+    pub index: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InductiveId {
+    pub module: ModuleId,
+    pub index: u32,
+}
+
 /// A stable index into an [`Arena`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(u32);
@@ -159,22 +184,19 @@ pub enum Node {
         func: Exp,
         arg: Exp,
     },
-    DefinedConstant(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DefinedConstant>),
+    DefinedConstant(DefId),
     IndType {
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: InductiveId,
         parameters: Vec<Exp>, // uncurry with parameter
     },
     IndCtor {
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: InductiveId,
         parameters: Vec<Exp>, // uncurry with parameter
         idx: usize,
     },
     IndElim {
         // this is primitive recursion
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: InductiveId,
         elim: Exp,
         return_type: Exp,
         cases: Vec<Exp>, // no bindings
@@ -295,8 +317,8 @@ impl Arena {
         ArenaMark(self.len())
     }
 
-    pub fn rewind(&mut self, mark: ArenaMark) {
-        self.nodes.get_mut().truncate(mark.0);
+    pub fn rewind(&self, mark: ArenaMark) {
+        self.nodes.borrow_mut().truncate(mark.0);
     }
 
     pub fn sort(&self, sort: Sort) -> Exp {

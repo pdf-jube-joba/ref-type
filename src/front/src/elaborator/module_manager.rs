@@ -1,32 +1,12 @@
-use crate::syntax::{
-    Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord,
-    ModuleItemAccessible,
-};
-use kernel::calculus::exp_subst_map;
+use crate::syntax::{Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord};
+use kernel::calculus::{exp_subst_map, remap_global_ids};
 use kernel::derivation::CheckSession;
-use kernel::exp::{Arena, DefinedConstant, Exp, Var};
+use kernel::environment::{CrateEnv, ModuleItem};
+use kernel::exp::{
+    Context, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, Var,
+};
 use kernel::inductive::InductiveTypeSpecs;
-use std::rc::Rc;
-
-#[derive(Debug, Clone)]
-pub struct ModuleElaborated {
-    pub name: String,
-    pub parameters: Vec<(Var, Exp)>,
-    pub items: Vec<ModuleItemAccessible>,
-    // index of modules in ModuleManager.modules
-    pub child_modules: Vec<usize>,
-    // index of parent module in ModuleManager.modules
-    // only None for the root module
-    pub parent_module: Option<usize>,
-    pub imports: Vec<(Identifier, InstantiatedModule)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct InstantiatedModule {
-    // what is substituted for parameters
-    pub parameters_instantiated: Vec<(Var, Exp)>,
-    pub items: Vec<ModuleItemAccessible>,
-}
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub enum ItemAccessResult {
@@ -36,45 +16,15 @@ pub enum ItemAccessResult {
     Expression(Exp),
 }
 
-impl InstantiatedModule {
-    pub fn get_item(&self, name: &Identifier) -> Option<ItemAccessResult> {
-        for item in self.items.iter() {
-            match item {
-                ModuleItemAccessible::Definition(item @ ModItemDefinition { def_name, .. }) => {
-                    if def_name.as_str() == name.as_str() {
-                        return Some(ItemAccessResult::Definition(item.clone()));
-                    }
-                }
-                ModuleItemAccessible::Inductive(item @ ModItemInductive { type_name, .. }) => {
-                    if type_name.as_str() == name.as_str() {
-                        return Some(ItemAccessResult::Inductive(item.clone()));
-                    }
-                }
-                ModuleItemAccessible::Record(item @ ModItemRecord { type_name, .. }) => {
-                    if type_name.as_str() == name.as_str() {
-                        return Some(ItemAccessResult::Record(item.clone()));
-                    }
-                }
-            }
-        }
-        for (var, exp) in self.parameters_instantiated.iter() {
-            if var.as_str() == name.0.as_str() {
-                return Some(ItemAccessResult::Expression(*exp));
-            }
-        }
-        None
-    }
-}
-
-pub struct InstantiateResult {
-    pub instantiated_module: InstantiatedModule,
-    pub need_to_type_check: Vec<(Var, Exp, Exp)>,
+enum PendingItem {
+    Definition(String, DefId, DefinedConstant),
+    Inductive(String, Vec<String>, InductiveId, InductiveTypeSpecs),
+    Record(String, InductiveId, InductiveTypeSpecs),
 }
 
 #[derive(Debug)]
 pub struct ModuleManager {
-    modules: Vec<ModuleElaborated>,
-    current: usize,
+    current: ModuleId,
 }
 
 impl Default for ModuleManager {
@@ -85,56 +35,47 @@ impl Default for ModuleManager {
 
 impl ModuleManager {
     pub fn new() -> Self {
-        let root_module = ModuleElaborated {
-            name: "root".to_string(),
-            parameters: vec![],
-            items: vec![],
-            child_modules: vec![],
-            parent_module: None,
-            imports: vec![],
-        };
-        ModuleManager {
-            modules: vec![root_module],
-            current: 0,
+        Self {
+            current: ModuleId(0),
         }
-    }
-    pub fn add_child_and_moveto(&mut self, module_name: String, parameters: Vec<(Var, Exp)>) {
-        let parent_index = self.current;
-        let new_module = ModuleElaborated {
-            name: module_name,
-            parameters,
-            items: vec![],
-            child_modules: vec![],
-            parent_module: Some(parent_index),
-            imports: vec![],
-        };
-        self.modules.push(new_module);
-        let new_index = self.modules.len() - 1;
-        self.modules[parent_index].child_modules.push(new_index);
-        self.current = new_index;
-    }
-    pub fn moveto_parent(&mut self) {
-        if let Some(parent_index) = self.modules[self.current].parent_module {
-            self.current = parent_index;
-        }
-    }
-    pub fn moveto_root(&mut self) {
-        self.current = 0;
     }
 
-    pub fn current_context(&self) -> Vec<(String, Vec<(Var, Exp)>)> {
-        let mut context = vec![];
-        let mut index = self.current;
+    pub fn current(&self) -> ModuleId {
+        self.current
+    }
+
+    pub fn add_child_and_moveto(
+        &mut self,
+        env: &mut CrateEnv,
+        module_name: String,
+        parameters: Vec<(Var, Exp)>,
+    ) -> Result<(), String> {
+        self.current = env.add_child_module(self.current, module_name, parameters)?;
+        Ok(())
+    }
+
+    pub fn moveto_parent(&mut self, env: &CrateEnv) {
+        if let Some(parent) = env.module(self.current).parent() {
+            self.current = parent;
+        }
+    }
+
+    pub fn publish_current_module(&self, env: &mut CrateEnv) -> Result<(), String> {
+        env.publish_child_module(self.current)
+    }
+
+    pub fn moveto_root(&mut self) {
+        self.current = ModuleId(0);
+    }
+
+    pub fn current_context(&self, env: &CrateEnv) -> Vec<(String, Vec<(Var, Exp)>)> {
+        let mut context = Vec::new();
+        let mut current = self.current;
         loop {
-            let module = &self.modules[index];
-            let params = module
-                .parameters
-                .iter()
-                .map(|(var, ty)| (var.clone(), *ty))
-                .collect();
-            context.push((module.name.clone(), params));
-            if let Some(parent_index) = module.parent_module {
-                index = parent_index;
+            let module = env.module(current);
+            context.push((module.name().to_owned(), module.parameters().to_vec()));
+            if let Some(parent) = module.parent() {
+                current = parent;
             } else {
                 break;
             }
@@ -142,277 +83,764 @@ impl ModuleManager {
         context.reverse();
         context
     }
-    pub fn add_def(&mut self, name: Identifier, def: DefinedConstant) {
-        let rc = Rc::new(def);
-        let item = ModuleItemAccessible::Definition(ModItemDefinition {
-            def_name: name,
-            body: rc,
-        });
-        self.modules[self.current].items.push(item);
+
+    pub fn add_def(
+        &mut self,
+        env: &mut CrateEnv,
+        name: Identifier,
+        definition: DefinedConstant,
+    ) -> Result<(), String> {
+        let definition = env.add_definition(self.current, definition);
+        env.publish_item(
+            self.current,
+            ModuleItem::Definition {
+                name: name.0,
+                definition,
+            },
+        )
     }
+
     pub fn add_inductive(
         &mut self,
+        env: &mut CrateEnv,
         type_name: Identifier,
-        ctor_names: Vec<Identifier>,
-        ind_defs: kernel::inductive::InductiveTypeSpecs,
-    ) {
-        let rc = Rc::new(ind_defs);
-        let item = ModuleItemAccessible::Inductive(ModItemInductive {
-            type_name,
-            ctor_names,
-            ind_defs: rc,
-        });
-        self.modules[self.current].items.push(item);
+        constructor_names: Vec<Identifier>,
+        spec: InductiveTypeSpecs,
+    ) -> Result<(), String> {
+        let inductive = env.add_inductive(self.current, spec);
+        env.publish_item(
+            self.current,
+            ModuleItem::Inductive {
+                name: type_name.0,
+                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
+                inductive,
+            },
+        )
     }
+
     pub fn add_record(
         &mut self,
+        env: &mut CrateEnv,
         type_name: Identifier,
-        ind_defs: kernel::inductive::InductiveTypeSpecs,
-    ) {
-        let rc = Rc::new(ind_defs);
-        let item = ModuleItemAccessible::Record(ModItemRecord {
-            type_name,
-            rc_spec_as_indtype: rc,
-        });
-        self.modules[self.current].items.push(item);
-    }
-    pub fn add_import(&mut self, import_name: Identifier, instantiated_module: InstantiatedModule) {
-        self.modules[self.current]
-            .imports
-            .push((import_name, instantiated_module));
+        spec: InductiveTypeSpecs,
+    ) -> Result<(), String> {
+        let inductive = env.add_inductive(self.current, spec);
+        env.publish_item(
+            self.current,
+            ModuleItem::Record {
+                name: type_name.0,
+                inductive,
+            },
+        )
     }
 
-    pub fn get_moditem_record_from_rc(&self, rc: &Rc<InductiveTypeSpecs>) -> Option<ModItemRecord> {
-        // iterate over all modules and their items to find the record
-        for module in &self.modules {
-            for item in &module.items {
-                if let ModuleItemAccessible::Record(record) = item {
-                    // check if the record's spec matches the rc as ptr
-                    let record_spec_ptr = Rc::as_ptr(&record.rc_spec_as_indtype);
-                    let rc_ptr = Rc::as_ptr(rc);
-                    if record_spec_ptr == rc_ptr {
-                        return Some(record.clone());
-                    }
-                }
-            }
-        }
-        None
+    pub fn add_import(
+        &mut self,
+        env: &mut CrateEnv,
+        import_name: Identifier,
+        instance: ModuleInstanceId,
+    ) -> Result<(), String> {
+        env.publish_import(self.current, import_name.0, instance)
     }
 
-    fn access_module(
+    pub fn get_moditem_record(
         &self,
-        session: &mut CheckSession<'_, '_>,
-        mut from: usize,
-        args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    ) -> Result<InstantiateResult, String> {
-        let arena = session.arena();
-        // we delegate "type checking" of arguments to the caller
-        let mut need_to_type_check = vec![];
-        // to instantiate, we need to subst items in instantiated module
-        let mut subst_mapping_accum = vec![];
-
-        for (child_name, args) in args {
-            let child_idx = self.modules[from]
-                .child_modules
-                .iter()
-                .find(|&&idx| self.modules[idx].name == child_name.0)
-                .ok_or_else(|| {
-                    format!(
-                        "Child module '{}' not found in module '{}'",
-                        child_name.as_str(),
-                        self.modules[from].name
-                    )
-                })?;
-            let child_module = &self.modules[*child_idx];
-            // check arguments length and name
-            if args.len() != child_module.parameters.len() {
-                return Err(format!(
-                    "Argument length mismatch for module '{}': expected {}, got {}",
-                    child_module.name,
-                    child_module.parameters.len(),
-                    args.len()
-                ));
-            }
-            for ((arg_name, arg), (param_var, ty)) in
-                args.iter().zip(child_module.parameters.iter())
-            {
-                if arg_name.as_str() != param_var.as_str() {
-                    return Err(format!(
-                        "Argument name mismatch for module '{}': expected '{}', got '{}'",
-                        child_module.name,
-                        param_var.as_str(),
-                        arg_name.as_str()
-                    ));
-                }
-                let ty_subst = exp_subst_map(arena, *ty, &subst_mapping_accum);
-                need_to_type_check.push((param_var.clone(), *arg, ty_subst));
-                subst_mapping_accum.push((param_var.clone(), *arg));
-            }
-
-            from = *child_idx;
-        }
-        // instantiate with accumulated substitutions
-        let instantiated_items = self.modules[from]
-            .items
-            .iter()
-            .map(|item| match item {
-                ModuleItemAccessible::Definition(ModItemDefinition {
-                    def_name: name,
-                    body: rc,
-                }) => {
-                    let DefinedConstant { ty, body: inner } = rc.as_ref().clone();
-                    let instantiated_ty = exp_subst_map(arena, ty, &subst_mapping_accum);
-                    let instantiated_inner = exp_subst_map(arena, inner, &subst_mapping_accum);
-                    let instantiated_def = DefinedConstant {
-                        ty: instantiated_ty,
-                        body: instantiated_inner,
-                    };
-                    Ok(ModuleItemAccessible::Definition(ModItemDefinition {
-                        def_name: name.clone(),
-                        body: Rc::new(instantiated_def),
-                    }))
-                }
-                ModuleItemAccessible::Inductive(ModItemInductive {
-                    type_name,
-                    ctor_names,
-                    ind_defs,
-                }) => {
-                    let instantiated_ind_defs = ind_defs
-                        .instantiate(session, &subst_mapping_accum)
-                        .map_err(|error| {
-                            format!("Inductive type instantiation failed: {error:?}")
-                        })?;
-                    Ok(ModuleItemAccessible::Inductive(ModItemInductive {
-                        type_name: type_name.clone(),
-                        ctor_names: ctor_names.clone(),
-                        ind_defs: Rc::new(instantiated_ind_defs),
-                    }))
-                }
-                ModuleItemAccessible::Record(ModItemRecord {
-                    type_name,
-                    rc_spec_as_indtype,
-                }) => {
-                    let instantiated_spec = rc_spec_as_indtype
-                        .instantiate(session, &subst_mapping_accum)
-                        .map_err(|error| format!("Record type instantiation failed: {error:?}"))?;
-                    Ok(ModuleItemAccessible::Record(ModItemRecord {
-                        type_name: type_name.clone(),
-                        rc_spec_as_indtype: Rc::new(instantiated_spec),
-                    }))
-                }
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-
-        let module_instantiated = InstantiatedModule {
-            parameters_instantiated: subst_mapping_accum,
-            items: instantiated_items,
+        env: &CrateEnv,
+        inductive: InductiveId,
+    ) -> Option<ModItemRecord> {
+        let ModuleItem::Record { name, inductive } = env.record_for_inductive(inductive)? else {
+            return None;
         };
-
-        Ok(InstantiateResult {
-            instantiated_module: module_instantiated,
-            need_to_type_check,
+        Some(ModItemRecord {
+            type_name: Identifier(name.clone()),
+            inductive: *inductive,
         })
+    }
+
+    fn resolve_start(
+        &self,
+        env: &CrateEnv,
+        back_parent: Option<usize>,
+    ) -> Result<ModuleId, String> {
+        let Some(back_parent) = back_parent else {
+            return Ok(env.root_module());
+        };
+        let mut module = self.current;
+        for _ in 0..back_parent {
+            module = env
+                .module(module)
+                .parent()
+                .ok_or_else(|| "Cannot go back parent: already at root module".to_string())?;
+        }
+        Ok(module)
     }
 
     pub fn instantiate_module(
         &self,
-        session: &mut CheckSession<'_, '_>,
-        back_parent: Option<usize>, // if None, from root
-        args: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
-    ) -> Result<InstantiateResult, String> {
-        match back_parent {
-            Some(n) => {
-                let mut index = self.current;
-                for _ in 0..n {
-                    if let Some(parent_index) = self.modules[index].parent_module {
-                        index = parent_index;
-                    } else {
-                        return Err("Cannot go back parent: already at root module".to_string());
+        env: &mut CrateEnv,
+        context: &mut Context,
+        back_parent: Option<usize>,
+        calls: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+    ) -> Result<ModuleInstanceId, String> {
+        let mut source = self.resolve_start(env, back_parent)?;
+        let mut substitutions = Vec::new();
+        let mut route = Vec::new();
+
+        for (child_name, arguments) in calls {
+            let child = env
+                .module(source)
+                .children()
+                .iter()
+                .copied()
+                .find(|child| env.module(*child).name() == child_name.as_str())
+                .ok_or_else(|| {
+                    format!(
+                        "Child module '{}' not found in module '{}'",
+                        child_name.as_str(),
+                        env.module(source).name(),
+                    )
+                })?;
+            let parameters = env.module(child).parameters().to_vec();
+            if arguments.len() != parameters.len() {
+                return Err(format!(
+                    "Argument length mismatch for module '{}': expected {}, got {}",
+                    child_name.as_str(),
+                    parameters.len(),
+                    arguments.len(),
+                ));
+            }
+            for ((argument_name, argument), (parameter, parameter_ty)) in
+                arguments.iter().zip(parameters)
+            {
+                if argument_name.as_str() != parameter.as_str() {
+                    return Err(format!(
+                        "Argument name mismatch for module '{}': expected '{}', got '{}'",
+                        child_name.as_str(),
+                        parameter.as_str(),
+                        argument_name.as_str(),
+                    ));
+                }
+                let expected = exp_subst_map(env.arena(), parameter_ty, &substitutions);
+                CheckSession::new(env, self.current, context)
+                    .check(*argument, expected)
+                    .map_err(|error| {
+                        format!(
+                            "Module '{}' argument '{}' failed type checking: {error:?}",
+                            child_name.as_str(),
+                            argument_name.as_str(),
+                        )
+                    })?;
+                substitutions.push((parameter, *argument));
+            }
+            source = child;
+            route.push(child);
+        }
+
+        if route.is_empty() {
+            return Err("Module instantiation path must contain at least one module".into());
+        }
+
+        // Prepare every module on the path before allocating any instance IDs.
+        // Parent items may be referenced by a nested module and must therefore
+        // be materialized first, even though only the final module is named.
+        let mut materialization_sources = Vec::new();
+        for source_module in route {
+            materialization_sources.extend(
+                env.module(source_module)
+                    .instances()
+                    .iter()
+                    .map(|instance| (instance.source, instance.materialized, false)),
+            );
+            materialization_sources.push((source_module, source_module, true));
+        }
+
+        let mut pending_groups = Vec::with_capacity(materialization_sources.len());
+        for (instance_source, item_source, is_path_component) in materialization_sources {
+            let source_items = env.module(item_source).items().to_vec();
+            let mut pending = Vec::with_capacity(source_items.len());
+            for item in source_items {
+                pending.push(match item {
+                    ModuleItem::Definition { name, definition } => {
+                        let definition_value = env.definition(definition).clone();
+                        PendingItem::Definition(
+                            name,
+                            definition,
+                            DefinedConstant {
+                                ty: exp_subst_map(env.arena(), definition_value.ty, &substitutions),
+                                body: exp_subst_map(
+                                    env.arena(),
+                                    definition_value.body,
+                                    &substitutions,
+                                ),
+                            },
+                        )
+                    }
+                    ModuleItem::Inductive {
+                        name,
+                        constructor_names,
+                        inductive,
+                    } => {
+                        let spec = env.inductive(inductive).clone();
+                        let instantiated = spec
+                            .instantiate(
+                                &mut CheckSession::new(env, self.current, context),
+                                &substitutions,
+                            )
+                            .map_err(|error| {
+                                format!("Inductive type instantiation failed: {error:?}")
+                            })?;
+                        PendingItem::Inductive(name, constructor_names, inductive, instantiated)
+                    }
+                    ModuleItem::Record { name, inductive } => {
+                        let spec = env.inductive(inductive).clone();
+                        let instantiated = spec
+                            .instantiate(
+                                &mut CheckSession::new(env, self.current, context),
+                                &substitutions,
+                            )
+                            .map_err(|error| {
+                                format!("Record type instantiation failed: {error:?}")
+                            })?;
+                        PendingItem::Record(name, inductive, instantiated)
+                    }
+                });
+            }
+            pending_groups.push((instance_source, is_path_component, pending));
+        }
+
+        let mut definition_ids = HashMap::new();
+        let mut inductive_ids = HashMap::new();
+        let mut last_instance = None;
+        for (source_module, is_path_component, pending) in pending_groups {
+            let materialized = env.add_module();
+            for item in pending {
+                match item {
+                    PendingItem::Definition(name, source_id, definition) => {
+                        let definition = DefinedConstant {
+                            ty: remap_global_ids(
+                                env.arena(),
+                                definition.ty,
+                                &definition_ids,
+                                &inductive_ids,
+                            ),
+                            body: remap_global_ids(
+                                env.arena(),
+                                definition.body,
+                                &definition_ids,
+                                &inductive_ids,
+                            ),
+                        };
+                        let definition = env.add_definition(materialized, definition);
+                        definition_ids.insert(source_id, definition);
+                        env.publish_item(
+                            materialized,
+                            ModuleItem::Definition { name, definition },
+                        )?;
+                    }
+                    PendingItem::Inductive(name, constructor_names, source_id, spec) => {
+                        let spec =
+                            spec.remap_global_ids(env.arena(), &definition_ids, &inductive_ids);
+                        let inductive = env.add_inductive(materialized, spec);
+                        inductive_ids.insert(source_id, inductive);
+                        env.publish_item(
+                            materialized,
+                            ModuleItem::Inductive {
+                                name,
+                                constructor_names,
+                                inductive,
+                            },
+                        )?;
+                    }
+                    PendingItem::Record(name, source_id, spec) => {
+                        let spec =
+                            spec.remap_global_ids(env.arena(), &definition_ids, &inductive_ids);
+                        let inductive = env.add_inductive(materialized, spec);
+                        inductive_ids.insert(source_id, inductive);
+                        env.publish_item(materialized, ModuleItem::Record { name, inductive })?;
                     }
                 }
-                self.access_module(session, index, args)
             }
-            None => {
-                // from root
-                self.access_module(session, 0, args)
+            let instance = env.add_instance(
+                self.current,
+                source_module,
+                materialized,
+                substitutions.clone(),
+            );
+            if is_path_component {
+                last_instance = Some(instance);
+            }
+        }
+
+        Ok(last_instance.expect("non-empty route was checked above"))
+    }
+
+    pub fn get_item(&self, env: &CrateEnv, access: &LocalAccess) -> Option<ItemAccessResult> {
+        match access {
+            LocalAccess::Current { access } => {
+                let mut module = self.current;
+                loop {
+                    let current = env.module(module);
+                    if let Some(item) = current.item(access.as_str()) {
+                        return Some(convert_item(item));
+                    }
+                    if let Some((var, _)) = current
+                        .parameters()
+                        .iter()
+                        .find(|(var, _)| var.as_str() == access.as_str())
+                    {
+                        return Some(ItemAccessResult::Expression(env.arena().var(var.clone())));
+                    }
+                    module = current.parent()?;
+                }
+            }
+            LocalAccess::Named { access, child } => {
+                let instance = env.module(self.current).import(access.as_str())?;
+                let materialized = env.instance(instance).materialized;
+                env.module(materialized)
+                    .item(child.as_str())
+                    .map(convert_item)
             }
         }
     }
+}
 
-    pub fn get_item(&self, arena: &Arena, access: &LocalAccess) -> Option<ItemAccessResult> {
-        match access {
-            LocalAccess::Current { access } => {
-                // from module items in current to parent
-                let mut index = self.current;
-                loop {
-                    // find from item names
-                    for item in self.modules[index].items.iter() {
-                        match item {
-                            ModuleItemAccessible::Definition(
-                                item @ ModItemDefinition { def_name: name, .. },
-                            ) => {
-                                if name.as_str() == access.as_str() {
-                                    return Some(ItemAccessResult::Definition(item.clone()));
-                                }
-                            }
-                            ModuleItemAccessible::Inductive(
-                                item @ ModItemInductive { type_name, .. },
-                            ) => {
-                                if type_name.as_str() == access.as_str() {
-                                    return Some(ItemAccessResult::Inductive(item.clone()));
-                                }
-                            }
-                            ModuleItemAccessible::Record(
-                                item @ ModItemRecord { type_name, .. },
-                            ) => {
-                                if type_name.as_str() == access.as_str() {
-                                    return Some(ItemAccessResult::Record(item.clone()));
-                                }
-                            }
-                        }
-                    }
-                    // find from parameters
-                    for (var, _) in self.modules[index].parameters.iter() {
-                        if var.as_str() == access.as_str() {
-                            return Some(ItemAccessResult::Expression(arena.var(var.clone())));
-                        }
-                    }
-
-                    // move to parent
-                    if let Some(parent_index) = self.modules[index].parent_module {
-                        index = parent_index;
-                    } else {
-                        break;
-                    }
-                }
-                None
-            }
-            LocalAccess::Named { access, child } => {
-                // from named imported module
-                for (import_name, instantiated_module) in self.modules[self.current].imports.iter()
-                {
-                    if import_name.as_str() == access.as_str() {
-                        return instantiated_module.get_item(child);
-                    }
-                }
-                None
-            }
+fn convert_item(item: &ModuleItem) -> ItemAccessResult {
+    match item {
+        ModuleItem::Definition { name, definition } => {
+            ItemAccessResult::Definition(ModItemDefinition {
+                def_name: Identifier(name.clone()),
+                definition: *definition,
+            })
         }
+        ModuleItem::Inductive {
+            name,
+            constructor_names,
+            inductive,
+        } => ItemAccessResult::Inductive(ModItemInductive {
+            type_name: Identifier(name.clone()),
+            ctor_names: constructor_names
+                .iter()
+                .map(|name| Identifier(name.clone()))
+                .collect(),
+            inductive: *inductive,
+        }),
+        ModuleItem::Record { name, inductive } => ItemAccessResult::Record(ModItemRecord {
+            type_name: Identifier(name.clone()),
+            inductive: *inductive,
+        }),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kernel::exp::{Node, Sort};
+    use kernel::inductive::{CtorType, InductiveTypeSpecs};
+
     #[test]
-    fn test_module_manager_add_and_move() {
-        let mut module_manager = ModuleManager::new();
-        module_manager.add_child_and_moveto("Test1".to_string(), vec![]);
-        module_manager.add_child_and_moveto("Child1".to_string(), vec![]);
-        assert_eq!(module_manager.current, 2);
-        module_manager.moveto_parent();
-        assert_eq!(module_manager.current, 1);
-        module_manager.moveto_parent();
-        assert_eq!(module_manager.current, 0);
+    fn module_navigation_uses_persistent_module_envs() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        manager
+            .add_child_and_moveto(&mut env, "Test1".into(), vec![])
+            .unwrap();
+        manager
+            .add_child_and_moveto(&mut env, "Child1".into(), vec![])
+            .unwrap();
+        assert_eq!(env.module(manager.current()).name(), "Child1");
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        assert_eq!(env.module(manager.current()).name(), "Test1");
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        assert_eq!(manager.current(), env.root_module());
+    }
+
+    #[test]
+    fn repeated_instantiation_is_generative_and_remaps_internal_definitions() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![])
+            .unwrap();
+
+        let proposition = env.arena().sort(Sort::Prop);
+        let proposition_kind = env.arena().sort(Sort::PropKind);
+        manager
+            .add_def(
+                &mut env,
+                Identifier("base".into()),
+                DefinedConstant {
+                    ty: proposition_kind,
+                    body: proposition,
+                },
+            )
+            .unwrap();
+        let ModuleItem::Definition {
+            definition: base, ..
+        } = env.module(manager.current()).items()[0]
+        else {
+            unreachable!()
+        };
+        let base_exp = env.arena().alloc(Node::DefinedConstant(base));
+        manager
+            .add_def(
+                &mut env,
+                Identifier("alias".into()),
+                DefinedConstant {
+                    ty: proposition_kind,
+                    body: base_exp,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let instantiate = |manager: &ModuleManager, env: &mut CrateEnv| {
+            manager
+                .instantiate_module(
+                    env,
+                    &mut Vec::new(),
+                    None,
+                    vec![(Identifier("Source".into()), vec![])],
+                )
+                .unwrap()
+        };
+        let first = instantiate(&manager, &mut env);
+        let second = instantiate(&manager, &mut env);
+        assert_ne!(first, second);
+
+        let ids = |env: &CrateEnv, instance| {
+            env.module(env.instance(instance).materialized)
+                .items()
+                .iter()
+                .map(|item| match item {
+                    ModuleItem::Definition { definition, .. } => *definition,
+                    _ => unreachable!(),
+                })
+                .collect::<Vec<_>>()
+        };
+        let first_ids = ids(&env, first);
+        let second_ids = ids(&env, second);
+        assert_ne!(first_ids, second_ids);
+        assert!(matches!(
+            env.arena().get(env.definition(first_ids[1]).body),
+            Node::DefinedConstant(id) if id == first_ids[0]
+        ));
+        assert!(matches!(
+            env.arena().get(env.definition(second_ids[1]).body),
+            Node::DefinedConstant(id) if id == second_ids[0]
+        ));
+    }
+
+    #[test]
+    fn module_instantiation_requires_all_well_typed_named_arguments() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        manager
+            .add_child_and_moveto(&mut env, "Parameterized".into(), vec![(Var::new("A"), set)])
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let call = |name: &str, arguments| vec![(Identifier(name.into()), arguments)];
+        assert!(
+            manager
+                .instantiate_module(
+                    &mut env,
+                    &mut Vec::new(),
+                    None,
+                    call("Parameterized", vec![]),
+                )
+                .is_err()
+        );
+        let wrong_argument = env.arena().sort(Sort::Prop);
+        assert!(
+            manager
+                .instantiate_module(
+                    &mut env,
+                    &mut Vec::new(),
+                    None,
+                    call(
+                        "Parameterized",
+                        vec![(Identifier("wrong".into()), wrong_argument)],
+                    ),
+                )
+                .is_err()
+        );
+        assert!(env.module(env.root_module()).instances().is_empty());
+
+        let carrier = Var::new("Carrier");
+        let argument = env.arena().var(carrier.clone());
+        let mut context = vec![(carrier, set)];
+        assert!(
+            manager
+                .instantiate_module(
+                    &mut env,
+                    &mut context,
+                    None,
+                    call("Parameterized", vec![(Identifier("A".into()), argument)],),
+                )
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn inductives_from_two_instances_are_distinct_types() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![])
+            .unwrap();
+        let source = manager.current();
+        let spec = InductiveTypeSpecs::new(
+            &mut CheckSession::new(&env, source, &mut Vec::new()),
+            vec![],
+            vec![],
+            Sort::Set(0),
+            vec![CtorType {
+                telescope: vec![],
+                indices: vec![],
+            }],
+        )
+        .unwrap();
+        manager
+            .add_inductive(
+                &mut env,
+                Identifier("Token".into()),
+                vec![Identifier("token".into())],
+                spec,
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let instantiate = |manager: &ModuleManager, env: &mut CrateEnv| {
+            manager
+                .instantiate_module(
+                    env,
+                    &mut Vec::new(),
+                    None,
+                    vec![(Identifier("Source".into()), vec![])],
+                )
+                .unwrap()
+        };
+        let first = instantiate(&manager, &mut env);
+        let second = instantiate(&manager, &mut env);
+        let inductive = |env: &CrateEnv, instance| {
+            let module = env.module(env.instance(instance).materialized);
+            let ModuleItem::Inductive { inductive, .. } = module.item("Token").unwrap() else {
+                unreachable!()
+            };
+            *inductive
+        };
+        let first = inductive(&env, first);
+        let second = inductive(&env, second);
+        assert_ne!(first, second);
+
+        let first_constructor = env.arena().alloc(Node::IndCtor {
+            indspec: first,
+            parameters: vec![],
+            idx: 0,
+        });
+        let first_type = env.arena().alloc(Node::IndType {
+            indspec: first,
+            parameters: vec![],
+        });
+        let second_type = env.arena().alloc(Node::IndType {
+            indspec: second,
+            parameters: vec![],
+        });
+        assert!(
+            CheckSession::new(&env, env.root_module(), &mut Vec::new())
+                .check(first_constructor, first_type)
+                .is_ok()
+        );
+        assert!(
+            CheckSession::new(&env, env.root_module(), &mut Vec::new())
+                .check(first_constructor, second_type)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn nested_instance_materializes_parent_dependencies() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        let parameter = Var::new("A");
+        manager
+            .add_child_and_moveto(&mut env, "Parent".into(), vec![(parameter.clone(), set)])
+            .unwrap();
+        let parameter_exp = env.arena().var(parameter);
+        manager
+            .add_def(
+                &mut env,
+                Identifier("parent_value".into()),
+                DefinedConstant {
+                    ty: set,
+                    body: parameter_exp,
+                },
+            )
+            .unwrap();
+        let ModuleItem::Definition {
+            definition: parent_definition,
+            ..
+        } = env.module(manager.current()).item("parent_value").unwrap()
+        else {
+            unreachable!()
+        };
+        let parent_definition = *parent_definition;
+
+        manager
+            .add_child_and_moveto(&mut env, "Child".into(), vec![])
+            .unwrap();
+        let parent_reference = env.arena().alloc(Node::DefinedConstant(parent_definition));
+        manager
+            .add_def(
+                &mut env,
+                Identifier("child_value".into()),
+                DefinedConstant {
+                    ty: set,
+                    body: parent_reference,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_root();
+
+        let carrier = Var::new("Carrier");
+        let argument = env.arena().var(carrier.clone());
+        let mut context = vec![(carrier, set)];
+        let instance = manager
+            .instantiate_module(
+                &mut env,
+                &mut context,
+                None,
+                vec![
+                    (
+                        Identifier("Parent".into()),
+                        vec![(Identifier("A".into()), argument)],
+                    ),
+                    (Identifier("Child".into()), vec![]),
+                ],
+            )
+            .unwrap();
+        let final_module = env.module(env.instance(instance).materialized);
+        let ModuleItem::Definition {
+            definition: child_definition,
+            ..
+        } = final_module.item("child_value").unwrap()
+        else {
+            unreachable!()
+        };
+        let Node::DefinedConstant(remapped_parent) =
+            env.arena().get(env.definition(*child_definition).body)
+        else {
+            panic!("child definition should refer to the materialized parent definition")
+        };
+        assert_ne!(remapped_parent, parent_definition);
+        let child = env.arena().alloc(Node::DefinedConstant(*child_definition));
+        assert_eq!(kernel::calculus::whnf(&env, child), argument);
+    }
+
+    #[test]
+    fn outer_instantiation_rematerializes_parameterized_imports() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+
+        let parameter = Var::new("A");
+        manager
+            .add_child_and_moveto(&mut env, "Param".into(), vec![(parameter.clone(), set)])
+            .unwrap();
+        let parameter_exp = env.arena().var(parameter);
+        manager
+            .add_def(
+                &mut env,
+                Identifier("value".into()),
+                DefinedConstant {
+                    ty: set,
+                    body: parameter_exp,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let outer_parameter = Var::new("A");
+        manager
+            .add_child_and_moveto(
+                &mut env,
+                "Outer".into(),
+                vec![(outer_parameter.clone(), set)],
+            )
+            .unwrap();
+        let outer_context_var = outer_parameter.clone();
+        let outer_argument = env.arena().var(outer_parameter);
+        let dependency = manager
+            .instantiate_module(
+                &mut env,
+                &mut vec![(outer_context_var, set)],
+                None,
+                vec![(
+                    Identifier("Param".into()),
+                    vec![(Identifier("A".into()), outer_argument)],
+                )],
+            )
+            .unwrap();
+        manager
+            .add_import(&mut env, Identifier("P".into()), dependency)
+            .unwrap();
+        let ItemAccessResult::Definition(imported_value) = manager
+            .get_item(
+                &env,
+                &LocalAccess::Named {
+                    access: Identifier("P".into()),
+                    child: Identifier("value".into()),
+                },
+            )
+            .unwrap()
+        else {
+            unreachable!()
+        };
+        let imported_value = env
+            .arena()
+            .alloc(Node::DefinedConstant(imported_value.definition));
+        manager
+            .add_def(
+                &mut env,
+                Identifier("result".into()),
+                DefinedConstant {
+                    ty: set,
+                    body: imported_value,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let carrier = Var::new("Carrier");
+        let argument = env.arena().var(carrier.clone());
+        let instance = manager
+            .instantiate_module(
+                &mut env,
+                &mut vec![(carrier, set)],
+                None,
+                vec![(
+                    Identifier("Outer".into()),
+                    vec![(Identifier("A".into()), argument)],
+                )],
+            )
+            .unwrap();
+        let module = env.module(env.instance(instance).materialized);
+        let ModuleItem::Definition { definition, .. } = module.item("result").unwrap() else {
+            unreachable!()
+        };
+        let result = env.arena().alloc(Node::DefinedConstant(*definition));
+        assert_eq!(kernel::calculus::whnf(&env, result), argument);
     }
 }

@@ -1,44 +1,45 @@
-use std::rc::Rc;
-
+use crate::environment::CrateEnv;
 use crate::inductive::inductive_type_elim_reduce;
+use std::collections::HashMap;
 
 use super::exp::*;
 
-pub fn exp_contains_as_freevar(arena: &Arena, exp: Exp, var: &Var) -> bool {
+pub fn exp_contains_as_freevar(env: &CrateEnv, exp: Exp, var: &Var) -> bool {
+    let arena = env.arena();
     match arena.get(exp) {
         Node::Sort(_) | Node::Bound(_) => false,
         Node::Var(candidate) => candidate.is_eq_ptr(var),
         Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
-            exp_contains_as_freevar(arena, ty, var) || exp_contains_as_freevar(arena, body, var)
+            exp_contains_as_freevar(env, ty, var) || exp_contains_as_freevar(env, body, var)
         }
         Node::App { func, arg } => {
-            exp_contains_as_freevar(arena, func, var) || exp_contains_as_freevar(arena, arg, var)
+            exp_contains_as_freevar(env, func, var) || exp_contains_as_freevar(env, arg, var)
         }
         Node::DefinedConstant(definition) => {
-            exp_contains_as_freevar(arena, definition.ty, var)
-                || exp_contains_as_freevar(arena, definition.body, var)
+            let definition = env.definition(definition);
+            exp_contains_as_freevar(env, definition.ty, var)
+                || exp_contains_as_freevar(env, definition.body, var)
         }
         Node::IndType { parameters, .. } | Node::IndCtor { parameters, .. } => parameters
             .into_iter()
-            .any(|argument| exp_contains_as_freevar(arena, argument, var)),
+            .any(|argument| exp_contains_as_freevar(env, argument, var)),
         Node::IndElim {
             elim,
             return_type,
             cases,
             ..
         } => {
-            exp_contains_as_freevar(arena, elim, var)
-                || exp_contains_as_freevar(arena, return_type, var)
+            exp_contains_as_freevar(env, elim, var)
+                || exp_contains_as_freevar(env, return_type, var)
                 || cases
                     .into_iter()
-                    .any(|case| exp_contains_as_freevar(arena, case, var))
+                    .any(|case| exp_contains_as_freevar(env, case, var))
         }
         Node::PowerSet { set } | Node::Exists { set } | Node::IdRefl { element: set } => {
-            exp_contains_as_freevar(arena, set, var)
+            exp_contains_as_freevar(env, set, var)
         }
         Node::SubSet { set, predicate, .. } => {
-            exp_contains_as_freevar(arena, set, var)
-                || exp_contains_as_freevar(arena, predicate, var)
+            exp_contains_as_freevar(env, set, var) || exp_contains_as_freevar(env, predicate, var)
         }
         Node::Pred {
             superset,
@@ -51,14 +52,13 @@ pub fn exp_contains_as_freevar(arena: &Arena, exp: Exp, var: &Var) -> bool {
             element,
         } => [superset, subset, element]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(arena, child, var)),
+            .any(|child| exp_contains_as_freevar(env, child, var)),
         Node::TypeLift { superset, subset }
         | Node::Equal {
             left: superset,
             right: subset,
         } => {
-            exp_contains_as_freevar(arena, superset, var)
-                || exp_contains_as_freevar(arena, subset, var)
+            exp_contains_as_freevar(env, superset, var) || exp_contains_as_freevar(env, subset, var)
         }
         Node::SubsetIntro {
             superset,
@@ -73,7 +73,7 @@ pub fn exp_contains_as_freevar(arena: &Arena, exp: Exp, var: &Var) -> bool {
             existence: proof,
         } => [superset, subset, element, proof]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(arena, child, var)),
+            .any(|child| exp_contains_as_freevar(env, child, var)),
         Node::TakeSet {
             domain,
             codomain,
@@ -82,9 +82,9 @@ pub fn exp_contains_as_freevar(arena: &Arena, exp: Exp, var: &Var) -> bool {
             uniqueness,
         } => [domain, codomain, map, existence, uniqueness]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(arena, child, var)),
+            .any(|child| exp_contains_as_freevar(env, child, var)),
         Node::ExistsIntro { element, set } => {
-            exp_contains_as_freevar(arena, element, var) || exp_contains_as_freevar(arena, set, var)
+            exp_contains_as_freevar(env, element, var) || exp_contains_as_freevar(env, set, var)
         }
         Node::IdElim {
             left,
@@ -96,7 +96,7 @@ pub fn exp_contains_as_freevar(arena: &Arena, exp: Exp, var: &Var) -> bool {
             ..
         } => [left, right, ty, predicate, base, equality]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(arena, child, var)),
+            .any(|child| exp_contains_as_freevar(env, child, var)),
         Node::TakeEq {
             func,
             domain,
@@ -106,7 +106,7 @@ pub fn exp_contains_as_freevar(arena: &Arena, exp: Exp, var: &Var) -> bool {
             uniqueness,
         } => [func, domain, codomain, element, existence, uniqueness]
             .into_iter()
-            .any(|child| exp_contains_as_freevar(arena, child, var)),
+            .any(|child| exp_contains_as_freevar(env, child, var)),
     }
 }
 
@@ -117,14 +117,15 @@ struct EqualityMode {
     erase_subset_intro: bool,
 }
 
-fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> bool {
+fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) -> bool {
+    let arena = env.arena();
     let left = if mode.reduce_to_whnf {
-        exp_whnf_with_mode(arena, left, mode.erase_subset_intro)
+        exp_whnf_with_mode(env, left, mode.erase_subset_intro)
     } else {
         left
     };
     let right = if mode.reduce_to_whnf {
-        exp_whnf_with_mode(arena, right, mode.erase_subset_intro)
+        exp_whnf_with_mode(env, right, mode.erase_subset_intro)
     } else {
         right
     };
@@ -160,8 +161,8 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 ..
             },
         ) => {
-            is_alpha_eq_rec(arena, left_ty, right_ty, mode)
-                && is_alpha_eq_rec(arena, left_body, right_body, mode)
+            is_alpha_eq_rec(env, left_ty, right_ty, mode)
+                && is_alpha_eq_rec(env, left_body, right_body, mode)
         }
         (
             Node::App {
@@ -173,14 +174,10 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 arg: right_arg,
             },
         ) => {
-            is_alpha_eq_rec(arena, left_func, right_func, mode)
-                && is_alpha_eq_rec(arena, left_arg, right_arg, mode)
+            is_alpha_eq_rec(env, left_func, right_func, mode)
+                && is_alpha_eq_rec(env, left_arg, right_arg, mode)
         }
-        (Node::DefinedConstant(left), Node::DefinedConstant(right)) => {
-            Rc::ptr_eq(&left, &right)
-                || (is_alpha_eq_rec(arena, left.ty, right.ty, mode)
-                    && is_alpha_eq_rec(arena, left.body, right.body, mode))
-        }
+        (Node::DefinedConstant(left), Node::DefinedConstant(right)) => left == right,
         (
             Node::IndType {
                 indspec: left_spec,
@@ -190,10 +187,7 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 indspec: right_spec,
                 parameters: right_parameters,
             },
-        ) => {
-            Rc::ptr_eq(&left_spec, &right_spec)
-                && eq_slices(arena, &left_parameters, &right_parameters, mode)
-        }
+        ) => left_spec == right_spec && eq_slices(env, &left_parameters, &right_parameters, mode),
         (
             Node::IndCtor {
                 indspec: left_spec,
@@ -207,8 +201,8 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
             },
         ) => {
             left_idx == right_idx
-                && Rc::ptr_eq(&left_spec, &right_spec)
-                && eq_slices(arena, &left_parameters, &right_parameters, mode)
+                && left_spec == right_spec
+                && eq_slices(env, &left_parameters, &right_parameters, mode)
         }
         (
             Node::IndElim {
@@ -224,10 +218,10 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 cases: right_cases,
             },
         ) => {
-            Rc::ptr_eq(&left_spec, &right_spec)
-                && is_alpha_eq_rec(arena, left_elim, right_elim, mode)
-                && is_alpha_eq_rec(arena, left_return, right_return, mode)
-                && eq_slices(arena, &left_cases, &right_cases, mode)
+            left_spec == right_spec
+                && is_alpha_eq_rec(env, left_elim, right_elim, mode)
+                && is_alpha_eq_rec(env, left_return, right_return, mode)
+                && eq_slices(env, &left_cases, &right_cases, mode)
         }
         (
             Node::SubsetIntro {
@@ -243,15 +237,15 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 proof: right_proof,
             },
         ) => {
-            is_alpha_eq_rec(arena, left_superset, right_superset, mode)
-                && is_alpha_eq_rec(arena, left_subset, right_subset, mode)
-                && is_alpha_eq_rec(arena, left_element, right_element, mode)
-                && (mode.proof_irrelevant || is_alpha_eq_rec(arena, left_proof, right_proof, mode))
+            is_alpha_eq_rec(env, left_superset, right_superset, mode)
+                && is_alpha_eq_rec(env, left_subset, right_subset, mode)
+                && is_alpha_eq_rec(env, left_element, right_element, mode)
+                && (mode.proof_irrelevant || is_alpha_eq_rec(env, left_proof, right_proof, mode))
         }
         (Node::PowerSet { set: left }, Node::PowerSet { set: right })
         | (Node::Exists { set: left }, Node::Exists { set: right })
         | (Node::IdRefl { element: left }, Node::IdRefl { element: right }) => {
-            is_alpha_eq_rec(arena, left, right, mode)
+            is_alpha_eq_rec(env, left, right, mode)
         }
         (
             Node::SubSet {
@@ -265,8 +259,8 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 ..
             },
         ) => {
-            is_alpha_eq_rec(arena, left_set, right_set, mode)
-                && is_alpha_eq_rec(arena, left_predicate, right_predicate, mode)
+            is_alpha_eq_rec(env, left_set, right_set, mode)
+                && is_alpha_eq_rec(env, left_predicate, right_predicate, mode)
         }
         (
             Node::Pred {
@@ -292,9 +286,9 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 element: right_element,
             },
         ) => {
-            is_alpha_eq_rec(arena, left_superset, right_superset, mode)
-                && is_alpha_eq_rec(arena, left_subset, right_subset, mode)
-                && is_alpha_eq_rec(arena, left_element, right_element, mode)
+            is_alpha_eq_rec(env, left_superset, right_superset, mode)
+                && is_alpha_eq_rec(env, left_subset, right_subset, mode)
+                && is_alpha_eq_rec(env, left_element, right_element, mode)
         }
         (
             Node::TypeLift {
@@ -326,8 +320,8 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 set: right_second,
             },
         ) => {
-            is_alpha_eq_rec(arena, left_first, right_first, mode)
-                && is_alpha_eq_rec(arena, left_second, right_second, mode)
+            is_alpha_eq_rec(env, left_first, right_first, mode)
+                && is_alpha_eq_rec(env, left_second, right_second, mode)
         }
         (
             Node::TakeSet {
@@ -345,12 +339,12 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 uniqueness: right_uniqueness,
             },
         ) => {
-            is_alpha_eq_rec(arena, left_domain, right_domain, mode)
-                && is_alpha_eq_rec(arena, left_codomain, right_codomain, mode)
-                && is_alpha_eq_rec(arena, left_map, right_map, mode)
+            is_alpha_eq_rec(env, left_domain, right_domain, mode)
+                && is_alpha_eq_rec(env, left_codomain, right_codomain, mode)
+                && is_alpha_eq_rec(env, left_map, right_map, mode)
                 && (mode.proof_irrelevant
-                    || (is_alpha_eq_rec(arena, left_existence, right_existence, mode)
-                        && is_alpha_eq_rec(arena, left_uniqueness, right_uniqueness, mode)))
+                    || (is_alpha_eq_rec(env, left_existence, right_existence, mode)
+                        && is_alpha_eq_rec(env, left_uniqueness, right_uniqueness, mode)))
         }
         (
             Node::TakeProp {
@@ -366,11 +360,11 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 existence: right_existence,
             },
         ) => {
-            is_alpha_eq_rec(arena, left_proposition, right_proposition, mode)
+            is_alpha_eq_rec(env, left_proposition, right_proposition, mode)
                 && (mode.proof_irrelevant
-                    || (is_alpha_eq_rec(arena, left_domain, right_domain, mode)
-                        && is_alpha_eq_rec(arena, left_map, right_map, mode)
-                        && is_alpha_eq_rec(arena, left_existence, right_existence, mode)))
+                    || (is_alpha_eq_rec(env, left_domain, right_domain, mode)
+                        && is_alpha_eq_rec(env, left_map, right_map, mode)
+                        && is_alpha_eq_rec(env, left_existence, right_existence, mode)))
         }
         (
             Node::IdElim {
@@ -392,7 +386,7 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
                 ..
             },
         ) => eq_slices(
-            arena,
+            env,
             &[
                 left_left,
                 left_right,
@@ -430,29 +424,29 @@ fn is_alpha_eq_rec(arena: &Arena, left: Exp, right: Exp, mode: EqualityMode) -> 
             },
         ) => {
             eq_slices(
-                arena,
+                env,
                 &[left_func, left_domain, left_codomain, left_element],
                 &[right_func, right_domain, right_codomain, right_element],
                 mode,
             ) && (mode.proof_irrelevant
-                || (is_alpha_eq_rec(arena, left_existence, right_existence, mode)
-                    && is_alpha_eq_rec(arena, left_uniqueness, right_uniqueness, mode)))
+                || (is_alpha_eq_rec(env, left_existence, right_existence, mode)
+                    && is_alpha_eq_rec(env, left_uniqueness, right_uniqueness, mode)))
         }
         _ => false,
     }
 }
 
-fn eq_slices(arena: &Arena, left: &[Exp], right: &[Exp], mode: EqualityMode) -> bool {
+fn eq_slices(env: &CrateEnv, left: &[Exp], right: &[Exp], mode: EqualityMode) -> bool {
     left.len() == right.len()
         && left
             .iter()
             .zip(right)
-            .all(|(left, right)| is_alpha_eq_rec(arena, *left, *right, mode))
+            .all(|(left, right)| is_alpha_eq_rec(env, *left, *right, mode))
 }
 
-pub fn exp_is_alpha_eq(arena: &Arena, left: Exp, right: Exp) -> bool {
+pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     is_alpha_eq_rec(
-        arena,
+        env,
         left,
         right,
         EqualityMode {
@@ -463,9 +457,9 @@ pub fn exp_is_alpha_eq(arena: &Arena, left: Exp, right: Exp) -> bool {
     )
 }
 
-fn exp_is_convertible_with_mode(arena: &Arena, left: Exp, right: Exp, erase_proofs: bool) -> bool {
+fn exp_is_convertible_with_mode(env: &CrateEnv, left: Exp, right: Exp, erase_proofs: bool) -> bool {
     is_alpha_eq_rec(
-        arena,
+        env,
         left,
         right,
         EqualityMode {
@@ -476,13 +470,7 @@ fn exp_is_convertible_with_mode(arena: &Arena, left: Exp, right: Exp, erase_proo
     )
 }
 
-fn transform<F>(
-    arena: &Arena,
-    exp: Exp,
-    depth: usize,
-    descend_definitions: bool,
-    operation: &mut F,
-) -> Exp
+fn transform<F>(arena: &Arena, exp: Exp, depth: usize, operation: &mut F) -> Exp
 where
     F: FnMut(&Node, usize) -> Option<Exp>,
 {
@@ -493,7 +481,7 @@ where
 
     let mut changed = false;
     let mut child = |child: Exp, child_depth: usize| {
-        let transformed = transform(arena, child, child_depth, descend_definitions, operation);
+        let transformed = transform(arena, child, child_depth, operation);
         changed |= transformed != child;
         transformed
     };
@@ -535,11 +523,6 @@ where
             base: child(base, depth),
             equality: child(equality, depth),
         },
-        Node::DefinedConstant(definition) if descend_definitions => {
-            let ty = child(definition.ty, depth);
-            let body = child(definition.body, depth);
-            Node::DefinedConstant(Rc::new(DefinedConstant { ty, body }))
-        }
         Node::DefinedConstant(_) => return exp,
         other => map_children(other, |id| child(id, depth)),
     };
@@ -561,11 +544,7 @@ fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *func = map(*func);
             *arg = map(*arg);
         }
-        Node::DefinedConstant(definition) => {
-            let ty = map(definition.ty);
-            let body = map(definition.body);
-            *definition = Rc::new(DefinedConstant { ty, body });
-        }
+        Node::DefinedConstant(_) => {}
         Node::IndType { parameters, .. } | Node::IndCtor { parameters, .. } => {
             for parameter in parameters {
                 *parameter = map(*parameter);
@@ -686,8 +665,112 @@ fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
     node
 }
 
+/// Rebind references to module-owned entities while materializing a generative
+/// module instance. IDs absent from the maps refer outside the source module
+/// and remain unchanged.
+pub fn remap_global_ids(
+    arena: &Arena,
+    exp: Exp,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<InductiveId, InductiveId>,
+) -> Exp {
+    fn remap(
+        arena: &Arena,
+        exp: Exp,
+        definitions: &HashMap<DefId, DefId>,
+        inductives: &HashMap<InductiveId, InductiveId>,
+    ) -> Exp {
+        let node = arena.get(exp);
+        match node {
+            Node::DefinedConstant(id) => definitions
+                .get(&id)
+                .copied()
+                .filter(|mapped| *mapped != id)
+                .map(|mapped| arena.alloc(Node::DefinedConstant(mapped)))
+                .unwrap_or(exp),
+            Node::IndType {
+                indspec,
+                parameters,
+            } => {
+                let mapped_spec = inductives.get(&indspec).copied().unwrap_or(indspec);
+                let mapped_parameters = parameters
+                    .iter()
+                    .map(|child| remap(arena, *child, definitions, inductives))
+                    .collect::<Vec<_>>();
+                if mapped_spec == indspec && mapped_parameters == parameters {
+                    exp
+                } else {
+                    arena.alloc(Node::IndType {
+                        indspec: mapped_spec,
+                        parameters: mapped_parameters,
+                    })
+                }
+            }
+            Node::IndCtor {
+                indspec,
+                parameters,
+                idx,
+            } => {
+                let mapped_spec = inductives.get(&indspec).copied().unwrap_or(indspec);
+                let mapped_parameters = parameters
+                    .iter()
+                    .map(|child| remap(arena, *child, definitions, inductives))
+                    .collect::<Vec<_>>();
+                if mapped_spec == indspec && mapped_parameters == parameters {
+                    exp
+                } else {
+                    arena.alloc(Node::IndCtor {
+                        indspec: mapped_spec,
+                        parameters: mapped_parameters,
+                        idx,
+                    })
+                }
+            }
+            Node::IndElim {
+                indspec,
+                elim,
+                return_type,
+                cases,
+            } => {
+                let mapped_spec = inductives.get(&indspec).copied().unwrap_or(indspec);
+                let mapped_elim = remap(arena, elim, definitions, inductives);
+                let mapped_return = remap(arena, return_type, definitions, inductives);
+                let mapped_cases = cases
+                    .iter()
+                    .map(|child| remap(arena, *child, definitions, inductives))
+                    .collect::<Vec<_>>();
+                if mapped_spec == indspec
+                    && mapped_elim == elim
+                    && mapped_return == return_type
+                    && mapped_cases == cases
+                {
+                    exp
+                } else {
+                    arena.alloc(Node::IndElim {
+                        indspec: mapped_spec,
+                        elim: mapped_elim,
+                        return_type: mapped_return,
+                        cases: mapped_cases,
+                    })
+                }
+            }
+            other => {
+                let mut changed = false;
+                let mapped = map_children(other, |child| {
+                    let result = remap(arena, child, definitions, inductives);
+                    changed |= result != child;
+                    result
+                });
+                if changed { arena.alloc(mapped) } else { exp }
+            }
+        }
+    }
+
+    remap(arena, exp, definitions, inductives)
+}
+
 pub fn exp_subst(arena: &Arena, exp: Exp, var: &Var, replacement: Exp) -> Exp {
-    transform(arena, exp, 0, true, &mut |node, depth| match node {
+    transform(arena, exp, 0, &mut |node, depth| match node {
         Node::Var(candidate) if candidate.is_eq_ptr(var) => {
             Some(shift_bound_indices(arena, replacement, depth, 0))
         }
@@ -696,7 +779,7 @@ pub fn exp_subst(arena: &Arena, exp: Exp, var: &Var, replacement: Exp) -> Exp {
 }
 
 pub(crate) fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff: usize) -> Exp {
-    transform(arena, exp, 0, false, &mut |node, depth| match node {
+    transform(arena, exp, 0, &mut |node, depth| match node {
         Node::Bound(index) if *index >= cutoff + depth => {
             Some(arena.alloc(Node::Bound(index + amount)))
         }
@@ -706,7 +789,7 @@ pub(crate) fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff
 
 /// Replace the outermost locally bound variable in `body` with `argument`.
 pub fn instantiate(arena: &Arena, body: Exp, binder: &Var, argument: Exp) -> Exp {
-    let instantiated = transform(arena, body, 0, false, &mut |node, depth| match node {
+    let instantiated = transform(arena, body, 0, &mut |node, depth| match node {
         Node::Bound(index) if *index == depth => {
             Some(shift_bound_indices(arena, argument, depth, 0))
         }
@@ -766,14 +849,15 @@ pub fn exp_subst_map(arena: &Arena, mut exp: Exp, substitutions: &[(Var, Exp)]) 
     exp
 }
 
-pub fn erase(arena: &Arena, exp: Exp) -> Exp {
+pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
+    let arena = env.arena();
     match arena.get(exp) {
-        Node::SubsetIntro { element, .. } => erase(arena, element),
-        Node::DefinedConstant(definition) => erase(arena, definition.body),
+        Node::SubsetIntro { element, .. } => erase(env, element),
+        Node::DefinedConstant(definition) => erase(env, env.definition(definition).body),
         node => {
             let mut changed = false;
             let erased = map_children(node, |child| {
-                let result = erase(arena, child);
+                let result = erase(env, child);
                 changed |= result != child;
                 result
             });
@@ -782,13 +866,14 @@ pub fn erase(arena: &Arena, exp: Exp) -> Exp {
     }
 }
 
-pub fn exp_reduce_if_top(arena: &Arena, exp: Exp) -> Option<Exp> {
+pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
+    let arena = env.arena();
     match arena.get(exp) {
         Node::App { func, arg } => match arena.get(func) {
             Node::Lam { var, body, .. } => Some(instantiate(arena, body, &var, arg)),
             _ => None,
         },
-        Node::DefinedConstant(definition) => Some(definition.body),
+        Node::DefinedConstant(definition) => Some(env.definition(definition).body),
         Node::Pred {
             subset, element, ..
         } => match arena.get(subset) {
@@ -797,21 +882,22 @@ pub fn exp_reduce_if_top(arena: &Arena, exp: Exp) -> Option<Exp> {
             }
             _ => None,
         },
-        Node::IndElim { .. } => inductive_type_elim_reduce(arena, exp).ok(),
+        Node::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
         _ => None,
     }
 }
 
-fn exp_reduce_head_once(arena: &Arena, exp: Exp, erase_subset_intro: bool) -> Option<Exp> {
+fn exp_reduce_head_once(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> Option<Exp> {
+    let arena = env.arena();
     if erase_subset_intro && let Node::SubsetIntro { element, .. } = arena.get(exp) {
         return Some(element);
     }
-    if let Some(reduced) = exp_reduce_if_top(arena, exp) {
+    if let Some(reduced) = exp_reduce_if_top(env, exp) {
         return Some(reduced);
     }
     match arena.get(exp) {
         Node::App { func, arg } => {
-            let reduced_func = exp_whnf_with_mode(arena, func, erase_subset_intro);
+            let reduced_func = exp_whnf_with_mode(env, func, erase_subset_intro);
             (reduced_func != func).then(|| {
                 arena.alloc(Node::App {
                     func: reduced_func,
@@ -824,7 +910,7 @@ fn exp_reduce_head_once(arena: &Arena, exp: Exp, erase_subset_intro: bool) -> Op
             subset,
             element,
         } => {
-            let reduced_subset = exp_whnf_with_mode(arena, subset, erase_subset_intro);
+            let reduced_subset = exp_whnf_with_mode(env, subset, erase_subset_intro);
             (reduced_subset != subset).then(|| {
                 arena.alloc(Node::Pred {
                     superset,
@@ -839,7 +925,7 @@ fn exp_reduce_head_once(arena: &Arena, exp: Exp, erase_subset_intro: bool) -> Op
             return_type,
             cases,
         } => {
-            let reduced_elim = exp_whnf_with_mode(arena, elim, erase_subset_intro);
+            let reduced_elim = exp_whnf_with_mode(env, elim, erase_subset_intro);
             (reduced_elim != elim).then(|| {
                 arena.alloc(Node::IndElim {
                     indspec,
@@ -853,24 +939,25 @@ fn exp_reduce_head_once(arena: &Arena, exp: Exp, erase_subset_intro: bool) -> Op
     }
 }
 
-fn exp_whnf_with_mode(arena: &Arena, exp: Exp, erase_subset_intro: bool) -> Exp {
+fn exp_whnf_with_mode(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> Exp {
     let mut current = exp;
-    while let Some(next) = exp_reduce_head_once(arena, current, erase_subset_intro) {
+    while let Some(next) = exp_reduce_head_once(env, current, erase_subset_intro) {
         current = next;
     }
     current
 }
 
-pub fn whnf(arena: &Arena, exp: Exp) -> Exp {
-    exp_whnf_with_mode(arena, exp, false)
+pub fn whnf(env: &CrateEnv, exp: Exp) -> Exp {
+    exp_whnf_with_mode(env, exp, false)
 }
 
-pub fn normalize(arena: &Arena, exp: Exp) -> Exp {
-    let head = whnf(arena, exp);
+pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
+    let arena = env.arena();
+    let head = whnf(env, exp);
     let node = arena.get(head);
     let mut changed = false;
     let normalized = map_children(node, |child| {
-        let result = normalize(arena, child);
+        let result = normalize(env, child);
         changed |= result != child;
         result
     });
@@ -881,66 +968,69 @@ pub fn normalize(arena: &Arena, exp: Exp) -> Exp {
     }
 }
 
-pub fn reduce_one(arena: &Arena, exp: Exp) -> Option<Exp> {
-    if let Some(reduced) = exp_reduce_if_top(arena, exp) {
+pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
+    if let Some(reduced) = exp_reduce_if_top(env, exp) {
         return Some(reduced);
     }
-    let normalized = normalize(arena, exp);
+    let normalized = normalize(env, exp);
     (normalized != exp).then_some(normalized)
 }
 
-pub fn convertible(arena: &Arena, left: Exp, right: Exp) -> bool {
-    exp_is_convertible_with_mode(arena, left, right, false)
+pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
+    exp_is_convertible_with_mode(env, left, right, false)
 }
 
-pub fn erased_normal(arena: &Arena, exp: Exp) -> Exp {
-    let erased = erase(arena, exp);
-    normalize(arena, erased)
+pub fn erased_normal(env: &CrateEnv, exp: Exp) -> Exp {
+    let erased = erase(env, exp);
+    normalize(env, erased)
 }
 
-pub fn erased_convertible(arena: &Arena, left: Exp, right: Exp) -> bool {
-    exp_is_convertible_with_mode(arena, left, right, true)
+pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
+    exp_is_convertible_with_mode(env, left, right, true)
 }
 
-pub(crate) fn type_head_normal(arena: &Arena, ty: Exp) -> Exp {
-    exp_whnf_with_mode(arena, ty, true)
+pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {
+    exp_whnf_with_mode(env, ty, true)
 }
 
-pub(crate) fn expose_product(arena: &Arena, ty: Exp) -> Option<(Var, Exp, Exp)> {
-    let mut current = type_head_normal(arena, ty);
+pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(Var, Exp, Exp)> {
+    let arena = env.arena();
+    let mut current = type_head_normal(env, ty);
     loop {
         match arena.get(current) {
             Node::Prod { var, ty, body } => return Some((var, ty, body)),
-            Node::TypeLift { superset, .. } => current = type_head_normal(arena, superset),
+            Node::TypeLift { superset, .. } => current = type_head_normal(env, superset),
             _ => return None,
         }
     }
 }
 
-pub(crate) fn base_carrier(arena: &Arena, ty: Exp) -> Exp {
-    let mut current = type_head_normal(arena, ty);
+pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
+    let arena = env.arena();
+    let mut current = type_head_normal(env, ty);
     loop {
         match arena.get(current) {
-            Node::TypeLift { superset, .. } => current = type_head_normal(arena, superset),
+            Node::TypeLift { superset, .. } => current = type_head_normal(env, superset),
             _ => return current,
         }
     }
 }
 
-pub(crate) fn common_ambient_carrier(arena: &Arena, left_ty: Exp, right_ty: Exp) -> Option<Exp> {
-    let left_carrier = base_carrier(arena, left_ty);
-    let right_carrier = base_carrier(arena, right_ty);
-    erased_convertible(arena, left_carrier, right_carrier).then_some(left_carrier)
+pub(crate) fn common_ambient_carrier(env: &CrateEnv, left_ty: Exp, right_ty: Exp) -> Option<Exp> {
+    let left_carrier = base_carrier(env, left_ty);
+    let right_carrier = base_carrier(env, right_ty);
+    erased_convertible(env, left_carrier, right_carrier).then_some(left_carrier)
 }
 
-pub(crate) fn can_weaken_to(arena: &Arena, inferred: Exp, expected: Exp) -> bool {
-    if erased_convertible(arena, inferred, expected) {
+pub(crate) fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
+    if erased_convertible(env, inferred, expected) {
         return true;
     }
-    let inferred = type_head_normal(arena, inferred);
-    let expected = type_head_normal(arena, expected);
+    let arena = env.arena();
+    let inferred = type_head_normal(env, inferred);
+    let expected = type_head_normal(env, expected);
     match (arena.get(inferred), arena.get(expected)) {
-        (Node::TypeLift { superset, .. }, _) => can_weaken_to(arena, superset, expected),
+        (Node::TypeLift { superset, .. }, _) => can_weaken_to(env, superset, expected),
         (
             Node::Prod {
                 ty: inferred_domain,
@@ -952,10 +1042,10 @@ pub(crate) fn can_weaken_to(arena: &Arena, inferred: Exp, expected: Exp) -> bool
                 ty: expected_domain,
                 body: expected_body,
             },
-        ) if erased_convertible(arena, inferred_domain, expected_domain) => {
+        ) if erased_convertible(env, inferred_domain, expected_domain) => {
             let free = arena.var(expected_var.clone());
             let expected_body = instantiate(arena, expected_body, &expected_var, free);
-            can_weaken_to(arena, inferred_body, expected_body)
+            can_weaken_to(env, inferred_body, expected_body)
         }
         _ => false,
     }
