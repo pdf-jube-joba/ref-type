@@ -1,270 +1,218 @@
-use std::{fmt::Debug, rc::Rc};
+//! Kernel expressions and their append-only arena.
 
+use std::cell::RefCell;
+
+use crate::ids::{DefId, InductiveId, ModuleParamId, SymbolId};
+use crate::sort::Sort;
 use serde::{Deserialize, Serialize};
 
-use crate::serialize::serialize_rc_ptr;
+/// A stable index into an [`Arena`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NodeId(u32);
 
-// variable is represented as std::rc::Rc<String>
-#[derive(Clone)]
-pub struct Var(Rc<String>);
-
-impl Var {
-    pub fn new(name: &str) -> Self {
-        Var(Rc::new(name.to_string()))
-    }
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-    pub fn ptr(&self) -> *const String {
-        Rc::as_ptr(&self.0)
-    }
-    pub fn is_eq_ptr(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-    pub fn dummy() -> Self {
-        Var(Rc::new("_".to_string()))
+impl NodeId {
+    pub fn index(self) -> usize {
+        self.0 as usize
     }
 }
 
-impl PartialEq for Var {
-    fn eq(&self, other: &Self) -> bool {
-        self.ptr() == other.ptr()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum Sort {
-    Set(usize),     // predicative SET(i):
-    SetKind(usize), // SET(i): SETKind(i)
-    Prop,           // proposition
-    PropKind,       // Prop: PropKind
-    Univ,           // for programming language
-    UnivKind,       // Type: TypeKind
-}
-
-// functional pure type system
-impl Sort {
-    // functional pure type system, i.e. foraeach s1, (s1, s2) in R => s2 is unique
-    pub fn type_of_sort(self) -> Option<Self> {
-        match self {
-            Sort::Prop => Some(Sort::PropKind),
-            Sort::PropKind => None,
-            Sort::Univ => Some(Sort::PropKind),
-            Sort::UnivKind => None,
-            Sort::Set(i) => Some(Sort::SetKind(i)),
-            Sort::SetKind(_) => None,
-        }
-    }
-
-    // functional pure type system, i.e. for each s1, s2, (s1, s2, s3) in R => s3 is unique
-    pub fn relation_of_sort(self, other: Self) -> Option<Self> {
-        match (self, other) {
-            // Prop: PropKind part（ non dependent ）
-            (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::PropKind, Sort::PropKind) => Some(Sort::PropKind),
-            (Sort::PropKind, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
-            (Sort::Prop, Sort::PropKind) => None,             // dependent なし
-            // Set(i): SetKind(i) part (predicative)
-            (Sort::Set(i), Sort::Set(j)) if i == j => Some(Sort::Set(i)),
-            (Sort::Set(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
-            (Sort::SetKind(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
-            (Sort::SetKind(i), Sort::Set(j)) if i == j => Some(Sort::Set(i + 1)),
-            (Sort::Set(_) | Sort::SetKind(_), Sort::Set(_) | Sort::SetKind(_)) => None,
-            // Type: TypeKind (include dependent, impredicative)
-            (Sort::Univ | Sort::UnivKind, Sort::Univ | Sort::UnivKind) => Some(other),
-            // relation of set and prop
-            (Sort::Set(_), Sort::PropKind) => Some(Sort::PropKind),
-            (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop | Sort::PropKind, Sort::Set(_)) => None,
-            // other => None
-            _ => None,
-        }
-    }
-
-    // inductive type relation (restiction for large elimination)
-    pub fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
-        match (self, other) {
-            (
-                Sort::PropKind
-                | Sort::Prop
-                | Sort::Set(_)
-                | Sort::SetKind(_)
-                | Sort::Univ
-                | Sort::UnivKind,
-                Sort::Prop,
-            ) => Some(()),
-            (Sort::Set(i), Sort::Set(j)) => {
-                if i <= j {
-                    Some(())
-                } else {
-                    None
-                }
-            }
-            (Sort::Set(_), Sort::PropKind) => Some(()),
-            (Sort::PropKind, Sort::PropKind) => Some(()),
-            _ => None,
-        }
-    }
-
-    pub fn can_lift_to(self, to: Self) -> bool {
-        match (self, to) {
-            (Sort::Set(i), Sort::Set(j)) if i <= j => true,
-            (Sort::SetKind(i), Sort::SetKind(j)) if i <= j => true,
-            _ => false,
-        }
-    }
-}
+/// The expression handle used throughout the kernel.
+pub type Exp = NodeId;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct DefinedConstant {
-    pub ty: Exp,
-    pub body: Exp,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum Exp {
+pub enum Node {
     Sort(Sort),
-    Var(Var),
+    /// A locally bound variable, counted outwards from the occurrence.
+    /// `Bound(0)` refers to the nearest enclosing binder.
+    Bound(usize),
+    /// A parameter of a module. Locally bound variables use [`Node::Bound`].
+    ModuleParam(ModuleParamId),
+    // A reference to a defined constant. The definition is stored in the environment.
+    DefinedConstant(DefId),
     // (var: ty) -> body where var is bound in body but not in ty
     Prod {
-        var: Var,
-        ty: Box<Exp>,
-        body: Box<Exp>, // bind one variable
+        var: SymbolId,
+        ty: Exp,
+        body: Exp, // bind one variable
     },
     // (var: ty) => body where var is bound in body but not in ty
     Lam {
-        var: Var,
-        ty: Box<Exp>,
-        body: Box<Exp>, // bind one variable
+        var: SymbolId,
+        ty: Exp,
+        body: Exp, // bind one variable
     },
     // usual application (f x)
     App {
-        func: Box<Exp>,
-        arg: Box<Exp>,
+        func: Exp,
+        arg: Exp,
     },
-    DefinedConstant(#[serde(serialize_with = "serialize_rc_ptr")] Rc<DefinedConstant>),
     IndType {
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: InductiveId,
         parameters: Vec<Exp>, // uncurry with parameter
     },
     IndCtor {
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
+        indspec: InductiveId,
         parameters: Vec<Exp>, // uncurry with parameter
         idx: usize,
     },
     IndElim {
         // this is primitive recursion
-        #[serde(serialize_with = "serialize_rc_ptr")]
-        indspec: Rc<crate::inductive::InductiveTypeSpecs>,
-        elim: Box<Exp>,
-        return_type: Box<Exp>,
+        indspec: InductiveId,
+        elim: Exp,
+        return_type: Exp,
         cases: Vec<Exp>, // no bindings
     },
     PowerSet {
-        set: Box<Exp>,
+        set: Exp,
     },
     // {var: set | predicate} where var is bound in predicate but not in A
     SubSet {
-        var: Var,
-        set: Box<Exp>,
-        predicate: Box<Exp>,
+        var: SymbolId,
+        set: Exp,
+        predicate: Exp,
     },
     Pred {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        element: Box<Exp>,
+        superset: Exp,
+        subset: Exp,
+        element: Exp,
     },
     TypeLift {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
+        superset: Exp,
+        subset: Exp,
     },
     // Introduce `element` into `subset` of `superset` using `proof`.
     // This is a typing annotation and erases to `element` computationally.
     SubsetIntro {
-        superset: Box<Exp>,
-        subset: Box<Exp>,
-        element: Box<Exp>,
-        proof: Box<Exp>,
+        superset: Exp,
+        subset: Exp,
+        element: Exp,
+        proof: Exp,
     },
     Equal {
-        left: Box<Exp>,
-        right: Box<Exp>,
+        left: Exp,
+        right: Exp,
     },
     // just non-emptyness proposition
     Exists {
-        set: Box<Exp>,
+        set: Exp,
     },
     TakeSet {
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        map: Box<Exp>,
-        existence: Box<Exp>,
-        uniqueness: Box<Exp>,
+        domain: Exp,
+        codomain: Exp,
+        map: Exp,
+        existence: Exp,
+        uniqueness: Exp,
     },
     TakeProp {
-        domain: Box<Exp>,
-        proposition: Box<Exp>,
-        map: Box<Exp>,
-        existence: Box<Exp>,
+        domain: Exp,
+        proposition: Exp,
+        map: Exp,
+        existence: Exp,
     },
     ExistsIntro {
-        element: Box<Exp>,
-        set: Box<Exp>,
+        element: Exp,
+        set: Exp,
     },
     SubsetElim {
-        element: Box<Exp>,
-        subset: Box<Exp>,
-        superset: Box<Exp>,
+        element: Exp,
+        subset: Exp,
+        superset: Exp,
     },
     IdRefl {
-        element: Box<Exp>,
+        element: Exp,
     },
     IdElim {
-        left: Box<Exp>,
-        right: Box<Exp>,
-        ty: Box<Exp>,
-        var: Var,
-        predicate: Box<Exp>,
-        base: Box<Exp>,
-        equality: Box<Exp>,
+        left: Exp,
+        right: Exp,
+        ty: Exp,
+        var: SymbolId,
+        predicate: Exp,
+        base: Exp,
+        equality: Exp,
     },
     TakeEq {
-        func: Box<Exp>,
-        domain: Box<Exp>,
-        codomain: Box<Exp>,
-        element: Box<Exp>,
-        existence: Box<Exp>,
-        uniqueness: Box<Exp>,
+        func: Exp,
+        domain: Exp,
+        codomain: Exp,
+        element: Exp,
+        existence: Exp,
+        uniqueness: Exp,
     },
 }
 
-impl Exp {
-    pub fn as_var(&self) -> Option<&Var> {
-        if let Exp::Var(v) = self {
-            Some(v)
-        } else {
-            None
+#[cfg(feature = "bench-internals")]
+#[derive(Debug, Clone, Copy)]
+pub struct ArenaMark {
+    nodes: usize,
+}
+
+/// Append-only storage for every kernel expression node.
+#[derive(Debug, Default)]
+pub struct Arena {
+    nodes: RefCell<Vec<Node>>,
+}
+
+impl Arena {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn alloc(&self, node: Node) -> Exp {
+        let mut nodes = self.nodes.borrow_mut();
+        let index = u32::try_from(nodes.len()).expect("expression arena exceeded u32::MAX");
+        nodes.push(node);
+        NodeId(index)
+    }
+
+    /// Return a shallow copy. Child expressions remain cheap `NodeId`s.
+    pub fn get(&self, id: Exp) -> Node {
+        self.nodes.borrow()[id.index()].clone()
+    }
+
+    pub fn len(&self) -> usize {
+        self.nodes.borrow().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.borrow().is_empty()
+    }
+
+    /// Checkpoint the arena for benchmark iteration cleanup.
+    ///
+    /// This is deliberately unavailable unless the `bench-internals` feature
+    /// is enabled. Every expression allocated after the returned mark becomes
+    /// invalid after [`Arena::rewind`].
+    #[cfg(feature = "bench-internals")]
+    pub fn mark(&self) -> ArenaMark {
+        ArenaMark { nodes: self.len() }
+    }
+
+    /// Discard benchmark temporaries allocated after `mark`.
+    ///
+    /// Callers must not retain any expression allocated after the mark.
+    #[cfg(feature = "bench-internals")]
+    pub fn rewind(&self, mark: ArenaMark) {
+        self.nodes.borrow_mut().truncate(mark.nodes);
+    }
+
+    pub fn sort(&self, sort: Sort) -> Exp {
+        self.alloc(Node::Sort(sort))
+    }
+
+    pub fn bound(&self, index: usize) -> Exp {
+        self.alloc(Node::Bound(index))
+    }
+
+    pub fn module_param(&self, parameter: ModuleParamId) -> Exp {
+        self.alloc(Node::ModuleParam(parameter))
+    }
+
+    pub fn as_module_param(&self, exp: Exp) -> Option<ModuleParamId> {
+        match self.get(exp) {
+            Node::ModuleParam(parameter) => Some(parameter),
+            _ => None,
         }
     }
 }
 
-pub type Context = Vec<(Var, Exp)>;
-
-/// Return a new context that is `ctx` extended with one (Var, Exp)
-pub fn ctx_extend(ctx: &Context, varty: (Var, Exp)) -> Context {
-    let mut new_ctx = ctx.clone();
-    new_ctx.push(varty);
-    new_ctx
-}
-
-/// Lookup a variable in the context by pointer-equality (same semantics as previous implementation)
-pub fn ctx_get<'a>(ctx: &'a Context, var: &'a Var) -> Option<&'a Exp> {
-    for (v, ty) in ctx.iter().rev() {
-        if v.is_eq_ptr(var) {
-            return Some(ty);
-        }
-    }
-    None
-}
+pub type Context = Vec<(SymbolId, Exp)>;

@@ -1,18 +1,22 @@
-use std::rc::Rc;
-
 use crate::elaborator::ItemAccessResult;
 use crate::syntax::*;
-use kernel::calculus::{exp_contains_as_freevar, exp_subst_map};
+use kernel::calculus::{exp_contains_bound, instantiate};
+use kernel::environment::CrateEnv;
 use kernel::exp::*;
+use kernel::ids::*;
 use kernel::inductive::InductiveTypeSpecs;
 
 pub trait Handler {
+    fn env(&self) -> &CrateEnv;
+    fn arena(&self) -> &Arena;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, String>;
-    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, String>;
-    fn infer(&mut self, local_ctx: &Context, e: &Exp) -> Result<Exp, String>;
+    fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String>;
+    fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String>;
+    fn intern(&mut self, name: &str) -> SymbolId;
+    fn symbol(&self, symbol: SymbolId) -> &str;
 }
 
 // local scope during elaboration
@@ -21,9 +25,9 @@ pub struct LocalScope {
     // for find binded variables inside term
     // lambda abstraction variables, product, subset,
     // after any call of elab_exp outside the elab_exp, this should be cleared
-    binded_vars: Vec<Var>,
+    binded_vars: Vec<SymbolId>,
     // for find decl levels
-    decl_binds: Vec<Var>,
+    decl_binds: Vec<(SymbolId, Option<Exp>)>,
     // Types of local variables known to the elaborator. Module variables are
     // supplied by the handler and therefore do not appear here.
     typing_binds: Context,
@@ -44,12 +48,21 @@ impl LocalScope {
         }
     }
 
-    pub fn push_decl_var(&mut self, var: Var) {
-        self.decl_binds.push(var);
+    pub fn push_decl_var(&mut self, var: SymbolId) {
+        self.decl_binds.push((var, None));
     }
 
-    pub fn push_typed_decl_var(&mut self, var: Var, ty: Exp) {
-        self.decl_binds.push(var.clone());
+    pub fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
+        self.decl_binds.push((var, Some(exp)));
+    }
+
+    pub fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
+        self.decl_binds.push((var, None));
+        self.typing_binds.push((var, ty));
+    }
+
+    pub fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
+        self.decl_binds.push((var, Some(exp)));
         self.typing_binds.push((var, ty));
     }
 
@@ -58,35 +71,35 @@ impl LocalScope {
         &mut self,
         binds: &[RightBind],
         handler: &mut impl Handler,
-    ) -> Result<Vec<(Var, Exp)>, String> {
+    ) -> Result<Vec<(SymbolId, Exp)>, String> {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
             for var in vars {
-                let var = Var::new(var.as_str());
-                result.push((var.clone(), ty_elab.clone()));
-                self.push_typed_decl_var(var, ty_elab.clone());
+                let var = handler.intern(var.as_str());
+                result.push((var, ty_elab));
+                self.push_typed_decl_var(var, ty_elab);
             }
         }
         Ok(result)
     }
 
-    fn get_var(&self, name: &Identifier) -> Option<Var> {
-        for v in self.binded_vars.iter().rev() {
-            if v.as_str() == name.as_str() {
-                return Some(v.clone());
+    fn get_var(&self, arena: &Arena, name: &Identifier, handler: &impl Handler) -> Option<Exp> {
+        for (index, v) in self.binded_vars.iter().rev().enumerate() {
+            if handler.symbol(*v) == name.as_str() {
+                return Some(arena.bound(index));
             }
         }
-        for v in self.decl_binds.iter().rev() {
-            if v.as_str() == name.as_str() {
-                return Some(v.clone());
+        for (index, (v, exp)) in self.decl_binds.iter().rev().enumerate() {
+            if handler.symbol(*v) == name.as_str() {
+                return Some(exp.unwrap_or_else(|| arena.bound(self.binded_vars.len() + index)));
             }
         }
         None
     }
 
-    fn push_binded_var(&mut self, var: Var, ty: Exp) {
-        self.binded_vars.push(var.clone());
+    fn push_binded_var(&mut self, var: SymbolId, ty: Exp) {
+        self.binded_vars.push(var);
         self.typing_binds.push((var, ty));
     }
     fn pop_binded_var(&mut self) {
@@ -113,57 +126,59 @@ impl LocalScope {
                     return Err("\\take currently expects exactly one named variable".into());
                 }
 
-                let var = Var::new(right_bind.vars[0].as_str());
+                let var = handler.intern(right_bind.vars[0].as_str());
                 let domain = self.elab_exp_rec(&right_bind.ty, handler)?;
-                self.push_binded_var(var.clone(), domain.clone());
+                self.push_binded_var(var, domain);
                 let map_body = self.elab_exp_rec(body, handler)?;
                 self.pop_binded_var();
-                let map = Exp::Lam {
-                    var: var.clone(),
-                    ty: Box::new(domain.clone()),
-                    body: Box::new(map_body),
-                };
-                let map_ty = handler.infer(&self.typing_binds, &map)?;
-                let Exp::Prod { body: codomain, .. } = map_ty else {
+                let map = handler.arena().alloc(Node::Lam {
+                    var,
+                    ty: domain,
+                    body: map_body,
+                });
+                let map_ty = handler.infer(&mut self.typing_binds, map)?;
+                let Node::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
                     return Err("failed to infer a product type for \\take map".into());
                 };
-                if exp_contains_as_freevar(&codomain, &var) {
+                if exp_contains_bound(handler.arena(), codomain, 0) {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
-                Ok((domain, map, *codomain))
+                let codomain = instantiate(handler.arena(), codomain, domain);
+                Ok((domain, map, codomain))
             }
             Bind::Subset { var, ty, predicate } => {
                 let carrier = self.elab_exp_rec(ty, handler)?;
-                let var = Var::new(var.as_str());
-                self.push_binded_var(var.clone(), carrier.clone());
+                let var = handler.intern(var.as_str());
+                self.push_binded_var(var, carrier);
                 let predicate = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
 
-                let subset = Exp::SubSet {
-                    var: var.clone(),
-                    set: Box::new(carrier.clone()),
-                    predicate: Box::new(predicate),
-                };
-                let domain = Exp::TypeLift {
-                    superset: Box::new(carrier),
-                    subset: Box::new(subset),
-                };
-                self.push_binded_var(var.clone(), domain.clone());
+                let subset = handler.arena().alloc(Node::SubSet {
+                    var,
+                    set: carrier,
+                    predicate,
+                });
+                let domain = handler.arena().alloc(Node::TypeLift {
+                    superset: carrier,
+                    subset,
+                });
+                self.push_binded_var(var, domain);
                 let map_body = self.elab_exp_rec(body, handler)?;
                 self.pop_binded_var();
-                let map = Exp::Lam {
-                    var: var.clone(),
-                    ty: Box::new(domain.clone()),
-                    body: Box::new(map_body),
-                };
-                let map_ty = handler.infer(&self.typing_binds, &map)?;
-                let Exp::Prod { body: codomain, .. } = map_ty else {
+                let map = handler.arena().alloc(Node::Lam {
+                    var,
+                    ty: domain,
+                    body: map_body,
+                });
+                let map_ty = handler.infer(&mut self.typing_binds, map)?;
+                let Node::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
                     return Err("failed to infer a product type for \\take map".into());
                 };
-                if exp_contains_as_freevar(&codomain, &var) {
+                if exp_contains_bound(handler.arena(), codomain, 0) {
                     return Err("\\take map must have a non-dependent codomain".into());
                 }
-                Ok((domain, map, *codomain))
+                let codomain = instantiate(handler.arena(), codomain, domain);
+                Ok((domain, map, codomain))
             }
             Bind::SubsetWithProof { .. } => {
                 Err("\\take with proof bind is not supported by kernel Take(X,T,f)".into())
@@ -178,18 +193,18 @@ impl LocalScope {
 
                 // 1. find from binded vars first (if no parameters)
                 if let LocalAccess::Current { access: name } = access
-                    && let Some(var) = self.get_var(name)
+                    && let Some(var) = self.get_var(handler.arena(), name, handler)
                     && parameters.is_empty()
                 {
-                    return Ok(Exp::Var(var));
+                    return Ok(var);
                 }
 
                 // 2. others via handler
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
-                    ItemAccessResult::Definition(ModItemDefinition { body, .. }) => {
+                    ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
                         if parameters.is_empty() {
-                            Ok(Exp::DefinedConstant(body.clone()))
+                            Ok(handler.arena().alloc(Node::DefinedConstant(definition)))
                         } else {
                             Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
@@ -198,7 +213,7 @@ impl LocalScope {
                         }
                     }
                     ItemAccessResult::Inductive(ModItemInductive {
-                        ind_defs,
+                        inductive,
                         type_name: _,
                         ctor_names: _,
                     }) => {
@@ -207,27 +222,27 @@ impl LocalScope {
                             .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
 
-                        Ok(Exp::IndType {
-                            indspec: ind_defs.clone(),
+                        Ok(handler.arena().alloc(Node::IndType {
+                            indspec: inductive,
                             parameters,
-                        })
+                        }))
                     }
                     ItemAccessResult::Record(ModItemRecord {
                         type_name: _,
-                        rc_spec_as_indtype,
+                        inductive,
                     }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
-                        Ok(Exp::IndType {
-                            indspec: rc_spec_as_indtype,
+                        Ok(handler.arena().alloc(Node::IndType {
+                            indspec: inductive,
                             parameters,
-                        })
+                        }))
                     }
                     ItemAccessResult::Expression(exp) => {
                         if parameters.is_empty() {
-                            Ok(exp.clone())
+                            Ok(exp)
                         } else {
                             Err("Module parameter cannot be applied with parameters".to_string())
                         }
@@ -242,7 +257,7 @@ impl LocalScope {
                     let item = handler.get_item_from_access_path(access)?;
                     match item {
                         ItemAccessResult::Inductive(ModItemInductive {
-                            ind_defs,
+                            inductive,
                             type_name,
                             ctor_names,
                         }) => {
@@ -252,11 +267,11 @@ impl LocalScope {
                                         .iter()
                                         .map(|e| self.elab_exp_rec(e, handler))
                                         .collect::<Result<_, _>>()?;
-                                    return Ok(Exp::IndCtor {
-                                        indspec: ind_defs.clone(),
+                                    return Ok(handler.arena().alloc(Node::IndCtor {
+                                        indspec: inductive,
                                         idx,
                                         parameters,
-                                    });
+                                    }));
                                 }
                             }
                             Err(format!(
@@ -273,29 +288,35 @@ impl LocalScope {
                 } else {
                     // 2. otherwise, elab base first, then project field
                     let base_elab = self.elab_exp_rec(base, handler)?;
-                    handler.field_projection(&base_elab, field)
+                    handler.field_projection(base_elab, field)
                 }
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
             SExp::Where { exp, clauses } => {
-                // elaborate clauses, register name
-                // then subst var to defconst in exp
-
-                let mut where_def_rcs_substmap: Vec<(Var, Exp)> = vec![];
-                for (name, ty, body) in clauses {
-                    let ty = self.elab_exp_rec(ty, handler)?;
-                    let body = self.elab_exp_rec(body, handler)?;
-                    let def_cst = DefinedConstant { ty, body };
-                    let def_rc = Rc::new(def_cst);
-                    let name: Var = Var::new(name.as_str());
-                    where_def_rcs_substmap.push((name, Exp::DefinedConstant(def_rc)));
-                }
-
-                let exp_elab = self.elab_exp_rec(exp, handler)?;
-
-                Ok(exp_subst_map(&exp_elab, &where_def_rcs_substmap))
+                let declaration_mark = self.decl_binds.len();
+                let result = (|| {
+                    for (name, ty, body) in clauses {
+                        let ty = self.elab_exp_rec(ty, handler)?;
+                        let body = self.elab_exp_rec(body, handler)?;
+                        let inferred = handler.infer(&mut self.typing_binds, body)?;
+                        if !kernel::calculus::convertible(handler.env(), inferred, ty) {
+                            return Err(format!(
+                                "where definition '{}' does not match its declared type",
+                                name.as_str(),
+                            ));
+                        }
+                        let name = handler.intern(name.as_str());
+                        // `where` is non-recursive and definitions are processed in order.
+                        // Store the elaborated body as the declaration's referent, so later
+                        // clauses and the result expression inline it directly.
+                        self.push_decl_var_exp(name, body);
+                    }
+                    self.elab_exp_rec(exp, handler)
+                })();
+                self.decl_binds.truncate(declaration_mark);
+                result
             }
-            SExp::Sort(sort) => Ok(Exp::Sort(*sort)),
+            SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
                 let is_prod = matches!(exp, SExp::Prod { .. });
                 match bind {
@@ -303,29 +324,32 @@ impl LocalScope {
                         if right_bind.vars.is_empty() {
                             // same as Anonymous
                             let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
+                            let var = SymbolId::ANONYMOUS;
+                            self.push_binded_var(var, ty_elab);
                             let body_elab = self.elab_exp_rec(body, handler)?;
+                            self.pop_binded_var();
                             return Ok(if is_prod {
-                                Exp::Prod {
-                                    var: Var::dummy(),
-                                    ty: Box::new(ty_elab),
-                                    body: Box::new(body_elab),
-                                }
+                                handler.arena().alloc(Node::Prod {
+                                    var,
+                                    ty: ty_elab,
+                                    body: body_elab,
+                                })
                             } else {
-                                Exp::Lam {
-                                    var: Var::dummy(),
-                                    ty: Box::new(ty_elab),
-                                    body: Box::new(body_elab),
-                                }
+                                handler.arena().alloc(Node::Lam {
+                                    var,
+                                    ty: ty_elab,
+                                    body: body_elab,
+                                })
                             });
                         }
 
                         let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
 
-                        let mut telescope: Vec<(Var, Exp)> = vec![];
+                        let mut telescope: Vec<(SymbolId, Exp)> = vec![];
                         for var in &right_bind.vars {
-                            let var: Var = Var::new(var.as_str());
-                            telescope.push((var.clone(), ty_elab.clone()));
-                            self.push_binded_var(var, ty_elab.clone());
+                            let var = handler.intern(var.as_str());
+                            telescope.push((var, ty_elab));
+                            self.push_binded_var(var, ty_elab);
                         }
 
                         let body_elab = self.elab_exp_rec(body, handler)?;
@@ -335,44 +359,44 @@ impl LocalScope {
                         }
 
                         Ok(if is_prod {
-                            kernel::utils::assoc_prod(telescope, body_elab)
+                            kernel::utils::assoc_prod(handler.arena(), telescope, body_elab)
                         } else {
-                            kernel::utils::assoc_lam(telescope, body_elab)
+                            kernel::utils::assoc_lam(handler.arena(), telescope, body_elab)
                         })
                     }
                     Bind::Subset { var, ty, predicate } => {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var: Var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone(), ty_elab.clone());
+                        let var = handler.intern(var.as_str());
+                        self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
-                        let subset = Exp::SubSet {
-                            var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
-                        };
+                        let subset = handler.arena().alloc(Node::SubSet {
+                            var,
+                            set: ty_elab,
+                            predicate: predicate_elab,
+                        });
 
-                        let refined_ty = Exp::TypeLift {
-                            superset: Box::new(ty_elab.clone()),
-                            subset: Box::new(subset),
-                        };
-                        self.push_binded_var(var.clone(), refined_ty.clone());
+                        let refined_ty = handler.arena().alloc(Node::TypeLift {
+                            superset: ty_elab,
+                            subset,
+                        });
+                        self.push_binded_var(var, refined_ty);
                         let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
 
                         Ok(if is_prod {
-                            Exp::Prod {
-                                var: var.clone(),
-                                ty: Box::new(refined_ty),
-                                body: Box::new(body_elab),
-                            }
+                            handler.arena().alloc(Node::Prod {
+                                var,
+                                ty: refined_ty,
+                                body: body_elab,
+                            })
                         } else {
-                            Exp::Lam {
-                                var: var.clone(),
-                                ty: Box::new(refined_ty),
-                                body: Box::new(body_elab),
-                            }
+                            handler.arena().alloc(Node::Lam {
+                                var,
+                                ty: refined_ty,
+                                body: body_elab,
+                            })
                         })
                     }
                     Bind::SubsetWithProof {
@@ -382,44 +406,44 @@ impl LocalScope {
                         proof_var,
                     } => {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var: Var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone(), ty_elab.clone());
+                        let var = handler.intern(var.as_str());
+                        self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
-                        let subset = Exp::SubSet {
-                            var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
-                        };
-                        let refined_ty = Exp::TypeLift {
-                            superset: Box::new(ty_elab),
-                            subset: Box::new(subset),
-                        };
-                        self.push_binded_var(var.clone(), refined_ty.clone());
-                        let proof: Var = Var::new(proof_var.as_str());
-                        self.push_binded_var(proof.clone(), predicate_elab.clone());
+                        let subset = handler.arena().alloc(Node::SubSet {
+                            var,
+                            set: ty_elab,
+                            predicate: predicate_elab,
+                        });
+                        let refined_ty = handler.arena().alloc(Node::TypeLift {
+                            superset: ty_elab,
+                            subset,
+                        });
+                        self.push_binded_var(var, refined_ty);
+                        let proof = handler.intern(proof_var.as_str());
+                        self.push_binded_var(proof, predicate_elab);
                         let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
                         self.pop_binded_var();
-                        let body_elab = Box::new(Exp::Prod {
+                        let body_elab = handler.arena().alloc(Node::Prod {
                             var: proof,
-                            ty: Box::new(predicate_elab),
-                            body: Box::new(body_elab),
+                            ty: predicate_elab,
+                            body: body_elab,
                         });
 
                         Ok(if is_prod {
-                            Exp::Prod {
-                                var: var.clone(),
-                                ty: Box::new(refined_ty),
+                            handler.arena().alloc(Node::Prod {
+                                var,
+                                ty: refined_ty,
                                 body: body_elab,
-                            }
+                            })
                         } else {
-                            Exp::Lam {
-                                var: var.clone(),
-                                ty: Box::new(refined_ty),
+                            handler.arena().alloc(Node::Lam {
+                                var,
+                                ty: refined_ty,
                                 body: body_elab,
-                            }
+                            })
                         })
                     }
                 }
@@ -431,10 +455,10 @@ impl LocalScope {
             } => {
                 let func_elab = self.elab_exp_rec(func, handler)?;
                 let arg_elab = self.elab_exp_rec(arg, handler)?;
-                Ok(Exp::App {
-                    func: Box::new(func_elab),
-                    arg: Box::new(arg_elab),
-                })
+                Ok(handler.arena().alloc(Node::App {
+                    func: func_elab,
+                    arg: arg_elab,
+                }))
             }
             SExp::SubsetIntro {
                 superset,
@@ -446,12 +470,12 @@ impl LocalScope {
                 let subset_elab = self.elab_exp_rec(subset, handler)?;
                 let element_elab = self.elab_exp_rec(element, handler)?;
                 let proof_elab = self.elab_exp_rec(proof, handler)?;
-                Ok(Exp::SubsetIntro {
-                    superset: Box::new(superset_elab),
-                    subset: Box::new(subset_elab),
-                    element: Box::new(element_elab),
-                    proof: Box::new(proof_elab),
-                })
+                Ok(handler.arena().alloc(Node::SubsetIntro {
+                    superset: superset_elab,
+                    subset: subset_elab,
+                    element: element_elab,
+                    proof: proof_elab,
+                }))
             }
             SExp::IndElim {
                 path,
@@ -462,7 +486,7 @@ impl LocalScope {
                 let ItemAccessResult::Inductive(ModItemInductive {
                     type_name: _,
                     ctor_names,
-                    ind_defs,
+                    inductive,
                 }) = handler.get_item_from_access_path(path)?
                 else {
                     return Err(format!(
@@ -486,12 +510,12 @@ impl LocalScope {
                     cases_elab.push(case_elab);
                 }
 
-                Ok(Exp::IndElim {
-                    indspec: ind_defs.clone(),
-                    elim: Box::new(elim_elab),
-                    return_type: Box::new(return_type_elab),
+                Ok(handler.arena().alloc(Node::IndElim {
+                    indspec: inductive,
+                    elim: elim_elab,
+                    return_type: return_type_elab,
                     cases: cases_elab,
-                })
+                }))
             }
             SExp::IndElimPrim {
                 path,
@@ -501,7 +525,7 @@ impl LocalScope {
                 let ItemAccessResult::Inductive(ModItemInductive {
                     type_name: _,
                     ctor_names: _,
-                    ind_defs,
+                    inductive,
                 }) = handler.get_item_from_access_path(path)?
                 else {
                     return Err(format!(
@@ -515,7 +539,11 @@ impl LocalScope {
                     .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
                 Ok(InductiveTypeSpecs::primitive_recursion(
-                    &ind_defs, parameters, *sort,
+                    handler.arena(),
+                    inductive,
+                    handler.env().inductive(inductive),
+                    parameters,
+                    *sort,
                 ))
             }
 
@@ -526,7 +554,7 @@ impl LocalScope {
             } => {
                 let ItemAccessResult::Record(ModItemRecord {
                     type_name: _,
-                    rc_spec_as_indtype,
+                    inductive,
                 }) = handler.get_item_from_access_path(access)?
                 else {
                     return Err(format!(
@@ -545,18 +573,16 @@ impl LocalScope {
                     fields_elab.push((field_name.clone(), field_ty_elab));
                 }
 
-                Ok(Exp::IndCtor {
-                    indspec: rc_spec_as_indtype.clone(),
+                Ok(handler.arena().alloc(Node::IndCtor {
+                    indspec: inductive,
                     parameters,
                     idx: 0, // record type has only one constructor
-                })
+                }))
             }
 
             SExp::PowerSet { set } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
-                Ok(Exp::PowerSet {
-                    set: Box::new(set_elab),
-                })
+                Ok(handler.arena().alloc(Node::PowerSet { set: set_elab }))
             }
             SExp::SubSet {
                 var,
@@ -564,15 +590,15 @@ impl LocalScope {
                 predicate,
             } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
-                let var: Var = Var::new(var.as_str());
-                self.push_binded_var(var.clone(), set_elab.clone());
+                let var = handler.intern(var.as_str());
+                self.push_binded_var(var, set_elab);
                 let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
-                Ok(Exp::SubSet {
-                    var: var.clone(),
-                    set: Box::new(set_elab),
-                    predicate: Box::new(predicate_elab),
-                })
+                Ok(handler.arena().alloc(Node::SubSet {
+                    var,
+                    set: set_elab,
+                    predicate: predicate_elab,
+                }))
             }
             SExp::Pred {
                 superset,
@@ -582,27 +608,27 @@ impl LocalScope {
                 let superset_elab = self.elab_exp_rec(superset, handler)?;
                 let subset_elab = self.elab_exp_rec(subset, handler)?;
                 let element_elab = self.elab_exp_rec(element, handler)?;
-                Ok(Exp::Pred {
-                    superset: Box::new(superset_elab),
-                    subset: Box::new(subset_elab),
-                    element: Box::new(element_elab),
-                })
+                Ok(handler.arena().alloc(Node::Pred {
+                    superset: superset_elab,
+                    subset: subset_elab,
+                    element: element_elab,
+                }))
             }
             SExp::TypeLift { superset, subset } => {
                 let superset_elab = self.elab_exp_rec(superset, handler)?;
                 let subset_elab = self.elab_exp_rec(subset, handler)?;
-                Ok(Exp::TypeLift {
-                    superset: Box::new(superset_elab),
-                    subset: Box::new(subset_elab),
-                })
+                Ok(handler.arena().alloc(Node::TypeLift {
+                    superset: superset_elab,
+                    subset: subset_elab,
+                }))
             }
             SExp::Equal { left, right } => {
                 let left_elab = self.elab_exp_rec(left, handler)?;
                 let right_elab = self.elab_exp_rec(right, handler)?;
-                Ok(Exp::Equal {
-                    left: Box::new(left_elab),
-                    right: Box::new(right_elab),
-                })
+                Ok(handler.arena().alloc(Node::Equal {
+                    left: left_elab,
+                    right: right_elab,
+                }))
             }
             SExp::Exists { bind } => match bind {
                 Bind::Named(rightbind) => {
@@ -613,9 +639,7 @@ impl LocalScope {
                         );
                     }
                     let ty_elab = self.elab_exp_rec(&rightbind.ty, handler)?;
-                    Ok(Exp::Exists {
-                        set: Box::new(ty_elab),
-                    })
+                    Ok(handler.arena().alloc(Node::Exists { set: ty_elab }))
                 }
                 Bind::SubsetWithProof { .. } => Err(
                     "Elaboration of named bind or subset with proof in Exists is not implemented"
@@ -624,20 +648,18 @@ impl LocalScope {
                 Bind::Subset { var, ty, predicate } => {
                     let subset_as_exp = {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var: Var = Var::new(var.as_str());
-                        self.push_binded_var(var.clone(), ty_elab.clone());
+                        let var = handler.intern(var.as_str());
+                        self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
 
-                        Exp::SubSet {
-                            var: var.clone(),
-                            set: Box::new(ty_elab.clone()),
-                            predicate: Box::new(predicate_elab.clone()),
-                        }
+                        handler.arena().alloc(Node::SubSet {
+                            var,
+                            set: ty_elab,
+                            predicate: predicate_elab,
+                        })
                     };
-                    Ok(Exp::Exists {
-                        set: Box::new(subset_as_exp),
-                    })
+                    Ok(handler.arena().alloc(Node::Exists { set: subset_as_exp }))
                 }
             },
             SExp::TakeSet {
@@ -647,13 +669,15 @@ impl LocalScope {
                 uniqueness,
             } => {
                 let (domain, map, codomain) = self.elab_take_parts(bind, body, handler)?;
-                Ok(Exp::TakeSet {
-                    domain: Box::new(domain),
-                    codomain: Box::new(codomain),
-                    map: Box::new(map),
-                    existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                    uniqueness: Box::new(self.elab_exp_rec(uniqueness, handler)?),
-                })
+                let existence = self.elab_exp_rec(existence, handler)?;
+                let uniqueness = self.elab_exp_rec(uniqueness, handler)?;
+                Ok(handler.arena().alloc(Node::TakeSet {
+                    domain,
+                    codomain,
+                    map,
+                    existence,
+                    uniqueness,
+                }))
             }
             SExp::TakeProp {
                 bind,
@@ -661,29 +685,37 @@ impl LocalScope {
                 existence,
             } => {
                 let (domain, map, proposition) = self.elab_take_parts(bind, body, handler)?;
-                Ok(Exp::TakeProp {
-                    domain: Box::new(domain),
-                    proposition: Box::new(proposition),
-                    map: Box::new(map),
-                    existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                })
+                let existence = self.elab_exp_rec(existence, handler)?;
+                Ok(handler.arena().alloc(Node::TakeProp {
+                    domain,
+                    proposition,
+                    map,
+                    existence,
+                }))
             }
-            SExp::ExistsIntro { element, set } => Ok(Exp::ExistsIntro {
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-                set: Box::new(self.elab_exp_rec(set, handler)?),
-            }),
+            SExp::ExistsIntro { element, set } => {
+                let element = self.elab_exp_rec(element, handler)?;
+                let set = self.elab_exp_rec(set, handler)?;
+                Ok(handler.arena().alloc(Node::ExistsIntro { element, set }))
+            }
             SExp::SubsetElim {
                 element,
                 subset,
                 superset,
-            } => Ok(Exp::SubsetElim {
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-                subset: Box::new(self.elab_exp_rec(subset, handler)?),
-                superset: Box::new(self.elab_exp_rec(superset, handler)?),
-            }),
-            SExp::IdRefl { element } => Ok(Exp::IdRefl {
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-            }),
+            } => {
+                let element = self.elab_exp_rec(element, handler)?;
+                let subset = self.elab_exp_rec(subset, handler)?;
+                let superset = self.elab_exp_rec(superset, handler)?;
+                Ok(handler.arena().alloc(Node::SubsetElim {
+                    element,
+                    subset,
+                    superset,
+                }))
+            }
+            SExp::IdRefl { element } => {
+                let element = self.elab_exp_rec(element, handler)?;
+                Ok(handler.arena().alloc(Node::IdRefl { element }))
+            }
             SExp::IdElim {
                 left,
                 right,
@@ -693,16 +725,16 @@ impl LocalScope {
                 base,
                 equality,
             } => {
-                let left = Box::new(self.elab_exp_rec(left, handler)?);
-                let right = Box::new(self.elab_exp_rec(right, handler)?);
-                let ty = Box::new(self.elab_exp_rec(ty, handler)?);
-                let var = Var::new(var.as_str());
-                self.push_binded_var(var.clone(), ty.as_ref().clone());
-                let predicate = Box::new(self.elab_exp_rec(predicate, handler)?);
+                let left = self.elab_exp_rec(left, handler)?;
+                let right = self.elab_exp_rec(right, handler)?;
+                let ty = self.elab_exp_rec(ty, handler)?;
+                let var = handler.intern(var.as_str());
+                self.push_binded_var(var, ty);
+                let predicate = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
-                let base = Box::new(self.elab_exp_rec(base, handler)?);
-                let equality = Box::new(self.elab_exp_rec(equality, handler)?);
-                Ok(Exp::IdElim {
+                let base = self.elab_exp_rec(base, handler)?;
+                let equality = self.elab_exp_rec(equality, handler)?;
+                Ok(handler.arena().alloc(Node::IdElim {
                     left,
                     right,
                     var,
@@ -710,7 +742,7 @@ impl LocalScope {
                     predicate,
                     base,
                     equality,
-                })
+                }))
             }
             SExp::TakeEq {
                 func,
@@ -719,14 +751,22 @@ impl LocalScope {
                 element,
                 existence,
                 uniqueness,
-            } => Ok(Exp::TakeEq {
-                func: Box::new(self.elab_exp_rec(func, handler)?),
-                domain: Box::new(self.elab_exp_rec(domain, handler)?),
-                codomain: Box::new(self.elab_exp_rec(codomain, handler)?),
-                element: Box::new(self.elab_exp_rec(element, handler)?),
-                existence: Box::new(self.elab_exp_rec(existence, handler)?),
-                uniqueness: Box::new(self.elab_exp_rec(uniqueness, handler)?),
-            }),
+            } => {
+                let func = self.elab_exp_rec(func, handler)?;
+                let domain = self.elab_exp_rec(domain, handler)?;
+                let codomain = self.elab_exp_rec(codomain, handler)?;
+                let element = self.elab_exp_rec(element, handler)?;
+                let existence = self.elab_exp_rec(existence, handler)?;
+                let uniqueness = self.elab_exp_rec(uniqueness, handler)?;
+                Ok(handler.arena().alloc(Node::TakeEq {
+                    func,
+                    domain,
+                    codomain,
+                    element,
+                    existence,
+                    uniqueness,
+                }))
+            }
             SExp::Block(block) => {
                 let Block {
                     statements: declarations,

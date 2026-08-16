@@ -1,9 +1,10 @@
 // this file describes the surface syntax tree
-use kernel::exp::{DefinedConstant, Exp, Var};
-use kernel::inductive::{CtorBinder, InductiveTypeSpecs};
+use kernel::exp::{Exp, Node};
+use kernel::ids::{DefId, InductiveId, SymbolId};
+use kernel::inductive::CtorBinder;
+use kernel::sort::Sort;
 use kernel::utils;
 use serde::Serialize;
-use std::rc::Rc;
 
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -51,13 +52,13 @@ pub enum ModuleItem {
         type_name: Identifier,
         parameters: Vec<RightBind>,
         indices: Vec<RightBind>,
-        sort: kernel::exp::Sort,
+        sort: Sort,
         constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
     },
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
-        sort: kernel::exp::Sort,
+        sort: Sort,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {
@@ -183,7 +184,7 @@ pub enum SExp {
     },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
-    Sort(kernel::exp::Sort),
+    Sort(Sort),
     // variable defined by name
     // bind -> B
     Prod {
@@ -222,7 +223,7 @@ pub enum SExp {
     IndElimPrim {
         path: LocalAccess,
         parameters: Vec<SExp>,
-        sort: kernel::exp::Sort,
+        sort: Sort,
     },
 
     // --- record type
@@ -343,20 +344,20 @@ pub enum Statement {
 #[derive(Debug, Clone)]
 pub struct ModItemDefinition {
     pub def_name: Identifier,
-    pub body: Rc<DefinedConstant>,
+    pub definition: DefId,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModItemInductive {
     pub type_name: Identifier,
     pub ctor_names: Vec<Identifier>,
-    pub ind_defs: Rc<InductiveTypeSpecs>,
+    pub inductive: InductiveId,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModItemRecord {
     pub type_name: Identifier,
-    pub rc_spec_as_indtype: Rc<InductiveTypeSpecs>,
+    pub inductive: InductiveId,
 }
 
 impl ModItemRecord {
@@ -365,12 +366,15 @@ impl ModItemRecord {
     // where primitive_recursion = (x1: T1) => ... => xi
     pub fn field_projection(
         &self,
-        e: &Exp,
+        env: &kernel::environment::CrateEnv,
+        e: Exp,
         field_name: &Identifier,
         parameters: &[Exp],
     ) -> Option<Exp> {
+        let arena = env.arena();
+        let spec = env.inductive(self.inductive);
         // this should always have only one constructor
-        let ctor = &self.rc_spec_as_indtype.constructors()[0];
+        let ctor = &spec.constructors()[0];
         let telescope = ctor
             .telescope
             .iter()
@@ -378,34 +382,33 @@ impl ModItemRecord {
                 let CtorBinder::Simple((id, ty)) = bind else {
                     unreachable!("record type constructor should only have simple binders");
                 };
-                (id.clone(), ty.clone())
+                (*id, *ty)
             })
             .collect::<Vec<_>>();
 
-        let (field_var, field_ty) = telescope
+        let (field_index, (_field_var, field_ty)) = telescope
             .iter()
-            .find(|(id, _)| id.as_str() == field_name.as_str())?
-            .clone();
+            .enumerate()
+            .find(|(_, (id, _))| env.symbol(*id) == field_name.as_str())?;
+        let field_ty = *field_ty;
 
-        let prec = utils::assoc_lam(telescope, Exp::Var(field_var));
-
-        let elim = Exp::IndElim {
-            indspec: self.rc_spec_as_indtype.clone(),
-            elim: e.clone().into(),
-            return_type: Exp::Prod {
-                var: Var::new("record"),
-                ty: Exp::IndType {
-                    indspec: self.rc_spec_as_indtype.clone(),
-                    parameters: parameters.to_vec(),
-                }
-                .into(),
-                body: Box::new(field_ty),
-            }
-            .into(),
+        let field = arena.bound(telescope.len() - field_index - 1);
+        let prec = utils::assoc_lam(arena, telescope, field);
+        let record_ty = arena.alloc(Node::IndType {
+            indspec: self.inductive,
+            parameters: parameters.to_vec(),
+        });
+        let return_type = arena.alloc(Node::Prod {
+            var: env.find_symbol("record").unwrap_or(SymbolId::ANONYMOUS),
+            ty: record_ty,
+            body: field_ty,
+        });
+        Some(arena.alloc(Node::IndElim {
+            indspec: self.inductive,
+            elim: e,
+            return_type,
             cases: vec![prec],
-        };
-
-        Some(elim)
+        }))
     }
 }
 

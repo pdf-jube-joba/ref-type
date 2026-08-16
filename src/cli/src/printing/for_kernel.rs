@@ -1,122 +1,145 @@
-use crate::printing::ptr_lower32bit_base62_fixed;
-use kernel::exp::{Context, DefinedConstant, Exp, Sort, Var};
+use kernel::{
+    environment::{CrateEnv, DefinedConstant},
+    exp::{Context, Exp, Node},
+    ids::{ModuleParamId, SymbolId},
+    sort::Sort,
+};
 
-fn format_var(var: &Var) -> String {
-    format!(
-        "{}[{}]",
-        var.as_str(),
-        ptr_lower32bit_base62_fixed(var.ptr() as *const ())
-    )
+fn format_named_var(env: &CrateEnv, var: SymbolId) -> String {
+    env.symbol(var).to_string()
+}
+
+fn format_var(env: &CrateEnv, var: ModuleParamId) -> String {
+    let name = env
+        .module(var.module)
+        .parameters()
+        .get(var.position as usize)
+        .map(|parameter| env.symbol(parameter.name))
+        .unwrap_or("?");
+    format!("{}[{}:{}]", name, var.module.0, var.position)
 }
 
 pub(super) fn format_sort(sort: &Sort) -> String {
     match sort {
         Sort::Prop => "\\Prop".to_string(),
         Sort::PropKind => "\\PropKind".to_string(),
-        Sort::Set(i) => format!("\\Set({i})"),
-        Sort::SetKind(i) => format!("\\SetKind({i})"),
+        Sort::Set(level) => format!("\\Set({level})"),
+        Sort::SetKind(level) => format!("\\SetKind({level})"),
         Sort::Univ => "\\Univ".to_string(),
         Sort::UnivKind => "\\UnivKind".to_string(),
     }
 }
 
-pub(super) fn format_exp(exp: &Exp) -> String {
-    match exp {
-        Exp::Sort(sort) => format_sort(sort),
-        Exp::Var(var) => format_var(var),
-        Exp::Prod { var, ty, body } => format!(
-            "({}: {}) -> {}",
-            format_var(var),
-            format_exp(ty),
-            format_exp(body)
-        ),
-        Exp::Lam { var, ty, body } => format!(
-            "({}: {}) => {}",
-            format_var(var),
-            format_exp(ty),
-            format_exp(body)
-        ),
-        Exp::App { func, arg } => format!("({}) ({})", format_exp(func), format_exp(arg)),
-        Exp::DefinedConstant(rc) => {
-            format!("{}{}", super::print_rc_ptr(rc), format_defined_constant(rc))
+pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
+    let arena = env.arena();
+    let child = |exp| format_exp(env, exp);
+    match arena.get(exp) {
+        Node::Sort(sort) => format_sort(&sort),
+        Node::Bound(index) => format!("#{index}"),
+        Node::ModuleParam(var) => format_var(env, var),
+        Node::Prod { var, ty, body } => {
+            format!(
+                "({}: {}) -> {}",
+                format_named_var(env, var),
+                child(ty),
+                child(body)
+            )
         }
-        Exp::IndType {
+        Node::Lam { var, ty, body } => {
+            format!(
+                "({}: {}) => {}",
+                format_named_var(env, var),
+                child(ty),
+                child(body)
+            )
+        }
+        Node::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
+        Node::DefinedConstant(definition) => format!(
+            "def({}:{}){}",
+            definition.module.0,
+            definition.index,
+            format_defined_constant(env, env.definition(definition))
+        ),
+        Node::IndType {
             indspec,
             parameters,
         } => format!(
-            "{}[{}]",
-            super::print_rc_ptr(indspec),
+            "ind({}:{})[{}]",
+            indspec.module.0,
+            indspec.index,
             parameters
-                .iter()
-                .map(format_exp)
+                .into_iter()
+                .map(child)
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        Exp::IndCtor {
+        Node::IndCtor {
             indspec,
             parameters,
             idx,
         } => format!(
-            "{}.{}[{}]",
-            super::print_rc_ptr(indspec),
+            "ind({}:{}).{}[{}]",
+            indspec.module.0,
+            indspec.index,
             idx,
             parameters
-                .iter()
-                .map(format_exp)
+                .into_iter()
+                .map(child)
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        Exp::IndElim {
+        Node::IndElim {
             indspec,
             elim,
             return_type,
             cases,
         } => format!(
-            "elim {} \\in {} \\return {} with {{{}}}",
-            format_exp(elim),
-            super::print_rc_ptr(indspec),
-            format_exp(return_type),
-            cases.iter().map(format_exp).collect::<Vec<_>>().join(", ")
+            "elim {} \\in ind({}:{}) \\return {} with {{{}}}",
+            child(elim),
+            indspec.module.0,
+            indspec.index,
+            child(return_type),
+            cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
-        Exp::SubsetIntro {
+        Node::SubsetIntro {
             superset,
             subset,
             element,
             proof,
         } => format!(
             "subset_intro({}, {}, {}, {})",
-            format_exp(superset),
-            format_exp(subset),
-            format_exp(element),
-            format_exp(proof),
+            child(superset),
+            child(subset),
+            child(element),
+            child(proof)
         ),
-        Exp::PowerSet { set } => format!("Pow({})", format_exp(set)),
-        Exp::SubSet {
+        Node::PowerSet { set } => format!("Pow({})", child(set)),
+        Node::SubSet {
             var,
             set,
             predicate,
         } => format!(
             "{{ {}: {} | {} }}",
-            format_var(var),
-            format_exp(set),
-            format_exp(predicate)
+            format_named_var(env, var),
+            child(set),
+            child(predicate)
         ),
-        Exp::Pred {
+        Node::Pred {
             superset,
             subset,
             element,
         } => format!(
             "{} ∈ {} ⊆ {}",
-            format_exp(element),
-            format_exp(subset),
-            format_exp(superset)
+            child(element),
+            child(subset),
+            child(superset)
         ),
-        Exp::TypeLift { superset, subset } => {
-            format!("TypeLift({}, {})", format_exp(superset), format_exp(subset))
+        Node::TypeLift { superset, subset } => {
+            format!("TypeLift({}, {})", child(superset), child(subset))
         }
-        Exp::Equal { left, right } => format!("{} = {}", format_exp(left), format_exp(right)),
-        Exp::Exists { set } => format!("\\exists {}", format_exp(set)),
-        Exp::TakeSet {
+        Node::Equal { left, right } => format!("{} = {}", child(left), child(right)),
+        Node::Exists { set } => format!("\\exists {}", child(set)),
+        Node::TakeSet {
             domain,
             codomain,
             map,
@@ -124,51 +147,53 @@ pub(super) fn format_exp(exp: &Exp) -> String {
             uniqueness,
         } => format!(
             "\\Take({}, {}, {}) by ({}, {})",
-            format_exp(domain),
-            format_exp(codomain),
-            format_exp(map),
-            format_exp(existence),
-            format_exp(uniqueness)
+            child(domain),
+            child(codomain),
+            child(map),
+            child(existence),
+            child(uniqueness)
         ),
-        Exp::TakeProp {
+        Node::TakeProp {
             domain,
             proposition,
             map,
             existence,
         } => format!(
             "\\TakeProp({}, {}, {}) by ({})",
-            format_exp(domain),
-            format_exp(proposition),
-            format_exp(map),
-            format_exp(existence),
+            child(domain),
+            child(proposition),
+            child(map),
+            child(existence)
         ),
-        Exp::ExistsIntro { element, set } => {
-            format!("exact({}, {})", format_exp(element), format_exp(set))
+        Node::ExistsIntro { element, set } => {
+            format!("exact({}, {})", child(element), child(set))
         }
-        Exp::SubsetElim {
+        Node::SubsetElim {
             element,
             subset,
             superset,
         } => format!(
             "subset_elim({}, {}, {})",
-            format_exp(superset),
-            format_exp(subset),
-            format_exp(element)
+            child(superset),
+            child(subset),
+            child(element)
         ),
-        Exp::IdRefl { element } => format!("refl({})", format_exp(element)),
-        Exp::IdElim { .. } | Exp::TakeEq { .. } => {
-            format!("{:?}", exp)
-        }
+        Node::IdRefl { element } => format!("refl({})", child(element)),
+        Node::IdElim { .. } | Node::TakeEq { .. } => format!("{:?}", arena.get(exp)),
     }
 }
 
-pub(super) fn format_ctx(ctx: &Context) -> String {
+pub(super) fn format_ctx(env: &CrateEnv, ctx: &Context) -> String {
     ctx.iter()
-        .map(|(var, ty)| format!("{}: {}", format_var(var), format_exp(ty)))
+        .map(|(var, ty)| format!("{}: {}", env.symbol(*var), format_exp(env, *ty)))
         .collect::<Vec<_>>()
         .join(", ")
 }
 
-fn format_defined_constant(rc: &std::rc::Rc<DefinedConstant>) -> String {
-    format!("[: {} := {}]", format_exp(&rc.ty), format_exp(&rc.body))
+fn format_defined_constant(env: &CrateEnv, definition: &DefinedConstant) -> String {
+    format!(
+        "[: {} := {}]",
+        format_exp(env, definition.ty),
+        format_exp(env, definition.body)
+    )
 }

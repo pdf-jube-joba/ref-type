@@ -1,15 +1,15 @@
 use crate::{
-    elaborator::{
-        module_manager::{InstantiateResult, ItemAccessResult},
-        term_elaborator::LocalScope,
-    },
+    elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
     log_msg, log_record,
     logger::{LogLevel, LogPayload, Logger},
     syntax::*,
 };
 use kernel::{
-    calculus::exp_contains_as_freevar,
+    calculus::exp_contains_inductive,
+    derivation::CheckSession,
+    environment::{CrateEnv, DefinedConstant, ModuleParameter},
     exp::*,
+    ids::*,
     inductive::{CtorBinder, InductiveTypeSpecs},
 };
 
@@ -19,85 +19,104 @@ pub mod term_elaborator;
 // do type checking
 #[derive(Default)]
 pub struct GlobalEnvironment {
+    crate_env: CrateEnv,
     logger: Logger, // to pass to elaborator
     module_manager: module_manager::ModuleManager,
 }
 
 impl term_elaborator::Handler for GlobalEnvironment {
+    fn env(&self) -> &CrateEnv {
+        &self.crate_env
+    }
+
+    fn arena(&self) -> &Arena {
+        self.crate_env.arena()
+    }
+
+    fn intern(&mut self, name: &str) -> SymbolId {
+        self.crate_env.intern(name)
+    }
+
+    fn symbol(&self, symbol: SymbolId) -> &str {
+        self.crate_env.symbol(symbol)
+    }
+
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, String> {
         self.module_manager
-            .get_item(access_path)
+            .get_item(&self.crate_env, access_path)
             .ok_or("Failed to access item at path".to_string())
     }
 
-    fn field_projection(&mut self, e: &Exp, field_name: &Identifier) -> Result<Exp, String> {
+    fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String> {
         log_record!(
             self.logger,
             LogLevel::Debug,
             ["field projection"],
-            LogPayload::Exp(e.clone()),
+            LogPayload::Exp(e),
             "field projection {} called",
             field_name.as_str(),
         );
 
-        let ctx = self
-            .module_manager
-            .current_context()
-            .into_iter()
-            .flat_map(|(_, v)| v)
-            .collect::<Vec<_>>();
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
 
         let infer_type_e = self
             .logger
-            .infer(&ctx, e)
+            .infer(&self.crate_env, self.module_manager.current(), &mut ctx, e)
             .ok_or("Failed to infer type of expression for field projection".to_string())?;
 
         log_record!(
             self.logger,
             LogLevel::Debug,
             ["field projection"],
-            LogPayload::Exp(infer_type_e.clone()),
+            LogPayload::Exp(infer_type_e),
             "inferred type",
         );
 
-        let Exp::IndType {
+        let Node::IndType {
             indspec,
             parameters,
-        } = infer_type_e
+        } = self.crate_env.arena().get(infer_type_e)
         else {
             return Err("Expected inductive type for field projection".to_string());
         };
 
         let record = self
             .module_manager
-            .get_moditem_record_from_rc(&indspec)
+            .get_moditem_record(&self.crate_env, indspec)
             .ok_or("Inductive type is not a record type".to_string())?;
 
-        let Some(exp) = record.field_projection(e, field_name, &parameters) else {
+        let Some(exp) = record.field_projection(&self.crate_env, e, field_name, &parameters) else {
             return Err(format!("Field {} not found in record", field_name.as_str()));
         };
 
         Ok(exp)
     }
 
-    fn infer(&mut self, local_ctx: &Context, e: &Exp) -> Result<Exp, String> {
-        let ctx = self
-            .module_manager
-            .current_context()
-            .into_iter()
-            .flat_map(|(_, bindings)| bindings)
-            .chain(local_ctx.iter().cloned())
-            .collect::<Vec<_>>();
-        self.logger
-            .infer(&ctx, e)
-            .ok_or("Failed to infer elaborated expression".to_string())
+    fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String> {
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
+        let module_context_len = ctx.len();
+        ctx.append(local_ctx);
+        let result = self
+            .logger
+            .infer(&self.crate_env, self.module_manager.current(), &mut ctx, e)
+            .ok_or("Failed to infer elaborated expression".to_string());
+        *local_ctx = ctx.split_off(module_context_len);
+        result
     }
 }
 
 impl GlobalEnvironment {
+    pub fn arena(&self) -> &Arena {
+        self.crate_env.arena()
+    }
+
+    pub fn crate_env(&self) -> &CrateEnv {
+        &self.crate_env
+    }
+
     pub fn logger(&self) -> &Logger {
         &self.logger
     }
@@ -140,46 +159,49 @@ impl GlobalEnvironment {
 
         // 1. before adding child, check well-typedness ness of parameters
         {
-            let ctx: Vec<(Var, Exp)> = self
+            let reserved_module = self
                 .module_manager
-                .current_context()
-                .into_iter()
-                .flat_map(|(_, v)| v)
-                .collect();
+                .reserve_child_and_moveto(&mut self.crate_env, name.0.clone());
+            let mut ctx = self.module_manager.current_context(&self.crate_env);
 
-            let mut parameters_elab = vec![];
+            let mut parameter_position = 0_u32;
 
             let mut local_scope = term_elaborator::LocalScope::default();
 
             for RightBind { vars, ty } in parameters.iter() {
                 let ty_elab = local_scope.elab_exp(ty, self)?;
-                let ext_ctx = ctx
-                    .iter()
-                    .cloned()
-                    .chain(parameters_elab.iter().cloned())
-                    .collect::<Vec<_>>();
                 // check sort of parameter type
                 self.logger
-                    .infer_sort(&ext_ctx, &ty_elab)
+                    .infer_sort(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        ty_elab,
+                    )
                     .ok_or("Failed to infer sort of parameter type".to_string())?;
 
                 for v in vars {
-                    let v = Var::new(v.as_str());
-                    parameters_elab.push((v.clone(), ty_elab.clone()));
-                    local_scope.push_typed_decl_var(v, ty_elab.clone());
+                    let symbol = self.crate_env.intern(v.as_str());
+                    let position = parameter_position;
+                    let parameter_exp = self.crate_env.arena().module_param(ModuleParamId {
+                        module: reserved_module,
+                        position,
+                    });
+                    self.crate_env.add_module_parameter(
+                        reserved_module,
+                        ModuleParameter {
+                            name: symbol,
+                            ty: ty_elab,
+                        },
+                    );
+                    parameter_position += 1;
+                    ctx.push((symbol, ty_elab));
+                    local_scope.push_typed_decl_var_exp(symbol, ty_elab, parameter_exp);
                 }
             }
-            // ok => add child module and move to it
-            self.module_manager
-                .add_child_and_moveto(name.0.clone(), parameters_elab);
         }
 
-        let ctx = self
-            .module_manager
-            .current_context()
-            .into_iter()
-            .flat_map(|(_, v)| v)
-            .collect::<Vec<_>>();
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
 
         // 2. elaborate declarations
         for decl in declarations {
@@ -195,7 +217,13 @@ impl GlobalEnvironment {
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
                     // check body : ty
-                    if !self.logger.check(&ctx, &body_elab, &ty_elab) {
+                    if !self.logger.check(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        body_elab,
+                        ty_elab,
+                    ) {
                         return Err(format!(
                             "Definition {} body does not check against declared type",
                             name.as_str()
@@ -205,7 +233,11 @@ impl GlobalEnvironment {
                         ty: ty_elab,
                         body: body_elab,
                     };
-                    self.module_manager.add_def(name.clone(), defined_constant);
+                    self.module_manager.add_def(
+                        &mut self.crate_env,
+                        name.clone(),
+                        defined_constant,
+                    )?;
                 }
                 ModuleItem::Inductive {
                     type_name,
@@ -214,9 +246,16 @@ impl GlobalEnvironment {
                     sort,
                     constructors,
                 } => {
-                    let type_name_var: Var = Var::new(type_name.as_str());
+                    let type_name_var = self.crate_env.intern(type_name.as_str());
+                    let inductive = self
+                        .crate_env
+                        .reserve_inductive(self.module_manager.current());
+                    let type_name_exp = self.crate_env.arena().alloc(Node::IndType {
+                        indspec: inductive,
+                        parameters: vec![],
+                    });
                     // register type name as binded var
-                    local_scope.push_decl_var(type_name_var.clone());
+                    local_scope.push_decl_var_exp(type_name_var, type_name_exp);
 
                     // elaborate parameters and indices
                     // binding is memorized in local scope
@@ -243,23 +282,31 @@ impl GlobalEnvironment {
                                 term
                             };
                             let term_elab = local_scope.elab_exp(&term, self)?;
-                            kernel::utils::decompose_prod(term_elab)
+                            kernel::utils::decompose_prod(self.crate_env.arena(), term_elab)
                         };
 
                         let mut ctor_binders = vec![];
                         for (v, e) in telescope {
-                            if exp_contains_as_freevar(&e, &type_name_var) {
+                            if exp_contains_inductive(self.crate_env.arena(), e, inductive) {
                                 // strict positive case
-                                let (inner_binders, inner_tail) = kernel::utils::decompose_prod(e);
+                                let (inner_binders, inner_tail) =
+                                    kernel::utils::decompose_prod(self.crate_env.arena(), e);
                                 for (_, it) in inner_binders.iter() {
-                                    if exp_contains_as_freevar(it, &type_name_var) {
+                                    if exp_contains_inductive(
+                                        self.crate_env.arena(),
+                                        *it,
+                                        inductive,
+                                    ) {
                                         return Err(
                                             "Ctor contains inductive type name  in non-strictly positive position".to_string(),
                                         );
                                     }
                                 }
-                                let (head, tail) = kernel::utils::decompose_app(inner_tail);
-                                if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name_var))
+                                let (head, tail) = kernel::utils::decompose_app(
+                                    self.crate_env.arena(),
+                                    inner_tail,
+                                );
+                                if !matches!(self.crate_env.arena().get(head), Node::IndType { indspec, .. } if indspec == inductive)
                                 {
                                     return Err(
                                         "Constructor binder type head does not match inductive type name {type_name_var}".to_string(),
@@ -267,7 +314,11 @@ impl GlobalEnvironment {
                                 }
 
                                 for tail_elm in tail.iter() {
-                                    if exp_contains_as_freevar(tail_elm, &type_name_var) {
+                                    if exp_contains_inductive(
+                                        self.crate_env.arena(),
+                                        *tail_elm,
+                                        inductive,
+                                    ) {
                                         return Err(
                                             "Constructor binder type tail contains inductive type name in non-strictly positive position".to_string(),
                                         );
@@ -283,15 +334,17 @@ impl GlobalEnvironment {
                             }
                         }
 
-                        let (head, tail) = kernel::utils::decompose_app(ends_elab);
-                        if !matches!(head, Exp::Var(head_var) if head_var.is_eq_ptr(&type_name_var))
+                        let (head, tail) =
+                            kernel::utils::decompose_app(self.crate_env.arena(), ends_elab);
+                        if !matches!(self.crate_env.arena().get(head), Node::IndType { indspec, .. } if indspec == inductive)
                         {
                             return Err("Constructor type head does not match inductive type name"
                                 .to_string());
                         }
 
                         for tail_elm in tail.iter() {
-                            if exp_contains_as_freevar(tail_elm, &type_name_var) {
+                            if exp_contains_inductive(self.crate_env.arena(), *tail_elm, inductive)
+                            {
                                 return Err(
                                     "Constructor type tail contains inductive type name in non-strictly positive position".to_string(),
                                 );
@@ -304,8 +357,18 @@ impl GlobalEnvironment {
                         });
                     }
 
-                    let indspec = InductiveTypeSpecs::new(
-                        &ctx,
+                    let indspec = InductiveTypeSpecs::unchecked(
+                        parameter_elab,
+                        indices_elab,
+                        *sort,
+                        ctor_type_elabs,
+                    );
+                    /* let indspec = InductiveTypeSpecs::new(
+                        &mut CheckSession::new(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut ctx,
+                        ),
                         parameter_elab,
                         indices_elab,
                         *sort,
@@ -320,10 +383,27 @@ impl GlobalEnvironment {
                             error,
                         );
                         "Ill-formed inductive type specification".to_string()
-                    })?;
+                    })?; */
 
-                    self.module_manager
-                        .add_inductive(type_name.clone(), ctor_names, indspec);
+                    self.crate_env.define_inductive(inductive, indspec);
+                    let spec = self.crate_env.inductive(inductive).clone();
+                    spec.validate(
+                        &mut CheckSession::new(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut ctx,
+                        ),
+                        inductive,
+                    )
+                    .map_err(|error| {
+                        format!("Ill-formed inductive type specification: {error:?}")
+                    })?;
+                    self.module_manager.publish_reserved_inductive(
+                        &mut self.crate_env,
+                        type_name.clone(),
+                        ctor_names,
+                        inductive,
+                    )?;
                 }
                 ModuleItem::Record {
                     type_name,
@@ -341,19 +421,31 @@ impl GlobalEnvironment {
 
                     // elaborate fields as constructors
                     let mut telescope = vec![];
-                    let mut fields_get: Vec<(Var, Exp)> = vec![];
+                    let mut fields_get: Vec<(SymbolId, Exp)> = vec![];
                     for (field_name, field_ty) in fields {
-                        let field_name_var: Var = Var::new(field_name.as_str());
+                        let field_name_var = self.crate_env.intern(field_name.as_str());
                         let field_ty_elab = local_scope.elab_exp(field_ty, self)?;
-                        fields_get.push((field_name_var.clone(), field_ty_elab.clone()));
+                        fields_get.push((field_name_var, field_ty_elab));
                         // field may depend on previous fields
-                        local_scope
-                            .push_typed_decl_var(field_name_var.clone(), field_ty_elab.clone());
+                        local_scope.push_typed_decl_var(field_name_var, field_ty_elab);
                         telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
                     }
 
-                    let indspec = InductiveTypeSpecs::new(
-                        &ctx,
+                    let indspec = InductiveTypeSpecs::unchecked(
+                        parameter_elab,
+                        vec![],
+                        *sort,
+                        vec![kernel::inductive::CtorType {
+                            telescope,
+                            indices: vec![],
+                        }],
+                    );
+                    /* let indspec = InductiveTypeSpecs::new(
+                        &mut CheckSession::new(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut ctx,
+                        ),
                         parameter_elab,
                         vec![],
                         *sort,
@@ -371,14 +463,29 @@ impl GlobalEnvironment {
                             error,
                         );
                         "Ill-formed record type specification".to_string()
-                    })?;
+                    })?; */
 
-                    self.module_manager.add_record(type_name.clone(), indspec);
+                    self.module_manager.add_record(
+                        &mut self.crate_env,
+                        type_name.clone(),
+                        indspec,
+                    )?;
                 }
                 ModuleItem::ChildModule { module } => {
                     self.module_add_rec(module)?;
                 }
                 ModuleItem::Import { path, import_name } => {
+                    if self
+                        .crate_env
+                        .module(self.module_manager.current())
+                        .import(import_name.as_str())
+                        .is_some()
+                    {
+                        return Err(format!(
+                            "Module import '{}' is already defined",
+                            import_name.as_str()
+                        ));
+                    }
                     let (from, calls) = match path {
                         ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                             (Some(*back_parent), calls)
@@ -403,48 +510,51 @@ impl GlobalEnvironment {
 
                     let access_result = self
                         .module_manager
-                        .instantiate_module(from, args, &ctx)
+                        .instantiate_module(&mut self.crate_env, &mut ctx, from, args)
                         .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
-                    let InstantiateResult {
-                        instantiated_module,
-                        need_to_type_check,
-                    } = access_result;
-
-                    for (_, arg, ty) in need_to_type_check {
-                        if !self.logger.check(&ctx, &arg, &ty) {
-                            return Err(
-                                "Module instantiation argument type check failed".to_string()
-                            );
-                        }
-                    }
-
-                    self.module_manager
-                        .add_import(import_name.clone(), instantiated_module);
+                    self.module_manager.add_import(
+                        &mut self.crate_env,
+                        import_name.clone(),
+                        access_result,
+                    )?;
                 }
                 ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
                 ModuleItem::Eval { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.reduce_one(exp_elab);
+                    self.logger.reduce_one(&self.crate_env, exp_elab);
                 }
                 ModuleItem::Normalize { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.normalize(exp_elab);
+                    self.logger.normalize(&self.crate_env, exp_elab);
                 }
                 ModuleItem::Check { exp, ty } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     let ty_elab = local_scope.elab_exp(ty, self)?;
-                    self.logger.check(&ctx, &exp_elab, &ty_elab);
+                    self.logger.check(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        exp_elab,
+                        ty_elab,
+                    );
                 }
                 ModuleItem::Infer { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.infer(&ctx, &exp_elab);
+                    self.logger.infer(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        exp_elab,
+                    );
                 }
             }
         }
 
         // 3. move back to parent
-        self.module_manager.moveto_parent();
+        self.module_manager
+            .publish_current_module(&mut self.crate_env)?;
+        self.module_manager.moveto_parent(&self.crate_env);
         Ok(())
     }
 }
