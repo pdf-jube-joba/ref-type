@@ -36,7 +36,7 @@ impl Sort {
         match self {
             Sort::Prop => Some(Sort::PropKind),
             Sort::PropKind => None,
-            Sort::Univ => Some(Sort::PropKind),
+            Sort::Univ => Some(Sort::UnivKind),
             Sort::UnivKind => None,
             Sort::Set(i) => Some(Sort::SetKind(i)),
             Sort::SetKind(_) => None,
