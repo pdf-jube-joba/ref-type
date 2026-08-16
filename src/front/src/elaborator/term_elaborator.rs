@@ -3,6 +3,7 @@ use crate::syntax::*;
 use kernel::calculus::{exp_contains_bound, instantiate};
 use kernel::environment::CrateEnv;
 use kernel::exp::*;
+use kernel::ids::*;
 use kernel::inductive::InductiveTypeSpecs;
 
 pub trait Handler {

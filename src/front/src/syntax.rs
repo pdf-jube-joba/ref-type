@@ -1,6 +1,8 @@
 // this file describes the surface syntax tree
-use kernel::exp::{DefId, Exp, InductiveId, Node, SymbolId};
+use kernel::exp::{Exp, Node};
+use kernel::ids::{DefId, InductiveId, SymbolId};
 use kernel::inductive::CtorBinder;
+use kernel::sort::Sort;
 use kernel::utils;
 use serde::Serialize;
 
@@ -50,13 +52,13 @@ pub enum ModuleItem {
         type_name: Identifier,
         parameters: Vec<RightBind>,
         indices: Vec<RightBind>,
-        sort: kernel::exp::Sort,
+        sort: Sort,
         constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
     },
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
-        sort: kernel::exp::Sort,
+        sort: Sort,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {
@@ -182,7 +184,7 @@ pub enum SExp {
     },
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
-    Sort(kernel::exp::Sort),
+    Sort(Sort),
     // variable defined by name
     // bind -> B
     Prod {
@@ -221,7 +223,7 @@ pub enum SExp {
     IndElimPrim {
         path: LocalAccess,
         parameters: Vec<SExp>,
-        sort: kernel::exp::Sort,
+        sort: Sort,
     },
 
     // --- record type

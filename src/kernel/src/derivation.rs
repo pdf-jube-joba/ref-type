@@ -1,7 +1,9 @@
 use crate::calculus::*;
 use crate::environment::CrateEnv;
 use crate::exp::*;
+use crate::ids::{InductiveId, ModuleId, SymbolId};
 use crate::inductive::eliminator_type;
+use crate::sort::Sort;
 use crate::utils;
 use serde::Serialize;
 use tracing::{debug, error};

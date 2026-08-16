@@ -1,4 +1,5 @@
 use crate::environment::CrateEnv;
+use crate::ids::{DefId, InductiveId, ModuleParamId, SymbolId};
 use crate::inductive::inductive_type_elim_reduce;
 use std::collections::HashMap;
 

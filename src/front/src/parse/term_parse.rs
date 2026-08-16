@@ -168,25 +168,25 @@ impl<'a> TermParser<'a> {
 
     // Parse a sort expression.
     // \Prop | \PropKind | \Set ( "(" <number> ")" )? | \SetKind ( "(" <number> ")" )?
-    fn parse_sort(&mut self) -> Result<kernel::exp::Sort, ParseError> {
+    fn parse_sort(&mut self) -> Result<kernel::sort::Sort, ParseError> {
         if self.bump_if_keyword("\\Prop") {
-            return Ok(kernel::exp::Sort::Prop);
+            return Ok(kernel::sort::Sort::Prop);
         }
         if self.bump_if_keyword("\\PropKind") {
-            return Ok(kernel::exp::Sort::PropKind);
+            return Ok(kernel::sort::Sort::PropKind);
         }
         if self.bump_if_keyword("\\Set") {
             let number = self
                 .try_parse(|parser| parser.parse_number_paren())?
                 .unwrap_or_default();
 
-            return Ok(kernel::exp::Sort::Set(number));
+            return Ok(kernel::sort::Sort::Set(number));
         }
         if self.bump_if_keyword("\\SetKind") {
             let number = self
                 .try_parse(|parser| parser.parse_number_paren())?
                 .unwrap_or_default();
-            return Ok(kernel::exp::Sort::SetKind(number));
+            return Ok(kernel::sort::Sort::SetKind(number));
         }
 
         Err(ParseError {

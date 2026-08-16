@@ -7,8 +7,9 @@ use crate::{
 use kernel::{
     calculus::exp_contains_inductive,
     derivation::CheckSession,
-    environment::{CrateEnv, ModuleParameter},
+    environment::{CrateEnv, DefinedConstant, ModuleParameter},
     exp::*,
+    ids::*,
     inductive::{CtorBinder, InductiveTypeSpecs},
 };
 

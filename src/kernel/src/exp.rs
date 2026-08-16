@@ -1,139 +1,10 @@
+//! Kernel expressions and their append-only arena.
+
 use std::cell::RefCell;
 
+use crate::ids::{DefId, InductiveId, ModuleParamId, SymbolId};
+use crate::sort::Sort;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SymbolId(pub u32);
-
-impl SymbolId {
-    pub const ANONYMOUS: Self = Self(0);
-
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ModuleParamId {
-    pub module: ModuleId,
-    pub position: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum Sort {
-    Set(usize),     // predicative SET(i):
-    SetKind(usize), // SET(i): SETKind(i)
-    Prop,           // proposition
-    PropKind,       // Prop: PropKind
-    Univ,           // for programming language
-    UnivKind,       // Type: TypeKind
-}
-
-// functional pure type system
-impl Sort {
-    // functional pure type system, i.e. foraeach s1, (s1, s2) in R => s2 is unique
-    pub fn type_of_sort(self) -> Option<Self> {
-        match self {
-            Sort::Prop => Some(Sort::PropKind),
-            Sort::PropKind => None,
-            Sort::Univ => Some(Sort::UnivKind),
-            Sort::UnivKind => None,
-            Sort::Set(i) => Some(Sort::SetKind(i)),
-            Sort::SetKind(_) => None,
-        }
-    }
-
-    // functional pure type system, i.e. for each s1, s2, (s1, s2, s3) in R => s3 is unique
-    pub fn relation_of_sort(self, other: Self) -> Option<Self> {
-        match (self, other) {
-            // Prop: PropKind part（ non dependent ）
-            (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
-            (Sort::PropKind, Sort::PropKind) => Some(Sort::PropKind),
-            (Sort::PropKind, Sort::Prop) => Some(Sort::Prop), // Prop は impredicative
-            (Sort::Prop, Sort::PropKind) => None,             // dependent なし
-            // Set(i): SetKind(i) part (predicative)
-            (Sort::Set(i), Sort::Set(j)) if i == j => Some(Sort::Set(i)),
-            (Sort::Set(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
-            (Sort::SetKind(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
-            (Sort::SetKind(i), Sort::Set(j)) if i == j => Some(Sort::Set(i + 1)),
-            (Sort::Set(_) | Sort::SetKind(_), Sort::Set(_) | Sort::SetKind(_)) => None,
-            // Type: TypeKind (include dependent, impredicative)
-            (Sort::Univ | Sort::UnivKind, Sort::Univ | Sort::UnivKind) => Some(other),
-            // relation of set and prop
-            (Sort::Set(_), Sort::PropKind) => Some(Sort::PropKind),
-            (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
-            (Sort::Prop | Sort::PropKind, Sort::Set(_)) => None,
-            // other => None
-            _ => None,
-        }
-    }
-
-    // inductive type relation (restiction for large elimination)
-    pub fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
-        match (self, other) {
-            (
-                Sort::PropKind
-                | Sort::Prop
-                | Sort::Set(_)
-                | Sort::SetKind(_)
-                | Sort::Univ
-                | Sort::UnivKind,
-                Sort::Prop,
-            ) => Some(()),
-            (Sort::Set(i), Sort::Set(j)) => {
-                if i <= j {
-                    Some(())
-                } else {
-                    None
-                }
-            }
-            (Sort::Set(_), Sort::PropKind) => Some(()),
-            (Sort::PropKind, Sort::PropKind) => Some(()),
-            _ => None,
-        }
-    }
-
-    pub fn can_lift_to(self, to: Self) -> bool {
-        match (self, to) {
-            (Sort::Set(i), Sort::Set(j)) if i <= j => true,
-            (Sort::SetKind(i), Sort::SetKind(j)) if i <= j => true,
-            _ => false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct DefinedConstant {
-    pub ty: Exp,
-    pub body: Exp,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ModuleId(pub u32);
-
-impl ModuleId {
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ModuleInstanceId {
-    pub owner: ModuleId,
-    pub local: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DefId {
-    pub module: ModuleId,
-    pub index: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct InductiveId {
-    pub module: ModuleId,
-    pub index: u32,
-}
 
 /// A stable index into an [`Arena`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -156,6 +27,8 @@ pub enum Node {
     Bound(usize),
     /// A parameter of a module. Locally bound variables use [`Node::Bound`].
     ModuleParam(ModuleParamId),
+    // A reference to a defined constant. The definition is stored in the environment.
+    DefinedConstant(DefId),
     // (var: ty) -> body where var is bound in body but not in ty
     Prod {
         var: SymbolId,
@@ -173,7 +46,6 @@ pub enum Node {
         func: Exp,
         arg: Exp,
     },
-    DefinedConstant(DefId),
     IndType {
         indspec: InductiveId,
         parameters: Vec<Exp>, // uncurry with parameter

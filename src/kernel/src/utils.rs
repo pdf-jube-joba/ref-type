@@ -1,4 +1,5 @@
 use super::exp::*;
+use crate::ids::SymbolId;
 
 pub fn assoc_apply(arena: &Arena, mut func: Exp, args: Vec<Exp>) -> Exp {
     for arg in args {
@@ -105,7 +106,8 @@ pub use {app, lam, prod};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exp::{ModuleId, ModuleParamId};
+    use crate::ids::{ModuleId, ModuleParamId};
+    use crate::sort::Sort;
 
     #[test]
     fn test_macros_and_decompose() {

@@ -5,8 +5,10 @@ use crate::{
     },
     derivation::CheckSession,
     environment::{CrateEnv, ModuleParameter},
-    exp::{Context, Exp, ModuleId, ModuleParamId, Node, Sort, SymbolId},
+    exp::{Context, Exp, Node},
+    ids::{ModuleId, ModuleParamId, SymbolId},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
+    sort::Sort,
 };
 
 struct Fixture {
@@ -299,7 +301,7 @@ fn defined_constants_are_transparent_for_reduction() {
     let proposition = fixture.env.arena().sort(Sort::Prop);
     let definition = fixture.env.add_definition(
         fixture.env.root_module(),
-        crate::exp::DefinedConstant {
+        crate::environment::DefinedConstant {
             ty: proposition,
             body: proposition,
         },

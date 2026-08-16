@@ -1,7 +1,9 @@
 use kernel::{
     derivation::CheckSession,
     environment::CrateEnv,
-    exp::{Context, Exp, ModuleId, Sort},
+    exp::{Context, Exp},
+    ids::ModuleId,
+    sort::Sort,
 };
 use serde::Serialize;
 

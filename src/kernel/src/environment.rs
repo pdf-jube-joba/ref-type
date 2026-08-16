@@ -1,11 +1,30 @@
+//! Crate/module declarations and materialized-instance provenance.
+
 use crate::{
-    exp::{
-        Arena, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId,
-        SymbolId,
-    },
+    exp::{Arena, Exp},
+    ids::{DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, SymbolId},
     inductive::InductiveTypeSpecs,
 };
+use serde::Serialize;
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DefinedConstant {
+    pub ty: Exp,
+    pub body: Exp,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleParameter {
+    pub name: SymbolId,
+    pub ty: Exp,
+}
+
+impl ModuleParameter {
+    pub fn id(&self, module: ModuleId, position: u32) -> ModuleParamId {
+        ModuleParamId { module, position }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModuleItem {
@@ -24,18 +43,6 @@ pub enum ModuleItem {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct ModuleParameter {
-    pub name: SymbolId,
-    pub ty: Exp,
-}
-
-impl ModuleParameter {
-    pub fn id(&self, module: ModuleId, position: u32) -> ModuleParamId {
-        ModuleParamId { module, position }
-    }
-}
-
 impl ModuleItem {
     pub fn name(&self) -> &str {
         match self {
@@ -52,6 +59,14 @@ pub struct ModuleInstance {
     pub source: ModuleId,
     pub materialized: ModuleId,
     pub arguments: Vec<(ModuleParamId, Exp)>,
+    /// Maps definitions in `materialized` back to definitions in `source`.
+    pub definition_origins: HashMap<DefId, DefId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DefinitionOrigin {
+    pub instance: ModuleInstanceId,
+    pub source: DefId,
 }
 
 #[derive(Debug)]
@@ -142,6 +157,7 @@ pub struct CrateEnv {
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
+    materialized_instances: HashMap<ModuleId, ModuleInstanceId>,
 }
 
 impl Default for CrateEnv {
@@ -162,6 +178,7 @@ impl CrateEnv {
             symbols: vec![anonymous, root],
             symbol_ids,
             modules: vec![ModuleEnv::new(ModuleId(0), "root".into(), None, vec![])],
+            materialized_instances: HashMap::new(),
         }
     }
 
@@ -299,22 +316,41 @@ impl CrateEnv {
         source: ModuleId,
         materialized: ModuleId,
         arguments: Vec<(ModuleParamId, Exp)>,
+        definition_origins: HashMap<DefId, DefId>,
     ) -> ModuleInstanceId {
-        let owner_env = self.module_mut(owner);
-        let local = u32::try_from(owner_env.instances.len())
+        let local = u32::try_from(self.module(owner).instances.len())
             .expect("module instance table exceeded u32::MAX");
         let id = ModuleInstanceId { owner, local };
-        owner_env.instances.push(ModuleInstance {
+        let previous = self.materialized_instances.insert(materialized, id);
+        assert!(
+            previous.is_none(),
+            "materialized module already has an origin"
+        );
+        self.module_mut(owner).instances.push(ModuleInstance {
             id,
             source,
             materialized,
             arguments,
+            definition_origins,
         });
         id
     }
 
     pub fn instance(&self, id: ModuleInstanceId) -> &ModuleInstance {
         &self.module(id.owner).instances[id.local as usize]
+    }
+
+    pub fn materialized_instance(&self, module: ModuleId) -> Option<ModuleInstanceId> {
+        self.materialized_instances.get(&module).copied()
+    }
+
+    pub fn definition_origin(&self, definition: DefId) -> Option<DefinitionOrigin> {
+        let instance = self.materialized_instance(definition.module)?;
+        let source = *self
+            .instance(instance)
+            .definition_origins
+            .get(&definition)?;
+        Some(DefinitionOrigin { instance, source })
     }
 
     pub fn publish_item(&mut self, module: ModuleId, item: ModuleItem) -> Result<(), String> {

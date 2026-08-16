@@ -8,6 +8,8 @@ use crate::{
     },
     derivation::{CheckSession, JudgementError},
     environment::CrateEnv,
+    ids::{DefId, InductiveId, ModuleParamId, SymbolId},
+    sort::Sort,
     utils,
 };
 

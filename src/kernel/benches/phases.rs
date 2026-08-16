@@ -4,7 +4,9 @@ use std::time::{Duration, Instant};
 use kernel::calculus::{convertible, exp_is_alpha_eq, instantiate, normalize, whnf};
 use kernel::derivation::CheckSession;
 use kernel::environment::CrateEnv;
-use kernel::exp::{Arena, Context, Exp, Node, Sort, SymbolId};
+use kernel::exp::{Arena, Context, Exp, Node};
+use kernel::ids::SymbolId;
+use kernel::sort::Sort;
 
 const WARMUP_ITERATIONS: u64 = 64;
 const SAMPLE_COUNT: usize = 25;

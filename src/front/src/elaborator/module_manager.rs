@@ -1,10 +1,9 @@
 use crate::syntax::{Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord};
 use kernel::calculus::{exp_subst_map, remap_global_ids};
 use kernel::derivation::CheckSession;
-use kernel::environment::{CrateEnv, ModuleItem, ModuleParameter};
-use kernel::exp::{
-    Context, DefId, DefinedConstant, Exp, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId,
-};
+use kernel::environment::{CrateEnv, DefinedConstant, ModuleItem, ModuleParameter};
+use kernel::exp::{Context, Exp};
+use kernel::ids::{DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId};
 use kernel::inductive::InductiveTypeSpecs;
 use std::collections::HashMap;
 
@@ -17,7 +16,7 @@ pub enum ItemAccessResult {
 }
 
 enum PendingItem {
-    Definition(String, DefId, DefinedConstant),
+    Definition(String, DefId, DefId, DefinedConstant),
     Inductive(String, Vec<String>, InductiveId, InductiveTypeSpecs),
     Record(String, InductiveId, InductiveTypeSpecs),
 }
@@ -301,9 +300,13 @@ impl ModuleManager {
                 pending.push(match item {
                     ModuleItem::Definition { name, definition } => {
                         let definition_value = env.definition(definition).clone();
+                        let origin = env
+                            .definition_origin(definition)
+                            .map_or(definition, |origin| origin.source);
                         PendingItem::Definition(
                             name,
                             definition,
+                            origin,
                             DefinedConstant {
                                 ty: exp_subst_map(env.arena(), definition_value.ty, &substitutions),
                                 body: exp_subst_map(
@@ -338,9 +341,10 @@ impl ModuleManager {
         let mut last_instance = None;
         for (source_module, is_path_component, pending) in pending_groups {
             let materialized = env.add_module();
+            let mut definition_origins = HashMap::new();
             for item in pending {
                 match item {
-                    PendingItem::Definition(name, source_id, definition) => {
+                    PendingItem::Definition(name, source_id, origin, definition) => {
                         let definition = DefinedConstant {
                             ty: remap_global_ids(
                                 env.arena(),
@@ -357,6 +361,7 @@ impl ModuleManager {
                         };
                         let definition = env.add_definition(materialized, definition);
                         definition_ids.insert(source_id, definition);
+                        definition_origins.insert(definition, origin);
                         env.publish_item(
                             materialized,
                             ModuleItem::Definition { name, definition },
@@ -390,6 +395,7 @@ impl ModuleManager {
                 source_module,
                 materialized,
                 substitutions.clone(),
+                definition_origins,
             );
             if is_path_component {
                 last_instance = Some(instance);
@@ -468,8 +474,9 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kernel::exp::{Node, Sort};
+    use kernel::exp::Node;
     use kernel::inductive::{CtorType, InductiveTypeSpecs};
+    use kernel::sort::Sort;
 
     fn parameter(env: &mut CrateEnv, name: &str, ty: Exp) -> ModuleParameter {
         ModuleParameter {
@@ -564,6 +571,26 @@ mod tests {
         let first_ids = ids(&env, first);
         let second_ids = ids(&env, second);
         assert_ne!(first_ids, second_ids);
+        assert_eq!(env.materialized_instance(first_ids[0].module), Some(first));
+        assert_eq!(
+            env.materialized_instance(second_ids[0].module),
+            Some(second)
+        );
+        assert_eq!(
+            env.definition_origin(first_ids[0]),
+            Some(kernel::environment::DefinitionOrigin {
+                instance: first,
+                source: base,
+            })
+        );
+        assert_eq!(
+            env.definition_origin(second_ids[0]),
+            Some(kernel::environment::DefinitionOrigin {
+                instance: second,
+                source: base,
+            })
+        );
+        assert_eq!(env.definition_origin(base), None);
         assert!(matches!(
             env.arena().get(env.definition(first_ids[1]).body),
             Node::DefinedConstant(id) if id == first_ids[0]

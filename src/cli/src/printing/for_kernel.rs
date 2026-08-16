@@ -1,6 +1,8 @@
 use kernel::{
-    environment::CrateEnv,
-    exp::{Context, DefinedConstant, Exp, ModuleParamId, Node, Sort, SymbolId},
+    environment::{CrateEnv, DefinedConstant},
+    exp::{Context, Exp, Node},
+    ids::{ModuleParamId, SymbolId},
+    sort::Sort,
 };
 
 fn format_named_var(env: &CrateEnv, var: SymbolId) -> String {
