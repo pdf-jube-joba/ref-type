@@ -268,6 +268,7 @@ pub enum Node {
     },
 }
 
+#[cfg(feature = "bench-internals")]
 #[derive(Debug, Clone, Copy)]
 pub struct ArenaMark {
     nodes: usize,
@@ -304,10 +305,20 @@ impl Arena {
         self.nodes.borrow().is_empty()
     }
 
+    /// Checkpoint the arena for benchmark iteration cleanup.
+    ///
+    /// This is deliberately unavailable unless the `bench-internals` feature
+    /// is enabled. Every expression allocated after the returned mark becomes
+    /// invalid after [`Arena::rewind`].
+    #[cfg(feature = "bench-internals")]
     pub fn mark(&self) -> ArenaMark {
         ArenaMark { nodes: self.len() }
     }
 
+    /// Discard benchmark temporaries allocated after `mark`.
+    ///
+    /// Callers must not retain any expression allocated after the mark.
+    #[cfg(feature = "bench-internals")]
     pub fn rewind(&self, mark: ArenaMark) {
         self.nodes.borrow_mut().truncate(mark.nodes);
     }
