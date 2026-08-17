@@ -34,11 +34,10 @@ impl Sort {
             (Sort::PropKind, Sort::Prop) => Some(Sort::Prop), // Prop is impredicative
             (Sort::Prop, Sort::PropKind) => None,
             // Set(i): SetKind(i) part (predicative)
-            (Sort::Set(i), Sort::Set(j)) if i == j => Some(Sort::Set(i)),
-            (Sort::Set(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
-            (Sort::SetKind(i), Sort::SetKind(j)) if i == j => Some(Sort::SetKind(i)),
-            (Sort::SetKind(i), Sort::Set(j)) if i == j => Some(Sort::Set(i + 1)),
-            (Sort::Set(_) | Sort::SetKind(_), Sort::Set(_) | Sort::SetKind(_)) => None,
+            (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(i.max(j))),
+            (Sort::Set(i), Sort::SetKind(j)) => Some(Sort::SetKind(i.max(j))),
+            (Sort::SetKind(i), Sort::SetKind(j)) => Some(Sort::SetKind(i.max(j))),
+            (Sort::SetKind(i), Sort::Set(j)) => Some(Sort::Set((i + 1).max(j))),
             // Type: TypeKind (dependent and impredicative)
             (Sort::Univ | Sort::UnivKind, Sort::Univ | Sort::UnivKind) => Some(other),
             // Relations between Set and Prop
@@ -74,5 +73,34 @@ impl Sort {
             (Sort::SetKind(i), Sort::SetKind(j)) if i <= j => true,
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Sort;
+
+    #[test]
+    fn set_products_use_the_least_common_universe() {
+        assert_eq!(
+            Sort::Set(1).relation_of_sort(Sort::Set(3)),
+            Some(Sort::Set(3))
+        );
+        assert_eq!(
+            Sort::Set(2).relation_of_sort(Sort::SetKind(0)),
+            Some(Sort::SetKind(2))
+        );
+        assert_eq!(
+            Sort::SetKind(1).relation_of_sort(Sort::SetKind(4)),
+            Some(Sort::SetKind(4))
+        );
+        assert_eq!(
+            Sort::SetKind(0).relation_of_sort(Sort::Set(1)),
+            Some(Sort::Set(1))
+        );
+        assert_eq!(
+            Sort::SetKind(2).relation_of_sort(Sort::Set(1)),
+            Some(Sort::Set(3))
+        );
     }
 }

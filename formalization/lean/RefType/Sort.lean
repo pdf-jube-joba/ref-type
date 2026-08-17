@@ -16,14 +16,10 @@ def axiomTarget? : USort → Option USort
   | .propKind => none
 
 def prodResult? : USort → USort → Option USort
-  | .set i, .set j =>
-      if i = j then some (.set i) else none
-  | .set i, .setKind j =>
-      if i = j then some (.setKind i) else none
-  | .setKind i, .setKind j =>
-      if i = j then some (.setKind i) else none
-  | .setKind i, .set j =>
-      if i = j then some (.set (i + 1)) else none
+  | .set i, .set j => some (.set (max i j))
+  | .set i, .setKind j => some (.setKind (max i j))
+  | .setKind i, .setKind j => some (.setKind (max i j))
+  | .setKind i, .set j => some (.set (max (i + 1) j))
   | .prop, .prop => some .prop
   | .propKind, .prop => some .prop
   | .propKind, .propKind => some .propKind

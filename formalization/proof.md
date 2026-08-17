@@ -146,9 +146,12 @@ f in Pi_Prop(A,B) and x in A => bullet in B(x).
 
 `system.md` の non-proposition product case ごとの閉包は次の通りである。
 
-- `(Set_i,Set_i,Set_i)` は `U_i` の dependent-product closure。
-- `(Set_i,Kind_i,Kind_i)`、`(Kind_i,Kind_i,Kind_i)`、
-  `(Kind_i,Set_i,Set_(i+1))` は `U_(i+1)` の closure。
+- `(Set_i,Set_j,Set_max(i,j))` は universe tower の包含と
+  `U_max(i,j)` の dependent-product closure。
+- `(Set_i,Kind_j,Kind_max(i,j))` と
+  `(Kind_i,Kind_j,Kind_max(i,j))` は `U_(max(i,j)+1)` の closure。
+- `(Kind_i,Set_j,Set_max(i+1,j))` は domain `U_i` 自身と各 fiber が
+  `U_max(i+1,j)` に入り、この universe が dependent product に閉じることによる。
 - `(PropKind,PropKind,PropKind)` は `U_omega` の closure。
 - `(Set_i,PropKind,PropKind)` は `U_i subset U_omega` と `U_omega` の closure。
 

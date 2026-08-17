@@ -1,0 +1,224 @@
+/*
+ * Bourbaki-style real structures.
+ *
+ * RawRealStructure contains data only.  Laws are imposed afterwards by the
+ * refinement AxiomaticRealStructure, so no proof is stored in an inductive
+ * value.  The order is represented by a subset of Carrier times Carrier
+ * rather than a Prop-valued field; this keeps every constructor argument in
+ * Set and exposes the usual Bourbaki representation of a binary relation.
+ */
+\import \root.Logic() \as Logic;
+\import \root.Pair(A := Carrier, B := Carrier) \as CarrierPair;
+
+\inductive RawRealStructure(Carrier: \Set): \Set :=
+| make:
+    Carrier ->                              /* zero */
+    Carrier ->                              /* one */
+    (Carrier -> Carrier -> Carrier) ->      /* addition */
+    (Carrier -> Carrier) ->                 /* additive inverse */
+    (Carrier -> Carrier -> Carrier) ->      /* multiplication */
+    (Carrier -> Carrier) ->                 /* multiplicative inverse */
+    \Power(CarrierPair.Times) ->            /* non-strict order */
+    RawRealStructure;
+;
+
+\definition zero: RawRealStructure[Carrier] -> Carrier :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) => Carrier)
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => z)
+      s;
+
+\definition one: RawRealStructure[Carrier] -> Carrier :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) => Carrier)
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => o)
+      s;
+
+\definition add:
+  RawRealStructure[Carrier] -> Carrier -> Carrier -> Carrier :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier -> Carrier)
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => a)
+      s;
+
+\definition neg: RawRealStructure[Carrier] -> Carrier -> Carrier :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier)
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => n)
+      s;
+
+\definition mul:
+  RawRealStructure[Carrier] -> Carrier -> Carrier -> Carrier :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier -> Carrier)
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => m)
+      s;
+
+\definition inv: RawRealStructure[Carrier] -> Carrier -> Carrier :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier)
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => i)
+      s;
+
+\definition leRelation:
+  RawRealStructure[Carrier] ->
+    \Power(CarrierPair.Times) :=
+  (s: RawRealStructure[Carrier]) =>
+    \prec(\Set, RawRealStructure[Carrier])
+      ((s: RawRealStructure[Carrier]) =>
+        \Power(CarrierPair.Times))
+      ((z, o: Carrier) =>
+       (a: Carrier -> Carrier -> Carrier) =>
+       (n: Carrier -> Carrier) =>
+       (m: Carrier -> Carrier -> Carrier) =>
+       (i: Carrier -> Carrier) =>
+       (l: \Power(CarrierPair.Times)) => l)
+      s;
+
+\definition Le:
+  RawRealStructure[Carrier] -> Carrier -> Carrier -> \Prop :=
+  (s: RawRealStructure[Carrier]) => (x, y: Carrier) =>
+    \Pred(
+      CarrierPair.Times,
+      leRelation s,
+      CarrierPair.pair x y);
+
+\definition NonZero:
+  RawRealStructure[Carrier] -> Carrier -> \Prop :=
+  (s: RawRealStructure[Carrier]) => (x: Carrier) =>
+    Logic.Not (x = zero s);
+
+\definition FieldLaws: RawRealStructure[Carrier] -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+    Logic.And[
+      Logic.Not (zero s = one s),
+      Logic.And[
+        (x: Carrier) -> add s (zero s) x = x,
+        Logic.And[
+          (x: Carrier) -> add s (neg s x) x = zero s,
+          Logic.And[
+            (x, y: Carrier) -> add s x y = add s y x,
+            Logic.And[
+              (x, y, z: Carrier) ->
+                add s (add s x y) z = add s x (add s y z),
+              Logic.And[
+                (x: Carrier) -> mul s (one s) x = x,
+                Logic.And[
+                  (x, y: Carrier) -> mul s x y = mul s y x,
+                  Logic.And[
+                    (x, y, z: Carrier) ->
+                      mul s (mul s x y) z = mul s x (mul s y z),
+                    Logic.And[
+                      (x, y, z: Carrier) ->
+                        mul s x (add s y z) =
+                          add s (mul s x y) (mul s x z),
+                      (x: Carrier) -> NonZero s x ->
+                        mul s (inv s x) x = one s]]]]]]]]];
+
+\definition LinearOrderLaws: RawRealStructure[Carrier] -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+    Logic.And[
+      (x: Carrier) -> Le s x x,
+      Logic.And[
+        (x, y, z: Carrier) -> Le s x y -> Le s y z -> Le s x z,
+        Logic.And[
+          (x, y: Carrier) -> Le s x y -> Le s y x -> x = y,
+          (x, y: Carrier) -> Logic.Or[Le s x y, Le s y x]]]];
+
+\definition OrderedFieldLaws: RawRealStructure[Carrier] -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+    Logic.And[
+      (x, y, z: Carrier) -> Le s x y ->
+        Le s (add s z x) (add s z y),
+      (x, y: Carrier) ->
+        Le s (zero s) x -> Le s (zero s) y ->
+          Le s (zero s) (mul s x y)];
+
+\definition In:
+  \Power(Carrier) -> Carrier -> \Prop :=
+  (A: \Power(Carrier)) => (x: Carrier) => \Pred(Carrier, A, x);
+
+\definition Inhabited: \Power(Carrier) -> \Prop :=
+  (A: \Power(Carrier)) =>
+    \exists \Ty(Carrier, \Subset(x, Carrier, In A x));
+
+\definition IsUpperBound:
+  RawRealStructure[Carrier] -> \Power(Carrier) -> Carrier -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+  (A: \Power(Carrier)) => (u: Carrier) =>
+    (x: Carrier) -> In A x -> Le s x u;
+
+\definition BoundedAbove:
+  RawRealStructure[Carrier] -> \Power(Carrier) -> \Prop :=
+  (s: RawRealStructure[Carrier]) => (A: \Power(Carrier)) =>
+    \exists \Ty(Carrier,
+      \Subset(u, Carrier, IsUpperBound s A u));
+
+\definition IsLeastUpperBound:
+  RawRealStructure[Carrier] -> \Power(Carrier) -> Carrier -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+  (A: \Power(Carrier)) => (u: Carrier) =>
+    Logic.And[
+      IsUpperBound s A u,
+      (v: Carrier) -> IsUpperBound s A v -> Le s u v];
+
+\definition HasLeastUpperBound:
+  RawRealStructure[Carrier] -> \Power(Carrier) -> \Prop :=
+  (s: RawRealStructure[Carrier]) => (A: \Power(Carrier)) =>
+    \exists \Ty(Carrier,
+      \Subset(u, Carrier, IsLeastUpperBound s A u));
+
+\definition Completeness: RawRealStructure[Carrier] -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+    (A: \Power(Carrier)) -> Inhabited A -> BoundedAbove s A ->
+      HasLeastUpperBound s A;
+
+\definition IsAxiomaticRealStructure:
+  RawRealStructure[Carrier] -> \Prop :=
+  (s: RawRealStructure[Carrier]) =>
+    Logic.And[FieldLaws s,
+      Logic.And[LinearOrderLaws s,
+        Logic.And[OrderedFieldLaws s, Completeness s]]];
+
+\definition AxiomaticRealStructureSet:
+  \Power(RawRealStructure[Carrier]) :=
+  \Subset(s, RawRealStructure[Carrier], IsAxiomaticRealStructure s);
+
+\definition AxiomaticRealStructure: \Set :=
+  \Ty(RawRealStructure[Carrier], AxiomaticRealStructureSet);

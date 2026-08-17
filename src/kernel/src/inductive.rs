@@ -312,15 +312,27 @@ impl InductiveTypeSpecs {
         let mut cases = vec![];
         for index in 0..indspec.constructor_len() {
             let case_var = SymbolId::ANONYMOUS;
+            // The case is declared after the motive and all preceding cases.
+            // Parameters supplied at the \prec site live outside that generated
+            // telescope, so rebase them before substituting them into the
+            // constructor telescope.
+            let case_parameters = parameters
+                .iter()
+                .map(|parameter| shift_bound_indices(arena, *parameter, telescope.len(), 0))
+                .collect::<Vec<_>>();
             let constructor =
-                indspec.constructors[index].instantiate_parameters(arena, &parameters);
+                indspec.constructors[index].instantiate_parameters(arena, &case_parameters);
             let q_exp = arena.bound(telescope.len() - 1);
             let constructor_exp = arena.alloc(Node::IndCtor {
                 indspec: inductive,
-                parameters: parameters.clone(),
+                parameters: case_parameters.clone(),
                 idx: index,
             });
-            let case_ty = eliminator_type(arena, &constructor, q_exp, constructor_exp, this);
+            let case_this = arena.alloc(Node::IndType {
+                indspec: inductive,
+                parameters: case_parameters,
+            });
+            let case_ty = eliminator_type(arena, &constructor, q_exp, constructor_exp, case_this);
             telescope.push((case_var, case_ty));
         }
 

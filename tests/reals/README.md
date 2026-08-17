@@ -1,5 +1,15 @@
 # 実数の形式化
 
+[`Pair.ref`](Pair.ref) は module parameter `A, B : Set` に対する直積 `Times` を
+一要素コンストラクタの inductive type として定義する。`first`、`second` とそれぞれの
+β則、pair の η則、二つの射影が等しい pair は等しいという外延性を証明する。
+
+[`AxiomaticReals.ref`](AxiomaticReals.ref) は、台集合上の零、一、四則演算、逆数と
+`Power(Times)` で表した二項順序関係を proof-free な Bourbaki 構造
+`RawRealStructure` として定義する。体、線形順序、順序との両立、上限性の条件は
+`IsAxiomaticRealStructure` にまとめ、条件を満たす構造を refinement type
+`AxiomaticRealStructure` とする。
+
 [`Rat.ref`](Rat.ref) は、通常の inductive type と primitive recursor から `Nat`、
 自然数対による整数を構成する。`NonZeroInteger = {z : Integer | z != 0}` を積閉集合
 `S` とし、分数は `Integer × S` を一要素コンストラクタの inductive type で表す。

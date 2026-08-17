@@ -1,0 +1,65 @@
+/* A proof-free Cartesian product and its basic equations. */
+\inductive Times: \Set :=
+| pair: A -> B -> Times;
+;
+
+\definition pair: A -> B -> Times :=
+  (a: A) => (b: B) => Times#pair a b;
+
+\definition first: Times -> A :=
+  (p: Times) =>
+    \prec(\Set, Times)
+      ((p: Times) => A)
+      ((a: A) => (b: B) => a)
+      p;
+
+\definition second: Times -> B :=
+  (p: Times) =>
+    \prec(\Set, Times)
+      ((p: Times) => B)
+      ((a: A) => (b: B) => b)
+      p;
+
+\definition firstPair:
+  (a: A) -> (b: B) -> first (pair a b) = a :=
+  (a: A) => (b: B) => \refl(a);
+
+\definition secondPair:
+  (a: A) -> (b: B) -> second (pair a b) = b :=
+  (a: A) => (b: B) => \refl(b);
+
+\definition eta:
+  (p: Times) -> pair (first p) (second p) = p :=
+  (p: Times) =>
+    \prec(\Prop, Times)
+      ((q: Times) => pair (first q) (second q) = q)
+      ((a: A) => (b: B) => \refl(pair a b))
+      p;
+
+\definition ext:
+  (p, q: Times) ->
+    first p = first q -> second p = second q -> p = q :=
+  (p: Times) =>
+    \prec(\Prop, Times)
+      ((left: Times) =>
+        (right: Times) ->
+        first left = first right ->
+        second left = second right ->
+        left = right)
+      ((a: A) => (b: B) => (q: Times) =>
+        \prec(\Prop, Times)
+          ((right: Times) =>
+            first (pair a b) = first right ->
+            second (pair a b) = second right ->
+            pair a b = right)
+          ((c: A) => (d: B) =>
+            (ac: a = c) => (bd: b = d) =>
+              \idelim(a = c
+                \with x: A => pair a b = pair x d)
+              \by (
+                \idelim(b = d
+                  \with y: B => pair a b = pair a y)
+                \by (\refl(pair a b), bd),
+                ac))
+          q)
+      p;

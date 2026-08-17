@@ -11,8 +11,8 @@ purr type system のような形で $S, A, R$ の組を次のように定義す�
     - $*^p, \sq^p$ は proposition 用の sort
 - $\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\}$
 - $\mathcal{R} =$ union of
-    - $\{(*^s_{i}, *^s_{i}, *^s_{i}), (*^s_{i}, \sq^s_{i}, \sq^s_{i}), (\sq^s_{i}, \sq^s_{i}, \sq^s_{i})\}$ ... $*^s_i$ は ふつうの dependent + omega 
-    - $\{(\sq^s_{i}, *^s_{i}, *^s_{i+1})\}$ ... level をあげることで PTS における impredicative っぽいものを回避する
+    - $\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}$ ... universe level の異なる dependent product は最小の共通 level に置く
+    - $\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}$ ... universe 自身を走る場合だけ domain 側の level を一つ上げる
     - $\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}$ ... $*^p$ は impredicative だけど依存型のような $(*^p, \sq^p, \sq^p)$ はない。
     - $\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}$ ... $*^s$ についての命題を用意するため。
 
