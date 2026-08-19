@@ -34,11 +34,15 @@ rec xs =
 こういう単純なものの場合は、 Bove-Capretta 法で割と自動で停止性用の命題を出せるらしい。
 
 ## nested recursion
-nested recursion な例
+nested recursion な例 (McCarthy 91 function)
 ```
-rec n =
-  if (n > 100) then (n - 10) else rec (rec (x + 11))
+\rec[f] n =
+  if (n > 100) then (n - 10) else f (f (x + 11))
 ```
+
+- すべての $n$ に対して、 functional relation としての存在はわかる。
+- CBV を仮定して、 rewriting system としての停止性が示せれば、正規の項として導入可能とか？
+  - rewriting system をそのまま内部で表現できるか？
 
 later modality の導入論文で停止性っぽいものを自動で導出している。
 
@@ -63,10 +67,17 @@ Fixpoint rose_map {A B} (f : A -> B) (t : rose A) : rose B :=
 - Bove-Capretta 法
 
 # 考えたこと
-## next っぽさ？
 CBPV や coroutine のように、"次に計算するべき項"がわかるようにする。
-`\next \fix f M -> M[f = \fix f M]` のように、 next 一個で reduction を一個進めることにして、
-`\eventually \fix f M` は停止性が証明できた時だけ使える。
+次に計算するべき項の列が計算できることが証明できるなら、それを実際に最後まで計算していい。
+
+## next っぽさ？
+> [!Note]
+> 時相論理で出てくる next は、 `A -> |> A` の型を持っている。
+> この next はどちらかというと constructor っぽい。
+> 今考えているのは逆で fix に対する eliminator っぽいので名前を変えて step にする。
+
+`\step \fix f M -> M[f = \fix f M]` のように、 `\step` 1個で fix に対する reduction を行える。
+`\eventually \fix f M` は停止性が証明できた時だけ使えて、出てきた全ての fix に `\step` を与えたのと同じ効果にする？
 
 時相論理とかになりそう。
 later modality の話では型レベルに入れてて stream 型みたいなものに対して行ってた。
@@ -79,3 +90,32 @@ nested がちょっと大変なので、 value/computation を分ける形にし
 また、単に nested recursion に対しては計算順序をちゃんと指定することで、普通の nest が書けないようにする。
 
 higher なものはよくわからない。
+
+## step っぽい遷移系に対する reduction ?
+呼び出しに対する configuration `A` があったとして、
+自由に再帰的な関数 `f: A -> B` を定義する代わりに、
+もし計算が終了しなかった場合に次に呼び出すための `A` をくっつけた
+`f: A -> A + B` の形で定義したとして、
+型 `B` になるまで `f` を与え続ける fuel 付き（切れたら panic）操作を考える。
+```
+f' (n: N) (a: A): B :=
+match n with
+| Z => panic!()
+| S n' =>
+  match f a with
+  | Left a' => f' n' a'
+  | Right b => b
+```
+これに対して、無限に大きい fuel を実は与えていたと考える？
+有限回の適用で `B` に行くことが示せるなら `f (a: A)` から `B` を得てもよい。
+
+CBPV だと `A` は Compute 側で `B` は Value 側なので、 `A + B` を書くのは微妙？
+やりたいことは `Compute(B) -> Compute(B) + Value(B)` から `Value(B)` を取り出すことではあるが、型付けとその経緯のことを考えると微妙。
+
+\(X_0 := f^{-1} B, X_n := f^{-1} X_{n-1}\) に対して、 \(\exists n: N, a \in X_n\) から \(B\) を得ていて、これは Prop 側の条件。
+
+Compute sort 側で `f: A -> A + B` があったときに、
+- `quote(f): comp(A -> A + B) = comp(A) -> comp(A) + comp(B): Set`
+- `Rel(f, a, a') := (f a = Right a')`
+- `terminates(f, a) := \exists n: N, \exists b: B, is_right (f' n' a): Prop`
+- `run(f, a, p: terminates(f, a)): B: Compute` で、これは proof irr. に上の `f'` と同様に動作する。

@@ -55,14 +55,14 @@ $$
   }
 $$
 elim の変換は次のように書ける。
-- $\text{elim}_\mathbb{N} (x_Z, x_S, 0) -> x_Z$
-- $\text{elim}_\mathbb{N} (x_Z, x_S, S n) -> x_S (\text{elim}_\mathbb{N} (x_Z, x_S, n))$
+- $\text{elim}_\mathbb{N} (x_Z, x_S, 0) \to x_Z$
+- $\text{elim}_\mathbb{N} (x_Z, x_S, S n) \to x_S (\text{elim}_\mathbb{N} (x_Z, x_S, n))$
 
 add の場合は、 `add = n |-> m |-> elim (m, x |-> S x, n)` と書けて、例えば次のように遷移が進む。
 - $\text{add} S(Z) m = \text{elim} (m, x \mapsto S x, S(Z))$
 - $(x \mapsto S(x)) @ (\text{elim}(m, x \mapsto S(x), Z))$
 - $S (\text{elim}(m, x \mapsto S(x), Z))$
-- $S m$
+- $S (m)$
 
 だから、 fix というよりは、実際にはこういう項に変換されているようなものだと思える。
 
@@ -214,19 +214,6 @@ $$
 
 あとで帰納型を含めてちゃんと考える。
 
-## McCarthy 91 function
-$$ M(n) = \begin{cases}
- n - 10 & n > 100
- M(M(n)) & \text{otherwise}
-\end{cases} $$
-
-これも項として存在できるならうれしい。
-
-まじめに考えているけど、全然わからない。
-- すべての $n$ に対して、 functional relation としての存在はわかる。
-- CBV を仮定して、 rewriting system としての停止性が示せれば、正規の項として導入可能とか？
-  - rewriting system をそのまま内部で表現できるか？
-
 ## とりあえず最近調べたことと考えたことをメモしておく。
 やろうとしていることは
 - 言語のレイヤーを分ける
@@ -257,6 +244,8 @@ $$ M(n) = \begin{cases}
 - 何かしらの自己言及ができないといけない？
   - quasi-quotation とかを使って、 fix で記述されたコード"自体"について記述して、それが正しいことについて書かないといけない
   - eval によってプログラムの側から値の側に送る
+
+一度コンパイルとか linear type とか pointer/place/value のことは忘れる。
 
 関係しているかも？
 - guarded recursion/later modality/Löb's theorem/provability logic
