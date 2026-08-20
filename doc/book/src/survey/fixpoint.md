@@ -120,13 +120,14 @@ Compute sort 側で `f: A -> A + B` があったときに、
   - **これはもともとの Rf に対応する奴**
 - `Rel(f, a, a') := (f a = Right a')`
 - `terminates(f, a) := \exists n: N, \exists b: B, is_right (f' n' a): Prop`
-- `run(f, a, p: terminates(f, a)): B: Compute` で、これは proof irrelevant な感じで上の `f'` と同様に動作する。check が成功したときだけ reduction してよいはず。
+- `run(f, a): B: Compute` で one-step reduction で `match f a with | Left a' => run(f, a') | Right b => b` とする。
 
 > [!note]
 > ところで、 context に false が入ると type check が停止しなくなる。
 > （CoC ではどれだけ context が嘘でも、 strong normalization だけは成り立っている。）
 > これは一旦 **許容する** ことにする。
 > まずは型システムに組み込めなければいけないので、その点を考慮するべき。
+> なお、 `run(f, a)` も reduction 単体では停止しない可能性があるが、これは ill-typed な CoC の term が停止しないことがあるのと同じなので考えなくていいはず。
 
 `f'` を使う必要はなさそう。
 ```
