@@ -115,7 +115,24 @@ CBPV だと `A` は Compute 側で `B` は Value 側なので、 `A + B` を書�
 \(X_0 := f^{-1} B, X_n := f^{-1} X_{n-1}\) に対して、 \(\exists n: N, a \in X_n\) から \(B\) を得ていて、これは Prop 側の条件。
 
 Compute sort 側で `f: A -> A + B` があったときに、
-- `quote(f): comp(A -> A + B) = comp(A) -> comp(A) + comp(B): Set`
+- `quote(f): comp(A -> A + B): Set`
+  - `quote` と `comp` は、 constructs と可換にする。つまり、 `quote(\lambda x:A, B) = \lambda x: quote(A), quote(B)` のような感じ。
+  - **これはもともとの Rf に対応する奴**
 - `Rel(f, a, a') := (f a = Right a')`
 - `terminates(f, a) := \exists n: N, \exists b: B, is_right (f' n' a): Prop`
-- `run(f, a, p: terminates(f, a)): B: Compute` で、これは proof irr. に上の `f'` と同様に動作する。
+- `run(f, a, p: terminates(f, a)): B: Compute` で、これは proof irrelevant な感じで上の `f'` と同様に動作する。check が成功したときだけ reduction してよいはず。
+
+> [!note]
+> ところで、 context に false が入ると type check が停止しなくなる。
+> （CoC ではどれだけ context が嘘でも、 strong normalization だけは成り立っている。）
+> これは一旦 **許容する** ことにする。
+> まずは型システムに組み込めなければいけないので、その点を考慮するべき。
+
+`f'` を使う必要はなさそう。
+```
+inductive terminates(f: A -> A + B): A -> Prop :=
+| End : (a: A) -> \exists (b: B) -> f a = Right b -> terminates(f, a)
+| Step: (a: A) -> \exists (a': A) -> f a = Left a' -> terminates(f, a') -> terminates(f, a)
+```
+
+`+` の話が入るので項が増える。どうにか、もっと項を少なくしたい。
