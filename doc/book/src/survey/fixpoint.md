@@ -170,3 +170,28 @@ Qed.
 ```
 
 Acc がすでに transitive closure っぽさをもっているので、 Rel の trans cl. をとらなくていい。
+
+```
+Theorem acc_to_term: forall a: A, Ac a -> Terminate a.
+Proof.
+intros a h.
+induction h as [a _ Ih].
+destruct (f a) as [a2 | b] eqn: h.
+-
+refine (Step a a2 _ h).
+apply Ih. exact h.
+-
+eapply (End a b h).
+Qed.
+```
+
+> [!note]
+> 一般には acc は無限降下列がないことの構成的な証明らしい。
+> なので、 step よりも acc の方がある意味では強いが、今回の定式化だと同値になった。
+> ところで、 encoding ではこうなる：
+> ```
+> Acc A R := (P : A -> Prop) -> ((x: A) -> ((y: A) -> R y x -> P y) -> P x) -> P x
+> ```
+> これを生で書けば項は削減できる。
+> 同様の方向で、 Sum についても削減はできるかもしれないので、
+> 体系としてちゃんと定義できた後にやりたい。
