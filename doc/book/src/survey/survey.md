@@ -23,7 +23,7 @@ Coq や Lean の型システムについてのメモをとっておく。
     - https://home.ttic.edu/~dreyer/course/papers/barendregt.pdf
 - Extended Calculus of Constructions, Zhaohui Luo, 1990.
   - https://era.ed.ac.uk/bitstream/handle/1842/12487/Luo1990.Pdf
-  - universe が階層付き + cumulative （$x: U_i$ なら $x: U_{i+1}$ のようなことができる。）
+  - universe が階層付き + cumulative （\(x: U_i\) なら \(x: U_{i+1}\) のようなことができる。）
   - predicative dependent sum を作る
 
 ## PTS について
@@ -84,7 +84,7 @@ Coq や Lean の型システムについてのメモをとっておく。
   - https://www.lix.polytechnique.fr/Labo/Benjamin.Werner/publis/cc.pdf
 - Proof-irrelevant model of CC with predicative induction and judgmental equality
   - https://arxiv.org/abs/1111.0123
-- Milena Stefanova, a schematic proof of strong normalization for the systems of the $\lambda$-cube
+- Milena Stefanova, a schematic proof of strong normalization for the systems of the \(\lambda\)-cube
   - https://annual.uni-sofia.bg/index.php/fmi/article/view/284/274
 
 ## type check について
@@ -131,10 +131,10 @@ in Type Theory
 
 ## その他
 - https://www.sciencedirect.com/science/article/pii/S0890540185710577
-  - parallel reduction と $M^*$ のやり方
+  - parallel reduction と \(M^*\) のやり方
 - https://eprints.whiterose.ac.uk/id/eprint/113157/1/collection.pdf
   - Collection Principles in Dependent Type Theory
-  - logic enriched type theory があって、これは type の世界を導入した後に prop を付け加えているので、実質 PTS で $\forall \mathcal{P}. \mathcal{Q}$ をやっている。
+  - logic enriched type theory があって、これは type の世界を導入した後に prop を付け加えているので、実質 PTS で \(\forall \mathcal{P}. \mathcal{Q}\) をやっている。
 - https://dl.acm.org/doi/pdf/10.1145/1656242.1656246
   - Weyl’s Predicative Classical Mathematics as a Logic-Enriched Type Theory
   - Fig1 がめっちゃわかりやすい。

@@ -109,12 +109,12 @@
 - `'where` = `"where" "{" ("-" 'variable ":" 'exp ":=" 'exp ";")+ "}"`
 - `'proof` = ` "proof" "{" ("-" "goal" ":" 'exp ":=" 'proof-by ";")+ "}"`
 - `'proof-by` = either
-  - construct `"\by" 'exp` ... $\Gamma \vdash P$ if $\Gamma \vdash p: P$
-  - exact `"\exact" 'exp` ... $\Gamma \vdash \exists A$ if $\Gamma \vdash a: A$
-  - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp` ... $\Gamma \vdash \Pred(A, a, x)$ if $\Gamma \vdash x: \Ty(a, A)$
-  - idrefl `"\idrefl" 'exp "\in" 'exp` ... $\Gamma \vdash a = a$ if $\Gamma \vdash a: A$
-  - idelim `"\idelim" 'exp "=" 'exp "\with" "(" 'var ":" 'ty ")" "=>" 'exp` ... $\Gamma \vdash (\lambda x: A. P) a_2$ if $\Gamma \vdash a_1 = a_2$, $\Gamma \vdash a_1, a_2: A$, $\Gamma x: A \vdash P_1$, $\Gamma \vdash (\lambda x: A. P) a_1$
-  - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp` ... $\Gamma \vdash \Take f = t$ if $\Gamma \vdash \Take f, t: X: *^s$
+  - construct `"\by" 'exp` ... \(\Gamma \vdash P\) if \(\Gamma \vdash p: P\)
+  - exact `"\exact" 'exp` ... \(\Gamma \vdash \exists A\) if \(\Gamma \vdash a: A\)
+  - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp` ... \(\Gamma \vdash \Pred(A, a, x)\) if \(\Gamma \vdash x: \Ty(a, A)\)
+  - idrefl `"\idrefl" 'exp "\in" 'exp` ... \(\Gamma \vdash a = a\) if \(\Gamma \vdash a: A\)
+  - idelim `"\idelim" 'exp "=" 'exp "\with" "(" 'var ":" 'ty ")" "=>" 'exp` ... \(\Gamma \vdash (\lambda x: A. P) a_2\) if \(\Gamma \vdash a_1 = a_2\), \(\Gamma \vdash a_1, a_2: A\), \(\Gamma x: A \vdash P_1\), \(\Gamma \vdash (\lambda x: A. P) a_1\)
+  - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp` ... \(\Gamma \vdash \Take f = t\) if \(\Gamma \vdash \Take f, t: X: *^s\)
   - abort: `\abort`
 
 ## module

@@ -3,72 +3,72 @@
 ただし、まだ定義できていない部分は載ってない。
 
 ## Sort
-purr type system のような形で $S, A, R$ の組を次のように定義する。
-以降は特別に書かない限り $i \in \mathbb{N}$ とする。
+purr type system のような形で \(S, A, R\) の組を次のように定義する。
+以降は特別に書かない限り \(i \in \mathbb{N}\) とする。
 
-- $\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\}$
-    - $*^s_{i}, \sq^s_{i}$ は set 用の sort
-    - $*^p, \sq^p$ は proposition 用の sort
-- $\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\}$
-- $\mathcal{R} =$ union of
-    - $\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}$ ... universe level の異なる dependent product は最小の共通 level に置く
-    - $\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}$ ... universe 自身を走る場合だけ domain 側の level を一つ上げる
-    - $\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}$ ... $*^p$ は impredicative だけど依存型のような $(*^p, \sq^p, \sq^p)$ はない。
-    - $\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}$ ... $*^s$ についての命題を用意するため。
+- \(\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\}\)
+    - \(*^s_{i}, \sq^s_{i}\) は set 用の sort
+    - \(*^p, \sq^p\) は proposition 用の sort
+- \(\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\}\)
+- \(\mathcal{R} =\) union of
+    - \(\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}\) ... universe level の異なる dependent product は最小の共通 level に置く
+    - \(\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}\) ... universe 自身を走る場合だけ domain 側の level を一つ上げる
+    - \(\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}\) ... \(*^p\) は impredicative だけど依存型のような \((*^p, \sq^p, \sq^p)\) はない。
+    - \(\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}\) ... \(*^s\) についての命題を用意するため。
 
-普通の変数を $x$ とする。
-$s$ や $s_i$ は $\mathcal{S}$ の元とする。
+普通の変数を \(x\) とする。
+\(s\) や \(s_i\) は \(\mathcal{S}\) の元とする。
 
 > [!note]
-> - 変数に sort をつけて $x^s$ にする
+> - 変数に sort をつけて \(x^s\) にする
 > - typing に sort をつける
 
 ## Term, Context, Judgement
 （2つあるものは、別の書き方として用意している。）
 
-- term: $t = $
+- term: \(t = \)
     - 普通の Lambda 項
         | category | definition |
         | --- | --- |
-        | sort | $s$ |
-        | variable | $x^s$ |
-        | lambda abstraction | $\lambda x^s: t. t$ |
-        | dependent product type | $\Pi x^s: t. t$ or $(x^s: t) \to t$ |
-        | application | $t @ t$ or $t t$ |
+        | sort | \(s\) |
+        | variable | \(x^s\) |
+        | lambda abstraction | \(\lambda x^s: t. t\) |
+        | dependent product type | \(\Pi x^s: t. t\) or \((x^s: t) \to t\) |
+        | application | \(t @ t\) or \(t t\) |
     - 証明項
         | category | definition |
         | --- | --- |
-        | "proof later" mark | $\Proof t$ |
+        | "proof later" mark | \(\Proof t\) |
     - 集合に関する項
         | category | definition |
         | --- | --- |
-        | refinement type | $\{x^s: t \mid t\}$ |
-        | power set | $\Power t$ |
-        | type lift | $\Ty (t, t)$ |
-        | predicate | $\Pred_t t (t)$ or $\Pred(t, t, t)$ |
+        | refinement type | \(\{x^s: t \mid t\}\) |
+        | power set | \(\Power t\) |
+        | type lift | \(\Ty (t, t)\) |
+        | predicate | \(\Pred_t t (t)\) or \(\Pred(t, t, t)\) |
     - equiality の記述
         | category | definition |
         | --- | --- |
-        | equality type | $ t = t$ |
-        | existence | $\exists t$ |
-        | take operator | $\Take(X,T,f)$ |
-- context: $\Gamma=$
+        | equality type | \( t = t\) |
+        | existence | \(\exists t\) |
+        | take operator | \(\Take(X,T,f)\) |
+- context: \(\Gamma=\)
     | category | definition |
     | --- | --- |
-    | empty context | $\emptyset$ |
-    | concat | $\Gamma, x:t:s$ |
+    | empty context | \(\emptyset\) |
+    | concat | \(\Gamma, x:t:s\) |
 - judgement:
     | category | definition |
     | --- | --- |
-    | well formed context | $\text{WF}(\Gamma)$ |
-    | sorting | $\Gamma \vdash t: s$ |
-    | typing | $\Gamma \vdash t: t: s$ |
-    | provable  | $\Gamma \vDash t$ |
+    | well formed context | \(\text{WF}(\Gamma)\) |
+    | sorting | \(\Gamma \vdash t: s\) |
+    | typing | \(\Gamma \vdash t: t: s\) |
+    | provable  | \(\Gamma \vDash t\) |
 
 ## reduction
-- $\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t$
+- \(\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t\)
   - conversion を judgement に含めないことにするのでこれ単体で述べておく。
-    なお、 $A \equiv B$ を仮定しない。（意図的）
+    なお、 \(A \equiv B\) を仮定しない。（意図的）
 - これ以外は普通のもの。
 
 ## derivation
@@ -77,65 +77,65 @@ PTS とは書いているが、普通のとは違って stratified されてい�
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| empty | $\text{WF}(\emptyset)$ | | |
-| axiom | $\emptyset \vdash s_1: s_2$ | | $(s_1, s_2) \in \mathcal{A}$ |
-| start | $\text{WF}(\Gamma::(x: t: s))$ | $\text{WF}(\Gamma)$, <br> $\Gamma \vdash t: s$ | $x \notin \Gamma$ |
-| weak sort | $\Gamma :: (x: t: s) \vdash t_1: s'$ | $\Gamma \vdash t_1: s'$ <br> $\text{WF}(\Gamma :: (x: t: s))$ | $x \notin \Gamma$ |
-| weak type | $\Gamma :: (x: t: s) \vdash t_1: t_2: s$ | $\Gamma \vdash t_1: t_2: s$ <br> $\text{WF}(\Gamma :: (x: t: s))$ | $x \notin \Gamma$ |
-| variable | $\Gamma :: (x: t: s) \vdash x^s: t: s$ | $\text{WF}(\Gamma :: (x: t: s))$ |
-| conversion | $\Gamma \vdash t: T_2: s$ | $\Gamma \vdash t: T_1: s$ <br> $\Gamma \vdash T_2: s$ | $T_1 \equiv^\beta T_2$ |
-| dep form | $\Gamma \vdash (\Pi x^{s_1}:t. T): s_3$ | $\Gamma \vdash t: s_1$ <br> $\Gamma:: (x: t: s_1) \vdash T: s_2$ | $(s_1, s_2, s_3) \in \mathcal{R}$ <br> $x \notin \Gamma $
-| dep intro | $\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3$ | $\Gamma \vdash (\Pi x^{s_1}:t. M): s_3$ <br> $\Gamma:: (x:t: s_1) \vdash m: M: s_2$ | $x \notin \Gamma$ |
-| dep elim | $\Gamma \vdash (f @ a): T[x := a]: s_2$ | $\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3$ <br> $\Gamma \vdash a: t: s_1$ | |
-| type elem | $\Gamma \vdash A: s: s'$ | $\Gamma \vdash A: s$, $\Gamma \vdash s: s'$ |
-| type sort | $\Gamma \vdash A: s$ | $\Gamma \vdash A: s: s'$ |
+| empty | \(\text{WF}(\emptyset)\) | | |
+| axiom | \(\emptyset \vdash s_1: s_2\) | | \((s_1, s_2) \in \mathcal{A}\) |
+| start | \(\text{WF}(\Gamma::(x: t: s))\) | \(\text{WF}(\Gamma)\), <br> \(\Gamma \vdash t: s\) | \(x \notin \Gamma\) |
+| weak sort | \(\Gamma :: (x: t: s) \vdash t_1: s'\) | \(\Gamma \vdash t_1: s'\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x \notin \Gamma\) |
+| weak type | \(\Gamma :: (x: t: s) \vdash t_1: t_2: s\) | \(\Gamma \vdash t_1: t_2: s\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x \notin \Gamma\) |
+| variable | \(\Gamma :: (x: t: s) \vdash x^s: t: s\) | \(\text{WF}(\Gamma :: (x: t: s))\) |
+| conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\) <br> \(\Gamma \vdash T_2: s\) | \(T_1 \equiv^\beta T_2\) |
+| dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\) <br> \(\Gamma:: (x: t: s_1) \vdash T: s_2\) | \((s_1, s_2, s_3) \in \mathcal{R}\) <br> \(x \notin \Gamma \)
+| dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma \vdash (\Pi x^{s_1}:t. M): s_3\) <br> \(\Gamma:: (x:t: s_1) \vdash m: M: s_2\) | \(x \notin \Gamma\) |
+| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\) <br> \(\Gamma \vdash a: t: s_1\) | |
+| type elem | \(\Gamma \vdash A: s: s'\) | \(\Gamma \vdash A: s\), \(\Gamma \vdash s: s'\) |
+| type sort | \(\Gamma \vdash A: s\) | \(\Gamma \vdash A: s: s'\) |
 
 ### provable
 | category | conclusion | premises |
 | --- | --- | --- |
-| provable | $\Gamma \vDash P $ | $\Gamma \vdash p: P: *^p$ |
-| proof term | $\Gamma \vdash \Proof P: P: *^p$ | $\Gamma \vDash P$ |
+| provable | \(\Gamma \vDash P \) | \(\Gamma \vdash p: P: *^p\) |
+| proof term | \(\Gamma \vdash \Proof P: P: *^p\) | \(\Gamma \vDash P\) |
 
 ### power set, subset
-ここで出てくる $*^s$ は全部 \(i\) を同じにする。
+ここで出てくる \(*^s\) は全部 \(i\) を同じにする。
 | category | conclusion | premises |
 | --- | --- | --- |
-| power set form | $\Gamma \vdash \Power A: *^s$ | $\Gamma \vdash A: *^s$ |
-| power set intro | $\Gamma \vdash \Ty (A, B): *^s$ | $\Gamma \vdash B: \Power A: *^s$ |
-| predicate | $\Gamma \vdash \Pred (A, B, t): *^p$ | $\Gamma \vdash B: \Power A: *^s$ <br> $\Gamma \vdash t: A: *^s$ |
-| subset form | $\Gamma \vdash \{x^{*^s}: A \mid P\}: \Power A: *^s$ | $\Gamma \vdash A: *^s, \Gamma:: x: A: *^s \vdash P: *^p$ |
-| subset intro | $\Gamma \vdash t : \Ty (A, B) : *^s$ | $\Gamma \vdash B : \Power A : *^s, \\ \Gamma \vdash t: A: *^s, \Gamma \vDash \Pred (A, B, t)$ |
-| subset weak | $\Gamma \vdash t: A: *^s$ | $\Gamma \vdash t: \Ty (A, B): *^s$ |
-| susbet prop | $\Gamma \vDash \Pred(A, B, t)$ | $\Gamma \vdash t: \Ty (A, B): *^s$ |
+| power set form | \(\Gamma \vdash \Power A: *^s\) | \(\Gamma \vdash A: *^s\) |
+| power set intro | \(\Gamma \vdash \Ty (A, B): *^s\) | \(\Gamma \vdash B: \Power A: *^s\) |
+| predicate | \(\Gamma \vdash \Pred (A, B, t): *^p\) | \(\Gamma \vdash B: \Power A: *^s\) <br> \(\Gamma \vdash t: A: *^s\) |
+| subset form | \(\Gamma \vdash \{x^{*^s}: A \mid P\}: \Power A: *^s\) | \(\Gamma \vdash A: *^s, \Gamma:: x: A: *^s \vdash P: *^p\) |
+| subset intro | \(\Gamma \vdash t : \Ty (A, B) : *^s\) | \(\Gamma \vdash B : \Power A : *^s, \\ \Gamma \vdash t: A: *^s, \Gamma \vDash \Pred (A, B, t)\) |
+| subset weak | \(\Gamma \vdash t: A: *^s\) | \(\Gamma \vdash t: \Ty (A, B): *^s\) |
+| susbet prop | \(\Gamma \vDash \Pred(A, B, t)\) | \(\Gamma \vdash t: \Ty (A, B): *^s\) |
 
 ### equality
 | category | conclusion | premises |
 | --- | --- | --- |
-| id form | $\Gamma \vdash a = b: *^p$ | $\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s$ |
-| id intro | $\Gamma \vDash a = a$ | $\Gamma \vdash a: A: *^s$ |
-| id elim | $\Gamma \vDash (\lambda x: A. P) @ b$ | $\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s, \\ \Gamma \vDash a = b, \\ \Gamma::(x: A: *^s) \vdash P: *^p \\ \Gamma \vDash (\lambda x: A. P) @ a$ |
+| id form | \(\Gamma \vdash a = b: *^p\) | \(\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s\) |
+| id intro | \(\Gamma \vDash a = a\) | \(\Gamma \vdash a: A: *^s\) |
+| id elim | \(\Gamma \vDash (\lambda x: A. P) @ b\) | \(\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s, \\ \Gamma \vDash a = b, \\ \Gamma::(x: A: *^s) \vdash P: *^p \\ \Gamma \vDash (\lambda x: A. P) @ a\) |
 
 ### choice
 | category | conclusion | premises |
 | --- | --- | --- |
-| exists form | $\Gamma \vdash (\exists t): *^p$ | $\Gamma \vdash t: *^s$ |
-| exists intro | $\Gamma \vDash \exists t$ | $\Gamma \vdash e : t : *^s$ |
-| take elim set | $\Gamma \vdash \Take(X,T,f): T: *^s$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^s \\ \Gamma \vdash f: X \to T: *^s \\ \Gamma \vDash \exists X, \\
-    \Gamma \vDash (x_1: X) \to (x_2: X) \to f @ x_1 = f @ x_2$ |
-| take elim prop | $\Gamma \vdash \Take(X,T,f): T :*^p$ | $\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X $ |
-| take equal | $\Gamma \vDash \Take(X,T,f) = f @ t$ | $\Gamma \vdash \Take(X,T,f): T: *^s \\ \Gamma \vdash t: X: *^s$ |
+| exists form | \(\Gamma \vdash (\exists t): *^p\) | \(\Gamma \vdash t: *^s\) |
+| exists intro | \(\Gamma \vDash \exists t\) | \(\Gamma \vdash e : t : *^s\) |
+| take elim set | \(\Gamma \vdash \Take(X,T,f): T: *^s\) | \(\Gamma \vdash X: *^s, \Gamma \vdash T: *^s \\ \Gamma \vdash f: X \to T: *^s \\ \Gamma \vDash \exists X, \\
+    \Gamma \vDash (x_1: X) \to (x_2: X) \to f @ x_1 = f @ x_2\) |
+| take elim prop | \(\Gamma \vdash \Take(X,T,f): T :*^p\) | \(\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X \) |
+| take equal | \(\Gamma \vDash \Take(X,T,f) = f @ t\) | \(\Gamma \vdash \Take(X,T,f): T: *^s \\ \Gamma \vdash t: X: *^s\) |
 
 ## 課題
 
-- judgement を stratified （ $\Gamma \vdash^s t: T$） にしなくてもいいのでは...
-- $\Ty$ を2引数にしない場合
-    - $\Ty(A, B)$ の代わりに $t: \Ty B$ と $B: \Power A$ を premise に入れる。
-- take elim prop の set-theoretic な意味は、普通に $\bullet \in \lbrack T \rbrack$ への map になっているということ？
-    - take elim は $X: *^p$ なら cut elimination に見える。
+- judgement を stratified （ \(\Gamma \vdash^s t: T\)） にしなくてもいいのでは...
+- \(\Ty\) を2引数にしない場合
+    - \(\Ty(A, B)\) の代わりに \(t: \Ty B\) と \(B: \Power A\) を premise に入れる。
+- take elim prop の set-theoretic な意味は、普通に \(\bullet \in \lbrack T \rbrack\) への map になっているということ？
+    - take elim は \(X: *^p\) なら cut elimination に見える。
 - inductive type や record を定義する際に気を付けるのは、 dependent sum type と W-type にしたときの大きさ
-    - 基本的には $\mathcal{R}$ と同じものを使ってよい。
-    - impredicative にならないように、 $(*^s, *^p, *^s) \in \mathcal{R}$ にすること。
+    - 基本的には \(\mathcal{R}\) と同じものを使ってよい。
+    - impredicative にならないように、 \((*^s, *^p, *^s) \in \mathcal{R}\) にすること。
         - これが必要になるのはおかしい気がする（ subtype で対応するべきだから。）
-- reduction では $\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t$ としたが、
-  同値関係としての $\beta$ を定めるときには、
-  $\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t$ if $A \cong B$ のようにしてもいいかも。
+- reduction では \(\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t\) としたが、
+  同値関係としての \(\beta\) を定めるときには、
+  \(\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t\) if \(A \cong B\) のようにしてもいいかも。

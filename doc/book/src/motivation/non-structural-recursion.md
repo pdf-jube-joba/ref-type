@@ -5,25 +5,25 @@ division を計算するのに euclidean algorithm（ユークリッド互除法
 
 ## rec について
 型をあまり考えずにやってみる。項として次のものを追加する。
-- $$\text{rec $x$ $x$ = $M$}$$
+- \[\text{rec $x$ $x$ = $M$}\]
 rec の reduction は単に次のようになる。
-$$ \text{rec $f$ $x$ = $M$} \to^\beta \lambda x. (M[f := (\text{rec $f$ $x$ = $M$})]) $$
+\[ \text{rec $f$ $x$ = $M$} \to^\beta \lambda x. (M[f := (\text{rec $f$ $x$ = $M$})]) \]
 これを用いると、ユークリッド互除法は次のように書ける。
-ただし、 $\mathbb{N}$ や $"bool"$ という型や、 $\leq$: $\mathbb{N} \times \mathbb{N} \to "bool"$ はいいとする。
-$$ \begin{align*}
+ただし、 \(\mathbb{N}\) や \("bool"\) という型や、 \(\leq\): \(\mathbb{N} \times \mathbb{N} \to "bool"\) はいいとする。
+\[ \begin{align*}
   \text{rec} f (x: \mathbb{N} \times \mathbb{N}) = \
     &\text{if $x.0 \leq x.1$  then $f (x.1, x.0)$ else} \\
     &\text{if $x.0 \mathrel{\text{div}} x.1 == 0$ then $x.1$ else $f (x.1, x.0 \mathrel{\text{div}} x.1)$} \
-\end{align*} $$
+\end{align*} \]
 
 型付きとして簡単にやるなら次のようになる。
-$$
+\[
   \dfrac{\Gamma, f: T \to T', x: T \vdash M: T'}{\Gamma \vdash \text{rec $f$ $x$ = $M$}: T \to T'}
-$$
+\]
 
 ## このままだとまずい理由
-定理証明系としては、consistency が保たれている（ $\Gamma \vdash t: (\forall P: *^p. P)$ となる項 $t$ がない）必要があるが、
-これを使うと $t$ ができてしまうのでだめ。
+定理証明系としては、consistency が保たれている（ \(\Gamma \vdash t: (\forall P: *^p. P)\) となる項 \(t\) がない）必要があるが、
+これを使うと \(t\) ができてしまうのでだめ。
 全ての rec がまずいのではなくて、無制限の rec がまずい。
 呼び出されるごとに引数が減ることがわかっていたり、構造帰納法の形になるなら大丈夫。
 
@@ -44,7 +44,7 @@ rec add ((n, m): \mathbb{N} times \mathbb{N}) =
 
 この場合、実は fix を生で使っているというより、自然数から生成される elim と comp 規則を与える項を用いた形に変換していると思える。
 elim は次のようになっている。
-$$ 
+\[ 
   \dfrac
   {
     \Gamma, x: \mathbb{N} \vdash T: s,
@@ -53,22 +53,22 @@ $$
   }  {
     \Gamma \vdash \text{elim}_\mathbb{N} (x_Z, x_S, n): T[x := n],
   }
-$$
+\]
 elim の変換は次のように書ける。
-- $\text{elim}_\mathbb{N} (x_Z, x_S, 0) \to x_Z$
-- $\text{elim}_\mathbb{N} (x_Z, x_S, S n) \to x_S (\text{elim}_\mathbb{N} (x_Z, x_S, n))$
+- \(\text{elim}_\mathbb{N} (x_Z, x_S, 0) \to x_Z\)
+- \(\text{elim}_\mathbb{N} (x_Z, x_S, S n) \to x_S (\text{elim}_\mathbb{N} (x_Z, x_S, n))\)
 
 add の場合は、 `add = n |-> m |-> elim (m, x |-> S x, n)` と書けて、例えば次のように遷移が進む。
-- $\text{add} S(Z) m = \text{elim} (m, x \mapsto S x, S(Z))$
-- $(x \mapsto S(x)) @ (\text{elim}(m, x \mapsto S(x), Z))$
-- $S (\text{elim}(m, x \mapsto S(x), Z))$
-- $S (m)$
+- \(\text{add} S(Z) m = \text{elim} (m, x \mapsto S x, S(Z))\)
+- \((x \mapsto S(x)) @ (\text{elim}(m, x \mapsto S(x), Z))\)
+- \(S (\text{elim}(m, x \mapsto S(x), Z))\)
+- \(S (m)\)
 
 だから、 fix というよりは、実際にはこういう項に変換されているようなものだと思える。
 
 ## 定理証明で書こうとすると
 ユークリッド互除法に戻る。
-$x = (n, m)$ みたいに書いておく。
+\(x = (n, m)\) みたいに書いておく。
 ```
 rec f n m = \
     if n \leq m  then f m n else \
@@ -79,12 +79,12 @@ rec f n m = \
 しかし、停止するはずなので、この項自体は定理証明にいれても大丈夫なはず。
 
 これがなぜ停止するのかというと、直感的には、
-- $n \leq m$ の場合は $n > m$ に帰着させる。
-- $n > m$ の場合は、 $f$ の呼び出しごとに $n + m$ が小さくなるので、停止する。
+- \(n \leq m\) の場合は \(n > m\) に帰着させる。
+- \(n > m\) の場合は、 \(f\) の呼び出しごとに \(n + m\) が小さくなるので、停止する。
 からになる。
 
 ### 方法1
-$n > m$ に限ってまず $n + m$ に関する帰納法が使えるような形にしたい。
+\(n > m\) に限ってまず \(n + m\) に関する帰納法が使えるような形にしたい。
 直感的には、次のような形で定義する。
 （ coq で通るわけではないが。）
 
@@ -168,39 +168,39 @@ let euc: (n: N) -> (m: N) -> N := take (l: N s.t. n + m \leq l). euc' n m l
 
 この場合、 sort を増やして Prop, Set, Comp のようにわける。
 
-- $\mathcal{S} = \{*^p, *^s, *^c, \square\}$
-- $\mathcal{A}= {(*^p: \square), (*^s, \square)}$
-- $\mathcal{R} =$
-  - ${(*^p, *^p), (*^p, \square), (\square, *^p), (\square, \square)}$
-  - ${(*^s, *^s), (*^s, \square), (*^s, *^p)}$
+- \(\mathcal{S} = \{*^p, *^s, *^c, \square\}\)
+- \(\mathcal{A}= {(*^p: \square), (*^s, \square)}\)
+- \(\mathcal{R} =\)
+  - \({(*^p, *^p), (*^p, \square), (\square, *^p), (\square, \square)}\)
+  - \({(*^s, *^s), (*^s, \square), (*^s, *^p)}\)
 
-この上で、 $*^c$ から $*^s$ への reflection を行う。
+この上で、 \(*^c\) から \(*^s\) への reflection を行う。
 具体的には、
-項を $::= .. | \text{Rf}(t)$ のように拡張し、
-$\text{Rf}(t)$ の変換を次のように行う
-- $\text{Rf}(*^c) \to *^s$
-- $\text{Rf}(\lambda x:T. t) \to \lambda x: (\text{Rf} T). (\text{Rf} t)$
-- $\Pi$ や app なども同じ
-- $\text{Rf}(m) \to^\beta \text{Rf}(m')$ if $m \to^\beta m'$
+項を \(::= .. | \text{Rf}(t)\) のように拡張し、
+\(\text{Rf}(t)\) の変換を次のように行う
+- \(\text{Rf}(*^c) \to *^s\)
+- \(\text{Rf}(\lambda x:T. t) \to \lambda x: (\text{Rf} T). (\text{Rf} t)\)
+- \(\Pi\) や app なども同じ
+- \(\text{Rf}(m) \to^\beta \text{Rf}(m')\) if \(m \to^\beta m'\)
 
-また、帰納的な型として $*^c$ 側に定義されたものは、
-その reflection に対応する型を自動的に $*^s$ につくり、 $\text{Rf}$ といい感じになるようにつくる。
+また、帰納的な型として \(*^c\) 側に定義されたものは、
+その reflection に対応する型を自動的に \(*^s\) につくり、 \(\text{Rf}\) といい感じになるようにつくる。
 例えば自然数の場合、
-- type form ... $\mathbb{N}$: $*^c$ ::=
-  - type intro Z ... $Z$: $\mathbb{N}$
-  - type intro S ... $S$: $\mathbb{N} \to \mathbb{N}$
+- type form ... \(\mathbb{N}\): \(*^c\) ::=
+  - type intro Z ... \(Z\): \(\mathbb{N}\)
+  - type intro S ... \(S\): \(\mathbb{N} \to \mathbb{N}\)
 と書くと
-- elim rule ... $\text{elim}_\mathbb{N}$
+- elim rule ... \(\text{elim}_\mathbb{N}\)
 - computation rule ...
 
 が勝手に出てくるが、
-これにさらに $*^s$ 側で対応する $\hat{\mathbb{N}}, \hat{Z}, \hat{S}, \hat{\text{elim}_\mathbb{N}}$ を導入する。
-そして、 $\text{Rf}(\mathbb{N}) = \hat{\mathbb{N}}$ などのように変換規則を拡張する。
+これにさらに \(*^s\) 側で対応する \(\hat{\mathbb{N}}, \hat{Z}, \hat{S}, \hat{\text{elim}_\mathbb{N}}\) を導入する。
+そして、 \(\text{Rf}(\mathbb{N}) = \hat{\mathbb{N}}\) などのように変換規則を拡張する。
 
-"rec" 付きの項を "Rf" で "rec" のない世界 $*^s$ 側で表現できているのであれば、
+"rec" 付きの項を "Rf" で "rec" のない世界 \(*^s\) 側で表現できているのであれば、
 "rec" が付いていても止まりそう（な気がする）。
 
-$$
+\[
   \dfrac{
     \Gamma \vdash \Pi x: (\text{Rf} T). ((\text{Rf} (\text{rec $f$ $x$ = $M$}) x) =_T t x)
   }
@@ -208,7 +208,7 @@ $$
     .... \quad
     \Gamma \vdash (\text{rec $f$ $x$ = $M$}): \Pi x: T. M',
   }
-$$
+\]
 
 とりあえず考えただけなので、整合性があるかは不明。
 
