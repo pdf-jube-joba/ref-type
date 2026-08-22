@@ -136,4 +136,37 @@ inductive terminates(f: A -> A + B): A -> Prop :=
 | Step: (a: A) -> \exists (a': A) -> f a = Left a' -> terminates(f, a') -> terminates(f, a)
 ```
 
-`+` の話が入るので項が増える。どうにか、もっと項を少なくしたい。
+> [!note]
+> これは Acc を普通に使っていいらしい
+```coq
+Inductive Acc (A: Type) (R: A -> A -> Prop): A -> Prop :=
+| acc: forall (x: A), (forall (y: A),  R y x -> Acc A R y) -> Acc A R x.
+
+Variable A B : Type.
+Variable f: A -> A + B.
+
+Definition Rel (x: A) (y: A): Prop := f y = inl x.
+Definition Ac := Acc A Rel.
+
+Inductive Terminate: A -> Prop :=
+| End: forall a: A, forall b: B, f a = inr b -> Terminate a
+| Step: forall a1 a2: A, Terminate a2 -> f a1 = inl a2 -> Terminate a1.
+
+Theorem term_to_acc: forall a: A, Terminate a -> Ac a.
+Proof.
+intros a h.
+induction h as [a b H | a a2 h IHh].
+-
+constructor. intros y nev. unfold Rel in nev.
+rewrite H in nev. discriminate nev.
+
+-
+constructor. intros y step. unfold Rel in step.
+assert (y = a2) by congruence.
+subst y. clear H step.
+unfold Ac in IHh. exact IHh.
+
+Qed.
+```
+
+Acc がすでに transitive closure っぽさをもっているので、 Rel の trans cl. をとらなくていい。
