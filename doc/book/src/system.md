@@ -171,70 +171,70 @@ PTS とは書いているが、普通のとは違って stratified されてい�
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
 | empty | \(\text{WF}(\emptyset)\) | | |
-| axiom | \(\emptyset \vdash s_1: s_2\) | | \((s_1, s_2) \in \mathcal{A}\) |
-| start | \(\text{WF}(\Gamma::(x: t: s))\) | \(\text{WF}(\Gamma)\), <br> \(\Gamma \vdash t: s\) | \(x \notin \Gamma\) |
-| weak sort | \(\Gamma :: (x: t: s) \vdash t_1: s'\) | \(\Gamma \vdash t_1: s'\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x \notin \Gamma\) |
-| weak type | \(\Gamma :: (x: t: s) \vdash t_1: t_2: s\) | \(\Gamma \vdash t_1: t_2: s\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x \notin \Gamma\) |
-| variable | \(\Gamma :: (x: t: s) \vdash x^s: t: s\) | \(\text{WF}(\Gamma :: (x: t: s))\) |
-| conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\) <br> \(\Gamma \vdash T_2: s\) | \(T_1 \equiv T_2\) |
-| dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\) <br> \(\Gamma:: (x: t: s_1) \vdash T: s_2\) | \((s_1, s_2, s_3) \in \mathcal{R}\) <br> \(x \notin \Gamma \)
-| dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma \vdash (\Pi x^{s_1}:t. M): s_3\) <br> \(\Gamma:: (x:t: s_1) \vdash m: M: s_2\) | \(x \notin \Gamma\) |
-| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\) <br> \(\Gamma \vdash a: t: s_1\) | |
-| type elem | \(\Gamma \vdash A: s: s'\) | \(\Gamma \vdash A: s\), \(\Gamma \vdash s: s'\) |
-| type sort | \(\Gamma \vdash A: s\) | \(\Gamma \vdash A: s: s'\) |
+| axiom | \(\emptyset \vdash s_1: s_2\) | | \(s_1,s_2\in\mathcal{S}\)<br>\((s_1, s_2) \in \mathcal{A}\) |
+| start | \(\text{WF}(\Gamma::(x: t: s))\) | \(\text{WF}(\Gamma)\), <br> \(\Gamma \vdash t: s\) | \(x\in\operatorname{Name}\)<br>\(s\in\mathcal{S}\)<br>\(x \notin \Gamma\) |
+| weak sort | \(\Gamma :: (x: t: s) \vdash t_1: s'\) | \(\Gamma \vdash t_1: s'\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x\in\operatorname{Name}\)<br>\(s,s'\in\mathcal{S}\)<br>\(x \notin \Gamma\) |
+| weak type | \(\Gamma :: (x: t: s) \vdash t_1: t_2: s\) | \(\Gamma \vdash t_1: t_2: s\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x\in\operatorname{Name}\)<br>\(s\in\mathcal{S}\)<br>\(x \notin \Gamma\) |
+| variable | \(\Gamma :: (x: t: s) \vdash x^s: t: s\) | \(\text{WF}(\Gamma :: (x: t: s))\) | \(x\in\operatorname{Name}\)<br>\(s\in\mathcal{S}\) |
+| conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\) <br> \(\Gamma \vdash T_2: s\) | \(s\in\mathcal{S}\)<br>\(T_1 \equiv T_2\) |
+| dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\) <br> \(\Gamma:: (x: t: s_1) \vdash T: s_2\) | \(x\in\operatorname{Name}\)<br>\(s_1,s_2,s_3\in\mathcal{S}\)<br>\((s_1, s_2, s_3) \in \mathcal{R}\) <br> \(x \notin \Gamma \) |
+| dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma \vdash (\Pi x^{s_1}:t. M): s_3\) <br> \(\Gamma:: (x:t: s_1) \vdash m: M: s_2\) | \(x\in\operatorname{Name}\)<br>\(s_1,s_2,s_3\in\mathcal{S}\)<br>\(x \notin \Gamma\) |
+| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\) <br> \(\Gamma \vdash a: t: s_1\) | \(x\in\operatorname{Name}\)<br>\(s_1,s_2,s_3\in\mathcal{S}\) |
+| type elem | \(\Gamma \vdash A: s: t\) | \(\Gamma \vdash A: s\), \(\Gamma \vdash s: t\) | \(s,t\in\mathcal{S}\) |
+| type sort | \(\Gamma \vdash A: s\) | \(\Gamma \vdash A: s: t\) | \(s,t\in\mathcal{S}\) |
 
 ### provable
-| category | conclusion | premises |
-| --- | --- | --- |
-| provable | \(\Gamma \vDash P \) | \(\Gamma \vdash p: P: *^p\) |
-| proof term | \(\Gamma \vdash \Proof P: P: *^p\) | \(\Gamma \vDash P\) |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| provable | \(\Gamma \vDash P \) | \(\Gamma \vdash p: P: *^p\) | |
+| proof term | \(\Gamma \vdash \Proof P: P: *^p\) | \(\Gamma \vDash P\) | |
 
 ### power set, subset
 ここで出てくる \(*^s\) は全部 \(i\) を同じにする。
-| category | conclusion | premises |
-| --- | --- | --- |
-| power set form | \(\Gamma \vdash \Power A: *^s\) | \(\Gamma \vdash A: *^s\) |
-| power set intro | \(\Gamma \vdash \Ty (A, B): *^s\) | \(\Gamma \vdash B: \Power A: *^s\) |
-| predicate | \(\Gamma \vdash \Pred (A, B, t): *^p\) | \(\Gamma \vdash B: \Power A: *^s\) <br> \(\Gamma \vdash t: A: *^s\) |
-| subset form | \(\Gamma \vdash \{x^{*^s}: A \mid P\}: \Power A: *^s\) | \(\Gamma \vdash A: *^s, \Gamma:: x: A: *^s \vdash P: *^p\) |
-| subset intro | \(\Gamma \vdash t : \Ty (A, B) : *^s\) | \(\Gamma \vdash B : \Power A : *^s, \\ \Gamma \vdash t: A: *^s, \Gamma \vDash \Pred (A, B, t)\) |
-| subset weak | \(\Gamma \vdash t: A: *^s\) | \(\Gamma \vdash t: \Ty (A, B): *^s\) |
-| susbet prop | \(\Gamma \vDash \Pred(A, B, t)\) | \(\Gamma \vdash t: \Ty (A, B): *^s\) |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| power set form | \(\Gamma \vdash \Power A: *^s\) | \(\Gamma \vdash A: *^s\) | |
+| power set intro | \(\Gamma \vdash \Ty (A, B): *^s\) | \(\Gamma \vdash B: \Power A: *^s\) | |
+| predicate | \(\Gamma \vdash \Pred (A, B, t): *^p\) | \(\Gamma \vdash B: \Power A: *^s\) <br> \(\Gamma \vdash t: A: *^s\) | |
+| subset form | \(\Gamma \vdash \{x^{*^s}: A \mid P\}: \Power A: *^s\) | \(\Gamma \vdash A: *^s, \Gamma:: x: A: *^s \vdash P: *^p\) | \(x\in\operatorname{Name}\) |
+| subset intro | \(\Gamma \vdash t : \Ty (A, B) : *^s\) | \(\Gamma \vdash B : \Power A : *^s, \\ \Gamma \vdash t: A: *^s, \Gamma \vDash \Pred (A, B, t)\) | |
+| subset weak | \(\Gamma \vdash t: A: *^s\) | \(\Gamma \vdash t: \Ty (A, B): *^s\) | |
+| susbet prop | \(\Gamma \vDash \Pred(A, B, t)\) | \(\Gamma \vdash t: \Ty (A, B): *^s\) | |
 
 ### equality
-| category | conclusion | premises |
-| --- | --- | --- |
-| id form | \(\Gamma \vdash a = b: *^p\) | \(\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s\) |
-| id intro | \(\Gamma \vDash a = a\) | \(\Gamma \vdash a: A: *^s\) |
-| id elim | \(\Gamma \vDash (\lambda x: A. P) @ b\) | \(\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s, \\ \Gamma \vDash a = b, \\ \Gamma::(x: A: *^s) \vdash P: *^p \\ \Gamma \vDash (\lambda x: A. P) @ a\) |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| id form | \(\Gamma \vdash a = b: *^p\) | \(\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s\) | |
+| id intro | \(\Gamma \vDash a = a\) | \(\Gamma \vdash a: A: *^s\) | |
+| id elim | \(\Gamma \vDash (\lambda x: A. P) @ b\) | \(\Gamma \vdash a: A: *^s, \Gamma \vdash b: A: *^s, \\ \Gamma \vDash a = b, \\ \Gamma::(x: A: *^s) \vdash P: *^p \\ \Gamma \vDash (\lambda x: A. P) @ a\) | \(x\in\operatorname{Name}\) |
 
 ### choice
-| category | conclusion | premises |
-| --- | --- | --- |
-| exists form | \(\Gamma \vdash (\exists t): *^p\) | \(\Gamma \vdash t: *^s\) |
-| exists intro | \(\Gamma \vDash \exists t\) | \(\Gamma \vdash e : t : *^s\) |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| exists form | \(\Gamma \vdash (\exists t): *^p\) | \(\Gamma \vdash t: *^s\) | |
+| exists intro | \(\Gamma \vDash \exists t\) | \(\Gamma \vdash e : t : *^s\) | |
 | take elim set | \(\Gamma \vdash \Take(X,T,f): T: *^s\) | \(\Gamma \vdash X: *^s, \Gamma \vdash T: *^s \\ \Gamma \vdash f: X \to T: *^s \\ \Gamma \vDash \exists X, \\
-    \Gamma \vDash (x_1: X) \to (x_2: X) \to f @ x_1 = f @ x_2\) |
-| take elim prop | \(\Gamma \vdash \Take(X,T,f): T :*^p\) | \(\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X \) |
-| take equal | \(\Gamma \vDash \Take(X,T,f) = f @ t\) | \(\Gamma \vdash \Take(X,T,f): T: *^s \\ \Gamma \vdash t: X: *^s\) |
+    \Gamma \vDash (x_1: X) \to (x_2: X) \to f @ x_1 = f @ x_2\) | \(x_1,x_2\in\operatorname{Name}\) |
+| take elim prop | \(\Gamma \vdash \Take(X,T,f): T :*^p\) | \(\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X \) | |
+| take equal | \(\Gamma \vDash \Take(X,T,f) = f @ t\) | \(\Gamma \vdash \Take(X,T,f): T: *^s \\ \Gamma \vdash t: X: *^s\) | |
 
 ### general recursion
 
-| category | conclusion | premises |
-| --- | --- | --- |
-| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\) |
-| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash B:*^c\) |
-| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash b:B:*^c\) |
-| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\) |
-| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\)<br>\(\Gamma\vDash\left((b:\operatorname{RfType}(A))\to\left(\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\right)\to\operatorname{Acc}_{A,B}(f,b)\right)\) |
-| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\) |
-| reflection type | \(\Gamma\vdash\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash A:*^c\) |
-| reflection term | \(\Gamma\vdash\operatorname{RfTerm}_A(m):\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash m:A:*^c\) |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\) | |
+| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash B:*^c\) | |
+| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash b:B:*^c\) | |
+| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\) | |
+| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\)<br>\(\Gamma\vDash\left((b:\operatorname{RfType}(A))\to\left(\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\right)\to\operatorname{Acc}_{A,B}(f,b)\right)\) | \(b\in\operatorname{Name}\) |
+| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\) | |
+| reflection type | \(\Gamma\vdash\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash A:*^c\) | |
+| reflection term | \(\Gamma\vdash\operatorname{RfTerm}_A(m):\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash m:A:*^c\) | |
 
-| category | conclusion | premises |
-| --- | --- | --- |
-| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\) |
-| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,u):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash u:\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RunInv}_{A,B}(f,a,u)\) |
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\) | |
+| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,u):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash u:\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RunInv}_{A,B}(f,a,u)\) | |
 
 ## 課題
 
