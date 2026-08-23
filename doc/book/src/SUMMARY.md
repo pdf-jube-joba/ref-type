@@ -8,7 +8,7 @@
     - [non-structural recursion](./motivation/non-structural-recursion.md)
 - [coding](./coding/coding.md)
   - [syntax](./coding/syntax.md)
-  - [proof](./coding/proof.md)
+  - [proof](./coding/proof_writing.md)
   - [overload](./coding/overload.md)
   - [module](./coding/module.md)
   - [implementation](./coding/implementation.md)
