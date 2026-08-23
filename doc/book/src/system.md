@@ -135,7 +135,7 @@ A\to\operatorname{RunStep}(A,B),\\
   z\notin\operatorname{Names}(\operatorname{FV}(A)\cup\operatorname{FV}(B))
 \right),\\
 \operatorname{RfTerm}_{A\to B}(f)
-@\operatorname{RfTerm}_A(a)
+@\operatorname{RfTerm}_C(a)
 &\Rightarrow
 \operatorname{RfTerm}_B(f@a).
 \end{aligned}
@@ -149,14 +149,18 @@ A\to\operatorname{RunStep}(A,B),\\
 &\Rightarrow
 \operatorname{runCase}_{A,B}(f,a,f@a),\\
 \operatorname{runCase}_{A,B}
-(f,a,\operatorname{continue}_{A,B}(a'))
+(f,a,\operatorname{continue}_{C,D}(a'))
 &\Rightarrow
 \operatorname{run}_{A,B}(f,a'),\\
 \operatorname{runCase}_{A,B}
-(f,a,\operatorname{finish}_{A,B}(b))
+(f,a,\operatorname{finish}_{C,D}(b))
 &\Rightarrow b.
 \end{aligned}
 \]
+
+後二規則の target には外側の `runCase` の parameter `A,B` を使う。well-typed な source では
+generation と conversion から `A≡C`、`B≡D` が従う。外側を選べば、`f` の domain、
+再帰先の termination predicate、`runCase` 全体の result type を変換せずに保てる。
 
 ### definitional equality
 
@@ -247,8 +251,9 @@ PTS とは書いているが、普通のとは違って stratified されてい�
     - 基本的には \(\mathcal{R}\) と同じものを使ってよい。
     - impredicative にならないように、 \((*^s, *^p, *^s) \in \mathcal{R}\) にすること。
         - これが必要になるのはおかしい気がする（ subtype で対応するべきだから。）
-- reduction の仮定にあらわれる合同性について: 統一性がなくなったので、示しやすいほうにする？
+- reduction の仮定にあらわれる合同性について：
     - Pred: \(\Pred (A, \{x: B \mid P\}, t) \Rightarrow (\lambda x: B. P) @ t\) としたが、
     同値関係としての \(\beta\) を定めるときには、
     \(\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t\) if \(A \cong B\) のようにしてもいいかも。
-    - Rf-App: \(\operatorname{RfTerm} _ {A \to B}(f) @ \operatorname{RfTerm} _ C(a)\) の条件で \(A = C\) が要求されている。
+    - Rf-App と二つの runCase rule は、重複する annotation を同じ metavariable にせず左線形にした。
+      well-typed な source に必要な component の convertibility は generation から回収する。
