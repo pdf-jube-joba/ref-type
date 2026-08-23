@@ -338,3 +338,8 @@ Take の証明欄は `Exp` から除去せず、checked な項のまま保持す
 ただし computational な convertibility では、takeset と takeeq の存在・一意性証明、
 takeprop の domain・map・存在証明を比較しない。
 比較専用の unchecked な項は持たない。
+
+## 一般再帰を入れた
+本当にこれでいいかはわからないが一応やった。
+会話記録はだいたい `対話/再帰関数` にある。
+モデル自体は作れそうだが、変数周りが微妙？

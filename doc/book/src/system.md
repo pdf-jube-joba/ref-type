@@ -6,15 +6,17 @@
 purr type system のような形で \(S, A, R\) の組を次のように定義する。
 以降は特別に書かない限り \(i \in \mathbb{N}\) とする。
 
-- \(\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\}\)
+- \(\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\} \cup \{*^c, \sq^c\}\)
     - \(*^s_{i}, \sq^s_{i}\) は set 用の sort
     - \(*^p, \sq^p\) は proposition 用の sort
-- \(\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\}\)
+    - \(*^c, \sq^c\) は compute 用の sort
+- \(\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\} \cup \{(*^c, \sq^c)\}\)
 - \(\mathcal{R} =\) union of
     - \(\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}\) ... universe level の異なる dependent product は最小の共通 level に置く
     - \(\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}\) ... universe 自身を走る場合だけ domain 側の level を一つ上げる
     - \(\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}\) ... \(*^p\) は impredicative だけど依存型のような \((*^p, \sq^p, \sq^p)\) はない。
     - \(\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}\) ... \(*^s\) についての命題を用意するため。
+    - \(\{(*^c, *^c, *^c)\}\)
 
 普通の変数を \(x\) とする。
 \(s\) や \(s_i\) は \(\mathcal{S}\) の元とする。
@@ -22,6 +24,17 @@ purr type system のような形で \(S, A, R\) の組を次のように定義�
 > [!note]
 > - 変数に sort をつけて \(x^s\) にする
 > - typing に sort をつける
+
+\[
+\begin{aligned}
+\operatorname{FV}(t)
+&\subseteq
+\{x^s\mid x\in\operatorname{Name},\ s\in\mathcal S\},\\
+\operatorname{Names}(V)
+&:=
+\{x\mid\exists s.\ x^s\in V\}.
+\end{aligned}
+\]
 
 ## Term, Context, Judgement
 （2つあるものは、別の書き方として用意している。）
@@ -52,6 +65,17 @@ purr type system のような形で \(S, A, R\) の組を次のように定義�
         | equality type | \( t = t\) |
         | existence | \(\exists t\) |
         | take operator | \(\Take(X,T,f)\) |
+    - 一般再帰に関する項
+        | category | definition |
+        | --- | --- |
+        | run step type | \(\operatorname{RunStep}(A,B)\) |
+        | continue | \(\operatorname{continue}_{A,B}(a)\) |
+        | finish | \(\operatorname{finish}_{A,B}(b)\) |
+        | accessibility | \(\operatorname{Acc}_{A,B}(f,a)\) |
+        | run | \(\operatorname{run}_{A,B}(f,a)\) |
+        | run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) |
+        | type reflection | \(\operatorname{RfType}(A)\) |
+        | term reflection | \(\operatorname{RfTerm}_A(m)\) |
 - context: \(\Gamma=\)
     | category | definition |
     | --- | --- |
@@ -65,11 +89,80 @@ purr type system のような形で \(S, A, R\) の組を次のように定義�
     | typing | \(\Gamma \vdash t: t: s\) |
     | provable  | \(\Gamma \vDash t\) |
 
+### 略記
+
+\[
+\begin{aligned}
+\operatorname{continueFun}_{A,B}
+&:=
+\lambda z^{*^c}:A.\operatorname{continue}_{A,B}(z^{*^c})
+:
+A\to\operatorname{RunStep}(A,B),\\
+\operatorname{Terminates}_{A,B}(f,a)
+&:=
+\operatorname{Acc}_{A,B}
+\left(f,\operatorname{RfTerm}_A(a)\right),\\
+\operatorname{RunInv}_{A,B}(f,a,u)
+&:=
+\operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}(f@a)
+=
+\operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}(u).
+\end{aligned}
+\]
+
 ## reduction
-- \(\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t\)
-  - conversion を judgement に含めないことにするのでこれ単体で述べておく。
-    なお、 \(A \equiv B\) を仮定しない。（意図的）
-- これ以外は普通のもの。
+\(\Rightarrow\) は通常の Lambda 項の reduction と次の root rule の compatible closure とする。
+
+### subset
+
+\[
+\Pred (A, \{x: B \mid P\}, t)
+\Rightarrow
+(\lambda x: B. P) @ t.
+\]
+
+### reflection
+
+\[
+\begin{aligned}
+\operatorname{RfType}((x^{*^c}:A)\to B)
+&\Rightarrow
+(z^{*^s_0}:\operatorname{RfType}(A))
+\to\operatorname{RfType}(B)
+\qquad
+\left(
+  x^{*^c}\notin\operatorname{FV}(B),
+  z\notin\operatorname{Names}(\operatorname{FV}(A)\cup\operatorname{FV}(B))
+\right),\\
+\operatorname{RfTerm}_{A\to B}(f)
+@\operatorname{RfTerm}_A(a)
+&\Rightarrow
+\operatorname{RfTerm}_B(f@a).
+\end{aligned}
+\]
+
+### recursion
+
+\[
+\begin{aligned}
+\operatorname{run}_{A,B}(f,a)
+&\Rightarrow
+\operatorname{runCase}_{A,B}(f,a,f@a),\\
+\operatorname{runCase}_{A,B}
+(f,a,\operatorname{continue}_{A,B}(a'))
+&\Rightarrow
+\operatorname{run}_{A,B}(f,a'),\\
+\operatorname{runCase}_{A,B}
+(f,a,\operatorname{finish}_{A,B}(b))
+&\Rightarrow b.
+\end{aligned}
+\]
+
+### definitional equality
+
+\[
+\equiv\;:=\;(\Rightarrow\cup\Leftarrow)^*.
+\]
 
 ## derivation
 ### pure type system 部分
@@ -83,7 +176,7 @@ PTS とは書いているが、普通のとは違って stratified されてい�
 | weak sort | \(\Gamma :: (x: t: s) \vdash t_1: s'\) | \(\Gamma \vdash t_1: s'\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x \notin \Gamma\) |
 | weak type | \(\Gamma :: (x: t: s) \vdash t_1: t_2: s\) | \(\Gamma \vdash t_1: t_2: s\) <br> \(\text{WF}(\Gamma :: (x: t: s))\) | \(x \notin \Gamma\) |
 | variable | \(\Gamma :: (x: t: s) \vdash x^s: t: s\) | \(\text{WF}(\Gamma :: (x: t: s))\) |
-| conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\) <br> \(\Gamma \vdash T_2: s\) | \(T_1 \equiv^\beta T_2\) |
+| conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\) <br> \(\Gamma \vdash T_2: s\) | \(T_1 \equiv T_2\) |
 | dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\) <br> \(\Gamma:: (x: t: s_1) \vdash T: s_2\) | \((s_1, s_2, s_3) \in \mathcal{R}\) <br> \(x \notin \Gamma \)
 | dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma \vdash (\Pi x^{s_1}:t. M): s_3\) <br> \(\Gamma:: (x:t: s_1) \vdash m: M: s_2\) | \(x \notin \Gamma\) |
 | dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\) <br> \(\Gamma \vdash a: t: s_1\) | |
@@ -125,6 +218,24 @@ PTS とは書いているが、普通のとは違って stratified されてい�
 | take elim prop | \(\Gamma \vdash \Take(X,T,f): T :*^p\) | \(\Gamma \vdash X: *^s, \Gamma \vdash T: *^p \\ \Gamma \vdash f: X \to T: *^p \\ \Gamma \vDash \exists X \) |
 | take equal | \(\Gamma \vDash \Take(X,T,f) = f @ t\) | \(\Gamma \vdash \Take(X,T,f): T: *^s \\ \Gamma \vdash t: X: *^s\) |
 
+### general recursion
+
+| category | conclusion | premises |
+| --- | --- | --- |
+| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\) |
+| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash B:*^c\) |
+| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash b:B:*^c\) |
+| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\) |
+| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\)<br>\(\Gamma\vDash\left((b:\operatorname{RfType}(A))\to\left(\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\right)\to\operatorname{Acc}_{A,B}(f,b)\right)\) |
+| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\) |
+| reflection type | \(\Gamma\vdash\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash A:*^c\) |
+| reflection term | \(\Gamma\vdash\operatorname{RfTerm}_A(m):\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash m:A:*^c\) |
+
+| category | conclusion | premises |
+| --- | --- | --- |
+| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\) |
+| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,u):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash u:\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RunInv}_{A,B}(f,a,u)\) |
+
 ## 課題
 
 - judgement を stratified （ \(\Gamma \vdash^s t: T\)） にしなくてもいいのでは...
@@ -136,6 +247,8 @@ PTS とは書いているが、普通のとは違って stratified されてい�
     - 基本的には \(\mathcal{R}\) と同じものを使ってよい。
     - impredicative にならないように、 \((*^s, *^p, *^s) \in \mathcal{R}\) にすること。
         - これが必要になるのはおかしい気がする（ subtype で対応するべきだから。）
-- reduction では \(\Pred (A, \{x: B \mid P\}, t) \to (\lambda x: B. P) @ t\) としたが、
-  同値関係としての \(\beta\) を定めるときには、
-  \(\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t\) if \(A \cong B\) のようにしてもいいかも。
+- reduction の仮定にあらわれる合同性について: 統一性がなくなったので、示しやすいほうにする？
+    - Pred: \(\Pred (A, \{x: B \mid P\}, t) \Rightarrow (\lambda x: B. P) @ t\) としたが、
+    同値関係としての \(\beta\) を定めるときには、
+    \(\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t\) if \(A \cong B\) のようにしてもいいかも。
+    - Rf-App: \(\operatorname{RfTerm} _ {A \to B}(f) @ \operatorname{RfTerm} _ C(a)\) の条件で \(A = C\) が要求されている。
