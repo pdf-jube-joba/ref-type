@@ -325,6 +325,100 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             return_type,
             cases,
         } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, cases),
+        Node::RunStep {
+            state_ty,
+            result_ty,
+        } => {
+            check_compute_type(session, rule, phase, state_ty, "check state type")?;
+            check_compute_type(session, rule, phase, result_ty, "check result type")?;
+            Ok(arena.sort(Sort::Univ))
+        }
+        Node::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => {
+            check_compute_type(session, rule, phase, state_ty, "check state type")?;
+            check_compute_type(session, rule, phase, result_ty, "check result type")?;
+            add_check!(session, rule, phase, next, state_ty, "check next state")?;
+            Ok(run_step_type(arena, state_ty, result_ty))
+        }
+        Node::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => {
+            check_compute_type(session, rule, phase, state_ty, "check state type")?;
+            check_compute_type(session, rule, phase, result_ty, "check result type")?;
+            add_check!(session, rule, phase, output, result_ty, "check run output")?;
+            Ok(run_step_type(arena, state_ty, result_ty))
+        }
+        Node::Acc {
+            state_ty,
+            result_ty,
+            step,
+            state,
+        } => {
+            check_recursion_signature(session, rule, phase, state_ty, result_ty, step)?;
+            let reflected_state_ty = reflected_type(arena, state_ty);
+            add_check!(
+                session,
+                rule,
+                phase,
+                state,
+                reflected_state_ty,
+                "check reflected state"
+            )?;
+            Ok(arena.sort(Sort::Prop))
+        }
+        Node::RfType { compute_ty } => {
+            check_compute_type(session, rule, phase, compute_ty, "check reflected type")?;
+            Ok(arena.sort(Sort::Set(0)))
+        }
+        Node::RfTerm { compute_ty, term } => {
+            check_compute_type(session, rule, phase, compute_ty, "check reflected type")?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                term,
+                compute_ty,
+                "check reflected term"
+            )?;
+            Ok(reflected_type(arena, compute_ty))
+        }
+        Node::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            termination,
+        } => {
+            check_recursion_signature(session, rule, phase, state_ty, result_ty, step)?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                initial,
+                state_ty,
+                "check initial state"
+            )?;
+            let reflected_initial = arena.alloc(Node::RfTerm {
+                compute_ty: state_ty,
+                term: initial,
+            });
+            let terminates =
+                accessibility_type(arena, state_ty, result_ty, step, reflected_initial);
+            add_check!(
+                session,
+                rule,
+                phase,
+                termination,
+                terminates,
+                "check termination proof"
+            )?;
+            Ok(result_ty)
+        }
         Node::SubsetIntro {
             superset,
             subset,
@@ -457,8 +551,77 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         | Node::SubsetElim { .. }
         | Node::IdRefl { .. }
         | Node::IdElim { .. }
-        | Node::TakeEq { .. } => infer_proof_constructor(session, term),
+        | Node::TakeEq { .. }
+        | Node::AccIntro { .. }
+        | Node::AccDescent { .. } => infer_proof_constructor(session, term),
     }
+}
+
+fn check_compute_type(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    ty: Exp,
+    expected: &str,
+) -> Result<(), Box<JudgementError>> {
+    if add_sort!(session, rule, phase, ty, expected)? == Sort::Univ {
+        Ok(())
+    } else {
+        Err(failure(rule, phase, "type is not in the compute universe"))
+    }
+}
+
+fn run_step_type(arena: &Arena, state_ty: Exp, result_ty: Exp) -> Exp {
+    arena.alloc(Node::RunStep {
+        state_ty,
+        result_ty,
+    })
+}
+
+fn reflected_type(arena: &Arena, compute_ty: Exp) -> Exp {
+    arena.alloc(Node::RfType { compute_ty })
+}
+
+fn nondependent_product(arena: &Arena, domain: Exp, codomain: Exp) -> Exp {
+    arena.alloc(Node::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: domain,
+        body: shift_bound_indices(arena, codomain, 1, 0),
+    })
+}
+
+fn step_function_type(arena: &Arena, state_ty: Exp, result_ty: Exp) -> Exp {
+    nondependent_product(arena, state_ty, run_step_type(arena, state_ty, result_ty))
+}
+
+fn accessibility_type(arena: &Arena, state_ty: Exp, result_ty: Exp, step: Exp, state: Exp) -> Exp {
+    arena.alloc(Node::Acc {
+        state_ty,
+        result_ty,
+        step,
+        state,
+    })
+}
+
+fn check_recursion_signature(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    state_ty: Exp,
+    result_ty: Exp,
+    step: Exp,
+) -> Result<(), Box<JudgementError>> {
+    check_compute_type(session, rule, phase, state_ty, "check state type")?;
+    check_compute_type(session, rule, phase, result_ty, "check result type")?;
+    let expected_step = step_function_type(session.arena(), state_ty, result_ty);
+    add_check!(
+        session,
+        rule,
+        phase,
+        step,
+        expected_step,
+        "check step function"
+    )
 }
 
 fn check_parameters(
@@ -670,6 +833,15 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         Node::IndType { .. } => "IndType",
         Node::IndCtor { .. } => "IndCtor",
         Node::IndElim { .. } => "IndTypeElim",
+        Node::RunStep { .. } => "RunStep",
+        Node::Continue { .. } => "Continue",
+        Node::Finish { .. } => "Finish",
+        Node::Acc { .. } => "Acc",
+        Node::RfType { .. } => "RfType",
+        Node::RfTerm { .. } => "RfTerm",
+        Node::Run { .. } => "Run",
+        Node::AccIntro { .. } => "AccIntro",
+        Node::AccDescent { .. } => "AccDescent",
         Node::SubsetIntro { .. } => "SubsetIntro",
         Node::PowerSet { .. } => "PowerSet",
         Node::SubSet { .. } => "SubSet",
@@ -700,6 +872,48 @@ fn infer_sort(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Sort, Box
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
     Ok(sort)
+}
+
+fn continue_function(arena: &Arena, state_ty: Exp, result_ty: Exp) -> Exp {
+    let body = arena.alloc(Node::Continue {
+        state_ty: shift_bound_indices(arena, state_ty, 1, 0),
+        result_ty: shift_bound_indices(arena, result_ty, 1, 0),
+        next: arena.bound(0),
+    });
+    arena.alloc(Node::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: state_ty,
+        body,
+    })
+}
+
+fn transition_equality(
+    arena: &Arena,
+    state_ty: Exp,
+    result_ty: Exp,
+    step: Exp,
+    from: Exp,
+    to: Exp,
+) -> Exp {
+    let step_ty = step_function_type(arena, state_ty, result_ty);
+    let reflected_step = arena.alloc(Node::RfTerm {
+        compute_ty: step_ty,
+        term: step,
+    });
+    let continue_fun = continue_function(arena, state_ty, result_ty);
+    let reflected_continue = arena.alloc(Node::RfTerm {
+        compute_ty: step_ty,
+        term: continue_fun,
+    });
+    let left = arena.alloc(Node::App {
+        func: reflected_step,
+        arg: from,
+    });
+    let right = arena.alloc(Node::App {
+        func: reflected_continue,
+        arg: to,
+    });
+    arena.alloc(Node::Equal { left, right })
 }
 
 fn infer_proof_constructor(
@@ -821,6 +1035,110 @@ fn infer_proof_constructor(
                 left: take,
                 right: mapped,
             }))
+        }
+        Node::AccIntro {
+            state_ty,
+            result_ty,
+            step,
+            state,
+            predecessors,
+        } => {
+            check_recursion_signature(session, rule, phase, state_ty, result_ty, step)?;
+            let reflected_state_ty = reflected_type(arena, state_ty);
+            add_check!(
+                session,
+                rule,
+                phase,
+                state,
+                reflected_state_ty,
+                "check accessible state"
+            )?;
+
+            // Build the premise under b : RfType(A). All outer expressions
+            // move out by one de Bruijn level; b itself is Bound(0).
+            let nested_state_ty = shift_bound_indices(arena, state_ty, 1, 0);
+            let nested_result_ty = shift_bound_indices(arena, result_ty, 1, 0);
+            let nested_step = shift_bound_indices(arena, step, 1, 0);
+            let nested_state = shift_bound_indices(arena, state, 1, 0);
+            let predecessor = arena.bound(0);
+            let transition = transition_equality(
+                arena,
+                nested_state_ty,
+                nested_result_ty,
+                nested_step,
+                nested_state,
+                predecessor,
+            );
+            let predecessor_acc = accessibility_type(
+                arena,
+                nested_state_ty,
+                nested_result_ty,
+                nested_step,
+                predecessor,
+            );
+            let implication = nondependent_product(arena, transition, predecessor_acc);
+            let expected_predecessors = arena.alloc(Node::Prod {
+                var: SymbolId::ANONYMOUS,
+                ty: reflected_state_ty,
+                body: implication,
+            });
+            add_check!(
+                session,
+                rule,
+                phase,
+                predecessors,
+                expected_predecessors,
+                "check accessibility predecessors"
+            )?;
+            Ok(accessibility_type(arena, state_ty, result_ty, step, state))
+        }
+        Node::AccDescent {
+            state_ty,
+            result_ty,
+            step,
+            from,
+            to,
+            accessibility,
+            transition,
+        } => {
+            check_recursion_signature(session, rule, phase, state_ty, result_ty, step)?;
+            let reflected_state_ty = reflected_type(arena, state_ty);
+            add_check!(
+                session,
+                rule,
+                phase,
+                from,
+                reflected_state_ty,
+                "check source state"
+            )?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                to,
+                reflected_state_ty,
+                "check target state"
+            )?;
+            let source_acc = accessibility_type(arena, state_ty, result_ty, step, from);
+            add_check!(
+                session,
+                rule,
+                phase,
+                accessibility,
+                source_acc,
+                "check source accessibility"
+            )?;
+            let expected_transition =
+                transition_equality(arena, state_ty, result_ty, step, from, to);
+            add_check!(
+                session,
+                rule,
+                phase,
+                transition,
+                expected_transition,
+                "check recursive transition"
+            )?;
+            Ok(accessibility_type(arena, state_ty, result_ty, step, to))
         }
         _ => unreachable!(),
     }

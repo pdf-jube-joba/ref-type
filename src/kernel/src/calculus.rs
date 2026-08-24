@@ -38,6 +38,74 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
                     .into_iter()
                     .any(|case| exp_contains_module_param(env, case, parameter))
         }
+        Node::RunStep {
+            state_ty,
+            result_ty,
+        }
+        | Node::RfTerm {
+            compute_ty: state_ty,
+            term: result_ty,
+        } => [state_ty, result_ty]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::Continue {
+            state_ty,
+            result_ty,
+            next,
+        }
+        | Node::Finish {
+            state_ty,
+            result_ty,
+            output: next,
+        } => [state_ty, result_ty, next]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::Acc {
+            state_ty,
+            result_ty,
+            step,
+            state,
+        } => [state_ty, result_ty, step, state]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::RfType { compute_ty } => exp_contains_module_param(env, compute_ty, parameter),
+        Node::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            termination,
+        } => [state_ty, result_ty, step, initial, termination]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::AccIntro {
+            state_ty,
+            result_ty,
+            step,
+            state,
+            predecessors,
+        } => [state_ty, result_ty, step, state, predecessors]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::AccDescent {
+            state_ty,
+            result_ty,
+            step,
+            from,
+            to,
+            accessibility,
+            transition,
+        } => [
+            state_ty,
+            result_ty,
+            step,
+            from,
+            to,
+            accessibility,
+            transition,
+        ]
+        .into_iter()
+        .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::PowerSet { set } | Node::Exists { set } | Node::IdRefl { element: set } => {
             exp_contains_module_param(env, set, parameter)
         }
@@ -253,6 +321,178 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_return, right_return, mode)
                 && eq_slices(env, &left_cases, &right_cases, mode)
         }
+        (
+            Node::RunStep {
+                state_ty: left_first,
+                result_ty: left_second,
+            },
+            Node::RunStep {
+                state_ty: right_first,
+                result_ty: right_second,
+            },
+        )
+        | (
+            Node::RfTerm {
+                compute_ty: left_first,
+                term: left_second,
+            },
+            Node::RfTerm {
+                compute_ty: right_first,
+                term: right_second,
+            },
+        ) => {
+            is_alpha_eq_rec(env, left_first, right_first, mode)
+                && is_alpha_eq_rec(env, left_second, right_second, mode)
+        }
+        (
+            Node::Continue {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                next: left_value,
+            },
+            Node::Continue {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                next: right_value,
+            },
+        )
+        | (
+            Node::Finish {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                output: left_value,
+            },
+            Node::Finish {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                output: right_value,
+            },
+        ) => eq_slices(
+            env,
+            &[left_state_ty, left_result_ty, left_value],
+            &[right_state_ty, right_result_ty, right_value],
+            mode,
+        ),
+        (
+            Node::Acc {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                step: left_step,
+                state: left_state,
+            },
+            Node::Acc {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                step: right_step,
+                state: right_state,
+            },
+        ) => eq_slices(
+            env,
+            &[left_state_ty, left_result_ty, left_step, left_state],
+            &[right_state_ty, right_result_ty, right_step, right_state],
+            mode,
+        ),
+        (Node::RfType { compute_ty: left }, Node::RfType { compute_ty: right }) => {
+            is_alpha_eq_rec(env, left, right, mode)
+        }
+        (
+            Node::Run {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                step: left_step,
+                initial: left_initial,
+                termination: left_termination,
+            },
+            Node::Run {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                step: right_step,
+                initial: right_initial,
+                termination: right_termination,
+            },
+        ) => {
+            eq_slices(
+                env,
+                &[left_state_ty, left_result_ty, left_step, left_initial],
+                &[right_state_ty, right_result_ty, right_step, right_initial],
+                mode,
+            ) && (mode.proof_irrelevant
+                || is_alpha_eq_rec(env, left_termination, right_termination, mode))
+        }
+        (
+            Node::AccIntro {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                step: left_step,
+                state: left_state,
+                predecessors: left_predecessors,
+            },
+            Node::AccIntro {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                step: right_step,
+                state: right_state,
+                predecessors: right_predecessors,
+            },
+        ) => eq_slices(
+            env,
+            &[
+                left_state_ty,
+                left_result_ty,
+                left_step,
+                left_state,
+                left_predecessors,
+            ],
+            &[
+                right_state_ty,
+                right_result_ty,
+                right_step,
+                right_state,
+                right_predecessors,
+            ],
+            mode,
+        ),
+        (
+            Node::AccDescent {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                step: left_step,
+                from: left_from,
+                to: left_to,
+                accessibility: left_accessibility,
+                transition: left_transition,
+            },
+            Node::AccDescent {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                step: right_step,
+                from: right_from,
+                to: right_to,
+                accessibility: right_accessibility,
+                transition: right_transition,
+            },
+        ) => eq_slices(
+            env,
+            &[
+                left_state_ty,
+                left_result_ty,
+                left_step,
+                left_from,
+                left_to,
+                left_accessibility,
+                left_transition,
+            ],
+            &[
+                right_state_ty,
+                right_result_ty,
+                right_step,
+                right_from,
+                right_to,
+                right_accessibility,
+                right_transition,
+            ],
+            mode,
+        ),
         (
             Node::SubsetIntro {
                 superset: left_superset,
@@ -597,6 +837,90 @@ fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             for case in cases {
                 *case = map(*case);
             }
+        }
+        Node::RunStep {
+            state_ty,
+            result_ty,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+        }
+        Node::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *next = map(*next);
+        }
+        Node::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *output = map(*output);
+        }
+        Node::Acc {
+            state_ty,
+            result_ty,
+            step,
+            state,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *step = map(*step);
+            *state = map(*state);
+        }
+        Node::RfType { compute_ty } => *compute_ty = map(*compute_ty),
+        Node::RfTerm { compute_ty, term } => {
+            *compute_ty = map(*compute_ty);
+            *term = map(*term);
+        }
+        Node::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            termination,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *step = map(*step);
+            *initial = map(*initial);
+            *termination = map(*termination);
+        }
+        Node::AccIntro {
+            state_ty,
+            result_ty,
+            step,
+            state,
+            predecessors,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *step = map(*step);
+            *state = map(*state);
+            *predecessors = map(*predecessors);
+        }
+        Node::AccDescent {
+            state_ty,
+            result_ty,
+            step,
+            from,
+            to,
+            accessibility,
+            transition,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *step = map(*step);
+            *from = map(*from);
+            *to = map(*to);
+            *accessibility = map(*accessibility);
+            *transition = map(*transition);
         }
         Node::PowerSet { set } | Node::Exists { set } | Node::IdRefl { element: set } => {
             *set = map(*set);
@@ -953,12 +1277,74 @@ pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
     }
 }
 
+fn nondependent_product(env: &CrateEnv, ty: Exp) -> Option<(Exp, Exp)> {
+    let arena = env.arena();
+    let ty = exp_whnf_with_mode(env, ty, false);
+    let Node::Prod {
+        ty: domain, body, ..
+    } = arena.get(ty)
+    else {
+        return None;
+    };
+    if exp_contains_bound(arena, body, 0) {
+        return None;
+    }
+    // Remove the product binder. The argument is unused by the side
+    // condition, but instantiate also rebases references to outer binders.
+    Some((domain, instantiate(arena, body, domain)))
+}
+
+fn reduce_reflected_application(env: &CrateEnv, func: Exp, arg: Exp) -> Option<Exp> {
+    let arena = env.arena();
+    let func = exp_whnf_with_mode(env, func, false);
+    let Node::RfTerm {
+        compute_ty,
+        term: reflected_func,
+    } = arena.get(func)
+    else {
+        return None;
+    };
+    let arg = exp_whnf_with_mode(env, arg, false);
+    let Node::RfTerm {
+        term: reflected_arg,
+        ..
+    } = arena.get(arg)
+    else {
+        return None;
+    };
+    let (_, codomain) = nondependent_product(env, compute_ty)?;
+    let application = arena.alloc(Node::App {
+        func: reflected_func,
+        arg: reflected_arg,
+    });
+    Some(arena.alloc(Node::RfTerm {
+        compute_ty: codomain,
+        term: application,
+    }))
+}
+
+fn reduce_run_to_finish(env: &CrateEnv, step: Exp, initial: Exp) -> Option<Exp> {
+    let arena = env.arena();
+    let mut state = initial;
+    loop {
+        let transition = arena.alloc(Node::App {
+            func: step,
+            arg: state,
+        });
+        match arena.get(exp_whnf_with_mode(env, transition, false)) {
+            Node::Continue { next, .. } => state = next,
+            Node::Finish { output, .. } => return Some(output),
+            _ => return None,
+        }
+    }
+}
+
 pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     let arena = env.arena();
     match arena.get(exp) {
         Node::App { func, arg } => match arena.get(func) {
             Node::Lam { body, .. } => Some(instantiate(arena, body, arg)),
-            _ => None,
+            _ => reduce_reflected_application(env, func, arg),
         },
         Node::DefinedConstant(definition) => Some(env.definition(definition).body),
         Node::Pred {
@@ -968,6 +1354,19 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             _ => None,
         },
         Node::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
+        Node::RfType { compute_ty } => {
+            let (domain, codomain) = nondependent_product(env, compute_ty)?;
+            let reflected_domain = arena.alloc(Node::RfType { compute_ty: domain });
+            let reflected_codomain = arena.alloc(Node::RfType {
+                compute_ty: codomain,
+            });
+            Some(arena.alloc(Node::Prod {
+                var: SymbolId::ANONYMOUS,
+                ty: reflected_domain,
+                body: shift_bound_indices(arena, reflected_codomain, 1, 0),
+            }))
+        }
+        Node::Run { step, initial, .. } => reduce_run_to_finish(env, step, initial),
         _ => None,
     }
 }
@@ -1040,6 +1439,43 @@ pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
     let arena = env.arena();
     let head = whnf(env, exp);
     let node = arena.get(head);
+    if let Node::Run {
+        state_ty,
+        result_ty,
+        step,
+        initial,
+        termination,
+    } = node
+    {
+        // The certificate is proof-only. In particular, an open/stuck run
+        // must not start evaluating its proof while normalizing a function
+        // body.
+        let normalized_state_ty = normalize(env, state_ty);
+        let normalized_result_ty = normalize(env, result_ty);
+        let normalized_step = normalize(env, step);
+        let normalized_initial = normalize(env, initial);
+        let changed = normalized_state_ty != state_ty
+            || normalized_result_ty != result_ty
+            || normalized_step != step
+            || normalized_initial != initial;
+        let candidate = if changed {
+            arena.alloc(Node::Run {
+                state_ty: normalized_state_ty,
+                result_ty: normalized_result_ty,
+                step: normalized_step,
+                initial: normalized_initial,
+                termination,
+            })
+        } else {
+            head
+        };
+        let reduced = whnf(env, candidate);
+        return if reduced == candidate {
+            candidate
+        } else {
+            normalize(env, reduced)
+        };
+    }
     let mut changed = false;
     let normalized = map_children(node, |child| {
         let result = normalize(env, child);

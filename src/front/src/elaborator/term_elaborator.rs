@@ -546,6 +546,137 @@ impl LocalScope {
                     *sort,
                 ))
             }
+            SExp::RunStep {
+                state_ty,
+                result_ty,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                Ok(handler.arena().alloc(Node::RunStep {
+                    state_ty,
+                    result_ty,
+                }))
+            }
+            SExp::Continue {
+                state_ty,
+                result_ty,
+                next,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let next = self.elab_exp_rec(next, handler)?;
+                Ok(handler.arena().alloc(Node::Continue {
+                    state_ty,
+                    result_ty,
+                    next,
+                }))
+            }
+            SExp::Finish {
+                state_ty,
+                result_ty,
+                output,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let output = self.elab_exp_rec(output, handler)?;
+                Ok(handler.arena().alloc(Node::Finish {
+                    state_ty,
+                    result_ty,
+                    output,
+                }))
+            }
+            SExp::Acc {
+                state_ty,
+                result_ty,
+                step,
+                state,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let state = self.elab_exp_rec(state, handler)?;
+                Ok(handler.arena().alloc(Node::Acc {
+                    state_ty,
+                    result_ty,
+                    step,
+                    state,
+                }))
+            }
+            SExp::RfType { compute_ty } => {
+                let compute_ty = self.elab_exp_rec(compute_ty, handler)?;
+                Ok(handler.arena().alloc(Node::RfType { compute_ty }))
+            }
+            SExp::RfTerm { compute_ty, term } => {
+                let compute_ty = self.elab_exp_rec(compute_ty, handler)?;
+                let term = self.elab_exp_rec(term, handler)?;
+                Ok(handler.arena().alloc(Node::RfTerm { compute_ty, term }))
+            }
+            SExp::Run {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                termination,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let initial = self.elab_exp_rec(initial, handler)?;
+                let termination = self.elab_exp_rec(termination, handler)?;
+                Ok(handler.arena().alloc(Node::Run {
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    termination,
+                }))
+            }
+            SExp::AccIntro {
+                state_ty,
+                result_ty,
+                step,
+                state,
+                predecessors,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let state = self.elab_exp_rec(state, handler)?;
+                let predecessors = self.elab_exp_rec(predecessors, handler)?;
+                Ok(handler.arena().alloc(Node::AccIntro {
+                    state_ty,
+                    result_ty,
+                    step,
+                    state,
+                    predecessors,
+                }))
+            }
+            SExp::AccDescent {
+                state_ty,
+                result_ty,
+                step,
+                from,
+                to,
+                accessibility,
+                transition,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let from = self.elab_exp_rec(from, handler)?;
+                let to = self.elab_exp_rec(to, handler)?;
+                let accessibility = self.elab_exp_rec(accessibility, handler)?;
+                let transition = self.elab_exp_rec(transition, handler)?;
+                Ok(handler.arena().alloc(Node::AccDescent {
+                    state_ty,
+                    result_ty,
+                    step,
+                    from,
+                    to,
+                    accessibility,
+                    transition,
+                }))
+            }
 
             SExp::RecordTypeCtor {
                 access,

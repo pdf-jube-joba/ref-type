@@ -62,6 +62,60 @@ pub enum Node {
         return_type: Exp,
         cases: Vec<Exp>, // no bindings
     },
+    // General recursion over the compute universe. Type annotations are kept
+    // explicitly so reduction never has to invoke the type checker.
+    RunStep {
+        state_ty: Exp,
+        result_ty: Exp,
+    },
+    Continue {
+        state_ty: Exp,
+        result_ty: Exp,
+        next: Exp,
+    },
+    Finish {
+        state_ty: Exp,
+        result_ty: Exp,
+        output: Exp,
+    },
+    Acc {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        state: Exp,
+    },
+    RfType {
+        compute_ty: Exp,
+    },
+    RfTerm {
+        compute_ty: Exp,
+        term: Exp,
+    },
+    Run {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        initial: Exp,
+        // Implementation-only certificate corresponding to the Run rule's
+        // termination premise. It has no computational role.
+        termination: Exp,
+    },
+    AccIntro {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        state: Exp,
+        predecessors: Exp,
+    },
+    AccDescent {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        from: Exp,
+        to: Exp,
+        accessibility: Exp,
+        transition: Exp,
+    },
     PowerSet {
         set: Exp,
     },

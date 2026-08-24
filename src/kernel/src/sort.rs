@@ -63,6 +63,7 @@ impl Sort {
             (Sort::Set(i), Sort::Set(j)) if i <= j => Some(()),
             (Sort::Set(_), Sort::PropKind) => Some(()),
             (Sort::PropKind, Sort::PropKind) => Some(()),
+            (Sort::Univ, Sort::Univ) => Some(()),
             _ => None,
         }
     }

@@ -71,9 +71,16 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Pred",
     "\\Ty",
     "\\subsetinto", // usuals
-    "\\exists",     // \exists <Bind>
-    "\\take",       // \take <Bind> => <body>
-    "\\block",      // block expression
+    "\\RunStep",
+    "\\continue",
+    "\\finish",
+    "\\Acc",
+    "\\RfType",
+    "\\RfTerm",
+    "\\run",
+    "\\exists", // \exists <Bind>
+    "\\take",   // \take <Bind> => <body>
+    "\\block",  // block expression
 ];
 
 static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
@@ -81,7 +88,15 @@ static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
-static PROOF_TERM_KEYWORDS: &[&str] = &["\\exact", "\\bysub", "\\refl", "\\idelim", "\\takeelim"];
+static PROOF_TERM_KEYWORDS: &[&str] = &[
+    "\\exact",
+    "\\bysub",
+    "\\refl",
+    "\\idelim",
+    "\\takeelim",
+    "\\accintro",
+    "\\accdescent",
+];
 
 static PROGRAM_KEYWORDS: &[&str] = &[
     "\\module",

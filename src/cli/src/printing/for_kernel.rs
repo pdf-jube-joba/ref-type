@@ -25,8 +25,8 @@ pub(super) fn format_sort(sort: &Sort) -> String {
         Sort::PropKind => "\\PropKind".to_string(),
         Sort::Set(level) => format!("\\Set({level})"),
         Sort::SetKind(level) => format!("\\SetKind({level})"),
-        Sort::Univ => "\\Univ".to_string(),
-        Sort::UnivKind => "\\UnivKind".to_string(),
+        Sort::Univ => "\\Type".to_string(),
+        Sort::UnivKind => "\\TypeKind".to_string(),
     }
 }
 
@@ -100,6 +100,92 @@ pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             indspec.index,
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
+        ),
+        Node::RunStep {
+            state_ty,
+            result_ty,
+        } => format!("\\RunStep({}, {})", child(state_ty), child(result_ty)),
+        Node::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => format!(
+            "\\continue({}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(next)
+        ),
+        Node::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => format!(
+            "\\finish({}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(output)
+        ),
+        Node::Acc {
+            state_ty,
+            result_ty,
+            step,
+            state,
+        } => format!(
+            "\\Acc({}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(state)
+        ),
+        Node::RfType { compute_ty } => format!("\\RfType({})", child(compute_ty)),
+        Node::RfTerm { compute_ty, term } => {
+            format!("\\RfTerm({}, {})", child(compute_ty), child(term))
+        }
+        Node::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            termination,
+        } => format!(
+            "\\run({}, {}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(initial),
+            child(termination)
+        ),
+        Node::AccIntro {
+            state_ty,
+            result_ty,
+            step,
+            state,
+            predecessors,
+        } => format!(
+            "\\accintro({}, {}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(state),
+            child(predecessors)
+        ),
+        Node::AccDescent {
+            state_ty,
+            result_ty,
+            step,
+            from,
+            to,
+            accessibility,
+            transition,
+        } => format!(
+            "\\accdescent({}, {}, {}, {}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(from),
+            child(to),
+            child(accessibility),
+            child(transition)
         ),
         Node::SubsetIntro {
             superset,

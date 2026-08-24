@@ -226,6 +226,58 @@ pub enum SExp {
         sort: Sort,
     },
 
+    // --- general recursion in the compute universe
+    RunStep {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+    },
+    Continue {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        next: Box<SExp>,
+    },
+    Finish {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        output: Box<SExp>,
+    },
+    Acc {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        state: Box<SExp>,
+    },
+    RfType {
+        compute_ty: Box<SExp>,
+    },
+    RfTerm {
+        compute_ty: Box<SExp>,
+        term: Box<SExp>,
+    },
+    Run {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        initial: Box<SExp>,
+        termination: Box<SExp>,
+    },
+    AccIntro {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        state: Box<SExp>,
+        predecessors: Box<SExp>,
+    },
+    AccDescent {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        from: Box<SExp>,
+        to: Box<SExp>,
+        accessibility: Box<SExp>,
+        transition: Box<SExp>,
+    },
+
     // --- record type
     // nominal style
     RecordTypeCtor {

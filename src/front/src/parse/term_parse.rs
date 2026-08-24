@@ -188,6 +188,12 @@ impl<'a> TermParser<'a> {
                 .unwrap_or_default();
             return Ok(kernel::sort::Sort::SetKind(number));
         }
+        if self.bump_if_keyword("\\Type") {
+            return Ok(kernel::sort::Sort::Univ);
+        }
+        if self.bump_if_keyword("\\TypeKind") {
+            return Ok(kernel::sort::Sort::UnivKind);
+        }
 
         Err(ParseError {
             msg: "expected sort keyword".into(),
@@ -258,6 +264,100 @@ impl<'a> TermParser<'a> {
                     subset: Box::new(subset),
                     element: Box::new(element),
                     proof: Box::new(proof),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\RunStep") {
+            return self.parse_parenthesized(|parser| {
+                let state_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let result_ty = parser.parse_sexp()?;
+                Ok(SExp::RunStep {
+                    state_ty: Box::new(state_ty),
+                    result_ty: Box::new(result_ty),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\continue") {
+            return self.parse_parenthesized(|parser| {
+                let state_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let result_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let next = parser.parse_sexp()?;
+                Ok(SExp::Continue {
+                    state_ty: Box::new(state_ty),
+                    result_ty: Box::new(result_ty),
+                    next: Box::new(next),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\finish") {
+            return self.parse_parenthesized(|parser| {
+                let state_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let result_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let output = parser.parse_sexp()?;
+                Ok(SExp::Finish {
+                    state_ty: Box::new(state_ty),
+                    result_ty: Box::new(result_ty),
+                    output: Box::new(output),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\Acc") {
+            return self.parse_parenthesized(|parser| {
+                let state_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let result_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let step = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let state = parser.parse_sexp()?;
+                Ok(SExp::Acc {
+                    state_ty: Box::new(state_ty),
+                    result_ty: Box::new(result_ty),
+                    step: Box::new(step),
+                    state: Box::new(state),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\RfType") {
+            return self.parse_parenthesized(|parser| {
+                parser.parse_sexp().map(|compute_ty| SExp::RfType {
+                    compute_ty: Box::new(compute_ty),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\RfTerm") {
+            return self.parse_parenthesized(|parser| {
+                let compute_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let term = parser.parse_sexp()?;
+                Ok(SExp::RfTerm {
+                    compute_ty: Box::new(compute_ty),
+                    term: Box::new(term),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\run") {
+            return self.parse_parenthesized(|parser| {
+                let state_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let result_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let step = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let initial = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let termination = parser.parse_sexp()?;
+                Ok(SExp::Run {
+                    state_ty: Box::new(state_ty),
+                    result_ty: Box::new(result_ty),
+                    step: Box::new(step),
+                    initial: Box::new(initial),
+                    termination: Box::new(termination),
                 })
             });
         }
@@ -444,6 +544,54 @@ impl<'a> TermParser<'a> {
                 element: Box::new(element),
                 existence: Box::new(existence),
                 uniqueness: Box::new(uniqueness),
+            });
+        }
+
+        if self.bump_if_keyword("\\accintro") {
+            self.expect_token(Token::LParen)?;
+            let state_ty = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let result_ty = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let step = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let state = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let predecessors = self.parse_sexp()?;
+            self.expect_token(Token::RParen)?;
+            return Ok(SExp::AccIntro {
+                state_ty: Box::new(state_ty),
+                result_ty: Box::new(result_ty),
+                step: Box::new(step),
+                state: Box::new(state),
+                predecessors: Box::new(predecessors),
+            });
+        }
+
+        if self.bump_if_keyword("\\accdescent") {
+            self.expect_token(Token::LParen)?;
+            let state_ty = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let result_ty = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let step = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let from = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let to = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let accessibility = self.parse_sexp()?;
+            self.expect_token(Token::Comma)?;
+            let transition = self.parse_sexp()?;
+            self.expect_token(Token::RParen)?;
+            return Ok(SExp::AccDescent {
+                state_ty: Box::new(state_ty),
+                result_ty: Box::new(result_ty),
+                step: Box::new(step),
+                from: Box::new(from),
+                to: Box::new(to),
+                accessibility: Box::new(accessibility),
+                transition: Box::new(transition),
             });
         }
 
