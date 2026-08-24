@@ -1,0 +1,100 @@
+/* Euclid's algorithm as a checked general-recursive computation.
+ * The remainder helper is primitive recursive; gcd itself iterates with run.
+ */
+\module Euclid {
+  \inductive Bool: \Type :=
+  | true: Bool;
+  | false: Bool;
+  ;
+
+  \inductive Nat: \Type :=
+  | zero: Nat;
+  | succ: Nat -> Nat;
+  ;
+
+  \inductive State: \Type :=
+  | state: Nat -> Nat -> State;
+  ;
+
+  \definition isZero: Nat -> Bool :=
+    (n: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Bool)
+        Bool#true
+        ((predecessor: Nat) => (ignoredResult: Bool) => Bool#false)
+        n;
+
+  \definition ifNat: Bool -> Nat -> Nat -> Nat :=
+    (condition: Bool) => (whenTrue: Nat) => (whenFalse: Nat) =>
+      \prec(\Type, Bool)
+        ((current: Bool) => Nat)
+        whenTrue
+        whenFalse
+        condition;
+
+  \definition equalNat: Nat -> Nat -> Bool :=
+    (left: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Nat -> Bool)
+        isZero
+        ((leftPrefix: Nat) => (equalPrefix: Nat -> Bool) => (right: Nat) =>
+          \prec(\Type, Nat)
+            ((current: Nat) => Bool)
+            Bool#false
+            ((rightPrefix: Nat) => (ignoredResult: Bool) => equalPrefix rightPrefix)
+            right)
+        left;
+
+  /* For a positive divisor, increment a residue and wrap at the divisor. */
+  \definition remainder: Nat -> Nat -> Nat :=
+    (dividend: Nat) => (divisor: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Nat)
+        Nat#zero
+        ((prefix: Nat) => (residue: Nat) =>
+          ifNat
+            (equalNat (Nat#succ residue) divisor)
+            Nat#zero
+            (Nat#succ residue))
+        dividend;
+
+  \definition gcdStep: State -> \RunStep(State, Nat) :=
+    (current: State) =>
+      \prec(\Type, State)
+        ((stateValue: State) => \RunStep(State, Nat))
+        ((left: Nat) => (right: Nat) =>
+          \prec(\Type, Nat)
+            ((rightValue: Nat) => \RunStep(State, Nat))
+            (\finish(State, Nat, left))
+            ((rightPrefix: Nat) => (ignoredResult: \RunStep(State, Nat)) =>
+              \continue(
+                State,
+                Nat,
+                State#state right (remainder left right)))
+            right)
+        current;
+
+  \definition one: Nat := Nat#succ Nat#zero;
+  \definition two: Nat := Nat#succ one;
+  \definition three: Nat := Nat#succ two;
+  \definition four: Nat := Nat#succ three;
+  \definition five: Nat := Nat#succ four;
+  \definition six: Nat := Nat#succ five;
+  \definition sixAndFour: State := State#state six four;
+
+  \inductive IsTwo: (value: Nat) -> \Type :=
+  | witness: IsTwo two;
+  ;
+
+  /* Accessibility is the logical termination argument; run erases it. */
+  \module Evaluate(
+    termination:
+      \Acc(State, Nat, gcdStep, \RfTerm(State, sixAndFour))
+  ) {
+    \definition result: Nat :=
+      \run(State, Nat, gcdStep, sixAndFour, termination);
+
+    /* This checks only when the normal form of result is two. */
+    \definition computesToTwo: IsTwo result := IsTwo#witness;
+  }
+}

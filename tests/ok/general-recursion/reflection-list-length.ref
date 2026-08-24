@@ -1,0 +1,204 @@
+/* Reflection connects a Compute gcd to the length index of a Set-valued list. */
+\module ReflectedGcdLength(Element: \Set, element: Element) {
+  /* The arithmetic state remains entirely in the Compute universe. */
+  \inductive Nat: \Type :=
+  | zero: Nat;
+  | succ: Nat -> Nat;
+  ;
+
+  \inductive Bool: \Type :=
+  | true: Bool;
+  | false: Bool;
+  ;
+
+  \inductive GcdState: \Type :=
+  | state: Nat -> Nat -> GcdState;
+  ;
+
+  /* List elements live in Set, not in Type. */
+  \inductive List(A: \Set): \Set :=
+  | nil: List;
+  | cons: A -> List -> List;
+  ;
+
+  \definition one: Nat := Nat#succ Nat#zero;
+  \definition two: Nat := Nat#succ one;
+  \definition three: Nat := Nat#succ two;
+  \definition four: Nat := Nat#succ three;
+  \definition five: Nat := Nat#succ four;
+  \definition six: Nat := Nat#succ five;
+  \definition seven: Nat := Nat#succ six;
+  \definition eight: Nat := Nat#succ seven;
+  \definition nine: Nat := Nat#succ eight;
+  \definition ten: Nat := Nat#succ nine;
+  \definition eleven: Nat := Nat#succ ten;
+  \definition twelve: Nat := Nat#succ eleven;
+  \definition thirteen: Nat := Nat#succ twelve;
+  \definition fourteen: Nat := Nat#succ thirteen;
+  \definition fifteen: Nat := Nat#succ fourteen;
+  \definition sixteen: Nat := Nat#succ fifteen;
+  \definition seventeen: Nat := Nat#succ sixteen;
+  \definition eighteen: Nat := Nat#succ seventeen;
+
+  \definition isZero: Nat -> Bool :=
+    (n: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Bool)
+        Bool#true
+        ((predecessor: Nat) => (ignoredResult: Bool) => Bool#false)
+        n;
+
+  \definition equalNat: Nat -> Nat -> Bool :=
+    (left: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Nat -> Bool)
+        isZero
+        ((leftPrefix: Nat) => (equalPrefix: Nat -> Bool) => (right: Nat) =>
+          \prec(\Type, Nat)
+            ((current: Nat) => Bool)
+            Bool#false
+            ((rightPrefix: Nat) => (ignoredResult: Bool) => equalPrefix rightPrefix)
+            right)
+        left;
+
+  \definition lessOrEqual: Nat -> Nat -> Bool :=
+    (left: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Nat -> Bool)
+        ((right: Nat) => Bool#true)
+        ((leftPrefix: Nat) => (prefixComparison: Nat -> Bool) => (right: Nat) =>
+          \prec(\Type, Nat)
+            ((current: Nat) => Bool)
+            Bool#false
+            ((rightPrefix: Nat) => (ignoredResult: Bool) =>
+              prefixComparison rightPrefix)
+            right)
+        left;
+
+  \definition predecessor: Nat -> Nat :=
+    (n: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Nat)
+        Nat#zero
+        ((prefix: Nat) => (ignoredResult: Nat) => prefix)
+        n;
+
+  \definition subtract: Nat -> Nat -> Nat :=
+    (left: Nat) => (right: Nat) =>
+      \prec(\Type, Nat)
+        ((current: Nat) => Nat)
+        left
+        ((prefix: Nat) => (difference: Nat) => predecessor difference)
+        right;
+
+  \definition ifStep:
+    Bool ->
+    \RunStep(GcdState, Nat) ->
+    \RunStep(GcdState, Nat) ->
+    \RunStep(GcdState, Nat) :=
+    (condition: Bool) =>
+    (whenTrue: \RunStep(GcdState, Nat)) =>
+    (whenFalse: \RunStep(GcdState, Nat)) =>
+      \prec(\Type, Bool)
+        ((current: Bool) => \RunStep(GcdState, Nat))
+        whenTrue
+        whenFalse
+        condition;
+
+  /* Subtractive Euclid: swap when left <= right, otherwise subtract right. */
+  \definition gcdStep: GcdState -> \RunStep(GcdState, Nat) :=
+    (current: GcdState) =>
+      \prec(\Type, GcdState)
+        ((stateValue: GcdState) => \RunStep(GcdState, Nat))
+        ((left: Nat) => (right: Nat) =>
+          ifStep
+            (equalNat left right)
+            (\finish(GcdState, Nat, left))
+            (ifStep
+              (lessOrEqual left right)
+              (\continue(GcdState, Nat, GcdState#state right left))
+              (\continue(
+                GcdState,
+                Nat,
+                GcdState#state (subtract left right) right))))
+        current;
+
+  /* Reflection of succ turns a reflected Nat into another reflected Nat. */
+  \definition length:
+    (A: \Set) -> List[A] -> \RfType(Nat) :=
+    (A: \Set) => (values: List[A]) =>
+      \prec(\Set, List[A])
+        ((current: List[A]) => \RfType(Nat))
+        (\RfTerm(Nat, Nat#zero))
+        ((head: A) =>
+         (tail: List[A]) =>
+         (tailLength: \RfType(Nat)) =>
+          (\RfTerm(Nat -> Nat, Nat#succ)) tailLength)
+        values;
+
+  /* Lists whose length is the Set-side value n. */
+  \definition ListsOfLength:
+    (A: \Set) -> \RfType(Nat) -> \Power(List[A]) :=
+    (A: \Set) => (n: \RfType(Nat)) =>
+      \Subset(values, List[A], length A values = n);
+
+  \definition LengthIndexedList:
+    (A: \Set) -> \RfType(Nat) -> \Set :=
+    (A: \Set) => (n: \RfType(Nat)) =>
+      \Ty(List[A], ListsOfLength A n);
+
+  \definition twelveAndEighteen: GcdState :=
+    GcdState#state twelve eighteen;
+
+  \module Evaluate(
+    termination:
+      \Acc(
+        GcdState,
+        Nat,
+        gcdStep,
+        \RfTerm(GcdState, twelveAndEighteen))
+  ) {
+    \definition gcdResult: Nat :=
+      \run(GcdState, Nat, gcdStep, twelveAndEighteen, termination);
+
+    \definition reflectedGcd: \RfType(Nat) :=
+      \RfTerm(Nat, gcdResult);
+
+    /* Reflection normalizes through run: subtractive gcd(12, 18) = 6. */
+    \definition reflectedGcdIsSix:
+      reflectedGcd = \RfTerm(Nat, six) :=
+      \refl(reflectedGcd);
+
+    \definition candidate: List[Element] :=
+      List[Element]#cons element
+        (List[Element]#cons element
+          (List[Element]#cons element
+            (List[Element]#cons element
+              (List[Element]#cons element
+                (List[Element]#cons element List[Element]#nil)))));
+
+    /* Reflected application of succ computes the Set-side list length. */
+    \definition candidateLengthIsSix:
+      length Element candidate = \RfTerm(Nat, six) :=
+      \refl(length Element candidate);
+
+    \definition GcdLengthLists: \Power(List[Element]) :=
+      ListsOfLength Element reflectedGcd;
+
+    \definition GcdLengthList: \Set :=
+      LengthIndexedList Element reflectedGcd;
+
+    \definition candidateHasGcdLength:
+      \Pred(List[Element], GcdLengthLists, candidate) :=
+      /* This succeeds only when both sides normalize to reflected six. */
+      \refl(length Element candidate);
+
+    /* A Set-valued list refined by a length computed in Type. */
+    \definition checkedList: GcdLengthList :=
+      \subsetinto(
+        List[Element],
+        GcdLengthLists,
+        candidate,
+        candidateHasGcdLength);
+  }
+}
