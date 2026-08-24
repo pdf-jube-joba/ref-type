@@ -6,17 +6,17 @@
 purr type system のような形で \(S, A, R\) の組を次のように定義する。
 以降は特別に書かない限り \(i \in \mathbb{N}\) とする。
 
-- \(\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\} \cup \{*^c, \sq^c\}\)
+- \(\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\} \cup \{*^t, \sq^t\}\)
     - \(*^s_{i}, \sq^s_{i}\) は set 用の sort
     - \(*^p, \sq^p\) は proposition 用の sort
-    - \(*^c, \sq^c\) は compute 用の sort
-- \(\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\} \cup \{(*^c, \sq^c)\}\)
+    - \(*^t, \sq^t\) は compute 用の sort
+- \(\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\} \cup \{(*^t, \sq^t)\}\)
 - \(\mathcal{R} =\) union of
     - \(\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}\) ... universe level の異なる dependent product は最小の共通 level に置く
     - \(\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}\) ... universe 自身を走る場合だけ domain 側の level を一つ上げる
     - \(\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}\) ... \(*^p\) は impredicative だけど依存型のような \((*^p, \sq^p, \sq^p)\) はない。
     - \(\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}\) ... \(*^s\) についての命題を用意するため。
-    - \(\{(*^c, *^c, *^c)\}\)
+    - \(\{(*^t, *^t, *^t)\}\)
 
 普通の変数を \(x\) とする。
 \(s\) や \(s_i\) は \(\mathcal{S}\) の元とする。
@@ -95,7 +95,7 @@ purr type system のような形で \(S, A, R\) の組を次のように定義�
 \begin{aligned}
 \operatorname{continueFun}_{A,B}
 &:=
-\lambda z^{*^c}:A.\operatorname{continue}_{A,B}(z^{*^c})
+\lambda z^{*^t}:A.\operatorname{continue}_{A,B}(z^{*^t})
 :
 A\to\operatorname{RunStep}(A,B),\\
 \operatorname{Terminates}_{A,B}(f,a)
@@ -125,13 +125,13 @@ A\to\operatorname{RunStep}(A,B),\\
 
 \[
 \begin{aligned}
-\operatorname{RfType}((x^{*^c}:A)\to B)
+\operatorname{RfType}((x^{*^t}:A)\to B)
 &\Rightarrow
 (z^{*^s_0}:\operatorname{RfType}(A))
 \to\operatorname{RfType}(B)
 \qquad
 \left(
-  x^{*^c}\notin\operatorname{FV}(B),
+  x^{*^t}\notin\operatorname{FV}(B),
   z\notin\operatorname{Names}(\operatorname{FV}(A)\cup\operatorname{FV}(B))
 \right),\\
 \operatorname{RfTerm}_{A\to B}(f)
@@ -226,19 +226,19 @@ PTS とは書いているが、普通のとは違って stratified されてい�
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\) | |
-| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash B:*^c\) | |
-| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash b:B:*^c\) | |
-| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\) | |
-| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\)<br>\(\Gamma\vDash\left((b:\operatorname{RfType}(A))\to\left(\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\right)\to\operatorname{Acc}_{A,B}(f,b)\right)\) | \(b\in\operatorname{Name}\) |
+| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^t\) | \(\Gamma\vdash A:*^t\)<br>\(\Gamma\vdash B:*^t\) | |
+| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^t\) | \(\Gamma\vdash a:A:*^t\)<br>\(\Gamma\vdash B:*^t\) | |
+| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^t\) | \(\Gamma\vdash A:*^t\)<br>\(\Gamma\vdash b:B:*^t\) | |
+| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^t\)<br>\(\Gamma\vdash B:*^t\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^t\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\) | |
+| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^t\)<br>\(\Gamma\vdash B:*^t\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^t\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\)<br>\(\Gamma\vDash\left((b:\operatorname{RfType}(A))\to\left(\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\right)\to\operatorname{Acc}_{A,B}(f,b)\right)\) | \(b\in\operatorname{Name}\) |
 | acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(f)@a=\operatorname{RfTerm}_{A\to\operatorname{RunStep}(A,B)}(\operatorname{continueFun}_{A,B})@b\) | |
-| reflection type | \(\Gamma\vdash\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash A:*^c\) | |
-| reflection term | \(\Gamma\vdash\operatorname{RfTerm}_A(m):\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash m:A:*^c\) | |
+| reflection type | \(\Gamma\vdash\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash A:*^t\) | |
+| reflection term | \(\Gamma\vdash\operatorname{RfTerm}_A(m):\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash m:A:*^t\) | |
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\) | |
-| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,u):B:*^c\) | \(\Gamma\vdash A:*^c\)<br>\(\Gamma\vdash B:*^c\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vdash a:A:*^c\)<br>\(\Gamma\vdash u:\operatorname{RunStep}(A,B):*^c\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RunInv}_{A,B}(f,a,u)\) | |
+| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^t\) | \(\Gamma\vdash A:*^t\)<br>\(\Gamma\vdash B:*^t\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^t\)<br>\(\Gamma\vdash a:A:*^t\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\) | |
+| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,u):B:*^t\) | \(\Gamma\vdash A:*^t\)<br>\(\Gamma\vdash B:*^t\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^t\)<br>\(\Gamma\vdash a:A:*^t\)<br>\(\Gamma\vdash u:\operatorname{RunStep}(A,B):*^t\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RunInv}_{A,B}(f,a,u)\) | |
 
 ## 課題
 
