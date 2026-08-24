@@ -1371,30 +1371,99 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     }
 }
 
-fn exp_reduce_head_once(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> Option<Exp> {
+fn exp_reduce_head_once_with_cache(
+    env: &CrateEnv,
+    exp: Exp,
+    erase_subset_intro: bool,
+    cache: &mut HashMap<Exp, Exp>,
+) -> Option<Exp> {
     let arena = env.arena();
     if erase_subset_intro && let Node::SubsetIntro { element, .. } = arena.get(exp) {
         return Some(element);
     }
+
+    // Compute applications use call-by-value: first expose the function,
+    // then evaluate the argument, and contract beta only after both are
+    // stable.  Evaluating arguments of neutral applications is intentional:
+    // constructor values are represented by application spines, so this also
+    // evaluates their fields before an eliminator observes them.
+    match arena.get(exp) {
+        Node::App { func, arg } => {
+            let reduced_func = exp_whnf_with_mode_and_cache(env, func, erase_subset_intro, cache);
+            if reduced_func != func {
+                return Some(arena.alloc(Node::App {
+                    func: reduced_func,
+                    arg,
+                }));
+            }
+            let reduced_arg = exp_whnf_with_mode_and_cache(env, arg, erase_subset_intro, cache);
+            if reduced_arg != arg {
+                return Some(arena.alloc(Node::App {
+                    func,
+                    arg: reduced_arg,
+                }));
+            }
+        }
+        Node::IndElim {
+            indspec,
+            elim,
+            return_type,
+            cases,
+        } => {
+            let reduced_elim = exp_whnf_with_mode_and_cache(env, elim, erase_subset_intro, cache);
+            if reduced_elim != elim {
+                return Some(arena.alloc(Node::IndElim {
+                    indspec,
+                    elim: reduced_elim,
+                    return_type,
+                    cases,
+                }));
+            }
+        }
+        Node::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => {
+            let reduced_next = exp_whnf_with_mode_and_cache(env, next, erase_subset_intro, cache);
+            if reduced_next != next {
+                return Some(arena.alloc(Node::Continue {
+                    state_ty,
+                    result_ty,
+                    next: reduced_next,
+                }));
+            }
+        }
+        Node::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => {
+            let reduced_output =
+                exp_whnf_with_mode_and_cache(env, output, erase_subset_intro, cache);
+            if reduced_output != output {
+                return Some(arena.alloc(Node::Finish {
+                    state_ty,
+                    result_ty,
+                    output: reduced_output,
+                }));
+            }
+        }
+        _ => {}
+    }
+
     if let Some(reduced) = exp_reduce_if_top(env, exp) {
         return Some(reduced);
     }
+
     match arena.get(exp) {
-        Node::App { func, arg } => {
-            let reduced_func = exp_whnf_with_mode(env, func, erase_subset_intro);
-            (reduced_func != func).then(|| {
-                arena.alloc(Node::App {
-                    func: reduced_func,
-                    arg,
-                })
-            })
-        }
         Node::Pred {
             superset,
             subset,
             element,
         } => {
-            let reduced_subset = exp_whnf_with_mode(env, subset, erase_subset_intro);
+            let reduced_subset =
+                exp_whnf_with_mode_and_cache(env, subset, erase_subset_intro, cache);
             (reduced_subset != subset).then(|| {
                 arena.alloc(Node::Pred {
                     superset,
@@ -1403,32 +1472,31 @@ fn exp_reduce_head_once(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> O
                 })
             })
         }
-        Node::IndElim {
-            indspec,
-            elim,
-            return_type,
-            cases,
-        } => {
-            let reduced_elim = exp_whnf_with_mode(env, elim, erase_subset_intro);
-            (reduced_elim != elim).then(|| {
-                arena.alloc(Node::IndElim {
-                    indspec,
-                    elim: reduced_elim,
-                    return_type,
-                    cases,
-                })
-            })
-        }
         _ => None,
     }
 }
 
-fn exp_whnf_with_mode(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> Exp {
+fn exp_whnf_with_mode_and_cache(
+    env: &CrateEnv,
+    exp: Exp,
+    erase_subset_intro: bool,
+    cache: &mut HashMap<Exp, Exp>,
+) -> Exp {
+    if let Some(normal) = cache.get(&exp) {
+        return *normal;
+    }
     let mut current = exp;
-    while let Some(next) = exp_reduce_head_once(env, current, erase_subset_intro) {
+    while let Some(next) = exp_reduce_head_once_with_cache(env, current, erase_subset_intro, cache)
+    {
         current = next;
     }
+    cache.insert(exp, current);
     current
+}
+
+fn exp_whnf_with_mode(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> Exp {
+    let mut cache = HashMap::new();
+    exp_whnf_with_mode_and_cache(env, exp, erase_subset_intro, &mut cache)
 }
 
 pub fn whnf(env: &CrateEnv, exp: Exp) -> Exp {
@@ -1436,6 +1504,13 @@ pub fn whnf(env: &CrateEnv, exp: Exp) -> Exp {
 }
 
 pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
+    normalize_with_cache(env, exp, &mut HashMap::new())
+}
+
+fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>) -> Exp {
+    if let Some(normal) = cache.get(&exp) {
+        return *normal;
+    }
     let arena = env.arena();
     let head = whnf(env, exp);
     let node = arena.get(head);
@@ -1450,10 +1525,10 @@ pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
         // The certificate is proof-only. In particular, an open/stuck run
         // must not start evaluating its proof while normalizing a function
         // body.
-        let normalized_state_ty = normalize(env, state_ty);
-        let normalized_result_ty = normalize(env, result_ty);
-        let normalized_step = normalize(env, step);
-        let normalized_initial = normalize(env, initial);
+        let normalized_state_ty = normalize_with_cache(env, state_ty, cache);
+        let normalized_result_ty = normalize_with_cache(env, result_ty, cache);
+        let normalized_step = normalize_with_cache(env, step, cache);
+        let normalized_initial = normalize_with_cache(env, initial, cache);
         let changed = normalized_state_ty != state_ty
             || normalized_result_ty != result_ty
             || normalized_step != step
@@ -1470,27 +1545,31 @@ pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
             head
         };
         let reduced = whnf(env, candidate);
-        return if reduced == candidate {
+        let result = if reduced == candidate {
             candidate
         } else {
-            normalize(env, reduced)
+            normalize_with_cache(env, reduced, cache)
         };
+        cache.insert(exp, result);
+        return result;
     }
     let mut changed = false;
     let normalized = map_children(node, |child| {
-        let result = normalize(env, child);
+        let result = normalize_with_cache(env, child, cache);
         changed |= result != child;
         result
     });
-    if changed {
+    let result = if changed {
         arena.alloc(normalized)
     } else {
         head
-    }
+    };
+    cache.insert(exp, result);
+    result
 }
 
 pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
-    if let Some(reduced) = exp_reduce_if_top(env, exp) {
+    if let Some(reduced) = exp_reduce_head_once_with_cache(env, exp, false, &mut HashMap::new()) {
         return Some(reduced);
     }
     let normalized = normalize(env, exp);

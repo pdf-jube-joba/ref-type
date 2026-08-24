@@ -2,11 +2,6 @@
  * The remainder helper is primitive recursive; gcd itself iterates with run.
  */
 \module Euclid {
-  \inductive Bool: \Type :=
-  | true: Bool;
-  | false: Bool;
-  ;
-
   \inductive Nat: \Type :=
   | zero: Nat;
   | succ: Nat -> Nat;
@@ -16,47 +11,53 @@
   | state: Nat -> Nat -> State;
   ;
 
-  \definition isZero: Nat -> Bool :=
+  \inductive RemainderState: \Type :=
+  | state: Nat -> Nat -> RemainderState;
+  ;
+
+  \definition predecessor: Nat -> Nat :=
     (n: Nat) =>
-      \prec(\Type, Nat)
-        ((current: Nat) => Bool)
-        Bool#true
-        ((predecessor: Nat) => (ignoredResult: Bool) => Bool#false)
-        n;
-
-  \definition ifNat: Bool -> Nat -> Nat -> Nat :=
-    (condition: Bool) => (whenTrue: Nat) => (whenFalse: Nat) =>
-      \prec(\Type, Bool)
-        ((current: Bool) => Nat)
-        whenTrue
-        whenFalse
-        condition;
-
-  \definition equalNat: Nat -> Nat -> Bool :=
-    (left: Nat) =>
-      \prec(\Type, Nat)
-        ((current: Nat) => Nat -> Bool)
-        isZero
-        ((leftPrefix: Nat) => (equalPrefix: Nat -> Bool) => (right: Nat) =>
-          \prec(\Type, Nat)
-            ((current: Nat) => Bool)
-            Bool#false
-            ((rightPrefix: Nat) => (ignoredResult: Bool) => equalPrefix rightPrefix)
-            right)
-        left;
-
-  /* For a positive divisor, increment a residue and wrap at the divisor. */
-  \definition remainder: Nat -> Nat -> Nat :=
-    (dividend: Nat) => (divisor: Nat) =>
       \prec(\Type, Nat)
         ((current: Nat) => Nat)
         Nat#zero
-        ((prefix: Nat) => (residue: Nat) =>
-          ifNat
-            (equalNat (Nat#succ residue) divisor)
-            Nat#zero
-            (Nat#succ residue))
-        dividend;
+        ((prefix: Nat) => (ignoredResult: Nat) => prefix)
+        n;
+
+  \definition advanceRemainder:
+    Nat -> RemainderState -> RemainderState :=
+    (limit: Nat) => (current: RemainderState) =>
+      \prec(\Type, RemainderState)
+        ((stateValue: RemainderState) => RemainderState)
+        ((residue: Nat) => (countdown: Nat) =>
+          \prec(\Type, Nat)
+            ((countdownValue: Nat) => RemainderState)
+            (RemainderState#state Nat#zero limit)
+            ((countdownPrefix: Nat) => (ignoredResult: RemainderState) =>
+              RemainderState#state (Nat#succ residue) countdownPrefix)
+            countdown)
+        current;
+
+  \definition remainderValue: RemainderState -> Nat :=
+    (current: RemainderState) =>
+      \prec(\Type, RemainderState)
+        ((stateValue: RemainderState) => Nat)
+        ((residue: Nat) => (countdown: Nat) => residue)
+        current;
+
+  /* For a positive divisor, increment a residue and wrap at the divisor.
+   * The recursive state is evaluated once at each CBV step.
+   */
+  \definition remainder: Nat -> Nat -> Nat :=
+    (dividend: Nat) => (divisor: Nat) =>
+      ((limit: Nat) =>
+        remainderValue
+          (\prec(\Type, Nat)
+            ((current: Nat) => RemainderState)
+            (RemainderState#state Nat#zero limit)
+            ((prefix: Nat) => (state: RemainderState) =>
+              advanceRemainder limit state)
+            dividend))
+      (predecessor divisor);
 
   \definition gcdStep: State -> \RunStep(State, Nat) :=
     (current: State) =>
@@ -80,21 +81,33 @@
   \definition four: Nat := Nat#succ three;
   \definition five: Nat := Nat#succ four;
   \definition six: Nat := Nat#succ five;
-  \definition sixAndFour: State := State#state six four;
+  \definition seven: Nat := Nat#succ six;
+  \definition eight: Nat := Nat#succ seven;
+  \definition nine: Nat := Nat#succ eight;
+  \definition ten: Nat := Nat#succ nine;
+  \definition eleven: Nat := Nat#succ ten;
+  \definition twelve: Nat := Nat#succ eleven;
+  \definition thirteen: Nat := Nat#succ twelve;
+  \definition fourteen: Nat := Nat#succ thirteen;
+  \definition fifteen: Nat := Nat#succ fourteen;
+  \definition sixteen: Nat := Nat#succ fifteen;
+  \definition seventeen: Nat := Nat#succ sixteen;
+  \definition eighteen: Nat := Nat#succ seventeen;
+  \definition twelveAndEighteen: State := State#state twelve eighteen;
 
-  \inductive IsTwo: (value: Nat) -> \Type :=
-  | witness: IsTwo two;
+  \inductive IsSix: (value: Nat) -> \Type :=
+  | witness: IsSix six;
   ;
 
   /* Accessibility is the logical termination argument; run erases it. */
   \module Evaluate(
     termination:
-      \Acc(State, Nat, gcdStep, \RfTerm(State, sixAndFour))
+      \Acc(State, Nat, gcdStep, \RfTerm(State, twelveAndEighteen))
   ) {
     \definition result: Nat :=
-      \run(State, Nat, gcdStep, sixAndFour, termination);
+      \run(State, Nat, gcdStep, twelveAndEighteen, termination);
 
-    /* This checks only when the normal form of result is two. */
-    \definition computesToTwo: IsTwo result := IsTwo#witness;
+    /* This checks only when the normal form of result is six. */
+    \definition computesToSix: IsSix result := IsSix#witness;
   }
 }

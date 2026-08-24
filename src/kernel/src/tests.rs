@@ -1,7 +1,8 @@
 use crate::{
     calculus::{
         convertible, erased_convertible, erased_normal, exp_is_alpha_eq, exp_subst_module_param,
-        instantiate, instantiate_outer_telescope, instantiate_telescope, normalize, whnf,
+        instantiate, instantiate_outer_telescope, instantiate_telescope, normalize, reduce_one,
+        whnf,
     },
     derivation::CheckSession,
     environment::{CrateEnv, ModuleParameter},
@@ -134,6 +135,102 @@ fn beta_reduction_stops_at_whnf() {
     assert_eq!(whnf(&fixture.env, redex), set);
     assert_eq!(normalize(&fixture.env, redex), set);
     assert!(convertible(&fixture.env, redex, set));
+}
+
+#[test]
+fn call_by_value_reduces_the_argument_before_beta() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
+    let reducible_argument = fixture.app(identity, set);
+    let constant = fixture.lam(SymbolId::ANONYMOUS, set, set);
+    let application = fixture.app(constant, reducible_argument);
+
+    let first = reduce_one(&fixture.env, application).expect("argument should reduce");
+    let Node::App { func, arg } = arena.get(first) else {
+        panic!("beta must wait until the argument is evaluated");
+    };
+    assert_eq!(func, constant);
+    assert_eq!(arg, set);
+    assert_eq!(reduce_one(&fixture.env, first), Some(set));
+}
+
+#[test]
+fn call_by_value_substitutes_the_evaluated_argument_once() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
+    let reducible_argument = fixture.app(identity, set);
+    let duplicated = arena.alloc(Node::RunStep {
+        state_ty: arena.bound(0),
+        result_ty: arena.bound(0),
+    });
+    let function = fixture.lam(SymbolId::ANONYMOUS, set, duplicated);
+
+    let result = whnf(&fixture.env, fixture.app(function, reducible_argument));
+    let Node::RunStep {
+        state_ty,
+        result_ty,
+    } = arena.get(result)
+    else {
+        panic!("expected the lambda body");
+    };
+    assert_eq!(state_ty, set);
+    assert_eq!(result_ty, set);
+}
+
+#[test]
+fn call_by_value_evaluates_run_step_payloads() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
+    let reducible_output = fixture.app(identity, set);
+    let finish = arena.alloc(Node::Finish {
+        state_ty: set,
+        result_ty: set,
+        output: reducible_output,
+    });
+
+    let result = whnf(&fixture.env, finish);
+    let Node::Finish { output, .. } = arena.get(result) else {
+        panic!("expected a finish value");
+    };
+    assert_eq!(output, set);
+}
+
+#[test]
+fn normalize_reuses_shared_subterm_results_within_one_call() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
+    let reducible = fixture.app(identity, set);
+    let shared = arena.alloc(Node::RfTerm {
+        compute_ty: set,
+        term: reducible,
+    });
+    let root = arena.alloc(Node::RunStep {
+        state_ty: shared,
+        result_ty: shared,
+    });
+
+    let result = normalize(&fixture.env, root);
+    let Node::RunStep {
+        state_ty,
+        result_ty,
+    } = arena.get(result)
+    else {
+        panic!("expected the normalized root");
+    };
+    assert_ne!(state_ty, shared);
+    assert_eq!(state_ty, result_ty);
+    assert!(matches!(
+        arena.get(state_ty),
+        Node::RfTerm { term, .. } if term == set
+    ));
 }
 
 #[test]

@@ -6,13 +6,12 @@
   | succ: Nat -> Nat;
   ;
 
-  \inductive Bool: \Type :=
-  | true: Bool;
-  | false: Bool;
-  ;
-
   \inductive GcdState: \Type :=
   | state: Nat -> Nat -> GcdState;
+  ;
+
+  \inductive RemainderState: \Type :=
+  | state: Nat -> Nat -> RemainderState;
   ;
 
   /* List elements live in Set, not in Type. */
@@ -40,41 +39,6 @@
   \definition seventeen: Nat := Nat#succ sixteen;
   \definition eighteen: Nat := Nat#succ seventeen;
 
-  \definition isZero: Nat -> Bool :=
-    (n: Nat) =>
-      \prec(\Type, Nat)
-        ((current: Nat) => Bool)
-        Bool#true
-        ((predecessor: Nat) => (ignoredResult: Bool) => Bool#false)
-        n;
-
-  \definition equalNat: Nat -> Nat -> Bool :=
-    (left: Nat) =>
-      \prec(\Type, Nat)
-        ((current: Nat) => Nat -> Bool)
-        isZero
-        ((leftPrefix: Nat) => (equalPrefix: Nat -> Bool) => (right: Nat) =>
-          \prec(\Type, Nat)
-            ((current: Nat) => Bool)
-            Bool#false
-            ((rightPrefix: Nat) => (ignoredResult: Bool) => equalPrefix rightPrefix)
-            right)
-        left;
-
-  \definition lessOrEqual: Nat -> Nat -> Bool :=
-    (left: Nat) =>
-      \prec(\Type, Nat)
-        ((current: Nat) => Nat -> Bool)
-        ((right: Nat) => Bool#true)
-        ((leftPrefix: Nat) => (prefixComparison: Nat -> Bool) => (right: Nat) =>
-          \prec(\Type, Nat)
-            ((current: Nat) => Bool)
-            Bool#false
-            ((rightPrefix: Nat) => (ignoredResult: Bool) =>
-              prefixComparison rightPrefix)
-            right)
-        left;
-
   \definition predecessor: Nat -> Nat :=
     (n: Nat) =>
       \prec(\Type, Nat)
@@ -83,44 +47,58 @@
         ((prefix: Nat) => (ignoredResult: Nat) => prefix)
         n;
 
-  \definition subtract: Nat -> Nat -> Nat :=
-    (left: Nat) => (right: Nat) =>
-      \prec(\Type, Nat)
-        ((current: Nat) => Nat)
-        left
-        ((prefix: Nat) => (difference: Nat) => predecessor difference)
-        right;
+  \definition advanceRemainder:
+    Nat -> RemainderState -> RemainderState :=
+    (limit: Nat) => (current: RemainderState) =>
+      \prec(\Type, RemainderState)
+        ((stateValue: RemainderState) => RemainderState)
+        ((residue: Nat) => (countdown: Nat) =>
+          \prec(\Type, Nat)
+            ((countdownValue: Nat) => RemainderState)
+            (RemainderState#state Nat#zero limit)
+            ((countdownPrefix: Nat) => (ignoredResult: RemainderState) =>
+              RemainderState#state (Nat#succ residue) countdownPrefix)
+            countdown)
+        current;
 
-  \definition ifStep:
-    Bool ->
-    \RunStep(GcdState, Nat) ->
-    \RunStep(GcdState, Nat) ->
-    \RunStep(GcdState, Nat) :=
-    (condition: Bool) =>
-    (whenTrue: \RunStep(GcdState, Nat)) =>
-    (whenFalse: \RunStep(GcdState, Nat)) =>
-      \prec(\Type, Bool)
-        ((current: Bool) => \RunStep(GcdState, Nat))
-        whenTrue
-        whenFalse
-        condition;
+  \definition remainderValue: RemainderState -> Nat :=
+    (current: RemainderState) =>
+      \prec(\Type, RemainderState)
+        ((stateValue: RemainderState) => Nat)
+        ((residue: Nat) => (countdown: Nat) => residue)
+        current;
 
-  /* Subtractive Euclid: swap when left <= right, otherwise subtract right. */
+  /* The primitive-recursive state is evaluated once before each step uses it.
+   * A countdown avoids the nested equality recursion that strict CBV would
+   * otherwise evaluate eagerly.
+   */
+  \definition remainder: Nat -> Nat -> Nat :=
+    (dividend: Nat) => (divisor: Nat) =>
+      ((limit: Nat) =>
+        remainderValue
+          (\prec(\Type, Nat)
+            ((current: Nat) => RemainderState)
+            (RemainderState#state Nat#zero limit)
+            ((prefix: Nat) => (state: RemainderState) =>
+              advanceRemainder limit state)
+            dividend))
+      (predecessor divisor);
+
+  /* Euclid's algorithm using remainder. */
   \definition gcdStep: GcdState -> \RunStep(GcdState, Nat) :=
     (current: GcdState) =>
       \prec(\Type, GcdState)
         ((stateValue: GcdState) => \RunStep(GcdState, Nat))
         ((left: Nat) => (right: Nat) =>
-          ifStep
-            (equalNat left right)
+          \prec(\Type, Nat)
+            ((rightValue: Nat) => \RunStep(GcdState, Nat))
             (\finish(GcdState, Nat, left))
-            (ifStep
-              (lessOrEqual left right)
-              (\continue(GcdState, Nat, GcdState#state right left))
-              (\continue(
+            ((rightPrefix: Nat) => (ignoredResult: \RunStep(GcdState, Nat)) =>
+              \continue(
                 GcdState,
                 Nat,
-                GcdState#state (subtract left right) right))))
+                GcdState#state right (remainder left right)))
+            right)
         current;
 
   /* Reflection of succ turns a reflected Nat into another reflected Nat. */
@@ -164,7 +142,7 @@
     \definition reflectedGcd: \RfType(Nat) :=
       \RfTerm(Nat, gcdResult);
 
-    /* Reflection normalizes through run: subtractive gcd(12, 18) = 6. */
+    /* Reflection normalizes through run: remainder-based gcd(12, 18) = 6. */
     \definition reflectedGcdIsSix:
       reflectedGcd = \RfTerm(Nat, six) :=
       \refl(reflectedGcd);
