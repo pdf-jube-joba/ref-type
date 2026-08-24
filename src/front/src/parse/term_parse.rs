@@ -189,10 +189,10 @@ impl<'a> TermParser<'a> {
             return Ok(kernel::sort::Sort::SetKind(number));
         }
         if self.bump_if_keyword("\\Type") {
-            return Ok(kernel::sort::Sort::Univ);
+            return Ok(kernel::sort::Sort::Type);
         }
         if self.bump_if_keyword("\\TypeKind") {
-            return Ok(kernel::sort::Sort::UnivKind);
+            return Ok(kernel::sort::Sort::TypeKind);
         }
 
         Err(ParseError {

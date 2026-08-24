@@ -335,7 +335,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         } => {
             check_compute_type(session, rule, phase, state_ty, "check state type")?;
             check_compute_type(session, rule, phase, result_ty, "check result type")?;
-            Ok(arena.sort(Sort::Univ))
+            Ok(arena.sort(Sort::Type))
         }
         Node::Continue {
             state_ty,
@@ -568,7 +568,7 @@ fn check_compute_type(
     ty: Exp,
     expected: &str,
 ) -> Result<(), Box<JudgementError>> {
-    if add_sort!(session, rule, phase, ty, expected)? == Sort::Univ {
+    if add_sort!(session, rule, phase, ty, expected)? == Sort::Type {
         Ok(())
     } else {
         Err(failure(rule, phase, "type is not in the compute universe"))

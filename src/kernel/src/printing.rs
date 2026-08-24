@@ -27,8 +27,8 @@ pub fn format_sort(sort: &Sort) -> String {
         Sort::PropKind => "\\PropKind".to_string(),
         Sort::Set(level) => format!("\\Set({level})"),
         Sort::SetKind(level) => format!("\\SetKind({level})"),
-        Sort::Univ => "\\Type".to_string(),
-        Sort::UnivKind => "\\TypeKind".to_string(),
+        Sort::Type => "\\Type".to_string(),
+        Sort::TypeKind => "\\TypeKind".to_string(),
     }
 }
 

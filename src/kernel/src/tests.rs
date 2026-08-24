@@ -69,7 +69,7 @@ impl Fixture {
 fn kernel_expression_formatter_resolves_node_ids() {
     let fixture = Fixture::new();
     let arena = fixture.env.arena();
-    let state_ty = arena.sort(Sort::Univ);
+    let state_ty = arena.sort(Sort::Type);
     let result_ty = arena.sort(Sort::Set(0));
     let step = fixture.lam(
         SymbolId::ANONYMOUS,
@@ -430,7 +430,7 @@ fn compute_unit(fixture: &mut Fixture) -> (Exp, Exp) {
     let spec = InductiveTypeSpecs::unchecked(
         vec![],
         vec![],
-        Sort::Univ,
+        Sort::Type,
         vec![CtorType {
             telescope: vec![],
             indices: vec![],
@@ -511,7 +511,7 @@ fn run_reduces_multiple_transitions_atomically_and_preserves_stuck_terms() {
     let spec = InductiveTypeSpecs::unchecked(
         vec![],
         vec![],
-        Sort::Univ,
+        Sort::Type,
         vec![
             CtorType {
                 telescope: vec![],

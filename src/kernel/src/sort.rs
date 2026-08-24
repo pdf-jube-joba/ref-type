@@ -8,8 +8,8 @@ pub enum Sort {
     SetKind(usize), // SET(i): SETKind(i)
     Prop,           // proposition
     PropKind,       // Prop: PropKind
-    Univ,           // for programming language
-    UnivKind,       // Type: TypeKind
+    Type,           // for programming language
+    TypeKind,       // Type: TypeKind
 }
 
 impl Sort {
@@ -18,8 +18,8 @@ impl Sort {
         match self {
             Sort::Prop => Some(Sort::PropKind),
             Sort::PropKind => None,
-            Sort::Univ => Some(Sort::UnivKind),
-            Sort::UnivKind => None,
+            Sort::Type => Some(Sort::TypeKind),
+            Sort::TypeKind => None,
             Sort::Set(i) => Some(Sort::SetKind(i)),
             Sort::SetKind(_) => None,
         }
@@ -39,7 +39,7 @@ impl Sort {
             (Sort::SetKind(i), Sort::SetKind(j)) => Some(Sort::SetKind(i.max(j))),
             (Sort::SetKind(i), Sort::Set(j)) => Some(Sort::Set((i + 1).max(j))),
             // Type: TypeKind (dependent and impredicative)
-            (Sort::Univ | Sort::UnivKind, Sort::Univ | Sort::UnivKind) => Some(other),
+            (Sort::Type | Sort::TypeKind, Sort::Type | Sort::TypeKind) => Some(other),
             // Relations between Set and Prop
             (Sort::Set(_), Sort::PropKind) => Some(Sort::PropKind),
             (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
@@ -56,14 +56,14 @@ impl Sort {
                 | Sort::Prop
                 | Sort::Set(_)
                 | Sort::SetKind(_)
-                | Sort::Univ
-                | Sort::UnivKind,
+                | Sort::Type
+                | Sort::TypeKind,
                 Sort::Prop,
             ) => Some(()),
             (Sort::Set(i), Sort::Set(j)) if i <= j => Some(()),
             (Sort::Set(_), Sort::PropKind) => Some(()),
             (Sort::PropKind, Sort::PropKind) => Some(()),
-            (Sort::Univ, Sort::Univ) => Some(()),
+            (Sort::Type, Sort::Type) => Some(()),
             _ => None,
         }
     }
