@@ -8,6 +8,7 @@ use crate::{
     exp::{Context, Exp, Node},
     ids::{ModuleId, ModuleParamId, SymbolId},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
+    printing::format_exp,
     sort::Sort,
 };
 
@@ -62,6 +63,35 @@ impl Fixture {
         self.context.push((var, ty));
         exp
     }
+}
+
+#[test]
+fn kernel_expression_formatter_resolves_node_ids() {
+    let fixture = Fixture::new();
+    let arena = fixture.env.arena();
+    let state_ty = arena.sort(Sort::Univ);
+    let result_ty = arena.sort(Sort::Set(0));
+    let step = fixture.lam(
+        SymbolId::ANONYMOUS,
+        state_ty,
+        arena.alloc(Node::Finish {
+            state_ty,
+            result_ty,
+            output: arena.bound(0),
+        }),
+    );
+    let run = arena.alloc(Node::Run {
+        state_ty,
+        result_ty,
+        step,
+        initial: arena.bound(0),
+        termination: arena.bound(1),
+    });
+
+    let formatted = format_exp(&fixture.env, run);
+    assert!(formatted.starts_with("\\run(\\Type, \\Set(0), "));
+    assert!(formatted.contains("\\finish(\\Type, \\Set(0), #0)"));
+    assert!(!formatted.contains("NodeId"));
 }
 
 #[test]

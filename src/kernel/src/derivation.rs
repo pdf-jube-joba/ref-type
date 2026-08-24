@@ -119,7 +119,11 @@ macro_rules! add_infer {
     ($session:expr, $rule:expr, $phase:expr, $term:expr, $expected:expr $(,)?) => {
         $session.infer($term)
             .inspect(|ty| {
-                debug!(target: "ref_type::typing", premise = $expected, result = ?ty);
+                debug!(
+                    target: "ref_type::typing",
+                    premise = $expected,
+                    result = %crate::printing::format_exp($session.env(), *ty),
+                );
             })
             .map_err(|error| propagate(error, $rule, $phase, $expected))
     };
@@ -165,8 +169,8 @@ fn check(
         "check",
         rule = "Check",
         ctx_len = session.context.len(),
-        term = ?term,
-        expected = ?ty,
+        term = %crate::printing::format_exp(session.env(), term),
+        expected = %crate::printing::format_exp(session.env(), ty),
     );
     let _entered = span.enter();
     let rule = "Check";
@@ -207,7 +211,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         "infer",
         rule,
         ctx_len = session.context.len(),
-        term = ?term,
+        term = %crate::printing::format_exp(session.env(), term),
     );
     let _entered = span.enter();
     let phase = "infer";
