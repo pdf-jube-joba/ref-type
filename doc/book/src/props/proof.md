@@ -1,1727 +1,1396 @@
-# `system.md` の体系の相対無矛盾性
+# `system.md` の相対無矛盾性：集合モデルと残る条件
 
-## 1. 対象とする体系
+## 1. 証明すること
 
-この文書の目的は、[`doc/book/src/system.md`](../system.md) で定義された、
-一般再帰を含む体系の相対無矛盾性を数学的に示すことである。ここでいう無矛盾性は、
-空文脈で偽命題が証明されないという proof-theoretic consistency であり、強正規化ではない。
-実際、停止証明を無視した raw term の reduction には発散する `run` が存在する。
-Lean のデータ型、de Bruijn index、実装用証明書は扱わない。それらは
-[`formalization/lean/formalization.md`](../../../../formalization/lean/formalization.md) に分離する。
+この文書では [`system.md`](../system.md) の現在の構文に合わせて、Set/Prop の PTS と
+CBPV に基づく Program calculus を同時に解釈する。対象は次の規則である。
 
-以下では `system.md` の規則表を定義とする。特に次を変更しない。
+- `Sort` から `Acc と run` までに明記された構文、reduction、judgement
+- `帰納型と CBPV` に明記された Program type、constructor、case、Set の鏡像、
+  `Rf-Ind`、`Rf-Ctor`
 
-- 変数は sort annotation を持つ名前付き変数である。束縛変数は alpha-renaming してよい。
-- primitive weakening は sorting と typing の二規則である。provability weakening は後で
-  admissible rule として導く。
-- dependent elimination の primitive premise は function typing と argument typing の二つだけで、
-  substituted codomain の sorting は premise ではない。これは regularity と substitution から導く。
-- reduction は通常の beta reduction、その全 compatible closure、および `system.md` にある
-  `Pred`、`RfType`、`RfTerm`、`run`、`runCase` の root rule である。特に `Pred` rule は
+ただし `system.md` 自身が課題としている次の部分は、まだ一意な formal system を定めていない。
 
-  ```text
-  Pred(A,{x:B | P},t) -> (lambda x:B.P) t
-  ```
+- declaration environment の厳密な well-formedness と positivity judgement
+- Set case / induction の raw syntax、typing、reduction
+- それらを含む \(\Rightarrow_s\) の compatible closure
 
-  であり、`A ≡ B` という side condition は加えない。
-- `RfType` と `RfTerm` は構文の消去ではなく、それぞれ source type と payload を保持する
-  raw constructor である。
-- `Acc` は一般の公理ではなく、`acc intro` と `acc descent` だけで生成される predicate である。
+従って、まずこれらを使わない **core calculus** の集合モデルを与える。帰納型については、6節で
+明記済みの五規則が sound であることを示し、未定義部分を標準的な strictly-positive 規則で
+補った場合の拡張条件を述べる。「通常の規則」の選び方によらない無条件の定理は主張しない。
 
-sort を次の略記で書く。
+さらに現在の core にも、`system.md` の `CBPV` 課題欄に書かれている reflection の critical-pair
+問題が残る。3.4節で具体的な非合流 peak を示す。このため、以下では
+
+\[
+\begin{aligned}
+&\Gamma\vdash T_1:s,\quad \Gamma\vdash T_2:s,\quad T_1\equiv_sT_2\\
+&\qquad\Longrightarrow
+\llbracket T_1\rrbracket_\rho=\llbracket T_2\rrbracket_\rho
+\end{aligned}
+\tag{TC}
+\]
+
+が、表示した二つのsorting derivationの任意の選び方と \(\Gamma\) のすべてのvalid valuation
+\(\rho\) について成り立つことを
+**typed conversion soundness 条件**と呼ぶ。これは規則の soundness を仮定することではなく、
+raw conversion と typing の接続について現在未完了のメタ定理を一つ切り出したものである。
+3.4節では、conversion を typed congruence にする方法と、raw reduction を同期的に completion する
+方法の二つを区別する。
+
+以下の略記を使う。
 
 ```text
-Set_i   = *^s_i,       Kind_i = square^s_i,
-Prop    = *^p,         PropKind = square^p,
-Comp    = *^c,         CompKind = square^c.
+Set_i    = *^s_i,       Kind_i  = square^s_i,
+Prop     = *^p,         PropKind = square^p.
 ```
 
-`Gamma |- A :: s` を sorting、`Gamma |- e : A :: s` を typing、`Gamma |= P` を
-provability と書く。`M -> N` は一段 reduction、`->*` はその反射推移閉包、`≡` は
-reduction が生成する反射・対称・推移閉包である。
+sorting を `Gamma |- T :: s`、PTS typing を `Gamma |- t : T :: s`、provability を
+`Gamma |= P` と書く。Program judgement は `A vtype`、`B ctype`、`V :v A`、`M :c B`
+と略記する。\(\to_s^*\)、\(\to_c^*\) はそれぞれの reduction の反射推移閉包である。
 
-外部の集合論として ZFC と、推移的な Grothendieck universe の tower
+外部理論として ZFC と、推移的な Grothendieck universe の列
 
 ```text
 U_0 in U_1 in ... in U_omega in W
 ```
 
-を仮定する。`U_omega` はすべての `U_i` を含む Grothendieck universe であり、`W` も
-Grothendieck universe である。例えば順序型 `omega+2` の strongly inaccessible cardinal の
-狭義増加列があればよい。単なる `union_i U_i` は dependent product に閉じない可能性が
-あるため、`U_omega` の代わりにはしない。
+を仮定する。\(U_\omega\) はすべての \(U_i\) を含む Grothendieck universe であり、
+\(W\) も Grothendieck universe とする。単なる \(\bigcup_iU_i\) では dependent product
+への閉包が保証されないので、独立に \(U_\omega\) を仮定している。
 
 > [!important]
-> **目標とする主定理。** この仮定のもとで、空文脈では
+> **主定理（typed conversion soundness に相対化した core の無矛盾性）。** 上の集合論的仮定と
+> 条件 `(TC)` のもとで、`system.md` の core calculus について
 >
 > ```text
 > falseProp = (P : Prop) -> P
 > ```
 >
-> は provable でなく、`falseProp` を型に持つ項も存在しない。
+> と置くと、
+>
+> ```text
+> not (empty |= falseProp),
+> not (exists t s, empty |- t : falseProp :: s)
+> ```
+>
+> が成り立つ。conversion rule を除いた fragment、および3.4節で定義する typed congruence 版では
+> `(TC)` は定理として成り立つので、追加条件を要しない。
 
-### 1.1 証明の水準
-
-以下は通常の集合論内での紙上証明である。特に、モデルを提示しただけで conversion rule の
-soundness を仮定することはしない。3節で typed subject reduction を、4節で conversion path を
-有限な証明対象に展開する方法を、5--6節でその path に沿う意味保存と導出の coherence を示す。
-規則の取りこぼしがないことは6.1節の39規則表、6.2節の補助 phase 表、8節の constructor 監査で
-検査する。
-
-これは Lean による機械検証済みという意味ではないが、主定理を条件付きにする未証明補題は
-残さない。Lean 上の別構文に移す際には、6.1節の各行が一つの形式化上の case になる。
-
-一般再帰の追加に新しい集合論的公理は要らない。`Comp` を `U_0` に解釈し、`Acc` と `run` には
-ZFC の整礎再帰定理を使う。証明は、集合モデル、構文的メタ理論、soundness、`falseProp` の
-意味計算の順に行う。
+ここでいう無矛盾性は proof-theoretic consistency であって、raw Program の強正規化ではない。
+偽の `Acc` assumption を持つ open context では発散する `run` を型付けできる可能性がある。
+定理が使うのは、空文脈、または意味論的に妥当な closing valuation の下での soundness である。
 
 ## 2. 集合モデル
 
-### 2.1 sort
-
-意味値は `W` の要素である。各 sort の領域 `D_s` と sort term 自身の値 `S_s` を
-
-```text
-D_(Set_i)    = U_i,        S_(Set_i)    = U_i,
-D_(Kind_i)   = U_(i+1),    S_(Kind_i)   = U_(i+1),
-D_Prop       = {0,1},      S_Prop       = {0,1},
-D_PropKind   = U_omega,    S_PropKind   = U_omega,
-D_Comp       = U_0,        S_Comp       = U_0,
-D_CompKind   = U_1,        S_CompKind   = U_1.
-```
-
-とする。`0=empty`、`bullet=empty`、`1={bullet}` とする。tower の推移性と有限集合への
-閉包から、すべての `S_s` は `W` の要素であり、
-
-```text
-a in S_s  iff  a in D_s
-```
-
-である。`U_i in U_(i+1)`、`{0,1} in U_omega`、`U_0 in U_1` により `system.md` の三種の
-axiom `(Set_i,Kind_i)`、`(Prop,PropKind)`、`(Comp,CompKind)` が成り立つ。`Comp` と
-`Set_0` の領域を同じ集合にしたことは、二つの sort を構文的に同一視することではない。
-
-`p in D_Prop` なら
-
-```text
-v in p  iff  v=bullet and p=1.                         (proof_mem)
-```
-
-meta-level proposition `Q` に対し、`Q` が真なら `1`、偽なら `0` を返す値を `truth(Q)` と
-書く。排中律により定義でき、
-
-```text
-truth(Q) in D_Prop,
-truth(Q)=1 iff Q,
-truth(Q)=0 iff not Q
-```
-
-を満たす。
-
-### 2.2 family、product、lambda、application
-
-family は `W` 内の functional graph で表す。graph application `app(f,x)` は、`f` が
-functional graph で `x` が domain に属するときその値を返し、それ以外は `0` を返す。
-従ってすべての `W`-valued input で全域である。
-
-`system.md` の product rule `(r,q,z) in R` を考える。`z != Prop` のとき
-
-```text
-Pi_z(A,B) = { f | f is a functional graph with domain A
-                 and app(f,x) in B(x) for every x in A },
-Lam_z(A,m) = { (x,m(x)) | x in A },
-App_q(f,x) = app(f,x).
-```
-
-sort table を直接調べると、`(r,q,z) in R` のもとで
-
-```text
-z=Prop iff q=Prop.                                      (prop-branch)
-```
-
-従って上の data branch では `q!=Prop` でもあり、
-
-```text
-x in A
-  => App_q(Lam_z(A,m),x)=m(x),
-f in Pi_z(A,B) and x in A
-  => App_q(f,x) in B(x),
-(forall x in A, m(x) in B(x))
-  => Lam_z(A,m) in Pi_z(A,B).
-```
-
-`z=Prop` のときは proof-irrelevant に
-
-```text
-Pi_Prop(A,B) = truth(forall x in A, B(x)=1),
-Lam_Prop(A,m) = bullet,
-App_Prop(f,x) = bullet
-```
-
-とする。このとき
-
-```text
-(forall x in A, B(x)=1) => bullet in Pi_Prop(A,B),
-f in Pi_Prop(A,B) and x in A => bullet in B(x).
-```
-
-後者は `f in Pi_Prop(A,B)` から product が `1`、従って全 fiber が `1` となるためである。
-
-`system.md` の non-proposition product case ごとの閉包は次の通りである。
-
-- `(Set_i,Set_j,Set_max(i,j))` は universe tower の包含と
-  `U_max(i,j)` の dependent-product closure。
-- `(Set_i,Kind_j,Kind_max(i,j))` と
-  `(Kind_i,Kind_j,Kind_max(i,j))` は `U_(max(i,j)+1)` の closure。
-- `(Kind_i,Set_j,Set_max(i+1,j))` は domain `U_i` 自身と各 fiber が
-  `U_max(i+1,j)` に入り、この universe が dependent product に閉じることによる。
-- `(PropKind,PropKind,PropKind)` は `U_omega` の closure。
-- `(Set_i,PropKind,PropKind)` は `U_i subset U_omega` と `U_omega` の closure。
-- `(Comp,Comp,Comp)` は `U_0` の dependent-product closure。
-
-proposition result の `(Prop,Prop,Prop)`、`(PropKind,Prop,Prop)`、
-`(Set_i,Prop,Prop)` は `truth` の定義から閉じる。これで一般再帰追加後の `R` の全 case が尽きる。
-
-### 2.3 集合演算
-
-すべての `W`-valued input に対して
-
-```text
-Power(A)       = { B | B subset A },
-Subset(A,P)    = { x in A | P(x)=1 },
-Pred(A,B,t)    = truth(t in B),
-TypeLift(A,B)  = B,
-Eq(a,b)        = truth(a=b),
-Exists(A)      = truth(exists x, x in A)
-```
-
-とする。`P(x)` は family graph の全域 application である。`A in U_i` なら powerset と
-すべての subset は `U_i` に入る。`B in Power(A)` なら `B subset A` かつ `B in U_i` なので、
-type lift の formation、introduction、weakening は通常の subset membership で解釈できる。
-
-### 2.4 take
-
-set-valued な take を
-
-```text
-Take(X,T,f) = union { app(f,x) | x in X }
-```
-
-とする。`X` が非空で `f` が `X` 上で定値 `y` を取り、`y in T` なら image は `{y}` であり、
-
-```text
-Take(X,T,f)=union {y}=y in T.                           (take-law)
-```
-
-これは代表元を定義により選ばないので global choice を使わない。proposition-valued take の
-項値は `bullet` とする。
-
-### 2.5 Compute、reflection、accessibility、run
-
-`A,B in U_0` に対し、tagged disjoint sum を
-
-```text
-RunStep(A,B) = ({0} x A) union ({1} x B),
-continue(A,B,a) = (0,a),
-finish(A,B,b)   = (1,b)
-```
-
-とする。Grothendieck universe の有限和への閉包により `RunStep(A,B) in U_0` である。
-tag が異なるので二つの constructor は disjoint かつ injective である。
-
-`Comp` と `Set_0` の双方を `U_0` で解釈したので、well-typed な input では reflection を
-恒等写像として解釈できる。
-
-```text
-RfType(A)   = A,
-RfTerm(A,m) = m.
-```
-
-これは raw constructor を構文的に消すという定義ではなく、その**意味値**の定義である。
-特に Compute variable を含む `RfTerm_A(x^Comp)` も valuation が与える同じ集合を表す。
-functional graph の定義を Set と Compute で共通にしたので、非依存 function type に対し
-
-```text
-RfType(A -> B) = RfType(A) -> RfType(B),
-app(RfTerm(A -> B,f), RfTerm(C,a)) = RfTerm(B,app(f,a))       (rf-law)
-```
-
-が成り立つ。第一式には `system.md` と同じ非依存性条件を置く。第二式では annotation `C` の値を
-参照しない。ただし typed な reduction の membership proof では、source の generation から
-`A` と `C` の denotation が等しいことを回収する。
-
-`F in Pi(A, const RunStep(A,B))` に対して
-
-```text
-b <_F a  iff  app(F,a)=(0,b)
-```
-
-と定める。`Acc_F subset A` を monotone operator
-
-```text
-Phi_F(X) = { a in A | forall b in A, b <_F a implies b in X }
-```
-
-の最小不動点とする。この存在と、後で使う整礎性を省略せずに確認する。ordinal `alpha` に対して
-
-```text
-X_0          = empty,
-X_(alpha+1)  = Phi_F(X_alpha),
-X_lambda     = union_(beta<lambda) X_beta       (lambda は limit)
-```
-
-と置く。`Phi_F` の単調性から `X_alpha subset X_(alpha+1)` である。`P(A)` は集合なので、Hartogs の
-補題によりこの増大列はある ordinal `theta` で安定し、`X_theta=Phi_F(X_theta)` となる。
-`Acc_F=X_theta` と置く。任意の不動点 `Y` に対して transfinite induction で
-`X_alpha subset Y` だから、これは最小不動点である。
-
-`a in Acc_F` に対して
-
-```text
-rank_F(a) = least alpha such that a in X_(alpha+1)
-```
-
-と定められる。`b <_F a` なら `b in X_(rank_F(a))` なので
-`rank_F(b) < rank_F(a)` である。従って `<_F` を `Acc_F` に制限した関係は well founded である。
-また不動点方程式 `Acc_F=Phi_F(Acc_F)` から
-
-```text
-(forall b in A, b <_F a implies b in Acc_F) => a in Acc_F,   (acc-intro-law)
-a in Acc_F and b <_F a => b in Acc_F.                        (acc-descent-law)
-```
-
-`Acc` の命題値を
-
-```text
-Acc(A,B,F,a) = truth(a in Acc_F)
-```
-
-とする。reflection が恒等写像であり `continueFun` の意味が `b |-> (0,b)` なので、体系の
-`acc intro` の最後の premise はちょうど `(acc-intro-law)` の左辺を、`acc descent` の等式
-premise は `b <_F a` を表す。詳しくは、固定した `b in A` に対して equality domain は
-
-```text
-truth(app(F,a)=(0,b))
-```
-
-である。これを domain とする proposition product（含意）の値が `1` であることは、domain が
-`1` なら `Acc(A,B,F,b)=1`、domain が `0` なら自明、という条件と同値である。さらに外側の
-`b:A` に関する proposition product を展開すると
-
-```text
-forall b in A, b <_F a implies b in Acc_F
-```
-
-が正確に得られる。
-
-次に ordinal `rank_F(a)`（同値には上で得た well-founded relation）に沿って recursion を行い、
-
-```text
-Run_(A,B)(F,a) = Run_(A,B)(F,a')   if app(F,a)=(0,a'),
-Run_(A,B)(F,a) = b                  if app(F,a)=(1,b)
-```
-
-と定める。`F` の codomain が tagged sum なので場合分けは排他的かつ全域であり、continue case
-では `(acc-descent-law)` により再帰呼出しが正当化される。従って `a in Acc_F` なら
-`Run_(A,B)(F,a) in B` である。malformed または inaccessible な input での値は `0` として、
-この四引数の演算をすべての `W`-valued input に全域化する。以下では型引数 `A,B` を省略して
-`Run(F,a)` と書くが、演算自体はそれらにも依存する。
-
-ここで result membership は `rank_F(a)` に関する induction で確認できる。`app(F,a)=(1,b)`
-なら function typing と tagged-sum の定義から `b in B`。`app(F,a)=(0,a')` なら同様に
-`a' in A` であり、`a' <_F a` から `a' in Acc_F` と `rank_F(a')<rank_F(a)` が従うので、帰納法の
-仮定から `Run(F,a') in B` である。
-
-```text
-RunCase(F,a,(0,a')) = Run(F,a'),
-RunCase(F,a,(1,b))  = b,
-RunCase(F,a,u)      = 0             otherwise
-```
-
-とする。`a in Acc_F` かつ `u=app(F,a)` のとき、次の三つの law が成り立つ。
-
-```text
-Run(F,a) = RunCase(F,a,app(F,a)),
-RunCase(F,a,(0,a')) = Run(F,a'),
-RunCase(F,a,(1,b))  = b.                                  (run-laws)
-```
-
-第二式を typed な input に使うときは、invariant から `a' <_F a`、従って
-`a' in Acc_F` が従うことに注意する。ここが、無条件の一般不動点と今回の `run` の違いである。
-
-Grothendieck universe の pairing、replacement、powerset、separation、union により、ここまでの
-すべての演算は `W`-valued である。well-founded recursion の graph も replacement により集合に
-なる。各演算は ordinary argument の等号と、domain 上の family の pointwise equality を保つ。
-特に `Pi`、`Lam`、`Subset`、`Acc`、`Run` は表示に現れた集合と graph にだけ依存する。
+### 2.1 sort と mixed context
+
+\(0=\varnothing\)、\(\bullet=\varnothing\)、\(1=\{\bullet\}\) とする。sort の領域を
+
+\[
+\begin{aligned}
+D_{\mathrm{Set}_i}&=U_i,
+&S_{\mathrm{Set}_i}&=U_i,\\
+D_{\mathrm{Kind}_i}&=U_{i+1},
+&S_{\mathrm{Kind}_i}&=U_{i+1},\\
+D_{\mathrm{Prop}}&=\{0,1\},
+&S_{\mathrm{Prop}}&=\{0,1\},\\
+D_{\mathrm{PropKind}}&=U_\omega,
+&S_{\mathrm{PropKind}}&=U_\omega
+\end{aligned}
+\]
+
+とする。すべての値は \(W\) の要素である。各 sort について
+
+\[
+\llbracket s\rrbracket_\rho=S_s,
+\qquad
+\llbracket x^s\rrbracket_\rho=\rho(x^s)
+\]
+
+と解釈する。さらに
+
+\[
+a\in S_s\quad\Longleftrightarrow\quad a\in D_s
+\tag{sort-membership}
+\]
+
+が成り立つ。\(U_i\in U_{i+1}\) と \(\{0,1\}\in U_\omega\) により、
+`system.md` の axiom はすべて sound である。
+
+Program の型は PTS の sort では分類しない。その代わり、value type と computation type の
+carrier をともに \(U_0\) の要素として解釈する。mixed context の valuation \(\rho\) は、
+左から順に次を満たす tuple である。
+
+| context entry | valuation の条件 |
+| --- | --- |
+| \(x^s:T:s\) | \(\rho(x^s)\in\llbracket T\rrbracket_\rho\) |
+| \(X:\mathsf{vtype}\) | \(\rho(X)\in U_0\) |
+| \(x^v:A:\mathsf{value}\) | \(\rho(x^v)\in\llbracket A\rrbracket_\rho\) |
+
+前の entry だけを参照して右辺を解釈する。Program type は PTS term に依存せず、PTS term は
+`RfType` と `RfTerm` を通して Program entry に依存できる。この向きは上の逐次的な定義と整合する。
+
+meta-level proposition \(Q\) に対し、真なら \(1\)、偽なら \(0\) を返す集合を
+\(\operatorname{truth}(Q)\) と書く。古典論理により
+
+\[
+\operatorname{truth}(Q)=1\Longleftrightarrow Q,
+\qquad
+v\in p\Longleftrightarrow(v=\bullet\land p=1)
+\quad(p\in\{0,1\})
+\tag{proof-membership}
+\]
+
+である。
+
+### 2.2 PTS の product、lambda、application
+
+family と関数は \(W\) 内の functional graph で表す。\(\operatorname{app}(f,x)\) は
+\(f\) が domain に \(x\) を含む functional graph ならその値を返し、それ以外は \(0\) を
+返す。この既定値により raw input に対しても全域になる。
+
+product rule \((r,q,z)\in\mathcal R\) を一つ固定する。\(z\ne\mathrm{Prop}\) のとき
+
+\[
+\begin{aligned}
+\Pi_z(A,B)
+&=\{f\mid \operatorname{dom}(f)=A
+       \land \forall x\in A.\ \operatorname{app}(f,x)\in B(x)\},\\
+\operatorname{Lam}_z(A,m)
+&=\{(x,m(x))\mid x\in A\},\\
+\operatorname{App}_q(f,x)&=\operatorname{app}(f,x)
+\end{aligned}
+\]
+
+とする。現在の \(\mathcal R\) では
+
+\[
+z=\mathrm{Prop}\quad\Longleftrightarrow\quad q=\mathrm{Prop}
+\tag{prop-branch}
+\]
+
+なので、data branch では graph による通常の introduction、elimination、beta law が成り立つ。
+
+\(z=\mathrm{Prop}\) のときは proof irrelevance を使い、
+
+\[
+\begin{aligned}
+\Pi_{\mathrm{Prop}}(A,B)
+  &=\operatorname{truth}(\forall x\in A.\ B(x)=1),\\
+\operatorname{Lam}_{\mathrm{Prop}}(A,m)&=\bullet,\\
+\operatorname{App}_{\mathrm{Prop}}(f,x)&=\bullet
+\end{aligned}
+\]
+
+とする。\(f\in\Pi_{\mathrm{Prop}}(A,B)\) なら全 fiber が \(1\) なので、application の
+値 \(\bullet\) は結論の fiber に属する。
+
+sort table の閉包を全 case について確認する。表の「包含」は tower の推移性を、`Π-closure` は
+該当 Grothendieck universe の dependent-product closure を表す。
+
+| \((r,q,z)\) | closure の理由 |
+| --- | --- |
+| \((\mathrm{Set}_i,\mathrm{Set}_j,\mathrm{Set}_{\max(i,j)})\) | domain と全 fiber を \(U_{\max(i,j)}\) に含めて `Π-closure` |
+| \((\mathrm{Set}_i,\mathrm{Kind}_j,\mathrm{Kind}_{\max(i,j)})\) | domain と fiber は \(U_{\max(i,j)+1}\) に入り、同 universe の `Π-closure` |
+| \((\mathrm{Kind}_i,\mathrm{Kind}_j,\mathrm{Kind}_{\max(i,j)})\) | 両方を \(U_{\max(i,j)+1}\) に含めて `Π-closure` |
+| \((\mathrm{Kind}_i,\mathrm{Set}_j,\mathrm{Set}_{\max(i+1,j)})\) | domain は \(U_{i+1}\)、fiber は \(U_j\) にあり、\(U_{\max(i+1,j)}\) の `Π-closure` |
+| \((\mathrm{Prop},\mathrm{Prop},\mathrm{Prop})\) | `truth` の値は \(0\) または \(1\) |
+| \((\mathrm{PropKind},\mathrm{Prop},\mathrm{Prop})\) | 同上。domain の大きさは `truth` の値域を変えない |
+| \((\mathrm{PropKind},\mathrm{PropKind},\mathrm{PropKind})\) | domain と fiber は \(U_\omega\) にあり、その `Π-closure` |
+| \((\mathrm{Set}_i,\mathrm{Prop},\mathrm{Prop})\) | `truth` の値は \(0\) または \(1\) |
+| \((\mathrm{Set}_i,\mathrm{PropKind},\mathrm{PropKind})\) | \(U_i\subseteq U_\omega\) と \(U_\omega\) の `Π-closure` |
+
+これで現在の \(\mathcal R\) の全 case が尽きる。特に
+\((\mathrm{Prop},\mathrm{PropKind},\mathrm{PropKind})\) は規則表に存在しないので、Prop の proof
+carrier 全体に依存する大きな type family を誤って追加していない。旧体系に存在した `Comp` sort と
+`(Comp,Comp,Comp)` も使わない。
+
+### 2.3 Set/Prop の追加演算
+
+すべての \(W\)-valued input に対し、
+
+\[
+\begin{aligned}
+\operatorname{Power}(A)&=\{B\mid B\subseteq A\},\\
+\operatorname{Subset}(A,P)&=\{x\in A\mid \operatorname{app}(P,x)=1\},\\
+\operatorname{Pred}(A,B,t)&=\operatorname{truth}(t\in B),\\
+\operatorname{TypeLift}(A,B)&=B,\\
+\operatorname{Eq}(a,b)&=\operatorname{truth}(a=b),\\
+\operatorname{Exists}(A)&=\operatorname{truth}(A\ne\varnothing)
+\end{aligned}
+\]
+
+とする。`Pred` の第一引数は annotation であり、値には使わない。\(A\in U_i\) なら
+powerset と subset は \(U_i\) に属する。
+
+set-valued `Take` は
+
+\[
+\operatorname{Take}(X,T,f)
+=\bigcup\{\operatorname{app}(f,x)\mid x\in X\}
+\]
+
+とする。\(X\ne\varnothing\) かつ \(f\) が \(X\) 上で定値 \(y\in T\) なら image は
+\(\{y\}\) なので
+
+\[
+\operatorname{Take}(X,T,f)=y\in T.
+\tag{take-law}
+\]
+
+代表元を選ばないため global choice は使わない。proposition-valued `Take` の項値は
+\(\bullet\) とする。存在 premise と \(f:X\to T\) の typing から \(T=1\) が従うので、
+\(\bullet\in T\) である。
+
+`Proof P` の値も \(\bullet\) とする。provability premise の soundness が \(P=1\) を
+与えるため、これは \(P\) の要素になる。
+
+### 2.4 CBPV の型と項
+
+Program type environment が与える \(X\in U_0\) を用いて、
+
+\[
+\begin{aligned}
+\llbracket X\rrbracket_\rho&=\rho(X),\\
+\llbracket x^v\rrbracket_\rho&=\rho(x^v),\\
+\llbracket \mathrm F A\rrbracket_\rho&=\llbracket A\rrbracket_\rho,\\
+\llbracket \mathrm U\underline B\rrbracket_\rho
+  &=\llbracket\underline B\rrbracket_\rho,\\
+\llbracket A\Rightarrow\underline B\rrbracket_\rho
+  &=\{f\mid\operatorname{dom}(f)=\llbracket A\rrbracket_\rho
+       \land\forall a\in\llbracket A\rrbracket_\rho.\
+          \operatorname{app}(f,a)\in\llbracket\underline B\rrbracket_\rho\}
+\end{aligned}
+\]
+
+とする。Grothendieck universe の function set への閉包により、いずれも \(U_0\) の要素である。
+`F` と `U` を同じ carrier に解釈するのは、構文的に型を同一視することではない。
+
+項の解釈は
+
+\[
+\begin{aligned}
+\llbracket\operatorname{return}(V)\rrbracket_\rho
+  &=\llbracket V\rrbracket_\rho,\\
+\llbracket\operatorname{thunk}(M)\rrbracket_\rho
+  &=\llbracket M\rrbracket_\rho,\\
+\llbracket\operatorname{force}(V)\rrbracket_\rho
+  &=\llbracket V\rrbracket_\rho,\\
+\llbracket\lambda x^v:A.M\rrbracket_\rho
+  &=\{(a,\llbracket M\rrbracket_{\rho[x^v:=a]})
+        \mid a\in\llbracket A\rrbracket_\rho\},\\
+\llbracket M@^cV\rrbracket_\rho
+  &=\operatorname{app}(\llbracket M\rrbracket_\rho,
+                        \llbracket V\rrbracket_\rho),\\
+\llbracket M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N\rrbracket_\rho
+  &=\llbracket N\rrbracket_{\rho[x^v:=\llbracket M\rrbracket_\rho]},\\
+\llbracket\operatorname{let}^v x^v=V\ \operatorname{in}\ N\rrbracket_\rho
+  &=\llbracket N\rrbracket_{\rho[x^v:=\llbracket V\rrbracket_\rho]}
+\end{aligned}
+\]
+
+である。従って force/thunk、CBPV beta、sequence、value let の四 root reduction は
+well-typed input で意味を保存する。
+
+\(A,B\in U_0\) に対して
+
+\[
+\begin{aligned}
+\operatorname{RunStep}(A,B)
+  &=(\{0\}\times A)\cup(\{1\}\times B),\\
+\operatorname{continue}_{A,B}(a)&=(0,a),\\
+\operatorname{finish}_{A,B}(b)&=(1,b)
+\end{aligned}
+\]
+
+とする。二つの tag は disjoint かつ injective であり、carrier は \(U_0\) に属する。
+Program syntaxの解釈 clauseは
+
+\[
+\begin{aligned}
+\llbracket\operatorname{RunStep}(A,B)\rrbracket_\rho
+  &=\operatorname{RunStep}(\llbracket A\rrbracket_\rho,
+                            \llbracket B\rrbracket_\rho),\\
+\llbracket\operatorname{continue}_{A,B}(V)\rrbracket_\rho
+  &=(0,\llbracket V\rrbracket_\rho),\\
+\llbracket\operatorname{finish}_{A,B}(V)\rrbracket_\rho
+  &=(1,\llbracket V\rrbracket_\rho)
+\end{aligned}
+\]
+
+である。annotation \(A,B\) はtagged sumのcarrierを決め、payload値は対応するsummandに入る。
+
+### 2.5 accessibility と run
+
+\(F:A\to\operatorname{RunStep}(A,B)\) という functional graph に対し、
+
+\[
+b<_F a\quad\Longleftrightarrow\quad
+\operatorname{app}(F,a)=(0,b)
+\]
+
+と定める。\(\operatorname{Acc}_F\subseteq A\) を、単調作用素
+
+\[
+\Phi_F(X)=\{a\in A\mid
+  \forall b\in A.\ b<_F a\Longrightarrow b\in X\}
+\]
+
+の最小不動点とする。\(X\subseteq Y\) なら、「すべてのpredecessorが \(X\) に入る」ことから
+「すべてのpredecessorが \(Y\) に入る」ことが従うので、\(\Phi_F(X)\subseteq\Phi_F(Y)\) である。
+存在を確認するため ordinal に沿って
+
+\[
+X_0=\varnothing,\qquad
+X_{\alpha+1}=\Phi_F(X_\alpha),\qquad
+X_\lambda=\bigcup_{\beta<\lambda}X_\beta
+\]
+
+と置く。単調性によりこの列は増大する。\(\mathcal P(A)\) は集合なので Hartogs の補題から
+ある \(\theta\) で \(X_\theta=X_{\theta+1}\) となる。
+\(\operatorname{Acc}_F=X_\theta\) と置けば、任意の pre-fixed point への transfinite induction
+により最小性も従う。
+
+ここを詳しく確認する。\(X_0\subseteq X_1\) は明らかである。successorでは
+\(X_\alpha\subseteq X_{\alpha+1}\) に単調性を適用して
+\(X_{\alpha+1}=\Phi_F(X_\alpha)\subseteq\Phi_F(X_{\alpha+1})=X_{\alpha+2}\) を得る。
+limit \(\lambda\) では、\(a\in X_\lambda\) ならある \(\beta<\lambda\) について \(a\in X_\beta\) であり、
+\(\beta+1<\lambda\) とそれ以前の増大性から
+\(a\in X_{\beta+1}=\Phi_F(X_\beta)\subseteq\Phi_F(X_\lambda)=X_{\lambda+1}\) となる。
+従って全ordinalで \(X_\alpha\subseteq X_{\alpha+1}\) である。もし Hartogs ordinal
+まで一度も consecutive equality がなければ、\(\alpha\mapsto X_\alpha\) はその ordinal から
+\(\mathcal P(A)\) への単射を与えて Hartogs の補題に反する。従って上の \(\theta\) が存在し、
+\(X_\theta=\Phi_F(X_\theta)\) である。さらに \(\Phi_F(Y)\subseteq Y\) を満たす任意の
+pre-fixed point \(Y\) に対し、transfinite induction で \(X_\alpha\subseteq Y\) が成り立つ。
+successor case は
+
+\[
+X_{\alpha+1}=\Phi_F(X_\alpha)
+\subseteq\Phi_F(Y)\subseteq Y
+\]
+
+であり、limit case は union で閉じる。従って \(X_\theta\) は最小の fixed point である。
+
+\(a\in\operatorname{Acc}_F\) には、初めて \(X_{\alpha+1}\) に入る \(\alpha\) を
+\(\operatorname{rank}_F(a)\) として割り当てられる。limit stageはそれ以前のunionなので、要素が
+初めてlimit stageに入ることはなく、この \(\alpha\) は必ず存在する。\(b<_F a\) なら
+
+\[
+\operatorname{rank}_F(b)<\operatorname{rank}_F(a).
+\]
+
+実際、\(a\in X_{\alpha+1}=\Phi_F(X_\alpha)\) かつ \(b<_Fa\) なら \(b\in X_\alpha\) である。
+よって \(b\) が初めて現れる stage は \(\alpha+1\) より真に前にある。
+
+また不動点方程式から
+
+\[
+(\forall b\in A.\ b<_F a\Rightarrow b\in\operatorname{Acc}_F)
+\Rightarrow a\in\operatorname{Acc}_F.
+\tag{acc-intro-law}
+\]
+
+\[
+a\in\operatorname{Acc}_F\land b<_F a
+\Rightarrow b\in\operatorname{Acc}_F.
+\tag{acc-descent-law}
+\]
+
+`Acc` は
+
+\[
+\llbracket\operatorname{Acc}_{A,B}(f,a)\rrbracket_\rho
+=\operatorname{truth}(\llbracket a\rrbracket_\rho
+   \in\operatorname{Acc}_{\llbracket f\rrbracket_\rho})
+\]
+
+と解釈する。`StepFun(A,B)` の carrier はちょうど
+\(A\to\operatorname{RunStep}(A,B)\) であり、`continueFun` の値は
+\(b\mapsto(0,b)\) である。従って
+
+\[
+\llbracket\operatorname{Next}_{A,B}(f,b,a)\rrbracket=1
+\quad\Longleftrightarrow\quad b<_F a.
+\tag{next-law}
+\]
+
+この式を proposition product の意味に代入すると、`acc intro` の最後の premise は
+`acc-intro-law` の左辺そのものであり、`acc descent` は `acc-descent-law` になる。
+
+次に rank に沿う well-founded recursion で
+
+\[
+\operatorname{Run}_{A,B}(F,a)=
+\begin{cases}
+\operatorname{Run}_{A,B}(F,a')&
+  a\in\operatorname{Acc}_F,\ \operatorname{app}(F,a)=(0,a'),\
+  \ a'\in\operatorname{Acc}_F,\\
+b&a\in\operatorname{Acc}_F,\ \operatorname{app}(F,a)=(1,b),\ b\in B,\\
+0&\text{otherwise}
+\end{cases}
+\]
+
+と定める。第一caseのrecursive callはrankが真に小さい引数だけを許すので、
+\(\operatorname{Acc}_F\) 上のwell-founded recursionとして一意に定まる。第三caseにより任意の
+\(W\)-valued inputへ全域化される。well-formedな \(F:A\to\operatorname{RunStep}(A,B)\) と
+\(a\in\operatorname{Acc}_F\) については最初の二caseのどちらかが必ず成立し、値は \(B\) に属する。
+
+値域の主張は \(\operatorname{rank}_F(a)\) に関する整礎帰納法で示す。
+\(\operatorname{app}(F,a)=(1,b)\) なら、\(F\) の function typing と tagged sum の定義から
+\(b\in B\) である。\(\operatorname{app}(F,a)=(0,a')\) なら同様に \(a'\in A\) であり、
+`acc-descent-law` と rank の真の減少から帰納法の仮定を \(a'\) に適用できる。従って
+\(\operatorname{Run}_{A,B}(F,a')\in B\) である。二つの tag は disjoint で、typed な
+\(F(a)\) は必ずどちらか一方なので、場合分けは排他的かつ全域である。
+
+次に
+
+\[
+\operatorname{RunCase}_{A,B}(F,a,u)=
+\begin{cases}
+0&a\notin\operatorname{Acc}_F,\\
+\operatorname{Run}_{A,B}(F,a')&a\in\operatorname{Acc}_F,\ u=(0,a'),\\
+b&a\in\operatorname{Acc}_F,\ u=(1,b),\\
+0&\text{otherwise}
+\end{cases}
+\]
+
+Program termの解釈は
+
+\[
+\begin{aligned}
+\llbracket\operatorname{run}_{A,B}(f,a)\rrbracket_\rho
+&=\operatorname{Run}_{\llbracket A\rrbracket_\rho,
+                       \llbracket B\rrbracket_\rho}
+  (\llbracket f\rrbracket_\rho,\llbracket a\rrbracket_\rho),\\
+\llbracket\operatorname{runCase}_{A,B}(f,a,M)\rrbracket_\rho
+&=\operatorname{RunCase}_{\llbracket A\rrbracket_\rho,
+                           \llbracket B\rrbracket_\rho}
+  (\llbracket f\rrbracket_\rho,
+   \llbracket a\rrbracket_\rho,
+   \llbracket M\rrbracket_\rho)
+\end{aligned}
+\]
+
+とする。次の各行の左に書いた条件のもとで law が成り立つ。
+
+\[
+\begin{aligned}
+a\in\operatorname{Acc}_F
+&\Rightarrow
+\operatorname{Run}(F,a)
+ =\operatorname{RunCase}(F,a,\operatorname{app}(F,a)),\\
+a\in\operatorname{Acc}_F\land\operatorname{app}(F,a)=(0,a')
+&\Rightarrow
+\operatorname{RunCase}(F,a,(0,a'))=\operatorname{Run}(F,a'),\\
+a\in\operatorname{Acc}_F\land\operatorname{app}(F,a)=(1,b)
+&\Rightarrow
+\operatorname{RunCase}(F,a,(1,b))=b.
+\end{aligned}
+\tag{run-laws}
+\]
+
+continue case の再帰先が accessible であることは `acc-descent-law` による。これが無条件の
+一般不動点との違いである。`run-laws` の第一式は rank recursion の定義式、第二・第三式は
+`RunCase` の tag 場合分けである。第二式の右辺が全域化時の既定値でないことは
+`acc-descent-law` が保証する。
+
+### 2.6 reflection
+
+value type と computation type の carrier はともに \(U_0\) にあるので、well-formed input に
+対して reflection を意味的な恒等写像にできる。
+
+\[
+\begin{aligned}
+\llbracket\operatorname{RfType}(P)\rrbracket_\rho
+  &=\llbracket P\rrbracket_\rho,\\
+\llbracket\operatorname{RfTerm}_P(p)\rrbracket_\rho
+  &=\llbracket p\rrbracket_\rho.
+\end{aligned}
+\tag{reflection-value}
+\]
+
+これは raw constructor を構文的に消す定義ではない。`RfType`、`RfTerm` の syntax は残り、
+その denotation だけを同じ集合または要素に選んでいる。
+
+`F` と `U` の carrier が恒等で、PTS と Program の関数を同じ functional graph で表したので、
+
+\[
+\begin{aligned}
+\llbracket\operatorname{RfType}(\mathrm F A)\rrbracket
+ &=\llbracket\operatorname{RfType}(A)\rrbracket,\\
+\llbracket\operatorname{RfType}(\mathrm U\underline B)\rrbracket
+ &=\llbracket\operatorname{RfType}(\underline B)\rrbracket,\\
+\llbracket\operatorname{RfType}(A\Rightarrow\underline B)\rrbracket
+ &=\llbracket\operatorname{RfType}(A)
+      \to\operatorname{RfType}(\underline B)\rrbracket,\\
+\operatorname{app}(\llbracket f\rrbracket,\llbracket a\rrbracket)
+ &=\llbracket\operatorname{force}(f)@^ca\rrbracket,\\
+\operatorname{app}(\llbracket M\rrbracket,\llbracket a\rrbracket)
+ &=\llbracket M@^ca\rrbracket
+\end{aligned}
+\tag{reflection-laws}
+\]
+
+である。return/thunk の二つの `RfTerm` rule も `reflection-value` から直ちに従う。
+Program の一段 reduction が意味を保存すれば、その step を payload に持つ `RfTerm` rule も
+意味を保存する。従って `system.md` に列挙された reflection root rule はすべて sound である。
 
 > [!important]
-> **モデル補題。** 上の演算は `system.md` の全 formation rule に必要な sort closure、
-> introduction / elimination rule に必要な membership law、data beta law、`rf-law`、
-> `acc-intro-law`、`acc-descent-law`、`run-laws`、および `Pred(A,Subset(B,P),t)` に必要な
-> truth law を同時に満たす。
+> **モデル演算補題。** 2.1--2.6節の演算はすべて \(W\)-valued input 上で全域であり、
+> well-formed input では規則表が要求する universe membership を満たす。また、各演算は通常の
+> 引数の等号と family graph の pointwise equality を保つ。
 
-これは上の定義と universe closure を rule ごとに展開すれば得られる。`Pred` reduction の
-意味保存にはさらに derivability から `A` と `B` の値が等しく、`t in B` であることを使う。
-これは3.4節の subject reduction と6節の soundness で確認する。
+**証明。** `app`、malformed な `Run` / `RunCase` には明示した既定値 \(0\) を使う。
+`Power`、`Subset`、tagged sum、functional graph は \(W\) の powerset、separation、pairing、
+replacement への閉包で \(W\) に属する。`Acc` の iteration は \(\mathcal P(A)\) 内で行われ、
+stabilization ordinal までの列とその union は replacement と union により集合である。`Run` の
+graph は \(\operatorname{Acc}_F\) 上の well-founded recursion theorem と replacement により
+集合になる。well-formed input の小さい universe への membership は2.2--2.5節で個別に示した。
+
+外延性について、`Pi`、lambda graph、application、powerset、subset、tagged sum は定義から従う。
+\(F=F'\)、\(A=A'\)、\(B=B'\) なら関係 \(<_F\) と \(<_{F'}\) は等しく、transfinite iteration の
+各 stage が等しいので `Acc` も等しい。`Run` は同じ well-founded relation 上で同じ recursion
+equation を満たすため、well-founded recursion の一意性から等しい。`RunCase` もその定義から
+等しい。従って compatible context の引数を等しい値へ置き換えても結果値は変わらない。□
 
 ## 3. 構文的メタ理論
 
-この節では意味論を使わない。変数は capture を避けて alpha-renaming し、以下では束縛変数が
-文脈に新しいものとして選ばれているとする。
+この節の補題は意味論を使わない。束縛変数は必要に応じて alpha-renaming し、常に fresh に取る。
 
-### 3.1 renaming、weakening、substitution
+### 3.1 mixed renaming、weakening、substitution
+
+置換は変数 category ごとに三種類ある。
+
+1. PTS typing \(\Gamma\vdash u:A:s\) による \(x^s\) の置換
+2. value type \(A\) による Program type variable \(X\) の置換
+3. value typing \(\Gamma\vdash_vV:A\) による \(x^v\) の置換
+
+第三の置換は Program term だけでなく、`RfTerm` の payload と `Acc`、`Next`、`Terminates`、
+`RunInv` の内部にも入れる。第二の置換は Program の全 annotation と、それを含む `RfType`、
+`RfTerm` に入れる。第一の置換は PTS 部分に入り、現在の Program type grammar には入らない。
 
 > [!important]
-> **補題（renaming と substitution）。** WF、sorting、typing、provability は capture-avoiding
-> renaming で保存される。また `Gamma |- u:A::r` のとき、
->
-> ```text
-> WF(Gamma,x:A::r,Delta)              => WF(Gamma,Delta[u/x]),
-> Gamma,x:A::r,Delta |- B::s       => Gamma,Delta[u/x] |- B[u/x]::s,
-> Gamma,x:A::r,Delta |- e:B::s     => Gamma,Delta[u/x] |- e[u/x]:B[u/x]::s,
-> Gamma,x:A::r,Delta |= P          => Gamma,Delta[u/x] |= P[u/x].
-> ```
+> **mixed substitution 補題。** well-formed な prefix で上のいずれかの置換項が型付けされて
+> いるとする。このとき後続 context の WF と、PTS sorting / typing / provability、value type /
+> computation type formation、value / computation typing は capture-avoiding substitution で
+> 保存される。
 
-**証明。** 文脈 `Delta` の長さと四 judgement の導出の同時帰納法である。WF の start caseは
-最後の宣言の sorting に帰納法を適用して startを付け直す。variable case は `x` 自身、`x` より
-新しい変数、古い変数に分ける。binder の下では置換を lift する代わりに、名前付き表示では
-束縛変数を fresh に取り直す。conversion case は reduction と convertibility が substitution で
-保存されることを使う。take の定値性 premise では二つの binder の双方を fresh にする。
-新しい constructor では、`RfTerm_A(m)` の annotation と payload の双方、`RunStep`、`Acc`、
-`run`、`runCase` の全引数に置換を入れる。`Terminates` と `RunInv` は単なる略記なので、各引数への
-置換と一致する。`acc intro` の `b` は先に fresh に取り直す。□
+**証明。** 第一 measure を後続 context の長さ、第二 measure を judgement derivation の高さとする
+辞書式帰納法を使う。variable case は置換対象、対象より前、対象より後の三つに分ける。対象自身
+なら置換項の typing derivationを使い、後二つなら variable rule と必要な weakeningを付け直す。
+各 rule family の処理は次の通りである。
 
-`system.md` の weak sort / weak type から任意位置への weakening が得られる。正確には挿入位置より
-後ろの context suffix の長さに関する帰納法で、base は primitive weak、step は最後の宣言の
-sorting と startを作り直してから primitive weakを適用する。
-provability weakening は primitive rule ではないが、
+| rule family | 置換後の導出の構成 |
+| --- | --- |
+| PTS / Program の context start | entry の formation に IH を適用し、freshness を renaming で回復して start を再適用 |
+| weak rule | strict premise と WF premise に IH を適用して同じ weak rule を再適用 |
+| PTS product / lambda | binder を置換項の自由変数から fresh に取り直し、domain と binder body の IH から規則を再適用 |
+| PTS application | function と argument の IH、および codomain に対する capture-avoiding substitution の合成則を使う |
+| conversion | source typing と target sorting に IH を適用する。raw reduction と \(\equiv_s\) が三種類の substitution で保存されることは reduction derivation の構造帰納法による |
+| subset / equality / take | 全 ordinary argument に IH を適用する。`id elim` と take の定値性 premise の binder は先に fresh にする |
+| Program lambda / sequence / value let | value binder を fresh にし、各 computation premise の IH から同じ typing rule を再適用 |
+| `return` / `thunk` / `force` / Program application | immediate premise の IH から同じ typing rule を再適用 |
+| `RunStep` / tag / reflection | type annotation と payload の双方に対応する IH を適用する |
+| `Acc` / `run` / `runCase` | `Next`、`Terminates`、`RunInv` を展開し、全引数と proof premise に IH を適用する |
+| `acc intro` | PTS binder \(b\) を fresh にしてから binder 下の provability IH を使う |
+| datatype constructor / case | parameter、field、scrutinee、全 branch に IH を適用し、branch binder を一斉に fresh にする |
+
+Program type substitutionでは signature 中の全 \(X\) と reflected annotation も置換する。
+Program value substitutionでは `RfTerm` 内の valueだけでなく、その valueを含む computation 全体を
+置換する。PTS substitutionは現在の Program grammarには入らない。どの表の行でも recursive call は
+元の strict premise、または真に短い context suffixへ向くため、辞書式 measure は真に減少する。□
+
+同じ帰納法から三 category の renaming が得られる。primitive weakening と context extension rule
+を繰り返せば、任意位置への weakening も admissible である。PTS judgement を Program entry の上へ
+運ぶときは `weak sort/type over Program`、Program judgement には `Program weak` を使う。
+provability の weakening は
 
 ```text
 Gamma |= P
 => Gamma |- Proof P : P :: Prop
-=> Gamma,x:A::s |- Proof P : P :: Prop
-=> Gamma,x:A::s |= P
+=> Gamma,e |- Proof P : P :: Prop
+=> Gamma,e |= P
 ```
 
-により admissible である。古い変数の rule も、variable rule と weak type の反復で得られる。
+により導ける。
+
+PTS context declaration \(x:A:s\) は、\(A\equiv_sA'\) かつ両方が \(s\) に sort される
+なら context conversion できる。より正確には、\(\Gamma,x:A:s,\Delta\) の WF derivation とその上の
+judgement derivationから、\(\Gamma,x:A':s,\Delta\) の対応する導出を作れる。証明は
+\((|\Delta|,h)\) に関する辞書式帰納法である。\(x\) 自身のvariable caseでは、新しいdeclarationから
+まず \(x:A':s\) を得て、\(A'\equiv_sA\) と \(A:s\) によりtyping conversionで \(x:A:s\) へ戻す。
+後続entryのstart caseでは、そのentryのformation derivationに同じ帰納法を適用してWFを作り直す。
+それ以外のterminal ruleでは全strict premiseにIHを適用してruleを再適用する。Program typeはPTS
+variableに依存しないが、mixed context中のProgram entryもWF premiseを作り直して保存する。
+各再帰呼出しでは後続context長または導出高が真に減るので、この同時帰納法は停止する。
+
+また
+
+\[
+\Gamma\vDash P,\quad
+\Gamma\vdash Q:\mathrm{Prop},\quad
+P\equiv_sQ
+\quad\Longrightarrow\quad
+\Gamma\vDash Q
+\tag{prov-conv}
+\]
+
+は `Proof P` に typing conversion を適用してから provable rule を使えばよい。
+
+### 3.2 regularity、generation、category / branch uniqueness
+
+導出に関する同時強帰納法で次を得る。
 
 > [!important]
-> **補題（context conversion）。** `Gamma |- A::s`、`Gamma |- A'::s`、`A≡A'` とする。
-> well-formed context 中の宣言 `x:A::s` を `x:A'::s` に置き換えても、WF、sorting、typing、
-> provability は同じ raw judgement のまま保存される。
-
-**証明。** 置換位置より新しい宣言の個数と導出の同時帰納法。`x` の variable case では
-variable rule が与える型 `A'` を conversion で `A` に戻す。新しい宣言の formation と binder
-body も同時に輸送する。conversion が renaming で保存されるため任意位置で同じ議論ができる。□
-
-provability に primitive conversion rule はないが、次は admissible である。
-
-```text
-Gamma |= P,  Gamma |- Q::Prop,  P≡Q
-=> Gamma |= Q.                                           (prov-conv)
-```
-
-実際 `Proof(P):P::Prop` を typing conversion で `Q` 型へ移し、provable rule をもう一度適用すれば
-よい。3.4節で `RunInv` や `Terminates` の形を reduction に合わせて変える箇所では、常にこの
-`(prov-conv)` と proposition の regularity を使う。
-
-### 3.2 confluence
-
-raw reduction は強正規化しないので、Newman の補題は使えない。代わりに
-Tait--Martin-Lof の parallel reduction `=>>` を使う。これは次を一回で行ってよい関係である。
-
-- 全 immediate subterm の reflexive parallel reduction。
-- source に既に存在する beta、`Pred`、reflection、recursion redex の root contraction。subterm の
-  reduction で新しく head constructor が現れた redexは、その parallel step では縮めない。
-- `Pred` contraction の直後の beta contraction。
-
-正確には、各 constructor `K` に reflexive congruence
-
-```text
-Mi =>> Mi' for every immediate subterm
----------------------------------------
-K(M1,...,Mn) =>> K(M1',...,Mn')
-```
-
-を置き、binder の body は alpha-renaming して同じ fresh variable の下で比較する。これに加えて
-次の root clause を置く。prime は対応する immediate subterm の parallel reduct である。
-
-```text
-(lambda x:A.M) N
-  =>> M'[N'/x],
-
-Pred(A,Subset(x:B,P),t)
-  =>> (lambda x:B'.P') t',
-
-Pred(A,Subset(x:B,P),t)
-  =>> P'[t'/x],
-
-RfType((x:A)->B)
-  =>> (z:RfType(A'))->RfType(B')
-       if x notin FV(B) and z is fresh,
-
-RfTerm_(A->B)(f) @ RfTerm_C(a)
-  =>> RfTerm_(B')(f'@a'),
-
-run_(A,B)(f,a)
-  =>> runCase_(A',B')(f',a',f'@a'),
-
-runCase_(A,B)(f,a,continue_(C,D)(a0))
-  =>> run_(A',B')(f',a0'),
-
-runCase_(A,B)(f,a,finish_(C,D)(b))
-  =>> b'.
-```
-
-二つの `Pred` clause の前者は primitive root step だけを、後者はその直後の beta までを一つの
-parallel step で行う。これにより primitive な `Pred` step 自身も `=>>` に含まれる。
-例えば `Rf-App` clause には `A=>>A'`、`B=>>B'`、`C=>>C'`、`f=>>f'`、`a=>>a'` を、
-continue clause には外側と内側の四 annotation を含む全 immediate subterm の parallel premise を
-置く。target に現れない reduct も、`=>>` が raw `->*` に含まれることを示すときに source を
-componentwise に進めるため premise として保持する。二つの `Pred` clause は `Pred` root と直後の beta を
-別々に、または一度に行う二通りを表す。
-
-`Rf-App` の function domain と argument annotation はそれぞれ `A,C`、`runCase` の外側と
-constructor 側の annotation はそれぞれ `A,B,C,D` という異なる metavariable にしたため、全 root
-pattern は左線形である。従って annotation を共通 reduct へ同期して redex を復元する特殊 clause は
-不要である。型保存に必要な `A≡C`、`B≡D` は raw reduction の side condition ではなく、well-typed
-source の generation から回収する。
-
-> [!important]
-> **補題（parallel reduction の基本性質）。** alpha 同値を法として
+> **regularity。** 導出可能な judgement の context は well formed であり、
 >
-> ```text
-> M -> N       => M =>> N,
-> M =>> N      => M ->* N,
-> M =>> M', N =>> N'
->              => M[N/x] =>> M'[N'/x].                  (parallel-subst)
-> ```
-
-**証明。** 第一式は変化しない subterm に reflexivity を使う。第二式は parallel derivation の
-帰納法で、まず congruence により全 component を prime 付きの値まで進め、最後に対応する root
-rule を一度使う。`Pred` の第二 clause だけはさらに beta を一度使う。
-
-`(parallel-subst)` も parallel derivation の帰納法である。binder はあらかじめ `N,N'` の自由変数
-と異なる名前に直す。beta と `Pred` では capture-avoiding substitution の交換則を使う。
-`Rf-Arrow` では source binder を substitution の support から fresh に取り直せば
-`x notin FV(B)` が保存される。他の追加 root clause は左線形で、substitution が各 metavariable に
-componentwise に入るだけである。□
-
-complete development `M*` は、もとの term に既にある root redex を generic congruence より
-先に一度だけ match して、次を含むように定める。
-
-```text
-((lambda x:A.M) N)*       = M*[N*/x],
-Pred(A,Subset(B,P),t)*     = P*[t*/x],
-RfType(A -> B)*            = RfType(A*) -> RfType(B*),
-(RfTerm_(A -> B)(f) @ RfTerm_C(a))*
-                            = RfTerm_(B*)(f* @ a*),
-run_(A,B)(f,a)*             = runCase_(A*,B*)(f*,a*,f* @ a*),
-runCase_(A,B)(f,a,continue_(C,D)(a'))*
-                            = run_(A*,B*)(f*,a'*),
-runCase_(A,B)(f,a,finish_(C,D)(b))*
-                            = b*.
-```
-
-`RfType` の式には非依存性と freshness の side conditionを置き、target binder は alpha 同値類で
-canonical な fresh name を選ぶ。他は全 immediate subterm に `*` を適用する。右辺に新しく
-生じた `runCase` や `run` をさらに展開しないため、これは term の大きさに関する構造再帰であり、
-normalization ではない。
-
-> [!important]
-> **補題（complete development）。** `M=>>N` なら `N=>>M*`。
-
-**証明。** `M` の構造と parallel derivation の同時帰納法。beta contraction は parallel
-substitution を使う。`Pred/Subset` overlap は、congruence のまま進む場合、primitive root だけを
-進んで lambda application まで行く場合、さらに beta して substitution 後まで進む場合の三つで
-ある。第一の場合は component を development してから第二の `Pred` clause、第二の場合は
-parallel beta、第三の場合は parallel substitution を使い、いずれも `P*[t*/x]` に合わせる。
-
-追加 rule の root/congruence case を明記する。
-
-- `Rf-Arrow` source が root clause で進んだ場合、target の二つの `RfType` に帰納法を適用して
-  `RfType(A*) -> RfType(B*)` へ進める。congruence で進んだ場合も、`x notin FV(B)` なら reduction は
-  新しい自由変数を作らないので `x notin FV(B')` であり、そこで root clause を使って同じ target に
-  進める。fresh name の違いは alpha 同値である。source では side condition が偽で、subterm の
-  development 後に初めて真になった場合、`M*` は root contraction しない定義なので、target も
-  congruence だけで componentwise development すればよい。
-- `Rf-App` source が root clause で進んだ場合、target
-  `RfTerm_(B')(f'@a')` は congruence と帰納法で `RfTerm_(B*)(f*@a*)` へ進む。congruence で
-  source shape を保った場合は、`A',B',C',f',a'` をそれぞれ complete development へ進めてから
-  generalized `Rf-App` clause を使う。`A*` と `C*` の一致は要求されない。
-- `run` の root target に複製された `f',a'` は、それぞれ同じ `f*,a*` へ進める。congruence branch
-  では component を development してから run root clause を使う。従って双方とも
-  `runCase_(A*,B*)(f*,a*,f*@a*)` に進む。
-- continue branch の root target `run_(A',B')(f',a0')` は congruence で
-  `run_(A*,B*)(f*,a0*)` へ進む。source shape を保つ branch では外側の `A',B'` と payload を
-  development し、内側の `C',D'` は root clause で捨てる。finish branch も同様で、両 branch は
-  `b*` に進む。
-
-reflection / recursion の root head は `RfType`、`RfTerm` を左にもつ application、`run`、`runCase`
-のいずれかで相互に異なり、二つの `runCase` rule も第三引数の tag が異なるので相互の
-root/root overlap はない。二つの `Pred` clause だけは同じ sourceを持つが、primitive-only target
-が parallel betaで primitive-plus-beta targetへ進むので joinする。
-subterm reduction で新しい root redex が現れた場合は、それを同じ parallel step で縮める必要は
-なく、`M*` へ componentwise に進めればよい。以上で全 case が尽きる。□
-
-従って `=>>` は alpha 同値を法として diamond であり、`->` を両側から挟む標準的な議論により
-
-> [!important]
-> **定理（confluence）。** `M->*M1` かつ `M->*M2` なら共通 reduct が存在する。
-
-が得られる。特に `A≡B` なら `A` と `B` は joinable である。これは reduction の停止性を
-仮定していない。
-
-`sort`、variable、product、lambda、proof mark、power、subset、type lift、equality、exists、take、
-`RunStep`、`continue`、`finish`、`Acc` は単独では outer head を変える root reduction を持たない。
-従って二つの異なる不活性 head は convertible でなく、product、power、type lift、tagged
-constructor の convertibility から対応する component の joinability が得られる。
-
-### 3.3 regularity、generation、sort uniqueness
-
-> [!important]
-> **補題（regularity / generation package）。** 導出可能な judgement の文脈は well formed であり、
+> \[
+> \Gamma\vdash t:T:s\Rightarrow\Gamma\vdash T:s,
+> \qquad
+> \Gamma\vDash P\Rightarrow\Gamma\vdash P:\mathrm{Prop}.
+> \]
 >
-> ```text
-> Gamma |- e:A::s  => Gamma |- A::s,
-> Gamma |= P       => Gamma |- P::Prop.
-> ```
+> Program typing からは対応する type formation が得られる。すなわち
+> \(V:_vA\Rightarrow A\,\mathsf{vtype}\) および
+> \(M:_c\underline B\Rightarrow\underline B\,\mathsf{ctype}\) である。
+
+\(\epsilon(s)=\mathsf{proof}\) を \(s=\mathrm{Prop}\) のとき、
+\(\epsilon(s)=\mathsf{data}\) をそれ以外のときと定める。同じ同時帰納法に、モデルの分岐に必要な
+次の四性質を含める。
+
+> [!important]
+> **sortability separation / branch uniqueness。** 同じ raw PTS termについて
 >
-> さらに下の `(G-Pi)`--`(G-RunCase)` の各 inversion clause が成り立つ。各 clause の結論は、
-> formation / typing / provability の**導出**と、明記した component の joinを返す。従ってこれは
-> raw expression の形だけを述べる inversion ではなく、後の subject reduction で再利用できる
-> derivation-producing statementである。
+> \[
+> \begin{aligned}
+> \Gamma\vdash t:r,\quad\Gamma\vdash t:T:s
+> &\Longrightarrow \epsilon(s)=\mathsf{data},\\
+> \Gamma\vdash t:s,\quad\Gamma\vdash t:s'
+> &\Longrightarrow \epsilon(s)=\epsilon(s'),\\
+> \Gamma\vdash t:T:s,\quad\Gamma\vdash t:T':s'
+> &\Longrightarrow \epsilon(s)=\epsilon(s'),\\
+> \Gamma\vdash t:s,\quad\Gamma\vdash t:r:q,\quad r\in\mathcal S
+> &\Longrightarrow \epsilon(s)=\epsilon(r).
+> \end{aligned}
+> \]
+>
+> ここでは universe levelを含む末尾sortの完全な一意性も、表示型の一意性も主張しない。
+> 後者は少なくとも `subset intro/weak` のため成り立たない。Program では value type と
+> computation type のcategoryはdisjointで、同じvalueまたはcomputationの型はalpha同値まで
+> 一意である。
+> 帰納型を含める場合、このProgram側の主張は一意なsignatureを持つ固定済みのdeclaration
+> environmentに相対化する。
 
-この package は WF、sorting、typing、provability の四 judgement の regularityと、有限個の
-generation clauseを一つの同時定理として証明する。表示型が conversion を経ている場合は、3.2節の
-confluence と不活性 head の識別により、対応する component の joinまで出力に含める。
+**証明。** regularity、上の四性質、generationについて、比較する導出高の和に関する同時強帰納法を
+使う。weakeningはstrict premiseへ、PTS conversionはsource typingへ、`type elem/type sort` は
+保存されたsorting / typing premiseへ進む。`subset intro/weak` は同じraw termのbase typingへ進む。
+このdetourを有限回剥がすと、raw outer constructorに対応するcore ruleへ到達する。
 
-**証明。** WF、sorting、typing、provability の導出と上の generation statement に関する同時
-強帰納法。各 detour では strict premise に進むので導出高が減る。dependent elimination case が
-重要である。function typing の product generation から product formation
+core caseでbranchを決める情報は次の通りである。
 
-```text
-Gamma |- A::r,
-Gamma,x:A::r |- B::q,
-(r,q,z) in R
-```
-
-を回収し、argument typing と substitution 補題から `Gamma |- B[a/x]::q` を得る。従って
-`system.md` の dependent elimination にこの sorting premise を追加する必要はない。
-
-type lift weak と subset property では、入力 typing の canonical origin を辿って
-`B:Power(A)` と `A::Set_i` を回収する。take equal では第一 premise の take origin から
-`X,T,f` の formation と function typingを回収し、第二 premiseと合わせて equality formation を
-作る。
-
-`continue_(C,D)` と `finish_(C,D)` では constructor generation から payload typing を回収する。
-それらが conversion を経て `RunStep(A,B)` を表示型に持つ場合は、confluence と `RunStep` head の
-injectivity から `A≡C`、`B≡D` も回収する。後述する Compute rigidity により、実際には component は
-alpha 同値である。`acc descent`
-では第一 premise の regularity から `A,B,f,a` の formation を、第二 premise の equality / application
-generation から `b:RfType(A):Set_0` を回収して conclusion の `Acc` formation を作る。`run` と
-`runCase` では明記された formation premiseに加え、`Terminates` と `RunInv` の regularity を使う。
-他の case は規則の premise または帰納法の仮定から直接従う。
-
-上の「同時強帰納法」を省略記法のままにしないため、帰納対象と全 terminal case を固定する。
-導出 `h` の **origin trace** は次の有限木である。
-
-```text
-core(rule,h1,...,hn)
-weak(h0,WF,o0)
-conv(h0,hB,join,o0)
-type-elem(hA,hs,oA)
-type-sort(hA,oA)
-lift-intro(hB,ht,hP,ot)
-lift-weak(h,o)
-```
-
-`o0,oA,ot,o` は表示した strict premise の trace である。`lift-intro` と `lift-weak` は表示型を
-convertible とみなす tag ではなく、前者は base typing `ht`、後者は入力の lifted typing `h` を
-明示的に保存する。各 edge は元の導出木の strict premise へ向くので、trace は有限である。
-`weak`、`conv`、`type-elem`、`type-sort`、`lift-intro`、`lift-weak` のどれでもない最後の規則が
-`core` である。raw head と core rule の可能性は次で尽きる。
-
-| raw head | sorting の core | typing の core |
-| --- | --- | --- |
-| sort / variable | axiom / variable を `type sort` で上げたもの | variable または `type elem` |
-| product / lambda / application | `dep form` / `type sort` / `type sort` | `type elem` / `dep intro` / `dep elim` |
-| `Proof` | `type sort` | `proof term` |
-| `Power`, `Ty`, `Pred`, `=`, `exists` | 各 formation rule | `type elem` |
-| subset | `type sort` | `subset form` |
-| `Take` | `type sort` | `take set` または `take prop` |
-| `RunStep`, `Acc`, `RfType` | 各 formation rule | `type elem` |
-| `continue`, `finish`, `RfTerm`, `run`, `runCase` | `type sort` | 対応する typing rule |
-
-ここで表の `type elem` / `type sort` は trace 上では detour tag であり、その strict premise の
-core まで必ず進む、という意味である。provability の terminal rule は `provable`、`subset prop`、
-`id intro`、`id elim`、`exists intro`、`take equal`、`acc intro`、`acc descent` の八つである。
-
-regularity の constructor check は次の通りである。表中「IH」は該当 strict premise の
-regularity を表す。
-
-| rule 群 | conclusion の regularity を作るデータ |
+| raw head | branchを一致させる理由 |
 | --- | --- |
-| empty, start, weak, variable | premise の WF と IH。variable では WF の最後の宣言を反転する |
-| axiom, dep form, power/type-lift/predicate formation | rule 自身の formation premise |
-| dep intro | 第一 premiseの product formation |
-| dep elim | function の product origin、argument typing、substitution |
+| variable | superscriptのsortとcontext declarationが固定する |
+| product formation | `prop-branch` によりresultがProp iff codomain sortがProp。bodyのsorting IHを使う |
+| lambda typing | `prop-branch` によりterminal sortがProp iff bodyのterminal sortがProp。bodyのtyping IHを使う |
+| application typing | 各function productでcodomain sortがProp iff product result sortがProp。二つのfunction typingにtyping IHを使う |
+| `type elem` | axiomのcodomainはKindまたはPropKindで、常にdata branch。別のtypingとの比較にはsortability separationの相互IHを使う |
+| `type sort` | 保存されたtypingと、四つ目のsorting/typing bridge IHを使う |
+| proof term | terminal sortはPropに固定され、同じraw headを持つ他のcore typing ruleはない |
+| Set/Propのspecial form | `Power`、`Pred`、subset、equality、`Exists`、`RfType`、`Acc` は各formation ruleがbranchを固定する |
+| Set/Propのspecial term | subset / equality / `Take` / reflectionのtyping ruleがterminal branchを固定する |
+
+applicationの行が完全なtype uniquenessを使わずに済む点が重要である。二つのfunction premiseの
+表示型が異なるproductでも、そのterminal sortのbranchはIHで一致する。各productについて
+`prop-branch` が「codomain sortはProp iff product result sortはProp」を与えるので、二つの
+application conclusionのbranchも一致する。set版とprop版の `Take` が同じraw termに適用できると
+仮定すると、共通のtarget \(T\) にdata sortingとProp sortingが得られ、sorting branch IHに反する。
+sortability separationと四つ目のbridgeも、同じ表のsorting ruleとtyping ruleを交差して比較すれば
+閉じる。bridgeのtypingが `type elem` ならそのsorting premiseへ進み、conversion等のdetourなら
+source typingへ進む。raw headが異なるcore ruleは適用できず、同じheadの場合は表のstrict premiseへ
+進むためである。従って四性質と
+regularity / generationの同時帰納法は循環しない。
+
+Program 側はconversionを持たず、各raw outer constructorに対応するtyping ruleが一つだけである。
+variableはcontext declarationの一意性、function applicationはfunction premiseのIH、caseは各branch
+のIHを使う。`continue`、`finish`、`run`、`runCase` はraw annotationが型を固定する。これでcategory
+separationとProgram type uniquenessも従う。□
+
+dependent elimination では、function の generation から product formation を回収し、argument
+typing と substitution から substituted codomain の sorting を作る。このため primitive premise に
+codomain sorting を追加する必要はない。`subset weak/prop` と `take equal` は入力 typing の
+canonical origin を辿って、対応する `Power` または `Take` premise を回収する。
+
+regularity のうち premise に結論の型形成が直接書かれていない caseを列挙する。
+
+| conclusion rule | formation を回収する方法 |
+| --- | --- |
+| PTS variable | WF derivationの最後のcontext entryを反転する |
+| dep intro | product formation premiseそのもの |
+| dep elim | product generation、argument typing、mixed substitution |
 | conversion | target sorting premise |
-| type elem / type sort | 互いに書かれた sorting / typing premise |
-| provable / proof term | typing premiseの IH / provability premiseの IH |
-| subset form | `Power(A)` formation、subset intro / weak / prop は `B:Power(A)` の origin |
-| equality form / intro / elim | 二項の typing、または binder body sorting と application formation |
-| exists form / intro | `A` の sorting、またはその typing の IH |
-| take set / prop | 明記された `T` sorting。take equal は take origin と `t:X` から equality formation |
-| `RunStep`, `continue`, `finish`, reflection | 明記された `A,B` の formation と payload typing の IH |
-| `Acc` form / intro / descent | formation premise。descent の `b` は equality/application originから回収 |
-| `run`, `runCase` | `B::Comp` premise。略記された命題の sorting は残りの formation premiseから再構成 |
+| proof term / provable | provability / typing premiseに相互IHを適用 |
+| subset weak / subset prop | lifted typingのcanonical originから \(B:\Power A\) とbase typingを回収 |
+| id elim | motive sortingと二つのargument typingからtarget applicationを形成 |
+| take equal | `Take` typingのoriginから \(X,T,f\) と定値性を回収し、\(t:X\) と合わせる |
+| Program variable | WF derivationの最後のvalue entryを反転する |
+| return / thunk / force / function / sequence / let | immediate typing premiseのIHと対応するtype formation rule |
+| reflection term | Program typingのregularityとreflection type formation |
+| acc descent | first premiseから \(f,a\)、`Next` のequality/application generationから \(b:\operatorname{RfType}(A)\) を回収 |
+| run / runCase | \(f:\operatorname{StepFun}(A,B)\) のregularityを反転して \(A,B\) のformationを回収 |
 
-generation 側で origin trace の各 tagを処理する方法も固定しておく。
+残るruleではformation premiseが明記されているか、conclusion自体がformation judgementである。
+従って表とdirect caseで規則表全体が尽きる。
 
-| origin tag | 回収した導出の処理 | 減少先 |
-| --- | --- | --- |
-| `weak` | premise の generation 出力すべてを同じ新宣言の下へ weaken する | weakened judgement の strict premise |
-| `conv` | source typing の出力を保持し、target sorting と confluenceから表示型の raw joinを追加する。不活性 headでは joinの共通終点を反転して component joinを得る | conversion の source typing |
-| `type-elem` | sorting premiseへ進み、必要なら sort axiomを付け直す | 保存された sorting premise |
-| `type-sort` | typing premiseへ進み、表示型が sortである bridgeを記録する | 保存された typing premise |
-| `lift-intro` | base typing、`B:Power(A)`、membership proofを別々に保存し、raw termの origin探索は base typingへ進める | base typing |
-| `lift-weak` | 入力 lifted typingに保存された `lift-intro` または genuine subtype originまで進む。前後の型を convertible とはしない | 入力 lifted typing |
-| `core` | raw headに対応する唯一の core ruleを反転し、その strict premiseをそのまま返す | 各 rule premise |
+Program の formation と typing は conversion を持たず syntax-directed である。このため、
 
-`conv` で target derivationへ再帰せず、既存の source childだけへ進むこと、`lift-intro/weak` で
-非 convertible な二型を同一視しないことが、この同時帰納法の停止性と正しさに必要である。
+- value type と computation type の category は交わらない。
+- 同じ Program value または computation に二つの型が付くなら、その型は alpha 同値である。
+- `continue` / `finish` の型から payload の型と外側の `A,B` をそのまま回収できる。
+- `run` / `runCase` の型から `F B` と、規則に明記された全 premise を回収できる。
 
-これで WF の2 case（empty/start）と、sorting、typing、provability の
-どの constructor も未処理にならない。generation は同じ trace を上から辿る。`conv` では common
-reduct までの join を記録し、不活性 head なら共通 reduct の head も同じなので component の
-joinability を得る。`lift-intro/weak` では base child へ進み、必要な表示型の head が現れるまで
-進む。この探索は常に strict premise へ移るので、「lift intro と weak が交互に現れる」場合にも
-停止する。従って本文で使った generation statement は独立の仮定ではなく、この有限 trace の
-帰納的帰結である。
+最後の二点では raw annotation が component を固定している。旧 `Comp` PTS のような type-level
+conversion、Compute rigidity、`RfType` の構文的 injectivity は必要ない。
 
-ここで canonical origin とは、上の trace に沿って weakening、conversion、type elem / type sort を
-有限回剥がし、type lift intro / weak は coercion tag と base child を保存したまま、raw term の
-outer constructor を作った最後の rule とその premise を記録する generation lemma である。
-type lift intro / weak の前後の型を convertible とはしない。一般の type uniqueness は実際に偽である。
-
-同時定理に含めた inversion の結論を正確に列挙する。各行は、左辺の導出から右辺の導出と
-表示型間の join（必要な行だけ）を返す。
+PTS 側では通常の generation に加えて次を使う。
 
 ```text
-(G-Pi)
-Gamma |- f : (x:A)->B :: z
-  => A::r,  Gamma,x:A::r |- B::q,  (r,q,z) in R
+Gamma |- RfTerm_P(p) : RfType(Q) :: Set_0
+  => p has Program type P and
+     RfType(P) equiv_s RfType(Q)
 
-(G-Subset)
-Gamma |- {x:B|P} : Power(A) :: Set_i
-  => B::Set_i,  Gamma,x:B::Set_i |- P::Prop,  A≡B
-
-(G-Take)
-Gamma |- Take(X,T,f) : T :: s
-  => X::Set_i, T::s, f:X->T::s,
-     together with the premises of take-set or take-prop selected by s
-
-(G-Continue)
-Gamma |- u : RunStep(A,B) :: Comp
-  and head(u)=continue_(C,D)
-  => A≡C, B≡D, payload(u):C::Comp
-
-(G-Finish)
-Gamma |- u : RunStep(A,B) :: Comp
-  and head(u)=finish_(C,D)
-  => A≡C, B≡D, payload(u):D::Comp
-
-(G-RfTerm)
-Gamma |- RfTerm_C(a) : RfType(A) :: Set_0
-  => RfType(A)≡RfType(C), a:C::Comp
-
-(G-Acc)
 Gamma |= Acc_(A,B)(f,a)
-  => A::Comp, B::Comp, f:A->RunStep(A,B)::Comp,
-     a:RfType(A)::Set_0
-
-(G-Run)
-Gamma |- run_(A,B)(f,a) : T :: Comp
-  => T≡B and all five premises of run
-
-(G-RunCase)
-Gamma |- runCase_(A,B)(f,a,u) : T :: Comp
-  => T≡B and all seven premises of run-case.
+  => f :v StepFun(A,B),
+     a : RfType(A) :: Set_0
 ```
 
-`(G-Pi)`--`(G-Take)` の `≡` は一般には alpha 同値へ強めない。`(G-Continue)`、`(G-Finish)`、
-`(G-RfTerm)` の component equalityだけは、以下の Compute rigidity と reflection injectivity によって
-alpha 同値へ強める。これが subject reduction で必要な generation の全出力である。□
+一行目の `P` と `Q` を構文的に同一視してはならない。PTS conversion が reflection 後の型を
+同一視する可能性があるためである。subject reduction と soundness に必要なのは、表示された
+`RfType` の convertibility と、その意味値の一致だけである。
+
+regularity と generation の帰納法では、最後の rule が weakening、conversion、`type elem`、
+`type sort`、`subset intro/weak` のいずれかなら strict premise へ進み、それ以外なら raw head に
+対応する formation / introduction rule を反転する。この origin trace は有限導出の strict premise
+だけを辿るので停止する。一般の PTS type uniqueness は仮定しない。
+
+### 3.3 subject reduction
 
 > [!important]
-> **補題（Compute type の rigidity）。** `Gamma|-A::Comp` なら `A` は一段 reduct を持たない。
-> 従って `Gamma|-A::Comp`、`Gamma|-C::Comp`、`A≡C` なら `A` と `C` は alpha 同値である。
+> **Program subject reduction。** \(\Gamma\vdash_cM:\underline B\) かつ
+> \(M\Rightarrow_cM'\) なら \(\Gamma\vdash_cM':\underline B\) である。
 
-**証明。** `A::Comp` の canonical origin に関する帰納法を使う。`R` で result sort が `Comp` に
-なるのは `(Comp,Comp,Comp)` だけであり、special formation で result sort が `Comp` になるのは
-`RunStep` だけである。ここで type elem / type sort の往復は新しい型を作らず、canonical origin の
-strict premise に戻す。さらに result sort が `CompKind` となる product rule や special formation
-rule は存在しないので、`CompKind` に sort される型の core origin は axiom `Comp::CompKind` だけで
-ある。従って application や lambda が conversion を介して「Compute 型そのもの」になる余地も
-ない。以上から detour を除いた raw head は次のいずれかである。
+**証明。** evaluation context と root rule の場合分けによる。
 
-```text
-Compute type variable,
-(x:A1)->A2       with A1::Comp and A2::Comp,
-RunStep(A1,A2)   with A1::Comp and A2::Comp.
-```
+- force/thunk、function beta、sequence、value let は mixed substitution 補題で閉じる。
+- `run(f,a)` から作る `runCase(f,a,force(f) @^c a)` の `RunInv` は等式反射律で得られる。
+  `Terminates` premise はそのまま使う。
+- `runCase(f,a,return(continue(a')))` の invariant と reflection reduction から
+  `Next(f,RfTerm_A(a'),RfTerm_A(a))` を得る。`acc descent` により
+  `Terminates(f,a')` が従うので、target の `run(f,a')` を型付けできる。
+- finish case は constructor generation から \(b:_vB\) を得て `return(b):F B` とする。
+- \(M\Rightarrow_cM'\) を `runCase` の第三引数で進める場合、reflection rule により
+  `RfTerm(M) ->_s RfTerm(M')` なので、`prov-conv` で `RunInv` を輸送する。
+- application と sequence の evaluation context は帰納法で計算 premise を輸送する。
+- datatype case root は branch の value substitution 補題による。
 
-いずれの head にも root reduction はなく、immediate subterm は帰納法により normal なので `A` も
-normal である。二つの well-sorted Compute type が convertible なら confluence により joinable だが、
-両方とも normal なので共通 reduct は両者自身であり、alpha 同値である。□
+continue case の二つ目では、`Rf-U-App`、force/thunk、Program beta、`Rf-F` を順に使うと
+`continueFun` 側が `RfTerm(return(continue(a')))` へ進む。従って source の `RunInv` と同じ
+equality まで conversion できる。
 
-Compute branch には type lift rule がないので、同じ origin induction から次も得られる。
+同じevaluation-context帰納法で、valid valuation \(\rho\) に対する
 
-```text
-Gamma |- m:A::Comp,  Gamma |- m:C::Comp
-=> A≡C, hence A =alpha C.                              (comp-type-unique)
-```
+\[
+\llbracket M\rrbracket_\rho=\llbracket M'\rrbracket_\rho
+\tag{program-step-sound}
+\]
 
-ここで使う帰納法の measure は、二つの typing derivation の canonical origin の高さの和である。
-conversion、weakening、type elem / type sort の detour があれば strict premise に進む。core case では
-raw head が同じなので、variable は文脈中の宣言の一意性、lambda は body の帰納法、application は
-function の product generation と argument の帰納法を使う。`continue`、`finish`、`run`、
-`runCase` は raw annotation が component を固定し、残る型の違いは strict premise の帰納法と
-product / `RunStep` head の injectivity に帰着する。Compute result sort の rule に type-lift
-intro / weak はなく、別の非 convertible な表示型へ飛ぶ case は生じない。まずこの帰納法で
-`A≡C` を得て、両型の Comp-sorting と直前の rigidity を適用すると alpha 同値まで強まる。
+も同時に示せる。四つのCBPV rootは2.4節の定義式、`run` / `runCase` は `run-laws`、datatype
+caseはsemantic substitutionを使う。evaluation context caseはfunction application、binder
+substitution、`RunCase` の外延性を使う。continue caseで `run-laws` の前提になる
+\(a'\in\operatorname{Acc}_F\) は、source typingの `Terminates` と `RunInv` をSoundnessで
+解釈して `acc-descent-law` を適用すれば得られる。従ってこの意味保存のstatementは4節の
+fundamental theoremと同時に、Program step derivationの高さを副measureとして証明する。ここで
+fundamental theoremを先取りして単独の仮定にはしない。
 
-`RfType` は `Rf-Arrow` を持つので一般には不活性 head ではない。rigid な Compute type `A` に対して
-その完全な reflection development `Q(A)` を
+PTS 側では次の syntactic compatibility 条件が必要になる。
 
 ```text
-Q((x:A1)->A2) = Q(A1) -> Q(A2)    if x notin FV(A2),
-Q(A)           = RfType(A)         otherwise
+(PC-Power)
+Power(A) equiv_s Power(B)
+  => A equiv_s B
+
+(PC-Pi)
+Pi x:A.B equiv_s Pi x:A'.B'
+  => A equiv_s A'
+     and B equiv_s B' under context conversion A equiv_s A'
 ```
 
-と定める。第一式は右辺の二つの引数へ再帰する。Compute rigidity により `A` の内部には redex が
-なく、`RfType(A)->*Q(A)` で `Q(A)` は normal である。また `Q` は構文について単射である。
-nondependent product は Set product head に、それ以外は `RfType` head に写り、前者では二成分へ
-帰納法を適用できるからである。従って confluence から
-
-```text
-Gamma |- A::Comp,  Gamma |- C::Comp,  RfType(A)≡RfType(C)
-=> Q(A)=alpha Q(C) => A=alpha C.                         (rf-injective)
-```
-
-を得る。
-
-以上と不活性な `RunStep` head の injectivity を canonical origin に適用すると、新しい root rule で
-使う generation は次の強い形になる。
-
-```text
-Gamma |- RfTerm_C(a) : RfType(A) :: Set_0
-=> A=alpha C and Gamma |- a:C::Comp,
-
-Gamma |- continue_(C,D)(a) : RunStep(A,B) :: Comp
-=> A=alpha C, B=alpha D and Gamma |- a:C::Comp,
-
-Gamma |- finish_(C,D)(b) : RunStep(A,B) :: Comp
-=> A=alpha C, B=alpha D and Gamma |- b:D::Comp.
-                                                               (component-generation)
-```
-
-表示型が conversion や Set 側の type-lift detour を経る場合は、detour を origin まで剥がしてから
-`(rf-injective)` を使う。Compute constructor の二式には type-lift detour がないので、
-`(comp-type-unique)` と `RunStep` head の injectivityだけでよい。
+両 clauseでは左右のouter termがwell-sortedであることを仮定する。この二つを合わせて `(PC)` と
+呼ぶ。通常はconfluenceと `Power` / product headのinjectivityから得る補題である。reflection typeの
+root reductionは右辺がproductを露出するため、`Rf-U-App` / `Rf-C-App` のgenerationには
+`(PC-Pi)` をそのcommon reductに適用する。
 
 > [!important]
-> **補題（sort と term-sort の一意性）。** 同じ raw expression の二つの sorting
-> `Gamma|-A::s`、`Gamma|-A::t` から `s=t`。同じ raw term の二つの typing
-> `Gamma|-e:A::s`、`Gamma|-e:B::t` からも `s=t`。
+> **条件付き PTS subject reduction。** `(PC)` のもとで、
+> \(\Gamma\vdash t:T:s\) かつ \(t\Rightarrow_st'\) なら
+> \(\Gamma\vdash t':T:s\) である。sorting についても同様である。
 
-**証明。** 二つの canonical origin の高さの和に関する強い帰納法。direct formation rule は
-raw head により一意である。product result は `R` の表の関数性、sort axiom は `A` の関数性、
-power、predicate、type lift、equality、exists は規則に書かれた sort で決まる。lambda は body
-の低い term-sort uniqueness と `R`、application は argument と function の低い uniqueness と
-`R` を使う。take set と take prop の混在は同じ `T` の低い sort uniqueness で排除される。
-`RunStep`、`continue`、`finish`、`Acc`、`RfType`、`RfTerm`、`run`、`runCase` は raw head と
-各規則に固定された result sort で決まる。type elem / type sort の往復は strict premise に
-進むので高さが減る。type lift intro / weak も term-sort は base typing と同じ `Set_i` であり、
-二導出を比較するときは保存した base child と相手側の originに帰納法を適用する。特に `Comp`、
-`Set_i`、`Prop` の三群が同じ raw judgement に混在することは
-ない。ここで type sort を `Gamma|-e:A::s` に適用できるのは表示型 `A` 自身が sort の場合だけで
-あり、末尾の term-sort `s` を表示型と取り違えてはならない。□
+**証明。** compatible position に関する帰納法と root rule の場合分けによる。PTS beta は
+substitution、`Pred` は subset generation、`(PC)`、application typingを使う。reflection rule は
+Program の formation / typing generation と、直前の Program subject reduction を使う。
+特に computation payload の rule
 
-一般の type uniqueness は使わない。例えば `t:A` とし、
-`B={x:A | x=x}` とすれば `t:A` と `t:TypeLift(A,B)` が導けるが、二型は一般には
-convertible でない。
+```text
+M ->c M'
+-------------------------------
+RfTerm_B(M) ->s RfTerm_B(M')
+```
 
-### 3.4 subject reduction
+は Program subject reduction をそのまま reflection typing に渡せる。`Rf-U-App` と `Rf-C-App` は
+function / argument generation から target computation を型付けする。`RfType(F A)`、
+`RfType(U B)`、`RfType(A => B)` は各 formation rule を PTS の `Set_0` formation に写す。
+datatype の `Rf-Ind`、`Rf-Ctor` は宣言 signature と constructor generation を使う。□
+
+3.4節で示す通り、現在の raw reduction について full confluence はまだ得られていないため、
+`(PC)` もこの文書では未証明の syntactic 条件である。4--5節の集合モデルによる条件付き定理は
+`(TC)` を直接仮定し、PTS subject reduction を前提には使わない。
+
+`runCase` の continue reduction に `Acc` premiseが本質的である。これを落とすと target の
+recursive `run` を型付けできず、subject reduction は成立しない。
+
+### 3.4 raw conversion の未解決点
+
+Program reduction は weak call-by-value evaluation context が次の redex を一意に選ぶため決定的で
+あり、従って confluent である。datatype case を加えても scrutinee は value であり、constructor
+tag は一意なのでこの結論は変わらない。
+
+PTS reduction では、function position の reflection と Program step の peak は合流する。例えば
+
+```text
+RfTerm_(A=>B)(M) @ RfTerm_A(V),    M ->c M'
+```
+
+は、どちらを先に進めても `RfTerm_B(M' @c V)` へ進む。`RfTerm_U(A=>B)(thunk(M))` に
+`Rf-Thunk` と `Rf-U-App` のどちらを先に使う peak も、force/thunk reduction により
+`RfTerm_B(M @c V)` へ合流する。
+
+しかし **argument position** には、現在の規則だけでは合流しない peak がある。\(\underline D\)
+を computation type、\(\underline B\) を computation type とすると、
+
+```text
+S = RfTerm_((U D)=>B)(M) @ RfTerm_(U D)(thunk(N))
+```
+
+から
+
+```text
+S ->s RfTerm_B(M @c thunk(N))
+```
+
+と `Rf-C-App` を先に使える一方、argument の `Rf-Thunk` を先に使うと
+
+```text
+S ->s RfTerm_((U D)=>B)(M) @ RfTerm_D(N)
+```
+
+となる。後者の argument は computation reflection であって value reflection ではないため、
+`Rf-C-App` の左辺には一致しない。例えば mixed context で
+
+```text
+D = F X,
+h :v U D,
+g :v U ((U D) => B),
+N = force(h),
+M = force(g)
+```
+
+とすれば両 reduct は open な stuck term になり、列挙済みの root ruleだけでは共通 reduct を持たない。
+同じ peak は `Rf-U-App` の argument にもある。帰納型を加えると、argument の `Rf-Ctor` と
+`Rf-App` の間にも同型の peak が生じる。
+
+従って、現在の raw \(\Rightarrow_s\) について confluence を主張することはできない。ただし、
+非合流だけから `(TC)` の反例が従うわけでもない。上の二 reduct は2節のモデルでは同じ値を持つ。
+問題は、raw conversion path が型の付かない中間項を通り得るため、「typed root step の意味保存」
+だけでは path 全体の意味保存を導けないことである。
+
+この問題を閉じる方法は少なくとも二つある。
+
+1. definitional equality を、両辺の sorting / typing derivation を持つ root equality、対称性、
+   推移性、typed congruence から生成される judgement
+   \(\Gamma\vdash T\simeq U:s\) と
+   \(\Gamma\vdash t\simeq u:T:s\) として定義する。この場合、2節の root law に関する
+   導出帰納法で `(TC)` が直接得られる。
+2. raw reduction に synchronized reflection development を加える。具体的には、argument が
+   `RfTerm_A(V)` から reflection reduction で進んだ履歴を witness として保持し、function application
+   と argument reflection を一つの parallel redex として development する。追加 step は元の
+   conversion で既に結ばれた二 reductを向き付けるので equational theory を広げないが、全 reflection
+   constructor と datatype case を含む triangle proof が別途必要である。
+
+一つ目を採用した体系では `(TC)` は次の単純な帰納法で証明できる。各 typed root equality は
+2.4--2.6節の law、beta は semantic substitution、congruence は集合演算の外延性、対称性と推移性は
+集合の等号を使う。二つ目は `system.md` の現在の raw \(\equiv_s\) を保つ方針だが、課題欄にある
+critical-pair analysis を完了するまでは `(TC)` が残る。
+
+typed congruence版の議論を定理として固定しておく。
 
 > [!important]
-> **定理（subject reduction）。** 次の四 clause が成り立つ。
->
-> ```text
-> (SR-Sort) Gamma |- M::s,      M->M' => Gamma |- M'::s,
-> (SR-Term) Gamma |- e:A::s,    e->e' => Gamma |- e':A::s,
-> (SR-Prov) Gamma |= P,         P->P' => Gamma |= P',
-> (SR-Type) Gamma |- e:A::s,    A->A' => Gamma |- e:A'::s.
-> ```
+> **typed equality soundness。** \(\Gamma\vdash T\simeq U:s\) なら、すべてのvalid
+> valuation \(\rho\) で
+> \(\llbracket T\rrbracket_\rho=\llbracket U\rrbracket_\rho\) である。typing equalityにも
+> 同じ主張が成り立つ。
 
-**証明。** まず前三 clauseを、source の WF / sorting / typing / provability derivation と一段
-reduction の位置に関する同時強帰納法で証明する。recursive call の owner は常に source rule の
-strict premiseである。regularity や generation が作った viewを使う場合、その viewを作った strict
-premiseを owner と数え、生成後の target derivationの見かけの高さでは数えない。この call graphは
-3.3節の origin trace の edgeの部分木なので有限である。`SR-Type` は前三 clauseの完成後、regularity
-で `Gamma|-A::s` を得て `SR-Sort` を適用し、最後に primitive conversionを付ける系として導く。
+**証明。** typed equality derivationの構造帰納法による。generatorを尽くすと次の表になる。
+この帰納法は独立にfundamental theoremを先取りするものではなく、4.1節の整礎化でphase 1として
+`program-step-sound`、semantic substitution、fundamental theoremと同時に遂行する。
 
-weakening は reduction を一段下の term に反映して strict premiseへ帰納法を適用する。binder domain
-の reductionには context conversion、bodyには binder 下の帰納法を使う。application argument の
-reductionで表示型が `B[a/x]` から `B[a'/x]` に変わる場合は substitution compatibility と conversion
-を使う。この conversionの両 endpoint sortingは `(G-Pi)` の codomain formation、argument の
-`SR-Term`、3.1節の substitutionから作るので、`SR-Type` を先取りしない。
-
-root beta は application と lambda の generation から body typing、domain typing、codomain
-formation を回収して substitution する。`Pred/Subset` root は subset generation により
-構文上の base `B` と predicate側の base `A` が convertible であることを回収する。
-argument を `B` へ convert して target application を形成する。
-
-take domain / codomain / function の reductionでは、function typing、existence、定値性 premise を
-それぞれ subject reduction と context conversion で輸送する。定値性 proposition で `f` が二回
-現れる場合は、一方ずつ進めた二つの一段 congruence を conversion で連結する。生成した target
-導出へ帰納法を再適用せず、source の strict premise だけへ再帰するため整礎的である。
-
-新しい root case は次の通りである。
-
-- `Rf-Arrow` ではまず **Comp-sorting strengthening**
-
-  ```text
-  Gamma,x:A::Comp |- C::Comp,  x notin FV(C)
-  => Gamma |- C::Comp
-  ```
-
-  を使う。この限定された strengthening は `C::Comp` の canonical origin に関する帰納法で
-  証明できる。core rule で result sort が `Comp` になるのは、`(Comp,Comp,Comp)` による product、
-  `RunStep` formation、または既存の Comp-sort variable であり、それぞれ raw subexpression に
-  帰納法を適用できる。type elem / type sort、weakening の detour は strict premise まで剥がす。
-  `run` の termination proof や subset introduction の membership proof は typing には現れるが、
-  `C::Comp` の canonical formation origin には現れないので、この限定補題を妨げない。
-
-  source の product generation と side condition から `Gamma|-B::Comp` を得て、fresh な
-  `z:RfType(A)::Set_0` の下へ weaken する。reflection formation と
-  `(Set_0,Set_0,Set_0) in R` により target の
-  `RfType(A) -> RfType(B)` formation が得られる。freshness により capture は起きない。
-- `RfTerm_(A->B)(f) @ RfTerm_C(a)` の `Rf-App` では、両 `RfTerm` と application の generation、
-  `Rf-Arrow` から argument の表示型を `RfType(A)` まで戻す。`(component-generation)` から
-  `A=alpha C` と `a:C:Comp` を得るので、通常の application rule で
-  `f@a:B:Comp`、さらに reflection term rule で target
-  `RfTerm_B(f@a):RfType(B):Set_0` を得る。source application にさらに outer conversion があった
-  場合、application generation が元の表示型と `RfType(B)` の joinability を与えるので、最後に
-  その conversion を付け直す。
-- `run(f,a) -> runCase(f,a,f@a)` では、`u=f@a` と置く。`RunInv(f,a,u)` は equality reflexivity で
-  provable なので、元の `Terminates(f,a)` と合わせて `run case` rule を適用できる。
-- `runCase_(A,B)(f,a,continue_(C,D)(a')) -> run_(A,B)(f,a')` では constructor generation と
-  `(component-generation)` から `A=alpha C`、`B=alpha D`、`a':C:Comp` を得る。従って alpha-renaming
-  の範囲で `a':A:Comp` である。`RunInv` の右辺にある `continue_(C,D)(a')` も
-  `continue_(A,B)(a')` と alpha 同値である。そこで `RunInv` を
-  `Rf-App` と beta で変換すると、`acc descent` が要求する
-  `RfTerm(f)@RfTerm(a) = RfTerm(continueFun)@RfTerm(a')` になる。従って
-  `Terminates_(A,B)(f,a')` が得られ、外側の parameter を保った `run_(A,B)` rule を適用できる。
-- `runCase_(A,B)(f,a,finish_(C,D)(b)) -> b` では constructor generation が `b:D:Comp` と
-  `B=alpha D` を与えるので、target は直接 `b:B:Comp` を持つ。`run` / `runCase` の source typing
-  が最後に別の表示型へ conversion されていた場合も、canonical origin まで剥がした conversion を
-  target に付け直す。
-
-annotation 内の compatible reduction も確認しておく。`RfTerm_A(m)` では二 case、すなわち
-`A->A'` のときの `RfTerm_A'(m)` と、`m->m'` のときの `RfTerm_A(m')` がある。前者には表示型に
-関する subject reduction、後者には payload typing の帰納法を使う（統一して、変化しない側にも
-primeを付ければ `m':A':Comp`）。target の core type は `RfType(A')` だが、
-compatible reduction から `RfType(A)->*RfType(A')` なので、必要なら元の表示型へ conversion できる。
-`RunStep`、`continue`、`finish` の annotation も同じ componentwise argument である。`run` と
-`runCase` では `A,B,f,a,u` の typing premise を帰納法で輸送し、reduction 後の `Terminates` と
-`RunInv` は regularity と `(prov-conv)` で作り直す。`Acc` 自身と、これら二つの略記の引数内の
-compatible reduction も同じである。
-
-compatible closure の全位置について、実際に使う輸送を表にすると次の通りである。`SR` は strict
-premise への帰納法、`CC` は context conversion、`PC` は `(prov-conv)`、`Conv` は typing
-conversion である。core rule を作り直したとき表示型も一段進む場合は、最後の `Conv` で元の
-表示型へ戻す。
-
-| reduced raw constructor / position | target 導出の構成 |
+| equality constructor | 意味値が等しい理由 |
 | --- | --- |
-| product domain / codomain | domain は `SR+CC`、codomain は binder 下の `SR` |
-| lambda domain / body | product formationを前行で輸送し、body に `CC` / `SR`、最後に `dep intro` |
-| application function / argument | function は `SR`。argument は `SR` と `B[a/x]≡B[a'/x]`、最後に `Conv` |
-| `Proof(P)` | `P` の `SR` と `PC` から `Proof(P')`; displayed proposition は `Conv` |
-| `Power(A)` | `A` の sorting `SR` と power formation |
-| subset の base / predicate | base は `SR+CC`、predicate は binder 下の `SR`; `Power(A')≡Power(A)` で `Conv` |
-| `Ty(A,B)` | `B:Power(A)` を各 component の `SR` と `Conv` で輸送し type-lift formation |
-| `Pred(A,B,t)` | `B:Power(A)` と `t:A` を各 component の `SR` と `Conv` で輸送 |
-| equality の左 / 右 | 共通表示型を generation で回収し、項の `SR` と `Conv` で equality formation |
-| `exists(A)` | `A` の sorting `SR` |
-| `Take(X,T,f)` | `X,T,f` を `SR`; existence と定値性は target の formation 後に `PC` |
-| `RunStep(A,B)` | `A,B` の sorting `SR` |
-| `continue`, `finish` | annotation と payload を `SR+Conv`; target `RunStep` を作り直す |
-| `RfType(A)`, `RfTerm_A(m)` | annotation と payloadを `SR+Conv`; reflection ruleを再適用 |
-| `Acc(A,B,f,a)` | 四 premiseを `SR+Conv` して formationを再適用 |
-| `run(A,B,f,a)` | 四 formation/typing premiseを輸送し、`Terminates` を `PC` |
-| `runCase(A,B,f,a,u)` | 五 formation/typing premiseを輸送し、`Terminates`,`RunInv` を `PC` |
+| reflexivity / symmetry / transitivity | 集合の等号の三性質 |
+| ordinary constructor congruence | immediate argumentのIHとモデル演算補題の外延性 |
+| binder congruence | domainのIHと、各 \(a\) でのbody IHによるfamily graphのpointwise equality |
+| PTS beta | semantic substitutionとgraph beta。Prop branchでは両辺が \(\bullet\) |
+| `Pred` root | 4.4節のdomain外で \(0\) を返すgraph applicationの計算 |
+| `RfType` / return / thunk root | `reflection-value` |
+| `Rf-U-App` / `Rf-C-App` | `reflection-laws` |
+| reflected Program step | source typing / step certificateのrankが小さいこととphase 5の `program-step-sound` |
+| `Rf-Ind` / `Rf-Ctor` | 6.1節の `inductive-reflection-laws` |
 
-outer derivation ruleの structural / value detourも、次の表で全て固定する。
+typed root equalityは定義により両endpointのsorting / typing derivationを保持するので、raw pathで
+問題になったuntyped intermediateは生じない。表はcoreの全root schemaを覆い、帰納型の二schemaも
+明記した。従って帰納法が閉じる。特にtype equalityへ適用すれば `(TC)` が得られる。□
 
-| source の最後の rule | recursive call と target の作り方 |
+## 4. soundness
+
+### 4.1 導出に沿う解釈
+
+PTS の lambda と application は result sort が `Prop` かどうかで data / proof branch が変わるため、
+解釈は sorting / typing derivation に沿って定義する。sorting derivation
+\(h:\Gamma\vdash t:s\) がproduct、lambda、applicationのどのsort branchを選んだかを解釈にも
+記録し、それ以外のconstructorは2節の対応する演算を使う。typing derivationではregularityが返す
+typeのsorting derivationを併せて保持する。Program interpretationはsyntax-directedだが、同じmixed
+valuationを使う。
+
+3.2節のbranch uniquenessにより、同じraw expressionに対する二導出がproof branchとdata branchを
+別々に選ぶことはない。それでもpremiseのformation derivationは異なり得るため、次のcoherenceを
+fundamental theoremと同時に示す。
+
+> [!important]
+> **導出 coherence。** 同じraw contextの二つのWF derivationは同じvalid valuation集合を定める。
+> 同じraw PTS expressionの二sorting derivation、および二typing derivationは、表示型や
+> universe levelが異なっても同じ値を定める。Programでは同じraw formation / typing judgementの
+> 二導出が同じ値を定める。さらに \(\Gamma\vdash t:s\) と
+> \(\Gamma\vdash t:s:t'\) のsorting/typing bridgeでもraw term \(t\) の値は一致する。
+
+循環を避けるため、まず各有限導出を3.1--3.2節の構成に沿って有限なcertificateへ展開する。
+certificate nodeは元のrule tag、全strict premise、regularityが選んだformation premise、generation
+の有限origin trace、substitutionを使うcaseではその入力derivation、typed congruence版のconversion
+caseではtyped equality derivationを保持する。これは元の導出高に
+関する帰納法で構成され、各edgeは元のstrict premiseまたはorigin traceの一段短いnodeへ向く。
+nodeのrankを「全child rankの最大値より1大きい数」と定める。従って生成されたderivationの見かけの
+高さが元より大きくなっても、semantic inductionのrankが逆転することはない。同じrank内を次の
+phase順に証明する。
+
+```text
+0  interpretation existence と support
+1  typed equality soundness（typed congruence 版）
+2  semantic substitution / renaming
+3  context validity の coherence
+4  fundamental membership / truth
+5  typed Program step の意味保存
+6  derivation coherence
+```
+
+順序は `(rank, phase)` の辞書式順序である。phase 1のbeta caseはbody / argumentのstrict childから
+作る低rankのphase 2 semantic substitutionを使う。reflected Program stepは、root equalityが
+保持するsource typing / step certificateのrankが小さいため、低rankのphase 5を使える。phase 4の
+rule caseがpremise値の一致を必要とするとき、そのpremise derivationはstrict childなのでrankが
+下がる。phase 5の `run` / `runCase` はsource typingのtermination / invariant premiseにphase 4を
+適用するが、やはりrankが下がる。phase 6で二つのprovability derivationを比較するときだけ同rankの
+phase 4を使い、両方の命題値が \(1\) である
+ことから一致を得る。それ以外のcoherence callはstrict premiseへ進むのでrankが下がる。
+
+phase 6の処理を明示する。weakeningならsupportにより追加valuation成分を捨てる。conversionでは
+raw版なら `(TC)`、typed congruence版ならstrict childのphase 1で表示型の値を合わせ、source
+typingへ進む。`type elem/type sort` は保存された
+sorting/typing premiseへ、`subset intro/weak` はbase typingへ進む。これらを有限回剥がした両側が
+core ruleなら、raw outer constructorは同じである。branch uniquenessと3.2節のgenerationにより
+同じsemantic rule familyになり、対応するstrict premiseには「同じraw expressionでbranchが一致する」
+というphase 6のIHを適用できる。モデル演算補題の外延性から結果値も一致する。`Take` のset/prop
+ruleはtarget sortingのbranch uniquenessで区別される。
+provabilityの異なるterminal ruleは
+phase 4によりいずれも同じ命題値 \(1\) を与える。各detourは少なくとも一方のstrict premiseへ
+進むので、このorigin比較も有限である。
+
+phase 0のsupport statementは、二つのvaluationがraw expressionの全自由変数で一致すれば意味値も
+一致する、というものである。raw syntaxの構造帰納法で、variableは仮定、binderはfreshな同じ値を
+両valuationへ追加し、残りはモデル演算補題の外延性を使う。`run` typingのtermination proofや
+`subset intro` のmembership proofのようにrule premiseだけに現れてraw termに保存されない証明は、
+導出可能性を制限するがtermの解釈 clauseの引数にはならない。従ってそれらが追加context entryを
+参照していてもsupportを壊さない。これがweakening caseでvaluation末尾を捨てられる理由である。
+
+typed congruence 版では3.4節末尾の帰納法が `(TC)` の証明になる。現在のraw conversion版では
+`(TC)` をこの同時定理の唯一の外部メタ条件として使う。
+
+substitution の意味補題
+
+\[
+\llbracket e[u/x]\rrbracket_\rho
+=\llbracket e\rrbracket_{\rho[x:=\llbracket u\rrbracket_\rho]}
+\tag{semantic-substitution}
+\]
+
+は三 category の置換について同時構造帰納法で成り立つ。binder では family graph の外延性、
+`RfType/RfTerm` では `reflection-value`、`run` では表示された \(A,B,F,a\) の値だけに演算が
+依存することを使う。conversion caseは `(TC)` を使い、`RfTerm` のpayloadにはProgram構文についての
+同じstructural IHを適用する。typed congruence版のconversionでは、strict childであるequality
+certificateの低rank phase 1を使う。binder bodyと置換項のcertificateもstrict childなので、
+上のmeasureに適合する。
+
+### 4.2 fundamental theorem
+
+> [!important]
+> **条件付き Soundness。** `(TC)` を仮定する。
+> 各 \(h:\operatorname{WF}(\Gamma)\) は2.1節の再帰によりvalid valuation集合
+> \(\operatorname{Val}_h(\Gamma)\) を定め、同じcontextの二つのWF derivationが定める集合は等しい。
+> さらに \(\rho\in\operatorname{Val}_h(\Gamma)\) なら、
+>
+> \[
+> \begin{aligned}
+> \Gamma\vdash T:s
+> &\Rightarrow \llbracket T\rrbracket_\rho\in D_s,\\
+> \Gamma\vdash t:T:s
+> &\Rightarrow \llbracket T\rrbracket_\rho\in D_s
+>      \land\llbracket t\rrbracket_\rho\in\llbracket T\rrbracket_\rho,\\
+> \Gamma\vDash P
+> &\Rightarrow \llbracket P\rrbracket_\rho=1,\\
+> \Gamma\vdash A\ \mathsf{vtype}
+> &\Rightarrow \llbracket A\rrbracket_\rho\in U_0,\\
+> \Gamma\vdash\underline B\ \mathsf{ctype}
+> &\Rightarrow \llbracket\underline B\rrbracket_\rho\in U_0,\\
+> \Gamma\vdash_vV:A
+> &\Rightarrow \llbracket V\rrbracket_\rho\in\llbracket A\rrbracket_\rho,\\
+> \Gamma\vdash_cM:\underline B
+> &\Rightarrow \llbracket M\rrbracket_\rho\in\llbracket\underline B\rrbracket_\rho.
+> \end{aligned}
+> \]
+
+**証明。** 4.1節の `(rank, phase)` 帰納法のphase 4である。WF caseではcontext validityを、
+formation / typing / provability caseでは対応するstrict premiseのphase 4と、必要ならphase 2・3、
+または低rankのphase 6を使う。conversion caseはraw版では `(TC)`、typed congruence版ではstrict
+childであるphase 1を使う。provable と proof term の相互参照も
+premiseの導出高が真に小さい。各primitive ruleのmembership計算は次節の監査表で尽くす。従って
+未処理のterminal ruleはない。□
+
+### 4.3 primitive rule の監査
+
+`system.md` の core rule を順に検査する。複数 rule を一行にまとめた箇所でも、各 conclusion に
+使う law を分けて記す。
+
+| rule | soundness の理由 |
 | --- | --- |
-| empty / start / axiom / variable | WF conclusion、sort、variable headには主式の root / compatible stepがないので vacuous。variable の表示型 reductionは後の `SR-Type` |
-| weak sort / weak type | source の sorting / typing strict premiseに `SR-Sort` / `SR-Term` を適用し、同じ WF childで weakenし直す |
-| conversion | term stepは source typing strict premiseへ進み、元の target sortingと conversionを付け直す。表示型 stepは `SR-Type` の系で処理する |
-| type elem / type sort | 保存された sorting / typing strict premiseへ進み、同じ sort axiomまたは bridgeを付け直す |
-| type-lift intro | base typingと membership provabilityの該当 strict premiseを輸送して introを再適用する |
-| type-lift weak | 入力 lifted typingの strict premiseを輸送して weakを再適用する |
-| dep form / intro / elim | 上の product / lambda / application 行。betaだけは root case |
-| その他の formation / typing core rule | raw constructorの該当行で全 premiseを輸送し、同じ core ruleを再適用する。`Pred`、reflection、recursionの rootだけは既述の個別 case |
+| empty | 空 tuple が valid |
+| axiom | \(U_i\in U_{i+1}\)、\(\{0,1\}\in U_\omega\) |
+| PTS start | premise の carrier の要素を valuation に追加 |
+| weak sort / weak type | valuation の末尾を捨てる semantic weakening |
+| weak sort / weak type over Program | 同上。raw PTS term の support だけを使う |
+| PTS variable | context validity の対応成分 |
+| conversion | `(TC)` で source/target type の値が等しい |
+| dep form | 2.2節の全 sort case の product closure |
+| dep intro | graph lambda、または Prop branch の \(\bullet\) |
+| dep elim | graph application、または Prop fiber の `proof-membership` |
+| type elem / type sort | `sort-membership` |
+| provable | \(t\in P\)、\(P\in\{0,1\}\) から \(P=1\) |
+| proof term | \(P=1\) から \(\bullet\in P\) |
+| power set form | Grothendieck universe の powerset closure |
+| power set intro | `TypeLift(A,B)=B` と \(B\subseteq A\) |
+| predicate | `truth(t in B)` は Prop の要素 |
+| subset form | separation と powerset membership |
+| subset intro | membership proofから \(t\in B\)、従って \(t\in\operatorname{TypeLift}(A,B)\) |
+| subset weak | \(B\subseteq A\) |
+| subset prop | lifted termの membership \(t\in B\) |
+| id form | `truth(a=b)` は Prop の要素 |
+| id intro | reflexivity により equality value は \(1\) |
+| id elim | equality premiseで \(a=b\)、semantic substitution で motive の値を輸送 |
+| exists form | `truth(A nonempty)` は Prop の要素 |
+| exists intro | witness \(e\in A\) により \(A\ne\varnothing\) |
+| take elim set | existence、定値性、`take-law` |
+| take elim prop | existence と function typing から target proposition が \(1\) |
+| take equal | \(t\in X\) と `take-law` |
+| value type start | 任意の \(U_0\) の要素を type valuation に追加 |
+| value type variable | context validity の対応する \(U_0\) 成分 |
+| value start | \(a\in\llbracket A\rrbracket\) を valuation に追加 |
+| Program weak | valuation の末尾を捨てる |
+| `F` form / `U` form | carrier を変えない |
+| function form | \(U_0\) の function-set closure |
+| run step form | \(U_0\) の finite tagged-sum closure |
+| Program value variable | context validity の対応成分 |
+| return / thunk / force | 三つとも carrier 上の恒等値 |
+| Program function intro | functional graph introduction |
+| Program function elim | functional graph elimination |
+| sequence | first computation の値を valid な binder valuation に使う |
+| value let | value premiseを valid な binder valuation に使う |
+| continue intro | \(a\in A\) から \((0,a)\in\operatorname{RunStep}(A,B)\) |
+| finish intro | \(b\in B\) から \((1,b)\in\operatorname{RunStep}(A,B)\) |
+| reflection value/computation type | Program carrier は \(U_0=D_{\mathrm{Set}_0}\) に属する |
+| reflection value/computation term | `reflection-value` と Program typing の IH |
+| acc form | `truth` の値は Prop に属する |
+| acc intro | `next-law` と `acc-intro-law` |
+| acc descent | `next-law` と `acc-descent-law` |
+| run | termination premiseと rank recursion により結果が \(B\) に属する |
+| run case | invariant \(u=F(a)\)、tag場合分け、`run-laws` |
 
-`SR-Prov` の八 terminal ruleは、proof premiseが conclusion syntaxから消える場合を含むので個別に
-確認する。`PC` を使う行でも target propositionの sortingは表に書いた strict premiseだけから先に
-構成し、source provability ownerへ subject reductionを再帰しない。
+これで `Acc と run` までに明記された全 primitive rule を覆った。
 
-| provability terminal | target proposition / proof の構成 |
-| --- | --- |
-| `provable` | strict premise `p:P::Prop` の regularity viewを `SR-Sort` で `P'::Prop` へ進め、typing conversionで `p:P'::Prop`、最後に `provable` |
-| `subset prop` | strict lifted typingを輸送し、`(G-Subset)` から target `Pred` formationを作って `subset prop` を再適用 |
-| `id intro` | strict premise `a:A` を reduced operandへ輸送して target equalityを形成し、source reflexivityに `PC`。両 operandのどちらが進む場合も同じ |
-| `id elim` | `a,b`、binder body、最後の proof premiseの該当 strict childを輸送し、target applicationを形成して `id elim` を再適用。outer betaなら substitutionで target sortingを作って `PC` |
-| `exists intro` | strict witness typingとその regularityを輸送し、target typeへの typing conversion後に `exists intro` を再適用 |
-| `take equal` | take typingの `(G-Take)` と `t:X` を輸送し、target equality formationを作って `take equal` を再適用 |
-| `acc intro` | `A,B,f,a` の formation / typingと最後の binder propositionをその strict childで輸送し、target `acc intro` を再適用 |
-| `acc descent` | 二つの strict provability premiseを輸送し、`(G-Acc)` と equality/application generationで target formationを作って `acc descent` を再適用 |
+表のうち複数のpremiseを組み合わせるcaseを展開する。
 
-sort と variable には immediate subterm がない。上の二表により subset intro/weak/prop、equality
-intro/elim、exists intro、take equal、acc intro/descent の proof premiseを含め、各 targetは source の
-strict premiseから構成される。
-これで全39 ruleの congruence caseと、beta、`Pred`、reflection二つ、recursion三つの root caseが
-尽きる。生成した target 導出を再帰入力にはせず、常に source rule の strict premise にだけ
-帰納法を適用するので同時帰納法は整礎的である。□
+**dependent introduction。** data branchでは、任意の \(a_0\in A_0\) に対するbody premiseのIHから
+\(m_0(a_0)\in B_0(a_0)\) を得る。従ってlambda graphのdomainは \(A_0\) で、各値が対応fiberに
+入るため、\(\operatorname{Lam}_z(A_0,m_0)\in\Pi_z(A_0,B_0)\) である。Prop branchでは同じIHと
+\(B_0(a_0)\in\{0,1\}\) から全 \(a_0\) について \(B_0(a_0)=1\) が従う。ゆえにproductの値は
+\(1\) であり、lambdaの値 \(\bullet\) はその唯一の要素である。
 
-## 4. conversion を展開した有限導出
+**dependent elimination。** function premiseのIHによりdata branchでは
+\(f_0\in\Pi_z(A_0,B_0)\)、argument premiseから \(a_0\in A_0\) を得る。graph
+eliminationで \(\operatorname{app}(f_0,a_0)\in B_0(a_0)\) となり、semantic substitutionにより
+\(B_0(a_0)=\llbracket B[a/x]\rrbracket\) である。Prop branchではfunction membershipから
+全fiberが \(1\) と分かり、`proof-membership` により \(\bullet\) がtarget fiberに属する。
 
-soundness の conversion case で「convertible な型は同じ意味」と言うには reduction の
-意味保存が必要であり、reduction の beta case には subterm の typing soundness が必要になる。
-これらを別々に先取りすると循環する。
+**equality elimination。** equality premiseのphase 4から
+\(\operatorname{truth}(a_0=b_0)=1\)、従って \(a_0=b_0\) を得る。motive sortingとsemantic
+substitutionにより、最後のprovability premiseは \(P_0(a_0)=1\) を表す。集合の等号でargumentを
+置き換えると \(P_0(b_0)=1\) であり、もう一度semantic substitutionを使えばconclusionの
+proposition値が \(1\) になる。
 
-この循環を避けるため、各 conversion use `A≡B` を、confluence が与える共通 reduct `C` と
+**`Take`。** set caseではexistence premiseから \(x_0\in X_0\) を一つ得る。function typingに
+より \(f_0:X_0\to T_0\) はfunctional graphである。定値性premiseの二重productを展開すると
 
-```text
-A=A0 -> A1 -> ... -> C,
-B=B0 -> B1 -> ... -> C
-```
+\[
+\forall x,y\in X_0.\ \operatorname{app}(f_0,x)=\operatorname{app}(f_0,y).
+\]
 
-に展開する。subject reduction により全中間点に同じ sort の sorting derivationを付ける。
-また各 typing / provability derivation に、regularity が与える型 / proposition formation と
-文脈 WF を付ける。このようなものを**正則導出**と呼ぶ。
+従ってimageは \(\{\operatorname{app}(f_0,x_0)\}\) であり、`take-law` から `Take` の値は
+\(T_0\) に属する。prop caseでは \(f:X\to T\) 自体がproof productである。そのmembershipは
+全 \(x\in X_0\) で \(T_0=1\) を意味し、existenceと合わせて \(\bullet\in T_0\) を得る。
+`take equal` では第二premiseの \(t_0\in X_0\) と同じ定値性から
+\(\operatorname{Take}(X_0,T_0,f_0)=\operatorname{app}(f_0,t_0)\) が従う。
 
-「付随する証明も node と数える」だけでは循環がないことの証明にならないので、ここで使う
-certificate を有限木の相互帰納族として固定する。対象は次の八種類である。
+**`Acc`。** `acc intro` のbinder contextを任意の \(b_0\in A_0\) で評価する。内側のimplication
+の値が \(1\) であることは、`next-law` により
 
-```text
-DerivationPlus          WF / regularity / origin を保持する導出,
-TypedStep               一段 reduction の source / target 導出と構成記録,
-TypedPath               TypedStep の有限な順向き列,
-TypedConv               同じ sort を持つ二式の typed convertibility,
-TypedJoin               共通 reduct と左右の TypedPath,
-SubstitutionPlus        3.1節の構造的 substitution の記録,
-ContextConversionPlus   context conversion の構造的記録,
-OriginPlus              core rule と structural detour の記録.
-```
+\[
+b_0<_F a_0\Longrightarrow b_0\in\operatorname{Acc}_F
+\]
 
-`DerivationPlus` の index は context と judgement、`TypedStep` の index は context、judgement の
-種類、source、target、一段 reduction、`TypedPath` はその forward path、`TypedConv` と
-`TypedJoin` は context、sort、二 endpoint、`SubstitutionPlus` と `ContextConversionPlus` は
-輸送する object の種類と source / target index、`OriginPlus` は sorting または typing judgement
-である。index は再帰的な certificate を含まず、raw term、sort、raw reduction、alpha-renaming、
-common reduct はすべて index または有限な label であって recursive child ではない。
+と同値である。外側のproductを展開して全 \(b_0\) を量化すると `acc-intro-law` の前提になり、
+conclusionは \(a_0\in\operatorname{Acc}_F\) となる。`acc descent` は二premiseを
+`next-law` で展開すれば `acc-descent-law` そのものである。
 
-この八族を、以下の局所条件を満たす**有限な rooted tree の最小クラス**として定義する。従って、
-constructor に渡せるのは既に構成済みの child だけであり、owner 自身を child や index に戻すことは
-できない。`r` を primitive rule の一つの instance とすると、その premise 数 `n(r)` と各 premise
-judgement は `system.md` の表から一意に決まる。raw constructor `K` と immediate position `j` に
-ついても、その位置の binder 情報と残りの component は構文から一意に決まる。
+**`run` と `runCase`。** `Terminates` のphase 4は
+\(a_0\in\operatorname{Acc}_F\) を与える。従って2.5節のrank帰納法から
+\(\operatorname{Run}(F,a_0)\in B_0\) である。`runCase` ではさらに `RunInv` から
+\(u_0=\operatorname{app}(F,a_0)\) を得る。tagがcontinueなら `acc-descent-law` を使って再帰先に
+rank帰納法を適用し、finishならfunction typingからpayloadが \(B_0\) に属する。よってどちらも
+\(\operatorname{RunCase}(F,a_0,u_0)\in B_0\) である。
 
-| family | constructor と局所条件 | recursive child |
-| --- | --- | --- |
-| `DerivationPlus` | `DCore_r`。conversion 以外の rule instance `r` と同じ conclusionを持つ | `r` の `n(r)` 個の premise。conclusion が WF でなければ context WF、typing / provability なら regularity、sorting / typing なら originも持つ |
-|  | `DConv`。source typing、target sorting、両型の `TypedConv` から元の conversion conclusionを持つ | source typing、target sorting、context WF、regularity、origin、`TypedConv` |
-| `TypedStep` | `SRoot_k`。beta、`Pred`、reflection、recursion のいずれかの root tag `k` について3.4節の core constructionを再現する | source / target の `DerivationPlus` と、その construction が使う source の strict premise / origin |
-|  | `SCong_(K,j)`。`K` の第 `j` immediate position の一段 stepを、残りの componentを固定して再構成する | source / target、位置 `j` の `TypedStep`、binder で必要な `ContextConversionPlus`、dependent application で必要な `SubstitutionPlus` / `TypedConv` |
-|  | `SStructural_l`。weakening、conversion、type elem / type sort の detour `l` を一段剥がして戻す | source / target、detour の strict premiseの `TypedStep`、必要な context transport / typed conversion |
-|  | `SValue_l`。type-lift intro / weak の detour `l` を base typingへ移して戻す | source / target、base typing の `TypedStep`、power / membership premiseとその transport |
-| `TypedPath` | `PRefl`、または `PCons`。後者では step の target と残り path の source が同じ raw judgement | endpoint の `DerivationPlus`、または先頭 `TypedStep` と残りの `TypedPath` |
-| `TypedJoin` | `Join(C)`。左右 path の target が同じ raw expression `C` | 左右の `TypedPath` と、それぞれの endpoint sorting derivation |
-| `TypedConv` | `CJoin`。`TypedJoin` の二始点を endpoint とする | その `TypedJoin` |
-| `SubstitutionPlus` | variable の hit / newer / older、binder、または rule `r` の構造をそのまま写す constructor | source / target object、および source の各 recursive child に対する substitution certificate。binder caseでは fresh renaming と延長 context の certificate |
-| `ContextConversionPlus` | 置換位置での `CtxHere`、suffixを一つ進む `CtxThere`、または各 rule / path / origin constructorを写す constructor | source / target object、宣言型の `TypedConv`、suffix の declaration formation、source の各 recursive child の transport |
-| `OriginPlus` | `OCore_r` | `r` の strict premise |
-|  | `OWeak`、`OConv`、`OTypeElem`、`OTypeSort` | detour の strict premiseの originと、順に WF、`TypedConv`、sort premise、または typing premise |
-|  | `OLiftIntro`、`OLiftWeak` | base typing の originと、intro では power / membership premise、weak では入力 lifted typing |
+### 4.4 reduction の意味保存
 
-表中の「source / target object」はその constructor の index に書かれた judgement を持つ
-`DerivationPlus`、または輸送対象として index に指定された八族の object である。target は source の
-構造的変換で作ったものに限り、同じ target judgement を持つ任意の別導出を選んではならない。
-また `SRoot_k` の tag は raw reduction の七 root rule、`SCong_(K,j)` は有限構文 `K` の各 immediate
-position、`DCore_r` は conversion を除く38 primitive ruleに対して一つずつ存在する。`OCore_r` は
-そのうち weak sort / type、type elem / sort、type-lift intro / weak を除いた core ruleだけに対応し、
-除いた六種と conversion は表の専用 origin tagで表す。従って各 schema の分岐数と child 数は有限であり、
-「残りの case」を表す暗黙の constructor はない。
+conversion caseで使った意味保存を root ごとに確認する。
 
-名前付き構文を対象とするこの証明では primitive variable rule が context の最後の宣言だけを参照し、
-古い変数は `weak type` の有限列として `DerivationPlus` と `OWeak` に記録される。このため独立な
-`LookupPlus` は不要である。de Bruijn index を使う Lean 実装では lookup derivation 自体を輸送する
-必要があるので、上の八族に `LookupPlus` を加えた九族になる。これは別構文での実装上の差であり、
-自然言語証明で recursive child を省略してよいという意味ではない。
+- PTS beta は `semantic-substitution` と graph beta による。proof branch では両辺が
+  \(\bullet\) である。
+- `Pred(A,{x:B | P},t)` の値は
 
-> [!important]
-> **補題（certificate elaboration）。** 元の有限導出 `h` から、同じ judgement を結論に持ち、
-> erasure が `h` である有限な `DerivationPlus(h+)` が存在する。また上の八族の各 certificate の
-> 注釈を消すと、元の primitive rule または3.1--3.4節で示した admissible construction が得られる。
+  \[
+  \operatorname{truth}(t\in B\land\operatorname{app}(P,t)=1).
+  \]
 
-**証明。** 構成の主 measure を「source certificate の高さ」とし、同じ高さの中の stage を次の
-一方向に固定する。
+  ここで右辺のlambdaはproof termを作るlambdaではない。body \(P\) をtermとして
+  \(P:\mathrm{Prop}:\mathrm{PropKind}\) と型付けするため、product formationは
+  \((\mathrm{Set}_i,\mathrm{PropKind},\mathrm{PropKind})\) のdata branchを使う。従って右辺の
+  lambda graph は domain が \(B\) であり、domain 外では application が \(0\) を返す。
+  従ってこれは `((lambda x:B.P) @ t)` の値と等しい。`A` と `B` の構文的一致を仮定しない。
+- Program の force/thunk、beta、sequence、let は2.4節の定義式による。
+- `run` と二つの `runCase` root は `run-laws` による。continue case の accessibility は typed
+  source の termination と invariant から得る。
+- reflection の各 root は `reflection-laws` による。computation payload の step は Program
+  reduction の意味保存を使う。
+- compatible step は、変化しない引数の IH、binder family の pointwise equality、集合演算の
+  外延性による。
 
-```text
-annotated renaming / substitution
-  -> ContextConversionPlus
-  -> annotated one-step subject reduction (TypedStep)
-  -> TypedPath
-  -> TypedJoin -> TypedConv
-  -> DerivationPlus の conversion node
-```
+これらは各 **typed** root equality と typed congruence の意味保存を示す。従って3.4節の
+typed congruence 版では、有限 path とその逆向きを含む conversion の両端は同じ値を持つ。
+現在の raw \(\equiv_s\) については、型の付かない中間項を除去する completion が未完了なので、
+この節だけから `(TC)` を導いたことにはならない。
 
-`SCong` の dependent application や conversion detour が既存の `TypedConv` を使う場合、その
-`TypedConv` は source の strict premiseから構成された、主 measure が真に小さい childである。
-従って stage の右側にある objectを左側から参照してよいのは主 measureが減る場合だけであり、同じ
-高さでの back edge は許さない。以下の構成はこの `(source height,stage)` の辞書式順序に従う。
+## 5. `falseProp`
 
-元の導出高に関する帰納法で premise を先に elaborate する。高さ `n+1` の core ruleでは、高さ
-`n` 以下の全 premise certificate が完成している。それらに3.1節の構造再帰を適用して WF、
-regularity、substitution、context transportを作り、3.3節の有限 origin traceを作ってから
-`DCore_r` で包む。ここでは新しく作った target derivationを一般の elaboration へ再投入せず、完成済み
-childに有限個の rule wrapperを付けるだけである。
+空文脈で `Prop :: PropKind` である。`P:Prop:PropKind` を追加すると variable rule から
+`P :: Prop` となり、`(PropKind,Prop,Prop)` が \(\mathcal R\) に属するので
 
-conversion rule の二 premiseを
+\[
+\mathit{falseProp}=(P:\mathrm{Prop})\to P:\mathrm{Prop}
+\]
 
-```text
-d  : Gamma |- e:T1::s,
-h2 : Gamma |- T2::s
-```
+を形成できる。その標準導出による空 valuation での意味は
 
-とする。帰納法で `d+`,`h2+` と、`d+` の regularity child
-`h1+ : Gamma|-T1::s` が先に完成する。`T1≡T2` と confluence から raw common reduct `C` と有限な
-forward path `T1->*C`, `T2->*C` を取る。各 path は、その時点で完成している endpoint sortingに
-3.4節の annotated subject reductionを一段ずつ適用して `TypedPath` にする。各一段の再帰呼出しは
-source certificate の strict premiseだけに向き、生成中の `DConv` には向かない。二 pathから
-`TypedJoin`、それから `TypedConv` を作り、最後に一度だけ `DConv` で包む。従って conversion ownerは
-どの path endpoint、step source / target、origin、transportの子孫にも現れない。
+\[
+\begin{aligned}
+\llbracket\mathit{falseProp}\rrbracket
+&=\Pi_{\mathrm{Prop}}(\{0,1\},P\mapsto P)\\
+&=\operatorname{truth}(\forall P\in\{0,1\}.\ P=1)\\
+&=0.
+\end{aligned}
+\]
 
-補助 certificate の構成も表の recursive child に関する構造帰納法である。`SubstitutionPlus` は
-source ruleの strict child、`ContextConversionPlus` はそれに加えて短い context suffix、
-`TypedStep` は source の strict premise、`TypedPath` は path の残り長についてだけ再帰する。
-`TypedJoin` と `TypedConv` は既に完成した pathを包むだけである。従って外側の導出高を固定した
-各段でも再帰 measure はそれぞれ
+最後の等号は \(0\in\{0,1\}\) かつ \(0\ne1\) による。別の formation derivation も
+同じ値を与えることを確認する。上の標準導出を \(h_0:\varnothing\vdash
+\mathit{falseProp}:\mathrm{Prop}\) とする。任意の
+\(h:\varnothing\vdash\mathit{falseProp}:s\) に3.2節のsorting branch uniquenessを
+\(h_0\) とともに適用すると \(\epsilon(s)=\mathsf{proof}\)、従って \(s=\mathrm{Prop}\) である。
+raw版では \(\mathit{falseProp}\equiv_s\mathit{falseProp}\) と `(TC)` を \(h_0,h\) に適用し、
+typed congruence版では4.1節のphase 6を適用すれば、どちらも
+\(\llbracket\mathit{falseProp}\rrbracket_h=0\) を得る。
 
-```text
-source certificate の tree height,
-context suffix の長さ,
-source derivation の高さ,
-path の残り長
-```
+`(TC)` を仮定する。もし \(\varnothing\vDash\mathit{falseProp}\) なら、空 valuation は valid
+なので条件付き Soundness から
+\(\llbracket\mathit{falseProp}\rrbracket=1\) となり、上の \(0\) と矛盾する。
 
-のいずれかを真に減らし、上の構成順に逆らう back edge はない。これで八族の全 node は有限である。
+もし \(\varnothing\vdash t:\mathit{falseProp}:s\) なら、条件付き Soundness から
 
-注釈の消去は八族の同時構造帰納法である。`DCore_r` は `r` を再適用し、`CJoin` は左右の forward
-pathから raw convertibilityを返し、`DConv` はそれを conversion ruleに使う。`SRoot/SCong` は
-3.4節の target derivation、`SubstitutionPlus` と `ContextConversionPlus` は3.1節の admissible
-derivation、`OriginPlus` はその underlying derivationを返す。各 recursive call は表で指定した
-strict childへ進むので、erasure も停止する。□
+\[
+\llbracket t\rrbracket\in
+\llbracket\mathit{falseProp}\rrbracket=\varnothing
+\]
 
-この相互帰納族の node `o` に
+となるが、空集合に要素はない。従って主定理が示された。\(\square\)
 
-```text
-rank(o) = 1 + max { rank(c) | c is a recursive child of o }
-```
+## 6. 帰納型拡張
 
-（leaf では max を `0` とする）と定める。有限 tree なので rank は自然数であり、endpoint
-derivation、path、typed conversion、origin、substitution、context transport はすべて owner より
-真に小さい。複数の certificateを同時に比較するときの rank はそれらの rank の最大値とする。
-5--6節でいう正則導出とは、この `DerivationPlus` のことである。
+### 6.1 `system.md` に明記済みの規則
 
-## 5. 導出に沿う解釈
+有限個の constructor を持つ well-formed な strictly-positive declaration を固定する。
+各parameter carrier \(A_\ell^0\in U_0\) と、recursive carrierの候補 \(Z\in U_0\) を固定する。
+value / computation type expressionのcarrier \(E^v_A(Z)\)、\(E^c_{\underline B}(Z)\) を
 
-同じ raw lambda、application、take が proof branch と data branch の双方に使われるため、
-raw term だけから意味値を決めない。正則導出に沿って意味関係を定義する。
+\[
+\begin{aligned}
+E^v_{X_\ell}(Z)&=A_\ell^0,
+&E^v_{I^v(\vec X)}(Z)&=Z,\\
+E^v_{\mathrm U\underline B}(Z)&=E^c_{\underline B}(Z),
+&E^v_{\operatorname{RunStep}(A,B)}(Z)
+  &=(\{0\}\times E^v_A(Z))\cup(\{1\}\times E^v_B(Z)),\\
+E^c_{\mathrm F A}(Z)&=E^v_A(Z),
+&E^c_{A\Rightarrow\underline B}(Z)
+  &=(E^c_{\underline B}(Z))^{E^v_A(Z)}
+\end{aligned}
+\]
 
-```text
-SortDenotes(h,rho,a),
-TypeDenotes(h,rho,Aval,eVal),
-ProvDenotes(h,rho,p).
-```
+と構造再帰で定める。最後のfunction spaceでrecursive occurrenceはdomain \(A\) に現れない。
+これは `system.md` のstrict positivity条件が保証すべき正確なvariance条件である。constructor
+signatureから
 
-typing relation は型の sorting derivation の witness `Aval` も含む。provability relation は
-regularity で付けた `P::Prop` の sorting valueをそのまま `p` とする。
+\[
+P_{\vec A^0}(Z)
+=\coprod_i\prod_{j<k_i}E^v_{A_{ij}}(Z)
+\]
 
-context valuation は raw context だけでなく、その WF certificate に沿って定義する。WF の
-constructor は empty と start だけなので、`h_empty` と
-`h_start(hGamma,hA)`（ここで `hA : Gamma|-A::s` は start の第二 premise）に対して
+を得る。これは固定した小さいdomainからの正のfunction fieldを許すstrictly-positive functorである。
+そのinitial algebraは対応するW-type、すなわちconstructor tagとfieldを持つwell-founded treeの集合
+として構成できる。Grothendieck universeはsmall W-typeに閉じているので、carrier
 
-```text
-ValidCtx(h_empty, []),
+\[
+\mu P_{\vec A^0}\in U_0
+\]
 
-ValidCtx(h_start(hGamma,hA), (rho,v))
-  iff ValidCtx(hGamma,rho)
-      and exists Aval,
-            SortDenotes(hA,rho,Aval)
-            and v in Aval.                              (valid-cons)
-```
+を取れる。constructor mapはtagged tupleを作り、W-type recursionによりcase / recursorが一意に
+定まる。negative occurrenceを許すと上の \(P\) は共変functorにならず、この構成は使えない。
 
-と構造再帰で定める。従って `Aval` は束縛され、`SortDenotes` に渡す導出も start node に保存された
-特定の `hA` である。この定義は後の coherence を先取りしない。同じ raw context `Gamma` の二つの
-WF certificate `hGamma,kGamma` に対する
+Program datatype と Set の鏡像を同じ carrier に解釈し、両側の constructor を同じ tagged tuple に
+解釈する。
 
-```text
-ValidCtx(hGamma,rho) iff ValidCtx(kGamma,rho)             (valid-coherence)
-```
+\[
+\begin{aligned}
+\llbracket I^v(\vec A)\rrbracket
+&=\mu P_{\llbracket\vec A\rrbracket}
+=\llbracket I^s(\operatorname{RfType}(\vec A))\rrbracket,\\
+\llbracket C_i^v[\vec A](\vec V)\rrbracket
+&=(i,\llbracket\vec V\rrbracket)
+=\llbracket C_i^s[\operatorname{RfType}(\vec A)]
+  (\overrightarrow{\operatorname{RfTerm}(V)})\rrbracket.
+\end{aligned}
+\tag{inductive-reflection-laws}
+\]
 
-は6節 phase 0で証明する定理である。start/start caseでは prefix に phase 0の帰納法を適用し、二つの
-declaration sorting child に低い rank の denotation existence と phase 5 coherenceを適用する。
-従って一方の `(valid-cons)` witness `Aval` は他方でも同じ集合を表し、両方向が従う。WF の terminal
-tag は empty/start だけなので、これで phase 0 の全 case が尽きる。
+二つ目の等式はreflected argumentが実際に \(\operatorname{RfTerm}(V_j)\) の場合である。
+一般のSet constructor ruleに現れる \(t_j\) についても、premiseから
+\(\llbracket t_j\rrbracket\in E^v_{A_{ij}}(\mu P)\) を得るので、同じtagged tupleが
+\(\mu P\) に属する。
 
-三つの関係は `DerivationPlus` の構造再帰で、以下の各行を「その場合に限る」という clause として
-定義する。sorting nodeではその raw expression の値を、typing nodeでは regularity childが表す型値
-`Aval` と ruleが表す項値 `eVal` を同時に記録する。weakening は valuation の末尾を捨てた premise
-relation、binder は延長 valuationにおける body relationを使う。補助 fieldである WF、origin、
-typed conversion自体には新しい意味値を割り当てない。
+Program case は tag を読み、対応 branch を field values で評価する。従って Program の
+inductive type formation、constructor introduction、case typing、reflected type formation、
+reflected constructor introduction は sound である。case reduction は semantic substitution、
+`Rf-Ind` と `Rf-Ctor` は `inductive-reflection-laws` により意味を保存する。
 
-- sort axiom は `S_s`。
-- variable は valuation の対応成分。
-- type elem は sorting premise の値、type sort は typing premise の項値。
-- product、lambda、application は `Pi_z`、`Lam_z`、`App_q`。
-- proof mark と proposition-valued take は `bullet`。
-- power、subset、predicate、type lift、equality、exists、set-valued take は2節の同名演算。
-- `RunStep`、`continue`、`finish` は tagged sum と二つの injection。
-- `RfType` と `RfTerm` は、対応する Compute type / term の値そのもの。
-- `Acc` は `truth(aVal in Acc_fVal)`。
-- `run` と `runCase` は2.5節の well-founded operation。
-- conversion node `DConv(d,h2,c)` では
+この解釈は `Acc` と `run` を変えない。state または result carrier が \(\mu P\) でも、step
+function は依然として \(A\to\operatorname{RunStep}(A,B)\) という functional graphであり、
+2.5節の rank recursionをそのまま適用できる。
 
-  ```text
-  TypeDenotes(DConv(d,h2,c),rho,Aval,eVal)
-    iff SortDenotes(h2,rho,Aval)
-        and exists A1, TypeDenotes(d,rho,A1,eVal).
-  ```
+### 6.2 完成した帰納型規則への拡張条件
 
-  すなわち source term の項値を保ち、target sorting の型値と組にする。`A1=Aval` は定義に入れず、
-  `c:TypedConv(T1,T2)` に対する6節 phase 2と fundamental propertyから後で証明する。
+Set case / induction を加えた体系全体へ主定理を拡張するには、まず次の1--4をdeclarationごとに
+満たす必要がある。raw \(\equiv_s\) を保つ場合だけ、さらに5が必要である。
 
-provability node `h` では、保存された regularity childを `reg(h):Gamma|-P::Prop` として
+1. positivity judgement が negative occurrence を拒否し、各 declaration が上の
+   \(P_{\vec A}\) を一意に定める。
+2. declaration 名、constructor 名、parameter と field signature が一意である。
+3. 生成される Set case / induction の raw syntax、typing、reduction、compatible context が有限個の
+   schema として固定される。
+4. mixed substitution、generation、Program/PTS subject reduction が生成規則について成り立つ。
+5. coreのsynchronized completionを含むparallel reductionについて、追加critical peakがすべて
+   joinableである。
 
-```text
-ProvDenotes(h,rho,p) iff SortDenotes(reg(h),rho,p)
-```
-
-と定める。従って provability の意味値の存在は regularity childの denotation existenceから従い、
-その値が `1` であることだけが各 provability ruleの fundamental caseで証明すべき内容になる。
-
-6節で existence と uniquenessを証明するまでは `[[M]]rho` は関数記号ではなく、対応する
-`SortDenotes` / `TypeDenotes` relation の witnessを一つ固定したときの略記とする。witnessを使う
-等式は常に、その witnessが存在する lower-rank childを明示してから用いる。phase 3と5の後は値が
-一意になるので、通常の関数的な denotation notationとして読んでよい。
-
-binder body の family は、各 `x in A` に対する body denotation の graphとして定める。6節の
-低い-rank denotation existence と coherence により値は一意に存在するので、replacement で
-graphを集合にできる。代表元の global choice は不要である。
-
-renaming、weakening、substitution で構造的に対応させた二導出は、対応する valuation のもとで
-同じ値を表す。これは導出の構造帰納法で、binder では fresh variable、application では
-semantic substitution
+最後の条件で新たに現れる代表的な peak は、constructor を `Rf-Ctor` で Set 側へ写してから Set
+case を進める path と、Program case を先に進めてその結果を `RfTerm` で反映する path である。
+両 path が対応 branch の
 
 ```text
-[[B[a/x]]]rho = [[B]](aVal,rho)
+RfTerm(M_i[fields/x_i])
 ```
 
-を使う。この段階では構造的に対応する witness だけを比較し、任意の別導出との一致を
-仮定しない。
+へ進むよう、生成される reflection/case rule を定める必要がある。Set induction の soundness は
+\(\mu P\) の W-type rank に関する整礎帰納法と Prop の proof irrelevance から従う。
 
-さらに、意味値は raw expression の自由変数にしか依存しないという **support 補題**を同時に
-示す。`run` の termination proof、subset introduction の membership proof など、規則の premise に
-だけ現れて raw term に保存されない proof は導出可能性を制限するが、項値を定義する clause の
-引数にはならない。従って、このような proof が余分な context variable を使っていても raw term
-自身の値はその variable に依存しない。この補題は `Rf-Arrow` の非依存 codomain の意味保存にも
-使う。
+typed congruence版では1--4と各typed rootの `inductive-reflection-laws` だけで、3--4節の帰納法に
+各declarationの有限個のcaseを追加できる。raw conversion版では1--5を使う。どちらも5節の
+`falseProp` の計算は変わらないため、その**完成後の体系**へ対応する主定理が拡張される。現状の
+`system.md` では1と3が未定義であり、raw版ではcoreを含む5も未完了なので、この段落は条件付きの
+拡張定理である。
 
-## 6. soundness と coherence
+## 7. 一般再帰についての帰結
 
-対象となる正則導出と補助 certificate の有限 tupleについて、4節で定めた最大 rank に関する強い
-帰納法で次を同時に証明する。
-
-1. 同じ raw context `Gamma` の二つの WF certificate `hGamma,kGamma` について
-   `ValidCtx(hGamma,rho)` と `ValidCtx(kGamma,rho)` は同値である。
-2. 各 sorting、typing、provability denotation が存在する。
-3. sorting value は `D_s` に入り、typing は `Aval in D_s` と `eVal in Aval` を満たし、
-   provability value は `1` である。
-4. 注釈された一段 reduction、finite path、typed join / typed conversion の両端は同じ値を表す。
-5. 同じ judgement の二つの正則導出、および同じ導出の二 witness は同じ値を表す。さらに、
-   同じ raw term の二つの typing は、表示型が異なっていても同じ項値を表す。また
-   `Gamma|-M::s` と `Gamma|-M:s::t` の sorting / typing bridge も同じ `M` の値を表す。
-
-帰納法の第一・第二 measure は `(rank,phase)` の辞書式順序とし、同じ rank の phase を
+operational rule だけなら、ある \(f,a\) に対して
 
 ```text
-0 validity / WF coherence,
-1 substitution and context-transport invariance,
-2 step / path / join / conversion invariance,
-3 denotation existence,
-4 fundamental property,
-5 coherence
+run(f,a)
+  -> runCase(f,a,force(f) @c a)
+  ->* runCase(f,a,return(continue(a)))
+  -> run(f,a)
 ```
 
-の順にする。phase 0--2 が denotation や coherence を必要とする場合、参照先は certificate に
-格納された strict child なので rank が減る。conversion の fundamental caseは owner より低い
-`TypedConv` 内の `TypedJoin` の phase 2 と endpoint の phase 5 だけを使う。rankを保つ後向き参照は phase 5 の
-coherence が同じ rank の完成済み phase 4 を使う場合だけであり、provability の二値が双方 `1` と
-示す case もこれに含まれる。従って辞書式 measure はすべての呼出しで真に減少する。
-
-coherence の origin-pair case もここで閉じておく。二つの `OriginPlus` の tag の順序対に対して、
-次の決定的な簡約を行う。
-
-1. 片側が `OWeak` なら tail を捨て、support とその strict child の coherenceへ進む。
-2. 片側が `OConv` なら保持された `TypedConv` 内の join の phase 2で型値を common endpointへ移し、その strict
-   source childとの coherenceへ進む。
-3. `OTypeElem` と `OTypeSort` は、それぞれ保存した sorting / typing childへ進む。同じ raw `M` の
-   sorting と `M:s::t` の typing が向き合った場合が bridge clauseで、両 clauseは定義上同じ
-   `M` valueを返す。
-4. `OLiftIntro` は保存した base typingへ進む。`OLiftWeak` は lifted type の originを一段進め、
-   `OLiftIntro` に到達すればその base childへ、genuine subtype variable/application に到達すれば
-   その core valueへ進む。どちらも項値を変更しない。
-5. 両側が `OCore` なら raw outer headを比較する。sort、variable、product、lambda、application、
-   `Proof`、集合 constructor、`Take`、再帰 constructor の各 headは互いに異なる。同じ headでは
-   3.3節の core 表により同じ rule tagである。ただし `Take` の set/prop 二 ruleは term-sort
-   uniquenessで混在せず、provabilityの八 terminal ruleは phase 4により値がすべて `1` なので
-   直接一致する。残る値は strict premiseの coherenceと2節の演算の外延性で一致する。
-
-各1--4は少なくとも一方の origin trace の strict childへ進み、5は rule premiseへ進むので、
-origin の高さの和が真に減少する。正確な全 measure は
-
-```text
-(maximum certificate rank, phase,
- origin-height-left + origin-height-right)
-```
-
-の辞書式順序とし、第三成分は phase 5以外では `0` とする。同 rank の fundamental propertyを使う
-coherence callでは phaseが `5` から `4` へ減り、detourを剥がして coherenceを再帰するときは第三
-成分が減る。従って coherenceで未処理の tag pairや非減少 callはない。
-
-主要 rule case を確認する。
-
-- weakening は `ValidCtx` の `(valid-cons)` から得る tail と semantic weakening。
-- variable は context validity の対応成分。
-- type elem / type sort は `a in S_s iff a in D_s`。
-- product は universe closure。
-- lambda の result sort が `Prop` なら全 fiber が `1` なので proof product が `1`。
-  それ以外は graph introduction。
-- application の result sort が `Prop` なら function membership から全 fiber が `1`。
-  それ以外は graph elimination。primitive rule にない `B[a/x]::q` は3.3節で導いた sorting と
-  semantic substitution を使う。
-- conversion は注釈された二 path の reduction invariance と共通終点の coherence。
-- provability / proof mark は `(proof_mem)`。
-- power、subset、predicate、type lift は powerset、separation、subset membership。
-- equality formation / reflexivity は truth law。
-- equality elimination は equality premiseから `aVal=bVal` を得る。最後の premiseを beta と
-  semantic substitution で `P(aVal)=1` にし、等しい値を代入して `P(bVal)=1`、逆向き beta で
-  conclusionへ戻す。
-- exists introduction は項値を witness にする。
-- `RunStep` formation と二つの introduction は `U_0` の tagged-sum closure と injection の
-  membership law。
-- reflection formation / typing は `Comp` と `Set_0` がともに `U_0` であることと恒等解釈。
-- `acc intro` の最後の premise は、proof product と equality の意味を展開すると
-  `(acc-intro-law)` の仮定になる。`acc descent` は `(acc-descent-law)` そのものである。
-- `run` では termination premise が `aVal in Acc_fVal` を与えるので、well-founded recursion の
-  値が `BVal` に入る。`runCase` ではさらに invariant が `uVal=app(fVal,aVal)` を与える。
-  `uVal` の tag で場合分けし、continue の場合は accessibility の descent、finish の場合は
-  payload membership を使って、どちらも値が `BVal` に入る。
-
-take set では existence premise から `x0 in XVal` を得る。function typing から `fVal` は
-`XVal` から `TVal` への graph である。二重 proof product の定値性 premiseを展開すると、
-
-```text
-forall x,y in XVal, app(fVal,x)=app(fVal,y).
-```
-
-`y0=app(fVal,x0)` とすれば `y0 in TVal` で image は `{y0}`。`(take-law)` により
-`Take(XVal,TVal,fVal)=y0 in TVal`。
-
-take prop では function typing から proof product が `1`、従って各 `x in XVal` で
-`TVal=1`。existence で一つの `x` を得て `TVal=1`、よって `bullet in TVal`。
-
-take equal では第一 premise の canonical take origin から同じ `X,T,f` の take set premises を
-回収する。上の議論で `fVal` が `XVal` 上の定値 graph と分かり、第二 premiseから
-`tVal in XVal`。従って `(take-law)` により
-
-```text
-Take(XVal,TVal,fVal)=app(fVal,tVal),
-```
-
-なので equality value は `1`。異なる generation / formation derivation が与える値は低い rank
-の coherence で合わせる。
-
-phase 2 の非 root constructor は次で一括してよい。`SCong` の各 premise stepは strict childなので、
-帰納法により対応する argument valueが等しい。binder bodyは全 `x in AVal` で pointwise に等しく、
-従って replacementで作った family graphも外延性により等しい。2.5節末尾の外延性から `Pi`、
-`Lam`、`App`、集合 constructor、`Acc`、`Run`、`RunCase` の結果値が等しい。`SContext` は phase 1の
-context-transport invariance、`SLift` は base typingの値をそのまま使う。`PRefl/PCons` は path長の
-帰納法、`Join` は左右 pathの終点が同じ raw expressionであることと、その endpoint derivationの
-低い-rank coherenceを使う。従って phase 2で個別に残るのは以下の root caseだけである。
-
-reduction invariance の root beta は、data branchなら graph beta と semantic substitution、
-proof branchなら両辺が `bullet` であることを使う。どちらの branch かは3.3節の term-sort
-uniqueness で一意に決まり、`Comp` branch は data branch に含まれる。
-
-`Pred/Subset` reduction では generation から base `A` と `B` の denotation が等しく、
-argument value が `B` に属することを得る。従って source value は
-
-```text
-truth(tVal in BVal and PVal(tVal)=1)=PVal(tVal),
-```
-
-これは target application の graph beta value に等しい。
-
-reflection の root reduction では、`RfType` / `RfTerm` の恒等解釈と `(rf-law)` を使う。
-`Rf-App` の異なる annotation `A,C` は typed source の generation と `(rf-injective)` により同じ
-denotation を持ち、argument value は function graph の domain に入る。`Rf-Arrow` の非依存性により
-codomain family は定値であり、fresh binder の valuation は source の意味に影響しない。
-
-recursion の三つの root reduction は `(run-laws)` で意味を保存する。continue case では typed
-source の generation から `AVal=CVal`、`BVal=DVal` を得るので、内側の
-`continue_(C,D)(a')` の値は外側の tagged sum でも `(0,a'Val)` である。invariant から
-`app(fVal,aVal)=(0,a'Val)` が得られ、termination から
-`a'Val in Acc_fVal` を得る。従って target の `Run(fVal,a'Val)` は default branch ではなく
-well-founded recursion の値である。target に外側の `A,B` を採用したので、source と同じ `Run`
-演算になる。finish case でも `BVal=DVal` であり、invariant から current step が `(1,bVal)`
-であるため source value は target `bVal` に等しい。`run` の unfold rule は `Run` の定義式そのものである。
-
-coherence では、二導出の weakening、conversion、type elem / type sort、type lift intro / weak
-を canonical origin まで有限回剥がす。conversion は低い rank の path invariance、type lift
-intro / weak は共通の base typing が表す項値に帰着する。同じ outer constructor の二つの core
-rule は、strict premise の coherence と `Pi`、`Lam`、`Subset`、`Acc`、`Run` の外延性で一致する。
-同じ raw term が異なる表示型を持つ場合も、二つの canonical origin に同じ議論を行う。term-sort
-uniqueness により proof branch と data branch が混在せず、一般の type uniqueness は必要ない。
-provability の二導出は fundamental property により命題値がともに `1` なので一致する。これで
-上の5の cross-typing case を含む全 coherence case が閉じる。
-
-### 6.1 fundamental property の全39 case
-
-「主要 case」以外を暗黙に残さないため、各 primitive rule の conclusion value と、それを保証する
-2節の lawを一行ずつ示す。`A0,e0` などは対応する premise の値である。
-
-| # | rule | conclusion value と membership / truth の理由 |
-| ---: | --- | --- |
-| 1 | empty | `h_empty` に対し空 tuple は定義から `ValidCtx(h_empty,[])` |
-| 2 | axiom | `[[s1]]=S_s1 in D_s2` は sort axiom closure |
-| 3 | start | `A0 in D_s` と `v in A0` を加えた tuple が validity の定義を満たす |
-| 4 | weak sort | tail valuation を捨てる semantic weakening と support |
-| 5 | weak type | 同上。型値と項値の membership も不変 |
-| 6 | variable | valuation の末尾 `v` は validity の定義により `v in A0` |
-| 7 | conversion | source membership、左右 path の phase 2、common endpoint の phase 5から `A0=B0` |
-| 8 | dep form | `Pi_z(A0,B0)` の各 sort case は2.2節の universe / truth closure |
-| 9 | dep intro | `z=Prop` なら `bullet`、それ以外は `Lam_z(A0,m0)` の graph-introduction law |
-| 10 | dep elim | semantic substitution と `App_q` の elimination lawにより fiber membership |
-| 11 | type elem | `[[s]]=S_s` と `A0 in D_s`、および `D_s=S_s` の membership equivalence |
-| 12 | type sort | typing premiseの項値をそのまま使い `A0 in D_s` |
-| 13 | provable | typing membership `p0 in P0` と `(proof_mem)` から `P0=1` |
-| 14 | proof term | `P0=1` なので `bullet in P0` |
-| 15 | power set form | `A0 in U_i` なら `Power(A0) in U_i` |
-| 16 | power set intro (`Ty` form) | `B0 in Power(A0)` から `B0 subset A0` かつ `B0 in U_i`; `[[Ty(A,B)]]=B0` |
-| 17 | predicate | `truth(t0 in B0) in {0,1}` |
-| 18 | subset form | `Subset(A0,P0) subset A0`、従って `Subset(A0,P0) in Power(A0)` |
-| 19 | subset intro | `Pred(A,B,t)=1` から `t0 in B0=[[Ty(A,B)]]` |
-| 20 | subset weak | `t0 in B0` と `B0 subset A0` から `t0 in A0` |
-| 21 | subset prop | `t0 in B0` なので `truth(t0 in B0)=1` |
-| 22 | id form | `truth(a0=b0) in {0,1}` |
-| 23 | id intro | `truth(a0=a0)=1` |
-| 24 | id elim | equality premiseで `a0=b0`; semantic substitutionで `P0(a0)=1` を `P0(b0)=1` へ移す |
-| 25 | exists form | `truth(exists x in A0) in {0,1}` |
-| 26 | exists intro | witness `e0 in A0` により existence value は `1` |
-| 27 | take elim set | existence、graph typing、定値性から image は singleton; `(take-law)` で値は `T0` に属す |
-| 28 | take elim prop | existenceで `x in X0`; proof product typingから `T0=1`; 値 `bullet in T0` |
-| 29 | take equal | take-set origin と `t0 in X0` から `Take(X0,T0,f0)=app(f0,t0)`、従って equality は `1` |
-| 30 | run step form | tagged finite sum `RunStep(A0,B0) in U_0` |
-| 31 | continue intro | `a0 in A0` から `(0,a0) in RunStep(A0,B0)` |
-| 32 | finish intro | `b0 in B0` から `(1,b0) in RunStep(A0,B0)` |
-| 33 | acc form | `truth(a0 in Acc_f0) in {0,1}` |
-| 34 | acc intro | 最後の premiseを展開すると `acc-intro-law` の左辺、その lawで value は `1` |
-| 35 | acc descent | equality premiseは `b0 <_f0 a0`; `acc-descent-law` で value は `1` |
-| 36 | reflection type | `A0 in D_Comp=U_0=D_Set_0`、かつ `[[RfType(A)]]=A0` |
-| 37 | reflection term | `m0 in A0`、かつ `[[RfTerm_A(m)]]=m0` |
-| 38 | run | terminationから `a0 in Acc_f0`; well-founded recursion の result-membership lemmaで `Run(f0,a0) in B0` |
-| 39 | run case | invariantで `u0=app(f0,a0)`; tag場合分けと `run-laws` により `RunCase(f0,a0,u0) in B0` |
-
-各行が phase 4 で参照する premise は `DCore/DConv` の strict childなので rank が小さい。
-7番だけは `DConv` に格納した `TypedConv` と、その中の `TypedJoin` の phase 2、endpoint の phase 5を
-参照するが、いずれも `DConv` の recursive descendantなのでやはり rank が小さい。phase 5 の coherence では、同じ
-番号同士なら各 premise の coherenceへ、異なる origin tagなら `OWeak`、`OConv`、`OTypeElem`、
-`OTypeSort`、`OLiftIntro`、`OLiftWeak` の strict childへ進む。provability同士はこの表の phase 4で双方が `1` と
-分かる。従って列挙したどの行にも同 rank の phase 5への循環はない。
-
-以上で `system.md` の PTS / WF 12規則、provability 2規則、power / subset / type lift 7規則、
-equality 3規則、choice 5規則、一般再帰 10規則がすべて尽きる。
-
-### 6.2 phase 0--3 と phase 5 の全 case
-
-6.1節の39行は phase 4 の primitive rule caseを尽くす。この節では残る phaseが4節のどの
-constructorで尽きるかと、各 recursive callの減少先を固定する。
-
-phase 0 の WF / validity coherenceは次の二 caseだけである。同じ raw contextについて empty と
-startが向き合うことはない。
-
-| 左右の WF outer tag | validity の一致 | recursive call |
-| --- | --- | --- |
-| empty / empty | 両方とも空 tupleだけを valid とする | なし |
-| start / start | prefix validityを合わせ、declaration sortingの二 witnessを phase 3 / 5で同じ集合に合わせ、`(valid-cons)` を両方向に使う | 二つの prefix WF と declaration sorting。いずれも start ownerの strict child |
-
-phase 1 は `SubstitutionPlus` と `ContextConversionPlus` の constructor、および weakening / supportを
-処理する。構造的に対応する二導出だけを比較するので、任意の別導出に対する coherenceは使わない。
-
-| phase 1 constructor 群 | semantic invariance | recursive call / measure |
-| --- | --- | --- |
-| renaming の variable hit / miss | valuation componentのrenameと一致 | context positionが短くなる |
-| substitution の variable hit | `u` の typing witnessを代入先の変数値として使う | argument typing child |
-| substitution の newer / older variable | valuation lookupを一つずらす、または保つ | context suffixが短くなる |
-| substitution の binder | binderをfreshにし、`(rho,xVal)` 上で body substitutionを使う | source binder child |
-| `SubstRule_r` | `r` の各 premise valueにIHを使い、同じ2節の演算を適用する | source nodeの各 recursive child |
-| `CtxHere` | declaration型の `TypedConv` の phase 2で二型値を合わせ、同じ `v` の membershipを移す | 保存された typed conversion child |
-| `CtxThere` | prefix validityと最後の declaration denotationを順に輸送する | context suffixが短くなる |
-| rule / step / path / origin の context transport | 各 recursive fieldを同じ target contextへ写し、constructorを再適用する | source certificateの strict child |
-| weakening / support | valuationのunused tailを捨てる。raw expressionにない変数は意味演算の引数に現れない | weakening originまたはraw expressionの構造 |
-
-phase 2 の constructorは `TypedStep` 四種、`TypedPath` 二種、`TypedJoin`、`TypedConv` で尽きる。
-
-| phase 2 constructor | equality の理由 | recursive call |
-| --- | --- | --- |
-| `SRoot_k` | beta、`Pred`、`Rf-Arrow`、`Rf-App`、run unfold、continue、finishの七 case。各 lawは6節前半の phase 2 root 計算 | source / targetに保存された strict premiseの phase 3--5 |
-| `SCong_(K,j)` | position `j` の値をIHで合わせ、binder familyはpointwise equality、その他は2節の演算の外延性 | child `TypedStep`、必要な substitution / context transport |
-| `SStructural_l` | weak / conversion / type-elem / type-sortの低い stepへ移り、transport invarianceを使う | strict premise step と phase 1 child |
-| `SValue_l` | type-lift intro / weak はbase termの項値を変えない | base typing step |
-| `PRefl` | 同じ witness | endpoint derivation |
-| `PCons` | 先頭 stepの等式と残り pathの等式の推移性 | `TypedStep` と短い `TypedPath` |
-| `Join(C)` | 左右 endpointは同じ raw `C`; 二 endpoint derivationのphase 5で値を合わせる | 二 path と endpoint derivation |
-| `CJoin` | 保持した join の二始点の等式をそのまま返す | `TypedJoin` |
-
-`SRoot_k` の七 caseは6節前半で個別に計算済みであり、`SCong_(K,j)` は4節で全 raw constructorと
-全 immediate positionに一 tagを置いたので、phase 2に暗黙の congruence caseは残らない。
-
-phase 3 の denotation existenceは `DerivationPlus` の outer tagで次のように分割できる。
-
-| phase 3 outer tag / rule 群 | witness の構成 | recursive call |
-| --- | --- | --- |
-| axiom / variable / weakening | `S_s`、valuation component、またはpremise witness | WF / premise child |
-| product / lambda / subset binder | validな各 `xVal` にbodyのphase 3を使う。phase 5の一意性からfunctional relationとなりreplacementでfamily graphを得る | domain / body child。binder ownerより低い rank |
-| application | function / argument witnessとsemantic substitutionから `App_q` | function、argument、codomain substitution child |
-| proof mark / proposition take | `bullet` | regularity / provability child |
-| power、type lift、predicate、equality、exists、set take | child witnessに2.3--2.4節の全域演算を適用 | 対応する formation / typing premise |
-| `RunStep`、tag、reflection、`Acc` | tagged sum、injection、恒等値、`truth` | 対応する strict premise |
-| `run` / `runCase` | 2.5節で malformed / inaccessible inputにも `0` を返すよう全域化した `Run` / `RunCase` | `A,B,f,a,u` の strict premise |
-| type elem / type sort | 保存された sorting value / typing item value | detour の strict premise |
-| type-lift intro / weak | base typingのitem valueと、各 ruleが作る表示型 value | base typing、power、membership child |
-| `DConv` | target sorting witness `Aval` と source typing witness `eVal` を定義通り組にする | source typing と target sorting。membershipはまだ主張しない |
-| provability node | `reg(h)` の sorting witness | regularity child |
-
-ここでは演算値の存在だけを示し、universe membershipや truthはphase 4へ送る。従って phase 3が
-phase 4を先取りすることはない。binder familyの一意性に使うphase 5はbody certificateのrankが低い。
-
-最後に phase 5 の全 origin pairを監査する。tagを
-
-```text
-C=OCore, W=OWeak, V=OConv, E=OTypeElem,
-S=OTypeSort, I=OLiftIntro, L=OLiftWeak
-```
-
-と略記する。次の対称表の記号が、各順序対で最初に適用する簡約を表す。
-
-| left \ right | C | W | V | E | S | I | L |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| C | `core` | `weak` | `conv` | `elem` | `sort` | `intro` | `lift-weak` |
-| W | `weak` | `weak` | `weak` | `weak` | `weak` | `weak` | `weak` |
-| V | `conv` | `weak` | `conv` | `conv` | `conv` | `conv` | `conv` |
-| E | `elem` | `weak` | `conv` | `elem` | `bridge` | `elem` | `elem` |
-| S | `sort` | `weak` | `conv` | `bridge` | `sort` | `sort` | `sort` |
-| I | `intro` | `weak` | `conv` | `elem` | `sort` | `intro` | `lift-weak` |
-| L | `lift-weak` | `weak` | `conv` | `elem` | `sort` | `lift-weak` | `lift-weak` |
-
-`weak` はその側の tailを捨てて supportを使い、`conv` は保存した typed conversionのphase 2を使って
-source originへ、`elem` / `sort` は対応する strict premiseへ進む。`bridge` は sortingと
-`M:s::t` typingが定義上同じ `M` valueを返す caseである。`intro` はbase typingへ、`lift-weak` は
-入力 lifted typingを一段進める。表の優先順位は `weak > conv > elem/sort > lift > core` なので、
-全49順序対を重複なく覆う。同じ優先順位の tag が両側にある対角成分では左側を先に簡約すると
-定めるので、「最初に適用する簡約」も一意である。
-
-`core/core` では同じ raw outer headを比較する。同じ headの rule tagは3.3節の core 表で一意で、
-`Take` の set / propだけは term-sort uniquenessで分離される。sorting / typingでは対応する strict
-premiseのphase 5と2節の外延性へ進む。product、lambda、subsetのbinder caseでは、まずdomain
-premiseのphase 5で共通の `AVal` を得る。各 `xVal in AVal` について `(valid-cons)` とphase 0で二つの
-延長 contextを合わせ、body childのphase 5を適用するのでfamilyはpointwiseに一致し、replacementと
-外延性から同じ graphになる。同じ raw termで表示型だけが異なる cross-typingでも、項値を
-作る raw constructorとterm-sortは同じなので同じ議論が使える。provabilityの八 terminal tagは
-phase 4で双方の値が `1` と分かる。二 witnessの一意性は同じ originをこの表の対角成分で比較する
-special caseである。
-
-`core` は両 rule premiseへ、他の記号は少なくとも一方の origin strict childへ進むので、6節冒頭の
-`(rank,phase,origin-height-sum)` が真に減る。以上で phase 0--5 の全 constructorが列挙され、6.1節の
-39行がphase 4だけを監査していた不足はない。
-
-> [!important]
-> **Soundness。** judgement の正則導出に保存された WF certificate を `hGamma` とする。
-> `ValidCtx(hGamma,rho)` のもとで
->
-> ```text
-> Gamma |- A::s       => [[A]]rho in D_s,
-> Gamma |- e:A::s     => [[A]]rho in D_s and [[e]]rho in [[A]]rho,
-> Gamma |= P          => [[P]]rho=1.
-> ```
-
-元の導出を正則化して上の同時定理を適用する。同じ raw `Gamma` の別の正則化を選んだ場合、valuation
-の valid 性は `(valid-coherence)`、各意味値は phase 5 coherenceにより一致する。従って boxed statement
-では「`Gamma` の valid valuation」を、任意の（同値には、ある）WF elaboration `hGamma` に対して
-`ValidCtx(hGamma,rho)` となること、と導出選択に依存せず略記できる。
-
-### 6.3 一般再帰が偽命題を作らない理由
-
-`f@a ->* continue(a)` となる `f,a` に対し、operational rule だけを見れば自己ループ
-
-```text
-run(f,a) -> runCase(f,a,f@a) ->* runCase(f,a,continue(a)) -> run(f,a)
-```
-
-は可能である。しかし、この raw term に `run` typing を与えるには `Acc_F(a)` の証明が要る。
-集合モデルで自己ループは `a <_F a` を意味する。`Acc_F` を `Phi_F` の transfinite iteration で
-構成し、`a` が初めて現れる stage を `alpha+1` とする。`a <_F a` なら `Phi_F` の定義により
-同じ `a` が stage `alpha` 以前に既に属さなければならず、stage の最小性に反する。従って
-`a notin Acc_F` であり、その命題値は `0` である。soundness により、有限の
-`acc intro` / `acc descent` 導出がこの値を `1` にすることはできない。
-
-従って追加されたものは「任意の不動点」ではなく、「Set 側で accessibility が証明された
-deterministic transition の well-founded evaluator」である。ここで示したのは Prop の
-soundness であって、well-typed term の強正規化までは主張しない。
-
-## 7. `falseProp`
-
-空文脈で `Prop::PropKind`。`P:Prop::PropKind` を文脈に加えると variable rule と type sort から
-`P::Prop`。`(PropKind,Prop,Prop) in R` により
-
-```text
-falseProp=(P:Prop)->P :: Prop.
-```
-
-標準 formation derivation の空 valuation で
-
-```text
-[[falseProp]]
-  = Pi_Prop(S_Prop, P |-> P)
-  = truth(forall P in {0,1}, P=1)
-  = 0,
-```
-
-最後は `0 in {0,1}` かつ `0!=1` による。別の formation derivation も coherence により同じ
-値を持つ。
-
-空文脈で `falseProp` が provable と仮定すると、定義から `ValidCtx(h_empty,[])` なので soundness から
-`[[falseProp]]=1`。上の計算は `0` を与え、`0!=1` に反する。
-
-また `Gamma` を空として `t:falseProp::s` があると仮定する。regularity と sort uniqueness から
-`s=Prop`。soundness と formation coherence から
-
-```text
-[[t]] in [[falseProp]]=0,
-```
-
-となるが空集合に要素はない。従ってそのような項も存在しない。以上で、Soundness から
-目標とする主定理が従うことが示された。□
-
-従って、ZFC と1節の universe tower の存在が無矛盾であることに相対して、`system.md` の体系も、
-`falseProp` の provability および inhabitance を矛盾とする意味で無矛盾である。
-
-## 8. constructor 監査と結論
-
-集合モデル側では、各 primitive rule を2節の law に代入すると membership が保存される。
-とくに一般再帰については、`Acc_F` の段階 rank が continue edge ごとに真に減少するため、
-無条件の不動点演算を導入してはいない。構文側と意味側の有限帰納法について、使った対象、
-decreasing measure、terminal caseを最後に対応づける。
-
-### 8.1 raw reduction
-
-3.2節の `=>>` は全 constructor の congruence と八つの root schema（beta、`Pred` の primitive-only
-と primitive-plus-beta、`Rf-Arrow`、`Rf-App`、`run`、continue、finish）を持つ。二つの `Pred`
-schemaを分けたので、primitive step の inclusion と complete development の triangle の双方が
-成り立つ。帰納 measure は parallel derivation の高さと source term の構造であり、
-`parallel-subst` と `N=>>M*` の全 root caseは3.2節に列挙した。従って raw confluence は証明済みの
-補題であり、後段の仮定ではない。
-
-### 8.2 syntactic metatheory
-
-3.3節では `core/weak/conv/type-elem/type-sort/lift-intro/lift-weak` からなる有限 origin traceを定義し、
-raw headごとの terminal coreと regularity の全 rule群を表にした。trace edgeは常に strict premiseへ
-向くので導出高が減る。type-lift edgeを conversion edgeと同一視していないため、一般には偽である
-type uniquenessを使っていない。この traceから product、subset、take、reflection、tagged
-constructor、run / runCase の必要な inversionが得られる。
-
-3.4節では全 compatible positionを輸送表で、全 root ruleを個別に処理した。recursive callは source
-ruleの strict premiseだけに行い、生成した target derivationへは行わない。従って regularity、
-generation、sort / term-sort uniqueness、Compute rigidity、component generation、subject reduction
-は相互に循環せず閉じている。
-
-### 8.3 annotated soundness
-
-4節の名前付き構文に対する有限な証明対象は次の八種類で尽きる。
-
-```text
-DerivationPlus, TypedStep, TypedPath, TypedConv, TypedJoin,
-SubstitutionPlus, ContextConversionPlus, OriginPlus.
-```
-
-Lean の de Bruijn 構文では、これに変数 lookup の構造的輸送を記録する `LookupPlus` を加える。
-名前付き構文では古い変数の使用が primitive variable と `weak type` の列に既に展開されているため、
-この第九の object は4節の定理には不要である。
-
-4節では各 constructor schemaと recursive childを明記した。構成順は
-
-```text
-annotated renaming/substitution
-  -> context transport
-  -> annotated one-step subject reduction
-  -> finite path
-  -> typed join -> typed conversion
-  -> 元の有限導出から DerivationPlus への elaboration
-```
-
-であり、conversion ownerをその path endpointとして使わない。この有限木について全 recursive
-childより1大きい rankを、6節では `(rank,phase,origin-height-sum)` の辞書式順序を使った。同一 rank の phase は
-
-```text
-validity -> transport -> step/path invariance
-         -> denotation existence -> fundamental property -> coherence
-```
-
-の順である。6.1節の39行は phase 4 の各 fundamental caseについて参照先と集合論的 lawを示す。
-6.2節は phase 0--3 の全 constructorと phase 5 の全49 origin-pairを列挙し、coherence の
-origin-pair簡約では origin高さの和が真に減ることを示す。従って soundness の証明に循環はない。
-
-> [!important]
-> **相対無矛盾性定理。** ZFC と1節の Grothendieck universe tower を仮定する。このとき
-> `system.md` の有限導出について、空文脈では
->
-> ```text
-> not (empty |= falseProp),
-> not (exists t s, empty |- t:falseProp::s).
-> ```
->
-> **証明。** 4節で任意の有限導出を正則化し、6節の Soundness を適用する。7節の計算で
-> `[[falseProp]]=0` だから、provability なら `0=1`、typing なら `[[t]] in empty` となり、
-> いずれも矛盾する。□
-
-ここで完了したのは `system.md` に書かれた名前付き構文に対する数学的証明である。別構文の Lean
-datatypeへの転記と proof assistant による kernel check は、この定理の追加仮定ではなく、別の
-機械検証作業である。
+という raw loop は作れる。しかし、この term の `run` typing には
+\(a\in\operatorname{Acc}_F\) を表す termination proof が必要である。自己 loop は
+\(a<_Fa\) を意味するので、\(a\) が accessibility iteration に初めて現れる stage より前に
+同じ \(a\) が現れなければならず、rank の最小性に反する。従ってこの場合
+\(a\notin\operatorname{Acc}_F\) であり、条件付き Soundness により `(TC)` のもとでは空文脈で
+termination proof を構成できない。
+
+従って現在の `run` は任意の一般不動点ではなく、Set 側で accessibility が証明された
+deterministic CBPV step function の well-founded evaluator である。集合モデルと全 primitive rule
+の membership law は構成済みであり、残る core の条件は `(TC)` である。従って
+
+- conversion-free fragment と typed congruence 版は、ZFC と1節の universe tower に相対して
+  `falseProp` の provability と inhabitance の意味で無矛盾である。
+- `system.md` に現在書かれた raw \(\equiv_s\) をそのまま使う版は、3.4節の synchronized
+  critical-pair completion、またはそれと同等な `(TC)` の別証明を完了した時点で同じ結論を得る。
+- 帰納型全体については、これに加えて6.2節の未定義な生成規則を固定する必要がある。
