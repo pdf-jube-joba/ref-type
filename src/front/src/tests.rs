@@ -50,13 +50,13 @@ fn subset_intro_syntax_requires_an_explicit_proof() {
 fn general_recursion_surface_typechecks_and_normalizes() {
     let source = r#"
         \module GeneralRecursion(
-            A: \Type,
-            B: \Type,
-            f: A -> \RunStep(A, B),
+            A: \VType,
+            B: \VType,
+            f: \U(\CFun(A, \F(\RunStep(A, B)))),
             a: A,
             p: \Acc(A, B, f, \RfTerm(A, a))
         ) {
-            \definition result: B := \run(A, B, f, a, p);
+            \definition result: \F(B) := \run(A, B, f, a, p);
             \normalize \run(A, B, f, a, p);
         }
     "#;
@@ -70,9 +70,9 @@ fn general_recursion_surface_typechecks_and_normalizes() {
 fn accessibility_proof_constructor_syntax_is_reserved_and_parsed() {
     let source = r#"
         \module AccSyntax(
-            A: \Type,
-            B: \Type,
-            f: A -> \RunStep(A, B),
+            A: \VType,
+            B: \VType,
+            f: \U(\CFun(A, \F(\RunStep(A, B)))),
             a: \RfType(A),
             b: \RfType(A),
             p: \Prop,
@@ -91,22 +91,22 @@ fn accessibility_proof_constructor_syntax_is_reserved_and_parsed() {
 fn accessibility_intro_and_descent_follow_the_system_premises() {
     let source = r#"
         \module AccProofs(
-            A: \Type,
-            B: \Type,
-            f: A -> \RunStep(A, B),
+            A: \VType,
+            B: \VType,
+            f: \U(\CFun(A, \F(\RunStep(A, B)))),
             a: \RfType(A),
             b: \RfType(A),
             predecessors:
                 (next: \RfType(A)) ->
-                ((\RfTerm(A -> \RunStep(A, B), f)) a =
-                 (\RfTerm(A -> \RunStep(A, B),
-                     (x: A) => \continue(A, B, x))) next) ->
+                ((\RfTerm(\U(\CFun(A, \F(\RunStep(A, B)))), f)) a =
+                 (\RfTerm(\U(\CFun(A, \F(\RunStep(A, B)))),
+                     \thunk(\clam(x, A, \return(\continue(A, B, x)))))) next) ->
                 \Acc(A, B, f, next),
             p: \Acc(A, B, f, a),
             edge:
-                (\RfTerm(A -> \RunStep(A, B), f)) a =
-                (\RfTerm(A -> \RunStep(A, B),
-                    (x: A) => \continue(A, B, x))) b
+                (\RfTerm(\U(\CFun(A, \F(\RunStep(A, B)))), f)) a =
+                (\RfTerm(\U(\CFun(A, \F(\RunStep(A, B)))),
+                    \thunk(\clam(x, A, \return(\continue(A, B, x)))))) b
         ) {
             \definition introduced: \Acc(A, B, f, a) :=
                 \accintro(A, B, f, a, predecessors);

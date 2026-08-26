@@ -54,14 +54,7 @@ pub enum Token<'a> {
     Field,       // "#"
 }
 
-static SORT_KEYWORDS: &[&str] = &[
-    "\\Prop",
-    "\\PropKind",
-    "\\Set",
-    "\\SetKind",
-    "\\Type",
-    "\\TypeKind",
-];
+static SORT_KEYWORDS: &[&str] = &["\\Prop", "\\PropKind", "\\Set", "\\SetKind"];
 
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\elim", // inductive eliminator
@@ -71,6 +64,18 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Pred",
     "\\Ty",
     "\\subsetinto", // usuals
+    "\\VType",
+    "\\U",
+    "\\F",
+    "\\CFun",
+    "\\thunk",
+    "\\return",
+    "\\force",
+    "\\clam",
+    "\\capp",
+    "\\sequence",
+    "\\vlet",
+    "\\vcase",
     "\\RunStep",
     "\\continue",
     "\\finish",
@@ -78,6 +83,7 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\RfType",
     "\\RfTerm",
     "\\run",
+    "\\runCase",
     "\\exists", // \exists <Bind>
     "\\take",   // \take <Bind> => <body>
     "\\block",  // block expression
@@ -480,11 +486,19 @@ impl<'a> Parser<'a> {
         // <arity> = <indices> <Sort>
         // <indices> = <rightbinds>
         let (indices, expect_sort) = self.parse_arrow_nosubset()?;
-        let sort = match expect_sort {
-            SExp::Sort(s) => s,
+        let kind = match expect_sort {
+            SExp::Sort(s) => InductiveKind::Pts(s),
+            SExp::ValueType if indices.is_empty() => InductiveKind::Program,
+            SExp::ValueType => {
+                return Err(ParseError {
+                    msg: "Program datatype declarations cannot have indices".into(),
+                    start: 0,
+                    end: 0,
+                });
+            }
             _ => {
                 return Err(ParseError {
-                    msg: "expected sort in inductive declaration".into(),
+                    msg: "expected PTS sort or \\VType in inductive declaration".into(),
                     start: 0,
                     end: 0,
                 });
@@ -508,7 +522,7 @@ impl<'a> Parser<'a> {
             type_name,
             parameters,
             indices,
-            sort,
+            kind,
             constructors,
         })
     }

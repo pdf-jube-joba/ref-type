@@ -2,27 +2,52 @@
 
 use crate::{
     exp::{Arena, Exp},
-    ids::{DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, SymbolId},
+    ids::{
+        DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId, SymbolId,
+    },
     inductive::InductiveTypeSpecs,
+    program_inductive::ProgramInductiveTypeSpecs,
 };
 use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DefinedConstant {
+    pub kind: DefinitionKind,
     pub ty: Exp,
     pub body: Exp,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum DefinitionKind {
+    Pts,
+    ProgramValue,
+    ProgramComputation,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModuleParameter {
     pub name: SymbolId,
-    pub ty: Exp,
+    pub kind: ModuleParameterKind,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleParameterKind {
+    Pts { ty: Exp },
+    ProgramType,
+    ProgramValue { ty: Exp },
 }
 
 impl ModuleParameter {
     pub fn id(&self, module: ModuleId, position: u32) -> ModuleParamId {
         ModuleParamId { module, position }
+    }
+
+    pub fn ty(&self) -> Option<Exp> {
+        match self.kind {
+            ModuleParameterKind::Pts { ty } | ModuleParameterKind::ProgramValue { ty } => Some(ty),
+            ModuleParameterKind::ProgramType => None,
+        }
     }
 }
 
@@ -41,6 +66,12 @@ pub enum ModuleItem {
         name: String,
         inductive: InductiveId,
     },
+    ProgramInductive {
+        name: String,
+        constructor_names: Vec<String>,
+        inductive: ProgramInductiveId,
+        reflected: InductiveId,
+    },
 }
 
 impl ModuleItem {
@@ -48,7 +79,8 @@ impl ModuleItem {
         match self {
             Self::Definition { name, .. }
             | Self::Inductive { name, .. }
-            | Self::Record { name, .. } => name,
+            | Self::Record { name, .. }
+            | Self::ProgramInductive { name, .. } => name,
         }
     }
 }
@@ -78,6 +110,7 @@ pub struct ModuleEnv {
     parameters: Vec<ModuleParameter>,
     definitions: Vec<DefinedConstant>,
     inductives: Vec<Option<InductiveTypeSpecs>>,
+    program_inductives: Vec<Option<ProgramInductiveTypeSpecs>>,
     items: Vec<ModuleItem>,
     names: HashMap<String, usize>,
     instances: Vec<ModuleInstance>,
@@ -99,6 +132,7 @@ impl ModuleEnv {
             parameters,
             definitions: Vec::new(),
             inductives: Vec::new(),
+            program_inductives: Vec::new(),
             items: Vec::new(),
             names: HashMap::new(),
             instances: Vec::new(),
@@ -132,6 +166,10 @@ impl ModuleEnv {
 
     pub fn inductives(&self) -> &[Option<InductiveTypeSpecs>] {
         &self.inductives
+    }
+
+    pub fn program_inductives(&self) -> &[Option<ProgramInductiveTypeSpecs>] {
+        &self.program_inductives
     }
 
     pub fn items(&self) -> &[ModuleItem] {
@@ -308,6 +346,40 @@ impl CrateEnv {
         self.module(id.module).inductives[id.index as usize]
             .as_ref()
             .expect("reserved inductive ID was used before definition")
+    }
+
+    pub fn add_program_inductive(
+        &mut self,
+        module: ModuleId,
+        inductive: ProgramInductiveTypeSpecs,
+    ) -> ProgramInductiveId {
+        let id = self.reserve_program_inductive(module);
+        self.define_program_inductive(id, inductive);
+        id
+    }
+
+    pub fn reserve_program_inductive(&mut self, module: ModuleId) -> ProgramInductiveId {
+        let module_env = self.module_mut(module);
+        let index = u32::try_from(module_env.program_inductives.len())
+            .expect("module Program inductive table exceeded u32::MAX");
+        module_env.program_inductives.push(None);
+        ProgramInductiveId { module, index }
+    }
+
+    pub fn define_program_inductive(
+        &mut self,
+        id: ProgramInductiveId,
+        inductive: ProgramInductiveTypeSpecs,
+    ) {
+        let slot = &mut self.module_mut(id.module).program_inductives[id.index as usize];
+        assert!(slot.is_none(), "Program inductive ID was already defined");
+        *slot = Some(inductive);
+    }
+
+    pub fn program_inductive(&self, id: ProgramInductiveId) -> &ProgramInductiveTypeSpecs {
+        self.module(id.module).program_inductives[id.index as usize]
+            .as_ref()
+            .expect("reserved Program inductive ID was used before definition")
     }
 
     pub fn add_instance(

@@ -52,7 +52,7 @@ pub enum ModuleItem {
         type_name: Identifier,
         parameters: Vec<RightBind>,
         indices: Vec<RightBind>,
-        sort: Sort,
+        kind: InductiveKind,
         constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
     },
     Record {
@@ -90,6 +90,12 @@ pub enum ModuleItem {
     Infer {
         exp: SExp,
     },
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum InductiveKind {
+    Pts(Sort),
+    Program,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -185,6 +191,9 @@ pub enum SExp {
     // --- lambda calculus
     // sort: Prop, Set(i), Univ, Type
     Sort(Sort),
+    /// Surface-only marker accepted in module/type-parameter binders and as
+    /// the result kind of a Program datatype declaration.
+    ValueType,
     // variable defined by name
     // bind -> B
     Prod {
@@ -226,7 +235,53 @@ pub enum SExp {
         sort: Sort,
     },
 
-    // --- general recursion in the compute universe
+    // --- CBPV Program ------------------------------------------------------
+    ThunkType {
+        computation_ty: Box<SExp>,
+    },
+    ReturnType {
+        value_ty: Box<SExp>,
+    },
+    ComputationFunction {
+        domain: Box<SExp>,
+        codomain: Box<SExp>,
+    },
+    Thunk {
+        computation: Box<SExp>,
+    },
+    Return {
+        value: Box<SExp>,
+    },
+    Force {
+        value: Box<SExp>,
+    },
+    ComputationLam {
+        var: Identifier,
+        value_ty: Box<SExp>,
+        body: Box<SExp>,
+    },
+    ComputationApp {
+        computation: Box<SExp>,
+        value: Box<SExp>,
+    },
+    Sequence {
+        computation: Box<SExp>,
+        var: Identifier,
+        value_ty: Box<SExp>,
+        body: Box<SExp>,
+    },
+    ValueLet {
+        var: Identifier,
+        value: Box<SExp>,
+        body: Box<SExp>,
+    },
+    ProgramCase {
+        path: LocalAccess,
+        scrutinee: Box<SExp>,
+        branches: Vec<(Identifier, Vec<Identifier>, SExp)>,
+    },
+
+    // --- certified general recursion over Program values
     RunStep {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
@@ -260,6 +315,15 @@ pub enum SExp {
         step: Box<SExp>,
         initial: Box<SExp>,
         termination: Box<SExp>,
+    },
+    RunCase {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        initial: Box<SExp>,
+        transition: Box<SExp>,
+        termination: Box<SExp>,
+        invariant: Box<SExp>,
     },
     AccIntro {
         state_ty: Box<SExp>,
@@ -407,6 +471,14 @@ pub struct ModItemInductive {
 }
 
 #[derive(Debug, Clone)]
+pub struct ModItemProgramInductive {
+    pub type_name: Identifier,
+    pub ctor_names: Vec<Identifier>,
+    pub inductive: kernel::ids::ProgramInductiveId,
+    pub reflected: InductiveId,
+}
+
+#[derive(Debug, Clone)]
 pub struct ModItemRecord {
     pub type_name: Identifier,
     pub inductive: InductiveId,
@@ -470,4 +542,5 @@ pub enum ModuleItemAccessible {
     Inductive(ModItemInductive),
     // we use inductive type to represent record type
     Record(ModItemRecord),
+    ProgramInductive(ModItemProgramInductive),
 }

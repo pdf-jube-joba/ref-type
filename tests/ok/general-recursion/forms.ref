@@ -1,34 +1,19 @@
-/* Every public general-recursion form is available and typechecked. */
-\module GeneralRecursionForms(
-  A: \Type,
-  B: \Type,
-  f: A -> \RunStep(A, B),
+/* CBPV type, value, and computation forms are separate judgements. */
+\module ProgramForms(
+  A: \VType,
   a: A,
-  b: B,
-  reflectedA: \RfType(A),
-  reflectedB: \RfType(A),
-  predecessors:
-    (next: \RfType(A)) ->
-    ((\RfTerm(A -> \RunStep(A, B), f)) reflectedA =
-      (\RfTerm(A -> \RunStep(A, B),
-        (x: A) => \continue(A, B, x))) next) ->
-    \Acc(A, B, f, next),
-  accessible: \Acc(A, B, f, reflectedA),
-  edge:
-    (\RfTerm(A -> \RunStep(A, B), f)) reflectedA =
-    (\RfTerm(A -> \RunStep(A, B),
-      (x: A) => \continue(A, B, x))) reflectedB,
-  termination: \Acc(A, B, f, \RfTerm(A, a))
+  suspended: \U(\F(A))
 ) {
-  \definition stepType: \Type := \RunStep(A, B);
-  \definition continueAtA: \RunStep(A, B) := \continue(A, B, a);
-  \definition finishAtB: \RunStep(A, B) := \finish(A, B, b);
-  \definition reflectedType: \Set(0) := \RfType(A);
-  \definition reflectedTerm: \RfType(A) := \RfTerm(A, a);
-  \definition accessibility: \Prop := \Acc(A, B, f, reflectedA);
-  \definition introduced: \Acc(A, B, f, reflectedA) :=
-    \accintro(A, B, f, reflectedA, predecessors);
-  \definition descended: \Acc(A, B, f, reflectedB) :=
-    \accdescent(A, B, f, reflectedA, reflectedB, accessible, edge);
-  \definition result: B := \run(A, B, f, a, termination);
+  \definition identity: \CFun(A, \F(A)) :=
+    \clam(x, A, \return(x));
+  \definition thunked: \U(\CFun(A, \F(A))) := \thunk(identity);
+  \definition forced: \CFun(A, \F(A)) := \force(thunked);
+  \definition applied: \F(A) := \capp(identity, a);
+  \definition sequenced: \F(A) :=
+    \sequence(\return(a), x, A, \return(x));
+  \definition valueLet: \F(A) :=
+    \vlet(x, a, \return(x));
+  \definition forceParameter: \F(A) := \force(suspended);
+  \infer identity;
+  \check applied: \F(A);
 }

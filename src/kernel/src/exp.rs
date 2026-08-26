@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 
-use crate::ids::{DefId, InductiveId, ModuleParamId, SymbolId};
+use crate::ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId};
 use crate::sort::Sort;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +18,12 @@ impl NodeId {
 
 /// The expression handle used throughout the kernel.
 pub type Exp = NodeId;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProgramCaseBranch {
+    pub binders: Vec<SymbolId>,
+    pub body: Exp,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Node {
@@ -62,11 +68,31 @@ pub enum Node {
         return_type: Exp,
         cases: Vec<Exp>, // no bindings
     },
-    // General recursion over the compute universe. Type annotations are kept
-    // explicitly so reduction never has to invoke the type checker.
+    // --- CBPV program types -------------------------------------------------
+    // U B
+    ThunkType {
+        computation_ty: Exp,
+    },
+    // F A
+    ReturnType {
+        value_ty: Exp,
+    },
+    // A => B
+    ComputationFunction {
+        domain: Exp,
+        codomain: Exp,
+    },
     RunStep {
         state_ty: Exp,
         result_ty: Exp,
+    },
+    ProgramIndType {
+        indspec: ProgramInductiveId,
+        parameters: Vec<Exp>,
+    },
+    // --- CBPV values --------------------------------------------------------
+    Thunk {
+        computation: Exp,
     },
     Continue {
         state_ty: Exp,
@@ -78,6 +104,63 @@ pub enum Node {
         result_ty: Exp,
         output: Exp,
     },
+    ProgramIndCtor {
+        indspec: ProgramInductiveId,
+        parameters: Vec<Exp>,
+        idx: usize,
+        fields: Vec<Exp>,
+    },
+    // --- CBPV computations --------------------------------------------------
+    Return {
+        value: Exp,
+    },
+    Force {
+        value: Exp,
+    },
+    ComputationLam {
+        var: SymbolId,
+        value_ty: Exp,
+        body: Exp,
+    },
+    ComputationApp {
+        computation: Exp,
+        value: Exp,
+    },
+    Sequence {
+        computation: Exp,
+        var: SymbolId,
+        value_ty: Exp,
+        body: Exp,
+    },
+    ValueLet {
+        var: SymbolId,
+        value: Exp,
+        body: Exp,
+    },
+    ProgramCase {
+        indspec: ProgramInductiveId,
+        scrutinee: Exp,
+        branches: Vec<ProgramCaseBranch>,
+    },
+    // General recursion.  Certificates are implementation annotations and
+    // have no computational role.
+    Run {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        initial: Exp,
+        termination: Exp,
+    },
+    RunCase {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        initial: Exp,
+        transition: Exp,
+        termination: Exp,
+        invariant: Exp,
+    },
+    // --- Set/Prop and Program connection -----------------------------------
     Acc {
         state_ty: Exp,
         result_ty: Exp,
@@ -90,15 +173,6 @@ pub enum Node {
     RfTerm {
         compute_ty: Exp,
         term: Exp,
-    },
-    Run {
-        state_ty: Exp,
-        result_ty: Exp,
-        step: Exp,
-        initial: Exp,
-        // Implementation-only certificate corresponding to the Run rule's
-        // termination premise. It has no computational role.
-        termination: Exp,
     },
     AccIntro {
         state_ty: Exp,
@@ -269,4 +343,21 @@ impl Arena {
     }
 }
 
-pub type Context = Vec<(SymbolId, Exp)>;
+#[derive(Debug, Clone, Serialize)]
+pub enum ContextEntry {
+    Pts { var: SymbolId, ty: Exp },
+    ProgramType { var: SymbolId },
+    ProgramValue { var: SymbolId, ty: Exp },
+}
+
+impl ContextEntry {
+    pub fn var(&self) -> SymbolId {
+        match self {
+            Self::Pts { var, .. } | Self::ProgramType { var } | Self::ProgramValue { var, .. } => {
+                *var
+            }
+        }
+    }
+}
+
+pub type Context = Vec<ContextEntry>;

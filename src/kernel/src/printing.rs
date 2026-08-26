@@ -2,7 +2,7 @@
 
 use crate::{
     environment::{CrateEnv, DefinedConstant},
-    exp::{Context, Exp, Node},
+    exp::{Context, ContextEntry, Exp, Node},
     ids::{ModuleParamId, SymbolId},
     sort::Sort,
 };
@@ -27,8 +27,6 @@ pub fn format_sort(sort: &Sort) -> String {
         Sort::PropKind => "\\PropKind".to_string(),
         Sort::Set(level) => format!("\\Set({level})"),
         Sort::SetKind(level) => format!("\\SetKind({level})"),
-        Sort::Type => "\\Type".to_string(),
-        Sort::TypeKind => "\\TypeKind".to_string(),
     }
 }
 
@@ -103,10 +101,29 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
+        Node::ThunkType { computation_ty } => format!("\\U({})", child(computation_ty)),
+        Node::ReturnType { value_ty } => format!("\\F({})", child(value_ty)),
+        Node::ComputationFunction { domain, codomain } => {
+            format!("\\CFun({}, {})", child(domain), child(codomain))
+        }
         Node::RunStep {
             state_ty,
             result_ty,
         } => format!("\\RunStep({}, {})", child(state_ty), child(result_ty)),
+        Node::ProgramIndType {
+            indspec,
+            parameters,
+        } => format!(
+            "vind({}:{})[{}]",
+            indspec.module.0,
+            indspec.index,
+            parameters
+                .into_iter()
+                .map(child)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Node::Thunk { computation } => format!("\\thunk({})", child(computation)),
         Node::Continue {
             state_ty,
             result_ty,
@@ -126,6 +143,81 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(state_ty),
             child(result_ty),
             child(output)
+        ),
+        Node::ProgramIndCtor {
+            indspec,
+            parameters,
+            idx,
+            fields,
+        } => format!(
+            "vind({}:{}).{}[{}]({})",
+            indspec.module.0,
+            indspec.index,
+            idx,
+            parameters
+                .into_iter()
+                .map(child)
+                .collect::<Vec<_>>()
+                .join(", "),
+            fields.into_iter().map(child).collect::<Vec<_>>().join(", ")
+        ),
+        Node::Return { value } => format!("\\return({})", child(value)),
+        Node::Force { value } => format!("\\force({})", child(value)),
+        Node::ComputationLam {
+            var,
+            value_ty,
+            body,
+        } => format!(
+            "\\clam({}, {}, {})",
+            format_named_var(env, var),
+            child(value_ty),
+            child(body)
+        ),
+        Node::ComputationApp { computation, value } => {
+            format!("\\capp({}, {})", child(computation), child(value))
+        }
+        Node::Sequence {
+            computation,
+            var,
+            value_ty,
+            body,
+        } => format!(
+            "\\sequence({}, {}, {}, {})",
+            child(computation),
+            format_named_var(env, var),
+            child(value_ty),
+            child(body)
+        ),
+        Node::ValueLet { var, value, body } => format!(
+            "\\vlet({}, {}, {})",
+            format_named_var(env, var),
+            child(value),
+            child(body)
+        ),
+        Node::ProgramCase {
+            indspec,
+            scrutinee,
+            branches,
+        } => format!(
+            "\\vcase(vind({}:{}), {}) {{{}}}",
+            indspec.module.0,
+            indspec.index,
+            child(scrutinee),
+            branches
+                .into_iter()
+                .enumerate()
+                .map(|(idx, branch)| format!(
+                    "| {idx}({}) => {}",
+                    branch
+                        .binders
+                        .into_iter()
+                        .map(|binder| format_named_var(env, binder))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    child(branch.body)
+                ))
+                .collect::<Vec<_>>()
+                .join("; ")
         ),
         Node::Acc {
             state_ty,
@@ -156,6 +248,24 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(step),
             child(initial),
             child(termination)
+        ),
+        Node::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            termination,
+            invariant,
+        } => format!(
+            "\\runCase({}, {}, {}, {}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(initial),
+            child(transition),
+            child(termination),
+            child(invariant)
         ),
         Node::AccIntro {
             state_ty,
@@ -306,7 +416,15 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
 
 pub fn format_ctx(env: &CrateEnv, ctx: &Context) -> String {
     ctx.iter()
-        .map(|(var, ty)| format!("{}: {}", env.symbol(*var), format_exp(env, *ty)))
+        .map(|entry| match entry {
+            ContextEntry::Pts { var, ty } => {
+                format!("{}: {}", env.symbol(*var), format_exp(env, *ty))
+            }
+            ContextEntry::ProgramType { var } => format!("{}: vtype", env.symbol(*var)),
+            ContextEntry::ProgramValue { var, ty } => {
+                format!("{}: {}: value", env.symbol(*var), format_exp(env, *ty))
+            }
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }

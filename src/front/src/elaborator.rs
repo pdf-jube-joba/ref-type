@@ -7,10 +7,14 @@ use crate::{
 use kernel::{
     calculus::exp_contains_inductive,
     derivation::CheckSession,
-    environment::{CrateEnv, DefinedConstant, ModuleParameter},
+    environment::{
+        CrateEnv, DefinedConstant, DefinitionKind, ModuleParameter, ModuleParameterKind,
+    },
     exp::*,
     ids::*,
     inductive::{CtorBinder, InductiveTypeSpecs},
+    program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
+    sort::Sort,
 };
 
 pub mod module_manager;
@@ -31,6 +35,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
     fn arena(&self) -> &Arena {
         self.crate_env.arena()
+    }
+
+    fn current_module(&self) -> ModuleId {
+        self.module_manager.current()
     }
 
     fn intern(&mut self, name: &str) -> SymbolId {
@@ -122,6 +130,71 @@ impl GlobalEnvironment {
     }
 }
 
+fn reflect_program_type_for_mirror(
+    env: &CrateEnv,
+    ty: Exp,
+    self_inductive: ProgramInductiveId,
+    self_reflected: InductiveId,
+    parameter_count: usize,
+) -> Result<Exp, String> {
+    let arena = env.arena();
+    let reflect = |child| {
+        reflect_program_type_for_mirror(env, child, self_inductive, self_reflected, parameter_count)
+    };
+    Ok(match arena.get(ty) {
+        Node::Bound(_) => ty,
+        Node::ThunkType { computation_ty } => reflect(computation_ty)?,
+        Node::ReturnType { value_ty } => reflect(value_ty)?,
+        Node::ComputationFunction { domain, codomain } => {
+            let domain = reflect(domain)?;
+            let codomain = kernel::calculus::shift_bound_indices(arena, reflect(codomain)?, 1, 0);
+            arena.alloc(Node::Prod {
+                var: SymbolId::ANONYMOUS,
+                ty: domain,
+                body: codomain,
+            })
+        }
+        Node::ProgramIndType {
+            indspec,
+            parameters,
+        } => {
+            let reflected = if indspec == self_inductive {
+                self_reflected
+            } else {
+                env.program_inductive(indspec).reflected()
+            };
+            let parameters = if indspec == self_inductive && parameters.is_empty() {
+                (0..parameter_count)
+                    .rev()
+                    .map(|index| arena.bound(index))
+                    .collect()
+            } else {
+                parameters
+                    .into_iter()
+                    .map(reflect)
+                    .collect::<Result<Vec<_>, _>>()?
+            };
+            arena.alloc(Node::IndType {
+                indspec: reflected,
+                parameters,
+            })
+        }
+        Node::ModuleParam(_) => arena.alloc(Node::RfType { compute_ty: ty }),
+        Node::RunStep { .. } => {
+            if kernel::calculus::exp_contains_bound(arena, ty, 0) {
+                return Err(
+                    "RunStep fields depending on Program datatype parameters cannot yet be mirrored"
+                        .into(),
+                );
+            }
+            arena.alloc(Node::RfType { compute_ty: ty })
+        }
+        _ => {
+            return Err("unsupported Program type in reflected datatype field".into());
+        }
+    })
+}
+
 impl GlobalEnvironment {
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), String> {
         log_msg!(
@@ -135,6 +208,163 @@ impl GlobalEnvironment {
         self.module_add_rec(module)?;
         Ok(())
     }
+
+    fn add_program_inductive_decl(
+        &mut self,
+        ctx: &mut Context,
+        type_name: &Identifier,
+        parameters: &[RightBind],
+        constructors: &[(Identifier, Vec<RightBind>, SExp)],
+    ) -> Result<(), String> {
+        let module = self.module_manager.current();
+        let inductive = self.crate_env.reserve_program_inductive(module);
+        let reflected = self.crate_env.reserve_inductive(module);
+        let type_name_var = self.crate_env.intern(type_name.as_str());
+        let type_name_exp = self.crate_env.arena().alloc(Node::ProgramIndType {
+            indspec: inductive,
+            parameters: Vec::new(),
+        });
+        let mut scope = LocalScope::default();
+        scope.push_decl_var_exp(type_name_var, type_name_exp);
+
+        let mut parameter_names = Vec::new();
+        for RightBind { vars, ty } in parameters {
+            if !matches!(ty.as_ref(), SExp::ValueType) {
+                return Err("Program datatype parameters must have type \\VType".into());
+            }
+            for var in vars {
+                let symbol = self.crate_env.intern(var.as_str());
+                parameter_names.push(symbol);
+                scope.push_program_type_decl_var(symbol);
+            }
+        }
+
+        let mut constructor_names = Vec::with_capacity(constructors.len());
+        let mut constructor_specs = Vec::with_capacity(constructors.len());
+        for (constructor_name, fields, result) in constructors {
+            constructor_names.push(constructor_name.clone());
+            let mut elaborated_fields = Vec::new();
+            for RightBind { vars, ty } in fields {
+                if matches!(ty.as_ref(), SExp::ValueType) {
+                    return Err("Program constructor fields must be value types".into());
+                }
+                let field_ty = scope.elab_exp(ty, self)?;
+                if vars.is_empty() {
+                    let field_ty = kernel::calculus::shift_bound_indices(
+                        self.crate_env.arena(),
+                        field_ty,
+                        elaborated_fields.len(),
+                        0,
+                    );
+                    elaborated_fields.push((SymbolId::ANONYMOUS, field_ty));
+                } else {
+                    for var in vars {
+                        let field_ty = kernel::calculus::shift_bound_indices(
+                            self.crate_env.arena(),
+                            field_ty,
+                            elaborated_fields.len(),
+                            0,
+                        );
+                        elaborated_fields.push((self.crate_env.intern(var.as_str()), field_ty));
+                    }
+                }
+            }
+            let result = scope.elab_exp(result, self)?;
+            if !matches!(
+                self.crate_env.arena().get(result),
+                Node::ProgramIndType { indspec, parameters } if indspec == inductive && parameters.is_empty()
+            ) {
+                return Err(format!(
+                    "Program constructor {} must return {}",
+                    constructor_name.as_str(),
+                    type_name.as_str()
+                ));
+            }
+            constructor_specs.push(ProgramConstructorSpec::new(elaborated_fields));
+        }
+
+        let reflected_parameters = parameter_names
+            .iter()
+            .map(|name| (*name, self.crate_env.arena().sort(Sort::Set(0))))
+            .collect::<Vec<_>>();
+        let reflected_constructors = constructor_specs
+            .iter()
+            .map(|constructor| {
+                let telescope = constructor
+                    .fields()
+                    .iter()
+                    .map(|(name, ty)| {
+                        reflect_program_type_for_mirror(
+                            &self.crate_env,
+                            *ty,
+                            inductive,
+                            reflected,
+                            parameter_names.len(),
+                        )
+                        .and_then(|ty| {
+                            if !exp_contains_inductive(self.crate_env.arena(), ty, reflected) {
+                                return Ok(CtorBinder::Simple((*name, ty)));
+                            }
+                            let (binders, tail) =
+                                kernel::utils::decompose_prod(self.crate_env.arena(), ty);
+                            let (head, self_indices) =
+                                kernel::utils::decompose_app(self.crate_env.arena(), tail);
+                            if !matches!(
+                                self.crate_env.arena().get(head),
+                                Node::IndType { indspec, .. } if indspec == reflected
+                            ) {
+                                return Err(
+                                    "reflected recursive field is not strictly positive".into()
+                                );
+                            }
+                            Ok(CtorBinder::StrictPositive {
+                                binders,
+                                self_indices,
+                            })
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(kernel::inductive::CtorType {
+                    telescope,
+                    indices: Vec::new(),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let program_spec =
+            ProgramInductiveTypeSpecs::unchecked(parameter_names, constructor_specs, reflected);
+        let reflected_spec = InductiveTypeSpecs::unchecked(
+            reflected_parameters,
+            Vec::new(),
+            Sort::Set(0),
+            reflected_constructors,
+        );
+        self.crate_env
+            .define_program_inductive(inductive, program_spec);
+        self.crate_env.define_inductive(reflected, reflected_spec);
+        self.crate_env
+            .program_inductive(inductive)
+            .validate(
+                &mut CheckSession::new(&self.crate_env, module, ctx),
+                inductive,
+            )
+            .map_err(|error| format!("Ill-formed Program datatype: {error:?}"))?;
+        self.crate_env
+            .inductive(reflected)
+            .validate(
+                &mut CheckSession::new(&self.crate_env, module, ctx),
+                reflected,
+            )
+            .map_err(|error| format!("Ill-formed reflected datatype: {error:?}"))?;
+        self.module_manager.publish_reserved_program_inductive(
+            &mut self.crate_env,
+            type_name.clone(),
+            constructor_names,
+            inductive,
+            reflected,
+        )
+    }
+
     fn module_add_rec(&mut self, module: &Module) -> Result<(), String> {
         log_msg!(
             self.logger,
@@ -169,16 +399,27 @@ impl GlobalEnvironment {
             let mut local_scope = term_elaborator::LocalScope::default();
 
             for RightBind { vars, ty } in parameters.iter() {
-                let ty_elab = local_scope.elab_exp(ty, self)?;
-                // check sort of parameter type
-                self.logger
-                    .infer_sort(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut ctx,
-                        ty_elab,
-                    )
-                    .ok_or("Failed to infer sort of parameter type".to_string())?;
+                let program_type_parameter = matches!(ty.as_ref(), SExp::ValueType);
+                let ty_elab = if program_type_parameter {
+                    None
+                } else {
+                    Some(local_scope.elab_exp(ty, self)?)
+                };
+                let parameter_kind = if program_type_parameter {
+                    ModuleParameterKind::ProgramType
+                } else {
+                    let ty_elab = ty_elab.expect("non-marker type was elaborated");
+                    let mut session =
+                        CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx);
+                    if session.infer_sort(ty_elab).is_ok() {
+                        ModuleParameterKind::Pts { ty: ty_elab }
+                    } else {
+                        session.check_value_type(ty_elab).map_err(|_| {
+                            "Module parameter type is neither PTS nor vtype".to_string()
+                        })?;
+                        ModuleParameterKind::ProgramValue { ty: ty_elab }
+                    }
+                };
 
                 for v in vars {
                     let symbol = self.crate_env.intern(v.as_str());
@@ -191,12 +432,24 @@ impl GlobalEnvironment {
                         reserved_module,
                         ModuleParameter {
                             name: symbol,
-                            ty: ty_elab,
+                            kind: parameter_kind,
                         },
                     );
                     parameter_position += 1;
-                    ctx.push((symbol, ty_elab));
-                    local_scope.push_typed_decl_var_exp(symbol, ty_elab, parameter_exp);
+                    match parameter_kind {
+                        ModuleParameterKind::Pts { ty } => {
+                            ctx.push(ContextEntry::Pts { var: symbol, ty });
+                            local_scope.push_typed_decl_var_exp(symbol, ty, parameter_exp);
+                        }
+                        ModuleParameterKind::ProgramType => {
+                            ctx.push(ContextEntry::ProgramType { var: symbol });
+                            local_scope.push_program_type_decl_var_exp(symbol, parameter_exp);
+                        }
+                        ModuleParameterKind::ProgramValue { ty } => {
+                            ctx.push(ContextEntry::ProgramValue { var: symbol, ty });
+                            local_scope.push_program_value_decl_var_exp(symbol, ty, parameter_exp);
+                        }
+                    }
                 }
             }
         }
@@ -216,20 +469,35 @@ impl GlobalEnvironment {
                     );
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
-                    // check body : ty
-                    if !self.logger.check(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut ctx,
-                        body_elab,
-                        ty_elab,
-                    ) {
+                    let mut session =
+                        CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx);
+                    let kind = if matches!(self.crate_env.arena().get(ty_elab), Node::Sort(_))
+                        || session.infer_sort(ty_elab).is_ok()
+                    {
+                        session
+                            .check_pts(body_elab, ty_elab)
+                            .map(|()| DefinitionKind::Pts)
+                    } else if session.check_value_type(ty_elab).is_ok() {
+                        session
+                            .check_value(body_elab, ty_elab)
+                            .map(|()| DefinitionKind::ProgramValue)
+                    } else if session.check_computation_type(ty_elab).is_ok() {
+                        session
+                            .check_computation(body_elab, ty_elab)
+                            .map(|()| DefinitionKind::ProgramComputation)
+                    } else {
+                        Err(Box::new(kernel::derivation::JudgementError::caused(
+                            "declared definition type has no judgement",
+                        )))
+                    };
+                    let Ok(kind) = kind else {
                         return Err(format!(
                             "Definition {} body does not check against declared type",
                             name.as_str()
                         ));
-                    }
+                    };
                     let defined_constant = DefinedConstant {
+                        kind,
                         ty: ty_elab,
                         body: body_elab,
                     };
@@ -243,9 +511,21 @@ impl GlobalEnvironment {
                     type_name,
                     parameters,
                     indices,
-                    sort,
+                    kind,
                     constructors,
                 } => {
+                    if matches!(kind, InductiveKind::Program) {
+                        self.add_program_inductive_decl(
+                            &mut ctx,
+                            type_name,
+                            parameters,
+                            constructors,
+                        )?;
+                        continue;
+                    }
+                    let InductiveKind::Pts(sort) = kind else {
+                        unreachable!();
+                    };
                     let type_name_var = self.crate_env.intern(type_name.as_str());
                     let inductive = self
                         .crate_env
@@ -522,11 +802,21 @@ impl GlobalEnvironment {
                 ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
                 ModuleItem::Eval { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.reduce_one(&self.crate_env, exp_elab);
+                    self.logger.reduce_one(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        exp_elab,
+                    );
                 }
                 ModuleItem::Normalize { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.normalize(&self.crate_env, exp_elab);
+                    self.logger.normalize(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        exp_elab,
+                    );
                 }
                 ModuleItem::Check { exp, ty } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
@@ -541,7 +831,7 @@ impl GlobalEnvironment {
                 }
                 ModuleItem::Infer { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
-                    self.logger.infer(
+                    self.logger.infer_any(
                         &self.crate_env,
                         self.module_manager.current(),
                         &mut ctx,
