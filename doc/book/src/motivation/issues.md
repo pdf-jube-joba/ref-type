@@ -292,3 +292,10 @@ type level の話を書いていて、（当然だけど）
 classical indefinite choice として \(((x: A) \to \lvert B \rvert) \to \lvert (x: A) \to B \rvert\) があってもいいと思った。
 
 ライブラリとして関数外延性や集合外延性と同様に axioms みたいなものを作ってそこに入れてもよさそう。
+
+uniqueness の方があると extensionality が示せそう？
+\(x, y: X\) なら \(x = y\) が示せるのが uniqueness だが、性質としては subsingleton というらしい。
+subsingleton (\(\text{SS}(X)\)): \((x: X) \to (y: X) \to *\) := \((x: X) \Rightarrow (y: X) \Rightarrow x = y\) とする。
+\((x: A) \to B(x)\) に対して \((x: A) \to \text{SS}(B(x))\) から \(\text{SS}((x: A) \to B(x))\) をえる操作があるとどうなる？
+
+これはほぼ funext だったらしい。
