@@ -73,6 +73,11 @@
 ## exp
 - `'exp` = either
   - 普通じゃないやつ
+    - metavariable:
+      - `_` は制約単一化だけで補完する implicit hole。解が確定しなければ ambiguity error になる。
+      - `?` は出現ごとに fresh な goal、`?2` のような `?` + 数字は一つの宣言内で共有される goal。
+      - goal が単一化で解けなければ、ローカル context、期待 judgement、関連する制約の履歴と残余を返す。証明項の探索自体は行わない。
+      - binder 名の `_` は匿名 binder であり、式位置の implicit hole とは区別する。
     - math macro: `"$(" ('exp | 'macro-acceptable)+ "$" 'context ")"`
       - `'context` の仕様は決まってない
     - user macro: `'macro "{" ('exp | 'macro-acceptable)+ "}"`

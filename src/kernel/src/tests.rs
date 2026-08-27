@@ -7,12 +7,26 @@ use crate::{
     derivation::CheckSession,
     environment::{CrateEnv, DefinitionKind, ModuleParameter, ModuleParameterKind},
     exp::{Context, ContextEntry, Exp, Node, ProgramCaseBranch},
-    ids::{ModuleId, ModuleParamId, SymbolId},
+    ids::{MetaVarId, ModuleId, ModuleParamId, SymbolId},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
     printing::format_exp,
     program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
     sort::Sort,
 };
+
+#[test]
+fn strict_kernel_rejects_elaboration_metavariables() {
+    let mut fixture = Fixture::new();
+    let meta = fixture.env.arena().alloc(Node::Meta {
+        metavariable: MetaVarId(0),
+        spine: Vec::new(),
+    });
+    assert!(
+        CheckSession::new(&fixture.env, ModuleId(0), &mut fixture.context)
+            .infer_pts(meta)
+            .is_err()
+    );
+}
 
 struct Fixture {
     env: CrateEnv,

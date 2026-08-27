@@ -10,6 +10,9 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
     match arena.get(exp) {
         Node::Sort(_) | Node::Bound(_) => false,
         Node::ModuleParam(candidate) => candidate == parameter,
+        Node::Meta { spine, .. } => spine
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
             exp_contains_module_param(env, ty, parameter)
                 || exp_contains_module_param(env, body, parameter)
@@ -302,6 +305,16 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
         (Node::Sort(left), Node::Sort(right)) => left == right,
         (Node::Bound(left), Node::Bound(right)) => left == right,
         (Node::ModuleParam(left), Node::ModuleParam(right)) => left == right,
+        (
+            Node::Meta {
+                metavariable: left_meta,
+                spine: left_spine,
+            },
+            Node::Meta {
+                metavariable: right_meta,
+                spine: right_spine,
+            },
+        ) => left_meta == right_meta && eq_slices(env, &left_spine, &right_spine, mode),
         (
             Node::Prod {
                 var: left_var,
@@ -1098,9 +1111,14 @@ where
     }
 }
 
-fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
+pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
     match &mut node {
         Node::Sort(_) | Node::Bound(_) | Node::ModuleParam(_) => {}
+        Node::Meta { spine, .. } => {
+            for argument in spine {
+                *argument = map(*argument);
+            }
+        }
         Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
             *ty = map(*ty);
             *body = map(*body);
@@ -2380,13 +2398,13 @@ pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
     }
 }
 
-pub(crate) fn common_ambient_carrier(env: &CrateEnv, left_ty: Exp, right_ty: Exp) -> Option<Exp> {
+pub fn common_ambient_carrier(env: &CrateEnv, left_ty: Exp, right_ty: Exp) -> Option<Exp> {
     let left_carrier = base_carrier(env, left_ty);
     let right_carrier = base_carrier(env, right_ty);
     erased_convertible(env, left_carrier, right_carrier).then_some(left_carrier)
 }
 
-pub(crate) fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
+pub fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
     if erased_convertible(env, inferred, expected) {
         return true;
     }

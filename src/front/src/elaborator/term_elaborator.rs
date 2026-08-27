@@ -18,6 +18,7 @@ pub trait Handler {
     fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
+    fn fresh_meta(&mut self, kind: SurfaceMeta, span: SourceSpan, local_context: &Context) -> Exp;
 }
 
 // local scope during elaboration
@@ -92,6 +93,7 @@ impl LocalScope {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
+            handler.infer(&mut self.typing_binds, ty_elab)?;
             for var in vars {
                 let var = handler.intern(var.as_str());
                 result.push((var, ty_elab));
@@ -99,6 +101,14 @@ impl LocalScope {
             }
         }
         Ok(result)
+    }
+
+    pub fn infer_elaborated(
+        &mut self,
+        exp: Exp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, String> {
+        handler.infer(&mut self.typing_binds, exp)
     }
 
     fn get_var(&self, arena: &Arena, name: &Identifier, handler: &impl Handler) -> Option<Exp> {
@@ -210,6 +220,7 @@ impl LocalScope {
 
     fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         match exp {
+            SExp::Meta { kind, span } => Ok(handler.fresh_meta(*kind, *span, &self.typing_binds)),
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
 

@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 
-use crate::ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId};
+use crate::ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId};
 use crate::sort::Sort;
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ pub struct ProgramCaseBranch {
     pub body: Exp,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Node {
     Sort(Sort),
     /// A locally bound variable, counted outwards from the occurrence.
@@ -33,6 +33,13 @@ pub enum Node {
     Bound(usize),
     /// A parameter of a module. Locally bound variables use [`Node::Bound`].
     ModuleParam(ModuleParamId),
+    /// An elaboration-time contextual metavariable applied to the variables
+    /// in its declaration context.  A strict kernel check always rejects this
+    /// node; the front-end must replace it before publishing a declaration.
+    Meta {
+        metavariable: MetaVarId,
+        spine: Vec<Exp>,
+    },
     // A reference to a defined constant. The definition is stored in the environment.
     DefinedConstant(DefId),
     // (var: ty) -> body where var is bound in body but not in ty

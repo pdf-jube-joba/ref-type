@@ -13,8 +13,10 @@ pub enum Token<'a> {
     Number(&'a str),
     #[regex(r"\?[a-zA-Z0-9_]*")]
     UnspecifiedVar(&'a str),
-    // any non-space sequence that does not include backslash, alnum or '?()$'
-    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]]+")]
+    #[token("_", priority = 3)]
+    Hole,
+    // any non-space sequence that does not include reserved delimiters or `_`/`?`
+    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]_]+")]
     MacroToken(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -190,6 +192,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
             Ok(Token::Ident(_))
             | Ok(Token::Number(_))
             | Ok(Token::UnspecifiedVar(_))
+            | Ok(Token::Hole)
             | Ok(
                 Token::LParen
                 | Token::RParen

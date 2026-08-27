@@ -325,6 +325,11 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => None,
             })
             .ok_or_else(|| failure(rule, phase, "module parameter is not a PTS term")),
+        Node::Meta { .. } => Err(failure(
+            rule,
+            phase,
+            "unresolved metavariable reached the strict kernel checker",
+        )),
         Node::Prod { var, ty, body } => {
             let domain_sort = add_sort!(session, rule, phase, ty, "infer domain sort for product")?;
             session.push(var, ty);
@@ -1303,6 +1308,7 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         Node::Sort(_) => "Sort",
         Node::Bound(_) => "Bound",
         Node::ModuleParam(_) => "ModuleParam",
+        Node::Meta { .. } => "Meta",
         Node::Prod { .. } => "Prod",
         Node::Lam { .. } => "Lam",
         Node::App { .. } => "App",

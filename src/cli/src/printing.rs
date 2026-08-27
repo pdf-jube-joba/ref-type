@@ -17,6 +17,20 @@ pub fn log_record_to_log(
             Some(format!("ctx = [{}]", for_kernel::format_ctx(env, ctx))),
         )),
         LogPayload::Message => Log::Message(format_record(record, None)),
+        LogPayload::Goals(goals) => {
+            let error = if goals
+                .iter()
+                .any(|goal| matches!(goal.flavor, front::metavariables::MetaFlavor::Implicit))
+            {
+                front::metavariables::ElaborationError::AmbiguousImplicit(goals.clone())
+            } else {
+                front::metavariables::ElaborationError::UnsolvedGoals(goals.clone())
+            };
+            Log::Message(format_record(
+                record,
+                Some(front::metavariables::format_elaboration_error(env, &error)),
+            ))
+        }
     }
 }
 

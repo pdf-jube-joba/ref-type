@@ -96,6 +96,16 @@ impl<'a> TermParser<'a> {
         }
     }
 
+    fn expect_binder_ident(&mut self) -> Result<Identifier, ParseError> {
+        match self.peek() {
+            Some(Token::Hole) => {
+                self.next();
+                Ok(Identifier("_".into()))
+            }
+            _ => self.expect_ident(),
+        }
+    }
+
     fn expect_number(&mut self) -> Result<usize, ParseError> {
         match self.next() {
             Some(t) => match &t.kind {
@@ -895,6 +905,46 @@ impl<'a> TermParser<'a> {
     // 3. something start with keyword (sort, etc.)
     fn parse_atom(&mut self) -> Result<SExp, ParseError> {
         match self.peek() {
+            Some(Token::Hole) => {
+                let token = self.next().expect("peeked token exists");
+                Ok(SExp::Meta {
+                    kind: SurfaceMeta::Implicit,
+                    span: SourceSpan {
+                        start: token.start,
+                        end: token.end,
+                    },
+                })
+            }
+            Some(Token::UnspecifiedVar(_)) => {
+                let token = self.next().expect("peeked token exists");
+                let Token::UnspecifiedVar(spelling) = token.kind else {
+                    unreachable!()
+                };
+                let suffix = &spelling[1..];
+                let kind = if suffix.is_empty() {
+                    SurfaceMeta::Goal
+                } else if suffix.bytes().all(|byte| byte.is_ascii_digit()) {
+                    let number = suffix.parse::<u32>().map_err(|_| ParseError {
+                        msg: format!("metavariable number is too large: {spelling}"),
+                        start: token.start,
+                        end: token.end,
+                    })?;
+                    SurfaceMeta::Named(number)
+                } else {
+                    return Err(ParseError {
+                        msg: "expected `?` or `?` followed by digits".into(),
+                        start: token.start,
+                        end: token.end,
+                    });
+                };
+                Ok(SExp::Meta {
+                    kind,
+                    span: SourceSpan {
+                        start: token.start,
+                        end: token.end,
+                    },
+                })
+            }
             Some(Token::Ident(_)) => {
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
@@ -1049,10 +1099,10 @@ impl<'a> TermParser<'a> {
     fn parse_annotate(&mut self) -> Result<(Vec<Identifier>, SExp), ParseError> {
         // 1. parse identifiers separated by commas
         let mut vars = vec![];
-        vars.push(self.expect_ident()?);
+        vars.push(self.expect_binder_ident()?);
 
         while self.bump_if_token(&Token::Comma) {
-            vars.push(self.expect_ident()?);
+            vars.push(self.expect_binder_ident()?);
         }
 
         self.expect_token(Token::Colon)?; // expect ":"

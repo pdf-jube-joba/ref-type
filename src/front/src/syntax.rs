@@ -6,6 +6,23 @@ use kernel::sort::Sort;
 use kernel::utils;
 use serde::Serialize;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SourceSpan {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum SurfaceMeta {
+    /// `_`: solve by constraints, but report ambiguity rather than a goal.
+    Implicit,
+    /// Bare `?`: a fresh proof-search goal at every occurrence.
+    Goal,
+    /// `?N`: occurrences with the same number share one metavariable within
+    /// the current elaboration unit.
+    Named(u32),
+}
+
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Identifier(pub String);
@@ -158,6 +175,10 @@ pub enum LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone, Serialize)]
 pub enum SExp {
+    Meta {
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     // --- access something
     // variable binded by lambda or somethings, defined constant, inductive type, record type (itself)
     AccessPath {

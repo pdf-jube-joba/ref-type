@@ -37,6 +37,17 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         Node::Sort(sort) => format_sort(&sort),
         Node::Bound(index) => format!("#{index}"),
         Node::ModuleParam(var) => format_var(env, var),
+        Node::Meta {
+            metavariable,
+            spine,
+        } => {
+            let arguments = spine.into_iter().map(child).collect::<Vec<_>>().join(", ");
+            if arguments.is_empty() {
+                format!("?m{}", metavariable.0)
+            } else {
+                format!("?m{}[{}]", metavariable.0, arguments)
+            }
+        }
         Node::Prod { var, ty, body } => {
             format!(
                 "({}: {}) -> {}",

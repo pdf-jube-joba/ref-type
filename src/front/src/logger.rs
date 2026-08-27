@@ -1,3 +1,4 @@
+use crate::metavariables::MetaGoal;
 use kernel::{
     derivation::{CheckSession, Judgement},
     environment::CrateEnv,
@@ -21,6 +22,7 @@ pub enum LogPayload {
     Message, // 純粋なテキストメッセージだけ
     Exp(Exp),
     Ctx(Context),
+    Goals(Vec<MetaGoal>),
 }
 
 #[derive(Debug, Clone, Serialize)]
