@@ -110,7 +110,12 @@ fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Optio
         match global.add_new_module_to_root(&module) {
             Ok(_) => {}
             Err(err) => {
-                let msg = format!("Elaboration Error: {}\n", err);
+                let detail = match &err {
+                    front::metavariables::ElaborationError::AmbiguousImplicit(_)
+                    | front::metavariables::ElaborationError::UnsolvedGoals(_) => err.to_string(),
+                    _ => front::metavariables::format_elaboration_error(global.crate_env(), &err),
+                };
+                let msg = format!("Elaboration Error: {detail}\n");
                 logs.push(Log::Message(msg.clone()));
                 push_internal_logs(&global, &mut logs);
                 return (logs, Some(msg));

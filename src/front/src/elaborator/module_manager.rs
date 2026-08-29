@@ -1,10 +1,18 @@
-use crate::syntax::{Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemRecord};
-use kernel::calculus::{exp_subst_map, remap_global_ids};
+use crate::syntax::{
+    Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
+    ModItemRecord,
+};
+use kernel::calculus::{exp_subst_map, remap_all_global_ids};
 use kernel::derivation::CheckSession;
-use kernel::environment::{CrateEnv, DefinedConstant, ModuleItem, ModuleParameter};
-use kernel::exp::{Context, Exp};
-use kernel::ids::{DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId};
+use kernel::environment::{
+    CrateEnv, DefinedConstant, ModuleItem, ModuleParameter, ModuleParameterKind,
+};
+use kernel::exp::{Context, ContextEntry, Exp};
+use kernel::ids::{
+    DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId,
+};
 use kernel::inductive::InductiveTypeSpecs;
+use kernel::program_inductive::ProgramInductiveTypeSpecs;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -12,6 +20,7 @@ pub enum ItemAccessResult {
     Definition(ModItemDefinition),
     Inductive(ModItemInductive),
     Record(ModItemRecord),
+    ProgramInductive(ModItemProgramInductive),
     Expression(Exp),
 }
 
@@ -19,6 +28,14 @@ enum PendingItem {
     Definition(String, DefId, DefId, DefinedConstant),
     Inductive(String, Vec<String>, InductiveId, InductiveTypeSpecs),
     Record(String, InductiveId, InductiveTypeSpecs),
+    ProgramInductive(
+        String,
+        Vec<String>,
+        ProgramInductiveId,
+        InductiveId,
+        ProgramInductiveTypeSpecs,
+        InductiveTypeSpecs,
+    ),
 }
 
 #[derive(Debug)]
@@ -86,7 +103,19 @@ impl ModuleManager {
                 module
                     .parameters()
                     .iter()
-                    .map(|parameter| (parameter.name, parameter.ty))
+                    .map(|parameter| match parameter.kind {
+                        ModuleParameterKind::Pts { ty } => ContextEntry::Pts {
+                            var: parameter.name,
+                            ty,
+                        },
+                        ModuleParameterKind::ProgramType => ContextEntry::ProgramType {
+                            var: parameter.name,
+                        },
+                        ModuleParameterKind::ProgramValue { ty } => ContextEntry::ProgramValue {
+                            var: parameter.name,
+                            ty,
+                        },
+                    })
                     .collect::<Context>(),
             );
             if let Some(parent) = module.parent() {
@@ -146,6 +175,25 @@ impl ModuleManager {
                 name: type_name.0,
                 constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
                 inductive,
+            },
+        )
+    }
+
+    pub fn publish_reserved_program_inductive(
+        &mut self,
+        env: &mut CrateEnv,
+        type_name: Identifier,
+        constructor_names: Vec<Identifier>,
+        inductive: ProgramInductiveId,
+        reflected: InductiveId,
+    ) -> Result<(), String> {
+        env.publish_item(
+            self.current,
+            ModuleItem::ProgramInductive {
+                name: type_name.0,
+                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
+                inductive,
+                reflected,
             },
         )
     }
@@ -252,16 +300,25 @@ impl ModuleManager {
                         argument_name.as_str(),
                     ));
                 }
-                let expected = exp_subst_map(env.arena(), parameter.ty, &substitutions);
-                CheckSession::new(env, self.current, context)
-                    .check(*argument, expected)
-                    .map_err(|error| {
-                        format!(
-                            "Module '{}' argument '{}' failed type checking: {error:?}",
-                            child_name.as_str(),
-                            argument_name.as_str(),
-                        )
-                    })?;
+                let mut session = CheckSession::new(env, self.current, context);
+                let checked = match parameter.kind {
+                    ModuleParameterKind::Pts { ty } => {
+                        let expected = exp_subst_map(env.arena(), ty, &substitutions);
+                        session.check_pts(*argument, expected)
+                    }
+                    ModuleParameterKind::ProgramType => session.check_value_type(*argument),
+                    ModuleParameterKind::ProgramValue { ty } => {
+                        let expected = exp_subst_map(env.arena(), ty, &substitutions);
+                        session.check_value(*argument, expected)
+                    }
+                };
+                checked.map_err(|error| {
+                    format!(
+                        "Module '{}' argument '{}' failed type checking: {error:?}",
+                        child_name.as_str(),
+                        argument_name.as_str(),
+                    )
+                })?;
                 substitutions.push((
                     ModuleParamId {
                         module: child,
@@ -308,6 +365,7 @@ impl ModuleManager {
                             definition,
                             origin,
                             DefinedConstant {
+                                kind: definition_value.kind,
                                 ty: exp_subst_map(env.arena(), definition_value.ty, &substitutions),
                                 body: exp_subst_map(
                                     env.arena(),
@@ -331,6 +389,29 @@ impl ModuleManager {
                         let instantiated = spec.instantiate(env.arena(), &substitutions);
                         PendingItem::Record(name, inductive, instantiated)
                     }
+                    ModuleItem::ProgramInductive {
+                        name,
+                        constructor_names,
+                        inductive,
+                        reflected,
+                    } => {
+                        let spec = env
+                            .program_inductive(inductive)
+                            .clone()
+                            .instantiate(env.arena(), &substitutions);
+                        let reflected_spec = env
+                            .inductive(reflected)
+                            .clone()
+                            .instantiate(env.arena(), &substitutions);
+                        PendingItem::ProgramInductive(
+                            name,
+                            constructor_names,
+                            inductive,
+                            reflected,
+                            spec,
+                            reflected_spec,
+                        )
+                    }
                 });
             }
             pending_groups.push((instance_source, is_path_component, pending));
@@ -338,6 +419,7 @@ impl ModuleManager {
 
         let mut definition_ids = HashMap::new();
         let mut inductive_ids = HashMap::new();
+        let mut program_inductive_ids = HashMap::new();
         let mut last_instance = None;
         for (source_module, is_path_component, pending) in pending_groups {
             let materialized = env.add_module();
@@ -346,17 +428,20 @@ impl ModuleManager {
                 match item {
                     PendingItem::Definition(name, source_id, origin, definition) => {
                         let definition = DefinedConstant {
-                            ty: remap_global_ids(
+                            kind: definition.kind,
+                            ty: remap_all_global_ids(
                                 env.arena(),
                                 definition.ty,
                                 &definition_ids,
                                 &inductive_ids,
+                                &program_inductive_ids,
                             ),
-                            body: remap_global_ids(
+                            body: remap_all_global_ids(
                                 env.arena(),
                                 definition.body,
                                 &definition_ids,
                                 &inductive_ids,
+                                &program_inductive_ids,
                             ),
                         };
                         let definition = env.add_definition(materialized, definition);
@@ -387,6 +472,41 @@ impl ModuleManager {
                         let inductive = env.add_inductive(materialized, spec);
                         inductive_ids.insert(source_id, inductive);
                         env.publish_item(materialized, ModuleItem::Record { name, inductive })?;
+                    }
+                    PendingItem::ProgramInductive(
+                        name,
+                        constructor_names,
+                        source_id,
+                        reflected_source_id,
+                        spec,
+                        reflected_spec,
+                    ) => {
+                        let reflected = env.reserve_inductive(materialized);
+                        inductive_ids.insert(reflected_source_id, reflected);
+                        let inductive = env.reserve_program_inductive(materialized);
+                        program_inductive_ids.insert(source_id, inductive);
+                        let reflected_spec = reflected_spec.remap_global_ids(
+                            env.arena(),
+                            &definition_ids,
+                            &inductive_ids,
+                        );
+                        let spec = spec.remap_global_ids(
+                            env.arena(),
+                            &definition_ids,
+                            &inductive_ids,
+                            &program_inductive_ids,
+                        );
+                        env.define_inductive(reflected, reflected_spec);
+                        env.define_program_inductive(inductive, spec);
+                        env.publish_item(
+                            materialized,
+                            ModuleItem::ProgramInductive {
+                                name,
+                                constructor_names,
+                                inductive,
+                                reflected,
+                            },
+                        )?;
                     }
                 }
             }
@@ -468,12 +588,27 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             type_name: Identifier(name.clone()),
             inductive: *inductive,
         }),
+        ModuleItem::ProgramInductive {
+            name,
+            constructor_names,
+            inductive,
+            reflected,
+        } => ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+            type_name: Identifier(name.clone()),
+            ctor_names: constructor_names
+                .iter()
+                .map(|name| Identifier(name.clone()))
+                .collect(),
+            inductive: *inductive,
+            reflected: *reflected,
+        }),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kernel::environment::DefinitionKind;
     use kernel::exp::Node;
     use kernel::inductive::{CtorType, InductiveTypeSpecs};
     use kernel::sort::Sort;
@@ -481,7 +616,7 @@ mod tests {
     fn parameter(env: &mut CrateEnv, name: &str, ty: Exp) -> ModuleParameter {
         ModuleParameter {
             name: env.intern(name),
-            ty,
+            kind: ModuleParameterKind::Pts { ty },
         }
     }
 
@@ -519,6 +654,7 @@ mod tests {
                 &mut env,
                 Identifier("base".into()),
                 DefinedConstant {
+                    kind: DefinitionKind::Pts,
                     ty: proposition_kind,
                     body: proposition,
                 },
@@ -536,6 +672,7 @@ mod tests {
                 &mut env,
                 Identifier("alias".into()),
                 DefinedConstant {
+                    kind: DefinitionKind::Pts,
                     ty: proposition_kind,
                     body: base_exp,
                 },
@@ -642,7 +779,10 @@ mod tests {
 
         let carrier = env.intern("Carrier");
         let argument = env.arena().bound(0);
-        let mut context = vec![(carrier, set)];
+        let mut context = vec![ContextEntry::Pts {
+            var: carrier,
+            ty: set,
+        }];
         assert!(
             manager
                 .instantiate_module(
@@ -743,7 +883,7 @@ mod tests {
                 "Parent".into(),
                 vec![ModuleParameter {
                     name: parameter,
-                    ty: set,
+                    kind: ModuleParameterKind::Pts { ty: set },
                 }],
             )
             .unwrap();
@@ -756,6 +896,7 @@ mod tests {
                 &mut env,
                 Identifier("parent_value".into()),
                 DefinedConstant {
+                    kind: DefinitionKind::Pts,
                     ty: set,
                     body: parameter_exp,
                 },
@@ -779,6 +920,7 @@ mod tests {
                 &mut env,
                 Identifier("child_value".into()),
                 DefinedConstant {
+                    kind: DefinitionKind::Pts,
                     ty: set,
                     body: parent_reference,
                 },
@@ -791,7 +933,10 @@ mod tests {
 
         let carrier = env.intern("Carrier");
         let argument = env.arena().bound(0);
-        let mut context = vec![(carrier, set)];
+        let mut context = vec![ContextEntry::Pts {
+            var: carrier,
+            ty: set,
+        }];
         let instance = manager
             .instantiate_module(
                 &mut env,
@@ -841,7 +986,7 @@ mod tests {
                 "Param".into(),
                 vec![ModuleParameter {
                     name: parameter,
-                    ty: set,
+                    kind: ModuleParameterKind::Pts { ty: set },
                 }],
             )
             .unwrap();
@@ -854,6 +999,7 @@ mod tests {
                 &mut env,
                 Identifier("value".into()),
                 DefinedConstant {
+                    kind: DefinitionKind::Pts,
                     ty: set,
                     body: parameter_exp,
                 },
@@ -869,7 +1015,7 @@ mod tests {
                 "Outer".into(),
                 vec![ModuleParameter {
                     name: outer_parameter,
-                    ty: set,
+                    kind: ModuleParameterKind::Pts { ty: set },
                 }],
             )
             .unwrap();
@@ -881,7 +1027,10 @@ mod tests {
         let dependency = manager
             .instantiate_module(
                 &mut env,
-                &mut vec![(outer_context_var, set)],
+                &mut vec![ContextEntry::Pts {
+                    var: outer_context_var,
+                    ty: set,
+                }],
                 None,
                 vec![(
                     Identifier("Param".into()),
@@ -912,6 +1061,7 @@ mod tests {
                 &mut env,
                 Identifier("result".into()),
                 DefinedConstant {
+                    kind: DefinitionKind::Pts,
                     ty: set,
                     body: imported_value,
                 },
@@ -925,7 +1075,10 @@ mod tests {
         let instance = manager
             .instantiate_module(
                 &mut env,
-                &mut vec![(carrier, set)],
+                &mut vec![ContextEntry::Pts {
+                    var: carrier,
+                    ty: set,
+                }],
                 None,
                 vec![(
                     Identifier("Outer".into()),

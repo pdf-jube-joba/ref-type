@@ -45,3 +45,25 @@ pub struct InductiveId {
     pub module: ModuleId,
     pub index: u32,
 }
+
+/// Stable identity of a CBPV value datatype.  Its Set reflection is stored as
+/// a separate [`InductiveId`] in the environment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProgramInductiveId {
+    pub module: ModuleId,
+    pub index: u32,
+}
+
+/// Identity of an elaboration-time metavariable.
+///
+/// Metavariables are never valid members of a checked [`CrateEnv`].  The
+/// identifier lives in the kernel crate because intermediate expressions use
+/// the ordinary expression arena while the front-end is solving constraints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MetaVarId(pub u32);
+
+impl MetaVarId {
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}

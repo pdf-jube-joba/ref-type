@@ -1,5 +1,6 @@
+use crate::metavariables::MetaGoal;
 use kernel::{
-    derivation::CheckSession,
+    derivation::{CheckSession, Judgement},
     environment::CrateEnv,
     exp::{Context, Exp},
     ids::ModuleId,
@@ -21,6 +22,7 @@ pub enum LogPayload {
     Message, // 純粋なテキストメッセージだけ
     Exp(Exp),
     Ctx(Context),
+    Goals(Vec<MetaGoal>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -57,7 +59,13 @@ impl Logger {
         self.records.push(record);
     }
 
-    pub fn reduce_one(&mut self, env: &CrateEnv, e: Exp) -> Option<Exp> {
+    pub fn reduce_one(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut Context,
+        e: Exp,
+    ) -> Option<Exp> {
         self.record(
             LogLevel::Trace,
             vec!["reduce_one".to_string()],
@@ -65,7 +73,15 @@ impl Logger {
             LogPayload::Exp(e),
         );
 
-        let reduced = kernel::calculus::reduce_one(env, e);
+        let is_computation = matches!(
+            CheckSession::new(env, module, ctx).infer_any(e),
+            Ok(Judgement::Computation { .. })
+        );
+        let reduced = if is_computation {
+            kernel::calculus::reduce_computation_once(env, e)
+        } else {
+            kernel::calculus::reduce_one(env, e)
+        };
         match reduced {
             Some(reduced_exp) => {
                 self.record(
@@ -88,7 +104,13 @@ impl Logger {
         }
     }
 
-    pub fn normalize(&mut self, env: &CrateEnv, e: Exp) -> Exp {
+    pub fn normalize(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut Context,
+        e: Exp,
+    ) -> Exp {
         self.record(
             LogLevel::Trace,
             vec!["normalize".to_string()],
@@ -96,7 +118,15 @@ impl Logger {
             LogPayload::Exp(e),
         );
 
-        let normalized = kernel::calculus::normalize(env, e);
+        let is_computation = matches!(
+            CheckSession::new(env, module, ctx).infer_any(e),
+            Ok(Judgement::Computation { .. })
+        );
+        let normalized = if is_computation {
+            kernel::calculus::evaluate_computation(env, e)
+        } else {
+            kernel::calculus::normalize(env, e)
+        };
         self.record(
             LogLevel::Debug,
             vec!["normalize".to_string()],
@@ -156,6 +186,41 @@ impl Logger {
             }
         }
     }
+
+    pub fn infer_any(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut Context,
+        exp: Exp,
+    ) -> Option<Judgement> {
+        match CheckSession::new(env, module, ctx).infer_any(exp) {
+            Ok(judgement) => {
+                let payload = match judgement {
+                    Judgement::Pts { ty }
+                    | Judgement::Value { ty }
+                    | Judgement::Computation { ty } => LogPayload::Exp(ty),
+                    Judgement::ValueType | Judgement::ComputationType => LogPayload::Message,
+                };
+                self.record(
+                    LogLevel::Debug,
+                    vec!["infer".to_string()],
+                    format!("infer success: {judgement:?}"),
+                    payload,
+                );
+                Some(judgement)
+            }
+            Err(derivation_fail) => {
+                self.record(
+                    LogLevel::Error,
+                    vec!["infer".to_string()],
+                    format!("infer failed: {derivation_fail:?}"),
+                    LogPayload::Message,
+                );
+                None
+            }
+        }
+    }
     pub fn check(
         &mut self,
         env: &CrateEnv,
@@ -164,7 +229,20 @@ impl Logger {
         exp: Exp,
         expected_type: Exp,
     ) -> bool {
-        let result = CheckSession::new(env, module, ctx).check(exp, expected_type);
+        let mut session = CheckSession::new(env, module, ctx);
+        let result = if matches!(env.arena().get(expected_type), kernel::exp::Node::Sort(_))
+            || session.infer_sort(expected_type).is_ok()
+        {
+            session.check_pts(exp, expected_type)
+        } else if session.check_value_type(expected_type).is_ok() {
+            session.check_value(exp, expected_type)
+        } else if session.check_computation_type(expected_type).is_ok() {
+            session.check_computation(exp, expected_type)
+        } else {
+            Err(Box::new(kernel::derivation::JudgementError::caused(
+                "expected type has no PTS or Program type judgement",
+            )))
+        };
         match result {
             Ok(()) => true,
             Err(derivation_fail) => {

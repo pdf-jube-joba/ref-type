@@ -1,0 +1,168 @@
+/* McCarthy's 91 function as a CBPV state machine.
+ *
+ *   M(n) = n - 10       when n > 100
+ *          M(M(n + 11)) otherwise
+ *
+ * `pending` is the continuation for the outer call in M(M(n + 11)).
+ * Inspecting the threshold and adding constants are also explicit machine
+ * states, so every transition remains a CBPV computation returning RunStep.
+ */
+\module McCarthy91 {
+  \inductive Nat: \VType :=
+  | zero: Nat;
+  | succ: Nat -> Nat;
+  ;
+
+  \inductive Continuation: \VType :=
+  | done: Continuation;
+  | pending: Continuation -> Continuation;
+  ;
+
+  \inductive State: \VType :=
+  | call: Nat -> Continuation -> State;
+  | inspect: Nat -> Nat -> Nat -> Continuation -> State;
+  | raise: Nat -> Nat -> Continuation -> State;
+  | raiseAndCall: Nat -> Nat -> Continuation -> State;
+  ;
+
+  \definition ten: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ Nat#zero)))))))));
+  \definition eleven: Nat := Nat#succ ten;
+  \definition twenty: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ ten)))))))));
+  \definition thirty: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ twenty)))))))));
+  \definition forty: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ thirty)))))))));
+  \definition fifty: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ forty)))))))));
+  \definition sixty: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ fifty)))))))));
+  \definition seventy: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ sixty)))))))));
+  \definition eighty: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ seventy)))))))));
+  \definition ninety: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ eighty)))))))));
+  \definition ninetyOne: Nat := Nat#succ ninety;
+  \definition hundred: Nat :=
+    Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ
+      (Nat#succ (Nat#succ (Nat#succ (Nat#succ (Nat#succ ninety)))))))));
+  \definition hundredOne: Nat := Nat#succ hundred;
+
+  \definition step:
+    \U(\CFun(State, \F(\RunStep(State, Nat)))) :=
+    \thunk(\clam(state, State,
+      \vcase(State, state) {
+      | call(argument, continuation) =>
+          \return(\continue(
+            State,
+            Nat,
+            State#inspect
+              argument
+              argument
+              hundredOne
+              continuation));
+      | inspect(original, remaining, threshold, continuation) =>
+          \vcase(Nat, threshold) {
+          | zero() =>
+              /* original >= 101, and remaining + 91 = original - 10. */
+              \return(\continue(
+                State,
+                Nat,
+                State#raise remaining ninetyOne continuation));
+          | succ(smallerThreshold) =>
+              \vcase(Nat, remaining) {
+              | zero() =>
+                  /* original <= 100: first evaluate M(original + 11),
+                   * then the pending continuation evaluates M once more.
+                   */
+                  \return(\continue(
+                    State,
+                    Nat,
+                    State#raiseAndCall
+                      original
+                      eleven
+                      (Continuation#pending continuation)));
+              | succ(smallerRemaining) =>
+                  \return(\continue(
+                    State,
+                    Nat,
+                    State#inspect
+                      original
+                      smallerRemaining
+                      smallerThreshold
+                      continuation));
+              };
+          };
+      | raise(result, additions, continuation) =>
+          \vcase(Nat, additions) {
+          | zero() =>
+              \vcase(Continuation, continuation) {
+              | done() =>
+                  \return(\finish(State, Nat, result));
+              | pending(rest) =>
+                  \return(\continue(
+                    State,
+                    Nat,
+                    State#call result rest));
+              };
+          | succ(smallerAdditions) =>
+              \return(\continue(
+                State,
+                Nat,
+                State#raise
+                  (Nat#succ result)
+                  smallerAdditions
+                  continuation));
+          };
+      | raiseAndCall(argument, additions, continuation) =>
+          \vcase(Nat, additions) {
+          | zero() =>
+              \return(\continue(
+                State,
+                Nat,
+                State#call argument continuation));
+          | succ(smallerAdditions) =>
+              \return(\continue(
+                State,
+                Nat,
+                State#raiseAndCall
+                  (Nat#succ argument)
+                  smallerAdditions
+                  continuation));
+          };
+      }));
+
+  /* Acc belongs to the Set/Prop side; the function body remains a CBPV
+   * computation and supplies only the reflection of its initial value.
+   */
+  \module Certified(
+    termination:
+      (initial: \RfType(State)) ->
+        \Acc(State, Nat, step, initial)
+  ) {
+    \definition mcCarthy91: \CFun(Nat, \F(Nat)) :=
+      \clam(argument, Nat,
+        \run(
+          State,
+          Nat,
+          step,
+          State#call argument Continuation#done,
+          termination
+            (\RfTerm(
+              State,
+              State#call argument Continuation#done))));
+
+    \normalize \capp(mcCarthy91, hundred);
+  }
+}

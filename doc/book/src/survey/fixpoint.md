@@ -40,7 +40,7 @@ nested recursion な例 (McCarthy 91 function)
   if (n > 100) then (n - 10) else f (f (x + 11))
 ```
 
-- すべての $n$ に対して、 functional relation としての存在はわかる。
+- すべての \(n\) に対して、 functional relation としての存在はわかる。
 - CBV を仮定して、 rewriting system としての停止性が示せれば、正規の項として導入可能とか？
   - rewriting system をそのまま内部で表現できるか？
 

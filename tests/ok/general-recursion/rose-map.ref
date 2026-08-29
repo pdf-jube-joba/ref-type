@@ -1,0 +1,112 @@
+/* Rose-tree map as a CBPV state machine.
+ *
+ * A rose value is a forest in first-child / next-sibling representation.  A
+ * single tree is a node whose siblings field is empty.  The continuation
+ * remembers enough context to rebuild both the children and the siblings
+ * after their recursive traversals have returned.
+ */
+\module RoseMap(
+  A: \VType,
+  B: \VType,
+  function: \U(\CFun(A, \F(B)))
+) {
+  \inductive InputRose: \VType :=
+  | empty: InputRose;
+  | node: A -> InputRose -> InputRose -> InputRose;
+  ;
+
+  \inductive OutputRose: \VType :=
+  | empty: OutputRose;
+  | node: B -> OutputRose -> OutputRose -> OutputRose;
+  ;
+
+  \inductive Continuation: \VType :=
+  | done: Continuation;
+  | afterChildren:
+      B -> InputRose -> Continuation -> Continuation;
+  | afterSiblings:
+      B -> OutputRose -> Continuation -> Continuation;
+  ;
+
+  \inductive State: \VType :=
+  | visit: InputRose -> Continuation -> State;
+  | resume: Continuation -> OutputRose -> State;
+  ;
+
+  \definition step:
+    \U(\CFun(State, \F(\RunStep(State, OutputRose)))) :=
+    \thunk(\clam(state, State,
+      \vcase(State, state) {
+      | visit(input, continuation) =>
+          \vcase(InputRose, input) {
+          | empty() =>
+              \return(\continue(
+                State,
+                OutputRose,
+                State#resume
+                  continuation
+                  OutputRose#empty));
+          | node(label, children, siblings) =>
+              \sequence(
+                \capp(\force(function), label),
+                mappedLabel,
+                B,
+                \return(\continue(
+                  State,
+                  OutputRose,
+                  State#visit
+                    children
+                    (Continuation#afterChildren
+                      mappedLabel
+                      siblings
+                      continuation))));
+          };
+      | resume(continuation, mapped) =>
+          \vcase(Continuation, continuation) {
+          | done() =>
+              \return(\finish(State, OutputRose, mapped));
+          | afterChildren(mappedLabel, siblings, rest) =>
+              \return(\continue(
+                State,
+                OutputRose,
+                State#visit
+                  siblings
+                  (Continuation#afterSiblings
+                    mappedLabel
+                    mapped
+                    rest)));
+          | afterSiblings(mappedLabel, mappedChildren, rest) =>
+              \return(\continue(
+                State,
+                OutputRose,
+                State#resume
+                  rest
+                  (OutputRose#node mappedLabel mappedChildren mapped)));
+          };
+      }));
+
+  /* The certificate is logical data.  It is indexed by the reflection of
+   * the concrete CBPV initial state and is erased during evaluation.
+   */
+  \module Certified(
+    termination:
+      (initial: \RfType(State)) ->
+        \Acc(State, OutputRose, step, initial)
+  ) {
+    \definition map: \CFun(InputRose, \F(OutputRose)) :=
+      \clam(input, InputRose,
+        \run(
+          State,
+          OutputRose,
+          step,
+          State#visit
+            input
+            Continuation#done,
+          termination
+            (\RfTerm(
+              State,
+              State#visit
+                input
+                Continuation#done))));
+  }
+}

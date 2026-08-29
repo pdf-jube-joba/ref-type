@@ -9,6 +9,7 @@ use kernel::inductive::InductiveTypeSpecs;
 pub trait Handler {
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
+    fn current_module(&self) -> ModuleId;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -17,6 +18,7 @@ pub trait Handler {
     fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
+    fn fresh_meta(&mut self, kind: SurfaceMeta, span: SourceSpan, local_context: &Context) -> Exp;
 }
 
 // local scope during elaboration
@@ -58,12 +60,28 @@ impl LocalScope {
 
     pub fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
         self.decl_binds.push((var, None));
-        self.typing_binds.push((var, ty));
+        self.typing_binds.push(ContextEntry::Pts { var, ty });
+    }
+
+    pub fn push_program_type_decl_var(&mut self, var: SymbolId) {
+        self.decl_binds.push((var, None));
+        self.typing_binds.push(ContextEntry::ProgramType { var });
     }
 
     pub fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
         self.decl_binds.push((var, Some(exp)));
-        self.typing_binds.push((var, ty));
+        self.typing_binds.push(ContextEntry::Pts { var, ty });
+    }
+
+    pub fn push_program_type_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
+        self.decl_binds.push((var, Some(exp)));
+        self.typing_binds.push(ContextEntry::ProgramType { var });
+    }
+
+    pub fn push_program_value_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
+        self.decl_binds.push((var, Some(exp)));
+        self.typing_binds
+            .push(ContextEntry::ProgramValue { var, ty });
     }
 
     // does not pop decl_binds
@@ -75,6 +93,7 @@ impl LocalScope {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
+            handler.infer(&mut self.typing_binds, ty_elab)?;
             for var in vars {
                 let var = handler.intern(var.as_str());
                 result.push((var, ty_elab));
@@ -82,6 +101,14 @@ impl LocalScope {
             }
         }
         Ok(result)
+    }
+
+    pub fn infer_elaborated(
+        &mut self,
+        exp: Exp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, String> {
+        handler.infer(&mut self.typing_binds, exp)
     }
 
     fn get_var(&self, arena: &Arena, name: &Identifier, handler: &impl Handler) -> Option<Exp> {
@@ -100,7 +127,12 @@ impl LocalScope {
 
     fn push_binded_var(&mut self, var: SymbolId, ty: Exp) {
         self.binded_vars.push(var);
-        self.typing_binds.push((var, ty));
+        self.typing_binds.push(ContextEntry::Pts { var, ty });
+    }
+    fn push_program_value_var(&mut self, var: SymbolId, ty: Exp) {
+        self.binded_vars.push(var);
+        self.typing_binds
+            .push(ContextEntry::ProgramValue { var, ty });
     }
     fn pop_binded_var(&mut self) {
         self.binded_vars.pop();
@@ -188,6 +220,7 @@ impl LocalScope {
 
     fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         match exp {
+            SExp::Meta { kind, span } => Ok(handler.fresh_meta(*kind, *span, &self.typing_binds)),
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
 
@@ -240,6 +273,19 @@ impl LocalScope {
                             parameters,
                         }))
                     }
+                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+                        inductive,
+                        ..
+                    }) => {
+                        let parameters = parameters
+                            .iter()
+                            .map(|e| self.elab_exp_rec(e, handler))
+                            .collect::<Result<_, _>>()?;
+                        Ok(handler.arena().alloc(Node::ProgramIndType {
+                            indspec: inductive,
+                            parameters,
+                        }))
+                    }
                     ItemAccessResult::Expression(exp) => {
                         if parameters.is_empty() {
                             Ok(exp)
@@ -280,6 +326,44 @@ impl LocalScope {
                                 type_name.as_str()
                             ))
                         }
+                        ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+                            inductive,
+                            type_name,
+                            ctor_names,
+                            ..
+                        }) => {
+                            let Some(idx) = ctor_names
+                                .iter()
+                                .position(|ctor_name| ctor_name.as_str() == field.as_str())
+                            else {
+                                return Err(format!(
+                                    "Constructor {} not found in Program datatype {}",
+                                    field.as_str(),
+                                    type_name.as_str()
+                                ));
+                            };
+                            let parameters = parameters
+                                .iter()
+                                .map(|e| self.elab_exp_rec(e, handler))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            let expected =
+                                handler.env().program_inductive(inductive).constructors()[idx]
+                                    .fields()
+                                    .len();
+                            if expected != 0 {
+                                return Err(format!(
+                                    "Program constructor {} expects {} field argument(s)",
+                                    field.as_str(),
+                                    expected
+                                ));
+                            }
+                            Ok(handler.arena().alloc(Node::ProgramIndCtor {
+                                indspec: inductive,
+                                parameters,
+                                idx,
+                                fields: Vec::new(),
+                            }))
+                        }
                         _ => Err(format!(
                             "Expected inductive constructor or record type in base of associated access {:?}",
                             base
@@ -317,6 +401,174 @@ impl LocalScope {
                 result
             }
             SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
+            SExp::ValueType => {
+                Err("\\VType is only valid in binders and datatype declarations".into())
+            }
+            SExp::ThunkType { computation_ty } => {
+                let computation_ty = self.elab_exp_rec(computation_ty, handler)?;
+                Ok(handler.arena().alloc(Node::ThunkType { computation_ty }))
+            }
+            SExp::ReturnType { value_ty } => {
+                let value_ty = self.elab_exp_rec(value_ty, handler)?;
+                Ok(handler.arena().alloc(Node::ReturnType { value_ty }))
+            }
+            SExp::ComputationFunction { domain, codomain } => {
+                let domain = self.elab_exp_rec(domain, handler)?;
+                let codomain = self.elab_exp_rec(codomain, handler)?;
+                Ok(handler
+                    .arena()
+                    .alloc(Node::ComputationFunction { domain, codomain }))
+            }
+            SExp::Thunk { computation } => {
+                let computation = self.elab_exp_rec(computation, handler)?;
+                Ok(handler.arena().alloc(Node::Thunk { computation }))
+            }
+            SExp::Return { value } => {
+                let value = self.elab_exp_rec(value, handler)?;
+                Ok(handler.arena().alloc(Node::Return { value }))
+            }
+            SExp::Force { value } => {
+                let value = self.elab_exp_rec(value, handler)?;
+                Ok(handler.arena().alloc(Node::Force { value }))
+            }
+            SExp::ComputationLam {
+                var,
+                value_ty,
+                body,
+            } => {
+                let value_ty = self.elab_exp_rec(value_ty, handler)?;
+                let var = handler.intern(var.as_str());
+                self.push_program_value_var(var, value_ty);
+                let body = self.elab_exp_rec(body, handler)?;
+                self.pop_binded_var();
+                Ok(handler.arena().alloc(Node::ComputationLam {
+                    var,
+                    value_ty,
+                    body,
+                }))
+            }
+            SExp::ComputationApp { computation, value } => {
+                let computation = self.elab_exp_rec(computation, handler)?;
+                let value = self.elab_exp_rec(value, handler)?;
+                Ok(handler
+                    .arena()
+                    .alloc(Node::ComputationApp { computation, value }))
+            }
+            SExp::Sequence {
+                computation,
+                var,
+                value_ty,
+                body,
+            } => {
+                let computation = self.elab_exp_rec(computation, handler)?;
+                let value_ty = self.elab_exp_rec(value_ty, handler)?;
+                let var = handler.intern(var.as_str());
+                self.push_program_value_var(var, value_ty);
+                let body = self.elab_exp_rec(body, handler)?;
+                self.pop_binded_var();
+                Ok(handler.arena().alloc(Node::Sequence {
+                    computation,
+                    var,
+                    value_ty,
+                    body,
+                }))
+            }
+            SExp::ValueLet { var, value, body } => {
+                let value = self.elab_exp_rec(value, handler)?;
+                let value_ty = {
+                    let mut context = self.typing_binds.clone();
+                    let mut session = kernel::derivation::CheckSession::new(
+                        handler.env(),
+                        handler.current_module(),
+                        &mut context,
+                    );
+                    session
+                        .infer_value(value)
+                        .map_err(|error| format!("failed to infer \\vlet value: {error:?}"))?
+                };
+                let var = handler.intern(var.as_str());
+                self.push_program_value_var(var, value_ty);
+                let body = self.elab_exp_rec(body, handler)?;
+                self.pop_binded_var();
+                Ok(handler.arena().alloc(Node::ValueLet { var, value, body }))
+            }
+            SExp::ProgramCase {
+                path,
+                scrutinee,
+                branches,
+            } => {
+                let ItemAccessResult::ProgramInductive(item) =
+                    handler.get_item_from_access_path(path)?
+                else {
+                    return Err("\\vcase path must name a Program datatype".into());
+                };
+                if branches.len() != item.ctor_names.len() {
+                    return Err(
+                        "\\vcase must contain exactly one ordered branch per constructor".into(),
+                    );
+                }
+                let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
+                let scrutinee_ty = {
+                    let mut context = self.typing_binds.clone();
+                    let mut session = kernel::derivation::CheckSession::new(
+                        handler.env(),
+                        handler.current_module(),
+                        &mut context,
+                    );
+                    session
+                        .infer_value(scrutinee)
+                        .map_err(|error| format!("failed to infer \\vcase scrutinee: {error:?}"))?
+                };
+                let Node::ProgramIndType {
+                    indspec,
+                    parameters,
+                } = handler.arena().get(scrutinee_ty)
+                else {
+                    return Err("\\vcase scrutinee must have a Program datatype type".into());
+                };
+                if indspec != item.inductive {
+                    return Err("\\vcase scrutinee datatype does not match its path".into());
+                }
+                let mut elaborated = Vec::with_capacity(branches.len());
+                let spec = handler.env().program_inductive(item.inductive).clone();
+                for (index, (constructor, binders, body)) in branches.iter().enumerate() {
+                    if constructor != &item.ctor_names[index] {
+                        return Err(format!(
+                            "\\vcase constructor mismatch: expected {}, found {}",
+                            item.ctor_names[index].as_str(),
+                            constructor.as_str()
+                        ));
+                    }
+                    let fields = spec.constructors()[index]
+                        .instantiated_fields(handler.arena(), &parameters);
+                    if binders.len() != fields.len() {
+                        return Err(format!(
+                            "\\vcase branch {} expects {} binders",
+                            constructor.as_str(),
+                            fields.len()
+                        ));
+                    }
+                    let mut binder_ids = Vec::with_capacity(binders.len());
+                    for (binder, (_, field_ty)) in binders.iter().zip(&fields) {
+                        let binder = handler.intern(binder.as_str());
+                        self.push_program_value_var(binder, *field_ty);
+                        binder_ids.push(binder);
+                    }
+                    let body = self.elab_exp_rec(body, handler)?;
+                    for _ in binders {
+                        self.pop_binded_var();
+                    }
+                    elaborated.push(ProgramCaseBranch {
+                        binders: binder_ids,
+                        body,
+                    });
+                }
+                Ok(handler.arena().alloc(Node::ProgramCase {
+                    indspec: item.inductive,
+                    scrutinee,
+                    branches: elaborated,
+                }))
+            }
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
                 let is_prod = matches!(exp, SExp::Prod { .. });
                 match bind {
@@ -453,6 +705,63 @@ impl LocalScope {
                 arg,
                 piped: _,
             } => {
+                let mut arguments = vec![arg.as_ref()];
+                let mut head = func.as_ref();
+                while let SExp::App {
+                    func,
+                    arg,
+                    piped: _,
+                } = head
+                {
+                    arguments.push(arg.as_ref());
+                    head = func.as_ref();
+                }
+                arguments.reverse();
+                if let SExp::AssociatedAccess { base, field } = head
+                    && let SExp::AccessPath { access, parameters } = base.as_ref()
+                    && let ItemAccessResult::ProgramInductive(item) =
+                        handler.get_item_from_access_path(access)?
+                {
+                    let Some(idx) = item
+                        .ctor_names
+                        .iter()
+                        .position(|ctor_name| ctor_name.as_str() == field.as_str())
+                    else {
+                        return Err(format!(
+                            "Constructor {} not found in Program datatype {}",
+                            field.as_str(),
+                            item.type_name.as_str()
+                        ));
+                    };
+                    let parameters = parameters
+                        .iter()
+                        .map(|parameter| self.elab_exp_rec(parameter, handler))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let expected = handler
+                        .env()
+                        .program_inductive(item.inductive)
+                        .constructors()[idx]
+                        .fields()
+                        .len();
+                    if arguments.len() != expected {
+                        return Err(format!(
+                            "Program constructor {} expects {} field argument(s), found {}",
+                            field.as_str(),
+                            expected,
+                            arguments.len()
+                        ));
+                    }
+                    let fields = arguments
+                        .into_iter()
+                        .map(|argument| self.elab_exp_rec(argument, handler))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    return Ok(handler.arena().alloc(Node::ProgramIndCtor {
+                        indspec: item.inductive,
+                        parameters,
+                        idx,
+                        fields,
+                    }));
+                }
                 let func_elab = self.elab_exp_rec(func, handler)?;
                 let arg_elab = self.elab_exp_rec(arg, handler)?;
                 Ok(handler.arena().alloc(Node::App {
@@ -483,16 +792,23 @@ impl LocalScope {
                 return_type,
                 cases,
             } => {
-                let ItemAccessResult::Inductive(ModItemInductive {
-                    type_name: _,
-                    ctor_names,
-                    inductive,
-                }) = handler.get_item_from_access_path(path)?
-                else {
-                    return Err(format!(
-                        "Expected inductive type in ind elim access path {:?}",
-                        path
-                    ));
+                let (ctor_names, inductive) = match handler.get_item_from_access_path(path)? {
+                    ItemAccessResult::Inductive(ModItemInductive {
+                        ctor_names,
+                        inductive,
+                        ..
+                    }) => (ctor_names, inductive),
+                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+                        ctor_names,
+                        reflected,
+                        ..
+                    }) => (ctor_names, reflected),
+                    _ => {
+                        return Err(format!(
+                            "Expected inductive type in ind elim access path {:?}",
+                            path
+                        ));
+                    }
                 };
 
                 let elim_elab = self.elab_exp_rec(elim, handler)?;
@@ -522,16 +838,18 @@ impl LocalScope {
                 parameters,
                 sort,
             } => {
-                let ItemAccessResult::Inductive(ModItemInductive {
-                    type_name: _,
-                    ctor_names: _,
-                    inductive,
-                }) = handler.get_item_from_access_path(path)?
-                else {
-                    return Err(format!(
-                        "Expected inductive type in ind elim prim access path {:?}",
-                        path
-                    ));
+                let inductive = match handler.get_item_from_access_path(path)? {
+                    ItemAccessResult::Inductive(ModItemInductive { inductive, .. }) => inductive,
+                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+                        reflected,
+                        ..
+                    }) => reflected,
+                    _ => {
+                        return Err(format!(
+                            "Expected inductive type in ind elim prim access path {:?}",
+                            path
+                        ));
+                    }
                 };
 
                 let parameters: Vec<Exp> = parameters
@@ -545,6 +863,163 @@ impl LocalScope {
                     parameters,
                     *sort,
                 ))
+            }
+            SExp::RunStep {
+                state_ty,
+                result_ty,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                Ok(handler.arena().alloc(Node::RunStep {
+                    state_ty,
+                    result_ty,
+                }))
+            }
+            SExp::Continue {
+                state_ty,
+                result_ty,
+                next,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let next = self.elab_exp_rec(next, handler)?;
+                Ok(handler.arena().alloc(Node::Continue {
+                    state_ty,
+                    result_ty,
+                    next,
+                }))
+            }
+            SExp::Finish {
+                state_ty,
+                result_ty,
+                output,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let output = self.elab_exp_rec(output, handler)?;
+                Ok(handler.arena().alloc(Node::Finish {
+                    state_ty,
+                    result_ty,
+                    output,
+                }))
+            }
+            SExp::Acc {
+                state_ty,
+                result_ty,
+                step,
+                state,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let state = self.elab_exp_rec(state, handler)?;
+                Ok(handler.arena().alloc(Node::Acc {
+                    state_ty,
+                    result_ty,
+                    step,
+                    state,
+                }))
+            }
+            SExp::RfType { compute_ty } => {
+                let compute_ty = self.elab_exp_rec(compute_ty, handler)?;
+                Ok(handler.arena().alloc(Node::RfType { compute_ty }))
+            }
+            SExp::RfTerm { compute_ty, term } => {
+                let compute_ty = self.elab_exp_rec(compute_ty, handler)?;
+                let term = self.elab_exp_rec(term, handler)?;
+                Ok(handler.arena().alloc(Node::RfTerm { compute_ty, term }))
+            }
+            SExp::Run {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                termination,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let initial = self.elab_exp_rec(initial, handler)?;
+                let termination = self.elab_exp_rec(termination, handler)?;
+                Ok(handler.arena().alloc(Node::Run {
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    termination,
+                }))
+            }
+            SExp::RunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                termination,
+                invariant,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let initial = self.elab_exp_rec(initial, handler)?;
+                let transition = self.elab_exp_rec(transition, handler)?;
+                let termination = self.elab_exp_rec(termination, handler)?;
+                let invariant = self.elab_exp_rec(invariant, handler)?;
+                Ok(handler.arena().alloc(Node::RunCase {
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    transition,
+                    termination,
+                    invariant,
+                }))
+            }
+            SExp::AccIntro {
+                state_ty,
+                result_ty,
+                step,
+                state,
+                predecessors,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let state = self.elab_exp_rec(state, handler)?;
+                let predecessors = self.elab_exp_rec(predecessors, handler)?;
+                Ok(handler.arena().alloc(Node::AccIntro {
+                    state_ty,
+                    result_ty,
+                    step,
+                    state,
+                    predecessors,
+                }))
+            }
+            SExp::AccDescent {
+                state_ty,
+                result_ty,
+                step,
+                from,
+                to,
+                accessibility,
+                transition,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let step = self.elab_exp_rec(step, handler)?;
+                let from = self.elab_exp_rec(from, handler)?;
+                let to = self.elab_exp_rec(to, handler)?;
+                let accessibility = self.elab_exp_rec(accessibility, handler)?;
+                let transition = self.elab_exp_rec(transition, handler)?;
+                Ok(handler.arena().alloc(Node::AccDescent {
+                    state_ty,
+                    result_ty,
+                    step,
+                    from,
+                    to,
+                    accessibility,
+                    transition,
+                }))
             }
 
             SExp::RecordTypeCtor {

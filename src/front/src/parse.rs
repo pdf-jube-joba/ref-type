@@ -13,8 +13,10 @@ pub enum Token<'a> {
     Number(&'a str),
     #[regex(r"\?[a-zA-Z0-9_]*")]
     UnspecifiedVar(&'a str),
-    // any non-space sequence that does not include backslash, alnum or '?()$'
-    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]]+")]
+    #[token("_", priority = 3)]
+    Hole,
+    // any non-space sequence that does not include reserved delimiters or `_`/`?`
+    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]_]+")]
     MacroToken(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -54,14 +56,7 @@ pub enum Token<'a> {
     Field,       // "#"
 }
 
-static SORT_KEYWORDS: &[&str] = &[
-    "\\Prop",
-    "\\PropKind",
-    "\\Set",
-    "\\SetKind",
-    "\\Type",
-    "\\TypeKind",
-];
+static SORT_KEYWORDS: &[&str] = &["\\Prop", "\\PropKind", "\\Set", "\\SetKind"];
 
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\elim", // inductive eliminator
@@ -71,9 +66,29 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Pred",
     "\\Ty",
     "\\subsetinto", // usuals
-    "\\exists",     // \exists <Bind>
-    "\\take",       // \take <Bind> => <body>
-    "\\block",      // block expression
+    "\\VType",
+    "\\U",
+    "\\F",
+    "\\CFun",
+    "\\thunk",
+    "\\return",
+    "\\force",
+    "\\clam",
+    "\\capp",
+    "\\sequence",
+    "\\vlet",
+    "\\vcase",
+    "\\RunStep",
+    "\\continue",
+    "\\finish",
+    "\\Acc",
+    "\\RfType",
+    "\\RfTerm",
+    "\\run",
+    "\\runCase",
+    "\\exists", // \exists <Bind>
+    "\\take",   // \take <Bind> => <body>
+    "\\block",  // block expression
 ];
 
 static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
@@ -81,7 +96,15 @@ static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
 
 static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
 
-static PROOF_TERM_KEYWORDS: &[&str] = &["\\exact", "\\bysub", "\\refl", "\\idelim", "\\takeelim"];
+static PROOF_TERM_KEYWORDS: &[&str] = &[
+    "\\exact",
+    "\\bysub",
+    "\\refl",
+    "\\idelim",
+    "\\takeelim",
+    "\\accintro",
+    "\\accdescent",
+];
 
 static PROGRAM_KEYWORDS: &[&str] = &[
     "\\module",
@@ -169,6 +192,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
             Ok(Token::Ident(_))
             | Ok(Token::Number(_))
             | Ok(Token::UnspecifiedVar(_))
+            | Ok(Token::Hole)
             | Ok(
                 Token::LParen
                 | Token::RParen
@@ -465,11 +489,19 @@ impl<'a> Parser<'a> {
         // <arity> = <indices> <Sort>
         // <indices> = <rightbinds>
         let (indices, expect_sort) = self.parse_arrow_nosubset()?;
-        let sort = match expect_sort {
-            SExp::Sort(s) => s,
+        let kind = match expect_sort {
+            SExp::Sort(s) => InductiveKind::Pts(s),
+            SExp::ValueType if indices.is_empty() => InductiveKind::Program,
+            SExp::ValueType => {
+                return Err(ParseError {
+                    msg: "Program datatype declarations cannot have indices".into(),
+                    start: 0,
+                    end: 0,
+                });
+            }
             _ => {
                 return Err(ParseError {
-                    msg: "expected sort in inductive declaration".into(),
+                    msg: "expected PTS sort or \\VType in inductive declaration".into(),
                     start: 0,
                     end: 0,
                 });
@@ -493,7 +525,7 @@ impl<'a> Parser<'a> {
             type_name,
             parameters,
             indices,
-            sort,
+            kind,
             constructors,
         })
     }
