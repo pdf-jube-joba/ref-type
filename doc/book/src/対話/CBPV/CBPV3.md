@@ -52,43 +52,98 @@ level \(i\) の computation type を分類する。\(\sq^t_i\) はこの二つ�
 proper sort に共通する kind である。共通の kind に属することは、
 value type と computation type を conversion で同一視することを意味しない。
 
-Program type に対する predicative polymorphism 用の product relation を
-次のように置く。
+Program 用の product relation は、value-to-computation product と
+predicative type polymorphism を区別して、次のように置く。
+
+\[
+\mathcal R_{\mathrm{fun}}
+=
+\left\{
+(*^v_i,*^c_j,*^c_{\max(i,j)})
+\mathrel{\middle|}i,j\in\mathbb N
+\right\}.
+\]
+
+この relation から、value \(x:A\) を引数に取り、computation type
+\(\underline B\) を結果とする product を形成する。
+
+\[
+\frac{
+ \Gamma\vdash A:*^v_i
+ \qquad
+ \Gamma,x:A:*^v_i\vdash\underline B:*^c_j
+}{
+ \Gamma\vdash
+ \Pi x:A.\underline B
+ :*^c_{\max(i,j)}
+}.
+\]
+
+product の raw syntax は binder を持つが、現時点の Program type former は
+Program value を index に取らない。また、value を domain として kind を codomain に
+返す product relation も入れない。このため、sorting derivation に関する帰納法で
+
+\[
+\Gamma,x:A:*^v_i\vdash\underline B:*^c_j
+\quad\Longrightarrow\quad
+x\notin\operatorname{FV}(\underline B)
+\tag{Program-Type-Nondependency}
+\]
+
+を示す。したがって well-typed な product は非依存であり、CBPV function type の
+記法を次で定義する。
+
+\[
+A\Rightarrow\underline B
+\;\coloneqq\;
+\Pi x:A.\underline B
+\qquad
+(x\notin\operatorname{FV}(\underline B)).
+\]
+
+type polymorphism には、別に次の relation を使う。
 
 \[
 \mathcal R_{\mathrm{poly}}
 =
 \left\{
-(\sq^t_i,*^q_j,*^q_{\max(i+1,j)})
-\mathrel{\middle|}
-q\in\{v,c\},\ i,j\in\mathbb N
+(\sq^t_i,*^c_j,*^c_{\max(i+1,j)})
+\mathrel{\middle|}i,j\in\mathbb N
 \right\}.
 \]
 
-このとき、例えば
+この relation は value type と computation type のどちらにも量化できるが、
+形成される polymorphic type 自体は常に computation type とする。例えば、
 
 \[
-\Gamma,X:*^v_i:\sq^t_i\vdash A:*^v_j
+\frac{
+ \Gamma,X:*^v_i:\sq^t_i
+ \vdash\underline B:*^c_j
+}{
+ \Gamma\vdash
+ \Pi X:*^v_i.\underline B
+ :*^c_{\max(i+1,j)}
+}
 \]
 
-から
+を得る。domain を \(*^c_i\) にすれば computation type 自体に量化できる。
+domain の実際の式が \(*^v_i\) か \(*^c_i\) かを保持するため、両者が同じ
+\(\sq^t_i\) に属していても量化対象の phase は区別される。
+
+したがって Program 部分で追加する product relation は
 
 \[
-\Gamma\vdash
-\Pi X:*^v_i.A
-:*^v_{\max(i+1,j)}
+\mathcal R_t
+=
+\mathcal R_{\mathrm{fun}}
+\cup
+\mathcal R_{\mathrm{poly}}
 \]
 
-が得られる。特に \(i=j\) の場合は
-
-\[
-(\sq^t_i,*^v_i,*^v_{i+1})
-\]
-
-である。domain を \(*^c_i\) にすれば computation type 自体に対する
-polymorphism も同じ relation から形成できる。domain の実際の式が
-\(*^v_i\) か \(*^c_i\) かを保持するため、両者が同じ \(\sq^t_i\) に
-属していても量化対象の phase は区別できる。
+である。将来、Program value で index される type former または
+value から kind への product relation を追加すると
+Program-Type-Nondependency は成り立たなくなる。その拡張は dependent CBPV として
+別に扱う。
 
 ### raw syntax
 
@@ -104,7 +159,6 @@ e::={}&s
 \mid e@^\tau e\\
 &\mid F e
 \mid Ue
-\mid e\Rightarrow e
 \mid\operatorname{RunStep}(e,e)\\
 &\mid\operatorname{return}(e)
 \mid\operatorname{thunk}(e)
@@ -121,10 +175,34 @@ e::={}&s
 \end{aligned}
 \]
 
-\(\tau\) は core 上の mode tag である。PTS/static の lambda/application と
-CBPV computation の lambda/application は reduction strategy が異なるため、
-core syntax では区別する。surface syntax では typing からこの tag を
-elaborate できる。
+\(\tau\) は core 上の mode tag であり、
+
+\[
+\tau::=\mathsf{ty}\mid c
+\]
+
+とする。\(\mathsf{ty}\) は PTS と type polymorphism の static な
+lambda/application、\(c\) は CBPV computation の lambda/application を表す。
+両者は reduction strategy が異なるため core syntax では区別する。
+surface syntax では typing からこの tag を elaborate できる。
+
+type abstraction/application の大文字の記法は新しい raw constructor ではなく、
+次の surface notation とする。
+
+\[
+\Lambda X:*^r_i.e
+\;\coloneqq\;
+\lambda^{\mathsf{ty}}X:*^r_i.e,
+\qquad
+e[P]
+\;\coloneqq\;
+e@^{\mathsf{ty}}P.
+\]
+
+期待される product type から binder annotation を回復できる場合に限り、
+surface syntax で \(\Lambda X.e\) と省略してよい。また、
+\(A\Rightarrow\underline B\) も raw constructor ではなく、上で定義した
+非依存 product の surface notation である。
 
 \(V\) と \(M\) は別の raw grammar を表す記号ではなく、それぞれ
 value sort と computation sort に属する well-typed raw term を表す
@@ -218,19 +296,22 @@ judgement 自体から reflection 先の Set level を回復できる。
 \tag{U-Form}
 \]
 
-CBPV の function type は PTS の一般の product と同一視せず、専用の
-type former とする。
+CBPV の function type は \(\mathcal R_{\mathrm{fun}}\) による product として形成する。
 
 \[
 \frac{
  \Gamma\vdash A:*^v_i
  \qquad
- \Gamma\vdash\underline B:*^c_j
+ \Gamma,x:A:*^v_i\vdash\underline B:*^c_j
 }{
- \Gamma\vdash A\Rightarrow\underline B:*^c_{\max(i,j)}
+ \Gamma\vdash
+ \Pi x:A.\underline B:*^c_{\max(i,j)}
 }
-\tag{Arrow-Form}
+\tag{Pi-C-Form}
 \]
+
+Program-Type-Nondependency により \(x\notin\operatorname{FV}(\underline B)\) なので、
+この product を \(A\Rightarrow\underline B\) と書く。
 
 \[
 \frac{
@@ -245,8 +326,7 @@ type former とする。
 \]
 
 この level 割り当てにより、\(F/U\) の reflection は同じ Set level の中で
-reduction でき、function type の reflection は Set 側の product と同じ
-\(\max(i,j)\) を持つ。
+reduction でき、computation product は domain と codomain の最大 level を持つ。
 
 ### Program typing
 
@@ -298,23 +378,25 @@ reduction でき、function type の reflection は Set 側の product と同じ
 \tag{Fun-E}
 \]
 
-ここで \(k=\max(i,j)\) である。sequence、value let、run、runCase にも
-同じように principal level を付ける。
+ここで \(k=\max(i,j)\) である。product formation は PTS relation で与えるが、
+導入・除去と operational reduction は
+\(\lambda^c/@^c\) による CBPV の規則として保つ。sequence、value let、run、
+runCase にも同じように principal level を付ける。
 
 ### polymorphic term
 
-Program type の product に対する導入と除去は static な type
-abstraction/application とする。\(r,q\in\{v,c\}\) とし、
-\(k=\max(i+1,j)\) とする。
+Program type に対する導入と除去は static な type abstraction/application とする。
+\(r\in\{v,c\}\)、\(k=\max(i+1,j)\) とする。polymorphic type とその項は
+computation phase に属する。
 
 \[
 \frac{
  \Gamma,X:*^r_i:\sq^t_i
- \vdash e:A:*^q_j
+ \vdash M:\underline B:*^c_j
 }{
  \Gamma\vdash
- \Lambda X.e:
- (\Pi X:*^r_i.A):*^q_k
+ \Lambda X:*^r_i.M:
+ (\Pi X:*^r_i.\underline B):*^c_k
 }
 \tag{Poly-I}
 \]
@@ -322,12 +404,12 @@ abstraction/application とする。\(r,q\in\{v,c\}\) とし、
 \[
 \frac{
  \Gamma\vdash
- e:(\Pi X:*^r_i.A):*^q_k
+ M:(\Pi X:*^r_i.\underline B):*^c_k
  \qquad
  \Gamma\vdash P:*^r_i
 }{
  \Gamma\vdash
- e[P]:A[X:=P]:*^q_j
+ M[P]:\underline B[X:=P]:*^c_j
 }
 \tag{Poly-E}
 \]
@@ -336,10 +418,25 @@ type abstraction/application は Program effect を実行しない。その beta
 static reduction に属する。
 
 \[
-(\Lambda X.e)[P]
-\longrightarrow_\tau
-e[X:=P].
+(\Lambda X:*^r_i.M)[P]
+\longrightarrow_{\mathsf{ty}}
+M[X:=P].
 \tag{Poly-Beta}
+\]
+
+polymorphic computation を value として保持するときは、value-level の
+polymorphic product を追加せず、\(U\) を用いる。
+
+\[
+\frac{
+ \Gamma\vdash
+ \Lambda X:*^r_i.M:
+ (\Pi X:*^r_i.\underline B):*^c_k
+}{
+ \Gamma\vdash
+ \operatorname{thunk}(\Lambda X:*^r_i.M):
+ U(\Pi X:*^r_i.\underline B):*^v_k
+}.
 \]
 
 ### reduction
@@ -349,7 +446,7 @@ raw syntax 全体に対する一つの無型 reduction は使わず、少なく�
 
 \[
 \begin{array}{ll}
-\longrightarrow_\tau
+\longrightarrow_{\mathsf{ty}}
 &\text{PTS と type polymorphism の static reduction},\\
 \longrightarrow_c
 &\text{CBPV computation の operational reduction},\\
@@ -512,8 +609,9 @@ reflection は Program の principal level を Set 側に保存する。
 \]
 
 \(A:*^v_i\) かつ \(\underline B:*^c_j\) なら、\(\operatorname{Rf-Arrow}\) の両辺は
-\(*^s_{\max(i,j)}\) に属する。term reflection においても return と thunk の
-境界を消去する。
+\(*^s_{\max(i,j)}\) に属する。Program-Type-Nondependency により source product の
+binder は codomain に現れないので、Compute binder を Set binder に移す変数変換は
+必要ない。term reflection においても return と thunk の境界を消去する。
 
 \[
 \operatorname{RfTerm}_{F A}(\operatorname{return}(V))
@@ -550,13 +648,13 @@ polymorphic Program type を構造的に reflection する場合、次の形の
 reduction が必要になる。
 
 \[
-\operatorname{RfType}(\Pi X:*^r_i.A)
+\operatorname{RfType}(\Pi X:*^r_i.\underline B)
 \longrightarrow_s
-\Pi X:*^r_i.\operatorname{RfType}(A).
+\Pi X:*^r_i.\operatorname{RfType}(\underline B).
 \tag{Rf-Poly}
 \]
 
-\(A:*^q_j\) としたとき、左辺の Set level は
+\(\underline B:*^c_j\) としたとき、左辺の Set level は
 \(k=\max(i+1,j)\) である。右辺を同じ level の Set type として
 形成するため、次の cross-sort relation を候補とする。
 
@@ -579,10 +677,11 @@ type code の集合として解釈し、\(\operatorname{RfType}\) をその deco
 term reflection にも対応する static rule を置く。
 
 \[
-\operatorname{RfTerm}_{\Pi X:*^r_i.A}(\Lambda X.e)
+\operatorname{RfTerm}_{\Pi X:*^r_i.\underline B}
+  (\Lambda X:*^r_i.M)
 \longrightarrow_s
-\lambda^\tau X:*^r_i.
-\operatorname{RfTerm}_A(e).
+\lambda^{\mathsf{ty}}X:*^r_i.
+\operatorname{RfTerm}_{\underline B}(M).
 \tag{Rf-Poly-I}
 \]
 
@@ -731,30 +830,23 @@ principal level は \(\max\) と \(\operatorname{succ}\) からなる最小の l
 する。この principal level を三項 judgement に常に表示し、reflection も
 同じ level expression を Set 側に使う。
 
-## cumulativity
+## non-cumulative universe
 
-principal judgement と cumulativity は分離する。最初の core は
-non-cumulative とし、型形成と通常の typing は principal level だけを
-結論に持つ。
-
-cumulativity を追加する場合は、principal judgement を premise にする
-別の subsumption judgement として、次の形の rule を置く。
+Program の universe hierarchy には cumulativity を入れない。型形成と typing は
+常に principal level を結論に持ち、
 
 \[
-\frac{
- \Gamma\vdash_{\mathrm{pr}} e:A:*^q_i
- \qquad
- i\leq j
-}{
- \Gamma\vdash_{\leq}e:A:*^q_j
-}.
-\tag{Universe-Subsumption}
+\Gamma\vdash e:A:*^q_i
+\quad\Longrightarrow\quad
+\Gamma\vdash e:A:*^q_j
+\qquad(i<j)
 \]
 
-この rule は raw term に新しい constructor を追加しない。reflection が使う
-level は \(\vdash_{\mathrm{pr}}\) が与えるものとする。conversion は cumulativity の
-subsumption と共有せず、同じ principal sort 内の definitional equality に
-限定する。
+という subsumption は認めない。universe-polymorphic な宣言の再利用は level
+variable の instantiation によって行い、型を上位 universe に持ち上げる規則とは
+分離する。reflection は judgement に表示された principal level をそのまま Set 側に
+保存する。Set/Prop 側に既存の cumulativity がある場合でも、それを Program sort に
+自動的に拡張しない。
 
 ## 必要な性質
 
@@ -790,9 +882,9 @@ theorem として示す必要がある。
    一般化する。
 5. raw AST を一つに統合し、static reduction、operational reduction、
    reflection reduction を typed relation として分離する。
-6. Program type の product と static type abstraction/application を追加する。
+6. \((*^v_i,*^c_j,*^c_{\max(i,j)})\) による computation product と、
+   static type abstraction/application を追加する。
 7. level metavariable、constraint solving、generalization を追加する。
-8. principal judgement と分離した cumulativity を追加する。
 
 ## 検討事項
 
@@ -800,9 +892,10 @@ theorem として示す必要がある。
   \((\sq^t_i,\sq^t_{i+1})\) と higher-kind 用の product relation を追加する。
 - \(\mathcal R_{\mathrm{Rf}}\) によって Program type code 上の Set product 全体を認めるか、
   polymorphic reflection 専用の formation rule に限定するか。
-- polymorphic value/computation の static beta を definitional equality としてどの程度
+- polymorphic computation の static beta を definitional equality としてどの程度
   normalize するか。
+- indexed Program type を将来追加する場合の dependent CBPV formation、context
+  reindexing、reflection。
 - Program inductive の principal level と positivity を Set 側の鏡像に保存する
   declaration rule。
-- universe subsumption と \(\operatorname{RfType}\) の level preservation。
 - common kind \(\sq^t_i\) とその type-code/decoding 解釈を含む model。
