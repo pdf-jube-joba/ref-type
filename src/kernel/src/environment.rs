@@ -60,15 +60,18 @@ pub enum ModuleItem {
     Inductive {
         name: String,
         constructor_names: Vec<String>,
+        associated_definitions: Vec<(String, DefId)>,
         inductive: InductiveId,
     },
     Record {
         name: String,
+        associated_definitions: Vec<(String, DefId)>,
         inductive: InductiveId,
     },
     ProgramInductive {
         name: String,
         constructor_names: Vec<String>,
+        associated_definitions: Vec<(String, DefId)>,
         inductive: ProgramInductiveId,
         reflected: InductiveId,
     },
@@ -434,6 +437,80 @@ impl CrateEnv {
         let index = module.items.len();
         module.items.push(item);
         module.names.insert(name, index);
+        Ok(())
+    }
+
+    pub fn publish_associated_definition(
+        &mut self,
+        module: ModuleId,
+        owner: &str,
+        name: String,
+        definition: DefId,
+    ) -> Result<(), String> {
+        let field_names = self
+            .module(module)
+            .item(owner)
+            .map(|item| match item {
+                ModuleItem::Record { inductive, .. } => self.inductive(*inductive).constructors()
+                    [0]
+                .telescope
+                .iter()
+                .filter_map(|binder| match binder {
+                    crate::inductive::CtorBinder::Simple((name, _)) => {
+                        Some(self.symbol(*name).to_string())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+                ModuleItem::ProgramInductive {
+                    constructor_names,
+                    inductive,
+                    ..
+                } if constructor_names.is_empty() => {
+                    self.program_inductive(*inductive).constructors()[0]
+                        .fields()
+                        .iter()
+                        .map(|(name, _)| self.symbol(*name).to_string())
+                        .collect()
+                }
+                _ => Vec::new(),
+            })
+            .unwrap_or_default();
+        let item = self
+            .module_mut(module)
+            .names
+            .get(owner)
+            .copied()
+            .and_then(|index| self.module_mut(module).items.get_mut(index))
+            .ok_or_else(|| format!("Associated item owner '{owner}' was not found"))?;
+        let (reserved, definitions) = match item {
+            ModuleItem::Inductive {
+                constructor_names,
+                associated_definitions,
+                ..
+            }
+            | ModuleItem::ProgramInductive {
+                constructor_names,
+                associated_definitions,
+                ..
+            } => (constructor_names.as_slice(), associated_definitions),
+            ModuleItem::Record {
+                associated_definitions,
+                ..
+            } => (&[][..], associated_definitions),
+            ModuleItem::Definition { .. } => {
+                return Err(format!("Module item '{owner}' is not a type"));
+            }
+        };
+        if reserved.iter().any(|candidate| candidate == &name)
+            || field_names.iter().any(|candidate| candidate == &name)
+            || definitions.iter().any(|(candidate, _)| candidate == &name)
+        {
+            return Err(format!(
+                "Associated item '{owner}::{name}' is already defined"
+            ));
+        }
+        definitions.push((name, definition));
         Ok(())
     }
 

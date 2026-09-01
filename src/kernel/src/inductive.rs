@@ -163,25 +163,60 @@ impl InductiveTypeSpecs {
 
         self.validate_strict_positivity(session.arena(), inductive)?;
 
+        let mut parameter_sorts = Vec::with_capacity(self.parameters.len());
         for (var, parameter_ty) in &self.parameters {
-            session.infer_sort(*parameter_ty).map_err(|error| {
+            let sort = session.infer_sort(*parameter_ty).map_err(|error| {
                 Box::new(error.with_frame(
                     "InductiveTypeSpecs::new",
                     format!("parameter '{var:?}' type check"),
                     "parameter is well-sorted",
                 ))
             })?;
+            parameter_sorts.push(sort);
             session.push(*var, *parameter_ty);
         }
 
-        let arity = self.arity(session.arena());
-        session.infer_sort(arity).map_err(|error| {
-            Box::new(error.with_frame(
-                "InductiveTypeSpecs::new",
-                "arity type check",
-                "arity is well-sorted",
-            ))
-        })?;
+        // PropKind and SetKind are top sorts and intentionally have no sort
+        // above them.  Validate their arity by folding the product relation
+        // directly, without asking for a nonexistent type of the final sort.
+        if self.sort.type_of_sort().is_some() {
+            let arity = self.arity(session.arena());
+            session.infer_sort(arity).map_err(|error| {
+                Box::new(error.with_frame(
+                    "InductiveTypeSpecs::new",
+                    "arity type check",
+                    "arity is well-sorted",
+                ))
+            })?;
+        } else {
+            let mut binder_sorts = parameter_sorts;
+            for (var, index_ty) in &self.indices {
+                let sort = session.infer_sort(*index_ty).map_err(|error| {
+                    Box::new(error.with_frame(
+                        "InductiveTypeSpecs::new",
+                        format!("index '{var:?}' type check"),
+                        "index is well-sorted",
+                    ))
+                })?;
+                binder_sorts.push(sort);
+                session.push(*var, *index_ty);
+            }
+            let mut arity_sort = self.sort;
+            for domain_sort in binder_sorts.into_iter().rev() {
+                arity_sort = domain_sort.relation_of_sort(arity_sort).ok_or_else(|| {
+                    Box::new(
+                        JudgementError::caused("no sort relation for inductive arity").with_frame(
+                            "InductiveTypeSpecs::new",
+                            "arity type check",
+                            "arity is well-sorted",
+                        ),
+                    )
+                })?;
+            }
+            for _ in &self.indices {
+                session.pop();
+            }
+        }
 
         let parameter_arguments = bound_arguments(session.arena(), self.parameters.len());
         let this_exp = session.arena().alloc(Node::IndType {

@@ -8,7 +8,7 @@ use super::exp::*;
 pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModuleParamId) -> bool {
     let arena = env.arena();
     match arena.get(exp) {
-        Node::Sort(_) | Node::Bound(_) => false,
+        Node::Sort(_) | Node::ValueType | Node::Bound(_) => false,
         Node::ModuleParam(candidate) => candidate == parameter,
         Node::Meta { spine, .. } => spine
             .into_iter()
@@ -41,6 +41,15 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
                     .into_iter()
                     .any(|case| exp_contains_module_param(env, case, parameter))
         }
+        Node::IndProjection {
+            parameters, value, ..
+        }
+        | Node::ProgramIndProjection {
+            parameters, value, ..
+        } => parameters
+            .into_iter()
+            .chain([value])
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::ThunkType { computation_ty } => {
             exp_contains_module_param(env, computation_ty, parameter)
         }
@@ -325,6 +334,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
 
     match (arena.get(left), arena.get(right)) {
         (Node::Sort(left), Node::Sort(right)) => left == right,
+        (Node::ValueType, Node::ValueType) => true,
         (Node::Bound(left), Node::Bound(right)) => left == right,
         (Node::ModuleParam(left), Node::ModuleParam(right)) => left == right,
         (
@@ -491,6 +501,44 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && left_idx == right_idx
                 && eq_slices(env, &left_parameters, &right_parameters, mode)
                 && eq_slices(env, &left_fields, &right_fields, mode)
+        }
+        (
+            Node::IndProjection {
+                indspec: left_spec,
+                parameters: left_parameters,
+                value: left_value,
+                field: left_field,
+            },
+            Node::IndProjection {
+                indspec: right_spec,
+                parameters: right_parameters,
+                value: right_value,
+                field: right_field,
+            },
+        ) => {
+            left_spec == right_spec
+                && left_field == right_field
+                && eq_slices(env, &left_parameters, &right_parameters, mode)
+                && is_alpha_eq_rec(env, left_value, right_value, mode)
+        }
+        (
+            Node::ProgramIndProjection {
+                indspec: left_spec,
+                parameters: left_parameters,
+                value: left_value,
+                field: left_field,
+            },
+            Node::ProgramIndProjection {
+                indspec: right_spec,
+                parameters: right_parameters,
+                value: right_value,
+                field: right_field,
+            },
+        ) => {
+            left_spec == right_spec
+                && left_field == right_field
+                && eq_slices(env, &left_parameters, &right_parameters, mode)
+                && is_alpha_eq_rec(env, left_value, right_value, mode)
         }
         (
             Node::ComputationLam {
@@ -1198,7 +1246,7 @@ where
 
 pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
     match &mut node {
-        Node::Sort(_) | Node::Bound(_) | Node::ModuleParam(_) => {}
+        Node::Sort(_) | Node::ValueType | Node::Bound(_) | Node::ModuleParam(_) => {}
         Node::Meta { spine, .. } => {
             for argument in spine {
                 *argument = map(*argument);
@@ -1229,6 +1277,17 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             for case in cases {
                 *case = map(*case);
             }
+        }
+        Node::IndProjection {
+            parameters, value, ..
+        }
+        | Node::ProgramIndProjection {
+            parameters, value, ..
+        } => {
+            for parameter in parameters {
+                *parameter = map(*parameter);
+            }
+            *value = map(*value);
         }
         Node::ThunkType { computation_ty } => *computation_ty = map(*computation_ty),
         Node::ReturnType { value_ty } => *value_ty = map(*value_ty),
@@ -1624,6 +1683,32 @@ pub fn remap_all_global_ids(
                     })
                 }
             }
+            Node::IndProjection {
+                indspec,
+                parameters,
+                value,
+                field,
+            } => {
+                let mapped_spec = inductives.get(&indspec).copied().unwrap_or(indspec);
+                let mapped_parameters = parameters
+                    .iter()
+                    .map(|child| remap(arena, *child, definitions, inductives, program_inductives))
+                    .collect::<Vec<_>>();
+                let mapped_value = remap(arena, value, definitions, inductives, program_inductives);
+                if mapped_spec == indspec
+                    && mapped_parameters == parameters
+                    && mapped_value == value
+                {
+                    exp
+                } else {
+                    arena.alloc(Node::IndProjection {
+                        indspec: mapped_spec,
+                        parameters: mapped_parameters,
+                        value: mapped_value,
+                        field,
+                    })
+                }
+            }
             Node::ProgramIndType {
                 indspec,
                 parameters,
@@ -1668,6 +1753,32 @@ pub fn remap_all_global_ids(
                         parameters: mapped_parameters,
                         idx,
                         fields: mapped_fields,
+                    })
+                }
+            }
+            Node::ProgramIndProjection {
+                indspec,
+                parameters,
+                value,
+                field,
+            } => {
+                let mapped_spec = program_inductives.get(&indspec).copied().unwrap_or(indspec);
+                let mapped_parameters = parameters
+                    .iter()
+                    .map(|child| remap(arena, *child, definitions, inductives, program_inductives))
+                    .collect::<Vec<_>>();
+                let mapped_value = remap(arena, value, definitions, inductives, program_inductives);
+                if mapped_spec == indspec
+                    && mapped_parameters == parameters
+                    && mapped_value == value
+                {
+                    exp
+                } else {
+                    arena.alloc(Node::ProgramIndProjection {
+                        indspec: mapped_spec,
+                        parameters: mapped_parameters,
+                        value: mapped_value,
+                        field,
                     })
                 }
             }
@@ -2145,6 +2256,68 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             _ => None,
         },
         Node::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
+        Node::IndProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => {
+            let reduced = whnf(env, value);
+            let (head, arguments) = crate::utils::decompose_app(arena, reduced);
+            match arena.get(head) {
+                Node::IndCtor {
+                    indspec: constructor,
+                    parameters: constructor_parameters,
+                    idx: 0,
+                } if constructor == indspec
+                    && constructor_parameters.len() == parameters.len()
+                    && constructor_parameters
+                        .iter()
+                        .zip(&parameters)
+                        .all(|(left, right)| exp_is_alpha_eq(env, *left, *right)) =>
+                {
+                    arguments.get(field).copied()
+                }
+                _ if reduced != value => Some(arena.alloc(Node::IndProjection {
+                    indspec,
+                    parameters,
+                    value: reduced,
+                    field,
+                })),
+                _ => None,
+            }
+        }
+        Node::ProgramIndProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => {
+            let reduced = unfold_program_value_head(env, value);
+            match arena.get(reduced) {
+                Node::ProgramIndCtor {
+                    indspec: constructor,
+                    parameters: constructor_parameters,
+                    idx: 0,
+                    fields,
+                } if constructor == indspec
+                    && constructor_parameters.len() == parameters.len()
+                    && constructor_parameters
+                        .iter()
+                        .zip(&parameters)
+                        .all(|(left, right)| exp_is_alpha_eq(env, *left, *right)) =>
+                {
+                    fields.get(field).copied()
+                }
+                _ if reduced != value => Some(arena.alloc(Node::ProgramIndProjection {
+                    indspec,
+                    parameters,
+                    value: reduced,
+                    field,
+                })),
+                _ => None,
+            }
+        }
         Node::RfType { compute_ty } => match arena.get(compute_ty) {
             Node::ReturnType { value_ty } => Some(arena.alloc(Node::RfType {
                 compute_ty: value_ty,

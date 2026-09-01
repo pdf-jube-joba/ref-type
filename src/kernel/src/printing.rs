@@ -35,6 +35,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
     let child = |exp| format_exp(env, exp);
     match arena.get(exp) {
         Node::Sort(sort) => format_sort(&sort),
+        Node::ValueType => "\\Type".to_string(),
         Node::Bound(index) => format!("#{index}"),
         Node::ModuleParam(var) => format_var(env, var),
         Node::Meta {
@@ -112,6 +113,23 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
+        Node::IndProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => format!(
+            "proj ind({}:{})[{}].{} ({})",
+            indspec.module.0,
+            indspec.index,
+            parameters
+                .into_iter()
+                .map(child)
+                .collect::<Vec<_>>()
+                .join(", "),
+            field,
+            child(value),
+        ),
         Node::ThunkType { computation_ty } => format!("\\U({})", child(computation_ty)),
         Node::ReturnType { value_ty } => format!("\\F({})", child(value_ty)),
         Node::ComputationFunction { domain, codomain } => {
@@ -171,6 +189,23 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
                 .collect::<Vec<_>>()
                 .join(", "),
             fields.into_iter().map(child).collect::<Vec<_>>().join(", ")
+        ),
+        Node::ProgramIndProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => format!(
+            "vproj pind({}:{})[{}].{} ({})",
+            indspec.module.0,
+            indspec.index,
+            parameters
+                .into_iter()
+                .map(child)
+                .collect::<Vec<_>>()
+                .join(", "),
+            field,
+            child(value),
         ),
         Node::Return { value } => format!("\\return({})", child(value)),
         Node::Force { value } => format!("\\force({})", child(value)),

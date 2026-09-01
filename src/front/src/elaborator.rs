@@ -117,16 +117,28 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let module_context_len = ctx.len();
         ctx.append(local_ctx);
         let result = if self.metavariables.contains_unsolved(&self.crate_env, e) {
-            self.metavariables.infer_pts(
-                &self.crate_env,
-                self.module_manager.current(),
-                &mut ctx,
-                e,
-            )
+            let original = ctx.clone();
+            self.metavariables
+                .infer_pts(&self.crate_env, self.module_manager.current(), &mut ctx, e)
+                .or_else(|_| {
+                    ctx = original;
+                    self.metavariables.infer_value(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                        e,
+                    )
+                })
         } else {
-            self.logger
+            let inferred = self
+                .logger
                 .infer(&self.crate_env, self.module_manager.current(), &mut ctx, e)
-                .ok_or("Failed to infer elaborated expression".to_string())
+                .or_else(|| {
+                    CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
+                        .infer_value(e)
+                        .ok()
+                });
+            inferred.ok_or("Failed to infer elaborated expression".to_string())
         };
         *local_ctx = ctx.split_off(module_context_len);
         result
@@ -475,6 +487,7 @@ impl GlobalEnvironment {
         type_name: &Identifier,
         parameters: &[RightBind],
         constructors: &[(Identifier, Vec<RightBind>, SExp)],
+        expose_constructors: bool,
     ) -> Result<(), ElaborationError> {
         let module = self.module_manager.current();
         let inductive = self.crate_env.reserve_program_inductive(module);
@@ -526,22 +539,13 @@ impl GlobalEnvironment {
                     field_ty = self.metavariables.zonk(&self.crate_env, field_ty);
                 }
                 if vars.is_empty() {
-                    let field_ty = kernel::calculus::shift_bound_indices(
-                        self.crate_env.arena(),
-                        field_ty,
-                        elaborated_fields.len(),
-                        0,
-                    );
                     elaborated_fields.push((SymbolId::ANONYMOUS, field_ty));
+                    scope.push_program_value_decl_var(SymbolId::ANONYMOUS, field_ty);
                 } else {
                     for var in vars {
-                        let field_ty = kernel::calculus::shift_bound_indices(
-                            self.crate_env.arena(),
-                            field_ty,
-                            elaborated_fields.len(),
-                            0,
-                        );
-                        elaborated_fields.push((self.crate_env.intern(var.as_str()), field_ty));
+                        let field_name = self.crate_env.intern(var.as_str());
+                        elaborated_fields.push((field_name, field_ty));
+                        scope.push_program_value_decl_var(field_name, field_ty);
                     }
                 }
             }
@@ -636,7 +640,11 @@ impl GlobalEnvironment {
         self.module_manager.publish_reserved_program_inductive(
             &mut self.crate_env,
             type_name.clone(),
-            constructor_names,
+            if expose_constructors {
+                constructor_names
+            } else {
+                Vec::new()
+            },
             inductive,
             reflected,
         )?;
@@ -766,15 +774,64 @@ impl GlobalEnvironment {
             self.metavariables.clear();
             let mut local_scope = LocalScope::default();
             match decl {
-                ModuleItem::Definition { name, ty, body } => {
+                ModuleItem::Definition {
+                    owner,
+                    name,
+                    binders,
+                    ty,
+                    body,
+                } => {
                     self.logger.record(
                         LogLevel::Debug,
                         vec!["elaborator".to_string(), "definition".to_string()],
                         format!("Elaborating definition {}", name.as_str()),
                         LogPayload::Message,
                     );
-                    let ty_elab = local_scope.elab_exp(ty, self)?;
-                    let body_elab = local_scope.elab_exp(body, self)?;
+                    if let Some(owner) = owner {
+                        let expected = self
+                            .module_manager
+                            .associated_parameter_count(&self.crate_env, &owner.type_name)
+                            .ok_or_else(|| {
+                                format!(
+                                    "Associated item owner '{}' is not a type in this module",
+                                    owner.type_name.as_str()
+                                )
+                            })?;
+                        let found = owner
+                            .parameters
+                            .iter()
+                            .map(|binder| binder.vars.len())
+                            .sum::<usize>();
+                        if expected != found {
+                            return Err(format!(
+                                "Associated definition {}::{} expects {} owner parameter(s), found {}",
+                                owner.type_name.as_str(),
+                                name.as_str(),
+                                expected,
+                                found,
+                            )
+                            .into());
+                        }
+                    }
+                    let mut all_binders = owner
+                        .as_ref()
+                        .map(|owner| owner.parameters.clone())
+                        .unwrap_or_default();
+                    all_binders.extend(binders.clone());
+                    let mut ty = ty.clone();
+                    let mut body = body.clone();
+                    for binder in all_binders.into_iter().rev() {
+                        ty = SExp::Prod {
+                            bind: Bind::Named(binder.clone()),
+                            body: Box::new(ty),
+                        };
+                        body = SExp::Lam {
+                            bind: Bind::Named(binder),
+                            body: Box::new(body),
+                        };
+                    }
+                    let ty_elab = local_scope.elab_exp(&ty, self)?;
+                    let body_elab = local_scope.elab_exp(&body, self)?;
                     if !self.metavariables.is_empty() {
                         self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
                             .map_err(|message| self.metavariables.constraint_error(message))?;
@@ -815,11 +872,20 @@ impl GlobalEnvironment {
                         ty: ty_elab,
                         body: body_elab,
                     };
-                    self.module_manager.add_def(
-                        &mut self.crate_env,
-                        name.clone(),
-                        defined_constant,
-                    )?;
+                    if let Some(owner) = owner {
+                        self.module_manager.add_associated_def(
+                            &mut self.crate_env,
+                            &owner.type_name,
+                            name.clone(),
+                            defined_constant,
+                        )?;
+                    } else {
+                        self.module_manager.add_def(
+                            &mut self.crate_env,
+                            name.clone(),
+                            defined_constant,
+                        )?;
+                    }
                 }
                 ModuleItem::Inductive {
                     type_name,
@@ -834,6 +900,7 @@ impl GlobalEnvironment {
                             type_name,
                             parameters,
                             constructors,
+                            true,
                         )?;
                         continue;
                     }
@@ -1013,9 +1080,35 @@ impl GlobalEnvironment {
                 ModuleItem::Record {
                     type_name,
                     parameters,
-                    sort,
+                    kind,
                     fields,
                 } => {
+                    if matches!(kind, StructureKind::Program) {
+                        let fields = fields
+                            .iter()
+                            .map(|(name, ty)| RightBind {
+                                vars: vec![name.clone()],
+                                ty: Box::new(ty.clone()),
+                            })
+                            .collect::<Vec<_>>();
+                        let result = SExp::AccessPath {
+                            access: LocalAccess::Current {
+                                access: type_name.clone(),
+                            },
+                            parameters: Vec::new(),
+                        };
+                        self.add_program_inductive_decl(
+                            &mut ctx,
+                            type_name,
+                            parameters,
+                            &[(Identifier("$structure".into()), fields, result)],
+                            false,
+                        )?;
+                        continue;
+                    }
+                    let StructureKind::Pts(sort) = kind else {
+                        unreachable!();
+                    };
                     // treat record as inductive type with one constructor without recursive definition
                     // no register of type name as binded var since no recursive definition
 
@@ -1084,10 +1177,26 @@ impl GlobalEnvironment {
                         "Ill-formed record type specification".to_string()
                     })?; */
 
-                    self.module_manager.add_record(
+                    let inductive = self
+                        .crate_env
+                        .reserve_inductive(self.module_manager.current());
+                    self.crate_env.define_inductive(inductive, indspec);
+                    self.crate_env
+                        .inductive(inductive)
+                        .clone()
+                        .validate(
+                            &mut CheckSession::new(
+                                &self.crate_env,
+                                self.module_manager.current(),
+                                &mut ctx,
+                            ),
+                            inductive,
+                        )
+                        .map_err(|error| format!("Ill-formed structure: {error:?}"))?;
+                    self.module_manager.publish_reserved_record(
                         &mut self.crate_env,
                         type_name.clone(),
-                        indspec,
+                        inductive,
                     )?;
                 }
                 ModuleItem::ChildModule { module } => {

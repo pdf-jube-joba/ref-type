@@ -215,7 +215,7 @@ fn inductive_constructor_parameter_is_inferred_from_its_field() {
             \inductive Box(X: \Set(0)): \Set(0) :=
                 | box: X -> Box;
             ;
-            \definition boxed: Box[A] := Box[_]#box a;
+            \definition boxed: Box[A] := Box[_]::box a;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();

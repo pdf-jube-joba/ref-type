@@ -96,7 +96,7 @@
     - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
     - record.form ``'name "(" ('exp ",")* ")"``
     - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
-    - record.proj: `'exp "#" 'name`
+    - type-associated item / structure projection: `'exp "::" 'name`
     - proof.term: `\Proof 'exp`
     - subset.intro: `"\subsetinto(" 'exp "," 'exp "," 'exp "," 'exp ")"`
     - power.set: `'\Power 'exp`

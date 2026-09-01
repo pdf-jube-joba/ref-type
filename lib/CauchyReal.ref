@@ -34,7 +34,7 @@
   \inductive NatLe: (lower: Nat) -> (upper: Nat) -> \Prop :=
   | refl: (n: Nat) -> NatLe n n;
   | step: (lower, upper: Nat) ->
-      NatLe lower upper -> NatLe lower (Nat#succ upper);
+      NatLe lower upper -> NatLe lower (Nat::succ upper);
   ;
 
   \definition Positive: Rat -> \Prop :=
@@ -82,18 +82,11 @@
         \exists \Ty(Nat, \Subset(N, Nat, EquivalentAt x y eps N));
 
   /*
-   * The metric laws must make Equivalent an equivalence relation.  The
-   * quotient construction also receives set extensionality explicitly;
-   * neither fact follows merely from the names of the rational operations.
+   * The metric laws must make Equivalent an equivalence relation.  Subset
+   * extensionality is supplied by the kernel axiom; the metric laws do not
+   * follow merely from the names of the rational operations.
    */
   \module Quotient(
-    setExt:
-      (A, B: \Power(CauchySeq)) ->
-        ((x: CauchySeq) ->
-          \Pred(CauchySeq, A, x) -> \Pred(CauchySeq, B, x)) ->
-        ((x: CauchySeq) ->
-          \Pred(CauchySeq, B, x) -> \Pred(CauchySeq, A, x)) ->
-        A = B,
     equivalentRefl:
       (x: CauchySeq) -> Equivalent x x,
     equivalentSym:
@@ -111,11 +104,11 @@
     \definition classOfEq:
       (x, y: CauchySeq) -> Equivalent x y -> ClassOf x = ClassOf y :=
       (x, y: CauchySeq) => (xy: Equivalent x y) =>
-        setExt (ClassOf x) (ClassOf y)
+        \axiom:setext(ClassOf x, ClassOf y,
           ((z: CauchySeq) => (xz: Equivalent x z) =>
-            equivalentTrans y x z (equivalentSym x y xy) xz)
+            equivalentTrans y x z (equivalentSym x y xy) xz),
           ((z: CauchySeq) => (yz: Equivalent y z) =>
-            equivalentTrans x y z xy yz);
+            equivalentTrans x y z xy yz));
 
     /*
      * IsClass is the impredicative existential
@@ -138,6 +131,9 @@
       (x: Real) => (seq: CauchySeq) =>
         \Pred(CauchySeq, x, seq);
 
+    \definition underlying: Real -> \Power(CauchySeq) :=
+      (x: Real) => x;
+
     /* Equality of reals is kernel equality of their equivalence classes. */
     \definition Eq: Real -> Real -> \Prop :=
       (x, y: Real) => x = y;
@@ -150,7 +146,7 @@
       (x, y: Real) =>
         (xy: (seq: CauchySeq) -> mem x seq -> mem y seq) =>
         (yx: (seq: CauchySeq) -> mem y seq -> mem x seq) =>
-          setExt x y xy yx;
+          \axiom:setext(underlying x, underlying y, xy, yx);
 
     /* Every representative gives a genuine member of the quotient. */
     \definition classIsClass:

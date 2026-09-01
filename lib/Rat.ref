@@ -11,25 +11,25 @@
     \prec(\Set, Nat)
       ((k: Nat) => Nat)
       n
-      ((k: Nat) => (sum: Nat) => Nat#succ sum)
+      ((k: Nat) => (sum: Nat) => Nat::succ sum)
       m;
 
 \definition natMul: Nat -> Nat -> Nat :=
   (m, n: Nat) =>
     \prec(\Set, Nat)
       ((k: Nat) => Nat)
-      Nat#zero
+      Nat::zero
       ((k: Nat) => (product: Nat) => natAdd n product)
       m;
 
-\definition zeroNat: Nat := Nat#zero;
+\definition zeroNat: Nat := Nat::zero;
 
-\definition oneNat: Nat := Nat#succ Nat#zero;
+\definition oneNat: Nat := Nat::succ Nat::zero;
 
 \inductive NatLt: (lower: Nat) -> (upper: Nat) -> \Prop :=
-| zeroSucc: (n: Nat) -> NatLt Nat#zero (Nat#succ n);
+| zeroSucc: (n: Nat) -> NatLt Nat::zero (Nat::succ n);
 | succSucc: (lower, upper: Nat) ->
-    NatLt lower upper -> NatLt (Nat#succ lower) (Nat#succ upper);
+    NatLt lower upper -> NatLt (Nat::succ lower) (Nat::succ upper);
 ;
 
 /* The pair (a,b) represents a-b. */
@@ -52,7 +52,7 @@
       z;
 
 \definition integer: Nat -> Nat -> Integer :=
-  (a, b: Nat) => Integer#pair a b;
+  (a, b: Nat) => Integer::pair a b;
 
 \definition zeroInteger: Integer := integer zeroNat zeroNat;
 
@@ -140,10 +140,10 @@
 
 \definition denominator: Fraction -> Integer :=
   (x: Fraction) =>
-    integer (Nat#succ (denominatorIndex x)) zeroNat;
+    integer (Nat::succ (denominatorIndex x)) zeroNat;
 
 \definition fraction: Integer -> Nat -> Fraction :=
-  (n: Integer) => (d: Nat) => Fraction#fraction n d;
+  (n: Integer) => (d: Nat) => Fraction::fraction n d;
 
 /* (d + 1)(e + 1) = (de + d + e) + 1. */
 \definition denominatorProductIndex: Nat -> Nat -> Nat :=
@@ -207,17 +207,11 @@
         (denominatorIndex x) (denominatorIndex y));
 
 /*
- * The quotient is fixed to FractionEq.  The remaining parameters are the
- * arithmetic transitivity proof and subset extensionality.
+ * The quotient is fixed to FractionEq.  Its remaining parameter is the
+ * arithmetic transitivity proof; subset extensionality is supplied by the
+ * kernel axiom.
  */
 \module Quotient(
-    setExt:
-      (A, B: \Power(Fraction)) ->
-        ((x: Fraction) ->
-          \Pred(Fraction, A, x) -> \Pred(Fraction, B, x)) ->
-        ((x: Fraction) ->
-          \Pred(Fraction, B, x) -> \Pred(Fraction, A, x)) ->
-        A = B,
     fractionEqTrans:
       (x, y, z: Fraction) ->
         FractionEq x y -> FractionEq y z -> FractionEq x z,
@@ -230,11 +224,11 @@
     \definition classOfEq:
       (x, y: Fraction) -> FractionEq x y -> ClassOf x = ClassOf y :=
       (x, y: Fraction) => (xy: FractionEq x y) =>
-        setExt (ClassOf x) (ClassOf y)
+        \axiom:setext(ClassOf x, ClassOf y,
           ((z: Fraction) => (xz: FractionEq x z) =>
-            fractionEqTrans y x z (fractionEqSym x y xy) xz)
+            fractionEqTrans y x z (fractionEqSym x y xy) xz),
           ((z: Fraction) => (yz: FractionEq y z) =>
-            fractionEqTrans x y z xy yz);
+            fractionEqTrans x y z xy yz));
 
     \definition IsClass: \Power(Fraction) -> \Prop :=
       (C: \Power(Fraction)) =>
@@ -249,6 +243,9 @@
     \definition mem: Rat -> Fraction -> \Prop :=
       (x: Rat) => (a: Fraction) => \Pred(Fraction, x, a);
 
+    \definition underlying: Rat -> \Power(Fraction) :=
+      (x: Rat) => x;
+
     \definition Eq: Rat -> Rat -> \Prop :=
       (x, y: Rat) => x = y;
 
@@ -259,7 +256,7 @@
       (x, y: Rat) =>
         (xy: (a: Fraction) -> mem x a -> mem y a) =>
         (yx: (a: Fraction) -> mem y a -> mem x a) =>
-          setExt x y xy yx;
+          \axiom:setext(underlying x, underlying y, xy, yx);
 
     \definition classIsClass:
       (x: Fraction) -> IsClass (ClassOf x) :=

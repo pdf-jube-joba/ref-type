@@ -53,7 +53,7 @@ pub enum Token<'a> {
     Comma,       // ","
     Equal,       // "="
     Exclamation, // "!"
-    Field,       // "#"
+    DoubleColon, // "::"
 }
 
 static SORT_KEYWORDS: &[&str] = &["\\Prop", "\\PropKind", "\\Set", "\\SetKind"];
@@ -67,6 +67,7 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Ty",
     "\\subsetinto", // usuals
     "\\VType",
+    "\\Type",
     "\\U",
     "\\F",
     "\\CFun",
@@ -112,6 +113,7 @@ static PROGRAM_KEYWORDS: &[&str] = &[
     "\\import",
     "\\definition",
     "\\inductive",
+    "\\structure",
     "\\mathmacro",
     "\\usermacro",
     "\\eval",
@@ -159,7 +161,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     "," => Token::Comma,
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
-                    "#" => Token::Field,
+                    "::" => Token::DoubleColon,
                     _ => Token::MacroToken(s),
                 };
 
@@ -391,13 +393,81 @@ impl<'a> Parser<'a> {
 
     // <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
-        let name = self.expect_ident()?;
+        let first_name = self.expect_ident()?;
+        let mut first_binders = Vec::new();
+        while let Some(binders) = self.try_parse(|p| p.parse_rightbinds())? {
+            first_binders.extend(binders);
+        }
+        let (owner, name, binders) = if self.bump_if_token(&Token::DoubleColon) {
+            let name = self.expect_ident()?;
+            let mut binders = Vec::new();
+            while let Some(parsed) = self.try_parse(|p| p.parse_rightbinds())? {
+                binders.extend(parsed);
+            }
+            (
+                Some(AssociatedOwner {
+                    type_name: first_name,
+                    parameters: first_binders,
+                }),
+                name,
+                binders,
+            )
+        } else {
+            (None, first_name, first_binders)
+        };
         self.expect_token(Token::Colon)?;
         let ty = self.parse_sexp()?;
         self.expect_token(Token::Assign)?;
         let body = self.parse_sexp()?;
         self.expect_token(Token::Semicolon)?;
-        Ok(ModuleItem::Definition { name, ty, body })
+        Ok(ModuleItem::Definition {
+            owner,
+            name,
+            binders,
+            ty,
+            body,
+        })
+    }
+
+    fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
+        let type_name = self.expect_ident()?;
+        let mut parameters = Vec::new();
+        while let Some(parsed) = self.try_parse(|p| p.parse_rightbinds())? {
+            parameters.extend(parsed);
+        }
+        self.expect_token(Token::Colon)?;
+        let result = self.parse_sexp()?;
+        let kind = match result {
+            SExp::Sort(sort) => StructureKind::Pts(sort),
+            SExp::ValueType => StructureKind::Program,
+            _ => {
+                return Err(ParseError {
+                    msg: "expected PTS sort or \\Type in structure declaration".into(),
+                    start: 0,
+                    end: 0,
+                });
+            }
+        };
+        self.expect_token(Token::Assign)?;
+        self.expect_token(Token::LBrace)?;
+        let mut fields = Vec::new();
+        while !self.bump_if_token(&Token::RBrace) {
+            let name = self.expect_ident()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            fields.push((name, ty));
+            if self.bump_if_token(&Token::RBrace) {
+                break;
+            }
+            self.expect_token(Token::Comma)?;
+        }
+        self.expect_token(Token::Semicolon)?;
+        Ok(ModuleItem::Record {
+            type_name,
+            parameters,
+            kind,
+            fields,
+        })
     }
 
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
@@ -544,6 +614,9 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\inductive") {
             let ind = self.parse_inductive_decl()?;
             return Ok(Some(ind));
+        }
+        if self.bump_if_keyword("\\structure") {
+            return self.parse_structure_decl().map(Some);
         }
         if self.peek() == Some(&Token::KeyWord("\\module")) {
             let module = self.parse_module()?;
@@ -750,7 +823,7 @@ mod tests {
         print_and_unwrap(r"\definition id : (X : \Set) -> X -> X := (x : X) => x ;");
         print_and_unwrap(r"\definition l : (X : \Set) -> X -> X := (x : X) => x ;");
         print_and_unwrap(r"\definition l: (X, Y: \Set) -> \SetKind := \Set => a;");
-        print_and_unwrap(r"\definition one: Nat := Nat#succ Nat#zero;");
+        print_and_unwrap(r"\definition one: Nat := Nat::succ Nat::zero;");
         print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
         print_and_unwrap(r"\import MyModule ( A := B, C := (x: X) => y) \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");

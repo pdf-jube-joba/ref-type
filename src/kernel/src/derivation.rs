@@ -2,7 +2,7 @@ use crate::calculus::*;
 use crate::environment::{CrateEnv, DefinitionKind, ModuleParameterKind};
 use crate::exp::*;
 use crate::ids::{InductiveId, ModuleId, SymbolId};
-use crate::inductive::eliminator_type;
+use crate::inductive::{CtorBinder, eliminator_type};
 use crate::sort::Sort;
 use crate::utils;
 use serde::Serialize;
@@ -301,6 +301,11 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             .type_of_sort()
             .map(|sort| arena.sort(sort))
             .ok_or_else(|| failure(rule, phase, "no sort of sort found")),
+        Node::ValueType => Err(failure(
+            rule,
+            phase,
+            "Program type universe used in the PTS judgement",
+        )),
         Node::Bound(index) => session
             .context
             .get(
@@ -427,6 +432,45 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             return_type,
             cases,
         } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, cases),
+        Node::IndProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => {
+            let spec = session.env().inductive(indspec);
+            if spec.constructor_len() != 1 {
+                return Err(failure(rule, phase, "projection target is not a structure"));
+            }
+            check_parameters(session, rule, phase, &parameters, spec.parameters())?;
+            let structure_ty = arena.alloc(Node::IndType {
+                indspec,
+                parameters: parameters.clone(),
+            });
+            add_check!(
+                session,
+                rule,
+                phase,
+                value,
+                structure_ty,
+                "check projected structure"
+            )?;
+            let constructor = spec.constructors()[0].instantiate_parameters(arena, &parameters);
+            let Some(CtorBinder::Simple((_, field_ty))) = constructor.telescope.get(field) else {
+                return Err(failure(rule, phase, "structure field index out of bounds"));
+            };
+            let preceding = (0..field)
+                .map(|field| {
+                    arena.alloc(Node::IndProjection {
+                        indspec,
+                        parameters: parameters.clone(),
+                        value,
+                        field,
+                    })
+                })
+                .collect::<Vec<_>>();
+            Ok(instantiate_telescope(arena, *field_ty, &preceding))
+        }
         Node::Acc {
             state_ty,
             result_ty,
@@ -465,6 +509,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         | Node::Continue { .. }
         | Node::Finish { .. }
         | Node::ProgramIndCtor { .. }
+        | Node::ProgramIndProjection { .. }
         | Node::Return { .. }
         | Node::Force { .. }
         | Node::ComputationLam { .. }
@@ -702,6 +747,17 @@ fn check_value_type(
             }
             Ok(())
         }
+        Node::Prod { var, ty, body } => {
+            if matches!(arena.get(ty), Node::ValueType) {
+                session.push_program_type(var);
+            } else {
+                check_value_type(session, ty)?;
+                session.push_program_value(var, ty);
+            }
+            let result = check_value_type(session, body);
+            session.pop();
+            result
+        }
         _ => Err(failure(rule, phase, "expression is not a value type")),
     }
 }
@@ -775,6 +831,38 @@ fn infer_value(session: &mut CheckSession<'_, '_>, value: Exp) -> Result<Exp, Bo
                 Err(failure(rule, phase, "definition is not a Program value"))
             }
         }
+        Node::Lam { var, ty, body } => {
+            if matches!(arena.get(ty), Node::ValueType) {
+                session.push_program_type(var);
+            } else {
+                check_value_type(session, ty)?;
+                session.push_program_value(var, ty);
+            }
+            let body_ty = infer_value(session, body);
+            session.pop();
+            let body_ty = body_ty?;
+            Ok(arena.alloc(Node::Prod {
+                var,
+                ty,
+                body: body_ty,
+            }))
+        }
+        Node::App { func, arg } => {
+            let func_ty = infer_value(session, func)?;
+            let Some((_var, domain, codomain)) = expose_product(session.env(), func_ty) else {
+                return Err(failure(
+                    rule,
+                    phase,
+                    "Program value application head is not a function",
+                ));
+            };
+            if matches!(arena.get(domain), Node::ValueType) {
+                check_value_type(session, arg)?;
+            } else {
+                check_value(session, arg, domain)?;
+            }
+            Ok(instantiate(arena, codomain, arg))
+        }
         Node::Thunk { computation } => {
             let computation_ty = infer_computation(session, computation)?;
             Ok(arena.alloc(Node::ThunkType { computation_ty }))
@@ -838,6 +926,52 @@ fn infer_value(session: &mut CheckSession<'_, '_>, value: Exp) -> Result<Exp, Bo
                 indspec,
                 parameters,
             }))
+        }
+        Node::ProgramIndProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => {
+            let spec = session.env().program_inductive(indspec);
+            if spec.constructors().len() != 1 {
+                return Err(failure(
+                    rule,
+                    phase,
+                    "Program projection requires a one-constructor structure",
+                ));
+            }
+            if parameters.len() != spec.parameters().len() {
+                return Err(failure(
+                    rule,
+                    phase,
+                    "Program projection parameter count mismatch",
+                ));
+            }
+            for parameter in &parameters {
+                check_value_type(session, *parameter)?;
+            }
+            let structure_ty = arena.alloc(Node::ProgramIndType {
+                indspec,
+                parameters: parameters.clone(),
+            });
+            check_value(session, value, structure_ty)?;
+            let fields = spec.constructors()[0].instantiated_fields(arena, &parameters);
+            let (_, field_ty) = fields
+                .get(field)
+                .copied()
+                .ok_or_else(|| failure(rule, phase, "Program projection field out of bounds"))?;
+            let preceding = (0..field)
+                .map(|preceding_field| {
+                    arena.alloc(Node::ProgramIndProjection {
+                        indspec,
+                        parameters: parameters.clone(),
+                        value,
+                        field: preceding_field,
+                    })
+                })
+                .collect::<Vec<_>>();
+            Ok(instantiate_telescope(arena, field_ty, &preceding))
         }
         _ => Err(failure(rule, phase, "expression is not a Program value")),
     }
@@ -1309,6 +1443,7 @@ fn infer_take_prop(
 fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
     match arena.get(term) {
         Node::Sort(_) => "Sort",
+        Node::ValueType => "ValueType",
         Node::Bound(_) => "Bound",
         Node::ModuleParam(_) => "ModuleParam",
         Node::Meta { .. } => "Meta",
@@ -1319,6 +1454,7 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         Node::IndType { .. } => "IndType",
         Node::IndCtor { .. } => "IndCtor",
         Node::IndElim { .. } => "IndTypeElim",
+        Node::IndProjection { .. } => "IndProjection",
         Node::ThunkType { .. } => "ThunkType",
         Node::ReturnType { .. } => "ReturnType",
         Node::ComputationFunction { .. } => "ComputationFunction",
@@ -1328,6 +1464,7 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         Node::Continue { .. } => "Continue",
         Node::Finish { .. } => "Finish",
         Node::ProgramIndCtor { .. } => "ProgramIndCtor",
+        Node::ProgramIndProjection { .. } => "ProgramIndProjection",
         Node::Return { .. } => "Return",
         Node::Force { .. } => "Force",
         Node::ComputationLam { .. } => "ComputationLam",

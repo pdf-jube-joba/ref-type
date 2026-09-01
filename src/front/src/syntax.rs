@@ -1,9 +1,8 @@
 // this file describes the surface syntax tree
 use kernel::exp::{Exp, Node};
-use kernel::ids::{DefId, InductiveId, SymbolId};
+use kernel::ids::{DefId, InductiveId};
 use kernel::inductive::CtorBinder;
 use kernel::sort::Sort;
-use kernel::utils;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -61,7 +60,9 @@ pub enum MacroSeqAtom {
 #[derive(Debug, Clone, Serialize)]
 pub enum ModuleItem {
     Definition {
+        owner: Option<AssociatedOwner>,
         name: Identifier,
+        binders: Vec<RightBind>,
         ty: SExp,
         body: SExp,
     },
@@ -75,7 +76,7 @@ pub enum ModuleItem {
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
-        sort: Sort,
+        kind: StructureKind,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {
@@ -107,6 +108,18 @@ pub enum ModuleItem {
     Infer {
         exp: SExp,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AssociatedOwner {
+    pub type_name: Identifier,
+    pub parameters: Vec<RightBind>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum StructureKind {
+    Pts(Sort),
+    Program,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -505,6 +518,7 @@ pub struct ModItemInductive {
     pub type_name: Identifier,
     pub ctor_names: Vec<Identifier>,
     pub inductive: InductiveId,
+    pub associated_definitions: Vec<(Identifier, DefId)>,
 }
 
 #[derive(Debug, Clone)]
@@ -513,12 +527,14 @@ pub struct ModItemProgramInductive {
     pub ctor_names: Vec<Identifier>,
     pub inductive: kernel::ids::ProgramInductiveId,
     pub reflected: InductiveId,
+    pub associated_definitions: Vec<(Identifier, DefId)>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModItemRecord {
     pub type_name: Identifier,
     pub inductive: InductiveId,
+    pub associated_definitions: Vec<(Identifier, DefId)>,
 }
 
 impl ModItemRecord {
@@ -547,28 +563,15 @@ impl ModItemRecord {
             })
             .collect::<Vec<_>>();
 
-        let (field_index, (_field_var, field_ty)) = telescope
+        let (field_index, _) = telescope
             .iter()
             .enumerate()
             .find(|(_, (id, _))| env.symbol(*id) == field_name.as_str())?;
-        let field_ty = *field_ty;
-
-        let field = arena.bound(telescope.len() - field_index - 1);
-        let prec = utils::assoc_lam(arena, telescope, field);
-        let record_ty = arena.alloc(Node::IndType {
+        Some(arena.alloc(Node::IndProjection {
             indspec: self.inductive,
             parameters: parameters.to_vec(),
-        });
-        let return_type = arena.alloc(Node::Prod {
-            var: env.find_symbol("record").unwrap_or(SymbolId::ANONYMOUS),
-            ty: record_ty,
-            body: field_ty,
-        });
-        Some(arena.alloc(Node::IndElim {
-            indspec: self.inductive,
-            elim: e,
-            return_type,
-            cases: vec![prec],
+            value: e,
+            field: field_index,
         }))
     }
 }

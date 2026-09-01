@@ -68,6 +68,12 @@ impl LocalScope {
         self.typing_binds.push(ContextEntry::ProgramType { var });
     }
 
+    pub fn push_program_value_decl_var(&mut self, var: SymbolId, ty: Exp) {
+        self.decl_binds.push((var, None));
+        self.typing_binds
+            .push(ContextEntry::ProgramValue { var, ty });
+    }
+
     pub fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
         self.decl_binds.push((var, Some(exp)));
         self.typing_binds.push(ContextEntry::Pts { var, ty });
@@ -129,10 +135,63 @@ impl LocalScope {
         self.binded_vars.push(var);
         self.typing_binds.push(ContextEntry::Pts { var, ty });
     }
-    fn push_program_value_var(&mut self, var: SymbolId, ty: Exp) {
+    pub(crate) fn push_program_value_var(&mut self, var: SymbolId, ty: Exp) {
         self.binded_vars.push(var);
         self.typing_binds
             .push(ContextEntry::ProgramValue { var, ty });
+    }
+    fn push_program_type_var(&mut self, var: SymbolId) {
+        self.binded_vars.push(var);
+        self.typing_binds.push(ContextEntry::ProgramType { var });
+    }
+
+    fn push_named_binder(&mut self, var: SymbolId, ty: Exp, handler: &impl Handler) {
+        if matches!(handler.arena().get(ty), Node::ValueType) {
+            self.push_program_type_var(var);
+            return;
+        }
+        let mut context = self.typing_binds.clone();
+        if kernel::derivation::CheckSession::new(
+            handler.env(),
+            handler.current_module(),
+            &mut context,
+        )
+        .check_value_type(ty)
+        .is_ok()
+        {
+            self.push_program_value_var(var, ty);
+        } else {
+            self.push_binded_var(var, ty);
+        }
+    }
+
+    fn associated_parameters(
+        &mut self,
+        parameters: &[SExp],
+        expected: usize,
+        handler: &mut impl Handler,
+    ) -> Result<Vec<Exp>, String> {
+        if parameters.is_empty() && expected > 0 {
+            return Ok((0..expected)
+                .map(|_| {
+                    handler.fresh_meta(
+                        SurfaceMeta::Implicit,
+                        SourceSpan { start: 0, end: 0 },
+                        &self.typing_binds,
+                    )
+                })
+                .collect());
+        }
+        if parameters.len() != expected {
+            return Err(format!(
+                "associated item expects {expected} type parameter(s), found {}",
+                parameters.len()
+            ));
+        }
+        parameters
+            .iter()
+            .map(|parameter| self.elab_exp_rec(parameter, handler))
+            .collect()
     }
     fn pop_binded_var(&mut self) {
         self.binded_vars.pop();
@@ -249,6 +308,7 @@ impl LocalScope {
                         inductive,
                         type_name: _,
                         ctor_names: _,
+                        ..
                     }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
@@ -263,6 +323,7 @@ impl LocalScope {
                     ItemAccessResult::Record(ModItemRecord {
                         type_name: _,
                         inductive,
+                        ..
                     }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
@@ -306,13 +367,15 @@ impl LocalScope {
                             inductive,
                             type_name,
                             ctor_names,
+                            associated_definitions,
+                            ..
                         }) => {
                             for (idx, ctor_name) in ctor_names.iter().enumerate() {
                                 if ctor_name.as_str() == field.as_str() {
-                                    let parameters: Vec<Exp> = parameters
-                                        .iter()
-                                        .map(|e| self.elab_exp_rec(e, handler))
-                                        .collect::<Result<_, _>>()?;
+                                    let count =
+                                        handler.env().inductive(inductive).parameters().len();
+                                    let parameters =
+                                        self.associated_parameters(parameters, count, handler)?;
                                     return Ok(handler.arena().alloc(Node::IndCtor {
                                         indspec: inductive,
                                         idx,
@@ -320,8 +383,23 @@ impl LocalScope {
                                     }));
                                 }
                             }
+                            if let Some((_, definition)) = associated_definitions
+                                .iter()
+                                .find(|(name, _)| name.as_str() == field.as_str())
+                            {
+                                let count = handler.env().inductive(inductive).parameters().len();
+                                let parameters =
+                                    self.associated_parameters(parameters, count, handler)?;
+                                let definition =
+                                    handler.arena().alloc(Node::DefinedConstant(*definition));
+                                return Ok(kernel::utils::assoc_apply(
+                                    handler.arena(),
+                                    definition,
+                                    parameters,
+                                ));
+                            }
                             Err(format!(
-                                "Constructor {} not found in inductive type {}",
+                                "Associated item {} not found in inductive type {}",
                                 field.as_str(),
                                 type_name.as_str()
                             ))
@@ -330,22 +408,96 @@ impl LocalScope {
                             inductive,
                             type_name,
                             ctor_names,
+                            associated_definitions,
                             ..
                         }) => {
+                            if let Some((_, definition)) = associated_definitions
+                                .iter()
+                                .find(|(name, _)| name.as_str() == field.as_str())
+                            {
+                                let count = handler
+                                    .env()
+                                    .program_inductive(inductive)
+                                    .parameters()
+                                    .len();
+                                let parameters =
+                                    self.associated_parameters(parameters, count, handler)?;
+                                let definition =
+                                    handler.arena().alloc(Node::DefinedConstant(*definition));
+                                return Ok(kernel::utils::assoc_apply(
+                                    handler.arena(),
+                                    definition,
+                                    parameters,
+                                ));
+                            }
                             let Some(idx) = ctor_names
                                 .iter()
                                 .position(|ctor_name| ctor_name.as_str() == field.as_str())
                             else {
+                                if ctor_names.is_empty() {
+                                    let count = handler
+                                        .env()
+                                        .program_inductive(inductive)
+                                        .parameters()
+                                        .len();
+                                    let parameters =
+                                        self.associated_parameters(parameters, count, handler)?;
+                                    let spec = handler.env().program_inductive(inductive);
+                                    let field_index = spec.constructors()[0]
+                                        .fields()
+                                        .iter()
+                                        .position(|(name, _)| {
+                                            handler.symbol(*name) == field.as_str()
+                                        })
+                                        .ok_or_else(|| {
+                                            format!(
+                                                "Associated item {} not found in structure {}",
+                                                field.as_str(),
+                                                type_name.as_str()
+                                            )
+                                        })?;
+                                    let structure_ty =
+                                        handler.arena().alloc(Node::ProgramIndType {
+                                            indspec: inductive,
+                                            parameters: parameters.clone(),
+                                        });
+                                    let shifted_parameters = parameters
+                                        .iter()
+                                        .map(|parameter| {
+                                            kernel::calculus::shift_bound_indices(
+                                                handler.arena(),
+                                                *parameter,
+                                                1,
+                                                0,
+                                            )
+                                        })
+                                        .collect();
+                                    let body = handler.arena().alloc(Node::ProgramIndProjection {
+                                        indspec: inductive,
+                                        parameters: shifted_parameters,
+                                        value: handler.arena().bound(0),
+                                        field: field_index,
+                                    });
+                                    let var = handler.intern("$structure");
+                                    return Ok(handler.arena().alloc(Node::Lam {
+                                        var,
+                                        ty: structure_ty,
+                                        body,
+                                    }));
+                                }
                                 return Err(format!(
                                     "Constructor {} not found in Program datatype {}",
                                     field.as_str(),
                                     type_name.as_str()
                                 ));
                             };
-                            let parameters = parameters
-                                .iter()
-                                .map(|e| self.elab_exp_rec(e, handler))
-                                .collect::<Result<Vec<_>, _>>()?;
+                            let count = handler
+                                .env()
+                                .program_inductive(inductive)
+                                .parameters()
+                                .len();
+                            let parameters =
+                                self.associated_parameters(parameters, count, handler)?;
                             let expected =
                                 handler.env().program_inductive(inductive).constructors()[idx]
                                     .fields()
@@ -362,6 +514,63 @@ impl LocalScope {
                                 parameters,
                                 idx,
                                 fields: Vec::new(),
+                            }))
+                        }
+                        ItemAccessResult::Record(record) => {
+                            if let Some((_, definition)) = record
+                                .associated_definitions
+                                .iter()
+                                .find(|(name, _)| name.as_str() == field.as_str())
+                            {
+                                let count =
+                                    handler.env().inductive(record.inductive).parameters().len();
+                                let parameters =
+                                    self.associated_parameters(parameters, count, handler)?;
+                                let definition =
+                                    handler.arena().alloc(Node::DefinedConstant(*definition));
+                                return Ok(kernel::utils::assoc_apply(
+                                    handler.arena(),
+                                    definition,
+                                    parameters,
+                                ));
+                            }
+                            let count =
+                                handler.env().inductive(record.inductive).parameters().len();
+                            let parameters =
+                                self.associated_parameters(parameters, count, handler)?;
+                            let record_ty = handler.arena().alloc(Node::IndType {
+                                indspec: record.inductive,
+                                parameters: parameters.clone(),
+                            });
+                            let shifted_parameters = parameters
+                                .iter()
+                                .map(|parameter| {
+                                    kernel::calculus::shift_bound_indices(
+                                        handler.arena(),
+                                        *parameter,
+                                        1,
+                                        0,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let value = handler.arena().bound(0);
+                            let Some(body) = record.field_projection(
+                                handler.env(),
+                                value,
+                                field,
+                                &shifted_parameters,
+                            ) else {
+                                return Err(format!(
+                                    "Associated item {} not found in structure {}",
+                                    field.as_str(),
+                                    record.type_name.as_str()
+                                ));
+                            };
+                            let var = handler.intern("structure");
+                            Ok(handler.arena().alloc(Node::Lam {
+                                var,
+                                ty: record_ty,
+                                body,
                             }))
                         }
                         _ => Err(format!(
@@ -401,9 +610,7 @@ impl LocalScope {
                 result
             }
             SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
-            SExp::ValueType => {
-                Err("\\VType is only valid in binders and datatype declarations".into())
-            }
+            SExp::ValueType => Ok(handler.arena().alloc(Node::ValueType)),
             SExp::ThunkType { computation_ty } => {
                 let computation_ty = self.elab_exp_rec(computation_ty, handler)?;
                 Ok(handler.arena().alloc(Node::ThunkType { computation_ty }))
@@ -577,7 +784,7 @@ impl LocalScope {
                             // same as Anonymous
                             let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
                             let var = SymbolId::ANONYMOUS;
-                            self.push_binded_var(var, ty_elab);
+                            self.push_named_binder(var, ty_elab, handler);
                             let body_elab = self.elab_exp_rec(body, handler)?;
                             self.pop_binded_var();
                             return Ok(if is_prod {
@@ -601,7 +808,7 @@ impl LocalScope {
                         for var in &right_bind.vars {
                             let var = handler.intern(var.as_str());
                             telescope.push((var, ty_elab));
-                            self.push_binded_var(var, ty_elab);
+                            self.push_named_binder(var, ty_elab, handler);
                         }
 
                         let body_elab = self.elab_exp_rec(body, handler)?;
@@ -717,6 +924,78 @@ impl LocalScope {
                     head = func.as_ref();
                 }
                 arguments.reverse();
+                if arguments.len() == 1
+                    && let SExp::AssociatedAccess { base, field } = head
+                    && let SExp::AccessPath { access, parameters } = base.as_ref()
+                    && parameters.is_empty()
+                {
+                    let item = handler.get_item_from_access_path(access)?;
+                    match item {
+                        ItemAccessResult::Record(record)
+                            if !record
+                                .associated_definitions
+                                .iter()
+                                .any(|(name, _)| name == field) =>
+                        {
+                            let value = self.elab_exp_rec(arguments[0], handler)?;
+                            let value_ty = handler.infer(&mut self.typing_binds, value)?;
+                            if let Node::IndType {
+                                indspec,
+                                parameters,
+                            } = handler.arena().get(value_ty)
+                                && indspec == record.inductive
+                            {
+                                return record
+                                    .field_projection(handler.env(), value, field, &parameters)
+                                    .ok_or_else(|| {
+                                        format!(
+                                            "Associated item {} not found in structure {}",
+                                            field.as_str(),
+                                            record.type_name.as_str()
+                                        )
+                                    });
+                            }
+                        }
+                        ItemAccessResult::ProgramInductive(item)
+                            if item.ctor_names.is_empty()
+                                && !item
+                                    .associated_definitions
+                                    .iter()
+                                    .any(|(name, _)| name == field) =>
+                        {
+                            let value = self.elab_exp_rec(arguments[0], handler)?;
+                            let value_ty = handler.infer(&mut self.typing_binds, value)?;
+                            if let Node::ProgramIndType {
+                                indspec,
+                                parameters,
+                            } = handler.arena().get(value_ty)
+                                && indspec == item.inductive
+                            {
+                                let field_index = handler
+                                    .env()
+                                    .program_inductive(item.inductive)
+                                    .constructors()[0]
+                                    .fields()
+                                    .iter()
+                                    .position(|(name, _)| handler.symbol(*name) == field.as_str())
+                                    .ok_or_else(|| {
+                                        format!(
+                                            "Associated item {} not found in structure {}",
+                                            field.as_str(),
+                                            item.type_name.as_str()
+                                        )
+                                    })?;
+                                return Ok(handler.arena().alloc(Node::ProgramIndProjection {
+                                    indspec: item.inductive,
+                                    parameters,
+                                    value,
+                                    field: field_index,
+                                }));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 if let SExp::AssociatedAccess { base, field } = head
                     && let SExp::AccessPath { access, parameters } = base.as_ref()
                     && let ItemAccessResult::ProgramInductive(item) =
@@ -727,11 +1006,14 @@ impl LocalScope {
                         .iter()
                         .position(|ctor_name| ctor_name.as_str() == field.as_str())
                     else {
-                        return Err(format!(
-                            "Constructor {} not found in Program datatype {}",
-                            field.as_str(),
-                            item.type_name.as_str()
-                        ));
+                        // Associated definitions and structure projections use
+                        // ordinary application after their head is elaborated.
+                        let func_elab = self.elab_exp_rec(func, handler)?;
+                        let arg_elab = self.elab_exp_rec(arg, handler)?;
+                        return Ok(handler.arena().alloc(Node::App {
+                            func: func_elab,
+                            arg: arg_elab,
+                        }));
                     };
                     let parameters = parameters
                         .iter()
@@ -1027,32 +1309,88 @@ impl LocalScope {
                 parameters,
                 fields,
             } => {
-                let ItemAccessResult::Record(ModItemRecord {
-                    type_name: _,
-                    inductive,
-                }) = handler.get_item_from_access_path(access)?
-                else {
-                    return Err(format!(
-                        "Expected record type in record type ctor access path {:?}",
-                        access
-                    ));
-                };
-
                 let parameters: Vec<Exp> = parameters
                     .iter()
                     .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
-                let mut fields_elab: Vec<(Identifier, Exp)> = vec![];
-                for (field_name, field_ty) in fields.iter() {
-                    let field_ty_elab = self.elab_exp_rec(field_ty, handler)?;
-                    fields_elab.push((field_name.clone(), field_ty_elab));
+                let item = handler.get_item_from_access_path(access)?;
+                let (declared_names, program_inductive, pts_inductive) = match item {
+                    ItemAccessResult::Record(record) => {
+                        let constructor =
+                            &handler.env().inductive(record.inductive).constructors()[0];
+                        let names = constructor
+                            .telescope
+                            .iter()
+                            .map(|binder| match binder {
+                                kernel::inductive::CtorBinder::Simple((name, _)) => {
+                                    handler.symbol(*name).to_string()
+                                }
+                                _ => {
+                                    unreachable!("structure fields are simple constructor binders")
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        (names, None, Some(record.inductive))
+                    }
+                    ItemAccessResult::ProgramInductive(item) if item.ctor_names.is_empty() => {
+                        let names = handler
+                            .env()
+                            .program_inductive(item.inductive)
+                            .constructors()[0]
+                            .fields()
+                            .iter()
+                            .map(|(name, _)| handler.symbol(*name).to_string())
+                            .collect::<Vec<_>>();
+                        (names, Some(item.inductive), None)
+                    }
+                    _ => {
+                        return Err(format!(
+                            "Expected structure type in structure literal access path {:?}",
+                            access
+                        ));
+                    }
+                };
+                let mut supplied = std::collections::HashMap::new();
+                for (field_name, value) in fields {
+                    if supplied.insert(field_name.as_str(), value).is_some() {
+                        return Err(format!(
+                            "Structure field {} was supplied more than once",
+                            field_name.as_str()
+                        ));
+                    }
+                }
+                for supplied_name in supplied.keys() {
+                    if !declared_names.iter().any(|name| name == supplied_name) {
+                        return Err(format!("Unknown structure field {supplied_name}"));
+                    }
+                }
+                let mut ordered = Vec::with_capacity(declared_names.len());
+                for declared_name in declared_names {
+                    let value = supplied
+                        .get(declared_name.as_str())
+                        .ok_or_else(|| format!("Missing structure field {declared_name}"))?;
+                    ordered.push(self.elab_exp_rec(value, handler)?);
                 }
 
-                Ok(handler.arena().alloc(Node::IndCtor {
-                    indspec: inductive,
-                    parameters,
-                    idx: 0, // record type has only one constructor
-                }))
+                if let Some(inductive) = program_inductive {
+                    Ok(handler.arena().alloc(Node::ProgramIndCtor {
+                        indspec: inductive,
+                        parameters,
+                        idx: 0,
+                        fields: ordered,
+                    }))
+                } else {
+                    let constructor = handler.arena().alloc(Node::IndCtor {
+                        indspec: pts_inductive.expect("one structure representation was selected"),
+                        parameters,
+                        idx: 0,
+                    });
+                    Ok(kernel::utils::assoc_apply(
+                        handler.arena(),
+                        constructor,
+                        ordered,
+                    ))
+                }
             }
 
             SExp::PowerSet { set } => {

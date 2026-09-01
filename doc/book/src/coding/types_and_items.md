@@ -58,7 +58,7 @@ structure の parameter は通常の名前付き parameter とする。
 structure が carrier を持つとは限らないため、特別な carrier binder は用意しない。
 
 ```text
-\definition origin: Point(Nat) := Point(Nat) {
+\definition origin: Point[Nat] := Point[Nat] {
   x := Nat::zero,
   y := Nat::zero,
 };
@@ -67,8 +67,8 @@ structure が carrier を持つとは限らないため、特別な carrier bind
 各 field について projection を型関連 item として生成する。
 
 ```text
-Point(A)::x : Point(A) -> A
-Point(A)::y : Point(A) -> A
+Point[A]::x : Point[A] -> A
+Point[A]::y : Point[A] -> A
 
 \definition origin_x : Nat := Point::x origin;
 ```
@@ -76,3 +76,18 @@ Point(A)::y : Point(A) -> A
 surface syntax としては `\inductive` と `\structure` を完全に分ける。
 一方、nominal identity を維持する限り、core や実装内部で structure を
 固有の1 constructor を持つ帰納型として表現することは構わない。
+
+result kind には PTS の `\Prop`、`\Set`、`\PropKind`、`\SetKind` と、
+純粋 Program value の universe `\Type` を指定できる。`\VType` は
+`\Type` の互換 alias として扱う。同じ structure の parameter と field は
+PTS と Program のいずれか一方に揃える。
+
+field は宣言順に依存できる。たとえば次の `value` の型は先行する
+`carrier` projection によって定まる。
+
+```text
+\structure Packed: \SetKind := {
+  carrier: \Set,
+  value: carrier,
+};
+```

@@ -73,6 +73,9 @@
   \definition mem: Real -> Rat -> \Prop :=
     (x: Real) => (q: Rat) => In x q;
 
+  \definition underlying: Real -> \Power(Rat) :=
+    (x: Real) => x;
+
   /* Inclusion is available without any extensionality principle. */
   \definition Le: Real -> Real -> \Prop :=
     (x, y: Real) => (q: Rat) -> mem x q -> mem y q;
@@ -88,24 +91,16 @@
     (x, y, z: Real) => (xy: Le x y) => (yz: Le y z) =>
       (q: Rat) => (qx: mem x q) => yz q (xy q qx);
 
-  /* Kernel equality of cuts additionally needs subset extensionality. */
-  \module Extensionality(
-    setExt:
-      (A, B: \Power(Rat)) ->
-        ((q: Rat) -> \Pred(Rat, A, q) -> \Pred(Rat, B, q)) ->
-        ((q: Rat) -> \Pred(Rat, B, q) -> \Pred(Rat, A, q)) ->
-        A = B,
-  ) {
-    \definition eqByExt:
-      (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
-      (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
-        setExt x y xy yx;
+  /* Kernel equality of cuts follows from the trusted subset extensionality. */
+  \definition eqByExt:
+    (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
+    (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+      \axiom:setext(underlying x, underlying y, xy, yx);
 
-    \definition leAntisym:
-      (x, y: Real) -> Le x y -> Le y x -> x = y :=
-      (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
-        eqByExt x y xy yx;
-  }
+  \definition leAntisym:
+    (x, y: Real) -> Le x y -> Le y x -> x = y :=
+    (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+      eqByExt x y xy yx;
 
   \definition Lt: Real -> Real -> \Prop :=
     (x, y: Real) =>

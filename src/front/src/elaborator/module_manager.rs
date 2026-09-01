@@ -26,8 +26,19 @@ pub enum ItemAccessResult {
 
 enum PendingItem {
     Definition(String, DefId, DefId, DefinedConstant),
-    Inductive(String, Vec<String>, InductiveId, InductiveTypeSpecs),
-    Record(String, InductiveId, InductiveTypeSpecs),
+    Inductive(
+        String,
+        Vec<String>,
+        InductiveId,
+        InductiveTypeSpecs,
+        Vec<PendingAssociatedDefinition>,
+    ),
+    Record(
+        String,
+        InductiveId,
+        InductiveTypeSpecs,
+        Vec<PendingAssociatedDefinition>,
+    ),
     ProgramInductive(
         String,
         Vec<String>,
@@ -35,7 +46,72 @@ enum PendingItem {
         InductiveId,
         ProgramInductiveTypeSpecs,
         InductiveTypeSpecs,
+        Vec<PendingAssociatedDefinition>,
     ),
+}
+
+type PendingAssociatedDefinition = (String, DefId, DefId, DefinedConstant);
+
+fn instantiate_associated_definitions(
+    env: &CrateEnv,
+    definitions: Vec<(String, DefId)>,
+    substitutions: &[(ModuleParamId, Exp)],
+) -> Vec<PendingAssociatedDefinition> {
+    definitions
+        .into_iter()
+        .map(|(name, source_id)| {
+            let value = env.definition(source_id);
+            let origin = env
+                .definition_origin(source_id)
+                .map_or(source_id, |origin| origin.source);
+            (
+                name,
+                source_id,
+                origin,
+                DefinedConstant {
+                    kind: value.kind,
+                    ty: exp_subst_map(env.arena(), value.ty, substitutions),
+                    body: exp_subst_map(env.arena(), value.body, substitutions),
+                },
+            )
+        })
+        .collect()
+}
+
+fn materialize_associated_definitions(
+    env: &mut CrateEnv,
+    module: ModuleId,
+    owner: &str,
+    pending: Vec<PendingAssociatedDefinition>,
+    definition_ids: &mut HashMap<DefId, DefId>,
+    inductive_ids: &HashMap<InductiveId, InductiveId>,
+    program_inductive_ids: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    definition_origins: &mut HashMap<DefId, DefId>,
+) -> Result<(), String> {
+    for (name, source_id, origin, definition) in pending {
+        let definition = DefinedConstant {
+            kind: definition.kind,
+            ty: remap_all_global_ids(
+                env.arena(),
+                definition.ty,
+                definition_ids,
+                inductive_ids,
+                program_inductive_ids,
+            ),
+            body: remap_all_global_ids(
+                env.arena(),
+                definition.body,
+                definition_ids,
+                inductive_ids,
+                program_inductive_ids,
+            ),
+        };
+        let materialized = env.add_definition(module, definition);
+        definition_ids.insert(source_id, materialized);
+        definition_origins.insert(materialized, origin);
+        env.publish_associated_definition(module, owner, name, materialized)?;
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -144,6 +220,29 @@ impl ModuleManager {
         )
     }
 
+    pub fn add_associated_def(
+        &mut self,
+        env: &mut CrateEnv,
+        owner: &Identifier,
+        name: Identifier,
+        definition: DefinedConstant,
+    ) -> Result<(), String> {
+        let definition = env.add_definition(self.current, definition);
+        env.publish_associated_definition(self.current, owner.as_str(), name.0, definition)
+    }
+
+    pub fn associated_parameter_count(&self, env: &CrateEnv, owner: &Identifier) -> Option<usize> {
+        match env.module(self.current).item(owner.as_str())? {
+            ModuleItem::Inductive { inductive, .. } | ModuleItem::Record { inductive, .. } => {
+                Some(env.inductive(*inductive).parameters().len())
+            }
+            ModuleItem::ProgramInductive { inductive, .. } => {
+                Some(env.program_inductive(*inductive).parameters().len())
+            }
+            ModuleItem::Definition { .. } => None,
+        }
+    }
+
     pub fn add_inductive(
         &mut self,
         env: &mut CrateEnv,
@@ -157,6 +256,7 @@ impl ModuleManager {
             ModuleItem::Inductive {
                 name: type_name.0,
                 constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
+                associated_definitions: Vec::new(),
                 inductive,
             },
         )
@@ -174,6 +274,7 @@ impl ModuleManager {
             ModuleItem::Inductive {
                 name: type_name.0,
                 constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
+                associated_definitions: Vec::new(),
                 inductive,
             },
         )
@@ -192,6 +293,7 @@ impl ModuleManager {
             ModuleItem::ProgramInductive {
                 name: type_name.0,
                 constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
+                associated_definitions: Vec::new(),
                 inductive,
                 reflected,
             },
@@ -209,6 +311,23 @@ impl ModuleManager {
             self.current,
             ModuleItem::Record {
                 name: type_name.0,
+                associated_definitions: Vec::new(),
+                inductive,
+            },
+        )
+    }
+
+    pub fn publish_reserved_record(
+        &mut self,
+        env: &mut CrateEnv,
+        type_name: Identifier,
+        inductive: InductiveId,
+    ) -> Result<(), String> {
+        env.publish_item(
+            self.current,
+            ModuleItem::Record {
+                name: type_name.0,
+                associated_definitions: Vec::new(),
                 inductive,
             },
         )
@@ -228,12 +347,21 @@ impl ModuleManager {
         env: &CrateEnv,
         inductive: InductiveId,
     ) -> Option<ModItemRecord> {
-        let ModuleItem::Record { name, inductive } = env.record_for_inductive(inductive)? else {
+        let ModuleItem::Record {
+            name,
+            inductive,
+            associated_definitions,
+        } = env.record_for_inductive(inductive)?
+        else {
             return None;
         };
         Some(ModItemRecord {
             type_name: Identifier(name.clone()),
             inductive: *inductive,
+            associated_definitions: associated_definitions
+                .iter()
+                .map(|(name, definition)| (Identifier(name.clone()), *definition))
+                .collect(),
         })
     }
 
@@ -378,22 +506,47 @@ impl ModuleManager {
                     ModuleItem::Inductive {
                         name,
                         constructor_names,
+                        associated_definitions,
                         inductive,
                     } => {
                         let spec = env.inductive(inductive).clone();
                         let instantiated = spec.instantiate(env.arena(), &substitutions);
-                        PendingItem::Inductive(name, constructor_names, inductive, instantiated)
+                        PendingItem::Inductive(
+                            name,
+                            constructor_names,
+                            inductive,
+                            instantiated,
+                            instantiate_associated_definitions(
+                                env,
+                                associated_definitions,
+                                &substitutions,
+                            ),
+                        )
                     }
-                    ModuleItem::Record { name, inductive } => {
+                    ModuleItem::Record {
+                        name,
+                        associated_definitions,
+                        inductive,
+                    } => {
                         let spec = env.inductive(inductive).clone();
                         let instantiated = spec.instantiate(env.arena(), &substitutions);
-                        PendingItem::Record(name, inductive, instantiated)
+                        PendingItem::Record(
+                            name,
+                            inductive,
+                            instantiated,
+                            instantiate_associated_definitions(
+                                env,
+                                associated_definitions,
+                                &substitutions,
+                            ),
+                        )
                     }
                     ModuleItem::ProgramInductive {
                         name,
                         constructor_names,
                         inductive,
                         reflected,
+                        associated_definitions,
                     } => {
                         let spec = env
                             .program_inductive(inductive)
@@ -410,6 +563,11 @@ impl ModuleManager {
                             reflected,
                             spec,
                             reflected_spec,
+                            instantiate_associated_definitions(
+                                env,
+                                associated_definitions,
+                                &substitutions,
+                            ),
                         )
                     }
                 });
@@ -452,26 +610,62 @@ impl ModuleManager {
                             ModuleItem::Definition { name, definition },
                         )?;
                     }
-                    PendingItem::Inductive(name, constructor_names, source_id, spec) => {
+                    PendingItem::Inductive(
+                        name,
+                        constructor_names,
+                        source_id,
+                        spec,
+                        associated,
+                    ) => {
+                        let inductive = env.reserve_inductive(materialized);
+                        inductive_ids.insert(source_id, inductive);
                         let spec =
                             spec.remap_global_ids(env.arena(), &definition_ids, &inductive_ids);
-                        let inductive = env.add_inductive(materialized, spec);
-                        inductive_ids.insert(source_id, inductive);
+                        env.define_inductive(inductive, spec);
                         env.publish_item(
                             materialized,
                             ModuleItem::Inductive {
-                                name,
+                                name: name.clone(),
                                 constructor_names,
+                                associated_definitions: Vec::new(),
                                 inductive,
                             },
                         )?;
+                        materialize_associated_definitions(
+                            env,
+                            materialized,
+                            &name,
+                            associated,
+                            &mut definition_ids,
+                            &inductive_ids,
+                            &program_inductive_ids,
+                            &mut definition_origins,
+                        )?;
                     }
-                    PendingItem::Record(name, source_id, spec) => {
+                    PendingItem::Record(name, source_id, spec, associated) => {
+                        let inductive = env.reserve_inductive(materialized);
+                        inductive_ids.insert(source_id, inductive);
                         let spec =
                             spec.remap_global_ids(env.arena(), &definition_ids, &inductive_ids);
-                        let inductive = env.add_inductive(materialized, spec);
-                        inductive_ids.insert(source_id, inductive);
-                        env.publish_item(materialized, ModuleItem::Record { name, inductive })?;
+                        env.define_inductive(inductive, spec);
+                        env.publish_item(
+                            materialized,
+                            ModuleItem::Record {
+                                name: name.clone(),
+                                associated_definitions: Vec::new(),
+                                inductive,
+                            },
+                        )?;
+                        materialize_associated_definitions(
+                            env,
+                            materialized,
+                            &name,
+                            associated,
+                            &mut definition_ids,
+                            &inductive_ids,
+                            &program_inductive_ids,
+                            &mut definition_origins,
+                        )?;
                     }
                     PendingItem::ProgramInductive(
                         name,
@@ -480,6 +674,7 @@ impl ModuleManager {
                         reflected_source_id,
                         spec,
                         reflected_spec,
+                        associated,
                     ) => {
                         let reflected = env.reserve_inductive(materialized);
                         inductive_ids.insert(reflected_source_id, reflected);
@@ -501,11 +696,22 @@ impl ModuleManager {
                         env.publish_item(
                             materialized,
                             ModuleItem::ProgramInductive {
-                                name,
+                                name: name.clone(),
                                 constructor_names,
+                                associated_definitions: Vec::new(),
                                 inductive,
                                 reflected,
                             },
+                        )?;
+                        materialize_associated_definitions(
+                            env,
+                            materialized,
+                            &name,
+                            associated,
+                            &mut definition_ids,
+                            &inductive_ids,
+                            &program_inductive_ids,
+                            &mut definition_origins,
                         )?;
                     }
                 }
@@ -575,6 +781,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
         ModuleItem::Inductive {
             name,
             constructor_names,
+            associated_definitions,
             inductive,
         } => ItemAccessResult::Inductive(ModItemInductive {
             type_name: Identifier(name.clone()),
@@ -583,14 +790,27 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
                 .map(|name| Identifier(name.clone()))
                 .collect(),
             inductive: *inductive,
+            associated_definitions: associated_definitions
+                .iter()
+                .map(|(name, definition)| (Identifier(name.clone()), *definition))
+                .collect(),
         }),
-        ModuleItem::Record { name, inductive } => ItemAccessResult::Record(ModItemRecord {
+        ModuleItem::Record {
+            name,
+            associated_definitions,
+            inductive,
+        } => ItemAccessResult::Record(ModItemRecord {
             type_name: Identifier(name.clone()),
             inductive: *inductive,
+            associated_definitions: associated_definitions
+                .iter()
+                .map(|(name, definition)| (Identifier(name.clone()), *definition))
+                .collect(),
         }),
         ModuleItem::ProgramInductive {
             name,
             constructor_names,
+            associated_definitions,
             inductive,
             reflected,
         } => ItemAccessResult::ProgramInductive(ModItemProgramInductive {
@@ -601,6 +821,10 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
                 .collect(),
             inductive: *inductive,
             reflected: *reflected,
+            associated_definitions: associated_definitions
+                .iter()
+                .map(|(name, definition)| (Identifier(name.clone()), *definition))
+                .collect(),
         }),
     }
 }

@@ -10,6 +10,7 @@ use kernel::{
     environment::{CrateEnv, DefinitionKind, ModuleParameterKind},
     exp::{Context, ContextEntry, Exp, Node},
     ids::{MetaVarId, ModuleId, SymbolId},
+    inductive::CtorBinder,
     sort::Sort,
 };
 use serde::Serialize;
@@ -536,6 +537,47 @@ impl MetaStore {
                     arena, indspec, spec, idx, parameters,
                 ))
             }
+            Node::IndProjection {
+                indspec,
+                parameters,
+                value,
+                field,
+            } => {
+                let spec = env.inductive(indspec);
+                if spec.constructor_len() != 1 {
+                    return Err("projection target is not a structure".into());
+                }
+                if parameters.len() != spec.parameters().len() {
+                    return Err("structure projection parameter count mismatch".into());
+                }
+                let mut preceding_parameters = Vec::new();
+                for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
+                    let expected = instantiate_telescope(arena, *expected, &preceding_parameters);
+                    self.check_pts(env, module, context, argument, expected)?;
+                    preceding_parameters.push(argument);
+                }
+                let structure_ty = arena.alloc(Node::IndType {
+                    indspec,
+                    parameters: parameters.clone(),
+                });
+                self.check_pts(env, module, context, value, structure_ty)?;
+                let constructor = spec.constructors()[0].instantiate_parameters(arena, &parameters);
+                let Some(CtorBinder::Simple((_, field_ty))) = constructor.telescope.get(field)
+                else {
+                    return Err("structure projection field out of bounds".into());
+                };
+                let preceding = (0..field)
+                    .map(|field| {
+                        arena.alloc(Node::IndProjection {
+                            indspec,
+                            parameters: parameters.clone(),
+                            value,
+                            field,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                Ok(instantiate_telescope(arena, *field_ty, &preceding))
+            }
             Node::Prod { var, ty, body } => {
                 let domain_sort = self.infer_sort(env, module, context, ty)?;
                 context.push(ContextEntry::Pts { var, ty });
@@ -869,6 +911,7 @@ impl MetaStore {
         ty: Exp,
     ) -> Result<(), String> {
         let ty = self.zonk(env, ty);
+        let arena = env.arena();
         if !self.contains_unsolved(env, ty) {
             return CheckSession::new(env, module, context)
                 .check_value_type(ty)
@@ -912,6 +955,17 @@ impl MetaStore {
                     self.check_value_type(env, module, context, parameter)?;
                 }
                 Ok(())
+            }
+            Node::Prod { var, ty, body } => {
+                if matches!(arena.get(ty), Node::ValueType) {
+                    context.push(ContextEntry::ProgramType { var });
+                } else {
+                    self.check_value_type(env, module, context, ty)?;
+                    context.push(ContextEntry::ProgramValue { var, ty });
+                }
+                let result = self.check_value_type(env, module, context, body);
+                context.pop();
+                result
             }
             _ => Err("expression is not a Program value type".into()),
         }
@@ -1010,6 +1064,37 @@ impl MetaStore {
                     .then_some(definition.ty)
                     .ok_or_else(|| "definition is not a Program value".into())
             }
+            Node::Lam { var, ty, body } => {
+                if matches!(arena.get(ty), Node::ValueType) {
+                    context.push(ContextEntry::ProgramType { var });
+                } else {
+                    self.check_value_type(env, module, context, ty)?;
+                    context.push(ContextEntry::ProgramValue { var, ty });
+                }
+                let body_ty = self.infer_value(env, module, context, body);
+                context.pop();
+                Ok(arena.alloc(Node::Prod {
+                    var,
+                    ty,
+                    body: body_ty?,
+                }))
+            }
+            Node::App { func, arg } => {
+                let func_ty = self.infer_value(env, module, context, func)?;
+                let func_ty = self.zonk(env, func_ty);
+                let Node::Prod {
+                    ty: domain, body, ..
+                } = arena.get(kernel::calculus::whnf(env, func_ty))
+                else {
+                    return Err("Program value application head is not a function".into());
+                };
+                if matches!(arena.get(domain), Node::ValueType) {
+                    self.check_value_type(env, module, context, arg)?;
+                } else {
+                    self.check_value(env, module, context, arg, domain)?;
+                }
+                Ok(kernel::calculus::instantiate(arena, body, arg))
+            }
             Node::Thunk { computation } => {
                 let computation_ty = self.infer_computation(env, module, context, computation)?;
                 Ok(arena.alloc(Node::ThunkType { computation_ty }))
@@ -1072,6 +1157,44 @@ impl MetaStore {
                     indspec,
                     parameters,
                 }))
+            }
+            Node::ProgramIndProjection {
+                indspec,
+                parameters,
+                value,
+                field,
+            } => {
+                let spec = env.program_inductive(indspec);
+                if spec.constructors().len() != 1 {
+                    return Err("Program projection target is not a structure".into());
+                }
+                if parameters.len() != spec.parameters().len() {
+                    return Err("Program projection parameter count mismatch".into());
+                }
+                for parameter in &parameters {
+                    self.check_value_type(env, module, context, *parameter)?;
+                }
+                let structure_ty = arena.alloc(Node::ProgramIndType {
+                    indspec,
+                    parameters: parameters.clone(),
+                });
+                self.check_value(env, module, context, value, structure_ty)?;
+                let fields = spec.constructors()[0].instantiated_fields(arena, &parameters);
+                let (_, field_ty) = fields
+                    .get(field)
+                    .copied()
+                    .ok_or_else(|| "Program projection field out of bounds".to_string())?;
+                let preceding = (0..field)
+                    .map(|field| {
+                        arena.alloc(Node::ProgramIndProjection {
+                            indspec,
+                            parameters: parameters.clone(),
+                            value,
+                            field,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                Ok(instantiate_telescope(arena, field_ty, &preceding))
             }
             _ => Err("metavariable inference for this Program value is blocked".into()),
         }
@@ -1620,6 +1743,18 @@ fn rigid_heads_compatible(left: &Node, right: &Node) -> bool {
             left == right
         }
         (
+            Node::IndProjection {
+                indspec: left,
+                field: left_field,
+                ..
+            },
+            Node::IndProjection {
+                indspec: right,
+                field: right_field,
+                ..
+            },
+        ) => left == right && left_field == right_field,
+        (
             Node::ProgramIndType { indspec: left, .. },
             Node::ProgramIndType { indspec: right, .. },
         ) => left == right,
@@ -1635,6 +1770,18 @@ fn rigid_heads_compatible(left: &Node, right: &Node) -> bool {
                 ..
             },
         ) => left == right && left_idx == right_idx,
+        (
+            Node::ProgramIndProjection {
+                indspec: left,
+                field: left_field,
+                ..
+            },
+            Node::ProgramIndProjection {
+                indspec: right,
+                field: right_field,
+                ..
+            },
+        ) => left == right && left_field == right_field,
         (Node::ProgramCase { indspec: left, .. }, Node::ProgramCase { indspec: right, .. }) => {
             left == right
         }

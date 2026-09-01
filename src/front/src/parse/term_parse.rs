@@ -206,7 +206,7 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
-        if self.bump_if_keyword("\\VType") {
+        if self.bump_if_keyword("\\Type") || self.bump_if_keyword("\\VType") {
             return Ok(SExp::ValueType);
         }
         if self.bump_if_keyword("\\U") {
@@ -939,7 +939,7 @@ impl<'a> TermParser<'a> {
         self.expect_token(Token::LBrace)?; // expect '{'
         while !self.bump_if_token(&Token::RBrace) {
             let field_name = self.expect_ident()?;
-            self.expect_token(Token::Colon)?;
+            self.expect_token(Token::Assign)?;
             let field_exp = self.parse_sexp()?;
             fields.push((field_name, field_exp));
 
@@ -954,7 +954,7 @@ impl<'a> TermParser<'a> {
 
     // parse a single atom
     // 1-A. `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
-    // 1-B. `x#ctor`, `x.y#ctor`, `x.y[params]#ctor`
+    // 1-B. `x::ctor`, `x.y::ctor`, `x.y[params]::ctor`
     // 1-C. `x <field_body>`, `x.y <field_body>`, `x.y[params] <field_body>`
     // 2. `(<expr>)`, `$( ... )$`, `! name { ... }`
     // 3. something start with keyword (sort, etc.)
@@ -1008,7 +1008,7 @@ impl<'a> TermParser<'a> {
                     .unwrap_or_default();
 
                 // field access case or record construction case
-                if self.bump_if_token(&Token::Field) {
+                if self.bump_if_token(&Token::DoubleColon) {
                     // field access case
                     let field_name = self.expect_ident()?;
                     return Ok(SExp::AssociatedAccess {
@@ -1081,11 +1081,11 @@ impl<'a> TermParser<'a> {
     }
 
     // parse field access
-    // <atom>("#" Ident)?
+    // <atom>("::" Ident)?
     // this includes atom parsing
     fn field_access(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
-        while self.bump_if_token(&Token::Field) {
+        while self.bump_if_token(&Token::DoubleColon) {
             let field_name = self.expect_ident()?;
             expr = SExp::AssociatedAccess {
                 base: Box::new(expr),
@@ -1528,13 +1528,13 @@ mod tests {
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x[ A, B, C ]");
         print_and_unwrap(r"x.y[ A, B ]");
-        print_and_unwrap(r"x { a: A, b: B }");
-        print_and_unwrap(r"x.y { a: A, b: B }");
-        print_and_unwrap(r"x.y[ A, B ] { a: A, b: B }");
-        print_and_unwrap(r"x#y"); // x#y#z is "combined expression" ... not tested here
-        print_and_unwrap(r"List[Nat]#Nil");
-        print_and_unwrap(r"list.List[Nat]#Nil");
-        print_and_unwrap(r"Group[Nat] { mul: x, e: y }");
+        print_and_unwrap(r"x { a := A, b := B }");
+        print_and_unwrap(r"x.y { a := A, b := B }");
+        print_and_unwrap(r"x.y[ A, B ] { a := A, b := B }");
+        print_and_unwrap(r"x::y"); // x::y::z is "combined expression" ... not tested here
+        print_and_unwrap(r"List[Nat]::Nil");
+        print_and_unwrap(r"list.List[Nat]::Nil");
+        print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
         print_and_unwrap(r"$( x + y )$");
         print_and_unwrap(r"! mymacro { a + b c }");
     }
@@ -1584,14 +1584,14 @@ mod tests {
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x[ A, B, C ]");
         print_and_unwrap(r"x.y[ A, B ]");
-        print_and_unwrap(r"x { a: A, b: B }");
-        print_and_unwrap(r"x.y { a: A, b: B }");
-        print_and_unwrap(r"x.y[ A, B ] { a: A, b: B }");
-        print_and_unwrap(r"x#y");
-        print_and_unwrap(r"x#y#z");
-        print_and_unwrap(r"List[Nat]#Nil");
-        print_and_unwrap(r"list.List[Nat]#Nil");
-        print_and_unwrap(r"Group[Nat] { mul: x, e: y } # unit");
+        print_and_unwrap(r"x { a := A, b := B }");
+        print_and_unwrap(r"x.y { a := A, b := B }");
+        print_and_unwrap(r"x.y[ A, B ] { a := A, b := B }");
+        print_and_unwrap(r"x::y");
+        print_and_unwrap(r"x::y::z");
+        print_and_unwrap(r"List[Nat]::Nil");
+        print_and_unwrap(r"list.List[Nat]::Nil");
+        print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
     }
     #[test]
     fn parse_special_exp_test() {
@@ -1606,7 +1606,7 @@ mod tests {
         print_and_unwrap(r"x.a b (c. g)");
         print_and_unwrap(r"x $( y + z )$ l");
         print_and_unwrap(r"x ! mymacro { a + b c } l");
-        print_and_unwrap(r"x#y#z");
+        print_and_unwrap(r"x::y::z");
         print_and_unwrap(r"\subsetinto(A, X, x, p)");
         print_and_unwrap(r"\exact(x, X)");
         print_and_unwrap(r"\refl(x)");
@@ -1621,10 +1621,10 @@ mod tests {
     }
     #[test]
     fn parse_complex_cases_test() {
-        print_and_unwrap(r"x#y x#y");
-        print_and_unwrap(r"(x)#y");
-        print_and_unwrap(r"x x#y");
-        print_and_unwrap(r"x#y#z x#y#z");
+        print_and_unwrap(r"x::y x::y");
+        print_and_unwrap(r"(x)::y");
+        print_and_unwrap(r"x x::y");
+        print_and_unwrap(r"x::y::z x::y::z");
     }
     #[test]
     fn parse_sexp_has_remaining() {
@@ -1654,6 +1654,6 @@ mod tests {
         parse_middle(r"x ;");
         parse_middle(r"x {");
         parse_middle(r"x (( y: Y)");
-        parse_middle(r"x#y x#y;");
+        parse_middle(r"x::y x::y;");
     }
 }

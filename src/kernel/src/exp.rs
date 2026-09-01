@@ -28,6 +28,9 @@ pub struct ProgramCaseBranch {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Node {
     Sort(Sort),
+    /// Universe of Program value types. Surface `\Type` and legacy
+    /// `\VType` both elaborate to this node.
+    ValueType,
     /// A locally bound variable, counted outwards from the occurrence.
     /// `Bound(0)` refers to the nearest enclosing binder.
     Bound(usize),
@@ -75,6 +78,13 @@ pub enum Node {
         return_type: Exp,
         cases: Vec<Exp>, // no bindings
     },
+    /// Primitive projection for a one-constructor PTS structure.
+    IndProjection {
+        indspec: InductiveId,
+        parameters: Vec<Exp>,
+        value: Exp,
+        field: usize,
+    },
     // --- CBPV program types -------------------------------------------------
     // U B
     ThunkType {
@@ -116,6 +126,13 @@ pub enum Node {
         parameters: Vec<Exp>,
         idx: usize,
         fields: Vec<Exp>,
+    },
+    /// Primitive projection for a one-constructor Program structure.
+    ProgramIndProjection {
+        indspec: ProgramInductiveId,
+        parameters: Vec<Exp>,
+        value: Exp,
+        field: usize,
     },
     // --- CBPV computations --------------------------------------------------
     Return {
