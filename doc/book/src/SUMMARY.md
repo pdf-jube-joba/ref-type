@@ -48,3 +48,4 @@
   - [層化](./対話/stratification/_目標.md)
     - [1](./対話/stratification/stratification1.md)
     - [2](./対話/stratification/stratification2.md)
+    - [3](./対話/stratification/stratification3.md)

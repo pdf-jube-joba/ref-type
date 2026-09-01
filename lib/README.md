@@ -1,7 +1,8 @@
 # 実数の形式化
 
-[`Pair.ref`](Pair.ref) は module parameter `A, B : Set` に対する直積 `Times` を
-一要素コンストラクタの inductive type として定義する。`first`、`second` とそれぞれの
+[Pair.ref](Pair.ref) は型引数 `A, B : Set` を取る直積 `Times[A, B]` を
+一要素コンストラクタの inductive type として定義する。module parameter は使わず、
+`pair`、`first`、`second` などが通常の引数として `A` と `B` を取る。それぞれの
 β則、pair の η則、二つの射影が等しい pair は等しいという外延性を証明する。
 
 [`AxiomaticReals.ref`](AxiomaticReals.ref) は、台集合上の零、一、四則演算、逆数と
