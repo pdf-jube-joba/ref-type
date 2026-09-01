@@ -610,6 +610,9 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         | Node::SubsetElim { .. }
         | Node::IdRefl { .. }
         | Node::IdElim { .. }
+        | Node::AxiomSetExt { .. }
+        | Node::AxiomFunExt { .. }
+        | Node::AxiomClassicalIndefiniteChoice { .. }
         | Node::TakeEq { .. }
         | Node::AccIntro { .. }
         | Node::AccDescent { .. } => infer_proof_constructor(session, term),
@@ -1352,6 +1355,9 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         Node::SubsetElim { .. } => "SubsetElim",
         Node::IdRefl { .. } => "IdRefl",
         Node::IdElim { .. } => "IdElim",
+        Node::AxiomSetExt { .. } => "AxiomSetExt",
+        Node::AxiomFunExt { .. } => "AxiomFunExt",
+        Node::AxiomClassicalIndefiniteChoice { .. } => "AxiomClassicalIndefiniteChoice",
         Node::TakeEq { .. } => "TakeEq",
     }
 }
@@ -1442,6 +1448,205 @@ fn run_invariant(
         term: transition,
     });
     arena.alloc(Node::Equal { left, right })
+}
+
+fn set_ext_direction(arena: &Arena, carrier: Exp, source: Exp, target: Exp) -> Exp {
+    let element = arena.bound(0);
+    let source_membership = arena.alloc(Node::Pred {
+        superset: shift_bound_indices(arena, carrier, 1, 0),
+        subset: shift_bound_indices(arena, source, 1, 0),
+        element,
+    });
+    let target_membership = arena.alloc(Node::Pred {
+        superset: shift_bound_indices(arena, carrier, 2, 0),
+        subset: shift_bound_indices(arena, target, 2, 0),
+        element: arena.bound(1),
+    });
+    let implication = arena.alloc(Node::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: source_membership,
+        body: target_membership,
+    });
+    arena.alloc(Node::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: carrier,
+        body: implication,
+    })
+}
+
+fn infer_axiom_set_ext(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    left: Exp,
+    right: Exp,
+    left_to_right: Exp,
+    right_to_left: Exp,
+) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena();
+    let left_ty = add_infer!(session, rule, phase, left, "infer left subset type")?;
+    let Node::PowerSet { set: carrier } = arena.get(type_head_normal(session.env(), left_ty))
+    else {
+        return Err(failure(
+            rule,
+            phase,
+            "setext argument is not a powerset element",
+        ));
+    };
+    if !matches!(
+        add_sort!(session, rule, phase, carrier, "check setext carrier sort")?,
+        Sort::Set(_)
+    ) {
+        return Err(failure(rule, phase, "setext carrier is not Set(i)"));
+    }
+    add_check!(session, rule, phase, right, left_ty, "check right subset")?;
+    let forward_ty = set_ext_direction(arena, carrier, left, right);
+    let backward_ty = set_ext_direction(arena, carrier, right, left);
+    add_check!(
+        session,
+        rule,
+        phase,
+        left_to_right,
+        forward_ty,
+        "check forward inclusion"
+    )?;
+    add_check!(
+        session,
+        rule,
+        phase,
+        right_to_left,
+        backward_ty,
+        "check backward inclusion"
+    )?;
+    Ok(arena.alloc(Node::Equal { left, right }))
+}
+
+fn infer_axiom_fun_ext(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    left: Exp,
+    right: Exp,
+    pointwise: Exp,
+) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena();
+    let function_ty = add_infer!(session, rule, phase, left, "infer function type")?;
+    if !matches!(
+        add_sort!(
+            session,
+            rule,
+            phase,
+            function_ty,
+            "check function type sort"
+        )?,
+        Sort::Set(_)
+    ) {
+        return Err(failure(rule, phase, "funext functions are not in Set(i)"));
+    }
+    let Node::Prod { ty: domain, .. } = arena.get(type_head_normal(session.env(), function_ty))
+    else {
+        return Err(failure(rule, phase, "funext argument is not a function"));
+    };
+    add_check!(
+        session,
+        rule,
+        phase,
+        right,
+        function_ty,
+        "check right function"
+    )?;
+    let argument = arena.bound(0);
+    let left_application = arena.alloc(Node::App {
+        func: shift_bound_indices(arena, left, 1, 0),
+        arg: argument,
+    });
+    let right_application = arena.alloc(Node::App {
+        func: shift_bound_indices(arena, right, 1, 0),
+        arg: argument,
+    });
+    let pointwise_equality = arena.alloc(Node::Equal {
+        left: left_application,
+        right: right_application,
+    });
+    let pointwise_ty = arena.alloc(Node::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: domain,
+        body: pointwise_equality,
+    });
+    add_check!(
+        session,
+        rule,
+        phase,
+        pointwise,
+        pointwise_ty,
+        "check pointwise equality"
+    )?;
+    Ok(arena.alloc(Node::Equal { left, right }))
+}
+
+fn infer_axiom_classical_indefinite_choice(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    domain: Exp,
+    family: Exp,
+    inhabited: Exp,
+) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena();
+    if !matches!(
+        add_sort!(session, rule, phase, domain, "check choice domain sort")?,
+        Sort::Set(_)
+    ) {
+        return Err(failure(rule, phase, "choice domain is not Set(i)"));
+    }
+    let family_ty = add_infer!(session, rule, phase, family, "infer choice family type")?;
+    let Node::Prod {
+        ty: family_domain,
+        body: family_sort,
+        ..
+    } = arena.get(type_head_normal(session.env(), family_ty))
+    else {
+        return Err(failure(
+            rule,
+            phase,
+            "choice family is not a dependent function",
+        ));
+    };
+    if !erased_convertible(session.env(), domain, family_domain) {
+        return Err(failure(rule, phase, "choice family has the wrong domain"));
+    }
+    if !matches!(
+        arena.get(type_head_normal(session.env(), family_sort)),
+        Node::Sort(Sort::Set(_))
+    ) {
+        return Err(failure(rule, phase, "choice family does not return Set(i)"));
+    }
+    let family_at = arena.alloc(Node::App {
+        func: shift_bound_indices(arena, family, 1, 0),
+        arg: arena.bound(0),
+    });
+    let exists_at = arena.alloc(Node::Exists { set: family_at });
+    let inhabited_ty = arena.alloc(Node::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: domain,
+        body: exists_at,
+    });
+    add_check!(
+        session,
+        rule,
+        phase,
+        inhabited,
+        inhabited_ty,
+        "check pointwise inhabitation"
+    )?;
+    let choice_function = arena.alloc(Node::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: domain,
+        body: family_at,
+    });
+    Ok(arena.alloc(Node::Exists {
+        set: choice_function,
+    }))
 }
 
 fn infer_proof_constructor(
@@ -1540,6 +1745,32 @@ fn infer_proof_constructor(
                 func: apply,
                 arg: right,
             }))
+        }
+        Node::AxiomSetExt {
+            left,
+            right,
+            left_to_right,
+            right_to_left,
+        } => infer_axiom_set_ext(
+            session,
+            rule,
+            phase,
+            left,
+            right,
+            left_to_right,
+            right_to_left,
+        ),
+        Node::AxiomFunExt {
+            left,
+            right,
+            pointwise,
+        } => infer_axiom_fun_ext(session, rule, phase, left, right, pointwise),
+        Node::AxiomClassicalIndefiniteChoice {
+            domain,
+            family,
+            inhabited,
+        } => {
+            infer_axiom_classical_indefinite_choice(session, rule, phase, domain, family, inhabited)
         }
         Node::TakeEq {
             func,

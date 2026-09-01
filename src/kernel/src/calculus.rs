@@ -242,6 +242,28 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [left, right, ty, predicate, base, equality]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::AxiomSetExt {
+            left,
+            right,
+            left_to_right,
+            right_to_left,
+        } => [left, right, left_to_right, right_to_left]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::AxiomFunExt {
+            left,
+            right,
+            pointwise,
+        } => [left, right, pointwise]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::AxiomClassicalIndefiniteChoice {
+            domain,
+            family,
+            inhabited,
+        } => [domain, family, inhabited]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::TakeEq {
             func,
             domain,
@@ -970,6 +992,69 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 || (is_alpha_eq_rec(env, left_existence, right_existence, mode)
                     && is_alpha_eq_rec(env, left_uniqueness, right_uniqueness, mode)))
         }
+        (
+            Node::AxiomSetExt {
+                left: left_left,
+                right: left_right,
+                left_to_right: left_left_to_right,
+                right_to_left: left_right_to_left,
+            },
+            Node::AxiomSetExt {
+                left: right_left,
+                right: right_right,
+                left_to_right: right_left_to_right,
+                right_to_left: right_right_to_left,
+            },
+        ) => eq_slices(
+            env,
+            &[
+                left_left,
+                left_right,
+                left_left_to_right,
+                left_right_to_left,
+            ],
+            &[
+                right_left,
+                right_right,
+                right_left_to_right,
+                right_right_to_left,
+            ],
+            mode,
+        ),
+        (
+            Node::AxiomFunExt {
+                left: left_left,
+                right: left_right,
+                pointwise: left_pointwise,
+            },
+            Node::AxiomFunExt {
+                left: right_left,
+                right: right_right,
+                pointwise: right_pointwise,
+            },
+        ) => eq_slices(
+            env,
+            &[left_left, left_right, left_pointwise],
+            &[right_left, right_right, right_pointwise],
+            mode,
+        ),
+        (
+            Node::AxiomClassicalIndefiniteChoice {
+                domain: left_domain,
+                family: left_family,
+                inhabited: left_inhabited,
+            },
+            Node::AxiomClassicalIndefiniteChoice {
+                domain: right_domain,
+                family: right_family,
+                inhabited: right_inhabited,
+            },
+        ) => eq_slices(
+            env,
+            &[left_domain, left_family, left_inhabited],
+            &[right_domain, right_family, right_inhabited],
+            mode,
+        ),
         _ => false,
     }
 }
@@ -1384,6 +1469,35 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *predicate = map(*predicate);
             *base = map(*base);
             *equality = map(*equality);
+        }
+        Node::AxiomSetExt {
+            left,
+            right,
+            left_to_right,
+            right_to_left,
+        } => {
+            *left = map(*left);
+            *right = map(*right);
+            *left_to_right = map(*left_to_right);
+            *right_to_left = map(*right_to_left);
+        }
+        Node::AxiomFunExt {
+            left,
+            right,
+            pointwise,
+        } => {
+            *left = map(*left);
+            *right = map(*right);
+            *pointwise = map(*pointwise);
+        }
+        Node::AxiomClassicalIndefiniteChoice {
+            domain,
+            family,
+            inhabited,
+        } => {
+            *domain = map(*domain);
+            *family = map(*family);
+            *inhabited = map(*inhabited);
         }
         Node::TakeEq {
             func,

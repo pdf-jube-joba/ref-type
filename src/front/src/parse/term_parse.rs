@@ -622,6 +622,61 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_proof_term(&mut self) -> Result<SExp, ParseError> {
+        if self.bump_if_keyword("\\axiom") {
+            self.expect_token(Token::Colon)?;
+            let name = self.expect_ident()?;
+            self.expect_token(Token::LParen)?;
+            return match name.as_str() {
+                "setext" => {
+                    let left = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let right = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let left_to_right = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let right_to_left = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::RParen)?;
+                    Ok(SExp::AxiomSetExt {
+                        left,
+                        right,
+                        left_to_right,
+                        right_to_left,
+                    })
+                }
+                "funext" => {
+                    let left = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let right = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let pointwise = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::RParen)?;
+                    Ok(SExp::AxiomFunExt {
+                        left,
+                        right,
+                        pointwise,
+                    })
+                }
+                "classicalIndefiniteChoice" => {
+                    let domain = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let family = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::Comma)?;
+                    let inhabited = Box::new(self.parse_sexp()?);
+                    self.expect_token(Token::RParen)?;
+                    Ok(SExp::AxiomClassicalIndefiniteChoice {
+                        domain,
+                        family,
+                        inhabited,
+                    })
+                }
+                _ => Err(ParseError {
+                    msg: format!("unknown axiom: {}", name.as_str()),
+                    start: self.pos,
+                    end: self.pos,
+                }),
+            };
+        }
+
         if self.bump_if_keyword("\\exact") {
             self.expect_token(Token::LParen)?; // expect '('
             let term = self.parse_sexp()?;
@@ -1556,6 +1611,9 @@ mod tests {
         print_and_unwrap(r"\exact(x, X)");
         print_and_unwrap(r"\refl(x)");
         print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by (pa, eq)");
+        print_and_unwrap(r"\axiom:setext(A, B, ab, ba)");
+        print_and_unwrap(r"\axiom:funext(f, g, pointwise)");
+        print_and_unwrap(r"\axiom:classicalIndefiniteChoice(X, Y, inhabited)");
         print_and_unwrap(r"\take (x: X) => f x \by (existsX, uniqueF)");
         print_and_unwrap(r"\take (x: X) => P \by (existsX)");
         print_and_unwrap(r"x = y");

@@ -101,6 +101,7 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\bysub",
     "\\refl",
     "\\idelim",
+    "\\axiom",
     "\\takeelim",
     "\\accintro",
     "\\accdescent",

@@ -406,6 +406,38 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(base),
             child(equality)
         ),
+        Node::AxiomSetExt {
+            left,
+            right,
+            left_to_right,
+            right_to_left,
+        } => format!(
+            "\\axiom:setext({}, {}, {}, {})",
+            child(left),
+            child(right),
+            child(left_to_right),
+            child(right_to_left)
+        ),
+        Node::AxiomFunExt {
+            left,
+            right,
+            pointwise,
+        } => format!(
+            "\\axiom:funext({}, {}, {})",
+            child(left),
+            child(right),
+            child(pointwise)
+        ),
+        Node::AxiomClassicalIndefiniteChoice {
+            domain,
+            family,
+            inhabited,
+        } => format!(
+            "\\axiom:classicalIndefiniteChoice({}, {}, {})",
+            child(domain),
+            child(family),
+            child(inhabited)
+        ),
         Node::TakeEq {
             func,
             domain,

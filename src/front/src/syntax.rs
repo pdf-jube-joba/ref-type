@@ -437,6 +437,22 @@ pub enum SExp {
         base: Box<SExp>,
         equality: Box<SExp>,
     },
+    AxiomSetExt {
+        left: Box<SExp>,
+        right: Box<SExp>,
+        left_to_right: Box<SExp>,
+        right_to_left: Box<SExp>,
+    },
+    AxiomFunExt {
+        left: Box<SExp>,
+        right: Box<SExp>,
+        pointwise: Box<SExp>,
+    },
+    AxiomClassicalIndefiniteChoice {
+        domain: Box<SExp>,
+        family: Box<SExp>,
+        inhabited: Box<SExp>,
+    },
     TakeEq {
         func: Box<SExp>,
         domain: Box<SExp>,

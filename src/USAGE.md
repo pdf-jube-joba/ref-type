@@ -33,3 +33,17 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 子 module の配置は論理 module パスに対応する。たとえば `root.ref` の
 `\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
+
+## 公理
+
+kernel が提供する公理は proof term として使う。各引数は通常の typing rule で検査される。
+
+```text
+\axiom:setext(A, B, forward, backward)
+\axiom:funext(f, g, pointwise)
+\axiom:classicalIndefiniteChoice(X, Family, inhabited)
+```
+
+`setext` は同じ `Power(X)` の要素と双方向の包含証明を、`funext` は同じ関数型の
+二項と各点での等号を要求する。`classicalIndefiniteChoice` は `Family: X -> Set` と
+`(x: X) -> exists (Family x)` から `exists ((x: X) -> Family x)` を返す。

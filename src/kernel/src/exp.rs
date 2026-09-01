@@ -265,6 +265,22 @@ pub enum Node {
         base: Exp,
         equality: Exp,
     },
+    AxiomSetExt {
+        left: Exp,
+        right: Exp,
+        left_to_right: Exp,
+        right_to_left: Exp,
+    },
+    AxiomFunExt {
+        left: Exp,
+        right: Exp,
+        pointwise: Exp,
+    },
+    AxiomClassicalIndefiniteChoice {
+        domain: Exp,
+        family: Exp,
+        inhabited: Exp,
+    },
     TakeEq {
         func: Exp,
         domain: Exp,
