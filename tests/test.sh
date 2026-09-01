@@ -46,4 +46,7 @@ run_cases "NG" "$SCRIPT_DIR/ng" "true"
 echo "=== MULTI-FILE cases ==="
 (cd "$PROJECT_DIR" && cargo run -- file "$SCRIPT_DIR/projects/multifile/root.ref")
 
+echo "=== LIBRARY case ==="
+(cd "$PROJECT_DIR" && cargo run -- file lib/root.ref)
+
 echo "All tests passed 🎉"

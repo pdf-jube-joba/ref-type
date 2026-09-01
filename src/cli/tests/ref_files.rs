@@ -97,3 +97,17 @@ fn ok_ref_files_succeed() {
 fn ng_ref_files_fail() {
     run_cases("tests/ng", false);
 }
+
+#[test]
+fn library_root_succeeds() {
+    let workspace = workspace_root();
+    let path = workspace.join("lib/root.ref");
+    let output = run_ref_file(&workspace, &path);
+
+    assert!(
+        output.status.success(),
+        "{} was expected to succeed\n{}",
+        path.display(),
+        output_details(&output),
+    );
+}

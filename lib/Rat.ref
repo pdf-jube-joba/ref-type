@@ -1,4 +1,4 @@
-/* Rationals as the localization of Integer at its nonzero elements. */
+/* Rational representatives with an integer numerator and positive denominator. */
 \import \root.Logic() \as Logic;
 
 \inductive Nat: \Set :=
@@ -25,6 +25,12 @@
 \definition zeroNat: Nat := Nat#zero;
 
 \definition oneNat: Nat := Nat#succ Nat#zero;
+
+\inductive NatLt: (lower: Nat) -> (upper: Nat) -> \Prop :=
+| zeroSucc: (n: Nat) -> NatLt Nat#zero (Nat#succ n);
+| succSucc: (lower, upper: Nat) ->
+    NatLt lower upper -> NatLt (Nat#succ lower) (Nat#succ upper);
+;
 
 /* The pair (a,b) represents a-b. */
 \inductive Integer: \Set :=
@@ -80,43 +86,78 @@
     natAdd (positive x) (negative y) =
       natAdd (positive y) (negative x);
 
+\definition natEqSym:
+  (x, y: Nat) -> x = y -> y = x :=
+  (x, y: Nat) => (xy: x = y) =>
+    \idelim(x = y
+      \with z: Nat => z = x)
+    \by (\refl(x), xy);
+
+\definition integerEqRefl:
+  (x: Integer) -> IntegerEq x x :=
+  (x: Integer) =>
+    \refl(natAdd (positive x) (negative x));
+
+\definition integerEqSym:
+  (x, y: Integer) -> IntegerEq x y -> IntegerEq y x :=
+  (x, y: Integer) => (xy: IntegerEq x y) =>
+    natEqSym
+      (natAdd (positive x) (negative y))
+      (natAdd (positive y) (negative x))
+      xy;
+
+\definition IntegerLt: Integer -> Integer -> \Prop :=
+  (x, y: Integer) =>
+    NatLt
+      (natAdd (positive x) (negative y))
+      (natAdd (positive y) (negative x));
+
 \definition IntegerNonZero: Integer -> \Prop :=
   (x: Integer) => Logic.Not (IntegerEq x zeroInteger);
 
-\definition NonZeroIntegerSet: \Power(Integer) :=
-  \Subset(x, Integer, IntegerNonZero x);
-
-/* S = Integer ∖ {0}, the multiplicative set used for localization. */
-\definition NonZeroInteger: \Set :=
-  \Ty(Integer, NonZeroIntegerSet);
-
-\definition underlyingNonZero: NonZeroInteger -> Integer :=
-  (x: NonZeroInteger) => x;
-
-/* A fraction is directly a pair Integer × S. */
+/*
+ * A fraction stores a numerator and the predecessor of a positive natural
+ * denominator.  Thus every denominator is nonzero by construction and the
+ * arithmetic operations below need no multiplicative-closure parameter.
+ */
 \inductive Fraction: \Set :=
-| fraction: Integer -> NonZeroInteger -> Fraction;
+| fraction: Integer -> Nat -> Fraction;
 ;
 
 \definition numerator: Fraction -> Integer :=
   (x: Fraction) =>
     \prec(\Set, Fraction)
       ((x: Fraction) => Integer)
-      ((n: Integer) => (d: NonZeroInteger) => n)
+      ((n: Integer) => (d: Nat) => n)
       x;
 
-\definition denominatorNonZero: Fraction -> NonZeroInteger :=
+\definition denominatorIndex: Fraction -> Nat :=
   (x: Fraction) =>
     \prec(\Set, Fraction)
-      ((x: Fraction) => NonZeroInteger)
-      ((n: Integer) => (d: NonZeroInteger) => d)
+      ((x: Fraction) => Nat)
+      ((n: Integer) => (d: Nat) => d)
       x;
 
 \definition denominator: Fraction -> Integer :=
-  (x: Fraction) => underlyingNonZero (denominatorNonZero x);
+  (x: Fraction) =>
+    integer (Nat#succ (denominatorIndex x)) zeroNat;
 
-\definition fraction: Integer -> NonZeroInteger -> Fraction :=
-  (n: Integer) => (d: NonZeroInteger) => Fraction#fraction n d;
+\definition fraction: Integer -> Nat -> Fraction :=
+  (n: Integer) => (d: Nat) => Fraction#fraction n d;
+
+/* (d + 1)(e + 1) = (de + d + e) + 1. */
+\definition denominatorProductIndex: Nat -> Nat -> Nat :=
+  (d, e: Nat) => natAdd (natAdd (natMul d e) d) e;
+
+\definition zero: Fraction := fraction zeroInteger zeroNat;
+
+\definition one: Fraction := fraction oneInteger zeroNat;
+
+\definition lt: Fraction -> Fraction -> \Prop :=
+  (x, y: Fraction) =>
+    IntegerLt
+      (mulInteger (numerator x) (denominator y))
+      (mulInteger (numerator y) (denominator x));
 
 /* Equality before quotienting is equality after cross multiplication. */
 \definition FractionEq: Fraction -> Fraction -> \Prop :=
@@ -125,53 +166,51 @@
       (mulInteger (numerator x) (denominator y))
       (mulInteger (numerator y) (denominator x));
 
+\definition fractionEqRefl:
+  (x: Fraction) -> FractionEq x x :=
+  (x: Fraction) =>
+    integerEqRefl
+      (mulInteger (numerator x) (denominator x));
+
+\definition fractionEqSym:
+  (x, y: Fraction) -> FractionEq x y -> FractionEq y x :=
+  (x, y: Fraction) => (xy: FractionEq x y) =>
+    integerEqSym
+      (mulInteger (numerator x) (denominator y))
+      (mulInteger (numerator y) (denominator x))
+      xy;
+
 \definition NumeratorNonZero: Fraction -> \Prop :=
   (x: Fraction) => IntegerNonZero (numerator x);
 
+\definition add: Fraction -> Fraction -> Fraction :=
+  (x, y: Fraction) =>
+    fraction
+      (addInteger
+        (mulInteger (numerator x) (denominator y))
+        (mulInteger (numerator y) (denominator x)))
+      (denominatorProductIndex
+        (denominatorIndex x) (denominatorIndex y));
+
+\definition neg: Fraction -> Fraction :=
+  (x: Fraction) =>
+    fraction (negInteger (numerator x)) (denominatorIndex x);
+
+\definition sub: Fraction -> Fraction -> Fraction :=
+  (x, y: Fraction) => add x (neg y);
+
+\definition mul: Fraction -> Fraction -> Fraction :=
+  (x, y: Fraction) =>
+    fraction
+      (mulInteger (numerator x) (numerator y))
+      (denominatorProductIndex
+        (denominatorIndex x) (denominatorIndex y));
+
 /*
- * mulNonZero is multiplication internal to S.  Its correctness equation is
- * the computational content of multiplicative closure.
+ * The quotient is fixed to FractionEq.  The remaining parameters are the
+ * arithmetic transitivity proof and subset extensionality.
  */
-\module Localization(
-  mulNonZero: NonZeroInteger -> NonZeroInteger -> NonZeroInteger,
-  mulNonZeroCorrect: (x, y: NonZeroInteger) ->
-    IntegerEq
-      (underlyingNonZero (mulNonZero x y))
-      (mulInteger (underlyingNonZero x) (underlyingNonZero y)),
-) {
-  \definition addFraction: Fraction -> Fraction -> Fraction :=
-    (x, y: Fraction) =>
-      fraction
-        (addInteger
-          (mulInteger (numerator x) (denominator y))
-          (mulInteger (numerator y) (denominator x)))
-        (mulNonZero (denominatorNonZero x) (denominatorNonZero y));
-
-  \definition negFraction: Fraction -> Fraction :=
-    (x: Fraction) =>
-      fraction (negInteger (numerator x)) (denominatorNonZero x);
-
-  \definition subFraction: Fraction -> Fraction -> Fraction :=
-    (x, y: Fraction) =>
-      fraction
-        (subInteger
-          (mulInteger (numerator x) (denominator y))
-          (mulInteger (numerator y) (denominator x)))
-        (mulNonZero (denominatorNonZero x) (denominatorNonZero y));
-
-  \definition mulFraction: Fraction -> Fraction -> Fraction :=
-    (x, y: Fraction) =>
-      fraction
-        (mulInteger (numerator x) (numerator y))
-        (mulNonZero (denominatorNonZero x) (denominatorNonZero y));
-
-  /*
-   * The quotient interface is abstract in the relation to avoid repeatedly
-   * normalizing the concrete cross-multiplication formula.  Instantiate it
-   * with FractionEq and the arithmetic proofs above.
-   */
-  \module Quotient(
-    equivalent: Fraction -> Fraction -> \Prop,
+\module Quotient(
     setExt:
       (A, B: \Power(Fraction)) ->
         ((x: Fraction) ->
@@ -179,27 +218,23 @@
         ((x: Fraction) ->
           \Pred(Fraction, B, x) -> \Pred(Fraction, A, x)) ->
         A = B,
-    equivalentRefl:
-      (x: Fraction) -> equivalent x x,
-    equivalentSym:
-      (x, y: Fraction) -> equivalent x y -> equivalent y x,
-    equivalentTrans:
+    fractionEqTrans:
       (x, y, z: Fraction) ->
-        equivalent x y -> equivalent y z -> equivalent x z,
+        FractionEq x y -> FractionEq y z -> FractionEq x z,
   ) {
     \import \root.Logic() \as QuotientLogic;
 
     \definition ClassOf: Fraction -> \Power(Fraction) :=
-      (x: Fraction) => \Subset(y, Fraction, equivalent x y);
+      (x: Fraction) => \Subset(y, Fraction, FractionEq x y);
 
     \definition classOfEq:
-      (x, y: Fraction) -> equivalent x y -> ClassOf x = ClassOf y :=
-      (x, y: Fraction) => (xy: equivalent x y) =>
+      (x, y: Fraction) -> FractionEq x y -> ClassOf x = ClassOf y :=
+      (x, y: Fraction) => (xy: FractionEq x y) =>
         setExt (ClassOf x) (ClassOf y)
-          ((z: Fraction) => (xz: equivalent x z) =>
-            equivalentTrans y x z (equivalentSym x y xy) xz)
-          ((z: Fraction) => (yz: equivalent y z) =>
-            equivalentTrans x y z xy yz);
+          ((z: Fraction) => (xz: FractionEq x z) =>
+            fractionEqTrans y x z (fractionEqSym x y xy) xz)
+          ((z: Fraction) => (yz: FractionEq y z) =>
+            fractionEqTrans x y z xy yz);
 
     \definition IsClass: \Power(Fraction) -> \Prop :=
       (C: \Power(Fraction)) =>
@@ -258,7 +293,7 @@
                 \exists \Ty(Fraction,
                   \Subset(b, Fraction,
                     QuotientLogic.And[mem y b,
-                      equivalent z (addFraction a b)]))])));
+                      FractionEq z (add a b)]))])));
 
     \definition SubClass: Rat -> Rat -> \Power(Fraction) :=
       (x, y: Rat) =>
@@ -269,7 +304,7 @@
                 \exists \Ty(Fraction,
                   \Subset(b, Fraction,
                     QuotientLogic.And[mem y b,
-                      equivalent z (subFraction a b)]))])));
+                      FractionEq z (sub a b)]))])));
 
     \definition MulClass: Rat -> Rat -> \Power(Fraction) :=
       (x, y: Rat) =>
@@ -280,7 +315,7 @@
                 \exists \Ty(Fraction,
                   \Subset(b, Fraction,
                     QuotientLogic.And[mem y b,
-                      equivalent z (mulFraction a b)]))])));
+                      FractionEq z (mul a b)]))])));
 
     /* z is x/y exactly when z*y=x; y is separately refined as nonzero. */
     \definition DivClass: Rat -> NonZeroRat -> \Power(Fraction) :=
@@ -293,7 +328,7 @@
                   \Subset(b, Fraction,
                     QuotientLogic.And[mem y b,
                       QuotientLogic.And[NumeratorNonZero b,
-                        equivalent (mulFraction z b) a]]))])));
+                        FractionEq (mul z b) a]]))])));
 
     \module ClassClosed(
       addClassIsClass: (x, y: Rat) -> IsClass (AddClass x y),
@@ -326,5 +361,4 @@
             \Power(Fraction), ClassSet,
             DivClass x y, divClassIsClass x y);
     }
-  }
 }

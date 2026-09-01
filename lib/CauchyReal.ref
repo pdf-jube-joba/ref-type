@@ -1,11 +1,30 @@
 /*
- * Cauchy reals over an abstract implementation of the rationals.
+ * Cauchy reals over the concrete rational representatives from Rat.ref.
  *
  * A real is not a chosen Cauchy sequence.  It is an actual equivalence
  * class: a subset of CauchySeq containing exactly the sequences equivalent
  * to one representative.  Kernel equality is therefore the right equality
  * for reals once extensionality of subsets of CauchySeq is supplied.
  */
+  \import \root.Logic() \as Logic;
+  \import \root.Rat() \as Rational;
+
+  \definition Rat: \Set := Rational.Fraction;
+
+  \definition zeroRat: Rat := Rational.zero;
+
+  \definition addRat: Rat -> Rat -> Rat :=
+    (x, y: Rat) => Rational.add x y;
+
+  \definition negRat: Rat -> Rat :=
+    (x: Rat) => Rational.neg x;
+
+  \definition subRat: Rat -> Rat -> Rat :=
+    (x, y: Rat) => Rational.sub x y;
+
+  \definition ltRat: Rat -> Rat -> \Prop :=
+    (x, y: Rat) => Rational.lt x y;
+
   /* Natural indices and their inductive non-strict order. */
   \inductive Nat: \Set :=
   | zero: Nat;
@@ -21,13 +40,20 @@
   \definition Positive: Rat -> \Prop :=
     (eps: Rat) => ltRat zeroRat eps;
 
+  /* |x-y| < eps, stated without a separate absolute-value operation. */
+  \definition Close: Rat -> Rat -> Rat -> \Prop :=
+    (x, y: Rat) => (eps: Rat) =>
+      Logic.And[
+        ltRat (subRat x y) eps,
+        ltRat (subRat y x) eps];
+
   \definition Sequence: \Set := Nat -> Rat;
 
   /* N witnesses that all entries after N are eps-close. */
   \definition CauchyAt: Sequence -> Rat -> Nat -> \Prop :=
     (seq: Sequence) => (eps: Rat) => (N: Nat) =>
       (m, n: Nat) -> NatLe N m -> NatLe N n ->
-        ltRat (absRat (subRat (seq m) (seq n))) eps;
+        Close (seq m) (seq n) eps;
 
   \definition IsCauchy: Sequence -> \Prop :=
     (seq: Sequence) =>
@@ -48,7 +74,7 @@
     CauchySeq -> CauchySeq -> Rat -> Nat -> \Prop :=
     (x, y: CauchySeq) => (eps: Rat) => (N: Nat) =>
       (n: Nat) -> NatLe N n ->
-        ltRat (absRat (subRat (at x n) (at y n))) eps;
+        Close (at x n) (at y n) eps;
 
   \definition Equivalent: CauchySeq -> CauchySeq -> \Prop :=
     (x, y: CauchySeq) =>
@@ -132,10 +158,7 @@
       (x: CauchySeq) =>
         (P: \Prop) =>
         (intro: (y: CauchySeq) -> ClassOf x = ClassOf y -> P) =>
-          intro x
-            (setExt (ClassOf x) (ClassOf x)
-              ((z: CauchySeq) => (xz: Equivalent x z) => xz)
-              ((z: CauchySeq) => (xz: Equivalent x z) => xz));
+          intro x (\refl(ClassOf x));
 
     \definition class: CauchySeq -> Real :=
       (x: CauchySeq) =>
@@ -146,10 +169,7 @@
      * No representative is selected.  The closure obligations state that
      * these images are again single equivalence classes.
      */
-    \module Operations(
-      addRat: Rat -> Rat -> Rat,
-      negRat: Rat -> Rat,
-    ) {
+    \module Operations {
       \definition ConstSeq: Rat -> Sequence :=
         (a: Rat) => (n: Nat) => a;
 

@@ -1,10 +1,25 @@
 /*
  * Constructive real numbers as located, rounded Dedekind cuts.
  *
- * Rat and its strict order are parameters: this file constructs the
- * completion, independently of a particular implementation of rationals.
+ * The rational carrier and its strict order come from Rat.ref.  The carrier
+ * is the positive-denominator representative type; FractionEq records the
+ * equality that the remaining rational lemmas must respect.
  */
 \import \root.Logic() \as Logic;
+\import \root.Rat() \as Rational;
+
+  \definition Rat: \Set := Rational.Fraction;
+
+  \definition lt: Rat -> Rat -> \Prop :=
+    (x, y: Rat) => Rational.lt x y;
+
+  \definition addRat: Rat -> Rat -> Rat :=
+    (x, y: Rat) => Rational.add x y;
+
+  \definition negRat: Rat -> Rat :=
+    (x: Rat) => Rational.neg x;
+
+  \definition zeroRat: Rat := Rational.zero;
 
   /* Membership in a rational lower set. */
   \definition In: \Power(Rat) -> Rat -> \Prop :=
@@ -34,12 +49,18 @@
     (L: \Power(Rat)) =>
       (p, q: Rat) -> lt p q -> Logic.Or[In L p, Logic.Not (In L q)];
 
+  /* Membership must not depend on the chosen fraction representative. */
+  \definition RespectsFractionEq: \Power(Rat) -> \Prop :=
+    (L: \Power(Rat)) =>
+      (p, q: Rat) -> Rational.FractionEq p q -> In L p -> In L q;
+
   \definition IsCut: \Power(Rat) -> \Prop :=
     (L: \Power(Rat)) =>
       Logic.And[Inhabited L,
         Logic.And[Proper L,
           Logic.And[Lower L,
-            Logic.And[Rounded L, Located L]]]];
+            Logic.And[Rounded L,
+              Logic.And[Located L, RespectsFractionEq L]]]]];
 
   /* Real is the refinement of rational lower sets by the cut laws. */
   \definition CutSet: \Power(\Power(Rat)) :=
@@ -52,17 +73,39 @@
   \definition mem: Real -> Rat -> \Prop :=
     (x: Real) => (q: Rat) => In x q;
 
-  /* Kernel equality is extensional on cuts through the setExt parameter. */
+  /* Inclusion is available without any extensionality principle. */
   \definition Le: Real -> Real -> \Prop :=
     (x, y: Real) => (q: Rat) -> mem x q -> mem y q;
 
   \definition Eq: Real -> Real -> \Prop :=
     (x, y: Real) => x = y;
 
-  \definition eqByExt:
-    (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
-    (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
-      setExt x y xy yx;
+  \definition leRefl: (x: Real) -> Le x x :=
+    (x: Real) => (q: Rat) => (qx: mem x q) => qx;
+
+  \definition leTrans:
+    (x, y, z: Real) -> Le x y -> Le y z -> Le x z :=
+    (x, y, z: Real) => (xy: Le x y) => (yz: Le y z) =>
+      (q: Rat) => (qx: mem x q) => yz q (xy q qx);
+
+  /* Kernel equality of cuts additionally needs subset extensionality. */
+  \module Extensionality(
+    setExt:
+      (A, B: \Power(Rat)) ->
+        ((q: Rat) -> \Pred(Rat, A, q) -> \Pred(Rat, B, q)) ->
+        ((q: Rat) -> \Pred(Rat, B, q) -> \Pred(Rat, A, q)) ->
+        A = B,
+  ) {
+    \definition eqByExt:
+      (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
+      (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+        setExt x y xy yx;
+
+    \definition leAntisym:
+      (x, y: Real) -> Le x y -> Le y x -> x = y :=
+      (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+        eqByExt x y xy yx;
+  }
 
   \definition Lt: Real -> Real -> \Prop :=
     (x, y: Real) =>
@@ -72,13 +115,9 @@
   /*
    * Arithmetic lower sets.  The nested Closed module asks for exactly the
    * closure lemmas needed to refine these sets back to Real.  This keeps the
-   * construction honest while allowing any ordered-rational implementation.
+   * construction honest while the concrete rational laws are being proved.
    */
-  \module Operations(
-    addRat: Rat -> Rat -> Rat,
-    negRat: Rat -> Rat,
-    zeroRat: Rat,
-  ) {
+  \module Operations {
     \import \root.Logic() \as Logic;
 
     \definition RatLower: Rat -> \Power(Rat) :=
