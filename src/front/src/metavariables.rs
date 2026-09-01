@@ -225,7 +225,7 @@ struct MetaEntry {
     inferred_type: Option<Exp>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct MetaStore {
     entries: Vec<MetaEntry>,
     named: HashMap<u32, MetaVarId>,

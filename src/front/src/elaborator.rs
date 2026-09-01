@@ -168,6 +168,120 @@ impl GlobalEnvironment {
         }
     }
 
+    /// Infer the type of a term whose surface syntax still contains
+    /// metavariables.  PTS, Program-value, and Program-computation inference
+    /// may all mutate the metavariable store before discovering that the term
+    /// belongs to another judgement, so every failed alternative is rolled
+    /// back before trying the next one.
+    fn infer_term_with_metavariables(
+        &mut self,
+        ctx: &mut Context,
+        term: Exp,
+    ) -> Result<Exp, String> {
+        let initial = self.metavariables.clone();
+
+        let pts_error = match self.metavariables.infer_pts(
+            &self.crate_env,
+            self.module_manager.current(),
+            ctx,
+            term,
+        ) {
+            Ok(ty) => return Ok(ty),
+            Err(error) => error,
+        };
+
+        self.metavariables = initial.clone();
+        let value_error = match self.metavariables.infer_value(
+            &self.crate_env,
+            self.module_manager.current(),
+            ctx,
+            term,
+        ) {
+            Ok(ty) => return Ok(ty),
+            Err(error) => error,
+        };
+
+        self.metavariables = initial;
+        match self.metavariables.infer_computation(
+            &self.crate_env,
+            self.module_manager.current(),
+            ctx,
+            term,
+        ) {
+            Ok(ty) => Ok(ty),
+            Err(computation_error) => Err(format!(
+                "term does not infer in any judgement; PTS: {pts_error}; \
+                 Program value: {value_error}; Program computation: {computation_error}"
+            )),
+        }
+    }
+
+    /// Check a term against an expected type containing metavariables without
+    /// letting failed judgement-classification probes contaminate later ones.
+    fn check_term_with_metavariables(
+        &mut self,
+        ctx: &mut Context,
+        term: Exp,
+        expected: Exp,
+    ) -> Result<(), String> {
+        let expected = self.metavariables.zonk(&self.crate_env, expected);
+        if matches!(self.crate_env.arena().get(expected), Node::Meta { .. }) {
+            let inferred = self.infer_term_with_metavariables(ctx, term)?;
+            self.metavariables
+                .unify(&self.crate_env, expected, inferred)?;
+            return Ok(());
+        }
+
+        let initial = self.metavariables.clone();
+        if self
+            .metavariables
+            .infer_sort(
+                &self.crate_env,
+                self.module_manager.current(),
+                ctx,
+                expected,
+            )
+            .is_ok()
+        {
+            return self.metavariables.check_pts(
+                &self.crate_env,
+                self.module_manager.current(),
+                ctx,
+                term,
+                expected,
+            );
+        }
+
+        self.metavariables = initial.clone();
+        if self
+            .metavariables
+            .check_value_type(
+                &self.crate_env,
+                self.module_manager.current(),
+                ctx,
+                expected,
+            )
+            .is_ok()
+        {
+            return self.metavariables.check_value(
+                &self.crate_env,
+                self.module_manager.current(),
+                ctx,
+                term,
+                expected,
+            );
+        }
+
+        self.metavariables = initial;
+        self.metavariables.check_computation(
+            &self.crate_env,
+            self.module_manager.current(),
+            ctx,
+            term,
+            expected,
+        )
+    }
+
     fn solve_module_arguments(
         &mut self,
         context: &mut Context,
@@ -662,55 +776,8 @@ impl GlobalEnvironment {
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     let body_elab = local_scope.elab_exp(body, self)?;
                     if !self.metavariables.is_empty() {
-                        if self
-                            .metavariables
-                            .infer_sort(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                ty_elab,
-                            )
-                            .is_ok()
-                        {
-                            self.metavariables
-                                .check_pts(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    body_elab,
-                                    ty_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        } else if self
-                            .metavariables
-                            .check_value_type(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                ty_elab,
-                            )
-                            .is_ok()
-                        {
-                            self.metavariables
-                                .check_value(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    body_elab,
-                                    ty_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        } else {
-                            self.metavariables
-                                .check_computation(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    body_elab,
-                                    ty_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        }
+                        self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
+                            .map_err(|message| self.metavariables.constraint_error(message))?;
                         self.finish_metavariables()?;
                     }
                     let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
@@ -1078,34 +1145,8 @@ impl GlobalEnvironment {
                 ModuleItem::Eval { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
-                        if self
-                            .metavariables
-                            .infer_pts(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                exp_elab,
-                            )
-                            .is_err()
-                            && self
-                                .metavariables
-                                .infer_value(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                )
-                                .is_err()
-                        {
-                            self.metavariables
-                                .infer_computation(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        }
+                        self.infer_term_with_metavariables(&mut ctx, exp_elab)
+                            .map_err(|message| self.metavariables.constraint_error(message))?;
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
@@ -1119,34 +1160,8 @@ impl GlobalEnvironment {
                 ModuleItem::Normalize { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
-                        if self
-                            .metavariables
-                            .infer_pts(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                exp_elab,
-                            )
-                            .is_err()
-                            && self
-                                .metavariables
-                                .infer_value(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                )
-                                .is_err()
-                        {
-                            self.metavariables
-                                .infer_computation(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        }
+                        self.infer_term_with_metavariables(&mut ctx, exp_elab)
+                            .map_err(|message| self.metavariables.constraint_error(message))?;
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
@@ -1161,55 +1176,8 @@ impl GlobalEnvironment {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     if !self.metavariables.is_empty() {
-                        if self
-                            .metavariables
-                            .infer_sort(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                ty_elab,
-                            )
-                            .is_ok()
-                        {
-                            self.metavariables
-                                .check_pts(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                    ty_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        } else if self
-                            .metavariables
-                            .check_value_type(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                ty_elab,
-                            )
-                            .is_ok()
-                        {
-                            self.metavariables
-                                .check_value(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                    ty_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        } else {
-                            self.metavariables
-                                .check_computation(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                    ty_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        }
+                        self.check_term_with_metavariables(&mut ctx, exp_elab, ty_elab)
+                            .map_err(|message| self.metavariables.constraint_error(message))?;
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
@@ -1225,34 +1193,8 @@ impl GlobalEnvironment {
                 ModuleItem::Infer { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
-                        if self
-                            .metavariables
-                            .infer_pts(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                                exp_elab,
-                            )
-                            .is_err()
-                            && self
-                                .metavariables
-                                .infer_value(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                )
-                                .is_err()
-                        {
-                            self.metavariables
-                                .infer_computation(
-                                    &self.crate_env,
-                                    self.module_manager.current(),
-                                    &mut ctx,
-                                    exp_elab,
-                                )
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
-                        }
+                        self.infer_term_with_metavariables(&mut ctx, exp_elab)
+                            .map_err(|message| self.metavariables.constraint_error(message))?;
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);

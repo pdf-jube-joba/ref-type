@@ -170,6 +170,21 @@ fn program_annotation_meta_is_solved_from_the_declared_type() {
 }
 
 #[test]
+fn program_terms_determine_top_level_type_metavariables() {
+    let source = r#"
+        \module ProgramTypeMeta(A: \VType, x: A) {
+            \definition inferred_value_type: _ := x;
+            \definition inferred_computation_type: _ := \return(x);
+            \check x: _;
+            \check \return(x): _;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
 fn dependent_module_argument_solves_an_earlier_implicit() {
     let source = r#"
         \module Parameterized(X: \Set(0), x: X) {}
