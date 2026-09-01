@@ -1,65 +1,74 @@
 /* A proof-free Cartesian product and its basic equations. */
-\inductive Times: \Set :=
+\inductive Times(A, B: \Set): \Set :=
 | pair: A -> B -> Times;
 ;
 
-\definition pair: A -> B -> Times :=
-  (a: A) => (b: B) => Times#pair a b;
+\definition pair:
+  (A, B: \Set) -> A -> B -> Times[A, B] :=
+  (A, B: \Set) => (a: A) => (b: B) =>
+    Times[A, B]#pair a b;
 
-\definition first: Times -> A :=
-  (p: Times) =>
-    \prec(\Set, Times)
-      ((p: Times) => A)
+\definition first:
+  (A, B: \Set) -> Times[A, B] -> A :=
+  (A, B: \Set) => (p: Times[A, B]) =>
+    \prec(\Set, Times[A, B])
+      ((p: Times[A, B]) => A)
       ((a: A) => (b: B) => a)
       p;
 
-\definition second: Times -> B :=
-  (p: Times) =>
-    \prec(\Set, Times)
-      ((p: Times) => B)
+\definition second:
+  (A, B: \Set) -> Times[A, B] -> B :=
+  (A, B: \Set) => (p: Times[A, B]) =>
+    \prec(\Set, Times[A, B])
+      ((p: Times[A, B]) => B)
       ((a: A) => (b: B) => b)
       p;
 
 \definition firstPair:
-  (a: A) -> (b: B) -> first (pair a b) = a :=
-  (a: A) => (b: B) => \refl(a);
+  (A, B: \Set) -> (a: A) -> (b: B) ->
+    first A B (pair A B a b) = a :=
+  (A, B: \Set) => (a: A) => (b: B) => \refl(a);
 
 \definition secondPair:
-  (a: A) -> (b: B) -> second (pair a b) = b :=
-  (a: A) => (b: B) => \refl(b);
+  (A, B: \Set) -> (a: A) -> (b: B) ->
+    second A B (pair A B a b) = b :=
+  (A, B: \Set) => (a: A) => (b: B) => \refl(b);
 
 \definition eta:
-  (p: Times) -> pair (first p) (second p) = p :=
-  (p: Times) =>
-    \prec(\Prop, Times)
-      ((q: Times) => pair (first q) (second q) = q)
-      ((a: A) => (b: B) => \refl(pair a b))
+  (A, B: \Set) -> (p: Times[A, B]) ->
+    pair A B (first A B p) (second A B p) = p :=
+  (A, B: \Set) => (p: Times[A, B]) =>
+    \prec(\Prop, Times[A, B])
+      ((q: Times[A, B]) =>
+        pair A B (first A B q) (second A B q) = q)
+      ((a: A) => (b: B) => \refl(pair A B a b))
       p;
 
 \definition ext:
-  (p, q: Times) ->
-    first p = first q -> second p = second q -> p = q :=
-  (p: Times) =>
-    \prec(\Prop, Times)
-      ((left: Times) =>
-        (right: Times) ->
-        first left = first right ->
-        second left = second right ->
+  (A, B: \Set) -> (p: Times[A, B]) -> (q: Times[A, B]) ->
+    first A B p = first A B q ->
+    second A B p = second A B q -> p = q :=
+  (A, B: \Set) => (p: Times[A, B]) =>
+    \prec(\Prop, Times[A, B])
+      ((left: Times[A, B]) =>
+        (right: Times[A, B]) ->
+        first A B left = first A B right ->
+        second A B left = second A B right ->
         left = right)
-      ((a: A) => (b: B) => (q: Times) =>
-        \prec(\Prop, Times)
-          ((right: Times) =>
-            first (pair a b) = first right ->
-            second (pair a b) = second right ->
-            pair a b = right)
+      ((a: A) => (b: B) => (q: Times[A, B]) =>
+        \prec(\Prop, Times[A, B])
+          ((right: Times[A, B]) =>
+            first A B (pair A B a b) = first A B right ->
+            second A B (pair A B a b) = second A B right ->
+            pair A B a b = right)
           ((c: A) => (d: B) =>
             (ac: a = c) => (bd: b = d) =>
               \idelim(a = c
-                \with x: A => pair a b = pair x d)
+                \with x: A => pair A B a b = pair A B x d)
               \by (
                 \idelim(b = d
-                  \with y: B => pair a b = pair a y)
-                \by (\refl(pair a b), bd),
+                  \with y: B => pair A B a b = pair A B a y)
+                \by (\refl(pair A B a b), bd),
                 ac))
           q)
       p;
