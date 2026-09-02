@@ -1,6 +1,6 @@
 // this file describes the surface syntax tree
 use kernel::exp::{Exp, Node};
-use kernel::ids::{DefId, InductiveId};
+use kernel::ids::{DefId, InductiveId, ModuleId};
 use kernel::inductive::CtorBinder;
 use kernel::sort::Sort;
 use serde::Serialize;
@@ -53,8 +53,10 @@ pub enum ModuleBody {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum MacroSeqAtom {
+    Capture(Identifier),
     Tok(MacroToken),
-    Id(Identifier),
+    Quoted(String),
+    Seq(Vec<MacroSeqAtom>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -87,13 +89,18 @@ pub enum ModuleItem {
         import_name: Identifier,
     },
     MathMacro {
+        name: Identifier,
         before: Vec<MacroSeqAtom>,
-        after: Vec<SExp>,
+        after: SExp,
     },
     UserMacro {
         name: Identifier,
         before: Vec<MacroSeqAtom>,
-        after: Vec<SExp>,
+        after: SExp,
+    },
+    UseMacro {
+        import_name: Identifier,
+        macro_name: Identifier,
     },
     Eval {
         exp: SExp,
@@ -143,6 +150,7 @@ pub enum ModuleInstantiatePath {
 pub enum MacroExp {
     Exp(SExp),
     Tok(MacroToken),
+    Quoted(String),
     Seq(Vec<MacroExp>),
 }
 
@@ -183,6 +191,11 @@ pub enum LocalAccess {
         access: Identifier,
         child: Identifier,
     },
+    /// An access resolved in a macro's definition environment.
+    Resolved {
+        module: ModuleId,
+        access: Identifier,
+    },
 }
 
 // this is internal representation
@@ -209,12 +222,27 @@ pub enum SExp {
     // before type checking, it is expanded to normal expression
     MathMacro {
         tokens: Vec<MacroExp>,
+        /// `None` for source calls; templates pin nested calls to their
+        /// definition environment before they are registered.
+        scope: Option<ModuleId>,
+        /// For calls originating in a template, only declarations older than
+        /// this order are visible.
+        max_order: Option<u64>,
+        depth: u16,
     },
     // macro specified by name
     NamedMacro {
         name: Identifier,
         tokens: Vec<MacroExp>,
+        scope: Option<ModuleId>,
+        max_order: Option<u64>,
+        depth: u16,
     },
+    /// A reference to a pattern capture. Only valid in macro templates.
+    MacroParameter(Identifier),
+    /// A core expression captured while resolving a macro template (currently
+    /// used for module parameters). It is remapped when a module is instantiated.
+    ResolvedExp(Exp),
 
     // --- expression with clauses
     // where clauses to define local variables

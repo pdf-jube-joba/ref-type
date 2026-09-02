@@ -1,3 +1,4 @@
+use crate::macros::{MacroInstantiation, ModuleMacroScope};
 use crate::syntax::{
     Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
     ModItemRecord,
@@ -117,6 +118,8 @@ fn materialize_associated_definitions(
 #[derive(Debug)]
 pub struct ModuleManager {
     current: ModuleId,
+    pub(crate) macro_scopes: HashMap<ModuleId, ModuleMacroScope>,
+    pub(crate) next_macro_order: u64,
 }
 
 impl Default for ModuleManager {
@@ -129,6 +132,8 @@ impl ModuleManager {
     pub fn new() -> Self {
         Self {
             current: ModuleId(0),
+            macro_scopes: HashMap::new(),
+            next_macro_order: 0,
         }
     }
 
@@ -384,7 +389,7 @@ impl ModuleManager {
     }
 
     pub fn instantiate_module(
-        &self,
+        &mut self,
         env: &mut CrateEnv,
         context: &mut Context,
         back_parent: Option<usize>,
@@ -572,15 +577,17 @@ impl ModuleManager {
                     }
                 });
             }
-            pending_groups.push((instance_source, is_path_component, pending));
+            pending_groups.push((instance_source, item_source, is_path_component, pending));
         }
 
         let mut definition_ids = HashMap::new();
         let mut inductive_ids = HashMap::new();
         let mut program_inductive_ids = HashMap::new();
+        let mut module_ids = HashMap::new();
         let mut last_instance = None;
-        for (source_module, is_path_component, pending) in pending_groups {
+        for (source_module, item_source, is_path_component, pending) in pending_groups {
             let materialized = env.add_module();
+            module_ids.insert(item_source, materialized);
             let mut definition_origins = HashMap::new();
             for item in pending {
                 match item {
@@ -716,6 +723,18 @@ impl ModuleManager {
                     }
                 }
             }
+            self.materialize_macros(
+                env,
+                item_source,
+                materialized,
+                &MacroInstantiation {
+                    module_ids: &module_ids,
+                    substitutions: &substitutions,
+                    definition_ids: &definition_ids,
+                    inductive_ids: &inductive_ids,
+                    program_inductive_ids: &program_inductive_ids,
+                },
+            );
             let instance = env.add_instance(
                 self.current,
                 source_module,
@@ -766,6 +785,22 @@ impl ModuleManager {
                     .item(child.as_str())
                     .map(convert_item)
             }
+            LocalAccess::Resolved { module, access } => env
+                .module(*module)
+                .item(access.as_str())
+                .map(convert_item)
+                .or_else(|| {
+                    env.module(*module)
+                        .parameters()
+                        .iter()
+                        .position(|parameter| env.symbol(parameter.name) == access.as_str())
+                        .map(|position| {
+                            ItemAccessResult::Expression(env.arena().module_param(ModuleParamId {
+                                module: *module,
+                                position: position as u32,
+                            }))
+                        })
+                }),
         }
     }
 }
@@ -905,7 +940,7 @@ mod tests {
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_parent(&env);
 
-        let instantiate = |manager: &ModuleManager, env: &mut CrateEnv| {
+        let instantiate = |manager: &mut ModuleManager, env: &mut CrateEnv| {
             manager
                 .instantiate_module(
                     env,
@@ -915,8 +950,8 @@ mod tests {
                 )
                 .unwrap()
         };
-        let first = instantiate(&manager, &mut env);
-        let second = instantiate(&manager, &mut env);
+        let first = instantiate(&mut manager, &mut env);
+        let second = instantiate(&mut manager, &mut env);
         assert_ne!(first, second);
 
         let ids = |env: &CrateEnv, instance| {
@@ -1047,7 +1082,7 @@ mod tests {
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_parent(&env);
 
-        let instantiate = |manager: &ModuleManager, env: &mut CrateEnv| {
+        let instantiate = |manager: &mut ModuleManager, env: &mut CrateEnv| {
             manager
                 .instantiate_module(
                     env,
@@ -1057,8 +1092,8 @@ mod tests {
                 )
                 .unwrap()
         };
-        let first = instantiate(&manager, &mut env);
-        let second = instantiate(&manager, &mut env);
+        let first = instantiate(&mut manager, &mut env);
+        let second = instantiate(&mut manager, &mut env);
         let inductive = |env: &CrateEnv, instance| {
             let module = env.module(env.instance(instance).materialized);
             let ModuleItem::Inductive { inductive, .. } = module.item("Token").unwrap() else {

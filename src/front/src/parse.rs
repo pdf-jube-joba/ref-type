@@ -5,8 +5,14 @@ use logos::Logos;
 #[logos(skip r"[ \t\n\f]+")]
 pub enum Token<'a> {
     // Keywords (start from "\" character)
-    #[regex(r"\\[a-zA-Z0-9]+")]
+    #[regex(r"\\[a-zA-Z][a-zA-Z0-9-]*")]
     KeyWord(&'a str), // any concatenation of non-alphanumeric symbols without spaces
+    #[regex(r"\$[a-zA-Z][a-zA-Z0-9_]*")]
+    MacroVar(&'a str),
+    #[regex(r#""[^"\n]*""#)]
+    QuotedMacroToken(&'a str),
+    #[regex(r"\\[^a-zA-Z0-9\s(){}$\[\]_,]+")]
+    EscapedMacroToken(&'a str),
     #[regex(r"[a-zA-Z][a-zA-Z0-9_]*")]
     Ident(&'a str),
     #[regex(r"[0-9]+")]
@@ -16,7 +22,8 @@ pub enum Token<'a> {
     #[token("_", priority = 3)]
     Hole,
     // any non-space sequence that does not include reserved delimiters or `_`/`?`
-    #[regex(r"[^\s\\A-Za-z0-9?(){}$\[\]_]+")]
+    #[token("/\\")]
+    #[regex(r#"[^\s\\A-Za-z0-9?(){}$\[\]_\"]+"#)]
     MacroToken(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -25,7 +32,7 @@ pub enum Token<'a> {
     RParen,
     #[token("$(")]
     MathLParen,
-    #[token(")$")]
+    #[token("$)")]
     MathRParen,
     // comment tokens (will be ignored before lex_all output)
     #[token("/*")]
@@ -92,11 +99,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\block",  // block expression
 ];
 
-static EXPRESSION_SEPARATION_KEYWORDS: &[&str] =
-    &["\\as", "\\by", "\\with", "\\where", "\\in", "\\return"];
-
-static BLOCK_KEYWORDS: &[&str] = &["\\let", "\\sufficient", "\\take", "\\fix"];
-
 static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\exact",
     "\\bysub",
@@ -106,22 +108,6 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\takeelim",
     "\\accintro",
     "\\accdescent",
-];
-
-static PROGRAM_KEYWORDS: &[&str] = &[
-    "\\module",
-    "\\import",
-    "\\definition",
-    "\\inductive",
-    "\\structure",
-    "\\mathmacro",
-    "\\usermacro",
-    "\\eval",
-    "\\normalize",
-    "\\check",
-    "\\infer",
-    "\\root",
-    "\\parent",
 ];
 
 pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
@@ -173,18 +159,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                 });
             }
             Ok(Token::KeyWord(kw)) => {
-                let mapped = if !SORT_KEYWORDS.contains(&kw)
-                    && !EXPRESSION_ATOM_KEYWORDS.contains(&kw)
-                    && !EXPRESSION_SEPARATION_KEYWORDS.contains(&kw)
-                    && !BLOCK_KEYWORDS.contains(&kw)
-                    && !PROOF_TERM_KEYWORDS.contains(&kw)
-                    && !PROGRAM_KEYWORDS.contains(&kw)
-                {
-                    // treat as macro token if not reserved keyword
-                    Token::MacroToken(kw)
-                } else {
-                    Token::KeyWord(kw)
-                };
+                let mapped = Token::KeyWord(kw);
                 let span = lexer.span();
                 out.push(SpannedToken {
                     kind: mapped,
@@ -195,6 +170,9 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
             Ok(Token::Ident(_))
             | Ok(Token::Number(_))
             | Ok(Token::UnspecifiedVar(_))
+            | Ok(Token::MacroVar(_))
+            | Ok(Token::QuotedMacroToken(_))
+            | Ok(Token::EscapedMacroToken(_))
             | Ok(Token::Hole)
             | Ok(
                 Token::LParen
@@ -371,6 +349,13 @@ impl<'a> Parser<'a> {
 
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
         let mut term_parser = TermParser::new(&self.tokens[self.pos..]);
+        let (sexp, consumed) = term_parser.parse_sexp_advanced()?;
+        self.pos += consumed;
+        Ok(sexp)
+    }
+
+    fn parse_macro_template(&mut self) -> Result<SExp, ParseError> {
+        let mut term_parser = TermParser::new_macro_template(&self.tokens[self.pos..]);
         let (sexp, consumed) = term_parser.parse_sexp_advanced()?;
         self.pos += consumed;
         Ok(sexp)
@@ -601,6 +586,91 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_macro_pattern_atom(&mut self) -> Result<MacroSeqAtom, ParseError> {
+        match self.next() {
+            Some(SpannedToken {
+                kind: Token::MacroVar(name),
+                ..
+            }) => Ok(MacroSeqAtom::Capture(Identifier(name[1..].to_string()))),
+            Some(SpannedToken {
+                kind: Token::EscapedMacroToken(token),
+                ..
+            }) => Ok(MacroSeqAtom::Tok(MacroToken(token[1..].to_string()))),
+            Some(SpannedToken {
+                kind: Token::QuotedMacroToken(token),
+                ..
+            }) => Ok(MacroSeqAtom::Quoted(token[1..token.len() - 1].to_string())),
+            Some(SpannedToken {
+                kind: Token::LParen,
+                ..
+            }) => {
+                let atoms = self.parse_macro_pattern_items(Token::RParen)?;
+                self.expect_token(Token::RParen)?;
+                Ok(MacroSeqAtom::Seq(atoms))
+            }
+            Some(token) => Err(ParseError {
+                msg: format!(
+                    "expected macro capture, escaped token, quoted literal, or nested pattern; found {:?}",
+                    token.kind
+                ),
+                start: token.start,
+                end: token.end,
+            }),
+            None => Err(ParseError::eof_error("macro pattern atom")),
+        }
+    }
+
+    fn parse_macro_pattern_items(
+        &mut self,
+        close: Token<'a>,
+    ) -> Result<Vec<MacroSeqAtom>, ParseError> {
+        let mut atoms = Vec::new();
+        if self.peek() == Some(&close) {
+            return Ok(atoms);
+        }
+        loop {
+            atoms.push(self.parse_macro_pattern_atom()?);
+            if self.peek() == Some(&close) {
+                return Ok(atoms);
+            }
+            self.expect_token(Token::Comma)?;
+        }
+    }
+
+    fn parse_macro_decl(&mut self, math: bool) -> Result<ModuleItem, ParseError> {
+        let name = self.expect_ident()?;
+        self.expect_token(Token::LParen)?;
+        let before = self.parse_macro_pattern_items(Token::RParen)?;
+        self.expect_token(Token::RParen)?;
+        self.expect_token(Token::Assign)?;
+        let after = self.parse_macro_template()?;
+        self.expect_token(Token::Semicolon)?;
+        Ok(if math {
+            ModuleItem::MathMacro {
+                name,
+                before,
+                after,
+            }
+        } else {
+            ModuleItem::UserMacro {
+                name,
+                before,
+                after,
+            }
+        })
+    }
+
+    fn parse_use_macro(&mut self) -> Result<ModuleItem, ParseError> {
+        let import_name = self.expect_ident()?;
+        self.expect_token(Token::Period)?;
+        let macro_name = self.expect_ident()?;
+        self.expect_token(Token::Semicolon)?;
+        Ok(ModuleItem::UseMacro {
+            import_name,
+            macro_name,
+        })
+    }
+
     pub fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
         let save_pos = self.pos;
         if self.bump_if_keyword("\\definition") {
@@ -617,6 +687,15 @@ impl<'a> Parser<'a> {
         }
         if self.bump_if_keyword("\\structure") {
             return self.parse_structure_decl().map(Some);
+        }
+        if self.bump_if_keyword("\\math-macro") {
+            return self.parse_macro_decl(true).map(Some);
+        }
+        if self.bump_if_keyword("\\macro") {
+            return self.parse_macro_decl(false).map(Some);
+        }
+        if self.bump_if_keyword("\\use") {
+            return self.parse_use_macro().map(Some);
         }
         if self.peek() == Some(&Token::KeyWord("\\module")) {
             let module = self.parse_module()?;
@@ -757,7 +836,7 @@ mod tests {
         }
         tok_all_ok(r"(x: X) -> Y => z");
         tok_all_ok(r"(x @ z # a");
-        tok_all_ok(r"x $( y += z )$");
+        tok_all_ok(r"x $( y += z $)");
     }
     #[test]
     fn lexer_test() {
@@ -769,12 +848,12 @@ mod tests {
             }
         }
         print_and_unwrap(r"(x: X) -> Y => z");
-        print_and_unwrap(r"x $( y + z )$ l");
-        print_and_unwrap(r"x ! mymacro { a + b c } l");
+        print_and_unwrap(r"x $( y + z $) l");
+        print_and_unwrap(r"x mymacro!{ a + b c } l");
         print_and_unwrap(r"x /* this is a comment */ (y z)");
         print_and_unwrap(r"x :: y ++ := z");
         print_and_unwrap(r"\Prop \Set (0)");
-        print_and_unwrap(r"(( $( )) )$");
+        print_and_unwrap(r"(( $( $) ))");
         print_and_unwrap(r"x.y # name { hello: ");
     }
     #[test]

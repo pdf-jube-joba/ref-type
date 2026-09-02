@@ -1,3 +1,4 @@
+use crate::macros::MacroKind;
 use crate::{
     elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
     log_msg, log_record,
@@ -56,6 +57,40 @@ impl term_elaborator::Handler for GlobalEnvironment {
         context.extend(local_context.iter().cloned());
         self.metavariables
             .fresh(&self.crate_env, kind, span, &context, local_context.len())
+    }
+
+    fn expand_math_macro(
+        &mut self,
+        tokens: &[MacroExp],
+        scope: Option<ModuleId>,
+        depth: u16,
+        max_order: Option<u64>,
+    ) -> Result<SExp, String> {
+        self.module_manager.expand_math_macro(
+            &self.crate_env,
+            scope.unwrap_or_else(|| self.module_manager.current()),
+            tokens,
+            depth,
+            max_order,
+        )
+    }
+
+    fn expand_named_macro(
+        &mut self,
+        name: &Identifier,
+        tokens: &[MacroExp],
+        scope: Option<ModuleId>,
+        depth: u16,
+        max_order: Option<u64>,
+    ) -> Result<SExp, String> {
+        self.module_manager.expand_named_macro(
+            &self.crate_env,
+            scope.unwrap_or_else(|| self.module_manager.current()),
+            name,
+            tokens,
+            depth,
+            max_order,
+        )
     }
 
     fn get_item_from_access_path(
@@ -1250,7 +1285,34 @@ impl GlobalEnvironment {
                         access_result,
                     )?;
                 }
-                ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. } => todo!(),
+                ModuleItem::MathMacro {
+                    name,
+                    before,
+                    after,
+                } => self.module_manager.register_macro(
+                    &self.crate_env,
+                    name.clone(),
+                    MacroKind::Math,
+                    before.clone(),
+                    after.clone(),
+                )?,
+                ModuleItem::UserMacro {
+                    name,
+                    before,
+                    after,
+                } => self.module_manager.register_macro(
+                    &self.crate_env,
+                    name.clone(),
+                    MacroKind::Named,
+                    before.clone(),
+                    after.clone(),
+                )?,
+                ModuleItem::UseMacro {
+                    import_name,
+                    macro_name,
+                } => self
+                    .module_manager
+                    .use_macro(&self.crate_env, import_name, macro_name)?,
                 ModuleItem::Eval { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {

@@ -47,6 +47,227 @@ fn implicit_type_argument_is_solved_by_a_later_application() {
 }
 
 #[test]
+fn local_math_and_named_macros_expand_before_elaboration() {
+    let source = r#"
+        \module Macros(A: \Set(0), x: A, y: A) {
+            \definition first: A -> A -> A := (left: A) => (right: A) => left;
+            \math-macro plus($left, \+, $right) := first $left $right;
+            \math-macro meet($left, \/\, $right) := first $left $right;
+            \macro via_math($left, $right) := $($left + $right $);
+            \macro tagged($term, "ok") := $term;
+            \definition from_math: A := $(x + y $);
+            \definition from_nested_math: A := $((x + y) + x $);
+            \definition from_separate_operators: A := $((x + y) + (x /\ y) $);
+            \definition from_named: A := tagged!{y "ok"};
+            \definition from_nested_macro: A := via_math!{x y};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn only_the_documented_macro_surface_syntax_is_accepted() {
+    assert!(parse::str_parse_exp("$value").is_err());
+    assert!(parse::str_parse_exp("named !{value}").is_err());
+    assert!(parse::str_parse_exp("$(value )$").is_err());
+    assert!(parse::str_parse_modules("\\module M { \\mathmacro old; }").is_err());
+    assert!(parse::str_parse_modules("\\module M { \\usermacro old; }").is_err());
+}
+
+#[test]
+fn math_macro_requires_the_complete_sequence() {
+    let source = r#"
+        \module Macros(A: \Set(0), x: A, y: A) {
+            \definition first: A -> A -> A := (left: A) => (right: A) => left;
+            \math-macro plus($left, \+, $right) := first $left $right;
+            \definition chained: A := $(x + y + x $);
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_new_module_to_root(&modules[0]).is_err());
+}
+
+#[test]
+fn earlier_math_macro_wins_when_patterns_are_equally_applicable() {
+    let source = r#"
+        \module Priority(A: \Set(0), B: \Set(0), a: A, b: B) {
+            \definition keep_a: A -> A -> A := (left: A) => (right: A) => left;
+            \definition keep_b: A -> A -> B := (left: A) => (right: A) => b;
+            \math-macro earlier($left, \+, $right) := keep_a $left $right;
+            \math-macro later($left, \+, $right) := keep_b $left $right;
+            \definition selected: A := $(a + a $);
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn macro_templates_cannot_see_later_macro_declarations() {
+    let source = r#"
+        \module Ordered(A: \Set(0), x: A, y: A) {
+            \definition first: A -> A -> A := (left: A) => (right: A) => left;
+            \macro too_early($left, $right) := $($left + $right $);
+            \math-macro plus($left, \+, $right) := first $left $right;
+            \definition result: A := too_early!{x y};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_new_module_to_root(&modules[0]).is_err());
+}
+
+#[test]
+fn imported_macro_uses_the_materialized_module_arguments() {
+    let source = r#"
+        \module Provider(A: \Set(0), value: A) {
+            \definition stored: A := value;
+            \macro supplied() := stored;
+            \math-macro imported_plus($left, \+, $right) := stored;
+        }
+        \module Consumer(A: \Set(0), value: A) {
+            \import \root.Provider(A := A, value := value) \as provider;
+            \use provider.supplied;
+            \use provider.imported_plus;
+            \definition result: A := supplied!{};
+            \definition math_result: A := $(value + value $);
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    environment.add_new_module_to_root(&modules[1]).unwrap();
+}
+
+#[test]
+fn child_modules_see_macros_already_declared_by_their_parent() {
+    let source = r#"
+        \module Parent(A: \Set(0), value: A) {
+            \macro parent_value() := value;
+            \module Child {
+                \definition result: A := parent_value!{};
+            }
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
+    let source = r#"
+        \module Base(A: \Set(0), value: A) {
+            \macro base_value() := value;
+        }
+        \module Wrapper(A: \Set(0), value: A) {
+            \import \root.Base(A := A, value := value) \as base;
+            \use base.base_value;
+            \macro wrapped() := base_value!{};
+        }
+        \module Consumer(A: \Set(0), value: A) {
+            \import \root.Wrapper(A := A, value := value) \as wrapper;
+            \use wrapper.wrapped;
+            \definition result: A := wrapped!{};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    for module in &modules {
+        environment.add_new_module_to_root(module).unwrap();
+    }
+}
+
+#[test]
+fn macro_binders_do_not_capture_call_site_expressions() {
+    let source = r#"
+        \module Hygiene(A: \Set(0)) {
+            \macro constant($body) := (x: A) => $body;
+            \definition keep_outer: A -> A -> A :=
+                (x: A) => constant!{x};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn macro_hygiene_does_not_rename_a_same_named_free_identifier() {
+    let source = r#"
+        \module Hygiene(A: \Set(0), x: A) {
+            \macro mixed() := ((x: A) => x) x;
+            \definition result: A := mixed!{};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn imported_macro_resolves_free_names_at_its_definition_site() {
+    let source = r#"
+        \module Provider(A: \Set(0), provided: A) {
+            \macro supplied() := provided;
+        }
+        \module Consumer(A: \Set(0), B: \Set(0), a: A, provided: B) {
+            \import \root.Provider(A := A, provided := a) \as provider;
+            \use provider.supplied;
+            \definition result: A := supplied!{};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    environment.add_new_module_to_root(&modules[1]).unwrap();
+}
+
+#[test]
+fn macro_names_must_remain_unambiguous() {
+    let source = r#"
+        \module Collision(A: \Set(0), value: A) {
+            \macro same() := value;
+            \macro same($value) := $value;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_new_module_to_root(&modules[0]).is_err());
+}
+
+#[test]
+fn invalid_macro_patterns_fail_at_declaration() {
+    for source in [
+        r#"\module Duplicate { \macro bad($value, $value) := $value; }"#,
+        r#"\module Reserved { \math-macro bad($left, \:, $right) := $left; }"#,
+        r#"\module NoToken { \math-macro bad($value) := $value; }"#,
+        r#"\module UnknownCapture { \macro bad($value) := $other; }"#,
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        assert!(environment.add_new_module_to_root(&modules[0]).is_err());
+    }
+}
+
+#[test]
+fn macro_expansion_has_a_finite_depth_limit() {
+    let mut source = String::from("\\module Deep(A: \\Set(0), value: A) {");
+    source.push_str("\\macro m0() := value;");
+    for index in 1..=129 {
+        source.push_str(&format!("\\macro m{index}() := m{}!{{}};", index - 1));
+    }
+    source.push_str("\\definition result: A := m129!{}; }");
+    let modules = parse::str_parse_modules(&source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_new_module_to_root(&modules[0]).is_err());
+}
+
+#[test]
 fn lambda_annotation_is_solved_bidirectionally() {
     let source = r#"
         \module LambdaMeta(A: \Set(0)) {

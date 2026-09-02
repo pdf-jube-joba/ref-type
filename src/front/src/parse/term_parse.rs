@@ -6,11 +6,24 @@ use crate::syntax::*;
 pub struct TermParser<'a> {
     tokens: &'a [SpannedToken<'a>],
     pos: usize,
+    allow_macro_parameters: bool,
 }
 
 impl<'a> TermParser<'a> {
     pub fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
-        Self { tokens, pos: 0 }
+        Self {
+            tokens,
+            pos: 0,
+            allow_macro_parameters: false,
+        }
+    }
+
+    pub fn new_macro_template(tokens: &'a [SpannedToken<'a>]) -> Self {
+        Self {
+            tokens,
+            pos: 0,
+            allow_macro_parameters: true,
+        }
     }
 
     fn peek(&self) -> Option<&Token<'a>> {
@@ -956,10 +969,24 @@ impl<'a> TermParser<'a> {
     // 1-A. `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
     // 1-B. `x::ctor`, `x.y::ctor`, `x.y[params]::ctor`
     // 1-C. `x <field_body>`, `x.y <field_body>`, `x.y[params] <field_body>`
-    // 2. `(<expr>)`, `$( ... )$`, `! name { ... }`
+    // 2. `(<expr>)`, `$( ... $)`, `name!{ ... }`
     // 3. something start with keyword (sort, etc.)
     fn parse_atom(&mut self) -> Result<SExp, ParseError> {
         match self.peek() {
+            Some(Token::MacroVar(_)) => {
+                if !self.allow_macro_parameters {
+                    return Err(ParseError {
+                        msg: "macro captures are only valid in macro templates".into(),
+                        start: self.tokens[self.pos].start,
+                        end: self.tokens[self.pos].end,
+                    });
+                }
+                let token = self.next().expect("peeked token exists");
+                let Token::MacroVar(name) = token.kind else {
+                    unreachable!()
+                };
+                Ok(SExp::MacroParameter(Identifier(name[1..].to_string())))
+            }
             Some(Token::Hole) => {
                 let token = self.next().expect("peeked token exists");
                 Ok(SExp::Meta {
@@ -1001,6 +1028,24 @@ impl<'a> TermParser<'a> {
                 })
             }
             Some(Token::Ident(_)) => {
+                if let (Some(name), Some(bang)) =
+                    (self.tokens.get(self.pos), self.tokens.get(self.pos + 1))
+                    && matches!(bang.kind, Token::Exclamation)
+                    && name.end == bang.start
+                {
+                    let name = self.expect_ident()?;
+                    self.expect_token(Token::Exclamation)?;
+                    self.expect_token(Token::LBrace)?;
+                    let tokens = self.parse_macro_sequence_until(&Token::RBrace)?;
+                    self.expect_token(Token::RBrace)?;
+                    return Ok(SExp::NamedMacro {
+                        name,
+                        tokens,
+                        scope: None,
+                        max_order: None,
+                        depth: 0,
+                    });
+                }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
                 let parameters = self
@@ -1037,25 +1082,14 @@ impl<'a> TermParser<'a> {
             }
             Some(Token::MathLParen) => {
                 self.next(); // consume '$('
-                // parse inner macro token sequence
-                let mut tokens = vec![];
-                while let Ok(tok) = self.parse_one_macro() {
-                    tokens.push(tok);
-                }
-                self.expect_token(Token::MathRParen)?; // expect ')$'
-                Ok(SExp::MathMacro { tokens })
-            }
-            Some(Token::Exclamation) => {
-                self.next(); // consume '!'
-                let name = self.expect_ident()?;
-                self.expect_token(Token::LBrace)?; // expect '{'
-                // parse inner macro token sequence
-                let mut tokens = vec![];
-                while let Ok(tok) = self.parse_one_macro() {
-                    tokens.push(tok);
-                }
-                self.expect_token(Token::RBrace)?; // expect '}'
-                Ok(SExp::NamedMacro { name, tokens })
+                let tokens = self.parse_macro_sequence_until(&Token::MathRParen)?;
+                self.expect_token(Token::MathRParen)?; // expect '$)'
+                Ok(SExp::MathMacro {
+                    tokens,
+                    scope: None,
+                    max_order: None,
+                    depth: 0,
+                })
             }
             Some(Token::KeyWord(keyword)) if SORT_KEYWORDS.contains(keyword) => {
                 // check if it's a reserved sort keyword
@@ -1358,16 +1392,34 @@ impl<'a> TermParser<'a> {
     }
 
     // parse marco tokens
+    fn parse_macro_sequence_until(
+        &mut self,
+        close: &Token<'a>,
+    ) -> Result<Vec<MacroExp>, ParseError> {
+        let mut tokens = Vec::new();
+        while self.peek().is_some() && self.peek() != Some(close) {
+            tokens.push(self.parse_one_macro()?);
+        }
+        Ok(tokens)
+    }
+
     fn parse_one_macro(&mut self) -> Result<MacroExp, ParseError> {
         // 1, challenge atom
+        let save = self.pos;
         if let Ok(atom) = self.parse_atom() {
             return Ok(MacroExp::Exp(atom));
         }
+        self.pos = save;
         // 2. challenge one macro token
         // OthetSymbolStart or KeyWord which is not contained in *_KEYWORDS
         if let Some(Token::MacroToken(_)) = self.peek() {
             let sym = self.expect_othersymbol()?;
             return Ok(MacroExp::Tok(MacroToken(sym.to_string())));
+        }
+        if let Some(Token::QuotedMacroToken(value)) = self.peek() {
+            let value = value[1..value.len() - 1].to_string();
+            self.next();
+            return Ok(MacroExp::Quoted(value));
         }
         // 3. Parended sequence of macro tokens
         if self.bump_if_token(&Token::LParen) {
@@ -1535,8 +1587,8 @@ mod tests {
         print_and_unwrap(r"List[Nat]::Nil");
         print_and_unwrap(r"list.List[Nat]::Nil");
         print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
-        print_and_unwrap(r"$( x + y )$");
-        print_and_unwrap(r"! mymacro { a + b c }");
+        print_and_unwrap(r"$( x + y $)");
+        print_and_unwrap(r"mymacro!{ a + b c }");
     }
     fn print_and_unwrap(input: &'static str) {
         let lex = &lex_all(input).expect("lexing failed for exp test");
@@ -1604,8 +1656,8 @@ mod tests {
         print_and_unwrap(r"x \Set(3)");
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x.a b (c. g)");
-        print_and_unwrap(r"x $( y + z )$ l");
-        print_and_unwrap(r"x ! mymacro { a + b c } l");
+        print_and_unwrap(r"x $( y + z $) l");
+        print_and_unwrap(r"x mymacro!{ a + b c } l");
         print_and_unwrap(r"x::y::z");
         print_and_unwrap(r"\subsetinto(A, X, x, p)");
         print_and_unwrap(r"\exact(x, X)");

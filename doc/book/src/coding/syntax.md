@@ -78,9 +78,8 @@
       - `?` は出現ごとに fresh な goal、`?2` のような `?` + 数字は一つの宣言内で共有される goal。
       - goal が単一化で解けなければ、ローカル context、期待 judgement、関連する制約の履歴と残余を返す。証明項の探索自体は行わない。
       - binder 名の `_` は匿名 binder であり、式位置の implicit hole とは区別する。
-    - math macro: `"$(" ('exp | 'macro-acceptable)+ "$" 'context ")"`
-      - `'context` の仕様は決まってない
-    - user macro: `'macro "{" ('exp | 'macro-acceptable)+ "}"`
+    - math macro: `"$(" ('exp | 'macro-acceptable)+ "$)"`
+    - user macro: `'name "!" "{" ('exp | 'macro-acceptable)+ "}"`
     - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
     - pipe: `'exp "|" 'exp` ... `x | f` は `f x` と同じ意味
     - block: `'block`
@@ -128,8 +127,9 @@
 - `'code-decl` = either
   - `"definition" 'variable ":" 'exp ":=" 'exp`
   - `"theorem" 'variable ":" 'exp ":=" 'exp`
-  - `"interpretation" "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp ";"`
-  - `"macro"  "$(" ('exp | 'macro-acceptable)+ "$)" ":=" 'exp`
+  - `"\math-macro" 'name "(" 'macro-pattern ")" ":=" 'exp ";"`
+  - `"\macro" 'name "(" 'macro-pattern ")" ":=" 'exp ";"`
+  - `"\use" 'name "." 'name ";"`
   - `"inductive" 'name ":" ":=" ";"`
   - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
   - `"module"`
@@ -138,10 +138,10 @@
     - `"property"` ... 構造についての性質の定義
     - `"instance"` ... 構造と集合の結び付けの宣言
     - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
-    - `"macro"` ... ユーザーマクロの宣言
 - `'code-body` = either
   - `'exp 'where 'proof`
   - `"{" ('block-decl)* 'exp "}" 'where 'proof`
+- `'macro-pattern` = comma-separated `$name`, escaped symbol tokens such as `\+`, quoted literal tokens, or nested patterns
 - `'module` = either
   - `'name "(" ('variable ":=" 'exp)* ")"`
   - `'name`

@@ -2,6 +2,7 @@
 pub mod syntax;
 // logger
 pub mod logger;
+mod macros;
 pub mod metavariables;
 // string -> surface
 pub mod module_loader;

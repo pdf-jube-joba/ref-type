@@ -19,6 +19,21 @@ pub trait Handler {
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(&mut self, kind: SurfaceMeta, span: SourceSpan, local_context: &Context) -> Exp;
+    fn expand_math_macro(
+        &mut self,
+        tokens: &[MacroExp],
+        scope: Option<ModuleId>,
+        depth: u16,
+        max_order: Option<u64>,
+    ) -> Result<SExp, String>;
+    fn expand_named_macro(
+        &mut self,
+        name: &Identifier,
+        tokens: &[MacroExp],
+        scope: Option<ModuleId>,
+        depth: u16,
+        max_order: Option<u64>,
+    ) -> Result<SExp, String>;
 }
 
 // local scope during elaboration
@@ -584,7 +599,35 @@ impl LocalScope {
                     handler.field_projection(base_elab, field)
                 }
             }
-            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => todo!(),
+            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
+                let mut expanded = exp.clone();
+                loop {
+                    expanded = match &expanded {
+                        SExp::MathMacro {
+                            tokens,
+                            scope,
+                            max_order,
+                            depth,
+                        } => handler.expand_math_macro(tokens, *scope, *depth, *max_order)?,
+                        SExp::NamedMacro {
+                            name,
+                            tokens,
+                            scope,
+                            max_order,
+                            depth,
+                        } => {
+                            handler.expand_named_macro(name, tokens, *scope, *depth, *max_order)?
+                        }
+                        _ => break,
+                    };
+                }
+                self.elab_exp_rec(&expanded, handler)
+            }
+            SExp::MacroParameter(name) => Err(format!(
+                "Macro capture '${}' escaped template expansion",
+                name.as_str()
+            )),
+            SExp::ResolvedExp(exp) => Ok(*exp),
             SExp::Where { exp, clauses } => {
                 let declaration_mark = self.decl_binds.len();
                 let result = (|| {
