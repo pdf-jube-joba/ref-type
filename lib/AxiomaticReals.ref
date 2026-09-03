@@ -9,107 +9,73 @@
  */
 \import \root.Logic() \as Logic;
 \import \root.Pair() \as Pair;
+\use Logic.not;
+\use Logic.and;
+\use Logic.and4;
+\use Logic.and10;
+\use Logic.or;
 
-\inductive RawRealStructure(Carrier: \Set): \Set :=
-| make:
-    Carrier ->                              /* zero */
-    Carrier ->                              /* one */
-    (Carrier -> Carrier -> Carrier) ->      /* addition */
-    (Carrier -> Carrier) ->                 /* additive inverse */
-    (Carrier -> Carrier -> Carrier) ->      /* multiplication */
-    (Carrier -> Carrier) ->                 /* multiplicative inverse */
-    \Power(Pair.Times[Carrier, Carrier]) -> /* non-strict order */
-    RawRealStructure;
-;
+\structure RawRealStructure(Carrier: \Set): \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+  leRelation: \Power(Pair.Times[Carrier, Carrier]),
+};
+
+/* Positional compatibility constructor; prefer record syntax in new code. */
+\definition RawRealStructure(Carrier: \Set)::make(
+    zero: Carrier,
+    one: Carrier,
+    add: Carrier -> Carrier -> Carrier,
+    neg: Carrier -> Carrier,
+    mul: Carrier -> Carrier -> Carrier,
+    inv: Carrier -> Carrier,
+    leRelation: \Power(Pair.Times[Carrier, Carrier]),
+  ): RawRealStructure[Carrier] :=
+  RawRealStructure[Carrier] {
+    zero := zero,
+    one := one,
+    add := add,
+    neg := neg,
+    mul := mul,
+    inv := inv,
+    leRelation := leRelation,
+  };
 
 \definition zero: RawRealStructure[Carrier] -> Carrier :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) => Carrier)
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => z)
-      s;
+    RawRealStructure::zero s;
 
 \definition one: RawRealStructure[Carrier] -> Carrier :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) => Carrier)
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => o)
-      s;
+    RawRealStructure::one s;
 
 \definition add:
   RawRealStructure[Carrier] -> Carrier -> Carrier -> Carrier :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier -> Carrier)
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => a)
-      s;
+    RawRealStructure::add s;
 
 \definition neg: RawRealStructure[Carrier] -> Carrier -> Carrier :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier)
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => n)
-      s;
+    RawRealStructure::neg s;
 
 \definition mul:
   RawRealStructure[Carrier] -> Carrier -> Carrier -> Carrier :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier -> Carrier)
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => m)
-      s;
+    RawRealStructure::mul s;
 
 \definition inv: RawRealStructure[Carrier] -> Carrier -> Carrier :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) => Carrier -> Carrier)
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => i)
-      s;
+    RawRealStructure::inv s;
 
 \definition leRelation:
   RawRealStructure[Carrier] ->
     \Power(Pair.Times[Carrier, Carrier]) :=
   (s: RawRealStructure[Carrier]) =>
-    \prec(\Set, RawRealStructure[Carrier])
-      ((s: RawRealStructure[Carrier]) =>
-        \Power(Pair.Times[Carrier, Carrier]))
-      ((z, o: Carrier) =>
-       (a: Carrier -> Carrier -> Carrier) =>
-       (n: Carrier -> Carrier) =>
-       (m: Carrier -> Carrier -> Carrier) =>
-       (i: Carrier -> Carrier) =>
-       (l: \Power(Pair.Times[Carrier, Carrier])) => l)
-      s;
+    RawRealStructure::leRelation s;
 
 \definition Le:
   RawRealStructure[Carrier] -> Carrier -> Carrier -> \Prop :=
@@ -117,58 +83,49 @@
     \Pred(
       Pair.Times[Carrier, Carrier],
       leRelation s,
-      Pair.pair Carrier Carrier x y);
+      Pair.pair _ _ x y);
 
 \definition NonZero:
   RawRealStructure[Carrier] -> Carrier -> \Prop :=
   (s: RawRealStructure[Carrier]) => (x: Carrier) =>
-    Logic.Not (x = zero s);
+    not!{(x = zero s)};
 
 \definition FieldLaws: RawRealStructure[Carrier] -> \Prop :=
   (s: RawRealStructure[Carrier]) =>
-    Logic.And[
-      Logic.Not (zero s = one s),
-      Logic.And[
-        (x: Carrier) -> add s (zero s) x = x,
-        Logic.And[
-          (x: Carrier) -> add s (neg s x) x = zero s,
-          Logic.And[
-            (x, y: Carrier) -> add s x y = add s y x,
-            Logic.And[
-              (x, y, z: Carrier) ->
-                add s (add s x y) z = add s x (add s y z),
-              Logic.And[
-                (x: Carrier) -> mul s (one s) x = x,
-                Logic.And[
-                  (x, y: Carrier) -> mul s x y = mul s y x,
-                  Logic.And[
-                    (x, y, z: Carrier) ->
-                      mul s (mul s x y) z = mul s x (mul s y z),
-                    Logic.And[
-                      (x, y, z: Carrier) ->
-                        mul s x (add s y z) =
-                          add s (mul s x y) (mul s x z),
-                      (x: Carrier) -> NonZero s x ->
-                        mul s (inv s x) x = one s]]]]]]]]];
+    and10!{
+      (not!{(zero s = one s)})
+      ((x: Carrier) -> add s (zero s) x = x)
+      ((x: Carrier) -> add s (neg s x) x = zero s)
+      ((x, y: Carrier) -> add s x y = add s y x)
+      ((x, y, z: Carrier) ->
+        add s (add s x y) z = add s x (add s y z))
+      ((x: Carrier) -> mul s (one s) x = x)
+      ((x, y: Carrier) -> mul s x y = mul s y x)
+      ((x, y, z: Carrier) ->
+        mul s (mul s x y) z = mul s x (mul s y z))
+      ((x, y, z: Carrier) ->
+        mul s x (add s y z) = add s (mul s x y) (mul s x z))
+      ((x: Carrier) -> NonZero s x -> mul s (inv s x) x = one s)
+    };
 
 \definition LinearOrderLaws: RawRealStructure[Carrier] -> \Prop :=
   (s: RawRealStructure[Carrier]) =>
-    Logic.And[
-      (x: Carrier) -> Le s x x,
-      Logic.And[
-        (x, y, z: Carrier) -> Le s x y -> Le s y z -> Le s x z,
-        Logic.And[
-          (x, y: Carrier) -> Le s x y -> Le s y x -> x = y,
-          (x, y: Carrier) -> Logic.Or[Le s x y, Le s y x]]]];
+    and4!{
+      ((x: Carrier) -> Le s x x)
+      ((x, y, z: Carrier) -> Le s x y -> Le s y z -> Le s x z)
+      ((x, y: Carrier) -> Le s x y -> Le s y x -> x = y)
+      ((x, y: Carrier) -> or!{(Le s x y) (Le s y x)})
+    };
 
 \definition OrderedFieldLaws: RawRealStructure[Carrier] -> \Prop :=
   (s: RawRealStructure[Carrier]) =>
-    Logic.And[
-      (x, y, z: Carrier) -> Le s x y ->
-        Le s (add s z x) (add s z y),
-      (x, y: Carrier) ->
+    and!{
+      ((x, y, z: Carrier) -> Le s x y ->
+        Le s (add s z x) (add s z y))
+      ((x, y: Carrier) ->
         Le s (zero s) x -> Le s (zero s) y ->
-          Le s (zero s) (mul s x y)];
+          Le s (zero s) (mul s x y))
+    };
 
 \definition In:
   \Power(Carrier) -> Carrier -> \Prop :=
@@ -194,9 +151,8 @@
   RawRealStructure[Carrier] -> \Power(Carrier) -> Carrier -> \Prop :=
   (s: RawRealStructure[Carrier]) =>
   (A: \Power(Carrier)) => (u: Carrier) =>
-    Logic.And[
-      IsUpperBound s A u,
-      (v: Carrier) -> IsUpperBound s A v -> Le s u v];
+    and!{(IsUpperBound s A u)
+      ((v: Carrier) -> IsUpperBound s A v -> Le s u v)};
 
 \definition HasLeastUpperBound:
   RawRealStructure[Carrier] -> \Power(Carrier) -> \Prop :=
@@ -212,9 +168,8 @@
 \definition IsAxiomaticRealStructure:
   RawRealStructure[Carrier] -> \Prop :=
   (s: RawRealStructure[Carrier]) =>
-    Logic.And[FieldLaws s,
-      Logic.And[LinearOrderLaws s,
-        Logic.And[OrderedFieldLaws s, Completeness s]]];
+    and4!{(FieldLaws s) (LinearOrderLaws s)
+      (OrderedFieldLaws s) (Completeness s)};
 
 \definition AxiomaticRealStructureSet:
   \Power(RawRealStructure[Carrier]) :=

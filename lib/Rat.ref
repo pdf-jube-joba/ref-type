@@ -1,5 +1,6 @@
 /* Rational representatives with an integer numerator and positive denominator. */
 \import \root.Logic() \as Logic;
+\use Logic.not;
 
 \inductive Nat: \Set :=
 | zero: Nat;
@@ -32,24 +33,26 @@
     NatLt lower upper -> NatLt (Nat::succ lower) (Nat::succ upper);
 ;
 
-/* The pair (a,b) represents a-b. */
-\inductive Integer: \Set :=
-| pair: Nat -> Nat -> Integer;
+\inductive NatLe: (lower: Nat) -> (upper: Nat) -> \Prop :=
+| refl: (n: Nat) -> NatLe n n;
+| step: (lower, upper: Nat) ->
+    NatLe lower upper -> NatLe lower (Nat::succ upper);
 ;
 
+/* The pair (a,b) represents a-b. */
+\structure Integer: \Set := {
+  positive: Nat,
+  negative: Nat,
+};
+
+\definition Integer::pair(positive: Nat)(negative: Nat): Integer :=
+  Integer { positive := positive, negative := negative };
+
 \definition positive: Integer -> Nat :=
-  (z: Integer) =>
-    \prec(\Set, Integer)
-      ((z: Integer) => Nat)
-      ((a, b: Nat) => a)
-      z;
+  (z: Integer) => Integer::positive z;
 
 \definition negative: Integer -> Nat :=
-  (z: Integer) =>
-    \prec(\Set, Integer)
-      ((z: Integer) => Nat)
-      ((a, b: Nat) => b)
-      z;
+  (z: Integer) => Integer::negative z;
 
 \definition integer: Nat -> Nat -> Integer :=
   (a, b: Nat) => Integer::pair a b;
@@ -113,30 +116,32 @@
       (natAdd (positive y) (negative x));
 
 \definition IntegerNonZero: Integer -> \Prop :=
-  (x: Integer) => Logic.Not (IntegerEq x zeroInteger);
+  (x: Integer) => not!{(IntegerEq x zeroInteger)};
 
 /*
  * A fraction stores a numerator and the predecessor of a positive natural
  * denominator.  Thus every denominator is nonzero by construction and the
  * arithmetic operations below need no multiplicative-closure parameter.
  */
-\inductive Fraction: \Set :=
-| fraction: Integer -> Nat -> Fraction;
-;
+\structure Fraction: \Set := {
+  numerator: Integer,
+  denominatorIndex: Nat,
+};
+
+\definition Fraction::fraction(
+    numerator: Integer,
+    denominatorIndex: Nat,
+  ): Fraction :=
+  Fraction {
+    numerator := numerator,
+    denominatorIndex := denominatorIndex,
+  };
 
 \definition numerator: Fraction -> Integer :=
-  (x: Fraction) =>
-    \prec(\Set, Fraction)
-      ((x: Fraction) => Integer)
-      ((n: Integer) => (d: Nat) => n)
-      x;
+  (x: Fraction) => Fraction::numerator x;
 
 \definition denominatorIndex: Fraction -> Nat :=
-  (x: Fraction) =>
-    \prec(\Set, Fraction)
-      ((x: Fraction) => Nat)
-      ((n: Integer) => (d: Nat) => d)
-      x;
+  (x: Fraction) => Fraction::denominatorIndex x;
 
 \definition denominator: Fraction -> Integer :=
   (x: Fraction) =>

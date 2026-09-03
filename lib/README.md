@@ -1,18 +1,23 @@
 # 実数の形式化
 
+[`Nat.ref`](Nat.ref) は Program universe の自然数 `Nat : \VType` を定義する。
+加算は `AddState` を一段ずつ遷移させる `addStep` と `\run` で記述し、PTS の
+primitive recursor `\prec` は使わない。`\run` が要求する accessibility 証明は
+`Certified` の `addTermination` parameter に分離している。
+
 [Pair.ref](Pair.ref) は型引数 `A, B : Set` を取る直積 `Times[A, B]` を
 一要素コンストラクタの inductive type として定義する。module parameter は使わず、
 `pair`、`first`、`second` などが通常の引数として `A` と `B` を取る。それぞれの
 β則、pair の η則、二つの射影が等しい pair は等しいという外延性を証明する。
 
 [`AxiomaticReals.ref`](AxiomaticReals.ref) は、台集合上の零、一、四則演算、逆数と
-`Power(Times)` で表した二項順序関係を proof-free な Bourbaki 構造
-`RawRealStructure` として定義する。体、線形順序、順序との両立、上限性の条件は
+`Power(Times)` で表した二項順序関係を named field を持つ proof-free な
+Bourbaki structure `RawRealStructure` として定義する。体、線形順序、順序との両立、上限性の条件は
 `IsAxiomaticRealStructure` にまとめ、条件を満たす構造を refinement type
 `AxiomaticRealStructure` とする。
 
-[`Rat.ref`](Rat.ref) は、通常の inductive type と primitive recursor から `Nat`、
-自然数対による整数、正の分母を持つ分数代表を構成する。`Fraction` が保持する
+[`Rat.ref`](Rat.ref) は、inductive type と primitive recursor から `Nat` を構成し、
+自然数対による整数と正の分母を持つ分数代表は named-field structure として定義する。`Fraction` が保持する
 分母 `d` は実際の分母 `d + 1` を表すため、零分母は構文的に作れない。これにより
 `zero`、`one`、`lt`、`add`、`neg`、`sub`、`mul` は証明 parameter なしの具体的な
 定義になっている。
@@ -36,7 +41,7 @@
 - 有理数の埋め込み、加法、反数、減法を与える lower set
 
 [`CauchyReal.ref`](CauchyReal.ref) も module parameter を取らず `Rat.ref` を import する。
-`Nat` と `NatLe` を内部で定義し、Cauchy 有理数列の型 `CauchySeq` と、差が 0 に
+`Rat.ref` の `Nat` と `NatLe` を共通の添字基盤として使い、Cauchy 有理数列の型 `CauchySeq` と、差が 0 に
 収束する同値関係 `Equivalent` を定義する。距離条件は `abs` を別の演算として
 受け取らず、`x - y < eps` と `y - x < eps` の連言 `Close` で表す。
 `Quotient` は反射律・対称律・推移律を parameter に取り、集合外延性には
@@ -49,7 +54,18 @@ relational image として定義する。`SequenceClosed` は列演算が Cauchy
 `ClassClosed` はその image が一つの同値類になる証明を parameter に要求する。
 
 [`root.ref`](root.ref) が各 module のルートである。`False`、`Not`、`And`、`Or` は
-[`Logic.ref`](Logic.ref) にまとめ、Dedekind側とCauchy側から必要な結合子をimportする。
+[`Logic.ref`](Logic.ref) にまとめる。`And` は二つの証明を named field に持つ structure であり、
+`not!`、`and!`、`and4!` などのマクロを各構成から必要に応じて `\use` する。
+
+## 記述上の方針
+
+単なるデータの束には `\structure` を使い、帰納法が必要な型だけを `\inductive` にする。
+このため `RawRealStructure`、`Integer`、`Fraction`、`FinitePair`、`And` は structure、
+`Nat`、`Or`、Cartesian product `Times` は inductive type である。従来の positional constructor 名は
+type-associated definition として残してあり、新しいコードでは field 名付きの構築を選べる。
+
+反復する論理結合は `Logic.ref` の hygienic macro に集約する。型引数が使用箇所から一意に決まる場合は
+`_` の implicit metavariable を使う一方、公開定義の型は明示してモジュール境界を読みやすく保つ。
 
 ## 公理的実数への接続と現在の制限
 

@@ -1,0 +1,59 @@
+/*
+ * Natural numbers in the Program universe.
+ *
+ * Recursive computation is expressed as a certified state machine.  No PTS
+ * primitive recursor is used: AddState::running transfers one successor from
+ * the remaining operand to the accumulator on every run step.
+ */
+\inductive Nat: \VType :=
+| zero: Nat;
+| succ: Nat -> Nat;
+;
+
+\definition zero: Nat := Nat::zero;
+\definition one: Nat := Nat::succ Nat::zero;
+
+\inductive AddState: \VType :=
+| running: Nat -> Nat -> AddState;
+;
+
+\definition addStep:
+  \U(\CFun(AddState, \F(\RunStep(AddState, Nat)))) :=
+  \thunk(\clam(state, AddState,
+    \vcase(AddState, state) {
+    | running(accumulator, remaining) =>
+        \vcase(Nat, remaining) {
+        | zero() =>
+            \return(\finish(AddState, Nat, accumulator));
+        | succ(smaller) =>
+            \return(\continue(
+              AddState,
+              Nat,
+              AddState::running (Nat::succ accumulator) smaller));
+        };
+    }));
+
+/*
+ * run requires a logical accessibility certificate.  Keeping that proof in
+ * a module parameter lets the executable definition stay entirely in the
+ * Program fragment while the generic Nat termination theorem is developed.
+ */
+\module Certified(
+  addTermination:
+    (initial: \RfType(AddState)) ->
+      \Acc(AddState, Nat, addStep, initial)
+) {
+  \definition add:
+    \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+    \clam(left, Nat,
+      \return(\thunk(\clam(right, Nat,
+        \run(
+          AddState,
+          Nat,
+          addStep,
+          AddState::running left right,
+          addTermination
+            (\RfTerm(
+              AddState,
+              AddState::running left right)))))));
+}
