@@ -3,7 +3,8 @@
 ただし、まだ定義できていない部分は載ってない。
 
 体系は Set/Prop を記述する PTS 部分と、CBPV に基づく Program 部分からなる。
-Program の型と項は PTS の sort では分類せず、専用の syntactic category と judgement で分類する。
+両者は別の構文、context、judgement を持つ。
+Reflection は Program の構文を引数に取り、Set/Prop の構文を生成する。
 帰納型関連はまとめて章立てする。
 
 ## Sort
@@ -62,12 +63,21 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
         | equality type | \(t = t\) |
         | existence | \(\exists t\) |
         | take operator | \(\Take(t,t,t)\) |
+    - 停止性付き再帰
+        | category | definition |
+        | --- | --- |
+        | run step type | \(\operatorname{RunStep}(t,t)\) |
+        | continue | \(\operatorname{continue}_{t,t}(t)\) |
+        | finish | \(\operatorname{finish}_{t,t}(t)\) |
+        | run step recursor | \(\operatorname{prec}_{\operatorname{RunStep}(t,t)}(t,t,t,t)\) |
+        | accessibility | \(\operatorname{Acc}_{t,t}(t,t)\) |
+        | run | \(\operatorname{run}_{t,t}(t,t)\) |
+        | run case | \(\operatorname{runCase}_{t,t}(t,t,t)\) |
     - Program との接続
         | category | definition |
         | --- | --- |
         | type reflection | \(\operatorname{RfType}(P)\) |
         | term reflection | \(\operatorname{RfTerm}_P(p)\) |
-        | accessibility | \(\operatorname{Acc}_{A,A}(V,t)\) |
 
 #### Program
 
@@ -113,13 +123,13 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
 
 ### Context と judgement
 
+#### Set/Prop
+
 - context: \(\Gamma=\)
     | category | definition |
     | --- | --- |
     | empty context | \(\emptyset\) |
     | PTS concat | \(\Gamma, x^s:t:s\) |
-    | Program type concat | \(\Gamma,X:\mathsf{vtype}\) |
-    | Program value concat | \(\Gamma,x^v:A:\mathsf{value}\) |
 
 - judgement:
     | category | definition |
@@ -128,47 +138,26 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
     | PTS sorting | \(\Gamma\vdash t:s\) |
     | PTS typing | \(\Gamma\vdash t:T:s\) |
     | provable | \(\Gamma\vDash P\) |
-    | value type formation | \(\Gamma\vdash A\ \mathsf{vtype}\) |
-    | computation type formation | \(\Gamma\vdash\underline B\ \mathsf{ctype}\) |
-    | value typing | \(\Gamma\vdash_vV:A\) |
-    | computation typing | \(\Gamma\vdash_cM:\underline B\) |
 
-### 略記
+#### Program
 
-\[
-\begin{aligned}
-\operatorname{StepFun}(A,B)
-&:=
-\text{U}\left(A\Rightarrow
-\text{F}(\operatorname{RunStep}(A,B))\right),\\
-\operatorname{continueFun}_{A,B}
-&:=
-\operatorname{thunk}
-\left(
-\lambda z^v:A.
-\operatorname{return}
-\left(\operatorname{continue}_{A,B}(z^v)\right)
-\right),\\
-\operatorname{Next}_{A,B}(f,b,a)
-&:=
-\operatorname{RfTerm}_{\operatorname{StepFun}(A,B)}(f)@a\\
-&\phantom{:={}}
-=
-\operatorname{RfTerm}_{\operatorname{StepFun}(A,B)}
-(\operatorname{continueFun}_{A,B})@b,\\
-\operatorname{Terminates}_{A,B}(f,a)
-&:=
-\operatorname{Acc}_{A,B}
-\left(f,\operatorname{RfTerm}_A(a)\right),\\
-\operatorname{RunInv}_{A,B}(f,a,M)
-&:=
-\operatorname{RfTerm}_{\text{F}(\operatorname{RunStep}(A,B))}
-\left(\operatorname{force}(f) @^c a\right)\\
-&\phantom{:={}}
-=
-\operatorname{RfTerm}_{\text{F}(\operatorname{RunStep}(A,B))}(M).
-\end{aligned}
-\]
+- context: \(\Delta=\)
+    | category | definition |
+    | --- | --- |
+    | empty context | \(\emptyset\) |
+    | Program type concat | \(\Delta,X:\mathsf{vtype}\) |
+    | Program value concat | \(\Delta,x^v:A:\mathsf{value}\) |
+
+- judgement:
+    | category | definition |
+    | --- | --- |
+    | well formed context | \(\operatorname{WF}_v(\Delta)\) |
+    | value type formation | \(\Delta\vdash A\ \mathsf{vtype}\) |
+    | computation type formation | \(\Delta\vdash\underline B\ \mathsf{ctype}\) |
+    | value typing | \(\Delta\vdash_vV:A\) |
+    | computation typing | \(\Delta\vdash_cM:\underline B\) |
+    | well-terminated value | \(\Delta\Vdash_vV:A\) |
+    | well-terminated computation | \(\Delta\Vdash_cM:\underline B\) |
 
 ## reduction
 
@@ -180,6 +169,26 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
 \Pred (A, \{x^s: B \mid P\}, t)
 \Rightarrow_s
 (\lambda x^s: B. P) @ t.
+\]
+
+\[
+\begin{aligned}
+\operatorname{prec}_{\operatorname{RunStep}(A,B)}
+(P,c,d,\operatorname{continue}_{A,B}(a))
+&\Rightarrow_s c@a,\\
+\operatorname{prec}_{\operatorname{RunStep}(A,B)}
+(P,c,d,\operatorname{finish}_{A,B}(b))
+&\Rightarrow_s d@b,\\
+\operatorname{run}_{A,B}(f,a)
+&\Rightarrow_s
+\operatorname{runCase}_{A,B}(f,a,f@a),\\
+\operatorname{runCase}_{A,B}
+(f,a,\operatorname{continue}_{A,B}(a'))
+&\Rightarrow_s\operatorname{run}_{A,B}(f,a'),\\
+\operatorname{runCase}_{A,B}
+(f,a,\operatorname{finish}_{A,B}(b))
+&\Rightarrow_s b.
+\end{aligned}
 \]
 
 ### Program
@@ -225,8 +234,12 @@ M\Rightarrow_cM'
 
 reflection reduction は PTS/Set reduction \(\Rightarrow_s\) の root rule とする。
 
+#### RfType
+
 \[
 \begin{aligned}
+\operatorname{RfType}(X)
+&\Rightarrow_s X^{\sq^s_0},\\
 \operatorname{RfType}(\text{F} A)
 &\Rightarrow_s \operatorname{RfType}(A),\\
 \operatorname{RfType}(\text{U}\underline B)
@@ -234,24 +247,46 @@ reflection reduction は PTS/Set reduction \(\Rightarrow_s\) の root rule と�
 \operatorname{RfType}(A\Rightarrow\underline B)
 &\Rightarrow_s
 \operatorname{RfType}(A)\to\operatorname{RfType}(\underline B),\\
+\operatorname{RfType}(\operatorname{RunStep}(A,B))
+&\Rightarrow_s
+\operatorname{RunStep}(\operatorname{RfType}(A),\operatorname{RfType}(B)).
+\end{aligned}
+\]
+
+#### RfTerm
+
+\[
+\begin{aligned}
+\operatorname{RfTerm}_{A}(x^v)
+&\Rightarrow_s x^{*^s_0},\\
 \operatorname{RfTerm}_{\text{F} A}(\operatorname{return}(V))
 &\Rightarrow_s \operatorname{RfTerm}_{A}(V),\\
 \operatorname{RfTerm}_{\text{U}\underline B}(\operatorname{thunk}(M))
 &\Rightarrow_s \operatorname{RfTerm}_{\underline B}(M),\\
+\operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}
+(\operatorname{continue}_{A,B}(a))
+&\Rightarrow_s
+\operatorname{continue}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
+(\operatorname{RfTerm}_A(a)),\\
+\operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}
+(\operatorname{finish}_{A,B}(b))
+&\Rightarrow_s
+\operatorname{finish}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
+(\operatorname{RfTerm}_B(b)),\\
 M\Rightarrow_cM'
 &\Longrightarrow
 \operatorname{RfTerm}_{\underline B}(M)
 \Rightarrow_s\operatorname{RfTerm}_{\underline B}(M'),\\
 \operatorname{RfTerm}_{\text{U}(A\Rightarrow\underline B)}(f)
 @
-\operatorname{RfTerm}_{A}(a)\\
-&\qquad\Rightarrow_s
+\operatorname{RfTerm}_{A}(a)
+&\Rightarrow_s
 \operatorname{RfTerm}_{\underline B}
 \left(\operatorname{force}(f) @^c a\right),\\
 \operatorname{RfTerm}_{A\Rightarrow\underline B}(M)
 @
-\operatorname{RfTerm}_{A}(a)\\
-&\qquad\Rightarrow_s
+\operatorname{RfTerm}_{A}(a)
+&\Rightarrow_s
 \operatorname{RfTerm}_{\underline B}(M @^c a).
 \end{aligned}
 \]
@@ -275,8 +310,6 @@ M\Rightarrow_cM'
 | start | \(\operatorname{WF}(\Gamma::(x^s: t: s))\) | \(\operatorname{WF}(\Gamma)\)<br>\(\Gamma \vdash t: s\) | \(s\in\mathcal{S}\)<br>\(x^s\notin\Gamma\) |
 | weak sort | \(\Gamma::(x^s: t: s) \vdash t_1: s'\) | \(\Gamma \vdash t_1: s'\)<br>\(\operatorname{WF}(\Gamma::(x^s: t: s))\) | \(s,s'\in\mathcal{S}\)<br>\(x^s\notin\Gamma\) |
 | weak type | \(\Gamma::(x^s: t: s) \vdash t_1: t_2: s'\) | \(\Gamma \vdash t_1: t_2: s'\)<br>\(\operatorname{WF}(\Gamma::(x^s: t: s))\) | \(s,s'\in\mathcal{S}\)<br>\(x^s\notin\Gamma\) |
-| weak sort over Program | \(\Gamma::e \vdash t:s\) | \(\Gamma\vdash t:s\)<br>\(\operatorname{WF}(\Gamma::e)\) | \(e\) は fresh な Program entry |
-| weak type over Program | \(\Gamma::e \vdash t:T:s\) | \(\Gamma\vdash t:T:s\)<br>\(\operatorname{WF}(\Gamma::e)\) | \(e\) は fresh な Program entry |
 | variable | \(\Gamma::(x^s: t: s) \vdash x^s: t: s\) | \(\operatorname{WF}(\Gamma::(x^s: t: s))\) | \(s\in\mathcal{S}\) |
 | conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\)<br>\(\Gamma \vdash T_2: s\) | \(s\in\mathcal{S}\)<br>\(T_1 \equiv_s T_2\) |
 | dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\)<br>\(\Gamma::(x^{s_1}: t: s_1) \vdash T: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\((s_1, s_2, s_3) \in \mathcal{R}\)<br>\(x^{s_1}\notin\Gamma\) |
@@ -324,57 +357,115 @@ M\Rightarrow_cM'
 | take elim prop | \(\Gamma\vdash\Take(X,T,f):T:*^p\) | \(\Gamma\vdash X:*^s\)<br>\(\Gamma\vdash T:*^p\)<br>\(\Gamma\vdash f:X\to T:*^p\)<br>\(\Gamma\vDash\exists X\) | |
 | take equal | \(\Gamma\vDash\Take(X,T,f)=f@t\) | \(\Gamma\vdash\Take(X,T,f):T:*^s\)<br>\(\Gamma\vdash t:X:*^s\) | |
 
-### Other
+#### RunStep
 
-#### Program context と type formation
-
-\(\Gamma\vdash_PJ\) は value type formation、computation type formation、
-value typing、computation typing のいずれか一つを表す。
+ここで \(k=\max(i,j)\) とする。
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| value type start | \(\operatorname{WF}(\Gamma,X:\mathsf{vtype})\) | \(\operatorname{WF}(\Gamma)\) | \(X\notin\Gamma\) |
-| value type variable | \(\Gamma,X:\mathsf{vtype}\vdash X\ \mathsf{vtype}\) | \(\operatorname{WF}(\Gamma,X:\mathsf{vtype})\) | |
-| value start | \(\operatorname{WF}(\Gamma,x^v:A:\mathsf{value})\) | \(\operatorname{WF}(\Gamma)\)<br>\(\Gamma\vdash A\ \mathsf{vtype}\) | \(x^v\notin\Gamma\) |
-| Program weak | \(\Gamma,e\vdash_PJ\) | \(\Gamma\vdash_PJ\)<br>\(\operatorname{WF}(\Gamma,e)\) | \(e\) は PTS entry、Program type entry、Program value entry のいずれか<br>\(J\) の自由変数を capture しない |
-| \(\text{F}\) form | \(\Gamma\vdash \text{F} A\ \mathsf{ctype}\) | \(\Gamma\vdash A\ \mathsf{vtype}\) | |
-| \(\text{U}\) form | \(\Gamma\vdash \text{U}\underline B\ \mathsf{vtype}\) | \(\Gamma\vdash\underline B\ \mathsf{ctype}\) | |
-| function form | \(\Gamma\vdash A\Rightarrow\underline B\ \mathsf{ctype}\) | \(\Gamma\vdash A\ \mathsf{vtype}\)<br>\(\Gamma\vdash\underline B\ \mathsf{ctype}\) | |
-| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B)\ \mathsf{vtype}\) | \(\Gamma\vdash A\ \mathsf{vtype}\)<br>\(\Gamma\vdash B\ \mathsf{vtype}\) | |
-
-#### Program typing
-
-| category | conclusion | premises | other |
-| --- | --- | --- | --- |
-| value variable | \(\Gamma,x^v:A:\mathsf{value}\vdash_vx^v:A\) | \(\operatorname{WF}(\Gamma,x^v:A:\mathsf{value})\) | |
-| return | \(\Gamma\vdash_c\operatorname{return}(V):\text{F} A\) | \(\Gamma\vdash_vV:A\) | |
-| thunk | \(\Gamma\vdash_v\operatorname{thunk}(M):\text{U}\underline B\) | \(\Gamma\vdash_cM:\underline B\) | |
-| force | \(\Gamma\vdash_c\operatorname{force}(V):\underline B\) | \(\Gamma\vdash_vV:\text{U}\underline B\) | |
-| function intro | \(\Gamma\vdash_c\lambda x^v:A.M:A\Rightarrow\underline B\) | \(\Gamma,x^v:A:\mathsf{value}\vdash_cM:\underline B\) | \(x^v\notin\Gamma\) |
-| function elim | \(\Gamma\vdash_cM @^c V:\underline B\) | \(\Gamma\vdash_cM:A\Rightarrow\underline B\)<br>\(\Gamma\vdash_vV:A\) | |
-| sequence | \(\Gamma\vdash_c M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N:\underline B\) | \(\Gamma\vdash_cM:\text{F} A\)<br>\(\Gamma,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Gamma\) |
-| value let | \(\Gamma\vdash_c\operatorname{let}^v x^v=V\ \operatorname{in}\ N:\underline B\) | \(\Gamma\vdash_vV:A\)<br>\(\Gamma,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Gamma\) |
-| continue intro | \(\Gamma\vdash_v\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B)\) | \(\Gamma\vdash_v a:A\)<br>\(\Gamma\vdash B\ \mathsf{vtype}\) | |
-| finish intro | \(\Gamma\vdash_v\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B)\) | \(\Gamma\vdash A\ \mathsf{vtype}\)<br>\(\Gamma\vdash_v b:B\) | |
-
-#### Reflection typing
-
-| category | conclusion | premises | other |
-| --- | --- | --- | --- |
-| reflection value type | \(\Gamma\vdash\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash A\ \mathsf{vtype}\) | |
-| reflection computation type | \(\Gamma\vdash\operatorname{RfType}(\underline B):*^s_0\) | \(\Gamma\vdash\underline B\ \mathsf{ctype}\) | |
-| reflection value | \(\Gamma\vdash\operatorname{RfTerm}_A(V):\operatorname{RfType}(A):*^s_0\) | \(\Gamma\vdash_vV:A\) | |
-| reflection computation | \(\Gamma\vdash\operatorname{RfTerm}_{\underline B}(M):\operatorname{RfType}(\underline B):*^s_0\) | \(\Gamma\vdash_cM:\underline B\) | |
+| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^s_k\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_j\) | |
+| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^s_k\) | \(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma\vdash B:*^s_j\) | |
+| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^s_k\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash b:B:*^s_j\) | |
+| prec | \(\Gamma\vdash\operatorname{prec}_{\operatorname{RunStep}(A,B)}(P,c,d,r):P[x:=r]:s\) | \(\Gamma\vdash r:\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma,x:\operatorname{RunStep}(A,B):*^s_k\vdash P:s\)<br>\(\Gamma\vdash c:(a:A)\to P[x:=\operatorname{continue}_{A,B}(a)]:s_c\)<br>\(\Gamma\vdash d:(b:B)\to P[x:=\operatorname{finish}_{A,B}(b)]:s_d\) | 各 product は \(\mathcal R\) により形成可能 |
 
 #### Acc と run
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash_v f:\operatorname{StepFun}(A,B)\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\) | |
-| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash_v f:\operatorname{StepFun}(A,B)\)<br>\(\Gamma\vdash a:\operatorname{RfType}(A):*^s_0\)<br>\(\Gamma,b^{*^s_0}:\operatorname{RfType}(A):*^s_0\vDash\operatorname{Next}_{A,B}(f,b^{*^s_0},a)\to\operatorname{Acc}_{A,B}(f,b^{*^s_0})\) | \(b^{*^s_0}\notin\Gamma\) |
-| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{Next}_{A,B}(f,b,a)\) | |
-| run | \(\Gamma\vdash_c\operatorname{run}_{A,B}(f,a):\text{F} B\) | \(\Gamma\vdash_v f:\operatorname{StepFun}(A,B)\)<br>\(\Gamma\vdash_v a:A\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\) | |
-| run case | \(\Gamma\vdash_c\operatorname{runCase}_{A,B}(f,a,M):\text{F} B\) | \(\Gamma\vdash_v f:\operatorname{StepFun}(A,B)\)<br>\(\Gamma\vdash_v a:A\)<br>\(\Gamma\vdash_cM:\text{F}(\operatorname{RunStep}(A,B))\)<br>\(\Gamma\vDash\operatorname{Terminates}_{A,B}(f,a)\)<br>\(\Gamma\vDash\operatorname{RunInv}_{A,B}(f,a,M)\) | |
+| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\) | |
+| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma,b:A:*^s_i\vDash(f@a=\operatorname{continue}_{A,B}(b))\to\operatorname{Acc}_{A,B}(f,b)\) | |
+| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@a=\operatorname{continue}_{A,B}(b)\) | |
+| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^s_j\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | |
+| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,r):B:*^s_j\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma\vdash r:\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@a=r\) | |
+
+### Program
+
+#### Program context と type formation
+
+\(\Delta\vdash_PJ\) は value type formation、computation type formation、
+value typing、computation typing のいずれか一つを表す。
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| empty | \(\operatorname{WF}_v(\emptyset)\) | | |
+| value type start | \(\operatorname{WF}_v(\Delta,X:\mathsf{vtype})\) | \(\operatorname{WF}_v(\Delta)\) | \(X\notin\Delta\) |
+| value type variable | \(\Delta,X:\mathsf{vtype}\vdash X\ \mathsf{vtype}\) | \(\operatorname{WF}_v(\Delta,X:\mathsf{vtype})\) | |
+| value start | \(\operatorname{WF}_v(\Delta,x^v:A:\mathsf{value})\) | \(\operatorname{WF}_v(\Delta)\)<br>\(\Delta\vdash A\ \mathsf{vtype}\) | \(x^v\notin\Delta\) |
+| Program weak | \(\Delta,e\vdash_PJ\) | \(\Delta\vdash_PJ\)<br>\(\operatorname{WF}_v(\Delta,e)\) | \(J\) の自由変数を capture しない |
+| \(\text{F}\) form | \(\Delta\vdash \text{F} A\ \mathsf{ctype}\) | \(\Delta\vdash A\ \mathsf{vtype}\) | |
+| \(\text{U}\) form | \(\Delta\vdash \text{U}\underline B\ \mathsf{vtype}\) | \(\Delta\vdash\underline B\ \mathsf{ctype}\) | |
+| function form | \(\Delta\vdash A\Rightarrow\underline B\ \mathsf{ctype}\) | \(\Delta\vdash A\ \mathsf{vtype}\)<br>\(\Delta\vdash\underline B\ \mathsf{ctype}\) | |
+| run step form | \(\Delta\vdash\operatorname{RunStep}(A,B)\ \mathsf{vtype}\) | \(\Delta\vdash A\ \mathsf{vtype}\)<br>\(\Delta\vdash B\ \mathsf{vtype}\) | |
+
+#### Program typing
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| value variable | \(\Delta,x^v:A:\mathsf{value}\vdash_vx^v:A\) | \(\operatorname{WF}_v(\Delta,x^v:A:\mathsf{value})\) | |
+| return | \(\Delta\vdash_c\operatorname{return}(V):\text{F} A\) | \(\Delta\vdash_vV:A\) | |
+| thunk | \(\Delta\vdash_v\operatorname{thunk}(M):\text{U}\underline B\) | \(\Delta\vdash_cM:\underline B\) | |
+| force | \(\Delta\vdash_c\operatorname{force}(V):\underline B\) | \(\Delta\vdash_vV:\text{U}\underline B\) | |
+| function intro | \(\Delta\vdash_c\lambda x^v:A.M:A\Rightarrow\underline B\) | \(\Delta,x^v:A:\mathsf{value}\vdash_cM:\underline B\) | \(x^v\notin\Delta\) |
+| function elim | \(\Delta\vdash_cM @^c V:\underline B\) | \(\Delta\vdash_cM:A\Rightarrow\underline B\)<br>\(\Delta\vdash_vV:A\) | |
+| sequence | \(\Delta\vdash_c M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N:\underline B\) | \(\Delta\vdash_cM:\text{F} A\)<br>\(\Delta,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Delta\) |
+| value let | \(\Delta\vdash_c\operatorname{let}^v x^v=V\ \operatorname{in}\ N:\underline B\) | \(\Delta\vdash_vV:A\)<br>\(\Delta,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Delta\) |
+| continue intro | \(\Delta\vdash_v\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B)\) | \(\Delta\vdash_v a:A\)<br>\(\Delta\vdash B\ \mathsf{vtype}\) | |
+| finish intro | \(\Delta\vdash_v\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B)\) | \(\Delta\vdash A\ \mathsf{vtype}\)<br>\(\Delta\vdash_v b:B\) | |
+| run | \(\Delta\vdash_c\operatorname{run}_{A,B}(f,a):\text{F}B\) | \(\Delta\vdash_vf:\text{U}(A\Rightarrow\text{F}(\operatorname{RunStep}(A,B)))\)<br>\(\Delta\vdash_va:A\) | |
+| run case | \(\Delta\vdash_c\operatorname{runCase}_{A,B}(f,a,M):\text{F}B\) | \(\Delta\vdash_vf:\text{U}(A\Rightarrow\text{F}(\operatorname{RunStep}(A,B)))\)<br>\(\Delta\vdash_va:A\)<br>\(\Delta\vdash_cM:\text{F}(\operatorname{RunStep}(A,B))\) | |
+
+#### Well-termination
+
+\(\Rightarrow_c^*\) は Program reduction の反射推移閉包とする。
+well-termination judgement は対応する Program typing judgement が導出されている場合に限り形成する。
+closed Program の well-termination は次の規則で生成される。
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| thunk | \(\emptyset\Vdash_v\operatorname{thunk}(M):\text{U}\underline B\) | \(\emptyset\Vdash_cM:\underline B\) | |
+| continue | \(\emptyset\Vdash_v\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B)\) | \(\emptyset\Vdash_va:A\) | |
+| finish | \(\emptyset\Vdash_v\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B)\) | \(\emptyset\Vdash_vb:B\) | |
+| constructor | \(\emptyset\Vdash_vC_i^v[\vec A](\vec V):I^v(\vec A)\) | \(\emptyset\Vdash_vV_j:A_{ij}[\vec X:=\vec A]\) for all \(j\) | |
+| returner | \(\emptyset\Vdash_cM:\text{F}A\) | \(M\Rightarrow_c^*\operatorname{return}(V)\)<br>\(\emptyset\Vdash_vV:A\) | |
+| function | \(\emptyset\Vdash_cM:A\Rightarrow\underline B\) | \(\emptyset\Vdash_vV:A\Longrightarrow\emptyset\Vdash_cM@^cV:\underline B\) for all closed \(V\) | |
+
+\(\sigma\Vdash\Delta\) は \(\sigma\) が \(\Delta\) の well-terminated
+closing substitution であることを表し、次の規則で生成される。
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| empty | \(\emptyset\Vdash\emptyset\) | | |
+| type variable | \(\sigma[X:=A]\Vdash\Delta,X:\mathsf{vtype}\) | \(\sigma\Vdash\Delta\)<br>\(\emptyset\vdash A\ \mathsf{vtype}\) | \(A\) は closed |
+| value variable | \(\sigma[x^v:=V]\Vdash\Delta,x^v:A:\mathsf{value}\) | \(\sigma\Vdash\Delta\)<br>\(\emptyset\Vdash_vV:\sigma(A)\) | \(V\) は closed |
+
+open Program の well-termination は次の規則で定める。
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| value | \(\Delta\Vdash_vV:A\) | \(\emptyset\Vdash_v\sigma(V):\sigma(A)\) for all \(\sigma\Vdash\Delta\) | |
+| computation | \(\Delta\Vdash_cM:\underline B\) | \(\emptyset\Vdash_c\sigma(M):\sigma(\underline B)\) for all \(\sigma\Vdash\Delta\) | |
+
+#### Reflection typing
+
+Program context の reflection を次で定める。
+
+\[
+\begin{aligned}
+\operatorname{RfCtx}(\emptyset)&:=\emptyset,\\
+\operatorname{RfCtx}(\Delta,X:\mathsf{vtype})
+&:=\operatorname{RfCtx}(\Delta),X^{\sq^s_0}:*^s_0:\sq^s_0,\\
+\operatorname{RfCtx}(\Delta,x^v:A:\mathsf{value})
+&:=\operatorname{RfCtx}(\Delta),
+x^{*^s_0}:\operatorname{RfType}(A):*^s_0.
+\end{aligned}
+\]
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| reflection value type | \(\operatorname{RfCtx}(\Delta)\vdash\operatorname{RfType}(A):*^s_0\) | \(\Delta\vdash A\ \mathsf{vtype}\) | |
+| reflection computation type | \(\operatorname{RfCtx}(\Delta)\vdash\operatorname{RfType}(\underline B):*^s_0\) | \(\Delta\vdash\underline B\ \mathsf{ctype}\) | |
+| reflection value | \(\operatorname{RfCtx}(\Delta)\vdash\operatorname{RfTerm}_A(V):\operatorname{RfType}(A):*^s_0\) | \(\Delta\vdash_vV:A\)<br>\(\Delta\Vdash_vV:A\) | |
+| reflection computation | \(\operatorname{RfCtx}(\Delta)\vdash\operatorname{RfTerm}_{\underline B}(M):\operatorname{RfType}(\underline B):*^s_0\) | \(\Delta\vdash_cM:\underline B\)<br>\(\Delta\Vdash_cM:\underline B\) | |
 
 ## 帰納型と CBPV
 
@@ -406,7 +497,19 @@ declaration name と constructor name は declaration environment 内で
 
 各 Program datatype 宣言と同時に、Set 側へ名前付きの鏡像
 \(I^s\) と constructor \(C_i^s\) を生成する。
-これらの type parameter は \(\operatorname{RfType}(\vec A)\) の形に限る。
+鏡像の type parameter は通常の Set variable とする。
+Program field type \(A_{ij}\) の鏡像 \(A^s_{ij}\) は、
+\(\operatorname{RfType}(A_{ij})\) に現れる
+\(\operatorname{RfType}(X_\ell)\) を対応する Set variable
+\(X^s_\ell\) で置き換えたものとする。
+
+\[
+\begin{aligned}
+I^s(X^s_1:*^s_0,\ldots,X^s_n:*^s_0)&:*^s_0,\\
+C_i^s&:
+A^s_{i1}\to\cdots\to A^s_{ik_i}\to I^s(\vec X^s).
+\end{aligned}
+\]
 
 ### Program reduction
 
@@ -421,16 +524,16 @@ M_i[\vec x_i^v:=\vec V].
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| inductive type form | \(\Gamma\vdash I^v(\vec A)\ \mathsf{vtype}\) | \(\Gamma\vdash A_\ell\ \mathsf{vtype}\) for all \(\ell\) | \(I^v\) は well-formed な declaration |
-| constructor intro | \(\Gamma\vdash_v C_i^v[\vec A](\vec V):I^v(\vec A)\) | \(\Gamma\vdash_vV_j:A_{ij}[\vec X:=\vec A]\) for all \(j\) | |
-| case | \(\Gamma\vdash_c\operatorname{case}^v\left(V;\overline{C_i^v(\vec x_i^v)\mapsto M_i}\right):\underline B\) | \(\Gamma\vdash_vV:I^v(\vec A)\)<br>\(\Gamma,\vec x_i^v:\vec A_i[\vec X:=\vec A]:\mathsf{value}\vdash_cM_i:\underline B\) for all \(i\) | 各 constructor の branch がちょうど一つ<br>branch binder は fresh |
+| inductive type form | \(\Delta\vdash I^v(\vec A)\ \mathsf{vtype}\) | \(\Delta\vdash A_\ell\ \mathsf{vtype}\) for all \(\ell\) | \(I^v\) は well-formed な declaration |
+| constructor intro | \(\Delta\vdash_v C_i^v[\vec A](\vec V):I^v(\vec A)\) | \(\Delta\vdash_vV_j:A_{ij}[\vec X:=\vec A]\) for all \(j\) | |
+| case | \(\Delta\vdash_c\operatorname{case}^v\left(V;\overline{C_i^v(\vec x_i^v)\mapsto M_i}\right):\underline B\) | \(\Delta\vdash_vV:I^v(\vec A)\)<br>\(\Delta,\vec x_i^v:\vec A_i[\vec X:=\vec A]:\mathsf{value}\vdash_cM_i:\underline B\) for all \(i\) | 各 constructor の branch がちょうど一つ<br>branch binder は fresh |
 
 ### Set の鏡像と reflection
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| reflected inductive type form | \(\Gamma\vdash I^s(\operatorname{RfType}(\vec A)):*^s_0\) | \(\Gamma\vdash A_\ell\ \mathsf{vtype}\) for all \(\ell\) | \(I^v\) は well-formed な declaration |
-| reflected constructor intro | \(\Gamma\vdash C_i^s[\operatorname{RfType}(\vec A)](\vec t):I^s(\operatorname{RfType}(\vec A)):*^s_0\) | \(\Gamma\vdash A_\ell\ \mathsf{vtype}\) for all \(\ell\)<br>\(\Gamma\vdash t_j:\operatorname{RfType}(A_{ij}[\vec X:=\vec A]):*^s_0\) for all \(j\) | |
+| reflected inductive type form | \(\Gamma\vdash I^s(\vec S):*^s_0\) | \(\Gamma\vdash S_\ell:*^s_0\) for all \(\ell\) | \(I^v\) は well-formed な declaration |
+| reflected constructor intro | \(\Gamma\vdash C_i^s[\vec S](\vec t):I^s(\vec S):*^s_0\) | \(\Gamma\vdash S_\ell:*^s_0\) for all \(\ell\)<br>\(\Gamma\vdash t_j:A^s_{ij}[\vec X^s:=\vec S]:*^s_0\) for all \(j\) | |
 
 \[
 \operatorname{RfType}(I^v(\vec A))
@@ -459,16 +562,15 @@ Set case と induction は declaration から生成される通常の規則を�
 
 ### case と run への elaboration
 
-Type 側の構造再帰を surface syntax として提供する場合も、core では
-case と run へ elaboration する。再帰呼び出し後に処理を続ける定義や
+Program 側の構造再帰を surface syntax として提供する場合、core では
+case を使う一段の step function へ elaboration する。再帰呼び出し後に処理を続ける定義や
 複数の recursive field を処理する定義では、Program state に
 未処理の field、途中結果、defunctionalize した continuation stack を
 含める。
 
-elaboration が生成する step function は case で state の外側を一層だけ
-観察し、continue で次状態を返す。Set/Prop 側では reflected datatype の
-induction や tree height を用いて、その step relation に対する Acc proof
-を生成する。
+elaboration が生成する Program step function は case で state の外側を一層だけ
+観察し、continue で次状態を返す。Reflection によって得られる Set step
+function に対して Acc proof を構成し、Set の run を適用する。
 
 ## 課題
 - datatype declaration environment の well-formedness と positivity 判定
@@ -491,14 +593,14 @@ induction や tree height を用いて、その step relation に対する Acc p
 上の節で raw syntax、context、judgement、reduction、typing rule の核は定まる。
 完全な形式体系として閉じるためには、さらに次を固定する必要がある。
 
-- mixed context に対する renaming、weakening、substitution
+- \(\operatorname{RfCtx}\) に対する renaming、weakening、substitution
 - Program type/value/computation category の一意性
 - PTS reduction と reflection reduction の全 evaluation context
 - Rf-Thunk、Rf-U-App、Rf-C-App、Rf-Ind、Rf-Ctor の critical-pair analysis
 - PTS と Program の subject reduction
-- RunInv の reduction と substitution による保存
+- run case の invariant の reduction と substitution による保存
 - Acc-Descent と run/runCase の model soundness
-- 妥当な closing substitution に相対化した Program normalization
+- Program normalization と reflection による reduction simulation
 
 特に、偽の Acc assumption を含む open context では停止しない run を型付けできる可能性がある。
 停止定理は空 context、または assumption が意味論的に妥当な closing substitution に相対化する。
