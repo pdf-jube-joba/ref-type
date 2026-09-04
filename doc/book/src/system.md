@@ -4,7 +4,7 @@
 
 体系は Set/Prop を記述する PTS 部分と、CBPV に基づく Program 部分からなる。
 両者は別の構文、context、judgement を持つ。
-Reflection は Program の型付き構文から Set/Prop の構文へのメタレベルの写像とする。
+Reflection は Program の raw 構文から Set/Prop の構文へのメタレベルの写像とする。
 帰納型関連はまとめて章立てする。
 
 ## Sort
@@ -384,7 +384,7 @@ value typing、computation typing のいずれか一つを表す。
 \begin{aligned}
 \operatorname{RfType}&:\mathsf{ProgramTypeSyntax}
 \longrightarrow\mathsf{SetTermSyntax},\\
-\operatorname{RfTerm}&:\mathsf{TypedProgramTermSyntax}
+\operatorname{RfTerm}&:\mathsf{ProgramTermSyntax}
 \longrightarrow\mathsf{SetTermSyntax}.
 \end{aligned}
 \]
@@ -416,8 +416,6 @@ x^{*^s_0}:\operatorname{RfType}(A):*^s_0.
 \]
 
 ##### Value
-
-test
 
 \[
 \begin{aligned}
