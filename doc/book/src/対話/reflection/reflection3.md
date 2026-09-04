@@ -78,6 +78,9 @@ Program の \(\operatorname{run}\) は Set の \(\operatorname{run}\) へ移る�
 入力に取る。例えば application の domain type は typing derivation から得る。
 derivation の選び方によらず同じ Set term が得られることを要求し、
 その結果を \(\operatorname{RfTerm}_P(p)\) と略記する。
+source variable から target variable への対応は context ごとに固定した
+injective な renaming とする。変数の捕獲が起きる場合は fresh な target name へ
+alpha-renaming し、binder と substitution に同じ対応を使う。
 
 Boxed Program のために、次を Set/Prop の raw syntax へ加える。
 
@@ -328,6 +331,23 @@ Program を最初から Set term へ展開して計算する必要がない。
 
 上は function と argument を先に Reflection の像へ移すため Set reduction を使う。
 下は boxed application を先に作るため Program reduction を使う。
+
+## 必要なメタ定理
+
+- \(\operatorname{RfCtx}\) に対する renaming、weakening、substitution
+- Program type/value/computation category の一意性
+- \(\operatorname{RfType}\) による Program type formation の保存
+- \(\operatorname{RfTerm}\) の coherence
+- \(\operatorname{RfTerm}\) の substitution lemma と reduction simulation
+- PTS と Program の subject reduction
+- run case の invariant の reduction と substitution による保存
+- Acc-Descent と run/runCase の model soundness
+- Box-free conservativity
+- Box の三つの root rule に対する subject reduction
+- well-termination から Program の operational な停止を導く定理
+
+偽の Acc assumption を含む open context では、停止しない run を型付けできる可能性がある。
+停止定理は空 context、または assumption が意味論的に妥当な closing substitution に相対化する。
 
 ## 循環が生じない理由
 

@@ -73,6 +73,13 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
         | accessibility | \(\operatorname{Acc}_{t,t}(t,t)\) |
         | run | \(\operatorname{run}_{t,t}(t,t)\) |
         | run case | \(\operatorname{runCase}_{t,t}(t,t,t)\) |
+    - Boxed Program
+        | category | definition |
+        | --- | --- |
+        | boxed Program type | \(\operatorname{Box}(P)\) |
+        | boxed Program | \(\operatorname{box}_P(p)\) |
+        | force boxed Program | \(\operatorname{Force}_P(t)\) |
+        | boxed application | \(t@^{\operatorname{Box}}t\) |
 #### Program
 
 - value type: \(A = \)
@@ -183,6 +190,28 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
 (f,a,\operatorname{finish}_{A,B}(b))
 &\Rightarrow_s b.
 \end{aligned}
+\]
+
+#### Boxed Program
+
+| category | reduction | other |
+| --- | --- | --- |
+| box step | \(\operatorname{box}_{\underline B}(M)\Rightarrow_s\operatorname{box}_{\underline B}(M')\) | \(M\Rightarrow_cM'\) |
+| force box | \(\operatorname{Force}_P(\operatorname{box}_P(r))\Rightarrow_s\operatorname{RfTerm}(r)\) | \(\emptyset\vdash_Pr:P\)<br>\(\nexists r'.\ r\Rightarrow_cr'\) |
+| boxed application | \(\operatorname{box}_{A\Rightarrow\underline B}(M)@^{\operatorname{Box}}\operatorname{box}_A(V)\Rightarrow_s\operatorname{box}_{\underline B}(M@^cV)\) | |
+
+\[
+C_{\operatorname{Box}}::=
+[\,]
+\mid\operatorname{Force}_P(C_{\operatorname{Box}})
+\mid C_{\operatorname{Box}}@^{\operatorname{Box}}t
+\mid t@^{\operatorname{Box}}C_{\operatorname{Box}}.
+\]
+
+\[
+t\Rightarrow_st'
+\quad\Longrightarrow\quad
+C_{\operatorname{Box}}[t]\Rightarrow_sC_{\operatorname{Box}}[t'].
 \]
 
 ### Program
@@ -349,8 +378,7 @@ value typing、computation typing のいずれか一つを表す。
 
 #### Reflection
 
-\(\operatorname{RfType}\) と \(\operatorname{RfTerm}\) は Set/Prop の raw syntax ではなく、
-Program 構文から Set/Prop 構文へのメタレベルの写像とする。
+##### Meta-level maps
 
 \[
 \begin{aligned}
@@ -361,16 +389,7 @@ Program 構文から Set/Prop 構文へのメタレベルの写像とする。
 \end{aligned}
 \]
 
-Program application の raw syntax は domain type を保持しないため、
-\(\operatorname{RfTerm}\) は厳密には Program typing derivation に対する写像とする。
-\(\operatorname{RfTerm}_P(p)\) は source type を添字に持つ略記である。
-同じ typing judgement の二つの derivation \(d,d'\) に対して次を要求する。
-
-\[
-\operatorname{RfTerm}(d)=_\alpha\operatorname{RfTerm}(d').
-\]
-
-Program type と context の写像を次で定める。
+##### Type and context
 
 \[
 \begin{aligned}
@@ -396,124 +415,77 @@ x^{*^s_0}:\operatorname{RfType}(A):*^s_0.
 \end{aligned}
 \]
 
-source variable から target variable への対応は context ごとに固定した
-injective な renaming とする。変数の捕獲が起きる場合は fresh な target name へ
-alpha-renaming し、binder と substitution に同じ対応を使う。
+##### Value
 
-Value の写像を次で定める。
+test
 
 \[
 \begin{aligned}
-\operatorname{RfTerm}_A(x^v)
-&:=x^{*^s_0},\\
-\operatorname{RfTerm}_{\text{U}\underline B}(\operatorname{thunk}(M))
-&:=\operatorname{RfTerm}_{\underline B}(M),\\
-\operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}
-(\operatorname{continue}_{A,B}(a))
+\operatorname{RfTerm}(x^v)
+&:=x^{*^s_0},
+\\
+\operatorname{RfTerm}(\operatorname{thunk}(M))
+&:=\operatorname{RfTerm}(M),
+\\
+\operatorname{RfTerm}(\operatorname{continue}_{A,B}(a))
 &:=
 \operatorname{continue}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
-(\operatorname{RfTerm}_A(a)),\\
-\operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}
-(\operatorname{finish}_{A,B}(b))
+(\operatorname{RfTerm}(a)),
+\\
+\operatorname{RfTerm}(\operatorname{finish}_{A,B}(b))
 &:=
-\operatorname{finish}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
-(\operatorname{RfTerm}_B(b)).
+\operatorname{finish}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}(\operatorname{RfTerm}(b)).
 \end{aligned}
 \]
 
-Computation の写像を次で定める。
-\(\text{F}\), \(\text{U}\), \(\operatorname{return}\), \(\operatorname{thunk}\),
-\(\operatorname{force}\) は写像の結果では消える。
+##### Computation
 
 \[
 \begin{aligned}
-\operatorname{RfTerm}_{\text{F}A}(\operatorname{return}(V))
-&:=\operatorname{RfTerm}_A(V),\\
-\operatorname{RfTerm}_{\underline B}(\operatorname{force}(V))
-&:=\operatorname{RfTerm}_{\text{U}\underline B}(V),\\
-\operatorname{RfTerm}_{A\Rightarrow\underline B}
-(\lambda x^v:A.M)
+\operatorname{RfTerm}(\operatorname{return}(V))
+&:=\operatorname{RfTerm}(V),
+\\
+\operatorname{RfTerm}(\operatorname{force}(V))
+&:=\operatorname{RfTerm}(V),
+\\
+\operatorname{RfTerm}(\lambda x^v:A.M)
 &:=
 \lambda x^{*^s_0}:\operatorname{RfType}(A).
-\operatorname{RfTerm}_{\underline B}(M),\\
-\operatorname{RfTerm}_{\underline B}(M@^cV)
+\operatorname{RfTerm}(M),
+\\
+\operatorname{RfTerm}(M@^cV)
 &:=
-\operatorname{RfTerm}_{A\Rightarrow\underline B}(M)
-@\operatorname{RfTerm}_A(V),\\
-\operatorname{RfTerm}_{\underline B}
-(M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N)
-&:=
-(\lambda x^{*^s_0}:\operatorname{RfType}(A).
-\operatorname{RfTerm}_{\underline B}(N))
-@\operatorname{RfTerm}_{\text{F}A}(M),\\
-\operatorname{RfTerm}_{\underline B}
-(\operatorname{let}^v x^v=V\ \operatorname{in}\ N)
+\operatorname{RfTerm}(M)
+@\operatorname{RfTerm}(V),
+\\
+\operatorname{RfTerm} (M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N)
 &:=
 (\lambda x^{*^s_0}:\operatorname{RfType}(A).
-\operatorname{RfTerm}_{\underline B}(N))
-@\operatorname{RfTerm}_A(V),\\
-\operatorname{RfTerm}_{\text{F}B}
-(\operatorname{run}_{A,B}(f,a))
+\operatorname{RfTerm}(N)) @ \operatorname{RfTerm}(M),
+\\
+\operatorname{RfTerm}(\operatorname{let}^v x^v=V\ \operatorname{in}\ N)
+&:=
+(\lambda x^{*^s_0}:\operatorname{RfType}(A).
+\operatorname{RfTerm}(N)) @ \operatorname{RfTerm}(V),
+\\
+\operatorname{RfTerm}(\operatorname{run}_{A,B}(f,a))
 &:=
 \operatorname{run}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
-\left(
-\operatorname{RfTerm}_{\text{U}(A\Rightarrow
-\text{F}(\operatorname{RunStep}(A,B)))}(f),
-\operatorname{RfTerm}_A(a)
-\right),\\
-\operatorname{RfTerm}_{\text{F}B}
+\left( \operatorname{RfTerm}(f), \operatorname{RfTerm}(a) \right),
+\\
+\operatorname{RfTerm}
 (\operatorname{runCase}_{A,B}(f,a,M))
 &:=
 \operatorname{runCase}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
 \left(
-\operatorname{RfTerm}_{\text{U}(A\Rightarrow
-\text{F}(\operatorname{RunStep}(A,B)))}(f),
-\operatorname{RfTerm}_A(a),
-\operatorname{RfTerm}_{\text{F}(\operatorname{RunStep}(A,B))}(M)
+\operatorname{RfTerm}(f),
+\operatorname{RfTerm}(a),
+\operatorname{RfTerm}(M)
 \right).
 \end{aligned}
 \]
 
-以上は等式によるメタ定義であり、Set reduction の root rule ではない。
-写像を展開して得られる Set raw term に Program 構文は残らない。
-
-Program type formation は次のように保存される。
-
-\[
-\begin{aligned}
-\Delta\vdash A\ \mathsf{vtype}
-&\Longrightarrow
-\operatorname{RfCtx}(\Delta)\vdash
-\operatorname{RfType}(A):*^s_0,\\
-\Delta\vdash\underline B\ \mathsf{ctype}
-&\Longrightarrow
-\operatorname{RfCtx}(\Delta)\vdash
-\operatorname{RfType}(\underline B):*^s_0.
-\end{aligned}
-\]
-
-また、写像について次の置換と reduction simulation を示す。
-\(\Rightarrow_s^*\) は Set reduction の反射推移閉包とする。
-
-\[
-\begin{aligned}
-\operatorname{RfTerm}_P(p[x^v:=V])
-&=
-\operatorname{RfTerm}_P(p)
-[x^{*^s_0}:=\operatorname{RfTerm}_A(V)],\\
-p\Rightarrow_c p'
-&\Longrightarrow
-\operatorname{RfTerm}_P(p)
-\Rightarrow_s^*
-\operatorname{RfTerm}_P(p').
-\end{aligned}
-\]
-
-force-thunk step では写像の両辺が同じになるため、後者は 0 step となる。
-
 #### Well-termination
-
-well-termination judgement は、Program typing と写像の Set typing により定める。
 
 \[
 \begin{aligned}
@@ -522,36 +494,34 @@ well-termination judgement は、Program typing と写像の Set typing によ�
 &\Delta\vdash_vV:A\\
 &\land
 \operatorname{RfCtx}(\Delta)\vdash
-\operatorname{RfTerm}_A(V):\operatorname{RfType}(A):*^s_0,\\[4pt]
+\operatorname{RfTerm}(V):\operatorname{RfType}(A):*^s_0,\\[4pt]
 \Delta\Vdash_cM:\underline B
 \quad:\Longleftrightarrow\quad
 &\Delta\vdash_cM:\underline B\\
 &\land
 \operatorname{RfCtx}(\Delta)\vdash
-\operatorname{RfTerm}_{\underline B}(M):
+\operatorname{RfTerm}(M):
 \operatorname{RfType}(\underline B):*^s_0.
 \end{aligned}
 \]
 
-特に \(\operatorname{run}_{A,B}(f,a)\) の写像が Set typing を持つためには、
-Set の run rule により次が必要になる。
+### Boxed Program
 
-\[
-\operatorname{RfCtx}(\Delta)\vDash
-\operatorname{Acc}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
-\left(
-\operatorname{RfTerm}_{\text{U}(A\Rightarrow
-\text{F}(\operatorname{RunStep}(A,B)))}(f),
-\operatorname{RfTerm}_A(a)
-\right).
-\]
+#### Judgement abbreviations
 
-従って run の Acc 条件は独立した Reflection rule ではなく、
-well-termination の Set typing に含まれる。
+| \(P\) | \(p\) | \(\emptyset\vdash P\ \mathsf{ptype}\) | \(\emptyset\vdash_Pp:P\) | \(\emptyset\Vdash p:P\) |
+| --- | --- | --- | --- | --- |
+| \(A\) | \(V\) | \(\emptyset\vdash A\ \mathsf{vtype}\) | \(\emptyset\vdash_vV:A\) | \(\emptyset\Vdash_vV:A\) |
+| \(\underline B\) | \(M\) | \(\emptyset\vdash\underline B\ \mathsf{ctype}\) | \(\emptyset\vdash_cM:\underline B\) | \(\emptyset\Vdash_cM:\underline B\) |
 
-停止性定理の対象は、\(\operatorname{RfTerm}\) が直接生成した Set term とする。
-写像で得た Set function に Set 固有の引数を適用した後の停止性は、
-この well-termination judgement からは導かない。
+#### Typing
+
+| category | conclusion | premises | other |
+| --- | --- | --- | --- |
+| box type | \(\Gamma\vdash\operatorname{Box}(P):*^s_0\) | \(\operatorname{WF}(\Gamma)\)<br>\(\emptyset\vdash P\ \mathsf{ptype}\) | |
+| box intro | \(\Gamma\vdash\operatorname{box}_P(p):\operatorname{Box}(P):*^s_0\) | \(\operatorname{WF}(\Gamma)\)<br>\(\emptyset\Vdash p:P\) | |
+| force box | \(\Gamma\vdash\operatorname{Force}_P(b):\operatorname{RfType}(P):*^s_0\) | \(\Gamma\vdash b:\operatorname{Box}(P):*^s_0\) | |
+| boxed application | \(\Gamma\vdash f@^{\operatorname{Box}}a:\operatorname{Box}(\underline B):*^s_0\) | \(\Gamma\vdash f:\operatorname{Box}(A\Rightarrow\underline B):*^s_0\)<br>\(\Gamma\vdash a:\operatorname{Box}(A):*^s_0\) | |
 
 ## 帰納型と CBPV
 
@@ -630,13 +600,13 @@ I^s(\operatorname{RfType}(\vec A)).
 \[
 \begin{aligned}
 &
-\operatorname{RfTerm}_{I^v(\vec A)}
+\operatorname{RfTerm}
 \left(C_i^v[\vec A](\vec V)\right)\\
 &\qquad:=
 C_i^s[\operatorname{RfType}(\vec A)]
 \left(
 \overrightarrow{
-\operatorname{RfTerm}_{A_{ij}[\vec X:=\vec A]}(V_j)
+\operatorname{RfTerm}(V_j)
 }
 \right).
 \end{aligned}
@@ -646,7 +616,7 @@ Program case は Set case へ写す。
 
 \[
 \begin{aligned}
-&\operatorname{RfTerm}_{\underline B}
+&\operatorname{RfTerm}
 \left(
 \operatorname{case}^v
 (V;\overline{C_i^v(\vec x_i^v)\mapsto M_i})
@@ -654,10 +624,10 @@ Program case は Set case へ写す。
 &\qquad:=
 \operatorname{case}^s
 \left(
-\operatorname{RfTerm}_{I^v(\vec A)}(V);
+\operatorname{RfTerm}(V);
 \overline{
 C_i^s(\vec x_i^{*^s_0})
-\mapsto\operatorname{RfTerm}_{\underline B}(M_i)
+\mapsto\operatorname{RfTerm}(M_i)
 }
 \right).
 \end{aligned}
@@ -691,19 +661,3 @@ function に対して Acc proof を構成し、Set の run を適用する。
     - take elim は \(X: *^p\) なら cut elimination に見える。
 - reduction の仮定にあらわれる合同性について：
     - Pred: \(\Pred (A, \{x: B \mid P\}, t) \Rightarrow_s (\lambda x: B. P) @ t\) としたが、同値関係としての \(\beta\) を定めるときには、\(\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t\) if \(A \cong B\) のようにしてもいいかも。
-
-### CBPV
-
-上の節で raw syntax、context、judgement、reduction、typing rule の核は定まる。
-完全な形式体系として閉じるためには、さらに次を固定する必要がある。
-
-- \(\operatorname{RfCtx}\) に対する renaming、weakening、substitution
-- Program type/value/computation category の一意性と \(\operatorname{RfTerm}\) の coherence
-- \(\operatorname{RfTerm}\) の substitution lemma と reduction simulation
-- PTS と Program の subject reduction
-- run case の invariant の reduction と substitution による保存
-- Acc-Descent と run/runCase の model soundness
-- well-termination から Program の operational な停止を導く定理
-
-特に、偽の Acc assumption を含む open context では停止しない run を型付けできる可能性がある。
-停止定理は空 context、または assumption が意味論的に妥当な closing substitution に相対化する。
