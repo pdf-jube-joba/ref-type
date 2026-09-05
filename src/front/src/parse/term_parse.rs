@@ -421,42 +421,68 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        if self.bump_if_keyword("\\RunStep") {
+        let program_form = self.bump_if_keyword("\\PRunStep");
+        if program_form || self.bump_if_keyword("\\RunStep") {
             return self.parse_parenthesized(|parser| {
                 let state_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let result_ty = parser.parse_sexp()?;
-                Ok(SExp::RunStep {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
+                Ok(if program_form {
+                    SExp::PRunStep {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                    }
+                } else {
+                    SExp::RunStep {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                    }
                 })
             });
         }
-        if self.bump_if_keyword("\\continue") {
+        let program_form = self.bump_if_keyword("\\Pcontinue");
+        if program_form || self.bump_if_keyword("\\continue") {
             return self.parse_parenthesized(|parser| {
                 let state_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let result_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let next = parser.parse_sexp()?;
-                Ok(SExp::Continue {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                    next: Box::new(next),
+                Ok(if program_form {
+                    SExp::PContinue {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        next: Box::new(next),
+                    }
+                } else {
+                    SExp::Continue {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        next: Box::new(next),
+                    }
                 })
             });
         }
-        if self.bump_if_keyword("\\finish") {
+        let program_form = self.bump_if_keyword("\\Pfinish");
+        if program_form || self.bump_if_keyword("\\finish") {
             return self.parse_parenthesized(|parser| {
                 let state_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let result_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let output = parser.parse_sexp()?;
-                Ok(SExp::Finish {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                    output: Box::new(output),
+                Ok(if program_form {
+                    SExp::PFinish {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        output: Box::new(output),
+                    }
+                } else {
+                    SExp::Finish {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        output: Box::new(output),
+                    }
                 })
             });
         }
@@ -491,7 +517,8 @@ impl<'a> TermParser<'a> {
                 end: self.pos,
             });
         }
-        if self.bump_if_keyword("\\run") {
+        let program_form = self.bump_if_keyword("\\Prun");
+        if program_form || self.bump_if_keyword("\\run") {
             return self.parse_parenthesized(|parser| {
                 let state_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
@@ -507,15 +534,18 @@ impl<'a> TermParser<'a> {
                         end: parser.pos,
                     });
                 }
-                Ok(SExp::Run {
+                Ok(if program_form { SExp::PRun {
+                    state_ty: Box::new(state_ty), result_ty: Box::new(result_ty), step: Box::new(step), initial: Box::new(initial),
+                } } else { SExp::Run {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     step: Box::new(step),
                     initial: Box::new(initial),
-                })
+                } })
             });
         }
-        if self.bump_if_keyword("\\runCase") {
+        let program_form = self.bump_if_keyword("\\PrunCase");
+        if program_form || self.bump_if_keyword("\\runCase") {
             return self.parse_parenthesized(|parser| {
                 let state_ty = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
@@ -533,12 +563,22 @@ impl<'a> TermParser<'a> {
                         end: parser.pos,
                     });
                 }
-                Ok(SExp::RunCase {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                    step: Box::new(step),
-                    initial: Box::new(initial),
-                    transition: Box::new(transition),
+                Ok(if program_form {
+                    SExp::PRunCase {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        step: Box::new(step),
+                        initial: Box::new(initial),
+                        transition: Box::new(transition),
+                    }
+                } else {
+                    SExp::RunCase {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        step: Box::new(step),
+                        initial: Box::new(initial),
+                        transition: Box::new(transition),
+                    }
                 })
             });
         }

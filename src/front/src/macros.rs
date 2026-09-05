@@ -5,7 +5,7 @@ use crate::{
 use kernel::{
     calculus::{exp_subst_map, remap_all_global_ids},
     environment::CrateEnv,
-    exp::RawExp,
+    exp::Exp,
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
 };
 use std::collections::{HashMap, HashSet};
@@ -35,7 +35,7 @@ pub(crate) struct ModuleMacroScope {
 
 pub(crate) struct MacroInstantiation<'a> {
     pub module_ids: &'a HashMap<ModuleId, ModuleId>,
-    pub substitutions: &'a [(ModuleParamId, RawExp)],
+    pub substitutions: &'a [(ModuleParamId, Exp)],
     pub definition_ids: &'a HashMap<DefId, DefId>,
     pub inductive_ids: &'a HashMap<InductiveId, InductiveId>,
     pub program_inductive_ids: &'a HashMap<ProgramInductiveId, ProgramInductiveId>,
@@ -496,6 +496,10 @@ fn alpha_rename(
             state_ty,
             result_ty,
         }
+        | SExp::PRunStep {
+            state_ty,
+            result_ty,
+        }
         | SExp::RfTerm {
             compute_ty: state_ty,
             term: result_ty,
@@ -520,7 +524,17 @@ fn alpha_rename(
             result_ty,
             next,
         }
+        | SExp::PContinue {
+            state_ty,
+            result_ty,
+            next,
+        }
         | SExp::Finish {
+            state_ty,
+            result_ty,
+            output: next,
+        }
+        | SExp::PFinish {
             state_ty,
             result_ty,
             output: next,
@@ -552,6 +566,12 @@ fn alpha_rename(
             result_ty,
             step,
             initial,
+        }
+        | SExp::PRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
         } => alpha_many([state_ty, result_ty, step, initial], order, counter, scopes),
         SExp::AccIntro {
             state_ty,
@@ -566,6 +586,13 @@ fn alpha_rename(
             scopes,
         ),
         SExp::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        }
+        | SExp::PRunCase {
             state_ty,
             result_ty,
             step,
@@ -746,10 +773,11 @@ fn prepare_template(
                                 ));
                                 return;
                             }
-                            *node = SExp::ResolvedExp(env.arena().module_param(ModuleParamId {
-                                module: resolved,
-                                position: position as u32,
-                            }));
+                            *node =
+                                SExp::ResolvedExp(env.arena().exp_module_param(ModuleParamId {
+                                    module: resolved,
+                                    position: position as u32,
+                                }));
                         } else {
                             *access = LocalAccess::Resolved {
                                 module: resolved,
@@ -1199,6 +1227,10 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             state_ty,
             result_ty,
         }
+        | SExp::PRunStep {
+            state_ty,
+            result_ty,
+        }
         | SExp::Pred {
             superset: state_ty,
             subset: result_ty,
@@ -1226,11 +1258,21 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             result_ty,
             next,
         }
+        | SExp::PContinue {
+            state_ty,
+            result_ty,
+            next,
+        }
         | SExp::Finish {
             state_ty,
             result_ty,
             output: next,
         } => walk_many_mut([state_ty, result_ty, next], action),
+        SExp::PFinish {
+            state_ty,
+            result_ty,
+            output,
+        } => walk_many_mut([state_ty, result_ty, output], action),
         SExp::RfTerm { compute_ty, term } => walk_many_mut([compute_ty, term], action),
         SExp::Acc {
             state_ty,
@@ -1243,8 +1285,21 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             result_ty,
             step,
             initial,
+        }
+        | SExp::PRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
         } => walk_many_mut([state_ty, result_ty, step, initial], action),
         SExp::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        }
+        | SExp::PRunCase {
             state_ty,
             result_ty,
             step,

@@ -18,9 +18,13 @@ pub mod inductive;
 pub mod program_inductive;
 // alpha conversion, substitution, free variables
 pub mod calculus;
+// substitution and evaluation for the disjoint Program syntax
+pub mod program_calculus;
 // structural, meta-level CBPV-to-Set reflection
 pub mod reflection;
 // type check, type inference, sort inference
 pub mod derivation;
+// Program formation and typing judgements
+pub mod program_derivation;
 #[cfg(test)]
 mod tests;

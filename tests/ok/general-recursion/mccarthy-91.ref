@@ -25,46 +25,46 @@
   | raiseAndCall: Nat -> Nat -> Continuation -> State;
   ;
 
-  \definition ten: Nat :=
+  \vdefinition ten: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ Nat::zero)))))))));
-  \definition eleven: Nat := Nat::succ ten;
-  \definition twenty: Nat :=
+  \vdefinition eleven: Nat := Nat::succ ten;
+  \vdefinition twenty: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ ten)))))))));
-  \definition thirty: Nat :=
+  \vdefinition thirty: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ twenty)))))))));
-  \definition forty: Nat :=
+  \vdefinition forty: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ thirty)))))))));
-  \definition fifty: Nat :=
+  \vdefinition fifty: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ forty)))))))));
-  \definition sixty: Nat :=
+  \vdefinition sixty: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ fifty)))))))));
-  \definition seventy: Nat :=
+  \vdefinition seventy: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ sixty)))))))));
-  \definition eighty: Nat :=
+  \vdefinition eighty: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ seventy)))))))));
-  \definition ninety: Nat :=
+  \vdefinition ninety: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ eighty)))))))));
-  \definition ninetyOne: Nat := Nat::succ ninety;
-  \definition hundred: Nat :=
+  \vdefinition ninetyOne: Nat := Nat::succ ninety;
+  \vdefinition hundred: Nat :=
     Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ
       (Nat::succ (Nat::succ (Nat::succ (Nat::succ (Nat::succ ninety)))))))));
-  \definition hundredOne: Nat := Nat::succ hundred;
+  \vdefinition hundredOne: Nat := Nat::succ hundred;
 
-  \definition step:
-    \U(\CFun(State, \F(\RunStep(State, Nat)))) :=
+  \vdefinition step:
+    \U(\CFun(State, \F(\PRunStep(State, Nat)))) :=
     \thunk(\clam(state, State,
       \vcase(State, state) {
       | call(argument, continuation) =>
-          \return(\continue(
+          \return(\Pcontinue(
             State,
             Nat,
             State::inspect
@@ -76,7 +76,7 @@
           \vcase(Nat, threshold) {
           | zero() =>
               /* original >= 101, and remaining + 91 = original - 10. */
-              \return(\continue(
+              \return(\Pcontinue(
                 State,
                 Nat,
                 State::raise remaining ninetyOne continuation));
@@ -86,7 +86,7 @@
                   /* original <= 100: first evaluate M(original + 11),
                    * then the pending continuation evaluates M once more.
                    */
-                  \return(\continue(
+                  \return(\Pcontinue(
                     State,
                     Nat,
                     State::raiseAndCall
@@ -94,7 +94,7 @@
                       eleven
                       (Continuation::pending continuation)));
               | succ(smallerRemaining) =>
-                  \return(\continue(
+                  \return(\Pcontinue(
                     State,
                     Nat,
                     State::inspect
@@ -109,15 +109,15 @@
           | zero() =>
               \vcase(Continuation, continuation) {
               | done() =>
-                  \return(\finish(State, Nat, result));
+                  \return(\Pfinish(State, Nat, result));
               | pending(rest) =>
-                  \return(\continue(
+                  \return(\Pcontinue(
                     State,
                     Nat,
                     State::call result rest));
               };
           | succ(smallerAdditions) =>
-              \return(\continue(
+              \return(\Pcontinue(
                 State,
                 Nat,
                 State::raise
@@ -128,12 +128,12 @@
       | raiseAndCall(argument, additions, continuation) =>
           \vcase(Nat, additions) {
           | zero() =>
-              \return(\continue(
+              \return(\Pcontinue(
                 State,
                 Nat,
                 State::call argument continuation));
           | succ(smallerAdditions) =>
-              \return(\continue(
+              \return(\Pcontinue(
                 State,
                 Nat,
                 State::raiseAndCall
@@ -143,13 +143,13 @@
           };
       }));
 
-  \definition mcCarthy91: \CFun(Nat, \F(Nat)) :=
+  \cdefinition mcCarthy91: \CFun(Nat, \F(Nat)) :=
     \clam(argument, Nat,
-      \run(
+      \Prun(
         State,
         Nat,
         step,
         State::call argument Continuation::done));
 
-  \normalize \capp(mcCarthy91, hundred);
+  \cnormalize \capp(mcCarthy91, hundred);
 }

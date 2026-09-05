@@ -1,9 +1,12 @@
 use crate::metavariables::MetaGoal;
 use kernel::{
-    derivation::{CheckSession, RawJudgement},
+    derivation::CheckSession,
     environment::CrateEnv,
-    exp::{Context, RawExp},
+    exp::{Exp, ExpContext, ExpJudgement},
     ids::ModuleId,
+    program::{Computation, ComputationType, ProgramContext, Value, ValueType},
+    program_calculus::Evaluation,
+    program_derivation::ProgramCheckSession,
     sort::Sort,
 };
 use serde::Serialize;
@@ -19,9 +22,14 @@ pub enum LogLevel {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum LogPayload {
-    Message, // 純粋なテキストメッセージだけ
-    RawExp(RawExp),
-    Ctx(Context),
+    Message,
+    Exp(Exp),
+    ValueType(ValueType),
+    ComputationType(ComputationType),
+    Value(Value),
+    Computation(Computation),
+    Ctx(ExpContext),
+    ProgramCtx(ProgramContext),
     Goals(Vec<MetaGoal>),
 }
 
@@ -42,7 +50,6 @@ impl Logger {
     pub fn records(&self) -> &[LogRecord] {
         &self.records
     }
-
     pub fn record(
         &mut self,
         level: LogLevel,
@@ -50,147 +57,132 @@ impl Logger {
         message: String,
         payload: LogPayload,
     ) {
-        let record = LogRecord {
+        self.records.push(LogRecord {
             level,
             tags,
             message,
             payload,
-        };
-        self.records.push(record);
+        });
     }
 
     pub fn reduce_one(
         &mut self,
         env: &CrateEnv,
-        module: ModuleId,
-        ctx: &mut Context,
-        e: RawExp,
-    ) -> Option<RawExp> {
+        _module: ModuleId,
+        _ctx: &mut ExpContext,
+        exp: Exp,
+    ) -> Option<Exp> {
         self.record(
             LogLevel::Trace,
-            vec!["reduce_one".to_string()],
-            "reduce_one called".to_string(),
-            LogPayload::RawExp(e),
+            vec!["reduce_one".into()],
+            "reduce_one called".into(),
+            LogPayload::Exp(exp),
         );
-
-        let is_computation = matches!(
-            CheckSession::new(env, module, ctx).infer_any(e),
-            Ok(RawJudgement::Computation { .. })
-        );
-        let reduced = if is_computation {
-            kernel::calculus::reduce_computation_once(env, e)
-        } else {
-            kernel::calculus::reduce_one(env, e)
-        };
+        let reduced = kernel::calculus::reduce_one(env, exp);
         match reduced {
-            Some(reduced_exp) => {
-                self.record(
-                    LogLevel::Debug,
-                    vec!["reduce_one".to_string()],
-                    "reduce_one success".to_string(),
-                    LogPayload::RawExp(reduced_exp),
-                );
-                Some(reduced_exp)
-            }
-            None => {
-                self.record(
-                    LogLevel::Info,
-                    vec!["reduce_one".to_string()],
-                    "reduce_one no reduction possible".to_string(),
-                    LogPayload::Message,
-                );
-                None
-            }
+            Some(result) => self.record(
+                LogLevel::Debug,
+                vec!["reduce_one".into()],
+                "reduce_one success".into(),
+                LogPayload::Exp(result),
+            ),
+            None => self.record(
+                LogLevel::Info,
+                vec!["reduce_one".into()],
+                "reduce_one no reduction possible".into(),
+                LogPayload::Message,
+            ),
         }
+        reduced
     }
 
     pub fn normalize(
         &mut self,
         env: &CrateEnv,
-        module: ModuleId,
-        ctx: &mut Context,
-        e: RawExp,
-    ) -> RawExp {
-        self.record(
-            LogLevel::Trace,
-            vec!["normalize".to_string()],
-            "normalize called".to_string(),
-            LogPayload::RawExp(e),
-        );
-
-        let is_computation = matches!(
-            CheckSession::new(env, module, ctx).infer_any(e),
-            Ok(RawJudgement::Computation { .. })
-        );
-        let normalized = if is_computation {
-            match kernel::calculus::evaluate_computation(env, e) {
-                kernel::calculus::Evaluation::Normal(result) => result,
-                kernel::calculus::Evaluation::OutOfFuel(result) => {
-                    self.record(
-                        LogLevel::Warn,
-                        vec!["normalize".to_string()],
-                        "Program evaluation exhausted its reduction budget".to_string(),
-                        LogPayload::RawExp(result),
-                    );
-                    result
-                }
-            }
-        } else {
-            kernel::calculus::normalize(env, e)
-        };
+        _module: ModuleId,
+        _ctx: &mut ExpContext,
+        exp: Exp,
+    ) -> Exp {
+        let result = kernel::calculus::normalize(env, exp);
         self.record(
             LogLevel::Debug,
-            vec!["normalize".to_string()],
-            "normalize success".to_string(),
-            LogPayload::RawExp(normalized),
+            vec!["normalize".into()],
+            "normalize success".into(),
+            LogPayload::Exp(result),
         );
-        normalized
+        result
     }
 
-    // Call the kernel. Detailed typing diagnostics are emitted as tracing spans.
+    pub fn evaluate_computation(
+        &mut self,
+        env: &CrateEnv,
+        computation: Computation,
+    ) -> Computation {
+        let (result, exhausted) =
+            match kernel::program_calculus::evaluate_computation(env, computation) {
+                Evaluation::Normal(result) => (result, false),
+                Evaluation::OutOfFuel(result) => (result, true),
+            };
+        self.record(
+            if exhausted {
+                LogLevel::Warn
+            } else {
+                LogLevel::Debug
+            },
+            vec!["program evaluation".into()],
+            if exhausted {
+                "Program evaluation exhausted its reduction budget".into()
+            } else {
+                "Program evaluation success".into()
+            },
+            LogPayload::Computation(result),
+        );
+        result
+    }
+
     pub fn infer(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
-        ctx: &mut Context,
-        exp: RawExp,
-    ) -> Option<RawExp> {
-        let infer_ty = CheckSession::new(env, module, ctx).infer(exp);
-        match infer_ty {
+        ctx: &mut ExpContext,
+        exp: Exp,
+    ) -> Option<Exp> {
+        match CheckSession::new(env, module, ctx).infer(exp) {
             Ok(ty) => {
                 self.record(
                     LogLevel::Debug,
-                    vec!["infer".to_string()],
-                    "infer success".to_string(),
-                    LogPayload::RawExp(ty),
+                    vec!["infer".into()],
+                    "infer success".into(),
+                    LogPayload::Exp(ty),
                 );
                 Some(ty)
             }
-            Err(derivation_fail) => {
+            Err(error) => {
                 self.record(
                     LogLevel::Error,
-                    vec!["infer".to_string()],
-                    format!("infer failed: {:?}", derivation_fail),
+                    vec!["infer".into()],
+                    format!("infer failed: {error:?}"),
                     LogPayload::Message,
                 );
                 None
             }
         }
     }
+
     pub fn infer_sort(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
-        ctx: &mut Context,
-        exp: RawExp,
+        ctx: &mut ExpContext,
+        exp: Exp,
     ) -> Option<Sort> {
         match CheckSession::new(env, module, ctx).infer_sort(exp) {
             Ok(sort) => Some(sort),
-            Err(derivation_fail) => {
+            Err(error) => {
                 self.record(
                     LogLevel::Error,
-                    vec!["infer_sort".to_string()],
-                    format!("infer sort failed: {:?}", derivation_fail),
+                    vec!["infer_sort".into()],
+                    format!("infer sort failed: {error:?}"),
                     LogPayload::Message,
                 );
                 None
@@ -202,70 +194,107 @@ impl Logger {
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
-        ctx: &mut Context,
-        exp: RawExp,
-    ) -> Option<RawJudgement> {
-        match CheckSession::new(env, module, ctx).infer_any(exp) {
+        ctx: &mut ExpContext,
+        exp: Exp,
+    ) -> Option<ExpJudgement> {
+        match CheckSession::new(env, module, ctx).infer_exp_judgement(exp) {
             Ok(judgement) => {
-                let payload = match judgement {
-                    RawJudgement::Pts { ty }
-                    | RawJudgement::Value { ty }
-                    | RawJudgement::Computation { ty } => LogPayload::RawExp(ty),
-                    RawJudgement::ValueType | RawJudgement::ComputationType => LogPayload::Message,
-                };
                 self.record(
                     LogLevel::Debug,
-                    vec!["infer".to_string()],
-                    format!("infer success: {judgement:?}"),
-                    payload,
+                    vec!["infer".into()],
+                    "Set/Prop inference success".into(),
+                    LogPayload::Exp(judgement.ty),
                 );
                 Some(judgement)
             }
-            Err(derivation_fail) => {
+            Err(error) => {
                 self.record(
                     LogLevel::Error,
-                    vec!["infer".to_string()],
-                    format!("infer failed: {derivation_fail:?}"),
+                    vec!["infer".into()],
+                    format!("infer failed: {error:?}"),
                     LogPayload::Message,
                 );
                 None
             }
         }
     }
+
     pub fn check(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
-        ctx: &mut Context,
-        exp: RawExp,
-        expected_type: RawExp,
+        ctx: &mut ExpContext,
+        exp: Exp,
+        expected_type: Exp,
     ) -> bool {
-        let mut session = CheckSession::new(env, module, ctx);
-        let result = if matches!(
-            env.arena().get(expected_type),
-            kernel::exp::RawNode::Sort(_)
-        ) || session.infer_sort(expected_type).is_ok()
-        {
-            session.check_pts(exp, expected_type)
-        } else if session.check_value_type(expected_type).is_ok() {
-            session.check_value(exp, expected_type)
-        } else if session.check_computation_type(expected_type).is_ok() {
-            session.check_computation(exp, expected_type)
-        } else {
-            Err(Box::new(kernel::derivation::JudgementError::caused(
-                "expected type has no PTS or Program type judgement",
-            )))
-        };
-        match result {
+        match CheckSession::new(env, module, ctx).check(exp, expected_type) {
             Ok(()) => true,
-            Err(derivation_fail) => {
+            Err(error) => {
                 self.record(
                     LogLevel::Error,
-                    vec!["check".to_string()],
-                    format!("check failed: {:?}", derivation_fail),
+                    vec!["check".into()],
+                    format!("check failed: {error:?}"),
                     LogPayload::Message,
                 );
                 false
+            }
+        }
+    }
+
+    pub fn infer_value(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut ProgramContext,
+        value: Value,
+    ) -> Option<ValueType> {
+        match ProgramCheckSession::new(env, module, ctx).infer_value(value) {
+            Ok(ty) => {
+                self.record(
+                    LogLevel::Debug,
+                    vec!["program infer".into()],
+                    "value inference success".into(),
+                    LogPayload::ValueType(ty),
+                );
+                Some(ty)
+            }
+            Err(error) => {
+                self.record(
+                    LogLevel::Error,
+                    vec!["program infer".into()],
+                    format!("value inference failed: {error:?}"),
+                    LogPayload::Message,
+                );
+                None
+            }
+        }
+    }
+
+    pub fn infer_computation(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        ctx: &mut ProgramContext,
+        computation: Computation,
+    ) -> Option<ComputationType> {
+        match ProgramCheckSession::new(env, module, ctx).infer_computation(computation) {
+            Ok(ty) => {
+                self.record(
+                    LogLevel::Debug,
+                    vec!["program infer".into()],
+                    "computation inference success".into(),
+                    LogPayload::ComputationType(ty),
+                );
+                Some(ty)
+            }
+            Err(error) => {
+                self.record(
+                    LogLevel::Error,
+                    vec!["program infer".into()],
+                    format!("computation inference failed: {error:?}"),
+                    LogPayload::Message,
+                );
+                None
             }
         }
     }
@@ -274,27 +303,15 @@ impl Logger {
 #[macro_export]
 macro_rules! log_record {
     ($ctx:expr, $level:expr, [$($tag:expr),*], $payload:expr, $($arg:tt)*) => {{
-        let msg  = format!($($arg)*);
+        let msg = format!($($arg)*);
         let tags = vec![$($tag.to_string()),*];
-        $ctx.record(
-            $level,
-            tags,
-            msg,
-            $payload,
-        );
+        $ctx.record($level, tags, msg, $payload);
     }};
 }
 
 #[macro_export]
 macro_rules! log_msg {
     ($ctx:expr, $level:expr, [$($tag:expr),*], $($arg:tt)*) => {{
-        let msg = format!($($arg)*);
-        let tags = vec![$($tag.to_string()),*];
-        $ctx.record(
-            $level,
-            tags,
-            msg,
-            $crate::logger::LogPayload::Message,
-        );
+        $crate::log_record!($ctx, $level, [$($tag),*], $crate::logger::LogPayload::Message, $($arg)*);
     }};
 }

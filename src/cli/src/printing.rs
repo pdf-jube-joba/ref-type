@@ -8,13 +8,45 @@ pub fn log_record_to_log(
     record: &front::logger::LogRecord,
 ) -> Log {
     match &record.payload {
-        LogPayload::RawExp(exp) => Log::Message(format_record(
+        LogPayload::Exp(exp) => Log::Message(format_record(
             record,
             Some(format!("exp = {}", for_kernel::format_exp(env, *exp))),
         )),
         LogPayload::Ctx(ctx) => Log::Message(format_record(
             record,
             Some(format!("ctx = [{}]", for_kernel::format_ctx(env, ctx))),
+        )),
+        LogPayload::ValueType(ty) => Log::Message(format_record(
+            record,
+            Some(format!(
+                "value type = {}",
+                for_kernel::format_value_type(env, *ty)
+            )),
+        )),
+        LogPayload::ComputationType(ty) => Log::Message(format_record(
+            record,
+            Some(format!(
+                "computation type = {}",
+                for_kernel::format_computation_type(env, *ty)
+            )),
+        )),
+        LogPayload::Value(value) => Log::Message(format_record(
+            record,
+            Some(format!("value = {}", for_kernel::format_value(env, *value))),
+        )),
+        LogPayload::Computation(computation) => Log::Message(format_record(
+            record,
+            Some(format!(
+                "computation = {}",
+                for_kernel::format_computation(env, *computation)
+            )),
+        )),
+        LogPayload::ProgramCtx(ctx) => Log::Message(format_record(
+            record,
+            Some(format!(
+                "program ctx = [{}]",
+                for_kernel::format_program_ctx(env, ctx)
+            )),
         )),
         LogPayload::Message => Log::Message(format_record(record, None)),
         LogPayload::Goals(goals) => {

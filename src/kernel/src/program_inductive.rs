@@ -3,41 +3,40 @@
 use serde::Serialize;
 
 use crate::{
-    calculus::{exp_subst_map, remap_all_global_ids},
-    derivation::{CheckSession, JudgementError},
-    exp::{Arena, RawExp, RawNode},
+    derivation::JudgementError,
+    environment::ModuleArgument,
+    exp::Arena,
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
+    program::{ComputationType, ComputationTypeNode, ValueType, ValueTypeNode},
+    program_calculus::{
+        instantiate_type_telescope, remap_value_type_global_ids, subst_value_type_module_params,
+    },
+    program_derivation::ProgramCheckSession,
 };
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ProgramConstructorSpec {
-    fields: Vec<(SymbolId, RawExp)>,
+    fields: Vec<(SymbolId, ValueType)>,
 }
 
 impl ProgramConstructorSpec {
-    pub fn new(fields: Vec<(SymbolId, RawExp)>) -> Self {
+    pub fn new(fields: Vec<(SymbolId, ValueType)>) -> Self {
         Self { fields }
     }
 
-    pub fn fields(&self) -> &[(SymbolId, RawExp)] {
+    pub fn fields(&self) -> &[(SymbolId, ValueType)] {
         &self.fields
     }
 
     pub fn instantiated_fields(
         &self,
         arena: &Arena,
-        parameters: &[RawExp],
-    ) -> Vec<(SymbolId, RawExp)> {
+        parameters: &[ValueType],
+    ) -> Vec<(SymbolId, ValueType)> {
         self.fields
             .iter()
-            .enumerate()
-            .map(|(inner, (name, ty))| {
-                (
-                    *name,
-                    crate::calculus::instantiate_outer_telescope(arena, *ty, parameters, inner),
-                )
-            })
+            .map(|(name, ty)| (*name, instantiate_type_telescope(arena, *ty, parameters)))
             .collect()
     }
 }
@@ -76,12 +75,12 @@ impl ProgramInductiveTypeSpecs {
 
     pub fn validate(
         &self,
-        session: &mut CheckSession<'_, '_>,
+        session: &mut ProgramCheckSession<'_, '_>,
         inductive: ProgramInductiveId,
     ) -> Result<(), Box<JudgementError>> {
         let mark = session.context().len();
         for parameter in &self.parameters {
-            session.push_program_type(*parameter);
+            session.push_type(*parameter);
         }
         let result = (|| {
             for (constructor_index, constructor) in self.constructors.iter().enumerate() {
@@ -94,7 +93,7 @@ impl ProgramInductiveTypeSpecs {
                             "field is a value type",
                         ))
                     })?;
-                    if !strictly_positive(session.arena(), *ty, inductive, true) {
+                    if !strictly_positive_value(session.arena(), *ty, inductive, true) {
                         return Err(Box::new(
                             JudgementError::caused(format!(
                                 "program datatype occurs in a non-strictly-positive position: constructor {constructor_index}, field {field_index}"
@@ -106,7 +105,7 @@ impl ProgramInductiveTypeSpecs {
                             ),
                         ));
                     }
-                    session.push_program_value(*name, *ty);
+                    session.push_value(*name, *ty);
                 }
                 while session.context().len() > constructor_mark {
                     session.pop();
@@ -120,7 +119,11 @@ impl ProgramInductiveTypeSpecs {
         result
     }
 
-    pub fn instantiate(&self, arena: &Arena, substitutions: &[(ModuleParamId, RawExp)]) -> Self {
+    pub fn instantiate(
+        &self,
+        arena: &Arena,
+        substitutions: &[(ModuleParamId, ModuleArgument)],
+    ) -> Self {
         Self {
             parameters: self.parameters.clone(),
             constructors: self
@@ -131,7 +134,12 @@ impl ProgramInductiveTypeSpecs {
                         constructor
                             .fields
                             .iter()
-                            .map(|(name, ty)| (*name, exp_subst_map(arena, *ty, substitutions)))
+                            .map(|(name, ty)| {
+                                (
+                                    *name,
+                                    subst_value_type_module_params(arena, *ty, substitutions),
+                                )
+                            })
                             .collect(),
                     )
                 })
@@ -160,11 +168,10 @@ impl ProgramInductiveTypeSpecs {
                             .map(|(name, ty)| {
                                 (
                                     *name,
-                                    remap_all_global_ids(
+                                    remap_value_type_global_ids(
                                         arena,
                                         *ty,
                                         definitions,
-                                        inductives,
                                         program_inductives,
                                     ),
                                 )
@@ -181,30 +188,27 @@ impl ProgramInductiveTypeSpecs {
     }
 }
 
-fn strictly_positive(
+fn strictly_positive_value(
     arena: &Arena,
-    ty: RawExp,
+    ty: ValueType,
     inductive: ProgramInductiveId,
     positive: bool,
 ) -> bool {
     match arena.get(ty) {
-        RawNode::Bound(_) | RawNode::ModuleParam(_) => true,
-        RawNode::ThunkType { computation_ty } => {
-            strictly_positive(arena, computation_ty, inductive, positive)
+        ValueTypeNode::Bound(_) | ValueTypeNode::ModuleParam(_) | ValueTypeNode::Meta { .. } => {
+            true
         }
-        RawNode::ReturnType { value_ty } => strictly_positive(arena, value_ty, inductive, positive),
-        RawNode::ComputationFunction { domain, codomain } => {
-            strictly_positive(arena, domain, inductive, !positive)
-                && strictly_positive(arena, codomain, inductive, positive)
+        ValueTypeNode::Thunk { computation_ty } => {
+            strictly_positive_computation(arena, computation_ty, inductive, positive)
         }
-        RawNode::RunStep {
+        ValueTypeNode::RunStep {
             state_ty,
             result_ty,
         } => {
-            strictly_positive(arena, state_ty, inductive, positive)
-                && strictly_positive(arena, result_ty, inductive, positive)
+            strictly_positive_value(arena, state_ty, inductive, positive)
+                && strictly_positive_value(arena, result_ty, inductive, positive)
         }
-        RawNode::ProgramIndType {
+        ValueTypeNode::Inductive {
             indspec,
             parameters,
         } => {
@@ -216,23 +220,41 @@ fn strictly_positive(
             // rejected.
             parameters.into_iter().all(|parameter| {
                 if contains_program_inductive(arena, parameter, inductive) {
-                    indspec == inductive && strictly_positive(arena, parameter, inductive, positive)
+                    indspec == inductive
+                        && strictly_positive_value(arena, parameter, inductive, positive)
                 } else {
                     true
                 }
             })
         }
-        _ => false,
+    }
+}
+
+fn strictly_positive_computation(
+    arena: &Arena,
+    ty: ComputationType,
+    inductive: ProgramInductiveId,
+    positive: bool,
+) -> bool {
+    match arena.get(ty) {
+        ComputationTypeNode::Meta { .. } => true,
+        ComputationTypeNode::Return { value_ty } => {
+            strictly_positive_value(arena, value_ty, inductive, positive)
+        }
+        ComputationTypeNode::Function { domain, codomain } => {
+            strictly_positive_value(arena, domain, inductive, !positive)
+                && strictly_positive_computation(arena, codomain, inductive, positive)
+        }
     }
 }
 
 pub fn contains_program_inductive(
     arena: &Arena,
-    ty: RawExp,
+    ty: ValueType,
     inductive: ProgramInductiveId,
 ) -> bool {
     match arena.get(ty) {
-        RawNode::ProgramIndType {
+        ValueTypeNode::Inductive {
             indspec,
             parameters,
         } => {
@@ -241,21 +263,35 @@ pub fn contains_program_inductive(
                     .into_iter()
                     .any(|parameter| contains_program_inductive(arena, parameter, inductive))
         }
-        RawNode::ThunkType { computation_ty } => {
-            contains_program_inductive(arena, computation_ty, inductive)
+        ValueTypeNode::Thunk { computation_ty } => {
+            contains_program_inductive_computation(arena, computation_ty, inductive)
         }
-        RawNode::ReturnType { value_ty } => contains_program_inductive(arena, value_ty, inductive),
-        RawNode::ComputationFunction { domain, codomain } => {
-            contains_program_inductive(arena, domain, inductive)
-                || contains_program_inductive(arena, codomain, inductive)
-        }
-        RawNode::RunStep {
+        ValueTypeNode::RunStep {
             state_ty,
             result_ty,
         } => {
             contains_program_inductive(arena, state_ty, inductive)
                 || contains_program_inductive(arena, result_ty, inductive)
         }
-        _ => false,
+        ValueTypeNode::Bound(_) | ValueTypeNode::ModuleParam(_) | ValueTypeNode::Meta { .. } => {
+            false
+        }
+    }
+}
+
+fn contains_program_inductive_computation(
+    arena: &Arena,
+    ty: ComputationType,
+    inductive: ProgramInductiveId,
+) -> bool {
+    match arena.get(ty) {
+        ComputationTypeNode::Meta { .. } => false,
+        ComputationTypeNode::Return { value_ty } => {
+            contains_program_inductive(arena, value_ty, inductive)
+        }
+        ComputationTypeNode::Function { domain, codomain } => {
+            contains_program_inductive(arena, domain, inductive)
+                || contains_program_inductive_computation(arena, codomain, inductive)
+        }
     }
 }

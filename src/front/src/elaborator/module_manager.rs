@@ -8,11 +8,12 @@ use kernel::derivation::CheckSession;
 use kernel::environment::{
     CrateEnv, DefinedConstant, ModuleItem, ModuleParameter, ModuleParameterKind,
 };
-use kernel::exp::{Context, ContextEntry, RawExp};
+use kernel::exp::{Exp, ExpContext, ExpContextEntry};
 use kernel::ids::{
     DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId,
 };
 use kernel::inductive::InductiveTypeSpecs;
+use kernel::program::{ProgramContext, ProgramContextEntry};
 use kernel::program_inductive::ProgramInductiveTypeSpecs;
 use std::collections::HashMap;
 
@@ -22,7 +23,9 @@ pub enum ItemAccessResult {
     Inductive(ModItemInductive),
     Record(ModItemRecord),
     ProgramInductive(ModItemProgramInductive),
-    Expression(RawExp),
+    Expression(Exp),
+    ProgramTypeParameter(ModuleParamId),
+    ProgramValueParameter(ModuleParamId),
 }
 
 enum PendingItem {
@@ -56,7 +59,7 @@ type PendingAssociatedDefinition = (String, DefId, DefId, DefinedConstant);
 fn instantiate_associated_definitions(
     env: &CrateEnv,
     definitions: Vec<(String, DefId)>,
-    substitutions: &[(ModuleParamId, RawExp)],
+    substitutions: &[(ModuleParamId, Exp)],
 ) -> Vec<PendingAssociatedDefinition> {
     definitions
         .into_iter()
@@ -65,16 +68,14 @@ fn instantiate_associated_definitions(
             let origin = env
                 .definition_origin(source_id)
                 .map_or(source_id, |origin| origin.source);
-            (
-                name,
-                source_id,
-                origin,
-                DefinedConstant {
-                    kind: value.kind,
-                    ty: exp_subst_map(env.arena(), value.ty, substitutions),
-                    body: exp_subst_map(env.arena(), value.body, substitutions),
+            let value = match value {
+                DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
+                    ty: exp_subst_map(env.arena(), *ty, substitutions),
+                    body: exp_subst_map(env.arena(), *body, substitutions),
                 },
-            )
+                other => other.clone(),
+            };
+            (name, source_id, origin, value)
         })
         .collect()
 }
@@ -91,22 +92,24 @@ fn materialize_associated_definitions(
     definition_origins: &mut HashMap<DefId, DefId>,
 ) -> Result<(), String> {
     for (name, source_id, origin, definition) in pending {
-        let definition = DefinedConstant {
-            kind: definition.kind,
-            ty: remap_all_global_ids(
-                env.arena(),
-                definition.ty,
-                definition_ids,
-                inductive_ids,
-                program_inductive_ids,
-            ),
-            body: remap_all_global_ids(
-                env.arena(),
-                definition.body,
-                definition_ids,
-                inductive_ids,
-                program_inductive_ids,
-            ),
+        let definition = match definition {
+            DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
+                ty: remap_all_global_ids(
+                    env.arena(),
+                    ty,
+                    definition_ids,
+                    inductive_ids,
+                    program_inductive_ids,
+                ),
+                body: remap_all_global_ids(
+                    env.arena(),
+                    body,
+                    definition_ids,
+                    inductive_ids,
+                    program_inductive_ids,
+                ),
+            },
+            other => other,
         };
         let materialized = env.add_definition(module, definition);
         definition_ids.insert(source_id, materialized);
@@ -176,7 +179,7 @@ impl ModuleManager {
         self.current = ModuleId(0);
     }
 
-    pub fn current_context(&self, env: &CrateEnv) -> Context {
+    pub fn current_context(&self, env: &CrateEnv) -> ExpContext {
         let mut context = Vec::new();
         let mut current = self.current;
         loop {
@@ -185,20 +188,15 @@ impl ModuleManager {
                 module
                     .parameters()
                     .iter()
-                    .map(|parameter| match parameter.kind {
-                        ModuleParameterKind::Pts { ty } => ContextEntry::Pts {
+                    .filter_map(|parameter| match parameter.kind {
+                        ModuleParameterKind::Pts { ty } => Some(ExpContextEntry {
                             var: parameter.name,
                             ty,
-                        },
-                        ModuleParameterKind::ProgramType => ContextEntry::ProgramType {
-                            var: parameter.name,
-                        },
-                        ModuleParameterKind::ProgramValue { ty } => ContextEntry::ProgramValue {
-                            var: parameter.name,
-                            ty,
-                        },
+                        }),
+                        ModuleParameterKind::ProgramType
+                        | ModuleParameterKind::ProgramValue { .. } => None,
                     })
-                    .collect::<Context>(),
+                    .collect::<ExpContext>(),
             );
             if let Some(parent) = module.parent() {
                 current = parent;
@@ -208,6 +206,39 @@ impl ModuleManager {
         }
         context.reverse();
         context.into_iter().flatten().collect()
+    }
+
+    pub fn current_program_context(&self, env: &CrateEnv) -> ProgramContext {
+        let mut contexts = Vec::new();
+        let mut current = self.current;
+        loop {
+            let module = env.module(current);
+            contexts.push(
+                module
+                    .parameters()
+                    .iter()
+                    .filter_map(|parameter| match parameter.kind {
+                        ModuleParameterKind::ProgramType => Some(ProgramContextEntry::Type {
+                            var: parameter.name,
+                        }),
+                        ModuleParameterKind::ProgramValue { ty } => {
+                            Some(ProgramContextEntry::Value {
+                                var: parameter.name,
+                                ty,
+                            })
+                        }
+                        ModuleParameterKind::Pts { .. } => None,
+                    })
+                    .collect::<ProgramContext>(),
+            );
+            if let Some(parent) = module.parent() {
+                current = parent;
+            } else {
+                break;
+            }
+        }
+        contexts.reverse();
+        contexts.into_iter().flatten().collect()
     }
 
     pub fn add_def(
@@ -392,9 +423,9 @@ impl ModuleManager {
     pub fn instantiate_module(
         &mut self,
         env: &mut CrateEnv,
-        context: &mut Context,
+        context: &mut ExpContext,
         back_parent: Option<usize>,
-        calls: Vec<(Identifier, Vec<(Identifier, RawExp)>)>,
+        calls: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
     ) -> Result<ModuleInstanceId, String> {
         let mut source = self.resolve_start(env, back_parent)?;
         let mut substitutions = Vec::new();
@@ -440,10 +471,11 @@ impl ModuleManager {
                         let expected = exp_subst_map(env.arena(), ty, &substitutions);
                         session.check_pts(*argument, expected)
                     }
-                    ModuleParameterKind::ProgramType => session.check_value_type(*argument),
-                    ModuleParameterKind::ProgramValue { ty } => {
-                        let expected = exp_subst_map(env.arena(), ty, &substitutions);
-                        session.check_value(*argument, expected)
+                    ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => {
+                        return Err(format!(
+                            "Module '{}' has a Program parameter; use a category-specific Program module argument",
+                            child_name.as_str(),
+                        ));
                     }
                 };
                 checked.map_err(|error| {
@@ -498,14 +530,12 @@ impl ModuleManager {
                             name,
                             definition,
                             origin,
-                            DefinedConstant {
-                                kind: definition_value.kind,
-                                ty: exp_subst_map(env.arena(), definition_value.ty, &substitutions),
-                                body: exp_subst_map(
-                                    env.arena(),
-                                    definition_value.body,
-                                    &substitutions,
-                                ),
+                            match definition_value {
+                                DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
+                                    ty: exp_subst_map(env.arena(), ty, &substitutions),
+                                    body: exp_subst_map(env.arena(), body, &substitutions),
+                                },
+                                other => other,
                             },
                         )
                     }
@@ -554,10 +584,15 @@ impl ModuleManager {
                         reflected,
                         associated_definitions,
                     } => {
-                        let spec = env
-                            .program_inductive(inductive)
-                            .clone()
-                            .instantiate(env.arena(), &substitutions);
+                        let spec = env.program_inductive(inductive).clone().instantiate(
+                            env.arena(),
+                            &substitutions
+                                .iter()
+                                .map(|(id, exp)| {
+                                    (*id, kernel::environment::ModuleArgument::Pts(*exp))
+                                })
+                                .collect::<Vec<_>>(),
+                        );
                         let reflected_spec = env
                             .inductive(reflected)
                             .clone()
@@ -593,22 +628,24 @@ impl ModuleManager {
             for item in pending {
                 match item {
                     PendingItem::Definition(name, source_id, origin, definition) => {
-                        let definition = DefinedConstant {
-                            kind: definition.kind,
-                            ty: remap_all_global_ids(
-                                env.arena(),
-                                definition.ty,
-                                &definition_ids,
-                                &inductive_ids,
-                                &program_inductive_ids,
-                            ),
-                            body: remap_all_global_ids(
-                                env.arena(),
-                                definition.body,
-                                &definition_ids,
-                                &inductive_ids,
-                                &program_inductive_ids,
-                            ),
+                        let definition = match definition {
+                            DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
+                                ty: remap_all_global_ids(
+                                    env.arena(),
+                                    ty,
+                                    &definition_ids,
+                                    &inductive_ids,
+                                    &program_inductive_ids,
+                                ),
+                                body: remap_all_global_ids(
+                                    env.arena(),
+                                    body,
+                                    &definition_ids,
+                                    &inductive_ids,
+                                    &program_inductive_ids,
+                                ),
+                            },
+                            other => other,
                         };
                         let definition = env.add_definition(materialized, definition);
                         definition_ids.insert(source_id, definition);
@@ -740,7 +777,10 @@ impl ModuleManager {
                 self.current,
                 source_module,
                 materialized,
-                substitutions.clone(),
+                substitutions
+                    .iter()
+                    .map(|(id, exp)| (*id, kernel::environment::ModuleArgument::Pts(*exp)))
+                    .collect(),
                 definition_origins,
             );
             if is_path_component {
@@ -765,15 +805,15 @@ impl ModuleManager {
                         .iter()
                         .find(|parameter| env.symbol(parameter.name) == access.as_str())
                     {
-                        return Some(ItemAccessResult::Expression(
-                            env.arena().module_param(ModuleParamId {
-                                module,
-                                position: current
-                                    .parameters()
-                                    .iter()
-                                    .position(|p| p.name == parameter.name)
-                                    .unwrap() as u32,
-                            }),
+                        let position = current
+                            .parameters()
+                            .iter()
+                            .position(|p| p.name == parameter.name)
+                            .unwrap() as u32;
+                        return Some(parameter_access(
+                            env,
+                            ModuleParamId { module, position },
+                            parameter.kind,
                         ));
                     }
                     module = current.parent()?;
@@ -796,13 +836,31 @@ impl ModuleManager {
                         .iter()
                         .position(|parameter| env.symbol(parameter.name) == access.as_str())
                         .map(|position| {
-                            ItemAccessResult::Expression(env.arena().module_param(ModuleParamId {
-                                module: *module,
-                                position: position as u32,
-                            }))
+                            parameter_access(
+                                env,
+                                ModuleParamId {
+                                    module: *module,
+                                    position: position as u32,
+                                },
+                                env.module(*module).parameters()[position].kind,
+                            )
                         })
                 }),
         }
+    }
+}
+
+fn parameter_access(
+    env: &CrateEnv,
+    id: ModuleParamId,
+    kind: ModuleParameterKind,
+) -> ItemAccessResult {
+    match kind {
+        ModuleParameterKind::Pts { .. } => {
+            ItemAccessResult::Expression(env.arena().exp_module_param(id))
+        }
+        ModuleParameterKind::ProgramType => ItemAccessResult::ProgramTypeParameter(id),
+        ModuleParameterKind::ProgramValue { .. } => ItemAccessResult::ProgramValueParameter(id),
     }
 }
 
@@ -868,12 +926,18 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kernel::environment::DefinitionKind;
-    use kernel::exp::RawNode;
+    use kernel::exp::ExpNode;
     use kernel::inductive::{CtorType, InductiveTypeSpecs};
     use kernel::sort::Sort;
 
-    fn parameter(env: &mut CrateEnv, name: &str, ty: RawExp) -> ModuleParameter {
+    fn pts_body(definition: &DefinedConstant) -> Exp {
+        match definition {
+            DefinedConstant::Pts { body, .. } => *body,
+            _ => panic!("expected a Set/Prop definition"),
+        }
+    }
+
+    fn parameter(env: &mut CrateEnv, name: &str, ty: Exp) -> ModuleParameter {
         ModuleParameter {
             name: env.intern(name),
             kind: ModuleParameterKind::Pts { ty },
@@ -913,8 +977,7 @@ mod tests {
             .add_def(
                 &mut env,
                 Identifier("base".into()),
-                DefinedConstant {
-                    kind: DefinitionKind::Pts,
+                DefinedConstant::Pts {
                     ty: proposition_kind,
                     body: proposition,
                 },
@@ -926,13 +989,12 @@ mod tests {
         else {
             unreachable!()
         };
-        let base_exp = env.arena().alloc(RawNode::DefinedConstant(base));
+        let base_exp = env.arena().alloc(ExpNode::DefinedConstant(base));
         manager
             .add_def(
                 &mut env,
                 Identifier("alias".into()),
-                DefinedConstant {
-                    kind: DefinitionKind::Pts,
+                DefinedConstant::Pts {
                     ty: proposition_kind,
                     body: base_exp,
                 },
@@ -989,12 +1051,12 @@ mod tests {
         );
         assert_eq!(env.definition_origin(base), None);
         assert!(matches!(
-            env.arena().get(env.definition(first_ids[1]).body),
-            RawNode::DefinedConstant(id) if id == first_ids[0]
+            env.arena().get(pts_body(env.definition(first_ids[1]))),
+            ExpNode::DefinedConstant(id) if id == first_ids[0]
         ));
         assert!(matches!(
-            env.arena().get(env.definition(second_ids[1]).body),
-            RawNode::DefinedConstant(id) if id == second_ids[0]
+            env.arena().get(pts_body(env.definition(second_ids[1]))),
+            ExpNode::DefinedConstant(id) if id == second_ids[0]
         ));
     }
 
@@ -1038,8 +1100,8 @@ mod tests {
         assert!(env.module(env.root_module()).instances().is_empty());
 
         let carrier = env.intern("Carrier");
-        let argument = env.arena().bound(0);
-        let mut context = vec![ContextEntry::Pts {
+        let argument = env.arena().exp_bound(0);
+        let mut context = vec![ExpContextEntry {
             var: carrier,
             ty: set,
         }];
@@ -1106,16 +1168,16 @@ mod tests {
         let second = inductive(&env, second);
         assert_ne!(first, second);
 
-        let first_constructor = env.arena().alloc(RawNode::IndCtor {
+        let first_constructor = env.arena().alloc(ExpNode::IndCtor {
             indspec: first,
             parameters: vec![],
             idx: 0,
         });
-        let first_type = env.arena().alloc(RawNode::IndType {
+        let first_type = env.arena().alloc(ExpNode::IndType {
             indspec: first,
             parameters: vec![],
         });
-        let second_type = env.arena().alloc(RawNode::IndType {
+        let second_type = env.arena().alloc(ExpNode::IndType {
             indspec: second,
             parameters: vec![],
         });
@@ -1147,7 +1209,7 @@ mod tests {
                 }],
             )
             .unwrap();
-        let parameter_exp = env.arena().module_param(ModuleParamId {
+        let parameter_exp = env.arena().exp_module_param(ModuleParamId {
             module: manager.current(),
             position: 0,
         });
@@ -1155,8 +1217,7 @@ mod tests {
             .add_def(
                 &mut env,
                 Identifier("parent_value".into()),
-                DefinedConstant {
-                    kind: DefinitionKind::Pts,
+                DefinedConstant::Pts {
                     ty: set,
                     body: parameter_exp,
                 },
@@ -1176,13 +1237,12 @@ mod tests {
             .unwrap();
         let parent_reference = env
             .arena()
-            .alloc(RawNode::DefinedConstant(parent_definition));
+            .alloc(ExpNode::DefinedConstant(parent_definition));
         manager
             .add_def(
                 &mut env,
                 Identifier("child_value".into()),
-                DefinedConstant {
-                    kind: DefinitionKind::Pts,
+                DefinedConstant::Pts {
                     ty: set,
                     body: parent_reference,
                 },
@@ -1194,8 +1254,8 @@ mod tests {
         manager.moveto_root();
 
         let carrier = env.intern("Carrier");
-        let argument = env.arena().bound(0);
-        let mut context = vec![ContextEntry::Pts {
+        let argument = env.arena().exp_bound(0);
+        let mut context = vec![ExpContextEntry {
             var: carrier,
             ty: set,
         }];
@@ -1221,15 +1281,15 @@ mod tests {
         else {
             unreachable!()
         };
-        let RawNode::DefinedConstant(remapped_parent) =
-            env.arena().get(env.definition(*child_definition).body)
+        let ExpNode::DefinedConstant(remapped_parent) =
+            env.arena().get(pts_body(env.definition(*child_definition)))
         else {
             panic!("child definition should refer to the materialized parent definition")
         };
         assert_ne!(remapped_parent, parent_definition);
         let child = env
             .arena()
-            .alloc(RawNode::DefinedConstant(*child_definition));
+            .alloc(ExpNode::DefinedConstant(*child_definition));
         assert!(kernel::calculus::exp_is_alpha_eq(
             &env,
             kernel::calculus::whnf(&env, child),
@@ -1254,7 +1314,7 @@ mod tests {
                 }],
             )
             .unwrap();
-        let parameter_exp = env.arena().module_param(ModuleParamId {
+        let parameter_exp = env.arena().exp_module_param(ModuleParamId {
             module: manager.current(),
             position: 0,
         });
@@ -1262,8 +1322,7 @@ mod tests {
             .add_def(
                 &mut env,
                 Identifier("value".into()),
-                DefinedConstant {
-                    kind: DefinitionKind::Pts,
+                DefinedConstant::Pts {
                     ty: set,
                     body: parameter_exp,
                 },
@@ -1284,14 +1343,14 @@ mod tests {
             )
             .unwrap();
         let outer_context_var = outer_parameter;
-        let outer_argument = env.arena().module_param(ModuleParamId {
+        let outer_argument = env.arena().exp_module_param(ModuleParamId {
             module: manager.current(),
             position: 0,
         });
         let dependency = manager
             .instantiate_module(
                 &mut env,
-                &mut vec![ContextEntry::Pts {
+                &mut vec![ExpContextEntry {
                     var: outer_context_var,
                     ty: set,
                 }],
@@ -1319,13 +1378,12 @@ mod tests {
         };
         let imported_value = env
             .arena()
-            .alloc(RawNode::DefinedConstant(imported_value.definition));
+            .alloc(ExpNode::DefinedConstant(imported_value.definition));
         manager
             .add_def(
                 &mut env,
                 Identifier("result".into()),
-                DefinedConstant {
-                    kind: DefinitionKind::Pts,
+                DefinedConstant::Pts {
                     ty: set,
                     body: imported_value,
                 },
@@ -1335,11 +1393,11 @@ mod tests {
         manager.moveto_parent(&env);
 
         let carrier = env.intern("Carrier");
-        let argument = env.arena().bound(0);
+        let argument = env.arena().exp_bound(0);
         let instance = manager
             .instantiate_module(
                 &mut env,
-                &mut vec![ContextEntry::Pts {
+                &mut vec![ExpContextEntry {
                     var: carrier,
                     ty: set,
                 }],
@@ -1354,7 +1412,7 @@ mod tests {
         let ModuleItem::Definition { definition, .. } = module.item("result").unwrap() else {
             unreachable!()
         };
-        let result = env.arena().alloc(RawNode::DefinedConstant(*definition));
+        let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
         assert!(kernel::calculus::exp_is_alpha_eq(
             &env,
             kernel::calculus::whnf(&env, result),

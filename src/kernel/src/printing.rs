@@ -2,8 +2,13 @@
 
 use crate::{
     environment::CrateEnv,
-    exp::{Context, ContextEntry, RawExp, RawNode},
+    exp::{Exp, ExpContext, ExpNode},
     ids::{ModuleParamId, SymbolId},
+    program::{
+        Computation, ComputationNode, ComputationType, ComputationTypeNode, Program,
+        ProgramContext, ProgramContextEntry, ProgramType, Value, ValueNode, ValueType,
+        ValueTypeNode,
+    },
     sort::Sort,
 };
 
@@ -30,16 +35,15 @@ pub fn format_sort(sort: &Sort) -> String {
     }
 }
 
-pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
+pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
     let arena = env.arena();
     let child = |exp| format_exp(env, exp);
     match arena.get(exp) {
-        RawNode::Sort(sort) => format_sort(&sort),
-        RawNode::ValueType => "\\Type".to_string(),
-        RawNode::Bound(index) => format!("#{index}"),
-        RawNode::ModuleParam(var) => format_var(env, var),
-        RawNode::ReflectedProgramParam(var) => format!("rf({})", format_var(env, var)),
-        RawNode::Meta {
+        ExpNode::Sort(sort) => format_sort(&sort),
+        ExpNode::Bound(index) => format!("#{index}"),
+        ExpNode::ModuleParam(var) => format_var(env, var),
+        ExpNode::ReflectedProgramParam(var) => format!("rf({})", format_var(env, var)),
+        ExpNode::Meta {
             metavariable,
             spine,
         } => {
@@ -50,7 +54,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
                 format!("?m{}[{}]", metavariable.0, arguments)
             }
         }
-        RawNode::Prod { var, ty, body } => {
+        ExpNode::Prod { var, ty, body } => {
             format!(
                 "({}: {}) -> {}",
                 format_named_var(env, var),
@@ -58,7 +62,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
                 child(body)
             )
         }
-        RawNode::Lam { var, ty, body } => {
+        ExpNode::Lam { var, ty, body } => {
             format!(
                 "({}: {}) => {}",
                 format_named_var(env, var),
@@ -66,11 +70,11 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
                 child(body)
             )
         }
-        RawNode::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
-        RawNode::DefinedConstant(definition) => {
+        ExpNode::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
+        ExpNode::DefinedConstant(definition) => {
             format!("def({}:{})", definition.module.0, definition.index)
         }
-        RawNode::IndType {
+        ExpNode::IndType {
             indspec,
             parameters,
         } => format!(
@@ -83,7 +87,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        RawNode::IndCtor {
+        ExpNode::IndCtor {
             indspec,
             parameters,
             idx,
@@ -98,7 +102,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        RawNode::IndElim {
+        ExpNode::IndElim {
             indspec,
             elim,
             return_type,
@@ -111,7 +115,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
-        RawNode::IndProjection {
+        ExpNode::IndProjection {
             indspec,
             parameters,
             value,
@@ -128,7 +132,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             field,
             child(value),
         ),
-        RawNode::ReflectedProgramCase {
+        ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
             branches,
@@ -144,30 +148,11 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
                 .collect::<Vec<_>>()
                 .join("; ")
         ),
-        RawNode::ThunkType { computation_ty } => format!("\\U({})", child(computation_ty)),
-        RawNode::ReturnType { value_ty } => format!("\\F({})", child(value_ty)),
-        RawNode::ComputationFunction { domain, codomain } => {
-            format!("\\CFun({}, {})", child(domain), child(codomain))
-        }
-        RawNode::RunStep {
+        ExpNode::RunStep {
             state_ty,
             result_ty,
         } => format!("\\RunStep({}, {})", child(state_ty), child(result_ty)),
-        RawNode::ProgramIndType {
-            indspec,
-            parameters,
-        } => format!(
-            "vind({}:{})[{}]",
-            indspec.module.0,
-            indspec.index,
-            parameters
-                .into_iter()
-                .map(child)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        RawNode::Thunk { computation } => format!("\\thunk({})", child(computation)),
-        RawNode::Continue {
+        ExpNode::Continue {
             state_ty,
             result_ty,
             next,
@@ -177,7 +162,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(result_ty),
             child(next)
         ),
-        RawNode::Finish {
+        ExpNode::Finish {
             state_ty,
             result_ty,
             output,
@@ -187,99 +172,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(result_ty),
             child(output)
         ),
-        RawNode::ProgramIndCtor {
-            indspec,
-            parameters,
-            idx,
-            fields,
-        } => format!(
-            "vind({}:{}).{}[{}]({})",
-            indspec.module.0,
-            indspec.index,
-            idx,
-            parameters
-                .into_iter()
-                .map(child)
-                .collect::<Vec<_>>()
-                .join(", "),
-            fields.into_iter().map(child).collect::<Vec<_>>().join(", ")
-        ),
-        RawNode::ProgramIndProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => format!(
-            "vproj pind({}:{})[{}].{} ({})",
-            indspec.module.0,
-            indspec.index,
-            parameters
-                .into_iter()
-                .map(child)
-                .collect::<Vec<_>>()
-                .join(", "),
-            field,
-            child(value),
-        ),
-        RawNode::Return { value } => format!("\\return({})", child(value)),
-        RawNode::Force { value } => format!("\\force({})", child(value)),
-        RawNode::ComputationLam {
-            var,
-            value_ty,
-            body,
-        } => format!(
-            "\\clam({}, {}, {})",
-            format_named_var(env, var),
-            child(value_ty),
-            child(body)
-        ),
-        RawNode::ComputationApp { computation, value } => {
-            format!("\\capp({}, {})", child(computation), child(value))
-        }
-        RawNode::Sequence {
-            computation,
-            var,
-            value_ty,
-            body,
-        } => format!(
-            "\\sequence({}, {}, {}, {})",
-            child(computation),
-            format_named_var(env, var),
-            child(value_ty),
-            child(body)
-        ),
-        RawNode::ValueLet { var, value, body } => format!(
-            "\\vlet({}, {}, {})",
-            format_named_var(env, var),
-            child(value),
-            child(body)
-        ),
-        RawNode::ProgramCase {
-            indspec,
-            scrutinee,
-            branches,
-        } => format!(
-            "\\vcase(vind({}:{}), {}) {{{}}}",
-            indspec.module.0,
-            indspec.index,
-            child(scrutinee),
-            branches
-                .into_iter()
-                .enumerate()
-                .map(|(idx, branch)| format!(
-                    "| {idx}({}) => {}",
-                    branch
-                        .binders
-                        .into_iter()
-                        .map(|binder| format_named_var(env, binder))
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    child(branch.body)
-                ))
-                .collect::<Vec<_>>()
-                .join("; ")
-        ),
-        RawNode::Acc {
+        ExpNode::Acc {
             state_ty,
             result_ty,
             step,
@@ -291,8 +184,8 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(step),
             child(state)
         ),
-        RawNode::Proof { proposition } => format!("\\Proof {}", child(proposition)),
-        RawNode::RunStepRec {
+        ExpNode::Proof { proposition } => format!("\\Proof {}", child(proposition)),
+        ExpNode::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -308,7 +201,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(on_finish),
             child(scrutinee)
         ),
-        RawNode::SetRun {
+        ExpNode::SetRun {
             state_ty,
             result_ty,
             step,
@@ -320,7 +213,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(step),
             child(initial)
         ),
-        RawNode::SetRunCase {
+        ExpNode::SetRunCase {
             state_ty,
             result_ty,
             step,
@@ -334,48 +227,41 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(initial),
             child(transition)
         ),
-        RawNode::BoxType { program_ty } => format!("\\Box({})", child(program_ty)),
-        RawNode::BoxProgram {
+        ExpNode::BoxType { program_ty } => {
+            format!("\\Box({})", format_program_type(env, program_ty))
+        }
+        ExpNode::BoxProgram {
             program_ty,
             program,
-        } => format!("\\box({}, {})", child(program_ty), child(program)),
-        RawNode::ForceBox { program_ty, boxed } => {
-            format!("\\Force({}, {})", child(program_ty), child(boxed))
+        } => format!(
+            "\\box({}, {})",
+            format_program_type(env, program_ty),
+            format_program(env, program)
+        ),
+        ExpNode::ForceBox { program_ty, boxed } => {
+            format!(
+                "\\Force({}, {})",
+                format_program_type(env, program_ty),
+                child(boxed)
+            )
         }
-        RawNode::BoxApp { function, argument } => {
+        ExpNode::BoxApp { function, argument } => {
             format!("\\boxapp({}, {})", child(function), child(argument))
         }
-        RawNode::RfType { compute_ty } => format!("\\RfType({})", child(compute_ty)),
-        RawNode::RfTerm { compute_ty, term } => {
-            format!("\\RfTerm({}, {})", child(compute_ty), child(term))
+        ExpNode::RfType { program_ty } => {
+            format!("\\RfType({})", format_program_type(env, program_ty))
         }
-        RawNode::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-        } => format!(
-            "\\run({}, {}, {}, {})",
-            child(state_ty),
-            child(result_ty),
-            child(step),
-            child(initial)
-        ),
-        RawNode::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-        } => format!(
-            "\\runCase({}, {}, {}, {}, {})",
-            child(state_ty),
-            child(result_ty),
-            child(step),
-            child(initial),
-            child(transition)
-        ),
-        RawNode::AccIntro {
+        ExpNode::RfTerm {
+            program_ty,
+            program,
+        } => {
+            format!(
+                "\\RfTerm({}, {})",
+                format_program_type(env, program_ty),
+                format_program(env, program)
+            )
+        }
+        ExpNode::AccIntro {
             state_ty,
             result_ty,
             step,
@@ -389,7 +275,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(state),
             child(predecessors)
         ),
-        RawNode::AccDescent {
+        ExpNode::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -407,7 +293,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(accessibility),
             child(transition)
         ),
-        RawNode::SubsetIntro {
+        ExpNode::SubsetIntro {
             superset,
             subset,
             element,
@@ -419,8 +305,8 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(element),
             child(proof)
         ),
-        RawNode::PowerSet { set } => format!("Pow({})", child(set)),
-        RawNode::SubSet {
+        ExpNode::PowerSet { set } => format!("Pow({})", child(set)),
+        ExpNode::SubSet {
             var,
             set,
             predicate,
@@ -430,7 +316,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(set),
             child(predicate)
         ),
-        RawNode::Pred {
+        ExpNode::Pred {
             superset,
             subset,
             element,
@@ -440,12 +326,12 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(subset),
             child(superset)
         ),
-        RawNode::TypeLift { superset, subset } => {
+        ExpNode::TypeLift { superset, subset } => {
             format!("TypeLift({}, {})", child(superset), child(subset))
         }
-        RawNode::Equal { left, right } => format!("{} = {}", child(left), child(right)),
-        RawNode::Exists { set } => format!("\\exists {}", child(set)),
-        RawNode::TakeSet {
+        ExpNode::Equal { left, right } => format!("{} = {}", child(left), child(right)),
+        ExpNode::Exists { set } => format!("\\exists {}", child(set)),
+        ExpNode::TakeSet {
             domain,
             codomain,
             map,
@@ -459,7 +345,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(existence),
             child(uniqueness)
         ),
-        RawNode::TakeProp {
+        ExpNode::TakeProp {
             domain,
             proposition,
             map,
@@ -471,10 +357,10 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(map),
             child(existence)
         ),
-        RawNode::ExistsIntro { element, set } => {
+        ExpNode::ExistsIntro { element, set } => {
             format!("exact({}, {})", child(element), child(set))
         }
-        RawNode::SubsetElim {
+        ExpNode::SubsetElim {
             element,
             subset,
             superset,
@@ -484,8 +370,8 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(subset),
             child(element)
         ),
-        RawNode::IdRefl { element } => format!("refl({})", child(element)),
-        RawNode::IdElim {
+        ExpNode::IdRefl { element } => format!("refl({})", child(element)),
+        ExpNode::IdElim {
             left,
             right,
             ty,
@@ -503,7 +389,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(base),
             child(equality)
         ),
-        RawNode::AxiomSetExt {
+        ExpNode::AxiomSetExt {
             left,
             right,
             left_to_right,
@@ -515,7 +401,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(left_to_right),
             child(right_to_left)
         ),
-        RawNode::AxiomFunExt {
+        ExpNode::AxiomFunExt {
             left,
             right,
             pointwise,
@@ -525,7 +411,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(right),
             child(pointwise)
         ),
-        RawNode::AxiomClassicalIndefiniteChoice {
+        ExpNode::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
@@ -535,7 +421,7 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
             child(family),
             child(inhabited)
         ),
-        RawNode::TakeEq {
+        ExpNode::TakeEq {
             func,
             domain,
             codomain,
@@ -554,15 +440,217 @@ pub fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
     }
 }
 
-pub fn format_ctx(env: &CrateEnv, ctx: &Context) -> String {
+pub fn format_ctx(env: &CrateEnv, ctx: &ExpContext) -> String {
     ctx.iter()
+        .map(|entry| format!("{}: {}", env.symbol(entry.var), format_exp(env, entry.ty)))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+pub fn format_program_type(env: &CrateEnv, ty: ProgramType) -> String {
+    match ty {
+        ProgramType::Value(ty) => format_value_type(env, ty),
+        ProgramType::Computation(ty) => format_computation_type(env, ty),
+    }
+}
+
+pub fn format_value_type(env: &CrateEnv, ty: ValueType) -> String {
+    let arena = env.arena();
+    match arena.get(ty) {
+        ValueTypeNode::Bound(index) => format!("#T{index}"),
+        ValueTypeNode::ModuleParam(id) => format_var(env, id),
+        ValueTypeNode::Meta { metavariable, .. } => format!("?vt{}", metavariable.0),
+        ValueTypeNode::Thunk { computation_ty } => {
+            format!("\\U({})", format_computation_type(env, computation_ty))
+        }
+        ValueTypeNode::RunStep {
+            state_ty,
+            result_ty,
+        } => format!(
+            "\\PRunStep({}, {})",
+            format_value_type(env, state_ty),
+            format_value_type(env, result_ty)
+        ),
+        ValueTypeNode::Inductive {
+            indspec,
+            parameters,
+        } => format!(
+            "vind({}:{})[{}]",
+            indspec.module.0,
+            indspec.index,
+            parameters
+                .into_iter()
+                .map(|p| format_value_type(env, p))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+pub fn format_computation_type(env: &CrateEnv, ty: ComputationType) -> String {
+    match env.arena().get(ty) {
+        ComputationTypeNode::Meta { metavariable, .. } => format!("?ct{}", metavariable.0),
+        ComputationTypeNode::Return { value_ty } => {
+            format!("\\F({})", format_value_type(env, value_ty))
+        }
+        ComputationTypeNode::Function { domain, codomain } => format!(
+            "{} => {}",
+            format_value_type(env, domain),
+            format_computation_type(env, codomain)
+        ),
+    }
+}
+
+pub fn format_program(env: &CrateEnv, program: Program) -> String {
+    match program {
+        Program::Value(value) => format_value(env, value),
+        Program::Computation(term) => format_computation(env, term),
+    }
+}
+
+pub fn format_value(env: &CrateEnv, value: Value) -> String {
+    match env.arena().get(value) {
+        ValueNode::Bound(index) => format!("#v{index}"),
+        ValueNode::ModuleParam(id) => format_var(env, id),
+        ValueNode::Meta { metavariable, .. } => format!("?v{}", metavariable.0),
+        ValueNode::DefinedConstant(id) => format!("vdef({}:{})", id.module.0, id.index),
+        ValueNode::Thunk { computation } => {
+            format!("\\thunk({})", format_computation(env, computation))
+        }
+        ValueNode::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => format!(
+            "\\Pcontinue({}, {}, {})",
+            format_value_type(env, state_ty),
+            format_value_type(env, result_ty),
+            format_value(env, next)
+        ),
+        ValueNode::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => format!(
+            "\\Pfinish({}, {}, {})",
+            format_value_type(env, state_ty),
+            format_value_type(env, result_ty),
+            format_value(env, output)
+        ),
+        ValueNode::InductiveConstructor {
+            indspec,
+            idx,
+            fields,
+            ..
+        } => format!(
+            "vind({}:{}).{}({})",
+            indspec.module.0,
+            indspec.index,
+            idx,
+            fields
+                .into_iter()
+                .map(|v| format_value(env, v))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        ValueNode::InductiveProjection {
+            indspec,
+            value,
+            field,
+            ..
+        } => format!(
+            "vproj({}:{}).{}({})",
+            indspec.module.0,
+            indspec.index,
+            field,
+            format_value(env, value)
+        ),
+    }
+}
+
+pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
+    match env.arena().get(term) {
+        ComputationNode::Meta { metavariable, .. } => format!("?c{}", metavariable.0),
+        ComputationNode::DefinedConstant(id) => format!("cdef({}:{})", id.module.0, id.index),
+        ComputationNode::Return { value } => format!("\\return({})", format_value(env, value)),
+        ComputationNode::Force { value } => format!("\\force({})", format_value(env, value)),
+        ComputationNode::Lambda {
+            var,
+            value_ty,
+            body,
+        } => format!(
+            "({}: {}) =>c {}",
+            env.symbol(var),
+            format_value_type(env, value_ty),
+            format_computation(env, body)
+        ),
+        ComputationNode::Application { computation, value } => format!(
+            "({}) @c ({})",
+            format_computation(env, computation),
+            format_value(env, value)
+        ),
+        ComputationNode::Sequence {
+            computation,
+            var,
+            value_ty,
+            body,
+        } => format!(
+            "{} to {}: {} in {}",
+            format_computation(env, computation),
+            env.symbol(var),
+            format_value_type(env, value_ty),
+            format_computation(env, body)
+        ),
+        ComputationNode::ValueLet { var, value, body } => format!(
+            "letv {} = {} in {}",
+            env.symbol(var),
+            format_value(env, value),
+            format_computation(env, body)
+        ),
+        ComputationNode::Case {
+            indspec, scrutinee, ..
+        } => format!(
+            "case vind({}:{}) {}",
+            indspec.module.0,
+            indspec.index,
+            format_value(env, scrutinee)
+        ),
+        ComputationNode::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => format!(
+            "\\Prun({}, {}, {}, {})",
+            format_value_type(env, state_ty),
+            format_value_type(env, result_ty),
+            format_value(env, step),
+            format_value(env, initial)
+        ),
+        ComputationNode::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        } => format!(
+            "\\PrunCase({}, {}, {}, {}, {})",
+            format_value_type(env, state_ty),
+            format_value_type(env, result_ty),
+            format_value(env, step),
+            format_value(env, initial),
+            format_computation(env, transition)
+        ),
+    }
+}
+
+pub fn format_program_ctx(env: &CrateEnv, context: &ProgramContext) -> String {
+    context
+        .iter()
         .map(|entry| match entry {
-            ContextEntry::Pts { var, ty } => {
-                format!("{}: {}", env.symbol(*var), format_exp(env, *ty))
-            }
-            ContextEntry::ProgramType { var } => format!("{}: vtype", env.symbol(*var)),
-            ContextEntry::ProgramValue { var, ty } => {
-                format!("{}: {}: value", env.symbol(*var), format_exp(env, *ty))
+            ProgramContextEntry::Type { var } => format!("{}: vtype", env.symbol(*var)),
+            ProgramContextEntry::Value { var, ty } => {
+                format!("{}: {}", env.symbol(*var), format_value_type(env, *ty))
             }
         })
         .collect::<Vec<_>>()

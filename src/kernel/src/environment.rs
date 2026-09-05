@@ -1,21 +1,41 @@
 //! Crate/module declarations and materialized-instance provenance.
 
 use crate::{
-    exp::{Arena, RawExp},
+    exp::{Arena, Exp},
     ids::{
         DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId, SymbolId,
     },
     inductive::InductiveTypeSpecs,
+    program::{Computation, ComputationType, Value, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
 };
 use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct DefinedConstant {
-    pub kind: DefinitionKind,
-    pub ty: RawExp,
-    pub body: RawExp,
+pub enum DefinedConstant {
+    Pts {
+        ty: Exp,
+        body: Exp,
+    },
+    ProgramValue {
+        ty: ValueType,
+        body: Value,
+    },
+    ProgramComputation {
+        ty: ComputationType,
+        body: Computation,
+    },
+}
+
+impl DefinedConstant {
+    pub fn kind(&self) -> DefinitionKind {
+        match self {
+            Self::Pts { .. } => DefinitionKind::Pts,
+            Self::ProgramValue { .. } => DefinitionKind::ProgramValue,
+            Self::ProgramComputation { .. } => DefinitionKind::ProgramComputation,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -33,9 +53,9 @@ pub struct ModuleParameter {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ModuleParameterKind {
-    Pts { ty: RawExp },
+    Pts { ty: Exp },
     ProgramType,
-    ProgramValue { ty: RawExp },
+    ProgramValue { ty: ValueType },
 }
 
 impl ModuleParameter {
@@ -43,12 +63,26 @@ impl ModuleParameter {
         ModuleParamId { module, position }
     }
 
-    pub fn ty(&self) -> Option<RawExp> {
+    pub fn pts_ty(&self) -> Option<Exp> {
         match self.kind {
-            ModuleParameterKind::Pts { ty } | ModuleParameterKind::ProgramValue { ty } => Some(ty),
-            ModuleParameterKind::ProgramType => None,
+            ModuleParameterKind::Pts { ty } => Some(ty),
+            ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => None,
         }
     }
+
+    pub fn value_ty(&self) -> Option<ValueType> {
+        match self.kind {
+            ModuleParameterKind::ProgramValue { ty } => Some(ty),
+            ModuleParameterKind::Pts { .. } | ModuleParameterKind::ProgramType => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModuleArgument {
+    Pts(Exp),
+    ProgramType(ValueType),
+    ProgramValue(Value),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,7 +127,7 @@ pub struct ModuleInstance {
     pub id: ModuleInstanceId,
     pub source: ModuleId,
     pub materialized: ModuleId,
-    pub arguments: Vec<(ModuleParamId, RawExp)>,
+    pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
 }
@@ -390,7 +424,7 @@ impl CrateEnv {
         owner: ModuleId,
         source: ModuleId,
         materialized: ModuleId,
-        arguments: Vec<(ModuleParamId, RawExp)>,
+        arguments: Vec<(ModuleParamId, ModuleArgument)>,
         definition_origins: HashMap<DefId, DefId>,
     ) -> ModuleInstanceId {
         let local = u32::try_from(self.module(owner).instances.len())

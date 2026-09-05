@@ -1,5 +1,5 @@
 // this file describes the surface syntax tree
-use kernel::exp::{RawExp, RawNode};
+use kernel::exp::{Exp, ExpNode};
 use kernel::ids::{DefId, InductiveId, ModuleId};
 use kernel::inductive::CtorBinder;
 use kernel::sort::Sort;
@@ -69,6 +69,18 @@ pub enum ModuleItem {
         body: SExp,
         proof: Option<ProofBlock>,
     },
+    ValueDefinition {
+        name: Identifier,
+        binders: Vec<RightBind>,
+        ty: ValueTypeExp,
+        body: ValueExp,
+    },
+    ComputationDefinition {
+        name: Identifier,
+        binders: Vec<RightBind>,
+        ty: ComputationTypeExp,
+        body: ComputationExp,
+    },
     Inductive {
         type_name: Identifier,
         parameters: Vec<RightBind>,
@@ -110,6 +122,18 @@ pub enum ModuleItem {
     Normalize {
         exp: SExp,
         proof: Option<ProofBlock>,
+    },
+    ValueEval {
+        exp: ValueExp,
+    },
+    ComputationEval {
+        exp: ComputationExp,
+    },
+    ValueNormalize {
+        exp: ValueExp,
+    },
+    ComputationNormalize {
+        exp: ComputationExp,
     },
     Check {
         exp: SExp,
@@ -178,6 +202,98 @@ pub struct RightBind {
 }
 
 pub struct TelescopeRightbind(pub Vec<RightBind>);
+
+/// Surface Program syntax is split into the same four categories as the
+/// kernel.  Parsing a category-specific declaration performs this
+/// classification before elaboration.
+#[derive(Debug, Clone, Serialize)]
+pub enum ValueTypeExp {
+    Access {
+        access: LocalAccess,
+        parameters: Vec<ValueTypeExp>,
+    },
+    Thunk(Box<ComputationTypeExp>),
+    RunStep {
+        state_ty: Box<ValueTypeExp>,
+        result_ty: Box<ValueTypeExp>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ComputationTypeExp {
+    Return(Box<ValueTypeExp>),
+    Function {
+        domain: Box<ValueTypeExp>,
+        codomain: Box<ComputationTypeExp>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ValueExp {
+    Access(LocalAccess),
+    Constructor {
+        datatype: LocalAccess,
+        constructor: Identifier,
+        parameters: Vec<ValueTypeExp>,
+        fields: Vec<ValueExp>,
+    },
+    Thunk(Box<ComputationExp>),
+    Continue {
+        state_ty: Box<ValueTypeExp>,
+        result_ty: Box<ValueTypeExp>,
+        next: Box<ValueExp>,
+    },
+    Finish {
+        state_ty: Box<ValueTypeExp>,
+        result_ty: Box<ValueTypeExp>,
+        output: Box<ValueExp>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ComputationExp {
+    Access(LocalAccess),
+    Return(Box<ValueExp>),
+    Force(Box<ValueExp>),
+    Lambda {
+        var: Identifier,
+        value_ty: Box<ValueTypeExp>,
+        body: Box<ComputationExp>,
+    },
+    Application {
+        computation: Box<ComputationExp>,
+        value: Box<ValueExp>,
+    },
+    Sequence {
+        computation: Box<ComputationExp>,
+        var: Identifier,
+        value_ty: Box<ValueTypeExp>,
+        body: Box<ComputationExp>,
+    },
+    ValueLet {
+        var: Identifier,
+        value: Box<ValueExp>,
+        body: Box<ComputationExp>,
+    },
+    Case {
+        datatype: LocalAccess,
+        scrutinee: Box<ValueExp>,
+        branches: Vec<(Identifier, Vec<Identifier>, ComputationExp)>,
+    },
+    Run {
+        state_ty: Box<ValueTypeExp>,
+        result_ty: Box<ValueTypeExp>,
+        step: Box<ValueExp>,
+        initial: Box<ValueExp>,
+    },
+    RunCase {
+        state_ty: Box<ValueTypeExp>,
+        result_ty: Box<ValueTypeExp>,
+        step: Box<ValueExp>,
+        initial: Box<ValueExp>,
+        transition: Box<ComputationExp>,
+    },
+}
 
 #[derive(Debug, Clone, Serialize)]
 // general binding syntax
@@ -259,7 +375,7 @@ pub enum SExp {
     MacroParameter(Identifier),
     /// A core expression captured while resolving a macro template (currently
     /// used for module parameters). It is remapped when a module is instantiated.
-    ResolvedExp(RawExp),
+    ResolvedExp(Exp),
 
     // --- expression with clauses
     // where clauses to define local variables
@@ -365,12 +481,26 @@ pub enum SExp {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
     },
+    PRunStep {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+    },
     Continue {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         next: Box<SExp>,
     },
+    PContinue {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        next: Box<SExp>,
+    },
     Finish {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        output: Box<SExp>,
+    },
+    PFinish {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         output: Box<SExp>,
@@ -394,7 +524,20 @@ pub enum SExp {
         step: Box<SExp>,
         initial: Box<SExp>,
     },
+    PRun {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        initial: Box<SExp>,
+    },
     RunCase {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        step: Box<SExp>,
+        initial: Box<SExp>,
+        transition: Box<SExp>,
+    },
+    PRunCase {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         step: Box<SExp>,
@@ -546,6 +689,193 @@ pub enum SExp {
     Block(Block),
 }
 
+impl TryFrom<SExp> for ValueTypeExp {
+    type Error = String;
+    fn try_from(value: SExp) -> Result<Self, Self::Error> {
+        match value {
+            SExp::AccessPath { access, parameters } => Ok(Self::Access {
+                access,
+                parameters: parameters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<_, _>>()?,
+            }),
+            SExp::ThunkType { computation_ty } => {
+                Ok(Self::Thunk(Box::new((*computation_ty).try_into()?)))
+            }
+            SExp::PRunStep {
+                state_ty,
+                result_ty,
+            } => Ok(Self::RunStep {
+                state_ty: Box::new((*state_ty).try_into()?),
+                result_ty: Box::new((*result_ty).try_into()?),
+            }),
+            _ => Err("expected Program value-type syntax".into()),
+        }
+    }
+}
+
+impl TryFrom<SExp> for ComputationTypeExp {
+    type Error = String;
+    fn try_from(value: SExp) -> Result<Self, Self::Error> {
+        match value {
+            SExp::ReturnType { value_ty } => Ok(Self::Return(Box::new((*value_ty).try_into()?))),
+            SExp::ComputationFunction { domain, codomain } => Ok(Self::Function {
+                domain: Box::new((*domain).try_into()?),
+                codomain: Box::new((*codomain).try_into()?),
+            }),
+            _ => Err("expected Program computation-type syntax".into()),
+        }
+    }
+}
+
+impl TryFrom<SExp> for ValueExp {
+    type Error = String;
+    fn try_from(value: SExp) -> Result<Self, Self::Error> {
+        let (value, arguments) = decompose_surface_application(value);
+        match value {
+            SExp::AccessPath { access, parameters } if parameters.is_empty() => {
+                if arguments.is_empty() {
+                    Ok(Self::Access(access))
+                } else {
+                    Err(
+                        "Program values are not applied; only constructors take field arguments"
+                            .into(),
+                    )
+                }
+            }
+            SExp::AssociatedAccess { base, field } => {
+                let SExp::AccessPath { access, parameters } = *base else {
+                    return Err("expected a Program datatype before constructor access".into());
+                };
+                Ok(Self::Constructor {
+                    datatype: access,
+                    constructor: field,
+                    parameters: parameters
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                    fields: arguments
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                })
+            }
+            SExp::Thunk { computation } => Ok(Self::Thunk(Box::new((*computation).try_into()?))),
+            SExp::PContinue {
+                state_ty,
+                result_ty,
+                next,
+            } => Ok(Self::Continue {
+                state_ty: Box::new((*state_ty).try_into()?),
+                result_ty: Box::new((*result_ty).try_into()?),
+                next: Box::new((*next).try_into()?),
+            }),
+            SExp::PFinish {
+                state_ty,
+                result_ty,
+                output,
+            } => Ok(Self::Finish {
+                state_ty: Box::new((*state_ty).try_into()?),
+                result_ty: Box::new((*result_ty).try_into()?),
+                output: Box::new((*output).try_into()?),
+            }),
+            _ => Err("expected Program value syntax".into()),
+        }
+    }
+}
+
+impl TryFrom<SExp> for ComputationExp {
+    type Error = String;
+    fn try_from(value: SExp) -> Result<Self, Self::Error> {
+        match value {
+            SExp::AccessPath { access, parameters } if parameters.is_empty() => {
+                Ok(Self::Access(access))
+            }
+            SExp::Return { value } => Ok(Self::Return(Box::new((*value).try_into()?))),
+            SExp::Force { value } => Ok(Self::Force(Box::new((*value).try_into()?))),
+            SExp::ComputationLam {
+                var,
+                value_ty,
+                body,
+            } => Ok(Self::Lambda {
+                var,
+                value_ty: Box::new((*value_ty).try_into()?),
+                body: Box::new((*body).try_into()?),
+            }),
+            SExp::ComputationApp { computation, value } => Ok(Self::Application {
+                computation: Box::new((*computation).try_into()?),
+                value: Box::new((*value).try_into()?),
+            }),
+            SExp::Sequence {
+                computation,
+                var,
+                value_ty,
+                body,
+            } => Ok(Self::Sequence {
+                computation: Box::new((*computation).try_into()?),
+                var,
+                value_ty: Box::new((*value_ty).try_into()?),
+                body: Box::new((*body).try_into()?),
+            }),
+            SExp::ValueLet { var, value, body } => Ok(Self::ValueLet {
+                var,
+                value: Box::new((*value).try_into()?),
+                body: Box::new((*body).try_into()?),
+            }),
+            SExp::ProgramCase {
+                path,
+                scrutinee,
+                branches,
+            } => Ok(Self::Case {
+                datatype: path,
+                scrutinee: Box::new((*scrutinee).try_into()?),
+                branches: branches
+                    .into_iter()
+                    .map(|(constructor, binders, body)| {
+                        Ok((constructor, binders, body.try_into()?))
+                    })
+                    .collect::<Result<_, String>>()?,
+            }),
+            SExp::PRun {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+            } => Ok(Self::Run {
+                state_ty: Box::new((*state_ty).try_into()?),
+                result_ty: Box::new((*result_ty).try_into()?),
+                step: Box::new((*step).try_into()?),
+                initial: Box::new((*initial).try_into()?),
+            }),
+            SExp::PRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+            } => Ok(Self::RunCase {
+                state_ty: Box::new((*state_ty).try_into()?),
+                result_ty: Box::new((*result_ty).try_into()?),
+                step: Box::new((*step).try_into()?),
+                initial: Box::new((*initial).try_into()?),
+                transition: Box::new((*transition).try_into()?),
+            }),
+            _ => Err("expected Program computation syntax".into()),
+        }
+    }
+}
+
+fn decompose_surface_application(mut expression: SExp) -> (SExp, Vec<SExp>) {
+    let mut arguments = Vec::new();
+    while let SExp::App { func, arg, .. } = expression {
+        arguments.push(*arg);
+        expression = *func;
+    }
+    arguments.reverse();
+    (expression, arguments)
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Block {
     pub statements: Vec<Statement>, // sensitive to order
@@ -612,10 +942,10 @@ impl ModItemRecord {
     pub fn field_projection(
         &self,
         env: &kernel::environment::CrateEnv,
-        e: RawExp,
+        e: Exp,
         field_name: &Identifier,
-        parameters: &[RawExp],
-    ) -> Option<RawExp> {
+        parameters: &[Exp],
+    ) -> Option<Exp> {
         let arena = env.arena();
         let spec = env.inductive(self.inductive);
         // this should always have only one constructor
@@ -635,7 +965,7 @@ impl ModItemRecord {
             .iter()
             .enumerate()
             .find(|(_, (id, _))| env.symbol(*id) == field_name.as_str())?;
-        Some(arena.alloc(RawNode::IndProjection {
+        Some(arena.alloc(ExpNode::IndProjection {
             indspec: self.inductive,
             parameters: parameters.to_vec(),
             value: e,

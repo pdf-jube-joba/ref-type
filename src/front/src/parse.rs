@@ -91,13 +91,18 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\vlet",
     "\\vcase",
     "\\RunStep",
+    "\\PRunStep",
     "\\continue",
+    "\\Pcontinue",
     "\\finish",
+    "\\Pfinish",
     "\\Acc",
     "\\RfType",
     "\\RfTerm",
     "\\run",
+    "\\Prun",
     "\\runCase",
+    "\\PrunCase",
     "\\runStepRec",
     "\\Proof",
     "\\Box",
@@ -719,6 +724,72 @@ impl<'a> Parser<'a> {
             let def = self.parse_definition()?;
             return Ok(Some(def));
         }
+        if self.bump_if_keyword("\\vdefinition") {
+            let ModuleItem::Definition {
+                owner: None,
+                name,
+                binders,
+                ty,
+                body,
+                proof: _,
+            } = self.parse_definition()?
+            else {
+                return Err(ParseError {
+                    msg: "Program definitions cannot be associated definitions".into(),
+                    start: save_pos,
+                    end: self.pos,
+                });
+            };
+            let ty = ty.try_into().map_err(|msg| ParseError {
+                msg,
+                start: save_pos,
+                end: self.pos,
+            })?;
+            let body = body.try_into().map_err(|msg| ParseError {
+                msg,
+                start: save_pos,
+                end: self.pos,
+            })?;
+            return Ok(Some(ModuleItem::ValueDefinition {
+                name,
+                binders,
+                ty,
+                body,
+            }));
+        }
+        if self.bump_if_keyword("\\cdefinition") {
+            let ModuleItem::Definition {
+                owner: None,
+                name,
+                binders,
+                ty,
+                body,
+                proof: _,
+            } = self.parse_definition()?
+            else {
+                return Err(ParseError {
+                    msg: "Program definitions cannot be associated definitions".into(),
+                    start: save_pos,
+                    end: self.pos,
+                });
+            };
+            let ty = ty.try_into().map_err(|msg| ParseError {
+                msg,
+                start: save_pos,
+                end: self.pos,
+            })?;
+            let body = body.try_into().map_err(|msg| ParseError {
+                msg,
+                start: save_pos,
+                end: self.pos,
+            })?;
+            return Ok(Some(ModuleItem::ComputationDefinition {
+                name,
+                binders,
+                ty,
+                body,
+            }));
+        }
         if self.bump_if_keyword("\\import") {
             let imp = self.parse_import()?;
             return Ok(Some(imp));
@@ -756,6 +827,50 @@ impl<'a> Parser<'a> {
             let proof = self.parse_optional_proof_block()?;
             self.expect_token(Token::Semicolon)?;
             return Ok(Some(ModuleItem::Normalize { exp, proof }));
+        }
+        if self.bump_if_keyword("\\veval") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ValueEval {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\ceval") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ComputationEval {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\vnormalize") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ValueNormalize {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\cnormalize") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ComputationNormalize {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
         }
         if self.bump_if_keyword("\\check") {
             let exp = self.parse_sexp()?;

@@ -379,10 +379,10 @@ fn implicit_solution_may_depend_on_its_local_binder_context() {
 }
 
 #[test]
-fn program_annotation_meta_is_solved_from_the_declared_type() {
+fn program_value_definition_uses_the_value_judgement() {
     let source = r#"
         \module ProgramMeta(A: \VType, x: A) {
-            \definition finished: \RunStep(A, A) := \finish(_, A, x);
+            \vdefinition finished: \PRunStep(A, A) := \Pfinish(A, A, x);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -391,13 +391,13 @@ fn program_annotation_meta_is_solved_from_the_declared_type() {
 }
 
 #[test]
-fn program_terms_determine_top_level_type_metavariables() {
+fn program_value_and_computation_commands_are_separate() {
     let source = r#"
         \module ProgramTypeMeta(A: \VType, x: A) {
-            \definition inferred_value_type: _ := x;
-            \definition inferred_computation_type: _ := \return(x);
-            \check x: _;
-            \check \return(x): _;
+            \vdefinition value: A := x;
+            \cdefinition computation: \F(A) := \return(x);
+            \veval value;
+            \ceval computation;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -558,11 +558,11 @@ fn general_recursion_surface_typechecks_and_normalizes() {
         \module GeneralRecursion(
             A: \VType,
             B: \VType,
-            f: \U(\CFun(A, \F(\RunStep(A, B)))),
+            f: \U(\CFun(A, \F(\PRunStep(A, B)))),
             a: A
         ) {
-            \definition result: \F(B) := \run(A, B, f, a);
-            \normalize \run(A, B, f, a);
+            \cdefinition result: \F(B) := \Prun(A, B, f, a);
+            \cnormalize \Prun(A, B, f, a);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
