@@ -35,8 +35,8 @@ impl Sort {
             (Sort::SetKind(i), Sort::SetKind(j)) => Some(Sort::SetKind(i.max(j))),
             (Sort::SetKind(i), Sort::Set(j)) => Some(Sort::Set((i + 1).max(j))),
             // Relations between Set and Prop
-            (Sort::Set(_), Sort::PropKind) => Some(Sort::PropKind),
-            (Sort::Set(_), Sort::Prop) => Some(Sort::Prop),
+            (Sort::Set(_) | Sort::SetKind(_), Sort::PropKind) => Some(Sort::PropKind),
+            (Sort::Set(_) | Sort::SetKind(_), Sort::Prop) => Some(Sort::Prop),
             (Sort::Prop | Sort::PropKind, Sort::Set(_)) => None,
             _ => None,
         }

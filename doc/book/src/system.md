@@ -19,7 +19,7 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
     - \(\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}\) ... universe level の異なる dependent product は最小の共通 level に置く
     - \(\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}\) ... universe 自身を走る場合だけ domain 側の level を一つ上げる
     - \(\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}\) ... \(*^p\) は impredicative だけど依存型のような \((*^p, \sq^p, \sq^p)\) はない。
-    - \(\{(*^s_i, *^p, *^p), (*^s_i, \sq^p, \sq^p)\}\) ... \(*^s\) についての命題を用意するため。
+    - \(\{(s, s', s') \mid s \in \{* ^s_i, \sq^s_i\}, s' \in \{* ^p, \sq ^p\} \}\) ... \(* ^s\) についての命題を用意するため。
 
 普通の変数を \(x\)、Program の type variable を \(X\) とする。
 \(s\) や \(s_i\) は \(\mathcal{S}\) の元とする。
