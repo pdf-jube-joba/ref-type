@@ -1,7 +1,7 @@
 //! Human-readable formatting for kernel expressions.
 
 use crate::{
-    environment::{CrateEnv, DefinedConstant},
+    environment::CrateEnv,
     exp::{Context, ContextEntry, Exp, Node},
     ids::{ModuleParamId, SymbolId},
     sort::Sort,
@@ -38,6 +38,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         Node::ValueType => "\\Type".to_string(),
         Node::Bound(index) => format!("#{index}"),
         Node::ModuleParam(var) => format_var(env, var),
+        Node::ReflectedProgramParam(var) => format!("rf({})", format_var(env, var)),
         Node::Meta {
             metavariable,
             spine,
@@ -66,12 +67,9 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             )
         }
         Node::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
-        Node::DefinedConstant(definition) => format!(
-            "def({}:{}){}",
-            definition.module.0,
-            definition.index,
-            format_defined_constant(env, env.definition(definition))
-        ),
+        Node::DefinedConstant(definition) => {
+            format!("def({}:{})", definition.module.0, definition.index)
+        }
         Node::IndType {
             indspec,
             parameters,
@@ -129,6 +127,22 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
                 .join(", "),
             field,
             child(value),
+        ),
+        Node::ReflectedProgramCase {
+            indspec,
+            scrutinee,
+            branches,
+        } => format!(
+            "\\case(reflected vind({}:{}), {}) {{{}}}",
+            indspec.module.0,
+            indspec.index,
+            child(scrutinee),
+            branches
+                .into_iter()
+                .enumerate()
+                .map(|(idx, branch)| format!("| {idx} => {}", child(branch.body)))
+                .collect::<Vec<_>>()
+                .join("; ")
         ),
         Node::ThunkType { computation_ty } => format!("\\U({})", child(computation_ty)),
         Node::ReturnType { value_ty } => format!("\\F({})", child(value_ty)),
@@ -277,6 +291,60 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(step),
             child(state)
         ),
+        Node::Proof { proposition } => format!("\\Proof {}", child(proposition)),
+        Node::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => format!(
+            "\\runStepRec({}, {}, {}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(motive),
+            child(on_continue),
+            child(on_finish),
+            child(scrutinee)
+        ),
+        Node::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => format!(
+            "\\run({}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(initial)
+        ),
+        Node::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        } => format!(
+            "\\runCase({}, {}, {}, {}, {})",
+            child(state_ty),
+            child(result_ty),
+            child(step),
+            child(initial),
+            child(transition)
+        ),
+        Node::BoxType { program_ty } => format!("\\Box({})", child(program_ty)),
+        Node::BoxProgram {
+            program_ty,
+            program,
+        } => format!("\\box({}, {})", child(program_ty), child(program)),
+        Node::ForceBox { program_ty, boxed } => {
+            format!("\\Force({}, {})", child(program_ty), child(boxed))
+        }
+        Node::BoxApp { function, argument } => {
+            format!("\\boxapp({}, {})", child(function), child(argument))
+        }
         Node::RfType { compute_ty } => format!("\\RfType({})", child(compute_ty)),
         Node::RfTerm { compute_ty, term } => {
             format!("\\RfTerm({}, {})", child(compute_ty), child(term))
@@ -286,14 +354,12 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             result_ty,
             step,
             initial,
-            termination,
         } => format!(
-            "\\run({}, {}, {}, {}, {})",
+            "\\run({}, {}, {}, {})",
             child(state_ty),
             child(result_ty),
             child(step),
-            child(initial),
-            child(termination)
+            child(initial)
         ),
         Node::RunCase {
             state_ty,
@@ -301,17 +367,13 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             step,
             initial,
             transition,
-            termination,
-            invariant,
         } => format!(
-            "\\runCase({}, {}, {}, {}, {}, {}, {})",
+            "\\runCase({}, {}, {}, {}, {})",
             child(state_ty),
             child(result_ty),
             child(step),
             child(initial),
-            child(transition),
-            child(termination),
-            child(invariant)
+            child(transition)
         ),
         Node::AccIntro {
             state_ty,
@@ -505,12 +567,4 @@ pub fn format_ctx(env: &CrateEnv, ctx: &Context) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-fn format_defined_constant(env: &CrateEnv, definition: &DefinedConstant) -> String {
-    format!(
-        "[: {} := {}]",
-        format_exp(env, definition.ty),
-        format_exp(env, definition.body)
-    )
 }

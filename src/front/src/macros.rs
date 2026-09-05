@@ -240,6 +240,8 @@ fn alpha_rename(
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
         | SExp::RfType { compute_ty: base }
+        | SExp::Proof { proposition: base }
+        | SExp::BoxType { program_ty: base }
         | SExp::IdRefl { element: base } => alpha_rename(base, order, counter, scopes),
         SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
             alpha_macro_exps(tokens, order, counter, scopes)
@@ -280,6 +282,18 @@ fn alpha_rename(
         | SExp::ExistsIntro {
             element: func,
             set: arg,
+        }
+        | SExp::BoxProgram {
+            program_ty: func,
+            program: arg,
+        }
+        | SExp::ForceBox {
+            program_ty: func,
+            boxed: arg,
+        }
+        | SExp::BoxApp {
+            function: func,
+            argument: arg,
         } => alpha_many([func, arg], order, counter, scopes),
         SExp::SubsetIntro {
             superset,
@@ -538,16 +552,15 @@ fn alpha_rename(
             result_ty,
             step,
             initial,
-            termination,
-        }
-        | SExp::AccIntro {
+        } => alpha_many([state_ty, result_ty, step, initial], order, counter, scopes),
+        SExp::AccIntro {
             state_ty,
             result_ty,
             step,
-            state: initial,
-            predecessors: termination,
+            state,
+            predecessors,
         } => alpha_many(
-            [state_ty, result_ty, step, initial, termination],
+            [state_ty, result_ty, step, state, predecessors],
             order,
             counter,
             scopes,
@@ -558,26 +571,49 @@ fn alpha_rename(
             step,
             initial,
             transition,
-            termination,
-            invariant,
-        }
-        | SExp::AccDescent {
+        } => alpha_many(
+            [state_ty, result_ty, step, initial, transition],
+            order,
+            counter,
+            scopes,
+        ),
+        SExp::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => alpha_many(
+            [
+                state_ty,
+                result_ty,
+                motive,
+                on_continue,
+                on_finish,
+                scrutinee,
+            ],
+            order,
+            counter,
+            scopes,
+        ),
+        SExp::AccDescent {
             state_ty,
             result_ty,
             step,
-            from: initial,
-            to: transition,
-            accessibility: termination,
-            transition: invariant,
+            from,
+            to,
+            accessibility,
+            transition,
         } => alpha_many(
             [
                 state_ty,
                 result_ty,
                 step,
-                initial,
+                from,
+                to,
+                accessibility,
                 transition,
-                termination,
-                invariant,
             ],
             order,
             counter,
@@ -1057,6 +1093,8 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
         | SExp::RfType { compute_ty: base }
+        | SExp::Proof { proposition: base }
+        | SExp::BoxType { program_ty: base }
         | SExp::IdRefl { element: base } => walk_sexp_mut(base, action),
         SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
             walk_macro_exps_mut(tokens, action);
@@ -1103,6 +1141,18 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
         | SExp::ExistsIntro {
             element: func,
             set: arg,
+        }
+        | SExp::BoxProgram {
+            program_ty: func,
+            program: arg,
+        }
+        | SExp::ForceBox {
+            program_ty: func,
+            boxed: arg,
+        }
+        | SExp::BoxApp {
+            function: func,
+            argument: arg,
         } => {
             walk_sexp_mut(func, action);
             walk_sexp_mut(arg, action);
@@ -1193,25 +1243,29 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             result_ty,
             step,
             initial,
-            termination,
-        } => walk_many_mut([state_ty, result_ty, step, initial, termination], action),
+        } => walk_many_mut([state_ty, result_ty, step, initial], action),
         SExp::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-            termination,
-            invariant,
+        } => walk_many_mut([state_ty, result_ty, step, initial, transition], action),
+        SExp::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
         } => walk_many_mut(
             [
                 state_ty,
                 result_ty,
-                step,
-                initial,
-                transition,
-                termination,
-                invariant,
+                motive,
+                on_continue,
+                on_finish,
+                scrutinee,
             ],
             action,
         ),

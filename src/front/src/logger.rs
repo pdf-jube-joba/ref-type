@@ -123,7 +123,18 @@ impl Logger {
             Ok(Judgement::Computation { .. })
         );
         let normalized = if is_computation {
-            kernel::calculus::evaluate_computation(env, e)
+            match kernel::calculus::evaluate_computation(env, e) {
+                kernel::calculus::Evaluation::Normal(result) => result,
+                kernel::calculus::Evaluation::OutOfFuel(result) => {
+                    self.record(
+                        LogLevel::Warn,
+                        vec!["normalize".to_string()],
+                        "Program evaluation exhausted its reduction budget".to_string(),
+                        LogPayload::Exp(result),
+                    );
+                    result
+                }
+            }
         } else {
             kernel::calculus::normalize(env, e)
         };

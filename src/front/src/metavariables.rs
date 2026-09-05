@@ -732,25 +732,39 @@ impl MetaStore {
                 self.check_pts(env, module, context, existence, exists)?;
                 Ok(proposition)
             }
-            Node::RfType { compute_ty } => {
-                if self
-                    .check_value_type(env, module, context, compute_ty)
-                    .is_err()
-                {
-                    self.check_computation_type(env, module, context, compute_ty)?;
-                }
+            Node::RunStep {
+                state_ty,
+                result_ty,
+            } => {
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
                 Ok(arena.sort(Sort::Set(0)))
             }
-            Node::RfTerm { compute_ty, term } => {
-                if self
-                    .check_value_type(env, module, context, compute_ty)
-                    .is_ok()
-                {
-                    self.check_value(env, module, context, term, compute_ty)?;
-                } else {
-                    self.check_computation(env, module, context, term, compute_ty)?;
-                }
-                Ok(arena.alloc(Node::RfType { compute_ty }))
+            Node::Continue {
+                state_ty,
+                result_ty,
+                next,
+            } => {
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.check_pts(env, module, context, next, state_ty)?;
+                Ok(arena.alloc(Node::RunStep {
+                    state_ty,
+                    result_ty,
+                }))
+            }
+            Node::Finish {
+                state_ty,
+                result_ty,
+                output,
+            } => {
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.check_pts(env, module, context, output, result_ty)?;
+                Ok(arena.alloc(Node::RunStep {
+                    state_ty,
+                    result_ty,
+                }))
             }
             Node::Acc {
                 state_ty,
@@ -758,15 +772,197 @@ impl MetaStore {
                 step,
                 state,
             } => {
-                self.check_value_type(env, module, context, state_ty)?;
-                self.check_value_type(env, module, context, result_ty)?;
-                let step_ty = step_function_type(arena, state_ty, result_ty);
-                self.check_value(env, module, context, step, step_ty)?;
-                let reflected = arena.alloc(Node::RfType {
-                    compute_ty: state_ty,
-                });
-                self.check_pts(env, module, context, state, reflected)?;
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                let step_ty = set_step_function_type(arena, state_ty, result_ty);
+                self.check_pts(env, module, context, step, step_ty)?;
+                self.check_pts(env, module, context, state, state_ty)?;
                 Ok(arena.sort(Sort::Prop))
+            }
+            Node::Proof { proposition } => {
+                if self.infer_sort(env, module, context, proposition)? != Sort::Prop {
+                    return Err("Proof argument is not a proposition".into());
+                }
+                // Provability is a judgement-level obligation collected by
+                // the strict kernel after metavariables have been solved.
+                Ok(proposition)
+            }
+            Node::SetRun {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+            } => {
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    step,
+                    set_step_function_type(arena, state_ty, result_ty),
+                )?;
+                self.check_pts(env, module, context, initial, state_ty)?;
+                Ok(result_ty)
+            }
+            Node::SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+            } => {
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    step,
+                    set_step_function_type(arena, state_ty, result_ty),
+                )?;
+                self.check_pts(env, module, context, initial, state_ty)?;
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    transition,
+                    arena.alloc(Node::RunStep {
+                        state_ty,
+                        result_ty,
+                    }),
+                )?;
+                Ok(result_ty)
+            }
+            Node::RunStepRec {
+                state_ty,
+                result_ty,
+                motive,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => {
+                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
+                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                let run_step = arena.alloc(Node::RunStep {
+                    state_ty,
+                    result_ty,
+                });
+                let motive_ty = self.infer_pts(env, module, context, motive)?;
+                let Node::Prod {
+                    ty: motive_domain, ..
+                } = arena.get(self.zonk(env, motive_ty))
+                else {
+                    return Err("RunStep recursor motive is not a family".into());
+                };
+                self.unify(env, motive_domain, run_step)?;
+                let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
+                let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
+                let continue_value = arena.alloc(Node::Continue {
+                    state_ty: shifted_state,
+                    result_ty: shifted_result,
+                    next: arena.bound(0),
+                });
+                let continue_result = arena.alloc(Node::App {
+                    func: shift_bound_indices(arena, motive, 1, 0),
+                    arg: continue_value,
+                });
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    on_continue,
+                    arena.alloc(Node::Prod {
+                        var: SymbolId::ANONYMOUS,
+                        ty: state_ty,
+                        body: continue_result,
+                    }),
+                )?;
+                let finish_value = arena.alloc(Node::Finish {
+                    state_ty: shifted_state,
+                    result_ty: shifted_result,
+                    output: arena.bound(0),
+                });
+                let finish_result = arena.alloc(Node::App {
+                    func: shift_bound_indices(arena, motive, 1, 0),
+                    arg: finish_value,
+                });
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    on_finish,
+                    arena.alloc(Node::Prod {
+                        var: SymbolId::ANONYMOUS,
+                        ty: result_ty,
+                        body: finish_result,
+                    }),
+                )?;
+                self.check_pts(env, module, context, scrutinee, run_step)?;
+                Ok(arena.alloc(Node::App {
+                    func: motive,
+                    arg: scrutinee,
+                }))
+            }
+            Node::BoxType { program_ty } => {
+                let mut empty = Vec::new();
+                if self
+                    .check_value_type(env, module, &mut empty, program_ty)
+                    .is_err()
+                {
+                    self.check_computation_type(env, module, &mut empty, program_ty)?;
+                }
+                Ok(arena.sort(Sort::Set(0)))
+            }
+            Node::BoxProgram {
+                program_ty,
+                program,
+            } => {
+                let mut empty = Vec::new();
+                if self
+                    .check_value_type(env, module, &mut empty, program_ty)
+                    .is_ok()
+                {
+                    self.check_value(env, module, &mut empty, program, program_ty)?;
+                } else {
+                    self.check_computation_type(env, module, &mut empty, program_ty)?;
+                    self.check_computation(env, module, &mut empty, program, program_ty)?;
+                }
+                Ok(arena.alloc(Node::BoxType { program_ty }))
+            }
+            Node::ForceBox { program_ty, boxed } => {
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    boxed,
+                    arena.alloc(Node::BoxType { program_ty }),
+                )?;
+                kernel::reflection::reflect_type(env, self.zonk(env, program_ty))
+                    .map_err(|error| format!("cannot reflect boxed Program type: {error}"))
+            }
+            Node::BoxApp { function, argument } => {
+                let function_ty = self.infer_pts(env, module, context, function)?;
+                let function_ty = self.zonk(env, function_ty);
+                let Node::BoxType { program_ty } = arena.get(function_ty) else {
+                    return Err("boxed application head is not Box(P)".into());
+                };
+                let Node::ComputationFunction { domain, codomain } = arena.get(program_ty) else {
+                    return Err("boxed application head is not a computation function".into());
+                };
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    argument,
+                    arena.alloc(Node::BoxType { program_ty: domain }),
+                )?;
+                Ok(arena.alloc(Node::BoxType {
+                    program_ty: codomain,
+                }))
+            }
+            Node::RfType { .. } | Node::RfTerm { .. } => {
+                Err("RfType and RfTerm were removed; reflection is meta-level".into())
             }
             Node::SubsetIntro {
                 superset,
@@ -1325,20 +1521,12 @@ impl MetaStore {
                 result_ty,
                 step,
                 initial,
-                termination,
             } => {
                 self.check_value_type(env, module, context, state_ty)?;
                 self.check_value_type(env, module, context, result_ty)?;
                 let step_ty = step_function_type(arena, state_ty, result_ty);
                 self.check_value(env, module, context, step, step_ty)?;
                 self.check_value(env, module, context, initial, state_ty)?;
-                let reflected_initial = arena.alloc(Node::RfTerm {
-                    compute_ty: state_ty,
-                    term: initial,
-                });
-                let terminates =
-                    accessibility_type(arena, state_ty, result_ty, step, reflected_initial);
-                self.check_pts(env, module, context, termination, terminates)?;
                 Ok(arena.alloc(Node::ReturnType {
                     value_ty: result_ty,
                 }))
@@ -1797,6 +1985,22 @@ fn nondependent_product(arena: &kernel::exp::Arena, domain: Exp, codomain: Exp) 
     })
 }
 
+fn ensure_set_sort(sort: Sort) -> Result<(), String> {
+    if matches!(sort, Sort::Set(_)) {
+        Ok(())
+    } else {
+        Err("Set recursion type must inhabit Set(i)".into())
+    }
+}
+
+fn set_step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
+    let run_step = arena.alloc(Node::RunStep {
+        state_ty,
+        result_ty,
+    });
+    nondependent_product(arena, state_ty, run_step)
+}
+
 fn step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
     let run_step = arena.alloc(Node::RunStep {
         state_ty,
@@ -1809,20 +2013,5 @@ fn step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp)
     });
     arena.alloc(Node::ThunkType {
         computation_ty: function,
-    })
-}
-
-fn accessibility_type(
-    arena: &kernel::exp::Arena,
-    state_ty: Exp,
-    result_ty: Exp,
-    step: Exp,
-    state: Exp,
-) -> Exp {
-    arena.alloc(Node::Acc {
-        state_ty,
-        result_ty,
-        step,
-        state,
     })
 }

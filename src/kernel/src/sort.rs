@@ -27,7 +27,7 @@ impl Sort {
             // Prop: PropKind part (non-dependent)
             (Sort::Prop, Sort::Prop) => Some(Sort::Prop),
             (Sort::PropKind, Sort::PropKind) => Some(Sort::PropKind),
-            (Sort::PropKind | Sort::SetKind(_), Sort::Prop) => Some(Sort::Prop), // Prop is impredicative
+            (Sort::PropKind, Sort::Prop) => Some(Sort::Prop), // Prop is impredicative
             (Sort::Prop, Sort::PropKind) => None,
             // Set(i): SetKind(i) part (predicative)
             (Sort::Set(i), Sort::Set(j)) => Some(Sort::Set(i.max(j))),
@@ -92,13 +92,7 @@ mod tests {
 
     #[test]
     fn prop_is_impredicative_over_set_types() {
-        assert_eq!(
-            Sort::SetKind(0).relation_of_sort(Sort::Prop),
-            Some(Sort::Prop)
-        );
-        assert_eq!(
-            Sort::SetKind(3).relation_of_sort(Sort::Prop),
-            Some(Sort::Prop)
-        );
+        assert_eq!(Sort::Set(0).relation_of_sort(Sort::Prop), Some(Sort::Prop));
+        assert_eq!(Sort::SetKind(3).relation_of_sort(Sort::Prop), None);
     }
 }

@@ -8,7 +8,7 @@ use crate::{
 };
 use kernel::{
     calculus::{exp_contains_inductive, exp_subst_map},
-    derivation::CheckSession,
+    derivation::{CheckSession, Judgement},
     environment::{
         CrateEnv, DefinedConstant, DefinitionKind, ModuleParameter, ModuleParameterKind,
     },
@@ -18,6 +18,7 @@ use kernel::{
     program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
     sort::Sort,
 };
+use std::cell::RefCell;
 
 pub mod module_manager;
 pub mod term_elaborator;
@@ -42,6 +43,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
     fn current_module(&self) -> ModuleId {
         self.module_manager.current()
+    }
+
+    fn module_context(&self) -> Context {
+        self.module_manager.current_context(&self.crate_env)
     }
 
     fn intern(&mut self, name: &str) -> SymbolId {
@@ -486,16 +491,14 @@ fn reflect_program_type_for_mirror(
                 parameters,
             })
         }
-        Node::ModuleParam(_) => arena.alloc(Node::RfType { compute_ty: ty }),
-        Node::RunStep { .. } => {
-            if kernel::calculus::exp_contains_bound(arena, ty, 0) {
-                return Err(
-                    "RunStep fields depending on Program datatype parameters cannot yet be mirrored"
-                        .into(),
-                );
-            }
-            arena.alloc(Node::RfType { compute_ty: ty })
-        }
+        Node::ModuleParam(parameter) => arena.alloc(Node::ReflectedProgramParam(parameter)),
+        Node::RunStep {
+            state_ty,
+            result_ty,
+        } => arena.alloc(Node::RunStep {
+            state_ty: reflect(state_ty)?,
+            result_ty: reflect(result_ty)?,
+        }),
         _ => {
             return Err("unsupported Program type in reflected datatype field".into());
         }
@@ -514,6 +517,229 @@ impl GlobalEnvironment {
         self.module_manager.moveto_root();
         self.module_add_rec(module)?;
         Ok(())
+    }
+
+    fn collect_definition_obligations(
+        &self,
+        context: &mut Context,
+        body: Exp,
+        ty: Exp,
+    ) -> Result<(DefinitionKind, Vec<ProofObligation>), String> {
+        let original = context.clone();
+
+        let obligations = RefCell::new(Vec::new());
+        let mut session = CheckSession::collecting(
+            &self.crate_env,
+            self.module_manager.current(),
+            context,
+            &obligations,
+        );
+        if matches!(self.crate_env.arena().get(ty), Node::Sort(_)) || session.infer_sort(ty).is_ok()
+        {
+            session
+                .check_pts(body, ty)
+                .map_err(|error| format!("PTS definition check failed: {error:?}"))?;
+            return Ok((DefinitionKind::Pts, obligations.into_inner()));
+        }
+
+        *context = original.clone();
+        let obligations = RefCell::new(Vec::new());
+        let mut session = CheckSession::collecting(
+            &self.crate_env,
+            self.module_manager.current(),
+            context,
+            &obligations,
+        );
+        if session.check_value_type(ty).is_ok() {
+            session
+                .check_value(body, ty)
+                .map_err(|error| format!("Program value definition check failed: {error:?}"))?;
+            return Ok((DefinitionKind::ProgramValue, obligations.into_inner()));
+        }
+
+        *context = original.clone();
+        let obligations = RefCell::new(Vec::new());
+        let mut session = CheckSession::collecting(
+            &self.crate_env,
+            self.module_manager.current(),
+            context,
+            &obligations,
+        );
+        if session.check_computation_type(ty).is_ok() {
+            session.check_computation(body, ty).map_err(|error| {
+                format!("Program computation definition check failed: {error:?}")
+            })?;
+            return Ok((DefinitionKind::ProgramComputation, obligations.into_inner()));
+        }
+
+        *context = original;
+        Err("declared definition type has no PTS or Program judgement".into())
+    }
+
+    fn elaborate_proof_evidence(
+        &mut self,
+        proof: Option<&ProofBlock>,
+        obligations: &[ProofObligation],
+        module_context: &Context,
+    ) -> Result<Vec<ProofEvidence>, ElaborationError> {
+        let Some(proof) = proof else {
+            if obligations.is_empty() {
+                return Ok(Vec::new());
+            }
+            let rules = obligations
+                .iter()
+                .map(|obligation| obligation.rule)
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(format!(
+                "missing proof block: {} undischarged obligation(s) from {rules}",
+                obligations.len()
+            )
+            .into());
+        };
+
+        let mut evidence = Vec::with_capacity(proof.entries.len());
+        for entry in &proof.entries {
+            self.metavariables.clear();
+            let mut scope = LocalScope::default();
+            scope.elab_telescope_bind_in_decl(&entry.binders, self)?;
+            let proposition = scope.elab_exp(&entry.proposition, self)?;
+            let witness = scope.elab_exp(&entry.witness, self)?;
+            let mut evidence_context = module_context.clone();
+            evidence_context.extend(scope.typing_context().iter().cloned());
+
+            if !self.metavariables.is_empty() {
+                self.check_term_with_metavariables(&mut evidence_context, witness, proposition)
+                    .map_err(|message| self.metavariables.constraint_error(message))?;
+                self.finish_metavariables()?;
+            }
+            let proposition = self.metavariables.zonk(&self.crate_env, proposition);
+            let witness = self.metavariables.zonk(&self.crate_env, witness);
+            for context_entry in &mut evidence_context {
+                match context_entry {
+                    ContextEntry::Pts { ty, .. } | ContextEntry::ProgramValue { ty, .. } => {
+                        *ty = self.metavariables.zonk(&self.crate_env, *ty);
+                    }
+                    ContextEntry::ProgramType { .. } => {}
+                }
+            }
+            evidence.push(ProofEvidence {
+                context: evidence_context,
+                proposition,
+                witness,
+            });
+        }
+
+        for obligation in obligations {
+            let matches = evidence
+                .iter()
+                .filter(|candidate| {
+                    kernel::derivation::evidence_matches_obligation(
+                        &self.crate_env,
+                        candidate,
+                        obligation,
+                    )
+                })
+                .count();
+            if matches != 1 {
+                return Err(format!(
+                    "proof obligation from {} has {matches} matching proof-block entries (expected exactly one)",
+                    obligation.rule
+                )
+                .into());
+            }
+        }
+        for candidate in &evidence {
+            if !obligations.iter().any(|obligation| {
+                kernel::derivation::evidence_matches_obligation(
+                    &self.crate_env,
+                    candidate,
+                    obligation,
+                )
+            }) {
+                return Err("proof block contains an unused goal".into());
+            }
+        }
+        Ok(evidence)
+    }
+
+    fn validate_definition_with_evidence(
+        &self,
+        context: &mut Context,
+        kind: DefinitionKind,
+        body: Exp,
+        ty: Exp,
+        evidence: &[ProofEvidence],
+    ) -> Result<(), String> {
+        let mut session = CheckSession::with_evidence(
+            &self.crate_env,
+            self.module_manager.current(),
+            context,
+            evidence,
+        );
+        let result = match kind {
+            DefinitionKind::Pts => session.check_pts(body, ty),
+            DefinitionKind::ProgramValue => session.check_value(body, ty),
+            DefinitionKind::ProgramComputation => session.check_computation(body, ty),
+        };
+        result.map_err(|error| format!("definition proof validation failed: {error:?}"))
+    }
+
+    fn collect_inference_obligations(
+        &self,
+        context: &mut Context,
+        exp: Exp,
+    ) -> Result<(Judgement, Vec<ProofObligation>), String> {
+        let original = context.clone();
+
+        macro_rules! attempt {
+            ($method:ident, $judgement:expr) => {{
+                *context = original.clone();
+                let obligations = RefCell::new(Vec::new());
+                let result = CheckSession::collecting(
+                    &self.crate_env,
+                    self.module_manager.current(),
+                    context,
+                    &obligations,
+                )
+                .$method(exp);
+                if let Ok(value) = result {
+                    return Ok(($judgement(value), obligations.into_inner()));
+                }
+            }};
+        }
+
+        attempt!(infer_pts, |ty| Judgement::Pts { ty });
+        attempt!(check_value_type, |_| Judgement::ValueType);
+        attempt!(check_computation_type, |_| Judgement::ComputationType);
+        attempt!(infer_value, |ty| Judgement::Value { ty });
+        attempt!(infer_computation, |ty| Judgement::Computation { ty });
+
+        *context = original;
+        Err("term does not infer in any PTS or Program judgement".into())
+    }
+
+    fn validate_inference_with_evidence(
+        &self,
+        context: &mut Context,
+        exp: Exp,
+        judgement: Judgement,
+        evidence: &[ProofEvidence],
+    ) -> Result<(), String> {
+        let mut session = CheckSession::with_evidence(
+            &self.crate_env,
+            self.module_manager.current(),
+            context,
+            evidence,
+        );
+        let result = match judgement {
+            Judgement::Pts { .. } => session.infer_pts(exp).map(|_| ()),
+            Judgement::ValueType => session.check_value_type(exp),
+            Judgement::ComputationType => session.check_computation_type(exp),
+            Judgement::Value { .. } => session.infer_value(exp).map(|_| ()),
+            Judgement::Computation { .. } => session.infer_computation(exp).map(|_| ()),
+        };
+        result.map_err(|error| format!("proof validation failed: {error:?}"))
     }
 
     fn add_program_inductive_decl(
@@ -665,10 +891,27 @@ impl GlobalEnvironment {
                 inductive,
             )
             .map_err(|error| format!("Ill-formed Program datatype: {error:?}"))?;
+        let mut reflected_context = ctx
+            .iter()
+            .map(|entry| match entry {
+                ContextEntry::Pts { var, ty } => Ok(ContextEntry::Pts { var: *var, ty: *ty }),
+                ContextEntry::ProgramType { var } => Ok(ContextEntry::Pts {
+                    var: *var,
+                    ty: self.crate_env.arena().sort(Sort::Set(0)),
+                }),
+                ContextEntry::ProgramValue { var, ty } => {
+                    kernel::reflection::reflect_type(&self.crate_env, *ty)
+                        .map(|ty| ContextEntry::Pts { var: *var, ty })
+                        .map_err(|error| {
+                            format!("cannot reflect enclosing Program parameter: {error}")
+                        })
+                }
+            })
+            .collect::<Result<Context, String>>()?;
         self.crate_env
             .inductive(reflected)
             .validate(
-                &mut CheckSession::new(&self.crate_env, module, ctx),
+                &mut CheckSession::new(&self.crate_env, module, &mut reflected_context),
                 reflected,
             )
             .map_err(|error| format!("Ill-formed reflected datatype: {error:?}"))?;
@@ -815,6 +1058,7 @@ impl GlobalEnvironment {
                     binders,
                     ty,
                     body,
+                    proof,
                 } => {
                     self.logger.record(
                         LogLevel::Debug,
@@ -874,34 +1118,24 @@ impl GlobalEnvironment {
                     }
                     let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
                     let body_elab = self.metavariables.zonk(&self.crate_env, body_elab);
-                    let mut session =
-                        CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx);
-                    let kind = if matches!(self.crate_env.arena().get(ty_elab), Node::Sort(_))
-                        || session.infer_sort(ty_elab).is_ok()
-                    {
-                        session
-                            .check_pts(body_elab, ty_elab)
-                            .map(|()| DefinitionKind::Pts)
-                    } else if session.check_value_type(ty_elab).is_ok() {
-                        session
-                            .check_value(body_elab, ty_elab)
-                            .map(|()| DefinitionKind::ProgramValue)
-                    } else if session.check_computation_type(ty_elab).is_ok() {
-                        session
-                            .check_computation(body_elab, ty_elab)
-                            .map(|()| DefinitionKind::ProgramComputation)
-                    } else {
-                        Err(Box::new(kernel::derivation::JudgementError::caused(
-                            "declared definition type has no judgement",
-                        )))
-                    };
-                    let Ok(kind) = kind else {
-                        return Err(format!(
-                            "Definition {} body does not check against declared type",
-                            name.as_str()
-                        )
-                        .into());
-                    };
+                    let module_context = ctx.clone();
+                    let (kind, obligations) = self
+                        .collect_definition_obligations(&mut ctx, body_elab, ty_elab)
+                        .map_err(|message| {
+                            format!(
+                                "Definition {} body does not check against declared type: {message}",
+                                name.as_str()
+                            )
+                        })?;
+                    let evidence = self.elaborate_proof_evidence(
+                        proof.as_ref(),
+                        &obligations,
+                        &module_context,
+                    )?;
+                    ctx = module_context;
+                    self.validate_definition_with_evidence(
+                        &mut ctx, kind, body_elab, ty_elab, &evidence,
+                    )?;
                     let defined_constant = DefinedConstant {
                         kind,
                         ty: ty_elab,
@@ -1313,7 +1547,7 @@ impl GlobalEnvironment {
                 } => self
                     .module_manager
                     .use_macro(&self.crate_env, import_name, macro_name)?,
-                ModuleItem::Eval { exp } => {
+                ModuleItem::Eval { exp, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
                         self.infer_term_with_metavariables(&mut ctx, exp_elab)
@@ -1321,6 +1555,20 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
+                    if proof.is_some() {
+                        let module_context = ctx.clone();
+                        let (judgement, obligations) =
+                            self.collect_inference_obligations(&mut ctx, exp_elab)?;
+                        let evidence = self.elaborate_proof_evidence(
+                            proof.as_ref(),
+                            &obligations,
+                            &module_context,
+                        )?;
+                        ctx = module_context;
+                        self.validate_inference_with_evidence(
+                            &mut ctx, exp_elab, judgement, &evidence,
+                        )?;
+                    }
                     self.logger.reduce_one(
                         &self.crate_env,
                         self.module_manager.current(),
@@ -1328,7 +1576,7 @@ impl GlobalEnvironment {
                         exp_elab,
                     );
                 }
-                ModuleItem::Normalize { exp } => {
+                ModuleItem::Normalize { exp, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
                         self.infer_term_with_metavariables(&mut ctx, exp_elab)
@@ -1336,6 +1584,20 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
+                    if proof.is_some() {
+                        let module_context = ctx.clone();
+                        let (judgement, obligations) =
+                            self.collect_inference_obligations(&mut ctx, exp_elab)?;
+                        let evidence = self.elaborate_proof_evidence(
+                            proof.as_ref(),
+                            &obligations,
+                            &module_context,
+                        )?;
+                        ctx = module_context;
+                        self.validate_inference_with_evidence(
+                            &mut ctx, exp_elab, judgement, &evidence,
+                        )?;
+                    }
                     self.logger.normalize(
                         &self.crate_env,
                         self.module_manager.current(),
@@ -1343,7 +1605,7 @@ impl GlobalEnvironment {
                         exp_elab,
                     );
                 }
-                ModuleItem::Check { exp, ty } => {
+                ModuleItem::Check { exp, ty, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     if !self.metavariables.is_empty() {
@@ -1353,15 +1615,36 @@ impl GlobalEnvironment {
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
                     let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
-                    self.logger.check(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut ctx,
-                        exp_elab,
-                        ty_elab,
-                    );
+                    if proof.is_some() {
+                        let module_context = ctx.clone();
+                        let (kind, obligations) =
+                            self.collect_definition_obligations(&mut ctx, exp_elab, ty_elab)?;
+                        let evidence = self.elaborate_proof_evidence(
+                            proof.as_ref(),
+                            &obligations,
+                            &module_context,
+                        )?;
+                        ctx = module_context;
+                        self.validate_definition_with_evidence(
+                            &mut ctx, kind, exp_elab, ty_elab, &evidence,
+                        )?;
+                        self.logger.record(
+                            LogLevel::Debug,
+                            vec!["check".to_string()],
+                            "check success".to_string(),
+                            LogPayload::Exp(ty_elab),
+                        );
+                    } else {
+                        self.logger.check(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut ctx,
+                            exp_elab,
+                            ty_elab,
+                        );
+                    }
                 }
-                ModuleItem::Infer { exp } => {
+                ModuleItem::Infer { exp, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
                         self.infer_term_with_metavariables(&mut ctx, exp_elab)
@@ -1369,12 +1652,41 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
-                    self.logger.infer_any(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut ctx,
-                        exp_elab,
-                    );
+                    if proof.is_some() {
+                        let module_context = ctx.clone();
+                        let (judgement, obligations) =
+                            self.collect_inference_obligations(&mut ctx, exp_elab)?;
+                        let evidence = self.elaborate_proof_evidence(
+                            proof.as_ref(),
+                            &obligations,
+                            &module_context,
+                        )?;
+                        ctx = module_context;
+                        self.validate_inference_with_evidence(
+                            &mut ctx, exp_elab, judgement, &evidence,
+                        )?;
+                        let payload = match judgement {
+                            Judgement::Pts { ty }
+                            | Judgement::Value { ty }
+                            | Judgement::Computation { ty } => LogPayload::Exp(ty),
+                            Judgement::ValueType | Judgement::ComputationType => {
+                                LogPayload::Message
+                            }
+                        };
+                        self.logger.record(
+                            LogLevel::Debug,
+                            vec!["infer".to_string()],
+                            format!("infer success: {judgement:?}"),
+                            payload,
+                        );
+                    } else {
+                        self.logger.infer_any(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut ctx,
+                            exp_elab,
+                        );
+                    }
                 }
             }
         }

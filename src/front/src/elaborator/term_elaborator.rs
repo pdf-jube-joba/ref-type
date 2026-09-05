@@ -10,6 +10,7 @@ pub trait Handler {
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
     fn current_module(&self) -> ModuleId;
+    fn module_context(&self) -> Context;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -63,6 +64,41 @@ impl LocalScope {
             decl_binds: vec![],
             typing_binds: vec![],
         }
+    }
+
+    pub fn typing_context(&self) -> &Context {
+        &self.typing_binds
+    }
+
+    fn kernel_context(&self, handler: &impl Handler) -> Context {
+        let mut context = handler.module_context();
+        context.extend(self.typing_binds.iter().cloned());
+        context
+    }
+
+    fn is_set_type(&self, handler: &impl Handler, ty: Exp) -> bool {
+        let mut context = self.kernel_context(handler);
+        matches!(
+            kernel::derivation::CheckSession::new(
+                handler.env(),
+                handler.current_module(),
+                &mut context,
+            )
+            .infer_sort(ty),
+            Ok(kernel::sort::Sort::Set(_))
+        )
+    }
+
+    fn program_context(&self, handler: &impl Handler) -> Context {
+        self.kernel_context(handler)
+            .into_iter()
+            .filter(|entry| {
+                matches!(
+                    entry,
+                    ContextEntry::ProgramType { .. } | ContextEntry::ProgramValue { .. }
+                )
+            })
+            .collect()
     }
 
     pub fn push_decl_var(&mut self, var: SymbolId) {
@@ -165,7 +201,7 @@ impl LocalScope {
             self.push_program_type_var(var);
             return;
         }
-        let mut context = self.typing_binds.clone();
+        let mut context = self.kernel_context(handler);
         if kernel::derivation::CheckSession::new(
             handler.env(),
             handler.current_module(),
@@ -319,12 +355,7 @@ impl LocalScope {
                             ))
                         }
                     }
-                    ItemAccessResult::Inductive(ModItemInductive {
-                        inductive,
-                        type_name: _,
-                        ctor_names: _,
-                        ..
-                    }) => {
+                    ItemAccessResult::Inductive(ModItemInductive { inductive, .. }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
@@ -726,7 +757,7 @@ impl LocalScope {
             SExp::ValueLet { var, value, body } => {
                 let value = self.elab_exp_rec(value, handler)?;
                 let value_ty = {
-                    let mut context = self.typing_binds.clone();
+                    let mut context = self.kernel_context(handler);
                     let mut session = kernel::derivation::CheckSession::new(
                         handler.env(),
                         handler.current_module(),
@@ -759,7 +790,7 @@ impl LocalScope {
                 }
                 let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
                 let scrutinee_ty = {
-                    let mut context = self.typing_binds.clone();
+                    let mut context = self.kernel_context(handler);
                     let mut session = kernel::derivation::CheckSession::new(
                         handler.env(),
                         handler.current_module(),
@@ -1234,10 +1265,31 @@ impl LocalScope {
                 step,
                 state,
             } => {
-                let state_ty = self.elab_exp_rec(state_ty, handler)?;
-                let result_ty = self.elab_exp_rec(result_ty, handler)?;
-                let step = self.elab_exp_rec(step, handler)?;
-                let state = self.elab_exp_rec(state, handler)?;
+                let mut state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let mut result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let mut step = self.elab_exp_rec(step, handler)?;
+                let mut state = self.elab_exp_rec(state, handler)?;
+                if !self.is_set_type(handler, state_ty) {
+                    let context = self.program_context(handler);
+                    state_ty = kernel::reflection::reflect_type(handler.env(), state_ty)
+                        .map_err(|error| format!("cannot reflect Acc state type: {error}"))?;
+                    result_ty = kernel::reflection::reflect_type(handler.env(), result_ty)
+                        .map_err(|error| format!("cannot reflect Acc result type: {error}"))?;
+                    step = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        step,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc step: {error}"))?;
+                    state = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        state,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc state: {error}"))?;
+                }
                 Ok(handler.arena().alloc(Node::Acc {
                     state_ty,
                     result_ty,
@@ -1246,33 +1298,39 @@ impl LocalScope {
                 }))
             }
             SExp::RfType { compute_ty } => {
-                let compute_ty = self.elab_exp_rec(compute_ty, handler)?;
-                Ok(handler.arena().alloc(Node::RfType { compute_ty }))
+                let _ = compute_ty;
+                Err("\\RfType was removed; reflection is performed by the kernel at Box/Force and reflected Program eliminators".to_string())
             }
             SExp::RfTerm { compute_ty, term } => {
-                let compute_ty = self.elab_exp_rec(compute_ty, handler)?;
-                let term = self.elab_exp_rec(term, handler)?;
-                Ok(handler.arena().alloc(Node::RfTerm { compute_ty, term }))
+                let _ = (compute_ty, term);
+                Err("\\RfTerm was removed; reflection is performed by the kernel at Box/Force and reflected Program eliminators".to_string())
             }
             SExp::Run {
                 state_ty,
                 result_ty,
                 step,
                 initial,
-                termination,
             } => {
                 let state_ty = self.elab_exp_rec(state_ty, handler)?;
                 let result_ty = self.elab_exp_rec(result_ty, handler)?;
                 let step = self.elab_exp_rec(step, handler)?;
                 let initial = self.elab_exp_rec(initial, handler)?;
-                let termination = self.elab_exp_rec(termination, handler)?;
-                Ok(handler.arena().alloc(Node::Run {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial,
-                    termination,
-                }))
+                let is_set = self.is_set_type(handler, state_ty);
+                if is_set {
+                    Ok(handler.arena().alloc(Node::SetRun {
+                        state_ty,
+                        result_ty,
+                        step,
+                        initial,
+                    }))
+                } else {
+                    Ok(handler.arena().alloc(Node::Run {
+                        state_ty,
+                        result_ty,
+                        step,
+                        initial,
+                    }))
+                }
             }
             SExp::RunCase {
                 state_ty,
@@ -1280,25 +1338,82 @@ impl LocalScope {
                 step,
                 initial,
                 transition,
-                termination,
-                invariant,
             } => {
                 let state_ty = self.elab_exp_rec(state_ty, handler)?;
                 let result_ty = self.elab_exp_rec(result_ty, handler)?;
                 let step = self.elab_exp_rec(step, handler)?;
                 let initial = self.elab_exp_rec(initial, handler)?;
                 let transition = self.elab_exp_rec(transition, handler)?;
-                let termination = self.elab_exp_rec(termination, handler)?;
-                let invariant = self.elab_exp_rec(invariant, handler)?;
-                Ok(handler.arena().alloc(Node::RunCase {
+                let is_set = self.is_set_type(handler, state_ty);
+                if is_set {
+                    Ok(handler.arena().alloc(Node::SetRunCase {
+                        state_ty,
+                        result_ty,
+                        step,
+                        initial,
+                        transition,
+                    }))
+                } else {
+                    Ok(handler.arena().alloc(Node::RunCase {
+                        state_ty,
+                        result_ty,
+                        step,
+                        initial,
+                        transition,
+                    }))
+                }
+            }
+            SExp::RunStepRec {
+                state_ty,
+                result_ty,
+                motive,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => {
+                let state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let motive = self.elab_exp_rec(motive, handler)?;
+                let on_continue = self.elab_exp_rec(on_continue, handler)?;
+                let on_finish = self.elab_exp_rec(on_finish, handler)?;
+                let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
+                Ok(handler.arena().alloc(Node::RunStepRec {
                     state_ty,
                     result_ty,
-                    step,
-                    initial,
-                    transition,
-                    termination,
-                    invariant,
+                    motive,
+                    on_continue,
+                    on_finish,
+                    scrutinee,
                 }))
+            }
+            SExp::Proof { proposition } => {
+                let proposition = self.elab_exp_rec(proposition, handler)?;
+                Ok(handler.arena().alloc(Node::Proof { proposition }))
+            }
+            SExp::BoxType { program_ty } => {
+                let program_ty = self.elab_exp_rec(program_ty, handler)?;
+                Ok(handler.arena().alloc(Node::BoxType { program_ty }))
+            }
+            SExp::BoxProgram {
+                program_ty,
+                program,
+            } => {
+                let program_ty = self.elab_exp_rec(program_ty, handler)?;
+                let program = self.elab_exp_rec(program, handler)?;
+                Ok(handler.arena().alloc(Node::BoxProgram {
+                    program_ty,
+                    program,
+                }))
+            }
+            SExp::ForceBox { program_ty, boxed } => {
+                let program_ty = self.elab_exp_rec(program_ty, handler)?;
+                let boxed = self.elab_exp_rec(boxed, handler)?;
+                Ok(handler.arena().alloc(Node::ForceBox { program_ty, boxed }))
+            }
+            SExp::BoxApp { function, argument } => {
+                let function = self.elab_exp_rec(function, handler)?;
+                let argument = self.elab_exp_rec(argument, handler)?;
+                Ok(handler.arena().alloc(Node::BoxApp { function, argument }))
             }
             SExp::AccIntro {
                 state_ty,
@@ -1307,11 +1422,32 @@ impl LocalScope {
                 state,
                 predecessors,
             } => {
-                let state_ty = self.elab_exp_rec(state_ty, handler)?;
-                let result_ty = self.elab_exp_rec(result_ty, handler)?;
-                let step = self.elab_exp_rec(step, handler)?;
-                let state = self.elab_exp_rec(state, handler)?;
+                let mut state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let mut result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let mut step = self.elab_exp_rec(step, handler)?;
+                let mut state = self.elab_exp_rec(state, handler)?;
                 let predecessors = self.elab_exp_rec(predecessors, handler)?;
+                if !self.is_set_type(handler, state_ty) {
+                    let context = self.program_context(handler);
+                    state_ty = kernel::reflection::reflect_type(handler.env(), state_ty)
+                        .map_err(|error| format!("cannot reflect Acc state type: {error}"))?;
+                    result_ty = kernel::reflection::reflect_type(handler.env(), result_ty)
+                        .map_err(|error| format!("cannot reflect Acc result type: {error}"))?;
+                    step = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        step,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc step: {error}"))?;
+                    state = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        state,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc state: {error}"))?;
+                }
                 Ok(handler.arena().alloc(Node::AccIntro {
                     state_ty,
                     result_ty,
@@ -1329,13 +1465,41 @@ impl LocalScope {
                 accessibility,
                 transition,
             } => {
-                let state_ty = self.elab_exp_rec(state_ty, handler)?;
-                let result_ty = self.elab_exp_rec(result_ty, handler)?;
-                let step = self.elab_exp_rec(step, handler)?;
-                let from = self.elab_exp_rec(from, handler)?;
-                let to = self.elab_exp_rec(to, handler)?;
+                let mut state_ty = self.elab_exp_rec(state_ty, handler)?;
+                let mut result_ty = self.elab_exp_rec(result_ty, handler)?;
+                let mut step = self.elab_exp_rec(step, handler)?;
+                let mut from = self.elab_exp_rec(from, handler)?;
+                let mut to = self.elab_exp_rec(to, handler)?;
                 let accessibility = self.elab_exp_rec(accessibility, handler)?;
                 let transition = self.elab_exp_rec(transition, handler)?;
+                if !self.is_set_type(handler, state_ty) {
+                    let context = self.program_context(handler);
+                    state_ty = kernel::reflection::reflect_type(handler.env(), state_ty)
+                        .map_err(|error| format!("cannot reflect Acc state type: {error}"))?;
+                    result_ty = kernel::reflection::reflect_type(handler.env(), result_ty)
+                        .map_err(|error| format!("cannot reflect Acc result type: {error}"))?;
+                    step = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        step,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc step: {error}"))?;
+                    from = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        from,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc source: {error}"))?;
+                    to = kernel::reflection::reflect_term(
+                        handler.env(),
+                        handler.current_module(),
+                        &context,
+                        to,
+                    )
+                    .map_err(|error| format!("cannot reflect Acc target: {error}"))?;
+                }
                 Ok(handler.arena().alloc(Node::AccDescent {
                     state_ty,
                     result_ty,

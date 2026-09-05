@@ -15,6 +15,10 @@ pub enum Token<'a> {
     EscapedMacroToken(&'a str),
     #[regex(r"[a-zA-Z][a-zA-Z0-9_]*")]
     Ident(&'a str),
+    #[token("proof", priority = 4)]
+    ProofBlock,
+    #[token("goal", priority = 4)]
+    Goal,
     #[regex(r"[0-9]+")]
     Number(&'a str),
     #[regex(r"\?[a-zA-Z0-9_]*")]
@@ -94,6 +98,12 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\RfTerm",
     "\\run",
     "\\runCase",
+    "\\runStepRec",
+    "\\Proof",
+    "\\Box",
+    "\\box",
+    "\\Force",
+    "\\boxapp",
     "\\exists", // \exists <Bind>
     "\\take",   // \take <Bind> => <body>
     "\\block",  // block expression
@@ -168,6 +178,8 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                 });
             }
             Ok(Token::Ident(_))
+            | Ok(Token::ProofBlock)
+            | Ok(Token::Goal)
             | Ok(Token::Number(_))
             | Ok(Token::UnspecifiedVar(_))
             | Ok(Token::MacroVar(_))
@@ -404,6 +416,7 @@ impl<'a> Parser<'a> {
         let ty = self.parse_sexp()?;
         self.expect_token(Token::Assign)?;
         let body = self.parse_sexp()?;
+        let proof = self.parse_optional_proof_block()?;
         self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::Definition {
             owner,
@@ -411,7 +424,36 @@ impl<'a> Parser<'a> {
             binders,
             ty,
             body,
+            proof,
         })
+    }
+
+    fn parse_optional_proof_block(&mut self) -> Result<Option<ProofBlock>, ParseError> {
+        if !self.bump_if_token(&Token::ProofBlock) {
+            return Ok(None);
+        }
+        self.expect_token(Token::LBrace)?;
+        let mut entries = Vec::new();
+        while !self.bump_if_token(&Token::RBrace) {
+            self.expect_token(Token::MacroToken("-"))?;
+            self.expect_token(Token::Goal)?;
+            let mut binders = Vec::new();
+            while let Some(parsed) = self.try_parse(|parser| parser.parse_rightbinds())? {
+                binders.extend(parsed);
+            }
+            self.expect_token(Token::Colon)?;
+            let proposition = self.parse_sexp()?;
+            self.expect_token(Token::Assign)?;
+            self.bump_if_keyword("\\by");
+            let witness = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            entries.push(ProofEntry {
+                binders,
+                proposition,
+                witness,
+            });
+        }
+        Ok(Some(ProofBlock { entries }))
     }
 
     fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
@@ -705,25 +747,29 @@ impl<'a> Parser<'a> {
         }
         if self.bump_if_keyword("\\eval") {
             let exp = self.parse_sexp()?;
+            let proof = self.parse_optional_proof_block()?;
             self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::Eval { exp }));
+            return Ok(Some(ModuleItem::Eval { exp, proof }));
         }
         if self.bump_if_keyword("\\normalize") {
             let exp = self.parse_sexp()?;
+            let proof = self.parse_optional_proof_block()?;
             self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::Normalize { exp }));
+            return Ok(Some(ModuleItem::Normalize { exp, proof }));
         }
         if self.bump_if_keyword("\\check") {
             let exp = self.parse_sexp()?;
             self.expect_token(Token::Colon)?;
             let ty = self.parse_sexp()?;
+            let proof = self.parse_optional_proof_block()?;
             self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::Check { exp, ty }));
+            return Ok(Some(ModuleItem::Check { exp, ty, proof }));
         }
         if self.bump_if_keyword("\\infer") {
             let exp = self.parse_sexp()?;
+            let proof = self.parse_optional_proof_block()?;
             self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::Infer { exp }));
+            return Ok(Some(ModuleItem::Infer { exp, proof }));
         }
         self.pos = save_pos;
         Ok(None)

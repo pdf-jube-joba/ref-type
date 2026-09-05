@@ -16,6 +16,8 @@ pub mod inductive;
 pub mod program_inductive;
 // alpha conversion, substitution, free variables
 pub mod calculus;
+// structural, meta-level CBPV-to-Set reflection
+pub mod reflection;
 // type check, type inference, sort inference
 pub mod derivation;
 #[cfg(test)]

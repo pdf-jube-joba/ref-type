@@ -79,6 +79,7 @@ fn instantiate_associated_definitions(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn materialize_associated_definitions(
     env: &mut CrateEnv,
     module: ModuleId,

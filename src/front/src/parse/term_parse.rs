@@ -478,21 +478,17 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\RfType") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|compute_ty| SExp::RfType {
-                    compute_ty: Box::new(compute_ty),
-                })
+            return Err(ParseError {
+                msg: "\\RfType was removed: reflection is now a meta-level map".into(),
+                start: self.pos.saturating_sub(1),
+                end: self.pos,
             });
         }
         if self.bump_if_keyword("\\RfTerm") {
-            return self.parse_parenthesized(|parser| {
-                let compute_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let term = parser.parse_sexp()?;
-                Ok(SExp::RfTerm {
-                    compute_ty: Box::new(compute_ty),
-                    term: Box::new(term),
-                })
+            return Err(ParseError {
+                msg: "\\RfTerm was removed: reflection is now a meta-level map".into(),
+                start: self.pos.saturating_sub(1),
+                end: self.pos,
             });
         }
         if self.bump_if_keyword("\\run") {
@@ -504,14 +500,18 @@ impl<'a> TermParser<'a> {
                 let step = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let initial = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let termination = parser.parse_sexp()?;
+                if parser.bump_if_token(&Token::Comma) {
+                    return Err(ParseError {
+                        msg: "five-argument \\run was removed; put the Acc witness in a trailing proof block".into(),
+                        start: parser.pos,
+                        end: parser.pos,
+                    });
+                }
                 Ok(SExp::Run {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     step: Box::new(step),
                     initial: Box::new(initial),
-                    termination: Box::new(termination),
                 })
             });
         }
@@ -526,18 +526,88 @@ impl<'a> TermParser<'a> {
                 let initial = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let transition = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let termination = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let invariant = parser.parse_sexp()?;
+                if parser.bump_if_token(&Token::Comma) {
+                    return Err(ParseError {
+                        msg: "legacy annotated \\runCase was removed; use a proof block".into(),
+                        start: parser.pos,
+                        end: parser.pos,
+                    });
+                }
                 Ok(SExp::RunCase {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     step: Box::new(step),
                     initial: Box::new(initial),
                     transition: Box::new(transition),
-                    termination: Box::new(termination),
-                    invariant: Box::new(invariant),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\runStepRec") {
+            return self.parse_parenthesized(|parser| {
+                let state_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let result_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let motive = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let on_continue = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let on_finish = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let scrutinee = parser.parse_sexp()?;
+                Ok(SExp::RunStepRec {
+                    state_ty: Box::new(state_ty),
+                    result_ty: Box::new(result_ty),
+                    motive: Box::new(motive),
+                    on_continue: Box::new(on_continue),
+                    on_finish: Box::new(on_finish),
+                    scrutinee: Box::new(scrutinee),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\Proof") {
+            let proposition = self.parse_atom()?;
+            return Ok(SExp::Proof {
+                proposition: Box::new(proposition),
+            });
+        }
+        if self.bump_if_keyword("\\Box") {
+            return self.parse_parenthesized(|parser| {
+                parser.parse_sexp().map(|program_ty| SExp::BoxType {
+                    program_ty: Box::new(program_ty),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\box") {
+            return self.parse_parenthesized(|parser| {
+                let program_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let program = parser.parse_sexp()?;
+                Ok(SExp::BoxProgram {
+                    program_ty: Box::new(program_ty),
+                    program: Box::new(program),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\Force") {
+            return self.parse_parenthesized(|parser| {
+                let program_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let boxed = parser.parse_sexp()?;
+                Ok(SExp::ForceBox {
+                    program_ty: Box::new(program_ty),
+                    boxed: Box::new(boxed),
+                })
+            });
+        }
+        if self.bump_if_keyword("\\boxapp") {
+            return self.parse_parenthesized(|parser| {
+                let function = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let argument = parser.parse_sexp()?;
+                Ok(SExp::BoxApp {
+                    function: Box::new(function),
+                    argument: Box::new(argument),
                 })
             });
         }

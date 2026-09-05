@@ -9,7 +9,9 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
     let arena = env.arena();
     match arena.get(exp) {
         Node::Sort(_) | Node::ValueType | Node::Bound(_) => false,
-        Node::ModuleParam(candidate) => candidate == parameter,
+        Node::ModuleParam(candidate) | Node::ReflectedProgramParam(candidate) => {
+            candidate == parameter
+        }
         Node::Meta { spine, .. } => spine
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
@@ -93,6 +95,11 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
             scrutinee,
             branches,
             ..
+        }
+        | Node::ReflectedProgramCase {
+            scrutinee,
+            branches,
+            ..
         } => {
             exp_contains_module_param(env, scrutinee, parameter)
                 || branches
@@ -129,14 +136,50 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [state_ty, result_ty, step, state]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::Proof { proposition } => exp_contains_module_param(env, proposition, parameter),
+        Node::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => [
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        ]
+        .into_iter()
+        .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::BoxType { program_ty } => exp_contains_module_param(env, program_ty, parameter),
+        Node::BoxProgram {
+            program_ty,
+            program,
+        } => [program_ty, program]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::ForceBox { program_ty, boxed } => [program_ty, boxed]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
+        Node::BoxApp { function, argument } => [function, argument]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::RfType { compute_ty } => exp_contains_module_param(env, compute_ty, parameter),
         Node::Run {
             state_ty,
             result_ty,
             step,
             initial,
-            termination,
-        } => [state_ty, result_ty, step, initial, termination]
+        }
+        | Node::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => [state_ty, result_ty, step, initial]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::RunCase {
@@ -145,19 +188,16 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
             step,
             initial,
             transition,
-            termination,
-            invariant,
-        } => [
+        }
+        | Node::SetRunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-            termination,
-            invariant,
-        ]
-        .into_iter()
-        .any(|child| exp_contains_module_param(env, child, parameter)),
+        } => [state_ty, result_ty, step, initial, transition]
+            .into_iter()
+            .any(|child| exp_contains_module_param(env, child, parameter)),
         Node::AccIntro {
             state_ty,
             result_ty,
@@ -337,6 +377,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
         (Node::ValueType, Node::ValueType) => true,
         (Node::Bound(left), Node::Bound(right)) => left == right,
         (Node::ModuleParam(left), Node::ModuleParam(right)) => left == right,
+        (Node::ReflectedProgramParam(left), Node::ReflectedProgramParam(right)) => left == right,
         (
             Node::Meta {
                 metavariable: left_meta,
@@ -692,24 +733,38 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 result_ty: left_result_ty,
                 step: left_step,
                 initial: left_initial,
-                termination: left_termination,
             },
             Node::Run {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
                 initial: right_initial,
-                termination: right_termination,
             },
-        ) => {
-            eq_slices(
-                env,
-                &[left_state_ty, left_result_ty, left_step, left_initial],
-                &[right_state_ty, right_result_ty, right_step, right_initial],
-                mode,
-            ) && (mode.proof_irrelevant
-                || is_alpha_eq_rec(env, left_termination, right_termination, mode))
-        }
+        ) => eq_slices(
+            env,
+            &[left_state_ty, left_result_ty, left_step, left_initial],
+            &[right_state_ty, right_result_ty, right_step, right_initial],
+            mode,
+        ),
+        (
+            Node::SetRun {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                step: left_step,
+                initial: left_initial,
+            },
+            Node::SetRun {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                step: right_step,
+                initial: right_initial,
+            },
+        ) => eq_slices(
+            env,
+            &[left_state_ty, left_result_ty, left_step, left_initial],
+            &[right_state_ty, right_result_ty, right_step, right_initial],
+            mode,
+        ),
         (
             Node::RunCase {
                 state_ty: left_state_ty,
@@ -717,8 +772,6 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 step: left_step,
                 initial: left_initial,
                 transition: left_transition,
-                termination: left_termination,
-                invariant: left_invariant,
             },
             Node::RunCase {
                 state_ty: right_state_ty,
@@ -726,30 +779,136 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 step: right_step,
                 initial: right_initial,
                 transition: right_transition,
-                termination: right_termination,
-                invariant: right_invariant,
+            },
+        ) => eq_slices(
+            env,
+            &[
+                left_state_ty,
+                left_result_ty,
+                left_step,
+                left_initial,
+                left_transition,
+            ],
+            &[
+                right_state_ty,
+                right_result_ty,
+                right_step,
+                right_initial,
+                right_transition,
+            ],
+            mode,
+        ),
+        (
+            Node::SetRunCase {
+                state_ty: left_state_ty,
+                result_ty: left_result_ty,
+                step: left_step,
+                initial: left_initial,
+                transition: left_transition,
+            },
+            Node::SetRunCase {
+                state_ty: right_state_ty,
+                result_ty: right_result_ty,
+                step: right_step,
+                initial: right_initial,
+                transition: right_transition,
+            },
+        ) => eq_slices(
+            env,
+            &[
+                left_state_ty,
+                left_result_ty,
+                left_step,
+                left_initial,
+                left_transition,
+            ],
+            &[
+                right_state_ty,
+                right_result_ty,
+                right_step,
+                right_initial,
+                right_transition,
+            ],
+            mode,
+        ),
+        (Node::Proof { proposition: left }, Node::Proof { proposition: right }) => {
+            mode.proof_irrelevant || is_alpha_eq_rec(env, left, right, mode)
+        }
+        (
+            Node::RunStepRec {
+                state_ty: ls,
+                result_ty: lr,
+                motive: lm,
+                on_continue: lc,
+                on_finish: lf,
+                scrutinee: lx,
+            },
+            Node::RunStepRec {
+                state_ty: rs,
+                result_ty: rr,
+                motive: rm,
+                on_continue: rc,
+                on_finish: rf,
+                scrutinee: rx,
+            },
+        ) => eq_slices(
+            env,
+            &[ls, lr, lm, lc, lf, lx],
+            &[rs, rr, rm, rc, rf, rx],
+            mode,
+        ),
+        (Node::BoxType { program_ty: left }, Node::BoxType { program_ty: right }) => {
+            is_alpha_eq_rec(env, left, right, mode)
+        }
+        (
+            Node::BoxProgram {
+                program_ty: lt,
+                program: lp,
+            },
+            Node::BoxProgram {
+                program_ty: rt,
+                program: rp,
+            },
+        ) => eq_slices(env, &[lt, lp], &[rt, rp], mode),
+        (
+            Node::ForceBox {
+                program_ty: lt,
+                boxed: lb,
+            },
+            Node::ForceBox {
+                program_ty: rt,
+                boxed: rb,
+            },
+        ) => eq_slices(env, &[lt, lb], &[rt, rb], mode),
+        (
+            Node::BoxApp {
+                function: lf,
+                argument: la,
+            },
+            Node::BoxApp {
+                function: rf,
+                argument: ra,
+            },
+        ) => eq_slices(env, &[lf, la], &[rf, ra], mode),
+        (
+            Node::ReflectedProgramCase {
+                indspec: li,
+                scrutinee: ls,
+                branches: lb,
+            },
+            Node::ReflectedProgramCase {
+                indspec: ri,
+                scrutinee: rs,
+                branches: rb,
             },
         ) => {
-            eq_slices(
-                env,
-                &[
-                    left_state_ty,
-                    left_result_ty,
-                    left_step,
-                    left_initial,
-                    left_transition,
-                ],
-                &[
-                    right_state_ty,
-                    right_result_ty,
-                    right_step,
-                    right_initial,
-                    right_transition,
-                ],
-                mode,
-            ) && (mode.proof_irrelevant
-                || (is_alpha_eq_rec(env, left_termination, right_termination, mode)
-                    && is_alpha_eq_rec(env, left_invariant, right_invariant, mode)))
+            li == ri
+                && is_alpha_eq_rec(env, ls, rs, mode)
+                && lb.len() == rb.len()
+                && lb.iter().zip(&rb).all(|(left, right)| {
+                    left.binders.len() == right.binders.len()
+                        && is_alpha_eq_rec(env, left.body, right.body, mode)
+                })
         }
         (
             Node::AccIntro {
@@ -1246,7 +1405,11 @@ where
 
 pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
     match &mut node {
-        Node::Sort(_) | Node::ValueType | Node::Bound(_) | Node::ModuleParam(_) => {}
+        Node::Sort(_)
+        | Node::ValueType
+        | Node::Bound(_)
+        | Node::ModuleParam(_)
+        | Node::ReflectedProgramParam(_) => {}
         Node::Meta { spine, .. } => {
             for argument in spine {
                 *argument = map(*argument);
@@ -1363,6 +1526,11 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             scrutinee,
             branches,
             ..
+        }
+        | Node::ReflectedProgramCase {
+            scrutinee,
+            branches,
+            ..
         } => {
             *scrutinee = map(*scrutinee);
             for branch in branches {
@@ -1380,6 +1548,38 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *step = map(*step);
             *state = map(*state);
         }
+        Node::Proof { proposition } => *proposition = map(*proposition),
+        Node::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => {
+            *state_ty = map(*state_ty);
+            *result_ty = map(*result_ty);
+            *motive = map(*motive);
+            *on_continue = map(*on_continue);
+            *on_finish = map(*on_finish);
+            *scrutinee = map(*scrutinee);
+        }
+        Node::BoxType { program_ty } => *program_ty = map(*program_ty),
+        Node::BoxProgram {
+            program_ty,
+            program,
+        } => {
+            *program_ty = map(*program_ty);
+            *program = map(*program);
+        }
+        Node::ForceBox { program_ty, boxed } => {
+            *program_ty = map(*program_ty);
+            *boxed = map(*boxed);
+        }
+        Node::BoxApp { function, argument } => {
+            *function = map(*function);
+            *argument = map(*argument);
+        }
         Node::RfType { compute_ty } => *compute_ty = map(*compute_ty),
         Node::RfTerm { compute_ty, term } => {
             *compute_ty = map(*compute_ty);
@@ -1390,13 +1590,17 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             result_ty,
             step,
             initial,
-            termination,
+        }
+        | Node::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
         } => {
             *state_ty = map(*state_ty);
             *result_ty = map(*result_ty);
             *step = map(*step);
             *initial = map(*initial);
-            *termination = map(*termination);
         }
         Node::RunCase {
             state_ty,
@@ -1404,16 +1608,19 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             step,
             initial,
             transition,
-            termination,
-            invariant,
+        }
+        | Node::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
         } => {
             *state_ty = map(*state_ty);
             *result_ty = map(*result_ty);
             *step = map(*step);
             *initial = map(*initial);
             *transition = map(*transition);
-            *termination = map(*termination);
-            *invariant = map(*invariant);
         }
         Node::AccIntro {
             state_ty,
@@ -2004,58 +2211,6 @@ pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
     }
 }
 
-fn reduce_reflected_application(env: &CrateEnv, func: Exp, arg: Exp) -> Option<Exp> {
-    let arena = env.arena();
-    let Node::RfTerm {
-        compute_ty,
-        term: reflected_func,
-    } = arena.get(func)
-    else {
-        return None;
-    };
-    let Node::RfTerm {
-        term: reflected_arg,
-        ..
-    } = arena.get(arg)
-    else {
-        return None;
-    };
-    let (codomain, application) = match arena.get(compute_ty) {
-        Node::ThunkType { computation_ty } => {
-            let Node::ComputationFunction {
-                domain: _,
-                codomain,
-            } = arena.get(computation_ty)
-            else {
-                return None;
-            };
-            let forced = arena.alloc(Node::Force {
-                value: reflected_func,
-            });
-            let application = arena.alloc(Node::ComputationApp {
-                computation: forced,
-                value: reflected_arg,
-            });
-            (codomain, application)
-        }
-        Node::ComputationFunction {
-            domain: _,
-            codomain,
-        } => {
-            let application = arena.alloc(Node::ComputationApp {
-                computation: reflected_func,
-                value: reflected_arg,
-            });
-            (codomain, application)
-        }
-        _ => return None,
-    };
-    Some(arena.alloc(Node::RfTerm {
-        compute_ty: codomain,
-        term: application,
-    }))
-}
-
 fn unfold_program_value_head(env: &CrateEnv, mut value: Exp) -> Exp {
     loop {
         let Node::DefinedConstant(definition) = env.arena().get(value) else {
@@ -2122,25 +2277,17 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
             result_ty,
             step,
             initial,
-            termination,
+        }
+        | Node::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
         } => {
             let forced = arena.alloc(Node::Force { value: step });
             let transition = arena.alloc(Node::ComputationApp {
                 computation: forced,
                 value: initial,
-            });
-            let step_result_ty = arena.alloc(Node::ReturnType {
-                value_ty: arena.alloc(Node::RunStep {
-                    state_ty,
-                    result_ty,
-                }),
-            });
-            let reflected_transition = arena.alloc(Node::RfTerm {
-                compute_ty: step_result_ty,
-                term: transition,
-            });
-            let invariant = arena.alloc(Node::IdRefl {
-                element: reflected_transition,
             });
             Some(arena.alloc(Node::RunCase {
                 state_ty,
@@ -2148,8 +2295,6 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
                 step,
                 initial,
                 transition,
-                termination,
-                invariant,
             }))
         }
         Node::RunCase {
@@ -2158,8 +2303,13 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
             step,
             initial,
             transition,
-            termination,
-            invariant,
+        }
+        | Node::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
         } => {
             if let Some(reduced) = reduce_computation_once(env, transition) {
                 return Some(arena.alloc(Node::RunCase {
@@ -2168,40 +2318,18 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
                     step,
                     initial,
                     transition: reduced,
-                    termination,
-                    invariant,
                 }));
             }
             let Node::Return { value } = arena.get(transition) else {
                 return None;
             };
             match arena.get(unfold_program_value_head(env, value)) {
-                Node::Continue { next, .. } => {
-                    let reflected_from = arena.alloc(Node::RfTerm {
-                        compute_ty: state_ty,
-                        term: initial,
-                    });
-                    let reflected_to = arena.alloc(Node::RfTerm {
-                        compute_ty: state_ty,
-                        term: next,
-                    });
-                    let next_termination = arena.alloc(Node::AccDescent {
-                        state_ty,
-                        result_ty,
-                        step,
-                        from: reflected_from,
-                        to: reflected_to,
-                        accessibility: termination,
-                        transition: invariant,
-                    });
-                    Some(arena.alloc(Node::Run {
-                        state_ty,
-                        result_ty,
-                        step,
-                        initial: next,
-                        termination: next_termination,
-                    }))
-                }
+                Node::Continue { next, .. } => Some(arena.alloc(Node::Run {
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial: next,
+                })),
                 Node::Finish { output, .. } => Some(arena.alloc(Node::Return { value: output })),
                 _ => None,
             }
@@ -2232,13 +2360,34 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
     }
 }
 
-/// Evaluate a CBPV computation to a weak normal form.
-pub fn evaluate_computation(env: &CrateEnv, computation: Exp) -> Exp {
+pub const DEFAULT_REDUCTION_FUEL: usize = 100_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Evaluation {
+    Normal(Exp),
+    OutOfFuel(Exp),
+}
+
+/// Evaluate a CBPV computation to a weak normal form with an explicit step
+/// budget.  Ordinary Program typing does not imply termination, so an
+/// unbounded evaluator would make the checker/CLI hang on a valid term.
+pub fn evaluate_computation_with_fuel(env: &CrateEnv, computation: Exp, fuel: usize) -> Evaluation {
     let mut current = computation;
-    while let Some(next) = reduce_computation_once(env, current) {
+    for _ in 0..fuel {
+        let Some(next) = reduce_computation_once(env, current) else {
+            return Evaluation::Normal(current);
+        };
         current = next;
     }
-    current
+    if reduce_computation_once(env, current).is_some() {
+        Evaluation::OutOfFuel(current)
+    } else {
+        Evaluation::Normal(current)
+    }
+}
+
+pub fn evaluate_computation(env: &CrateEnv, computation: Exp) -> Evaluation {
+    evaluate_computation_with_fuel(env, computation, DEFAULT_REDUCTION_FUEL)
 }
 
 pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
@@ -2246,7 +2395,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     match arena.get(exp) {
         Node::App { func, arg } => match arena.get(func) {
             Node::Lam { body, .. } => Some(instantiate(arena, body, arg)),
-            _ => reduce_reflected_application(env, func, arg),
+            _ => None,
         },
         Node::DefinedConstant(definition) => Some(env.definition(definition).body),
         Node::Pred {
@@ -2256,6 +2405,34 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             _ => None,
         },
         Node::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
+        Node::ReflectedProgramCase {
+            indspec,
+            scrutinee,
+            branches,
+        } => {
+            let reduced = whnf(env, scrutinee);
+            let (head, fields) = crate::utils::decompose_app(arena, reduced);
+            let Node::IndCtor {
+                indspec: reflected,
+                idx,
+                ..
+            } = arena.get(head)
+            else {
+                return (reduced != scrutinee).then(|| {
+                    arena.alloc(Node::ReflectedProgramCase {
+                        indspec,
+                        scrutinee: reduced,
+                        branches,
+                    })
+                });
+            };
+            if reflected != env.program_inductive(indspec).reflected() {
+                return None;
+            }
+            let branch = branches.get(idx)?;
+            (branch.binders.len() == fields.len())
+                .then(|| instantiate_telescope(arena, branch.body, &fields))
+        }
         Node::IndProjection {
             indspec,
             parameters,
@@ -2318,113 +2495,102 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 _ => None,
             }
         }
-        Node::RfType { compute_ty } => match arena.get(compute_ty) {
-            Node::ReturnType { value_ty } => Some(arena.alloc(Node::RfType {
-                compute_ty: value_ty,
+        Node::RunStepRec {
+            on_continue,
+            on_finish,
+            scrutinee,
+            ..
+        } => match arena.get(scrutinee) {
+            Node::Continue { next, .. } => Some(arena.alloc(Node::App {
+                func: on_continue,
+                arg: next,
             })),
-            Node::ThunkType { computation_ty } => Some(arena.alloc(Node::RfType {
-                compute_ty: computation_ty,
+            Node::Finish { output, .. } => Some(arena.alloc(Node::App {
+                func: on_finish,
+                arg: output,
             })),
-            Node::ComputationFunction { domain, codomain } => {
-                let reflected_domain = arena.alloc(Node::RfType { compute_ty: domain });
-                let reflected_codomain = arena.alloc(Node::RfType {
-                    compute_ty: codomain,
-                });
-                Some(arena.alloc(Node::Prod {
-                    var: SymbolId::ANONYMOUS,
-                    ty: reflected_domain,
-                    body: shift_bound_indices(arena, reflected_codomain, 1, 0),
-                }))
-            }
-            Node::ProgramIndType {
-                indspec,
-                parameters,
-            } => {
-                let reflected = env.program_inductive(indspec).reflected();
-                let parameters = parameters
-                    .into_iter()
-                    .map(|parameter| {
-                        arena.alloc(Node::RfType {
-                            compute_ty: parameter,
-                        })
-                    })
-                    .collect();
-                Some(arena.alloc(Node::IndType {
-                    indspec: reflected,
-                    parameters,
-                }))
-            }
             _ => None,
         },
-        Node::RfTerm { compute_ty, term } => match (arena.get(compute_ty), arena.get(term)) {
-            (Node::ReturnType { value_ty }, Node::Return { value }) => {
-                Some(arena.alloc(Node::RfTerm {
-                    compute_ty: value_ty,
-                    term: value,
-                }))
-            }
-            (Node::ThunkType { computation_ty }, Node::Thunk { computation }) => {
-                Some(arena.alloc(Node::RfTerm {
-                    compute_ty: computation_ty,
-                    term: computation,
-                }))
-            }
-            (
-                Node::ProgramIndType {
-                    indspec: type_spec,
-                    parameters: type_parameters,
-                },
-                Node::ProgramIndCtor {
-                    indspec: constructor_spec,
-                    parameters: constructor_parameters,
-                    idx,
-                    fields,
-                },
-            ) if type_spec == constructor_spec
-                && type_parameters.len() == constructor_parameters.len() =>
-            {
-                let spec = env.program_inductive(type_spec);
-                let constructor = spec.constructors().get(idx)?;
-                let field_types = constructor.instantiated_fields(arena, &constructor_parameters);
-                if field_types.len() != fields.len() {
-                    return None;
-                }
-                let reflected_parameters = constructor_parameters
-                    .into_iter()
-                    .map(|parameter| {
-                        arena.alloc(Node::RfType {
-                            compute_ty: parameter,
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                let constructor = arena.alloc(Node::IndCtor {
-                    indspec: spec.reflected(),
-                    parameters: reflected_parameters,
-                    idx,
-                });
-                let reflected_fields = fields
-                    .into_iter()
-                    .zip(field_types)
-                    .map(|(field, (_, field_ty))| {
-                        arena.alloc(Node::RfTerm {
-                            compute_ty: field_ty,
-                            term: field,
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                Some(crate::utils::assoc_apply(
-                    arena,
-                    constructor,
-                    reflected_fields,
-                ))
-            }
-            _ => reduce_computation_once(env, term).map(|reduced| {
-                arena.alloc(Node::RfTerm {
-                    compute_ty,
-                    term: reduced,
-                })
+        Node::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => Some(arena.alloc(Node::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition: arena.alloc(Node::App {
+                func: step,
+                arg: initial,
             }),
+        })),
+        Node::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial: _,
+            transition,
+        } => match arena.get(transition) {
+            Node::Continue { next, .. } => Some(arena.alloc(Node::SetRun {
+                state_ty,
+                result_ty,
+                step,
+                initial: next,
+            })),
+            Node::Finish { output, .. } => Some(output),
+            _ => None,
         },
+        Node::BoxProgram {
+            program_ty,
+            program,
+        } => reduce_computation_once(env, program).map(|program| {
+            arena.alloc(Node::BoxProgram {
+                program_ty,
+                program,
+            })
+        }),
+        Node::ForceBox { program_ty, boxed } => {
+            let Node::BoxProgram {
+                program_ty: boxed_ty,
+                program,
+            } = arena.get(boxed)
+            else {
+                return None;
+            };
+            if !exp_is_alpha_eq(env, program_ty, boxed_ty)
+                || reduce_computation_once(env, program).is_some()
+            {
+                return None;
+            }
+            crate::reflection::reflect_term(env, crate::ids::ModuleId(0), &Vec::new(), program).ok()
+        }
+        Node::BoxApp { function, argument } => {
+            let Node::BoxProgram {
+                program_ty: function_ty,
+                program: function,
+            } = arena.get(function)
+            else {
+                return None;
+            };
+            let Node::ComputationFunction { codomain, .. } = arena.get(function_ty) else {
+                return None;
+            };
+            let Node::BoxProgram {
+                program: argument, ..
+            } = arena.get(argument)
+            else {
+                return None;
+            };
+            Some(arena.alloc(Node::BoxProgram {
+                program_ty: codomain,
+                program: arena.alloc(Node::ComputationApp {
+                    computation: function,
+                    value: argument,
+                }),
+            }))
+        }
         _ => None,
     }
 }
@@ -2440,11 +2606,9 @@ fn exp_reduce_head_once_with_cache(
         return Some(element);
     }
 
-    // PTS applications use call-by-value: first expose the function,
-    // then evaluate the argument, and contract beta only after both are
-    // stable.  Evaluating arguments of neutral applications is intentional:
-    // constructor values are represented by application spines, so this also
-    // evaluates their fields before an eliminator observes them.
+    // Set/Prop uses ordinary beta reduction.  Weak-head normalization exposes
+    // the function and contracts immediately; full normalization below walks
+    // every compatible subterm, including neutral arguments.
     match arena.get(exp) {
         Node::App { func, arg } => {
             let reduced_func = exp_whnf_with_mode_and_cache(env, func, erase_subset_intro, cache);
@@ -2452,18 +2616,6 @@ fn exp_reduce_head_once_with_cache(
                 return Some(arena.alloc(Node::App {
                     func: reduced_func,
                     arg,
-                }));
-            }
-            // Preserve the RfTerm wrapper on the argument until the
-            // Rf-C-App/Rf-U-App root rule has had a chance to fire.
-            if let Some(reduced) = reduce_reflected_application(env, func, arg) {
-                return Some(reduced);
-            }
-            let reduced_arg = exp_whnf_with_mode_and_cache(env, arg, erase_subset_intro, cache);
-            if reduced_arg != arg {
-                return Some(arena.alloc(Node::App {
-                    func,
-                    arg: reduced_arg,
                 }));
             }
         }
@@ -2480,6 +2632,85 @@ fn exp_reduce_head_once_with_cache(
                     elim: reduced_elim,
                     return_type,
                     cases,
+                }));
+            }
+        }
+        Node::ReflectedProgramCase {
+            indspec,
+            scrutinee,
+            branches,
+        } => {
+            let reduced = exp_whnf_with_mode_and_cache(env, scrutinee, erase_subset_intro, cache);
+            if reduced != scrutinee {
+                return Some(arena.alloc(Node::ReflectedProgramCase {
+                    indspec,
+                    scrutinee: reduced,
+                    branches,
+                }));
+            }
+        }
+        Node::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => {
+            let reduced = exp_whnf_with_mode_and_cache(env, scrutinee, erase_subset_intro, cache);
+            if reduced != scrutinee {
+                return Some(arena.alloc(Node::RunStepRec {
+                    state_ty,
+                    result_ty,
+                    motive,
+                    on_continue,
+                    on_finish,
+                    scrutinee: reduced,
+                }));
+            }
+        }
+        Node::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        } => {
+            let reduced = exp_whnf_with_mode_and_cache(env, transition, erase_subset_intro, cache);
+            if reduced != transition {
+                return Some(arena.alloc(Node::SetRunCase {
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    transition: reduced,
+                }));
+            }
+        }
+        Node::ForceBox { program_ty, boxed } => {
+            let reduced = exp_whnf_with_mode_and_cache(env, boxed, erase_subset_intro, cache);
+            if reduced != boxed {
+                return Some(arena.alloc(Node::ForceBox {
+                    program_ty,
+                    boxed: reduced,
+                }));
+            }
+        }
+        Node::BoxApp { function, argument } => {
+            let reduced_function =
+                exp_whnf_with_mode_and_cache(env, function, erase_subset_intro, cache);
+            if reduced_function != function {
+                return Some(arena.alloc(Node::BoxApp {
+                    function: reduced_function,
+                    argument,
+                }));
+            }
+            let reduced_argument =
+                exp_whnf_with_mode_and_cache(env, argument, erase_subset_intro, cache);
+            if reduced_argument != argument {
+                return Some(arena.alloc(Node::BoxApp {
+                    function,
+                    argument: reduced_argument,
                 }));
             }
         }
@@ -2582,12 +2813,11 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
         result_ty,
         step,
         initial,
-        termination,
     } = node
     {
-        // The certificate is proof-only. In particular, an open/stuck run
-        // must not start evaluating its proof while normalizing a function
-        // body.
+        // `normalize` is primarily the Set normalizer, but keeping Program
+        // run children structurally normalized preserves the old raw CLI
+        // normalization behavior without invoking the Program evaluator.
         let normalized_state_ty = normalize_with_cache(env, state_ty, cache);
         let normalized_result_ty = normalize_with_cache(env, result_ty, cache);
         let normalized_step = normalize_with_cache(env, step, cache);
@@ -2602,7 +2832,6 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
                 result_ty: normalized_result_ty,
                 step: normalized_step,
                 initial: normalized_initial,
-                termination,
             })
         } else {
             head

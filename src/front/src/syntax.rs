@@ -67,6 +67,7 @@ pub enum ModuleItem {
         binders: Vec<RightBind>,
         ty: SExp,
         body: SExp,
+        proof: Option<ProofBlock>,
     },
     Inductive {
         type_name: Identifier,
@@ -104,17 +105,33 @@ pub enum ModuleItem {
     },
     Eval {
         exp: SExp,
+        proof: Option<ProofBlock>,
     },
     Normalize {
         exp: SExp,
+        proof: Option<ProofBlock>,
     },
     Check {
         exp: SExp,
         ty: SExp,
+        proof: Option<ProofBlock>,
     },
     Infer {
         exp: SExp,
+        proof: Option<ProofBlock>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProofBlock {
+    pub entries: Vec<ProofEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProofEntry {
+    pub binders: Vec<RightBind>,
+    pub proposition: SExp,
+    pub witness: SExp,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -376,7 +393,6 @@ pub enum SExp {
         result_ty: Box<SExp>,
         step: Box<SExp>,
         initial: Box<SExp>,
-        termination: Box<SExp>,
     },
     RunCase {
         state_ty: Box<SExp>,
@@ -384,8 +400,32 @@ pub enum SExp {
         step: Box<SExp>,
         initial: Box<SExp>,
         transition: Box<SExp>,
-        termination: Box<SExp>,
-        invariant: Box<SExp>,
+    },
+    RunStepRec {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        motive: Box<SExp>,
+        on_continue: Box<SExp>,
+        on_finish: Box<SExp>,
+        scrutinee: Box<SExp>,
+    },
+    Proof {
+        proposition: Box<SExp>,
+    },
+    BoxType {
+        program_ty: Box<SExp>,
+    },
+    BoxProgram {
+        program_ty: Box<SExp>,
+        program: Box<SExp>,
+    },
+    ForceBox {
+        program_ty: Box<SExp>,
+        boxed: Box<SExp>,
+    },
+    BoxApp {
+        function: Box<SExp>,
+        argument: Box<SExp>,
     },
     AccIntro {
         state_ty: Box<SExp>,

@@ -5,7 +5,9 @@ use crate::{
         whnf,
     },
     derivation::CheckSession,
-    environment::{CrateEnv, DefinitionKind, ModuleParameter, ModuleParameterKind},
+    environment::{
+        CrateEnv, DefinedConstant, DefinitionKind, ModuleParameter, ModuleParameterKind,
+    },
     exp::{Context, ContextEntry, Exp, Node, ProgramCaseBranch},
     ids::{MetaVarId, ModuleId, ModuleParamId, SymbolId},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
@@ -13,6 +15,7 @@ use crate::{
     program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
     sort::Sort,
 };
+use std::cell::RefCell;
 
 #[test]
 fn strict_kernel_rejects_elaboration_metavariables() {
@@ -98,7 +101,6 @@ fn kernel_expression_formatter_resolves_node_ids() {
         result_ty,
         step,
         initial: arena.bound(0),
-        termination: arena.bound(1),
     });
 
     let formatted = format_exp(&fixture.env, run);
@@ -149,7 +151,7 @@ fn beta_reduction_stops_at_whnf() {
 }
 
 #[test]
-fn call_by_value_reduces_the_argument_before_beta() {
+fn pts_beta_does_not_evaluate_an_unused_argument() {
     let fixture = Fixture::new();
     let arena = fixture.env.arena();
     let set = arena.sort(Sort::Set(0));
@@ -158,17 +160,11 @@ fn call_by_value_reduces_the_argument_before_beta() {
     let constant = fixture.lam(SymbolId::ANONYMOUS, set, set);
     let application = fixture.app(constant, reducible_argument);
 
-    let first = reduce_one(&fixture.env, application).expect("argument should reduce");
-    let Node::App { func, arg } = arena.get(first) else {
-        panic!("beta must wait until the argument is evaluated");
-    };
-    assert_eq!(func, constant);
-    assert_eq!(arg, set);
-    assert_eq!(reduce_one(&fixture.env, first), Some(set));
+    assert_eq!(reduce_one(&fixture.env, application), Some(set));
 }
 
 #[test]
-fn call_by_value_substitutes_the_evaluated_argument_once() {
+fn pts_beta_substitutes_without_evaluating_the_argument() {
     let fixture = Fixture::new();
     let arena = fixture.env.arena();
     let set = arena.sort(Sort::Set(0));
@@ -188,8 +184,10 @@ fn call_by_value_substitutes_the_evaluated_argument_once() {
     else {
         panic!("expected the lambda body");
     };
-    assert_eq!(state_ty, set);
-    assert_eq!(result_ty, set);
+    assert_eq!(state_ty, reducible_argument);
+    assert_eq!(result_ty, reducible_argument);
+    assert!(convertible(&fixture.env, state_ty, set));
+    assert!(convertible(&fixture.env, result_ty, set));
 }
 
 #[test]
@@ -219,10 +217,7 @@ fn normalize_reuses_shared_subterm_results_within_one_call() {
     let set = arena.sort(Sort::Set(0));
     let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
     let reducible = fixture.app(identity, set);
-    let shared = arena.alloc(Node::RfTerm {
-        compute_ty: set,
-        term: reducible,
-    });
+    let shared = reducible;
     let root = arena.alloc(Node::RunStep {
         state_ty: shared,
         result_ty: shared,
@@ -236,12 +231,8 @@ fn normalize_reuses_shared_subterm_results_within_one_call() {
     else {
         panic!("expected the normalized root");
     };
-    assert_ne!(state_ty, shared);
+    assert_eq!(state_ty, set);
     assert_eq!(state_ty, result_ty);
-    assert!(matches!(
-        arena.get(state_ty),
-        Node::RfTerm { term, .. } if term == set
-    ));
 }
 
 #[test]
@@ -596,28 +587,16 @@ fn terminating_step(fixture: &Fixture, state_ty: Exp, result_ty: Exp, output: Ex
 }
 
 #[test]
-fn run_checks_termination_certificate_before_returning_result_type() {
+fn program_run_typechecks_without_a_termination_certificate() {
     let mut fixture = Fixture::new();
     let (state_ty, values) = program_enum(&mut fixture, 1);
     let value = values[0];
     let step = terminating_step(&fixture, state_ty, state_ty, value);
-    let reflected = fixture.env.arena().alloc(Node::RfTerm {
-        compute_ty: state_ty,
-        term: value,
-    });
-    let terminates = fixture.env.arena().alloc(Node::Acc {
-        state_ty,
-        result_ty: state_ty,
-        step,
-        state: reflected,
-    });
-    let certificate = fixture.push("termination", terminates);
     let run = fixture.env.arena().alloc(Node::Run {
         state_ty,
         result_ty: state_ty,
         step,
         initial: value,
-        termination: certificate,
     });
     let inferred = CheckSession::new(
         &fixture.env,
@@ -632,28 +611,151 @@ fn run_checks_termination_certificate_before_returning_result_type() {
         .alloc(Node::ReturnType { value_ty: state_ty });
     assert!(exp_is_alpha_eq(&fixture.env, inferred, expected));
     let returned = fixture.env.arena().alloc(Node::Return { value });
-    assert!(exp_is_alpha_eq(
-        &fixture.env,
-        crate::calculus::evaluate_computation(&fixture.env, run),
-        returned,
-    ));
+    let crate::calculus::Evaluation::Normal(evaluated) =
+        crate::calculus::evaluate_computation(&fixture.env, run)
+    else {
+        panic!("terminating run exhausted its reduction budget");
+    };
+    assert!(exp_is_alpha_eq(&fixture.env, evaluated, returned));
+}
 
-    let invalid = fixture.env.arena().alloc(Node::Run {
+#[test]
+fn set_run_requires_and_checks_explicit_proof_evidence() {
+    let mut fixture = Fixture::new();
+    let (program_ty, program_values) = program_enum(&mut fixture, 1);
+    let arena = fixture.env.arena();
+    let state_ty = crate::reflection::reflect_type(&fixture.env, program_ty).unwrap();
+    let initial =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), program_values[0])
+            .unwrap();
+    let finish = arena.alloc(Node::Finish {
+        state_ty,
+        result_ty: state_ty,
+        output: arena.bound(0),
+    });
+    let step = arena.alloc(Node::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: state_ty,
+        body: finish,
+    });
+
+    let run = arena.alloc(Node::SetRun {
         state_ty,
         result_ty: state_ty,
         step,
-        initial: value,
-        termination: value,
+        initial,
     });
     assert!(
-        CheckSession::new(
-            &fixture.env,
-            fixture.env.root_module(),
-            &mut fixture.context,
-        )
-        .infer_computation(invalid)
-        .is_err()
+        CheckSession::new(&fixture.env, ModuleId(0), &mut fixture.context)
+            .infer_pts(run)
+            .is_err()
     );
+
+    let obligations = RefCell::new(Vec::new());
+    let inferred = CheckSession::collecting(
+        &fixture.env,
+        ModuleId(0),
+        &mut fixture.context,
+        &obligations,
+    )
+    .infer_pts(run)
+    .unwrap();
+    assert!(exp_is_alpha_eq(&fixture.env, inferred, state_ty));
+    let obligations = obligations.into_inner();
+    assert_eq!(obligations.len(), 1);
+
+    // The environment contains only already-checked declarations in normal
+    // operation, so a declared theorem is valid explicit evidence here.
+    let theorem = fixture.env.add_definition(
+        ModuleId(0),
+        DefinedConstant {
+            kind: DefinitionKind::Pts,
+            ty: obligations[0].proposition,
+            body: initial,
+        },
+    );
+    let witness = fixture.env.arena().alloc(Node::DefinedConstant(theorem));
+    let evidence = vec![crate::exp::ProofEvidence {
+        context: obligations[0].context.clone(),
+        proposition: obligations[0].proposition,
+        witness,
+    }];
+    let checked =
+        CheckSession::with_evidence(&fixture.env, ModuleId(0), &mut fixture.context, &evidence)
+            .infer_pts(run)
+            .unwrap();
+    assert!(exp_is_alpha_eq(&fixture.env, checked, state_ty));
+}
+
+#[test]
+fn well_termination_reflects_program_context_but_box_requires_closed_programs() {
+    let mut fixture = Fixture::new();
+    let (program_ty, _) = program_enum(&mut fixture, 1);
+    let parameter_name = fixture.env.intern("programValue");
+    fixture.env.add_module_parameter(
+        ModuleId(0),
+        ModuleParameter {
+            name: parameter_name,
+            kind: ModuleParameterKind::ProgramValue { ty: program_ty },
+        },
+    );
+    let parameter = arena_module_parameter(&fixture.env, 0);
+    fixture.context.push(ContextEntry::ProgramValue {
+        var: parameter_name,
+        ty: program_ty,
+    });
+
+    CheckSession::new(&fixture.env, ModuleId(0), &mut fixture.context)
+        .check_well_terminated_value(parameter, program_ty)
+        .unwrap();
+
+    let boxed = fixture.env.arena().alloc(Node::BoxProgram {
+        program_ty,
+        program: parameter,
+    });
+    assert!(
+        CheckSession::new(&fixture.env, ModuleId(0), &mut fixture.context)
+            .infer_pts(boxed)
+            .is_err()
+    );
+}
+
+fn arena_module_parameter(env: &CrateEnv, position: u32) -> Exp {
+    env.arena().module_param(ModuleParamId {
+        module: ModuleId(0),
+        position,
+    })
+}
+
+#[test]
+fn divergent_program_run_stops_at_the_requested_fuel_budget() {
+    let mut fixture = Fixture::new();
+    let (state_ty, values) = program_enum(&mut fixture, 1);
+    let arena = fixture.env.arena();
+    let continue_forever = arena.alloc(Node::Continue {
+        state_ty,
+        result_ty: state_ty,
+        next: arena.bound(0),
+    });
+    let step = arena.alloc(Node::Thunk {
+        computation: arena.alloc(Node::ComputationLam {
+            var: SymbolId::ANONYMOUS,
+            value_ty: state_ty,
+            body: arena.alloc(Node::Return {
+                value: continue_forever,
+            }),
+        }),
+    });
+    let run = arena.alloc(Node::Run {
+        state_ty,
+        result_ty: state_ty,
+        step,
+        initial: values[0],
+    });
+    assert!(matches!(
+        crate::calculus::evaluate_computation_with_fuel(&fixture.env, run, 16),
+        crate::calculus::Evaluation::OutOfFuel(_)
+    ));
 }
 
 #[test]
@@ -700,34 +802,35 @@ fn run_reduces_multiple_transitions_atomically_and_preserves_stuck_terms() {
     let step = arena.alloc(Node::Thunk {
         computation: step_function,
     });
-    let proof_annotation = arena.sort(Sort::Prop);
     let run = arena.alloc(Node::Run {
         state_ty,
         result_ty: state_ty,
         step,
         initial: first,
-        termination: proof_annotation,
     });
     let returned = arena.alloc(Node::Return { value: last });
-    assert!(exp_is_alpha_eq(
-        &fixture.env,
-        crate::calculus::evaluate_computation(&fixture.env, run),
-        returned,
-    ));
+    let crate::calculus::Evaluation::Normal(evaluated) =
+        crate::calculus::evaluate_computation(&fixture.env, run)
+    else {
+        panic!("terminating run exhausted its reduction budget");
+    };
+    assert!(exp_is_alpha_eq(&fixture.env, evaluated, returned));
 
     let stuck = arena.alloc(Node::Run {
         state_ty,
         result_ty: state_ty,
         step: arena.bound(0),
         initial: first,
-        termination: arena.bound(1),
     });
-    let evaluated_stuck = crate::calculus::evaluate_computation(&fixture.env, stuck);
+    let crate::calculus::Evaluation::Normal(evaluated_stuck) =
+        crate::calculus::evaluate_computation(&fixture.env, stuck)
+    else {
+        panic!("stuck computation unexpectedly exhausted its reduction budget");
+    };
     let Node::RunCase {
         state_ty: found_state,
         result_ty: found_result,
         initial: found_initial,
-        termination: found_termination,
         ..
     } = arena.get(evaluated_stuck)
     else {
@@ -736,23 +839,10 @@ fn run_reduces_multiple_transitions_atomically_and_preserves_stuck_terms() {
     assert!(exp_is_alpha_eq(&fixture.env, found_state, state_ty));
     assert!(exp_is_alpha_eq(&fixture.env, found_result, state_ty));
     assert!(exp_is_alpha_eq(&fixture.env, found_initial, first));
-    assert!(exp_is_alpha_eq(
-        &fixture.env,
-        found_termination,
-        arena.bound(1),
-    ));
-    let different_proof = arena.alloc(Node::Run {
-        state_ty,
-        result_ty: state_ty,
-        step: arena.bound(0),
-        initial: first,
-        termination: arena.bound(2),
-    });
-    assert!(erased_convertible(&fixture.env, stuck, different_proof));
 }
 
 #[test]
-fn reflection_reduces_non_dependent_arrows_and_applications() {
+fn reflection_maps_non_dependent_arrows_and_applications() {
     let mut fixture = Fixture::new();
     let (compute_ty, values) = program_enum(&mut fixture, 1);
     let value = values[0];
@@ -764,13 +854,13 @@ fn reflection_reduces_non_dependent_arrows_and_applications() {
         domain: compute_ty,
         codomain: returned_ty,
     });
-    let reflected_arrow = arena.alloc(Node::RfType { compute_ty: arrow });
-    let reflected_ty = arena.alloc(Node::RfType { compute_ty });
+    let reflected_arrow = crate::reflection::reflect_type(&fixture.env, arrow).unwrap();
+    let reflected_ty = crate::reflection::reflect_type(&fixture.env, compute_ty).unwrap();
     let expected_arrow = fixture.prod(SymbolId::ANONYMOUS, reflected_ty, reflected_ty);
     assert!(exp_is_alpha_eq(
         &fixture.env,
-        normalize(&fixture.env, reflected_arrow),
-        normalize(&fixture.env, expected_arrow),
+        reflected_arrow,
+        expected_arrow,
     ));
 
     let identity = arena.alloc(Node::ComputationLam {
@@ -780,14 +870,10 @@ fn reflection_reduces_non_dependent_arrows_and_applications() {
             value: arena.bound(0),
         }),
     });
-    let reflected_identity = arena.alloc(Node::RfTerm {
-        compute_ty: arrow,
-        term: identity,
-    });
-    let reflected_value = arena.alloc(Node::RfTerm {
-        compute_ty,
-        term: value,
-    });
+    let reflected_identity =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), identity).unwrap();
+    let reflected_value =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), value).unwrap();
     let application = fixture.app(reflected_identity, reflected_value);
     let normalized_application = normalize(&fixture.env, application);
     let normalized_value = normalize(&fixture.env, reflected_value);
@@ -800,7 +886,7 @@ fn reflection_reduces_non_dependent_arrows_and_applications() {
 }
 
 #[test]
-fn reflection_reduces_return_thunk_and_thunked_applications() {
+fn reflection_erases_return_thunk_and_maps_thunked_applications() {
     let mut fixture = Fixture::new();
     let (value_ty, values) = program_enum(&mut fixture, 1);
     let value = values[0];
@@ -814,34 +900,23 @@ fn reflection_reduces_return_thunk_and_thunked_applications() {
     let thunked = arena.alloc(Node::Thunk {
         computation: returned,
     });
-    let reflected_value = arena.alloc(Node::RfTerm {
-        compute_ty: value_ty,
-        term: value,
-    });
+    let reflected_value =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), value).unwrap();
 
-    for reflected_ty in
-        [return_ty, thunk_ty].map(|compute_ty| arena.alloc(Node::RfType { compute_ty }))
+    for reflected_ty in [return_ty, thunk_ty]
+        .map(|compute_ty| crate::reflection::reflect_type(&fixture.env, compute_ty).unwrap())
     {
         assert!(exp_is_alpha_eq(
             &fixture.env,
-            normalize(&fixture.env, reflected_ty),
-            normalize(
-                &fixture.env,
-                arena.alloc(Node::RfType {
-                    compute_ty: value_ty,
-                }),
-            ),
+            reflected_ty,
+            crate::reflection::reflect_type(&fixture.env, value_ty).unwrap(),
         ));
     }
 
-    let reflected_return = arena.alloc(Node::RfTerm {
-        compute_ty: return_ty,
-        term: returned,
-    });
-    let reflected_thunk = arena.alloc(Node::RfTerm {
-        compute_ty: thunk_ty,
-        term: thunked,
-    });
+    let reflected_return =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), returned).unwrap();
+    let reflected_thunk =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), thunked).unwrap();
     assert!(exp_is_alpha_eq(
         &fixture.env,
         normalize(&fixture.env, reflected_return),
@@ -853,13 +928,6 @@ fn reflection_reduces_return_thunk_and_thunked_applications() {
         normalize(&fixture.env, reflected_value),
     ));
 
-    let function_ty = arena.alloc(Node::ComputationFunction {
-        domain: value_ty,
-        codomain: return_ty,
-    });
-    let thunked_function_ty = arena.alloc(Node::ThunkType {
-        computation_ty: function_ty,
-    });
     let identity = arena.alloc(Node::ComputationLam {
         var: SymbolId::ANONYMOUS,
         value_ty,
@@ -870,10 +938,9 @@ fn reflection_reduces_return_thunk_and_thunked_applications() {
     let thunked_identity = arena.alloc(Node::Thunk {
         computation: identity,
     });
-    let reflected_identity = arena.alloc(Node::RfTerm {
-        compute_ty: thunked_function_ty,
-        term: thunked_identity,
-    });
+    let reflected_identity =
+        crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), thunked_identity)
+            .unwrap();
     let application = fixture.app(reflected_identity, reflected_value);
     assert!(exp_is_alpha_eq(
         &fixture.env,
@@ -926,24 +993,12 @@ fn continuing_run_preserves_computation_type_at_every_reduction_step() {
             body: step_body,
         }),
     });
-    let reflected_first = arena.alloc(Node::RfTerm {
-        compute_ty: state_ty,
-        term: first,
-    });
-    let termination_ty = arena.alloc(Node::Acc {
-        state_ty,
-        result_ty: state_ty,
-        step,
-        state: reflected_first,
-    });
-    let termination = fixture.push("termination", termination_ty);
     let arena = fixture.env.arena();
     let mut current = arena.alloc(Node::Run {
         state_ty,
         result_ty: state_ty,
         step,
         initial: first,
-        termination,
     });
     let expected = arena.alloc(Node::ReturnType { value_ty: state_ty });
 
