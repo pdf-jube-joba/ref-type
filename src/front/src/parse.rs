@@ -735,7 +735,7 @@ impl<'a> Parser<'a> {
             } = self.parse_definition()?
             else {
                 return Err(ParseError {
-                    msg: "Program definitions cannot be associated definitions".into(),
+                    msg: "user-defined Program associated items are not supported; use a module-level \\vdefinition".into(),
                     start: save_pos,
                     end: self.pos,
                 });
@@ -768,7 +768,7 @@ impl<'a> Parser<'a> {
             } = self.parse_definition()?
             else {
                 return Err(ParseError {
-                    msg: "Program definitions cannot be associated definitions".into(),
+                    msg: "user-defined Program associated items are not supported; use a module-level \\cdefinition".into(),
                     start: save_pos,
                     end: self.pos,
                 });
@@ -865,6 +865,64 @@ impl<'a> Parser<'a> {
             let exp = self.parse_sexp()?;
             self.expect_token(Token::Semicolon)?;
             return Ok(Some(ModuleItem::ComputationNormalize {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\vcheck") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ValueCheck {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+                ty: ty.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\ccheck") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ComputationCheck {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+                ty: ty.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\vinfer") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ValueInfer {
+                exp: exp.try_into().map_err(|msg| ParseError {
+                    msg,
+                    start: save_pos,
+                    end: self.pos,
+                })?,
+            }));
+        }
+        if self.bump_if_keyword("\\cinfer") {
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::ComputationInfer {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
                     start: save_pos,

@@ -97,10 +97,7 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             initial,
             transition,
         } => one!(state_ty, result_ty, step, initial, transition),
-        ExpNode::BoxType { .. }
-        | ExpNode::BoxProgram { .. }
-        | ExpNode::RfType { .. }
-        | ExpNode::RfTerm { .. } => {}
+        ExpNode::BoxType { .. } | ExpNode::BoxProgram { .. } => {}
         ExpNode::ForceBox { boxed, .. } => one!(boxed),
         ExpNode::BoxApp { function, argument } => one!(function, argument),
         ExpNode::AccIntro {
@@ -567,53 +564,171 @@ pub fn remap_all_global_ids(
     })
 }
 
-fn node_shape(node: &ExpNode) -> String {
-    match node {
-        ExpNode::Sort(s) => format!("Sort{s:?}"),
-        ExpNode::Bound(i) => format!("Bound{i}"),
-        ExpNode::ModuleParam(i) => format!("MP{i:?}"),
-        ExpNode::ReflectedProgramParam(i) => format!("RP{i:?}"),
-        ExpNode::Meta { metavariable, .. } => format!("Meta{metavariable:?}"),
-        ExpNode::DefinedConstant(i) => format!("Def{i:?}"),
-        ExpNode::IndType { indspec, .. } => format!("IndT{indspec:?}"),
-        ExpNode::IndCtor { indspec, idx, .. } => format!("IndC{indspec:?}:{idx}"),
-        ExpNode::IndElim { indspec, .. } => format!("IndE{indspec:?}"),
-        ExpNode::IndProjection { indspec, field, .. } => format!("IndP{indspec:?}:{field}"),
-        ExpNode::ReflectedProgramCase {
-            indspec, branches, ..
-        } => format!("RPC{indspec:?}:{}", branches.len()),
-        ExpNode::BoxType { program_ty } | ExpNode::RfType { program_ty } => {
-            format!("PT{program_ty:?}")
+fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
+    match (left, right) {
+        (ExpNode::Sort(left), ExpNode::Sort(right)) => left == right,
+        (ExpNode::Bound(left), ExpNode::Bound(right)) => left == right,
+        (ExpNode::ModuleParam(left), ExpNode::ModuleParam(right)) => left == right,
+        (ExpNode::ReflectedProgramParam(left), ExpNode::ReflectedProgramParam(right)) => {
+            left == right
         }
-        ExpNode::BoxProgram {
-            program_ty,
-            program,
+        (
+            ExpNode::Meta {
+                metavariable: left, ..
+            },
+            ExpNode::Meta {
+                metavariable: right,
+                ..
+            },
+        ) => left == right,
+        (ExpNode::DefinedConstant(left), ExpNode::DefinedConstant(right)) => left == right,
+        (ExpNode::IndType { indspec: left, .. }, ExpNode::IndType { indspec: right, .. })
+        | (ExpNode::IndElim { indspec: left, .. }, ExpNode::IndElim { indspec: right, .. }) => {
+            left == right
         }
-        | ExpNode::RfTerm {
-            program_ty,
-            program,
-        } => format!("PP{program_ty:?}:{program:?}"),
-        ExpNode::ForceBox { program_ty, .. } => format!("PF{program_ty:?}"),
-        other => format!("{:?}", std::mem::discriminant(other)),
+        (
+            ExpNode::IndCtor {
+                indspec: left_spec,
+                idx: left_idx,
+                ..
+            },
+            ExpNode::IndCtor {
+                indspec: right_spec,
+                idx: right_idx,
+                ..
+            },
+        ) => left_spec == right_spec && left_idx == right_idx,
+        (
+            ExpNode::IndProjection {
+                indspec: left_spec,
+                field: left_field,
+                ..
+            },
+            ExpNode::IndProjection {
+                indspec: right_spec,
+                field: right_field,
+                ..
+            },
+        ) => left_spec == right_spec && left_field == right_field,
+        (
+            ExpNode::ReflectedProgramCase {
+                indspec: left_spec,
+                branches: left_branches,
+                ..
+            },
+            ExpNode::ReflectedProgramCase {
+                indspec: right_spec,
+                branches: right_branches,
+                ..
+            },
+        ) => {
+            left_spec == right_spec
+                && left_branches.len() == right_branches.len()
+                && left_branches
+                    .iter()
+                    .zip(right_branches)
+                    .all(|(left, right)| left.binders.len() == right.binders.len())
+        }
+        (ExpNode::BoxType { program_ty: left }, ExpNode::BoxType { program_ty: right }) => {
+            crate::program_calculus::program_type_is_alpha_eq(arena, *left, *right)
+        }
+        (
+            ExpNode::BoxProgram {
+                program_ty: left_ty,
+                program: left_program,
+            },
+            ExpNode::BoxProgram {
+                program_ty: right_ty,
+                program: right_program,
+            },
+        ) => {
+            crate::program_calculus::program_type_is_alpha_eq(arena, *left_ty, *right_ty)
+                && crate::program_calculus::program_is_alpha_eq(
+                    arena,
+                    *left_program,
+                    *right_program,
+                )
+        }
+        (
+            ExpNode::ForceBox {
+                program_ty: left, ..
+            },
+            ExpNode::ForceBox {
+                program_ty: right, ..
+            },
+        ) => crate::program_calculus::program_type_is_alpha_eq(arena, *left, *right),
+        _ => std::mem::discriminant(left) == std::mem::discriminant(right),
     }
 }
 
-fn alpha_rec(arena: &Arena, left: Exp, right: Exp) -> bool {
+fn whnf_with_erasure(env: &CrateEnv, mut exp: Exp, erase_subset_intro: bool) -> Exp {
+    loop {
+        if erase_subset_intro && let ExpNode::SubsetIntro { element, .. } = env.arena().get(exp) {
+            exp = element;
+            continue;
+        }
+        let Some(next) = exp_reduce_if_top(env, exp) else {
+            return exp;
+        };
+        if next == exp {
+            return exp;
+        }
+        exp = next;
+    }
+}
+
+fn cached_whnf(
+    env: &CrateEnv,
+    exp: Exp,
+    erase_subset_intro: bool,
+    cache: &mut HashMap<Exp, Exp>,
+) -> Exp {
+    if let Some(result) = cache.get(&exp) {
+        return *result;
+    }
+    let result = whnf_with_erasure(env, exp, erase_subset_intro);
+    cache.insert(exp, result);
+    result
+}
+
+fn alpha_rec(
+    env: &CrateEnv,
+    left: Exp,
+    right: Exp,
+    reduce: bool,
+    erase_subset_intro: bool,
+    cache: &mut HashMap<Exp, Exp>,
+) -> bool {
     if left == right {
         return true;
     }
+    let (left, right) = if reduce {
+        (
+            cached_whnf(env, left, erase_subset_intro, cache),
+            cached_whnf(env, right, erase_subset_intro, cache),
+        )
+    } else {
+        (left, right)
+    };
+    if left == right {
+        return true;
+    }
+    let arena = env.arena();
     let left_node = arena.get(left);
     let right_node = arena.get(right);
-    if node_shape(&left_node) != node_shape(&right_node) {
+    if !same_node_shape(arena, &left_node, &right_node) {
         return false;
     }
     let l = direct_children(left_node);
     let r = direct_children(right_node);
-    l.len() == r.len() && l.into_iter().zip(r).all(|(a, b)| alpha_rec(arena, a, b))
+    l.len() == r.len()
+        && l.into_iter()
+            .zip(r)
+            .all(|(a, b)| alpha_rec(env, a, b, reduce, erase_subset_intro, cache))
 }
 
 pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    alpha_rec(env.arena(), left, right)
+    alpha_rec(env, left, right, false, false, &mut HashMap::new())
 }
 
 pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
@@ -640,7 +755,27 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             ExpNode::SubSet { predicate, .. } => Some(instantiate(arena, predicate, element)),
             _ => None,
         },
-        ExpNode::IndElim { .. } => crate::inductive::inductive_type_elim_reduce(env, exp).ok(),
+        ExpNode::IndElim {
+            indspec,
+            elim,
+            return_type,
+            cases,
+        } => {
+            let reduced = whnf(env, elim);
+            let candidate = if reduced == elim {
+                exp
+            } else {
+                arena.alloc(ExpNode::IndElim {
+                    indspec,
+                    elim: reduced,
+                    return_type,
+                    cases,
+                })
+            };
+            crate::inductive::inductive_type_elim_reduce(env, candidate)
+                .ok()
+                .or((candidate != exp).then_some(candidate))
+        }
         ExpNode::IndProjection {
             indspec,
             parameters,
@@ -757,7 +892,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             ExpNode::BoxProgram {
                 program_ty: actual,
                 program,
-            } if actual == program_ty
+            } if crate::program_calculus::program_type_is_alpha_eq(arena, actual, program_ty)
                 && match program {
                     Program::Computation(c) => {
                         crate::program_calculus::reduce_computation_once(env, c).is_none()
@@ -783,11 +918,17 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                         program: Program::Computation(function),
                     },
                     ExpNode::BoxProgram {
+                        program_ty: ProgramType::Value(argument_ty),
                         program: Program::Value(argument),
-                        ..
                     },
                 ) => match arena.get(ft) {
-                    crate::program::ComputationTypeNode::Function { codomain, .. } => {
+                    crate::program::ComputationTypeNode::Function { domain, codomain }
+                        if crate::program_calculus::value_type_is_alpha_eq(
+                            arena,
+                            domain,
+                            argument_ty,
+                        ) =>
+                    {
                         Some(arena.alloc(ExpNode::BoxProgram {
                             program_ty: ProgramType::Computation(codomain),
                             program: Program::Computation(arena.alloc(
@@ -834,14 +975,39 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     });
     changed.then(|| env.arena().alloc(mapped))
 }
-pub fn normalize(env: &CrateEnv, mut exp: Exp) -> Exp {
-    while let Some(next) = reduce_one(env, exp) {
-        exp = next;
+pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
+    normalize_with_cache(env, exp, &mut HashMap::new())
+}
+
+fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>) -> Exp {
+    if let Some(normal) = cache.get(&exp) {
+        return *normal;
     }
-    exp
+    let arena = env.arena();
+    let head = whnf(env, exp);
+    let node = arena.get(head);
+    let mut changed = false;
+    let normalized = map_children(node, |child| {
+        let result = normalize_with_cache(env, child, cache);
+        changed |= result != child;
+        result
+    });
+    let candidate = if changed {
+        arena.alloc(normalized)
+    } else {
+        head
+    };
+    let reduced = whnf(env, candidate);
+    let result = if reduced == candidate {
+        candidate
+    } else {
+        normalize_with_cache(env, reduced, cache)
+    };
+    cache.insert(exp, result);
+    result
 }
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    exp_is_alpha_eq(env, normalize(env, left), normalize(env, right))
+    alpha_rec(env, left, right, true, false, &mut HashMap::new())
 }
 
 pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
@@ -870,10 +1036,10 @@ pub fn erased_normal(env: &CrateEnv, exp: Exp) -> Exp {
     normalize(env, erase(env, exp))
 }
 pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    exp_is_alpha_eq(env, erased_normal(env, left), erased_normal(env, right))
+    alpha_rec(env, left, right, true, true, &mut HashMap::new())
 }
 pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {
-    whnf(env, erase(env, ty))
+    whnf_with_erasure(env, ty, true)
 }
 pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(SymbolId, Exp, Exp)> {
     let arena = env.arena();

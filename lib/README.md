@@ -1,9 +1,9 @@
 # 実数の形式化
 
-[`Nat.ref`](Nat.ref) は Program universe の自然数 `Nat : \VType` を定義する。
-加算は `AddState` を一段ずつ遷移させる `addStep` と `\run` で記述し、PTS の
-primitive recursor `\prec` は使わない。`\run` が要求する accessibility 証明は
-`Certified` の `addTermination` parameter に分離している。
+[`Nat.ref`](Nat.ref) は Set universe の自然数を定義し、primitive recursor
+`\prec` によって演算と基本法則を記述する。Program 側の一般再帰の例は
+`tests/ok/general-recursion` にあり、Program の `\Prun` 自体は accessibility
+証明を引数に取らない。
 
 [Pair.ref](Pair.ref) は型引数 `A, B : Set` を取る直積 `Times[A, B]` を
 一要素コンストラクタの inductive type として定義する。module parameter は使わず、

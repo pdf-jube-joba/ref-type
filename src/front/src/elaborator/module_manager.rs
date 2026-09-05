@@ -6,7 +6,7 @@ use crate::syntax::{
 use kernel::calculus::{exp_subst_map, remap_all_global_ids};
 use kernel::derivation::CheckSession;
 use kernel::environment::{
-    CrateEnv, DefinedConstant, ModuleItem, ModuleParameter, ModuleParameterKind,
+    CrateEnv, DefinedConstant, ModuleArgument, ModuleItem, ModuleParameter, ModuleParameterKind,
 };
 use kernel::exp::{Exp, ExpContext, ExpContextEntry};
 use kernel::ids::{
@@ -425,10 +425,11 @@ impl ModuleManager {
         env: &mut CrateEnv,
         context: &mut ExpContext,
         back_parent: Option<usize>,
-        calls: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+        calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleInstanceId, String> {
         let mut source = self.resolve_start(env, back_parent)?;
         let mut substitutions = Vec::new();
+        let mut reflected_substitutions = Vec::new();
         let mut route = Vec::new();
 
         for (child_name, arguments) in calls {
@@ -465,33 +466,80 @@ impl ModuleManager {
                         argument_name.as_str(),
                     ));
                 }
-                let mut session = CheckSession::new(env, self.current, context);
-                let checked = match parameter.kind {
-                    ModuleParameterKind::Pts { ty } => {
-                        let expected = exp_subst_map(env.arena(), ty, &substitutions);
-                        session.check_pts(*argument, expected)
+                match (parameter.kind, argument) {
+                    (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(argument)) => {
+                        let expected = exp_subst_map(env.arena(), ty, &reflected_substitutions);
+                        CheckSession::new(env, self.current, context)
+                            .check_pts(*argument, expected)
+                            .map_err(|error| {
+                                format!(
+                                    "Module '{}' argument '{}' failed type checking: {error:?}",
+                                    child_name.as_str(),
+                                    argument_name.as_str(),
+                                )
+                            })?;
                     }
-                    ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => {
+                    (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(ty)) => {
+                        kernel::program_derivation::ProgramCheckSession::new(
+                            env,
+                            self.current,
+                            &mut Vec::new(),
+                        )
+                        .check_value_type(*ty)
+                        .map_err(|error| {
+                            format!("Program type module argument is ill-formed: {error:?}")
+                        })?;
+                    }
+                    (
+                        ModuleParameterKind::ProgramValue { ty },
+                        ModuleArgument::ProgramValue(value),
+                    ) => {
+                        let expected = kernel::program_calculus::subst_value_type_module_params(
+                            env.arena(),
+                            ty,
+                            &substitutions,
+                        );
+                        kernel::program_derivation::ProgramCheckSession::new(
+                            env,
+                            self.current,
+                            &mut Vec::new(),
+                        )
+                        .check_value(*value, expected)
+                        .map_err(|error| {
+                            format!("Program value module argument is ill-typed: {error:?}")
+                        })?;
+                    }
+                    _ => {
                         return Err(format!(
-                            "Module '{}' has a Program parameter; use a category-specific Program module argument",
+                            "Module '{}' argument '{}' uses the wrong syntactic category",
                             child_name.as_str(),
+                            argument_name.as_str(),
                         ));
                     }
+                }
+                let parameter_id = ModuleParamId {
+                    module: child,
+                    position: position as u32,
                 };
-                checked.map_err(|error| {
-                    format!(
-                        "Module '{}' argument '{}' failed type checking: {error:?}",
-                        child_name.as_str(),
-                        argument_name.as_str(),
+                let reflected = match argument {
+                    ModuleArgument::Pts(exp) => *exp,
+                    ModuleArgument::ProgramType(ty) => {
+                        kernel::reflection::reflect_value_type(env, *ty).map_err(|error| {
+                            format!("cannot reflect Program type module argument: {error}")
+                        })?
+                    }
+                    ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
+                        env,
+                        self.current,
+                        &Vec::new(),
+                        kernel::program::Program::Value(*value),
                     )
-                })?;
-                substitutions.push((
-                    ModuleParamId {
-                        module: child,
-                        position: position as u32,
-                    },
-                    *argument,
-                ));
+                    .map_err(|error| {
+                        format!("cannot reflect Program value module argument: {error}")
+                    })?,
+                };
+                substitutions.push((parameter_id, *argument));
+                reflected_substitutions.push((parameter_id, reflected));
             }
             source = child;
             route.push(child);
@@ -532,10 +580,33 @@ impl ModuleManager {
                             origin,
                             match definition_value {
                                 DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                                    ty: exp_subst_map(env.arena(), ty, &substitutions),
-                                    body: exp_subst_map(env.arena(), body, &substitutions),
+                                    ty: exp_subst_map(env.arena(), ty, &reflected_substitutions),
+                                    body: exp_subst_map(
+                                        env.arena(),
+                                        body,
+                                        &reflected_substitutions,
+                                    ),
                                 },
-                                other => other,
+                                DefinedConstant::ProgramValue { ty, body } => {
+                                    DefinedConstant::ProgramValue {
+                                        ty: kernel::program_calculus::subst_value_type_module_params(
+                                            env.arena(), ty, &substitutions,
+                                        ),
+                                        body: kernel::program_calculus::subst_value_module_params(
+                                            env.arena(), body, &substitutions,
+                                        ),
+                                    }
+                                }
+                                DefinedConstant::ProgramComputation { ty, body } => {
+                                    DefinedConstant::ProgramComputation {
+                                        ty: kernel::program_calculus::subst_computation_type_module_params(
+                                            env.arena(), ty, &substitutions,
+                                        ),
+                                        body: kernel::program_calculus::subst_computation_module_params(
+                                            env.arena(), body, &substitutions,
+                                        ),
+                                    }
+                                }
                             },
                         )
                     }
@@ -546,7 +617,8 @@ impl ModuleManager {
                         inductive,
                     } => {
                         let spec = env.inductive(inductive).clone();
-                        let instantiated = spec.instantiate(env.arena(), &substitutions);
+                        let instantiated =
+                            spec.instantiate(env.arena(), &reflected_substitutions);
                         PendingItem::Inductive(
                             name,
                             constructor_names,
@@ -555,7 +627,7 @@ impl ModuleManager {
                             instantiate_associated_definitions(
                                 env,
                                 associated_definitions,
-                                &substitutions,
+                                &reflected_substitutions,
                             ),
                         )
                     }
@@ -565,7 +637,8 @@ impl ModuleManager {
                         inductive,
                     } => {
                         let spec = env.inductive(inductive).clone();
-                        let instantiated = spec.instantiate(env.arena(), &substitutions);
+                        let instantiated =
+                            spec.instantiate(env.arena(), &reflected_substitutions);
                         PendingItem::Record(
                             name,
                             inductive,
@@ -573,7 +646,7 @@ impl ModuleManager {
                             instantiate_associated_definitions(
                                 env,
                                 associated_definitions,
-                                &substitutions,
+                                &reflected_substitutions,
                             ),
                         )
                     }
@@ -584,19 +657,14 @@ impl ModuleManager {
                         reflected,
                         associated_definitions,
                     } => {
-                        let spec = env.program_inductive(inductive).clone().instantiate(
-                            env.arena(),
-                            &substitutions
-                                .iter()
-                                .map(|(id, exp)| {
-                                    (*id, kernel::environment::ModuleArgument::Pts(*exp))
-                                })
-                                .collect::<Vec<_>>(),
-                        );
+                        let spec = env
+                            .program_inductive(inductive)
+                            .clone()
+                            .instantiate(env.arena(), &substitutions);
                         let reflected_spec = env
                             .inductive(reflected)
                             .clone()
-                            .instantiate(env.arena(), &substitutions);
+                            .instantiate(env.arena(), &reflected_substitutions);
                         PendingItem::ProgramInductive(
                             name,
                             constructor_names,
@@ -607,7 +675,7 @@ impl ModuleManager {
                             instantiate_associated_definitions(
                                 env,
                                 associated_definitions,
-                                &substitutions,
+                                &reflected_substitutions,
                             ),
                         )
                     }
@@ -645,7 +713,38 @@ impl ModuleManager {
                                     &program_inductive_ids,
                                 ),
                             },
-                            other => other,
+                            DefinedConstant::ProgramValue { ty, body } => {
+                                DefinedConstant::ProgramValue {
+                                    ty: kernel::program_calculus::remap_value_type_global_ids(
+                                        env.arena(),
+                                        ty,
+                                        &definition_ids,
+                                        &program_inductive_ids,
+                                    ),
+                                    body: kernel::program_calculus::remap_value_global_ids(
+                                        env.arena(),
+                                        body,
+                                        &definition_ids,
+                                        &program_inductive_ids,
+                                    ),
+                                }
+                            }
+                            DefinedConstant::ProgramComputation { ty, body } => {
+                                DefinedConstant::ProgramComputation {
+                                    ty: kernel::program_calculus::remap_computation_type_global_ids(
+                                        env.arena(),
+                                        ty,
+                                        &definition_ids,
+                                        &program_inductive_ids,
+                                    ),
+                                    body: kernel::program_calculus::remap_computation_global_ids(
+                                        env.arena(),
+                                        body,
+                                        &definition_ids,
+                                        &program_inductive_ids,
+                                    ),
+                                }
+                            }
                         };
                         let definition = env.add_definition(materialized, definition);
                         definition_ids.insert(source_id, definition);
@@ -767,7 +866,7 @@ impl ModuleManager {
                 materialized,
                 &MacroInstantiation {
                     module_ids: &module_ids,
-                    substitutions: &substitutions,
+                    substitutions: &reflected_substitutions,
                     definition_ids: &definition_ids,
                     inductive_ids: &inductive_ids,
                     program_inductive_ids: &program_inductive_ids,
@@ -777,10 +876,7 @@ impl ModuleManager {
                 self.current,
                 source_module,
                 materialized,
-                substitutions
-                    .iter()
-                    .map(|(id, exp)| (*id, kernel::environment::ModuleArgument::Pts(*exp)))
-                    .collect(),
+                substitutions.clone(),
                 definition_origins,
             );
             if is_path_component {
@@ -1092,7 +1188,7 @@ mod tests {
                     None,
                     call(
                         "Parameterized",
-                        vec![(Identifier("wrong".into()), wrong_argument)],
+                        vec![(Identifier("wrong".into()), wrong_argument.into())],
                     ),
                 )
                 .is_err()
@@ -1111,7 +1207,10 @@ mod tests {
                     &mut env,
                     &mut context,
                     None,
-                    call("Parameterized", vec![(Identifier("A".into()), argument)],),
+                    call(
+                        "Parameterized",
+                        vec![(Identifier("A".into()), argument.into())],
+                    ),
                 )
                 .is_ok()
         );
@@ -1267,7 +1366,7 @@ mod tests {
                 vec![
                     (
                         Identifier("Parent".into()),
-                        vec![(Identifier("A".into()), argument)],
+                        vec![(Identifier("A".into()), argument.into())],
                     ),
                     (Identifier("Child".into()), vec![]),
                 ],
@@ -1357,7 +1456,7 @@ mod tests {
                 None,
                 vec![(
                     Identifier("Param".into()),
-                    vec![(Identifier("A".into()), outer_argument)],
+                    vec![(Identifier("A".into()), outer_argument.into())],
                 )],
             )
             .unwrap();
@@ -1404,7 +1503,7 @@ mod tests {
                 None,
                 vec![(
                     Identifier("Outer".into()),
-                    vec![(Identifier("A".into()), argument)],
+                    vec![(Identifier("A".into()), argument.into())],
                 )],
             )
             .unwrap();

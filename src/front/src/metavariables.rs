@@ -972,9 +972,6 @@ impl MetaStore {
                     program_ty: ProgramType::Computation(codomain),
                 }))
             }
-            ExpNode::RfType { .. } | ExpNode::RfTerm { .. } => {
-                Err("RfType and RfTerm were removed; reflection is meta-level".into())
-            }
             ExpNode::SubsetIntro {
                 superset,
                 subset,

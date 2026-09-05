@@ -2,7 +2,11 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
+    thread,
+    time::{Duration, Instant},
 };
+
+const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -32,13 +36,37 @@ fn collect_ref_files(directory: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
-fn run_ref_file(workspace: &Path, path: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_cli"))
+fn run_ref_file(workspace: &Path, path: &Path) -> Result<Output, String> {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_cli"))
         .arg("file")
         .arg(path)
         .current_dir(workspace)
-        .output()
-        .unwrap_or_else(|error| panic!("failed to run {}: {error}", path.display()))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("failed to run {}: {error}", path.display()))?;
+    let started = Instant::now();
+    loop {
+        if child
+            .try_wait()
+            .map_err(|error| format!("failed to wait for {}: {error}", path.display()))?
+            .is_some()
+        {
+            return child
+                .wait_with_output()
+                .map_err(|error| format!("failed to collect {}: {error}", path.display()));
+        }
+        if started.elapsed() >= PROCESS_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!(
+                "{} did not finish within {} seconds",
+                path.display(),
+                PROCESS_TIMEOUT.as_secs()
+            ));
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn output_details(output: &Output) -> String {
@@ -65,7 +93,13 @@ fn run_cases(relative_directory: &str, should_succeed: bool) {
 
     let mut failures = Vec::new();
     for path in files {
-        let output = run_ref_file(&workspace, &path);
+        let output = match run_ref_file(&workspace, &path) {
+            Ok(output) => output,
+            Err(error) => {
+                failures.push(error);
+                continue;
+            }
+        };
         if output.status.success() != should_succeed {
             let expectation = if should_succeed {
                 "was expected to succeed"
@@ -102,7 +136,7 @@ fn ng_ref_files_fail() {
 fn library_root_succeeds() {
     let workspace = workspace_root();
     let path = workspace.join("lib/root.ref");
-    let output = run_ref_file(&workspace, &path);
+    let output = run_ref_file(&workspace, &path).unwrap_or_else(|error| panic!("{error}"));
 
     assert!(
         output.status.success(),

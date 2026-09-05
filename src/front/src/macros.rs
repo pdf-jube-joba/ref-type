@@ -239,7 +239,6 @@ fn alpha_rename(
         | SExp::Return { value: base }
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
-        | SExp::RfType { compute_ty: base }
         | SExp::Proof { proposition: base }
         | SExp::BoxType { program_ty: base }
         | SExp::IdRefl { element: base } => alpha_rename(base, order, counter, scopes),
@@ -499,10 +498,6 @@ fn alpha_rename(
         | SExp::PRunStep {
             state_ty,
             result_ty,
-        }
-        | SExp::RfTerm {
-            compute_ty: state_ty,
-            term: result_ty,
         }
         | SExp::TypeLift {
             superset: state_ty,
@@ -1120,7 +1115,6 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
         | SExp::Return { value: base }
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
-        | SExp::RfType { compute_ty: base }
         | SExp::Proof { proposition: base }
         | SExp::BoxType { program_ty: base }
         | SExp::IdRefl { element: base } => walk_sexp_mut(base, action),
@@ -1273,7 +1267,6 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             result_ty,
             output,
         } => walk_many_mut([state_ty, result_ty, output], action),
-        SExp::RfTerm { compute_ty, term } => walk_many_mut([compute_ty, term], action),
         SExp::Acc {
             state_ty,
             result_ty,

@@ -248,19 +248,6 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         ExpNode::BoxApp { function, argument } => {
             format!("\\boxapp({}, {})", child(function), child(argument))
         }
-        ExpNode::RfType { program_ty } => {
-            format!("\\RfType({})", format_program_type(env, program_ty))
-        }
-        ExpNode::RfTerm {
-            program_ty,
-            program,
-        } => {
-            format!(
-                "\\RfTerm({}, {})",
-                format_program_type(env, program_ty),
-                format_program(env, program)
-            )
-        }
         ExpNode::AccIntro {
             state_ty,
             result_ty,

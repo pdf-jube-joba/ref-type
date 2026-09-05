@@ -1,14 +1,75 @@
 use crate::{
-    calculus::{exp_is_alpha_eq, instantiate, normalize},
+    calculus::{exp_is_alpha_eq, exp_reduce_if_top, instantiate, normalize},
     derivation::CheckSession,
     environment::CrateEnv,
     exp::{ExpContextEntry, ExpNode},
     ids::SymbolId,
-    program::{ComputationNode, ProgramContextEntry, ValueNode, ValueTypeNode},
+    program::{
+        ComputationNode, Program, ProgramContextEntry, ProgramType, ValueNode, ValueTypeNode,
+    },
     program_calculus::{Evaluation, evaluate_computation},
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
+
+#[test]
+fn boxed_program_types_compare_structurally() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let left_state = arena.alloc(ValueTypeNode::RunStep {
+        state_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+            module: env.root_module(),
+            position: 0,
+        }),
+        result_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+            module: env.root_module(),
+            position: 1,
+        }),
+    });
+    let right_state = arena.alloc(ValueTypeNode::RunStep {
+        state_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+            module: env.root_module(),
+            position: 0,
+        }),
+        result_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+            module: env.root_module(),
+            position: 1,
+        }),
+    });
+    assert_ne!(left_state, right_state);
+    let left = arena.alloc(ExpNode::BoxType {
+        program_ty: ProgramType::Value(left_state),
+    });
+    let right = arena.alloc(ExpNode::BoxType {
+        program_ty: ProgramType::Value(right_state),
+    });
+    assert!(exp_is_alpha_eq(&env, left, right));
+
+    let output = arena.value_bound(0);
+    let program = arena.alloc(ValueNode::Finish {
+        state_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+            module: env.root_module(),
+            position: 0,
+        }),
+        result_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+            module: env.root_module(),
+            position: 1,
+        }),
+        output,
+    });
+    let boxed = arena.alloc(ExpNode::BoxProgram {
+        program_ty: ProgramType::Value(left_state),
+        program: Program::Value(program),
+    });
+    let forced = arena.alloc(ExpNode::ForceBox {
+        program_ty: ProgramType::Value(right_state),
+        boxed,
+    });
+    assert!(matches!(
+        exp_reduce_if_top(&env, forced).map(|exp| arena.get(exp)),
+        Some(ExpNode::Finish { .. })
+    ));
+}
 
 #[test]
 fn beta_reduction_remains_set_only() {

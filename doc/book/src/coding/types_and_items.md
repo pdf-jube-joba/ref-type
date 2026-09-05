@@ -20,7 +20,7 @@ constructor、field projection、ユーザー定義の関数などは
 ## 帰納型の型関連 item
 
 ```text
-\inductive List(A: \Type): \Type :=
+\inductive List(A: \Set): \Set :=
 | nil  : List
 | cons : A -> List -> List
 ;
@@ -33,10 +33,10 @@ List[Nat]::nil
 List[Nat]::cons Nat::zero List[Nat]::nil
 ```
 
-帰納型に対する通常の関数も qualified name で定義する。
+Set/Prop の帰納型に対する通常の関数も qualified name で定義する。
 
 ```text
-\definition List(A: \Type)::is_empty(l: List[A]): Bool :=
+\definition List(A: \Set)::is_empty(l: List[A]): Bool :=
   \match l \with
   | nil         : Bool::true
   | cons(x, xs) : Bool::false
@@ -48,7 +48,7 @@ List[Nat]::cons Nat::zero List[Nat]::nil
 named field を持つ通常の record が必要な場合は、`\structure` として明示的に宣言する。
 
 ```text
-\structure Point(A: \Type): \Type := {
+\structure Point(A: \VType): \VType := {
   x : A,
   y : A,
 };
@@ -58,7 +58,7 @@ structure の parameter は通常の名前付き parameter とする。
 structure が carrier を持つとは限らないため、特別な carrier binder は用意しない。
 
 ```text
-\definition origin: Point[Nat] := Point[Nat] {
+\vdefinition origin: Point[Nat] := Point[Nat] {
   x := Nat::zero,
   y := Nat::zero,
 };
@@ -70,7 +70,7 @@ structure が carrier を持つとは限らないため、特別な carrier bind
 Point[A]::x : Point[A] -> A
 Point[A]::y : Point[A] -> A
 
-\definition origin_x : Nat := Point::x origin;
+\vdefinition origin_x : Nat := Point[Nat]::x origin;
 ```
 
 surface syntax としては `\inductive` と `\structure` を完全に分ける。
@@ -78,12 +78,23 @@ surface syntax としては `\inductive` と `\structure` を完全に分ける�
 固有の1 constructor を持つ帰納型として表現することは構わない。
 
 result kind には PTS の `\Prop`、`\Set`、`\PropKind`、`\SetKind` と、
-純粋 Program value の universe `\Type` を指定できる。`\VType` は
-`\Type` の互換 alias として扱う。同じ structure の parameter と field は
+純粋 Program value の universe `\VType` を指定できる。`\Type` は
+`\VType` の互換 alias として受理する。同じ structure の parameter と field は
 PTS と Program のいずれか一方に揃える。
 
-field は宣言順に依存できる。たとえば次の `value` の型は先行する
-`carrier` projection によって定まる。
+Program のユーザー定義 associated item は現在未対応である。自動生成される
+constructor と field projection は `Type::item` で参照できるが、関数は
+module-level の `\vdefinition` または `\cdefinition` として定義する。
+Program value の確認・推論・評価・正規化には `\vcheck`、`\vinfer`、
+`\veval`、`\vnormalize` を使い、computation には対応する `\ccheck`、
+`\cinfer`、`\ceval`、`\cnormalize` を使う。汎用の `\definition`、
+`\check`、`\infer`、`\eval`、`\normalize` は Set/Prop 専用である。
+Program の各カテゴリでも `_`、`?`、`?N` を使える。型注釈や datatype parameter
+に現れる metavariable は、その Program judgement 内の制約から解決される。
+
+PTS structure の field は宣言順に依存できる。たとえば次の `value` の型は先行する
+`carrier` projection によって定まる。Program の value type は value に依存しないため、
+Program structure の field type は先行する value field を scope に入れない。
 
 ```text
 \structure Packed: \SetKind := {

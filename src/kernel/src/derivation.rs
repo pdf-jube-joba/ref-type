@@ -790,19 +790,6 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 program_ty: ProgramType::Computation(codomain),
             }))
         }
-        ExpNode::RfType { program_ty } => Err(failure(
-            rule,
-            phase,
-            &format!(
-                "RfType is no longer a term; meta-level reflection of {} is required",
-                crate::printing::format_program_type(session.env(), program_ty)
-            ),
-        )),
-        ExpNode::RfTerm { .. } => Err(failure(
-            rule,
-            phase,
-            "RfTerm is no longer a term; reflection is a meta-level map",
-        )),
         ExpNode::SubsetIntro {
             superset,
             subset,
@@ -1444,8 +1431,6 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::BoxProgram { .. } => "BoxProgram",
         ExpNode::ForceBox { .. } => "ForceBox",
         ExpNode::BoxApp { .. } => "BoxApp",
-        ExpNode::RfType { .. } => "RfType",
-        ExpNode::RfTerm { .. } => "RfTerm",
         ExpNode::AccIntro { .. } => "AccIntro",
         ExpNode::AccDescent { .. } => "AccDescent",
         ExpNode::SubsetIntro { .. } => "SubsetIntro",

@@ -398,11 +398,31 @@ fn program_value_and_computation_commands_are_separate() {
             \cdefinition computation: \F(A) := \return(x);
             \veval value;
             \ceval computation;
+            \vinfer value;
+            \cinfer computation;
+            \vcheck value: A;
+            \ccheck computation: \F(A);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn generic_definition_rejects_program_syntax_with_migration_hint() {
+    let source = r#"
+        \module ProgramDefinition(A: \VType, x: A) {
+            \definition value: A := x;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    let error = environment
+        .add_new_module_to_root(&modules[0])
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("\\definition is reserved for Set/Prop"));
 }
 
 #[test]

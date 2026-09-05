@@ -5,6 +5,7 @@ use crate::{
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, ReflectedProgramCaseBranch},
     ids::{DefId, ModuleId},
     program::*,
+    program_derivation::ProgramCheckSession,
 };
 use std::{collections::HashSet, fmt};
 
@@ -334,14 +335,33 @@ fn reflect_computation_inner(
             scrutinee,
             branches,
         } => {
+            let mut infer_context = context.clone();
+            let scrutinee_ty = ProgramCheckSession::new(env, current_module, &mut infer_context)
+                .infer_value(scrutinee)
+                .map_err(|_| ReflectionError::NotProgramTerm)?;
+            let parameters = match arena.get(scrutinee_ty) {
+                ValueTypeNode::Inductive {
+                    indspec: actual,
+                    parameters,
+                } if actual == indspec => parameters,
+                _ => return Err(ReflectionError::NotProgramTerm),
+            };
             let constructors = env.program_inductive(indspec).constructors();
             let mut reflected_branches = Vec::with_capacity(branches.len());
             for (branch, constructor) in branches.into_iter().zip(constructors) {
                 let mut nested = context.clone();
-                for (binder, (_, ty)) in branch.binders.iter().copied().zip(constructor.fields()) {
+                let fields = constructor.instantiated_fields(arena, &parameters);
+                for (field_index, (binder, (_, ty))) in
+                    branch.binders.iter().copied().zip(fields).enumerate()
+                {
                     nested.push(ProgramContextEntry::Value {
                         var: binder,
-                        ty: *ty,
+                        ty: crate::program_calculus::shift_value_type_indices(
+                            arena,
+                            ty,
+                            field_index,
+                            0,
+                        ),
                     });
                 }
                 reflected_branches.push(ReflectedProgramCaseBranch {

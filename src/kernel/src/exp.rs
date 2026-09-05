@@ -148,13 +148,6 @@ pub enum ExpNode {
         function: Exp,
         argument: Exp,
     },
-    RfType {
-        program_ty: ProgramType,
-    },
-    RfTerm {
-        program_ty: ProgramType,
-        program: Program,
-    },
     AccIntro {
         state_ty: Exp,
         result_ty: Exp,

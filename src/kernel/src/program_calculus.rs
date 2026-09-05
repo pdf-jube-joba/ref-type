@@ -9,6 +9,28 @@ use crate::{
     program::*,
 };
 
+pub fn program_type_is_alpha_eq(arena: &Arena, left: ProgramType, right: ProgramType) -> bool {
+    match (left, right) {
+        (ProgramType::Value(left), ProgramType::Value(right)) => {
+            value_type_is_alpha_eq(arena, left, right)
+        }
+        (ProgramType::Computation(left), ProgramType::Computation(right)) => {
+            computation_type_is_alpha_eq(arena, left, right)
+        }
+        _ => false,
+    }
+}
+
+pub fn program_is_alpha_eq(arena: &Arena, left: Program, right: Program) -> bool {
+    match (left, right) {
+        (Program::Value(left), Program::Value(right)) => value_is_alpha_eq(arena, left, right),
+        (Program::Computation(left), Program::Computation(right)) => {
+            computation_is_alpha_eq(arena, left, right)
+        }
+        _ => false,
+    }
+}
+
 pub fn value_type_is_alpha_eq(arena: &Arena, left: ValueType, right: ValueType) -> bool {
     if left == right {
         return true;
@@ -1012,6 +1034,208 @@ pub fn remap_computation_type_global_ids(
     }
 }
 
+fn remap_program_arguments(
+    arena: &Arena,
+    arguments: Vec<ProgramArgument>,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+) -> Vec<ProgramArgument> {
+    arguments
+        .into_iter()
+        .map(|argument| match argument {
+            ProgramArgument::Type(ty) => ProgramArgument::Type(remap_value_type_global_ids(
+                arena,
+                ty,
+                definitions,
+                inductives,
+            )),
+            ProgramArgument::Value(value) => ProgramArgument::Value(remap_value_global_ids(
+                arena,
+                value,
+                definitions,
+                inductives,
+            )),
+        })
+        .collect()
+}
+
+pub fn remap_value_global_ids(
+    arena: &Arena,
+    value: Value,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+) -> Value {
+    match arena.get(value) {
+        ValueNode::DefinedConstant(id) => arena.alloc(ValueNode::DefinedConstant(
+            definitions.get(&id).copied().unwrap_or(id),
+        )),
+        ValueNode::Meta {
+            metavariable,
+            spine,
+        } => arena.alloc(ValueNode::Meta {
+            metavariable,
+            spine: remap_program_arguments(arena, spine, definitions, inductives),
+        }),
+        ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
+            computation: remap_computation_global_ids(arena, computation, definitions, inductives),
+        }),
+        ValueNode::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => arena.alloc(ValueNode::Continue {
+            state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
+            result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
+            next: remap_value_global_ids(arena, next, definitions, inductives),
+        }),
+        ValueNode::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => arena.alloc(ValueNode::Finish {
+            state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
+            result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
+            output: remap_value_global_ids(arena, output, definitions, inductives),
+        }),
+        ValueNode::InductiveConstructor {
+            indspec,
+            parameters,
+            idx,
+            fields,
+        } => arena.alloc(ValueNode::InductiveConstructor {
+            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+            parameters: parameters
+                .into_iter()
+                .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
+                .collect(),
+            idx,
+            fields: fields
+                .into_iter()
+                .map(|value| remap_value_global_ids(arena, value, definitions, inductives))
+                .collect(),
+        }),
+        ValueNode::InductiveProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => arena.alloc(ValueNode::InductiveProjection {
+            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+            parameters: parameters
+                .into_iter()
+                .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
+                .collect(),
+            value: remap_value_global_ids(arena, value, definitions, inductives),
+            field,
+        }),
+        node => arena.alloc(node),
+    }
+}
+
+pub fn remap_computation_global_ids(
+    arena: &Arena,
+    computation: Computation,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+) -> Computation {
+    let value = |value| remap_value_global_ids(arena, value, definitions, inductives);
+    let recur = |term| remap_computation_global_ids(arena, term, definitions, inductives);
+    let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
+    match arena.get(computation) {
+        ComputationNode::DefinedConstant(id) => arena.alloc(ComputationNode::DefinedConstant(
+            definitions.get(&id).copied().unwrap_or(id),
+        )),
+        ComputationNode::Meta {
+            metavariable,
+            spine,
+        } => arena.alloc(ComputationNode::Meta {
+            metavariable,
+            spine: remap_program_arguments(arena, spine, definitions, inductives),
+        }),
+        ComputationNode::Return { value: item } => {
+            arena.alloc(ComputationNode::Return { value: value(item) })
+        }
+        ComputationNode::Force { value: item } => {
+            arena.alloc(ComputationNode::Force { value: value(item) })
+        }
+        ComputationNode::Lambda {
+            var,
+            value_ty: ty,
+            body,
+        } => arena.alloc(ComputationNode::Lambda {
+            var,
+            value_ty: value_ty(ty),
+            body: recur(body),
+        }),
+        ComputationNode::Application {
+            computation: function,
+            value: argument,
+        } => arena.alloc(ComputationNode::Application {
+            computation: recur(function),
+            value: value(argument),
+        }),
+        ComputationNode::Sequence {
+            computation: first,
+            var,
+            value_ty: ty,
+            body,
+        } => arena.alloc(ComputationNode::Sequence {
+            computation: recur(first),
+            var,
+            value_ty: value_ty(ty),
+            body: recur(body),
+        }),
+        ComputationNode::ValueLet {
+            var,
+            value: item,
+            body,
+        } => arena.alloc(ComputationNode::ValueLet {
+            var,
+            value: value(item),
+            body: recur(body),
+        }),
+        ComputationNode::Case {
+            indspec,
+            scrutinee,
+            branches,
+        } => arena.alloc(ComputationNode::Case {
+            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+            scrutinee: value(scrutinee),
+            branches: branches
+                .into_iter()
+                .map(|branch| ProgramCaseBranch {
+                    binders: branch.binders,
+                    body: recur(branch.body),
+                })
+                .collect(),
+        }),
+        ComputationNode::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => arena.alloc(ComputationNode::Run {
+            state_ty: value_ty(state_ty),
+            result_ty: value_ty(result_ty),
+            step: value(step),
+            initial: value(initial),
+        }),
+        ComputationNode::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        } => arena.alloc(ComputationNode::RunCase {
+            state_ty: value_ty(state_ty),
+            result_ty: value_ty(result_ty),
+            step: value(step),
+            initial: value(initial),
+            transition: recur(transition),
+        }),
+    }
+}
+
 pub fn subst_value_type_module_params(
     arena: &Arena,
     ty: ValueType,
@@ -1070,5 +1294,193 @@ pub fn subst_computation_type_module_params(
             })
         }
         node => arena.alloc(node),
+    }
+}
+
+fn subst_program_arguments(
+    arena: &Arena,
+    arguments: Vec<ProgramArgument>,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+) -> Vec<ProgramArgument> {
+    arguments
+        .into_iter()
+        .map(|argument| match argument {
+            ProgramArgument::Type(ty) => {
+                ProgramArgument::Type(subst_value_type_module_params(arena, ty, substitutions))
+            }
+            ProgramArgument::Value(value) => {
+                ProgramArgument::Value(subst_value_module_params(arena, value, substitutions))
+            }
+        })
+        .collect()
+}
+
+pub fn subst_value_module_params(
+    arena: &Arena,
+    value: Value,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+) -> Value {
+    match arena.get(value) {
+        ValueNode::ModuleParam(id) => substitutions
+            .iter()
+            .find_map(|(candidate, argument)| (*candidate == id).then_some(argument))
+            .and_then(|argument| match argument {
+                ModuleArgument::ProgramValue(value) => Some(*value),
+                _ => None,
+            })
+            .unwrap_or(value),
+        ValueNode::Meta {
+            metavariable,
+            spine,
+        } => arena.alloc(ValueNode::Meta {
+            metavariable,
+            spine: subst_program_arguments(arena, spine, substitutions),
+        }),
+        ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
+            computation: subst_computation_module_params(arena, computation, substitutions),
+        }),
+        ValueNode::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => arena.alloc(ValueNode::Continue {
+            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+            next: subst_value_module_params(arena, next, substitutions),
+        }),
+        ValueNode::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => arena.alloc(ValueNode::Finish {
+            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+            output: subst_value_module_params(arena, output, substitutions),
+        }),
+        ValueNode::InductiveConstructor {
+            indspec,
+            parameters,
+            idx,
+            fields,
+        } => arena.alloc(ValueNode::InductiveConstructor {
+            indspec,
+            parameters: parameters
+                .into_iter()
+                .map(|ty| subst_value_type_module_params(arena, ty, substitutions))
+                .collect(),
+            idx,
+            fields: fields
+                .into_iter()
+                .map(|value| subst_value_module_params(arena, value, substitutions))
+                .collect(),
+        }),
+        ValueNode::InductiveProjection {
+            indspec,
+            parameters,
+            value,
+            field,
+        } => arena.alloc(ValueNode::InductiveProjection {
+            indspec,
+            parameters: parameters
+                .into_iter()
+                .map(|ty| subst_value_type_module_params(arena, ty, substitutions))
+                .collect(),
+            value: subst_value_module_params(arena, value, substitutions),
+            field,
+        }),
+        _ => value,
+    }
+}
+
+pub fn subst_computation_module_params(
+    arena: &Arena,
+    term: Computation,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+) -> Computation {
+    match arena.get(term) {
+        ComputationNode::Meta {
+            metavariable,
+            spine,
+        } => arena.alloc(ComputationNode::Meta {
+            metavariable,
+            spine: subst_program_arguments(arena, spine, substitutions),
+        }),
+        ComputationNode::Return { value } => arena.alloc(ComputationNode::Return {
+            value: subst_value_module_params(arena, value, substitutions),
+        }),
+        ComputationNode::Force { value } => arena.alloc(ComputationNode::Force {
+            value: subst_value_module_params(arena, value, substitutions),
+        }),
+        ComputationNode::Lambda {
+            var,
+            value_ty,
+            body,
+        } => arena.alloc(ComputationNode::Lambda {
+            var,
+            value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
+            body: subst_computation_module_params(arena, body, substitutions),
+        }),
+        ComputationNode::Application { computation, value } => {
+            arena.alloc(ComputationNode::Application {
+                computation: subst_computation_module_params(arena, computation, substitutions),
+                value: subst_value_module_params(arena, value, substitutions),
+            })
+        }
+        ComputationNode::Sequence {
+            computation,
+            var,
+            value_ty,
+            body,
+        } => arena.alloc(ComputationNode::Sequence {
+            computation: subst_computation_module_params(arena, computation, substitutions),
+            var,
+            value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
+            body: subst_computation_module_params(arena, body, substitutions),
+        }),
+        ComputationNode::ValueLet { var, value, body } => arena.alloc(ComputationNode::ValueLet {
+            var,
+            value: subst_value_module_params(arena, value, substitutions),
+            body: subst_computation_module_params(arena, body, substitutions),
+        }),
+        ComputationNode::Case {
+            indspec,
+            scrutinee,
+            branches,
+        } => arena.alloc(ComputationNode::Case {
+            indspec,
+            scrutinee: subst_value_module_params(arena, scrutinee, substitutions),
+            branches: branches
+                .into_iter()
+                .map(|branch| ProgramCaseBranch {
+                    binders: branch.binders,
+                    body: subst_computation_module_params(arena, branch.body, substitutions),
+                })
+                .collect(),
+        }),
+        ComputationNode::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => arena.alloc(ComputationNode::Run {
+            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+            step: subst_value_module_params(arena, step, substitutions),
+            initial: subst_value_module_params(arena, initial, substitutions),
+        }),
+        ComputationNode::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        } => arena.alloc(ComputationNode::RunCase {
+            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+            step: subst_value_module_params(arena, step, substitutions),
+            initial: subst_value_module_params(arena, initial, substitutions),
+            transition: subst_computation_module_params(arena, transition, substitutions),
+        }),
+        _ => term,
     }
 }

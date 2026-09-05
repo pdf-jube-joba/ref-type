@@ -84,8 +84,7 @@ impl ProgramInductiveTypeSpecs {
         }
         let result = (|| {
             for (constructor_index, constructor) in self.constructors.iter().enumerate() {
-                let constructor_mark = session.context().len();
-                for (field_index, (name, ty)) in constructor.fields.iter().enumerate() {
+                for (field_index, (_, ty)) in constructor.fields.iter().enumerate() {
                     session.check_value_type(*ty).map_err(|error| {
                         Box::new(error.with_frame(
                             "ProgramInductiveTypeSpecs::validate",
@@ -105,10 +104,6 @@ impl ProgramInductiveTypeSpecs {
                             ),
                         ));
                     }
-                    session.push_value(*name, *ty);
-                }
-                while session.context().len() > constructor_mark {
-                    session.pop();
                 }
             }
             Ok(())
@@ -242,7 +237,7 @@ fn strictly_positive_computation(
             strictly_positive_value(arena, value_ty, inductive, positive)
         }
         ComputationTypeNode::Function { domain, codomain } => {
-            strictly_positive_value(arena, domain, inductive, !positive)
+            !contains_program_inductive(arena, domain, inductive)
                 && strictly_positive_computation(arena, codomain, inductive, positive)
         }
     }

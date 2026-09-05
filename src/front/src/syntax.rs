@@ -135,6 +135,20 @@ pub enum ModuleItem {
     ComputationNormalize {
         exp: ComputationExp,
     },
+    ValueCheck {
+        exp: ValueExp,
+        ty: ValueTypeExp,
+    },
+    ComputationCheck {
+        exp: ComputationExp,
+        ty: ComputationTypeExp,
+    },
+    ValueInfer {
+        exp: ValueExp,
+    },
+    ComputationInfer {
+        exp: ComputationExp,
+    },
     Check {
         exp: SExp,
         ty: SExp,
@@ -208,6 +222,10 @@ pub struct TelescopeRightbind(pub Vec<RightBind>);
 /// classification before elaboration.
 #[derive(Debug, Clone, Serialize)]
 pub enum ValueTypeExp {
+    Meta {
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Access {
         access: LocalAccess,
         parameters: Vec<ValueTypeExp>,
@@ -221,6 +239,10 @@ pub enum ValueTypeExp {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum ComputationTypeExp {
+    Meta {
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Return(Box<ValueTypeExp>),
     Function {
         domain: Box<ValueTypeExp>,
@@ -230,12 +252,21 @@ pub enum ComputationTypeExp {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum ValueExp {
+    Meta {
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Access(LocalAccess),
     Constructor {
         datatype: LocalAccess,
         constructor: Identifier,
         parameters: Vec<ValueTypeExp>,
         fields: Vec<ValueExp>,
+    },
+    RecordConstructor {
+        datatype: LocalAccess,
+        parameters: Vec<ValueTypeExp>,
+        fields: Vec<(Identifier, ValueExp)>,
     },
     Thunk(Box<ComputationExp>),
     Continue {
@@ -252,6 +283,10 @@ pub enum ValueExp {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum ComputationExp {
+    Meta {
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Access(LocalAccess),
     Return(Box<ValueExp>),
     Force(Box<ValueExp>),
@@ -511,13 +546,6 @@ pub enum SExp {
         step: Box<SExp>,
         state: Box<SExp>,
     },
-    RfType {
-        compute_ty: Box<SExp>,
-    },
-    RfTerm {
-        compute_ty: Box<SExp>,
-        term: Box<SExp>,
-    },
     Run {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
@@ -693,6 +721,7 @@ impl TryFrom<SExp> for ValueTypeExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } => Ok(Self::Access {
                 access,
                 parameters: parameters
@@ -719,6 +748,7 @@ impl TryFrom<SExp> for ComputationTypeExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::ReturnType { value_ty } => Ok(Self::Return(Box::new((*value_ty).try_into()?))),
             SExp::ComputationFunction { domain, codomain } => Ok(Self::Function {
                 domain: Box::new((*domain).try_into()?),
@@ -734,6 +764,7 @@ impl TryFrom<SExp> for ValueExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            SExp::Meta { kind, span } if arguments.is_empty() => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } if parameters.is_empty() => {
                 if arguments.is_empty() {
                     Ok(Self::Access(access))
@@ -761,6 +792,21 @@ impl TryFrom<SExp> for ValueExp {
                         .collect::<Result<_, _>>()?,
                 })
             }
+            SExp::RecordTypeCtor {
+                access,
+                parameters,
+                fields,
+            } if arguments.is_empty() => Ok(Self::RecordConstructor {
+                datatype: access,
+                parameters: parameters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<_, _>>()?,
+                fields: fields
+                    .into_iter()
+                    .map(|(name, value)| Ok((name, value.try_into()?)))
+                    .collect::<Result<_, String>>()?,
+            }),
             SExp::Thunk { computation } => Ok(Self::Thunk(Box::new((*computation).try_into()?))),
             SExp::PContinue {
                 state_ty,
@@ -789,6 +835,7 @@ impl TryFrom<SExp> for ComputationExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } if parameters.is_empty() => {
                 Ok(Self::Access(access))
             }

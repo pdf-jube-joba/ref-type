@@ -85,6 +85,12 @@ pub enum ModuleArgument {
     ProgramValue(Value),
 }
 
+impl From<Exp> for ModuleArgument {
+    fn from(value: Exp) -> Self {
+        Self::Pts(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModuleItem {
     Definition {

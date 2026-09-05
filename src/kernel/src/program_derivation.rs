@@ -204,7 +204,15 @@ pub fn check_value(
     if value_type_is_alpha_eq(session.arena(), inferred, expected) {
         Ok(())
     } else {
-        Err(failure("Value", "check", "value type mismatch"))
+        Err(failure(
+            "Value",
+            "check",
+            &format!(
+                "value type mismatch: inferred {:?}, expected {:?}",
+                session.arena().get(inferred),
+                session.arena().get(expected)
+            ),
+        ))
     }
 }
 
@@ -344,7 +352,15 @@ pub fn check_computation(
     if computation_type_is_alpha_eq(session.arena(), inferred, expected) {
         Ok(())
     } else {
-        Err(failure("Computation", "check", "computation type mismatch"))
+        Err(failure(
+            "Computation",
+            "check",
+            &format!(
+                "computation type mismatch: inferred {:?}, expected {:?}",
+                session.arena().get(inferred),
+                session.arena().get(expected)
+            ),
+        ))
     }
 }
 
@@ -500,7 +516,13 @@ pub fn infer_computation(
                         "case branch binder count mismatch",
                     ));
                 }
-                for (binder, (_, ty)) in branch.binders.iter().copied().zip(fields) {
+                for (field_index, (binder, (_, ty))) in
+                    branch.binders.iter().copied().zip(fields).enumerate()
+                {
+                    // Constructor field types are scoped only over datatype
+                    // parameters. Preserve those references while adding the
+                    // preceding branch value binders to the context.
+                    let ty = shift_value_type_indices(arena, ty, field_index, 0);
                     session.push_value(binder, ty);
                 }
                 let branch_ty = infer_computation(session, branch.body);
