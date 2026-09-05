@@ -3,12 +3,18 @@ use crate::environment::{CrateEnv, DefinitionKind, ModuleParameterKind};
 use crate::exp::*;
 use crate::ids::{InductiveId, ModuleId, SymbolId};
 use crate::inductive::{CtorBinder, eliminator_type};
+use crate::program::{Program, ProgramJudgement, WellTypedProgram};
 use crate::reflection::{reflect_context, reflect_term, reflect_type};
 use crate::sort::Sort;
 use crate::utils;
 use serde::Serialize;
 use std::cell::RefCell;
 use tracing::{debug, error};
+
+#[path = "program_derivation.rs"]
+mod program_derivation;
+pub use program_derivation::ProgramTypeClass;
+use program_derivation::*;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ErrorFrame {
@@ -38,18 +44,12 @@ enum ProofMode<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum ProgramTypeClass {
-    Value,
-    Computation,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum Judgement {
-    Pts { ty: Exp },
+pub enum RawJudgement {
+    Pts { ty: RawExp },
     ValueType,
     ComputationType,
-    Value { ty: Exp },
-    Computation { ty: Exp },
+    Value { ty: RawExp },
+    Computation { ty: RawExp },
 }
 
 impl<'env, 'context> CheckSession<'env, 'context> {
@@ -114,11 +114,11 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         self.context
     }
 
-    pub fn push(&mut self, var: SymbolId, ty: Exp) {
+    pub fn push(&mut self, var: SymbolId, ty: RawExp) {
         self.push_pts(var, ty);
     }
 
-    pub fn push_pts(&mut self, var: SymbolId, ty: Exp) {
+    pub fn push_pts(&mut self, var: SymbolId, ty: RawExp) {
         self.context.push(ContextEntry::Pts { var, ty });
     }
 
@@ -126,7 +126,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         self.context.push(ContextEntry::ProgramType { var });
     }
 
-    pub fn push_program_value(&mut self, var: SymbolId, ty: Exp) {
+    pub fn push_program_value(&mut self, var: SymbolId, ty: RawExp) {
         self.context.push(ContextEntry::ProgramValue { var, ty });
     }
 
@@ -136,23 +136,35 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             .expect("CheckSession context stack underflow");
     }
 
-    pub fn check(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
+    pub fn check(&mut self, term: RawExp, ty: RawExp) -> Result<(), Box<JudgementError>> {
         check(self, term, ty)
     }
 
-    pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
+    pub fn check_pts(&mut self, term: RawExp, ty: RawExp) -> Result<(), Box<JudgementError>> {
         check(self, term, ty)
     }
 
-    pub fn infer(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
+    pub fn infer(&mut self, term: RawExp) -> Result<RawExp, Box<JudgementError>> {
         infer(self, term)
     }
 
-    pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
+    pub fn infer_pts(&mut self, term: RawExp) -> Result<RawExp, Box<JudgementError>> {
         infer(self, term)
     }
 
-    pub fn infer_sort(&mut self, term: Exp) -> Result<Sort, Box<JudgementError>> {
+    /// Infer a Set/Prop term and return only classified `Exp` handles.
+    pub fn infer_exp_judgement(
+        &mut self,
+        term: RawExp,
+    ) -> Result<ExpJudgement, Box<JudgementError>> {
+        let ty = infer(self, term)?;
+        Ok(ExpJudgement {
+            term: Exp::checked(term),
+            ty: Exp::checked(ty),
+        })
+    }
+
+    pub fn infer_sort(&mut self, term: RawExp) -> Result<Sort, Box<JudgementError>> {
         infer_sort(self, term)
     }
 
@@ -160,23 +172,26 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         check_wellformed_context(self)
     }
 
-    pub fn check_value_type(&mut self, ty: Exp) -> Result<(), Box<JudgementError>> {
+    pub fn check_value_type(&mut self, ty: RawExp) -> Result<(), Box<JudgementError>> {
         check_value_type(self, ty)
     }
 
-    pub fn check_computation_type(&mut self, ty: Exp) -> Result<(), Box<JudgementError>> {
+    pub fn check_computation_type(&mut self, ty: RawExp) -> Result<(), Box<JudgementError>> {
         check_computation_type(self, ty)
     }
 
-    pub fn infer_value(&mut self, value: Exp) -> Result<Exp, Box<JudgementError>> {
+    pub fn infer_value(&mut self, value: RawExp) -> Result<RawExp, Box<JudgementError>> {
         infer_value(self, value)
     }
 
-    pub fn check_value(&mut self, value: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
+    pub fn check_value(&mut self, value: RawExp, ty: RawExp) -> Result<(), Box<JudgementError>> {
         check_value(self, value, ty)
     }
 
-    pub fn infer_computation(&mut self, computation: Exp) -> Result<Exp, Box<JudgementError>> {
+    pub fn infer_computation(
+        &mut self,
+        computation: RawExp,
+    ) -> Result<RawExp, Box<JudgementError>> {
         infer_computation(self, computation)
     }
 
@@ -184,8 +199,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     /// value under the current Program context.
     pub fn check_well_terminated_value(
         &mut self,
-        value: Exp,
-        ty: Exp,
+        value: RawExp,
+        ty: RawExp,
     ) -> Result<(), Box<JudgementError>> {
         check_value(self, value, ty)?;
         check_reflected_program_typing(self, value, ty)
@@ -195,8 +210,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     /// computation under the current Program context.
     pub fn check_well_terminated_computation(
         &mut self,
-        computation: Exp,
-        ty: Exp,
+        computation: RawExp,
+        ty: RawExp,
     ) -> Result<(), Box<JudgementError>> {
         check_computation(self, computation, ty)?;
         check_reflected_program_typing(self, computation, ty)
@@ -204,32 +219,68 @@ impl<'env, 'context> CheckSession<'env, 'context> {
 
     pub fn check_computation(
         &mut self,
-        computation: Exp,
-        ty: Exp,
+        computation: RawExp,
+        ty: RawExp,
     ) -> Result<(), Box<JudgementError>> {
         check_computation(self, computation, ty)
     }
 
-    pub fn infer_any(&mut self, exp: Exp) -> Result<Judgement, Box<JudgementError>> {
+    pub fn infer_any(&mut self, exp: RawExp) -> Result<RawJudgement, Box<JudgementError>> {
         if let Ok(ty) = self.infer_pts(exp) {
-            return Ok(Judgement::Pts { ty });
+            return Ok(RawJudgement::Pts { ty });
         }
         if self.check_value_type(exp).is_ok() {
-            return Ok(Judgement::ValueType);
+            return Ok(RawJudgement::ValueType);
         }
         if self.check_computation_type(exp).is_ok() {
-            return Ok(Judgement::ComputationType);
+            return Ok(RawJudgement::ComputationType);
         }
         if let Ok(ty) = self.infer_value(exp) {
-            return Ok(Judgement::Value { ty });
+            return Ok(RawJudgement::Value { ty });
         }
         self.infer_computation(exp)
-            .map(|ty| Judgement::Computation { ty })
+            .map(|ty| RawJudgement::Computation { ty })
+    }
+
+    /// Classify a raw term using only Program formation/typing judgements.
+    /// A [`Program`] handle is created only after the corresponding kernel
+    /// judgement succeeds.
+    pub fn infer_program_judgement(
+        &mut self,
+        raw: RawExp,
+    ) -> Result<WellTypedProgram, Box<JudgementError>> {
+        if self.check_value_type(raw).is_ok() {
+            return Ok(WellTypedProgram {
+                program: Program::checked(raw),
+                judgement: ProgramJudgement::ValueType,
+            });
+        }
+        if self.check_computation_type(raw).is_ok() {
+            return Ok(WellTypedProgram {
+                program: Program::checked(raw),
+                judgement: ProgramJudgement::ComputationType,
+            });
+        }
+        if let Ok(ty) = self.infer_value(raw) {
+            return Ok(WellTypedProgram {
+                program: Program::checked(raw),
+                judgement: ProgramJudgement::Value {
+                    ty: Program::checked(ty),
+                },
+            });
+        }
+        let ty = self.infer_computation(raw)?;
+        Ok(WellTypedProgram {
+            program: Program::checked(raw),
+            judgement: ProgramJudgement::Computation {
+                ty: Program::checked(ty),
+            },
+        })
     }
 
     fn require_provable(
         &mut self,
-        proposition: Exp,
+        proposition: RawExp,
         rule: &'static str,
     ) -> Result<(), Box<JudgementError>> {
         // Weakening of a proof already present in the PTS context is the only
@@ -393,8 +444,8 @@ fn propagate(
 
 fn check(
     session: &mut CheckSession<'_, '_>,
-    term: Exp,
-    ty: Exp,
+    term: RawExp,
+    ty: RawExp,
 ) -> Result<(), Box<JudgementError>> {
     let arena = session.arena();
     let span = tracing::debug_span!(
@@ -410,7 +461,7 @@ fn check(
     let phase = "check";
     let inferred_ty = add_infer!(session, rule, phase, term, "infer given term")?;
 
-    if matches!(arena.get(ty), Node::Sort(sort) if sort.type_of_sort().is_none())
+    if matches!(arena.get(ty), RawNode::Sort(sort) if sort.type_of_sort().is_none())
         && exp_is_alpha_eq(session.env(), ty, inferred_ty)
     {
         return Ok(());
@@ -422,7 +473,7 @@ fn check(
 
     let inferred_head = type_head_normal(session.env(), inferred_ty);
     let expected_head = type_head_normal(session.env(), ty);
-    if let (Node::Sort(inferred), Node::Sort(expected)) =
+    if let (RawNode::Sort(inferred), RawNode::Sort(expected)) =
         (arena.get(inferred_head), arena.get(expected_head))
     {
         if inferred.can_lift_to(expected) {
@@ -436,7 +487,7 @@ fn check(
     Err(failure(rule, phase, "ty, inferred_ty not convertible"))
 }
 
-fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<JudgementError>> {
+fn infer(session: &mut CheckSession<'_, '_>, term: RawExp) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     let rule = exp_rule(arena, term);
     let span = tracing::debug_span!(
@@ -450,16 +501,16 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
     let phase = "infer";
 
     match arena.get(term) {
-        Node::Sort(sort) => sort
+        RawNode::Sort(sort) => sort
             .type_of_sort()
             .map(|sort| arena.sort(sort))
             .ok_or_else(|| failure(rule, phase, "no sort of sort found")),
-        Node::ValueType => Err(failure(
+        RawNode::ValueType => Err(failure(
             rule,
             phase,
             "Program type universe used in the PTS judgement",
         )),
-        Node::Bound(index) => session
+        RawNode::Bound(index) => session
             .context
             .get(
                 session
@@ -475,7 +526,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 ContextEntry::ProgramType { .. } | ContextEntry::ProgramValue { .. } => None,
             })
             .ok_or_else(|| failure(rule, phase, "bound variable index is outside the context")),
-        Node::ModuleParam(parameter) => session
+        RawNode::ModuleParam(parameter) => session
             .env()
             .module_parameter_opt(parameter)
             .and_then(|parameter| match parameter.kind {
@@ -490,7 +541,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 ModuleParameterKind::Pts { .. } => None,
             })
             .ok_or_else(|| failure(rule, phase, "module parameter is not a PTS term")),
-        Node::ReflectedProgramParam(parameter) => session
+        RawNode::ReflectedProgramParam(parameter) => session
             .env()
             .module_parameter_opt(parameter)
             .and_then(|parameter| {
@@ -513,12 +564,12 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                     "reflected Program parameter is not present in the reflected context",
                 )
             }),
-        Node::Meta { .. } => Err(failure(
+        RawNode::Meta { .. } => Err(failure(
             rule,
             phase,
             "unresolved metavariable reached the strict kernel checker",
         )),
-        Node::Prod { var, ty, body } => {
+        RawNode::Prod { var, ty, body } => {
             let domain_sort = add_sort!(session, rule, phase, ty, "infer domain sort for product")?;
             session.push(var, ty);
             let body_sort = add_sort!(
@@ -535,13 +586,13 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 .map(|sort| arena.sort(sort))
                 .ok_or_else(|| failure(rule, phase, "no sort relation for product"))
         }
-        Node::Lam { var, ty, body } => {
+        RawNode::Lam { var, ty, body } => {
             add_sort!(session, rule, phase, ty, "infer domain sort for lambda")?;
             session.push(var, ty);
             let body_ty = add_infer!(session, rule, phase, body, "infer body type for lambda");
             session.pop();
             let body_ty = body_ty?;
-            let lambda_ty = arena.alloc(Node::Prod {
+            let lambda_ty = arena.alloc(RawNode::Prod {
                 var,
                 ty,
                 body: body_ty,
@@ -555,7 +606,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(lambda_ty)
         }
-        Node::App { func, arg } => {
+        RawNode::App { func, arg } => {
             let func_ty = add_infer!(
                 session,
                 rule,
@@ -576,7 +627,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(instantiate(arena, ret_ty, arg))
         }
-        Node::DefinedConstant(definition) => {
+        RawNode::DefinedConstant(definition) => {
             let definition = session.env().definition(definition);
             if definition.kind == DefinitionKind::Pts {
                 Ok(definition.ty)
@@ -584,7 +635,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 Err(failure(rule, phase, "definition is not a PTS term"))
             }
         }
-        Node::IndType {
+        RawNode::IndType {
             indspec,
             parameters,
         } => {
@@ -593,7 +644,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             check_parameters(session, rule, phase, &parameters, spec.parameters())?;
             Ok(instantiate_telescope(arena, spec.arity(arena), &parameters))
         }
-        Node::IndCtor {
+        RawNode::IndCtor {
             indspec,
             idx,
             parameters,
@@ -609,13 +660,13 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             );
             Ok(constructor)
         }
-        Node::IndElim {
+        RawNode::IndElim {
             indspec,
             elim,
             return_type,
             cases,
         } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, cases),
-        Node::IndProjection {
+        RawNode::IndProjection {
             indspec,
             parameters,
             value,
@@ -626,7 +677,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 return Err(failure(rule, phase, "projection target is not a structure"));
             }
             check_parameters(session, rule, phase, &parameters, spec.parameters())?;
-            let structure_ty = arena.alloc(Node::IndType {
+            let structure_ty = arena.alloc(RawNode::IndType {
                 indspec,
                 parameters: parameters.clone(),
             });
@@ -644,7 +695,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             };
             let preceding = (0..field)
                 .map(|field| {
-                    arena.alloc(Node::IndProjection {
+                    arena.alloc(RawNode::IndProjection {
                         indspec,
                         parameters: parameters.clone(),
                         value,
@@ -654,12 +705,12 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 .collect::<Vec<_>>();
             Ok(instantiate_telescope(arena, *field_ty, &preceding))
         }
-        Node::ReflectedProgramCase {
+        RawNode::ReflectedProgramCase {
             indspec,
             scrutinee,
             branches,
         } => infer_reflected_program_case(session, rule, phase, indspec, scrutinee, branches),
-        Node::RunStep {
+        RawNode::RunStep {
             state_ty,
             result_ty,
         } => {
@@ -670,31 +721,31 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 _ => Err(failure(rule, phase, "RunStep arguments must inhabit Set(i)")),
             }
         }
-        Node::Continue {
+        RawNode::Continue {
             state_ty,
             result_ty,
             next,
         } => {
             check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
             add_check!(session, rule, phase, next, state_ty, "check next state")?;
-            Ok(arena.alloc(Node::RunStep {
+            Ok(arena.alloc(RawNode::RunStep {
                 state_ty,
                 result_ty,
             }))
         }
-        Node::Finish {
+        RawNode::Finish {
             state_ty,
             result_ty,
             output,
         } => {
             check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
             add_check!(session, rule, phase, output, result_ty, "check final result")?;
-            Ok(arena.alloc(Node::RunStep {
+            Ok(arena.alloc(RawNode::RunStep {
                 state_ty,
                 result_ty,
             }))
         }
-        Node::Acc {
+        RawNode::Acc {
             state_ty,
             result_ty,
             step,
@@ -718,14 +769,14 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(arena.sort(Sort::Prop))
         }
-        Node::Proof { proposition } => {
+        RawNode::Proof { proposition } => {
             if add_sort!(session, rule, phase, proposition, "check proposition")? != Sort::Prop {
                 return Err(failure(rule, phase, "Proof argument is not a proposition"));
             }
             session.require_provable(proposition, "Proof")?;
             Ok(proposition)
         }
-        Node::SetRun {
+        RawNode::SetRun {
             state_ty,
             result_ty,
             step,
@@ -740,7 +791,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 Some(step),
             )?;
             add_check!(session, rule, phase, initial, state_ty, "check initial state")?;
-            let accessibility = arena.alloc(Node::Acc {
+            let accessibility = arena.alloc(RawNode::Acc {
                 state_ty,
                 result_ty,
                 step,
@@ -749,7 +800,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             session.require_provable(accessibility, "SetRun")?;
             Ok(result_ty)
         }
-        Node::SetRunCase {
+        RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
@@ -765,13 +816,13 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 Some(step),
             )?;
             add_check!(session, rule, phase, initial, state_ty, "check current state")?;
-            let run_step = arena.alloc(Node::RunStep {
+            let run_step = arena.alloc(RawNode::RunStep {
                 state_ty,
                 result_ty,
             });
             add_check!(session, rule, phase, transition, run_step, "check transition")?;
             session.require_provable(
-                arena.alloc(Node::Acc {
+                arena.alloc(RawNode::Acc {
                     state_ty,
                     result_ty,
                     step,
@@ -780,8 +831,8 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 "SetRunCase",
             )?;
             session.require_provable(
-                arena.alloc(Node::Equal {
-                    left: arena.alloc(Node::App {
+                arena.alloc(RawNode::Equal {
+                    left: arena.alloc(RawNode::App {
                         func: step,
                         arg: initial,
                     }),
@@ -791,7 +842,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(result_ty)
         }
-        Node::RunStepRec {
+        RawNode::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -809,36 +860,36 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             on_finish,
             scrutinee,
         ),
-        Node::BoxType { program_ty } => {
+        RawNode::BoxType { program_ty } => {
             check_closed_program_type(session, program_ty)?;
             Ok(arena.sort(Sort::Set(0)))
         }
-        Node::BoxProgram {
+        RawNode::BoxProgram {
             program_ty,
             program,
         } => {
             check_closed_well_terminated_program(session, program_ty, program)?;
-            Ok(arena.alloc(Node::BoxType { program_ty }))
+            Ok(arena.alloc(RawNode::BoxType { program_ty }))
         }
-        Node::ForceBox { program_ty, boxed } => {
+        RawNode::ForceBox { program_ty, boxed } => {
             check_closed_program_type(session, program_ty)?;
             add_check!(
                 session,
                 rule,
                 phase,
                 boxed,
-                arena.alloc(Node::BoxType { program_ty }),
+                arena.alloc(RawNode::BoxType { program_ty }),
                 "check boxed Program"
             )?;
             reflect_type(session.env(), program_ty)
                 .map_err(|error| failure(rule, phase, &format!("cannot reflect type: {error}")))
         }
-        Node::BoxApp { function, argument } => {
+        RawNode::BoxApp { function, argument } => {
             let function_ty = add_infer!(session, rule, phase, function, "infer boxed function")?;
-            let Node::BoxType { program_ty } = arena.get(type_head_normal(session.env(), function_ty)) else {
+            let RawNode::BoxType { program_ty } = arena.get(type_head_normal(session.env(), function_ty)) else {
                 return Err(failure(rule, phase, "boxed application head is not Box(P)"));
             };
-            let Node::ComputationFunction { domain, codomain } = arena.get(program_ty) else {
+            let RawNode::ComputationFunction { domain, codomain } = arena.get(program_ty) else {
                 return Err(failure(rule, phase, "boxed application head is not a computation function"));
             };
             add_check!(
@@ -846,12 +897,12 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 rule,
                 phase,
                 argument,
-                arena.alloc(Node::BoxType { program_ty: domain }),
+                arena.alloc(RawNode::BoxType { program_ty: domain }),
                 "check boxed argument"
             )?;
-            Ok(arena.alloc(Node::BoxType { program_ty: codomain }))
+            Ok(arena.alloc(RawNode::BoxType { program_ty: codomain }))
         }
-        Node::RfType { compute_ty } => {
+        RawNode::RfType { compute_ty } => {
             Err(failure(
                 rule,
                 phase,
@@ -861,32 +912,32 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 ),
             ))
         }
-        Node::RfTerm { .. } => Err(failure(
+        RawNode::RfTerm { .. } => Err(failure(
             rule,
             phase,
             "RfTerm is no longer a term; reflection is a meta-level map",
         )),
-        Node::ThunkType { .. }
-        | Node::ReturnType { .. }
-        | Node::ComputationFunction { .. }
-        | Node::ProgramIndType { .. }
-        | Node::Thunk { .. }
-        | Node::ProgramIndCtor { .. }
-        | Node::ProgramIndProjection { .. }
-        | Node::Return { .. }
-        | Node::Force { .. }
-        | Node::ComputationLam { .. }
-        | Node::ComputationApp { .. }
-        | Node::Sequence { .. }
-        | Node::ValueLet { .. }
-        | Node::ProgramCase { .. }
-        | Node::Run { .. }
-        | Node::RunCase { .. } => Err(failure(
+        RawNode::ThunkType { .. }
+        | RawNode::ReturnType { .. }
+        | RawNode::ComputationFunction { .. }
+        | RawNode::ProgramIndType { .. }
+        | RawNode::Thunk { .. }
+        | RawNode::ProgramIndCtor { .. }
+        | RawNode::ProgramIndProjection { .. }
+        | RawNode::Return { .. }
+        | RawNode::Force { .. }
+        | RawNode::ComputationLam { .. }
+        | RawNode::ComputationApp { .. }
+        | RawNode::Sequence { .. }
+        | RawNode::ValueLet { .. }
+        | RawNode::ProgramCase { .. }
+        | RawNode::Run { .. }
+        | RawNode::RunCase { .. } => Err(failure(
             rule,
             phase,
             "Program expression used in the PTS judgement",
         )),
-        Node::SubsetIntro {
+        RawNode::SubsetIntro {
             superset,
             subset,
             element,
@@ -896,10 +947,10 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             if !matches!(sort, Sort::Set(_)) {
                 return Err(failure(rule, phase, "SubsetIntro carrier is not Set(i)"));
             }
-            let power = arena.alloc(Node::PowerSet { set: superset });
+            let power = arena.alloc(RawNode::PowerSet { set: superset });
             add_check!(session, rule, phase, subset, power, "check subset")?;
             add_check!(session, rule, phase, element, superset, "check element")?;
-            let membership = arena.alloc(Node::Pred {
+            let membership = arena.alloc(RawNode::Pred {
                 superset,
                 subset,
                 element,
@@ -912,13 +963,13 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 membership,
                 "check membership proof"
             )?;
-            Ok(arena.alloc(Node::TypeLift { superset, subset }))
+            Ok(arena.alloc(RawNode::TypeLift { superset, subset }))
         }
-        Node::PowerSet { set } => match add_sort!(session, rule, phase, set, "check set sort")? {
+        RawNode::PowerSet { set } => match add_sort!(session, rule, phase, set, "check set sort")? {
             Sort::Set(level) => Ok(arena.sort(Sort::Set(level))),
             _ => Err(failure(rule, phase, "set is not of Set(i)")),
         },
-        Node::SubSet {
+        RawNode::SubSet {
             var,
             set,
             predicate,
@@ -941,9 +992,9 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             );
             session.pop();
             result?;
-            Ok(arena.alloc(Node::PowerSet { set }))
+            Ok(arena.alloc(RawNode::PowerSet { set }))
         }
-        Node::Pred {
+        RawNode::Pred {
             superset,
             subset,
             element,
@@ -954,7 +1005,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             ) {
                 return Err(failure(rule, phase, "superset is not of Set(i)"));
             }
-            let power = arena.alloc(Node::PowerSet { set: superset });
+            let power = arena.alloc(RawNode::PowerSet { set: superset });
             add_check!(session, rule, phase, subset, power, "check subset type")?;
             add_check!(
                 session,
@@ -966,17 +1017,17 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(arena.sort(Sort::Prop))
         }
-        Node::TypeLift { superset, subset } => {
+        RawNode::TypeLift { superset, subset } => {
             let Sort::Set(level) =
                 add_sort!(session, rule, phase, superset, "check superset sort")?
             else {
                 return Err(failure(rule, phase, "superset is not of Set(i)"));
             };
-            let power = arena.alloc(Node::PowerSet { set: superset });
+            let power = arena.alloc(RawNode::PowerSet { set: superset });
             add_check!(session, rule, phase, subset, power, "check subset type")?;
             Ok(arena.sort(Sort::Set(level)))
         }
-        Node::Equal { left, right } => {
+        RawNode::Equal { left, right } => {
             let left_ty = add_infer!(session, rule, phase, left, "infer left type")?;
             let right_ty = add_infer!(session, rule, phase, right, "infer right type")?;
             let Some(carrier) = common_ambient_carrier(session.env(), left_ty, right_ty) else {
@@ -990,7 +1041,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             }
             Ok(arena.sort(Sort::Prop))
         }
-        Node::Exists { set } => {
+        RawNode::Exists { set } => {
             if !matches!(
                 add_sort!(session, rule, phase, set, "check set sort")?,
                 Sort::Set(_)
@@ -999,7 +1050,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             }
             Ok(arena.sort(Sort::Prop))
         }
-        Node::TakeSet {
+        RawNode::TakeSet {
             domain,
             codomain,
             map,
@@ -1008,567 +1059,48 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         } => infer_take_set(
             session, rule, phase, domain, codomain, map, existence, uniqueness,
         ),
-        Node::TakeProp {
+        RawNode::TakeProp {
             domain,
             proposition,
             map,
             existence,
         } => infer_take_prop(session, rule, phase, domain, proposition, map, existence),
-        Node::ExistsIntro { .. }
-        | Node::SubsetElim { .. }
-        | Node::IdRefl { .. }
-        | Node::IdElim { .. }
-        | Node::AxiomSetExt { .. }
-        | Node::AxiomFunExt { .. }
-        | Node::AxiomClassicalIndefiniteChoice { .. }
-        | Node::TakeEq { .. }
-        | Node::AccIntro { .. }
-        | Node::AccDescent { .. } => infer_proof_constructor(session, term),
+        RawNode::ExistsIntro { .. }
+        | RawNode::SubsetElim { .. }
+        | RawNode::IdRefl { .. }
+        | RawNode::IdElim { .. }
+        | RawNode::AxiomSetExt { .. }
+        | RawNode::AxiomFunExt { .. }
+        | RawNode::AxiomClassicalIndefiniteChoice { .. }
+        | RawNode::TakeEq { .. }
+        | RawNode::AccIntro { .. }
+        | RawNode::AccDescent { .. } => infer_proof_constructor(session, term),
     }
 }
 
-fn context_entry<'a>(
-    session: &'a CheckSession<'_, '_>,
-    index: usize,
-) -> Result<&'a ContextEntry, Box<JudgementError>> {
-    session
-        .context
-        .len()
-        .checked_sub(index + 1)
-        .and_then(|position| session.context.get(position))
-        .ok_or_else(|| {
-            failure(
-                "Variable",
-                "lookup",
-                "bound variable index is outside the context",
-            )
-        })
-}
-
-fn check_program_type(
-    session: &mut CheckSession<'_, '_>,
-    ty: Exp,
-) -> Result<ProgramTypeClass, Box<JudgementError>> {
-    if check_value_type(session, ty).is_ok() {
-        Ok(ProgramTypeClass::Value)
-    } else {
-        check_computation_type(session, ty).map(|()| ProgramTypeClass::Computation)
-    }
-}
-
-fn check_value_type(
-    session: &mut CheckSession<'_, '_>,
-    ty: Exp,
-) -> Result<(), Box<JudgementError>> {
-    let arena = session.arena();
-    let rule = "ValueType";
-    let phase = "formation";
-    match arena.get(ty) {
-        Node::Bound(index) => match context_entry(session, index)? {
-            ContextEntry::ProgramType { .. } => Ok(()),
-            _ => Err(failure(
-                rule,
-                phase,
-                "bound variable is not a Program type variable",
-            )),
-        },
-        Node::ModuleParam(parameter) => match session
-            .env()
-            .module_parameter_opt(parameter)
-            .ok_or_else(|| failure(rule, phase, "module parameter not found"))?
-        {
-            parameter
-                if matches!(parameter.kind, ModuleParameterKind::ProgramType)
-                    && session.context.iter().any(
-                        |entry| matches!(entry, ContextEntry::ProgramType { var } if *var == parameter.name),
-                    ) => Ok(()),
-            _ => Err(failure(
-                rule,
-                phase,
-                "module parameter is not a Program type variable",
-            )),
-        },
-        Node::ThunkType { computation_ty } => check_computation_type(session, computation_ty),
-        Node::RunStep {
-            state_ty,
-            result_ty,
-        } => {
-            check_value_type(session, state_ty)?;
-            check_value_type(session, result_ty)
-        }
-        Node::ProgramIndType {
-            indspec,
-            parameters,
-        } => {
-            let spec = session.env().program_inductive(indspec);
-            if parameters.len() != spec.parameters().len() {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "Program datatype parameter count mismatch",
-                ));
-            }
-            for parameter in parameters {
-                check_value_type(session, parameter)?;
-            }
-            Ok(())
-        }
-        Node::Prod { var, ty, body } => {
-            if matches!(arena.get(ty), Node::ValueType) {
-                session.push_program_type(var);
-            } else {
-                check_value_type(session, ty)?;
-                session.push_program_value(var, ty);
-            }
-            let result = check_value_type(session, body);
-            session.pop();
-            result
-        }
-        _ => Err(failure(rule, phase, "expression is not a value type")),
-    }
-}
-
-fn check_computation_type(
-    session: &mut CheckSession<'_, '_>,
-    ty: Exp,
-) -> Result<(), Box<JudgementError>> {
-    let arena = session.arena();
-    let rule = "ComputationType";
-    let phase = "formation";
-    match arena.get(ty) {
-        Node::ReturnType { value_ty } => check_value_type(session, value_ty),
-        Node::ComputationFunction { domain, codomain } => {
-            check_value_type(session, domain)?;
-            check_computation_type(session, codomain)
-        }
-        _ => Err(failure(rule, phase, "expression is not a computation type")),
-    }
-}
-
-fn check_value(
-    session: &mut CheckSession<'_, '_>,
-    value: Exp,
-    expected: Exp,
-) -> Result<(), Box<JudgementError>> {
-    check_value_type(session, expected)?;
-    let inferred = infer_value(session, value)?;
-    if exp_is_alpha_eq(session.env(), inferred, expected) {
-        Ok(())
-    } else {
-        Err(failure("Value", "check", "value type mismatch"))
-    }
-}
-
-fn infer_value(session: &mut CheckSession<'_, '_>, value: Exp) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena();
-    let rule = "Value";
-    let phase = "infer";
-    match arena.get(value) {
-        Node::Bound(index) => match context_entry(session, index)? {
-            ContextEntry::ProgramValue { ty, .. } => {
-                Ok(shift_bound_indices(arena, *ty, index + 1, 0))
-            }
-            _ => Err(failure(
-                rule,
-                phase,
-                "bound variable is not a Program value",
-            )),
-        },
-        Node::ModuleParam(parameter) => {
-            match session
-                .env()
-                .module_parameter_opt(parameter)
-                .ok_or_else(|| failure(rule, phase, "module parameter not found"))?
-            {
-                parameter
-                    if matches!(parameter.kind, ModuleParameterKind::ProgramValue { .. })
-                        && session.context.iter().any(
-                            |entry| matches!(entry, ContextEntry::ProgramValue { var, .. } if *var == parameter.name),
-                        ) => match parameter.kind {
-                            ModuleParameterKind::ProgramValue { ty } => Ok(ty),
-                            _ => unreachable!(),
-                        },
-                _ => Err(failure(
-                    rule,
-                    phase,
-                    "module parameter is not a Program value",
-                )),
-            }
-        }
-        Node::DefinedConstant(definition) => {
-            let definition = session.env().definition(definition);
-            if definition.kind == DefinitionKind::ProgramValue {
-                Ok(definition.ty)
-            } else {
-                Err(failure(rule, phase, "definition is not a Program value"))
-            }
-        }
-        Node::Lam { var, ty, body } => {
-            if matches!(arena.get(ty), Node::ValueType) {
-                session.push_program_type(var);
-            } else {
-                check_value_type(session, ty)?;
-                session.push_program_value(var, ty);
-            }
-            let body_ty = infer_value(session, body);
-            session.pop();
-            let body_ty = body_ty?;
-            Ok(arena.alloc(Node::Prod {
-                var,
-                ty,
-                body: body_ty,
-            }))
-        }
-        Node::App { func, arg } => {
-            let func_ty = infer_value(session, func)?;
-            let Some((_var, domain, codomain)) = expose_product(session.env(), func_ty) else {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "Program value application head is not a function",
-                ));
-            };
-            if matches!(arena.get(domain), Node::ValueType) {
-                check_value_type(session, arg)?;
-            } else {
-                check_value(session, arg, domain)?;
-            }
-            Ok(instantiate(arena, codomain, arg))
-        }
-        Node::Thunk { computation } => {
-            let computation_ty = infer_computation(session, computation)?;
-            Ok(arena.alloc(Node::ThunkType { computation_ty }))
-        }
-        Node::Continue {
-            state_ty,
-            result_ty,
-            next,
-        } => {
-            check_value_type(session, state_ty)?;
-            check_value_type(session, result_ty)?;
-            check_value(session, next, state_ty)?;
-            Ok(run_step_type(arena, state_ty, result_ty))
-        }
-        Node::Finish {
-            state_ty,
-            result_ty,
-            output,
-        } => {
-            check_value_type(session, state_ty)?;
-            check_value_type(session, result_ty)?;
-            check_value(session, output, result_ty)?;
-            Ok(run_step_type(arena, state_ty, result_ty))
-        }
-        Node::ProgramIndCtor {
-            indspec,
-            parameters,
-            idx,
-            fields,
-        } => {
-            let spec = session.env().program_inductive(indspec);
-            if parameters.len() != spec.parameters().len() {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "Program constructor parameter count mismatch",
-                ));
-            }
-            for parameter in &parameters {
-                check_value_type(session, *parameter)?;
-            }
-            let constructor = spec
-                .constructors()
-                .get(idx)
-                .ok_or_else(|| failure(rule, phase, "Program constructor index out of bounds"))?;
-            let expected_fields = constructor.instantiated_fields(arena, &parameters);
-            if fields.len() != expected_fields.len() {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "Program constructor field count mismatch",
-                ));
-            }
-            let mut preceding = Vec::new();
-            for (field, (_, expected)) in fields.into_iter().zip(expected_fields) {
-                let expected = instantiate_telescope(arena, expected, &preceding);
-                check_value(session, field, expected)?;
-                preceding.push(field);
-            }
-            Ok(arena.alloc(Node::ProgramIndType {
-                indspec,
-                parameters,
-            }))
-        }
-        Node::ProgramIndProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => {
-            let spec = session.env().program_inductive(indspec);
-            if spec.constructors().len() != 1 {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "Program projection requires a one-constructor structure",
-                ));
-            }
-            if parameters.len() != spec.parameters().len() {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "Program projection parameter count mismatch",
-                ));
-            }
-            for parameter in &parameters {
-                check_value_type(session, *parameter)?;
-            }
-            let structure_ty = arena.alloc(Node::ProgramIndType {
-                indspec,
-                parameters: parameters.clone(),
-            });
-            check_value(session, value, structure_ty)?;
-            let fields = spec.constructors()[0].instantiated_fields(arena, &parameters);
-            let (_, field_ty) = fields
-                .get(field)
-                .copied()
-                .ok_or_else(|| failure(rule, phase, "Program projection field out of bounds"))?;
-            let preceding = (0..field)
-                .map(|preceding_field| {
-                    arena.alloc(Node::ProgramIndProjection {
-                        indspec,
-                        parameters: parameters.clone(),
-                        value,
-                        field: preceding_field,
-                    })
-                })
-                .collect::<Vec<_>>();
-            Ok(instantiate_telescope(arena, field_ty, &preceding))
-        }
-        _ => Err(failure(rule, phase, "expression is not a Program value")),
-    }
-}
-
-fn check_computation(
-    session: &mut CheckSession<'_, '_>,
-    computation: Exp,
-    expected: Exp,
-) -> Result<(), Box<JudgementError>> {
-    check_computation_type(session, expected)?;
-    let inferred = infer_computation(session, computation)?;
-    if exp_is_alpha_eq(session.env(), inferred, expected) {
-        Ok(())
-    } else {
-        Err(failure("Computation", "check", "computation type mismatch"))
-    }
-}
-
-fn infer_computation(
-    session: &mut CheckSession<'_, '_>,
-    computation: Exp,
-) -> Result<Exp, Box<JudgementError>> {
-    let arena = session.arena();
-    let rule = "Computation";
-    let phase = "infer";
-    match arena.get(computation) {
-        Node::DefinedConstant(definition) => {
-            let definition = session.env().definition(definition);
-            if definition.kind == DefinitionKind::ProgramComputation {
-                Ok(definition.ty)
-            } else {
-                Err(failure(
-                    rule,
-                    phase,
-                    "definition is not a Program computation",
-                ))
-            }
-        }
-        Node::Return { value } => {
-            let value_ty = infer_value(session, value)?;
-            Ok(arena.alloc(Node::ReturnType { value_ty }))
-        }
-        Node::Force { value } => {
-            let value_ty = infer_value(session, value)?;
-            let Node::ThunkType { computation_ty } = arena.get(value_ty) else {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "forced value does not have a thunk type",
-                ));
-            };
-            Ok(computation_ty)
-        }
-        Node::ComputationLam {
-            var,
-            value_ty,
-            body,
-        } => {
-            check_value_type(session, value_ty)?;
-            session.push_program_value(var, value_ty);
-            let body_ty = infer_computation(session, body);
-            session.pop();
-            Ok(arena.alloc(Node::ComputationFunction {
-                domain: value_ty,
-                codomain: body_ty?,
-            }))
-        }
-        Node::ComputationApp { computation, value } => {
-            let computation_ty = infer_computation(session, computation)?;
-            let Node::ComputationFunction { domain, codomain } = arena.get(computation_ty) else {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "application head is not a computation function",
-                ));
-            };
-            check_value(session, value, domain)?;
-            Ok(codomain)
-        }
-        Node::Sequence {
-            computation,
-            var,
-            value_ty,
-            body,
-        } => {
-            check_value_type(session, value_ty)?;
-            let expected_source = arena.alloc(Node::ReturnType { value_ty });
-            check_computation(session, computation, expected_source)?;
-            session.push_program_value(var, value_ty);
-            let body_ty = infer_computation(session, body);
-            session.pop();
-            body_ty
-        }
-        Node::ValueLet { var, value, body } => {
-            let value_ty = infer_value(session, value)?;
-            session.push_program_value(var, value_ty);
-            let body_ty = infer_computation(session, body);
-            session.pop();
-            body_ty
-        }
-        Node::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-        } => {
-            check_recursion_signature(session, rule, phase, state_ty, result_ty, step)?;
-            check_value(session, initial, state_ty)?;
-            Ok(arena.alloc(Node::ReturnType {
-                value_ty: result_ty,
-            }))
-        }
-        Node::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-        } => {
-            check_recursion_signature(session, rule, phase, state_ty, result_ty, step)?;
-            check_value(session, initial, state_ty)?;
-            let transition_ty = arena.alloc(Node::ReturnType {
-                value_ty: run_step_type(arena, state_ty, result_ty),
-            });
-            check_computation(session, transition, transition_ty)?;
-            Ok(arena.alloc(Node::ReturnType {
-                value_ty: result_ty,
-            }))
-        }
-        Node::ProgramCase {
-            indspec,
-            scrutinee,
-            branches,
-        } => {
-            let scrutinee_ty = infer_value(session, scrutinee)?;
-            let Node::ProgramIndType {
-                indspec: inferred_spec,
-                parameters,
-            } = arena.get(scrutinee_ty)
-            else {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "case scrutinee is not a Program datatype",
-                ));
-            };
-            if inferred_spec != indspec {
-                return Err(failure(rule, phase, "case datatype annotation mismatch"));
-            }
-            let spec = session.env().program_inductive(indspec);
-            if branches.len() != spec.constructors().len() {
-                return Err(failure(
-                    rule,
-                    phase,
-                    "case must contain exactly one branch per constructor",
-                ));
-            }
-            let mut result_ty = None;
-            for (branch, constructor) in branches.into_iter().zip(spec.constructors()) {
-                let fields = constructor.instantiated_fields(arena, &parameters);
-                if branch.binders.len() != fields.len() {
-                    return Err(failure(rule, phase, "case branch binder count mismatch"));
-                }
-                for (binder, (_, field_ty)) in branch.binders.iter().copied().zip(fields) {
-                    session.push_program_value(binder, field_ty);
-                }
-                let branch_ty = infer_computation(session, branch.body);
-                for _ in &branch.binders {
-                    session.pop();
-                }
-                let branch_ty =
-                    remove_unused_ambient_binders(arena, branch_ty?, branch.binders.len())
-                        .ok_or_else(|| {
-                            failure(rule, phase, "case result type depends on branch values")
-                        })?;
-                check_computation_type(session, branch_ty)?;
-                if let Some(expected) = result_ty {
-                    if !exp_is_alpha_eq(session.env(), expected, branch_ty) {
-                        return Err(failure(rule, phase, "case branch result type mismatch"));
-                    }
-                } else {
-                    result_ty = Some(branch_ty);
-                }
-            }
-            result_ty.ok_or_else(|| failure(rule, phase, "cannot infer an empty Program case"))
-        }
-        _ => Err(failure(
-            rule,
-            phase,
-            "expression is not a Program computation",
-        )),
-    }
-}
-
-fn run_step_type(arena: &Arena, state_ty: Exp, result_ty: Exp) -> Exp {
-    arena.alloc(Node::RunStep {
+fn run_step_type(arena: &Arena, state_ty: RawExp, result_ty: RawExp) -> RawExp {
+    arena.alloc(RawNode::RunStep {
         state_ty,
         result_ty,
     })
 }
 
-fn nondependent_product(arena: &Arena, domain: Exp, codomain: Exp) -> Exp {
-    arena.alloc(Node::Prod {
+fn nondependent_product(arena: &Arena, domain: RawExp, codomain: RawExp) -> RawExp {
+    arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: shift_bound_indices(arena, codomain, 1, 0),
     })
 }
 
-fn step_function_type(arena: &Arena, state_ty: Exp, result_ty: Exp) -> Exp {
-    let step_result = arena.alloc(Node::ReturnType {
-        value_ty: run_step_type(arena, state_ty, result_ty),
-    });
-    let function = arena.alloc(Node::ComputationFunction {
-        domain: state_ty,
-        codomain: step_result,
-    });
-    arena.alloc(Node::ThunkType {
-        computation_ty: function,
-    })
-}
-
-fn accessibility_type(arena: &Arena, state_ty: Exp, result_ty: Exp, step: Exp, state: Exp) -> Exp {
-    arena.alloc(Node::Acc {
+fn accessibility_type(
+    arena: &Arena,
+    state_ty: RawExp,
+    result_ty: RawExp,
+    step: RawExp,
+    state: RawExp,
+) -> RawExp {
+    arena.alloc(RawNode::Acc {
         state_ty,
         result_ty,
         step,
@@ -1576,28 +1108,13 @@ fn accessibility_type(arena: &Arena, state_ty: Exp, result_ty: Exp, step: Exp, s
     })
 }
 
-fn check_recursion_signature(
-    session: &mut CheckSession<'_, '_>,
-    rule: &str,
-    phase: &str,
-    state_ty: Exp,
-    result_ty: Exp,
-    step: Exp,
-) -> Result<(), Box<JudgementError>> {
-    check_value_type(session, state_ty)?;
-    check_value_type(session, result_ty)?;
-    let expected_step = step_function_type(session.arena(), state_ty, result_ty);
-    check_value(session, step, expected_step)
-        .map_err(|error| propagate(error, rule, phase, "check CBPV step function"))
-}
-
 fn check_set_recursion_signature(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    state_ty: Exp,
-    result_ty: Exp,
-    step: Option<Exp>,
+    state_ty: RawExp,
+    result_ty: RawExp,
+    step: Option<RawExp>,
 ) -> Result<(), Box<JudgementError>> {
     let state_sort = session.infer_sort(state_ty)?;
     let result_sort = session.infer_sort(result_ty)?;
@@ -1609,7 +1126,7 @@ fn check_set_recursion_signature(
         ));
     }
     if let Some(step) = step {
-        let run_step = session.arena().alloc(Node::RunStep {
+        let run_step = session.arena().alloc(RawNode::RunStep {
             state_ty,
             result_ty,
         });
@@ -1626,16 +1143,16 @@ fn infer_run_step_recursor(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    state_ty: Exp,
-    result_ty: Exp,
-    motive: Exp,
-    on_continue: Exp,
-    on_finish: Exp,
-    scrutinee: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    state_ty: RawExp,
+    result_ty: RawExp,
+    motive: RawExp,
+    on_continue: RawExp,
+    on_finish: RawExp,
+    scrutinee: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
     let arena = session.arena();
-    let run_step = arena.alloc(Node::RunStep {
+    let run_step = arena.alloc(RawNode::RunStep {
         state_ty,
         result_ty,
     });
@@ -1656,7 +1173,7 @@ fn infer_run_step_recursor(
     }
     if !matches!(
         arena.get(type_head_normal(session.env(), motive_body)),
-        Node::Sort(_)
+        RawNode::Sort(_)
     ) {
         return Err(failure(
             rule,
@@ -1667,43 +1184,43 @@ fn infer_run_step_recursor(
 
     let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
     let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
-    let continue_value = arena.alloc(Node::Continue {
+    let continue_value = arena.alloc(RawNode::Continue {
         state_ty: shifted_state,
         result_ty: shifted_result,
         next: arena.bound(0),
     });
-    let continue_result = arena.alloc(Node::App {
+    let continue_result = arena.alloc(RawNode::App {
         func: shift_bound_indices(arena, motive, 1, 0),
         arg: continue_value,
     });
     session.check_pts(
         on_continue,
-        arena.alloc(Node::Prod {
+        arena.alloc(RawNode::Prod {
             var: SymbolId::ANONYMOUS,
             ty: state_ty,
             body: continue_result,
         }),
     )?;
 
-    let finish_value = arena.alloc(Node::Finish {
+    let finish_value = arena.alloc(RawNode::Finish {
         state_ty: shifted_state,
         result_ty: shifted_result,
         output: arena.bound(0),
     });
-    let finish_result = arena.alloc(Node::App {
+    let finish_result = arena.alloc(RawNode::App {
         func: shift_bound_indices(arena, motive, 1, 0),
         arg: finish_value,
     });
     session.check_pts(
         on_finish,
-        arena.alloc(Node::Prod {
+        arena.alloc(RawNode::Prod {
             var: SymbolId::ANONYMOUS,
             ty: result_ty,
             body: finish_result,
         }),
     )?;
     session.check_pts(scrutinee, run_step)?;
-    Ok(arena.alloc(Node::App {
+    Ok(arena.alloc(RawNode::App {
         func: motive,
         arg: scrutinee,
     }))
@@ -1714,13 +1231,13 @@ fn infer_reflected_program_case(
     rule: &str,
     phase: &str,
     indspec: crate::ids::ProgramInductiveId,
-    scrutinee: Exp,
+    scrutinee: RawExp,
     branches: Vec<ProgramCaseBranch>,
-) -> Result<Exp, Box<JudgementError>> {
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     let scrutinee_ty = session.infer_pts(scrutinee)?;
     let program_spec = session.env().program_inductive(indspec);
-    let Node::IndType {
+    let RawNode::IndType {
         indspec: reflected,
         parameters,
     } = arena.get(type_head_normal(session.env(), scrutinee_ty))
@@ -1740,7 +1257,7 @@ fn infer_reflected_program_case(
         ));
     }
     let reflected_spec = session.env().inductive(reflected);
-    let this = arena.alloc(Node::IndType {
+    let this = arena.alloc(RawNode::IndType {
         indspec: reflected,
         parameters: parameters.clone(),
     });
@@ -1782,7 +1299,7 @@ fn infer_reflected_program_case(
 
 fn check_closed_program_type(
     session: &mut CheckSession<'_, '_>,
-    program_ty: Exp,
+    program_ty: RawExp,
 ) -> Result<ProgramTypeClass, Box<JudgementError>> {
     let mut empty = Vec::new();
     let mut nested = CheckSession {
@@ -1802,8 +1319,8 @@ fn check_closed_program_type(
 
 fn check_closed_well_terminated_program(
     session: &mut CheckSession<'_, '_>,
-    program_ty: Exp,
-    program: Exp,
+    program_ty: RawExp,
+    program: RawExp,
 ) -> Result<(), Box<JudgementError>> {
     let class = check_closed_program_type(session, program_ty)?;
     let mut empty_program = Vec::new();
@@ -1823,8 +1340,8 @@ fn check_closed_well_terminated_program(
 
 fn check_reflected_program_typing(
     session: &mut CheckSession<'_, '_>,
-    program: Exp,
-    program_ty: Exp,
+    program: RawExp,
+    program_ty: RawExp,
 ) -> Result<(), Box<JudgementError>> {
     let reflected_ty = reflect_type(session.env(), program_ty)
         .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
@@ -1850,8 +1367,8 @@ fn check_parameters(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    parameters: &[Exp],
-    expected: &[(SymbolId, Exp)],
+    parameters: &[RawExp],
+    expected: &[(SymbolId, RawExp)],
 ) -> Result<(), Box<JudgementError>> {
     let arena = session.arena();
     if parameters.len() != expected.len() {
@@ -1879,15 +1396,15 @@ fn infer_ind_elim(
     rule: &str,
     phase: &str,
     indspec: InductiveId,
-    elim: Exp,
-    return_type: Exp,
-    cases: Vec<Exp>,
-) -> Result<Exp, Box<JudgementError>> {
+    elim: RawExp,
+    return_type: RawExp,
+    cases: Vec<RawExp>,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     let inferred = add_infer!(session, rule, phase, elim, "infer eliminator type")?;
     let inferred = base_carrier(session.env(), inferred);
     let (head, indices) = utils::decompose_app(arena, inferred);
-    let Node::IndType {
+    let RawNode::IndType {
         indspec: inferred_spec,
         parameters,
     } = arena.get(head)
@@ -1901,7 +1418,7 @@ fn infer_ind_elim(
     let spec = env.inductive(indspec);
     let return_kind = add_infer!(session, rule, phase, return_type, "infer return type kind")?;
     let (telescope, result) = utils::decompose_prod(arena, type_head_normal(env, return_kind));
-    let Node::Sort(sort) = arena.get(result) else {
+    let RawNode::Sort(sort) = arena.get(result) else {
         return Err(failure(rule, phase, "return kind does not end in sort"));
     };
     if spec.sort().relation_of_sort_indelim(sort).is_none() {
@@ -1921,13 +1438,13 @@ fn infer_ind_elim(
     if cases.len() != spec.constructor_len() {
         return Err(failure(rule, phase, "constructor length mismatch"));
     }
-    let this = arena.alloc(Node::IndType {
+    let this = arena.alloc(RawNode::IndType {
         indspec,
         parameters: parameters.clone(),
     });
     for (index, case) in cases.iter().enumerate() {
         let constructor_ty = spec.constructors()[index].instantiate_parameters(arena, &parameters);
-        let constructor = arena.alloc(Node::IndCtor {
+        let constructor = arena.alloc(RawNode::IndCtor {
             indspec,
             parameters: parameters.clone(),
             idx: index,
@@ -1936,7 +1453,7 @@ fn infer_ind_elim(
         add_check!(session, rule, phase, *case, case_ty, "check case type")?;
     }
     let motive = utils::assoc_apply(arena, return_type, indices);
-    Ok(arena.alloc(Node::App {
+    Ok(arena.alloc(RawNode::App {
         func: motive,
         arg: elim,
     }))
@@ -1947,12 +1464,12 @@ fn infer_take_set(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    domain: Exp,
-    codomain: Exp,
-    map: Exp,
-    existence: Exp,
-    uniqueness: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    domain: RawExp,
+    codomain: RawExp,
+    map: RawExp,
+    existence: RawExp,
+    uniqueness: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     if !matches!(
         add_sort!(session, rule, phase, domain, "check domain sort")?,
@@ -1967,36 +1484,36 @@ fn infer_take_set(
             "TakeSet domain/codomain is not Set(i)",
         ));
     }
-    let map_ty = arena.alloc(Node::Prod {
+    let map_ty = arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: shift_bound_indices(arena, codomain, 1, 0),
     });
     add_check!(session, rule, phase, map, map_ty, "check map type")?;
-    let exists = arena.alloc(Node::Exists { set: domain });
+    let exists = arena.alloc(RawNode::Exists { set: domain });
     add_check!(session, rule, phase, existence, exists, "check existence")?;
 
     let x1 = SymbolId::ANONYMOUS;
     let x2 = SymbolId::ANONYMOUS;
     let map = shift_bound_indices(arena, map, 2, 0);
-    let map_x1 = arena.alloc(Node::App {
+    let map_x1 = arena.alloc(RawNode::App {
         func: map,
         arg: arena.bound(1),
     });
-    let map_x2 = arena.alloc(Node::App {
+    let map_x2 = arena.alloc(RawNode::App {
         func: map,
         arg: arena.bound(0),
     });
-    let equality = arena.alloc(Node::Equal {
+    let equality = arena.alloc(RawNode::Equal {
         left: map_x1,
         right: map_x2,
     });
-    let inner = arena.alloc(Node::Prod {
+    let inner = arena.alloc(RawNode::Prod {
         var: x2,
         ty: shift_bound_indices(arena, domain, 1, 0),
         body: equality,
     });
-    let uniqueness_ty = arena.alloc(Node::Prod {
+    let uniqueness_ty = arena.alloc(RawNode::Prod {
         var: x1,
         ty: domain,
         body: inner,
@@ -2017,11 +1534,11 @@ fn infer_take_prop(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    domain: Exp,
-    proposition: Exp,
-    map: Exp,
-    existence: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    domain: RawExp,
+    proposition: RawExp,
+    map: RawExp,
+    existence: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     if !matches!(
         add_sort!(session, rule, phase, domain, "check domain sort")?,
@@ -2032,96 +1549,99 @@ fn infer_take_prop(
     if add_sort!(session, rule, phase, proposition, "check proposition sort")? != Sort::Prop {
         return Err(failure(rule, phase, "TakeProp codomain is not Prop"));
     }
-    let map_ty = arena.alloc(Node::Prod {
+    let map_ty = arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: shift_bound_indices(arena, proposition, 1, 0),
     });
     add_check!(session, rule, phase, map, map_ty, "check map")?;
-    let exists = arena.alloc(Node::Exists { set: domain });
+    let exists = arena.alloc(RawNode::Exists { set: domain });
     add_check!(session, rule, phase, existence, exists, "check existence")?;
     Ok(proposition)
 }
 
-fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
+fn exp_rule(arena: &Arena, term: RawExp) -> &'static str {
     match arena.get(term) {
-        Node::Sort(_) => "Sort",
-        Node::ValueType => "ValueType",
-        Node::Bound(_) => "Bound",
-        Node::ModuleParam(_) => "ModuleParam",
-        Node::ReflectedProgramParam(_) => "ReflectedProgramParam",
-        Node::Meta { .. } => "Meta",
-        Node::Prod { .. } => "Prod",
-        Node::Lam { .. } => "Lam",
-        Node::App { .. } => "App",
-        Node::DefinedConstant(_) => "DefinedConstant",
-        Node::IndType { .. } => "IndType",
-        Node::IndCtor { .. } => "IndCtor",
-        Node::IndElim { .. } => "IndTypeElim",
-        Node::IndProjection { .. } => "IndProjection",
-        Node::ReflectedProgramCase { .. } => "ReflectedProgramCase",
-        Node::ThunkType { .. } => "ThunkType",
-        Node::ReturnType { .. } => "ReturnType",
-        Node::ComputationFunction { .. } => "ComputationFunction",
-        Node::RunStep { .. } => "RunStep",
-        Node::ProgramIndType { .. } => "ProgramIndType",
-        Node::Thunk { .. } => "Thunk",
-        Node::Continue { .. } => "Continue",
-        Node::Finish { .. } => "Finish",
-        Node::ProgramIndCtor { .. } => "ProgramIndCtor",
-        Node::ProgramIndProjection { .. } => "ProgramIndProjection",
-        Node::Return { .. } => "Return",
-        Node::Force { .. } => "Force",
-        Node::ComputationLam { .. } => "ComputationLam",
-        Node::ComputationApp { .. } => "ComputationApp",
-        Node::Sequence { .. } => "Sequence",
-        Node::ValueLet { .. } => "ValueLet",
-        Node::ProgramCase { .. } => "ProgramCase",
-        Node::Acc { .. } => "Acc",
-        Node::Proof { .. } => "Proof",
-        Node::RunStepRec { .. } => "RunStepRec",
-        Node::SetRun { .. } => "SetRun",
-        Node::SetRunCase { .. } => "SetRunCase",
-        Node::BoxType { .. } => "BoxType",
-        Node::BoxProgram { .. } => "BoxProgram",
-        Node::ForceBox { .. } => "ForceBox",
-        Node::BoxApp { .. } => "BoxApp",
-        Node::RfType { .. } => "RfType",
-        Node::RfTerm { .. } => "RfTerm",
-        Node::Run { .. } => "Run",
-        Node::RunCase { .. } => "RunCase",
-        Node::AccIntro { .. } => "AccIntro",
-        Node::AccDescent { .. } => "AccDescent",
-        Node::SubsetIntro { .. } => "SubsetIntro",
-        Node::PowerSet { .. } => "PowerSet",
-        Node::SubSet { .. } => "SubSet",
-        Node::Pred { .. } => "Pred",
-        Node::TypeLift { .. } => "TypeLift",
-        Node::Equal { .. } => "Equal",
-        Node::Exists { .. } => "Exists",
-        Node::TakeSet { .. } => "TakeSet",
-        Node::TakeProp { .. } => "TakeProp",
-        Node::ExistsIntro { .. } => "ExistsIntro",
-        Node::SubsetElim { .. } => "SubsetElim",
-        Node::IdRefl { .. } => "IdRefl",
-        Node::IdElim { .. } => "IdElim",
-        Node::AxiomSetExt { .. } => "AxiomSetExt",
-        Node::AxiomFunExt { .. } => "AxiomFunExt",
-        Node::AxiomClassicalIndefiniteChoice { .. } => "AxiomClassicalIndefiniteChoice",
-        Node::TakeEq { .. } => "TakeEq",
+        RawNode::Sort(_) => "Sort",
+        RawNode::ValueType => "ValueType",
+        RawNode::Bound(_) => "Bound",
+        RawNode::ModuleParam(_) => "ModuleParam",
+        RawNode::ReflectedProgramParam(_) => "ReflectedProgramParam",
+        RawNode::Meta { .. } => "Meta",
+        RawNode::Prod { .. } => "Prod",
+        RawNode::Lam { .. } => "Lam",
+        RawNode::App { .. } => "App",
+        RawNode::DefinedConstant(_) => "DefinedConstant",
+        RawNode::IndType { .. } => "IndType",
+        RawNode::IndCtor { .. } => "IndCtor",
+        RawNode::IndElim { .. } => "IndTypeElim",
+        RawNode::IndProjection { .. } => "IndProjection",
+        RawNode::ReflectedProgramCase { .. } => "ReflectedProgramCase",
+        RawNode::ThunkType { .. } => "ThunkType",
+        RawNode::ReturnType { .. } => "ReturnType",
+        RawNode::ComputationFunction { .. } => "ComputationFunction",
+        RawNode::RunStep { .. } => "RunStep",
+        RawNode::ProgramIndType { .. } => "ProgramIndType",
+        RawNode::Thunk { .. } => "Thunk",
+        RawNode::Continue { .. } => "Continue",
+        RawNode::Finish { .. } => "Finish",
+        RawNode::ProgramIndCtor { .. } => "ProgramIndCtor",
+        RawNode::ProgramIndProjection { .. } => "ProgramIndProjection",
+        RawNode::Return { .. } => "Return",
+        RawNode::Force { .. } => "Force",
+        RawNode::ComputationLam { .. } => "ComputationLam",
+        RawNode::ComputationApp { .. } => "ComputationApp",
+        RawNode::Sequence { .. } => "Sequence",
+        RawNode::ValueLet { .. } => "ValueLet",
+        RawNode::ProgramCase { .. } => "ProgramCase",
+        RawNode::Acc { .. } => "Acc",
+        RawNode::Proof { .. } => "Proof",
+        RawNode::RunStepRec { .. } => "RunStepRec",
+        RawNode::SetRun { .. } => "SetRun",
+        RawNode::SetRunCase { .. } => "SetRunCase",
+        RawNode::BoxType { .. } => "BoxType",
+        RawNode::BoxProgram { .. } => "BoxProgram",
+        RawNode::ForceBox { .. } => "ForceBox",
+        RawNode::BoxApp { .. } => "BoxApp",
+        RawNode::RfType { .. } => "RfType",
+        RawNode::RfTerm { .. } => "RfTerm",
+        RawNode::Run { .. } => "Run",
+        RawNode::RunCase { .. } => "RunCase",
+        RawNode::AccIntro { .. } => "AccIntro",
+        RawNode::AccDescent { .. } => "AccDescent",
+        RawNode::SubsetIntro { .. } => "SubsetIntro",
+        RawNode::PowerSet { .. } => "PowerSet",
+        RawNode::SubSet { .. } => "SubSet",
+        RawNode::Pred { .. } => "Pred",
+        RawNode::TypeLift { .. } => "TypeLift",
+        RawNode::Equal { .. } => "Equal",
+        RawNode::Exists { .. } => "Exists",
+        RawNode::TakeSet { .. } => "TakeSet",
+        RawNode::TakeProp { .. } => "TakeProp",
+        RawNode::ExistsIntro { .. } => "ExistsIntro",
+        RawNode::SubsetElim { .. } => "SubsetElim",
+        RawNode::IdRefl { .. } => "IdRefl",
+        RawNode::IdElim { .. } => "IdElim",
+        RawNode::AxiomSetExt { .. } => "AxiomSetExt",
+        RawNode::AxiomFunExt { .. } => "AxiomFunExt",
+        RawNode::AxiomClassicalIndefiniteChoice { .. } => "AxiomClassicalIndefiniteChoice",
+        RawNode::TakeEq { .. } => "TakeEq",
     }
 }
 
-fn infer_sort(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Sort, Box<JudgementError>> {
+fn infer_sort(
+    session: &mut CheckSession<'_, '_>,
+    term: RawExp,
+) -> Result<Sort, Box<JudgementError>> {
     let arena = session.arena();
     let rule = "Conv";
     let phase = "infer(sort)";
     let inferred_ty = add_infer!(session, rule, phase, term, "infer type of term")?;
-    if let Node::Sort(sort) = arena.get(inferred_ty) {
+    if let RawNode::Sort(sort) = arena.get(inferred_ty) {
         return Ok(sort);
     }
     let normalized = type_head_normal(session.env(), inferred_ty);
-    let Node::Sort(sort) = arena.get(normalized) else {
+    let RawNode::Sort(sort) = arena.get(normalized) else {
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
     Ok(sort)
@@ -2129,42 +1649,42 @@ fn infer_sort(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Sort, Box
 
 fn transition_equality(
     arena: &Arena,
-    state_ty: Exp,
-    result_ty: Exp,
-    step: Exp,
-    from: Exp,
-    to: Exp,
-) -> Exp {
-    let left = arena.alloc(Node::App {
+    state_ty: RawExp,
+    result_ty: RawExp,
+    step: RawExp,
+    from: RawExp,
+    to: RawExp,
+) -> RawExp {
+    let left = arena.alloc(RawNode::App {
         func: step,
         arg: from,
     });
-    let right = arena.alloc(Node::Continue {
+    let right = arena.alloc(RawNode::Continue {
         state_ty,
         result_ty,
         next: to,
     });
-    arena.alloc(Node::Equal { left, right })
+    arena.alloc(RawNode::Equal { left, right })
 }
 
-fn set_ext_direction(arena: &Arena, carrier: Exp, source: Exp, target: Exp) -> Exp {
+fn set_ext_direction(arena: &Arena, carrier: RawExp, source: RawExp, target: RawExp) -> RawExp {
     let element = arena.bound(0);
-    let source_membership = arena.alloc(Node::Pred {
+    let source_membership = arena.alloc(RawNode::Pred {
         superset: shift_bound_indices(arena, carrier, 1, 0),
         subset: shift_bound_indices(arena, source, 1, 0),
         element,
     });
-    let target_membership = arena.alloc(Node::Pred {
+    let target_membership = arena.alloc(RawNode::Pred {
         superset: shift_bound_indices(arena, carrier, 2, 0),
         subset: shift_bound_indices(arena, target, 2, 0),
         element: arena.bound(1),
     });
-    let implication = arena.alloc(Node::Prod {
+    let implication = arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: source_membership,
         body: target_membership,
     });
-    arena.alloc(Node::Prod {
+    arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: carrier,
         body: implication,
@@ -2175,14 +1695,14 @@ fn infer_axiom_set_ext(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    left: Exp,
-    right: Exp,
-    left_to_right: Exp,
-    right_to_left: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    left: RawExp,
+    right: RawExp,
+    left_to_right: RawExp,
+    right_to_left: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     let left_ty = add_infer!(session, rule, phase, left, "infer left subset type")?;
-    let Node::PowerSet { set: carrier } = arena.get(type_head_normal(session.env(), left_ty))
+    let RawNode::PowerSet { set: carrier } = arena.get(type_head_normal(session.env(), left_ty))
     else {
         return Err(failure(
             rule,
@@ -2215,17 +1735,17 @@ fn infer_axiom_set_ext(
         backward_ty,
         "check backward inclusion"
     )?;
-    Ok(arena.alloc(Node::Equal { left, right }))
+    Ok(arena.alloc(RawNode::Equal { left, right }))
 }
 
 fn infer_axiom_fun_ext(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    left: Exp,
-    right: Exp,
-    pointwise: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    left: RawExp,
+    right: RawExp,
+    pointwise: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     let function_ty = add_infer!(session, rule, phase, left, "infer function type")?;
     if !matches!(
@@ -2240,7 +1760,7 @@ fn infer_axiom_fun_ext(
     ) {
         return Err(failure(rule, phase, "funext functions are not in Set(i)"));
     }
-    let Node::Prod { ty: domain, .. } = arena.get(type_head_normal(session.env(), function_ty))
+    let RawNode::Prod { ty: domain, .. } = arena.get(type_head_normal(session.env(), function_ty))
     else {
         return Err(failure(rule, phase, "funext argument is not a function"));
     };
@@ -2253,19 +1773,19 @@ fn infer_axiom_fun_ext(
         "check right function"
     )?;
     let argument = arena.bound(0);
-    let left_application = arena.alloc(Node::App {
+    let left_application = arena.alloc(RawNode::App {
         func: shift_bound_indices(arena, left, 1, 0),
         arg: argument,
     });
-    let right_application = arena.alloc(Node::App {
+    let right_application = arena.alloc(RawNode::App {
         func: shift_bound_indices(arena, right, 1, 0),
         arg: argument,
     });
-    let pointwise_equality = arena.alloc(Node::Equal {
+    let pointwise_equality = arena.alloc(RawNode::Equal {
         left: left_application,
         right: right_application,
     });
-    let pointwise_ty = arena.alloc(Node::Prod {
+    let pointwise_ty = arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: pointwise_equality,
@@ -2278,17 +1798,17 @@ fn infer_axiom_fun_ext(
         pointwise_ty,
         "check pointwise equality"
     )?;
-    Ok(arena.alloc(Node::Equal { left, right }))
+    Ok(arena.alloc(RawNode::Equal { left, right }))
 }
 
 fn infer_axiom_classical_indefinite_choice(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    domain: Exp,
-    family: Exp,
-    inhabited: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    domain: RawExp,
+    family: RawExp,
+    inhabited: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     if !matches!(
         add_sort!(session, rule, phase, domain, "check choice domain sort")?,
@@ -2297,7 +1817,7 @@ fn infer_axiom_classical_indefinite_choice(
         return Err(failure(rule, phase, "choice domain is not Set(i)"));
     }
     let family_ty = add_infer!(session, rule, phase, family, "infer choice family type")?;
-    let Node::Prod {
+    let RawNode::Prod {
         ty: family_domain,
         body: family_sort,
         ..
@@ -2314,16 +1834,16 @@ fn infer_axiom_classical_indefinite_choice(
     }
     if !matches!(
         arena.get(type_head_normal(session.env(), family_sort)),
-        Node::Sort(Sort::Set(_))
+        RawNode::Sort(Sort::Set(_))
     ) {
         return Err(failure(rule, phase, "choice family does not return Set(i)"));
     }
-    let family_at = arena.alloc(Node::App {
+    let family_at = arena.alloc(RawNode::App {
         func: shift_bound_indices(arena, family, 1, 0),
         arg: arena.bound(0),
     });
-    let exists_at = arena.alloc(Node::Exists { set: family_at });
-    let inhabited_ty = arena.alloc(Node::Prod {
+    let exists_at = arena.alloc(RawNode::Exists { set: family_at });
+    let inhabited_ty = arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: exists_at,
@@ -2336,25 +1856,25 @@ fn infer_axiom_classical_indefinite_choice(
         inhabited_ty,
         "check pointwise inhabitation"
     )?;
-    let choice_function = arena.alloc(Node::Prod {
+    let choice_function = arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: family_at,
     });
-    Ok(arena.alloc(Node::Exists {
+    Ok(arena.alloc(RawNode::Exists {
         set: choice_function,
     }))
 }
 
 fn infer_proof_constructor(
     session: &mut CheckSession<'_, '_>,
-    term: Exp,
-) -> Result<Exp, Box<JudgementError>> {
+    term: RawExp,
+) -> Result<RawExp, Box<JudgementError>> {
     let arena = session.arena();
     let rule = exp_rule(arena, term);
     let phase = "infer";
     match arena.get(term) {
-        Node::ExistsIntro { element, set } => {
+        RawNode::ExistsIntro { element, set } => {
             add_check!(session, rule, phase, element, set, "check element")?;
             if !matches!(
                 add_sort!(session, rule, phase, set, "infer set sort")?,
@@ -2362,14 +1882,14 @@ fn infer_proof_constructor(
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
             }
-            Ok(arena.alloc(Node::Exists { set }))
+            Ok(arena.alloc(RawNode::Exists { set }))
         }
-        Node::SubsetElim {
+        RawNode::SubsetElim {
             element,
             subset,
             superset,
         } => {
-            let lifted = arena.alloc(Node::TypeLift { superset, subset });
+            let lifted = arena.alloc(RawNode::TypeLift { superset, subset });
             add_check!(
                 session,
                 rule,
@@ -2378,13 +1898,13 @@ fn infer_proof_constructor(
                 lifted,
                 "check subset elimination"
             )?;
-            Ok(arena.alloc(Node::Pred {
+            Ok(arena.alloc(RawNode::Pred {
                 superset,
                 subset,
                 element,
             }))
         }
-        Node::IdRefl { element } => {
+        RawNode::IdRefl { element } => {
             let ty = add_infer!(session, rule, phase, element, "infer element type")?;
             if !matches!(
                 add_sort!(session, rule, phase, ty, "infer type sort")?,
@@ -2392,12 +1912,12 @@ fn infer_proof_constructor(
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
             }
-            Ok(arena.alloc(Node::Equal {
+            Ok(arena.alloc(RawNode::Equal {
                 left: element,
                 right: element,
             }))
         }
-        Node::IdElim {
+        RawNode::IdElim {
             left,
             right,
             ty,
@@ -2419,17 +1939,17 @@ fn infer_proof_constructor(
             let result = add_check!(session, rule, phase, predicate, prop, "check predicate");
             session.pop();
             result?;
-            let apply = arena.alloc(Node::Lam {
+            let apply = arena.alloc(RawNode::Lam {
                 var,
                 ty,
                 body: predicate,
             });
-            let base_prop = arena.alloc(Node::App {
+            let base_prop = arena.alloc(RawNode::App {
                 func: apply,
                 arg: left,
             });
             add_check!(session, rule, phase, base, base_prop, "check base")?;
-            let equality_prop = arena.alloc(Node::Equal { left, right });
+            let equality_prop = arena.alloc(RawNode::Equal { left, right });
             add_check!(
                 session,
                 rule,
@@ -2438,12 +1958,12 @@ fn infer_proof_constructor(
                 equality_prop,
                 "check equality"
             )?;
-            Ok(arena.alloc(Node::App {
+            Ok(arena.alloc(RawNode::App {
                 func: apply,
                 arg: right,
             }))
         }
-        Node::AxiomSetExt {
+        RawNode::AxiomSetExt {
             left,
             right,
             left_to_right,
@@ -2457,19 +1977,19 @@ fn infer_proof_constructor(
             left_to_right,
             right_to_left,
         ),
-        Node::AxiomFunExt {
+        RawNode::AxiomFunExt {
             left,
             right,
             pointwise,
         } => infer_axiom_fun_ext(session, rule, phase, left, right, pointwise),
-        Node::AxiomClassicalIndefiniteChoice {
+        RawNode::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
         } => {
             infer_axiom_classical_indefinite_choice(session, rule, phase, domain, family, inhabited)
         }
-        Node::TakeEq {
+        RawNode::TakeEq {
             func,
             domain,
             codomain,
@@ -2477,7 +1997,7 @@ fn infer_proof_constructor(
             existence,
             uniqueness,
         } => {
-            let take = arena.alloc(Node::TakeSet {
+            let take = arena.alloc(RawNode::TakeSet {
                 domain,
                 codomain,
                 map: func,
@@ -2486,13 +2006,13 @@ fn infer_proof_constructor(
             });
             add_check!(session, rule, phase, take, codomain, "check take")?;
             add_check!(session, rule, phase, element, domain, "check element")?;
-            let mapped = arena.alloc(Node::App { func, arg: element });
-            Ok(arena.alloc(Node::Equal {
+            let mapped = arena.alloc(RawNode::App { func, arg: element });
+            Ok(arena.alloc(RawNode::Equal {
                 left: take,
                 right: mapped,
             }))
         }
-        Node::AccIntro {
+        RawNode::AccIntro {
             state_ty,
             result_ty,
             step,
@@ -2532,7 +2052,7 @@ fn infer_proof_constructor(
                 predecessor,
             );
             let implication = nondependent_product(arena, transition, predecessor_acc);
-            let expected_predecessors = arena.alloc(Node::Prod {
+            let expected_predecessors = arena.alloc(RawNode::Prod {
                 var: SymbolId::ANONYMOUS,
                 ty: state_ty,
                 body: implication,
@@ -2547,7 +2067,7 @@ fn infer_proof_constructor(
             )?;
             Ok(accessibility_type(arena, state_ty, result_ty, step, state))
         }
-        Node::AccDescent {
+        RawNode::AccDescent {
             state_ty,
             result_ty,
             step,

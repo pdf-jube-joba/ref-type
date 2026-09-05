@@ -1,31 +1,31 @@
 use super::exp::*;
 use crate::ids::SymbolId;
 
-pub fn assoc_apply(arena: &Arena, mut func: Exp, args: Vec<Exp>) -> Exp {
+pub fn assoc_apply(arena: &Arena, mut func: RawExp, args: Vec<RawExp>) -> RawExp {
     for arg in args {
-        func = arena.alloc(Node::App { func, arg });
+        func = arena.alloc(RawNode::App { func, arg });
     }
     func
 }
 
-pub fn assoc_lam(arena: &Arena, binders: Vec<(SymbolId, Exp)>, mut body: Exp) -> Exp {
+pub fn assoc_lam(arena: &Arena, binders: Vec<(SymbolId, RawExp)>, mut body: RawExp) -> RawExp {
     for (var, ty) in binders.into_iter().rev() {
-        body = arena.alloc(Node::Lam { var, ty, body });
+        body = arena.alloc(RawNode::Lam { var, ty, body });
     }
     body
 }
 
-pub fn assoc_prod(arena: &Arena, binders: Vec<(SymbolId, Exp)>, mut body: Exp) -> Exp {
+pub fn assoc_prod(arena: &Arena, binders: Vec<(SymbolId, RawExp)>, mut body: RawExp) -> RawExp {
     for (var, ty) in binders.into_iter().rev() {
-        body = arena.alloc(Node::Prod { var, ty, body });
+        body = arena.alloc(RawNode::Prod { var, ty, body });
     }
     body
 }
 
 // a0 a1 ... an  ==>  (a0, [a1, ..., an])
-pub fn decompose_app(arena: &Arena, mut exp: Exp) -> (Exp, Vec<Exp>) {
+pub fn decompose_app(arena: &Arena, mut exp: RawExp) -> (RawExp, Vec<RawExp>) {
     let mut args = vec![];
-    while let Node::App { func, arg } = arena.get(exp) {
+    while let RawNode::App { func, arg } = arena.get(exp) {
         args.push(arg);
         exp = func;
     }
@@ -34,9 +34,9 @@ pub fn decompose_app(arena: &Arena, mut exp: Exp) -> (Exp, Vec<Exp>) {
 }
 
 // (x1 : A1) ... (xn : An) -> B  ==>  ([(x1, A1), ..., (xn, An)], B)
-pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(SymbolId, Exp)>, Exp) {
+pub fn decompose_prod(arena: &Arena, mut exp: RawExp) -> (Vec<(SymbolId, RawExp)>, RawExp) {
     let mut vars = vec![];
-    while let Node::Prod { var, ty, body } = arena.get(exp) {
+    while let RawNode::Prod { var, ty, body } = arena.get(exp) {
         vars.push((var, ty));
         exp = body;
     }
@@ -46,19 +46,19 @@ pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(SymbolId, Exp)>, Exp
 #[macro_export]
 macro_rules! app {
     ($arena:expr, func: $func:expr, arg: $arg:expr $(,)?) => {
-        $arena.alloc($crate::exp::Node::App {
+        $arena.alloc($crate::exp::RawNode::App {
             func: $func,
             arg: $arg,
         })
     };
     ($arena:expr, arg: $arg:expr, func: $func:expr $(,)?) => {
-        $arena.alloc($crate::exp::Node::App {
+        $arena.alloc($crate::exp::RawNode::App {
             func: $func,
             arg: $arg,
         })
     };
     ($arena:expr, $func:expr, $arg:expr) => {
-        $arena.alloc($crate::exp::Node::App {
+        $arena.alloc($crate::exp::RawNode::App {
             func: $func,
             arg: $arg,
         })
@@ -68,14 +68,14 @@ macro_rules! app {
 #[macro_export]
 macro_rules! lam {
     ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
-        $arena.alloc($crate::exp::Node::Lam {
+        $arena.alloc($crate::exp::RawNode::Lam {
             var: $var,
             ty: $ty,
             body: $body,
         })
     };
     ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
-        $arena.alloc($crate::exp::Node::Lam {
+        $arena.alloc($crate::exp::RawNode::Lam {
             var: $var,
             ty: $ty,
             body: $body,
@@ -86,14 +86,14 @@ macro_rules! lam {
 #[macro_export]
 macro_rules! prod {
     ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
-        $arena.alloc($crate::exp::Node::Prod {
+        $arena.alloc($crate::exp::RawNode::Prod {
             var: $var,
             ty: $ty,
             body: $body,
         })
     };
     ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
-        $arena.alloc($crate::exp::Node::Prod {
+        $arena.alloc($crate::exp::RawNode::Prod {
             var: $var,
             ty: $ty,
             body: $body,

@@ -10,7 +10,7 @@ use crate::{
     calculus::shift_bound_indices,
     derivation::CheckSession,
     environment::{CrateEnv, DefinitionKind},
-    exp::{Context, ContextEntry, Exp, Node, ProgramCaseBranch},
+    exp::{Context, ContextEntry, ProgramCaseBranch, RawExp, RawNode},
     ids::{DefId, ModuleId, SymbolId},
 };
 
@@ -49,39 +49,39 @@ impl std::fmt::Display for ReflectionError {
 
 impl std::error::Error for ReflectionError {}
 
-pub fn reflect_type(env: &CrateEnv, ty: Exp) -> Result<Exp, ReflectionError> {
+pub fn reflect_type(env: &CrateEnv, ty: RawExp) -> Result<RawExp, ReflectionError> {
     reflect_type_inner(env, ty, &mut HashSet::new())
 }
 
 fn reflect_type_inner(
     env: &CrateEnv,
-    ty: Exp,
+    ty: RawExp,
     visiting: &mut HashSet<DefId>,
-) -> Result<Exp, ReflectionError> {
+) -> Result<RawExp, ReflectionError> {
     let arena = env.arena();
     Ok(match arena.get(ty) {
-        Node::ValueType => arena.sort(crate::sort::Sort::Set(0)),
-        Node::Bound(index) => arena.bound(index),
-        Node::ModuleParam(parameter) => arena.alloc(Node::ReflectedProgramParam(parameter)),
-        Node::ThunkType { computation_ty } => reflect_type_inner(env, computation_ty, visiting)?,
-        Node::ReturnType { value_ty } => reflect_type_inner(env, value_ty, visiting)?,
-        Node::ComputationFunction { domain, codomain } => {
+        RawNode::ValueType => arena.sort(crate::sort::Sort::Set(0)),
+        RawNode::Bound(index) => arena.bound(index),
+        RawNode::ModuleParam(parameter) => arena.alloc(RawNode::ReflectedProgramParam(parameter)),
+        RawNode::ThunkType { computation_ty } => reflect_type_inner(env, computation_ty, visiting)?,
+        RawNode::ReturnType { value_ty } => reflect_type_inner(env, value_ty, visiting)?,
+        RawNode::ComputationFunction { domain, codomain } => {
             let domain = reflect_type_inner(env, domain, visiting)?;
             let codomain = reflect_type_inner(env, codomain, visiting)?;
-            arena.alloc(Node::Prod {
+            arena.alloc(RawNode::Prod {
                 var: SymbolId::ANONYMOUS,
                 ty: domain,
                 body: shift_bound_indices(arena, codomain, 1, 0),
             })
         }
-        Node::RunStep {
+        RawNode::RunStep {
             state_ty,
             result_ty,
-        } => arena.alloc(Node::RunStep {
+        } => arena.alloc(RawNode::RunStep {
             state_ty: reflect_type_inner(env, state_ty, visiting)?,
             result_ty: reflect_type_inner(env, result_ty, visiting)?,
         }),
-        Node::ProgramIndType {
+        RawNode::ProgramIndType {
             indspec,
             parameters,
         } => {
@@ -90,12 +90,12 @@ fn reflect_type_inner(
                 .into_iter()
                 .map(|parameter| reflect_type_inner(env, parameter, visiting))
                 .collect::<Result<Vec<_>, _>>()?;
-            arena.alloc(Node::IndType {
+            arena.alloc(RawNode::IndType {
                 indspec: reflected,
                 parameters,
             })
         }
-        Node::DefinedConstant(definition) => {
+        RawNode::DefinedConstant(definition) => {
             if !visiting.insert(definition) {
                 return Err(ReflectionError::RecursiveDefinition(definition));
             }
@@ -135,8 +135,8 @@ pub fn reflect_term(
     env: &CrateEnv,
     current_module: ModuleId,
     context: &Context,
-    term: Exp,
-) -> Result<Exp, ReflectionError> {
+    term: RawExp,
+) -> Result<RawExp, ReflectionError> {
     reflect_term_inner(env, current_module, context, term, &mut HashSet::new())
 }
 
@@ -144,14 +144,14 @@ fn reflect_term_inner(
     env: &CrateEnv,
     current_module: ModuleId,
     context: &Context,
-    term: Exp,
+    term: RawExp,
     visiting: &mut HashSet<DefId>,
-) -> Result<Exp, ReflectionError> {
+) -> Result<RawExp, ReflectionError> {
     let arena = env.arena();
     Ok(match arena.get(term) {
-        Node::Bound(index) => arena.bound(index),
-        Node::ModuleParam(parameter) => arena.alloc(Node::ReflectedProgramParam(parameter)),
-        Node::DefinedConstant(definition) => {
+        RawNode::Bound(index) => arena.bound(index),
+        RawNode::ModuleParam(parameter) => arena.alloc(RawNode::ReflectedProgramParam(parameter)),
+        RawNode::DefinedConstant(definition) => {
             if !visiting.insert(definition) {
                 return Err(ReflectionError::RecursiveDefinition(definition));
             }
@@ -165,13 +165,13 @@ fn reflect_term_inner(
             visiting.remove(&definition);
             reflected?
         }
-        Node::Thunk { computation } => {
+        RawNode::Thunk { computation } => {
             reflect_term_inner(env, current_module, context, computation, visiting)?
         }
-        Node::Return { value } | Node::Force { value } => {
+        RawNode::Return { value } | RawNode::Force { value } => {
             reflect_term_inner(env, current_module, context, value, visiting)?
         }
-        Node::ComputationLam {
+        RawNode::ComputationLam {
             var,
             value_ty,
             body,
@@ -179,17 +179,17 @@ fn reflect_term_inner(
             let reflected_ty = reflect_type(env, value_ty)?;
             let mut body_context = context.clone();
             body_context.push(ContextEntry::ProgramValue { var, ty: value_ty });
-            arena.alloc(Node::Lam {
+            arena.alloc(RawNode::Lam {
                 var,
                 ty: reflected_ty,
                 body: reflect_term_inner(env, current_module, &body_context, body, visiting)?,
             })
         }
-        Node::ComputationApp { computation, value } => arena.alloc(Node::App {
+        RawNode::ComputationApp { computation, value } => arena.alloc(RawNode::App {
             func: reflect_term_inner(env, current_module, context, computation, visiting)?,
             arg: reflect_term_inner(env, current_module, context, value, visiting)?,
         }),
-        Node::Sequence {
+        RawNode::Sequence {
             computation,
             var,
             value_ty,
@@ -199,17 +199,17 @@ fn reflect_term_inner(
             let mut body_context = context.clone();
             body_context.push(ContextEntry::ProgramValue { var, ty: value_ty });
             let body = reflect_term_inner(env, current_module, &body_context, body, visiting)?;
-            let function = arena.alloc(Node::Lam {
+            let function = arena.alloc(RawNode::Lam {
                 var,
                 ty: reflected_ty,
                 body,
             });
-            arena.alloc(Node::App {
+            arena.alloc(RawNode::App {
                 func: function,
                 arg: reflect_term_inner(env, current_module, context, computation, visiting)?,
             })
         }
-        Node::ValueLet { var, value, body } => {
+        RawNode::ValueLet { var, value, body } => {
             let mut inference_context = context.clone();
             let value_ty = CheckSession::new(env, current_module, &mut inference_context)
                 .infer_value(value)
@@ -218,8 +218,8 @@ fn reflect_term_inner(
             let mut body_context = context.clone();
             body_context.push(ContextEntry::ProgramValue { var, ty: value_ty });
             let body = reflect_term_inner(env, current_module, &body_context, body, visiting)?;
-            arena.alloc(Node::App {
-                func: arena.alloc(Node::Lam {
+            arena.alloc(RawNode::App {
+                func: arena.alloc(RawNode::Lam {
                     var,
                     ty: reflected_ty,
                     body,
@@ -227,25 +227,25 @@ fn reflect_term_inner(
                 arg: reflect_term_inner(env, current_module, context, value, visiting)?,
             })
         }
-        Node::Continue {
+        RawNode::Continue {
             state_ty,
             result_ty,
             next,
-        } => arena.alloc(Node::Continue {
+        } => arena.alloc(RawNode::Continue {
             state_ty: reflect_type(env, state_ty)?,
             result_ty: reflect_type(env, result_ty)?,
             next: reflect_term_inner(env, current_module, context, next, visiting)?,
         }),
-        Node::Finish {
+        RawNode::Finish {
             state_ty,
             result_ty,
             output,
-        } => arena.alloc(Node::Finish {
+        } => arena.alloc(RawNode::Finish {
             state_ty: reflect_type(env, state_ty)?,
             result_ty: reflect_type(env, result_ty)?,
             output: reflect_term_inner(env, current_module, context, output, visiting)?,
         }),
-        Node::ProgramIndCtor {
+        RawNode::ProgramIndCtor {
             indspec,
             parameters,
             idx,
@@ -256,24 +256,24 @@ fn reflect_term_inner(
                 .into_iter()
                 .map(|parameter| reflect_type(env, parameter))
                 .collect::<Result<Vec<_>, _>>()?;
-            let head = arena.alloc(Node::IndCtor {
+            let head = arena.alloc(RawNode::IndCtor {
                 indspec: spec.reflected(),
                 parameters: reflected_parameters,
                 idx,
             });
             fields.into_iter().try_fold(head, |func, field| {
-                Ok::<_, ReflectionError>(arena.alloc(Node::App {
+                Ok::<_, ReflectionError>(arena.alloc(RawNode::App {
                     func,
                     arg: reflect_term_inner(env, current_module, context, field, visiting)?,
                 }))
             })?
         }
-        Node::ProgramIndProjection {
+        RawNode::ProgramIndProjection {
             indspec,
             parameters,
             value,
             field,
-        } => arena.alloc(Node::IndProjection {
+        } => arena.alloc(RawNode::IndProjection {
             indspec: env.program_inductive(indspec).reflected(),
             parameters: parameters
                 .into_iter()
@@ -282,7 +282,7 @@ fn reflect_term_inner(
             value: reflect_term_inner(env, current_module, context, value, visiting)?,
             field,
         }),
-        Node::ProgramCase {
+        RawNode::ProgramCase {
             indspec,
             scrutinee,
             branches,
@@ -318,30 +318,30 @@ fn reflect_term_inner(
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            arena.alloc(Node::ReflectedProgramCase {
+            arena.alloc(RawNode::ReflectedProgramCase {
                 indspec,
                 scrutinee: reflect_term_inner(env, current_module, context, scrutinee, visiting)?,
                 branches,
             })
         }
-        Node::Run {
+        RawNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
-        } => arena.alloc(Node::SetRun {
+        } => arena.alloc(RawNode::SetRun {
             state_ty: reflect_type(env, state_ty)?,
             result_ty: reflect_type(env, result_ty)?,
             step: reflect_term_inner(env, current_module, context, step, visiting)?,
             initial: reflect_term_inner(env, current_module, context, initial, visiting)?,
         }),
-        Node::RunCase {
+        RawNode::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => arena.alloc(Node::SetRunCase {
+        } => arena.alloc(RawNode::SetRunCase {
             state_ty: reflect_type(env, state_ty)?,
             result_ty: reflect_type(env, result_ty)?,
             step: reflect_term_inner(env, current_module, context, step, visiting)?,
@@ -349,22 +349,22 @@ fn reflect_term_inner(
             transition: reflect_term_inner(env, current_module, context, transition, visiting)?,
         }),
         // Existing Program polymorphism is retained as a surface extension.
-        Node::Lam { var, ty, body } => {
+        RawNode::Lam { var, ty, body } => {
             let reflected_ty = reflect_type(env, ty)?;
             let mut body_context = context.clone();
-            let entry = if matches!(arena.get(ty), Node::ValueType) {
+            let entry = if matches!(arena.get(ty), RawNode::ValueType) {
                 ContextEntry::ProgramType { var }
             } else {
                 ContextEntry::ProgramValue { var, ty }
             };
             body_context.push(entry);
-            arena.alloc(Node::Lam {
+            arena.alloc(RawNode::Lam {
                 var,
                 ty: reflected_ty,
                 body: reflect_term_inner(env, current_module, &body_context, body, visiting)?,
             })
         }
-        Node::App { func, arg } => arena.alloc(Node::App {
+        RawNode::App { func, arg } => arena.alloc(RawNode::App {
             func: reflect_term_inner(env, current_module, context, func, visiting)?,
             arg: reflect_term_inner(env, current_module, context, arg, visiting)
                 .or_else(|_| reflect_type(env, arg))?,

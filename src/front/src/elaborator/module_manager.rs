@@ -8,7 +8,7 @@ use kernel::derivation::CheckSession;
 use kernel::environment::{
     CrateEnv, DefinedConstant, ModuleItem, ModuleParameter, ModuleParameterKind,
 };
-use kernel::exp::{Context, ContextEntry, Exp};
+use kernel::exp::{Context, ContextEntry, RawExp};
 use kernel::ids::{
     DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId,
 };
@@ -22,7 +22,7 @@ pub enum ItemAccessResult {
     Inductive(ModItemInductive),
     Record(ModItemRecord),
     ProgramInductive(ModItemProgramInductive),
-    Expression(Exp),
+    Expression(RawExp),
 }
 
 enum PendingItem {
@@ -56,7 +56,7 @@ type PendingAssociatedDefinition = (String, DefId, DefId, DefinedConstant);
 fn instantiate_associated_definitions(
     env: &CrateEnv,
     definitions: Vec<(String, DefId)>,
-    substitutions: &[(ModuleParamId, Exp)],
+    substitutions: &[(ModuleParamId, RawExp)],
 ) -> Vec<PendingAssociatedDefinition> {
     definitions
         .into_iter()
@@ -394,7 +394,7 @@ impl ModuleManager {
         env: &mut CrateEnv,
         context: &mut Context,
         back_parent: Option<usize>,
-        calls: Vec<(Identifier, Vec<(Identifier, Exp)>)>,
+        calls: Vec<(Identifier, Vec<(Identifier, RawExp)>)>,
     ) -> Result<ModuleInstanceId, String> {
         let mut source = self.resolve_start(env, back_parent)?;
         let mut substitutions = Vec::new();
@@ -869,11 +869,11 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 mod tests {
     use super::*;
     use kernel::environment::DefinitionKind;
-    use kernel::exp::Node;
+    use kernel::exp::RawNode;
     use kernel::inductive::{CtorType, InductiveTypeSpecs};
     use kernel::sort::Sort;
 
-    fn parameter(env: &mut CrateEnv, name: &str, ty: Exp) -> ModuleParameter {
+    fn parameter(env: &mut CrateEnv, name: &str, ty: RawExp) -> ModuleParameter {
         ModuleParameter {
             name: env.intern(name),
             kind: ModuleParameterKind::Pts { ty },
@@ -926,7 +926,7 @@ mod tests {
         else {
             unreachable!()
         };
-        let base_exp = env.arena().alloc(Node::DefinedConstant(base));
+        let base_exp = env.arena().alloc(RawNode::DefinedConstant(base));
         manager
             .add_def(
                 &mut env,
@@ -990,11 +990,11 @@ mod tests {
         assert_eq!(env.definition_origin(base), None);
         assert!(matches!(
             env.arena().get(env.definition(first_ids[1]).body),
-            Node::DefinedConstant(id) if id == first_ids[0]
+            RawNode::DefinedConstant(id) if id == first_ids[0]
         ));
         assert!(matches!(
             env.arena().get(env.definition(second_ids[1]).body),
-            Node::DefinedConstant(id) if id == second_ids[0]
+            RawNode::DefinedConstant(id) if id == second_ids[0]
         ));
     }
 
@@ -1106,16 +1106,16 @@ mod tests {
         let second = inductive(&env, second);
         assert_ne!(first, second);
 
-        let first_constructor = env.arena().alloc(Node::IndCtor {
+        let first_constructor = env.arena().alloc(RawNode::IndCtor {
             indspec: first,
             parameters: vec![],
             idx: 0,
         });
-        let first_type = env.arena().alloc(Node::IndType {
+        let first_type = env.arena().alloc(RawNode::IndType {
             indspec: first,
             parameters: vec![],
         });
-        let second_type = env.arena().alloc(Node::IndType {
+        let second_type = env.arena().alloc(RawNode::IndType {
             indspec: second,
             parameters: vec![],
         });
@@ -1174,7 +1174,9 @@ mod tests {
         manager
             .add_child_and_moveto(&mut env, "Child".into(), vec![])
             .unwrap();
-        let parent_reference = env.arena().alloc(Node::DefinedConstant(parent_definition));
+        let parent_reference = env
+            .arena()
+            .alloc(RawNode::DefinedConstant(parent_definition));
         manager
             .add_def(
                 &mut env,
@@ -1219,13 +1221,15 @@ mod tests {
         else {
             unreachable!()
         };
-        let Node::DefinedConstant(remapped_parent) =
+        let RawNode::DefinedConstant(remapped_parent) =
             env.arena().get(env.definition(*child_definition).body)
         else {
             panic!("child definition should refer to the materialized parent definition")
         };
         assert_ne!(remapped_parent, parent_definition);
-        let child = env.arena().alloc(Node::DefinedConstant(*child_definition));
+        let child = env
+            .arena()
+            .alloc(RawNode::DefinedConstant(*child_definition));
         assert!(kernel::calculus::exp_is_alpha_eq(
             &env,
             kernel::calculus::whnf(&env, child),
@@ -1315,7 +1319,7 @@ mod tests {
         };
         let imported_value = env
             .arena()
-            .alloc(Node::DefinedConstant(imported_value.definition));
+            .alloc(RawNode::DefinedConstant(imported_value.definition));
         manager
             .add_def(
                 &mut env,
@@ -1350,7 +1354,7 @@ mod tests {
         let ModuleItem::Definition { definition, .. } = module.item("result").unwrap() else {
             unreachable!()
         };
-        let result = env.arena().alloc(Node::DefinedConstant(*definition));
+        let result = env.arena().alloc(RawNode::DefinedConstant(*definition));
         assert!(kernel::calculus::exp_is_alpha_eq(
             &env,
             kernel::calculus::whnf(&env, result),

@@ -8,7 +8,7 @@ use kernel::{
     },
     derivation::CheckSession,
     environment::{CrateEnv, DefinitionKind, ModuleParameterKind},
-    exp::{Context, ContextEntry, Exp, Node},
+    exp::{Context, ContextEntry, RawExp, RawNode},
     ids::{MetaVarId, ModuleId, SymbolId},
     inductive::CtorBinder,
     sort::Sort,
@@ -40,13 +40,13 @@ impl From<SurfaceMeta> for MetaFlavor {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum GoalConstraint {
-    HasType { term: Exp, expected: Exp },
-    Equal { left: Exp, right: Exp },
-    IsSort { term: Exp },
-    IsValueType { term: Exp },
-    IsComputationType { term: Exp },
-    HasValueType { term: Exp, expected: Exp },
-    HasComputationType { term: Exp, expected: Exp },
+    HasType { term: RawExp, expected: RawExp },
+    Equal { left: RawExp, right: RawExp },
+    IsSort { term: RawExp },
+    IsValueType { term: RawExp },
+    IsComputationType { term: RawExp },
+    HasValueType { term: RawExp, expected: RawExp },
+    HasComputationType { term: RawExp, expected: RawExp },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -221,9 +221,9 @@ struct MetaEntry {
     span: SourceSpan,
     context: Context,
     scope_len: usize,
-    assignment: Option<Exp>,
+    assignment: Option<RawExp>,
     principal: Option<GoalConstraint>,
-    inferred_type: Option<Exp>,
+    inferred_type: Option<RawExp>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -258,7 +258,7 @@ impl MetaStore {
         span: SourceSpan,
         context: &Context,
         scope_len: usize,
-    ) -> Exp {
+    ) -> RawExp {
         let flavor = MetaFlavor::from(kind);
         let existing = match flavor {
             MetaFlavor::Named(number) => self.named.get(&number).copied(),
@@ -306,7 +306,7 @@ impl MetaStore {
             .rev()
             .map(|index| env.arena().bound(index))
             .collect();
-        env.arena().alloc(Node::Meta {
+        env.arena().alloc(RawNode::Meta {
             metavariable,
             spine,
         })
@@ -320,15 +320,20 @@ impl MetaStore {
         });
     }
 
-    fn set_principal_for_meta(&mut self, env: &CrateEnv, term: Exp, constraint: &GoalConstraint) {
-        if let Node::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term))
+    fn set_principal_for_meta(
+        &mut self,
+        env: &CrateEnv,
+        term: RawExp,
+        constraint: &GoalConstraint,
+    ) {
+        if let RawNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term))
             && self.entries[metavariable.index()].principal.is_none()
         {
             self.entries[metavariable.index()].principal = Some(constraint.clone());
         }
     }
 
-    fn fresh_synthetic(&mut self, env: &CrateEnv, context: &Context, span: SourceSpan) -> Exp {
+    fn fresh_synthetic(&mut self, env: &CrateEnv, context: &Context, span: SourceSpan) -> RawExp {
         let id = MetaVarId(
             u32::try_from(self.entries.len()).expect("metavariable table exceeded u32::MAX"),
         );
@@ -345,14 +350,19 @@ impl MetaStore {
             .rev()
             .map(|index| env.arena().bound(index))
             .collect();
-        env.arena().alloc(Node::Meta {
+        env.arena().alloc(RawNode::Meta {
             metavariable: id,
             spine,
         })
     }
 
-    fn set_meta_type(&mut self, env: &CrateEnv, term: Exp, expected: Exp) -> Result<(), String> {
-        let Node::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
+    fn set_meta_type(
+        &mut self,
+        env: &CrateEnv,
+        term: RawExp,
+        expected: RawExp,
+    ) -> Result<(), String> {
+        let RawNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
             return Ok(());
         };
         let constraint = GoalConstraint::HasType { term, expected };
@@ -371,10 +381,10 @@ impl MetaStore {
     fn type_of_meta(
         &mut self,
         env: &CrateEnv,
-        term: Exp,
+        term: RawExp,
         context: &Context,
-    ) -> Result<Exp, String> {
-        let Node::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
+    ) -> Result<RawExp, String> {
+        let RawNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
             return Err("expected metavariable".into());
         };
         if let Some(ty) = self.entries[metavariable.index()].inferred_type {
@@ -394,22 +404,22 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        term: Exp,
-        expected: Exp,
+        term: RawExp,
+        expected: RawExp,
     ) -> Result<(), String> {
         let term = self.zonk(env, term);
         let expected = self.zonk(env, expected);
-        if matches!(env.arena().get(term), Node::Meta { .. }) {
+        if matches!(env.arena().get(term), RawNode::Meta { .. }) {
             return self.set_meta_type(env, term, expected);
         }
-        if matches!(env.arena().get(expected), Node::Meta { .. }) {
+        if matches!(env.arena().get(expected), RawNode::Meta { .. }) {
             let inferred = self.infer_pts(env, module, context, term)?;
             self.unify(env, expected, inferred)?;
             return Ok(());
         }
         if let (
-            Node::Lam { var, ty, body },
-            Node::Prod {
+            RawNode::Lam { var, ty, body },
+            RawNode::Prod {
                 ty: expected_ty,
                 body: expected_body,
                 ..
@@ -432,15 +442,15 @@ impl MetaStore {
     fn check_pts_types(
         &mut self,
         env: &CrateEnv,
-        inferred: Exp,
-        expected: Exp,
+        inferred: RawExp,
+        expected: RawExp,
     ) -> Result<(), String> {
         let inferred = self.zonk(env, inferred);
         let expected = self.zonk(env, expected);
         if can_weaken_to(env, inferred, expected) {
             return Ok(());
         }
-        if let (Node::Sort(inferred), Node::Sort(expected)) =
+        if let (RawNode::Sort(inferred), RawNode::Sort(expected)) =
             (env.arena().get(inferred), env.arena().get(expected))
             && inferred.can_lift_to(expected)
         {
@@ -454,8 +464,8 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        term: Exp,
-    ) -> Result<Exp, String> {
+        term: RawExp,
+    ) -> Result<RawExp, String> {
         let term = self.zonk(env, term);
         if !self.contains_unsolved(env, term) {
             return CheckSession::new(env, module, context)
@@ -464,12 +474,12 @@ impl MetaStore {
         }
         let arena = env.arena();
         match arena.get(term) {
-            Node::Meta { .. } => self.type_of_meta(env, term, context),
-            Node::Sort(sort) => sort
+            RawNode::Meta { .. } => self.type_of_meta(env, term, context),
+            RawNode::Sort(sort) => sort
                 .type_of_sort()
                 .map(|sort| arena.sort(sort))
                 .ok_or_else(|| "no sort of sort found".into()),
-            Node::Bound(index) => context
+            RawNode::Bound(index) => context
                 .len()
                 .checked_sub(index + 1)
                 .and_then(|position| context.get(position))
@@ -480,20 +490,20 @@ impl MetaStore {
                     _ => None,
                 })
                 .ok_or_else(|| "bound variable is not a PTS term".into()),
-            Node::ModuleParam(parameter) => env
+            RawNode::ModuleParam(parameter) => env
                 .module_parameter_opt(parameter)
                 .and_then(|parameter| match parameter.kind {
                     ModuleParameterKind::Pts { ty } => Some(ty),
                     _ => None,
                 })
                 .ok_or_else(|| "module parameter is not a PTS term".into()),
-            Node::DefinedConstant(definition) => {
+            RawNode::DefinedConstant(definition) => {
                 let definition = env.definition(definition);
                 (definition.kind == DefinitionKind::Pts)
                     .then_some(definition.ty)
                     .ok_or_else(|| "definition is not a PTS term".into())
             }
-            Node::IndType {
+            RawNode::IndType {
                 indspec,
                 parameters,
             } => {
@@ -514,7 +524,7 @@ impl MetaStore {
                     &parameters,
                 ))
             }
-            Node::IndCtor {
+            RawNode::IndCtor {
                 indspec,
                 parameters,
                 idx,
@@ -537,7 +547,7 @@ impl MetaStore {
                     arena, indspec, spec, idx, parameters,
                 ))
             }
-            Node::IndProjection {
+            RawNode::IndProjection {
                 indspec,
                 parameters,
                 value,
@@ -556,7 +566,7 @@ impl MetaStore {
                     self.check_pts(env, module, context, argument, expected)?;
                     preceding_parameters.push(argument);
                 }
-                let structure_ty = arena.alloc(Node::IndType {
+                let structure_ty = arena.alloc(RawNode::IndType {
                     indspec,
                     parameters: parameters.clone(),
                 });
@@ -568,7 +578,7 @@ impl MetaStore {
                 };
                 let preceding = (0..field)
                     .map(|field| {
-                        arena.alloc(Node::IndProjection {
+                        arena.alloc(RawNode::IndProjection {
                             indspec,
                             parameters: parameters.clone(),
                             value,
@@ -578,7 +588,7 @@ impl MetaStore {
                     .collect::<Vec<_>>();
                 Ok(instantiate_telescope(arena, *field_ty, &preceding))
             }
-            Node::Prod { var, ty, body } => {
+            RawNode::Prod { var, ty, body } => {
                 let domain_sort = self.infer_sort(env, module, context, ty)?;
                 context.push(ContextEntry::Pts { var, ty });
                 let body_sort = self.infer_sort(env, module, context, body);
@@ -589,27 +599,27 @@ impl MetaStore {
                     .map(|sort| arena.sort(sort))
                     .ok_or_else(|| "no sort relation for product".into())
             }
-            Node::Lam { var, ty, body } => {
+            RawNode::Lam { var, ty, body } => {
                 self.infer_sort(env, module, context, ty)?;
                 context.push(ContextEntry::Pts { var, ty });
                 let body_ty = self.infer_pts(env, module, context, body);
                 context.pop();
-                Ok(arena.alloc(Node::Prod {
+                Ok(arena.alloc(RawNode::Prod {
                     var,
                     ty,
                     body: body_ty?,
                 }))
             }
-            Node::App { func, arg } => {
+            RawNode::App { func, arg } => {
                 let func_ty = self.infer_pts(env, module, context, func)?;
                 let func_ty = self.zonk(env, func_ty);
                 let (domain, codomain) = match arena.get(kernel::calculus::whnf(env, func_ty)) {
-                    Node::Prod { ty, body, .. } => (ty, body),
-                    Node::Meta { .. } => {
+                    RawNode::Prod { ty, body, .. } => (ty, body),
+                    RawNode::Meta { .. } => {
                         let span = meta_span(env, func_ty, &self.entries);
                         let domain = self.fresh_synthetic(env, context, span);
                         let codomain = self.fresh_synthetic(env, context, span);
-                        let product = arena.alloc(Node::Prod {
+                        let product = arena.alloc(RawNode::Prod {
                             var: SymbolId::ANONYMOUS,
                             ty: domain,
                             body: shift_bound_indices(arena, codomain, 1, 0),
@@ -622,14 +632,14 @@ impl MetaStore {
                 self.check_pts(env, module, context, arg, domain)?;
                 Ok(kernel::calculus::instantiate(arena, codomain, arg))
             }
-            Node::PowerSet { set } => {
+            RawNode::PowerSet { set } => {
                 let sort = self.infer_sort(env, module, context, set)?;
                 match sort {
                     Sort::Set(level) => Ok(arena.sort(Sort::Set(level))),
                     _ => Err("PowerSet carrier is not Set(i)".into()),
                 }
             }
-            Node::SubSet {
+            RawNode::SubSet {
                 var,
                 set,
                 predicate,
@@ -643,29 +653,29 @@ impl MetaStore {
                 let result = self.check_pts(env, module, context, predicate, proposition);
                 context.pop();
                 result?;
-                Ok(arena.alloc(Node::PowerSet { set }))
+                Ok(arena.alloc(RawNode::PowerSet { set }))
             }
-            Node::Pred {
+            RawNode::Pred {
                 superset,
                 subset,
                 element,
             } => {
                 self.infer_sort(env, module, context, superset)?;
-                let power = arena.alloc(Node::PowerSet { set: superset });
+                let power = arena.alloc(RawNode::PowerSet { set: superset });
                 self.check_pts(env, module, context, subset, power)?;
                 self.check_pts(env, module, context, element, superset)?;
                 Ok(arena.sort(Sort::Prop))
             }
-            Node::TypeLift { superset, subset } => {
+            RawNode::TypeLift { superset, subset } => {
                 let sort = self.infer_sort(env, module, context, superset)?;
-                let power = arena.alloc(Node::PowerSet { set: superset });
+                let power = arena.alloc(RawNode::PowerSet { set: superset });
                 self.check_pts(env, module, context, subset, power)?;
                 match sort {
                     Sort::Set(level) => Ok(arena.sort(Sort::Set(level))),
                     _ => Err("TypeLift carrier is not Set(i)".into()),
                 }
             }
-            Node::Equal { left, right } => {
+            RawNode::Equal { left, right } => {
                 let left_ty = self.infer_pts(env, module, context, left)?;
                 let right_ty = self.infer_pts(env, module, context, right)?;
                 let left_ty = self.zonk(env, left_ty);
@@ -675,11 +685,11 @@ impl MetaStore {
                 }
                 Ok(arena.sort(Sort::Prop))
             }
-            Node::Exists { set } => {
+            RawNode::Exists { set } => {
                 self.infer_sort(env, module, context, set)?;
                 Ok(arena.sort(Sort::Prop))
             }
-            Node::TakeSet {
+            RawNode::TakeSet {
                 domain,
                 codomain,
                 map,
@@ -690,27 +700,27 @@ impl MetaStore {
                 self.infer_sort(env, module, context, codomain)?;
                 let map_ty = nondependent_product(arena, domain, codomain);
                 self.check_pts(env, module, context, map, map_ty)?;
-                let exists = arena.alloc(Node::Exists { set: domain });
+                let exists = arena.alloc(RawNode::Exists { set: domain });
                 self.check_pts(env, module, context, existence, exists)?;
                 let shifted_map = shift_bound_indices(arena, map, 2, 0);
-                let mapped_left = arena.alloc(Node::App {
+                let mapped_left = arena.alloc(RawNode::App {
                     func: shifted_map,
                     arg: arena.bound(1),
                 });
-                let mapped_right = arena.alloc(Node::App {
+                let mapped_right = arena.alloc(RawNode::App {
                     func: shifted_map,
                     arg: arena.bound(0),
                 });
-                let equality = arena.alloc(Node::Equal {
+                let equality = arena.alloc(RawNode::Equal {
                     left: mapped_left,
                     right: mapped_right,
                 });
-                let inner = arena.alloc(Node::Prod {
+                let inner = arena.alloc(RawNode::Prod {
                     var: SymbolId::ANONYMOUS,
                     ty: shift_bound_indices(arena, domain, 1, 0),
                     body: equality,
                 });
-                let uniqueness_ty = arena.alloc(Node::Prod {
+                let uniqueness_ty = arena.alloc(RawNode::Prod {
                     var: SymbolId::ANONYMOUS,
                     ty: domain,
                     body: inner,
@@ -718,7 +728,7 @@ impl MetaStore {
                 self.check_pts(env, module, context, uniqueness, uniqueness_ty)?;
                 Ok(codomain)
             }
-            Node::TakeProp {
+            RawNode::TakeProp {
                 domain,
                 proposition,
                 map,
@@ -728,11 +738,11 @@ impl MetaStore {
                 self.infer_sort(env, module, context, proposition)?;
                 let map_ty = nondependent_product(arena, domain, proposition);
                 self.check_pts(env, module, context, map, map_ty)?;
-                let exists = arena.alloc(Node::Exists { set: domain });
+                let exists = arena.alloc(RawNode::Exists { set: domain });
                 self.check_pts(env, module, context, existence, exists)?;
                 Ok(proposition)
             }
-            Node::RunStep {
+            RawNode::RunStep {
                 state_ty,
                 result_ty,
             } => {
@@ -740,7 +750,7 @@ impl MetaStore {
                 ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
                 Ok(arena.sort(Sort::Set(0)))
             }
-            Node::Continue {
+            RawNode::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -748,12 +758,12 @@ impl MetaStore {
                 ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
                 ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
                 self.check_pts(env, module, context, next, state_ty)?;
-                Ok(arena.alloc(Node::RunStep {
+                Ok(arena.alloc(RawNode::RunStep {
                     state_ty,
                     result_ty,
                 }))
             }
-            Node::Finish {
+            RawNode::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -761,12 +771,12 @@ impl MetaStore {
                 ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
                 ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
                 self.check_pts(env, module, context, output, result_ty)?;
-                Ok(arena.alloc(Node::RunStep {
+                Ok(arena.alloc(RawNode::RunStep {
                     state_ty,
                     result_ty,
                 }))
             }
-            Node::Acc {
+            RawNode::Acc {
                 state_ty,
                 result_ty,
                 step,
@@ -779,7 +789,7 @@ impl MetaStore {
                 self.check_pts(env, module, context, state, state_ty)?;
                 Ok(arena.sort(Sort::Prop))
             }
-            Node::Proof { proposition } => {
+            RawNode::Proof { proposition } => {
                 if self.infer_sort(env, module, context, proposition)? != Sort::Prop {
                     return Err("Proof argument is not a proposition".into());
                 }
@@ -787,7 +797,7 @@ impl MetaStore {
                 // the strict kernel after metavariables have been solved.
                 Ok(proposition)
             }
-            Node::SetRun {
+            RawNode::SetRun {
                 state_ty,
                 result_ty,
                 step,
@@ -805,7 +815,7 @@ impl MetaStore {
                 self.check_pts(env, module, context, initial, state_ty)?;
                 Ok(result_ty)
             }
-            Node::SetRunCase {
+            RawNode::SetRunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -827,14 +837,14 @@ impl MetaStore {
                     module,
                     context,
                     transition,
-                    arena.alloc(Node::RunStep {
+                    arena.alloc(RawNode::RunStep {
                         state_ty,
                         result_ty,
                     }),
                 )?;
                 Ok(result_ty)
             }
-            Node::RunStepRec {
+            RawNode::RunStepRec {
                 state_ty,
                 result_ty,
                 motive,
@@ -844,12 +854,12 @@ impl MetaStore {
             } => {
                 ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
                 ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
-                let run_step = arena.alloc(Node::RunStep {
+                let run_step = arena.alloc(RawNode::RunStep {
                     state_ty,
                     result_ty,
                 });
                 let motive_ty = self.infer_pts(env, module, context, motive)?;
-                let Node::Prod {
+                let RawNode::Prod {
                     ty: motive_domain, ..
                 } = arena.get(self.zonk(env, motive_ty))
                 else {
@@ -858,12 +868,12 @@ impl MetaStore {
                 self.unify(env, motive_domain, run_step)?;
                 let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
                 let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
-                let continue_value = arena.alloc(Node::Continue {
+                let continue_value = arena.alloc(RawNode::Continue {
                     state_ty: shifted_state,
                     result_ty: shifted_result,
                     next: arena.bound(0),
                 });
-                let continue_result = arena.alloc(Node::App {
+                let continue_result = arena.alloc(RawNode::App {
                     func: shift_bound_indices(arena, motive, 1, 0),
                     arg: continue_value,
                 });
@@ -872,18 +882,18 @@ impl MetaStore {
                     module,
                     context,
                     on_continue,
-                    arena.alloc(Node::Prod {
+                    arena.alloc(RawNode::Prod {
                         var: SymbolId::ANONYMOUS,
                         ty: state_ty,
                         body: continue_result,
                     }),
                 )?;
-                let finish_value = arena.alloc(Node::Finish {
+                let finish_value = arena.alloc(RawNode::Finish {
                     state_ty: shifted_state,
                     result_ty: shifted_result,
                     output: arena.bound(0),
                 });
-                let finish_result = arena.alloc(Node::App {
+                let finish_result = arena.alloc(RawNode::App {
                     func: shift_bound_indices(arena, motive, 1, 0),
                     arg: finish_value,
                 });
@@ -892,19 +902,19 @@ impl MetaStore {
                     module,
                     context,
                     on_finish,
-                    arena.alloc(Node::Prod {
+                    arena.alloc(RawNode::Prod {
                         var: SymbolId::ANONYMOUS,
                         ty: result_ty,
                         body: finish_result,
                     }),
                 )?;
                 self.check_pts(env, module, context, scrutinee, run_step)?;
-                Ok(arena.alloc(Node::App {
+                Ok(arena.alloc(RawNode::App {
                     func: motive,
                     arg: scrutinee,
                 }))
             }
-            Node::BoxType { program_ty } => {
+            RawNode::BoxType { program_ty } => {
                 let mut empty = Vec::new();
                 if self
                     .check_value_type(env, module, &mut empty, program_ty)
@@ -914,7 +924,7 @@ impl MetaStore {
                 }
                 Ok(arena.sort(Sort::Set(0)))
             }
-            Node::BoxProgram {
+            RawNode::BoxProgram {
                 program_ty,
                 program,
             } => {
@@ -928,26 +938,27 @@ impl MetaStore {
                     self.check_computation_type(env, module, &mut empty, program_ty)?;
                     self.check_computation(env, module, &mut empty, program, program_ty)?;
                 }
-                Ok(arena.alloc(Node::BoxType { program_ty }))
+                Ok(arena.alloc(RawNode::BoxType { program_ty }))
             }
-            Node::ForceBox { program_ty, boxed } => {
+            RawNode::ForceBox { program_ty, boxed } => {
                 self.check_pts(
                     env,
                     module,
                     context,
                     boxed,
-                    arena.alloc(Node::BoxType { program_ty }),
+                    arena.alloc(RawNode::BoxType { program_ty }),
                 )?;
                 kernel::reflection::reflect_type(env, self.zonk(env, program_ty))
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))
             }
-            Node::BoxApp { function, argument } => {
+            RawNode::BoxApp { function, argument } => {
                 let function_ty = self.infer_pts(env, module, context, function)?;
                 let function_ty = self.zonk(env, function_ty);
-                let Node::BoxType { program_ty } = arena.get(function_ty) else {
+                let RawNode::BoxType { program_ty } = arena.get(function_ty) else {
                     return Err("boxed application head is not Box(P)".into());
                 };
-                let Node::ComputationFunction { domain, codomain } = arena.get(program_ty) else {
+                let RawNode::ComputationFunction { domain, codomain } = arena.get(program_ty)
+                else {
                     return Err("boxed application head is not a computation function".into());
                 };
                 self.check_pts(
@@ -955,60 +966,60 @@ impl MetaStore {
                     module,
                     context,
                     argument,
-                    arena.alloc(Node::BoxType { program_ty: domain }),
+                    arena.alloc(RawNode::BoxType { program_ty: domain }),
                 )?;
-                Ok(arena.alloc(Node::BoxType {
+                Ok(arena.alloc(RawNode::BoxType {
                     program_ty: codomain,
                 }))
             }
-            Node::RfType { .. } | Node::RfTerm { .. } => {
+            RawNode::RfType { .. } | RawNode::RfTerm { .. } => {
                 Err("RfType and RfTerm were removed; reflection is meta-level".into())
             }
-            Node::SubsetIntro {
+            RawNode::SubsetIntro {
                 superset,
                 subset,
                 element,
                 proof,
             } => {
                 self.infer_sort(env, module, context, superset)?;
-                let power = arena.alloc(Node::PowerSet { set: superset });
+                let power = arena.alloc(RawNode::PowerSet { set: superset });
                 self.check_pts(env, module, context, subset, power)?;
                 self.check_pts(env, module, context, element, superset)?;
-                let membership = arena.alloc(Node::Pred {
+                let membership = arena.alloc(RawNode::Pred {
                     superset,
                     subset,
                     element,
                 });
                 self.check_pts(env, module, context, proof, membership)?;
-                Ok(arena.alloc(Node::TypeLift { superset, subset }))
+                Ok(arena.alloc(RawNode::TypeLift { superset, subset }))
             }
-            Node::ExistsIntro { element, set } => {
+            RawNode::ExistsIntro { element, set } => {
                 self.check_pts(env, module, context, element, set)?;
                 self.infer_sort(env, module, context, set)?;
-                Ok(arena.alloc(Node::Exists { set }))
+                Ok(arena.alloc(RawNode::Exists { set }))
             }
-            Node::SubsetElim {
+            RawNode::SubsetElim {
                 element,
                 subset,
                 superset,
             } => {
-                let lifted = arena.alloc(Node::TypeLift { superset, subset });
+                let lifted = arena.alloc(RawNode::TypeLift { superset, subset });
                 self.check_pts(env, module, context, element, lifted)?;
-                Ok(arena.alloc(Node::Pred {
+                Ok(arena.alloc(RawNode::Pred {
                     superset,
                     subset,
                     element,
                 }))
             }
-            Node::IdRefl { element } => {
+            RawNode::IdRefl { element } => {
                 let ty = self.infer_pts(env, module, context, element)?;
                 self.infer_sort(env, module, context, ty)?;
-                Ok(arena.alloc(Node::Equal {
+                Ok(arena.alloc(RawNode::Equal {
                     left: element,
                     right: element,
                 }))
             }
-            Node::IdElim {
+            RawNode::IdElim {
                 left,
                 right,
                 ty,
@@ -1025,24 +1036,24 @@ impl MetaStore {
                 let predicate_result = self.check_pts(env, module, context, predicate, proposition);
                 context.pop();
                 predicate_result?;
-                let predicate_function = arena.alloc(Node::Lam {
+                let predicate_function = arena.alloc(RawNode::Lam {
                     var,
                     ty,
                     body: predicate,
                 });
-                let base_ty = arena.alloc(Node::App {
+                let base_ty = arena.alloc(RawNode::App {
                     func: predicate_function,
                     arg: left,
                 });
                 self.check_pts(env, module, context, base, base_ty)?;
-                let equality_ty = arena.alloc(Node::Equal { left, right });
+                let equality_ty = arena.alloc(RawNode::Equal { left, right });
                 self.check_pts(env, module, context, equality, equality_ty)?;
-                Ok(arena.alloc(Node::App {
+                Ok(arena.alloc(RawNode::App {
                     func: predicate_function,
                     arg: right,
                 }))
             }
-            Node::TakeEq {
+            RawNode::TakeEq {
                 func,
                 domain,
                 codomain,
@@ -1050,7 +1061,7 @@ impl MetaStore {
                 existence,
                 uniqueness,
             } => {
-                let take = arena.alloc(Node::TakeSet {
+                let take = arena.alloc(RawNode::TakeSet {
                     domain,
                     codomain,
                     map: func,
@@ -1059,8 +1070,8 @@ impl MetaStore {
                 });
                 self.check_pts(env, module, context, take, codomain)?;
                 self.check_pts(env, module, context, element, domain)?;
-                let mapped = arena.alloc(Node::App { func, arg: element });
-                Ok(arena.alloc(Node::Equal {
+                let mapped = arena.alloc(RawNode::App { func, arg: element });
+                Ok(arena.alloc(RawNode::Equal {
                     left: take,
                     right: mapped,
                 }))
@@ -1074,7 +1085,7 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        term: Exp,
+        term: RawExp,
     ) -> Result<Sort, String> {
         let term = self.zonk(env, term);
         if !self.contains_unsolved(env, term) {
@@ -1082,7 +1093,7 @@ impl MetaStore {
                 .infer_sort(term)
                 .map_err(|error| format!("{error:?}"));
         }
-        if matches!(env.arena().get(term), Node::Meta { .. }) {
+        if matches!(env.arena().get(term), RawNode::Meta { .. }) {
             let constraint = GoalConstraint::IsSort { term };
             self.set_principal_for_meta(env, term, &constraint);
             self.constrain(constraint);
@@ -1090,8 +1101,8 @@ impl MetaStore {
         }
         let ty = self.infer_pts(env, module, context, term)?;
         match env.arena().get(self.zonk(env, ty)) {
-            Node::Sort(sort) => Ok(sort),
-            Node::Meta { .. } => {
+            RawNode::Sort(sort) => Ok(sort),
+            RawNode::Meta { .. } => {
                 self.constrain(GoalConstraint::IsSort { term });
                 Ok(Sort::Set(0))
             }
@@ -1104,7 +1115,7 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        ty: Exp,
+        ty: RawExp,
     ) -> Result<(), String> {
         let ty = self.zonk(env, ty);
         let arena = env.arena();
@@ -1114,33 +1125,33 @@ impl MetaStore {
                 .map_err(|error| format!("{error:?}"));
         }
         match env.arena().get(ty) {
-            Node::Meta { .. } => {
+            RawNode::Meta { .. } => {
                 let constraint = GoalConstraint::IsValueType { term: ty };
                 self.set_principal_for_meta(env, ty, &constraint);
                 self.constrain(constraint);
                 Ok(())
             }
-            Node::Bound(index) => match context.get(context.len().saturating_sub(index + 1)) {
+            RawNode::Bound(index) => match context.get(context.len().saturating_sub(index + 1)) {
                 Some(ContextEntry::ProgramType { .. }) => Ok(()),
                 _ => Err("bound variable is not a Program type".into()),
             },
-            Node::ModuleParam(parameter) => match env.module_parameter_opt(parameter) {
+            RawNode::ModuleParam(parameter) => match env.module_parameter_opt(parameter) {
                 Some(parameter) if matches!(parameter.kind, ModuleParameterKind::ProgramType) => {
                     Ok(())
                 }
                 _ => Err("module parameter is not a Program type".into()),
             },
-            Node::ThunkType { computation_ty } => {
+            RawNode::ThunkType { computation_ty } => {
                 self.check_computation_type(env, module, context, computation_ty)
             }
-            Node::RunStep {
+            RawNode::RunStep {
                 state_ty,
                 result_ty,
             } => {
                 self.check_value_type(env, module, context, state_ty)?;
                 self.check_value_type(env, module, context, result_ty)
             }
-            Node::ProgramIndType {
+            RawNode::ProgramIndType {
                 indspec,
                 parameters,
             } => {
@@ -1152,8 +1163,8 @@ impl MetaStore {
                 }
                 Ok(())
             }
-            Node::Prod { var, ty, body } => {
-                if matches!(arena.get(ty), Node::ValueType) {
+            RawNode::Prod { var, ty, body } => {
+                if matches!(arena.get(ty), RawNode::ValueType) {
                     context.push(ContextEntry::ProgramType { var });
                 } else {
                     self.check_value_type(env, module, context, ty)?;
@@ -1172,7 +1183,7 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        ty: Exp,
+        ty: RawExp,
     ) -> Result<(), String> {
         let ty = self.zonk(env, ty);
         if !self.contains_unsolved(env, ty) {
@@ -1181,14 +1192,16 @@ impl MetaStore {
                 .map_err(|error| format!("{error:?}"));
         }
         match env.arena().get(ty) {
-            Node::Meta { .. } => {
+            RawNode::Meta { .. } => {
                 let constraint = GoalConstraint::IsComputationType { term: ty };
                 self.set_principal_for_meta(env, ty, &constraint);
                 self.constrain(constraint);
                 Ok(())
             }
-            Node::ReturnType { value_ty } => self.check_value_type(env, module, context, value_ty),
-            Node::ComputationFunction { domain, codomain } => {
+            RawNode::ReturnType { value_ty } => {
+                self.check_value_type(env, module, context, value_ty)
+            }
+            RawNode::ComputationFunction { domain, codomain } => {
                 self.check_value_type(env, module, context, domain)?;
                 self.check_computation_type(env, module, context, codomain)
             }
@@ -1201,13 +1214,13 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        value: Exp,
-        expected: Exp,
+        value: RawExp,
+        expected: RawExp,
     ) -> Result<(), String> {
         let value = self.zonk(env, value);
         let expected = self.zonk(env, expected);
         self.check_value_type(env, module, context, expected)?;
-        if matches!(env.arena().get(value), Node::Meta { .. }) {
+        if matches!(env.arena().get(value), RawNode::Meta { .. }) {
             self.set_meta_type(env, value, expected)?;
             self.constrain(GoalConstraint::HasValueType {
                 term: value,
@@ -1225,8 +1238,8 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        value: Exp,
-    ) -> Result<Exp, String> {
+        value: RawExp,
+    ) -> Result<RawExp, String> {
         let value = self.zonk(env, value);
         if !self.contains_unsolved(env, value) {
             return CheckSession::new(env, module, context)
@@ -1235,8 +1248,8 @@ impl MetaStore {
         }
         let arena = env.arena();
         match arena.get(value) {
-            Node::Meta { .. } => self.type_of_meta(env, value, context),
-            Node::Bound(index) => context
+            RawNode::Meta { .. } => self.type_of_meta(env, value, context),
+            RawNode::Bound(index) => context
                 .len()
                 .checked_sub(index + 1)
                 .and_then(|position| context.get(position))
@@ -1247,21 +1260,21 @@ impl MetaStore {
                     _ => None,
                 })
                 .ok_or_else(|| "bound variable is not a Program value".into()),
-            Node::ModuleParam(parameter) => env
+            RawNode::ModuleParam(parameter) => env
                 .module_parameter_opt(parameter)
                 .and_then(|parameter| match parameter.kind {
                     ModuleParameterKind::ProgramValue { ty } => Some(ty),
                     _ => None,
                 })
                 .ok_or_else(|| "module parameter is not a Program value".into()),
-            Node::DefinedConstant(definition) => {
+            RawNode::DefinedConstant(definition) => {
                 let definition = env.definition(definition);
                 (definition.kind == DefinitionKind::ProgramValue)
                     .then_some(definition.ty)
                     .ok_or_else(|| "definition is not a Program value".into())
             }
-            Node::Lam { var, ty, body } => {
-                if matches!(arena.get(ty), Node::ValueType) {
+            RawNode::Lam { var, ty, body } => {
+                if matches!(arena.get(ty), RawNode::ValueType) {
                     context.push(ContextEntry::ProgramType { var });
                 } else {
                     self.check_value_type(env, module, context, ty)?;
@@ -1269,33 +1282,33 @@ impl MetaStore {
                 }
                 let body_ty = self.infer_value(env, module, context, body);
                 context.pop();
-                Ok(arena.alloc(Node::Prod {
+                Ok(arena.alloc(RawNode::Prod {
                     var,
                     ty,
                     body: body_ty?,
                 }))
             }
-            Node::App { func, arg } => {
+            RawNode::App { func, arg } => {
                 let func_ty = self.infer_value(env, module, context, func)?;
                 let func_ty = self.zonk(env, func_ty);
-                let Node::Prod {
+                let RawNode::Prod {
                     ty: domain, body, ..
                 } = arena.get(kernel::calculus::whnf(env, func_ty))
                 else {
                     return Err("Program value application head is not a function".into());
                 };
-                if matches!(arena.get(domain), Node::ValueType) {
+                if matches!(arena.get(domain), RawNode::ValueType) {
                     self.check_value_type(env, module, context, arg)?;
                 } else {
                     self.check_value(env, module, context, arg, domain)?;
                 }
                 Ok(kernel::calculus::instantiate(arena, body, arg))
             }
-            Node::Thunk { computation } => {
+            RawNode::Thunk { computation } => {
                 let computation_ty = self.infer_computation(env, module, context, computation)?;
-                Ok(arena.alloc(Node::ThunkType { computation_ty }))
+                Ok(arena.alloc(RawNode::ThunkType { computation_ty }))
             }
-            Node::Continue {
+            RawNode::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -1303,12 +1316,12 @@ impl MetaStore {
                 self.check_value_type(env, module, context, state_ty)?;
                 self.check_value_type(env, module, context, result_ty)?;
                 self.check_value(env, module, context, next, state_ty)?;
-                Ok(arena.alloc(Node::RunStep {
+                Ok(arena.alloc(RawNode::RunStep {
                     state_ty,
                     result_ty,
                 }))
             }
-            Node::Finish {
+            RawNode::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -1316,12 +1329,12 @@ impl MetaStore {
                 self.check_value_type(env, module, context, state_ty)?;
                 self.check_value_type(env, module, context, result_ty)?;
                 self.check_value(env, module, context, output, result_ty)?;
-                Ok(arena.alloc(Node::RunStep {
+                Ok(arena.alloc(RawNode::RunStep {
                     state_ty,
                     result_ty,
                 }))
             }
-            Node::ProgramIndCtor {
+            RawNode::ProgramIndCtor {
                 indspec,
                 parameters,
                 idx,
@@ -1349,12 +1362,12 @@ impl MetaStore {
                     self.check_value(env, module, context, field, expected)?;
                     preceding.push(field);
                 }
-                Ok(arena.alloc(Node::ProgramIndType {
+                Ok(arena.alloc(RawNode::ProgramIndType {
                     indspec,
                     parameters,
                 }))
             }
-            Node::ProgramIndProjection {
+            RawNode::ProgramIndProjection {
                 indspec,
                 parameters,
                 value,
@@ -1370,7 +1383,7 @@ impl MetaStore {
                 for parameter in &parameters {
                     self.check_value_type(env, module, context, *parameter)?;
                 }
-                let structure_ty = arena.alloc(Node::ProgramIndType {
+                let structure_ty = arena.alloc(RawNode::ProgramIndType {
                     indspec,
                     parameters: parameters.clone(),
                 });
@@ -1382,7 +1395,7 @@ impl MetaStore {
                     .ok_or_else(|| "Program projection field out of bounds".to_string())?;
                 let preceding = (0..field)
                     .map(|field| {
-                        arena.alloc(Node::ProgramIndProjection {
+                        arena.alloc(RawNode::ProgramIndProjection {
                             indspec,
                             parameters: parameters.clone(),
                             value,
@@ -1401,13 +1414,13 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        computation: Exp,
-        expected: Exp,
+        computation: RawExp,
+        expected: RawExp,
     ) -> Result<(), String> {
         let computation = self.zonk(env, computation);
         let expected = self.zonk(env, expected);
         self.check_computation_type(env, module, context, expected)?;
-        if matches!(env.arena().get(computation), Node::Meta { .. }) {
+        if matches!(env.arena().get(computation), RawNode::Meta { .. }) {
             self.set_meta_type(env, computation, expected)?;
             self.constrain(GoalConstraint::HasComputationType {
                 term: computation,
@@ -1425,8 +1438,8 @@ impl MetaStore {
         env: &CrateEnv,
         module: ModuleId,
         context: &mut Context,
-        computation: Exp,
-    ) -> Result<Exp, String> {
+        computation: RawExp,
+    ) -> Result<RawExp, String> {
         let computation = self.zonk(env, computation);
         if !self.contains_unsolved(env, computation) {
             return CheckSession::new(env, module, context)
@@ -1435,26 +1448,26 @@ impl MetaStore {
         }
         let arena = env.arena();
         match arena.get(computation) {
-            Node::Meta { .. } => self.type_of_meta(env, computation, context),
-            Node::DefinedConstant(definition) => {
+            RawNode::Meta { .. } => self.type_of_meta(env, computation, context),
+            RawNode::DefinedConstant(definition) => {
                 let definition = env.definition(definition);
                 (definition.kind == DefinitionKind::ProgramComputation)
                     .then_some(definition.ty)
                     .ok_or_else(|| "definition is not a Program computation".into())
             }
-            Node::Return { value } => {
+            RawNode::Return { value } => {
                 let value_ty = self.infer_value(env, module, context, value)?;
-                Ok(arena.alloc(Node::ReturnType { value_ty }))
+                Ok(arena.alloc(RawNode::ReturnType { value_ty }))
             }
-            Node::Force { value } => {
+            RawNode::Force { value } => {
                 let inferred = self.infer_value(env, module, context, value)?;
                 let value_ty = self.zonk(env, inferred);
                 match arena.get(value_ty) {
-                    Node::ThunkType { computation_ty } => Ok(computation_ty),
-                    Node::Meta { .. } => {
+                    RawNode::ThunkType { computation_ty } => Ok(computation_ty),
+                    RawNode::Meta { .. } => {
                         let span = meta_span(env, value_ty, &self.entries);
                         let result = self.fresh_synthetic(env, context, span);
-                        let thunk = arena.alloc(Node::ThunkType {
+                        let thunk = arena.alloc(RawNode::ThunkType {
                             computation_ty: result,
                         });
                         self.unify(env, value_ty, thunk)?;
@@ -1463,7 +1476,7 @@ impl MetaStore {
                     _ => Err("forced value does not have a thunk type".into()),
                 }
             }
-            Node::ComputationLam {
+            RawNode::ComputationLam {
                 var,
                 value_ty,
                 body,
@@ -1472,21 +1485,22 @@ impl MetaStore {
                 context.push(ContextEntry::ProgramValue { var, ty: value_ty });
                 let body_ty = self.infer_computation(env, module, context, body);
                 context.pop();
-                Ok(arena.alloc(Node::ComputationFunction {
+                Ok(arena.alloc(RawNode::ComputationFunction {
                     domain: value_ty,
                     codomain: body_ty?,
                 }))
             }
-            Node::ComputationApp { computation, value } => {
+            RawNode::ComputationApp { computation, value } => {
                 let inferred = self.infer_computation(env, module, context, computation)?;
                 let computation_ty = self.zonk(env, inferred);
                 let (domain, codomain) = match arena.get(computation_ty) {
-                    Node::ComputationFunction { domain, codomain } => (domain, codomain),
-                    Node::Meta { .. } => {
+                    RawNode::ComputationFunction { domain, codomain } => (domain, codomain),
+                    RawNode::Meta { .. } => {
                         let span = meta_span(env, computation_ty, &self.entries);
                         let domain = self.fresh_synthetic(env, context, span);
                         let codomain = self.fresh_synthetic(env, context, span);
-                        let function = arena.alloc(Node::ComputationFunction { domain, codomain });
+                        let function =
+                            arena.alloc(RawNode::ComputationFunction { domain, codomain });
                         self.unify(env, computation_ty, function)?;
                         (domain, codomain)
                     }
@@ -1495,28 +1509,28 @@ impl MetaStore {
                 self.check_value(env, module, context, value, domain)?;
                 Ok(codomain)
             }
-            Node::Sequence {
+            RawNode::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
             } => {
                 self.check_value_type(env, module, context, value_ty)?;
-                let source = arena.alloc(Node::ReturnType { value_ty });
+                let source = arena.alloc(RawNode::ReturnType { value_ty });
                 self.check_computation(env, module, context, computation, source)?;
                 context.push(ContextEntry::ProgramValue { var, ty: value_ty });
                 let body_ty = self.infer_computation(env, module, context, body);
                 context.pop();
                 body_ty
             }
-            Node::ValueLet { var, value, body } => {
+            RawNode::ValueLet { var, value, body } => {
                 let value_ty = self.infer_value(env, module, context, value)?;
                 context.push(ContextEntry::ProgramValue { var, ty: value_ty });
                 let body_ty = self.infer_computation(env, module, context, body);
                 context.pop();
                 body_ty
             }
-            Node::Run {
+            RawNode::Run {
                 state_ty,
                 result_ty,
                 step,
@@ -1527,7 +1541,7 @@ impl MetaStore {
                 let step_ty = step_function_type(arena, state_ty, result_ty);
                 self.check_value(env, module, context, step, step_ty)?;
                 self.check_value(env, module, context, initial, state_ty)?;
-                Ok(arena.alloc(Node::ReturnType {
+                Ok(arena.alloc(RawNode::ReturnType {
                     value_ty: result_ty,
                 }))
             }
@@ -1535,11 +1549,11 @@ impl MetaStore {
         }
     }
 
-    pub fn constrain_type(&mut self, term: Exp, expected: Exp) {
+    pub fn constrain_type(&mut self, term: RawExp, expected: RawExp) {
         self.constrain(GoalConstraint::HasType { term, expected });
     }
 
-    pub fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
+    pub fn unify(&mut self, env: &CrateEnv, left: RawExp, right: RawExp) -> Result<bool, String> {
         let index = self.constraints.len();
         self.constrain(GoalConstraint::Equal { left, right });
         let result = self.unify_rec(env, left, right, &mut HashSet::new());
@@ -1560,9 +1574,9 @@ impl MetaStore {
     fn unify_rec(
         &mut self,
         env: &CrateEnv,
-        left: Exp,
-        right: Exp,
-        visiting: &mut HashSet<(Exp, Exp)>,
+        left: RawExp,
+        right: RawExp,
+        visiting: &mut HashSet<(RawExp, RawExp)>,
     ) -> Result<bool, String> {
         let left = self.zonk(env, left);
         let right = self.zonk(env, right);
@@ -1574,17 +1588,17 @@ impl MetaStore {
         }
         match (env.arena().get(left), env.arena().get(right)) {
             (
-                Node::Meta {
+                RawNode::Meta {
                     metavariable,
                     spine: _,
                 },
-                Node::Meta {
+                RawNode::Meta {
                     metavariable: other,
                     ..
                 },
             ) if metavariable == other => Ok(true),
             (
-                Node::Meta {
+                RawNode::Meta {
                     metavariable,
                     spine,
                 },
@@ -1592,7 +1606,7 @@ impl MetaStore {
             ) => self.assign(env, metavariable, spine.len(), right),
             (
                 _,
-                Node::Meta {
+                RawNode::Meta {
                     metavariable,
                     spine,
                 },
@@ -1620,7 +1634,7 @@ impl MetaStore {
         env: &CrateEnv,
         metavariable: MetaVarId,
         occurrence_scope: usize,
-        value: Exp,
+        value: RawExp,
     ) -> Result<bool, String> {
         if self.occurs(env, metavariable, value, &mut HashSet::new()) {
             return Err(format!("occurs check failed for ?m{}", metavariable.0));
@@ -1644,12 +1658,18 @@ impl MetaStore {
         Ok(true)
     }
 
-    fn occurs(&self, env: &CrateEnv, needle: MetaVarId, exp: Exp, seen: &mut HashSet<Exp>) -> bool {
+    fn occurs(
+        &self,
+        env: &CrateEnv,
+        needle: MetaVarId,
+        exp: RawExp,
+        seen: &mut HashSet<RawExp>,
+    ) -> bool {
         if !seen.insert(exp) {
             return false;
         }
         match env.arena().get(exp) {
-            Node::Meta {
+            RawNode::Meta {
                 metavariable,
                 spine,
             } => {
@@ -1667,23 +1687,23 @@ impl MetaStore {
         }
     }
 
-    pub fn zonk(&self, env: &CrateEnv, exp: Exp) -> Exp {
+    pub fn zonk(&self, env: &CrateEnv, exp: RawExp) -> RawExp {
         self.zonk_rec(env, exp, &mut HashMap::new(), &mut HashSet::new())
     }
 
     fn zonk_rec(
         &self,
         env: &CrateEnv,
-        exp: Exp,
-        cache: &mut HashMap<Exp, Exp>,
+        exp: RawExp,
+        cache: &mut HashMap<RawExp, RawExp>,
         resolving: &mut HashSet<MetaVarId>,
-    ) -> Exp {
+    ) -> RawExp {
         if let Some(result) = cache.get(&exp) {
             return *result;
         }
         let arena = env.arena();
         let result = match arena.get(exp) {
-            Node::Meta {
+            RawNode::Meta {
                 metavariable,
                 spine,
             } => {
@@ -1720,9 +1740,9 @@ impl MetaStore {
         result
     }
 
-    pub fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
+    pub fn contains_unsolved(&self, env: &CrateEnv, exp: RawExp) -> bool {
         match env.arena().get(self.zonk(env, exp)) {
-            Node::Meta { .. } => true,
+            RawNode::Meta { .. } => true,
             node => node_children(node)
                 .into_iter()
                 .any(|child| self.contains_unsolved(env, child)),
@@ -1837,7 +1857,7 @@ impl MetaStore {
     }
 }
 
-fn constraint_expressions(constraint: &GoalConstraint) -> Vec<Exp> {
+fn constraint_expressions(constraint: &GoalConstraint) -> Vec<RawExp> {
     match constraint {
         GoalConstraint::HasType { term, expected }
         | GoalConstraint::Equal {
@@ -1852,9 +1872,9 @@ fn constraint_expressions(constraint: &GoalConstraint) -> Vec<Exp> {
     }
 }
 
-fn meta_span(env: &CrateEnv, exp: Exp, entries: &[MetaEntry]) -> SourceSpan {
+fn meta_span(env: &CrateEnv, exp: RawExp, entries: &[MetaEntry]) -> SourceSpan {
     match env.arena().get(exp) {
-        Node::Meta { metavariable, .. } => entries[metavariable.index()].span,
+        RawNode::Meta { metavariable, .. } => entries[metavariable.index()].span,
         _ => SourceSpan { start: 0, end: 0 },
     }
 }
@@ -1866,13 +1886,18 @@ fn metas_in_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> HashSet<M
         .collect()
 }
 
-fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
-    fn collect(env: &CrateEnv, exp: Exp, result: &mut HashSet<MetaVarId>, seen: &mut HashSet<Exp>) {
+fn metas_in_exp(env: &CrateEnv, exp: RawExp) -> HashSet<MetaVarId> {
+    fn collect(
+        env: &CrateEnv,
+        exp: RawExp,
+        result: &mut HashSet<MetaVarId>,
+        seen: &mut HashSet<RawExp>,
+    ) {
         if !seen.insert(exp) {
             return;
         }
         match env.arena().get(exp) {
-            Node::Meta {
+            RawNode::Meta {
                 metavariable,
                 spine,
             } => {
@@ -1893,7 +1918,7 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
     result
 }
 
-fn node_children(node: Node) -> Vec<Exp> {
+fn node_children(node: RawNode) -> Vec<RawExp> {
     let mut children = Vec::new();
     let _ = map_children(node, |child| {
         children.push(child);
@@ -1902,83 +1927,84 @@ fn node_children(node: Node) -> Vec<Exp> {
     children
 }
 
-fn rigid_heads_compatible(left: &Node, right: &Node) -> bool {
+fn rigid_heads_compatible(left: &RawNode, right: &RawNode) -> bool {
     use std::mem::discriminant;
     if discriminant(left) != discriminant(right) {
         return false;
     }
     match (left, right) {
-        (Node::Sort(left), Node::Sort(right)) => left == right,
-        (Node::Bound(left), Node::Bound(right)) => left == right,
-        (Node::ModuleParam(left), Node::ModuleParam(right)) => left == right,
-        (Node::DefinedConstant(left), Node::DefinedConstant(right)) => left == right,
-        (Node::IndType { indspec: left, .. }, Node::IndType { indspec: right, .. }) => {
+        (RawNode::Sort(left), RawNode::Sort(right)) => left == right,
+        (RawNode::Bound(left), RawNode::Bound(right)) => left == right,
+        (RawNode::ModuleParam(left), RawNode::ModuleParam(right)) => left == right,
+        (RawNode::DefinedConstant(left), RawNode::DefinedConstant(right)) => left == right,
+        (RawNode::IndType { indspec: left, .. }, RawNode::IndType { indspec: right, .. }) => {
             left == right
         }
         (
-            Node::IndCtor {
+            RawNode::IndCtor {
                 indspec: left,
                 idx: left_idx,
                 ..
             },
-            Node::IndCtor {
+            RawNode::IndCtor {
                 indspec: right,
                 idx: right_idx,
                 ..
             },
         ) => left == right && left_idx == right_idx,
-        (Node::IndElim { indspec: left, .. }, Node::IndElim { indspec: right, .. }) => {
+        (RawNode::IndElim { indspec: left, .. }, RawNode::IndElim { indspec: right, .. }) => {
             left == right
         }
         (
-            Node::IndProjection {
+            RawNode::IndProjection {
                 indspec: left,
                 field: left_field,
                 ..
             },
-            Node::IndProjection {
+            RawNode::IndProjection {
                 indspec: right,
                 field: right_field,
                 ..
             },
         ) => left == right && left_field == right_field,
         (
-            Node::ProgramIndType { indspec: left, .. },
-            Node::ProgramIndType { indspec: right, .. },
+            RawNode::ProgramIndType { indspec: left, .. },
+            RawNode::ProgramIndType { indspec: right, .. },
         ) => left == right,
         (
-            Node::ProgramIndCtor {
+            RawNode::ProgramIndCtor {
                 indspec: left,
                 idx: left_idx,
                 ..
             },
-            Node::ProgramIndCtor {
+            RawNode::ProgramIndCtor {
                 indspec: right,
                 idx: right_idx,
                 ..
             },
         ) => left == right && left_idx == right_idx,
         (
-            Node::ProgramIndProjection {
+            RawNode::ProgramIndProjection {
                 indspec: left,
                 field: left_field,
                 ..
             },
-            Node::ProgramIndProjection {
+            RawNode::ProgramIndProjection {
                 indspec: right,
                 field: right_field,
                 ..
             },
         ) => left == right && left_field == right_field,
-        (Node::ProgramCase { indspec: left, .. }, Node::ProgramCase { indspec: right, .. }) => {
-            left == right
-        }
+        (
+            RawNode::ProgramCase { indspec: left, .. },
+            RawNode::ProgramCase { indspec: right, .. },
+        ) => left == right,
         _ => true,
     }
 }
 
-fn nondependent_product(arena: &kernel::exp::Arena, domain: Exp, codomain: Exp) -> Exp {
-    arena.alloc(Node::Prod {
+fn nondependent_product(arena: &kernel::exp::Arena, domain: RawExp, codomain: RawExp) -> RawExp {
+    arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
         body: shift_bound_indices(arena, codomain, 1, 0),
@@ -1993,25 +2019,29 @@ fn ensure_set_sort(sort: Sort) -> Result<(), String> {
     }
 }
 
-fn set_step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
-    let run_step = arena.alloc(Node::RunStep {
+fn set_step_function_type(
+    arena: &kernel::exp::Arena,
+    state_ty: RawExp,
+    result_ty: RawExp,
+) -> RawExp {
+    let run_step = arena.alloc(RawNode::RunStep {
         state_ty,
         result_ty,
     });
     nondependent_product(arena, state_ty, run_step)
 }
 
-fn step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
-    let run_step = arena.alloc(Node::RunStep {
+fn step_function_type(arena: &kernel::exp::Arena, state_ty: RawExp, result_ty: RawExp) -> RawExp {
+    let run_step = arena.alloc(RawNode::RunStep {
         state_ty,
         result_ty,
     });
-    let result = arena.alloc(Node::ReturnType { value_ty: run_step });
-    let function = arena.alloc(Node::ComputationFunction {
+    let result = arena.alloc(RawNode::ReturnType { value_ty: run_step });
+    let function = arena.alloc(RawNode::ComputationFunction {
         domain: state_ty,
         codomain: result,
     });
-    arena.alloc(Node::ThunkType {
+    arena.alloc(RawNode::ThunkType {
         computation_ty: function,
     })
 }

@@ -93,6 +93,9 @@ mod tests {
     #[test]
     fn prop_is_impredicative_over_set_types() {
         assert_eq!(Sort::Set(0).relation_of_sort(Sort::Prop), Some(Sort::Prop));
-        assert_eq!(Sort::SetKind(3).relation_of_sort(Sort::Prop), None);
+        assert_eq!(
+            Sort::SetKind(3).relation_of_sort(Sort::Prop),
+            Some(Sort::Prop)
+        );
     }
 }

@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use kernel::calculus::{convertible, exp_is_alpha_eq, instantiate, normalize, whnf};
 use kernel::derivation::CheckSession;
 use kernel::environment::CrateEnv;
-use kernel::exp::{Arena, Context, Exp, Node};
+use kernel::exp::{Arena, Context, RawExp, RawNode};
 use kernel::ids::SymbolId;
 use kernel::sort::Sort;
 
@@ -143,24 +143,24 @@ fn format_duration(nanoseconds: f64) -> String {
     }
 }
 
-fn balanced_application(arena: &Arena, depth: usize, leaf: Option<Exp>) -> Exp {
+fn balanced_application(arena: &Arena, depth: usize, leaf: Option<RawExp>) -> RawExp {
     if depth == 0 {
         return leaf.unwrap_or_else(|| arena.bound(0));
     }
     let func = balanced_application(arena, depth - 1, leaf);
     let arg = balanced_application(arena, depth - 1, leaf);
-    arena.alloc(Node::App { func, arg })
+    arena.alloc(RawNode::App { func, arg })
 }
 
-fn beta_chain(arena: &Arena, depth: usize) -> Exp {
+fn beta_chain(arena: &Arena, depth: usize) -> RawExp {
     let mut term = arena.sort(Sort::Set(0));
     for _index in 0..depth {
-        let identity = arena.alloc(Node::Lam {
+        let identity = arena.alloc(RawNode::Lam {
             var: SymbolId::ANONYMOUS,
             ty: arena.sort(Sort::Set(0)),
             body: arena.bound(0),
         });
-        term = arena.alloc(Node::App {
+        term = arena.alloc(RawNode::App {
             func: identity,
             arg: term,
         });
@@ -168,23 +168,23 @@ fn beta_chain(arena: &Arena, depth: usize) -> Exp {
     term
 }
 
-fn product_tree(arena: &Arena, depth: usize, leaf: Exp, _prefix: &str) -> Exp {
+fn product_tree(arena: &Arena, depth: usize, leaf: RawExp, _prefix: &str) -> RawExp {
     if depth == 0 {
         return leaf;
     }
     let ty = product_tree(arena, depth - 1, leaf, _prefix);
     let body = product_tree(arena, depth - 1, leaf, _prefix);
-    arena.alloc(Node::Prod {
+    arena.alloc(RawNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty,
         body,
     })
 }
 
-fn nested_products(arena: &Arena, depth: usize, _prefix: &str) -> Exp {
+fn nested_products(arena: &Arena, depth: usize, _prefix: &str) -> RawExp {
     let mut term = arena.bound(0);
     for _index in 0..depth {
-        term = arena.alloc(Node::Prod {
+        term = arena.alloc(RawNode::Prod {
             var: SymbolId::ANONYMOUS,
             ty: arena.sort(Sort::Set(0)),
             body: term,
@@ -193,10 +193,10 @@ fn nested_products(arena: &Arena, depth: usize, _prefix: &str) -> Exp {
     term
 }
 
-fn nested_lambdas(arena: &Arena, depth: usize) -> Exp {
+fn nested_lambdas(arena: &Arena, depth: usize) -> RawExp {
     let mut term = arena.bound(0);
     for _index in 0..depth {
-        term = arena.alloc(Node::Lam {
+        term = arena.alloc(RawNode::Lam {
             var: SymbolId::ANONYMOUS,
             ty: arena.sort(Sort::Set(0)),
             body: term,

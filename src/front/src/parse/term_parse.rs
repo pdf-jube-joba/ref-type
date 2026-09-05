@@ -1477,7 +1477,7 @@ impl<'a> TermParser<'a> {
         // 1, challenge atom
         let save = self.pos;
         if let Ok(atom) = self.parse_atom() {
-            return Ok(MacroExp::Exp(atom));
+            return Ok(MacroExp::RawExp(atom));
         }
         self.pos = save;
         // 2. challenge one macro token

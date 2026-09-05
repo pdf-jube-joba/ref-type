@@ -1,8 +1,8 @@
 use crate::metavariables::MetaGoal;
 use kernel::{
-    derivation::{CheckSession, Judgement},
+    derivation::{CheckSession, RawJudgement},
     environment::CrateEnv,
-    exp::{Context, Exp},
+    exp::{Context, RawExp},
     ids::ModuleId,
     sort::Sort,
 };
@@ -20,7 +20,7 @@ pub enum LogLevel {
 #[derive(Debug, Clone, Serialize)]
 pub enum LogPayload {
     Message, // 純粋なテキストメッセージだけ
-    Exp(Exp),
+    RawExp(RawExp),
     Ctx(Context),
     Goals(Vec<MetaGoal>),
 }
@@ -64,18 +64,18 @@ impl Logger {
         env: &CrateEnv,
         module: ModuleId,
         ctx: &mut Context,
-        e: Exp,
-    ) -> Option<Exp> {
+        e: RawExp,
+    ) -> Option<RawExp> {
         self.record(
             LogLevel::Trace,
             vec!["reduce_one".to_string()],
             "reduce_one called".to_string(),
-            LogPayload::Exp(e),
+            LogPayload::RawExp(e),
         );
 
         let is_computation = matches!(
             CheckSession::new(env, module, ctx).infer_any(e),
-            Ok(Judgement::Computation { .. })
+            Ok(RawJudgement::Computation { .. })
         );
         let reduced = if is_computation {
             kernel::calculus::reduce_computation_once(env, e)
@@ -88,7 +88,7 @@ impl Logger {
                     LogLevel::Debug,
                     vec!["reduce_one".to_string()],
                     "reduce_one success".to_string(),
-                    LogPayload::Exp(reduced_exp),
+                    LogPayload::RawExp(reduced_exp),
                 );
                 Some(reduced_exp)
             }
@@ -109,18 +109,18 @@ impl Logger {
         env: &CrateEnv,
         module: ModuleId,
         ctx: &mut Context,
-        e: Exp,
-    ) -> Exp {
+        e: RawExp,
+    ) -> RawExp {
         self.record(
             LogLevel::Trace,
             vec!["normalize".to_string()],
             "normalize called".to_string(),
-            LogPayload::Exp(e),
+            LogPayload::RawExp(e),
         );
 
         let is_computation = matches!(
             CheckSession::new(env, module, ctx).infer_any(e),
-            Ok(Judgement::Computation { .. })
+            Ok(RawJudgement::Computation { .. })
         );
         let normalized = if is_computation {
             match kernel::calculus::evaluate_computation(env, e) {
@@ -130,7 +130,7 @@ impl Logger {
                         LogLevel::Warn,
                         vec!["normalize".to_string()],
                         "Program evaluation exhausted its reduction budget".to_string(),
-                        LogPayload::Exp(result),
+                        LogPayload::RawExp(result),
                     );
                     result
                 }
@@ -142,7 +142,7 @@ impl Logger {
             LogLevel::Debug,
             vec!["normalize".to_string()],
             "normalize success".to_string(),
-            LogPayload::Exp(normalized),
+            LogPayload::RawExp(normalized),
         );
         normalized
     }
@@ -153,8 +153,8 @@ impl Logger {
         env: &CrateEnv,
         module: ModuleId,
         ctx: &mut Context,
-        exp: Exp,
-    ) -> Option<Exp> {
+        exp: RawExp,
+    ) -> Option<RawExp> {
         let infer_ty = CheckSession::new(env, module, ctx).infer(exp);
         match infer_ty {
             Ok(ty) => {
@@ -162,7 +162,7 @@ impl Logger {
                     LogLevel::Debug,
                     vec!["infer".to_string()],
                     "infer success".to_string(),
-                    LogPayload::Exp(ty),
+                    LogPayload::RawExp(ty),
                 );
                 Some(ty)
             }
@@ -182,7 +182,7 @@ impl Logger {
         env: &CrateEnv,
         module: ModuleId,
         ctx: &mut Context,
-        exp: Exp,
+        exp: RawExp,
     ) -> Option<Sort> {
         match CheckSession::new(env, module, ctx).infer_sort(exp) {
             Ok(sort) => Some(sort),
@@ -203,15 +203,15 @@ impl Logger {
         env: &CrateEnv,
         module: ModuleId,
         ctx: &mut Context,
-        exp: Exp,
-    ) -> Option<Judgement> {
+        exp: RawExp,
+    ) -> Option<RawJudgement> {
         match CheckSession::new(env, module, ctx).infer_any(exp) {
             Ok(judgement) => {
                 let payload = match judgement {
-                    Judgement::Pts { ty }
-                    | Judgement::Value { ty }
-                    | Judgement::Computation { ty } => LogPayload::Exp(ty),
-                    Judgement::ValueType | Judgement::ComputationType => LogPayload::Message,
+                    RawJudgement::Pts { ty }
+                    | RawJudgement::Value { ty }
+                    | RawJudgement::Computation { ty } => LogPayload::RawExp(ty),
+                    RawJudgement::ValueType | RawJudgement::ComputationType => LogPayload::Message,
                 };
                 self.record(
                     LogLevel::Debug,
@@ -237,12 +237,14 @@ impl Logger {
         env: &CrateEnv,
         module: ModuleId,
         ctx: &mut Context,
-        exp: Exp,
-        expected_type: Exp,
+        exp: RawExp,
+        expected_type: RawExp,
     ) -> bool {
         let mut session = CheckSession::new(env, module, ctx);
-        let result = if matches!(env.arena().get(expected_type), kernel::exp::Node::Sort(_))
-            || session.infer_sort(expected_type).is_ok()
+        let result = if matches!(
+            env.arena().get(expected_type),
+            kernel::exp::RawNode::Sort(_)
+        ) || session.infer_sort(expected_type).is_ok()
         {
             session.check_pts(exp, expected_type)
         } else if session.check_value_type(expected_type).is_ok() {

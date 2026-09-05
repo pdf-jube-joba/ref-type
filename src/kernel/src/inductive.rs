@@ -17,8 +17,8 @@ use super::exp::*;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct InductiveTypeSpecs {
-    parameters: Vec<(SymbolId, Exp)>,
-    indices: Vec<(SymbolId, Exp)>,
+    parameters: Vec<(SymbolId, RawExp)>,
+    indices: Vec<(SymbolId, RawExp)>,
     sort: Sort,
     constructors: Vec<CtorType>,
 }
@@ -52,8 +52,8 @@ impl InductiveTypeSpecs {
     }
 
     pub fn unchecked(
-        parameters: Vec<(SymbolId, Exp)>,
-        indices: Vec<(SymbolId, Exp)>,
+        parameters: Vec<(SymbolId, RawExp)>,
+        indices: Vec<(SymbolId, RawExp)>,
         sort: Sort,
         constructors: Vec<CtorType>,
     ) -> Self {
@@ -65,11 +65,11 @@ impl InductiveTypeSpecs {
         }
     }
 
-    pub fn parameters(&self) -> &[(SymbolId, Exp)] {
+    pub fn parameters(&self) -> &[(SymbolId, RawExp)] {
         &self.parameters
     }
 
-    pub fn indices(&self) -> &[(SymbolId, Exp)] {
+    pub fn indices(&self) -> &[(SymbolId, RawExp)] {
         &self.indices
     }
 
@@ -81,7 +81,7 @@ impl InductiveTypeSpecs {
         &self.constructors
     }
 
-    pub fn arity(&self, arena: &Arena) -> Exp {
+    pub fn arity(&self, arena: &Arena) -> RawExp {
         let sort = arena.sort(self.sort);
         utils::assoc_prod(arena, self.indices.clone(), sort)
     }
@@ -103,10 +103,10 @@ impl InductiveTypeSpecs {
         inductive: InductiveId,
         indspec: &Self,
         idx: usize,
-        parameters: Vec<Exp>,
-    ) -> Exp {
+        parameters: Vec<RawExp>,
+    ) -> RawExp {
         let constructor = indspec.constructors[idx].instantiate_parameters(arena, &parameters);
-        let this = arena.alloc(Node::IndType {
+        let this = arena.alloc(RawNode::IndType {
             indspec: inductive,
             parameters,
         });
@@ -117,18 +117,18 @@ impl InductiveTypeSpecs {
         arena: &Arena,
         inductive: InductiveId,
         indspec: &Self,
-        parameters: Vec<Exp>,
+        parameters: Vec<RawExp>,
         sort: Sort,
-    ) -> Exp {
+    ) -> RawExp {
         let indices = indspec.instantiate_indices(arena, &parameters);
-        let this = arena.alloc(Node::IndType {
+        let this = arena.alloc(RawNode::IndType {
             indspec: inductive,
             parameters,
         });
         let index_arguments = bound_arguments(arena, indices.len());
         let shifted_this = shift_bound_indices(arena, this, indices.len(), 0);
         let applied = utils::assoc_apply(arena, shifted_this, index_arguments);
-        let result = arena.alloc(Node::Prod {
+        let result = arena.alloc(RawNode::Prod {
             var: SymbolId::ANONYMOUS,
             ty: applied,
             body: arena.sort(sort),
@@ -219,7 +219,7 @@ impl InductiveTypeSpecs {
         }
 
         let parameter_arguments = bound_arguments(session.arena(), self.parameters.len());
-        let this_exp = session.arena().alloc(Node::IndType {
+        let this_exp = session.arena().alloc(RawNode::IndType {
             indspec: inductive,
             parameters: parameter_arguments,
         });
@@ -309,7 +309,7 @@ impl InductiveTypeSpecs {
         Ok(())
     }
 
-    pub fn instantiate(&self, arena: &Arena, substitutions: &[(ModuleParamId, Exp)]) -> Self {
+    pub fn instantiate(&self, arena: &Arena, substitutions: &[(ModuleParamId, RawExp)]) -> Self {
         let parameters = self
             .parameters
             .iter()
@@ -332,10 +332,10 @@ impl InductiveTypeSpecs {
         arena: &Arena,
         inductive: InductiveId,
         indspec: &Self,
-        parameters: Vec<Exp>,
+        parameters: Vec<RawExp>,
         sort: Sort,
-    ) -> Exp {
-        let this = arena.alloc(Node::IndType {
+    ) -> RawExp {
+        let this = arena.alloc(RawNode::IndType {
             indspec: inductive,
             parameters: parameters.clone(),
         });
@@ -358,12 +358,12 @@ impl InductiveTypeSpecs {
             let constructor =
                 indspec.constructors[index].instantiate_parameters(arena, &case_parameters);
             let q_exp = arena.bound(telescope.len() - 1);
-            let constructor_exp = arena.alloc(Node::IndCtor {
+            let constructor_exp = arena.alloc(RawNode::IndCtor {
                 indspec: inductive,
                 parameters: case_parameters.clone(),
                 idx: index,
             });
-            let case_this = arena.alloc(Node::IndType {
+            let case_this = arena.alloc(RawNode::IndType {
                 indspec: inductive,
                 parameters: case_parameters,
             });
@@ -382,7 +382,7 @@ impl InductiveTypeSpecs {
 
         let final_len = telescope.len();
         cases.extend((0..case_count).map(|index| arena.bound(final_len - 1 - (1 + index))));
-        let body = arena.alloc(Node::IndElim {
+        let body = arena.alloc(RawNode::IndElim {
             indspec: inductive,
             elim: arena.bound(0),
             return_type: arena.bound(final_len - 1),
@@ -391,7 +391,7 @@ impl InductiveTypeSpecs {
         utils::assoc_lam(arena, telescope, body)
     }
 
-    fn instantiate_indices(&self, arena: &Arena, parameters: &[Exp]) -> Vec<(SymbolId, Exp)> {
+    fn instantiate_indices(&self, arena: &Arena, parameters: &[RawExp]) -> Vec<(SymbolId, RawExp)> {
         self.indices
             .iter()
             .enumerate()
@@ -405,23 +405,23 @@ impl InductiveTypeSpecs {
     }
 }
 
-fn bound_arguments(arena: &Arena, len: usize) -> Vec<Exp> {
+fn bound_arguments(arena: &Arena, len: usize) -> Vec<RawExp> {
     (0..len).rev().map(|index| arena.bound(index)).collect()
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CtorType {
     pub telescope: Vec<CtorBinder>,
-    pub indices: Vec<Exp>,
+    pub indices: Vec<RawExp>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum CtorBinder {
     StrictPositive {
-        binders: Vec<(SymbolId, Exp)>,
-        self_indices: Vec<Exp>,
+        binders: Vec<(SymbolId, RawExp)>,
+        self_indices: Vec<RawExp>,
     },
-    Simple((SymbolId, Exp)),
+    Simple((SymbolId, RawExp)),
 }
 
 impl CtorType {
@@ -451,7 +451,7 @@ impl CtorType {
         }
     }
 
-    pub fn as_exp_with_type(&self, arena: &Arena, this: Exp) -> Exp {
+    pub fn as_exp_with_type(&self, arena: &Arena, this: RawExp) -> RawExp {
         let mut telescope = vec![];
         for binder in &self.telescope {
             let outer = telescope.len();
@@ -476,7 +476,7 @@ impl CtorType {
     pub fn subst_module_params(
         &self,
         arena: &Arena,
-        substitutions: &[(ModuleParamId, Exp)],
+        substitutions: &[(ModuleParamId, RawExp)],
     ) -> Self {
         Self {
             telescope: self
@@ -509,7 +509,7 @@ impl CtorType {
         }
     }
 
-    pub fn instantiate_parameters(&self, arena: &Arena, parameters: &[Exp]) -> Self {
+    pub fn instantiate_parameters(&self, arena: &Arena, parameters: &[RawExp]) -> Self {
         let mut outer = 0;
         let telescope = self
             .telescope
@@ -568,10 +568,10 @@ impl CtorType {
 pub fn eliminator_type(
     arena: &Arena,
     constructor: &CtorType,
-    q: Exp,
-    constructor_term: Exp,
-    this: Exp,
-) -> Exp {
+    q: RawExp,
+    constructor_term: RawExp,
+    this: RawExp,
+) -> RawExp {
     let mut telescope = vec![];
     let mut applied_constructor = constructor_term;
     let mut constructor_positions = Vec::new();
@@ -588,7 +588,7 @@ pub fn eliminator_type(
                     telescope.len(),
                 );
                 applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
-                applied_constructor = arena.alloc(Node::App {
+                applied_constructor = arena.alloc(RawNode::App {
                     func: applied_constructor,
                     arg: arena.bound(0),
                 });
@@ -624,7 +624,7 @@ pub fn eliminator_type(
                     utils::assoc_prod(arena, recursive_binders.clone(), recursive_result);
 
                 applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
-                applied_constructor = arena.alloc(Node::App {
+                applied_constructor = arena.alloc(RawNode::App {
                     func: applied_constructor,
                     arg: arena.bound(0),
                 });
@@ -636,7 +636,7 @@ pub fn eliminator_type(
                     utils::assoc_apply(arena, arena.bound(binders.len()), recursive_arguments);
                 let shifted_q = shift_bound_indices(arena, q, telescope.len() + binders.len(), 0);
                 let motive = utils::assoc_apply(arena, shifted_q, recursive_indices);
-                let hypothesis_result = arena.alloc(Node::App {
+                let hypothesis_result = arena.alloc(RawNode::App {
                     func: motive,
                     arg: recursive_call,
                 });
@@ -659,14 +659,20 @@ pub fn eliminator_type(
         .collect();
     let shifted_q = shift_bound_indices(arena, q, telescope.len(), 0);
     let motive = utils::assoc_apply(arena, shifted_q, indices);
-    let result = arena.alloc(Node::App {
+    let result = arena.alloc(RawNode::App {
         func: motive,
         arg: applied_constructor,
     });
     utils::assoc_prod(arena, telescope, result)
 }
 
-pub fn recursor(arena: &Arena, constructor: &CtorType, q: Exp, case: Exp, this: Exp) -> Exp {
+pub fn recursor(
+    arena: &Arena,
+    constructor: &CtorType,
+    q: RawExp,
+    case: RawExp,
+    this: RawExp,
+) -> RawExp {
     let mut result = case;
     let mut telescope = vec![];
     let mut constructor_positions = Vec::new();
@@ -683,7 +689,7 @@ pub fn recursor(arena: &Arena, constructor: &CtorType, q: Exp, case: Exp, this: 
                     telescope.len(),
                 );
                 result = shift_bound_indices(arena, result, 1, 0);
-                result = arena.alloc(Node::App {
+                result = arena.alloc(RawNode::App {
                     func: result,
                     arg: arena.bound(0),
                 });
@@ -717,18 +723,18 @@ pub fn recursor(arena: &Arena, constructor: &CtorType, q: Exp, case: Exp, this: 
                 let shifted_q =
                     shift_bound_indices(arena, q, telescope.len() + 1 + binders.len(), 0);
                 let motive = utils::assoc_apply(arena, shifted_q, recursive_indices.clone());
-                let hypothesis_body = arena.alloc(Node::App {
+                let hypothesis_body = arena.alloc(RawNode::App {
                     func: motive,
                     arg: recursive_call,
                 });
                 let hypothesis =
                     utils::assoc_lam(arena, recursive_binders.clone(), hypothesis_body);
                 result = shift_bound_indices(arena, result, 1, 0);
-                let with_argument = arena.alloc(Node::App {
+                let with_argument = arena.alloc(RawNode::App {
                     func: result,
                     arg: arena.bound(0),
                 });
-                result = arena.alloc(Node::App {
+                result = arena.alloc(RawNode::App {
                     func: with_argument,
                     arg: hypothesis,
                 });
@@ -760,23 +766,23 @@ fn constructor_mapping(
 
 fn rebase_from_constructor(
     arena: &Arena,
-    exp: Exp,
+    exp: RawExp,
     inner: usize,
     original_outer: usize,
     positions: &[usize],
     generated_len: usize,
-) -> Exp {
+) -> RawExp {
     let mapping = constructor_mapping(inner, original_outer, positions, generated_len);
     remap_ambient_indices(arena, exp, &mapping)
 }
 
 fn rebase_nested_telescope(
     arena: &Arena,
-    binders: &[(SymbolId, Exp)],
+    binders: &[(SymbolId, RawExp)],
     original_outer: usize,
     positions: &[usize],
     generated_len: usize,
-) -> Vec<(SymbolId, Exp)> {
+) -> Vec<(SymbolId, RawExp)> {
     binders
         .iter()
         .enumerate()
@@ -799,15 +805,15 @@ fn rebase_nested_telescope(
 struct RedexShape {
     inductive: InductiveId,
     index: usize,
-    parameters: Vec<Exp>,
-    arguments: Vec<Exp>,
-    return_type: Exp,
-    cases: Vec<Exp>,
+    parameters: Vec<RawExp>,
+    arguments: Vec<RawExp>,
+    return_type: RawExp,
+    cases: Vec<RawExp>,
 }
 
-fn indelim_shapecheck(env: &CrateEnv, exp: Exp) -> Result<RedexShape, String> {
+fn indelim_shapecheck(env: &CrateEnv, exp: RawExp) -> Result<RedexShape, String> {
     let arena = env.arena();
-    let Node::IndElim {
+    let RawNode::IndElim {
         indspec,
         elim,
         return_type,
@@ -817,7 +823,7 @@ fn indelim_shapecheck(env: &CrateEnv, exp: Exp) -> Result<RedexShape, String> {
         return Err("Not an InductiveTypeElim".into());
     };
     let (head, arguments) = utils::decompose_app(arena, elim);
-    let Node::IndCtor {
+    let RawNode::IndCtor {
         indspec: constructor_spec,
         idx,
         parameters,
@@ -851,7 +857,7 @@ fn indelim_shapecheck(env: &CrateEnv, exp: Exp) -> Result<RedexShape, String> {
     })
 }
 
-pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, String> {
+pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: RawExp) -> Result<RawExp, String> {
     let arena = env.arena();
     let RedexShape {
         inductive,
@@ -863,7 +869,7 @@ pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, Strin
     } = indelim_shapecheck(env, exp)?;
     let spec = env.inductive(inductive);
     let indices = spec.instantiate_indices(arena, &parameters);
-    let this = arena.alloc(Node::IndType {
+    let this = arena.alloc(RawNode::IndType {
         indspec: inductive,
         parameters: parameters.clone(),
     });
@@ -871,7 +877,7 @@ pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, Strin
     let shifted_this = shift_bound_indices(arena, this, indices.len(), 0);
     let c_ty = utils::assoc_apply(arena, shifted_this, index_arguments);
     let body_depth = indices.len() + 1;
-    let body = arena.alloc(Node::IndElim {
+    let body = arena.alloc(RawNode::IndElim {
         indspec: inductive,
         elim: arena.bound(0),
         return_type: shift_bound_indices(arena, return_type, body_depth, 0),
@@ -880,7 +886,7 @@ pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, Strin
             .map(|case| shift_bound_indices(arena, *case, body_depth, 0))
             .collect(),
     });
-    let body = arena.alloc(Node::Lam {
+    let body = arena.alloc(RawNode::Lam {
         var: SymbolId::ANONYMOUS,
         ty: c_ty,
         body,

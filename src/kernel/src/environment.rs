@@ -1,7 +1,7 @@
 //! Crate/module declarations and materialized-instance provenance.
 
 use crate::{
-    exp::{Arena, Exp},
+    exp::{Arena, RawExp},
     ids::{
         DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId, SymbolId,
     },
@@ -14,8 +14,8 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize)]
 pub struct DefinedConstant {
     pub kind: DefinitionKind,
-    pub ty: Exp,
-    pub body: Exp,
+    pub ty: RawExp,
+    pub body: RawExp,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -33,9 +33,9 @@ pub struct ModuleParameter {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ModuleParameterKind {
-    Pts { ty: Exp },
+    Pts { ty: RawExp },
     ProgramType,
-    ProgramValue { ty: Exp },
+    ProgramValue { ty: RawExp },
 }
 
 impl ModuleParameter {
@@ -43,7 +43,7 @@ impl ModuleParameter {
         ModuleParamId { module, position }
     }
 
-    pub fn ty(&self) -> Option<Exp> {
+    pub fn ty(&self) -> Option<RawExp> {
         match self.kind {
             ModuleParameterKind::Pts { ty } | ModuleParameterKind::ProgramValue { ty } => Some(ty),
             ModuleParameterKind::ProgramType => None,
@@ -93,7 +93,7 @@ pub struct ModuleInstance {
     pub id: ModuleInstanceId,
     pub source: ModuleId,
     pub materialized: ModuleId,
-    pub arguments: Vec<(ModuleParamId, Exp)>,
+    pub arguments: Vec<(ModuleParamId, RawExp)>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
 }
@@ -390,7 +390,7 @@ impl CrateEnv {
         owner: ModuleId,
         source: ModuleId,
         materialized: ModuleId,
-        arguments: Vec<(ModuleParamId, Exp)>,
+        arguments: Vec<(ModuleParamId, RawExp)>,
         definition_origins: HashMap<DefId, DefId>,
     ) -> ModuleInstanceId {
         let local = u32::try_from(self.module(owner).instances.len())

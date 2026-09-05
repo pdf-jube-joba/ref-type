@@ -4,6 +4,8 @@ pub mod ids;
 pub mod sort;
 // expression language and lightweight judgement results
 pub mod exp;
+// CBPV syntax and Program-only typing judgements
+pub mod program;
 // human-readable rendering of kernel expressions
 pub mod printing;
 // crate, module, declaration, and materialization state

@@ -5,7 +5,7 @@ use crate::{
 use kernel::{
     calculus::{exp_subst_map, remap_all_global_ids},
     environment::CrateEnv,
-    exp::Exp,
+    exp::RawExp,
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
 };
 use std::collections::{HashMap, HashSet};
@@ -35,7 +35,7 @@ pub(crate) struct ModuleMacroScope {
 
 pub(crate) struct MacroInstantiation<'a> {
     pub module_ids: &'a HashMap<ModuleId, ModuleId>,
-    pub substitutions: &'a [(ModuleParamId, Exp)],
+    pub substitutions: &'a [(ModuleParamId, RawExp)],
     pub definition_ids: &'a HashMap<DefId, DefId>,
     pub inductive_ids: &'a HashMap<InductiveId, InductiveId>,
     pub program_inductive_ids: &'a HashMap<ProgramInductiveId, ProgramInductiveId>,
@@ -105,7 +105,7 @@ fn match_pattern(
         .iter()
         .zip(input)
         .all(|(pattern, input)| match (pattern, input) {
-            (MacroSeqAtom::Capture(name), MacroExp::Exp(exp)) => {
+            (MacroSeqAtom::Capture(name), MacroExp::RawExp(exp)) => {
                 captures.insert(name.0.clone(), exp.clone());
                 true
             }
@@ -153,7 +153,7 @@ fn alpha_macro_exps(
 ) {
     for token in tokens {
         match token {
-            MacroExp::Exp(exp) => alpha_rename(exp, order, counter, scopes),
+            MacroExp::RawExp(exp) => alpha_rename(exp, order, counter, scopes),
             MacroExp::Seq(tokens) => alpha_macro_exps(tokens, order, counter, scopes),
             MacroExp::Tok(_) | MacroExp::Quoted(_) => {}
         }
@@ -988,11 +988,11 @@ impl ModuleManager {
             .map(|token| match token {
                 MacroExp::Seq(inner) => self
                     .expand_math_macro(env, module, inner, depth + 1, max_order)
-                    .map(MacroExp::Exp),
+                    .map(MacroExp::RawExp),
                 other => Ok(other.clone()),
             })
             .collect::<Result<Vec<_>, String>>()?;
-        if let [MacroExp::Exp(exp)] = tokens.as_slice() {
+        if let [MacroExp::RawExp(exp)] = tokens.as_slice() {
             return Ok(exp.clone());
         }
         let mut matches = self
@@ -1373,7 +1373,7 @@ fn walk_many_mut<const N: usize>(exps: [&mut Box<SExp>; N], action: &mut impl Fn
 fn walk_macro_exps_mut(tokens: &mut [MacroExp], action: &mut impl FnMut(&mut SExp)) {
     for token in tokens {
         match token {
-            MacroExp::Exp(exp) => walk_sexp_mut(exp, action),
+            MacroExp::RawExp(exp) => walk_sexp_mut(exp, action),
             MacroExp::Seq(tokens) => walk_macro_exps_mut(tokens, action),
             MacroExp::Tok(_) | MacroExp::Quoted(_) => {}
         }

@@ -1,9 +1,9 @@
 use kernel::{
     environment::CrateEnv,
-    exp::{Context, Exp},
+    exp::{Context, RawExp},
 };
 
-pub(super) fn format_exp(env: &CrateEnv, exp: Exp) -> String {
+pub(super) fn format_exp(env: &CrateEnv, exp: RawExp) -> String {
     kernel::printing::format_exp(env, exp)
 }
 

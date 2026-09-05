@@ -8,7 +8,7 @@ use crate::{
 };
 use kernel::{
     calculus::{exp_contains_inductive, exp_subst_map},
-    derivation::{CheckSession, Judgement},
+    derivation::{CheckSession, RawJudgement},
     environment::{
         CrateEnv, DefinedConstant, DefinitionKind, ModuleParameter, ModuleParameterKind,
     },
@@ -57,7 +57,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
         self.crate_env.symbol(symbol)
     }
 
-    fn fresh_meta(&mut self, kind: SurfaceMeta, span: SourceSpan, local_context: &Context) -> Exp {
+    fn fresh_meta(
+        &mut self,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+        local_context: &Context,
+    ) -> RawExp {
         let mut context = self.module_manager.current_context(&self.crate_env);
         context.extend(local_context.iter().cloned());
         self.metavariables
@@ -107,12 +112,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .ok_or("Failed to access item at path".to_string())
     }
 
-    fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String> {
+    fn field_projection(&mut self, e: RawExp, field_name: &Identifier) -> Result<RawExp, String> {
         log_record!(
             self.logger,
             LogLevel::Debug,
             ["field projection"],
-            LogPayload::Exp(e),
+            LogPayload::RawExp(e),
             "field projection {} called",
             field_name.as_str(),
         );
@@ -128,11 +133,11 @@ impl term_elaborator::Handler for GlobalEnvironment {
             self.logger,
             LogLevel::Debug,
             ["field projection"],
-            LogPayload::Exp(infer_type_e),
+            LogPayload::RawExp(infer_type_e),
             "inferred type",
         );
 
-        let Node::IndType {
+        let RawNode::IndType {
             indspec,
             parameters,
         } = self.crate_env.arena().get(infer_type_e)
@@ -152,7 +157,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(exp)
     }
 
-    fn infer(&mut self, local_ctx: &mut Context, e: Exp) -> Result<Exp, String> {
+    fn infer(&mut self, local_ctx: &mut Context, e: RawExp) -> Result<RawExp, String> {
         let mut ctx = self.module_manager.current_context(&self.crate_env);
         let module_context_len = ctx.len();
         ctx.append(local_ctx);
@@ -228,8 +233,8 @@ impl GlobalEnvironment {
     fn infer_term_with_metavariables(
         &mut self,
         ctx: &mut Context,
-        term: Exp,
-    ) -> Result<Exp, String> {
+        term: RawExp,
+    ) -> Result<RawExp, String> {
         let initial = self.metavariables.clone();
 
         let pts_error = match self.metavariables.infer_pts(
@@ -273,11 +278,11 @@ impl GlobalEnvironment {
     fn check_term_with_metavariables(
         &mut self,
         ctx: &mut Context,
-        term: Exp,
-        expected: Exp,
+        term: RawExp,
+        expected: RawExp,
     ) -> Result<(), String> {
         let expected = self.metavariables.zonk(&self.crate_env, expected);
-        if matches!(self.crate_env.arena().get(expected), Node::Meta { .. }) {
+        if matches!(self.crate_env.arena().get(expected), RawNode::Meta { .. }) {
             let inferred = self.infer_term_with_metavariables(ctx, term)?;
             self.metavariables
                 .unify(&self.crate_env, expected, inferred)?;
@@ -338,7 +343,7 @@ impl GlobalEnvironment {
         &mut self,
         context: &mut Context,
         back_parent: Option<usize>,
-        calls: &mut [(Identifier, Vec<(Identifier, Exp)>)],
+        calls: &mut [(Identifier, Vec<(Identifier, RawExp)>)],
     ) -> Result<(), ElaborationError> {
         if self.metavariables.is_empty() {
             return Ok(());
@@ -444,29 +449,29 @@ impl GlobalEnvironment {
 
 fn reflect_program_type_for_mirror(
     env: &CrateEnv,
-    ty: Exp,
+    ty: RawExp,
     self_inductive: ProgramInductiveId,
     self_reflected: InductiveId,
     parameter_count: usize,
-) -> Result<Exp, String> {
+) -> Result<RawExp, String> {
     let arena = env.arena();
     let reflect = |child| {
         reflect_program_type_for_mirror(env, child, self_inductive, self_reflected, parameter_count)
     };
     Ok(match arena.get(ty) {
-        Node::Bound(_) => ty,
-        Node::ThunkType { computation_ty } => reflect(computation_ty)?,
-        Node::ReturnType { value_ty } => reflect(value_ty)?,
-        Node::ComputationFunction { domain, codomain } => {
+        RawNode::Bound(_) => ty,
+        RawNode::ThunkType { computation_ty } => reflect(computation_ty)?,
+        RawNode::ReturnType { value_ty } => reflect(value_ty)?,
+        RawNode::ComputationFunction { domain, codomain } => {
             let domain = reflect(domain)?;
             let codomain = kernel::calculus::shift_bound_indices(arena, reflect(codomain)?, 1, 0);
-            arena.alloc(Node::Prod {
+            arena.alloc(RawNode::Prod {
                 var: SymbolId::ANONYMOUS,
                 ty: domain,
                 body: codomain,
             })
         }
-        Node::ProgramIndType {
+        RawNode::ProgramIndType {
             indspec,
             parameters,
         } => {
@@ -486,16 +491,16 @@ fn reflect_program_type_for_mirror(
                     .map(reflect)
                     .collect::<Result<Vec<_>, _>>()?
             };
-            arena.alloc(Node::IndType {
+            arena.alloc(RawNode::IndType {
                 indspec: reflected,
                 parameters,
             })
         }
-        Node::ModuleParam(parameter) => arena.alloc(Node::ReflectedProgramParam(parameter)),
-        Node::RunStep {
+        RawNode::ModuleParam(parameter) => arena.alloc(RawNode::ReflectedProgramParam(parameter)),
+        RawNode::RunStep {
             state_ty,
             result_ty,
-        } => arena.alloc(Node::RunStep {
+        } => arena.alloc(RawNode::RunStep {
             state_ty: reflect(state_ty)?,
             result_ty: reflect(result_ty)?,
         }),
@@ -522,8 +527,8 @@ impl GlobalEnvironment {
     fn collect_definition_obligations(
         &self,
         context: &mut Context,
-        body: Exp,
-        ty: Exp,
+        body: RawExp,
+        ty: RawExp,
     ) -> Result<(DefinitionKind, Vec<ProofObligation>), String> {
         let original = context.clone();
 
@@ -534,7 +539,8 @@ impl GlobalEnvironment {
             context,
             &obligations,
         );
-        if matches!(self.crate_env.arena().get(ty), Node::Sort(_)) || session.infer_sort(ty).is_ok()
+        if matches!(self.crate_env.arena().get(ty), RawNode::Sort(_))
+            || session.infer_sort(ty).is_ok()
         {
             session
                 .check_pts(body, ty)
@@ -667,8 +673,8 @@ impl GlobalEnvironment {
         &self,
         context: &mut Context,
         kind: DefinitionKind,
-        body: Exp,
-        ty: Exp,
+        body: RawExp,
+        ty: RawExp,
         evidence: &[ProofEvidence],
     ) -> Result<(), String> {
         let mut session = CheckSession::with_evidence(
@@ -688,8 +694,8 @@ impl GlobalEnvironment {
     fn collect_inference_obligations(
         &self,
         context: &mut Context,
-        exp: Exp,
-    ) -> Result<(Judgement, Vec<ProofObligation>), String> {
+        exp: RawExp,
+    ) -> Result<(RawJudgement, Vec<ProofObligation>), String> {
         let original = context.clone();
 
         macro_rules! attempt {
@@ -709,11 +715,11 @@ impl GlobalEnvironment {
             }};
         }
 
-        attempt!(infer_pts, |ty| Judgement::Pts { ty });
-        attempt!(check_value_type, |_| Judgement::ValueType);
-        attempt!(check_computation_type, |_| Judgement::ComputationType);
-        attempt!(infer_value, |ty| Judgement::Value { ty });
-        attempt!(infer_computation, |ty| Judgement::Computation { ty });
+        attempt!(infer_pts, |ty| RawJudgement::Pts { ty });
+        attempt!(check_value_type, |_| RawJudgement::ValueType);
+        attempt!(check_computation_type, |_| RawJudgement::ComputationType);
+        attempt!(infer_value, |ty| RawJudgement::Value { ty });
+        attempt!(infer_computation, |ty| RawJudgement::Computation { ty });
 
         *context = original;
         Err("term does not infer in any PTS or Program judgement".into())
@@ -722,8 +728,8 @@ impl GlobalEnvironment {
     fn validate_inference_with_evidence(
         &self,
         context: &mut Context,
-        exp: Exp,
-        judgement: Judgement,
+        exp: RawExp,
+        judgement: RawJudgement,
         evidence: &[ProofEvidence],
     ) -> Result<(), String> {
         let mut session = CheckSession::with_evidence(
@@ -733,11 +739,11 @@ impl GlobalEnvironment {
             evidence,
         );
         let result = match judgement {
-            Judgement::Pts { .. } => session.infer_pts(exp).map(|_| ()),
-            Judgement::ValueType => session.check_value_type(exp),
-            Judgement::ComputationType => session.check_computation_type(exp),
-            Judgement::Value { .. } => session.infer_value(exp).map(|_| ()),
-            Judgement::Computation { .. } => session.infer_computation(exp).map(|_| ()),
+            RawJudgement::Pts { .. } => session.infer_pts(exp).map(|_| ()),
+            RawJudgement::ValueType => session.check_value_type(exp),
+            RawJudgement::ComputationType => session.check_computation_type(exp),
+            RawJudgement::Value { .. } => session.infer_value(exp).map(|_| ()),
+            RawJudgement::Computation { .. } => session.infer_computation(exp).map(|_| ()),
         };
         result.map_err(|error| format!("proof validation failed: {error:?}"))
     }
@@ -754,7 +760,7 @@ impl GlobalEnvironment {
         let inductive = self.crate_env.reserve_program_inductive(module);
         let reflected = self.crate_env.reserve_inductive(module);
         let type_name_var = self.crate_env.intern(type_name.as_str());
-        let type_name_exp = self.crate_env.arena().alloc(Node::ProgramIndType {
+        let type_name_exp = self.crate_env.arena().alloc(RawNode::ProgramIndType {
             indspec: inductive,
             parameters: Vec::new(),
         });
@@ -813,7 +819,7 @@ impl GlobalEnvironment {
             let result = scope.elab_exp(result, self)?;
             if !matches!(
                 self.crate_env.arena().get(result),
-                Node::ProgramIndType { indspec, parameters } if indspec == inductive && parameters.is_empty()
+                RawNode::ProgramIndType { indspec, parameters } if indspec == inductive && parameters.is_empty()
             ) {
                 return Err(format!(
                     "Program constructor {} must return {}",
@@ -853,7 +859,7 @@ impl GlobalEnvironment {
                                 kernel::utils::decompose_app(self.crate_env.arena(), tail);
                             if !matches!(
                                 self.crate_env.arena().get(head),
-                                Node::IndType { indspec, .. } if indspec == reflected
+                                RawNode::IndType { indspec, .. } if indspec == reflected
                             ) {
                                 return Err(
                                     "reflected recursive field is not strictly positive".into()
@@ -1180,7 +1186,7 @@ impl GlobalEnvironment {
                     let inductive = self
                         .crate_env
                         .reserve_inductive(self.module_manager.current());
-                    let type_name_exp = self.crate_env.arena().alloc(Node::IndType {
+                    let type_name_exp = self.crate_env.arena().alloc(RawNode::IndType {
                         indspec: inductive,
                         parameters: vec![],
                     });
@@ -1252,7 +1258,7 @@ impl GlobalEnvironment {
                                     self.crate_env.arena(),
                                     inner_tail,
                                 );
-                                if !matches!(self.crate_env.arena().get(head), Node::IndType { indspec, .. } if indspec == inductive)
+                                if !matches!(self.crate_env.arena().get(head), RawNode::IndType { indspec, .. } if indspec == inductive)
                                 {
                                     return Err("Constructor binder type head does not match inductive type name {type_name_var}".into());
                                 }
@@ -1278,7 +1284,7 @@ impl GlobalEnvironment {
 
                         let (head, tail) =
                             kernel::utils::decompose_app(self.crate_env.arena(), ends_elab);
-                        if !matches!(self.crate_env.arena().get(head), Node::IndType { indspec, .. } if indspec == inductive)
+                        if !matches!(self.crate_env.arena().get(head), RawNode::IndType { indspec, .. } if indspec == inductive)
                         {
                             return Err(
                                 "Constructor type head does not match inductive type name".into()
@@ -1394,7 +1400,7 @@ impl GlobalEnvironment {
 
                     // elaborate fields as constructors
                     let mut telescope = vec![];
-                    let mut fields_get: Vec<(SymbolId, Exp)> = vec![];
+                    let mut fields_get: Vec<(SymbolId, RawExp)> = vec![];
                     for (field_name, field_ty) in fields {
                         let field_name_var = self.crate_env.intern(field_name.as_str());
                         let mut field_ty_elab = local_scope.elab_exp(field_ty, self)?;
@@ -1632,7 +1638,7 @@ impl GlobalEnvironment {
                             LogLevel::Debug,
                             vec!["check".to_string()],
                             "check success".to_string(),
-                            LogPayload::Exp(ty_elab),
+                            LogPayload::RawExp(ty_elab),
                         );
                     } else {
                         self.logger.check(
@@ -1666,10 +1672,10 @@ impl GlobalEnvironment {
                             &mut ctx, exp_elab, judgement, &evidence,
                         )?;
                         let payload = match judgement {
-                            Judgement::Pts { ty }
-                            | Judgement::Value { ty }
-                            | Judgement::Computation { ty } => LogPayload::Exp(ty),
-                            Judgement::ValueType | Judgement::ComputationType => {
+                            RawJudgement::Pts { ty }
+                            | RawJudgement::Value { ty }
+                            | RawJudgement::Computation { ty } => LogPayload::RawExp(ty),
+                            RawJudgement::ValueType | RawJudgement::ComputationType => {
                                 LogPayload::Message
                             }
                         };

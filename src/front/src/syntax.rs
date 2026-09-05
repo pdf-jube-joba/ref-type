@@ -1,5 +1,5 @@
 // this file describes the surface syntax tree
-use kernel::exp::{Exp, Node};
+use kernel::exp::{RawExp, RawNode};
 use kernel::ids::{DefId, InductiveId, ModuleId};
 use kernel::inductive::CtorBinder;
 use kernel::sort::Sort;
@@ -165,7 +165,7 @@ pub enum ModuleInstantiatePath {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum MacroExp {
-    Exp(SExp),
+    RawExp(SExp),
     Tok(MacroToken),
     Quoted(String),
     Seq(Vec<MacroExp>),
@@ -259,7 +259,7 @@ pub enum SExp {
     MacroParameter(Identifier),
     /// A core expression captured while resolving a macro template (currently
     /// used for module parameters). It is remapped when a module is instantiated.
-    ResolvedExp(Exp),
+    ResolvedExp(RawExp),
 
     // --- expression with clauses
     // where clauses to define local variables
@@ -612,10 +612,10 @@ impl ModItemRecord {
     pub fn field_projection(
         &self,
         env: &kernel::environment::CrateEnv,
-        e: Exp,
+        e: RawExp,
         field_name: &Identifier,
-        parameters: &[Exp],
-    ) -> Option<Exp> {
+        parameters: &[RawExp],
+    ) -> Option<RawExp> {
         let arena = env.arena();
         let spec = env.inductive(self.inductive);
         // this should always have only one constructor
@@ -635,7 +635,7 @@ impl ModItemRecord {
             .iter()
             .enumerate()
             .find(|(_, (id, _))| env.symbol(*id) == field_name.as_str())?;
-        Some(arena.alloc(Node::IndProjection {
+        Some(arena.alloc(RawNode::IndProjection {
             indspec: self.inductive,
             parameters: parameters.to_vec(),
             value: e,

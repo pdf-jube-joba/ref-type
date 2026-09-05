@@ -8,7 +8,7 @@ pub fn log_record_to_log(
     record: &front::logger::LogRecord,
 ) -> Log {
     match &record.payload {
-        LogPayload::Exp(exp) => Log::Message(format_record(
+        LogPayload::RawExp(exp) => Log::Message(format_record(
             record,
             Some(format!("exp = {}", for_kernel::format_exp(env, *exp))),
         )),

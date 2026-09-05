@@ -8,7 +8,7 @@ use crate::{
     environment::{
         CrateEnv, DefinedConstant, DefinitionKind, ModuleParameter, ModuleParameterKind,
     },
-    exp::{Context, ContextEntry, Exp, Node, ProgramCaseBranch},
+    exp::{Context, ContextEntry, ProgramCaseBranch, RawExp, RawNode},
     ids::{MetaVarId, ModuleId, ModuleParamId, SymbolId},
     inductive::{CtorBinder, CtorType, InductiveTypeSpecs},
     printing::format_exp,
@@ -20,7 +20,7 @@ use std::cell::RefCell;
 #[test]
 fn strict_kernel_rejects_elaboration_metavariables() {
     let mut fixture = Fixture::new();
-    let meta = fixture.env.arena().alloc(Node::Meta {
+    let meta = fixture.env.arena().alloc(RawNode::Meta {
         metavariable: MetaVarId(0),
         spine: Vec::new(),
     });
@@ -44,7 +44,7 @@ impl Fixture {
         }
     }
 
-    fn var(&self, name: &str) -> (SymbolId, Exp) {
+    fn var(&self, name: &str) -> (SymbolId, RawExp) {
         let position = match name {
             "target" => 10,
             "stable" => 11,
@@ -58,19 +58,19 @@ impl Fixture {
         (var, exp)
     }
 
-    fn app(&self, func: Exp, arg: Exp) -> Exp {
-        self.env.arena().alloc(Node::App { func, arg })
+    fn app(&self, func: RawExp, arg: RawExp) -> RawExp {
+        self.env.arena().alloc(RawNode::App { func, arg })
     }
 
-    fn prod(&self, var: SymbolId, ty: Exp, body: Exp) -> Exp {
-        self.env.arena().alloc(Node::Prod { var, ty, body })
+    fn prod(&self, var: SymbolId, ty: RawExp, body: RawExp) -> RawExp {
+        self.env.arena().alloc(RawNode::Prod { var, ty, body })
     }
 
-    fn lam(&self, var: SymbolId, ty: Exp, body: Exp) -> Exp {
-        self.env.arena().alloc(Node::Lam { var, ty, body })
+    fn lam(&self, var: SymbolId, ty: RawExp, body: RawExp) -> RawExp {
+        self.env.arena().alloc(RawNode::Lam { var, ty, body })
     }
 
-    fn push(&mut self, name: &str, ty: Exp) -> Exp {
+    fn push(&mut self, name: &str, ty: RawExp) -> RawExp {
         let var = self.env.intern(name);
         let position = self.context.len() as u32;
         self.env.add_module_parameter(
@@ -96,7 +96,7 @@ fn kernel_expression_formatter_resolves_node_ids() {
     let state_ty = arena.bound(0);
     let result_ty = arena.bound(1);
     let step = arena.bound(2);
-    let run = arena.alloc(Node::Run {
+    let run = arena.alloc(RawNode::Run {
         state_ty,
         result_ty,
         step,
@@ -170,14 +170,14 @@ fn pts_beta_substitutes_without_evaluating_the_argument() {
     let set = arena.sort(Sort::Set(0));
     let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
     let reducible_argument = fixture.app(identity, set);
-    let duplicated = arena.alloc(Node::RunStep {
+    let duplicated = arena.alloc(RawNode::RunStep {
         state_ty: arena.bound(0),
         result_ty: arena.bound(0),
     });
     let function = fixture.lam(SymbolId::ANONYMOUS, set, duplicated);
 
     let result = whnf(&fixture.env, fixture.app(function, reducible_argument));
-    let Node::RunStep {
+    let RawNode::RunStep {
         state_ty,
         result_ty,
     } = arena.get(result)
@@ -197,14 +197,14 @@ fn call_by_value_evaluates_run_step_payloads() {
     let set = arena.sort(Sort::Set(0));
     let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
     let reducible_output = fixture.app(identity, set);
-    let finish = arena.alloc(Node::Finish {
+    let finish = arena.alloc(RawNode::Finish {
         state_ty: set,
         result_ty: set,
         output: reducible_output,
     });
 
     let result = whnf(&fixture.env, finish);
-    let Node::Finish { output, .. } = arena.get(result) else {
+    let RawNode::Finish { output, .. } = arena.get(result) else {
         panic!("expected a finish value");
     };
     assert_eq!(output, set);
@@ -218,13 +218,13 @@ fn normalize_reuses_shared_subterm_results_within_one_call() {
     let identity = fixture.lam(SymbolId::ANONYMOUS, set, arena.bound(0));
     let reducible = fixture.app(identity, set);
     let shared = reducible;
-    let root = arena.alloc(Node::RunStep {
+    let root = arena.alloc(RawNode::RunStep {
         state_ty: shared,
         result_ty: shared,
     });
 
     let result = normalize(&fixture.env, root);
-    let Node::RunStep {
+    let RawNode::RunStep {
         state_ty,
         result_ty,
     } = arena.get(result)
@@ -243,10 +243,10 @@ fn de_bruijn_instantiation_shifts_an_open_argument() {
     let body = fixture.lam(SymbolId::ANONYMOUS, set, inner_reference_to_outer);
     let open_argument = fixture.env.arena().bound(0);
     let result = instantiate(fixture.env.arena(), body, open_argument);
-    let Node::Lam { body, .. } = fixture.env.arena().get(result) else {
+    let RawNode::Lam { body, .. } = fixture.env.arena().get(result) else {
         panic!("expected lambda");
     };
-    assert!(matches!(fixture.env.arena().get(body), Node::Bound(1)));
+    assert!(matches!(fixture.env.arena().get(body), RawNode::Bound(1)));
 }
 
 #[test]
@@ -257,11 +257,11 @@ fn telescope_instantiation_does_not_resubstitute_open_arguments() {
     let arguments = [arena.bound(1), arena.bound(0)];
 
     let result = instantiate_telescope(arena, open, &arguments);
-    let Node::App { func, arg } = arena.get(result) else {
+    let RawNode::App { func, arg } = arena.get(result) else {
         panic!("expected application");
     };
-    assert!(matches!(arena.get(func), Node::Bound(1)));
-    assert!(matches!(arena.get(arg), Node::Bound(0)));
+    assert!(matches!(arena.get(func), RawNode::Bound(1)));
+    assert!(matches!(arena.get(arg), RawNode::Bound(0)));
 }
 
 #[test]
@@ -272,11 +272,11 @@ fn outer_telescope_instantiation_shifts_arguments_past_inner_binders() {
     let arguments = [arena.bound(1), arena.bound(0)];
 
     let result = instantiate_outer_telescope(arena, open, &arguments, 1);
-    let Node::App { func, arg } = arena.get(result) else {
+    let RawNode::App { func, arg } = arena.get(result) else {
         panic!("expected application");
     };
-    assert!(matches!(arena.get(func), Node::Bound(2)));
-    assert!(matches!(arena.get(arg), Node::Bound(1)));
+    assert!(matches!(arena.get(func), RawNode::Bound(2)));
+    assert!(matches!(arena.get(arg), RawNode::Bound(1)));
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn substitution_reuses_unchanged_node_ids() {
         },
         replacement,
     );
-    let Node::App { func, arg } = fixture.env.arena().get(substituted) else {
+    let RawNode::App { func, arg } = fixture.env.arena().get(substituted) else {
         panic!("expected application");
     };
     assert_eq!(func, stable);
@@ -363,22 +363,25 @@ fn refinement_introduction_erases_to_its_element() {
     let mut fixture = Fixture::new();
     let set0 = fixture.env.arena().sort(Sort::Set(0));
     let carrier = fixture.push("A", set0);
-    let power = fixture.env.arena().alloc(Node::PowerSet { set: carrier });
+    let power = fixture
+        .env
+        .arena()
+        .alloc(RawNode::PowerSet { set: carrier });
     let subset = fixture.push("S", power);
     let element = fixture.push("a", carrier);
-    let membership = fixture.env.arena().alloc(Node::Pred {
+    let membership = fixture.env.arena().alloc(RawNode::Pred {
         superset: carrier,
         subset,
         element,
     });
     let proof = fixture.push("p", membership);
-    let intro = fixture.env.arena().alloc(Node::SubsetIntro {
+    let intro = fixture.env.arena().alloc(RawNode::SubsetIntro {
         superset: carrier,
         subset,
         element,
         proof,
     });
-    let lifted = fixture.env.arena().alloc(Node::TypeLift {
+    let lifted = fixture.env.arena().alloc(RawNode::TypeLift {
         superset: carrier,
         subset,
     });
@@ -398,20 +401,23 @@ fn equality_uses_the_base_refinement_carrier() {
     let mut fixture = Fixture::new();
     let set0 = fixture.env.arena().sort(Sort::Set(0));
     let carrier = fixture.push("A", set0);
-    let power = fixture.env.arena().alloc(Node::PowerSet { set: carrier });
+    let power = fixture
+        .env
+        .arena()
+        .alloc(RawNode::PowerSet { set: carrier });
     let left_subset = fixture.push("L", power);
     let right_subset = fixture.push("R", power);
-    let left_ty = fixture.env.arena().alloc(Node::TypeLift {
+    let left_ty = fixture.env.arena().alloc(RawNode::TypeLift {
         superset: carrier,
         subset: left_subset,
     });
-    let right_ty = fixture.env.arena().alloc(Node::TypeLift {
+    let right_ty = fixture.env.arena().alloc(RawNode::TypeLift {
         superset: carrier,
         subset: right_subset,
     });
     let left = fixture.push("left", left_ty);
     let right = fixture.push("right", right_ty);
-    let equality = fixture.env.arena().alloc(Node::Equal { left, right });
+    let equality = fixture.env.arena().alloc(RawNode::Equal { left, right });
     assert_eq!(
         CheckSession::new(
             &fixture.env,
@@ -436,7 +442,10 @@ fn defined_constants_are_transparent_for_reduction() {
             body: proposition,
         },
     );
-    let defined = fixture.env.arena().alloc(Node::DefinedConstant(definition));
+    let defined = fixture
+        .env
+        .arena()
+        .alloc(RawNode::DefinedConstant(definition));
     assert_eq!(whnf(&fixture.env, defined), proposition);
 }
 
@@ -456,11 +465,11 @@ fn inductive_constructor_and_eliminator_reduce() {
     };
     let spec = InductiveTypeSpecs::unchecked(vec![], vec![], Sort::Set(0), vec![zero, successor]);
     let spec = fixture.env.add_inductive(fixture.env.root_module(), spec);
-    let nat = fixture.env.arena().alloc(Node::IndType {
+    let nat = fixture.env.arena().alloc(RawNode::IndType {
         indspec: spec,
         parameters: vec![],
     });
-    let zero = fixture.env.arena().alloc(Node::IndCtor {
+    let zero = fixture.env.arena().alloc(RawNode::IndCtor {
         indspec: spec,
         parameters: vec![],
         idx: 0,
@@ -480,7 +489,7 @@ fn inductive_constructor_and_eliminator_reduce() {
 fn inductive_validation_rejects_unclassified_self_reference() {
     let mut fixture = Fixture::new();
     let inductive = fixture.env.reserve_inductive(fixture.env.root_module());
-    let this = fixture.env.arena().alloc(Node::IndType {
+    let this = fixture.env.arena().alloc(RawNode::IndType {
         indspec: inductive,
         parameters: vec![],
     });
@@ -526,7 +535,7 @@ fn session_restores_context_after_failed_binder_inference() {
     assert_eq!(session.context().len(), initial_len);
 }
 
-fn program_enum(fixture: &mut Fixture, constructor_count: usize) -> (Exp, Vec<Exp>) {
+fn program_enum(fixture: &mut Fixture, constructor_count: usize) -> (RawExp, Vec<RawExp>) {
     let reflected_spec = InductiveTypeSpecs::unchecked(
         vec![],
         vec![],
@@ -551,13 +560,13 @@ fn program_enum(fixture: &mut Fixture, constructor_count: usize) -> (Exp, Vec<Ex
     let spec = fixture
         .env
         .add_program_inductive(fixture.env.root_module(), spec);
-    let ty = fixture.env.arena().alloc(Node::ProgramIndType {
+    let ty = fixture.env.arena().alloc(RawNode::ProgramIndType {
         indspec: spec,
         parameters: vec![],
     });
     let values = (0..constructor_count)
         .map(|idx| {
-            fixture.env.arena().alloc(Node::ProgramIndCtor {
+            fixture.env.arena().alloc(RawNode::ProgramIndCtor {
                 indspec: spec,
                 parameters: vec![],
                 idx,
@@ -568,20 +577,25 @@ fn program_enum(fixture: &mut Fixture, constructor_count: usize) -> (Exp, Vec<Ex
     (ty, values)
 }
 
-fn terminating_step(fixture: &Fixture, state_ty: Exp, result_ty: Exp, output: Exp) -> Exp {
+fn terminating_step(
+    fixture: &Fixture,
+    state_ty: RawExp,
+    result_ty: RawExp,
+    output: RawExp,
+) -> RawExp {
     let arena = fixture.env.arena();
-    let finish = arena.alloc(Node::Finish {
+    let finish = arena.alloc(RawNode::Finish {
         state_ty: crate::calculus::shift_bound_indices(arena, state_ty, 1, 0),
         result_ty: crate::calculus::shift_bound_indices(arena, result_ty, 1, 0),
         output: crate::calculus::shift_bound_indices(arena, output, 1, 0),
     });
-    let returned = arena.alloc(Node::Return { value: finish });
-    let function = arena.alloc(Node::ComputationLam {
+    let returned = arena.alloc(RawNode::Return { value: finish });
+    let function = arena.alloc(RawNode::ComputationLam {
         var: SymbolId::ANONYMOUS,
         value_ty: state_ty,
         body: returned,
     });
-    arena.alloc(Node::Thunk {
+    arena.alloc(RawNode::Thunk {
         computation: function,
     })
 }
@@ -592,7 +606,7 @@ fn program_run_typechecks_without_a_termination_certificate() {
     let (state_ty, values) = program_enum(&mut fixture, 1);
     let value = values[0];
     let step = terminating_step(&fixture, state_ty, state_ty, value);
-    let run = fixture.env.arena().alloc(Node::Run {
+    let run = fixture.env.arena().alloc(RawNode::Run {
         state_ty,
         result_ty: state_ty,
         step,
@@ -608,9 +622,9 @@ fn program_run_typechecks_without_a_termination_certificate() {
     let expected = fixture
         .env
         .arena()
-        .alloc(Node::ReturnType { value_ty: state_ty });
+        .alloc(RawNode::ReturnType { value_ty: state_ty });
     assert!(exp_is_alpha_eq(&fixture.env, inferred, expected));
-    let returned = fixture.env.arena().alloc(Node::Return { value });
+    let returned = fixture.env.arena().alloc(RawNode::Return { value });
     let crate::calculus::Evaluation::Normal(evaluated) =
         crate::calculus::evaluate_computation(&fixture.env, run)
     else {
@@ -628,18 +642,18 @@ fn set_run_requires_and_checks_explicit_proof_evidence() {
     let initial =
         crate::reflection::reflect_term(&fixture.env, ModuleId(0), &Vec::new(), program_values[0])
             .unwrap();
-    let finish = arena.alloc(Node::Finish {
+    let finish = arena.alloc(RawNode::Finish {
         state_ty,
         result_ty: state_ty,
         output: arena.bound(0),
     });
-    let step = arena.alloc(Node::Lam {
+    let step = arena.alloc(RawNode::Lam {
         var: SymbolId::ANONYMOUS,
         ty: state_ty,
         body: finish,
     });
 
-    let run = arena.alloc(Node::SetRun {
+    let run = arena.alloc(RawNode::SetRun {
         state_ty,
         result_ty: state_ty,
         step,
@@ -674,7 +688,7 @@ fn set_run_requires_and_checks_explicit_proof_evidence() {
             body: initial,
         },
     );
-    let witness = fixture.env.arena().alloc(Node::DefinedConstant(theorem));
+    let witness = fixture.env.arena().alloc(RawNode::DefinedConstant(theorem));
     let evidence = vec![crate::exp::ProofEvidence {
         context: obligations[0].context.clone(),
         proposition: obligations[0].proposition,
@@ -709,7 +723,7 @@ fn well_termination_reflects_program_context_but_box_requires_closed_programs() 
         .check_well_terminated_value(parameter, program_ty)
         .unwrap();
 
-    let boxed = fixture.env.arena().alloc(Node::BoxProgram {
+    let boxed = fixture.env.arena().alloc(RawNode::BoxProgram {
         program_ty,
         program: parameter,
     });
@@ -720,7 +734,7 @@ fn well_termination_reflects_program_context_but_box_requires_closed_programs() 
     );
 }
 
-fn arena_module_parameter(env: &CrateEnv, position: u32) -> Exp {
+fn arena_module_parameter(env: &CrateEnv, position: u32) -> RawExp {
     env.arena().module_param(ModuleParamId {
         module: ModuleId(0),
         position,
@@ -732,21 +746,21 @@ fn divergent_program_run_stops_at_the_requested_fuel_budget() {
     let mut fixture = Fixture::new();
     let (state_ty, values) = program_enum(&mut fixture, 1);
     let arena = fixture.env.arena();
-    let continue_forever = arena.alloc(Node::Continue {
+    let continue_forever = arena.alloc(RawNode::Continue {
         state_ty,
         result_ty: state_ty,
         next: arena.bound(0),
     });
-    let step = arena.alloc(Node::Thunk {
-        computation: arena.alloc(Node::ComputationLam {
+    let step = arena.alloc(RawNode::Thunk {
+        computation: arena.alloc(RawNode::ComputationLam {
             var: SymbolId::ANONYMOUS,
             value_ty: state_ty,
-            body: arena.alloc(Node::Return {
+            body: arena.alloc(RawNode::Return {
                 value: continue_forever,
             }),
         }),
     });
-    let run = arena.alloc(Node::Run {
+    let run = arena.alloc(RawNode::Run {
         state_ty,
         result_ty: state_ty,
         step,
@@ -765,50 +779,50 @@ fn run_reduces_multiple_transitions_atomically_and_preserves_stuck_terms() {
     let arena = fixture.env.arena();
     let first = values[0];
     let last = values[1];
-    let Node::ProgramIndType { indspec: spec, .. } = arena.get(state_ty) else {
+    let RawNode::ProgramIndType { indspec: spec, .. } = arena.get(state_ty) else {
         unreachable!()
     };
-    let continue_case = arena.alloc(Node::Continue {
+    let continue_case = arena.alloc(RawNode::Continue {
         state_ty,
         result_ty: state_ty,
         next: last,
     });
-    let finish_case = arena.alloc(Node::Finish {
+    let finish_case = arena.alloc(RawNode::Finish {
         state_ty,
         result_ty: state_ty,
         output: last,
     });
-    let body = arena.alloc(Node::ProgramCase {
+    let body = arena.alloc(RawNode::ProgramCase {
         indspec: spec,
         scrutinee: arena.bound(0),
         branches: vec![
             ProgramCaseBranch {
                 binders: vec![],
-                body: arena.alloc(Node::Return {
+                body: arena.alloc(RawNode::Return {
                     value: continue_case,
                 }),
             },
             ProgramCaseBranch {
                 binders: vec![],
-                body: arena.alloc(Node::Return { value: finish_case }),
+                body: arena.alloc(RawNode::Return { value: finish_case }),
             },
         ],
     });
-    let step_function = arena.alloc(Node::ComputationLam {
+    let step_function = arena.alloc(RawNode::ComputationLam {
         var: SymbolId::ANONYMOUS,
         value_ty: state_ty,
         body,
     });
-    let step = arena.alloc(Node::Thunk {
+    let step = arena.alloc(RawNode::Thunk {
         computation: step_function,
     });
-    let run = arena.alloc(Node::Run {
+    let run = arena.alloc(RawNode::Run {
         state_ty,
         result_ty: state_ty,
         step,
         initial: first,
     });
-    let returned = arena.alloc(Node::Return { value: last });
+    let returned = arena.alloc(RawNode::Return { value: last });
     let crate::calculus::Evaluation::Normal(evaluated) =
         crate::calculus::evaluate_computation(&fixture.env, run)
     else {
@@ -816,7 +830,7 @@ fn run_reduces_multiple_transitions_atomically_and_preserves_stuck_terms() {
     };
     assert!(exp_is_alpha_eq(&fixture.env, evaluated, returned));
 
-    let stuck = arena.alloc(Node::Run {
+    let stuck = arena.alloc(RawNode::Run {
         state_ty,
         result_ty: state_ty,
         step: arena.bound(0),
@@ -827,7 +841,7 @@ fn run_reduces_multiple_transitions_atomically_and_preserves_stuck_terms() {
     else {
         panic!("stuck computation unexpectedly exhausted its reduction budget");
     };
-    let Node::RunCase {
+    let RawNode::RunCase {
         state_ty: found_state,
         result_ty: found_result,
         initial: found_initial,
@@ -847,10 +861,10 @@ fn reflection_maps_non_dependent_arrows_and_applications() {
     let (compute_ty, values) = program_enum(&mut fixture, 1);
     let value = values[0];
     let arena = fixture.env.arena();
-    let returned_ty = arena.alloc(Node::ReturnType {
+    let returned_ty = arena.alloc(RawNode::ReturnType {
         value_ty: compute_ty,
     });
-    let arrow = arena.alloc(Node::ComputationFunction {
+    let arrow = arena.alloc(RawNode::ComputationFunction {
         domain: compute_ty,
         codomain: returned_ty,
     });
@@ -863,10 +877,10 @@ fn reflection_maps_non_dependent_arrows_and_applications() {
         expected_arrow,
     ));
 
-    let identity = arena.alloc(Node::ComputationLam {
+    let identity = arena.alloc(RawNode::ComputationLam {
         var: SymbolId::ANONYMOUS,
         value_ty: compute_ty,
-        body: arena.alloc(Node::Return {
+        body: arena.alloc(RawNode::Return {
             value: arena.bound(0),
         }),
     });
@@ -892,12 +906,12 @@ fn reflection_erases_return_thunk_and_maps_thunked_applications() {
     let value = values[0];
     let arena = fixture.env.arena();
 
-    let return_ty = arena.alloc(Node::ReturnType { value_ty });
-    let thunk_ty = arena.alloc(Node::ThunkType {
+    let return_ty = arena.alloc(RawNode::ReturnType { value_ty });
+    let thunk_ty = arena.alloc(RawNode::ThunkType {
         computation_ty: return_ty,
     });
-    let returned = arena.alloc(Node::Return { value });
-    let thunked = arena.alloc(Node::Thunk {
+    let returned = arena.alloc(RawNode::Return { value });
+    let thunked = arena.alloc(RawNode::Thunk {
         computation: returned,
     });
     let reflected_value =
@@ -928,14 +942,14 @@ fn reflection_erases_return_thunk_and_maps_thunked_applications() {
         normalize(&fixture.env, reflected_value),
     ));
 
-    let identity = arena.alloc(Node::ComputationLam {
+    let identity = arena.alloc(RawNode::ComputationLam {
         var: SymbolId::ANONYMOUS,
         value_ty,
-        body: arena.alloc(Node::Return {
+        body: arena.alloc(RawNode::Return {
             value: arena.bound(0),
         }),
     });
-    let thunked_identity = arena.alloc(Node::Thunk {
+    let thunked_identity = arena.alloc(RawNode::Thunk {
         computation: identity,
     });
     let reflected_identity =
@@ -956,18 +970,18 @@ fn continuing_run_preserves_computation_type_at_every_reduction_step() {
     let arena = fixture.env.arena();
     let first = values[0];
     let last = values[1];
-    let Node::ProgramIndType { indspec, .. } = arena.get(state_ty) else {
+    let RawNode::ProgramIndType { indspec, .. } = arena.get(state_ty) else {
         unreachable!()
     };
 
-    let step_body = arena.alloc(Node::ProgramCase {
+    let step_body = arena.alloc(RawNode::ProgramCase {
         indspec,
         scrutinee: arena.bound(0),
         branches: vec![
             ProgramCaseBranch {
                 binders: vec![],
-                body: arena.alloc(Node::Return {
-                    value: arena.alloc(Node::Continue {
+                body: arena.alloc(RawNode::Return {
+                    value: arena.alloc(RawNode::Continue {
                         state_ty,
                         result_ty: state_ty,
                         next: last,
@@ -976,8 +990,8 @@ fn continuing_run_preserves_computation_type_at_every_reduction_step() {
             },
             ProgramCaseBranch {
                 binders: vec![],
-                body: arena.alloc(Node::Return {
-                    value: arena.alloc(Node::Finish {
+                body: arena.alloc(RawNode::Return {
+                    value: arena.alloc(RawNode::Finish {
                         state_ty,
                         result_ty: state_ty,
                         output: last,
@@ -986,21 +1000,21 @@ fn continuing_run_preserves_computation_type_at_every_reduction_step() {
             },
         ],
     });
-    let step = arena.alloc(Node::Thunk {
-        computation: arena.alloc(Node::ComputationLam {
+    let step = arena.alloc(RawNode::Thunk {
+        computation: arena.alloc(RawNode::ComputationLam {
             var: SymbolId::ANONYMOUS,
             value_ty: state_ty,
             body: step_body,
         }),
     });
     let arena = fixture.env.arena();
-    let mut current = arena.alloc(Node::Run {
+    let mut current = arena.alloc(RawNode::Run {
         state_ty,
         result_ty: state_ty,
         step,
         initial: first,
     });
-    let expected = arena.alloc(Node::ReturnType { value_ty: state_ty });
+    let expected = arena.alloc(RawNode::ReturnType { value_ty: state_ty });
 
     for _ in 0..16 {
         let inferred = CheckSession::new(
@@ -1018,7 +1032,7 @@ fn continuing_run_preserves_computation_type_at_every_reduction_step() {
         assert!(exp_is_alpha_eq(&fixture.env, inferred, expected));
 
         let Some(next) = crate::calculus::reduce_computation_once(&fixture.env, current) else {
-            let Node::Return { value } = arena.get(current) else {
+            let RawNode::Return { value } = arena.get(current) else {
                 panic!("run got stuck at {}", format_exp(&fixture.env, current));
             };
             assert_eq!(value, last);

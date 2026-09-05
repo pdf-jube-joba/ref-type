@@ -5,33 +5,33 @@ use std::collections::HashMap;
 
 use super::exp::*;
 
-pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModuleParamId) -> bool {
+pub fn exp_contains_module_param(env: &CrateEnv, exp: RawExp, parameter: ModuleParamId) -> bool {
     let arena = env.arena();
     match arena.get(exp) {
-        Node::Sort(_) | Node::ValueType | Node::Bound(_) => false,
-        Node::ModuleParam(candidate) | Node::ReflectedProgramParam(candidate) => {
+        RawNode::Sort(_) | RawNode::ValueType | RawNode::Bound(_) => false,
+        RawNode::ModuleParam(candidate) | RawNode::ReflectedProgramParam(candidate) => {
             candidate == parameter
         }
-        Node::Meta { spine, .. } => spine
+        RawNode::Meta { spine, .. } => spine
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
+        RawNode::Prod { ty, body, .. } | RawNode::Lam { ty, body, .. } => {
             exp_contains_module_param(env, ty, parameter)
                 || exp_contains_module_param(env, body, parameter)
         }
-        Node::App { func, arg } => {
+        RawNode::App { func, arg } => {
             exp_contains_module_param(env, func, parameter)
                 || exp_contains_module_param(env, arg, parameter)
         }
-        Node::DefinedConstant(definition) => {
+        RawNode::DefinedConstant(definition) => {
             let definition = env.definition(definition);
             exp_contains_module_param(env, definition.ty, parameter)
                 || exp_contains_module_param(env, definition.body, parameter)
         }
-        Node::IndType { parameters, .. } | Node::IndCtor { parameters, .. } => parameters
+        RawNode::IndType { parameters, .. } | RawNode::IndCtor { parameters, .. } => parameters
             .into_iter()
             .any(|argument| exp_contains_module_param(env, argument, parameter)),
-        Node::IndElim {
+        RawNode::IndElim {
             elim,
             return_type,
             cases,
@@ -43,35 +43,35 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
                     .into_iter()
                     .any(|case| exp_contains_module_param(env, case, parameter))
         }
-        Node::IndProjection {
+        RawNode::IndProjection {
             parameters, value, ..
         }
-        | Node::ProgramIndProjection {
+        | RawNode::ProgramIndProjection {
             parameters, value, ..
         } => parameters
             .into_iter()
             .chain([value])
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ThunkType { computation_ty } => {
+        RawNode::ThunkType { computation_ty } => {
             exp_contains_module_param(env, computation_ty, parameter)
         }
-        Node::ReturnType { value_ty }
-        | Node::Thunk {
+        RawNode::ReturnType { value_ty }
+        | RawNode::Thunk {
             computation: value_ty,
         }
-        | Node::Return { value: value_ty }
-        | Node::Force { value: value_ty } => exp_contains_module_param(env, value_ty, parameter),
-        Node::ComputationFunction { domain, codomain }
-        | Node::ComputationApp {
+        | RawNode::Return { value: value_ty }
+        | RawNode::Force { value: value_ty } => exp_contains_module_param(env, value_ty, parameter),
+        RawNode::ComputationFunction { domain, codomain }
+        | RawNode::ComputationApp {
             computation: domain,
             value: codomain,
         } => [domain, codomain]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ComputationLam { value_ty, body, .. } => [value_ty, body]
+        RawNode::ComputationLam { value_ty, body, .. } => [value_ty, body]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::Sequence {
+        RawNode::Sequence {
             computation,
             value_ty,
             body,
@@ -79,24 +79,24 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [computation, value_ty, body]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ValueLet { value, body, .. } => [value, body]
+        RawNode::ValueLet { value, body, .. } => [value, body]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ProgramIndType { parameters, .. } => parameters
+        RawNode::ProgramIndType { parameters, .. } => parameters
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ProgramIndCtor {
+        RawNode::ProgramIndCtor {
             parameters, fields, ..
         } => parameters
             .into_iter()
             .chain(fields)
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ProgramCase {
+        RawNode::ProgramCase {
             scrutinee,
             branches,
             ..
         }
-        | Node::ReflectedProgramCase {
+        | RawNode::ReflectedProgramCase {
             scrutinee,
             branches,
             ..
@@ -106,29 +106,29 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
                     .into_iter()
                     .any(|branch| exp_contains_module_param(env, branch.body, parameter))
         }
-        Node::RunStep {
+        RawNode::RunStep {
             state_ty,
             result_ty,
         }
-        | Node::RfTerm {
+        | RawNode::RfTerm {
             compute_ty: state_ty,
             term: result_ty,
         } => [state_ty, result_ty]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::Continue {
+        RawNode::Continue {
             state_ty,
             result_ty,
             next,
         }
-        | Node::Finish {
+        | RawNode::Finish {
             state_ty,
             result_ty,
             output: next,
         } => [state_ty, result_ty, next]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::Acc {
+        RawNode::Acc {
             state_ty,
             result_ty,
             step,
@@ -136,8 +136,8 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [state_ty, result_ty, step, state]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::Proof { proposition } => exp_contains_module_param(env, proposition, parameter),
-        Node::RunStepRec {
+        RawNode::Proof { proposition } => exp_contains_module_param(env, proposition, parameter),
+        RawNode::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -154,27 +154,27 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         ]
         .into_iter()
         .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::BoxType { program_ty } => exp_contains_module_param(env, program_ty, parameter),
-        Node::BoxProgram {
+        RawNode::BoxType { program_ty } => exp_contains_module_param(env, program_ty, parameter),
+        RawNode::BoxProgram {
             program_ty,
             program,
         } => [program_ty, program]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ForceBox { program_ty, boxed } => [program_ty, boxed]
+        RawNode::ForceBox { program_ty, boxed } => [program_ty, boxed]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::BoxApp { function, argument } => [function, argument]
+        RawNode::BoxApp { function, argument } => [function, argument]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::RfType { compute_ty } => exp_contains_module_param(env, compute_ty, parameter),
-        Node::Run {
+        RawNode::RfType { compute_ty } => exp_contains_module_param(env, compute_ty, parameter),
+        RawNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
         }
-        | Node::SetRun {
+        | RawNode::SetRun {
             state_ty,
             result_ty,
             step,
@@ -182,14 +182,14 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [state_ty, result_ty, step, initial]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::RunCase {
+        RawNode::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
         }
-        | Node::SetRunCase {
+        | RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
@@ -198,7 +198,7 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [state_ty, result_ty, step, initial, transition]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::AccIntro {
+        RawNode::AccIntro {
             state_ty,
             result_ty,
             step,
@@ -207,7 +207,7 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [state_ty, result_ty, step, state, predecessors]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::AccDescent {
+        RawNode::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -226,40 +226,40 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         ]
         .into_iter()
         .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::PowerSet { set } | Node::Exists { set } | Node::IdRefl { element: set } => {
+        RawNode::PowerSet { set } | RawNode::Exists { set } | RawNode::IdRefl { element: set } => {
             exp_contains_module_param(env, set, parameter)
         }
-        Node::SubSet { set, predicate, .. } => {
+        RawNode::SubSet { set, predicate, .. } => {
             exp_contains_module_param(env, set, parameter)
                 || exp_contains_module_param(env, predicate, parameter)
         }
-        Node::Pred {
+        RawNode::Pred {
             superset,
             subset,
             element,
         }
-        | Node::SubsetElim {
+        | RawNode::SubsetElim {
             superset,
             subset,
             element,
         } => [superset, subset, element]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::TypeLift { superset, subset }
-        | Node::Equal {
+        RawNode::TypeLift { superset, subset }
+        | RawNode::Equal {
             left: superset,
             right: subset,
         } => {
             exp_contains_module_param(env, superset, parameter)
                 || exp_contains_module_param(env, subset, parameter)
         }
-        Node::SubsetIntro {
+        RawNode::SubsetIntro {
             superset,
             subset,
             element,
             proof,
         }
-        | Node::TakeProp {
+        | RawNode::TakeProp {
             domain: superset,
             proposition: subset,
             map: element,
@@ -267,7 +267,7 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [superset, subset, element, proof]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::TakeSet {
+        RawNode::TakeSet {
             domain,
             codomain,
             map,
@@ -276,11 +276,11 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [domain, codomain, map, existence, uniqueness]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::ExistsIntro { element, set } => {
+        RawNode::ExistsIntro { element, set } => {
             exp_contains_module_param(env, element, parameter)
                 || exp_contains_module_param(env, set, parameter)
         }
-        Node::IdElim {
+        RawNode::IdElim {
             left,
             right,
             ty,
@@ -291,7 +291,7 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [left, right, ty, predicate, base, equality]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::AxiomSetExt {
+        RawNode::AxiomSetExt {
             left,
             right,
             left_to_right,
@@ -299,21 +299,21 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
         } => [left, right, left_to_right, right_to_left]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::AxiomFunExt {
+        RawNode::AxiomFunExt {
             left,
             right,
             pointwise,
         } => [left, right, pointwise]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::AxiomClassicalIndefiniteChoice {
+        RawNode::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
         } => [domain, family, inhabited]
             .into_iter()
             .any(|child| exp_contains_module_param(env, child, parameter)),
-        Node::TakeEq {
+        RawNode::TakeEq {
             func,
             domain,
             codomain,
@@ -326,14 +326,14 @@ pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModulePara
     }
 }
 
-pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
-    fn contains(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
+pub fn exp_contains_inductive(arena: &Arena, exp: RawExp, inductive: InductiveId) -> bool {
+    fn contains(arena: &Arena, exp: RawExp, inductive: InductiveId) -> bool {
         let node = arena.get(exp);
         if matches!(
             node,
-            Node::IndType { indspec, .. }
-                | Node::IndCtor { indspec, .. }
-                | Node::IndElim { indspec, .. }
+            RawNode::IndType { indspec, .. }
+                | RawNode::IndCtor { indspec, .. }
+                | RawNode::IndElim { indspec, .. }
                 if indspec == inductive
         ) {
             return true;
@@ -356,7 +356,7 @@ struct EqualityMode {
     erase_subset_intro: bool,
 }
 
-fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) -> bool {
+fn is_alpha_eq_rec(env: &CrateEnv, left: RawExp, right: RawExp, mode: EqualityMode) -> bool {
     let arena = env.arena();
     let left = if mode.reduce_to_whnf {
         exp_whnf_with_mode(env, left, mode.erase_subset_intro)
@@ -373,40 +373,42 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
     }
 
     match (arena.get(left), arena.get(right)) {
-        (Node::Sort(left), Node::Sort(right)) => left == right,
-        (Node::ValueType, Node::ValueType) => true,
-        (Node::Bound(left), Node::Bound(right)) => left == right,
-        (Node::ModuleParam(left), Node::ModuleParam(right)) => left == right,
-        (Node::ReflectedProgramParam(left), Node::ReflectedProgramParam(right)) => left == right,
+        (RawNode::Sort(left), RawNode::Sort(right)) => left == right,
+        (RawNode::ValueType, RawNode::ValueType) => true,
+        (RawNode::Bound(left), RawNode::Bound(right)) => left == right,
+        (RawNode::ModuleParam(left), RawNode::ModuleParam(right)) => left == right,
+        (RawNode::ReflectedProgramParam(left), RawNode::ReflectedProgramParam(right)) => {
+            left == right
+        }
         (
-            Node::Meta {
+            RawNode::Meta {
                 metavariable: left_meta,
                 spine: left_spine,
             },
-            Node::Meta {
+            RawNode::Meta {
                 metavariable: right_meta,
                 spine: right_spine,
             },
         ) => left_meta == right_meta && eq_slices(env, &left_spine, &right_spine, mode),
         (
-            Node::Prod {
+            RawNode::Prod {
                 var: left_var,
                 ty: left_ty,
                 body: left_body,
             },
-            Node::Prod {
+            RawNode::Prod {
                 var: right_var,
                 ty: right_ty,
                 body: right_body,
             },
         )
         | (
-            Node::Lam {
+            RawNode::Lam {
                 var: left_var,
                 ty: left_ty,
                 body: left_body,
             },
-            Node::Lam {
+            RawNode::Lam {
                 var: right_var,
                 ty: right_ty,
                 body: right_body,
@@ -417,11 +419,11 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_body, right_body, mode)
         }
         (
-            Node::App {
+            RawNode::App {
                 func: left_func,
                 arg: left_arg,
             },
-            Node::App {
+            RawNode::App {
                 func: right_func,
                 arg: right_arg,
             },
@@ -429,24 +431,24 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             is_alpha_eq_rec(env, left_func, right_func, mode)
                 && is_alpha_eq_rec(env, left_arg, right_arg, mode)
         }
-        (Node::DefinedConstant(left), Node::DefinedConstant(right)) => left == right,
+        (RawNode::DefinedConstant(left), RawNode::DefinedConstant(right)) => left == right,
         (
-            Node::IndType {
+            RawNode::IndType {
                 indspec: left_spec,
                 parameters: left_parameters,
             },
-            Node::IndType {
+            RawNode::IndType {
                 indspec: right_spec,
                 parameters: right_parameters,
             },
         ) => left_spec == right_spec && eq_slices(env, &left_parameters, &right_parameters, mode),
         (
-            Node::IndCtor {
+            RawNode::IndCtor {
                 indspec: left_spec,
                 parameters: left_parameters,
                 idx: left_idx,
             },
-            Node::IndCtor {
+            RawNode::IndCtor {
                 indspec: right_spec,
                 parameters: right_parameters,
                 idx: right_idx,
@@ -457,13 +459,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && eq_slices(env, &left_parameters, &right_parameters, mode)
         }
         (
-            Node::IndElim {
+            RawNode::IndElim {
                 indspec: left_spec,
                 elim: left_elim,
                 return_type: left_return,
                 cases: left_cases,
             },
-            Node::IndElim {
+            RawNode::IndElim {
                 indspec: right_spec,
                 elim: right_elim,
                 return_type: right_return,
@@ -476,35 +478,35 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && eq_slices(env, &left_cases, &right_cases, mode)
         }
         (
-            Node::ThunkType {
+            RawNode::ThunkType {
                 computation_ty: left,
             },
-            Node::ThunkType {
+            RawNode::ThunkType {
                 computation_ty: right,
             },
         )
-        | (Node::ReturnType { value_ty: left }, Node::ReturnType { value_ty: right })
-        | (Node::Thunk { computation: left }, Node::Thunk { computation: right })
-        | (Node::Return { value: left }, Node::Return { value: right })
-        | (Node::Force { value: left }, Node::Force { value: right }) => {
+        | (RawNode::ReturnType { value_ty: left }, RawNode::ReturnType { value_ty: right })
+        | (RawNode::Thunk { computation: left }, RawNode::Thunk { computation: right })
+        | (RawNode::Return { value: left }, RawNode::Return { value: right })
+        | (RawNode::Force { value: left }, RawNode::Force { value: right }) => {
             is_alpha_eq_rec(env, left, right, mode)
         }
         (
-            Node::ComputationFunction {
+            RawNode::ComputationFunction {
                 domain: left_domain,
                 codomain: left_codomain,
             },
-            Node::ComputationFunction {
+            RawNode::ComputationFunction {
                 domain: right_domain,
                 codomain: right_codomain,
             },
         )
         | (
-            Node::ComputationApp {
+            RawNode::ComputationApp {
                 computation: left_domain,
                 value: left_codomain,
             },
-            Node::ComputationApp {
+            RawNode::ComputationApp {
                 computation: right_domain,
                 value: right_codomain,
             },
@@ -515,23 +517,23 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::ProgramIndType {
+            RawNode::ProgramIndType {
                 indspec: left_spec,
                 parameters: left_parameters,
             },
-            Node::ProgramIndType {
+            RawNode::ProgramIndType {
                 indspec: right_spec,
                 parameters: right_parameters,
             },
         ) => left_spec == right_spec && eq_slices(env, &left_parameters, &right_parameters, mode),
         (
-            Node::ProgramIndCtor {
+            RawNode::ProgramIndCtor {
                 indspec: left_spec,
                 parameters: left_parameters,
                 idx: left_idx,
                 fields: left_fields,
             },
-            Node::ProgramIndCtor {
+            RawNode::ProgramIndCtor {
                 indspec: right_spec,
                 parameters: right_parameters,
                 idx: right_idx,
@@ -544,13 +546,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && eq_slices(env, &left_fields, &right_fields, mode)
         }
         (
-            Node::IndProjection {
+            RawNode::IndProjection {
                 indspec: left_spec,
                 parameters: left_parameters,
                 value: left_value,
                 field: left_field,
             },
-            Node::IndProjection {
+            RawNode::IndProjection {
                 indspec: right_spec,
                 parameters: right_parameters,
                 value: right_value,
@@ -563,13 +565,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_value, right_value, mode)
         }
         (
-            Node::ProgramIndProjection {
+            RawNode::ProgramIndProjection {
                 indspec: left_spec,
                 parameters: left_parameters,
                 value: left_value,
                 field: left_field,
             },
-            Node::ProgramIndProjection {
+            RawNode::ProgramIndProjection {
                 indspec: right_spec,
                 parameters: right_parameters,
                 value: right_value,
@@ -582,12 +584,12 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_value, right_value, mode)
         }
         (
-            Node::ComputationLam {
+            RawNode::ComputationLam {
                 value_ty: left_ty,
                 body: left_body,
                 ..
             },
-            Node::ComputationLam {
+            RawNode::ComputationLam {
                 value_ty: right_ty,
                 body: right_body,
                 ..
@@ -597,13 +599,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_body, right_body, mode)
         }
         (
-            Node::Sequence {
+            RawNode::Sequence {
                 computation: left_computation,
                 value_ty: left_ty,
                 body: left_body,
                 ..
             },
-            Node::Sequence {
+            RawNode::Sequence {
                 computation: right_computation,
                 value_ty: right_ty,
                 body: right_body,
@@ -616,12 +618,12 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::ValueLet {
+            RawNode::ValueLet {
                 value: left_value,
                 body: left_body,
                 ..
             },
-            Node::ValueLet {
+            RawNode::ValueLet {
                 value: right_value,
                 body: right_body,
                 ..
@@ -631,12 +633,12 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_body, right_body, mode)
         }
         (
-            Node::ProgramCase {
+            RawNode::ProgramCase {
                 indspec: left_spec,
                 scrutinee: left_scrutinee,
                 branches: left_branches,
             },
-            Node::ProgramCase {
+            RawNode::ProgramCase {
                 indspec: right_spec,
                 scrutinee: right_scrutinee,
                 branches: right_branches,
@@ -654,21 +656,21 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                     })
         }
         (
-            Node::RunStep {
+            RawNode::RunStep {
                 state_ty: left_first,
                 result_ty: left_second,
             },
-            Node::RunStep {
+            RawNode::RunStep {
                 state_ty: right_first,
                 result_ty: right_second,
             },
         )
         | (
-            Node::RfTerm {
+            RawNode::RfTerm {
                 compute_ty: left_first,
                 term: left_second,
             },
-            Node::RfTerm {
+            RawNode::RfTerm {
                 compute_ty: right_first,
                 term: right_second,
             },
@@ -677,24 +679,24 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_second, right_second, mode)
         }
         (
-            Node::Continue {
+            RawNode::Continue {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 next: left_value,
             },
-            Node::Continue {
+            RawNode::Continue {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 next: right_value,
             },
         )
         | (
-            Node::Finish {
+            RawNode::Finish {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 output: left_value,
             },
-            Node::Finish {
+            RawNode::Finish {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 output: right_value,
@@ -706,13 +708,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::Acc {
+            RawNode::Acc {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
                 state: left_state,
             },
-            Node::Acc {
+            RawNode::Acc {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -724,17 +726,17 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             &[right_state_ty, right_result_ty, right_step, right_state],
             mode,
         ),
-        (Node::RfType { compute_ty: left }, Node::RfType { compute_ty: right }) => {
+        (RawNode::RfType { compute_ty: left }, RawNode::RfType { compute_ty: right }) => {
             is_alpha_eq_rec(env, left, right, mode)
         }
         (
-            Node::Run {
+            RawNode::Run {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
                 initial: left_initial,
             },
-            Node::Run {
+            RawNode::Run {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -747,13 +749,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::SetRun {
+            RawNode::SetRun {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
                 initial: left_initial,
             },
-            Node::SetRun {
+            RawNode::SetRun {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -766,14 +768,14 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::RunCase {
+            RawNode::RunCase {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
                 initial: left_initial,
                 transition: left_transition,
             },
-            Node::RunCase {
+            RawNode::RunCase {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -799,14 +801,14 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::SetRunCase {
+            RawNode::SetRunCase {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
                 initial: left_initial,
                 transition: left_transition,
             },
-            Node::SetRunCase {
+            RawNode::SetRunCase {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -831,11 +833,11 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             ],
             mode,
         ),
-        (Node::Proof { proposition: left }, Node::Proof { proposition: right }) => {
+        (RawNode::Proof { proposition: left }, RawNode::Proof { proposition: right }) => {
             mode.proof_irrelevant || is_alpha_eq_rec(env, left, right, mode)
         }
         (
-            Node::RunStepRec {
+            RawNode::RunStepRec {
                 state_ty: ls,
                 result_ty: lr,
                 motive: lm,
@@ -843,7 +845,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 on_finish: lf,
                 scrutinee: lx,
             },
-            Node::RunStepRec {
+            RawNode::RunStepRec {
                 state_ty: rs,
                 result_ty: rr,
                 motive: rm,
@@ -857,46 +859,46 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             &[rs, rr, rm, rc, rf, rx],
             mode,
         ),
-        (Node::BoxType { program_ty: left }, Node::BoxType { program_ty: right }) => {
+        (RawNode::BoxType { program_ty: left }, RawNode::BoxType { program_ty: right }) => {
             is_alpha_eq_rec(env, left, right, mode)
         }
         (
-            Node::BoxProgram {
+            RawNode::BoxProgram {
                 program_ty: lt,
                 program: lp,
             },
-            Node::BoxProgram {
+            RawNode::BoxProgram {
                 program_ty: rt,
                 program: rp,
             },
         ) => eq_slices(env, &[lt, lp], &[rt, rp], mode),
         (
-            Node::ForceBox {
+            RawNode::ForceBox {
                 program_ty: lt,
                 boxed: lb,
             },
-            Node::ForceBox {
+            RawNode::ForceBox {
                 program_ty: rt,
                 boxed: rb,
             },
         ) => eq_slices(env, &[lt, lb], &[rt, rb], mode),
         (
-            Node::BoxApp {
+            RawNode::BoxApp {
                 function: lf,
                 argument: la,
             },
-            Node::BoxApp {
+            RawNode::BoxApp {
                 function: rf,
                 argument: ra,
             },
         ) => eq_slices(env, &[lf, la], &[rf, ra], mode),
         (
-            Node::ReflectedProgramCase {
+            RawNode::ReflectedProgramCase {
                 indspec: li,
                 scrutinee: ls,
                 branches: lb,
             },
-            Node::ReflectedProgramCase {
+            RawNode::ReflectedProgramCase {
                 indspec: ri,
                 scrutinee: rs,
                 branches: rb,
@@ -911,14 +913,14 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 })
         }
         (
-            Node::AccIntro {
+            RawNode::AccIntro {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
                 state: left_state,
                 predecessors: left_predecessors,
             },
-            Node::AccIntro {
+            RawNode::AccIntro {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -944,7 +946,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::AccDescent {
+            RawNode::AccDescent {
                 state_ty: left_state_ty,
                 result_ty: left_result_ty,
                 step: left_step,
@@ -953,7 +955,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 accessibility: left_accessibility,
                 transition: left_transition,
             },
-            Node::AccDescent {
+            RawNode::AccDescent {
                 state_ty: right_state_ty,
                 result_ty: right_result_ty,
                 step: right_step,
@@ -985,13 +987,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::SubsetIntro {
+            RawNode::SubsetIntro {
                 superset: left_superset,
                 subset: left_subset,
                 element: left_element,
                 proof: left_proof,
             },
-            Node::SubsetIntro {
+            RawNode::SubsetIntro {
                 superset: right_superset,
                 subset: right_subset,
                 element: right_element,
@@ -1003,18 +1005,18 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_element, right_element, mode)
                 && (mode.proof_irrelevant || is_alpha_eq_rec(env, left_proof, right_proof, mode))
         }
-        (Node::PowerSet { set: left }, Node::PowerSet { set: right })
-        | (Node::Exists { set: left }, Node::Exists { set: right })
-        | (Node::IdRefl { element: left }, Node::IdRefl { element: right }) => {
+        (RawNode::PowerSet { set: left }, RawNode::PowerSet { set: right })
+        | (RawNode::Exists { set: left }, RawNode::Exists { set: right })
+        | (RawNode::IdRefl { element: left }, RawNode::IdRefl { element: right }) => {
             is_alpha_eq_rec(env, left, right, mode)
         }
         (
-            Node::SubSet {
+            RawNode::SubSet {
                 var: left_var,
                 set: left_set,
                 predicate: left_predicate,
             },
-            Node::SubSet {
+            RawNode::SubSet {
                 var: right_var,
                 set: right_set,
                 predicate: right_predicate,
@@ -1025,24 +1027,24 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_predicate, right_predicate, mode)
         }
         (
-            Node::Pred {
+            RawNode::Pred {
                 superset: left_superset,
                 subset: left_subset,
                 element: left_element,
             },
-            Node::Pred {
+            RawNode::Pred {
                 superset: right_superset,
                 subset: right_subset,
                 element: right_element,
             },
         )
         | (
-            Node::SubsetElim {
+            RawNode::SubsetElim {
                 superset: left_superset,
                 subset: left_subset,
                 element: left_element,
             },
-            Node::SubsetElim {
+            RawNode::SubsetElim {
                 superset: right_superset,
                 subset: right_subset,
                 element: right_element,
@@ -1053,31 +1055,31 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_element, right_element, mode)
         }
         (
-            Node::TypeLift {
+            RawNode::TypeLift {
                 superset: left_first,
                 subset: left_second,
             },
-            Node::TypeLift {
+            RawNode::TypeLift {
                 superset: right_first,
                 subset: right_second,
             },
         )
         | (
-            Node::Equal {
+            RawNode::Equal {
                 left: left_first,
                 right: left_second,
             },
-            Node::Equal {
+            RawNode::Equal {
                 left: right_first,
                 right: right_second,
             },
         )
         | (
-            Node::ExistsIntro {
+            RawNode::ExistsIntro {
                 element: left_first,
                 set: left_second,
             },
-            Node::ExistsIntro {
+            RawNode::ExistsIntro {
                 element: right_first,
                 set: right_second,
             },
@@ -1086,14 +1088,14 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 && is_alpha_eq_rec(env, left_second, right_second, mode)
         }
         (
-            Node::TakeSet {
+            RawNode::TakeSet {
                 domain: left_domain,
                 codomain: left_codomain,
                 map: left_map,
                 existence: left_existence,
                 uniqueness: left_uniqueness,
             },
-            Node::TakeSet {
+            RawNode::TakeSet {
                 domain: right_domain,
                 codomain: right_codomain,
                 map: right_map,
@@ -1109,13 +1111,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                         && is_alpha_eq_rec(env, left_uniqueness, right_uniqueness, mode)))
         }
         (
-            Node::TakeProp {
+            RawNode::TakeProp {
                 domain: left_domain,
                 proposition: left_proposition,
                 map: left_map,
                 existence: left_existence,
             },
-            Node::TakeProp {
+            RawNode::TakeProp {
                 domain: right_domain,
                 proposition: right_proposition,
                 map: right_map,
@@ -1129,7 +1131,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                         && is_alpha_eq_rec(env, left_existence, right_existence, mode)))
         }
         (
-            Node::IdElim {
+            RawNode::IdElim {
                 left: left_left,
                 right: left_right,
                 ty: left_ty,
@@ -1139,7 +1141,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 equality: left_equality,
                 ..
             },
-            Node::IdElim {
+            RawNode::IdElim {
                 left: right_left,
                 right: right_right,
                 ty: right_ty,
@@ -1173,7 +1175,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             )
         }
         (
-            Node::TakeEq {
+            RawNode::TakeEq {
                 func: left_func,
                 domain: left_domain,
                 codomain: left_codomain,
@@ -1181,7 +1183,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                 existence: left_existence,
                 uniqueness: left_uniqueness,
             },
-            Node::TakeEq {
+            RawNode::TakeEq {
                 func: right_func,
                 domain: right_domain,
                 codomain: right_codomain,
@@ -1200,13 +1202,13 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
                     && is_alpha_eq_rec(env, left_uniqueness, right_uniqueness, mode)))
         }
         (
-            Node::AxiomSetExt {
+            RawNode::AxiomSetExt {
                 left: left_left,
                 right: left_right,
                 left_to_right: left_left_to_right,
                 right_to_left: left_right_to_left,
             },
-            Node::AxiomSetExt {
+            RawNode::AxiomSetExt {
                 left: right_left,
                 right: right_right,
                 left_to_right: right_left_to_right,
@@ -1229,12 +1231,12 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::AxiomFunExt {
+            RawNode::AxiomFunExt {
                 left: left_left,
                 right: left_right,
                 pointwise: left_pointwise,
             },
-            Node::AxiomFunExt {
+            RawNode::AxiomFunExt {
                 left: right_left,
                 right: right_right,
                 pointwise: right_pointwise,
@@ -1246,12 +1248,12 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
             mode,
         ),
         (
-            Node::AxiomClassicalIndefiniteChoice {
+            RawNode::AxiomClassicalIndefiniteChoice {
                 domain: left_domain,
                 family: left_family,
                 inhabited: left_inhabited,
             },
-            Node::AxiomClassicalIndefiniteChoice {
+            RawNode::AxiomClassicalIndefiniteChoice {
                 domain: right_domain,
                 family: right_family,
                 inhabited: right_inhabited,
@@ -1266,7 +1268,7 @@ fn is_alpha_eq_rec(env: &CrateEnv, left: Exp, right: Exp, mode: EqualityMode) ->
     }
 }
 
-fn eq_slices(env: &CrateEnv, left: &[Exp], right: &[Exp], mode: EqualityMode) -> bool {
+fn eq_slices(env: &CrateEnv, left: &[RawExp], right: &[RawExp], mode: EqualityMode) -> bool {
     left.len() == right.len()
         && left
             .iter()
@@ -1274,7 +1276,7 @@ fn eq_slices(env: &CrateEnv, left: &[Exp], right: &[Exp], mode: EqualityMode) ->
             .all(|(left, right)| is_alpha_eq_rec(env, *left, *right, mode))
 }
 
-pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
+pub fn exp_is_alpha_eq(env: &CrateEnv, left: RawExp, right: RawExp) -> bool {
     is_alpha_eq_rec(
         env,
         left,
@@ -1287,7 +1289,12 @@ pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     )
 }
 
-fn exp_is_convertible_with_mode(env: &CrateEnv, left: Exp, right: Exp, erase_proofs: bool) -> bool {
+fn exp_is_convertible_with_mode(
+    env: &CrateEnv,
+    left: RawExp,
+    right: RawExp,
+    erase_proofs: bool,
+) -> bool {
     is_alpha_eq_rec(
         env,
         left,
@@ -1300,9 +1307,9 @@ fn exp_is_convertible_with_mode(env: &CrateEnv, left: Exp, right: Exp, erase_pro
     )
 }
 
-fn transform<F>(arena: &Arena, exp: Exp, depth: usize, operation: &mut F) -> Exp
+fn transform<F>(arena: &Arena, exp: RawExp, depth: usize, operation: &mut F) -> RawExp
 where
-    F: FnMut(&Node, usize) -> Option<Exp>,
+    F: FnMut(&RawNode, usize) -> Option<RawExp>,
 {
     let node = arena.get(exp);
     if let Some(replacement) = operation(&node, depth) {
@@ -1310,53 +1317,53 @@ where
     }
 
     let mut changed = false;
-    let mut child = |child: Exp, child_depth: usize| {
+    let mut child = |child: RawExp, child_depth: usize| {
         let transformed = transform(arena, child, child_depth, operation);
         changed |= transformed != child;
         transformed
     };
     let transformed = match node {
-        Node::Sort(_) | Node::Bound(_) | Node::ModuleParam(_) => return exp,
-        Node::Prod { var, ty, body } => Node::Prod {
+        RawNode::Sort(_) | RawNode::Bound(_) | RawNode::ModuleParam(_) => return exp,
+        RawNode::Prod { var, ty, body } => RawNode::Prod {
             var,
             ty: child(ty, depth),
             body: child(body, depth + 1),
         },
-        Node::Lam { var, ty, body } => Node::Lam {
+        RawNode::Lam { var, ty, body } => RawNode::Lam {
             var,
             ty: child(ty, depth),
             body: child(body, depth + 1),
         },
-        Node::ComputationLam {
+        RawNode::ComputationLam {
             var,
             value_ty,
             body,
-        } => Node::ComputationLam {
+        } => RawNode::ComputationLam {
             var,
             value_ty: child(value_ty, depth),
             body: child(body, depth + 1),
         },
-        Node::Sequence {
+        RawNode::Sequence {
             computation,
             var,
             value_ty,
             body,
-        } => Node::Sequence {
+        } => RawNode::Sequence {
             computation: child(computation, depth),
             var,
             value_ty: child(value_ty, depth),
             body: child(body, depth + 1),
         },
-        Node::ValueLet { var, value, body } => Node::ValueLet {
+        RawNode::ValueLet { var, value, body } => RawNode::ValueLet {
             var,
             value: child(value, depth),
             body: child(body, depth + 1),
         },
-        Node::ProgramCase {
+        RawNode::ProgramCase {
             indspec,
             scrutinee,
             branches,
-        } => Node::ProgramCase {
+        } => RawNode::ProgramCase {
             indspec,
             scrutinee: child(scrutinee, depth),
             branches: branches
@@ -1367,16 +1374,16 @@ where
                 })
                 .collect(),
         },
-        Node::SubSet {
+        RawNode::SubSet {
             var,
             set,
             predicate,
-        } => Node::SubSet {
+        } => RawNode::SubSet {
             var,
             set: child(set, depth),
             predicate: child(predicate, depth + 1),
         },
-        Node::IdElim {
+        RawNode::IdElim {
             left,
             right,
             ty,
@@ -1384,7 +1391,7 @@ where
             predicate,
             base,
             equality,
-        } => Node::IdElim {
+        } => RawNode::IdElim {
             left: child(left, depth),
             right: child(right, depth),
             ty: child(ty, depth),
@@ -1393,7 +1400,7 @@ where
             base: child(base, depth),
             equality: child(equality, depth),
         },
-        Node::DefinedConstant(_) => return exp,
+        RawNode::DefinedConstant(_) => return exp,
         other => map_children(other, |id| child(id, depth)),
     };
     if changed {
@@ -1403,33 +1410,33 @@ where
     }
 }
 
-pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
+pub fn map_children(mut node: RawNode, mut map: impl FnMut(RawExp) -> RawExp) -> RawNode {
     match &mut node {
-        Node::Sort(_)
-        | Node::ValueType
-        | Node::Bound(_)
-        | Node::ModuleParam(_)
-        | Node::ReflectedProgramParam(_) => {}
-        Node::Meta { spine, .. } => {
+        RawNode::Sort(_)
+        | RawNode::ValueType
+        | RawNode::Bound(_)
+        | RawNode::ModuleParam(_)
+        | RawNode::ReflectedProgramParam(_) => {}
+        RawNode::Meta { spine, .. } => {
             for argument in spine {
                 *argument = map(*argument);
             }
         }
-        Node::Prod { ty, body, .. } | Node::Lam { ty, body, .. } => {
+        RawNode::Prod { ty, body, .. } | RawNode::Lam { ty, body, .. } => {
             *ty = map(*ty);
             *body = map(*body);
         }
-        Node::App { func, arg } => {
+        RawNode::App { func, arg } => {
             *func = map(*func);
             *arg = map(*arg);
         }
-        Node::DefinedConstant(_) => {}
-        Node::IndType { parameters, .. } | Node::IndCtor { parameters, .. } => {
+        RawNode::DefinedConstant(_) => {}
+        RawNode::IndType { parameters, .. } | RawNode::IndCtor { parameters, .. } => {
             for parameter in parameters {
                 *parameter = map(*parameter);
             }
         }
-        Node::IndElim {
+        RawNode::IndElim {
             elim,
             return_type,
             cases,
@@ -1441,10 +1448,10 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
                 *case = map(*case);
             }
         }
-        Node::IndProjection {
+        RawNode::IndProjection {
             parameters, value, ..
         }
-        | Node::ProgramIndProjection {
+        | RawNode::ProgramIndProjection {
             parameters, value, ..
         } => {
             for parameter in parameters {
@@ -1452,26 +1459,26 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             }
             *value = map(*value);
         }
-        Node::ThunkType { computation_ty } => *computation_ty = map(*computation_ty),
-        Node::ReturnType { value_ty } => *value_ty = map(*value_ty),
-        Node::ComputationFunction { domain, codomain } => {
+        RawNode::ThunkType { computation_ty } => *computation_ty = map(*computation_ty),
+        RawNode::ReturnType { value_ty } => *value_ty = map(*value_ty),
+        RawNode::ComputationFunction { domain, codomain } => {
             *domain = map(*domain);
             *codomain = map(*codomain);
         }
-        Node::ProgramIndType { parameters, .. } => {
+        RawNode::ProgramIndType { parameters, .. } => {
             for parameter in parameters {
                 *parameter = map(*parameter);
             }
         }
-        Node::Thunk { computation } => *computation = map(*computation),
-        Node::RunStep {
+        RawNode::Thunk { computation } => *computation = map(*computation),
+        RawNode::RunStep {
             state_ty,
             result_ty,
         } => {
             *state_ty = map(*state_ty);
             *result_ty = map(*result_ty);
         }
-        Node::Continue {
+        RawNode::Continue {
             state_ty,
             result_ty,
             next,
@@ -1480,7 +1487,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *result_ty = map(*result_ty);
             *next = map(*next);
         }
-        Node::Finish {
+        RawNode::Finish {
             state_ty,
             result_ty,
             output,
@@ -1489,7 +1496,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *result_ty = map(*result_ty);
             *output = map(*output);
         }
-        Node::ProgramIndCtor {
+        RawNode::ProgramIndCtor {
             parameters, fields, ..
         } => {
             for parameter in parameters {
@@ -1499,16 +1506,16 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
                 *field = map(*field);
             }
         }
-        Node::Return { value } | Node::Force { value } => *value = map(*value),
-        Node::ComputationLam { value_ty, body, .. } => {
+        RawNode::Return { value } | RawNode::Force { value } => *value = map(*value),
+        RawNode::ComputationLam { value_ty, body, .. } => {
             *value_ty = map(*value_ty);
             *body = map(*body);
         }
-        Node::ComputationApp { computation, value } => {
+        RawNode::ComputationApp { computation, value } => {
             *computation = map(*computation);
             *value = map(*value);
         }
-        Node::Sequence {
+        RawNode::Sequence {
             computation,
             value_ty,
             body,
@@ -1518,16 +1525,16 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *value_ty = map(*value_ty);
             *body = map(*body);
         }
-        Node::ValueLet { value, body, .. } => {
+        RawNode::ValueLet { value, body, .. } => {
             *value = map(*value);
             *body = map(*body);
         }
-        Node::ProgramCase {
+        RawNode::ProgramCase {
             scrutinee,
             branches,
             ..
         }
-        | Node::ReflectedProgramCase {
+        | RawNode::ReflectedProgramCase {
             scrutinee,
             branches,
             ..
@@ -1537,7 +1544,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
                 branch.body = map(branch.body);
             }
         }
-        Node::Acc {
+        RawNode::Acc {
             state_ty,
             result_ty,
             step,
@@ -1548,8 +1555,8 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *step = map(*step);
             *state = map(*state);
         }
-        Node::Proof { proposition } => *proposition = map(*proposition),
-        Node::RunStepRec {
+        RawNode::Proof { proposition } => *proposition = map(*proposition),
+        RawNode::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -1564,34 +1571,34 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *on_finish = map(*on_finish);
             *scrutinee = map(*scrutinee);
         }
-        Node::BoxType { program_ty } => *program_ty = map(*program_ty),
-        Node::BoxProgram {
+        RawNode::BoxType { program_ty } => *program_ty = map(*program_ty),
+        RawNode::BoxProgram {
             program_ty,
             program,
         } => {
             *program_ty = map(*program_ty);
             *program = map(*program);
         }
-        Node::ForceBox { program_ty, boxed } => {
+        RawNode::ForceBox { program_ty, boxed } => {
             *program_ty = map(*program_ty);
             *boxed = map(*boxed);
         }
-        Node::BoxApp { function, argument } => {
+        RawNode::BoxApp { function, argument } => {
             *function = map(*function);
             *argument = map(*argument);
         }
-        Node::RfType { compute_ty } => *compute_ty = map(*compute_ty),
-        Node::RfTerm { compute_ty, term } => {
+        RawNode::RfType { compute_ty } => *compute_ty = map(*compute_ty),
+        RawNode::RfTerm { compute_ty, term } => {
             *compute_ty = map(*compute_ty);
             *term = map(*term);
         }
-        Node::Run {
+        RawNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
         }
-        | Node::SetRun {
+        | RawNode::SetRun {
             state_ty,
             result_ty,
             step,
@@ -1602,14 +1609,14 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *step = map(*step);
             *initial = map(*initial);
         }
-        Node::RunCase {
+        RawNode::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
         }
-        | Node::SetRunCase {
+        | RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
@@ -1622,7 +1629,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *initial = map(*initial);
             *transition = map(*transition);
         }
-        Node::AccIntro {
+        RawNode::AccIntro {
             state_ty,
             result_ty,
             step,
@@ -1635,7 +1642,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *state = map(*state);
             *predecessors = map(*predecessors);
         }
-        Node::AccDescent {
+        RawNode::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -1652,19 +1659,19 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *accessibility = map(*accessibility);
             *transition = map(*transition);
         }
-        Node::PowerSet { set } | Node::Exists { set } | Node::IdRefl { element: set } => {
+        RawNode::PowerSet { set } | RawNode::Exists { set } | RawNode::IdRefl { element: set } => {
             *set = map(*set);
         }
-        Node::SubSet { set, predicate, .. } => {
+        RawNode::SubSet { set, predicate, .. } => {
             *set = map(*set);
             *predicate = map(*predicate);
         }
-        Node::Pred {
+        RawNode::Pred {
             superset,
             subset,
             element,
         }
-        | Node::SubsetElim {
+        | RawNode::SubsetElim {
             superset,
             subset,
             element,
@@ -1673,11 +1680,11 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *subset = map(*subset);
             *element = map(*element);
         }
-        Node::TypeLift { superset, subset } => {
+        RawNode::TypeLift { superset, subset } => {
             *superset = map(*superset);
             *subset = map(*subset);
         }
-        Node::SubsetIntro {
+        RawNode::SubsetIntro {
             superset,
             subset,
             element,
@@ -1688,11 +1695,11 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *element = map(*element);
             *proof = map(*proof);
         }
-        Node::Equal { left, right } => {
+        RawNode::Equal { left, right } => {
             *left = map(*left);
             *right = map(*right);
         }
-        Node::TakeSet {
+        RawNode::TakeSet {
             domain,
             codomain,
             map: function,
@@ -1705,7 +1712,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *existence = map(*existence);
             *uniqueness = map(*uniqueness);
         }
-        Node::TakeProp {
+        RawNode::TakeProp {
             domain,
             proposition,
             map: function,
@@ -1716,11 +1723,11 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *function = map(*function);
             *existence = map(*existence);
         }
-        Node::ExistsIntro { element, set } => {
+        RawNode::ExistsIntro { element, set } => {
             *element = map(*element);
             *set = map(*set);
         }
-        Node::IdElim {
+        RawNode::IdElim {
             left,
             right,
             ty,
@@ -1736,7 +1743,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *base = map(*base);
             *equality = map(*equality);
         }
-        Node::AxiomSetExt {
+        RawNode::AxiomSetExt {
             left,
             right,
             left_to_right,
@@ -1747,7 +1754,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *left_to_right = map(*left_to_right);
             *right_to_left = map(*right_to_left);
         }
-        Node::AxiomFunExt {
+        RawNode::AxiomFunExt {
             left,
             right,
             pointwise,
@@ -1756,7 +1763,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *right = map(*right);
             *pointwise = map(*pointwise);
         }
-        Node::AxiomClassicalIndefiniteChoice {
+        RawNode::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
@@ -1765,7 +1772,7 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
             *family = map(*family);
             *inhabited = map(*inhabited);
         }
-        Node::TakeEq {
+        RawNode::TakeEq {
             func,
             domain,
             codomain,
@@ -1789,36 +1796,36 @@ pub fn map_children(mut node: Node, mut map: impl FnMut(Exp) -> Exp) -> Node {
 /// and remain unchanged.
 pub fn remap_global_ids(
     arena: &Arena,
-    exp: Exp,
+    exp: RawExp,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<InductiveId, InductiveId>,
-) -> Exp {
+) -> RawExp {
     remap_all_global_ids(arena, exp, definitions, inductives, &HashMap::new())
 }
 
 pub fn remap_all_global_ids(
     arena: &Arena,
-    exp: Exp,
+    exp: RawExp,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<InductiveId, InductiveId>,
     program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
-) -> Exp {
+) -> RawExp {
     fn remap(
         arena: &Arena,
-        exp: Exp,
+        exp: RawExp,
         definitions: &HashMap<DefId, DefId>,
         inductives: &HashMap<InductiveId, InductiveId>,
         program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
-    ) -> Exp {
+    ) -> RawExp {
         let node = arena.get(exp);
         match node {
-            Node::DefinedConstant(id) => definitions
+            RawNode::DefinedConstant(id) => definitions
                 .get(&id)
                 .copied()
                 .filter(|mapped| *mapped != id)
-                .map(|mapped| arena.alloc(Node::DefinedConstant(mapped)))
+                .map(|mapped| arena.alloc(RawNode::DefinedConstant(mapped)))
                 .unwrap_or(exp),
-            Node::IndType {
+            RawNode::IndType {
                 indspec,
                 parameters,
             } => {
@@ -1830,13 +1837,13 @@ pub fn remap_all_global_ids(
                 if mapped_spec == indspec && mapped_parameters == parameters {
                     exp
                 } else {
-                    arena.alloc(Node::IndType {
+                    arena.alloc(RawNode::IndType {
                         indspec: mapped_spec,
                         parameters: mapped_parameters,
                     })
                 }
             }
-            Node::IndCtor {
+            RawNode::IndCtor {
                 indspec,
                 parameters,
                 idx,
@@ -1849,14 +1856,14 @@ pub fn remap_all_global_ids(
                 if mapped_spec == indspec && mapped_parameters == parameters {
                     exp
                 } else {
-                    arena.alloc(Node::IndCtor {
+                    arena.alloc(RawNode::IndCtor {
                         indspec: mapped_spec,
                         parameters: mapped_parameters,
                         idx,
                     })
                 }
             }
-            Node::IndElim {
+            RawNode::IndElim {
                 indspec,
                 elim,
                 return_type,
@@ -1882,7 +1889,7 @@ pub fn remap_all_global_ids(
                 {
                     exp
                 } else {
-                    arena.alloc(Node::IndElim {
+                    arena.alloc(RawNode::IndElim {
                         indspec: mapped_spec,
                         elim: mapped_elim,
                         return_type: mapped_return,
@@ -1890,7 +1897,7 @@ pub fn remap_all_global_ids(
                     })
                 }
             }
-            Node::IndProjection {
+            RawNode::IndProjection {
                 indspec,
                 parameters,
                 value,
@@ -1908,7 +1915,7 @@ pub fn remap_all_global_ids(
                 {
                     exp
                 } else {
-                    arena.alloc(Node::IndProjection {
+                    arena.alloc(RawNode::IndProjection {
                         indspec: mapped_spec,
                         parameters: mapped_parameters,
                         value: mapped_value,
@@ -1916,7 +1923,7 @@ pub fn remap_all_global_ids(
                     })
                 }
             }
-            Node::ProgramIndType {
+            RawNode::ProgramIndType {
                 indspec,
                 parameters,
             } => {
@@ -1928,13 +1935,13 @@ pub fn remap_all_global_ids(
                 if mapped_spec == indspec && mapped_parameters == parameters {
                     exp
                 } else {
-                    arena.alloc(Node::ProgramIndType {
+                    arena.alloc(RawNode::ProgramIndType {
                         indspec: mapped_spec,
                         parameters: mapped_parameters,
                     })
                 }
             }
-            Node::ProgramIndCtor {
+            RawNode::ProgramIndCtor {
                 indspec,
                 parameters,
                 idx,
@@ -1955,7 +1962,7 @@ pub fn remap_all_global_ids(
                 {
                     exp
                 } else {
-                    arena.alloc(Node::ProgramIndCtor {
+                    arena.alloc(RawNode::ProgramIndCtor {
                         indspec: mapped_spec,
                         parameters: mapped_parameters,
                         idx,
@@ -1963,7 +1970,7 @@ pub fn remap_all_global_ids(
                     })
                 }
             }
-            Node::ProgramIndProjection {
+            RawNode::ProgramIndProjection {
                 indspec,
                 parameters,
                 value,
@@ -1981,7 +1988,7 @@ pub fn remap_all_global_ids(
                 {
                     exp
                 } else {
-                    arena.alloc(Node::ProgramIndProjection {
+                    arena.alloc(RawNode::ProgramIndProjection {
                         indspec: mapped_spec,
                         parameters: mapped_parameters,
                         value: mapped_value,
@@ -1989,7 +1996,7 @@ pub fn remap_all_global_ids(
                     })
                 }
             }
-            Node::ProgramCase {
+            RawNode::ProgramCase {
                 indspec,
                 scrutinee,
                 branches,
@@ -2021,7 +2028,7 @@ pub fn remap_all_global_ids(
                 {
                     exp
                 } else {
-                    arena.alloc(Node::ProgramCase {
+                    arena.alloc(RawNode::ProgramCase {
                         indspec: mapped_spec,
                         scrutinee: mapped_scrutinee,
                         branches: mapped_branches,
@@ -2045,67 +2052,72 @@ pub fn remap_all_global_ids(
 
 pub fn exp_subst_module_param(
     arena: &Arena,
-    exp: Exp,
+    exp: RawExp,
     parameter: ModuleParamId,
-    replacement: Exp,
-) -> Exp {
+    replacement: RawExp,
+) -> RawExp {
     transform(arena, exp, 0, &mut |node, depth| match node {
-        Node::ModuleParam(candidate) if *candidate == parameter => {
+        RawNode::ModuleParam(candidate) if *candidate == parameter => {
             Some(shift_bound_indices(arena, replacement, depth, 0))
         }
         _ => None,
     })
 }
 
-pub fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff: usize) -> Exp {
+pub fn shift_bound_indices(arena: &Arena, exp: RawExp, amount: usize, cutoff: usize) -> RawExp {
     transform(arena, exp, 0, &mut |node, depth| match node {
-        Node::Bound(index) if *index >= cutoff + depth => {
-            Some(arena.alloc(Node::Bound(index + amount)))
+        RawNode::Bound(index) if *index >= cutoff + depth => {
+            Some(arena.alloc(RawNode::Bound(index + amount)))
         }
         _ => None,
     })
 }
 
 /// Replace the outermost locally bound variable in `body` with `argument`.
-pub fn instantiate(arena: &Arena, body: Exp, argument: Exp) -> Exp {
+pub fn instantiate(arena: &Arena, body: RawExp, argument: RawExp) -> RawExp {
     instantiate_at(arena, body, argument, 0)
 }
 
 /// Instantiate one binder in the ambient context, leaving `inner` more recent
 /// ambient binders in place.
-pub fn instantiate_at(arena: &Arena, body: Exp, argument: Exp, inner: usize) -> Exp {
+pub fn instantiate_at(arena: &Arena, body: RawExp, argument: RawExp, inner: usize) -> RawExp {
     instantiate_telescope_at(arena, body, std::slice::from_ref(&argument), inner)
 }
 
 /// Instantiate an expression whose ambient telescope consists of `arguments`
 /// in declaration order. `Bound(0)` denotes the last telescope entry.
-pub fn instantiate_telescope(arena: &Arena, exp: Exp, arguments: &[Exp]) -> Exp {
+pub fn instantiate_telescope(arena: &Arena, exp: RawExp, arguments: &[RawExp]) -> RawExp {
     instantiate_telescope_at(arena, exp, arguments, 0)
 }
 
 pub fn instantiate_outer_telescope(
     arena: &Arena,
-    exp: Exp,
-    arguments: &[Exp],
+    exp: RawExp,
+    arguments: &[RawExp],
     inner: usize,
-) -> Exp {
+) -> RawExp {
     instantiate_telescope_at(arena, exp, arguments, inner)
 }
 
-fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: usize) -> Exp {
+fn instantiate_telescope_at(
+    arena: &Arena,
+    exp: RawExp,
+    arguments: &[RawExp],
+    inner: usize,
+) -> RawExp {
     if arguments.is_empty() {
         return exp;
     }
 
     transform(arena, exp, 0, &mut |node, depth| match node {
-        Node::Bound(index) if *index >= depth + inner => {
+        RawNode::Bound(index) if *index >= depth + inner => {
             let ambient = *index - depth;
             let telescope_index = ambient - inner;
             if telescope_index < arguments.len() {
                 let argument = arguments[arguments.len() - 1 - telescope_index];
                 Some(shift_bound_indices(arena, argument, depth + inner, 0))
             } else {
-                Some(arena.alloc(Node::Bound(index - arguments.len())))
+                Some(arena.alloc(RawNode::Bound(index - arguments.len())))
             }
         }
         _ => None,
@@ -2115,14 +2127,14 @@ fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: u
 /// Rebase references to an implicit ambient context. `mapping[i]` is the new
 /// de Bruijn index for the old ambient index `i`; syntactic binders inside the
 /// expression are preserved.
-pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp {
+pub fn remap_ambient_indices(arena: &Arena, exp: RawExp, mapping: &[usize]) -> RawExp {
     transform(arena, exp, 0, &mut |node, depth| match node {
-        Node::Bound(index) if *index >= depth => {
+        RawNode::Bound(index) if *index >= depth => {
             let ambient = *index - depth;
             mapping
                 .get(ambient)
                 .filter(|mapped| **mapped != ambient)
-                .map(|mapped| arena.alloc(Node::Bound(depth + *mapped)))
+                .map(|mapped| arena.alloc(RawNode::Bound(depth + *mapped)))
         }
         _ => None,
     })
@@ -2130,37 +2142,37 @@ pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp 
 
 /// Remove `count` innermost ambient binders from an expression which does not
 /// depend on them. References to older ambient entries are rebased.
-pub fn remove_unused_ambient_binders(arena: &Arena, exp: Exp, count: usize) -> Option<Exp> {
+pub fn remove_unused_ambient_binders(arena: &Arena, exp: RawExp, count: usize) -> Option<RawExp> {
     if count == 0 {
         return Some(exp);
     }
     let mut depends = false;
     let result = transform(arena, exp, 0, &mut |node, depth| match node {
-        Node::Bound(index) if *index >= depth && *index < depth + count => {
+        RawNode::Bound(index) if *index >= depth && *index < depth + count => {
             depends = true;
             None
         }
-        Node::Bound(index) if *index >= depth + count => {
-            Some(arena.alloc(Node::Bound(index - count)))
+        RawNode::Bound(index) if *index >= depth + count => {
+            Some(arena.alloc(RawNode::Bound(index - count)))
         }
         _ => None,
     });
     (!depends).then_some(result)
 }
 
-pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
-    fn contains(arena: &Arena, exp: Exp, target: usize, depth: usize) -> bool {
+pub fn exp_contains_bound(arena: &Arena, exp: RawExp, target: usize) -> bool {
+    fn contains(arena: &Arena, exp: RawExp, target: usize, depth: usize) -> bool {
         match arena.get(exp) {
-            Node::Bound(index) => index == target + depth,
-            Node::Sort(_) | Node::ModuleParam(_) | Node::DefinedConstant(_) => false,
-            Node::Prod { ty, body, .. }
-            | Node::Lam { ty, body, .. }
-            | Node::SubSet {
+            RawNode::Bound(index) => index == target + depth,
+            RawNode::Sort(_) | RawNode::ModuleParam(_) | RawNode::DefinedConstant(_) => false,
+            RawNode::Prod { ty, body, .. }
+            | RawNode::Lam { ty, body, .. }
+            | RawNode::SubSet {
                 set: ty,
                 predicate: body,
                 ..
             } => contains(arena, ty, target, depth) || contains(arena, body, target, depth + 1),
-            Node::IdElim {
+            RawNode::IdElim {
                 left,
                 right,
                 ty,
@@ -2187,18 +2199,22 @@ pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
     contains(arena, exp, target, 0)
 }
 
-pub fn exp_subst_map(arena: &Arena, mut exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
+pub fn exp_subst_map(
+    arena: &Arena,
+    mut exp: RawExp,
+    substitutions: &[(ModuleParamId, RawExp)],
+) -> RawExp {
     for (parameter, replacement) in substitutions {
         exp = exp_subst_module_param(arena, exp, *parameter, *replacement);
     }
     exp
 }
 
-pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
+pub fn erase(env: &CrateEnv, exp: RawExp) -> RawExp {
     let arena = env.arena();
     match arena.get(exp) {
-        Node::SubsetIntro { element, .. } => erase(env, element),
-        Node::DefinedConstant(definition) => erase(env, env.definition(definition).body),
+        RawNode::SubsetIntro { element, .. } => erase(env, element),
+        RawNode::DefinedConstant(definition) => erase(env, env.definition(definition).body),
         node => {
             let mut changed = false;
             let erased = map_children(node, |child| {
@@ -2211,9 +2227,9 @@ pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
     }
 }
 
-fn unfold_program_value_head(env: &CrateEnv, mut value: Exp) -> Exp {
+fn unfold_program_value_head(env: &CrateEnv, mut value: RawExp) -> RawExp {
     loop {
-        let Node::DefinedConstant(definition) = env.arena().get(value) else {
+        let RawNode::DefinedConstant(definition) = env.arena().get(value) else {
             return value;
         };
         let definition = env.definition(definition);
@@ -2225,41 +2241,41 @@ fn unfold_program_value_head(env: &CrateEnv, mut value: Exp) -> Exp {
 }
 
 /// Perform one weak call-by-value CBPV computation step.
-pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> {
+pub fn reduce_computation_once(env: &CrateEnv, computation: RawExp) -> Option<RawExp> {
     let arena = env.arena();
     match arena.get(computation) {
-        Node::DefinedConstant(definition) => {
+        RawNode::DefinedConstant(definition) => {
             let definition = env.definition(definition);
             (definition.kind == crate::environment::DefinitionKind::ProgramComputation)
                 .then_some(definition.body)
         }
-        Node::Force { value } => match arena.get(unfold_program_value_head(env, value)) {
-            Node::Thunk { computation } => Some(computation),
+        RawNode::Force { value } => match arena.get(unfold_program_value_head(env, value)) {
+            RawNode::Thunk { computation } => Some(computation),
             _ => None,
         },
-        Node::ComputationApp {
+        RawNode::ComputationApp {
             computation: function,
             value,
         } => {
             if let Some(reduced) = reduce_computation_once(env, function) {
-                return Some(arena.alloc(Node::ComputationApp {
+                return Some(arena.alloc(RawNode::ComputationApp {
                     computation: reduced,
                     value,
                 }));
             }
             match arena.get(function) {
-                Node::ComputationLam { body, .. } => Some(instantiate(arena, body, value)),
+                RawNode::ComputationLam { body, .. } => Some(instantiate(arena, body, value)),
                 _ => None,
             }
         }
-        Node::Sequence {
+        RawNode::Sequence {
             computation: source,
             var,
             value_ty,
             body,
         } => {
             if let Some(reduced) = reduce_computation_once(env, source) {
-                return Some(arena.alloc(Node::Sequence {
+                return Some(arena.alloc(RawNode::Sequence {
                     computation: reduced,
                     var,
                     value_ty,
@@ -2267,29 +2283,29 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
                 }));
             }
             match arena.get(source) {
-                Node::Return { value } => Some(instantiate(arena, body, value)),
+                RawNode::Return { value } => Some(instantiate(arena, body, value)),
                 _ => None,
             }
         }
-        Node::ValueLet { value, body, .. } => Some(instantiate(arena, body, value)),
-        Node::Run {
+        RawNode::ValueLet { value, body, .. } => Some(instantiate(arena, body, value)),
+        RawNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
         }
-        | Node::SetRun {
+        | RawNode::SetRun {
             state_ty,
             result_ty,
             step,
             initial,
         } => {
-            let forced = arena.alloc(Node::Force { value: step });
-            let transition = arena.alloc(Node::ComputationApp {
+            let forced = arena.alloc(RawNode::Force { value: step });
+            let transition = arena.alloc(RawNode::ComputationApp {
                 computation: forced,
                 value: initial,
             });
-            Some(arena.alloc(Node::RunCase {
+            Some(arena.alloc(RawNode::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -2297,14 +2313,14 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
                 transition,
             }))
         }
-        Node::RunCase {
+        RawNode::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
         }
-        | Node::SetRunCase {
+        | RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
@@ -2312,7 +2328,7 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
             transition,
         } => {
             if let Some(reduced) = reduce_computation_once(env, transition) {
-                return Some(arena.alloc(Node::RunCase {
+                return Some(arena.alloc(RawNode::RunCase {
                     state_ty,
                     result_ty,
                     step,
@@ -2320,27 +2336,29 @@ pub fn reduce_computation_once(env: &CrateEnv, computation: Exp) -> Option<Exp> 
                     transition: reduced,
                 }));
             }
-            let Node::Return { value } = arena.get(transition) else {
+            let RawNode::Return { value } = arena.get(transition) else {
                 return None;
             };
             match arena.get(unfold_program_value_head(env, value)) {
-                Node::Continue { next, .. } => Some(arena.alloc(Node::Run {
+                RawNode::Continue { next, .. } => Some(arena.alloc(RawNode::Run {
                     state_ty,
                     result_ty,
                     step,
                     initial: next,
                 })),
-                Node::Finish { output, .. } => Some(arena.alloc(Node::Return { value: output })),
+                RawNode::Finish { output, .. } => {
+                    Some(arena.alloc(RawNode::Return { value: output }))
+                }
                 _ => None,
             }
         }
-        Node::ProgramCase {
+        RawNode::ProgramCase {
             indspec,
             scrutinee,
             branches,
         } => {
             let scrutinee = unfold_program_value_head(env, scrutinee);
-            let Node::ProgramIndCtor {
+            let RawNode::ProgramIndCtor {
                 indspec: constructor_spec,
                 idx,
                 fields,
@@ -2364,14 +2382,18 @@ pub const DEFAULT_REDUCTION_FUEL: usize = 100_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Evaluation {
-    Normal(Exp),
-    OutOfFuel(Exp),
+    Normal(RawExp),
+    OutOfFuel(RawExp),
 }
 
 /// Evaluate a CBPV computation to a weak normal form with an explicit step
 /// budget.  Ordinary Program typing does not imply termination, so an
 /// unbounded evaluator would make the checker/CLI hang on a valid term.
-pub fn evaluate_computation_with_fuel(env: &CrateEnv, computation: Exp, fuel: usize) -> Evaluation {
+pub fn evaluate_computation_with_fuel(
+    env: &CrateEnv,
+    computation: RawExp,
+    fuel: usize,
+) -> Evaluation {
     let mut current = computation;
     for _ in 0..fuel {
         let Some(next) = reduce_computation_once(env, current) else {
@@ -2386,40 +2408,40 @@ pub fn evaluate_computation_with_fuel(env: &CrateEnv, computation: Exp, fuel: us
     }
 }
 
-pub fn evaluate_computation(env: &CrateEnv, computation: Exp) -> Evaluation {
+pub fn evaluate_computation(env: &CrateEnv, computation: RawExp) -> Evaluation {
     evaluate_computation_with_fuel(env, computation, DEFAULT_REDUCTION_FUEL)
 }
 
-pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
+pub fn exp_reduce_if_top(env: &CrateEnv, exp: RawExp) -> Option<RawExp> {
     let arena = env.arena();
     match arena.get(exp) {
-        Node::App { func, arg } => match arena.get(func) {
-            Node::Lam { body, .. } => Some(instantiate(arena, body, arg)),
+        RawNode::App { func, arg } => match arena.get(func) {
+            RawNode::Lam { body, .. } => Some(instantiate(arena, body, arg)),
             _ => None,
         },
-        Node::DefinedConstant(definition) => Some(env.definition(definition).body),
-        Node::Pred {
+        RawNode::DefinedConstant(definition) => Some(env.definition(definition).body),
+        RawNode::Pred {
             subset, element, ..
         } => match arena.get(subset) {
-            Node::SubSet { predicate, .. } => Some(instantiate(arena, predicate, element)),
+            RawNode::SubSet { predicate, .. } => Some(instantiate(arena, predicate, element)),
             _ => None,
         },
-        Node::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
-        Node::ReflectedProgramCase {
+        RawNode::IndElim { .. } => inductive_type_elim_reduce(env, exp).ok(),
+        RawNode::ReflectedProgramCase {
             indspec,
             scrutinee,
             branches,
         } => {
             let reduced = whnf(env, scrutinee);
             let (head, fields) = crate::utils::decompose_app(arena, reduced);
-            let Node::IndCtor {
+            let RawNode::IndCtor {
                 indspec: reflected,
                 idx,
                 ..
             } = arena.get(head)
             else {
                 return (reduced != scrutinee).then(|| {
-                    arena.alloc(Node::ReflectedProgramCase {
+                    arena.alloc(RawNode::ReflectedProgramCase {
                         indspec,
                         scrutinee: reduced,
                         branches,
@@ -2433,7 +2455,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             (branch.binders.len() == fields.len())
                 .then(|| instantiate_telescope(arena, branch.body, &fields))
         }
-        Node::IndProjection {
+        RawNode::IndProjection {
             indspec,
             parameters,
             value,
@@ -2442,7 +2464,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             let reduced = whnf(env, value);
             let (head, arguments) = crate::utils::decompose_app(arena, reduced);
             match arena.get(head) {
-                Node::IndCtor {
+                RawNode::IndCtor {
                     indspec: constructor,
                     parameters: constructor_parameters,
                     idx: 0,
@@ -2455,7 +2477,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 {
                     arguments.get(field).copied()
                 }
-                _ if reduced != value => Some(arena.alloc(Node::IndProjection {
+                _ if reduced != value => Some(arena.alloc(RawNode::IndProjection {
                     indspec,
                     parameters,
                     value: reduced,
@@ -2464,7 +2486,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 _ => None,
             }
         }
-        Node::ProgramIndProjection {
+        RawNode::ProgramIndProjection {
             indspec,
             parameters,
             value,
@@ -2472,7 +2494,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
         } => {
             let reduced = unfold_program_value_head(env, value);
             match arena.get(reduced) {
-                Node::ProgramIndCtor {
+                RawNode::ProgramIndCtor {
                     indspec: constructor,
                     parameters: constructor_parameters,
                     idx: 0,
@@ -2486,7 +2508,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 {
                     fields.get(field).copied()
                 }
-                _ if reduced != value => Some(arena.alloc(Node::ProgramIndProjection {
+                _ if reduced != value => Some(arena.alloc(RawNode::ProgramIndProjection {
                     indspec,
                     parameters,
                     value: reduced,
@@ -2495,64 +2517,64 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 _ => None,
             }
         }
-        Node::RunStepRec {
+        RawNode::RunStepRec {
             on_continue,
             on_finish,
             scrutinee,
             ..
         } => match arena.get(scrutinee) {
-            Node::Continue { next, .. } => Some(arena.alloc(Node::App {
+            RawNode::Continue { next, .. } => Some(arena.alloc(RawNode::App {
                 func: on_continue,
                 arg: next,
             })),
-            Node::Finish { output, .. } => Some(arena.alloc(Node::App {
+            RawNode::Finish { output, .. } => Some(arena.alloc(RawNode::App {
                 func: on_finish,
                 arg: output,
             })),
             _ => None,
         },
-        Node::SetRun {
+        RawNode::SetRun {
             state_ty,
             result_ty,
             step,
             initial,
-        } => Some(arena.alloc(Node::SetRunCase {
+        } => Some(arena.alloc(RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
             initial,
-            transition: arena.alloc(Node::App {
+            transition: arena.alloc(RawNode::App {
                 func: step,
                 arg: initial,
             }),
         })),
-        Node::SetRunCase {
+        RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
             initial: _,
             transition,
         } => match arena.get(transition) {
-            Node::Continue { next, .. } => Some(arena.alloc(Node::SetRun {
+            RawNode::Continue { next, .. } => Some(arena.alloc(RawNode::SetRun {
                 state_ty,
                 result_ty,
                 step,
                 initial: next,
             })),
-            Node::Finish { output, .. } => Some(output),
+            RawNode::Finish { output, .. } => Some(output),
             _ => None,
         },
-        Node::BoxProgram {
+        RawNode::BoxProgram {
             program_ty,
             program,
         } => reduce_computation_once(env, program).map(|program| {
-            arena.alloc(Node::BoxProgram {
+            arena.alloc(RawNode::BoxProgram {
                 program_ty,
                 program,
             })
         }),
-        Node::ForceBox { program_ty, boxed } => {
-            let Node::BoxProgram {
+        RawNode::ForceBox { program_ty, boxed } => {
+            let RawNode::BoxProgram {
                 program_ty: boxed_ty,
                 program,
             } = arena.get(boxed)
@@ -2566,26 +2588,26 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             }
             crate::reflection::reflect_term(env, crate::ids::ModuleId(0), &Vec::new(), program).ok()
         }
-        Node::BoxApp { function, argument } => {
-            let Node::BoxProgram {
+        RawNode::BoxApp { function, argument } => {
+            let RawNode::BoxProgram {
                 program_ty: function_ty,
                 program: function,
             } = arena.get(function)
             else {
                 return None;
             };
-            let Node::ComputationFunction { codomain, .. } = arena.get(function_ty) else {
+            let RawNode::ComputationFunction { codomain, .. } = arena.get(function_ty) else {
                 return None;
             };
-            let Node::BoxProgram {
+            let RawNode::BoxProgram {
                 program: argument, ..
             } = arena.get(argument)
             else {
                 return None;
             };
-            Some(arena.alloc(Node::BoxProgram {
+            Some(arena.alloc(RawNode::BoxProgram {
                 program_ty: codomain,
-                program: arena.alloc(Node::ComputationApp {
+                program: arena.alloc(RawNode::ComputationApp {
                     computation: function,
                     value: argument,
                 }),
@@ -2597,12 +2619,12 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 
 fn exp_reduce_head_once_with_cache(
     env: &CrateEnv,
-    exp: Exp,
+    exp: RawExp,
     erase_subset_intro: bool,
-    cache: &mut HashMap<Exp, Exp>,
-) -> Option<Exp> {
+    cache: &mut HashMap<RawExp, RawExp>,
+) -> Option<RawExp> {
     let arena = env.arena();
-    if erase_subset_intro && let Node::SubsetIntro { element, .. } = arena.get(exp) {
+    if erase_subset_intro && let RawNode::SubsetIntro { element, .. } = arena.get(exp) {
         return Some(element);
     }
 
@@ -2610,16 +2632,16 @@ fn exp_reduce_head_once_with_cache(
     // the function and contracts immediately; full normalization below walks
     // every compatible subterm, including neutral arguments.
     match arena.get(exp) {
-        Node::App { func, arg } => {
+        RawNode::App { func, arg } => {
             let reduced_func = exp_whnf_with_mode_and_cache(env, func, erase_subset_intro, cache);
             if reduced_func != func {
-                return Some(arena.alloc(Node::App {
+                return Some(arena.alloc(RawNode::App {
                     func: reduced_func,
                     arg,
                 }));
             }
         }
-        Node::IndElim {
+        RawNode::IndElim {
             indspec,
             elim,
             return_type,
@@ -2627,7 +2649,7 @@ fn exp_reduce_head_once_with_cache(
         } => {
             let reduced_elim = exp_whnf_with_mode_and_cache(env, elim, erase_subset_intro, cache);
             if reduced_elim != elim {
-                return Some(arena.alloc(Node::IndElim {
+                return Some(arena.alloc(RawNode::IndElim {
                     indspec,
                     elim: reduced_elim,
                     return_type,
@@ -2635,21 +2657,21 @@ fn exp_reduce_head_once_with_cache(
                 }));
             }
         }
-        Node::ReflectedProgramCase {
+        RawNode::ReflectedProgramCase {
             indspec,
             scrutinee,
             branches,
         } => {
             let reduced = exp_whnf_with_mode_and_cache(env, scrutinee, erase_subset_intro, cache);
             if reduced != scrutinee {
-                return Some(arena.alloc(Node::ReflectedProgramCase {
+                return Some(arena.alloc(RawNode::ReflectedProgramCase {
                     indspec,
                     scrutinee: reduced,
                     branches,
                 }));
             }
         }
-        Node::RunStepRec {
+        RawNode::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -2659,7 +2681,7 @@ fn exp_reduce_head_once_with_cache(
         } => {
             let reduced = exp_whnf_with_mode_and_cache(env, scrutinee, erase_subset_intro, cache);
             if reduced != scrutinee {
-                return Some(arena.alloc(Node::RunStepRec {
+                return Some(arena.alloc(RawNode::RunStepRec {
                     state_ty,
                     result_ty,
                     motive,
@@ -2669,7 +2691,7 @@ fn exp_reduce_head_once_with_cache(
                 }));
             }
         }
-        Node::SetRunCase {
+        RawNode::SetRunCase {
             state_ty,
             result_ty,
             step,
@@ -2678,7 +2700,7 @@ fn exp_reduce_head_once_with_cache(
         } => {
             let reduced = exp_whnf_with_mode_and_cache(env, transition, erase_subset_intro, cache);
             if reduced != transition {
-                return Some(arena.alloc(Node::SetRunCase {
+                return Some(arena.alloc(RawNode::SetRunCase {
                     state_ty,
                     result_ty,
                     step,
@@ -2687,20 +2709,20 @@ fn exp_reduce_head_once_with_cache(
                 }));
             }
         }
-        Node::ForceBox { program_ty, boxed } => {
+        RawNode::ForceBox { program_ty, boxed } => {
             let reduced = exp_whnf_with_mode_and_cache(env, boxed, erase_subset_intro, cache);
             if reduced != boxed {
-                return Some(arena.alloc(Node::ForceBox {
+                return Some(arena.alloc(RawNode::ForceBox {
                     program_ty,
                     boxed: reduced,
                 }));
             }
         }
-        Node::BoxApp { function, argument } => {
+        RawNode::BoxApp { function, argument } => {
             let reduced_function =
                 exp_whnf_with_mode_and_cache(env, function, erase_subset_intro, cache);
             if reduced_function != function {
-                return Some(arena.alloc(Node::BoxApp {
+                return Some(arena.alloc(RawNode::BoxApp {
                     function: reduced_function,
                     argument,
                 }));
@@ -2708,27 +2730,27 @@ fn exp_reduce_head_once_with_cache(
             let reduced_argument =
                 exp_whnf_with_mode_and_cache(env, argument, erase_subset_intro, cache);
             if reduced_argument != argument {
-                return Some(arena.alloc(Node::BoxApp {
+                return Some(arena.alloc(RawNode::BoxApp {
                     function,
                     argument: reduced_argument,
                 }));
             }
         }
-        Node::Continue {
+        RawNode::Continue {
             state_ty,
             result_ty,
             next,
         } => {
             let reduced_next = exp_whnf_with_mode_and_cache(env, next, erase_subset_intro, cache);
             if reduced_next != next {
-                return Some(arena.alloc(Node::Continue {
+                return Some(arena.alloc(RawNode::Continue {
                     state_ty,
                     result_ty,
                     next: reduced_next,
                 }));
             }
         }
-        Node::Finish {
+        RawNode::Finish {
             state_ty,
             result_ty,
             output,
@@ -2736,7 +2758,7 @@ fn exp_reduce_head_once_with_cache(
             let reduced_output =
                 exp_whnf_with_mode_and_cache(env, output, erase_subset_intro, cache);
             if reduced_output != output {
-                return Some(arena.alloc(Node::Finish {
+                return Some(arena.alloc(RawNode::Finish {
                     state_ty,
                     result_ty,
                     output: reduced_output,
@@ -2751,7 +2773,7 @@ fn exp_reduce_head_once_with_cache(
     }
 
     match arena.get(exp) {
-        Node::Pred {
+        RawNode::Pred {
             superset,
             subset,
             element,
@@ -2759,7 +2781,7 @@ fn exp_reduce_head_once_with_cache(
             let reduced_subset =
                 exp_whnf_with_mode_and_cache(env, subset, erase_subset_intro, cache);
             (reduced_subset != subset).then(|| {
-                arena.alloc(Node::Pred {
+                arena.alloc(RawNode::Pred {
                     superset,
                     subset: reduced_subset,
                     element,
@@ -2772,10 +2794,10 @@ fn exp_reduce_head_once_with_cache(
 
 fn exp_whnf_with_mode_and_cache(
     env: &CrateEnv,
-    exp: Exp,
+    exp: RawExp,
     erase_subset_intro: bool,
-    cache: &mut HashMap<Exp, Exp>,
-) -> Exp {
+    cache: &mut HashMap<RawExp, RawExp>,
+) -> RawExp {
     if let Some(normal) = cache.get(&exp) {
         return *normal;
     }
@@ -2788,27 +2810,31 @@ fn exp_whnf_with_mode_and_cache(
     current
 }
 
-fn exp_whnf_with_mode(env: &CrateEnv, exp: Exp, erase_subset_intro: bool) -> Exp {
+fn exp_whnf_with_mode(env: &CrateEnv, exp: RawExp, erase_subset_intro: bool) -> RawExp {
     let mut cache = HashMap::new();
     exp_whnf_with_mode_and_cache(env, exp, erase_subset_intro, &mut cache)
 }
 
-pub fn whnf(env: &CrateEnv, exp: Exp) -> Exp {
+pub fn whnf(env: &CrateEnv, exp: RawExp) -> RawExp {
     exp_whnf_with_mode(env, exp, false)
 }
 
-pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
+pub fn normalize(env: &CrateEnv, exp: RawExp) -> RawExp {
     normalize_with_cache(env, exp, &mut HashMap::new())
 }
 
-fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>) -> Exp {
+fn normalize_with_cache(
+    env: &CrateEnv,
+    exp: RawExp,
+    cache: &mut HashMap<RawExp, RawExp>,
+) -> RawExp {
     if let Some(normal) = cache.get(&exp) {
         return *normal;
     }
     let arena = env.arena();
     let head = whnf(env, exp);
     let node = arena.get(head);
-    if let Node::Run {
+    if let RawNode::Run {
         state_ty,
         result_ty,
         step,
@@ -2827,7 +2853,7 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
             || normalized_step != step
             || normalized_initial != initial;
         let candidate = if changed {
-            arena.alloc(Node::Run {
+            arena.alloc(RawNode::Run {
                 state_ty: normalized_state_ty,
                 result_ty: normalized_result_ty,
                 step: normalized_step,
@@ -2866,7 +2892,7 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
     result
 }
 
-pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
+pub fn reduce_one(env: &CrateEnv, exp: RawExp) -> Option<RawExp> {
     if let Some(reduced) = exp_reduce_head_once_with_cache(env, exp, false, &mut HashMap::new()) {
         return Some(reduced);
     }
@@ -2874,53 +2900,53 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     (normalized != exp).then_some(normalized)
 }
 
-pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
+pub fn convertible(env: &CrateEnv, left: RawExp, right: RawExp) -> bool {
     exp_is_convertible_with_mode(env, left, right, false)
 }
 
-pub fn erased_normal(env: &CrateEnv, exp: Exp) -> Exp {
+pub fn erased_normal(env: &CrateEnv, exp: RawExp) -> RawExp {
     let erased = erase(env, exp);
     normalize(env, erased)
 }
 
-pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
+pub fn erased_convertible(env: &CrateEnv, left: RawExp, right: RawExp) -> bool {
     exp_is_convertible_with_mode(env, left, right, true)
 }
 
-pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {
+pub(crate) fn type_head_normal(env: &CrateEnv, ty: RawExp) -> RawExp {
     exp_whnf_with_mode(env, ty, true)
 }
 
-pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(SymbolId, Exp, Exp)> {
+pub(crate) fn expose_product(env: &CrateEnv, ty: RawExp) -> Option<(SymbolId, RawExp, RawExp)> {
     let arena = env.arena();
     let mut current = type_head_normal(env, ty);
     loop {
         match arena.get(current) {
-            Node::Prod { var, ty, body } => return Some((var, ty, body)),
-            Node::TypeLift { superset, .. } => current = type_head_normal(env, superset),
+            RawNode::Prod { var, ty, body } => return Some((var, ty, body)),
+            RawNode::TypeLift { superset, .. } => current = type_head_normal(env, superset),
             _ => return None,
         }
     }
 }
 
-pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
+pub(crate) fn base_carrier(env: &CrateEnv, ty: RawExp) -> RawExp {
     let arena = env.arena();
     let mut current = type_head_normal(env, ty);
     loop {
         match arena.get(current) {
-            Node::TypeLift { superset, .. } => current = type_head_normal(env, superset),
+            RawNode::TypeLift { superset, .. } => current = type_head_normal(env, superset),
             _ => return current,
         }
     }
 }
 
-pub fn common_ambient_carrier(env: &CrateEnv, left_ty: Exp, right_ty: Exp) -> Option<Exp> {
+pub fn common_ambient_carrier(env: &CrateEnv, left_ty: RawExp, right_ty: RawExp) -> Option<RawExp> {
     let left_carrier = base_carrier(env, left_ty);
     let right_carrier = base_carrier(env, right_ty);
     erased_convertible(env, left_carrier, right_carrier).then_some(left_carrier)
 }
 
-pub fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
+pub fn can_weaken_to(env: &CrateEnv, inferred: RawExp, expected: RawExp) -> bool {
     if erased_convertible(env, inferred, expected) {
         return true;
     }
@@ -2928,14 +2954,14 @@ pub fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
     let inferred = type_head_normal(env, inferred);
     let expected = type_head_normal(env, expected);
     match (arena.get(inferred), arena.get(expected)) {
-        (Node::TypeLift { superset, .. }, _) => can_weaken_to(env, superset, expected),
+        (RawNode::TypeLift { superset, .. }, _) => can_weaken_to(env, superset, expected),
         (
-            Node::Prod {
+            RawNode::Prod {
                 ty: inferred_domain,
                 body: inferred_body,
                 ..
             },
-            Node::Prod {
+            RawNode::Prod {
                 ty: expected_domain,
                 body: expected_body,
                 ..
