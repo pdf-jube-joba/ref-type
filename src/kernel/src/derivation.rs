@@ -179,7 +179,12 @@ impl<'env, 'context> CheckSession<'env, 'context> {
                 };
                 let mut context = candidate.context.clone();
                 CheckSession::new(self.env, self.current_module, &mut context)
-                    .check_pts(candidate.witness, proposition)
+                    // The matching step established conversion to the obligation.
+                    // Check the independently stated certificate: the obligation
+                    // may contain an expanded run whose own certificate is another
+                    // entry in this block, whereas the statement uses a checked
+                    // definition for that same computation.
+                    .check_pts(candidate.witness, candidate.proposition)
                     .map_err(|error| {
                         Box::new(error.with_frame(
                             rule,

@@ -1,8 +1,9 @@
+\import \root.Bool() \as B;
 /*
  * Natural numbers in the Program universe.
  *
- * Recursive computation is expressed as a certified state machine.  No PTS
- * primitive recursor is used: AddState::running transfers one successor from
+ * Recursive computation is expressed as a state machine.  Program does not
+ * use a PTS primitive recursor: AddState::running transfers one successor from
  * the remaining operand to the accumulator on every run step.
  */
 \inductive Nat: \VType :=
@@ -44,3 +45,747 @@
         Nat,
         addStep,
         AddState::running left right)))));
+
+
+/* Set specifications and the termination certificate for the Program above. */
+\definition addStepSet: AddState -> \RunStep(AddState, Nat) :=
+  \Force(\U(\CFun(AddState, \F(\PRunStep(AddState, Nat)))),
+    \box(\U(\CFun(AddState, \F(\PRunStep(AddState, Nat)))), addStep));
+
+\definition addReady: \RunStep(AddState, Nat) -> \Prop :=
+  (t: \RunStep(AddState, Nat)) =>
+    \Pred(Nat, \runStepRec(AddState, Nat,
+      ((t: \RunStep(AddState, Nat)) => \Power(Nat)),
+      ((s: AddState) => \Subset(n, Nat, \Acc(AddState, Nat, addStepSet, s))),
+      ((n: Nat) => \Subset(k, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+
+\definition addAccIntro:
+  (s: AddState) -> addReady (addStepSet s) -> \Acc(AddState, Nat, addStepSet, s) :=
+  (s: AddState) => (ready: addReady (addStepSet s)) =>
+    \accintro(AddState, Nat, addStepSet, s,
+      (next: AddState) => (edge: addStepSet s = \continue(AddState, Nat, next)) =>
+        \idelim(addStepSet s = \continue(AddState, Nat, next)
+          \with t: \RunStep(AddState, Nat) => addReady t)
+        \by (ready, edge));
+
+\definition addTerminates:
+  (remaining: Nat) -> (accumulator: Nat) ->
+    \Acc(AddState, Nat, addStepSet, AddState::running accumulator remaining) :=
+  \prec(\Prop, Nat)
+    ((n: Nat) => (a: Nat) -> \Acc(AddState, Nat, addStepSet, AddState::running a n))
+    ((a: Nat) => addAccIntro (AddState::running a Nat::zero) (\refl(Nat::zero)))
+    ((n: Nat) => (ih: (a: Nat) -> \Acc(AddState, Nat, addStepSet, AddState::running a n)) =>
+      (a: Nat) => addAccIntro (AddState::running a (Nat::succ n)) (ih (Nat::succ a)));
+
+\definition addSet: Nat -> Nat -> Nat :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), add))
+  proof {
+    - goal (left, right: Nat):
+        \Acc(AddState, Nat, addStepSet, AddState::running left right) := addTerminates right left;
+  };
+
+\definition addPrec: Nat -> Nat -> Nat :=
+  (a, b: Nat) => \prec(\Set, Nat) ((n: Nat) => Nat)
+    a ((n: Nat) => (sum: Nat) => Nat::succ sum) b;
+
+\definition succCong: (a, b: Nat) -> a = b -> Nat::succ a = Nat::succ b :=
+  (a, b: Nat) => (e: a = b) =>
+    \idelim(a = b \with x: Nat => Nat::succ a = Nat::succ x)
+    \by (\refl(Nat::succ a), e);
+
+\definition addPrecSuccLeft: (a, b: Nat) -> addPrec (Nat::succ a) b = Nat::succ (addPrec a b) :=
+  (a: Nat) => \prec(\Prop, Nat)
+    ((b: Nat) => addPrec (Nat::succ a) b = Nat::succ (addPrec a b))
+    (\refl(Nat::succ a))
+    ((b: Nat) => (ih: addPrec (Nat::succ a) b = Nat::succ (addPrec a b)) =>
+      succCong (addPrec (Nat::succ a) b) (Nat::succ (addPrec a b)) ih);
+
+\definition addMatchesPrec: (b, a: Nat) -> addSet a b = addPrec a b :=
+  \prec(\Prop, Nat)
+    ((b: Nat) => (a: Nat) -> addSet a b = addPrec a b)
+    ((a: Nat) => \refl(a))
+    ((b: Nat) => (ih: (a: Nat) -> addSet a b = addPrec a b) => (a: Nat) =>
+      \idelim(addPrec (Nat::succ a) b = Nat::succ (addPrec a b)
+        \with x: Nat => addSet a (Nat::succ b) = x)
+      \by (ih (Nat::succ a), addPrecSuccLeft a b));
+
+\cdefinition pred: \CFun(Nat, \F(Nat)) := \clam(n, Nat,
+  \vcase(Nat, n) { | zero() => \return(Nat::zero); | succ(k) => \return(k); });
+\definition predSet: Nat -> Nat := \Force(\CFun(Nat, \F(Nat)), \box(\CFun(Nat, \F(Nat)), pred));
+\definition predPrec: Nat -> Nat := (n: Nat) => \prec(\Set, Nat) ((n: Nat) => Nat) (Nat::zero) ((k: Nat) => (ih:
+  Nat) => k) n;
+\definition predMatchesPrec: (n: Nat) -> predSet n = predPrec n :=
+  \prec(\Prop, Nat) ((n: Nat) => predSet n = predPrec n)
+    (\refl(Nat::zero)) ((k: Nat) => (ih: predSet k = predPrec k) => \refl(k));
+
+\cdefinition isZero: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
+  \vcase(Nat, n) { | zero() => \return(B.Bool::true); | succ(k) => \return(B.Bool::false); });
+\definition isZeroSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), isZero));
+\definition isZeroPrec: Nat -> B.Bool := (n: Nat) => \prec(\Set, Nat) ((n: Nat) => B.Bool) (B.Bool::true) ((k:
+  Nat) => (ih: B.Bool) => B.Bool::false) n;
+\definition isZeroMatchesPrec: (n: Nat) -> isZeroSet n = isZeroPrec n :=
+  \prec(\Prop, Nat) ((n: Nat) => isZeroSet n = isZeroPrec n)
+    (\refl(B.Bool::true)) ((k: Nat) => (ih: isZeroSet k = isZeroPrec k) => \refl(B.Bool::false));
+
+/* sub: both operands decrease on every continuing transition. */
+\inductive SubState: \VType := | running: Nat -> Nat -> SubState; ;
+\vdefinition subStep: \U(\CFun(SubState, \F(\PRunStep(SubState, Nat)))) := \thunk(\clam(state, SubState,
+  \vcase(SubState, state) { | running(a, b) =>
+    \vcase(Nat, b) {
+    | zero() => \return(\Pfinish(SubState, Nat, a));
+    | succ(k) => \vcase(Nat, a) {
+      | zero() => \return(\Pfinish(SubState, Nat, Nat::zero));
+      | succ(j) => \return(\Pcontinue(SubState, Nat, SubState::running j k));
+      };
+    };
+  }));
+\cdefinition sub: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(SubState, Nat, subStep, SubState::running a b)))));
+\definition subStepSet: SubState -> \RunStep(SubState, Nat) := \Force(\U(\CFun(SubState, \F(\PRunStep(SubState,
+  Nat)))), \box(\U(\CFun(SubState, \F(\PRunStep(SubState, Nat)))), subStep));
+\definition subReady: \RunStep(SubState, Nat) -> \Prop :=
+  (t: \RunStep(SubState, Nat)) => \Pred(Nat,
+    \runStepRec(SubState, Nat, ((t: \RunStep(SubState, Nat)) => \Power(Nat)),
+      ((s: SubState) => \Subset(n, Nat, \Acc(SubState, Nat, subStepSet, s))),
+      ((r: Nat) => \Subset(n, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+\definition subAccIntro: (s: SubState) -> subReady (subStepSet s) -> \Acc(SubState, Nat, subStepSet, s) :=
+  (s: SubState) => (ready: subReady (subStepSet s)) =>
+    \accintro(SubState, Nat, subStepSet, s,
+      (next: SubState) => (edge: subStepSet s = \continue(SubState, Nat, next)) =>
+        \idelim(subStepSet s = \continue(SubState, Nat, next)
+          \with t: \RunStep(SubState, Nat) => subReady t) \by (ready, edge));
+
+\definition subTerminates: (b, a: Nat) -> \Acc(SubState, Nat, subStepSet, SubState::running (a) (b)) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> \Acc(SubState, Nat, subStepSet, SubState::running (a) (b)))
+    (\prec(\Prop, Nat) ((a: Nat) => \Acc(SubState, Nat, subStepSet, SubState::running (a) (Nat::zero)))
+      (subAccIntro (SubState::running Nat::zero Nat::zero) (\refl(Nat::zero))) ((j: Nat) => (unused:
+      \Acc(SubState, Nat, subStepSet, SubState::running (j) (Nat::zero))) => subAccIntro (SubState::running
+      (Nat::succ j) Nat::zero) (\refl(Nat::zero)))) ((k: Nat) => (ih: (a: Nat) -> \Acc(SubState, Nat,
+      subStepSet, SubState::running (a) (k))) =>
+      \prec(\Prop, Nat) ((a: Nat) => \Acc(SubState, Nat, subStepSet, SubState::running (a) (Nat::succ k)))
+        (subAccIntro (SubState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
+        ((j: Nat) => (unused: \Acc(SubState, Nat, subStepSet, SubState::running (j) (Nat::succ k))) =>
+          subAccIntro (SubState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\definition subSet: Nat -> Nat -> Nat := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), \box(\CFun(Nat,
+  \F(\U(\CFun(Nat, \F(Nat))))), sub))
+  proof { - goal (a, b: Nat): \Acc(SubState, Nat, subStepSet, SubState::running (a) (b)) := subTerminates b a;
+    };
+\definition subPrec: Nat -> Nat -> Nat := (a, b: Nat) =>
+  \prec(\Set, Nat) ((b: Nat) => Nat -> Nat)
+    ((a: Nat) => a)
+    ((k: Nat) => (rec: Nat -> Nat) => (a: Nat) =>
+      \prec(\Set, Nat) ((a: Nat) => Nat) (Nat::zero)
+        ((j: Nat) => (unused: Nat) => rec j) a) b a;
+
+\definition subMatchesPrec: (b, a: Nat) -> subSet (a) (b) = subPrec (a) (b) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> subSet (a) (b) = subPrec (a) (b))
+    (\prec(\Prop, Nat) ((a: Nat) => subSet (a) (Nat::zero) = subPrec (a) (Nat::zero)) (\refl(subPrec Nat::zero
+      Nat::zero)) ((j: Nat) => (unused: subSet (j) (Nat::zero) = subPrec (j) (Nat::zero)) => \refl(subPrec
+      (Nat::succ j) Nat::zero)))
+    ((k: Nat) => (ih: (a: Nat) -> subSet (a) (k) = subPrec (a) (k)) =>
+      \prec(\Prop, Nat) ((a: Nat) => subSet (a) (Nat::succ k) = subPrec (a) (Nat::succ k))
+        (\refl(Nat::zero))
+        ((j: Nat) => (unused: subSet (j) (Nat::succ k) = subPrec (j) (Nat::succ k)) => ih j));
+
+/* eqb: both operands decrease on every continuing transition. */
+\inductive EqbState: \VType := | running: Nat -> Nat -> EqbState; ;
+\vdefinition eqbStep: \U(\CFun(EqbState, \F(\PRunStep(EqbState, B.Bool)))) := \thunk(\clam(state, EqbState,
+  \vcase(EqbState, state) { | running(a, b) =>
+    \vcase(Nat, b) {
+    | zero() => \vcase(Nat, a) { | zero() => \return(\Pfinish(EqbState, B.Bool, B.Bool::true)); | succ(k) =>
+      \return(\Pfinish(EqbState, B.Bool, B.Bool::false)); };
+    | succ(k) => \vcase(Nat, a) {
+      | zero() => \return(\Pfinish(EqbState, B.Bool, B.Bool::false));
+      | succ(j) => \return(\Pcontinue(EqbState, B.Bool, EqbState::running j k));
+      };
+    };
+  }));
+\cdefinition eqb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(EqbState, B.Bool, eqbStep, EqbState::running a b)))));
+\definition eqbStepSet: EqbState -> \RunStep(EqbState, B.Bool) := \Force(\U(\CFun(EqbState,
+  \F(\PRunStep(EqbState, B.Bool)))), \box(\U(\CFun(EqbState, \F(\PRunStep(EqbState, B.Bool)))), eqbStep));
+\definition eqbReady: \RunStep(EqbState, B.Bool) -> \Prop :=
+  (t: \RunStep(EqbState, B.Bool)) => \Pred(Nat,
+    \runStepRec(EqbState, B.Bool, ((t: \RunStep(EqbState, B.Bool)) => \Power(Nat)),
+      ((s: EqbState) => \Subset(n, Nat, \Acc(EqbState, B.Bool, eqbStepSet, s))),
+      ((r: B.Bool) => \Subset(n, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+\definition eqbAccIntro: (s: EqbState) -> eqbReady (eqbStepSet s) -> \Acc(EqbState, B.Bool, eqbStepSet, s) :=
+  (s: EqbState) => (ready: eqbReady (eqbStepSet s)) =>
+    \accintro(EqbState, B.Bool, eqbStepSet, s,
+      (next: EqbState) => (edge: eqbStepSet s = \continue(EqbState, B.Bool, next)) =>
+        \idelim(eqbStepSet s = \continue(EqbState, B.Bool, next)
+          \with t: \RunStep(EqbState, B.Bool) => eqbReady t) \by (ready, edge));
+
+\definition eqbTerminates: (b, a: Nat) -> \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (a) (b)) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (a) (b)))
+    (\prec(\Prop, Nat) ((a: Nat) => \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (a) (Nat::zero)))
+      (eqbAccIntro (EqbState::running Nat::zero Nat::zero) (\refl(Nat::zero))) ((j: Nat) => (unused:
+      \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (j) (Nat::zero))) => eqbAccIntro (EqbState::running
+      (Nat::succ j) Nat::zero) (\refl(Nat::zero)))) ((k: Nat) => (ih: (a: Nat) -> \Acc(EqbState, B.Bool,
+      eqbStepSet, EqbState::running (a) (k))) =>
+      \prec(\Prop, Nat) ((a: Nat) => \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (a) (Nat::succ k)))
+        (eqbAccIntro (EqbState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
+        ((j: Nat) => (unused: \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (j) (Nat::succ k))) =>
+          eqbAccIntro (EqbState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\definition eqbSet: Nat -> Nat -> B.Bool := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))), \box(\CFun(Nat,
+  \F(\U(\CFun(Nat, \F(B.Bool))))), eqb))
+  proof { - goal (a, b: Nat): \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (a) (b)) := eqbTerminates b
+    a; };
+\definition eqbPrec: Nat -> Nat -> B.Bool := (a, b: Nat) =>
+  \prec(\Set, Nat) ((b: Nat) => Nat -> B.Bool)
+    ((a: Nat) => isZeroSet a)
+    ((k: Nat) => (rec: Nat -> B.Bool) => (a: Nat) =>
+      \prec(\Set, Nat) ((a: Nat) => B.Bool) (B.Bool::false)
+        ((j: Nat) => (unused: B.Bool) => rec j) a) b a;
+
+\definition eqbMatchesPrec: (b, a: Nat) -> eqbSet (a) (b) = eqbPrec (a) (b) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> eqbSet (a) (b) = eqbPrec (a) (b))
+    (\prec(\Prop, Nat) ((a: Nat) => eqbSet (a) (Nat::zero) = eqbPrec (a) (Nat::zero)) (\refl(eqbPrec Nat::zero
+      Nat::zero)) ((j: Nat) => (unused: eqbSet (j) (Nat::zero) = eqbPrec (j) (Nat::zero)) => \refl(eqbPrec
+      (Nat::succ j) Nat::zero)))
+    ((k: Nat) => (ih: (a: Nat) -> eqbSet (a) (k) = eqbPrec (a) (k)) =>
+      \prec(\Prop, Nat) ((a: Nat) => eqbSet (a) (Nat::succ k) = eqbPrec (a) (Nat::succ k))
+        (\refl(B.Bool::false))
+        ((j: Nat) => (unused: eqbSet (j) (Nat::succ k) = eqbPrec (j) (Nat::succ k)) => ih j));
+
+/* leb: both operands decrease on every continuing transition. */
+\inductive LebState: \VType := | running: Nat -> Nat -> LebState; ;
+\vdefinition lebStep: \U(\CFun(LebState, \F(\PRunStep(LebState, B.Bool)))) := \thunk(\clam(state, LebState,
+  \vcase(LebState, state) { | running(a, b) =>
+    \vcase(Nat, b) {
+    | zero() => \vcase(Nat, a) { | zero() => \return(\Pfinish(LebState, B.Bool, B.Bool::true)); | succ(k) =>
+      \return(\Pfinish(LebState, B.Bool, B.Bool::false)); };
+    | succ(k) => \vcase(Nat, a) {
+      | zero() => \return(\Pfinish(LebState, B.Bool, B.Bool::true));
+      | succ(j) => \return(\Pcontinue(LebState, B.Bool, LebState::running j k));
+      };
+    };
+  }));
+\cdefinition leb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(LebState, B.Bool, lebStep, LebState::running a b)))));
+\definition lebStepSet: LebState -> \RunStep(LebState, B.Bool) := \Force(\U(\CFun(LebState,
+  \F(\PRunStep(LebState, B.Bool)))), \box(\U(\CFun(LebState, \F(\PRunStep(LebState, B.Bool)))), lebStep));
+\definition lebReady: \RunStep(LebState, B.Bool) -> \Prop :=
+  (t: \RunStep(LebState, B.Bool)) => \Pred(Nat,
+    \runStepRec(LebState, B.Bool, ((t: \RunStep(LebState, B.Bool)) => \Power(Nat)),
+      ((s: LebState) => \Subset(n, Nat, \Acc(LebState, B.Bool, lebStepSet, s))),
+      ((r: B.Bool) => \Subset(n, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+\definition lebAccIntro: (s: LebState) -> lebReady (lebStepSet s) -> \Acc(LebState, B.Bool, lebStepSet, s) :=
+  (s: LebState) => (ready: lebReady (lebStepSet s)) =>
+    \accintro(LebState, B.Bool, lebStepSet, s,
+      (next: LebState) => (edge: lebStepSet s = \continue(LebState, B.Bool, next)) =>
+        \idelim(lebStepSet s = \continue(LebState, B.Bool, next)
+          \with t: \RunStep(LebState, B.Bool) => lebReady t) \by (ready, edge));
+
+\definition lebTerminates: (b, a: Nat) -> \Acc(LebState, B.Bool, lebStepSet, LebState::running (a) (b)) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> \Acc(LebState, B.Bool, lebStepSet, LebState::running (a) (b)))
+    (\prec(\Prop, Nat) ((a: Nat) => \Acc(LebState, B.Bool, lebStepSet, LebState::running (a) (Nat::zero)))
+      (lebAccIntro (LebState::running Nat::zero Nat::zero) (\refl(Nat::zero))) ((j: Nat) => (unused:
+      \Acc(LebState, B.Bool, lebStepSet, LebState::running (j) (Nat::zero))) => lebAccIntro (LebState::running
+      (Nat::succ j) Nat::zero) (\refl(Nat::zero)))) ((k: Nat) => (ih: (a: Nat) -> \Acc(LebState, B.Bool,
+      lebStepSet, LebState::running (a) (k))) =>
+      \prec(\Prop, Nat) ((a: Nat) => \Acc(LebState, B.Bool, lebStepSet, LebState::running (a) (Nat::succ k)))
+        (lebAccIntro (LebState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
+        ((j: Nat) => (unused: \Acc(LebState, B.Bool, lebStepSet, LebState::running (j) (Nat::succ k))) =>
+          lebAccIntro (LebState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\definition lebSet: Nat -> Nat -> B.Bool := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))), \box(\CFun(Nat,
+  \F(\U(\CFun(Nat, \F(B.Bool))))), leb))
+  proof { - goal (a, b: Nat): \Acc(LebState, B.Bool, lebStepSet, LebState::running (a) (b)) := lebTerminates b
+    a; };
+\definition lebPrec: Nat -> Nat -> B.Bool := (a, b: Nat) =>
+  \prec(\Set, Nat) ((b: Nat) => Nat -> B.Bool)
+    ((a: Nat) => isZeroSet a)
+    ((k: Nat) => (rec: Nat -> B.Bool) => (a: Nat) =>
+      \prec(\Set, Nat) ((a: Nat) => B.Bool) (B.Bool::true)
+        ((j: Nat) => (unused: B.Bool) => rec j) a) b a;
+
+\definition lebMatchesPrec: (b, a: Nat) -> lebSet (a) (b) = lebPrec (a) (b) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> lebSet (a) (b) = lebPrec (a) (b))
+    (\prec(\Prop, Nat) ((a: Nat) => lebSet (a) (Nat::zero) = lebPrec (a) (Nat::zero)) (\refl(lebPrec Nat::zero
+      Nat::zero)) ((j: Nat) => (unused: lebSet (j) (Nat::zero) = lebPrec (j) (Nat::zero)) => \refl(lebPrec
+      (Nat::succ j) Nat::zero)))
+    ((k: Nat) => (ih: (a: Nat) -> lebSet (a) (k) = lebPrec (a) (k)) =>
+      \prec(\Prop, Nat) ((a: Nat) => lebSet (a) (Nat::succ k) = lebPrec (a) (Nat::succ k))
+        (\refl(B.Bool::true))
+        ((j: Nat) => (unused: lebSet (j) (Nat::succ k) = lebPrec (j) (Nat::succ k)) => ih j));
+
+/* ltb: both operands decrease on every continuing transition. */
+\inductive LtbState: \VType := | running: Nat -> Nat -> LtbState; ;
+\vdefinition ltbStep: \U(\CFun(LtbState, \F(\PRunStep(LtbState, B.Bool)))) := \thunk(\clam(state, LtbState,
+  \vcase(LtbState, state) { | running(a, b) =>
+    \vcase(Nat, b) {
+    | zero() => \return(\Pfinish(LtbState, B.Bool, B.Bool::false));
+    | succ(k) => \vcase(Nat, a) {
+      | zero() => \return(\Pfinish(LtbState, B.Bool, B.Bool::true));
+      | succ(j) => \return(\Pcontinue(LtbState, B.Bool, LtbState::running j k));
+      };
+    };
+  }));
+\cdefinition ltb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(LtbState, B.Bool, ltbStep, LtbState::running a b)))));
+\definition ltbStepSet: LtbState -> \RunStep(LtbState, B.Bool) := \Force(\U(\CFun(LtbState,
+  \F(\PRunStep(LtbState, B.Bool)))), \box(\U(\CFun(LtbState, \F(\PRunStep(LtbState, B.Bool)))), ltbStep));
+\definition ltbReady: \RunStep(LtbState, B.Bool) -> \Prop :=
+  (t: \RunStep(LtbState, B.Bool)) => \Pred(Nat,
+    \runStepRec(LtbState, B.Bool, ((t: \RunStep(LtbState, B.Bool)) => \Power(Nat)),
+      ((s: LtbState) => \Subset(n, Nat, \Acc(LtbState, B.Bool, ltbStepSet, s))),
+      ((r: B.Bool) => \Subset(n, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+\definition ltbAccIntro: (s: LtbState) -> ltbReady (ltbStepSet s) -> \Acc(LtbState, B.Bool, ltbStepSet, s) :=
+  (s: LtbState) => (ready: ltbReady (ltbStepSet s)) =>
+    \accintro(LtbState, B.Bool, ltbStepSet, s,
+      (next: LtbState) => (edge: ltbStepSet s = \continue(LtbState, B.Bool, next)) =>
+        \idelim(ltbStepSet s = \continue(LtbState, B.Bool, next)
+          \with t: \RunStep(LtbState, B.Bool) => ltbReady t) \by (ready, edge));
+
+\definition ltbTerminates: (b, a: Nat) -> \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (a) (b)) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (a) (b)))
+    (\prec(\Prop, Nat) ((a: Nat) => \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (a) (Nat::zero)))
+      (ltbAccIntro (LtbState::running Nat::zero Nat::zero) (\refl(Nat::zero))) ((j: Nat) => (unused:
+      \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (j) (Nat::zero))) => ltbAccIntro (LtbState::running
+      (Nat::succ j) Nat::zero) (\refl(Nat::zero)))) ((k: Nat) => (ih: (a: Nat) -> \Acc(LtbState, B.Bool,
+      ltbStepSet, LtbState::running (a) (k))) =>
+      \prec(\Prop, Nat) ((a: Nat) => \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (a) (Nat::succ k)))
+        (ltbAccIntro (LtbState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
+        ((j: Nat) => (unused: \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (j) (Nat::succ k))) =>
+          ltbAccIntro (LtbState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\definition ltbSet: Nat -> Nat -> B.Bool := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))), \box(\CFun(Nat,
+  \F(\U(\CFun(Nat, \F(B.Bool))))), ltb))
+  proof { - goal (a, b: Nat): \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (a) (b)) := ltbTerminates b
+    a; };
+\definition ltbPrec: Nat -> Nat -> B.Bool := (a, b: Nat) =>
+  \prec(\Set, Nat) ((b: Nat) => Nat -> B.Bool)
+    ((a: Nat) => B.Bool::false)
+    ((k: Nat) => (rec: Nat -> B.Bool) => (a: Nat) =>
+      \prec(\Set, Nat) ((a: Nat) => B.Bool) (B.Bool::true)
+        ((j: Nat) => (unused: B.Bool) => rec j) a) b a;
+
+\definition ltbMatchesPrec: (b, a: Nat) -> ltbSet (a) (b) = ltbPrec (a) (b) :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> ltbSet (a) (b) = ltbPrec (a) (b))
+    (\prec(\Prop, Nat) ((a: Nat) => ltbSet (a) (Nat::zero) = ltbPrec (a) (Nat::zero)) (\refl(ltbPrec Nat::zero
+      Nat::zero)) ((j: Nat) => (unused: ltbSet (j) (Nat::zero) = ltbPrec (j) (Nat::zero)) => \refl(ltbPrec
+      (Nat::succ j) Nat::zero)))
+    ((k: Nat) => (ih: (a: Nat) -> ltbSet (a) (k) = ltbPrec (a) (k)) =>
+      \prec(\Prop, Nat) ((a: Nat) => ltbSet (a) (Nat::succ k) = ltbPrec (a) (Nat::succ k))
+        (\refl(B.Bool::true))
+        ((j: Nat) => (unused: ltbSet (j) (Nat::succ k) = ltbPrec (j) (Nat::succ k)) => ih j));
+
+/* A total iterator, shared by multiplication, powers and other finite loops. */
+\inductive IterState: \VType :=
+| running: \U(\CFun(Nat, \F(Nat))) -> Nat -> Nat -> IterState;
+;
+\vdefinition iterStep: \U(\CFun(IterState, \F(\PRunStep(IterState, Nat)))) :=
+  \thunk(\clam(state, IterState, \vcase(IterState, state) {
+  | running(f, value, count) => \vcase(Nat, count) {
+    | zero() => \return(\Pfinish(IterState, Nat, value));
+    | succ(k) => \sequence(\capp(\force(f), value), next, Nat,
+        \return(\Pcontinue(IterState, Nat, IterState::running f next k)));
+    };
+  }));
+\cdefinition iter:
+  \CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))) :=
+  \clam(f, \U(\CFun(Nat, \F(Nat))), \return(\thunk(\clam(value, Nat,
+    \return(\thunk(\clam(count, Nat, \Prun(IterState, Nat, iterStep, IterState::running f value count))))))));
+\definition iterStepSet: IterState -> \RunStep(IterState, Nat) :=
+  \Force(\U(\CFun(IterState, \F(\PRunStep(IterState, Nat)))),
+    \box(\U(\CFun(IterState, \F(\PRunStep(IterState, Nat)))), iterStep));
+\definition iterReady: \RunStep(IterState, Nat) -> \Prop :=
+  (t: \RunStep(IterState, Nat)) => \Pred(Nat,
+    \runStepRec(IterState, Nat, ((t: \RunStep(IterState, Nat)) => \Power(Nat)),
+      ((s: IterState) => \Subset(n, Nat, \Acc(IterState, Nat, iterStepSet, s))),
+      ((r: Nat) => \Subset(n, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+\definition iterAccIntro: (s: IterState) -> iterReady (iterStepSet s) -> \Acc(IterState, Nat, iterStepSet, s) :=
+  (s: IterState) => (ready: iterReady (iterStepSet s)) =>
+    \accintro(IterState, Nat, iterStepSet, s,
+      (next: IterState) => (edge: iterStepSet s = \continue(IterState, Nat, next)) =>
+        \idelim(iterStepSet s = \continue(IterState, Nat, next)
+          \with t: \RunStep(IterState, Nat) => iterReady t) \by (ready, edge));
+\definition iterTerminates: (count: Nat) -> (f: Nat -> Nat) -> (value: Nat) ->
+    \Acc(IterState, Nat, iterStepSet, IterState::running f value count) :=
+  \prec(\Prop, Nat)
+    ((count: Nat) => (f: Nat -> Nat) -> (value: Nat) ->
+      \Acc(IterState, Nat, iterStepSet, IterState::running f value count))
+    ((f: Nat -> Nat) => (value: Nat) =>
+      iterAccIntro (IterState::running f value Nat::zero) (\refl(Nat::zero)))
+    ((k: Nat) => (ih: (f: Nat -> Nat) -> (value: Nat) ->
+      \Acc(IterState, Nat, iterStepSet, IterState::running f value k)) =>
+      (f: Nat -> Nat) => (value: Nat) =>
+        iterAccIntro (IterState::running f value (Nat::succ k)) (ih f (f value)));
+\definition iterSet: (Nat -> Nat) -> Nat -> Nat -> Nat :=
+  \Force(\CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))),
+    \box(\CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))), iter))
+  proof {
+    - goal (f: Nat -> Nat) (value, count: Nat):
+      \Acc(IterState, Nat, iterStepSet, IterState::running f value count) := iterTerminates count f value;
+  };
+\definition iterPrec: (Nat -> Nat) -> Nat -> Nat -> Nat :=
+  (f: Nat -> Nat) => (value, count: Nat) =>
+    \prec(\Set, Nat) ((n: Nat) => Nat) value ((k: Nat) => (previous: Nat) => f previous) count;
+\definition iterPrecStep: (f: Nat -> Nat) -> (count, value: Nat) ->
+  iterPrec f (f value) count = f (iterPrec f value count) :=
+  (f: Nat -> Nat) => \prec(\Prop, Nat)
+    ((count: Nat) => (value: Nat) -> iterPrec f (f value) count = f (iterPrec f value count))
+    ((value: Nat) => \refl(f value))
+    ((k: Nat) => (ih: (value: Nat) -> iterPrec f (f value) k = f (iterPrec f value k)) =>
+      (value: Nat) =>
+        \idelim(iterPrec f (f value) k = f (iterPrec f value k)
+          \with x: Nat => f (iterPrec f (f value) k) = f x)
+        \by (\refl(f (iterPrec f (f value) k)), ih value));
+\definition iterMatchesPrec: (f: Nat -> Nat) -> (count, value: Nat) ->
+  iterSet f value count = iterPrec f value count :=
+  (f: Nat -> Nat) => \prec(\Prop, Nat)
+    ((count: Nat) => (value: Nat) -> iterSet f value count = iterPrec f value count)
+    ((value: Nat) => \refl(value))
+    ((k: Nat) => (ih: (value: Nat) -> iterSet f value k = iterPrec f value k) =>
+      (value: Nat) =>
+        \idelim(iterPrec f (f value) k = f (iterPrec f value k)
+          \with x: Nat => iterSet f value (Nat::succ k) = x)
+        \by (ih (f value), iterPrecStep f k value));
+
+\cdefinition mul: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+  \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+    \Prun(IterState, Nat, iterStep, IterState::running
+      \thunk(\clam(current, Nat, \Prun(AddState, Nat, addStep, AddState::running a current)))
+      Nat::zero b)))));
+\definition mulSet: Nat -> Nat -> Nat :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), mul))
+  proof {
+    - goal (a, b, current: Nat): \Acc(AddState, Nat, addStepSet, AddState::running a current) := addTerminates
+      current a;
+    - goal (a, b: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running (addSet a) Nat::zero b) :=
+      iterTerminates b (addSet a) Nat::zero;
+  };
+\definition mulPrec: Nat -> Nat -> Nat :=
+  (a, b: Nat) => iterPrec (addSet a) Nat::zero b;
+\definition mulMatchesPrec: (a, b: Nat) -> mulSet a b = mulPrec a b :=
+  (a, b: Nat) => iterMatchesPrec (addSet a) b Nat::zero;
+
+\cdefinition pow: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+  \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+    \Prun(IterState, Nat, iterStep, IterState::running
+      \thunk(\clam(current, Nat,
+        \Prun(IterState, Nat, iterStep, IterState::running
+          \thunk(\clam(next, Nat, \Prun(AddState, Nat, addStep, AddState::running a next)))
+          Nat::zero current)))
+      one b)))));
+\definition powSet: Nat -> Nat -> Nat :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), pow))
+  proof {
+    - goal (a, b, current, next: Nat): \Acc(AddState, Nat, addStepSet, AddState::running a next) :=
+      addTerminates next a;
+    - goal (a, b, current: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running (addSet a) Nat::zero
+      current) :=
+      iterTerminates current (addSet a) Nat::zero;
+    - goal (a, b: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running (mulSet a) (Nat::succ Nat::zero) b)
+      :=
+      iterTerminates b (mulSet a) (Nat::succ Nat::zero);
+  };
+\definition powPrec: Nat -> Nat -> Nat := (a, b: Nat) => iterPrec (mulSet a) (Nat::succ Nat::zero) b;
+\definition powMatchesPrec: (a, b: Nat) -> powSet a b = powPrec a b :=
+  (a, b: Nat) => iterMatchesPrec (mulSet a) b (Nat::succ Nat::zero);
+
+/* Equality transport and arithmetic laws on the reflected operations. */
+\definition eqSym: (a, b: Nat) -> a = b -> b = a :=
+  (a, b: Nat) => (e: a = b) => \idelim(a = b \with x: Nat => x = a) \by (\refl(a), e);
+\definition eqTrans: (a, b, c: Nat) -> a = b -> b = c -> a = c :=
+  (a, b, c: Nat) => (ab: a = b) => (bc: b = c) =>
+    \idelim(b = c \with x: Nat => a = x) \by (ab, bc);
+\definition congr: (f: Nat -> Nat) -> (a, b: Nat) -> a = b -> f a = f b :=
+  (f: Nat -> Nat) => (a, b: Nat) => (e: a = b) =>
+    \idelim(a = b \with x: Nat => f a = f x) \by (\refl(f a), e);
+\definition succInjective: (a, b: Nat) -> Nat::succ a = Nat::succ b -> a = b :=
+  (a, b: Nat) => (e: Nat::succ a = Nat::succ b) => congr predSet (Nat::succ a) (Nat::succ b) e;
+\definition predZero: predSet Nat::zero = Nat::zero := \refl(Nat::zero);
+\definition predSucc: (n: Nat) -> predSet (Nat::succ n) = n := (n: Nat) => \refl(n);
+\definition addZeroRight: (a: Nat) -> addSet a Nat::zero = a := (a: Nat) => \refl(a);
+\definition addSuccLeft: (a, b: Nat) -> addSet (Nat::succ a) b = Nat::succ (addSet a b) :=
+  (a, b: Nat) => eqTrans _ _ _ (addMatchesPrec b (Nat::succ a))
+    (eqTrans _ _ _ (addPrecSuccLeft a b)
+      (succCong _ _ (eqSym _ _ (addMatchesPrec b a))));
+\definition addSuccRight: (a, b: Nat) -> addSet a (Nat::succ b) = Nat::succ (addSet a b) :=
+  (a, b: Nat) => addSuccLeft a b;
+\definition addZeroLeft: (a: Nat) -> addSet Nat::zero a = a :=
+  \prec(\Prop, Nat) ((a: Nat) => addSet Nat::zero a = a)
+    (\refl(Nat::zero)) ((a: Nat) => (ih: addSet Nat::zero a = a) =>
+      eqTrans _ _ _ (addSuccRight Nat::zero a) (succCong (addSet Nat::zero a) a ih));
+\definition addComm: (a, b: Nat) -> addSet a b = addSet b a :=
+  (a: Nat) => \prec(\Prop, Nat) ((b: Nat) => addSet a b = addSet b a)
+    (eqSym _ _ (addZeroLeft a))
+    ((b: Nat) => (ih: addSet a b = addSet b a) =>
+      eqTrans _ _ _ (addSuccRight a b)
+        (eqTrans _ _ _ (succCong (addSet a b) (addSet b a) ih) (eqSym _ _ (addSuccLeft b a))));
+\definition addAssoc: (a, b, c: Nat) -> addSet (addSet a b) c = addSet a (addSet b c) :=
+  (a, b: Nat) => \prec(\Prop, Nat)
+    ((c: Nat) => addSet (addSet a b) c = addSet a (addSet b c))
+    (\refl(addSet a b))
+    ((c: Nat) => (ih: addSet (addSet a b) c = addSet a (addSet b c)) =>
+      eqTrans _ _ _ (addSuccRight (addSet a b) c)
+        (eqTrans _ _ _ (succCong (addSet (addSet a b) c) (addSet a (addSet b c)) ih)
+          (eqTrans _ _ _ (eqSym _ _ (addSuccRight a (addSet b c)))
+            (congr (addSet a) _ _ (eqSym _ _ (addSuccRight b c))))));
+\definition addCancelRight: (c, a, b: Nat) -> addSet a c = addSet b c -> a = b :=
+  \prec(\Prop, Nat)
+    ((c: Nat) => (a, b: Nat) -> addSet a c = addSet b c -> a = b)
+    ((a, b: Nat) => (e: a = b) => e)
+    ((c: Nat) => (ih: (a, b: Nat) -> addSet a c = addSet b c -> a = b) =>
+      (a, b: Nat) => (e: addSet a (Nat::succ c) = addSet b (Nat::succ c)) =>
+        ih a b (succInjective _ _
+          (eqTrans _ _ _ (eqSym _ _ (addSuccRight a c))
+            (eqTrans _ _ _ e (addSuccRight b c)))));
+\definition addCancelLeft: (c, a, b: Nat) -> addSet c a = addSet c b -> a = b :=
+  (c, a, b: Nat) => (e: addSet c a = addSet c b) =>
+    addCancelRight c a b (eqTrans _ _ _ (addComm a c) (eqTrans _ _ _ e (addComm c b)));
+\definition subZeroRight: (a: Nat) -> subSet a Nat::zero = a := (a: Nat) => \refl(a);
+\definition subZeroLeft: (a: Nat) -> subSet Nat::zero a = Nat::zero :=
+  \prec(\Prop, Nat) ((a: Nat) => subSet Nat::zero a = Nat::zero)
+    (\refl(Nat::zero)) ((a: Nat) => (ih: subSet Nat::zero a = Nat::zero) => \refl(Nat::zero));
+\definition subSuccSucc: (a, b: Nat) -> subSet (Nat::succ a) (Nat::succ b) = subSet a b :=
+  (a, b: Nat) => \refl(subSet a b);
+\definition subSelf: (a: Nat) -> subSet a a = Nat::zero :=
+  \prec(\Prop, Nat) ((a: Nat) => subSet a a = Nat::zero)
+    (\refl(Nat::zero)) ((a: Nat) => (ih: subSet a a = Nat::zero) => ih);
+\definition subAddCancel: (b, a: Nat) -> subSet (addSet a b) b = a :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> subSet (addSet a b) b = a)
+    ((a: Nat) => \refl(a))
+    ((b: Nat) => (ih: (a: Nat) -> subSet (addSet a b) b = a) => (a: Nat) =>
+      eqTrans _ _ _
+        (congr ((x: Nat) => subSet x (Nat::succ b)) _ _ (addSuccRight a b)) (ih a));
+\definition mulZeroRight: (a: Nat) -> mulSet a Nat::zero = Nat::zero := (a: Nat) => \refl(Nat::zero);
+\definition mulSuccRight: (a, b: Nat) -> mulSet a (Nat::succ b) = addSet a (mulSet a b) :=
+  (a, b: Nat) => eqTrans _ _ _ (mulMatchesPrec a (Nat::succ b))
+    (congr (addSet a) _ _ (eqSym _ _ (mulMatchesPrec a b)));
+\definition powZero: (a: Nat) -> powSet a Nat::zero = Nat::succ Nat::zero := (a: Nat) => \refl(Nat::succ
+  Nat::zero);
+\definition powSucc: (a, b: Nat) -> powSet a (Nat::succ b) = mulSet a (powSet a b) :=
+  (a, b: Nat) => eqTrans _ _ _ (powMatchesPrec a (Nat::succ b))
+    (congr (mulSet a) _ _ (eqSym _ _ (powMatchesPrec a b)));
+
+/* Selection is reflected once, then shared by min and max. */
+\cdefinition choose: \CFun(B.Bool, \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))) :=
+  \clam(test, B.Bool, \return(\thunk(\clam(yes, Nat, \return(\thunk(\clam(no, Nat,
+    \vcase(B.Bool, test) { | false() => \return(no); | true() => \return(yes); })))))));
+\definition chooseSet: B.Bool -> Nat -> Nat -> Nat :=
+  \Force(\CFun(B.Bool, \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))),
+    \box(\CFun(B.Bool, \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))), choose));
+\definition choosePrec: B.Bool -> Nat -> Nat -> Nat :=
+  (test: B.Bool) => (yes, no: Nat) => \prec(\Set, B.Bool) ((b: B.Bool) => Nat) no yes test;
+\definition chooseMatchesPrec: (test: B.Bool) -> (yes, no: Nat) -> chooseSet test yes no = choosePrec test yes
+  no :=
+  \prec(\Prop, B.Bool) ((test: B.Bool) => (yes, no: Nat) -> chooseSet test yes no = choosePrec test yes no)
+    ((yes, no: Nat) => \refl(no)) ((yes, no: Nat) => \refl(yes));
+
+\cdefinition min: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \sequence(\Prun(LtbState, B.Bool, ltbStep, LtbState::running a b), test, B.Bool,
+    \vcase(B.Bool, test) { | false() => \return(b); | true() => \return(a); })))));
+\definition minSet: Nat -> Nat -> Nat := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), \box(\CFun(Nat,
+  \F(\U(\CFun(Nat, \F(Nat))))), min))
+  proof { - goal (a, b: Nat): \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running a b) := ltbTerminates b a; };
+\definition minPrec: Nat -> Nat -> Nat := (a, b: Nat) => choosePrec (ltbPrec a b) a b;
+\definition minMatchesPrec: (a, b: Nat) -> minSet a b = minPrec a b :=
+  (a, b: Nat) =>
+    \idelim(ltbSet a b = ltbPrec a b
+      \with test: B.Bool => minSet a b = choosePrec test a b)
+    \by (chooseMatchesPrec (ltbSet a b) a b, ltbMatchesPrec b a);
+
+\cdefinition max: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \sequence(\Prun(LtbState, B.Bool, ltbStep, LtbState::running a b), test, B.Bool,
+    \vcase(B.Bool, test) { | false() => \return(a); | true() => \return(b); })))));
+\definition maxSet: Nat -> Nat -> Nat := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), \box(\CFun(Nat,
+  \F(\U(\CFun(Nat, \F(Nat))))), max))
+  proof { - goal (a, b: Nat): \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running a b) := ltbTerminates b a; };
+\definition maxPrec: Nat -> Nat -> Nat := (a, b: Nat) => choosePrec (ltbPrec a b) b a;
+\definition maxMatchesPrec: (a, b: Nat) -> maxSet a b = maxPrec a b :=
+  (a, b: Nat) =>
+    \idelim(ltbSet a b = ltbPrec a b
+      \with test: B.Bool => maxSet a b = choosePrec test b a)
+    \by (chooseMatchesPrec (ltbSet a b) b a, ltbMatchesPrec b a);
+
+\cdefinition toggle: \CFun(Nat, \F(Nat)) := \clam(n, Nat,
+  \vcase(Nat, n) { | zero() => \return(one); | succ(k) => \return(Nat::zero); });
+\definition toggleSet: Nat -> Nat := \Force(\CFun(Nat, \F(Nat)), \box(\CFun(Nat, \F(Nat)), toggle));
+\definition togglePrec: Nat -> Nat := (n: Nat) =>
+  \prec(\Set, Nat) ((n: Nat) => Nat) (Nat::succ Nat::zero) ((k, ih: Nat) => Nat::zero) n;
+\definition toggleMatchesPrec: (n: Nat) -> toggleSet n = togglePrec n :=
+  \prec(\Prop, Nat) ((n: Nat) => toggleSet n = togglePrec n)
+    (\refl(Nat::succ Nat::zero)) ((k: Nat) => (ih: toggleSet k = togglePrec k) => \refl(Nat::zero));
+
+\cdefinition even: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
+  \sequence(\Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n), parity, Nat,
+    \vcase(Nat, parity) { | zero() => \return(B.Bool::true); | succ(k) => \return(B.Bool::false); }));
+\definition evenSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), even))
+  proof { - goal (n: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running toggleSet Nat::zero n) :=
+    iterTerminates n toggleSet Nat::zero; };
+\definition evenResult: Nat -> B.Bool := (n: Nat) =>
+  \prec(\Set, Nat) ((n: Nat) => B.Bool) B.Bool::true ((k: Nat) => (ih: B.Bool) => B.Bool::false) n;
+\cdefinition evenTest: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
+  \vcase(Nat, n) { | zero() => \return(B.Bool::true); | succ(k) => \return(B.Bool::false); });
+\definition evenTestSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)),
+  evenTest));
+\definition evenTestMatches: (n: Nat) -> evenTestSet n = evenResult n :=
+  \prec(\Prop, Nat) ((n: Nat) => evenTestSet n = evenResult n)
+    (\refl(B.Bool::true)) ((k: Nat) => (ih: evenTestSet k = evenResult k) => \refl(B.Bool::false));
+\definition evenPrec: Nat -> B.Bool := (n: Nat) => evenResult (iterPrec toggleSet Nat::zero n);
+\definition evenMatchesPrec: (n: Nat) -> evenSet n = evenPrec n := (n: Nat) =>
+  \idelim(iterPrec toggleSet Nat::zero n = iterSet toggleSet Nat::zero n
+    \with k: Nat => evenTestSet k = evenPrec n)
+  \by (evenTestMatches (iterPrec toggleSet Nat::zero n),
+    eqSym _ _ (iterMatchesPrec toggleSet n Nat::zero));
+
+\cdefinition odd: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
+  \sequence(\Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n), parity, Nat,
+    \vcase(Nat, parity) { | zero() => \return(B.Bool::false); | succ(k) => \return(B.Bool::true); }));
+\definition oddSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), odd))
+  proof { - goal (n: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running toggleSet Nat::zero n) :=
+    iterTerminates n toggleSet Nat::zero; };
+\definition oddResult: Nat -> B.Bool := (n: Nat) =>
+  \prec(\Set, Nat) ((n: Nat) => B.Bool) B.Bool::false ((k: Nat) => (ih: B.Bool) => B.Bool::true) n;
+\cdefinition oddTest: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
+  \vcase(Nat, n) { | zero() => \return(B.Bool::false); | succ(k) => \return(B.Bool::true); });
+\definition oddTestSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), oddTest));
+\definition oddTestMatches: (n: Nat) -> oddTestSet n = oddResult n :=
+  \prec(\Prop, Nat) ((n: Nat) => oddTestSet n = oddResult n)
+    (\refl(B.Bool::false)) ((k: Nat) => (ih: oddTestSet k = oddResult k) => \refl(B.Bool::true));
+\definition oddPrec: Nat -> B.Bool := (n: Nat) => oddResult (iterPrec toggleSet Nat::zero n);
+\definition oddMatchesPrec: (n: Nat) -> oddSet n = oddPrec n := (n: Nat) =>
+  \idelim(iterPrec toggleSet Nat::zero n = iterSet toggleSet Nat::zero n
+    \with k: Nat => oddTestSet k = oddPrec n)
+  \by (oddTestMatches (iterPrec toggleSet Nat::zero n),
+    eqSym _ _ (iterMatchesPrec toggleSet n Nat::zero));
+
+/* Boolean decisions can be consumed directly as propositions. */
+\definition zeroNeSucc: (n: Nat) -> Nat::zero = Nat::succ n -> B.False :=
+  (n: Nat) => (e: Nat::zero = Nat::succ n) => B.trueNeFalse
+    (\idelim(Nat::zero = Nat::succ n \with x: Nat => isZeroSet Nat::zero = isZeroSet x)
+      \by (\refl(B.Bool::true), e));
+\definition succNeZero: (n: Nat) -> Nat::succ n = Nat::zero -> B.False :=
+  (n: Nat) => (e: Nat::succ n = Nat::zero) => zeroNeSucc n (eqSym _ _ e);
+\definition eqbRefl: (n: Nat) -> eqbSet n n = B.Bool::true :=
+  \prec(\Prop, Nat) ((n: Nat) => eqbSet n n = B.Bool::true)
+    (\refl(B.Bool::true)) ((n: Nat) => (ih: eqbSet n n = B.Bool::true) => ih);
+\definition eqOfEqbTrue: (b, a: Nat) -> eqbSet a b = B.Bool::true -> a = b :=
+  \prec(\Prop, Nat) ((b: Nat) => (a: Nat) -> eqbSet a b = B.Bool::true -> a = b)
+    (\prec(\Prop, Nat) ((a: Nat) => eqbSet a Nat::zero = B.Bool::true -> a = Nat::zero)
+      ((e: B.Bool::true = B.Bool::true) => \refl(Nat::zero))
+      ((a: Nat) => (unused: eqbSet a Nat::zero = B.Bool::true -> a = Nat::zero) =>
+        (e: B.Bool::false = B.Bool::true) => B.absurd (Nat::succ a = Nat::zero) e))
+    ((b: Nat) => (ih: (a: Nat) -> eqbSet a b = B.Bool::true -> a = b) =>
+      \prec(\Prop, Nat) ((a: Nat) => eqbSet a (Nat::succ b) = B.Bool::true -> a = Nat::succ b)
+        ((e: B.Bool::false = B.Bool::true) => B.absurd (Nat::zero = Nat::succ b) e)
+        ((a: Nat) => (unused: eqbSet a (Nat::succ b) = B.Bool::true -> a = Nat::succ b) =>
+          (e: eqbSet a b = B.Bool::true) => succCong a b (ih a e)));
+\definition eqbTrueOfEq: (a, b: Nat) -> a = b -> eqbSet a b = B.Bool::true :=
+  (a, b: Nat) => (e: a = b) =>
+    \idelim(a = b \with x: Nat => eqbSet a x = B.Bool::true) \by (eqbRefl a, e);
+\definition Le: Nat -> Nat -> \Prop := (a, b: Nat) => lebSet a b = B.Bool::true;
+\definition Lt: Nat -> Nat -> \Prop := (a, b: Nat) => ltbSet a b = B.Bool::true;
+\definition leRefl: (n: Nat) -> Le n n :=
+  \prec(\Prop, Nat) ((n: Nat) => Le n n)
+    (\refl(B.Bool::true)) ((n: Nat) => (ih: Le n n) => ih);
+\definition zeroLe: (n: Nat) -> Le Nat::zero n :=
+  \prec(\Prop, Nat) ((n: Nat) => Le Nat::zero n)
+    (\refl(B.Bool::true)) ((n: Nat) => (ih: Le Nat::zero n) => \refl(B.Bool::true));
+\definition ltIrrefl: (n: Nat) -> Lt n n -> B.False :=
+  \prec(\Prop, Nat) ((n: Nat) => Lt n n -> B.False)
+    B.falseNeTrue ((n: Nat) => (ih: Lt n n -> B.False) => ih);
+\definition leSuccSucc: (a, b: Nat) -> Le a b -> Le (Nat::succ a) (Nat::succ b) :=
+  (a, b: Nat) => (e: Le a b) => e;
+\definition leOfSuccSucc: (a, b: Nat) -> Le (Nat::succ a) (Nat::succ b) -> Le a b :=
+  (a, b: Nat) => (e: Le (Nat::succ a) (Nat::succ b)) => e;
+\definition ltSuccSucc: (a, b: Nat) -> Lt a b -> Lt (Nat::succ a) (Nat::succ b) :=
+  (a, b: Nat) => (e: Lt a b) => e;
+\definition leZeroEq: (a: Nat) -> Le a Nat::zero -> a = Nat::zero :=
+  \prec(\Prop, Nat) ((a: Nat) => Le a Nat::zero -> a = Nat::zero)
+    ((e: Le Nat::zero Nat::zero) => \refl(Nat::zero))
+    ((a: Nat) => (ih: Le a Nat::zero -> a = Nat::zero) => (e: Le (Nat::succ a) Nat::zero) =>
+      B.absurd (Nat::succ a = Nat::zero) e);
+\definition leAntisym: (a, b: Nat) -> Le a b -> Le b a -> a = b :=
+  \prec(\Prop, Nat) ((a: Nat) => (b: Nat) -> Le a b -> Le b a -> a = b)
+    ((b: Nat) => (ab: Le Nat::zero b) => (ba: Le b Nat::zero) => eqSym b Nat::zero (leZeroEq b ba))
+    ((a: Nat) => (ih: (b: Nat) -> Le a b -> Le b a -> a = b) =>
+      \prec(\Prop, Nat) ((b: Nat) => Le (Nat::succ a) b -> Le b (Nat::succ a) -> Nat::succ a = b)
+        ((ab: Le (Nat::succ a) Nat::zero) => (ba: Le Nat::zero (Nat::succ a)) => leZeroEq (Nat::succ a) ab)
+        ((b: Nat) => (unused: Le (Nat::succ a) b -> Le b (Nat::succ a) -> Nat::succ a = b) =>
+          (ab: Le (Nat::succ a) (Nat::succ b)) => (ba: Le (Nat::succ b) (Nat::succ a)) =>
+            succCong a b (ih b ab ba)));
+\definition leTrans: (a, b, c: Nat) -> Le a b -> Le b c -> Le a c :=
+  \prec(\Prop, Nat) ((a: Nat) => (b, c: Nat) -> Le a b -> Le b c -> Le a c)
+    ((b, c: Nat) => (ab: Le Nat::zero b) => (bc: Le b c) => zeroLe c)
+    ((a: Nat) => (ih: (b, c: Nat) -> Le a b -> Le b c -> Le a c) =>
+      \prec(\Prop, Nat) ((b: Nat) => (c: Nat) -> Le (Nat::succ a) b -> Le b c -> Le (Nat::succ a) c)
+        ((c: Nat) => (ab: Le (Nat::succ a) Nat::zero) => (bc: Le Nat::zero c) =>
+          B.absurd (Le (Nat::succ a) c) ab)
+        ((b: Nat) => (unused: (c: Nat) -> Le (Nat::succ a) b -> Le b c -> Le (Nat::succ a) c) =>
+          \prec(\Prop, Nat) ((c: Nat) => Le (Nat::succ a) (Nat::succ b) -> Le (Nat::succ b) c -> Le (Nat::succ
+            a) c)
+            ((ab: Le (Nat::succ a) (Nat::succ b)) => (bc: Le (Nat::succ b) Nat::zero) => B.absurd (Le (Nat::succ
+              a) Nat::zero) bc
+            )
+            ((c: Nat) => (unusedC: Le (Nat::succ a) (Nat::succ b) -> Le (Nat::succ b) c -> Le (Nat::succ a) c)
+              =>
+              (ab: Le (Nat::succ a) (Nat::succ b)) => (bc: Le (Nat::succ b) (Nat::succ c)) => ih b c ab bc)));
+
+\definition addCong: (a, b, c, d: Nat) -> a = b -> c = d -> addSet a c = addSet b d :=
+  (a, b, c, d: Nat) => (ab: a = b) => (cd: c = d) =>
+    eqTrans _ _ _ (congr ((x: Nat) => addSet x c) a b ab) (congr (addSet b) c d cd);
+\definition addSwap: (a, b, c: Nat) -> addSet a (addSet b c) = addSet b (addSet a c) :=
+  (a, b, c: Nat) => eqTrans _ _ _ (eqSym _ _ (addAssoc a b c))
+    (eqTrans _ _ _ (congr ((x: Nat) => addSet x c) _ _ (addComm a b)) (addAssoc b a c));
+\definition addInterchange: (a, b, c, d: Nat) ->
+  addSet (addSet a b) (addSet c d) = addSet (addSet a c) (addSet b d) :=
+  (a, b, c, d: Nat) => eqTrans _ _ _ (addAssoc a b (addSet c d))
+    (eqTrans _ _ _ (congr (addSet a) _ _ (addSwap b c d)) (eqSym _ _ (addAssoc a c (addSet b d))));
+\definition mulZeroLeft: (a: Nat) -> mulSet Nat::zero a = Nat::zero :=
+  \prec(\Prop, Nat) ((a: Nat) => mulSet Nat::zero a = Nat::zero)
+    (\refl(Nat::zero)) ((a: Nat) => (ih: mulSet Nat::zero a = Nat::zero) =>
+      eqTrans _ _ _ (mulSuccRight Nat::zero a) (eqTrans (addSet Nat::zero (mulSet Nat::zero a)) (mulSet
+        Nat::zero a) Nat::zero (addZeroLeft (mulSet Nat::zero a)) ih));
+\definition mulOneLeft: (a: Nat) -> mulSet (Nat::succ Nat::zero) a = a :=
+  \prec(\Prop, Nat) ((a: Nat) => mulSet (Nat::succ Nat::zero) a = a)
+    (\refl(Nat::zero)) ((a: Nat) => (ih: mulSet (Nat::succ Nat::zero) a = a) =>
+      eqTrans _ _ _ (mulSuccRight (Nat::succ Nat::zero) a)
+        (eqTrans _ _ _ (addSuccLeft Nat::zero (mulSet (Nat::succ Nat::zero) a))
+          (succCong (addSet Nat::zero (mulSet (Nat::succ Nat::zero) a)) a
+            (eqTrans (addSet Nat::zero (mulSet (Nat::succ Nat::zero) a)) (mulSet (Nat::succ Nat::zero) a) a
+              (addZeroLeft (mulSet (Nat::succ Nat::zero) a)) ih))));
+\definition mulDistribRight: (a, b, c: Nat) ->
+  mulSet (addSet a b) c = addSet (mulSet a c) (mulSet b c) :=
+  (a, b: Nat) => \prec(\Prop, Nat)
+    ((c: Nat) => mulSet (addSet a b) c = addSet (mulSet a c) (mulSet b c))
+    (\refl(Nat::zero))
+    ((c: Nat) => (ih: mulSet (addSet a b) c = addSet (mulSet a c) (mulSet b c)) =>
+      eqTrans _ _ _ (mulSuccRight (addSet a b) c)
+        (eqTrans _ _ _
+          (congr (addSet (addSet a b)) (mulSet (addSet a b) c) (addSet (mulSet a c) (mulSet b c)) ih)
+          (eqTrans _ _ _ (addInterchange a b (mulSet a c) (mulSet b c))
+            (addCong _ _ _ _ (eqSym _ _ (mulSuccRight a c)) (eqSym _ _ (mulSuccRight b c))))));
+\definition mulSuccLeft: (a, b: Nat) -> mulSet (Nat::succ a) b = addSet b (mulSet a b) :=
+  (a, b: Nat) => eqTrans _ _ _ (mulDistribRight a (Nat::succ Nat::zero) b)
+    (eqTrans _ _ _ (congr (addSet (mulSet a b)) _ _ (mulOneLeft b)) (addComm (mulSet a b) b));
+\definition mulComm: (a, b: Nat) -> mulSet a b = mulSet b a :=
+  (a: Nat) => \prec(\Prop, Nat) ((b: Nat) => mulSet a b = mulSet b a)
+    (eqSym _ _ (mulZeroLeft a))
+    ((b: Nat) => (ih: mulSet a b = mulSet b a) =>
+      eqTrans _ _ _ (mulSuccRight a b)
+        (eqTrans _ _ _ (congr (addSet a) (mulSet a b) (mulSet b a) ih) (eqSym _ _ (mulSuccLeft b a))));
+\definition mulOneRight: (a: Nat) -> mulSet a (Nat::succ Nat::zero) = a :=
+  (a: Nat) => eqTrans _ _ _ (mulComm a (Nat::succ Nat::zero)) (mulOneLeft a);
+\definition mulDistribLeft: (a, b, c: Nat) ->
+  mulSet a (addSet b c) = addSet (mulSet a b) (mulSet a c) :=
+  (a, b, c: Nat) => eqTrans _ _ _ (mulComm a (addSet b c))
+    (eqTrans _ _ _ (mulDistribRight b c a) (addCong _ _ _ _ (mulComm b a) (mulComm c a)));
+\definition mulAssoc: (a, b, c: Nat) -> mulSet (mulSet a b) c = mulSet a (mulSet b c) :=
+  (a, b: Nat) => \prec(\Prop, Nat)
+    ((c: Nat) => mulSet (mulSet a b) c = mulSet a (mulSet b c))
+    (\refl(Nat::zero))
+    ((c: Nat) => (ih: mulSet (mulSet a b) c = mulSet a (mulSet b c)) =>
+      eqTrans _ _ _ (mulSuccRight (mulSet a b) c)
+        (eqTrans _ _ _ (congr (addSet (mulSet a b)) (mulSet (mulSet a b) c) (mulSet a (mulSet b c)) ih)
+          (eqTrans _ _ _ (eqSym _ _ (mulDistribLeft a b (mulSet b c)))
+            (congr (mulSet a) _ _ (eqSym _ _ (mulSuccRight b c))))));
+
+
+/* Convenient Set constants, reflected from the Program constants. */
+\definition zeroSet: Nat := \Force(Nat, \box(Nat, zero));
+\definition oneSet: Nat := \Force(Nat, \box(Nat, one));

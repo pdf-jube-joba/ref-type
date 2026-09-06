@@ -146,6 +146,14 @@ fn library_root_succeeds() {
 }
 
 #[test]
+fn library_arithmetic_examples_succeed() {
+    let workspace = workspace_root();
+    let path = workspace.join("lib/tests.ref");
+    let output = run_ref_file(&workspace, &path).unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
 fn file_errors_are_only_written_to_stderr() {
     let workspace = workspace_root();
     let path = workspace.join("tests/ng/param_free.ref");

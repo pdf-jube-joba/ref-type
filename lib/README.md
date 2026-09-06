@@ -1,9 +1,34 @@
 # 実数の形式化
 
-[`Nat.ref`](Nat.ref) は Set universe の自然数を定義し、primitive recursor
-`\prec` によって演算と基本法則を記述する。Program 側の一般再帰の例は
-`tests/ok/general-recursion` にあり、Program の `\Prun` 自体は accessibility
-証明を引数に取らない。
+[`Nat.ref`](Nat.ref) と [`Bool.ref`](Bool.ref) は Program universe (`\VType`) で
+データ型と演算を定義する。Set の式では、同名の型・コンストラクタが自動生成された
+Set 側の型・コンストラクタを指す。Program 演算 `add` などに対して、`addSet` は
+`\box` / `\Force` による反映、`addPrec` は `\prec` による仕様、
+`addMatchesPrec` は両者の一致を表す。証明に `admit` や新しい公理は使っていない。
+
+`addTerminates` は残りの加数について帰納法を使い、任意の accumulator に対する
+`\Acc` を証明する。`addMatchesPrec b a` は任意の `a, b` について
+`addSet a b = addPrec a b` を証明する。Program の `\Prun` 自体は証明を要求せず、
+Set への反映時に停止性を検査する。他の再帰演算も同じ構成を使う。
+
+| ファイル | Program 演算（Set では末尾に `Set`） | 主な証明 |
+| --- | --- | --- |
+| Nat | `add`, `pred`, `isZero`, `sub` | `MatchesPrec`、加算の零・後者・交換・結合・消去則、減算の零・自己差・加算の消去 |
+| Nat | `iter`, `mul`, `pow` | `MatchesPrec`、乗算の零・一・後者・交換・結合・分配則、累乗の零・後者則 |
+| Nat | `eqb`, `leb`, `ltb`, `choose`, `min`, `max` | `MatchesPrec`、等値判定の健全性と完全性、`Le` の反射・推移・反対称性、`Lt` の非反射性 |
+| Nat | `toggle`, `even`, `odd` | `MatchesPrec` |
+| Bool | `neg`, `and`, `or`, `xor`, `implies`, `eqb` | `MatchesPrec`、交換・結合・冪等・吸収・分配則、De Morgan 則、否定の対合、等値判定の健全性と完全性 |
+
+`sub` は零で切り捨てる自然数減算、`pow a zero` は一（`0^0` も一）である。
+`iterSet f value count` は `f` を `count` 回適用する。乗算・累乗・偶奇の `Prec` 仕様は
+この primitive iterator と、すでに `prec` との一致を証明した下位演算を組み合わせる。
+`Le a b` と `Lt a b` は、それぞれ `lebSet a b` と `ltbSet a b` が true になる命題である。
+`zeroSet` / `oneSet` は Set 側の定数。Bool の `ite A test yes no` は Set 多相の
+条件分岐で、閉じた Program 型を要求する box の制約から直接 `prec` で定義する。
+
+この追加は基本算術・比較・論理演算を対象とする。除算・剰余・最大公約数などの
+追加の再帰アルゴリズムはまだ含めていない。`Rat.ref` 内の独自の Set 自然数との
+統合も別途必要であり、この変更だけで有理数の obligation が解消するわけではない。
 
 [Pair.ref](Pair.ref) は型引数 `A, B : Set` を取る直積 `Times[A, B]` を
 一要素コンストラクタの inductive type として定義する。module parameter は使わず、
@@ -82,8 +107,8 @@ Cauchy 側の完備性も未証明である。Cauchy 側では、`Equivalent` �
 構成するところまでは到達していない。
 
 `Rat.ref` 側で残る最初の基礎 obligation は、`FractionEq` の推移律、四則演算の
-congruence、`lt` の稠密線形順序性と演算との両立性である。これらには自然数加法の
-結合・交換・消去律から始める必要がある。
+congruence、`lt` の稠密線形順序性と演算との両立性である。Nat.ref には加法の結合・交換・消去律を追加済みだが、
+Rat.ref の独自の自然数型に接続する作業が残っている。
 
 `Operations.Closed` は、`RatLower`、`SumLower`、`NegLower` が切断になるという
 閉性証明を引数に要求する。`ofRat`、`add`、`neg` はそれぞれの refinement cast に
@@ -102,7 +127,9 @@ Cauchy 構成では primitive な quotient type は使わず、`Power(CauchySeq)
 ## 確認
 
 ```sh
-cargo run --quiet -- file lib/root.ref >/dev/null
+cargo run --quiet -- lib/root.ref
+cargo run --quiet -- lib/tests.ref
+cargo test --workspace
 ```
 
 コマンドは各定義と、module parameter として残した obligation の型を検査する。

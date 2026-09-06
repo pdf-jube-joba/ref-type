@@ -481,56 +481,79 @@ pub fn remap_all_global_ids(
     inductives: &HashMap<InductiveId, InductiveId>,
     program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Exp {
-    transform(arena, exp, 0, &mut |node, _| match node {
-        ExpNode::DefinedConstant(id) => definitions
-            .get(id)
-            .map(|id| arena.alloc(ExpNode::DefinedConstant(*id))),
-        ExpNode::IndType {
-            indspec,
-            parameters,
-        } => inductives.get(indspec).map(|id| {
-            arena.alloc(ExpNode::IndType {
-                indspec: *id,
-                parameters: parameters.clone(),
-            })
-        }),
-        ExpNode::IndCtor {
-            indspec,
-            parameters,
-            idx,
-        } => inductives.get(indspec).map(|id| {
-            arena.alloc(ExpNode::IndCtor {
-                indspec: *id,
-                parameters: parameters.clone(),
-                idx: *idx,
-            })
-        }),
-        ExpNode::IndElim {
-            indspec,
-            elim,
-            return_type,
-            cases,
-        } => inductives.get(indspec).map(|id| {
-            arena.alloc(ExpNode::IndElim {
-                indspec: *id,
-                elim: *elim,
-                return_type: *return_type,
-                cases: cases.clone(),
-            })
-        }),
-        ExpNode::ReflectedProgramCase {
-            indspec,
-            scrutinee,
-            branches,
-        } => program_inductives.get(indspec).map(|id| {
-            arena.alloc(ExpNode::ReflectedProgramCase {
-                indspec: *id,
-                scrutinee: *scrutinee,
-                branches: branches.clone(),
-            })
-        }),
-        _ => None,
-    })
+    // Rewrite children as well as the node's own identifiers. In particular,
+    // reflected cases and parameterized constructors contain further references
+    // to the source module, and boxes carry a separate Program syntax tree.
+    let original = arena.get(exp);
+    let mut node = map_children(original.clone(), |child| {
+        remap_all_global_ids(arena, child, definitions, inductives, program_inductives)
+    });
+    let remap_program_type = |ty: &mut ProgramType| {
+        *ty = match *ty {
+            ProgramType::Value(value) => {
+                ProgramType::Value(crate::program_calculus::remap_value_type_global_ids(
+                    arena,
+                    value,
+                    definitions,
+                    program_inductives,
+                ))
+            }
+            ProgramType::Computation(computation) => ProgramType::Computation(
+                crate::program_calculus::remap_computation_type_global_ids(
+                    arena,
+                    computation,
+                    definitions,
+                    program_inductives,
+                ),
+            ),
+        };
+    };
+    match &mut node {
+        ExpNode::DefinedConstant(id) => {
+            *id = definitions.get(id).copied().unwrap_or(*id);
+        }
+        ExpNode::IndType { indspec, .. }
+        | ExpNode::IndCtor { indspec, .. }
+        | ExpNode::IndElim { indspec, .. } => {
+            *indspec = inductives.get(indspec).copied().unwrap_or(*indspec);
+        }
+        ExpNode::ReflectedProgramCase { indspec, .. } => {
+            *indspec = program_inductives.get(indspec).copied().unwrap_or(*indspec);
+        }
+        ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
+            remap_program_type(program_ty);
+        }
+        ExpNode::BoxProgram {
+            program_ty,
+            program,
+        } => {
+            remap_program_type(program_ty);
+            *program = match *program {
+                Program::Value(value) => {
+                    Program::Value(crate::program_calculus::remap_value_global_ids(
+                        arena,
+                        value,
+                        definitions,
+                        program_inductives,
+                    ))
+                }
+                Program::Computation(computation) => {
+                    Program::Computation(crate::program_calculus::remap_computation_global_ids(
+                        arena,
+                        computation,
+                        definitions,
+                        program_inductives,
+                    ))
+                }
+            };
+        }
+        _ => {}
+    }
+    if node == original {
+        exp
+    } else {
+        arena.alloc(node)
+    }
 }
 
 fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
@@ -814,7 +837,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 program: Program::Computation(next),
             })
         }),
-        ExpNode::ForceBox { program_ty, boxed } => match arena.get(boxed) {
+        ExpNode::ForceBox { program_ty, boxed } => match arena.get(whnf(env, boxed)) {
             ExpNode::BoxProgram {
                 program_ty: actual,
                 program,
@@ -831,7 +854,10 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             _ => None,
         },
         ExpNode::BoxApp { function, argument } => {
-            match (arena.get(function), arena.get(argument)) {
+            match (
+                arena.get(whnf(env, function)),
+                arena.get(whnf(env, argument)),
+            ) {
                 (
                     ExpNode::BoxProgram {
                         program_ty: ProgramType::Computation(ft),

@@ -307,8 +307,16 @@ impl LocalScope {
                             parameters,
                         }))
                     }
-                    ItemAccessResult::ProgramInductive(_) => {
-                        Err("Program datatype access is only valid in Program syntax".into())
+                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+                        reflected,
+                        ..
+                    }) => {
+                        let count = handler.env().inductive(reflected).parameters().len();
+                        let parameters = self.associated_parameters(parameters, count, handler)?;
+                        Ok(handler.arena().alloc(ExpNode::IndType {
+                            indspec: reflected,
+                            parameters,
+                        }))
                     }
                     ItemAccessResult::Expression(exp) => {
                         if parameters.is_empty() {
@@ -370,6 +378,26 @@ impl LocalScope {
                                 field.as_str(),
                                 type_name.as_str()
                             ))
+                        }
+                        ItemAccessResult::ProgramInductive(ModItemProgramInductive {
+                            reflected,
+                            ctor_names,
+                            ..
+                        }) => {
+                            let idx = ctor_names
+                                .iter()
+                                .position(|name| name.as_str() == field.as_str())
+                                .ok_or_else(|| {
+                                    format!("Unknown Program constructor {}", field.as_str())
+                                })?;
+                            let count = handler.env().inductive(reflected).parameters().len();
+                            let parameters =
+                                self.associated_parameters(parameters, count, handler)?;
+                            Ok(handler.arena().alloc(ExpNode::IndCtor {
+                                indspec: reflected,
+                                idx,
+                                parameters,
+                            }))
                         }
                         ItemAccessResult::Record(record) => {
                             if let Some((_, definition)) = record
