@@ -8,7 +8,7 @@ use kernel::{
     },
     derivation::CheckSession,
     environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
-    exp::{Exp, ExpContext, ExpContextEntry, ExpNode},
+    exp::{Exp, ExpContext, ExpContextEntry, ExpNode, Prove},
     ids::{MetaVarId, ModuleId, SymbolId},
     program::{ComputationTypeNode, Program, ProgramType},
     program_derivation::ProgramCheckSession,
@@ -933,16 +933,16 @@ impl MetaStore {
                 self.check_pts(env, module, context, proof, membership)?;
                 Ok(arena.alloc(ExpNode::TypeLift { superset, subset }))
             }
-            ExpNode::ExistsIntro { element, set } => {
+            ExpNode::Prove(Prove::ExistsIntro { element, set }) => {
                 self.check_pts(env, module, context, element, set)?;
                 self.infer_sort(env, module, context, set)?;
                 Ok(arena.alloc(ExpNode::Exists { set }))
             }
-            ExpNode::SubsetElim {
+            ExpNode::Prove(Prove::SubsetElim {
                 element,
                 subset,
                 superset,
-            } => {
+            }) => {
                 let lifted = arena.alloc(ExpNode::TypeLift { superset, subset });
                 self.check_pts(env, module, context, element, lifted)?;
                 Ok(arena.alloc(ExpNode::Pred {
@@ -951,7 +951,7 @@ impl MetaStore {
                     element,
                 }))
             }
-            ExpNode::IdRefl { element } => {
+            ExpNode::Prove(Prove::IdRefl { element }) => {
                 let ty = self.infer_pts(env, module, context, element)?;
                 self.infer_sort(env, module, context, ty)?;
                 Ok(arena.alloc(ExpNode::Equal {
@@ -959,7 +959,7 @@ impl MetaStore {
                     right: element,
                 }))
             }
-            ExpNode::IdElim {
+            ExpNode::Prove(Prove::IdElim {
                 left,
                 right,
                 ty,
@@ -967,7 +967,7 @@ impl MetaStore {
                 predicate,
                 base,
                 equality,
-            } => {
+            }) => {
                 self.infer_sort(env, module, context, ty)?;
                 self.check_pts(env, module, context, left, ty)?;
                 self.check_pts(env, module, context, right, ty)?;
@@ -993,14 +993,14 @@ impl MetaStore {
                     arg: right,
                 }))
             }
-            ExpNode::TakeEq {
+            ExpNode::Prove(Prove::TakeEq {
                 func,
                 domain,
                 codomain,
                 element,
                 existence,
                 uniqueness,
-            } => {
+            }) => {
                 let take = arena.alloc(ExpNode::TakeSet {
                     domain,
                     codomain,

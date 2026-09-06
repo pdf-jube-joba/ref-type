@@ -2,7 +2,7 @@
 
 use crate::{
     environment::CrateEnv,
-    exp::{Axiom, Exp, ExpContext, ExpNode},
+    exp::{Axiom, Exp, ExpContext, ExpNode, Prove},
     ids::{ModuleParamId, SymbolId},
     program::{
         Computation, ComputationNode, ComputationType, ComputationTypeNode, Program, ProgramType,
@@ -230,13 +230,13 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         ExpNode::BoxApp { function, argument } => {
             format!("\\boxapp({}, {})", child(function), child(argument))
         }
-        ExpNode::AccIntro {
+        ExpNode::Prove(Prove::AccIntro {
             state_ty,
             result_ty,
             step,
             state,
             predecessors,
-        } => format!(
+        }) => format!(
             "\\accintro({}, {}, {}, {}, {})",
             child(state_ty),
             child(result_ty),
@@ -244,7 +244,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(state),
             child(predecessors)
         ),
-        ExpNode::AccDescent {
+        ExpNode::Prove(Prove::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -252,7 +252,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             to,
             accessibility,
             transition,
-        } => format!(
+        }) => format!(
             "\\accdescent({}, {}, {}, {}, {}, {}, {})",
             child(state_ty),
             child(result_ty),
@@ -326,21 +326,21 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(map),
             child(existence)
         ),
-        ExpNode::ExistsIntro { element, set } => {
+        ExpNode::Prove(Prove::ExistsIntro { element, set }) => {
             format!("exact({}, {})", child(element), child(set))
         }
-        ExpNode::SubsetElim {
+        ExpNode::Prove(Prove::SubsetElim {
             element,
             subset,
             superset,
-        } => format!(
+        }) => format!(
             "subset_elim({}, {}, {})",
             child(superset),
             child(subset),
             child(element)
         ),
-        ExpNode::IdRefl { element } => format!("refl({})", child(element)),
-        ExpNode::IdElim {
+        ExpNode::Prove(Prove::IdRefl { element }) => format!("refl({})", child(element)),
+        ExpNode::Prove(Prove::IdElim {
             left,
             right,
             ty,
@@ -348,7 +348,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             predicate,
             base,
             equality,
-        } => format!(
+        }) => format!(
             "\\idelim({} = {} \\with {}: {} => {}) \\by ({}, {})",
             child(left),
             child(right),
@@ -358,46 +358,46 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(base),
             child(equality)
         ),
-        ExpNode::Axiom(Axiom::SetExt {
+        ExpNode::Prove(Prove::Axiom(Axiom::SetExt {
             left,
             right,
             left_to_right,
             right_to_left,
-        }) => format!(
+        })) => format!(
             "\\axiom:setext({}, {}, {}, {})",
             child(left),
             child(right),
             child(left_to_right),
             child(right_to_left)
         ),
-        ExpNode::Axiom(Axiom::FunExt {
+        ExpNode::Prove(Prove::Axiom(Axiom::FunExt {
             left,
             right,
             pointwise,
-        }) => format!(
+        })) => format!(
             "\\axiom:funext({}, {}, {})",
             child(left),
             child(right),
             child(pointwise)
         ),
-        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
+        ExpNode::Prove(Prove::Axiom(Axiom::ClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
-        }) => format!(
+        })) => format!(
             "\\axiom:classicalIndefiniteChoice({}, {}, {})",
             child(domain),
             child(family),
             child(inhabited)
         ),
-        ExpNode::TakeEq {
+        ExpNode::Prove(Prove::TakeEq {
             func,
             domain,
             codomain,
             element,
             existence,
             uniqueness,
-        } => format!(
+        }) => format!(
             "\\takeelim({}, {}, {}, {}) \\by ({}, {})",
             child(func),
             child(element),

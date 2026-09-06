@@ -94,14 +94,14 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         ExpNode::BoxType { .. } | ExpNode::BoxProgram { .. } => {}
         ExpNode::ForceBox { boxed, .. } => one!(boxed),
         ExpNode::BoxApp { function, argument } => one!(function, argument),
-        ExpNode::AccIntro {
+        ExpNode::Prove(Prove::AccIntro {
             state_ty,
             result_ty,
             step,
             state,
             predecessors,
-        } => one!(state_ty, result_ty, step, state, predecessors),
-        ExpNode::AccDescent {
+        }) => one!(state_ty, result_ty, step, state, predecessors),
+        ExpNode::Prove(Prove::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -109,7 +109,7 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             to,
             accessibility,
             transition,
-        } => one!(
+        }) => one!(
             state_ty,
             result_ty,
             step,
@@ -146,14 +146,14 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             map: function,
             existence,
         } => one!(domain, proposition, function, existence),
-        ExpNode::ExistsIntro { element, set } => one!(element, set),
-        ExpNode::SubsetElim {
+        ExpNode::Prove(Prove::ExistsIntro { element, set }) => one!(element, set),
+        ExpNode::Prove(Prove::SubsetElim {
             element,
             subset,
             superset,
-        } => one!(element, subset, superset),
-        ExpNode::IdRefl { element } => one!(element),
-        ExpNode::IdElim {
+        }) => one!(element, subset, superset),
+        ExpNode::Prove(Prove::IdRefl { element }) => one!(element),
+        ExpNode::Prove(Prove::IdElim {
             left,
             right,
             ty,
@@ -161,31 +161,31 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             base,
             equality,
             ..
-        } => one!(left, right, ty, predicate, base, equality),
-        ExpNode::Axiom(Axiom::SetExt {
+        }) => one!(left, right, ty, predicate, base, equality),
+        ExpNode::Prove(Prove::Axiom(Axiom::SetExt {
             left,
             right,
             left_to_right,
             right_to_left,
-        }) => one!(left, right, left_to_right, right_to_left),
-        ExpNode::Axiom(Axiom::FunExt {
+        })) => one!(left, right, left_to_right, right_to_left),
+        ExpNode::Prove(Prove::Axiom(Axiom::FunExt {
             left,
             right,
             pointwise,
-        }) => one!(left, right, pointwise),
-        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
+        })) => one!(left, right, pointwise),
+        ExpNode::Prove(Prove::Axiom(Axiom::ClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
-        }) => one!(domain, family, inhabited),
-        ExpNode::TakeEq {
+        })) => one!(domain, family, inhabited),
+        ExpNode::Prove(Prove::TakeEq {
             func,
             domain,
             codomain,
             element,
             existence,
             uniqueness,
-        } => one!(func, domain, codomain, element, existence, uniqueness),
+        }) => one!(func, domain, codomain, element, existence, uniqueness),
     }
     node
 }
@@ -229,7 +229,7 @@ where
             set: child(set, depth),
             predicate: child(predicate, depth + 1),
         },
-        ExpNode::IdElim {
+        ExpNode::Prove(Prove::IdElim {
             left,
             right,
             ty,
@@ -237,7 +237,7 @@ where
             predicate,
             base,
             equality,
-        } => ExpNode::IdElim {
+        }) => ExpNode::Prove(Prove::IdElim {
             left: child(left, depth),
             right: child(right, depth),
             ty: child(ty, depth),
@@ -245,7 +245,7 @@ where
             predicate: child(predicate, depth + 1),
             base: child(base, depth),
             equality: child(equality, depth),
-        },
+        }),
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
@@ -289,7 +289,7 @@ pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
             ExpNode::SubSet { set, predicate, .. } => {
                 go(arena, set, target, depth) || go(arena, predicate, target, depth + 1)
             }
-            ExpNode::IdElim {
+            ExpNode::Prove(Prove::IdElim {
                 left,
                 right,
                 ty,
@@ -297,7 +297,7 @@ pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
                 base,
                 equality,
                 ..
-            } => {
+            }) => {
                 [left, right, ty, base, equality]
                     .into_iter()
                     .any(|e| go(arena, e, target, depth))

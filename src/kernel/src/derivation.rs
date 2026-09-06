@@ -869,14 +869,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             map,
             existence,
         } => infer_take_prop(session, rule, phase, domain, proposition, map, existence),
-        ExpNode::ExistsIntro { .. }
-        | ExpNode::SubsetElim { .. }
-        | ExpNode::IdRefl { .. }
-        | ExpNode::IdElim { .. }
-        | ExpNode::Axiom(_)
-        | ExpNode::TakeEq { .. }
-        | ExpNode::AccIntro { .. }
-        | ExpNode::AccDescent { .. } => infer_proof_constructor(session, term),
+        ExpNode::Prove(prove) => infer_prove(session, prove),
     }
 }
 
@@ -1410,8 +1403,7 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::BoxProgram { .. } => "BoxProgram",
         ExpNode::ForceBox { .. } => "ForceBox",
         ExpNode::BoxApp { .. } => "BoxApp",
-        ExpNode::AccIntro { .. } => "AccIntro",
-        ExpNode::AccDescent { .. } => "AccDescent",
+        ExpNode::Prove(prove) => prove_rule(&prove),
         ExpNode::SubsetIntro { .. } => "SubsetIntro",
         ExpNode::PowerSet { .. } => "PowerSet",
         ExpNode::SubSet { .. } => "SubSet",
@@ -1421,14 +1413,21 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::Exists { .. } => "Exists",
         ExpNode::TakeSet { .. } => "TakeSet",
         ExpNode::TakeProp { .. } => "TakeProp",
-        ExpNode::ExistsIntro { .. } => "ExistsIntro",
-        ExpNode::SubsetElim { .. } => "SubsetElim",
-        ExpNode::IdRefl { .. } => "IdRefl",
-        ExpNode::IdElim { .. } => "IdElim",
-        ExpNode::Axiom(Axiom::SetExt { .. }) => "AxiomSetExt",
-        ExpNode::Axiom(Axiom::FunExt { .. }) => "AxiomFunExt",
-        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice { .. }) => "AxiomClassicalIndefiniteChoice",
-        ExpNode::TakeEq { .. } => "TakeEq",
+    }
+}
+
+fn prove_rule(prove: &Prove) -> &'static str {
+    match prove {
+        Prove::AccIntro { .. } => "AccIntro",
+        Prove::AccDescent { .. } => "AccDescent",
+        Prove::ExistsIntro { .. } => "ExistsIntro",
+        Prove::SubsetElim { .. } => "SubsetElim",
+        Prove::IdRefl { .. } => "IdRefl",
+        Prove::IdElim { .. } => "IdElim",
+        Prove::Axiom(Axiom::SetExt { .. }) => "AxiomSetExt",
+        Prove::Axiom(Axiom::FunExt { .. }) => "AxiomFunExt",
+        Prove::Axiom(Axiom::ClassicalIndefiniteChoice { .. }) => "AxiomClassicalIndefiniteChoice",
+        Prove::TakeEq { .. } => "TakeEq",
     }
 }
 
@@ -1666,15 +1665,15 @@ fn infer_axiom_classical_indefinite_choice(
     }))
 }
 
-fn infer_proof_constructor(
+fn infer_prove(
     session: &mut CheckSession<'_, '_>,
-    term: Exp,
+    prove: Prove,
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
-    let rule = exp_rule(arena, term);
+    let rule = prove_rule(&prove);
     let phase = "infer";
-    match arena.get(term) {
-        ExpNode::ExistsIntro { element, set } => {
+    match prove {
+        Prove::ExistsIntro { element, set } => {
             add_check!(session, rule, phase, element, set, "check element")?;
             if !matches!(
                 add_sort!(session, rule, phase, set, "infer set sort")?,
@@ -1684,7 +1683,7 @@ fn infer_proof_constructor(
             }
             Ok(arena.alloc(ExpNode::Exists { set }))
         }
-        ExpNode::SubsetElim {
+        Prove::SubsetElim {
             element,
             subset,
             superset,
@@ -1704,7 +1703,7 @@ fn infer_proof_constructor(
                 element,
             }))
         }
-        ExpNode::IdRefl { element } => {
+        Prove::IdRefl { element } => {
             let ty = add_infer!(session, rule, phase, element, "infer element type")?;
             if !matches!(
                 add_sort!(session, rule, phase, ty, "infer type sort")?,
@@ -1717,7 +1716,7 @@ fn infer_proof_constructor(
                 right: element,
             }))
         }
-        ExpNode::IdElim {
+        Prove::IdElim {
             left,
             right,
             ty,
@@ -1763,7 +1762,7 @@ fn infer_proof_constructor(
                 arg: right,
             }))
         }
-        ExpNode::Axiom(Axiom::SetExt {
+        Prove::Axiom(Axiom::SetExt {
             left,
             right,
             left_to_right,
@@ -1777,19 +1776,19 @@ fn infer_proof_constructor(
             left_to_right,
             right_to_left,
         ),
-        ExpNode::Axiom(Axiom::FunExt {
+        Prove::Axiom(Axiom::FunExt {
             left,
             right,
             pointwise,
         }) => infer_axiom_fun_ext(session, rule, phase, left, right, pointwise),
-        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
+        Prove::Axiom(Axiom::ClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
         }) => {
             infer_axiom_classical_indefinite_choice(session, rule, phase, domain, family, inhabited)
         }
-        ExpNode::TakeEq {
+        Prove::TakeEq {
             func,
             domain,
             codomain,
@@ -1812,7 +1811,7 @@ fn infer_proof_constructor(
                 right: mapped,
             }))
         }
-        ExpNode::AccIntro {
+        Prove::AccIntro {
             state_ty,
             result_ty,
             step,
@@ -1867,7 +1866,7 @@ fn infer_proof_constructor(
             )?;
             Ok(accessibility_type(arena, state_ty, result_ty, step, state))
         }
-        ExpNode::AccDescent {
+        Prove::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -1900,7 +1899,6 @@ fn infer_proof_constructor(
             )?;
             Ok(accessibility_type(arena, state_ty, result_ty, step, to))
         }
-        _ => unreachable!(),
     }
 }
 

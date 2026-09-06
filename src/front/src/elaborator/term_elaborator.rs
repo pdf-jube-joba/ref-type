@@ -968,13 +968,13 @@ impl LocalScope {
                 let step = self.elab_exp_rec(step, handler)?;
                 let state = self.elab_exp_rec(state, handler)?;
                 let predecessors = self.elab_exp_rec(predecessors, handler)?;
-                Ok(handler.arena().alloc(ExpNode::AccIntro {
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::AccIntro {
                     state_ty,
                     result_ty,
                     step,
                     state,
                     predecessors,
-                }))
+                })))
             }
             SExp::AccDescent {
                 state_ty,
@@ -992,7 +992,7 @@ impl LocalScope {
                 let to = self.elab_exp_rec(to, handler)?;
                 let accessibility = self.elab_exp_rec(accessibility, handler)?;
                 let transition = self.elab_exp_rec(transition, handler)?;
-                Ok(handler.arena().alloc(ExpNode::AccDescent {
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::AccDescent {
                     state_ty,
                     result_ty,
                     step,
@@ -1000,7 +1000,7 @@ impl LocalScope {
                     to,
                     accessibility,
                     transition,
-                }))
+                })))
             }
 
             SExp::RecordTypeCtor {
@@ -1190,7 +1190,9 @@ impl LocalScope {
             SExp::ExistsIntro { element, set } => {
                 let element = self.elab_exp_rec(element, handler)?;
                 let set = self.elab_exp_rec(set, handler)?;
-                Ok(handler.arena().alloc(ExpNode::ExistsIntro { element, set }))
+                Ok(handler
+                    .arena()
+                    .alloc(ExpNode::Prove(Prove::ExistsIntro { element, set })))
             }
             SExp::SubsetElim {
                 element,
@@ -1200,15 +1202,17 @@ impl LocalScope {
                 let element = self.elab_exp_rec(element, handler)?;
                 let subset = self.elab_exp_rec(subset, handler)?;
                 let superset = self.elab_exp_rec(superset, handler)?;
-                Ok(handler.arena().alloc(ExpNode::SubsetElim {
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::SubsetElim {
                     element,
                     subset,
                     superset,
-                }))
+                })))
             }
             SExp::IdRefl { element } => {
                 let element = self.elab_exp_rec(element, handler)?;
-                Ok(handler.arena().alloc(ExpNode::IdRefl { element }))
+                Ok(handler
+                    .arena()
+                    .alloc(ExpNode::Prove(Prove::IdRefl { element })))
             }
             SExp::IdElim {
                 left,
@@ -1228,7 +1232,7 @@ impl LocalScope {
                 self.pop_binded_var();
                 let base = self.elab_exp_rec(base, handler)?;
                 let equality = self.elab_exp_rec(equality, handler)?;
-                Ok(handler.arena().alloc(ExpNode::IdElim {
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::IdElim {
                     left,
                     right,
                     var,
@@ -1236,7 +1240,7 @@ impl LocalScope {
                     predicate,
                     base,
                     equality,
-                }))
+                })))
             }
             SExp::AxiomSetExt {
                 left,
@@ -1248,12 +1252,14 @@ impl LocalScope {
                 let right = self.elab_exp_rec(right, handler)?;
                 let left_to_right = self.elab_exp_rec(left_to_right, handler)?;
                 let right_to_left = self.elab_exp_rec(right_to_left, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Axiom(Axiom::SetExt {
-                    left,
-                    right,
-                    left_to_right,
-                    right_to_left,
-                })))
+                Ok(handler
+                    .arena()
+                    .alloc(ExpNode::Prove(Prove::Axiom(Axiom::SetExt {
+                        left,
+                        right,
+                        left_to_right,
+                        right_to_left,
+                    }))))
             }
             SExp::AxiomFunExt {
                 left,
@@ -1263,11 +1269,13 @@ impl LocalScope {
                 let left = self.elab_exp_rec(left, handler)?;
                 let right = self.elab_exp_rec(right, handler)?;
                 let pointwise = self.elab_exp_rec(pointwise, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Axiom(Axiom::FunExt {
-                    left,
-                    right,
-                    pointwise,
-                })))
+                Ok(handler
+                    .arena()
+                    .alloc(ExpNode::Prove(Prove::Axiom(Axiom::FunExt {
+                        left,
+                        right,
+                        pointwise,
+                    }))))
             }
             SExp::AxiomClassicalIndefiniteChoice {
                 domain,
@@ -1277,13 +1285,13 @@ impl LocalScope {
                 let domain = self.elab_exp_rec(domain, handler)?;
                 let family = self.elab_exp_rec(family, handler)?;
                 let inhabited = self.elab_exp_rec(inhabited, handler)?;
-                Ok(handler
-                    .arena()
-                    .alloc(ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::Axiom(
+                    Axiom::ClassicalIndefiniteChoice {
                         domain,
                         family,
                         inhabited,
-                    })))
+                    },
+                ))))
             }
             SExp::TakeEq {
                 func,
@@ -1299,14 +1307,14 @@ impl LocalScope {
                 let element = self.elab_exp_rec(element, handler)?;
                 let existence = self.elab_exp_rec(existence, handler)?;
                 let uniqueness = self.elab_exp_rec(uniqueness, handler)?;
-                Ok(handler.arena().alloc(ExpNode::TakeEq {
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::TakeEq {
                     func,
                     domain,
                     codomain,
                     element,
                     existence,
                     uniqueness,
-                }))
+                })))
             }
             SExp::ThunkType { .. }
             | SExp::ReturnType { .. }

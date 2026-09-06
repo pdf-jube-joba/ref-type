@@ -50,6 +50,57 @@ pub enum Axiom {
     },
 }
 
+/// A derivation whose conclusion is the judgement `Γ |= P`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Prove {
+    AccIntro {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        state: Exp,
+        predecessors: Exp,
+    },
+    AccDescent {
+        state_ty: Exp,
+        result_ty: Exp,
+        step: Exp,
+        from: Exp,
+        to: Exp,
+        accessibility: Exp,
+        transition: Exp,
+    },
+    ExistsIntro {
+        element: Exp,
+        set: Exp,
+    },
+    SubsetElim {
+        element: Exp,
+        subset: Exp,
+        superset: Exp,
+    },
+    IdRefl {
+        element: Exp,
+    },
+    IdElim {
+        left: Exp,
+        right: Exp,
+        ty: Exp,
+        var: SymbolId,
+        predicate: Exp,
+        base: Exp,
+        equality: Exp,
+    },
+    Axiom(Axiom),
+    TakeEq {
+        func: Exp,
+        domain: Exp,
+        codomain: Exp,
+        element: Exp,
+        existence: Exp,
+        uniqueness: Exp,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpNode {
     Sort(Sort),
@@ -156,22 +207,7 @@ pub enum ExpNode {
         function: Exp,
         argument: Exp,
     },
-    AccIntro {
-        state_ty: Exp,
-        result_ty: Exp,
-        step: Exp,
-        state: Exp,
-        predecessors: Exp,
-    },
-    AccDescent {
-        state_ty: Exp,
-        result_ty: Exp,
-        step: Exp,
-        from: Exp,
-        to: Exp,
-        accessibility: Exp,
-        transition: Exp,
-    },
+    Prove(Prove),
     PowerSet {
         set: Exp,
     },
@@ -214,36 +250,6 @@ pub enum ExpNode {
         proposition: Exp,
         map: Exp,
         existence: Exp,
-    },
-    ExistsIntro {
-        element: Exp,
-        set: Exp,
-    },
-    SubsetElim {
-        element: Exp,
-        subset: Exp,
-        superset: Exp,
-    },
-    IdRefl {
-        element: Exp,
-    },
-    IdElim {
-        left: Exp,
-        right: Exp,
-        ty: Exp,
-        var: SymbolId,
-        predicate: Exp,
-        base: Exp,
-        equality: Exp,
-    },
-    Axiom(Axiom),
-    TakeEq {
-        func: Exp,
-        domain: Exp,
-        codomain: Exp,
-        element: Exp,
-        existence: Exp,
-        uniqueness: Exp,
     },
 }
 
