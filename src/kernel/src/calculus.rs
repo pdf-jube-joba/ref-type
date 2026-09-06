@@ -744,6 +744,13 @@ fn alpha_rec(
     if left == right {
         return true;
     }
+    // Congruent syntax already establishes conversion. In particular, avoid
+    // unfolding identical applications of large reflected/library functions.
+    // Keep the non-reducing comparison strict (including refinement proofs);
+    // any mismatch falls through to the usual reduction/erasure rules.
+    if reduce && alpha_rec(env, left, right, false, false, &mut HashMap::new()) {
+        return true;
+    }
     let (left, right) = if reduce {
         (
             cached_whnf(env, left, erase_subset_intro, cache),

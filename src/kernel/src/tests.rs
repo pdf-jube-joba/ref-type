@@ -17,6 +17,54 @@ use crate::{
 };
 
 #[test]
+fn conversion_does_not_reduce_alpha_equal_applications() {
+    use crate::calculus::{convertible, erased_convertible};
+
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    // Independently allocated copies of (lambda x. f x x) a. Reducing this
+    // application allocates substituted application nodes; alpha comparison
+    // should recognize the copies without constructing either reduct.
+    let application = |argument| {
+        let first = arena.alloc(ExpNode::App {
+            func: arena.exp_bound(1),
+            arg: arena.exp_bound(0),
+        });
+        let body = arena.alloc(ExpNode::App {
+            func: first,
+            arg: arena.exp_bound(0),
+        });
+        let lambda = arena.alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty: arena.sort(Sort::Set(0)),
+            body,
+        });
+        arena.alloc(ExpNode::App {
+            func: lambda,
+            arg: arena.exp_bound(argument),
+        })
+    };
+    let left = application(2);
+    let right = application(2);
+    assert_ne!(left, right);
+    let before = arena.exp_bound(99).index();
+    assert!(convertible(&env, left, right));
+    assert!(erased_convertible(&env, left, right));
+    let after = arena.exp_bound(99).index();
+    assert_eq!(
+        after,
+        before + 1,
+        "conversion unnecessarily reduced the terms"
+    );
+
+    let reduced = normalize(&env, left);
+    assert!(convertible(&env, left, reduced));
+    assert!(erased_convertible(&env, right, reduced));
+    assert!(!convertible(&env, left, application(3)));
+    assert!(!erased_convertible(&env, right, application(3)));
+}
+
+#[test]
 fn boxed_program_types_compare_structurally() {
     let env = CrateEnv::new();
     let arena = env.arena();
