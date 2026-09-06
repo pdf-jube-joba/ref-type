@@ -375,9 +375,15 @@ pub fn infer_computation(
             session.pop();
             remove_context_entry_from_computation_type(arena, result?, 0)
         }
-        ComputationNode::ValueLet { var, value, body } => {
-            let ty = infer_value(session, value)?;
-            session.push_value(var, ty);
+        ComputationNode::ValueLet {
+            var,
+            value_ty,
+            value,
+            body,
+        } => {
+            check_value_type(session, value_ty)?;
+            check_value(session, value, value_ty)?;
+            session.push_value(var, value_ty);
             let result = infer_computation(session, body);
             session.pop();
             remove_context_entry_from_computation_type(arena, result?, 0)

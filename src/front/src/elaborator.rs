@@ -373,7 +373,6 @@ impl GlobalEnvironment {
                     }
                     ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
                         &self.crate_env,
-                        &Vec::new(),
                         kernel::program::Program::Value(value),
                     )
                     .map_err(|error| {

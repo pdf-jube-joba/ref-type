@@ -102,7 +102,6 @@ impl ProgramScope {
             .collect::<HashMap<_, _>>();
         kernel::reflection::reflect_computation_with_certificates(
             &environment.crate_env,
-            &self.context,
             computation,
             &certificates,
         )
@@ -119,7 +118,6 @@ impl ProgramScope {
             .collect::<HashMap<_, _>>();
         kernel::reflection::reflect_value_with_certificates(
             &environment.crate_env,
-            &self.context,
             value,
             &certificates,
         )
@@ -575,14 +573,18 @@ impl ProgramScope {
                         body: body?,
                     }))
             }
-            ComputationExp::ValueLet { var, value, body } => {
+            ComputationExp::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => {
+                let value_ty = self.elaborate_value_type(value_ty, environment)?;
                 let value = self.elaborate_value(value, environment)?;
-                let ty = ProgramCheckSession::new(&environment.crate_env, &mut self.context)
-                    .infer_value(value)
-                    .map_err(|error| format!("cannot infer vlet value: {error:?}"))?;
                 let var = environment.crate_env.intern(var.as_str());
                 self.names.push(var);
-                self.context.push(ProgramContextEntry::Value { var, ty });
+                self.context
+                    .push(ProgramContextEntry::Value { var, ty: value_ty });
                 let body = self.elaborate_computation(body, environment);
                 self.names.pop();
                 self.context.pop();
@@ -591,6 +593,7 @@ impl ProgramScope {
                     .arena()
                     .alloc(ComputationNode::ValueLet {
                         var,
+                        value_ty,
                         value,
                         body: body?,
                     }))
@@ -708,14 +711,12 @@ impl ProgramScope {
                         .map_err(|error| error.to_string())?,
                         step: kernel::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
-                            &self.context,
                             step,
                             &self.certificates,
                         )
                         .map_err(|error| error.to_string())?,
                         initial: kernel::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
-                            &self.context,
                             initial,
                             &self.certificates,
                         )
@@ -774,14 +775,12 @@ impl ProgramScope {
                         .map_err(|error| error.to_string())?,
                         step: kernel::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
-                            &self.context,
                             step,
                             &self.certificates,
                         )
                         .map_err(|error| error.to_string())?,
                         initial: kernel::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
-                            &self.context,
                             initial,
                             &self.certificates,
                         )
@@ -979,13 +978,17 @@ impl ProgramScope {
                 value_ty: self.zonk_value_type(environment, value_ty),
                 body: self.zonk_computation(environment, body),
             }),
-            ComputationNode::ValueLet { var, value, body } => {
-                arena.alloc(ComputationNode::ValueLet {
-                    var,
-                    value: self.zonk_value(environment, value),
-                    body: self.zonk_computation(environment, body),
-                })
-            }
+            ComputationNode::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => arena.alloc(ComputationNode::ValueLet {
+                var,
+                value_ty: self.zonk_value_type(environment, value_ty),
+                value: self.zonk_value(environment, value),
+                body: self.zonk_computation(environment, body),
+            }),
             ComputationNode::Case {
                 indspec,
                 scrutinee,
@@ -1471,6 +1474,21 @@ impl ProgramScope {
                 self.solve_value(environment, context, value, domain)?;
                 self.unify_computation_types(environment, codomain, expected)
             }
+            ComputationNode::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => {
+                self.solve_value(environment, context, value, value_ty)?;
+                let value_ty = self.zonk_value_type(environment, value_ty);
+                context.push(ProgramContextEntry::Value { var, ty: value_ty });
+                let expected =
+                    kernel::program_calculus::shift_computation_type_indices(arena, expected, 1, 0);
+                let result = self.solve_computation(environment, context, body, expected);
+                context.pop();
+                result
+            }
             ComputationNode::Sequence {
                 computation,
                 var,
@@ -1547,6 +1565,20 @@ impl ProgramScope {
                 };
                 self.solve_value(environment, context, value, domain)?;
                 Ok(codomain)
+            }
+            ComputationNode::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => {
+                self.solve_value(environment, context, value, value_ty)?;
+                let value_ty = self.zonk_value_type(environment, value_ty);
+                context.push(ProgramContextEntry::Value { var, ty: value_ty });
+                let result = self.infer_computation(environment, context, body);
+                context.pop();
+                strengthen_computation_type(arena, result?, 0)
+                    .ok_or_else(|| "Program result type depends on a local value".into())
             }
             ComputationNode::Sequence {
                 computation,

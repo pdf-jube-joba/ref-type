@@ -143,6 +143,7 @@ pub enum ComputationNode {
     },
     ValueLet {
         var: SymbolId,
+        value_ty: ValueType,
         value: Value,
         body: Computation,
     },

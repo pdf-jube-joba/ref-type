@@ -267,6 +267,7 @@ pub enum ComputationExp {
     },
     ValueLet {
         var: Identifier,
+        value_ty: Box<ValueTypeExp>,
         value: Box<ValueExp>,
         body: Box<ComputationExp>,
     },
@@ -465,6 +466,7 @@ pub enum SExp {
     },
     ValueLet {
         var: Identifier,
+        value_ty: Box<SExp>,
         value: Box<SExp>,
         body: Box<SExp>,
     },
@@ -816,8 +818,14 @@ impl TryFrom<SExp> for ComputationExp {
                 value_ty: Box::new((*value_ty).try_into()?),
                 body: Box::new((*body).try_into()?),
             }),
-            SExp::ValueLet { var, value, body } => Ok(Self::ValueLet {
+            SExp::ValueLet {
                 var,
+                value_ty,
+                value,
+                body,
+            } => Ok(Self::ValueLet {
+                var,
+                value_ty: Box::new((*value_ty).try_into()?),
                 value: Box::new((*value).try_into()?),
                 body: Box::new((*body).try_into()?),
             }),

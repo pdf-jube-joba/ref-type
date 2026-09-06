@@ -216,11 +216,14 @@ impl<'a> TermParser<'a> {
             return self.parse_parenthesized(|parser| {
                 let var = parser.expect_ident()?;
                 parser.expect_token(Token::Comma)?;
+                let value_ty = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
                 let value = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let body = parser.parse_sexp()?;
                 Ok(SExp::ValueLet {
                     var,
+                    value_ty: Box::new(value_ty),
                     value: Box::new(value),
                     body: Box::new(body),
                 })

@@ -565,9 +565,15 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             format_value_type(env, value_ty),
             format_computation(env, body)
         ),
-        ComputationNode::ValueLet { var, value, body } => format!(
-            "letv {} = {} in {}",
+        ComputationNode::ValueLet {
+            var,
+            value_ty,
+            value,
+            body,
+        } => format!(
+            "letv {}: {} = {} in {}",
             env.symbol(var),
+            format_value_type(env, value_ty),
             format_value(env, value),
             format_computation(env, body)
         ),

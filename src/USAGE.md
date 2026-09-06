@@ -47,3 +47,18 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 `setext` は同じ `Power(X)` の要素と双方向の包含証明を、`funext` は同じ関数型の
 二項と各点での等号を要求する。`classicalIndefiniteChoice` は `Family: X -> Set` と
 `(x: X) -> exists (Family x)` から `exists ((x: X) -> Family x)` を返す。
+
+## Program の値束縛
+
+`let^v` は型注釈を含む `\vlet(x, A, value, body)` と書く。`A` は
+`ValueType` で、`value` がその型を持つことを検査する。`x` は `body` 内だけで
+有効であり、型注釈と右辺は外側のスコープで解釈する。
+
+```text
+\module Example(A: \VType, a: A) {
+  \cdefinition result: \F(A) := \vlet(x, A, a, \return(x));
+}
+```
+
+旧構文 `\vlet(x, value, body)` は受け付けない。注釈位置の `_` は他の型注釈と
+同様に制約から補完し、解決できなければエラーになる。

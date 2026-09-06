@@ -5,7 +5,6 @@ use crate::{
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, ReflectedProgramCaseBranch},
     ids::DefId,
     program::*,
-    program_derivation::ProgramCheckSession,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -131,14 +130,11 @@ pub fn reflect_context(
     Ok(result)
 }
 
-pub fn reflect_program(
-    env: &CrateEnv,
-    context: &ProgramContext,
-    program: Program,
-) -> Result<Exp, ReflectionError> {
+/// Structurally reflects a type-checked Program, preserving bound indices.
+pub fn reflect_program(env: &CrateEnv, program: Program) -> Result<Exp, ReflectionError> {
     match program {
-        Program::Value(v) => reflect_value(env, context, v),
-        Program::Computation(c) => reflect_computation(env, context, c),
+        Program::Value(v) => reflect_value(env, v),
+        Program::Computation(c) => reflect_computation(env, c),
     }
 }
 
@@ -164,14 +160,13 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                 step: p_step,
                 initial: p_initial,
             } => {
-                let context = Vec::new();
                 reflect_value_type(env, p_state_ty)
                     .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, state_ty))
                     && reflect_value_type(env, p_result_ty)
                         .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, result_ty))
-                    && reflect_value(env, &context, p_step)
+                    && reflect_value(env, p_step)
                         .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, step))
-                    && reflect_value(env, &context, p_initial)
+                    && reflect_value(env, p_initial)
                         .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, initial))
             }
             _ => false,
@@ -194,14 +189,13 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                 initial: p_initial,
                 transition: p_transition,
             } => {
-                let context = Vec::new();
                 reflect_value_type(env, p_state_ty)
                     .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, state_ty))
                     && reflect_value_type(env, p_result_ty)
                         .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, result_ty))
-                    && reflect_value(env, &context, p_step)
+                    && reflect_value(env, p_step)
                         .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, step))
-                    && reflect_value(env, &context, p_initial)
+                    && reflect_value(env, p_initial)
                         .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, initial))
                     && certificate_matches_program(
                         env,
@@ -211,22 +205,17 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
             }
             _ => false,
         },
-        (program, _) => reflect_program(env, &Vec::new(), program)
+        (program, _) => reflect_program(env, program)
             .is_ok_and(|term| crate::calculus::exp_is_alpha_eq(env, term, certificate)),
     }
 }
 
-pub fn reflect_value(
-    env: &CrateEnv,
-    context: &ProgramContext,
-    value: Value,
-) -> Result<Exp, ReflectionError> {
-    reflect_value_inner(env, context, value, &HashMap::new(), &mut HashSet::new())
+pub fn reflect_value(env: &CrateEnv, value: Value) -> Result<Exp, ReflectionError> {
+    reflect_value_inner(env, value, &HashMap::new(), &mut HashSet::new())
 }
 
 fn reflect_value_inner(
     env: &CrateEnv,
-    context: &ProgramContext,
     value: Value,
     certificates: &HashMap<Computation, Exp>,
     visiting: &mut HashSet<DefId>,
@@ -246,7 +235,7 @@ fn reflect_value_inner(
                     ..
                 } => Ok(*term),
                 DefinedConstant::ProgramValue { body, .. } => {
-                    reflect_value_inner(env, &Vec::new(), *body, certificates, visiting)
+                    reflect_value_inner(env, *body, certificates, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -254,7 +243,7 @@ fn reflect_value_inner(
             result?
         }
         ValueNode::Thunk { computation } => {
-            reflect_computation_inner(env, context, computation, certificates, visiting)?
+            reflect_computation_inner(env, computation, certificates, visiting)?
         }
         ValueNode::Continue {
             state_ty,
@@ -263,7 +252,7 @@ fn reflect_value_inner(
         } => arena.alloc(ExpNode::Continue {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            next: reflect_value_inner(env, context, next, certificates, visiting)?,
+            next: reflect_value_inner(env, next, certificates, visiting)?,
         }),
         ValueNode::Finish {
             state_ty,
@@ -272,7 +261,7 @@ fn reflect_value_inner(
         } => arena.alloc(ExpNode::Finish {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            output: reflect_value_inner(env, context, output, certificates, visiting)?,
+            output: reflect_value_inner(env, output, certificates, visiting)?,
         }),
         ValueNode::InductiveConstructor {
             indspec,
@@ -292,7 +281,7 @@ fn reflect_value_inner(
             for field in fields {
                 term = arena.alloc(ExpNode::App {
                     func: term,
-                    arg: reflect_value_inner(env, context, field, certificates, visiting)?,
+                    arg: reflect_value_inner(env, field, certificates, visiting)?,
                 });
             }
             term
@@ -300,35 +289,28 @@ fn reflect_value_inner(
     })
 }
 
-pub fn reflect_computation(
-    env: &CrateEnv,
-    context: &ProgramContext,
-    term: Computation,
-) -> Result<Exp, ReflectionError> {
-    reflect_computation_inner(env, context, term, &HashMap::new(), &mut HashSet::new())
+pub fn reflect_computation(env: &CrateEnv, term: Computation) -> Result<Exp, ReflectionError> {
+    reflect_computation_inner(env, term, &HashMap::new(), &mut HashSet::new())
 }
 
 pub fn reflect_computation_with_certificates(
     env: &CrateEnv,
-    context: &ProgramContext,
     term: Computation,
     certificates: &HashMap<Computation, Exp>,
 ) -> Result<Exp, ReflectionError> {
-    reflect_computation_inner(env, context, term, certificates, &mut HashSet::new())
+    reflect_computation_inner(env, term, certificates, &mut HashSet::new())
 }
 
 pub fn reflect_value_with_certificates(
     env: &CrateEnv,
-    context: &ProgramContext,
     value: Value,
     certificates: &HashMap<Computation, Exp>,
 ) -> Result<Exp, ReflectionError> {
-    reflect_value_inner(env, context, value, certificates, &mut HashSet::new())
+    reflect_value_inner(env, value, certificates, &mut HashSet::new())
 }
 
 fn reflect_computation_inner(
     env: &CrateEnv,
-    context: &ProgramContext,
     term: Computation,
     certificates: &HashMap<Computation, Exp>,
     visiting: &mut HashSet<DefId>,
@@ -351,7 +333,7 @@ fn reflect_computation_inner(
                     ..
                 } => Ok(*term),
                 DefinedConstant::ProgramComputation { body, .. } => {
-                    reflect_computation_inner(env, &Vec::new(), *body, certificates, visiting)
+                    reflect_computation_inner(env, *body, certificates, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -359,7 +341,7 @@ fn reflect_computation_inner(
             result?
         }
         ComputationNode::Return { value } | ComputationNode::Force { value } => {
-            reflect_value_inner(env, context, value, certificates, visiting)?
+            reflect_value_inner(env, value, certificates, visiting)?
         }
         ComputationNode::Lambda {
             var,
@@ -367,17 +349,15 @@ fn reflect_computation_inner(
             body,
         } => {
             let ty = reflect_value_type(env, value_ty)?;
-            let mut nested = context.clone();
-            nested.push(ProgramContextEntry::Value { var, ty: value_ty });
             arena.alloc(ExpNode::Lam {
                 var,
                 ty,
-                body: reflect_computation_inner(env, &nested, body, certificates, visiting)?,
+                body: reflect_computation_inner(env, body, certificates, visiting)?,
             })
         }
         ComputationNode::Application { computation, value } => arena.alloc(ExpNode::App {
-            func: reflect_computation_inner(env, context, computation, certificates, visiting)?,
-            arg: reflect_value_inner(env, context, value, certificates, visiting)?,
+            func: reflect_computation_inner(env, computation, certificates, visiting)?,
+            arg: reflect_value_inner(env, value, certificates, visiting)?,
         }),
         ComputationNode::Sequence {
             computation,
@@ -385,37 +365,32 @@ fn reflect_computation_inner(
             value_ty,
             body,
         } => {
-            let source =
-                reflect_computation_inner(env, context, computation, certificates, visiting)?;
+            let source = reflect_computation_inner(env, computation, certificates, visiting)?;
             let ty = reflect_value_type(env, value_ty)?;
-            let mut nested = context.clone();
-            nested.push(ProgramContextEntry::Value { var, ty: value_ty });
             let function = arena.alloc(ExpNode::Lam {
                 var,
                 ty,
-                body: reflect_computation_inner(env, &nested, body, certificates, visiting)?,
+                body: reflect_computation_inner(env, body, certificates, visiting)?,
             });
             arena.alloc(ExpNode::App {
                 func: function,
                 arg: source,
             })
         }
-        ComputationNode::ValueLet { var, value, body } => {
-            let mut infer_context = context.clone();
-            let value_ty =
-                crate::program_derivation::ProgramCheckSession::new(env, &mut infer_context)
-                    .infer_value(value)
-                    .map_err(|_| ReflectionError::NotProgramTerm)?;
-            let mut nested = context.clone();
-            nested.push(ProgramContextEntry::Value { var, ty: value_ty });
+        ComputationNode::ValueLet {
+            var,
+            value_ty,
+            value,
+            body,
+        } => {
             let function = arena.alloc(ExpNode::Lam {
                 var,
                 ty: reflect_value_type(env, value_ty)?,
-                body: reflect_computation_inner(env, &nested, body, certificates, visiting)?,
+                body: reflect_computation_inner(env, body, certificates, visiting)?,
             });
             arena.alloc(ExpNode::App {
                 func: function,
-                arg: reflect_value_inner(env, context, value, certificates, visiting)?,
+                arg: reflect_value_inner(env, value, certificates, visiting)?,
             })
         }
         ComputationNode::Case {
@@ -423,49 +398,18 @@ fn reflect_computation_inner(
             scrutinee,
             branches,
         } => {
-            let mut infer_context = context.clone();
-            let scrutinee_ty = ProgramCheckSession::new(env, &mut infer_context)
-                .infer_value(scrutinee)
-                .map_err(|_| ReflectionError::NotProgramTerm)?;
-            let parameters = match arena.get(scrutinee_ty) {
-                ValueTypeNode::Inductive {
-                    indspec: actual,
-                    parameters,
-                } if actual == indspec => parameters,
-                _ => return Err(ReflectionError::NotProgramTerm),
-            };
-            let constructors = env.program_inductive(indspec).constructors();
-            let mut reflected_branches = Vec::with_capacity(branches.len());
-            for (branch, constructor) in branches.into_iter().zip(constructors) {
-                let mut nested = context.clone();
-                let fields = constructor.instantiated_fields(arena, &parameters);
-                for (field_index, (binder, (_, ty))) in
-                    branch.binders.iter().copied().zip(fields).enumerate()
-                {
-                    nested.push(ProgramContextEntry::Value {
-                        var: binder,
-                        ty: crate::program_calculus::shift_value_type_indices(
-                            arena,
-                            ty,
-                            field_index,
-                            0,
-                        ),
-                    });
-                }
-                reflected_branches.push(ReflectedProgramCaseBranch {
-                    binders: branch.binders,
-                    body: reflect_computation_inner(
-                        env,
-                        &nested,
-                        branch.body,
-                        certificates,
-                        visiting,
-                    )?,
-                });
-            }
+            let reflected_branches = branches
+                .into_iter()
+                .map(|branch| {
+                    Ok(ReflectedProgramCaseBranch {
+                        binders: branch.binders,
+                        body: reflect_computation_inner(env, branch.body, certificates, visiting)?,
+                    })
+                })
+                .collect::<Result<_, ReflectionError>>()?;
             arena.alloc(ExpNode::ReflectedProgramCase {
                 indspec,
-                scrutinee: reflect_value_inner(env, context, scrutinee, certificates, visiting)?,
+                scrutinee: reflect_value_inner(env, scrutinee, certificates, visiting)?,
                 branches: reflected_branches,
             })
         }

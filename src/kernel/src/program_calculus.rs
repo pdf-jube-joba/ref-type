@@ -290,16 +290,22 @@ pub fn computation_is_alpha_eq(arena: &Arena, left: Computation, right: Computat
         }
         (
             ComputationNode::ValueLet {
+                value_ty: lt,
                 value: lv,
                 body: lb,
                 ..
             },
             ComputationNode::ValueLet {
+                value_ty: rt,
                 value: rv,
                 body: rb,
                 ..
             },
-        ) => value_is_alpha_eq(arena, lv, rv) && computation_is_alpha_eq(arena, lb, rb),
+        ) => {
+            value_type_is_alpha_eq(arena, lt, rt)
+                && value_is_alpha_eq(arena, lv, rv)
+                && computation_is_alpha_eq(arena, lb, rb)
+        }
         (
             ComputationNode::Run {
                 state_ty: ls,
@@ -739,10 +745,16 @@ pub fn shift_computation_indices(
                     body: go(arena, body, amount, cutoff + 1),
                 },
             ),
-            ComputationNode::ValueLet { var, value, body } => arena.reuse_computation(
+            ComputationNode::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => arena.reuse_computation(
                 term,
                 ComputationNode::ValueLet {
                     var,
+                    value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
                     value: shift_value_indices(arena, value, amount, cutoff),
                     body: go(arena, body, amount, cutoff + 1),
                 },
@@ -911,10 +923,17 @@ pub fn instantiate_value_in_computation(
                     body: subst_comp(arena, body, argument, depth + 1),
                 },
             ),
-            ComputationNode::ValueLet { var, value, body } => arena.reuse_computation(
+            ComputationNode::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => arena.reuse_computation(
                 term,
                 ComputationNode::ValueLet {
                     var,
+                    value_ty: strengthen_value_type(arena, value_ty, depth)
+                        .expect("Program value types cannot depend on a value binder"),
                     value: subst_value(arena, value, argument, depth),
                     body: subst_comp(arena, body, argument, depth + 1),
                 },
@@ -1396,12 +1415,14 @@ pub fn remap_computation_global_ids(
         ),
         ComputationNode::ValueLet {
             var,
+            value_ty: ty,
             value: item,
             body,
         } => arena.reuse_computation(
             computation,
             ComputationNode::ValueLet {
                 var,
+                value_ty: value_ty(ty),
                 value: value(item),
                 body: recur(body),
             },
@@ -1700,10 +1721,16 @@ pub fn subst_computation_module_params(
                 body: subst_computation_module_params(arena, body, substitutions),
             },
         ),
-        ComputationNode::ValueLet { var, value, body } => arena.reuse_computation(
+        ComputationNode::ValueLet {
+            var,
+            value_ty,
+            value,
+            body,
+        } => arena.reuse_computation(
             term,
             ComputationNode::ValueLet {
                 var,
+                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
                 value: subst_value_module_params(arena, value, substitutions),
                 body: subst_computation_module_params(arena, body, substitutions),
             },

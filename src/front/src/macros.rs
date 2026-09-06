@@ -344,7 +344,13 @@ fn alpha_rename(
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::ValueLet { var, value, body } => {
+        SExp::ValueLet {
+            var,
+            value_ty,
+            value,
+            body,
+        } => {
+            alpha_rename(value_ty, order, counter, scopes);
             alpha_rename(value, order, counter, scopes);
             let local = HashMap::from([fresh_binder(var, order, counter)]);
             scopes.push(local);
@@ -1186,11 +1192,6 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             computation: func,
             value: arg,
         }
-        | SExp::ValueLet {
-            value: func,
-            body: arg,
-            ..
-        }
         | SExp::Equal {
             left: func,
             right: arg,
@@ -1231,6 +1232,14 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             for (_, case) in cases {
                 walk_sexp_mut(case, action);
             }
+        }
+        SExp::ValueLet {
+            value_ty,
+            value,
+            body,
+            ..
+        } => {
+            walk_many_mut([value_ty, value, body], action);
         }
         SExp::ComputationLam { value_ty, body, .. } => {
             walk_sexp_mut(value_ty, action);

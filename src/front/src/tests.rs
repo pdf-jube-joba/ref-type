@@ -677,3 +677,186 @@ fn accessibility_intro_and_descent_follow_the_system_premises() {
 
     environment.add_new_module_to_root(&modules[0]).unwrap();
 }
+
+#[test]
+fn program_value_let_requires_an_annotation() {
+    let parsed = parse::str_parse_exp(r"\vlet(x, A, a, \return(x))").unwrap();
+    assert!(matches!(parsed, SExp::ValueLet { .. }));
+    assert!(parse::str_parse_exp(r"\vlet(x, a, \return(x))").is_err());
+}
+
+#[test]
+fn program_value_let_solves_and_zonks_type_annotations() {
+    use kernel::program::{ComputationNode, ValueTypeNode};
+    let modules = parse::str_parse_modules(
+        r#"
+        \module AnnotatedLet(A: \VType, a: A) {
+            \cdefinition identity: \F(A) := \vlet(x, _, a, \return(x));
+            \cdefinition nested: \F(A) := \vlet(x, A, a, \vlet(y, _, x, \return(y)));
+            \cinfer \vlet(x, _, a, \return(x));
+        }
+    "#,
+    )
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::Definition { definition, .. } = env.module(module).item("identity").unwrap()
+    else {
+        panic!()
+    };
+    let DefinedConstant::ProgramComputation {
+        body,
+        certified_reflection,
+        ..
+    } = env.definition(*definition)
+    else {
+        panic!()
+    };
+    let ComputationNode::ValueLet { value_ty, .. } = env.arena().get(*body) else {
+        panic!()
+    };
+    assert!(matches!(
+        env.arena().get(value_ty),
+        ValueTypeNode::ModuleParam(_)
+    ));
+    assert!(certified_reflection.is_some());
+}
+
+#[test]
+fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
+    for term in [
+        r"\vlet(x, B, a, \return(a))",
+        r"\vlet(x, a, a, \return(a))",
+        r"\vlet(x, _, ?, \return(a))",
+    ] {
+        let source = format!(
+            r"\module InvalidLet(A: \VType, B: \VType, a: A) {{ \cdefinition result: \F(A) := {term}; }}"
+        );
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        assert!(
+            environment.add_new_module_to_root(&modules[0]).is_err(),
+            "accepted {term}"
+        );
+    }
+}
+
+#[test]
+fn program_value_let_macro_annotations_use_the_outer_scope() {
+    use crate::{elaborator::module_manager::ModuleManager, macros::MacroKind, syntax::ModuleBody};
+    let modules = parse::str_parse_modules(
+        r#"
+        \module LetMacros {
+            \macro local($type, $value) := \vlet(A, $type, $value, \return(A));
+        }
+    "#,
+    )
+    .unwrap();
+    let ModuleBody::Inline(items) = &modules[0].body else {
+        panic!()
+    };
+    let crate::syntax::ModuleItem::UserMacro {
+        name,
+        before,
+        after,
+    } = &items[0]
+    else {
+        panic!()
+    };
+    let env = kernel::environment::CrateEnv::new();
+    let mut manager = ModuleManager::new();
+    manager
+        .register_macro(
+            &env,
+            name.clone(),
+            MacroKind::Named,
+            before.clone(),
+            after.clone(),
+        )
+        .unwrap();
+    let SExp::NamedMacro { name, tokens, .. } = parse::str_parse_exp("local!{A a}").unwrap() else {
+        panic!()
+    };
+    let expanded = manager
+        .expand_named_macro(&env, env.root_module(), &name, &tokens, 0, None)
+        .unwrap();
+    let SExp::ValueLet {
+        var,
+        value_ty,
+        value,
+        body,
+    } = expanded
+    else {
+        panic!()
+    };
+    assert_ne!(var.as_str(), "A");
+    assert!(
+        matches!(*value_ty, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "A")
+    );
+    assert!(
+        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "a")
+    );
+    let SExp::Return { value } = *body else {
+        panic!()
+    };
+    assert!(
+        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access == var)
+    );
+}
+
+#[test]
+fn program_case_reflects_value_let_in_parameterized_branches() {
+    use kernel::program::ComputationNode;
+    let modules = parse::str_parse_modules(
+        r#"
+        \module LetCase(A: \VType) {
+            \inductive Pair(X: \VType): \VType :=
+            | pair: X -> X -> Pair;
+            ;
+            \cdefinition first: \CFun(Pair[A], \F(A)) :=
+                \clam(p, Pair[A], \vcase(Pair, p) {
+                | pair(left, right) => \vlet(x, A, left, \return(x));
+                });
+        }
+    "#,
+    )
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::Definition { definition, .. } = env.module(module).item("first").unwrap()
+    else {
+        panic!()
+    };
+    let DefinedConstant::ProgramComputation {
+        body,
+        certified_reflection,
+        ..
+    } = env.definition(*definition)
+    else {
+        panic!()
+    };
+    assert!(certified_reflection.is_some());
+    let ComputationNode::Lambda { body, .. } = env.arena().get(*body) else {
+        panic!()
+    };
+    // Reflect the open case directly, without the enclosing lambda's context.
+    let reflected = kernel::reflection::reflect_computation(env, body).unwrap();
+    let ExpNode::ReflectedProgramCase {
+        scrutinee,
+        branches,
+        ..
+    } = env.arena().get(reflected)
+    else {
+        panic!()
+    };
+    assert_eq!(env.arena().get(scrutinee), ExpNode::Bound(0));
+    assert_eq!(branches[0].binders.len(), 2);
+    assert!(matches!(
+        env.arena().get(branches[0].body),
+        ExpNode::App { .. }
+    ));
+}

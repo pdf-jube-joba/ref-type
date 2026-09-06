@@ -509,7 +509,6 @@ impl ModuleManager {
                     }
                     ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
                         env,
-                        &Vec::new(),
                         kernel::program::Program::Value(*value),
                     )
                     .map_err(|error| {
