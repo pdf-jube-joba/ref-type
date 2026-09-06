@@ -219,7 +219,7 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
-        if self.bump_if_keyword("\\Type") || self.bump_if_keyword("\\VType") {
+        if self.bump_if_keyword("\\VType") {
             return Ok(SExp::ValueType);
         }
         if self.bump_if_keyword("\\U") {
@@ -503,20 +503,6 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        if self.bump_if_keyword("\\RfType") {
-            return Err(ParseError {
-                msg: "\\RfType was removed: reflection is now a meta-level map".into(),
-                start: self.pos.saturating_sub(1),
-                end: self.pos,
-            });
-        }
-        if self.bump_if_keyword("\\RfTerm") {
-            return Err(ParseError {
-                msg: "\\RfTerm was removed: reflection is now a meta-level map".into(),
-                start: self.pos.saturating_sub(1),
-                end: self.pos,
-            });
-        }
         let program_form = self.bump_if_keyword("\\Prun");
         if program_form || self.bump_if_keyword("\\run") {
             return self.parse_parenthesized(|parser| {
@@ -527,21 +513,21 @@ impl<'a> TermParser<'a> {
                 let step = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let initial = parser.parse_sexp()?;
-                if parser.bump_if_token(&Token::Comma) {
-                    return Err(ParseError {
-                        msg: "five-argument \\run was removed; put the Acc witness in a trailing proof block".into(),
-                        start: parser.pos,
-                        end: parser.pos,
-                    });
-                }
-                Ok(if program_form { SExp::PRun {
-                    state_ty: Box::new(state_ty), result_ty: Box::new(result_ty), step: Box::new(step), initial: Box::new(initial),
-                } } else { SExp::Run {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                    step: Box::new(step),
-                    initial: Box::new(initial),
-                } })
+                Ok(if program_form {
+                    SExp::PRun {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        step: Box::new(step),
+                        initial: Box::new(initial),
+                    }
+                } else {
+                    SExp::Run {
+                        state_ty: Box::new(state_ty),
+                        result_ty: Box::new(result_ty),
+                        step: Box::new(step),
+                        initial: Box::new(initial),
+                    }
+                })
             });
         }
         let program_form = self.bump_if_keyword("\\PrunCase");
@@ -556,13 +542,6 @@ impl<'a> TermParser<'a> {
                 let initial = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let transition = parser.parse_sexp()?;
-                if parser.bump_if_token(&Token::Comma) {
-                    return Err(ParseError {
-                        msg: "legacy annotated \\runCase was removed; use a proof block".into(),
-                        start: parser.pos,
-                        end: parser.pos,
-                    });
-                }
                 Ok(if program_form {
                     SExp::PRunCase {
                         state_ty: Box::new(state_ty),
@@ -1780,34 +1759,6 @@ mod tests {
         print_and_unwrap(r"\take (x: X) => P \by (existsX)");
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"\subsetinto(A, X, x, p) | z = h");
-    }
-
-    #[test]
-    fn removed_reflection_and_run_syntax_has_migration_errors() {
-        fn assert_error(input: &str, expected: &str) {
-            let tokens = lex_all(input).expect("lexing removed syntax should succeed");
-            let error = TermParser::new(&tokens)
-                .parse_sexp()
-                .expect_err("removed syntax should be rejected");
-            assert_eq!(error.msg, expected);
-        }
-
-        assert_error(
-            r"\RfType(A)",
-            r"\RfType was removed: reflection is now a meta-level map",
-        );
-        assert_error(
-            r"\RfTerm(A, a)",
-            r"\RfTerm was removed: reflection is now a meta-level map",
-        );
-        assert_error(
-            r"\run(A, B, step, initial, termination)",
-            r"five-argument \run was removed; put the Acc witness in a trailing proof block",
-        );
-        assert_error(
-            r"\runCase(A, B, step, initial, transition, termination)",
-            r"legacy annotated \runCase was removed; use a proof block",
-        );
     }
 
     #[test]

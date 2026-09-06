@@ -78,7 +78,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Ty",
     "\\subsetinto", // usuals
     "\\VType",
-    "\\Type",
     "\\U",
     "\\F",
     "\\CFun",
@@ -97,8 +96,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\finish",
     "\\Pfinish",
     "\\Acc",
-    "\\RfType",
-    "\\RfTerm",
     "\\run",
     "\\Prun",
     "\\runCase",
@@ -471,14 +468,6 @@ impl<'a> Parser<'a> {
         let result = self.parse_sexp()?;
         let sort = match result {
             SExp::Sort(sort) => sort,
-            SExp::ValueType => {
-                return Err(ParseError {
-                    msg: "Program structures are not supported; use \\inductive with a named constructor"
-                        .into(),
-                    start: 0,
-                    end: 0,
-                });
-            }
             _ => {
                 return Err(ParseError {
                     msg: "expected PTS sort in structure declaration".into(),

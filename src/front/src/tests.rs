@@ -63,15 +63,6 @@ fn record_fields_are_generated_as_eliminator_definitions() {
 }
 
 #[test]
-fn program_structure_declaration_has_a_migration_error() {
-    let error = parse::str_parse_modules(
-        r#"\module M { \structure Box(A: \VType): \VType := { value: A }; }"#,
-    )
-    .unwrap_err();
-    assert!(error.contains("Program structures are not supported"));
-}
-
-#[test]
 fn parses_implicit_and_goal_metavariables_as_atoms() {
     assert!(matches!(
         parse::str_parse_exp("_").unwrap(),
@@ -138,8 +129,6 @@ fn only_the_documented_macro_surface_syntax_is_accepted() {
     assert!(parse::str_parse_exp("$value").is_err());
     assert!(parse::str_parse_exp("named !{value}").is_err());
     assert!(parse::str_parse_exp("$(value )$").is_err());
-    assert!(parse::str_parse_modules("\\module M { \\mathmacro old; }").is_err());
-    assert!(parse::str_parse_modules("\\module M { \\usermacro old; }").is_err());
 }
 
 #[test]
@@ -473,22 +462,6 @@ fn program_value_and_computation_commands_are_separate() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     environment.add_new_module_to_root(&modules[0]).unwrap();
-}
-
-#[test]
-fn generic_definition_rejects_program_syntax_with_migration_hint() {
-    let source = r#"
-        \module ProgramDefinition(A: \VType, x: A) {
-            \definition value: A := x;
-        }
-    "#;
-    let modules = parse::str_parse_modules(source).unwrap();
-    let mut environment = GlobalEnvironment::default();
-    let error = environment
-        .add_new_module_to_root(&modules[0])
-        .unwrap_err()
-        .to_string();
-    assert!(error.contains("\\definition is reserved for Set/Prop"));
 }
 
 #[test]

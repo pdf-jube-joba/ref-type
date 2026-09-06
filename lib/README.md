@@ -61,8 +61,8 @@ relational image として定義する。`SequenceClosed` は列演算が Cauchy
 
 単なるデータの束には `\structure` を使い、帰納法が必要な型だけを `\inductive` にする。
 このため `RawRealStructure`、`Integer`、`Fraction`、`FinitePair`、`And` は structure、
-`Nat`、`Or`、Cartesian product `Times` は inductive type である。従来の positional constructor 名は
-type-associated definition として残してあり、新しいコードでは field 名付きの構築を選べる。
+`Nat`、`Or`、Cartesian product `Times` は inductive type である。structure の値は
+field 名付きで構築する。
 
 反復する論理結合は `Logic.ref` の hygienic macro に集約する。型引数が使用箇所から一意に決まる場合は
 `_` の implicit metavariable を使う一方、公開定義の型は明示してモジュール境界を読みやすく保つ。

@@ -1018,25 +1018,6 @@ impl GlobalEnvironment {
                     body,
                     proof,
                 } => {
-                    let is_program_type = if matches!(ty, SExp::Meta { .. }) {
-                        false
-                    } else if let Ok(ty) = ValueTypeExp::try_from(ty.clone()) {
-                        let mut scope =
-                            program_term_elaborator::ProgramScope::from_environment(self);
-                        scope.elaborate_value_type(&ty, self).is_ok()
-                    } else if let Ok(ty) = ComputationTypeExp::try_from(ty.clone()) {
-                        let mut scope =
-                            program_term_elaborator::ProgramScope::from_environment(self);
-                        scope.elaborate_computation_type(&ty, self).is_ok()
-                    } else {
-                        false
-                    };
-                    if is_program_type {
-                        return Err(
-                            "\\definition is reserved for Set/Prop; use \\vdefinition or \\cdefinition for Program syntax"
-                                .into(),
-                        );
-                    }
                     self.logger.record(
                         LogLevel::Debug,
                         vec!["elaborator".to_string(), "definition".to_string()],
