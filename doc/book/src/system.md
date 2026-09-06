@@ -108,7 +108,7 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
     | lambda abstraction | \(\lambda x^v:A.M\) |
     | application | \(M @^c V\) |
     | sequence | \(M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ M\) |
-    | value let | \(\operatorname{let}^v x^v=V\ \operatorname{in}\ M\) |
+    | value let | \(\operatorname{let}^v x^v:A=V\ \operatorname{in}\ M\) |
     | run | \(\operatorname{run}_{A,A}(V,V)\) |
     | run case | \(\operatorname{runCase}_{A,A}(V,V,M)\) |
 - program type: \(P = \)
@@ -237,7 +237,7 @@ E::={}&
 &\Rightarrow_c M[x^v:=V],\\
 \operatorname{return}(V)\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N
 &\Rightarrow_c N[x^v:=V],\\
-\operatorname{let}^v x^v=V\ \operatorname{in}\ N
+\operatorname{let}^v x^v:A=V\ \operatorname{in}\ N
 &\Rightarrow_c N[x^v:=V],\\
 \operatorname{run}_{A,B}(f,a)
 &\Rightarrow_c
@@ -276,7 +276,7 @@ M\Rightarrow_cM'
 | conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\)<br>\(\Gamma \vdash T_2: s\) | \(s\in\mathcal{S}\)<br>\(T_1 \equiv_s T_2\) |
 | dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\)<br>\(\Gamma::(x^{s_1}: t: s_1) \vdash T: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\((s_1, s_2, s_3) \in \mathcal{R}\)<br>\(x^{s_1}\notin\Gamma\) |
 | dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma \vdash (\Pi x^{s_1}:t. M): s_3\)<br>\(\Gamma::(x^{s_1}:t: s_1) \vdash m: M: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\(x^{s_1}\notin\Gamma\) |
-| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\)<br>\(\Gamma \vdash a: t: s_1\) | \(s_1,s_2,s_3\in\mathcal{S}\) |
+| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\)<br>\(\Gamma \vdash a: t: s_1\)<br>\(\Gamma::(x^{s_1}: t: s_1) \vdash T: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\((s_1, s_2, s_3) \in \mathcal{R}\) |
 | type elem | \(\Gamma \vdash A: s: t\) | \(\Gamma \vdash A: s\)<br>\(\Gamma \vdash s: t\) | \(s,t\in\mathcal{S}\) |
 | type sort | \(\Gamma \vdash A: s\) | \(\Gamma \vdash A: s: t\) | \(s,t\in\mathcal{S}\) |
 
@@ -370,7 +370,7 @@ value typing、computation typing のいずれか一つを表す。
 | function intro | \(\Delta\vdash_c\lambda x^v:A.M:A\Rightarrow\underline B\) | \(\Delta,x^v:A:\mathsf{value}\vdash_cM:\underline B\) | \(x^v\notin\Delta\) |
 | function elim | \(\Delta\vdash_cM @^c V:\underline B\) | \(\Delta\vdash_cM:A\Rightarrow\underline B\)<br>\(\Delta\vdash_vV:A\) | |
 | sequence | \(\Delta\vdash_c M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N:\underline B\) | \(\Delta\vdash_cM:\text{F} A\)<br>\(\Delta,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Delta\) |
-| value let | \(\Delta\vdash_c\operatorname{let}^v x^v=V\ \operatorname{in}\ N:\underline B\) | \(\Delta\vdash_vV:A\)<br>\(\Delta,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Delta\) |
+| value let | \(\Delta\vdash_c\operatorname{let}^v x^v:A=V\ \operatorname{in}\ N:\underline B\) | \(\Delta\vdash_vV:A\)<br>\(\Delta,x^v:A:\mathsf{value}\vdash_cN:\underline B\) | \(x^v\notin\Delta\) |
 | continue intro | \(\Delta\vdash_v\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B)\) | \(\Delta\vdash_v a:A\)<br>\(\Delta\vdash B\ \mathsf{vtype}\) | |
 | finish intro | \(\Delta\vdash_v\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B)\) | \(\Delta\vdash A\ \mathsf{vtype}\)<br>\(\Delta\vdash_v b:B\) | |
 | run | \(\Delta\vdash_c\operatorname{run}_{A,B}(f,a):\text{F}B\) | \(\Delta\vdash_vf:\text{U}(A\Rightarrow\text{F}(\operatorname{RunStep}(A,B)))\)<br>\(\Delta\vdash_va:A\) | |
@@ -461,7 +461,7 @@ x^{*^s_0}:\operatorname{RfType}(A):*^s_0.
 (\lambda x^{*^s_0}:\operatorname{RfType}(A).
 \operatorname{RfTerm}(N)) @ \operatorname{RfTerm}(M),
 \\
-\operatorname{RfTerm}(\operatorname{let}^v x^v=V\ \operatorname{in}\ N)
+\operatorname{RfTerm}(\operatorname{let}^v x^v:A=V\ \operatorname{in}\ N)
 &:=
 (\lambda x^{*^s_0}:\operatorname{RfType}(A).
 \operatorname{RfTerm}(N)) @ \operatorname{RfTerm}(V),
