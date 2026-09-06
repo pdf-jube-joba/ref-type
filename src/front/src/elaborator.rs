@@ -1,9 +1,8 @@
 use crate::macros::MacroKind;
 use crate::{
     elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
-    log_msg, log_record,
-    logger::{LogLevel, LogPayload, Logger},
     metavariables::{ElaborationError, MetaStore},
+    output::Output,
     syntax::*,
 };
 use kernel::{
@@ -58,7 +57,7 @@ fn projected_record_field_type(
 #[derive(Default)]
 pub struct GlobalEnvironment {
     crate_env: CrateEnv,
-    logger: Logger, // to pass to elaborator
+    outputs: Vec<Output>,
     module_manager: module_manager::ModuleManager,
     metavariables: MetaStore,
 }
@@ -144,29 +143,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
     }
 
     fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String> {
-        log_record!(
-            self.logger,
-            LogLevel::Debug,
-            ["field projection"],
-            LogPayload::Exp(e),
-            "field projection {} called",
-            field_name.as_str(),
-        );
-
         let mut ctx = self.module_manager.current_context(&self.crate_env);
-
-        let infer_type_e = self
-            .logger
-            .infer(&self.crate_env, self.module_manager.current(), &mut ctx, e)
-            .ok_or("Failed to infer type of expression for field projection".to_string())?;
-
-        log_record!(
-            self.logger,
-            LogLevel::Debug,
-            ["field projection"],
-            LogPayload::Exp(infer_type_e),
-            "inferred type",
-        );
+        let infer_type_e =
+            CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
+                .infer_pts(e)
+                .map_err(|error| {
+                    format!("Failed to infer type of expression for field projection: {error:?}")
+                })?;
 
         let ExpNode::IndType {
             indspec,
@@ -200,9 +183,11 @@ impl term_elaborator::Handler for GlobalEnvironment {
                 e,
             )
         } else {
-            self.logger
-                .infer(&self.crate_env, self.module_manager.current(), &mut ctx, e)
-                .ok_or("Failed to infer elaborated Set/Prop expression".to_string())
+            CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
+                .infer_pts(e)
+                .map_err(|error| {
+                    format!("Failed to infer elaborated Set/Prop expression: {error:?}")
+                })
         };
         *local_ctx = ctx.split_off(module_context_len);
         result
@@ -256,30 +241,12 @@ impl GlobalEnvironment {
         &self.crate_env
     }
 
-    pub fn logger(&self) -> &Logger {
-        &self.logger
+    pub fn outputs(&self) -> &[Output] {
+        &self.outputs
     }
 
     fn finish_metavariables(&mut self) -> Result<(), ElaborationError> {
-        match self.metavariables.finish(&self.crate_env) {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                let goals = match &error {
-                    ElaborationError::AmbiguousImplicit(goals)
-                    | ElaborationError::UnsolvedGoals(goals) => Some(goals.clone()),
-                    _ => None,
-                };
-                if let Some(goals) = goals {
-                    self.logger.record(
-                        LogLevel::Error,
-                        vec!["metavariable".into(), "goal".into()],
-                        error.to_string(),
-                        LogPayload::Goals(goals),
-                    );
-                }
-                Err(error)
-            }
-        }
+        self.metavariables.finish(&self.crate_env)
     }
 
     /// Infer a Set/Prop term whose surface syntax still contains metavariables.
@@ -437,13 +404,6 @@ impl GlobalEnvironment {
 
 impl GlobalEnvironment {
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ElaborationError> {
-        log_msg!(
-            self.logger,
-            LogLevel::Info,
-            ["elaborator", "module"],
-            "Top level Elaborating module {}",
-            module.name.as_str()
-        );
         self.module_manager.moveto_root();
         self.module_add_rec(module)?;
         Ok(())
@@ -896,14 +856,6 @@ impl GlobalEnvironment {
     }
 
     fn module_add_rec(&mut self, module: &Module) -> Result<(), ElaborationError> {
-        log_msg!(
-            self.logger,
-            LogLevel::Debug,
-            ["elaborator", "module"],
-            "Elaborating module {}",
-            module.name.as_str()
-        );
-
         let Module {
             name,
             parameters,
@@ -1017,12 +969,6 @@ impl GlobalEnvironment {
                     body,
                     proof,
                 } => {
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["elaborator".to_string(), "definition".to_string()],
-                        format!("Elaborating definition {}", name.as_str()),
-                        LogPayload::Message,
-                    );
                     if let Some(owner) = owner {
                         let expected = self
                             .module_manager
@@ -1113,15 +1059,7 @@ impl GlobalEnvironment {
                         )?;
                     }
                 }
-                ModuleItem::ValueDefinition {
-                    name,
-                    binders,
-                    ty,
-                    body,
-                } => {
-                    if !binders.is_empty() {
-                        return Err("Program definitions do not use Set/Prop product binders; use module parameters or Program computation lambdas".into());
-                    }
+                ModuleItem::ValueDefinition { name, ty, body } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let body = scope.elaborate_value(body, self)?;
@@ -1140,22 +1078,8 @@ impl GlobalEnvironment {
                         name.clone(),
                         DefinedConstant::ProgramValue { ty, body },
                     )?;
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["elaborator".into(), "program definition".into()],
-                        format!("Program value {} elaborated", name.as_str()),
-                        LogPayload::ValueType(ty),
-                    );
                 }
-                ModuleItem::ComputationDefinition {
-                    name,
-                    binders,
-                    ty,
-                    body,
-                } => {
-                    if !binders.is_empty() {
-                        return Err("Program definitions do not use Set/Prop product binders; use module parameters or Program computation lambdas".into());
-                    }
+                ModuleItem::ComputationDefinition { name, ty, body } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let body = scope.elaborate_computation(body, self)?;
@@ -1174,12 +1098,6 @@ impl GlobalEnvironment {
                         name.clone(),
                         DefinedConstant::ProgramComputation { ty, body },
                     )?;
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["elaborator".into(), "program definition".into()],
-                        format!("Program computation {} elaborated", name.as_str()),
-                        LogPayload::ComputationType(ty),
-                    );
                 }
                 ModuleItem::Inductive {
                     type_name,
@@ -1323,27 +1241,6 @@ impl GlobalEnvironment {
                         *sort,
                         ctor_type_elabs,
                     );
-                    /* let indspec = InductiveTypeSpecs::new(
-                        &mut CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut ctx,
-                        ),
-                        parameter_elab,
-                        indices_elab,
-                        *sort,
-                        ctor_type_elabs,
-                    )
-                    .map_err(|error| {
-                        log_msg!(
-                            self.logger,
-                            LogLevel::Error,
-                            ["inductive type construction"],
-                            "inductive type construction failed: {:?}",
-                            error,
-                        );
-                        "Ill-formed inductive type specification".to_string()
-                    })?; */
 
                     self.crate_env.define_inductive(inductive, indspec);
                     let spec = self.crate_env.inductive(inductive).clone();
@@ -1414,30 +1311,6 @@ impl GlobalEnvironment {
                             indices: vec![],
                         }],
                     );
-                    /* let indspec = InductiveTypeSpecs::new(
-                        &mut CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut ctx,
-                        ),
-                        parameter_elab,
-                        vec![],
-                        *sort,
-                        vec![kernel::inductive::CtorType {
-                            telescope,
-                            indices: vec![],
-                        }],
-                    )
-                    .map_err(|error| {
-                        log_msg!(
-                            self.logger,
-                            LogLevel::Error,
-                            ["record type construction"],
-                            "record type construction failed: {:?}",
-                            error,
-                        );
-                        "Ill-formed record type specification".to_string()
-                    })?; */
 
                     let inductive = self
                         .crate_env
@@ -1657,7 +1530,9 @@ impl GlobalEnvironment {
                             &mut ctx, exp_elab, judgement, &evidence,
                         )?;
                     }
-                    self.logger.reduce_one(&self.crate_env, exp_elab);
+                    self.outputs.push(Output::Exp(
+                        kernel::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
+                    ));
                 }
                 ModuleItem::Normalize { exp, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
@@ -1681,22 +1556,10 @@ impl GlobalEnvironment {
                             &mut ctx, exp_elab, judgement, &evidence,
                         )?;
                     }
-                    self.logger.normalize(&self.crate_env, exp_elab);
-                }
-                ModuleItem::ValueEval { exp } | ModuleItem::ValueNormalize { exp } => {
-                    let mut scope = program_term_elaborator::ProgramScope::new();
-                    let value = scope.elaborate_value(exp, self)?;
-                    let value = if scope.has_metas() {
-                        scope.infer_value_with_metas(self, value)?.0
-                    } else {
-                        value
-                    };
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["program evaluation".into()],
-                        "Program value is in normal form".into(),
-                        LogPayload::Value(value),
-                    );
+                    self.outputs.push(Output::Exp(kernel::calculus::normalize(
+                        &self.crate_env,
+                        exp_elab,
+                    )));
                 }
                 ModuleItem::ComputationEval { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
@@ -1710,19 +1573,8 @@ impl GlobalEnvironment {
                         &self.crate_env,
                         computation,
                     );
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["program evaluation".into()],
-                        if reduced.is_some() {
-                            "Program computation reduced once".into()
-                        } else {
-                            "Program computation cannot reduce".into()
-                        },
-                        reduced.map_or(
-                            LogPayload::Computation(computation),
-                            LogPayload::Computation,
-                        ),
-                    );
+                    self.outputs
+                        .push(Output::Computation(reduced.unwrap_or(computation)));
                 }
                 ModuleItem::ComputationNormalize { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
@@ -1732,8 +1584,19 @@ impl GlobalEnvironment {
                     } else {
                         computation
                     };
-                    self.logger
-                        .evaluate_computation(&self.crate_env, computation);
+                    self.outputs.push(
+                        match kernel::program_calculus::evaluate_computation(
+                            &self.crate_env,
+                            computation,
+                        ) {
+                            kernel::program_calculus::Evaluation::Normal(result) => {
+                                Output::Computation(result)
+                            }
+                            kernel::program_calculus::Evaluation::OutOfFuel(result) => {
+                                Output::OutOfFuel(result)
+                            }
+                        },
+                    );
                 }
                 ModuleItem::ValueCheck { exp, ty } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
@@ -1744,12 +1607,7 @@ impl GlobalEnvironment {
                     ProgramCheckSession::new(&self.crate_env, &mut context)
                         .check_value(value, ty)
                         .map_err(|error| format!("Program value check failed: {error:?}"))?;
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["program check".into()],
-                        "Program value check succeeded".into(),
-                        LogPayload::ValueType(ty),
-                    );
+                    self.outputs.push(Output::ValueType(ty));
                 }
                 ModuleItem::ComputationCheck { exp, ty } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
@@ -1761,34 +1619,19 @@ impl GlobalEnvironment {
                     ProgramCheckSession::new(&self.crate_env, &mut context)
                         .check_computation(computation, ty)
                         .map_err(|error| format!("Program computation check failed: {error:?}"))?;
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["program check".into()],
-                        "Program computation check succeeded".into(),
-                        LogPayload::ComputationType(ty),
-                    );
+                    self.outputs.push(Output::ComputationType(ty));
                 }
                 ModuleItem::ValueInfer { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let value = scope.elaborate_value(exp, self)?;
                     let (_, ty) = scope.infer_value_with_metas(self, value)?;
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["program infer".into()],
-                        "Program value inference succeeded".into(),
-                        LogPayload::ValueType(ty),
-                    );
+                    self.outputs.push(Output::ValueType(ty));
                 }
                 ModuleItem::ComputationInfer { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
                     let (_, ty) = scope.infer_computation_with_metas(self, computation)?;
-                    self.logger.record(
-                        LogLevel::Debug,
-                        vec!["program infer".into()],
-                        "Program computation inference succeeded".into(),
-                        LogPayload::ComputationType(ty),
-                    );
+                    self.outputs.push(Output::ComputationType(ty));
                 }
                 ModuleItem::Check { exp, ty, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
@@ -1813,20 +1656,20 @@ impl GlobalEnvironment {
                         self.validate_definition_with_evidence(
                             &mut ctx, kind, exp_elab, ty_elab, &evidence,
                         )?;
-                        self.logger.record(
-                            LogLevel::Debug,
-                            vec!["check".to_string()],
-                            "check success".to_string(),
-                            LogPayload::Exp(ty_elab),
-                        );
+                        self.outputs.push(Output::Exp(ty_elab));
                     } else {
-                        self.logger.check(
+                        match CheckSession::new(
                             &self.crate_env,
                             self.module_manager.current(),
                             &mut ctx,
-                            exp_elab,
-                            ty_elab,
-                        );
+                        )
+                        .check_pts(exp_elab, ty_elab)
+                        {
+                            Ok(()) => self.outputs.push(Output::Exp(ty_elab)),
+                            Err(error) => self
+                                .outputs
+                                .push(Output::Message(format!("check failed: {error:?}"))),
+                        }
                     }
                 }
                 ModuleItem::Infer { exp, proof } => {
@@ -1850,20 +1693,20 @@ impl GlobalEnvironment {
                         self.validate_inference_with_evidence(
                             &mut ctx, exp_elab, judgement, &evidence,
                         )?;
-                        let payload = LogPayload::Exp(judgement.ty);
-                        self.logger.record(
-                            LogLevel::Debug,
-                            vec!["infer".to_string()],
-                            format!("infer success: {judgement:?}"),
-                            payload,
-                        );
+                        self.outputs.push(Output::Exp(judgement.ty));
                     } else {
-                        self.logger.infer_any(
+                        match CheckSession::new(
                             &self.crate_env,
                             self.module_manager.current(),
                             &mut ctx,
-                            exp_elab,
-                        );
+                        )
+                        .infer_exp_judgement(exp_elab)
+                        {
+                            Ok(judgement) => self.outputs.push(Output::Exp(judgement.ty)),
+                            Err(error) => self
+                                .outputs
+                                .push(Output::Message(format!("infer failed: {error:?}"))),
+                        }
                     }
                 }
             }

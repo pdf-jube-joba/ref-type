@@ -14,14 +14,13 @@ use kernel::{
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
-use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
     fmt,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetaFlavor {
     Implicit,
     Goal,
@@ -39,28 +38,28 @@ impl From<SurfaceMeta> for MetaFlavor {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum GoalConstraint {
     HasType { term: Exp, expected: Exp },
     Equal { left: Exp, right: Exp },
     IsSort { term: Exp },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstraintStatus {
     Discharged,
     Residual,
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ConstraintRecord {
     pub original: GoalConstraint,
     pub normalized: GoalConstraint,
     pub status: ConstraintStatus,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct MetaGoal {
     pub metavariable: MetaVarId,
     pub flavor: MetaFlavor,
@@ -82,7 +81,7 @@ impl MetaGoal {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ElaborationError {
     Message(String),
     ConstraintFailure {

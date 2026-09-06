@@ -1,4 +1,3 @@
-use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::{
@@ -15,7 +14,7 @@ use crate::{
 
 use super::exp::*;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct InductiveTypeSpecs {
     parameters: Vec<(SymbolId, Exp)>,
     indices: Vec<(SymbolId, Exp)>,
@@ -414,13 +413,13 @@ fn bound_arguments(arena: &Arena, len: usize) -> Vec<Exp> {
     (0..len).rev().map(|index| arena.exp_bound(index)).collect()
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct CtorType {
     pub telescope: Vec<CtorBinder>,
     pub indices: Vec<Exp>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum CtorBinder {
     StrictPositive {
         binders: Vec<(SymbolId, Exp)>,

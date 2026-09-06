@@ -10,18 +10,17 @@ use crate::reflection::{
 };
 use crate::sort::Sort;
 use crate::utils;
-use serde::Serialize;
 use std::cell::RefCell;
 use tracing::{debug, error};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ErrorFrame {
     pub rule: String,
     pub phase: String,
     pub expected: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct JudgementError {
     pub cause: String,
     pub frames: Vec<ErrorFrame>,

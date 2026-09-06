@@ -1,7 +1,5 @@
 //! CBPV value datatypes and their generated Set reflections.
 
-use serde::Serialize;
-
 use crate::{
     derivation::JudgementError,
     environment::ModuleArgument,
@@ -15,7 +13,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ProgramConstructorSpec {
     fields: Vec<(SymbolId, ValueType)>,
 }
@@ -41,7 +39,7 @@ impl ProgramConstructorSpec {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ProgramInductiveTypeSpecs {
     parameters: Vec<SymbolId>,
     constructors: Vec<ProgramConstructorSpec>,

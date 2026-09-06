@@ -79,12 +79,10 @@ surface syntax としては `\inductive` と `\structure` を完全に分ける�
 
 result kind には PTS の `\Prop`、`\Set`、`\PropKind`、`\SetKind` を指定できる。
 
-Program のユーザー定義 associated item は現在未対応である。constructor は
-`Type::item` で参照できるが、関数は module-level の `\vdefinition` または
-`\cdefinition` として定義する。
-Program value の確認・推論・評価・正規化には `\vcheck`、`\vinfer`、
-`\veval`、`\vnormalize` を使い、computation には対応する `\ccheck`、
-`\cinfer`、`\ceval`、`\cnormalize` を使う。汎用の `\definition`、
+Program の constructor は `Type::item` で参照する。Program の関数は
+module-level の `\vdefinition` または `\cdefinition` として定義する。
+Program value の確認・推論には `\vcheck`、`\vinfer` を使い、computation には
+`\ccheck`、`\cinfer`、`\ceval`、`\cnormalize` を使う。汎用の `\definition`、
 `\check`、`\infer`、`\eval`、`\normalize` は Set/Prop 専用である。
 Program の各カテゴリでも `_`、`?`、`?N` を使える。型注釈や datatype parameter
 に現れる metavariable は、その Program judgement 内の制約から解決される。

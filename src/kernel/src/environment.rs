@@ -9,10 +9,9 @@ use crate::{
     program::{Computation, ComputationType, Value, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
 };
-use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum DefinedConstant {
     Pts {
         ty: Exp,
@@ -28,7 +27,7 @@ pub enum DefinedConstant {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefinitionKind {
     Pts,
     ProgramValue,

@@ -1,8 +1,6 @@
 //! Stable identifiers shared by expressions and the environment.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(pub u32);
 
 impl SymbolId {
@@ -13,7 +11,7 @@ impl SymbolId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId(pub u32);
 
 impl ModuleId {
@@ -22,25 +20,25 @@ impl ModuleId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleParamId {
     pub module: ModuleId,
     pub position: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleInstanceId {
     pub owner: ModuleId,
     pub local: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DefId {
     pub module: ModuleId,
     pub index: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InductiveId {
     pub module: ModuleId,
     pub index: u32,
@@ -48,7 +46,7 @@ pub struct InductiveId {
 
 /// Stable identity of a CBPV value datatype.  Its Set reflection is stored as
 /// a separate [`InductiveId`] in the environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProgramInductiveId {
     pub module: ModuleId,
     pub index: u32,
@@ -59,7 +57,7 @@ pub struct ProgramInductiveId {
 /// Metavariables are never valid members of a checked [`CrateEnv`].  The
 /// identifier lives in the kernel crate because intermediate expressions use
 /// the ordinary expression arena while the front-end is solving constraints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetaVarId(pub u32);
 
 impl MetaVarId {

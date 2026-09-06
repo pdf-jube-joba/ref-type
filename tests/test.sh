@@ -24,7 +24,7 @@ run_cases() {
 
     for f in "${files[@]}"; do
         echo "--- running $label: $f"
-        if (cd "$PROJECT_DIR" && cargo run -- file "$f"); then
+        if (cd "$PROJECT_DIR" && cargo run -- "$f"); then
             if [ "$expect_fail" = "true" ]; then
                 echo "ERROR: $label case unexpectedly succeeded: $f"
                 exit 1
@@ -44,9 +44,9 @@ run_cases "OK" "$SCRIPT_DIR/ok" "false"
 run_cases "NG" "$SCRIPT_DIR/ng" "true"
 
 echo "=== MULTI-FILE cases ==="
-(cd "$PROJECT_DIR" && cargo run -- file "$SCRIPT_DIR/projects/multifile/root.ref")
+(cd "$PROJECT_DIR" && cargo run -- "$SCRIPT_DIR/projects/multifile/root.ref")
 
 echo "=== LIBRARY case ==="
-(cd "$PROJECT_DIR" && cargo run -- file lib/root.ref)
+(cd "$PROJECT_DIR" && cargo run -- lib/root.ref)
 
 echo "All tests passed 🎉"

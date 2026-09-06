@@ -448,11 +448,10 @@ fn program_value_definition_uses_the_value_judgement() {
 #[test]
 fn program_value_and_computation_commands_are_separate() {
     let source = r#"
-        \module ProgramTypeMeta(A: \VType, x: A) {
-            \vdefinition value: A := x;
-            \cdefinition computation: \F(A) := \return(x);
-            \veval value;
-            \ceval computation;
+            \module ProgramTypeMeta(A: \VType, x: A) {
+                \vdefinition value: A := x;
+                \cdefinition computation: \F(A) := \return(x);
+                \ceval computation;
             \vinfer value;
             \cinfer computation;
             \vcheck value: A;

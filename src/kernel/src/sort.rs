@@ -1,8 +1,6 @@
 //! Pure type system sorts and their formation relations.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Sort {
     Set(usize),     // predicative SET(i):
     SetKind(usize), // SET(i): SETKind(i)

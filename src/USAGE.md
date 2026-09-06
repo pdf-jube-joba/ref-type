@@ -13,13 +13,13 @@
 ソースファイルの拡張子は `.ref`。CLI にはルートファイルを一つ渡す。
 
 ```sh
-cargo run -- file path/to/root.ref
+cargo run -- path/to/root.ref
 ```
 
 typing rule の呼び出しを木構造で確認する場合は `--trace` を付ける。
 
 ```sh
-cargo run -- file path/to/root.ref --trace
+cargo run -- path/to/root.ref --trace
 ```
 
 typing は通常の `tracing` span/event として記録される。ログレベルを細かく指定する

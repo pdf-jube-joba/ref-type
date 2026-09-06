@@ -1,9 +1,8 @@
 // surface syntax
-pub mod syntax;
-// logger
-pub mod logger;
 mod macros;
 pub mod metavariables;
+pub mod output;
+pub mod syntax;
 // string -> surface
 pub mod module_loader;
 pub mod parse;

@@ -1,75 +1,26 @@
-use axum::{
-    Json, Router,
-    response::Html,
-    routing::{get, post},
-};
-use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, path::PathBuf};
-use tokio::net::TcpListener;
+use clap::Parser;
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Args {
-    #[command(subcommand)]
-    cmd: Cmd,
-}
-
-#[derive(Subcommand, Debug)]
-enum Cmd {
     /// ファイルをパースして結果を標準出力に出す
-    File {
-        file: PathBuf,
-        /// typing の span/event を木構造で表示する
-        #[arg(long)]
-        trace: bool,
-    },
-
-    /// ローカルサーバを起動して / と /run を提供する
-    Serve {
-        #[arg(long, default_value_t = 8080)]
-        port: u16,
-    },
-}
-
-#[derive(Deserialize)]
-struct Req {
-    text: String,
+    file: PathBuf,
+    /// typing の span/event を木構造で表示する
+    #[arg(long)]
+    trace: bool,
 }
 
 mod printing;
 
-#[derive(Serialize, Debug)]
-pub enum Log {
-    Message(String),
-}
-
-#[derive(Serialize)]
-struct Resp {
-    result: Vec<Log>,
-    error: Option<String>,
-}
-
-static INDEX_HTML: &str = include_str!("../index.html");
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    match args.cmd {
-        Cmd::File { file, trace } => {
-            init_tracing(trace)?;
-            let err = run_file_mode(file).await?;
-            if err.is_some() {
-                std::process::exit(1);
-            }
-            Ok(())
-        }
-        Cmd::Serve { port } => {
-            init_tracing(false)?;
-            run_serve_mode(port).await?;
-            Ok(())
-        }
+    init_tracing(args.trace)?;
+    let err = run_file_mode(args.file)?;
+    if err.is_some() {
+        std::process::exit(1);
     }
+    Ok(())
 }
 
 fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
@@ -89,22 +40,9 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-// ---- 共通処理 ---------------------------------------------
-fn parse_and_format(src: &str) -> (Vec<Log>, Option<String>) {
-    let parsed = front::parse::str_parse_modules(src);
-    let modules = match parsed {
-        Ok(modules) => modules,
-        Err(e) => {
-            return (Vec::new(), Some(format!("Parse Error: {e}")));
-        }
-    };
-
-    elaborate_and_format(modules)
-}
-
-fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Option<String>) {
+fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<String>, Option<String>) {
     let mut global = front::elaborator::GlobalEnvironment::default();
-    let mut logs: Vec<Log> = vec![];
+    let mut output_lines = Vec::new();
     for module in modules {
         match global.add_new_module_to_root(&module) {
             Ok(()) => {}
@@ -114,61 +52,33 @@ fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Optio
                     | front::metavariables::ElaborationError::UnsolvedGoals(_) => err.to_string(),
                     _ => front::metavariables::format_elaboration_error(global.crate_env(), &err),
                 };
-                push_internal_logs(&global, &mut logs);
-                return (logs, Some(format!("Elaboration Error: {detail}")));
+                push_outputs(&global, &mut output_lines);
+                return (output_lines, Some(format!("Elaboration Error: {detail}")));
             }
         }
     }
 
-    push_internal_logs(&global, &mut logs);
-    (logs, None)
+    push_outputs(&global, &mut output_lines);
+    (output_lines, None)
 }
 
-fn push_internal_logs(global: &front::elaborator::GlobalEnvironment, logs: &mut Vec<Log>) {
-    for entry in global.logger().records() {
-        logs.push(printing::log_record_to_log(global.crate_env(), entry));
+fn push_outputs(global: &front::elaborator::GlobalEnvironment, output_lines: &mut Vec<String>) {
+    for output in global.outputs() {
+        output_lines.push(printing::format_output(global.crate_env(), output));
     }
 }
 
-// ---- ファイルモード ---------------------------------------------
-async fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
-    let loaded =
-        tokio::task::spawn_blocking(move || front::module_loader::load_modules_from_root(&path))
-            .await?;
+fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
+    let loaded = front::module_loader::load_modules_from_root(&path);
     let (out, err_message) = match loaded {
-        Ok(modules) => tokio::task::spawn_blocking(move || elaborate_and_format(modules)).await?,
+        Ok(modules) => elaborate_and_format(modules),
         Err(error) => (Vec::new(), Some(format!("Module Load Error: {error}"))),
     };
     for entry in out {
-        match entry {
-            Log::Message(mes) => {
-                println!("{}", mes);
-            }
-        }
+        println!("{entry}");
     }
     if let Some(msg) = &err_message {
         eprintln!("\x1b[31m{msg}\x1b[0m");
     }
     Ok(err_message)
-}
-
-// ---- サーブモード ------------------------------------------------
-async fn run_serve_mode(port: u16) -> anyhow::Result<()> {
-    let app = Router::new()
-        .route("/", get(|| async { Html(INDEX_HTML) }))
-        .route("/run", post(run_api));
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    eprintln!("Serving on http://{addr}");
-    axum::serve(TcpListener::bind(addr).await?, app).await?;
-    Ok(())
-}
-
-async fn run_api(Json(req): Json<Req>) -> Json<Resp> {
-    // 重いなら spawn_blocking(move || heavy(req.text)) を使う
-    let (out, err) = parse_and_format(&req.text);
-    Json(Resp {
-        result: out,
-        error: err,
-    })
 }

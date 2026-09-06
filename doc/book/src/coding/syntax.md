@@ -85,7 +85,7 @@
     - block: `'block`
     - module.access: `'module "." 'name`
   - それ以外
-    - sort: `("\PROP" | "\SET" ("(" 'number ")")? | "\TYPE" )`
+    - sort: `("\Prop" | "\PropKind" | "\Set" ("(" 'number ")")? | "\SetKind" ("(" 'number ")")?)`
     - variable: `'variable`
     - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
     - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`

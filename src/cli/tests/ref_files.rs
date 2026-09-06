@@ -38,7 +38,6 @@ fn collect_ref_files(directory: &Path, files: &mut Vec<PathBuf>) {
 
 fn run_ref_file(workspace: &Path, path: &Path) -> Result<Output, String> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_cli"))
-        .arg("file")
         .arg(path)
         .current_dir(workspace)
         .stdout(std::process::Stdio::piped())

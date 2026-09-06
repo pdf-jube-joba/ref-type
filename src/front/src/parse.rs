@@ -397,6 +397,16 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_program_definition(&mut self) -> Result<(Identifier, SExp, SExp), ParseError> {
+        let name = self.expect_ident()?;
+        self.expect_token(Token::Colon)?;
+        let ty = self.parse_sexp()?;
+        self.expect_token(Token::Assign)?;
+        let body = self.parse_sexp()?;
+        self.expect_token(Token::Semicolon)?;
+        Ok((name, ty, body))
+    }
+
     fn parse_optional_proof_block(&mut self) -> Result<Option<ProofBlock>, ParseError> {
         if !self.bump_if_token(Token::ProofBlock) {
             return Ok(None);
@@ -688,21 +698,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(def));
         }
         if self.bump_if_keyword("\\vdefinition") {
-            let ModuleItem::Definition {
-                owner: None,
-                name,
-                binders,
-                ty,
-                body,
-                proof: _,
-            } = self.parse_definition()?
-            else {
-                return Err(ParseError {
-                    msg: "user-defined Program associated items are not supported; use a module-level \\vdefinition".into(),
-                    start: save_pos,
-                    end: self.pos,
-                });
-            };
+            let (name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
                 start: save_pos,
@@ -713,29 +709,10 @@ impl<'a> Parser<'a> {
                 start: save_pos,
                 end: self.pos,
             })?;
-            return Ok(Some(ModuleItem::ValueDefinition {
-                name,
-                binders,
-                ty,
-                body,
-            }));
+            return Ok(Some(ModuleItem::ValueDefinition { name, ty, body }));
         }
         if self.bump_if_keyword("\\cdefinition") {
-            let ModuleItem::Definition {
-                owner: None,
-                name,
-                binders,
-                ty,
-                body,
-                proof: _,
-            } = self.parse_definition()?
-            else {
-                return Err(ParseError {
-                    msg: "user-defined Program associated items are not supported; use a module-level \\cdefinition".into(),
-                    start: save_pos,
-                    end: self.pos,
-                });
-            };
+            let (name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
                 start: save_pos,
@@ -746,12 +723,7 @@ impl<'a> Parser<'a> {
                 start: save_pos,
                 end: self.pos,
             })?;
-            return Ok(Some(ModuleItem::ComputationDefinition {
-                name,
-                binders,
-                ty,
-                body,
-            }));
+            return Ok(Some(ModuleItem::ComputationDefinition { name, ty, body }));
         }
         if self.bump_if_keyword("\\import") {
             let imp = self.parse_import()?;
@@ -791,32 +763,10 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::Semicolon)?;
             return Ok(Some(ModuleItem::Normalize { exp, proof }));
         }
-        if self.bump_if_keyword("\\veval") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ValueEval {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: save_pos,
-                    end: self.pos,
-                })?,
-            }));
-        }
         if self.bump_if_keyword("\\ceval") {
             let exp = self.parse_sexp()?;
             self.expect_token(Token::Semicolon)?;
             return Ok(Some(ModuleItem::ComputationEval {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: save_pos,
-                    end: self.pos,
-                })?,
-            }));
-        }
-        if self.bump_if_keyword("\\vnormalize") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ValueNormalize {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
                     start: save_pos,

@@ -2,15 +2,14 @@
 use kernel::exp::{Exp, ExpNode};
 use kernel::ids::{DefId, InductiveId, ModuleId};
 use kernel::sort::Sort;
-use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourceSpan {
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SurfaceMeta {
     /// `_`: solve by constraints, but report ambiguity rather than a goal.
     Implicit,
@@ -22,7 +21,7 @@ pub enum SurfaceMeta {
 }
 
 // identifier for any naming
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Identifier(pub String);
 
 impl Identifier {
@@ -33,24 +32,24 @@ impl Identifier {
 
 // token for macros
 //   which is (not identifier) /\ (not keyword)
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MacroToken(pub String);
 
 // module definition
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
     pub body: ModuleBody,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ModuleBody {
     Inline(Vec<ModuleItem>), // sensitive to order
     External,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum MacroSeqAtom {
     Capture(Identifier),
     Tok(MacroToken),
@@ -58,7 +57,7 @@ pub enum MacroSeqAtom {
     Seq(Vec<MacroSeqAtom>),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ModuleItem {
     Definition {
         owner: Option<AssociatedOwner>,
@@ -70,13 +69,11 @@ pub enum ModuleItem {
     },
     ValueDefinition {
         name: Identifier,
-        binders: Vec<RightBind>,
         ty: ValueTypeExp,
         body: ValueExp,
     },
     ComputationDefinition {
         name: Identifier,
-        binders: Vec<RightBind>,
         ty: ComputationTypeExp,
         body: ComputationExp,
     },
@@ -122,14 +119,8 @@ pub enum ModuleItem {
         exp: SExp,
         proof: Option<ProofBlock>,
     },
-    ValueEval {
-        exp: ValueExp,
-    },
     ComputationEval {
         exp: ComputationExp,
-    },
-    ValueNormalize {
-        exp: ValueExp,
     },
     ComputationNormalize {
         exp: ComputationExp,
@@ -159,31 +150,31 @@ pub enum ModuleItem {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ProofBlock {
     pub entries: Vec<ProofEntry>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ProofEntry {
     pub binders: Vec<RightBind>,
     pub proposition: SExp,
     pub witness: SExp,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct AssociatedOwner {
     pub type_name: Identifier,
     pub parameters: Vec<RightBind>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy)]
 pub enum InductiveKind {
     Pts(Sort),
     Program,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ModuleInstantiatePath {
     FromCurrent {
         back_parent: usize,
@@ -194,7 +185,7 @@ pub enum ModuleInstantiatePath {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum MacroExp {
     RawExp(SExp),
     Tok(MacroToken),
@@ -202,7 +193,7 @@ pub enum MacroExp {
     Seq(Vec<MacroExp>),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct RightBind {
     pub vars: Vec<Identifier>,
     pub ty: Box<SExp>,
@@ -211,7 +202,7 @@ pub struct RightBind {
 /// Surface Program syntax is split into the same four categories as the
 /// kernel.  Parsing a category-specific declaration performs this
 /// classification before elaboration.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ValueTypeExp {
     Meta {
         kind: SurfaceMeta,
@@ -228,7 +219,7 @@ pub enum ValueTypeExp {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ComputationTypeExp {
     Meta {
         kind: SurfaceMeta,
@@ -241,7 +232,7 @@ pub enum ComputationTypeExp {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ValueExp {
     Meta {
         kind: SurfaceMeta,
@@ -267,7 +258,7 @@ pub enum ValueExp {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum ComputationExp {
     Meta {
         kind: SurfaceMeta,
@@ -316,7 +307,7 @@ pub enum ComputationExp {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 // general binding syntax
 // A = (_: A), (x: A), ((x: A) | P), ((x: A) | h: P),
 pub enum Bind {
@@ -334,7 +325,7 @@ pub enum Bind {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 // some access path to access defined constant or inductive type
 pub enum LocalAccess {
     // accessing inductive type or defined constant
@@ -353,7 +344,7 @@ pub enum LocalAccess {
 }
 
 // this is internal representation
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum SExp {
     Meta {
         kind: SurfaceMeta,
@@ -405,7 +396,7 @@ pub enum SExp {
         clauses: Vec<(Identifier, SExp, SExp)>,
     },
     // --- lambda calculus
-    // sort: Prop, Set(i), Univ, Type
+    // sort: Prop, PropKind, Set(i), SetKind(i)
     Sort(Sort),
     /// Surface-only marker accepted in module/type-parameter binders and as
     /// the result kind of a Program datatype declaration.
@@ -894,13 +885,13 @@ fn decompose_surface_application(mut expression: SExp) -> (SExp, Vec<SExp>) {
     (expression, arguments)
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>, // sensitive to order
     pub result: Box<SExp>,          // returning term of the block
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Fix(Vec<RightBind>), // fix x: A; y: B;
     Let {

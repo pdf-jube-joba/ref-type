@@ -1,12 +1,10 @@
 //! The four syntactic categories of the CBPV Program calculus.
 
-use serde::{Deserialize, Serialize};
-
 use crate::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId};
 
 macro_rules! handle {
     ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name(u32);
 
         impl $name {
@@ -25,25 +23,25 @@ handle!(ComputationType);
 handle!(Value);
 handle!(Computation);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProgramType {
     Value(ValueType),
     Computation(ComputationType),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Program {
     Value(Value),
     Computation(Computation),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProgramArgument {
     Type(ValueType),
     Value(Value),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueTypeNode {
     Bound(usize),
     ModuleParam(ModuleParamId),
@@ -64,7 +62,7 @@ pub enum ValueTypeNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComputationTypeNode {
     Meta {
         metavariable: MetaVarId,
@@ -79,13 +77,13 @@ pub enum ComputationTypeNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProgramCaseBranch {
     pub binders: Vec<SymbolId>,
     pub body: Computation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueNode {
     Bound(usize),
     ModuleParam(ModuleParamId),
@@ -115,7 +113,7 @@ pub enum ValueNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComputationNode {
     Meta {
         metavariable: MetaVarId,
@@ -168,7 +166,7 @@ pub enum ComputationNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProgramContextEntry {
     Type { var: SymbolId },
     Value { var: SymbolId, ty: ValueType },

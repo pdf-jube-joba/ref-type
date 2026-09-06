@@ -2,8 +2,6 @@
 
 use std::cell::RefCell;
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
@@ -15,7 +13,7 @@ use crate::{
 
 macro_rules! handle {
     ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name(u32);
 
         impl $name {
@@ -32,13 +30,13 @@ macro_rules! handle {
 
 handle!(Exp);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReflectedProgramCaseBranch {
     pub binders: Vec<SymbolId>,
     pub body: Exp,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpNode {
     Sort(Sort),
     Bound(usize),
@@ -248,21 +246,21 @@ pub enum ExpNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProofObligation {
     pub context: ExpContext,
     pub proposition: Exp,
     pub rule: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProofEvidence {
     pub context: ExpContext,
     pub proposition: Exp,
     pub witness: Exp,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpContextEntry {
     pub var: SymbolId,
     pub ty: Exp,
@@ -270,7 +268,7 @@ pub struct ExpContextEntry {
 
 pub type ExpContext = Vec<ExpContextEntry>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExpJudgement {
     pub term: Exp,
     pub ty: Exp,
