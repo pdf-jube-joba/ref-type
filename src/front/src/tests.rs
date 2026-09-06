@@ -4,6 +4,72 @@ use crate::{
     parse,
     syntax::{SExp, SurfaceMeta},
 };
+use kernel::{
+    environment::{DefinedConstant, ModuleItem},
+    exp::ExpNode,
+};
+
+#[test]
+fn record_fields_are_generated_as_eliminator_definitions() {
+    let source = r#"
+        \module Records {
+            \structure Packed: \SetKind := {
+                carrier: \Set,
+                value: carrier,
+            };
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::Record {
+        associated_definitions,
+        ..
+    } = env.module(module).item("Packed").unwrap()
+    else {
+        panic!("Packed should be a record");
+    };
+    assert_eq!(
+        associated_definitions
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>(),
+        ["carrier", "value"]
+    );
+
+    let carrier = associated_definitions[0].1;
+    let DefinedConstant::Pts { body, .. } = env.definition(carrier) else {
+        panic!("carrier projection should be a PTS definition");
+    };
+    assert!(matches!(
+        env.arena().get(*body),
+        ExpNode::Lam { body, .. } if matches!(env.arena().get(body), ExpNode::IndElim { .. })
+    ));
+
+    let DefinedConstant::Pts { ty, .. } = env.definition(associated_definitions[1].1) else {
+        panic!("value projection should be a PTS definition");
+    };
+    let ExpNode::Prod { body, .. } = env.arena().get(*ty) else {
+        panic!("value projection should accept the structure");
+    };
+    let (head, _) = kernel::utils::decompose_app(env.arena(), body);
+    assert!(matches!(
+        env.arena().get(head),
+        ExpNode::DefinedConstant(definition) if definition == carrier
+    ));
+}
+
+#[test]
+fn program_structure_declaration_has_a_migration_error() {
+    let error = parse::str_parse_modules(
+        r#"\module M { \structure Box(A: \VType): \VType := { value: A }; }"#,
+    )
+    .unwrap_err();
+    assert!(error.contains("Program structures are not supported"));
+}
 
 #[test]
 fn parses_implicit_and_goal_metavariables_as_atoms() {

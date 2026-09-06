@@ -114,23 +114,6 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
-        ExpNode::IndProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => format!(
-            "proj ind({}:{})[{}].{} ({})",
-            indspec.module.0,
-            indspec.index,
-            parameters
-                .into_iter()
-                .map(child)
-                .collect::<Vec<_>>()
-                .join(", "),
-            field,
-            child(value),
-        ),
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
@@ -538,18 +521,6 @@ pub fn format_value(env: &CrateEnv, value: Value) -> String {
                 .map(|v| format_value(env, v))
                 .collect::<Vec<_>>()
                 .join(", ")
-        ),
-        ValueNode::InductiveProjection {
-            indspec,
-            value,
-            field,
-            ..
-        } => format!(
-            "vproj({}:{}).{}({})",
-            indspec.module.0,
-            indspec.index,
-            field,
-            format_value(env, value)
         ),
     }
 }

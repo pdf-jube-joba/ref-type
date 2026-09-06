@@ -469,12 +469,19 @@ impl<'a> Parser<'a> {
         }
         self.expect_token(Token::Colon)?;
         let result = self.parse_sexp()?;
-        let kind = match result {
-            SExp::Sort(sort) => StructureKind::Pts(sort),
-            SExp::ValueType => StructureKind::Program,
+        let sort = match result {
+            SExp::Sort(sort) => sort,
+            SExp::ValueType => {
+                return Err(ParseError {
+                    msg: "Program structures are not supported; use \\inductive with a named constructor"
+                        .into(),
+                    start: 0,
+                    end: 0,
+                });
+            }
             _ => {
                 return Err(ParseError {
-                    msg: "expected PTS sort or \\Type in structure declaration".into(),
+                    msg: "expected PTS sort in structure declaration".into(),
                     start: 0,
                     end: 0,
                 });
@@ -497,7 +504,7 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Record {
             type_name,
             parameters,
-            kind,
+            sort,
             fields,
         })
     }

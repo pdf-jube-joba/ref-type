@@ -1,7 +1,6 @@
 // this file describes the surface syntax tree
 use kernel::exp::{Exp, ExpNode};
 use kernel::ids::{DefId, InductiveId, ModuleId};
-use kernel::inductive::CtorBinder;
 use kernel::sort::Sort;
 use serde::Serialize;
 
@@ -91,7 +90,7 @@ pub enum ModuleItem {
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
-        kind: StructureKind,
+        sort: Sort,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {
@@ -179,12 +178,6 @@ pub struct AssociatedOwner {
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
-pub enum StructureKind {
-    Pts(Sort),
-    Program,
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
 pub enum InductiveKind {
     Pts(Sort),
     Program,
@@ -260,11 +253,6 @@ pub enum ValueExp {
         constructor: Identifier,
         parameters: Vec<ValueTypeExp>,
         fields: Vec<ValueExp>,
-    },
-    RecordConstructor {
-        datatype: LocalAccess,
-        parameters: Vec<ValueTypeExp>,
-        fields: Vec<(Identifier, ValueExp)>,
     },
     Thunk(Box<ComputationExp>),
     Continue {
@@ -790,21 +778,6 @@ impl TryFrom<SExp> for ValueExp {
                         .collect::<Result<_, _>>()?,
                 })
             }
-            SExp::RecordTypeCtor {
-                access,
-                parameters,
-                fields,
-            } if arguments.is_empty() => Ok(Self::RecordConstructor {
-                datatype: access,
-                parameters: parameters
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<Result<_, _>>()?,
-                fields: fields
-                    .into_iter()
-                    .map(|(name, value)| Ok((name, value.try_into()?)))
-                    .collect::<Result<_, String>>()?,
-            }),
             SExp::Thunk { computation } => Ok(Self::Thunk(Box::new((*computation).try_into()?))),
             SExp::PContinue {
                 state_ty,
@@ -981,9 +954,7 @@ pub struct ModItemRecord {
 }
 
 impl ModItemRecord {
-    // get projection expression for field_name, returns None if field_name not found
-    // (e: Record {}) => elim e \in Record return { mk: <primitive_recursion>}
-    // where primitive_recursion = (x1: T1) => ... => xi
+    // Apply the projection definition generated for a record field.
     pub fn field_projection(
         &self,
         env: &kernel::environment::CrateEnv,
@@ -992,29 +963,15 @@ impl ModItemRecord {
         parameters: &[Exp],
     ) -> Option<Exp> {
         let arena = env.arena();
-        let spec = env.inductive(self.inductive);
-        // this should always have only one constructor
-        let ctor = &spec.constructors()[0];
-        let telescope = ctor
-            .telescope
+        let (_, definition) = self
+            .associated_definitions
             .iter()
-            .map(|bind| {
-                let CtorBinder::Simple((id, ty)) = bind else {
-                    unreachable!("record type constructor should only have simple binders");
-                };
-                (*id, *ty)
-            })
-            .collect::<Vec<_>>();
-
-        let (field_index, _) = telescope
-            .iter()
-            .enumerate()
-            .find(|(_, (id, _))| env.symbol(*id) == field_name.as_str())?;
-        Some(arena.alloc(ExpNode::IndProjection {
-            indspec: self.inductive,
-            parameters: parameters.to_vec(),
-            value: e,
-            field: field_index,
-        }))
+            .find(|(name, _)| name == field_name)?;
+        let projection = arena.alloc(ExpNode::DefinedConstant(*definition));
+        Some(kernel::utils::assoc_apply(
+            arena,
+            projection,
+            parameters.iter().copied().chain([e]).collect(),
+        ))
     }
 }

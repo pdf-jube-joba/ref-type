@@ -7,7 +7,7 @@ use crate::{
     syntax::*,
 };
 use kernel::{
-    calculus::{exp_contains_inductive, exp_subst_map},
+    calculus::{exp_contains_inductive, exp_subst_map, instantiate_telescope, shift_bound_indices},
     derivation::CheckSession,
     environment::{
         CrateEnv, DefinedConstant, DefinitionKind, ModuleArgument, ModuleParameter,
@@ -25,6 +25,34 @@ use std::cell::RefCell;
 pub mod module_manager;
 pub mod program_term_elaborator;
 pub mod term_elaborator;
+
+fn apply_pts_projection(arena: &Arena, definition: DefId, parameters: &[Exp], value: Exp) -> Exp {
+    let projection = arena.alloc(ExpNode::DefinedConstant(definition));
+    kernel::utils::assoc_apply(
+        arena,
+        projection,
+        parameters.iter().copied().chain([value]).collect(),
+    )
+}
+
+fn projected_record_field_type(
+    arena: &Arena,
+    spec: &InductiveTypeSpecs,
+    field: usize,
+    parameters: &[Exp],
+    value: Exp,
+    preceding_projections: &[DefId],
+) -> Result<Exp, String> {
+    let constructor = spec.constructors()[0].instantiate_parameters(arena, parameters);
+    let Some(CtorBinder::Simple((_, field_ty))) = constructor.telescope.get(field) else {
+        return Err("record field index out of bounds".into());
+    };
+    let preceding = preceding_projections
+        .iter()
+        .map(|definition| apply_pts_projection(arena, *definition, parameters, value))
+        .collect::<Vec<_>>();
+    Ok(instantiate_telescope(arena, *field_ty, &preceding))
+}
 
 // do type checking
 #[derive(Default)]
@@ -579,12 +607,134 @@ impl GlobalEnvironment {
         result.map_err(|error| format!("proof validation failed: {error:?}"))
     }
 
+    fn add_record_projection_definitions(
+        &mut self,
+        inductive: InductiveId,
+    ) -> Result<Vec<(Identifier, DefId)>, ElaborationError> {
+        let module = self.module_manager.current();
+        let spec = self.crate_env.inductive(inductive).clone();
+        let parameters = spec.parameters().to_vec();
+        let field_count = spec.constructors()[0].telescope.len();
+        let structure_var = self.crate_env.intern("structure");
+        let mut projections = Vec::with_capacity(field_count);
+
+        for field in 0..field_count {
+            let preceding_ids = projections
+                .iter()
+                .map(|(_, definition)| *definition)
+                .collect::<Vec<_>>();
+            let (name, ty, body) = {
+                let arena = self.crate_env.arena();
+                let CtorBinder::Simple((field_name, _)) = &spec.constructors()[0].telescope[field]
+                else {
+                    return Err("record fields must be non-recursive".into());
+                };
+                let name = Identifier(self.crate_env.symbol(*field_name).to_owned());
+                if projections.iter().any(|(existing, _)| existing == &name) {
+                    return Err(format!("duplicate record field name: {}", name.as_str()).into());
+                }
+                let parameter_arguments = (0..parameters.len())
+                    .rev()
+                    .map(|index| arena.exp_bound(index))
+                    .collect::<Vec<_>>();
+                let record_ty = arena.alloc(ExpNode::IndType {
+                    indspec: inductive,
+                    parameters: parameter_arguments.clone(),
+                });
+
+                let parameters_under_value = parameter_arguments
+                    .iter()
+                    .map(|parameter| shift_bound_indices(arena, *parameter, 1, 0))
+                    .collect::<Vec<_>>();
+                let projected_ty = projected_record_field_type(
+                    arena,
+                    &spec,
+                    field,
+                    &parameters_under_value,
+                    arena.exp_bound(0),
+                    &preceding_ids,
+                )?;
+                let projection_ty = arena.alloc(ExpNode::Prod {
+                    var: structure_var,
+                    ty: record_ty,
+                    body: projected_ty,
+                });
+                let ty = kernel::utils::assoc_prod(arena, parameters.clone(), projection_ty);
+
+                let parameters_under_motive = parameters_under_value
+                    .iter()
+                    .map(|parameter| shift_bound_indices(arena, *parameter, 1, 0))
+                    .collect::<Vec<_>>();
+                let motive_record_ty = arena.alloc(ExpNode::IndType {
+                    indspec: inductive,
+                    parameters: parameters_under_value.clone(),
+                });
+                let motive_result = projected_record_field_type(
+                    arena,
+                    &spec,
+                    field,
+                    &parameters_under_motive,
+                    arena.exp_bound(0),
+                    &preceding_ids,
+                )?;
+                let motive = arena.alloc(ExpNode::Lam {
+                    var: structure_var,
+                    ty: motive_record_ty,
+                    body: motive_result,
+                });
+
+                let constructor =
+                    spec.constructors()[0].instantiate_parameters(arena, &parameters_under_value);
+                let case_telescope = constructor
+                    .telescope
+                    .into_iter()
+                    .map(|binder| match binder {
+                        CtorBinder::Simple(binder) => Ok(binder),
+                        CtorBinder::StrictPositive { .. } => {
+                            Err("record fields must be non-recursive".to_string())
+                        }
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let selected = arena.exp_bound(field_count - 1 - field);
+                let case = kernel::utils::assoc_lam(arena, case_telescope, selected);
+                let elimination = arena.alloc(ExpNode::IndElim {
+                    indspec: inductive,
+                    elim: arena.exp_bound(0),
+                    return_type: motive,
+                    cases: vec![case],
+                });
+                let projection = arena.alloc(ExpNode::Lam {
+                    var: structure_var,
+                    ty: record_ty,
+                    body: elimination,
+                });
+                let body = kernel::utils::assoc_lam(arena, parameters.clone(), projection);
+                (name, ty, body)
+            };
+
+            let mut context = self.module_manager.current_context(&self.crate_env);
+            CheckSession::new(&self.crate_env, module, &mut context)
+                .check_pts(body, ty)
+                .map_err(|error| {
+                    format!(
+                        "Generated projection {} does not typecheck: {error:?}",
+                        name.as_str()
+                    )
+                })?;
+            let definition = self
+                .crate_env
+                .add_definition(module, DefinedConstant::Pts { ty, body });
+            projections.push((name, definition));
+        }
+
+        Ok(projections)
+    }
+
     fn add_typed_program_inductive_decl(
         &mut self,
         type_name: &Identifier,
         parameters: &[RightBind],
         constructors: &[(Identifier, Vec<RightBind>, SExp)],
-        expose_constructors: bool,
     ) -> Result<(), ElaborationError> {
         let module = self.module_manager.current();
         let inductive = self.crate_env.reserve_program_inductive(module);
@@ -738,11 +888,7 @@ impl GlobalEnvironment {
         self.module_manager.publish_reserved_program_inductive(
             &mut self.crate_env,
             type_name.clone(),
-            if expose_constructors {
-                constructor_names
-            } else {
-                Vec::new()
-            },
+            constructor_names,
             inductive,
             reflected,
         )?;
@@ -1063,12 +1209,7 @@ impl GlobalEnvironment {
                     constructors,
                 } => {
                     if matches!(kind, InductiveKind::Program) {
-                        self.add_typed_program_inductive_decl(
-                            type_name,
-                            parameters,
-                            constructors,
-                            true,
-                        )?;
+                        self.add_typed_program_inductive_decl(type_name, parameters, constructors)?;
                         continue;
                     }
                     let InductiveKind::Pts(sort) = kind else {
@@ -1247,34 +1388,9 @@ impl GlobalEnvironment {
                 ModuleItem::Record {
                     type_name,
                     parameters,
-                    kind,
+                    sort,
                     fields,
                 } => {
-                    if matches!(kind, StructureKind::Program) {
-                        let fields = fields
-                            .iter()
-                            .map(|(name, ty)| RightBind {
-                                vars: vec![name.clone()],
-                                ty: Box::new(ty.clone()),
-                            })
-                            .collect::<Vec<_>>();
-                        let result = SExp::AccessPath {
-                            access: LocalAccess::Current {
-                                access: type_name.clone(),
-                            },
-                            parameters: Vec::new(),
-                        };
-                        self.add_typed_program_inductive_decl(
-                            type_name,
-                            parameters,
-                            &[(Identifier("$structure".into()), fields, result)],
-                            false,
-                        )?;
-                        continue;
-                    }
-                    let StructureKind::Pts(sort) = kind else {
-                        unreachable!();
-                    };
                     // treat record as inductive type with one constructor without recursive definition
                     // no register of type name as binded var since no recursive definition
 
@@ -1359,10 +1475,12 @@ impl GlobalEnvironment {
                             inductive,
                         )
                         .map_err(|error| format!("Ill-formed structure: {error:?}"))?;
+                    let projections = self.add_record_projection_definitions(inductive)?;
                     self.module_manager.publish_reserved_record(
                         &mut self.crate_env,
                         type_name.clone(),
                         inductive,
+                        projections,
                     )?;
                 }
                 ModuleItem::ChildModule { module } => {

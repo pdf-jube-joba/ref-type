@@ -86,6 +86,15 @@ impl InductiveTypeSpecs {
         self.constructors.len()
     }
 
+    /// Singleton inductives with only non-recursive fields support the same
+    /// large elimination as records. This lets front-end generated
+    /// projections be ordinary eliminator-based definitions.
+    pub fn supports_singleton_elimination(&self) -> bool {
+        self.indices.is_empty()
+            && matches!(self.constructors.as_slice(), [constructor]
+            if constructor.telescope.iter().all(|binder| matches!(binder, CtorBinder::Simple(_))))
+    }
+
     pub fn param_args_len(&self) -> usize {
         self.parameters.len()
     }
@@ -655,10 +664,13 @@ pub fn eliminator_type(
         .collect();
     let shifted_q = shift_bound_indices(arena, q, telescope.len(), 0);
     let motive = utils::assoc_apply(arena, shifted_q, indices);
-    let result = arena.alloc(ExpNode::App {
-        func: motive,
-        arg: applied_constructor,
-    });
+    let result = match arena.get(motive) {
+        ExpNode::Lam { body, .. } => crate::calculus::instantiate(arena, body, applied_constructor),
+        _ => arena.alloc(ExpNode::App {
+            func: motive,
+            arg: applied_constructor,
+        }),
+    };
     utils::assoc_prod(arena, telescope, result)
 }
 

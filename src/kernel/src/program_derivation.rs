@@ -280,31 +280,6 @@ pub fn infer_value(
                 parameters,
             }))
         }
-        ValueNode::InductiveProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => {
-            let spec = session.env.program_inductive(indspec);
-            if spec.constructors().len() != 1 {
-                return Err(failure(
-                    "Value",
-                    "infer",
-                    "Program projection requires a one-constructor structure",
-                ));
-            }
-            let structure = arena.alloc(ValueTypeNode::Inductive {
-                indspec,
-                parameters: parameters.clone(),
-            });
-            check_value(session, value, structure)?;
-            spec.constructors()[0]
-                .instantiated_fields(arena, &parameters)
-                .get(field)
-                .map(|(_, ty)| *ty)
-                .ok_or_else(|| failure("Value", "infer", "Program projection field out of bounds"))
-        }
     }
 }
 

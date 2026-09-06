@@ -373,33 +373,6 @@ impl ProgramScope {
                     .iter()
                     .map(|field| self.elaborate_value(field, environment))
                     .collect::<Result<Vec<_>, _>>()?;
-                if item.ctor_names.is_empty() {
-                    if fields.len() != 1 {
-                        return Err("Program structure projection expects exactly one value".into());
-                    }
-                    let spec = environment.crate_env.program_inductive(item.inductive);
-                    let Some(field) =
-                        spec.constructors()[0]
-                            .fields()
-                            .iter()
-                            .position(|(name, _)| {
-                                environment.crate_env.symbol(*name) == constructor.as_str()
-                            })
-                    else {
-                        return Err(format!(
-                            "Program structure field {} was not found",
-                            constructor.as_str()
-                        ));
-                    };
-                    return Ok(environment.crate_env.arena().alloc(
-                        ValueNode::InductiveProjection {
-                            indspec: item.inductive,
-                            parameters,
-                            value: fields[0],
-                            field,
-                        },
-                    ));
-                }
                 let Some(idx) = item.ctor_names.iter().position(|name| name == constructor) else {
                     return Err(format!(
                         "Program constructor {} was not found",
@@ -414,61 +387,6 @@ impl ProgramScope {
                         parameters,
                         idx,
                         fields,
-                    }))
-            }
-            ValueExp::RecordConstructor {
-                datatype,
-                parameters,
-                fields,
-            } => {
-                let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
-                else {
-                    return Err(
-                        "Program structure literal does not name a Program structure".into(),
-                    );
-                };
-                if !item.ctor_names.is_empty() {
-                    return Err("named Program constructor required for this datatype".into());
-                }
-                let parameters = parameters
-                    .iter()
-                    .map(|parameter| self.elaborate_value_type(parameter, environment))
-                    .collect::<Result<Vec<_>, _>>()?;
-                let declared = environment
-                    .crate_env
-                    .program_inductive(item.inductive)
-                    .constructors()[0]
-                    .fields()
-                    .iter()
-                    .map(|(name, _)| *name)
-                    .collect::<Vec<_>>();
-                if fields.len() != declared.len() {
-                    return Err("Program structure literal field count mismatch".into());
-                }
-                let mut values = Vec::with_capacity(declared.len());
-                for declared_name in declared {
-                    let matches = fields
-                        .iter()
-                        .filter(|(name, _)| {
-                            name.as_str() == environment.crate_env.symbol(declared_name)
-                        })
-                        .collect::<Vec<_>>();
-                    if matches.len() != 1 {
-                        return Err(format!(
-                            "Program structure field {} must occur exactly once",
-                            environment.crate_env.symbol(declared_name)
-                        ));
-                    }
-                    values.push(self.elaborate_value(&matches[0].1, environment)?);
-                }
-                Ok(environment
-                    .crate_env
-                    .arena()
-                    .alloc(ValueNode::InductiveConstructor {
-                        indspec: item.inductive,
-                        parameters,
-                        idx: 0,
-                        fields: values,
                     }))
             }
             ValueExp::Thunk(computation) => {
@@ -872,20 +790,6 @@ impl ProgramScope {
                     .into_iter()
                     .map(|value| self.zonk_value(environment, value))
                     .collect(),
-            }),
-            ValueNode::InductiveProjection {
-                indspec,
-                parameters,
-                value,
-                field,
-            } => arena.alloc(ValueNode::InductiveProjection {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|ty| self.zonk_value_type(environment, ty))
-                    .collect(),
-                value: self.zonk_value(environment, value),
-                field,
             }),
             _ => value,
         }
@@ -1296,31 +1200,6 @@ impl ProgramScope {
                 }
                 Ok(())
             }
-            ValueNode::InductiveProjection {
-                indspec,
-                parameters,
-                value,
-                field,
-            } => {
-                let structure = arena.alloc(ValueTypeNode::Inductive {
-                    indspec,
-                    parameters: parameters.clone(),
-                });
-                self.solve_value(environment, context, value, structure)?;
-                let parameters = parameters
-                    .into_iter()
-                    .map(|parameter| self.zonk_value_type(environment, parameter))
-                    .collect::<Vec<_>>();
-                let field_ty = environment
-                    .crate_env
-                    .program_inductive(indspec)
-                    .constructors()[0]
-                    .instantiated_fields(arena, &parameters)
-                    .get(field)
-                    .map(|(_, ty)| *ty)
-                    .ok_or_else(|| "Program structure field index out of bounds".to_string())?;
-                self.unify_value_types(environment, field_ty, expected)
-            }
         }
     }
 
@@ -1390,30 +1269,6 @@ impl ProgramScope {
                         .map(|parameter| self.zonk_value_type(environment, parameter))
                         .collect(),
                 }))
-            }
-            ValueNode::InductiveProjection {
-                indspec,
-                parameters,
-                value,
-                field,
-            } => {
-                let structure = arena.alloc(ValueTypeNode::Inductive {
-                    indspec,
-                    parameters: parameters.clone(),
-                });
-                self.solve_value(environment, context, value, structure)?;
-                let parameters = parameters
-                    .into_iter()
-                    .map(|parameter| self.zonk_value_type(environment, parameter))
-                    .collect::<Vec<_>>();
-                environment
-                    .crate_env
-                    .program_inductive(indspec)
-                    .constructors()[0]
-                    .instantiated_fields(arena, &parameters)
-                    .get(field)
-                    .map(|(_, ty)| *ty)
-                    .ok_or_else(|| "Program structure field index out of bounds".to_string())
             }
         }
     }

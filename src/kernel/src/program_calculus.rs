@@ -222,25 +222,6 @@ pub fn value_is_alpha_eq(arena: &Arena, left: Value, right: Value) -> bool {
                 && value_types_alpha_eq(arena, &lp, &rp)
                 && values_alpha_eq(arena, &lf, &rf)
         }
-        (
-            ValueNode::InductiveProjection {
-                indspec: li,
-                parameters: lp,
-                value: lv,
-                field: lf,
-            },
-            ValueNode::InductiveProjection {
-                indspec: ri,
-                parameters: rp,
-                value: rv,
-                field: rf,
-            },
-        ) => {
-            li == ri
-                && lf == rf
-                && value_types_alpha_eq(arena, &lp, &rp)
-                && value_is_alpha_eq(arena, lv, rv)
-        }
         _ => false,
     }
 }
@@ -551,20 +532,6 @@ pub fn shift_value_indices(arena: &Arena, value: Value, amount: usize, cutoff: u
                     .map(|v| go(arena, v, amount, cutoff))
                     .collect(),
             }),
-            ValueNode::InductiveProjection {
-                indspec,
-                parameters,
-                value,
-                field,
-            } => arena.alloc(ValueNode::InductiveProjection {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
-                    .collect(),
-                value: go(arena, value, amount, cutoff),
-                field,
-            }),
             node => arena.alloc(node),
         }
     }
@@ -708,17 +675,6 @@ pub fn instantiate_value_in_computation(
                     .into_iter()
                     .map(|v| subst_value(arena, v, argument, depth))
                     .collect(),
-            }),
-            ValueNode::InductiveProjection {
-                indspec,
-                parameters,
-                value,
-                field,
-            } => arena.alloc(ValueNode::InductiveProjection {
-                indspec,
-                parameters,
-                value: subst_value(arena, value, argument, depth),
-                field,
             }),
             node => arena.alloc(node),
         }
@@ -1114,20 +1070,6 @@ pub fn remap_value_global_ids(
                 .map(|value| remap_value_global_ids(arena, value, definitions, inductives))
                 .collect(),
         }),
-        ValueNode::InductiveProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => arena.alloc(ValueNode::InductiveProjection {
-            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-            parameters: parameters
-                .into_iter()
-                .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
-                .collect(),
-            value: remap_value_global_ids(arena, value, definitions, inductives),
-            field,
-        }),
         node => arena.alloc(node),
     }
 }
@@ -1373,20 +1315,6 @@ pub fn subst_value_module_params(
                 .into_iter()
                 .map(|value| subst_value_module_params(arena, value, substitutions))
                 .collect(),
-        }),
-        ValueNode::InductiveProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => arena.alloc(ValueNode::InductiveProjection {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|ty| subst_value_type_module_params(arena, ty, substitutions))
-                .collect(),
-            value: subst_value_module_params(arena, value, substitutions),
-            field,
         }),
         _ => value,
     }

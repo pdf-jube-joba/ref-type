@@ -424,35 +424,6 @@ impl CrateEnv {
         name: String,
         definition: DefId,
     ) -> Result<(), String> {
-        let field_names = self
-            .module(module)
-            .item(owner)
-            .map(|item| match item {
-                ModuleItem::Record { inductive, .. } => self.inductive(*inductive).constructors()
-                    [0]
-                .telescope
-                .iter()
-                .filter_map(|binder| match binder {
-                    crate::inductive::CtorBinder::Simple((name, _)) => {
-                        Some(self.symbol(*name).to_string())
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>(),
-                ModuleItem::ProgramInductive {
-                    constructor_names,
-                    inductive,
-                    ..
-                } if constructor_names.is_empty() => {
-                    self.program_inductive(*inductive).constructors()[0]
-                        .fields()
-                        .iter()
-                        .map(|(name, _)| self.symbol(*name).to_string())
-                        .collect()
-                }
-                _ => Vec::new(),
-            })
-            .unwrap_or_default();
         let item = self
             .module_mut(module)
             .names
@@ -480,7 +451,6 @@ impl CrateEnv {
             }
         };
         if reserved.iter().any(|candidate| candidate == &name)
-            || field_names.iter().any(|candidate| candidate == &name)
             || definitions.iter().any(|(candidate, _)| candidate == &name)
         {
             return Err(format!(

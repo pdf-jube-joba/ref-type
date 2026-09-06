@@ -32,12 +32,6 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             one!(elim, return_type);
             vecs!(cases);
         }
-        ExpNode::IndProjection {
-            parameters, value, ..
-        } => {
-            vecs!(parameters);
-            one!(value);
-        }
         ExpNode::ReflectedProgramCase {
             scrutinee,
             branches,
@@ -371,18 +365,6 @@ pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -
                     .chain(cases)
                     .any(|e| exp_contains_inductive(arena, e, inductive))
         }
-        ExpNode::IndProjection {
-            indspec,
-            parameters,
-            value,
-            ..
-        } => {
-            indspec == inductive
-                || parameters
-                    .into_iter()
-                    .chain([value])
-                    .any(|e| exp_contains_inductive(arena, e, inductive))
-        }
         node => direct_children(node)
             .into_iter()
             .any(|e| exp_contains_inductive(arena, e, inductive)),
@@ -536,19 +518,6 @@ pub fn remap_all_global_ids(
                 cases: cases.clone(),
             })
         }),
-        ExpNode::IndProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => inductives.get(indspec).map(|id| {
-            arena.alloc(ExpNode::IndProjection {
-                indspec: *id,
-                parameters: parameters.clone(),
-                value: *value,
-                field: *field,
-            })
-        }),
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
@@ -598,18 +567,6 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                 ..
             },
         ) => left_spec == right_spec && left_idx == right_idx,
-        (
-            ExpNode::IndProjection {
-                indspec: left_spec,
-                field: left_field,
-                ..
-            },
-            ExpNode::IndProjection {
-                indspec: right_spec,
-                field: right_field,
-                ..
-            },
-        ) => left_spec == right_spec && left_field == right_field,
         (
             ExpNode::ReflectedProgramCase {
                 indspec: left_spec,
@@ -775,37 +732,6 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             crate::inductive::inductive_type_elim_reduce(env, candidate)
                 .ok()
                 .or((candidate != exp).then_some(candidate))
-        }
-        ExpNode::IndProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => {
-            let reduced = whnf(env, value);
-            let (head, args) = crate::utils::decompose_app(arena, reduced);
-            match arena.get(head) {
-                ExpNode::IndCtor {
-                    indspec: actual,
-                    parameters: actual_params,
-                    idx: 0,
-                } if actual == indspec
-                    && actual_params.len() == parameters.len()
-                    && actual_params
-                        .iter()
-                        .zip(&parameters)
-                        .all(|(a, b)| exp_is_alpha_eq(env, *a, *b)) =>
-                {
-                    args.get(field).copied()
-                }
-                _ if reduced != value => Some(arena.alloc(ExpNode::IndProjection {
-                    indspec,
-                    parameters,
-                    value: reduced,
-                    field,
-                })),
-                _ => None,
-            }
         }
         ExpNode::ReflectedProgramCase {
             indspec,

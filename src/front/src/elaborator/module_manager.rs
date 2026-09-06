@@ -342,12 +342,16 @@ impl ModuleManager {
         env: &mut CrateEnv,
         type_name: Identifier,
         inductive: InductiveId,
+        associated_definitions: Vec<(Identifier, DefId)>,
     ) -> Result<(), String> {
         env.publish_item(
             self.current,
             ModuleItem::Record {
                 name: type_name.0,
-                associated_definitions: Vec::new(),
+                associated_definitions: associated_definitions
+                    .into_iter()
+                    .map(|(name, definition)| (name.0, definition))
+                    .collect(),
                 inductive,
             },
         )

@@ -2,7 +2,7 @@ use crate::calculus::*;
 use crate::environment::{CrateEnv, DefinedConstant, ModuleParameterKind};
 use crate::exp::*;
 use crate::ids::{InductiveId, ModuleId, SymbolId};
-use crate::inductive::{CtorBinder, eliminator_type};
+use crate::inductive::eliminator_type;
 use crate::program::{ComputationTypeNode, Program, ProgramType};
 use crate::program_derivation::ProgramCheckSession;
 use crate::reflection::{
@@ -507,45 +507,6 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             return_type,
             cases,
         } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, cases),
-        ExpNode::IndProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => {
-            let spec = session.env().inductive(indspec);
-            if spec.constructor_len() != 1 {
-                return Err(failure(rule, phase, "projection target is not a structure"));
-            }
-            check_parameters(session, rule, phase, &parameters, spec.parameters())?;
-            let structure_ty = arena.alloc(ExpNode::IndType {
-                indspec,
-                parameters: parameters.clone(),
-            });
-            add_check!(
-                session,
-                rule,
-                phase,
-                value,
-                structure_ty,
-                "check projected structure"
-            )?;
-            let constructor = spec.constructors()[0].instantiate_parameters(arena, &parameters);
-            let Some(CtorBinder::Simple((_, field_ty))) = constructor.telescope.get(field) else {
-                return Err(failure(rule, phase, "structure field index out of bounds"));
-            };
-            let preceding = (0..field)
-                .map(|field| {
-                    arena.alloc(ExpNode::IndProjection {
-                        indspec,
-                        parameters: parameters.clone(),
-                        value,
-                        field,
-                    })
-                })
-                .collect::<Vec<_>>();
-            Ok(instantiate_telescope(arena, *field_ty, &preceding))
-        }
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
@@ -1212,6 +1173,41 @@ fn check_parameters(
     Ok(())
 }
 
+/// Infer an eliminator motive's kind without requiring that the resulting
+/// product itself inhabit another sort. Motives returning `SetKind` or
+/// `PropKind` are intentionally top-kinded, so their abstraction kind has no
+/// type above it.
+fn infer_motive_kind(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    motive: Exp,
+) -> Result<Exp, Box<JudgementError>> {
+    let arena = session.arena();
+    let context_mark = session.context().len();
+    let mut binders = Vec::new();
+    let mut body = motive;
+    let result = (|| {
+        while let ExpNode::Lam {
+            var,
+            ty,
+            body: next,
+        } = arena.get(body)
+        {
+            add_sort!(session, rule, phase, ty, "infer motive binder sort")?;
+            session.push_pts(var, ty);
+            binders.push((var, ty));
+            body = next;
+        }
+        let body_ty = add_infer!(session, rule, phase, body, "infer motive body type")?;
+        Ok(utils::assoc_prod(arena, binders, body_ty))
+    })();
+    while session.context().len() > context_mark {
+        session.pop();
+    }
+    result
+}
+
 #[allow(clippy::too_many_arguments)]
 fn infer_ind_elim(
     session: &mut CheckSession<'_, '_>,
@@ -1238,12 +1234,14 @@ fn infer_ind_elim(
     }
     let env = session.env();
     let spec = env.inductive(indspec);
-    let return_kind = add_infer!(session, rule, phase, return_type, "infer return type kind")?;
+    let return_kind = infer_motive_kind(session, rule, phase, return_type)?;
     let (telescope, result) = utils::decompose_prod(arena, type_head_normal(env, return_kind));
     let ExpNode::Sort(sort) = arena.get(result) else {
         return Err(failure(rule, phase, "return kind does not end in sort"));
     };
-    if spec.sort().relation_of_sort_indelim(sort).is_none() {
+    if spec.sort().relation_of_sort_indelim(sort).is_none()
+        && !spec.supports_singleton_elimination()
+    {
         return Err(failure(rule, phase, "cannot form eliminator"));
     }
     let expected_kind = crate::inductive::InductiveTypeSpecs::return_type_kind(
@@ -1275,10 +1273,11 @@ fn infer_ind_elim(
         add_check!(session, rule, phase, *case, case_ty, "check case type")?;
     }
     let motive = utils::assoc_apply(arena, return_type, indices);
-    Ok(arena.alloc(ExpNode::App {
+    let result = arena.alloc(ExpNode::App {
         func: motive,
         arg: elim,
-    }))
+    });
+    Ok(crate::calculus::whnf(session.env(), result))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1396,7 +1395,6 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::IndType { .. } => "IndType",
         ExpNode::IndCtor { .. } => "IndCtor",
         ExpNode::IndElim { .. } => "IndTypeElim",
-        ExpNode::IndProjection { .. } => "IndProjection",
         ExpNode::ReflectedProgramCase { .. } => "ReflectedProgramCase",
         ExpNode::RunStep { .. } => "RunStep",
         ExpNode::Continue { .. } => "Continue",

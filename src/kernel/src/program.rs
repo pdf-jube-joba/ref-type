@@ -113,12 +113,6 @@ pub enum ValueNode {
         idx: usize,
         fields: Vec<Value>,
     },
-    InductiveProjection {
-        indspec: ProgramInductiveId,
-        parameters: Vec<ValueType>,
-        value: Value,
-        field: usize,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

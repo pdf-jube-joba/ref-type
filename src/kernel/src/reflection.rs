@@ -213,20 +213,6 @@ fn reflect_value_inner(
             }
             term
         }
-        ValueNode::InductiveProjection {
-            indspec,
-            parameters,
-            value,
-            field,
-        } => arena.alloc(ExpNode::IndProjection {
-            indspec: env.program_inductive(indspec).reflected(),
-            parameters: parameters
-                .into_iter()
-                .map(|p| reflect_value_type(env, p))
-                .collect::<Result<_, _>>()?,
-            value: reflect_value_inner(env, context, value, visiting)?,
-            field,
-        }),
     })
 }
 

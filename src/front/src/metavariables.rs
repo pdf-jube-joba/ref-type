@@ -10,7 +10,6 @@ use kernel::{
     environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode},
     ids::{MetaVarId, ModuleId, SymbolId},
-    inductive::CtorBinder,
     program::{ComputationTypeNode, Program, ProgramType},
     program_derivation::ProgramCheckSession,
     sort::Sort,
@@ -520,47 +519,6 @@ impl MetaStore {
                 Ok(kernel::inductive::InductiveTypeSpecs::type_of_constructor(
                     arena, indspec, spec, idx, parameters,
                 ))
-            }
-            ExpNode::IndProjection {
-                indspec,
-                parameters,
-                value,
-                field,
-            } => {
-                let spec = env.inductive(indspec);
-                if spec.constructor_len() != 1 {
-                    return Err("projection target is not a structure".into());
-                }
-                if parameters.len() != spec.parameters().len() {
-                    return Err("structure projection parameter count mismatch".into());
-                }
-                let mut preceding_parameters = Vec::new();
-                for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
-                    let expected = instantiate_telescope(arena, *expected, &preceding_parameters);
-                    self.check_pts(env, module, context, argument, expected)?;
-                    preceding_parameters.push(argument);
-                }
-                let structure_ty = arena.alloc(ExpNode::IndType {
-                    indspec,
-                    parameters: parameters.clone(),
-                });
-                self.check_pts(env, module, context, value, structure_ty)?;
-                let constructor = spec.constructors()[0].instantiate_parameters(arena, &parameters);
-                let Some(CtorBinder::Simple((_, field_ty))) = constructor.telescope.get(field)
-                else {
-                    return Err("structure projection field out of bounds".into());
-                };
-                let preceding = (0..field)
-                    .map(|field| {
-                        arena.alloc(ExpNode::IndProjection {
-                            indspec,
-                            parameters: parameters.clone(),
-                            value,
-                            field,
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                Ok(instantiate_telescope(arena, *field_ty, &preceding))
             }
             ExpNode::Prod { var, ty, body } => {
                 let domain_sort = self.infer_sort(env, module, context, ty)?;
@@ -1464,18 +1422,6 @@ fn rigid_heads_compatible(left: &ExpNode, right: &ExpNode) -> bool {
         (ExpNode::IndElim { indspec: left, .. }, ExpNode::IndElim { indspec: right, .. }) => {
             left == right
         }
-        (
-            ExpNode::IndProjection {
-                indspec: left,
-                field: left_field,
-                ..
-            },
-            ExpNode::IndProjection {
-                indspec: right,
-                field: right_field,
-                ..
-            },
-        ) => left == right && left_field == right_field,
         _ => true,
     }
 }

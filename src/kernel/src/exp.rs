@@ -78,12 +78,6 @@ pub enum ExpNode {
         return_type: Exp,
         cases: Vec<Exp>,
     },
-    IndProjection {
-        indspec: InductiveId,
-        parameters: Vec<Exp>,
-        value: Exp,
-        field: usize,
-    },
     ReflectedProgramCase {
         indspec: ProgramInductiveId,
         scrutinee: Exp,
