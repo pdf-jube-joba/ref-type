@@ -4,9 +4,8 @@ use kernel::{
     environment::CrateEnv,
     exp::{Exp, ExpContext, ExpJudgement},
     ids::ModuleId,
-    program::{Computation, ComputationType, ProgramContext, Value, ValueType},
+    program::{Computation, ComputationType, Value, ValueType},
     program_calculus::Evaluation,
-    program_derivation::ProgramCheckSession,
     sort::Sort,
 };
 use serde::Serialize;
@@ -28,8 +27,6 @@ pub enum LogPayload {
     ComputationType(ComputationType),
     Value(Value),
     Computation(Computation),
-    Ctx(ExpContext),
-    ProgramCtx(ProgramContext),
     Goals(Vec<MetaGoal>),
 }
 
@@ -147,7 +144,7 @@ impl Logger {
         ctx: &mut ExpContext,
         exp: Exp,
     ) -> Option<Exp> {
-        match CheckSession::new(env, module, ctx).infer(exp) {
+        match CheckSession::new(env, module, ctx).infer_pts(exp) {
             Ok(ty) => {
                 self.record(
                     LogLevel::Debug,
@@ -227,7 +224,7 @@ impl Logger {
         exp: Exp,
         expected_type: Exp,
     ) -> bool {
-        match CheckSession::new(env, module, ctx).check(exp, expected_type) {
+        match CheckSession::new(env, module, ctx).check_pts(exp, expected_type) {
             Ok(()) => true,
             Err(error) => {
                 self.record(
@@ -237,64 +234,6 @@ impl Logger {
                     LogPayload::Message,
                 );
                 false
-            }
-        }
-    }
-
-    pub fn infer_value(
-        &mut self,
-        env: &CrateEnv,
-        module: ModuleId,
-        ctx: &mut ProgramContext,
-        value: Value,
-    ) -> Option<ValueType> {
-        match ProgramCheckSession::new(env, module, ctx).infer_value(value) {
-            Ok(ty) => {
-                self.record(
-                    LogLevel::Debug,
-                    vec!["program infer".into()],
-                    "value inference success".into(),
-                    LogPayload::ValueType(ty),
-                );
-                Some(ty)
-            }
-            Err(error) => {
-                self.record(
-                    LogLevel::Error,
-                    vec!["program infer".into()],
-                    format!("value inference failed: {error:?}"),
-                    LogPayload::Message,
-                );
-                None
-            }
-        }
-    }
-
-    pub fn infer_computation(
-        &mut self,
-        env: &CrateEnv,
-        module: ModuleId,
-        ctx: &mut ProgramContext,
-        computation: Computation,
-    ) -> Option<ComputationType> {
-        match ProgramCheckSession::new(env, module, ctx).infer_computation(computation) {
-            Ok(ty) => {
-                self.record(
-                    LogLevel::Debug,
-                    vec!["program infer".into()],
-                    "computation inference success".into(),
-                    LogPayload::ComputationType(ty),
-                );
-                Some(ty)
-            }
-            Err(error) => {
-                self.record(
-                    LogLevel::Error,
-                    vec!["program infer".into()],
-                    format!("computation inference failed: {error:?}"),
-                    LogPayload::Message,
-                );
-                None
             }
         }
     }

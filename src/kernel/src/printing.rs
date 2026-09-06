@@ -5,9 +5,8 @@ use crate::{
     exp::{Exp, ExpContext, ExpNode},
     ids::{ModuleParamId, SymbolId},
     program::{
-        Computation, ComputationNode, ComputationType, ComputationTypeNode, Program,
-        ProgramContext, ProgramContextEntry, ProgramType, Value, ValueNode, ValueType,
-        ValueTypeNode,
+        Computation, ComputationNode, ComputationType, ComputationTypeNode, Program, ProgramType,
+        Value, ValueNode, ValueType, ValueTypeNode,
     },
     sort::Sort,
 };
@@ -629,17 +628,4 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             format_computation(env, transition)
         ),
     }
-}
-
-pub fn format_program_ctx(env: &CrateEnv, context: &ProgramContext) -> String {
-    context
-        .iter()
-        .map(|entry| match entry {
-            ProgramContextEntry::Type { var } => format!("{}: vtype", env.symbol(*var)),
-            ProgramContextEntry::Value { var, ty } => {
-                format!("{}: {}", env.symbol(*var), format_value_type(env, *ty))
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
 }

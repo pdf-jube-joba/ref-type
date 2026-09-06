@@ -4,46 +4,27 @@ use crate::{
     derivation::JudgementError,
     environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
     exp::Arena,
-    ids::{ModuleId, SymbolId},
+    ids::SymbolId,
     program::*,
     program_calculus::{
         computation_type_is_alpha_eq, shift_value_type_indices, value_type_is_alpha_eq,
     },
 };
-use serde::Serialize;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum ProgramTypeClass {
-    Value,
-    Computation,
-}
 
 pub struct ProgramCheckSession<'env, 'context> {
     env: &'env CrateEnv,
-    current_module: ModuleId,
     context: &'context mut ProgramContext,
 }
 
 impl<'env, 'context> ProgramCheckSession<'env, 'context> {
-    pub fn new(
-        env: &'env CrateEnv,
-        current_module: ModuleId,
-        context: &'context mut ProgramContext,
-    ) -> Self {
-        Self {
-            env,
-            current_module,
-            context,
-        }
+    pub fn new(env: &'env CrateEnv, context: &'context mut ProgramContext) -> Self {
+        Self { env, context }
     }
     pub fn env(&self) -> &'env CrateEnv {
         self.env
     }
     pub fn arena(&self) -> &'env Arena {
         self.env.arena()
-    }
-    pub fn current_module(&self) -> ModuleId {
-        self.current_module
     }
     pub fn context(&self) -> &ProgramContext {
         self.context
@@ -84,21 +65,6 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
         term: Computation,
     ) -> Result<ComputationType, Box<JudgementError>> {
         infer_computation(self, term)
-    }
-    pub fn infer_judgement(
-        &mut self,
-        program: Program,
-    ) -> Result<ProgramJudgement, Box<JudgementError>> {
-        match program {
-            Program::Value(value) => Ok(ProgramJudgement::Value {
-                value,
-                ty: self.infer_value(value)?,
-            }),
-            Program::Computation(computation) => Ok(ProgramJudgement::Computation {
-                computation,
-                ty: self.infer_computation(computation)?,
-            }),
-        }
     }
 }
 

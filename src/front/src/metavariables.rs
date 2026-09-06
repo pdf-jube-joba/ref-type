@@ -45,10 +45,6 @@ pub enum GoalConstraint {
     HasType { term: Exp, expected: Exp },
     Equal { left: Exp, right: Exp },
     IsSort { term: Exp },
-    IsValueType { term: Exp },
-    IsComputationType { term: Exp },
-    HasValueType { term: Exp, expected: Exp },
-    HasComputationType { term: Exp, expected: Exp },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -192,16 +188,6 @@ fn format_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> String {
         }
         GoalConstraint::Equal { left, right } => format!("{} ≡ {}", exp(*left), exp(*right)),
         GoalConstraint::IsSort { term } => format!("{} has a sort", exp(*term)),
-        GoalConstraint::IsValueType { term } => format!("{} : \\VType", exp(*term)),
-        GoalConstraint::IsComputationType { term } => {
-            format!("{} is a computation type", exp(*term))
-        }
-        GoalConstraint::HasValueType { term, expected } => {
-            format!("{} :value {}", exp(*term), exp(*expected))
-        }
-        GoalConstraint::HasComputationType { term, expected } => {
-            format!("{} :computation {}", exp(*term), exp(*expected))
-        }
     }
 }
 
@@ -904,7 +890,7 @@ impl MetaStore {
             }
             ExpNode::BoxType { program_ty } => {
                 let mut empty = Vec::new();
-                let mut session = ProgramCheckSession::new(env, module, &mut empty);
+                let mut session = ProgramCheckSession::new(env, &mut empty);
                 match program_ty {
                     ProgramType::Value(ty) => session.check_value_type(ty),
                     ProgramType::Computation(ty) => session.check_computation_type(ty),
@@ -917,7 +903,7 @@ impl MetaStore {
                 program,
             } => {
                 let mut empty = Vec::new();
-                let mut session = ProgramCheckSession::new(env, module, &mut empty);
+                let mut session = ProgramCheckSession::new(env, &mut empty);
                 match (program_ty, program) {
                     (ProgramType::Value(ty), Program::Value(value)) => {
                         session.check_value(value, ty)
@@ -1105,10 +1091,6 @@ impl MetaStore {
             }
             _ => Err("expression does not have a sort".into()),
         }
-    }
-
-    pub fn constrain_type(&mut self, term: Exp, expected: Exp) {
-        self.constrain(GoalConstraint::HasType { term, expected });
     }
 
     pub fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
@@ -1389,22 +1371,6 @@ impl MetaStore {
             GoalConstraint::IsSort { term } => GoalConstraint::IsSort {
                 term: self.zonk(env, *term),
             },
-            GoalConstraint::IsValueType { term } => GoalConstraint::IsValueType {
-                term: self.zonk(env, *term),
-            },
-            GoalConstraint::IsComputationType { term } => GoalConstraint::IsComputationType {
-                term: self.zonk(env, *term),
-            },
-            GoalConstraint::HasValueType { term, expected } => GoalConstraint::HasValueType {
-                term: self.zonk(env, *term),
-                expected: self.zonk(env, *expected),
-            },
-            GoalConstraint::HasComputationType { term, expected } => {
-                GoalConstraint::HasComputationType {
-                    term: self.zonk(env, *term),
-                    expected: self.zonk(env, *expected),
-                }
-            }
         }
     }
 }
@@ -1415,12 +1381,8 @@ fn constraint_expressions(constraint: &GoalConstraint) -> Vec<Exp> {
         | GoalConstraint::Equal {
             left: term,
             right: expected,
-        }
-        | GoalConstraint::HasValueType { term, expected }
-        | GoalConstraint::HasComputationType { term, expected } => vec![*term, *expected],
-        GoalConstraint::IsSort { term }
-        | GoalConstraint::IsValueType { term }
-        | GoalConstraint::IsComputationType { term } => vec![*term],
+        } => vec![*term, *expected],
+        GoalConstraint::IsSort { term } => vec![*term],
     }
 }
 

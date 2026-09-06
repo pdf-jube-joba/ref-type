@@ -104,7 +104,7 @@ fn set_and_program_contexts_are_distinct() {
 
     let value_ty = env.arena().alloc(ValueTypeNode::Bound(0));
     let mut program_context = vec![ProgramContextEntry::Type { var: SymbolId(3) }];
-    ProgramCheckSession::new(&env, env.root_module(), &mut program_context)
+    ProgramCheckSession::new(&env, &mut program_context)
         .check_value_type(value_ty)
         .unwrap();
 }

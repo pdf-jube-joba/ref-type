@@ -95,16 +95,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         self.env.arena()
     }
 
-    pub fn current_module(&self) -> ModuleId {
-        self.current_module
-    }
-
     pub fn context(&self) -> &ExpContext {
         self.context
-    }
-
-    pub fn push(&mut self, var: SymbolId, ty: Exp) {
-        self.push_pts(var, ty);
     }
 
     pub fn push_pts(&mut self, var: SymbolId, ty: Exp) {
@@ -117,16 +109,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             .expect("CheckSession context stack underflow");
     }
 
-    pub fn check(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
-        check(self, term, ty)
-    }
-
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
         check(self, term, ty)
-    }
-
-    pub fn infer(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
-        infer(self, term)
     }
 
     pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
@@ -255,7 +239,7 @@ impl JudgementError {
 macro_rules! add_check {
     ($session:expr, $rule:expr, $phase:expr, $term:expr, $ty:expr, $expected:expr $(,)?) => {
         $session
-            .check($term, $ty)
+            .check_pts($term, $ty)
             .map(|_| ())
             .map_err(|error| propagate(error, $rule, $phase, $expected))
     };
@@ -263,7 +247,7 @@ macro_rules! add_check {
 
 macro_rules! add_infer {
     ($session:expr, $rule:expr, $phase:expr, $term:expr, $expected:expr $(,)?) => {
-        $session.infer($term)
+        $session.infer_pts($term)
             .inspect(|ty| {
                 debug!(
                     target: "ref_type::typing",
@@ -429,7 +413,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         )),
         ExpNode::Prod { var, ty, body } => {
             let domain_sort = add_sort!(session, rule, phase, ty, "infer domain sort for product")?;
-            session.push(var, ty);
+            session.push_pts(var, ty);
             let body_sort = add_sort!(
                 session,
                 rule,
@@ -446,7 +430,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         }
         ExpNode::Lam { var, ty, body } => {
             add_sort!(session, rule, phase, ty, "infer domain sort for lambda")?;
-            session.push(var, ty);
+            session.push_pts(var, ty);
             let body_ty = add_infer!(session, rule, phase, body, "infer body type for lambda");
             session.pop();
             let body_ty = body_ty?;
@@ -835,7 +819,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             ) {
                 return Err(failure(rule, phase, "set is not of Set(i)"));
             }
-            session.push(var, set);
+            session.push_pts(var, set);
             let proposition = arena.sort(Sort::Prop);
             let result = add_check!(
                 session,
@@ -1144,7 +1128,7 @@ fn check_closed_program_type(
     program_ty: ProgramType,
 ) -> Result<(), Box<JudgementError>> {
     let mut empty = Vec::new();
-    let mut nested = ProgramCheckSession::new(session.env, session.current_module, &mut empty);
+    let mut nested = ProgramCheckSession::new(session.env, &mut empty);
     let result = match program_ty {
         ProgramType::Value(ty) => nested.check_value_type(ty),
         ProgramType::Computation(ty) => nested.check_computation_type(ty),
@@ -1165,8 +1149,7 @@ fn check_closed_well_terminated_program(
 ) -> Result<(), Box<JudgementError>> {
     check_closed_program_type(session, program_ty)?;
     let mut empty_program = Vec::new();
-    let mut program_session =
-        ProgramCheckSession::new(session.env, session.current_module, &mut empty_program);
+    let mut program_session = ProgramCheckSession::new(session.env, &mut empty_program);
     match (program, program_ty) {
         (Program::Value(value), ProgramType::Value(ty)) => {
             program_session.check_value(value, ty)?
@@ -1188,12 +1171,8 @@ fn check_closed_well_terminated_program(
     }
     .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let reflected_term = match program {
-        Program::Value(value) => {
-            reflect_value(session.env(), session.current_module, &Vec::new(), value)
-        }
-        Program::Computation(term) => {
-            reflect_computation(session.env(), session.current_module, &Vec::new(), term)
-        }
+        Program::Value(value) => reflect_value(session.env(), &Vec::new(), value),
+        Program::Computation(term) => reflect_computation(session.env(), &Vec::new(), term),
     }
     .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let mut reflected_context = Vec::new();
@@ -1755,7 +1734,7 @@ fn infer_proof_constructor(
             }
             add_check!(session, rule, phase, left, ty, "check left")?;
             add_check!(session, rule, phase, right, ty, "check right")?;
-            session.push(var, ty);
+            session.push_pts(var, ty);
             let prop = arena.sort(Sort::Prop);
             let result = add_check!(session, rule, phase, predicate, prop, "check predicate");
             session.pop();

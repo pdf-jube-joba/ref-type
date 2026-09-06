@@ -12,10 +12,6 @@ pub fn log_record_to_log(
             record,
             Some(format!("exp = {}", for_kernel::format_exp(env, *exp))),
         )),
-        LogPayload::Ctx(ctx) => Log::Message(format_record(
-            record,
-            Some(format!("ctx = [{}]", for_kernel::format_ctx(env, ctx))),
-        )),
         LogPayload::ValueType(ty) => Log::Message(format_record(
             record,
             Some(format!(
@@ -39,13 +35,6 @@ pub fn log_record_to_log(
             Some(format!(
                 "computation = {}",
                 for_kernel::format_computation(env, *computation)
-            )),
-        )),
-        LogPayload::ProgramCtx(ctx) => Log::Message(format_record(
-            record,
-            Some(format!(
-                "program ctx = [{}]",
-                for_kernel::format_program_ctx(env, ctx)
             )),
         )),
         LogPayload::Message => Log::Message(format_record(record, None)),

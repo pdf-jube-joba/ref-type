@@ -606,13 +606,9 @@ impl ProgramScope {
             }
             ComputationExp::ValueLet { var, value, body } => {
                 let value = self.elaborate_value(value, environment)?;
-                let ty = ProgramCheckSession::new(
-                    &environment.crate_env,
-                    environment.module_manager.current(),
-                    &mut self.context,
-                )
-                .infer_value(value)
-                .map_err(|error| format!("cannot infer vlet value: {error:?}"))?;
+                let ty = ProgramCheckSession::new(&environment.crate_env, &mut self.context)
+                    .infer_value(value)
+                    .map_err(|error| format!("cannot infer vlet value: {error:?}"))?;
                 let var = environment.crate_env.intern(var.as_str());
                 self.names.push(var);
                 self.context.push(ProgramContextEntry::Value { var, ty });
@@ -642,13 +638,12 @@ impl ProgramScope {
                 }
                 let scrutinee = self.elaborate_value(scrutinee, environment)?;
                 let mut check_context = self.context.clone();
-                let scrutinee_ty = ProgramCheckSession::new(
-                    &environment.crate_env,
-                    environment.module_manager.current(),
-                    &mut check_context,
-                )
-                .infer_value(scrutinee)
-                .map_err(|error| format!("cannot infer Program case scrutinee: {error:?}"))?;
+                let scrutinee_ty =
+                    ProgramCheckSession::new(&environment.crate_env, &mut check_context)
+                        .infer_value(scrutinee)
+                        .map_err(|error| {
+                            format!("cannot infer Program case scrutinee: {error:?}")
+                        })?;
                 let ValueTypeNode::Inductive {
                     indspec,
                     parameters,
@@ -1189,13 +1184,9 @@ impl ProgramScope {
         context: &mut ProgramContext,
         value: Value,
     ) -> Result<ValueType, String> {
-        ProgramCheckSession::new(
-            &environment.crate_env,
-            environment.module_manager.current(),
-            context,
-        )
-        .infer_value(value)
-        .map_err(|error| format!("cannot infer Program value: {error:?}"))
+        ProgramCheckSession::new(&environment.crate_env, context)
+            .infer_value(value)
+            .map_err(|error| format!("cannot infer Program value: {error:?}"))
     }
 
     fn infer_kernel_computation(
@@ -1204,13 +1195,9 @@ impl ProgramScope {
         context: &mut ProgramContext,
         computation: Computation,
     ) -> Result<ComputationType, String> {
-        ProgramCheckSession::new(
-            &environment.crate_env,
-            environment.module_manager.current(),
-            context,
-        )
-        .infer_computation(computation)
-        .map_err(|error| format!("cannot infer Program computation: {error:?}"))
+        ProgramCheckSession::new(&environment.crate_env, context)
+            .infer_computation(computation)
+            .map_err(|error| format!("cannot infer Program computation: {error:?}"))
     }
 
     fn solve_value(

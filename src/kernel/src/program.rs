@@ -181,17 +181,3 @@ pub enum ProgramContextEntry {
 }
 
 pub type ProgramContext = Vec<ProgramContextEntry>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum ProgramJudgement {
-    ValueType(ValueType),
-    ComputationType(ComputationType),
-    Value {
-        value: Value,
-        ty: ValueType,
-    },
-    Computation {
-        computation: Computation,
-        ty: ComputationType,
-    },
-}

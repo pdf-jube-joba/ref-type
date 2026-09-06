@@ -28,16 +28,6 @@ pub enum DefinedConstant {
     },
 }
 
-impl DefinedConstant {
-    pub fn kind(&self) -> DefinitionKind {
-        match self {
-            Self::Pts { .. } => DefinitionKind::Pts,
-            Self::ProgramValue { .. } => DefinitionKind::ProgramValue,
-            Self::ProgramComputation { .. } => DefinitionKind::ProgramComputation,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum DefinitionKind {
     Pts,
@@ -59,17 +49,6 @@ pub enum ModuleParameterKind {
 }
 
 impl ModuleParameter {
-    pub fn id(&self, module: ModuleId, position: u32) -> ModuleParamId {
-        ModuleParamId { module, position }
-    }
-
-    pub fn pts_ty(&self) -> Option<Exp> {
-        match self.kind {
-            ModuleParameterKind::Pts { ty } => Some(ty),
-            ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => None,
-        }
-    }
-
     pub fn value_ty(&self) -> Option<ValueType> {
         match self.kind {
             ModuleParameterKind::ProgramValue { ty } => Some(ty),
@@ -146,7 +125,6 @@ pub struct DefinitionOrigin {
 
 #[derive(Debug)]
 pub struct ModuleEnv {
-    id: ModuleId,
     name: String,
     parent: Option<ModuleId>,
     children: Vec<ModuleId>,
@@ -161,14 +139,8 @@ pub struct ModuleEnv {
 }
 
 impl ModuleEnv {
-    fn new(
-        id: ModuleId,
-        name: String,
-        parent: Option<ModuleId>,
-        parameters: Vec<ModuleParameter>,
-    ) -> Self {
+    fn new(name: String, parent: Option<ModuleId>, parameters: Vec<ModuleParameter>) -> Self {
         Self {
-            id,
             name,
             parent,
             children: Vec::new(),
@@ -181,10 +153,6 @@ impl ModuleEnv {
             instances: Vec::new(),
             imports: HashMap::new(),
         }
-    }
-
-    pub fn id(&self) -> ModuleId {
-        self.id
     }
 
     pub fn name(&self) -> &str {
@@ -201,18 +169,6 @@ impl ModuleEnv {
 
     pub fn parameters(&self) -> &[ModuleParameter] {
         &self.parameters
-    }
-
-    pub fn definitions(&self) -> &[DefinedConstant] {
-        &self.definitions
-    }
-
-    pub fn inductives(&self) -> &[Option<InductiveTypeSpecs>] {
-        &self.inductives
-    }
-
-    pub fn program_inductives(&self) -> &[Option<ProgramInductiveTypeSpecs>] {
-        &self.program_inductives
     }
 
     pub fn items(&self) -> &[ModuleItem] {
@@ -258,7 +214,7 @@ impl CrateEnv {
             arena: Arena::new(),
             symbols: vec![anonymous, root],
             symbol_ids,
-            modules: vec![ModuleEnv::new(ModuleId(0), "root".into(), None, vec![])],
+            modules: vec![ModuleEnv::new("root".into(), None, vec![])],
             materialized_instances: HashMap::new(),
         }
     }
@@ -279,16 +235,8 @@ impl CrateEnv {
         &self.symbols[symbol.index()]
     }
 
-    pub fn find_symbol(&self, name: &str) -> Option<SymbolId> {
-        self.symbol_ids.get(name).copied()
-    }
-
     pub fn arena(&self) -> &Arena {
         &self.arena
-    }
-
-    pub fn arena_mut(&mut self) -> &mut Arena {
-        &mut self.arena
     }
 
     pub fn root_module(&self) -> ModuleId {
@@ -332,8 +280,7 @@ impl CrateEnv {
     ) -> ModuleId {
         let index = u32::try_from(self.modules.len()).expect("module table exceeded u32::MAX");
         let id = ModuleId(index);
-        self.modules
-            .push(ModuleEnv::new(id, name, parent, parameters));
+        self.modules.push(ModuleEnv::new(name, parent, parameters));
         id
     }
 
@@ -389,16 +336,6 @@ impl CrateEnv {
         self.module(id.module).inductives[id.index as usize]
             .as_ref()
             .expect("reserved inductive ID was used before definition")
-    }
-
-    pub fn add_program_inductive(
-        &mut self,
-        module: ModuleId,
-        inductive: ProgramInductiveTypeSpecs,
-    ) -> ProgramInductiveId {
-        let id = self.reserve_program_inductive(module);
-        self.define_program_inductive(id, inductive);
-        id
     }
 
     pub fn reserve_program_inductive(&mut self, module: ModuleId) -> ProgramInductiveId {

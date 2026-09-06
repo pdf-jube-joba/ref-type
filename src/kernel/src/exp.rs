@@ -342,18 +342,6 @@ impl Arena {
         handle.get(self)
     }
 
-    pub fn len(&self) -> usize {
-        self.exps.borrow().len()
-            + self.value_types.borrow().len()
-            + self.computation_types.borrow().len()
-            + self.values.borrow().len()
-            + self.computations.borrow().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     pub fn sort(&self, sort: Sort) -> Exp {
         self.alloc(ExpNode::Sort(sort))
     }
@@ -372,10 +360,6 @@ impl Arena {
     pub fn value_type_module_param(&self, parameter: ModuleParamId) -> ValueType {
         self.alloc(ValueTypeNode::ModuleParam(parameter))
     }
-    pub fn value_module_param(&self, parameter: ModuleParamId) -> Value {
-        self.alloc(ValueNode::ModuleParam(parameter))
-    }
-
     pub fn as_module_param(&self, exp: Exp) -> Option<ModuleParamId> {
         match self.get(exp) {
             ExpNode::ModuleParam(parameter) => Some(parameter),

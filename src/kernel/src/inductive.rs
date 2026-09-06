@@ -69,10 +69,6 @@ impl InductiveTypeSpecs {
         &self.parameters
     }
 
-    pub fn indices(&self) -> &[(SymbolId, Exp)] {
-        &self.indices
-    }
-
     pub fn sort(&self) -> Sort {
         self.sort
     }
@@ -173,7 +169,7 @@ impl InductiveTypeSpecs {
                 ))
             })?;
             parameter_sorts.push(sort);
-            session.push(*var, *parameter_ty);
+            session.push_pts(*var, *parameter_ty);
         }
 
         // PropKind and SetKind are top sorts and intentionally have no sort
@@ -199,7 +195,7 @@ impl InductiveTypeSpecs {
                     ))
                 })?;
                 binder_sorts.push(sort);
-                session.push(*var, *index_ty);
+                session.push_pts(*var, *index_ty);
             }
             let mut arity_sort = self.sort;
             for domain_sort in binder_sorts.into_iter().rev() {
@@ -227,7 +223,7 @@ impl InductiveTypeSpecs {
         for (index, constructor) in self.constructors.iter().enumerate() {
             let constructor_ty = constructor.as_exp_with_type(session.arena(), this_exp);
             session
-                .check(constructor_ty, expected_sort)
+                .check_pts(constructor_ty, expected_sort)
                 .map_err(|error| {
                     Box::new(error.with_frame(
                         "InductiveTypeSpecs::new",

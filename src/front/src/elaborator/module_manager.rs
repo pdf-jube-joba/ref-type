@@ -337,23 +337,6 @@ impl ModuleManager {
         )
     }
 
-    pub fn add_record(
-        &mut self,
-        env: &mut CrateEnv,
-        type_name: Identifier,
-        spec: InductiveTypeSpecs,
-    ) -> Result<(), String> {
-        let inductive = env.add_inductive(self.current, spec);
-        env.publish_item(
-            self.current,
-            ModuleItem::Record {
-                name: type_name.0,
-                associated_definitions: Vec::new(),
-                inductive,
-            },
-        )
-    }
-
     pub fn publish_reserved_record(
         &mut self,
         env: &mut CrateEnv,
@@ -480,15 +463,11 @@ impl ModuleManager {
                             })?;
                     }
                     (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(ty)) => {
-                        kernel::program_derivation::ProgramCheckSession::new(
-                            env,
-                            self.current,
-                            &mut Vec::new(),
-                        )
-                        .check_value_type(*ty)
-                        .map_err(|error| {
-                            format!("Program type module argument is ill-formed: {error:?}")
-                        })?;
+                        kernel::program_derivation::ProgramCheckSession::new(env, &mut Vec::new())
+                            .check_value_type(*ty)
+                            .map_err(|error| {
+                                format!("Program type module argument is ill-formed: {error:?}")
+                            })?;
                     }
                     (
                         ModuleParameterKind::ProgramValue { ty },
@@ -499,15 +478,11 @@ impl ModuleManager {
                             ty,
                             &substitutions,
                         );
-                        kernel::program_derivation::ProgramCheckSession::new(
-                            env,
-                            self.current,
-                            &mut Vec::new(),
-                        )
-                        .check_value(*value, expected)
-                        .map_err(|error| {
-                            format!("Program value module argument is ill-typed: {error:?}")
-                        })?;
+                        kernel::program_derivation::ProgramCheckSession::new(env, &mut Vec::new())
+                            .check_value(*value, expected)
+                            .map_err(|error| {
+                                format!("Program value module argument is ill-typed: {error:?}")
+                            })?;
                     }
                     _ => {
                         return Err(format!(
@@ -530,7 +505,6 @@ impl ModuleManager {
                     }
                     ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
                         env,
-                        self.current,
                         &Vec::new(),
                         kernel::program::Program::Value(*value),
                     )
@@ -1282,12 +1256,12 @@ mod tests {
         });
         assert!(
             CheckSession::new(&env, env.root_module(), &mut Vec::new())
-                .check(first_constructor, first_type)
+                .check_pts(first_constructor, first_type)
                 .is_ok()
         );
         assert!(
             CheckSession::new(&env, env.root_module(), &mut Vec::new())
-                .check(first_constructor, second_type)
+                .check_pts(first_constructor, second_type)
                 .is_err()
         );
     }

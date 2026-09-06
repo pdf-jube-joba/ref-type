@@ -78,10 +78,6 @@ impl LocalScope {
         &self.typing_binds
     }
 
-    pub fn push_decl_var(&mut self, var: SymbolId) {
-        self.decl_binds.push((var, None));
-    }
-
     pub fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
         self.decl_binds.push((var, Some(exp)));
     }

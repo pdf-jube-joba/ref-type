@@ -3,7 +3,7 @@
 use crate::{
     environment::{CrateEnv, DefinedConstant},
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, ReflectedProgramCaseBranch},
-    ids::{DefId, ModuleId},
+    ids::DefId,
     program::*,
     program_derivation::ProgramCheckSession,
 };
@@ -12,7 +12,6 @@ use std::{collections::HashSet, fmt};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReflectionError {
     UnresolvedMetavariable,
-    NotProgramType,
     NotProgramTerm,
     RecursiveDefinition(DefId),
 }
@@ -21,7 +20,6 @@ impl fmt::Display for ReflectionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnresolvedMetavariable => write!(f, "cannot reflect an unresolved metavariable"),
-            Self::NotProgramType => write!(f, "syntax is not a Program type"),
             Self::NotProgramTerm => write!(f, "syntax is not a Program term"),
             Self::RecursiveDefinition(id) => {
                 write!(f, "recursive Program definition during reflection: {id:?}")
@@ -130,28 +128,25 @@ pub fn reflect_context(
 
 pub fn reflect_program(
     env: &CrateEnv,
-    current_module: ModuleId,
     context: &ProgramContext,
     program: Program,
 ) -> Result<Exp, ReflectionError> {
     match program {
-        Program::Value(v) => reflect_value(env, current_module, context, v),
-        Program::Computation(c) => reflect_computation(env, current_module, context, c),
+        Program::Value(v) => reflect_value(env, context, v),
+        Program::Computation(c) => reflect_computation(env, context, c),
     }
 }
 
 pub fn reflect_value(
     env: &CrateEnv,
-    current_module: ModuleId,
     context: &ProgramContext,
     value: Value,
 ) -> Result<Exp, ReflectionError> {
-    reflect_value_inner(env, current_module, context, value, &mut HashSet::new())
+    reflect_value_inner(env, context, value, &mut HashSet::new())
 }
 
 fn reflect_value_inner(
     env: &CrateEnv,
-    current_module: ModuleId,
     context: &ProgramContext,
     value: Value,
     visiting: &mut HashSet<DefId>,
@@ -167,7 +162,7 @@ fn reflect_value_inner(
             }
             let result = match env.definition(id) {
                 DefinedConstant::ProgramValue { body, .. } => {
-                    reflect_value_inner(env, id.module, &Vec::new(), *body, visiting)
+                    reflect_value_inner(env, &Vec::new(), *body, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -175,7 +170,7 @@ fn reflect_value_inner(
             result?
         }
         ValueNode::Thunk { computation } => {
-            reflect_computation_inner(env, current_module, context, computation, visiting)?
+            reflect_computation_inner(env, context, computation, visiting)?
         }
         ValueNode::Continue {
             state_ty,
@@ -184,7 +179,7 @@ fn reflect_value_inner(
         } => arena.alloc(ExpNode::Continue {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            next: reflect_value_inner(env, current_module, context, next, visiting)?,
+            next: reflect_value_inner(env, context, next, visiting)?,
         }),
         ValueNode::Finish {
             state_ty,
@@ -193,7 +188,7 @@ fn reflect_value_inner(
         } => arena.alloc(ExpNode::Finish {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            output: reflect_value_inner(env, current_module, context, output, visiting)?,
+            output: reflect_value_inner(env, context, output, visiting)?,
         }),
         ValueNode::InductiveConstructor {
             indspec,
@@ -213,7 +208,7 @@ fn reflect_value_inner(
             for field in fields {
                 term = arena.alloc(ExpNode::App {
                     func: term,
-                    arg: reflect_value_inner(env, current_module, context, field, visiting)?,
+                    arg: reflect_value_inner(env, context, field, visiting)?,
                 });
             }
             term
@@ -229,7 +224,7 @@ fn reflect_value_inner(
                 .into_iter()
                 .map(|p| reflect_value_type(env, p))
                 .collect::<Result<_, _>>()?,
-            value: reflect_value_inner(env, current_module, context, value, visiting)?,
+            value: reflect_value_inner(env, context, value, visiting)?,
             field,
         }),
     })
@@ -237,16 +232,14 @@ fn reflect_value_inner(
 
 pub fn reflect_computation(
     env: &CrateEnv,
-    current_module: ModuleId,
     context: &ProgramContext,
     term: Computation,
 ) -> Result<Exp, ReflectionError> {
-    reflect_computation_inner(env, current_module, context, term, &mut HashSet::new())
+    reflect_computation_inner(env, context, term, &mut HashSet::new())
 }
 
 fn reflect_computation_inner(
     env: &CrateEnv,
-    current_module: ModuleId,
     context: &ProgramContext,
     term: Computation,
     visiting: &mut HashSet<DefId>,
@@ -260,7 +253,7 @@ fn reflect_computation_inner(
             }
             let result = match env.definition(id) {
                 DefinedConstant::ProgramComputation { body, .. } => {
-                    reflect_computation_inner(env, id.module, &Vec::new(), *body, visiting)
+                    reflect_computation_inner(env, &Vec::new(), *body, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -268,7 +261,7 @@ fn reflect_computation_inner(
             result?
         }
         ComputationNode::Return { value } | ComputationNode::Force { value } => {
-            reflect_value_inner(env, current_module, context, value, visiting)?
+            reflect_value_inner(env, context, value, visiting)?
         }
         ComputationNode::Lambda {
             var,
@@ -281,12 +274,12 @@ fn reflect_computation_inner(
             arena.alloc(ExpNode::Lam {
                 var,
                 ty,
-                body: reflect_computation_inner(env, current_module, &nested, body, visiting)?,
+                body: reflect_computation_inner(env, &nested, body, visiting)?,
             })
         }
         ComputationNode::Application { computation, value } => arena.alloc(ExpNode::App {
-            func: reflect_computation_inner(env, current_module, context, computation, visiting)?,
-            arg: reflect_value_inner(env, current_module, context, value, visiting)?,
+            func: reflect_computation_inner(env, context, computation, visiting)?,
+            arg: reflect_value_inner(env, context, value, visiting)?,
         }),
         ComputationNode::Sequence {
             computation,
@@ -294,15 +287,14 @@ fn reflect_computation_inner(
             value_ty,
             body,
         } => {
-            let source =
-                reflect_computation_inner(env, current_module, context, computation, visiting)?;
+            let source = reflect_computation_inner(env, context, computation, visiting)?;
             let ty = reflect_value_type(env, value_ty)?;
             let mut nested = context.clone();
             nested.push(ProgramContextEntry::Value { var, ty: value_ty });
             let function = arena.alloc(ExpNode::Lam {
                 var,
                 ty,
-                body: reflect_computation_inner(env, current_module, &nested, body, visiting)?,
+                body: reflect_computation_inner(env, &nested, body, visiting)?,
             });
             arena.alloc(ExpNode::App {
                 func: function,
@@ -311,23 +303,20 @@ fn reflect_computation_inner(
         }
         ComputationNode::ValueLet { var, value, body } => {
             let mut infer_context = context.clone();
-            let value_ty = crate::program_derivation::ProgramCheckSession::new(
-                env,
-                current_module,
-                &mut infer_context,
-            )
-            .infer_value(value)
-            .map_err(|_| ReflectionError::NotProgramTerm)?;
+            let value_ty =
+                crate::program_derivation::ProgramCheckSession::new(env, &mut infer_context)
+                    .infer_value(value)
+                    .map_err(|_| ReflectionError::NotProgramTerm)?;
             let mut nested = context.clone();
             nested.push(ProgramContextEntry::Value { var, ty: value_ty });
             let function = arena.alloc(ExpNode::Lam {
                 var,
                 ty: reflect_value_type(env, value_ty)?,
-                body: reflect_computation_inner(env, current_module, &nested, body, visiting)?,
+                body: reflect_computation_inner(env, &nested, body, visiting)?,
             });
             arena.alloc(ExpNode::App {
                 func: function,
-                arg: reflect_value_inner(env, current_module, context, value, visiting)?,
+                arg: reflect_value_inner(env, context, value, visiting)?,
             })
         }
         ComputationNode::Case {
@@ -336,7 +325,7 @@ fn reflect_computation_inner(
             branches,
         } => {
             let mut infer_context = context.clone();
-            let scrutinee_ty = ProgramCheckSession::new(env, current_module, &mut infer_context)
+            let scrutinee_ty = ProgramCheckSession::new(env, &mut infer_context)
                 .infer_value(scrutinee)
                 .map_err(|_| ReflectionError::NotProgramTerm)?;
             let parameters = match arena.get(scrutinee_ty) {
@@ -366,18 +355,12 @@ fn reflect_computation_inner(
                 }
                 reflected_branches.push(ReflectedProgramCaseBranch {
                     binders: branch.binders,
-                    body: reflect_computation_inner(
-                        env,
-                        current_module,
-                        &nested,
-                        branch.body,
-                        visiting,
-                    )?,
+                    body: reflect_computation_inner(env, &nested, branch.body, visiting)?,
                 });
             }
             arena.alloc(ExpNode::ReflectedProgramCase {
                 indspec,
-                scrutinee: reflect_value_inner(env, current_module, context, scrutinee, visiting)?,
+                scrutinee: reflect_value_inner(env, context, scrutinee, visiting)?,
                 branches: reflected_branches,
             })
         }
@@ -389,8 +372,8 @@ fn reflect_computation_inner(
         } => arena.alloc(ExpNode::SetRun {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            step: reflect_value_inner(env, current_module, context, step, visiting)?,
-            initial: reflect_value_inner(env, current_module, context, initial, visiting)?,
+            step: reflect_value_inner(env, context, step, visiting)?,
+            initial: reflect_value_inner(env, context, initial, visiting)?,
         }),
         ComputationNode::RunCase {
             state_ty,
@@ -401,15 +384,9 @@ fn reflect_computation_inner(
         } => arena.alloc(ExpNode::SetRunCase {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            step: reflect_value_inner(env, current_module, context, step, visiting)?,
-            initial: reflect_value_inner(env, current_module, context, initial, visiting)?,
-            transition: reflect_computation_inner(
-                env,
-                current_module,
-                context,
-                transition,
-                visiting,
-            )?,
+            step: reflect_value_inner(env, context, step, visiting)?,
+            initial: reflect_value_inner(env, context, initial, visiting)?,
+            transition: reflect_computation_inner(env, context, transition, visiting)?,
         }),
     })
 }

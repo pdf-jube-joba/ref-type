@@ -215,8 +215,6 @@ pub struct RightBind {
     pub ty: Box<SExp>,
 }
 
-pub struct TelescopeRightbind(pub Vec<RightBind>);
-
 /// Surface Program syntax is split into the same four categories as the
 /// kernel.  Parsing a category-specific declaration performs this
 /// classification before elaboration.
@@ -1019,13 +1017,4 @@ impl ModItemRecord {
             field: field_index,
         }))
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum ModuleItemAccessible {
-    Definition(ModItemDefinition),
-    Inductive(ModItemInductive),
-    // we use inductive type to represent record type
-    Record(ModItemRecord),
-    ProgramInductive(ModItemProgramInductive),
 }

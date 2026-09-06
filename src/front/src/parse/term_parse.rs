@@ -1781,6 +1781,35 @@ mod tests {
         print_and_unwrap(r"x = y");
         print_and_unwrap(r"\subsetinto(A, X, x, p) | z = h");
     }
+
+    #[test]
+    fn removed_reflection_and_run_syntax_has_migration_errors() {
+        fn assert_error(input: &str, expected: &str) {
+            let tokens = lex_all(input).expect("lexing removed syntax should succeed");
+            let error = TermParser::new(&tokens)
+                .parse_sexp()
+                .expect_err("removed syntax should be rejected");
+            assert_eq!(error.msg, expected);
+        }
+
+        assert_error(
+            r"\RfType(A)",
+            r"\RfType was removed: reflection is now a meta-level map",
+        );
+        assert_error(
+            r"\RfTerm(A, a)",
+            r"\RfTerm was removed: reflection is now a meta-level map",
+        );
+        assert_error(
+            r"\run(A, B, step, initial, termination)",
+            r"five-argument \run was removed; put the Acc witness in a trailing proof block",
+        );
+        assert_error(
+            r"\runCase(A, B, step, initial, transition, termination)",
+            r"legacy annotated \runCase was removed; use a proof block",
+        );
+    }
+
     #[test]
     fn parse_complex_cases_test() {
         print_and_unwrap(r"x::y x::y");

@@ -376,7 +376,6 @@ impl GlobalEnvironment {
                     }
                     ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
                         &self.crate_env,
-                        self.module_manager.current(),
                         &Vec::new(),
                         kernel::program::Program::Value(value),
                     )
@@ -722,7 +721,7 @@ impl GlobalEnvironment {
         self.crate_env
             .program_inductive(inductive)
             .validate(
-                &mut ProgramCheckSession::new(&self.crate_env, module, &mut program_context),
+                &mut ProgramCheckSession::new(&self.crate_env, &mut program_context),
                 inductive,
             )
             .map_err(|error| format!("Ill-formed Program datatype: {error:?}"))?;
@@ -812,15 +811,13 @@ impl GlobalEnvironment {
                     let program_ty: ValueTypeExp = ty.as_ref().clone().try_into()?;
                     let program_ty = program_scope.elaborate_value_type(&program_ty, self)?;
                     let mut program_context = program_scope.context().clone();
-                    ProgramCheckSession::new(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut program_context,
-                    )
-                    .check_value_type(program_ty)
-                    .map_err(|error| {
-                        format!("Program module parameter has an ill-formed value type: {error:?}")
-                    })?;
+                    ProgramCheckSession::new(&self.crate_env, &mut program_context)
+                        .check_value_type(program_ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program module parameter has an ill-formed value type: {error:?}"
+                            )
+                        })?;
                     ModuleParameterKind::ProgramValue { ty: program_ty }
                 };
 
@@ -1004,18 +1001,14 @@ impl GlobalEnvironment {
                     let body = scope.elaborate_value(body, self)?;
                     let (body, ty) = scope.check_value_with_metas(self, body, ty)?;
                     let mut program_context = scope.context().clone();
-                    ProgramCheckSession::new(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut program_context,
-                    )
-                    .check_value(body, ty)
-                    .map_err(|error| {
-                        format!(
-                            "Program value definition {} is ill-typed: {error:?}",
-                            name.as_str()
-                        )
-                    })?;
+                    ProgramCheckSession::new(&self.crate_env, &mut program_context)
+                        .check_value(body, ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program value definition {} is ill-typed: {error:?}",
+                                name.as_str()
+                            )
+                        })?;
                     self.module_manager.add_def(
                         &mut self.crate_env,
                         name.clone(),
@@ -1042,18 +1035,14 @@ impl GlobalEnvironment {
                     let body = scope.elaborate_computation(body, self)?;
                     let (body, ty) = scope.check_computation_with_metas(self, body, ty)?;
                     let mut program_context = scope.context().clone();
-                    ProgramCheckSession::new(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut program_context,
-                    )
-                    .check_computation(body, ty)
-                    .map_err(|error| {
-                        format!(
-                            "Program computation definition {} is ill-typed: {error:?}",
-                            name.as_str()
-                        )
-                    })?;
+                    ProgramCheckSession::new(&self.crate_env, &mut program_context)
+                        .check_computation(body, ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program computation definition {} is ill-typed: {error:?}",
+                                name.as_str()
+                            )
+                        })?;
                     self.module_manager.add_def(
                         &mut self.crate_env,
                         name.clone(),
@@ -1491,7 +1480,6 @@ impl GlobalEnvironment {
                                     *ty = program_scope.zonk_module_value_type(self, *ty);
                                     ProgramCheckSession::new(
                                         &self.crate_env,
-                                        self.module_manager.current(),
                                         &mut Vec::new(),
                                     )
                                     .check_value_type(*ty)
@@ -1666,13 +1654,9 @@ impl GlobalEnvironment {
                     let value = scope.elaborate_value(exp, self)?;
                     let (value, ty) = scope.check_value_with_metas(self, value, ty)?;
                     let mut context = scope.context().clone();
-                    ProgramCheckSession::new(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut context,
-                    )
-                    .check_value(value, ty)
-                    .map_err(|error| format!("Program value check failed: {error:?}"))?;
+                    ProgramCheckSession::new(&self.crate_env, &mut context)
+                        .check_value(value, ty)
+                        .map_err(|error| format!("Program value check failed: {error:?}"))?;
                     self.logger.record(
                         LogLevel::Debug,
                         vec!["program check".into()],
@@ -1687,13 +1671,9 @@ impl GlobalEnvironment {
                     let (computation, ty) =
                         scope.check_computation_with_metas(self, computation, ty)?;
                     let mut context = scope.context().clone();
-                    ProgramCheckSession::new(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut context,
-                    )
-                    .check_computation(computation, ty)
-                    .map_err(|error| format!("Program computation check failed: {error:?}"))?;
+                    ProgramCheckSession::new(&self.crate_env, &mut context)
+                        .check_computation(computation, ty)
+                        .map_err(|error| format!("Program computation check failed: {error:?}"))?;
                     self.logger.record(
                         LogLevel::Debug,
                         vec!["program check".into()],

@@ -900,13 +900,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     Program::Value(_) => true,
                 } =>
             {
-                crate::reflection::reflect_program(
-                    env,
-                    crate::ids::ModuleId(0),
-                    &Vec::new(),
-                    program,
-                )
-                .ok()
+                crate::reflection::reflect_program(env, &Vec::new(), program).ok()
             }
             _ => None,
         },
@@ -1031,9 +1025,6 @@ pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
             }
         }
     }
-}
-pub fn erased_normal(env: &CrateEnv, exp: Exp) -> Exp {
-    normalize(env, erase(env, exp))
 }
 pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     alpha_rec(env, left, right, true, true, &mut HashMap::new())
