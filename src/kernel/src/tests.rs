@@ -470,3 +470,100 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
         Err(ReflectionError::UnresolvedMetavariable)
     );
 }
+
+#[test]
+fn set_recursion_rejects_mixed_or_non_set_sorts() {
+    for (state_sort, result_sort) in [
+        (Sort::Set(0), Sort::Set(1)),
+        (Sort::Set(2), Sort::Set(0)),
+        (Sort::Prop, Sort::Prop),
+        (Sort::SetKind(0), Sort::SetKind(0)),
+    ] {
+        let env = CrateEnv::new();
+        let arena = env.arena();
+        let mut context = vec![
+            ExpContextEntry {
+                var: SymbolId(0),
+                ty: arena.sort(state_sort),
+            },
+            ExpContextEntry {
+                var: SymbolId(1),
+                ty: arena.sort(result_sort),
+            },
+        ];
+        let state_ty = arena.exp_bound(1);
+        let result_ty = arena.exp_bound(0);
+        // The signature must be rejected before checking any term arguments.
+        let argument = arena.exp_bound(2);
+        let terms = [
+            ExpNode::RunStep {
+                state_ty,
+                result_ty,
+            },
+            ExpNode::Continue {
+                state_ty,
+                result_ty,
+                next: argument,
+            },
+            ExpNode::Finish {
+                state_ty,
+                result_ty,
+                output: argument,
+            },
+            ExpNode::Acc {
+                state_ty,
+                result_ty,
+                step: argument,
+                state: argument,
+            },
+            ExpNode::SetRun {
+                state_ty,
+                result_ty,
+                step: argument,
+                initial: argument,
+                accessibility: argument,
+            },
+            ExpNode::SetRunCase {
+                state_ty,
+                result_ty,
+                step: argument,
+                initial: argument,
+                transition: argument,
+                accessibility: argument,
+                transition_equality: argument,
+            },
+            ExpNode::RunStepRec {
+                state_ty,
+                result_ty,
+                motive: argument,
+                on_continue: argument,
+                on_finish: argument,
+                scrutinee: argument,
+            },
+            ExpNode::Prove(crate::exp::Prove::AccIntro {
+                state_ty,
+                result_ty,
+                step: argument,
+                state: argument,
+                predecessors: argument,
+            }),
+            ExpNode::Prove(crate::exp::Prove::AccDescent {
+                state_ty,
+                result_ty,
+                step: argument,
+                from: argument,
+                to: argument,
+                accessibility: argument,
+                transition: argument,
+            }),
+        ];
+        let mut session = CheckSession::new(&env, env.root_module(), &mut context);
+        for term in terms {
+            let error = session.infer_pts(arena.alloc(term)).unwrap_err();
+            assert!(
+                format!("{error:?}").contains("must inhabit the same Set(i)"),
+                "{error:?}"
+            );
+        }
+    }
+}

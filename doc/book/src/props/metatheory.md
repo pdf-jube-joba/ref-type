@@ -3,17 +3,15 @@
 この文書では [`system.md`](../system.md) の、一般の datatype 宣言を除いた
 core を扱う。集合モデル、無矛盾性、subject reduction は仮定しない。
 特に、合流性だけから subject reduction が従うとは主張しない。
-修正前の `run` / `runCase` の反例と実施した修正は [proof.md](proof.md) の冒頭に記す。
+モデルの構成と未解決の証明義務は [proof.md](proof.md) に記す。
 
 ## 1. 束縛と代入
 
 項は alpha 同値で同一視する。変数の sort 注釈は名前の一部とし、
 代入 \(t[x^s:=u]\) はその注釈を持つ変数だけを置換する。
 lambda、product、subset は表示された変数を body で束縛する。
-`prec` の motive \(P\) は、typing rule の
-\(x:\operatorname{RunStep}(A,B)\) に対応する一変数の body として扱う。
+`prec` の \(x^s.P\) は \(P\) の中だけで \(x^s\) を束縛する。
 従って motive への代入はこの局所変数を避ける。
-これは \(P[x:=r]\) を使うために必要な束縛の約束である。
 Program の binder は Set の binder と別の名前空間に置く。
 
 以下の式は、\(x\ne y\)、\(y\notin\mathrm{FV}(u)\) のもとで成り立つ。
@@ -46,9 +44,9 @@ beta、Pred、run の規則は \(\to_0\) と同じとし、次の四規則では
 \[
 \begin{aligned}
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(P,c,d,\operatorname{continue}_{C,D}(a))&\rightsquigarrow c@a,\\
+(x^s.P,c,d,\operatorname{continue}_{C,D}(a))&\rightsquigarrow c@a,\\
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(P,c,d,\operatorname{finish}_{C,D}(b))&\rightsquigarrow d@b,\\
+(x^s.P,c,d,\operatorname{finish}_{C,D}(b))&\rightsquigarrow d@b,\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{C,D}(a'))
 &\rightsquigarrow\operatorname{run}_{A,B}(f,a'),\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{C,D}(b))
@@ -127,9 +125,9 @@ run が \(f,a\) を複製する場合も、同じ \(f',a'\) を両方に使え�
 ((\lambda x:A.m)@a)^\star&=m^\star[x:=a^\star],\\
 \Pred(A,\{x:B\mid P\},a)^\star&=P^\star[x:=a^\star],\\
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(P,c,d,\operatorname{continue}_{C,D}(a))^\star&=c^\star @a^\star,\\
+(x^s.P,c,d,\operatorname{continue}_{C,D}(a))^\star&=c^\star @a^\star,\\
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(P,c,d,\operatorname{finish}_{C,D}(b))^\star&=d^\star @b^\star,\\
+(x^s.P,c,d,\operatorname{finish}_{C,D}(b))^\star&=d^\star @b^\star,\\
 \operatorname{run}_{A,B}(f,a)^\star
 &=\operatorname{runCase}_{A^\star,B^\star}
 (f^\star,a^\star,f^\star @a^\star),\\

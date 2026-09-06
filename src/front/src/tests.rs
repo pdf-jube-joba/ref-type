@@ -860,3 +860,122 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
         ExpNode::App { .. }
     ));
 }
+
+#[test]
+fn set_recursion_preserves_a_shared_universe() {
+    for level in [0, 2] {
+        let source = r#"
+            \module SharedUniverse(
+                A: \Set(LEVEL), B: \Set(LEVEL), a: A, b: B,
+                f: A -> \RunStep(A, B),
+                p: \Acc(A, B, f, a),
+                predecessors: (next: A) ->
+                    (f a = \continue(A, B, next)) -> \Acc(A, B, f, next),
+                edge: f a = \continue(A, B, a),
+                P: \Prop, proof: P
+            ) {
+                \definition step_type: \Set(LEVEL) := \RunStep(A, B);
+                \definition continued: step_type := \continue(A, B, a);
+                \definition finished: step_type := \finish(A, B, b);
+                \definition inferred_continue: step_type := \continue(_, B, a);
+                \definition inferred_finish: step_type := \finish(A, _, b);
+                \definition inferred_run: B := \run(_, B, f, a) \by p;
+                \definition introduced: \Acc(A, B, f, a) :=
+                    \accintro(A, B, f, a, predecessors);
+                \definition descended: \Acc(A, B, f, a) :=
+                    \accdescent(A, B, f, a, a, p, edge);
+                \definition result: B := \run(A, B, f, a) \by p;
+                \definition case_result: B :=
+                    \runCase(A, B, f, a, \continue(A, B, a)) \by (p, edge);
+                \definition recursed: B := \runStepRec(A, B,
+                    (r: step_type) => B, (x: A) => b, (y: B) => y, finished);
+                \definition recursed_proof: P := \runStepRec(A, B,
+                    (r: step_type) => P, (x: A) => proof, (y: B) => proof, continued);
+            }
+        "#
+        .replace("LEVEL", &level.to_string());
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        environment.add_new_module_to_root(&modules[0]).unwrap();
+    }
+}
+
+#[test]
+fn run_step_recursor_rejects_branch_sort_above_motive_sort() {
+    let source = r#"
+        \module InvalidMotive(A: \Set(2), a: A, B: \Set(0), b: B) {
+            \definition bad: B := \runStepRec(A, A,
+                (r: \RunStep(A, A)) => B,
+                (x: A) => b, (x: A) => b, \finish(A, A, a));
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
+    assert!(
+        format!("{error:?}").contains("branch type must have the motive sort"),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn run_step_inference_with_metavariables_preserves_the_universe() {
+    use crate::{metavariables::MetaStore, syntax::SourceSpan};
+    use kernel::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
+
+    for level in [0, 2] {
+        let env = CrateEnv::new();
+        let arena = env.arena();
+        let mut context = vec![ExpContextEntry {
+            var: SymbolId(0),
+            ty: arena.sort(Sort::Set(level)),
+        }];
+        let state_ty = arena.exp_bound(0);
+        let mut metas = MetaStore::default();
+        let hole = metas.fresh(
+            &env,
+            SurfaceMeta::Goal,
+            SourceSpan { start: 0, end: 1 },
+            &context,
+            context.len(),
+        );
+        // ((x: A) => A) ? still contains a goal, so inference must use
+        // the elaborator path while retaining A's universe level.
+        let family = arena.alloc(ExpNode::Lam {
+            var: SymbolId(1),
+            ty: state_ty,
+            body: arena.exp_bound(1),
+        });
+        let state_with_hole = arena.alloc(ExpNode::App {
+            func: family,
+            arg: hole,
+        });
+        let run_step = arena.alloc(ExpNode::RunStep {
+            state_ty: state_with_hole,
+            result_ty: state_ty,
+        });
+        let inferred = metas
+            .infer_sort(&env, env.root_module(), &mut context, run_step)
+            .unwrap();
+        assert_eq!(inferred, Sort::Set(level));
+        assert!(metas.contains_unsolved(&env, run_step));
+    }
+}
+
+#[test]
+fn inferred_recursion_annotations_still_reject_mixed_universes() {
+    for term in [r"\continue(_, B, a)", r"\finish(A, _, b)"] {
+        let source = format!(
+            r"\module Mixed(A: \Set(0), B: \Set(2), a: A, b: B) {{
+            \definition bad: _ := {term};
+        }}"
+        );
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
+        assert!(
+            format!("{error:?}").contains("must inhabit the same Set(i)"),
+            "{error:?}"
+        );
+    }
+}

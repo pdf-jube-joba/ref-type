@@ -677,17 +677,15 @@ impl MetaStore {
                 state_ty,
                 result_ty,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
-                Ok(arena.sort(Sort::Set(0)))
+                let sort = self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
+                Ok(arena.sort(sort))
             }
             ExpNode::Continue {
                 state_ty,
                 result_ty,
                 next,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
                 self.check_pts(env, module, context, next, state_ty)?;
                 Ok(arena.alloc(ExpNode::RunStep {
                     state_ty,
@@ -699,8 +697,7 @@ impl MetaStore {
                 result_ty,
                 output,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
                 self.check_pts(env, module, context, output, result_ty)?;
                 Ok(arena.alloc(ExpNode::RunStep {
                     state_ty,
@@ -713,8 +710,7 @@ impl MetaStore {
                 step,
                 state,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
                 let step_ty = set_step_function_type(arena, state_ty, result_ty);
                 self.check_pts(env, module, context, step, step_ty)?;
                 self.check_pts(env, module, context, state, state_ty)?;
@@ -727,8 +723,7 @@ impl MetaStore {
                 initial,
                 accessibility,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
                 self.check_pts(
                     env,
                     module,
@@ -760,8 +755,7 @@ impl MetaStore {
                 accessibility,
                 transition_equality,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
                 self.check_pts(
                     env,
                     module,
@@ -815,20 +809,26 @@ impl MetaStore {
                 on_finish,
                 scrutinee,
             } => {
-                ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
-                ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
+                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
                 let run_step = arena.alloc(ExpNode::RunStep {
                     state_ty,
                     result_ty,
                 });
                 let motive_ty = self.infer_pts(env, module, context, motive)?;
                 let ExpNode::Prod {
-                    ty: motive_domain, ..
-                } = arena.get(self.zonk(env, motive_ty))
+                    ty: motive_domain,
+                    body: motive_body,
+                    ..
+                } = arena.get(kernel::calculus::whnf(env, self.zonk(env, motive_ty)))
                 else {
                     return Err("RunStep recursor motive is not a family".into());
                 };
                 self.unify(env, motive_domain, run_step)?;
+                let ExpNode::Sort(motive_sort) =
+                    arena.get(kernel::calculus::whnf(env, self.zonk(env, motive_body)))
+                else {
+                    return Err("RunStep recursor motive does not return a sort".into());
+                };
                 let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
                 let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
                 let continue_value = arena.alloc(ExpNode::Continue {
@@ -840,17 +840,15 @@ impl MetaStore {
                     func: shift_bound_indices(arena, motive, 1, 0),
                     arg: continue_value,
                 });
-                self.check_pts(
-                    env,
-                    module,
-                    context,
-                    on_continue,
-                    arena.alloc(ExpNode::Prod {
-                        var: SymbolId::ANONYMOUS,
-                        ty: state_ty,
-                        body: continue_result,
-                    }),
-                )?;
+                let continue_ty = arena.alloc(ExpNode::Prod {
+                    var: SymbolId::ANONYMOUS,
+                    ty: state_ty,
+                    body: continue_result,
+                });
+                if self.infer_sort(env, module, context, continue_ty)? != motive_sort {
+                    return Err("RunStep continue branch type must have the motive sort".into());
+                }
+                self.check_pts(env, module, context, on_continue, continue_ty)?;
                 let finish_value = arena.alloc(ExpNode::Finish {
                     state_ty: shifted_state,
                     result_ty: shifted_result,
@@ -860,17 +858,15 @@ impl MetaStore {
                     func: shift_bound_indices(arena, motive, 1, 0),
                     arg: finish_value,
                 });
-                self.check_pts(
-                    env,
-                    module,
-                    context,
-                    on_finish,
-                    arena.alloc(ExpNode::Prod {
-                        var: SymbolId::ANONYMOUS,
-                        ty: result_ty,
-                        body: finish_result,
-                    }),
-                )?;
+                let finish_ty = arena.alloc(ExpNode::Prod {
+                    var: SymbolId::ANONYMOUS,
+                    ty: result_ty,
+                    body: finish_result,
+                });
+                if self.infer_sort(env, module, context, finish_ty)? != motive_sort {
+                    return Err("RunStep finish branch type must have the motive sort".into());
+                }
+                self.check_pts(env, module, context, on_finish, finish_ty)?;
                 self.check_pts(env, module, context, scrutinee, run_step)?;
                 Ok(arena.alloc(ExpNode::App {
                     func: motive,
@@ -1054,6 +1050,34 @@ impl MetaStore {
             }
             _ => Err("metavariable inference for this expression is blocked".into()),
         }
+    }
+
+    fn infer_recursion_sort(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        state_ty: Exp,
+        result_ty: Exp,
+    ) -> Result<Sort, String> {
+        let state_sort = self.infer_sort(env, module, context, state_ty)?;
+        let result_sort = self.infer_sort(env, module, context, result_ty)?;
+        if !matches!(state_sort, Sort::Set(_)) || !matches!(result_sort, Sort::Set(_)) {
+            return Err("Set recursion state and result types must inhabit Set(i)".into());
+        }
+        // infer_sort uses Set(0) provisionally for unresolved types. Defer
+        // equality until arguments solve the holes and the strict kernel
+        // checks the zonked term; a known side supplies the shared sort.
+        if self.contains_unsolved(env, state_ty) {
+            return Ok(result_sort);
+        }
+        if self.contains_unsolved(env, result_ty) {
+            return Ok(state_sort);
+        }
+        if state_sort != result_sort {
+            return Err("Set recursion state and result types must inhabit the same Set(i)".into());
+        }
+        Ok(state_sort)
     }
 
     pub fn infer_sort(
@@ -1467,14 +1491,6 @@ fn nondependent_product(arena: &kernel::exp::Arena, domain: Exp, codomain: Exp) 
         ty: domain,
         body: shift_bound_indices(arena, codomain, 1, 0),
     })
-}
-
-fn ensure_set_sort(sort: Sort) -> Result<(), String> {
-    if matches!(sort, Sort::Set(_)) {
-        Ok(())
-    } else {
-        Err("Set recursion type must inhabit Set(i)".into())
-    }
 }
 
 fn set_step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {

@@ -390,16 +390,9 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             state_ty,
             result_ty,
         } => {
-            let state_sort = add_sort!(session, rule, phase, state_ty, "check state Set")?;
-            let result_sort = add_sort!(session, rule, phase, result_ty, "check result Set")?;
-            match (state_sort, result_sort) {
-                (Sort::Set(i), Sort::Set(j)) => Ok(arena.sort(Sort::Set(i.max(j)))),
-                _ => Err(failure(
-                    rule,
-                    phase,
-                    "RunStep arguments must inhabit Set(i)",
-                )),
-            }
+            let sort =
+                check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
+            Ok(arena.sort(sort))
         }
         ExpNode::Continue {
             state_ty,
@@ -783,14 +776,14 @@ fn check_set_recursion_signature(
     state_ty: Exp,
     result_ty: Exp,
     step: Option<Exp>,
-) -> Result<(), Box<JudgementError>> {
-    let state_sort = session.infer_sort(state_ty)?;
-    let result_sort = session.infer_sort(result_ty)?;
-    if !matches!(state_sort, Sort::Set(_)) || !matches!(result_sort, Sort::Set(_)) {
+) -> Result<Sort, Box<JudgementError>> {
+    let state_sort = add_sort!(session, rule, phase, state_ty, "check state Set")?;
+    let result_sort = add_sort!(session, rule, phase, result_ty, "check result Set")?;
+    if !matches!(state_sort, Sort::Set(_)) || state_sort != result_sort {
         return Err(failure(
             rule,
             phase,
-            "Set RunStep state and result types must inhabit Set(i)",
+            "Set RunStep state and result types must inhabit the same Set(i)",
         ));
     }
     if let Some(step) = step {
@@ -803,7 +796,7 @@ fn check_set_recursion_signature(
             .check_pts(step, expected)
             .map_err(|error| propagate(error, rule, phase, "check Set step function"))?;
     }
-    Ok(())
+    Ok(state_sort)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -839,16 +832,13 @@ fn infer_run_step_recursor(
             "RunStep recursor motive has the wrong domain",
         ));
     }
-    if !matches!(
-        arena.get(type_head_normal(session.env(), motive_body)),
-        ExpNode::Sort(_)
-    ) {
+    let ExpNode::Sort(motive_sort) = arena.get(type_head_normal(session.env(), motive_body)) else {
         return Err(failure(
             rule,
             phase,
             "RunStep recursor motive does not return a sort",
         ));
-    }
+    };
 
     let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
     let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
@@ -861,14 +851,19 @@ fn infer_run_step_recursor(
         func: shift_bound_indices(arena, motive, 1, 0),
         arg: continue_value,
     });
-    session.check_pts(
-        on_continue,
-        arena.alloc(ExpNode::Prod {
-            var: SymbolId::ANONYMOUS,
-            ty: state_ty,
-            body: continue_result,
-        }),
-    )?;
+    let continue_ty = arena.alloc(ExpNode::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: state_ty,
+        body: continue_result,
+    });
+    if session.infer_sort(continue_ty)? != motive_sort {
+        return Err(failure(
+            rule,
+            phase,
+            "RunStep continue branch type must have the motive sort",
+        ));
+    }
+    session.check_pts(on_continue, continue_ty)?;
 
     let finish_value = arena.alloc(ExpNode::Finish {
         state_ty: shifted_state,
@@ -879,14 +874,19 @@ fn infer_run_step_recursor(
         func: shift_bound_indices(arena, motive, 1, 0),
         arg: finish_value,
     });
-    session.check_pts(
-        on_finish,
-        arena.alloc(ExpNode::Prod {
-            var: SymbolId::ANONYMOUS,
-            ty: result_ty,
-            body: finish_result,
-        }),
-    )?;
+    let finish_ty = arena.alloc(ExpNode::Prod {
+        var: SymbolId::ANONYMOUS,
+        ty: result_ty,
+        body: finish_result,
+    });
+    if session.infer_sort(finish_ty)? != motive_sort {
+        return Err(failure(
+            rule,
+            phase,
+            "RunStep finish branch type must have the motive sort",
+        ));
+    }
+    session.check_pts(on_finish, finish_ty)?;
     session.check_pts(scrutinee, run_step)?;
     Ok(arena.alloc(ExpNode::App {
         func: motive,
