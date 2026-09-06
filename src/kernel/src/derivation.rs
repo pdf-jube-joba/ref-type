@@ -873,9 +873,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         | ExpNode::SubsetElim { .. }
         | ExpNode::IdRefl { .. }
         | ExpNode::IdElim { .. }
-        | ExpNode::AxiomSetExt { .. }
-        | ExpNode::AxiomFunExt { .. }
-        | ExpNode::AxiomClassicalIndefiniteChoice { .. }
+        | ExpNode::Axiom(_)
         | ExpNode::TakeEq { .. }
         | ExpNode::AccIntro { .. }
         | ExpNode::AccDescent { .. } => infer_proof_constructor(session, term),
@@ -1427,9 +1425,9 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::SubsetElim { .. } => "SubsetElim",
         ExpNode::IdRefl { .. } => "IdRefl",
         ExpNode::IdElim { .. } => "IdElim",
-        ExpNode::AxiomSetExt { .. } => "AxiomSetExt",
-        ExpNode::AxiomFunExt { .. } => "AxiomFunExt",
-        ExpNode::AxiomClassicalIndefiniteChoice { .. } => "AxiomClassicalIndefiniteChoice",
+        ExpNode::Axiom(Axiom::SetExt { .. }) => "AxiomSetExt",
+        ExpNode::Axiom(Axiom::FunExt { .. }) => "AxiomFunExt",
+        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice { .. }) => "AxiomClassicalIndefiniteChoice",
         ExpNode::TakeEq { .. } => "TakeEq",
     }
 }
@@ -1765,12 +1763,12 @@ fn infer_proof_constructor(
                 arg: right,
             }))
         }
-        ExpNode::AxiomSetExt {
+        ExpNode::Axiom(Axiom::SetExt {
             left,
             right,
             left_to_right,
             right_to_left,
-        } => infer_axiom_set_ext(
+        }) => infer_axiom_set_ext(
             session,
             rule,
             phase,
@@ -1779,16 +1777,16 @@ fn infer_proof_constructor(
             left_to_right,
             right_to_left,
         ),
-        ExpNode::AxiomFunExt {
+        ExpNode::Axiom(Axiom::FunExt {
             left,
             right,
             pointwise,
-        } => infer_axiom_fun_ext(session, rule, phase, left, right, pointwise),
-        ExpNode::AxiomClassicalIndefiniteChoice {
+        }) => infer_axiom_fun_ext(session, rule, phase, left, right, pointwise),
+        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
-        } => {
+        }) => {
             infer_axiom_classical_indefinite_choice(session, rule, phase, domain, family, inhabited)
         }
         ExpNode::TakeEq {

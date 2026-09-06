@@ -11,24 +11,18 @@ use crate::{
     sort::Sort,
 };
 
-macro_rules! handle {
-    ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub struct $name(u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Exp(u32);
 
-        impl $name {
-            pub fn index(self) -> usize {
-                self.0 as usize
-            }
+impl Exp {
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
 
-            pub(crate) fn from_index(index: u32) -> Self {
-                Self(index)
-            }
-        }
-    };
+    pub(crate) fn from_index(index: u32) -> Self {
+        Self(index)
+    }
 }
-
-handle!(Exp);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReflectedProgramCaseBranch {
@@ -37,10 +31,32 @@ pub struct ReflectedProgramCaseBranch {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Axiom {
+    SetExt {
+        left: Exp,
+        right: Exp,
+        left_to_right: Exp,
+        right_to_left: Exp,
+    },
+    FunExt {
+        left: Exp,
+        right: Exp,
+        pointwise: Exp,
+    },
+    ClassicalIndefiniteChoice {
+        domain: Exp,
+        family: Exp,
+        inhabited: Exp,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpNode {
     Sort(Sort),
     Bound(usize),
+    /// A Set/Prop module parameter.
     ModuleParam(ModuleParamId),
+    /// The Set/Prop term obtained by reflecting a Program module parameter.
     ReflectedProgramParam(ModuleParamId),
     Meta {
         metavariable: MetaVarId,
@@ -220,22 +236,7 @@ pub enum ExpNode {
         base: Exp,
         equality: Exp,
     },
-    AxiomSetExt {
-        left: Exp,
-        right: Exp,
-        left_to_right: Exp,
-        right_to_left: Exp,
-    },
-    AxiomFunExt {
-        left: Exp,
-        right: Exp,
-        pointwise: Exp,
-    },
-    AxiomClassicalIndefiniteChoice {
-        domain: Exp,
-        family: Exp,
-        inhabited: Exp,
-    },
+    Axiom(Axiom),
     TakeEq {
         func: Exp,
         domain: Exp,

@@ -1248,12 +1248,12 @@ impl LocalScope {
                 let right = self.elab_exp_rec(right, handler)?;
                 let left_to_right = self.elab_exp_rec(left_to_right, handler)?;
                 let right_to_left = self.elab_exp_rec(right_to_left, handler)?;
-                Ok(handler.arena().alloc(ExpNode::AxiomSetExt {
+                Ok(handler.arena().alloc(ExpNode::Axiom(Axiom::SetExt {
                     left,
                     right,
                     left_to_right,
                     right_to_left,
-                }))
+                })))
             }
             SExp::AxiomFunExt {
                 left,
@@ -1263,11 +1263,11 @@ impl LocalScope {
                 let left = self.elab_exp_rec(left, handler)?;
                 let right = self.elab_exp_rec(right, handler)?;
                 let pointwise = self.elab_exp_rec(pointwise, handler)?;
-                Ok(handler.arena().alloc(ExpNode::AxiomFunExt {
+                Ok(handler.arena().alloc(ExpNode::Axiom(Axiom::FunExt {
                     left,
                     right,
                     pointwise,
-                }))
+                })))
             }
             SExp::AxiomClassicalIndefiniteChoice {
                 domain,
@@ -1279,11 +1279,11 @@ impl LocalScope {
                 let inhabited = self.elab_exp_rec(inhabited, handler)?;
                 Ok(handler
                     .arena()
-                    .alloc(ExpNode::AxiomClassicalIndefiniteChoice {
+                    .alloc(ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
                         domain,
                         family,
                         inhabited,
-                    }))
+                    })))
             }
             SExp::TakeEq {
                 func,

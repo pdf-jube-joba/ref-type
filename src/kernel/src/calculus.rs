@@ -162,22 +162,22 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             equality,
             ..
         } => one!(left, right, ty, predicate, base, equality),
-        ExpNode::AxiomSetExt {
+        ExpNode::Axiom(Axiom::SetExt {
             left,
             right,
             left_to_right,
             right_to_left,
-        } => one!(left, right, left_to_right, right_to_left),
-        ExpNode::AxiomFunExt {
+        }) => one!(left, right, left_to_right, right_to_left),
+        ExpNode::Axiom(Axiom::FunExt {
             left,
             right,
             pointwise,
-        } => one!(left, right, pointwise),
-        ExpNode::AxiomClassicalIndefiniteChoice {
+        }) => one!(left, right, pointwise),
+        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
-        } => one!(domain, family, inhabited),
+        }) => one!(domain, family, inhabited),
         ExpNode::TakeEq {
             func,
             domain,

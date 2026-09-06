@@ -2,7 +2,7 @@
 
 use crate::{
     environment::CrateEnv,
-    exp::{Exp, ExpContext, ExpNode},
+    exp::{Axiom, Exp, ExpContext, ExpNode},
     ids::{ModuleParamId, SymbolId},
     program::{
         Computation, ComputationNode, ComputationType, ComputationTypeNode, Program, ProgramType,
@@ -358,33 +358,33 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(base),
             child(equality)
         ),
-        ExpNode::AxiomSetExt {
+        ExpNode::Axiom(Axiom::SetExt {
             left,
             right,
             left_to_right,
             right_to_left,
-        } => format!(
+        }) => format!(
             "\\axiom:setext({}, {}, {}, {})",
             child(left),
             child(right),
             child(left_to_right),
             child(right_to_left)
         ),
-        ExpNode::AxiomFunExt {
+        ExpNode::Axiom(Axiom::FunExt {
             left,
             right,
             pointwise,
-        } => format!(
+        }) => format!(
             "\\axiom:funext({}, {}, {})",
             child(left),
             child(right),
             child(pointwise)
         ),
-        ExpNode::AxiomClassicalIndefiniteChoice {
+        ExpNode::Axiom(Axiom::ClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
-        } => format!(
+        }) => format!(
             "\\axiom:classicalIndefiniteChoice({}, {}, {})",
             child(domain),
             child(family),
