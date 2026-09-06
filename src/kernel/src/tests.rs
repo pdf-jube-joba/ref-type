@@ -1,13 +1,17 @@
 use crate::{
     calculus::{exp_is_alpha_eq, exp_reduce_if_top, instantiate, normalize},
     derivation::CheckSession,
-    environment::CrateEnv,
+    environment::{CrateEnv, ModuleArgument},
     exp::{ExpContextEntry, ExpNode},
-    ids::SymbolId,
+    ids::{DefId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
         ComputationNode, Program, ProgramContextEntry, ProgramType, ValueNode, ValueTypeNode,
     },
-    program_calculus::{Evaluation, evaluate_computation},
+    program_calculus::{
+        Evaluation, evaluate_computation, instantiate_value_type, remap_computation_global_ids,
+        remap_value_type_global_ids, shift_computation_indices, shift_value_type_indices,
+        strengthen_value_type, subst_computation_module_params, subst_value_type_module_params,
+    },
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
@@ -135,4 +139,90 @@ fn program_run_has_no_set_exp_node() {
         initial,
     });
     assert!(matches!(arena.get(run), ComputationNode::Run { .. }));
+}
+
+#[test]
+fn unchanged_program_transforms_reuse_arena_handles() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let parameter_id = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let parameter = arena.value_type_module_param(parameter_id);
+    let returned = arena.alloc(crate::program::ComputationTypeNode::Return {
+        value_ty: parameter,
+    });
+    let thunk = arena.alloc(ValueTypeNode::Thunk {
+        computation_ty: returned,
+    });
+    let inductive_remapping = std::collections::HashMap::from([(
+        ProgramInductiveId {
+            module: env.root_module(),
+            index: 10,
+        },
+        ProgramInductiveId {
+            module: env.root_module(),
+            index: 11,
+        },
+    )]);
+    let unrelated_parameter = ModuleParamId {
+        module: env.root_module(),
+        position: 1,
+    };
+    let substitutions = [(unrelated_parameter, ModuleArgument::ProgramType(parameter))];
+
+    assert_eq!(shift_value_type_indices(arena, thunk, 1, 0), thunk);
+    assert_eq!(instantiate_value_type(arena, thunk, parameter, 0), thunk);
+    assert_eq!(
+        remap_value_type_global_ids(arena, thunk, &Default::default(), &inductive_remapping),
+        thunk
+    );
+    assert_eq!(
+        subst_value_type_module_params(arena, thunk, &substitutions),
+        thunk
+    );
+    assert_eq!(strengthen_value_type(arena, thunk, 0), Some(thunk));
+
+    let value = arena.alloc(ValueNode::ModuleParam(parameter_id));
+    let computation = arena.alloc(ComputationNode::Return { value });
+    let definition_remapping = std::collections::HashMap::from([(
+        DefId {
+            module: env.root_module(),
+            index: 10,
+        },
+        DefId {
+            module: env.root_module(),
+            index: 11,
+        },
+    )]);
+    assert_eq!(
+        shift_computation_indices(arena, computation, 1, 0),
+        computation
+    );
+    assert_eq!(
+        remap_computation_global_ids(
+            arena,
+            computation,
+            &definition_remapping,
+            &inductive_remapping,
+        ),
+        computation
+    );
+    assert_eq!(
+        subst_computation_module_params(arena, computation, &substitutions),
+        computation
+    );
+}
+
+#[test]
+fn strengthening_rejects_a_dependent_program_type() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let dependent = arena.value_type_bound(0);
+    assert_eq!(strengthen_value_type(arena, dependent, 0), None);
+
+    let outer = arena.value_type_bound(1);
+    let strengthened = strengthen_value_type(arena, outer, 0).unwrap();
+    assert!(matches!(arena.get(strengthened), ValueTypeNode::Bound(0)));
 }

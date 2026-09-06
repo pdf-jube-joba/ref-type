@@ -344,37 +344,49 @@ pub fn shift_value_type_indices(
     amount: usize,
     cutoff: usize,
 ) -> ValueType {
+    if amount == 0 {
+        return ty;
+    }
     fn go(arena: &Arena, ty: ValueType, amount: usize, cutoff: usize) -> ValueType {
         match arena.get(ty) {
             ValueTypeNode::Bound(index) if index >= cutoff => {
-                arena.alloc(ValueTypeNode::Bound(index + amount))
+                arena.reuse_value_type(ty, ValueTypeNode::Bound(index + amount))
             }
-            ValueTypeNode::Thunk { computation_ty } => arena.alloc(ValueTypeNode::Thunk {
-                computation_ty: shift_computation_type_indices(
-                    arena,
-                    computation_ty,
-                    amount,
-                    cutoff,
-                ),
-            }),
+            ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
+                ty,
+                ValueTypeNode::Thunk {
+                    computation_ty: shift_computation_type_indices(
+                        arena,
+                        computation_ty,
+                        amount,
+                        cutoff,
+                    ),
+                },
+            ),
             ValueTypeNode::RunStep {
                 state_ty,
                 result_ty,
-            } => arena.alloc(ValueTypeNode::RunStep {
-                state_ty: go(arena, state_ty, amount, cutoff),
-                result_ty: go(arena, result_ty, amount, cutoff),
-            }),
+            } => arena.reuse_value_type(
+                ty,
+                ValueTypeNode::RunStep {
+                    state_ty: go(arena, state_ty, amount, cutoff),
+                    result_ty: go(arena, result_ty, amount, cutoff),
+                },
+            ),
             ValueTypeNode::Inductive {
                 indspec,
                 parameters,
-            } => arena.alloc(ValueTypeNode::Inductive {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|p| go(arena, p, amount, cutoff))
-                    .collect(),
-            }),
-            node => arena.alloc(node),
+            } => arena.reuse_value_type(
+                ty,
+                ValueTypeNode::Inductive {
+                    indspec,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|p| go(arena, p, amount, cutoff))
+                        .collect(),
+                },
+            ),
+            _ => ty,
         }
     }
     go(arena, ty, amount, cutoff)
@@ -386,17 +398,24 @@ pub fn shift_computation_type_indices(
     amount: usize,
     cutoff: usize,
 ) -> ComputationType {
+    if amount == 0 {
+        return ty;
+    }
     match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.alloc(ComputationTypeNode::Return {
-            value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-        }),
-        ComputationTypeNode::Function { domain, codomain } => {
-            arena.alloc(ComputationTypeNode::Function {
+        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
+            ty,
+            ComputationTypeNode::Return {
+                value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
+            },
+        ),
+        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
+            ty,
+            ComputationTypeNode::Function {
                 domain: shift_value_type_indices(arena, domain, amount, cutoff),
                 codomain: shift_computation_type_indices(arena, codomain, amount, cutoff),
-            })
-        }
-        node => arena.alloc(node),
+            },
+        ),
+        ComputationTypeNode::Meta { .. } => ty,
     }
 }
 
@@ -412,29 +431,43 @@ pub fn instantiate_value_type(
                 shift_value_type_indices(arena, arg, target, 0)
             }
             ValueTypeNode::Bound(index) if index > target => {
-                arena.alloc(ValueTypeNode::Bound(index - 1))
+                arena.reuse_value_type(ty, ValueTypeNode::Bound(index - 1))
             }
-            ValueTypeNode::Thunk { computation_ty } => arena.alloc(ValueTypeNode::Thunk {
-                computation_ty: instantiate_computation_type(arena, computation_ty, arg, target),
-            }),
+            ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
+                ty,
+                ValueTypeNode::Thunk {
+                    computation_ty: instantiate_computation_type(
+                        arena,
+                        computation_ty,
+                        arg,
+                        target,
+                    ),
+                },
+            ),
             ValueTypeNode::RunStep {
                 state_ty,
                 result_ty,
-            } => arena.alloc(ValueTypeNode::RunStep {
-                state_ty: go(arena, state_ty, arg, target),
-                result_ty: go(arena, result_ty, arg, target),
-            }),
+            } => arena.reuse_value_type(
+                ty,
+                ValueTypeNode::RunStep {
+                    state_ty: go(arena, state_ty, arg, target),
+                    result_ty: go(arena, result_ty, arg, target),
+                },
+            ),
             ValueTypeNode::Inductive {
                 indspec,
                 parameters,
-            } => arena.alloc(ValueTypeNode::Inductive {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|p| go(arena, p, arg, target))
-                    .collect(),
-            }),
-            node => arena.alloc(node),
+            } => arena.reuse_value_type(
+                ty,
+                ValueTypeNode::Inductive {
+                    indspec,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|p| go(arena, p, arg, target))
+                        .collect(),
+                },
+            ),
+            _ => ty,
         }
     }
     go(arena, body, argument, target)
@@ -447,16 +480,20 @@ pub fn instantiate_computation_type(
     target: usize,
 ) -> ComputationType {
     match arena.get(body) {
-        ComputationTypeNode::Return { value_ty } => arena.alloc(ComputationTypeNode::Return {
-            value_ty: instantiate_value_type(arena, value_ty, argument, target),
-        }),
-        ComputationTypeNode::Function { domain, codomain } => {
-            arena.alloc(ComputationTypeNode::Function {
+        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
+            body,
+            ComputationTypeNode::Return {
+                value_ty: instantiate_value_type(arena, value_ty, argument, target),
+            },
+        ),
+        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
+            body,
+            ComputationTypeNode::Function {
                 domain: instantiate_value_type(arena, domain, argument, target),
                 codomain: instantiate_computation_type(arena, codomain, argument, target),
-            })
-        }
-        node => arena.alloc(node),
+            },
+        ),
+        ComputationTypeNode::Meta { .. } => body,
     }
 }
 
@@ -471,68 +508,176 @@ pub fn instantiate_type_telescope(
     ty
 }
 
+/// Removes one value binder from a value type, adjusting outer de Bruijn
+/// indices. Returns `None` when the type depends on the binder being removed.
+pub fn strengthen_value_type(arena: &Arena, ty: ValueType, target: usize) -> Option<ValueType> {
+    match arena.get(ty) {
+        ValueTypeNode::Bound(index) if index == target => None,
+        ValueTypeNode::Bound(index) if index > target => Some(arena.value_type_bound(index - 1)),
+        ValueTypeNode::Thunk { computation_ty } => {
+            let strengthened = strengthen_computation_type(arena, computation_ty, target)?;
+            if strengthened == computation_ty {
+                Some(ty)
+            } else {
+                Some(arena.alloc(ValueTypeNode::Thunk {
+                    computation_ty: strengthened,
+                }))
+            }
+        }
+        ValueTypeNode::RunStep {
+            state_ty,
+            result_ty,
+        } => {
+            let strengthened_state = strengthen_value_type(arena, state_ty, target)?;
+            let strengthened_result = strengthen_value_type(arena, result_ty, target)?;
+            if strengthened_state == state_ty && strengthened_result == result_ty {
+                Some(ty)
+            } else {
+                Some(arena.alloc(ValueTypeNode::RunStep {
+                    state_ty: strengthened_state,
+                    result_ty: strengthened_result,
+                }))
+            }
+        }
+        ValueTypeNode::Inductive {
+            indspec,
+            mut parameters,
+        } => {
+            let mut changed = false;
+            for parameter in &mut parameters {
+                let original = *parameter;
+                *parameter = strengthen_value_type(arena, original, target)?;
+                changed |= *parameter != original;
+            }
+            if changed {
+                Some(arena.alloc(ValueTypeNode::Inductive {
+                    indspec,
+                    parameters,
+                }))
+            } else {
+                Some(ty)
+            }
+        }
+        _ => Some(ty),
+    }
+}
+
+/// Removes one value binder from a computation type, adjusting outer de
+/// Bruijn indices. Returns `None` when the type depends on that binder.
+pub fn strengthen_computation_type(
+    arena: &Arena,
+    ty: ComputationType,
+    target: usize,
+) -> Option<ComputationType> {
+    match arena.get(ty) {
+        ComputationTypeNode::Return { value_ty } => {
+            let strengthened = strengthen_value_type(arena, value_ty, target)?;
+            if strengthened == value_ty {
+                Some(ty)
+            } else {
+                Some(arena.alloc(ComputationTypeNode::Return {
+                    value_ty: strengthened,
+                }))
+            }
+        }
+        ComputationTypeNode::Function { domain, codomain } => {
+            let strengthened_domain = strengthen_value_type(arena, domain, target)?;
+            let strengthened_codomain = strengthen_computation_type(arena, codomain, target)?;
+            if strengthened_domain == domain && strengthened_codomain == codomain {
+                Some(ty)
+            } else {
+                Some(arena.alloc(ComputationTypeNode::Function {
+                    domain: strengthened_domain,
+                    codomain: strengthened_codomain,
+                }))
+            }
+        }
+        ComputationTypeNode::Meta { .. } => Some(ty),
+    }
+}
+
 pub fn shift_value_indices(arena: &Arena, value: Value, amount: usize, cutoff: usize) -> Value {
+    if amount == 0 {
+        return value;
+    }
     fn go(arena: &Arena, value: Value, amount: usize, cutoff: usize) -> Value {
         match arena.get(value) {
             ValueNode::Bound(index) if index >= cutoff => {
-                arena.alloc(ValueNode::Bound(index + amount))
+                arena.reuse_value(value, ValueNode::Bound(index + amount))
             }
             ValueNode::Meta {
                 metavariable,
                 spine,
-            } => arena.alloc(ValueNode::Meta {
-                metavariable,
-                spine: spine
-                    .into_iter()
-                    .map(|a| match a {
-                        ProgramArgument::Type(t) => ProgramArgument::Type(
-                            shift_value_type_indices(arena, t, amount, cutoff),
-                        ),
-                        ProgramArgument::Value(v) => {
-                            ProgramArgument::Value(go(arena, v, amount, cutoff))
-                        }
-                    })
-                    .collect(),
-            }),
-            ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
-                computation: shift_computation_indices(arena, computation, amount, cutoff),
-            }),
+            } => arena.reuse_value(
+                value,
+                ValueNode::Meta {
+                    metavariable,
+                    spine: spine
+                        .into_iter()
+                        .map(|a| match a {
+                            ProgramArgument::Type(t) => ProgramArgument::Type(
+                                shift_value_type_indices(arena, t, amount, cutoff),
+                            ),
+                            ProgramArgument::Value(v) => {
+                                ProgramArgument::Value(go(arena, v, amount, cutoff))
+                            }
+                        })
+                        .collect(),
+                },
+            ),
+            ValueNode::Thunk { computation } => arena.reuse_value(
+                value,
+                ValueNode::Thunk {
+                    computation: shift_computation_indices(arena, computation, amount, cutoff),
+                },
+            ),
             ValueNode::Continue {
                 state_ty,
                 result_ty,
                 next,
-            } => arena.alloc(ValueNode::Continue {
-                state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                next: go(arena, next, amount, cutoff),
-            }),
+            } => arena.reuse_value(
+                value,
+                ValueNode::Continue {
+                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
+                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
+                    next: go(arena, next, amount, cutoff),
+                },
+            ),
             ValueNode::Finish {
                 state_ty,
                 result_ty,
                 output,
-            } => arena.alloc(ValueNode::Finish {
-                state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                output: go(arena, output, amount, cutoff),
-            }),
+            } => arena.reuse_value(
+                value,
+                ValueNode::Finish {
+                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
+                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
+                    output: go(arena, output, amount, cutoff),
+                },
+            ),
             ValueNode::InductiveConstructor {
                 indspec,
                 parameters,
                 idx,
                 fields,
-            } => arena.alloc(ValueNode::InductiveConstructor {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
-                    .collect(),
-                idx,
-                fields: fields
-                    .into_iter()
-                    .map(|v| go(arena, v, amount, cutoff))
-                    .collect(),
-            }),
-            node => arena.alloc(node),
+            } => arena.reuse_value(
+                value,
+                ValueNode::InductiveConstructor {
+                    indspec,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
+                        .collect(),
+                    idx,
+                    fields: fields
+                        .into_iter()
+                        .map(|v| go(arena, v, amount, cutoff))
+                        .collect(),
+                },
+            ),
+            ValueNode::Bound(_) | ValueNode::ModuleParam(_) | ValueNode::DefinedConstant(_) => {
+                value
+            }
         }
     }
     go(arena, value, amount, cutoff)
@@ -544,87 +689,113 @@ pub fn shift_computation_indices(
     amount: usize,
     cutoff: usize,
 ) -> Computation {
+    if amount == 0 {
+        return computation;
+    }
     fn go(arena: &Arena, term: Computation, amount: usize, cutoff: usize) -> Computation {
         match arena.get(term) {
-            ComputationNode::Return { value } => arena.alloc(ComputationNode::Return {
-                value: shift_value_indices(arena, value, amount, cutoff),
-            }),
-            ComputationNode::Force { value } => arena.alloc(ComputationNode::Force {
-                value: shift_value_indices(arena, value, amount, cutoff),
-            }),
+            ComputationNode::Return { value } => arena.reuse_computation(
+                term,
+                ComputationNode::Return {
+                    value: shift_value_indices(arena, value, amount, cutoff),
+                },
+            ),
+            ComputationNode::Force { value } => arena.reuse_computation(
+                term,
+                ComputationNode::Force {
+                    value: shift_value_indices(arena, value, amount, cutoff),
+                },
+            ),
             ComputationNode::Lambda {
                 var,
                 value_ty,
                 body,
-            } => arena.alloc(ComputationNode::Lambda {
-                var,
-                value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-                body: go(arena, body, amount, cutoff + 1),
-            }),
-            ComputationNode::Application { computation, value } => {
-                arena.alloc(ComputationNode::Application {
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Lambda {
+                    var,
+                    value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
+                    body: go(arena, body, amount, cutoff + 1),
+                },
+            ),
+            ComputationNode::Application { computation, value } => arena.reuse_computation(
+                term,
+                ComputationNode::Application {
                     computation: go(arena, computation, amount, cutoff),
                     value: shift_value_indices(arena, value, amount, cutoff),
-                })
-            }
+                },
+            ),
             ComputationNode::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
-            } => arena.alloc(ComputationNode::Sequence {
-                computation: go(arena, computation, amount, cutoff),
-                var,
-                value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-                body: go(arena, body, amount, cutoff + 1),
-            }),
-            ComputationNode::ValueLet { var, value, body } => {
-                arena.alloc(ComputationNode::ValueLet {
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Sequence {
+                    computation: go(arena, computation, amount, cutoff),
+                    var,
+                    value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
+                    body: go(arena, body, amount, cutoff + 1),
+                },
+            ),
+            ComputationNode::ValueLet { var, value, body } => arena.reuse_computation(
+                term,
+                ComputationNode::ValueLet {
                     var,
                     value: shift_value_indices(arena, value, amount, cutoff),
                     body: go(arena, body, amount, cutoff + 1),
-                })
-            }
+                },
+            ),
             ComputationNode::Case {
                 indspec,
                 scrutinee,
                 branches,
-            } => arena.alloc(ComputationNode::Case {
-                indspec,
-                scrutinee: shift_value_indices(arena, scrutinee, amount, cutoff),
-                branches: branches
-                    .into_iter()
-                    .map(|b| ProgramCaseBranch {
-                        body: go(arena, b.body, amount, cutoff + b.binders.len()),
-                        binders: b.binders,
-                    })
-                    .collect(),
-            }),
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Case {
+                    indspec,
+                    scrutinee: shift_value_indices(arena, scrutinee, amount, cutoff),
+                    branches: branches
+                        .into_iter()
+                        .map(|b| ProgramCaseBranch {
+                            body: go(arena, b.body, amount, cutoff + b.binders.len()),
+                            binders: b.binders,
+                        })
+                        .collect(),
+                },
+            ),
             ComputationNode::Run {
                 state_ty,
                 result_ty,
                 step,
                 initial,
-            } => arena.alloc(ComputationNode::Run {
-                state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                step: shift_value_indices(arena, step, amount, cutoff),
-                initial: shift_value_indices(arena, initial, amount, cutoff),
-            }),
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Run {
+                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
+                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
+                    step: shift_value_indices(arena, step, amount, cutoff),
+                    initial: shift_value_indices(arena, initial, amount, cutoff),
+                },
+            ),
             ComputationNode::RunCase {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 transition,
-            } => arena.alloc(ComputationNode::RunCase {
-                state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                step: shift_value_indices(arena, step, amount, cutoff),
-                initial: shift_value_indices(arena, initial, amount, cutoff),
-                transition: go(arena, transition, amount, cutoff),
-            }),
-            node => arena.alloc(node),
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::RunCase {
+                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
+                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
+                    step: shift_value_indices(arena, step, amount, cutoff),
+                    initial: shift_value_indices(arena, initial, amount, cutoff),
+                    transition: go(arena, transition, amount, cutoff),
+                },
+            ),
+            ComputationNode::Meta { .. } | ComputationNode::DefinedConstant(_) => term,
         }
     }
     go(arena, computation, amount, cutoff)
@@ -640,126 +811,163 @@ pub fn instantiate_value_in_computation(
             ValueNode::Bound(index) if index == depth => {
                 shift_value_indices(arena, argument, depth, 0)
             }
-            ValueNode::Bound(index) if index > depth => arena.alloc(ValueNode::Bound(index - 1)),
-            ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
-                computation: subst_comp(arena, computation, argument, depth),
-            }),
+            ValueNode::Bound(index) if index > depth => {
+                arena.reuse_value(value, ValueNode::Bound(index - 1))
+            }
+            ValueNode::Thunk { computation } => arena.reuse_value(
+                value,
+                ValueNode::Thunk {
+                    computation: subst_comp(arena, computation, argument, depth),
+                },
+            ),
             ValueNode::Continue {
                 state_ty,
                 result_ty,
                 next,
-            } => arena.alloc(ValueNode::Continue {
-                state_ty,
-                result_ty,
-                next: subst_value(arena, next, argument, depth),
-            }),
+            } => arena.reuse_value(
+                value,
+                ValueNode::Continue {
+                    state_ty,
+                    result_ty,
+                    next: subst_value(arena, next, argument, depth),
+                },
+            ),
             ValueNode::Finish {
                 state_ty,
                 result_ty,
                 output,
-            } => arena.alloc(ValueNode::Finish {
-                state_ty,
-                result_ty,
-                output: subst_value(arena, output, argument, depth),
-            }),
+            } => arena.reuse_value(
+                value,
+                ValueNode::Finish {
+                    state_ty,
+                    result_ty,
+                    output: subst_value(arena, output, argument, depth),
+                },
+            ),
             ValueNode::InductiveConstructor {
                 indspec,
                 parameters,
                 idx,
                 fields,
-            } => arena.alloc(ValueNode::InductiveConstructor {
-                indspec,
-                parameters,
-                idx,
-                fields: fields
-                    .into_iter()
-                    .map(|v| subst_value(arena, v, argument, depth))
-                    .collect(),
-            }),
-            node => arena.alloc(node),
+            } => arena.reuse_value(
+                value,
+                ValueNode::InductiveConstructor {
+                    indspec,
+                    parameters,
+                    idx,
+                    fields: fields
+                        .into_iter()
+                        .map(|v| subst_value(arena, v, argument, depth))
+                        .collect(),
+                },
+            ),
+            _ => value,
         }
     }
     fn subst_comp(arena: &Arena, term: Computation, argument: Value, depth: usize) -> Computation {
         match arena.get(term) {
-            ComputationNode::Return { value } => arena.alloc(ComputationNode::Return {
-                value: subst_value(arena, value, argument, depth),
-            }),
-            ComputationNode::Force { value } => arena.alloc(ComputationNode::Force {
-                value: subst_value(arena, value, argument, depth),
-            }),
+            ComputationNode::Return { value } => arena.reuse_computation(
+                term,
+                ComputationNode::Return {
+                    value: subst_value(arena, value, argument, depth),
+                },
+            ),
+            ComputationNode::Force { value } => arena.reuse_computation(
+                term,
+                ComputationNode::Force {
+                    value: subst_value(arena, value, argument, depth),
+                },
+            ),
             ComputationNode::Lambda {
                 var,
                 value_ty,
                 body,
-            } => arena.alloc(ComputationNode::Lambda {
-                var,
-                value_ty,
-                body: subst_comp(arena, body, argument, depth + 1),
-            }),
-            ComputationNode::Application { computation, value } => {
-                arena.alloc(ComputationNode::Application {
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Lambda {
+                    var,
+                    value_ty,
+                    body: subst_comp(arena, body, argument, depth + 1),
+                },
+            ),
+            ComputationNode::Application { computation, value } => arena.reuse_computation(
+                term,
+                ComputationNode::Application {
                     computation: subst_comp(arena, computation, argument, depth),
                     value: subst_value(arena, value, argument, depth),
-                })
-            }
+                },
+            ),
             ComputationNode::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
-            } => arena.alloc(ComputationNode::Sequence {
-                computation: subst_comp(arena, computation, argument, depth),
-                var,
-                value_ty,
-                body: subst_comp(arena, body, argument, depth + 1),
-            }),
-            ComputationNode::ValueLet { var, value, body } => {
-                arena.alloc(ComputationNode::ValueLet {
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Sequence {
+                    computation: subst_comp(arena, computation, argument, depth),
+                    var,
+                    value_ty,
+                    body: subst_comp(arena, body, argument, depth + 1),
+                },
+            ),
+            ComputationNode::ValueLet { var, value, body } => arena.reuse_computation(
+                term,
+                ComputationNode::ValueLet {
                     var,
                     value: subst_value(arena, value, argument, depth),
                     body: subst_comp(arena, body, argument, depth + 1),
-                })
-            }
+                },
+            ),
             ComputationNode::Case {
                 indspec,
                 scrutinee,
                 branches,
-            } => arena.alloc(ComputationNode::Case {
-                indspec,
-                scrutinee: subst_value(arena, scrutinee, argument, depth),
-                branches: branches
-                    .into_iter()
-                    .map(|b| ProgramCaseBranch {
-                        body: subst_comp(arena, b.body, argument, depth + b.binders.len()),
-                        binders: b.binders,
-                    })
-                    .collect(),
-            }),
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Case {
+                    indspec,
+                    scrutinee: subst_value(arena, scrutinee, argument, depth),
+                    branches: branches
+                        .into_iter()
+                        .map(|b| ProgramCaseBranch {
+                            body: subst_comp(arena, b.body, argument, depth + b.binders.len()),
+                            binders: b.binders,
+                        })
+                        .collect(),
+                },
+            ),
             ComputationNode::Run {
                 state_ty,
                 result_ty,
                 step,
                 initial,
-            } => arena.alloc(ComputationNode::Run {
-                state_ty,
-                result_ty,
-                step: subst_value(arena, step, argument, depth),
-                initial: subst_value(arena, initial, argument, depth),
-            }),
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::Run {
+                    state_ty,
+                    result_ty,
+                    step: subst_value(arena, step, argument, depth),
+                    initial: subst_value(arena, initial, argument, depth),
+                },
+            ),
             ComputationNode::RunCase {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 transition,
-            } => arena.alloc(ComputationNode::RunCase {
-                state_ty,
-                result_ty,
-                step: subst_value(arena, step, argument, depth),
-                initial: subst_value(arena, initial, argument, depth),
-                transition: subst_comp(arena, transition, argument, depth),
-            }),
-            node => arena.alloc(node),
+            } => arena.reuse_computation(
+                term,
+                ComputationNode::RunCase {
+                    state_ty,
+                    result_ty,
+                    step: subst_value(arena, step, argument, depth),
+                    initial: subst_value(arena, initial, argument, depth),
+                    transition: subst_comp(arena, transition, argument, depth),
+                },
+            ),
+            ComputationNode::Meta { .. } | ComputationNode::DefinedConstant(_) => term,
         }
     }
     subst_comp(arena, body, argument, 0)
@@ -935,33 +1143,45 @@ pub fn remap_value_type_global_ids(
     _definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> ValueType {
+    if inductives.is_empty() {
+        return ty;
+    }
     match arena.get(ty) {
-        ValueTypeNode::Thunk { computation_ty } => arena.alloc(ValueTypeNode::Thunk {
-            computation_ty: remap_computation_type_global_ids(
-                arena,
-                computation_ty,
-                _definitions,
-                inductives,
-            ),
-        }),
+        ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
+            ty,
+            ValueTypeNode::Thunk {
+                computation_ty: remap_computation_type_global_ids(
+                    arena,
+                    computation_ty,
+                    _definitions,
+                    inductives,
+                ),
+            },
+        ),
         ValueTypeNode::RunStep {
             state_ty,
             result_ty,
-        } => arena.alloc(ValueTypeNode::RunStep {
-            state_ty: remap_value_type_global_ids(arena, state_ty, _definitions, inductives),
-            result_ty: remap_value_type_global_ids(arena, result_ty, _definitions, inductives),
-        }),
+        } => arena.reuse_value_type(
+            ty,
+            ValueTypeNode::RunStep {
+                state_ty: remap_value_type_global_ids(arena, state_ty, _definitions, inductives),
+                result_ty: remap_value_type_global_ids(arena, result_ty, _definitions, inductives),
+            },
+        ),
         ValueTypeNode::Inductive {
             indspec,
             parameters,
-        } => arena.alloc(ValueTypeNode::Inductive {
-            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-            parameters: parameters
-                .into_iter()
-                .map(|p| remap_value_type_global_ids(arena, p, _definitions, inductives))
-                .collect(),
-        }),
-        node => arena.alloc(node),
+        } => arena.reuse_value_type(
+            ty,
+            ValueTypeNode::Inductive {
+                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+                parameters: parameters
+                    .into_iter()
+                    .map(|p| remap_value_type_global_ids(arena, p, _definitions, inductives))
+                    .collect(),
+            },
+        ),
+        _ => ty,
     }
 }
 
@@ -971,12 +1191,19 @@ pub fn remap_computation_type_global_ids(
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> ComputationType {
+    if inductives.is_empty() {
+        return ty;
+    }
     match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.alloc(ComputationTypeNode::Return {
-            value_ty: remap_value_type_global_ids(arena, value_ty, definitions, inductives),
-        }),
-        ComputationTypeNode::Function { domain, codomain } => {
-            arena.alloc(ComputationTypeNode::Function {
+        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
+            ty,
+            ComputationTypeNode::Return {
+                value_ty: remap_value_type_global_ids(arena, value_ty, definitions, inductives),
+            },
+        ),
+        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
+            ty,
+            ComputationTypeNode::Function {
                 domain: remap_value_type_global_ids(arena, domain, definitions, inductives),
                 codomain: remap_computation_type_global_ids(
                     arena,
@@ -984,9 +1211,9 @@ pub fn remap_computation_type_global_ids(
                     definitions,
                     inductives,
                 ),
-            })
-        }
-        node => arena.alloc(node),
+            },
+        ),
+        ComputationTypeNode::Meta { .. } => ty,
     }
 }
 
@@ -1021,56 +1248,80 @@ pub fn remap_value_global_ids(
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Value {
+    if definitions.is_empty() && inductives.is_empty() {
+        return value;
+    }
     match arena.get(value) {
-        ValueNode::DefinedConstant(id) => arena.alloc(ValueNode::DefinedConstant(
-            definitions.get(&id).copied().unwrap_or(id),
-        )),
+        ValueNode::DefinedConstant(id) => arena.reuse_value(
+            value,
+            ValueNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
+        ),
         ValueNode::Meta {
             metavariable,
             spine,
-        } => arena.alloc(ValueNode::Meta {
-            metavariable,
-            spine: remap_program_arguments(arena, spine, definitions, inductives),
-        }),
-        ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
-            computation: remap_computation_global_ids(arena, computation, definitions, inductives),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::Meta {
+                metavariable,
+                spine: remap_program_arguments(arena, spine, definitions, inductives),
+            },
+        ),
+        ValueNode::Thunk { computation } => arena.reuse_value(
+            value,
+            ValueNode::Thunk {
+                computation: remap_computation_global_ids(
+                    arena,
+                    computation,
+                    definitions,
+                    inductives,
+                ),
+            },
+        ),
         ValueNode::Continue {
             state_ty,
             result_ty,
             next,
-        } => arena.alloc(ValueNode::Continue {
-            state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
-            result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
-            next: remap_value_global_ids(arena, next, definitions, inductives),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::Continue {
+                state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
+                result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
+                next: remap_value_global_ids(arena, next, definitions, inductives),
+            },
+        ),
         ValueNode::Finish {
             state_ty,
             result_ty,
             output,
-        } => arena.alloc(ValueNode::Finish {
-            state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
-            result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
-            output: remap_value_global_ids(arena, output, definitions, inductives),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::Finish {
+                state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
+                result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
+                output: remap_value_global_ids(arena, output, definitions, inductives),
+            },
+        ),
         ValueNode::InductiveConstructor {
             indspec,
             parameters,
             idx,
             fields,
-        } => arena.alloc(ValueNode::InductiveConstructor {
-            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-            parameters: parameters
-                .into_iter()
-                .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
-                .collect(),
-            idx,
-            fields: fields
-                .into_iter()
-                .map(|value| remap_value_global_ids(arena, value, definitions, inductives))
-                .collect(),
-        }),
-        node => arena.alloc(node),
+        } => arena.reuse_value(
+            value,
+            ValueNode::InductiveConstructor {
+                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+                parameters: parameters
+                    .into_iter()
+                    .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
+                    .collect(),
+                idx,
+                fields: fields
+                    .into_iter()
+                    .map(|value| remap_value_global_ids(arena, value, definitions, inductives))
+                    .collect(),
+            },
+        ),
+        ValueNode::Bound(_) | ValueNode::ModuleParam(_) => value,
     }
 }
 
@@ -1080,101 +1331,129 @@ pub fn remap_computation_global_ids(
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Computation {
+    if definitions.is_empty() && inductives.is_empty() {
+        return computation;
+    }
     let value = |value| remap_value_global_ids(arena, value, definitions, inductives);
     let recur = |term| remap_computation_global_ids(arena, term, definitions, inductives);
     let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
     match arena.get(computation) {
-        ComputationNode::DefinedConstant(id) => arena.alloc(ComputationNode::DefinedConstant(
-            definitions.get(&id).copied().unwrap_or(id),
-        )),
+        ComputationNode::DefinedConstant(id) => arena.reuse_computation(
+            computation,
+            ComputationNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
+        ),
         ComputationNode::Meta {
             metavariable,
             spine,
-        } => arena.alloc(ComputationNode::Meta {
-            metavariable,
-            spine: remap_program_arguments(arena, spine, definitions, inductives),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::Meta {
+                metavariable,
+                spine: remap_program_arguments(arena, spine, definitions, inductives),
+            },
+        ),
         ComputationNode::Return { value: item } => {
-            arena.alloc(ComputationNode::Return { value: value(item) })
+            arena.reuse_computation(computation, ComputationNode::Return { value: value(item) })
         }
         ComputationNode::Force { value: item } => {
-            arena.alloc(ComputationNode::Force { value: value(item) })
+            arena.reuse_computation(computation, ComputationNode::Force { value: value(item) })
         }
         ComputationNode::Lambda {
             var,
             value_ty: ty,
             body,
-        } => arena.alloc(ComputationNode::Lambda {
-            var,
-            value_ty: value_ty(ty),
-            body: recur(body),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::Lambda {
+                var,
+                value_ty: value_ty(ty),
+                body: recur(body),
+            },
+        ),
         ComputationNode::Application {
             computation: function,
             value: argument,
-        } => arena.alloc(ComputationNode::Application {
-            computation: recur(function),
-            value: value(argument),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::Application {
+                computation: recur(function),
+                value: value(argument),
+            },
+        ),
         ComputationNode::Sequence {
             computation: first,
             var,
             value_ty: ty,
             body,
-        } => arena.alloc(ComputationNode::Sequence {
-            computation: recur(first),
-            var,
-            value_ty: value_ty(ty),
-            body: recur(body),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::Sequence {
+                computation: recur(first),
+                var,
+                value_ty: value_ty(ty),
+                body: recur(body),
+            },
+        ),
         ComputationNode::ValueLet {
             var,
             value: item,
             body,
-        } => arena.alloc(ComputationNode::ValueLet {
-            var,
-            value: value(item),
-            body: recur(body),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::ValueLet {
+                var,
+                value: value(item),
+                body: recur(body),
+            },
+        ),
         ComputationNode::Case {
             indspec,
             scrutinee,
             branches,
-        } => arena.alloc(ComputationNode::Case {
-            indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-            scrutinee: value(scrutinee),
-            branches: branches
-                .into_iter()
-                .map(|branch| ProgramCaseBranch {
-                    binders: branch.binders,
-                    body: recur(branch.body),
-                })
-                .collect(),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::Case {
+                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+                scrutinee: value(scrutinee),
+                branches: branches
+                    .into_iter()
+                    .map(|branch| ProgramCaseBranch {
+                        binders: branch.binders,
+                        body: recur(branch.body),
+                    })
+                    .collect(),
+            },
+        ),
         ComputationNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
-        } => arena.alloc(ComputationNode::Run {
-            state_ty: value_ty(state_ty),
-            result_ty: value_ty(result_ty),
-            step: value(step),
-            initial: value(initial),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::Run {
+                state_ty: value_ty(state_ty),
+                result_ty: value_ty(result_ty),
+                step: value(step),
+                initial: value(initial),
+            },
+        ),
         ComputationNode::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => arena.alloc(ComputationNode::RunCase {
-            state_ty: value_ty(state_ty),
-            result_ty: value_ty(result_ty),
-            step: value(step),
-            initial: value(initial),
-            transition: recur(transition),
-        }),
+        } => arena.reuse_computation(
+            computation,
+            ComputationNode::RunCase {
+                state_ty: value_ty(state_ty),
+                result_ty: value_ty(result_ty),
+                step: value(step),
+                initial: value(initial),
+                transition: recur(transition),
+            },
+        ),
     }
 }
 
@@ -1183,6 +1462,9 @@ pub fn subst_value_type_module_params(
     ty: ValueType,
     substitutions: &[(ModuleParamId, ModuleArgument)],
 ) -> ValueType {
+    if substitutions.is_empty() {
+        return ty;
+    }
     match arena.get(ty) {
         ValueTypeNode::ModuleParam(id) => substitutions
             .iter()
@@ -1192,31 +1474,40 @@ pub fn subst_value_type_module_params(
                 _ => None,
             })
             .unwrap_or(ty),
-        ValueTypeNode::Thunk { computation_ty } => arena.alloc(ValueTypeNode::Thunk {
-            computation_ty: subst_computation_type_module_params(
-                arena,
-                computation_ty,
-                substitutions,
-            ),
-        }),
+        ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
+            ty,
+            ValueTypeNode::Thunk {
+                computation_ty: subst_computation_type_module_params(
+                    arena,
+                    computation_ty,
+                    substitutions,
+                ),
+            },
+        ),
         ValueTypeNode::RunStep {
             state_ty,
             result_ty,
-        } => arena.alloc(ValueTypeNode::RunStep {
-            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-        }),
+        } => arena.reuse_value_type(
+            ty,
+            ValueTypeNode::RunStep {
+                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+            },
+        ),
         ValueTypeNode::Inductive {
             indspec,
             parameters,
-        } => arena.alloc(ValueTypeNode::Inductive {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|p| subst_value_type_module_params(arena, p, substitutions))
-                .collect(),
-        }),
-        node => arena.alloc(node),
+        } => arena.reuse_value_type(
+            ty,
+            ValueTypeNode::Inductive {
+                indspec,
+                parameters: parameters
+                    .into_iter()
+                    .map(|p| subst_value_type_module_params(arena, p, substitutions))
+                    .collect(),
+            },
+        ),
+        _ => ty,
     }
 }
 
@@ -1225,17 +1516,24 @@ pub fn subst_computation_type_module_params(
     ty: ComputationType,
     substitutions: &[(ModuleParamId, ModuleArgument)],
 ) -> ComputationType {
+    if substitutions.is_empty() {
+        return ty;
+    }
     match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.alloc(ComputationTypeNode::Return {
-            value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-        }),
-        ComputationTypeNode::Function { domain, codomain } => {
-            arena.alloc(ComputationTypeNode::Function {
+        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
+            ty,
+            ComputationTypeNode::Return {
+                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
+            },
+        ),
+        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
+            ty,
+            ComputationTypeNode::Function {
                 domain: subst_value_type_module_params(arena, domain, substitutions),
                 codomain: subst_computation_type_module_params(arena, codomain, substitutions),
-            })
-        }
-        node => arena.alloc(node),
+            },
+        ),
+        ComputationTypeNode::Meta { .. } => ty,
     }
 }
 
@@ -1262,6 +1560,9 @@ pub fn subst_value_module_params(
     value: Value,
     substitutions: &[(ModuleParamId, ModuleArgument)],
 ) -> Value {
+    if substitutions.is_empty() {
+        return value;
+    }
     match arena.get(value) {
         ValueNode::ModuleParam(id) => substitutions
             .iter()
@@ -1274,48 +1575,63 @@ pub fn subst_value_module_params(
         ValueNode::Meta {
             metavariable,
             spine,
-        } => arena.alloc(ValueNode::Meta {
-            metavariable,
-            spine: subst_program_arguments(arena, spine, substitutions),
-        }),
-        ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
-            computation: subst_computation_module_params(arena, computation, substitutions),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::Meta {
+                metavariable,
+                spine: subst_program_arguments(arena, spine, substitutions),
+            },
+        ),
+        ValueNode::Thunk { computation } => arena.reuse_value(
+            value,
+            ValueNode::Thunk {
+                computation: subst_computation_module_params(arena, computation, substitutions),
+            },
+        ),
         ValueNode::Continue {
             state_ty,
             result_ty,
             next,
-        } => arena.alloc(ValueNode::Continue {
-            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-            next: subst_value_module_params(arena, next, substitutions),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::Continue {
+                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+                next: subst_value_module_params(arena, next, substitutions),
+            },
+        ),
         ValueNode::Finish {
             state_ty,
             result_ty,
             output,
-        } => arena.alloc(ValueNode::Finish {
-            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-            output: subst_value_module_params(arena, output, substitutions),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::Finish {
+                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+                output: subst_value_module_params(arena, output, substitutions),
+            },
+        ),
         ValueNode::InductiveConstructor {
             indspec,
             parameters,
             idx,
             fields,
-        } => arena.alloc(ValueNode::InductiveConstructor {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|ty| subst_value_type_module_params(arena, ty, substitutions))
-                .collect(),
-            idx,
-            fields: fields
-                .into_iter()
-                .map(|value| subst_value_module_params(arena, value, substitutions))
-                .collect(),
-        }),
+        } => arena.reuse_value(
+            value,
+            ValueNode::InductiveConstructor {
+                indspec,
+                parameters: parameters
+                    .into_iter()
+                    .map(|ty| subst_value_type_module_params(arena, ty, substitutions))
+                    .collect(),
+                idx,
+                fields: fields
+                    .into_iter()
+                    .map(|value| subst_value_module_params(arena, value, substitutions))
+                    .collect(),
+            },
+        ),
         _ => value,
     }
 }
@@ -1325,90 +1641,121 @@ pub fn subst_computation_module_params(
     term: Computation,
     substitutions: &[(ModuleParamId, ModuleArgument)],
 ) -> Computation {
+    if substitutions.is_empty() {
+        return term;
+    }
     match arena.get(term) {
         ComputationNode::Meta {
             metavariable,
             spine,
-        } => arena.alloc(ComputationNode::Meta {
-            metavariable,
-            spine: subst_program_arguments(arena, spine, substitutions),
-        }),
-        ComputationNode::Return { value } => arena.alloc(ComputationNode::Return {
-            value: subst_value_module_params(arena, value, substitutions),
-        }),
-        ComputationNode::Force { value } => arena.alloc(ComputationNode::Force {
-            value: subst_value_module_params(arena, value, substitutions),
-        }),
+        } => arena.reuse_computation(
+            term,
+            ComputationNode::Meta {
+                metavariable,
+                spine: subst_program_arguments(arena, spine, substitutions),
+            },
+        ),
+        ComputationNode::Return { value } => arena.reuse_computation(
+            term,
+            ComputationNode::Return {
+                value: subst_value_module_params(arena, value, substitutions),
+            },
+        ),
+        ComputationNode::Force { value } => arena.reuse_computation(
+            term,
+            ComputationNode::Force {
+                value: subst_value_module_params(arena, value, substitutions),
+            },
+        ),
         ComputationNode::Lambda {
             var,
             value_ty,
             body,
-        } => arena.alloc(ComputationNode::Lambda {
-            var,
-            value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-            body: subst_computation_module_params(arena, body, substitutions),
-        }),
-        ComputationNode::Application { computation, value } => {
-            arena.alloc(ComputationNode::Application {
+        } => arena.reuse_computation(
+            term,
+            ComputationNode::Lambda {
+                var,
+                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
+                body: subst_computation_module_params(arena, body, substitutions),
+            },
+        ),
+        ComputationNode::Application { computation, value } => arena.reuse_computation(
+            term,
+            ComputationNode::Application {
                 computation: subst_computation_module_params(arena, computation, substitutions),
                 value: subst_value_module_params(arena, value, substitutions),
-            })
-        }
+            },
+        ),
         ComputationNode::Sequence {
             computation,
             var,
             value_ty,
             body,
-        } => arena.alloc(ComputationNode::Sequence {
-            computation: subst_computation_module_params(arena, computation, substitutions),
-            var,
-            value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-            body: subst_computation_module_params(arena, body, substitutions),
-        }),
-        ComputationNode::ValueLet { var, value, body } => arena.alloc(ComputationNode::ValueLet {
-            var,
-            value: subst_value_module_params(arena, value, substitutions),
-            body: subst_computation_module_params(arena, body, substitutions),
-        }),
+        } => arena.reuse_computation(
+            term,
+            ComputationNode::Sequence {
+                computation: subst_computation_module_params(arena, computation, substitutions),
+                var,
+                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
+                body: subst_computation_module_params(arena, body, substitutions),
+            },
+        ),
+        ComputationNode::ValueLet { var, value, body } => arena.reuse_computation(
+            term,
+            ComputationNode::ValueLet {
+                var,
+                value: subst_value_module_params(arena, value, substitutions),
+                body: subst_computation_module_params(arena, body, substitutions),
+            },
+        ),
         ComputationNode::Case {
             indspec,
             scrutinee,
             branches,
-        } => arena.alloc(ComputationNode::Case {
-            indspec,
-            scrutinee: subst_value_module_params(arena, scrutinee, substitutions),
-            branches: branches
-                .into_iter()
-                .map(|branch| ProgramCaseBranch {
-                    binders: branch.binders,
-                    body: subst_computation_module_params(arena, branch.body, substitutions),
-                })
-                .collect(),
-        }),
+        } => arena.reuse_computation(
+            term,
+            ComputationNode::Case {
+                indspec,
+                scrutinee: subst_value_module_params(arena, scrutinee, substitutions),
+                branches: branches
+                    .into_iter()
+                    .map(|branch| ProgramCaseBranch {
+                        binders: branch.binders,
+                        body: subst_computation_module_params(arena, branch.body, substitutions),
+                    })
+                    .collect(),
+            },
+        ),
         ComputationNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
-        } => arena.alloc(ComputationNode::Run {
-            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-            step: subst_value_module_params(arena, step, substitutions),
-            initial: subst_value_module_params(arena, initial, substitutions),
-        }),
+        } => arena.reuse_computation(
+            term,
+            ComputationNode::Run {
+                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+                step: subst_value_module_params(arena, step, substitutions),
+                initial: subst_value_module_params(arena, initial, substitutions),
+            },
+        ),
         ComputationNode::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => arena.alloc(ComputationNode::RunCase {
-            state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-            result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-            step: subst_value_module_params(arena, step, substitutions),
-            initial: subst_value_module_params(arena, initial, substitutions),
-            transition: subst_computation_module_params(arena, transition, substitutions),
-        }),
+        } => arena.reuse_computation(
+            term,
+            ComputationNode::RunCase {
+                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
+                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
+                step: subst_value_module_params(arena, step, substitutions),
+                initial: subst_value_module_params(arena, initial, substitutions),
+                transition: subst_computation_module_params(arena, transition, substitutions),
+            },
+        ),
         _ => term,
     }
 }

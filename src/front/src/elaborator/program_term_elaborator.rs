@@ -14,6 +14,7 @@ use kernel::{
         Computation, ComputationNode, ComputationType, ComputationTypeNode, ProgramArgument,
         ProgramContext, ProgramContextEntry, Value, ValueNode, ValueType, ValueTypeNode,
     },
+    program_calculus::strengthen_computation_type,
     program_derivation::ProgramCheckSession,
 };
 use std::collections::HashMap;
@@ -50,12 +51,17 @@ pub struct ProgramScope {
     named_metas: HashMap<u32, MetaVarId>,
 }
 
+impl Default for ProgramScope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProgramScope {
-    pub fn from_environment(environment: &GlobalEnvironment) -> Self {
+    pub fn new() -> Self {
         // Module parameters have stable identities and must not be captured as
         // de Bruijn locals: declarations and their uses can be nested beneath
         // different numbers of Program binders.
-        let _ = environment;
         Self {
             names: Vec::new(),
             context: Vec::new(),
@@ -1427,7 +1433,8 @@ impl ProgramScope {
                 let result = self.infer_computation(environment, context, body);
                 context.pop();
                 let mut result = result?;
-                result = remove_context_entry_from_computation_type(arena, result, 0)?;
+                result = strengthen_computation_type(arena, result, 0)
+                    .ok_or("Program result type depends on a local value")?;
                 Ok(result)
             }
             _ => self.infer_kernel_computation(
@@ -1495,61 +1502,4 @@ impl ProgramScope {
             self.zonk_computation_type(environment, ty),
         ))
     }
-}
-
-fn remove_context_entry_from_value_type(
-    arena: &kernel::exp::Arena,
-    ty: ValueType,
-    target: usize,
-) -> Result<ValueType, String> {
-    Ok(match arena.get(ty) {
-        ValueTypeNode::Bound(index) if index == target => {
-            return Err("Program result type depends on a local value".into());
-        }
-        ValueTypeNode::Bound(index) if index > target => arena.value_type_bound(index - 1),
-        ValueTypeNode::Thunk { computation_ty } => arena.alloc(ValueTypeNode::Thunk {
-            computation_ty: remove_context_entry_from_computation_type(
-                arena,
-                computation_ty,
-                target,
-            )?,
-        }),
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => arena.alloc(ValueTypeNode::RunStep {
-            state_ty: remove_context_entry_from_value_type(arena, state_ty, target)?,
-            result_ty: remove_context_entry_from_value_type(arena, result_ty, target)?,
-        }),
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => arena.alloc(ValueTypeNode::Inductive {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|parameter| remove_context_entry_from_value_type(arena, parameter, target))
-                .collect::<Result<_, _>>()?,
-        }),
-        _ => ty,
-    })
-}
-
-fn remove_context_entry_from_computation_type(
-    arena: &kernel::exp::Arena,
-    ty: ComputationType,
-    target: usize,
-) -> Result<ComputationType, String> {
-    Ok(match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.alloc(ComputationTypeNode::Return {
-            value_ty: remove_context_entry_from_value_type(arena, value_ty, target)?,
-        }),
-        ComputationTypeNode::Function { domain, codomain } => {
-            arena.alloc(ComputationTypeNode::Function {
-                domain: remove_context_entry_from_value_type(arena, domain, target)?,
-                codomain: remove_context_entry_from_computation_type(arena, codomain, target)?,
-            })
-        }
-        _ => ty,
-    })
 }

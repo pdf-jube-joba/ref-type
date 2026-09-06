@@ -1,5 +1,6 @@
 use super::{
     EXPRESSION_ATOM_KEYWORDS, PROOF_TERM_KEYWORDS, ParseError, SORT_KEYWORDS, SpannedToken, Token,
+    TokenCursor,
 };
 use crate::syntax::*;
 
@@ -23,89 +24,6 @@ impl<'a> TermParser<'a> {
             tokens,
             pos: 0,
             allow_macro_parameters: true,
-        }
-    }
-
-    fn peek(&self) -> Option<&Token<'a>> {
-        self.tokens.get(self.pos).map(|t| &t.kind)
-    }
-
-    fn next(&mut self) -> Option<&SpannedToken<'a>> {
-        let t = self.tokens.get(self.pos);
-        if t.is_some() {
-            self.pos += 1;
-        }
-        t
-    }
-
-    fn bump_if_token(&mut self, expect: &Token<'a>) -> bool
-    where
-        Token<'a>: PartialEq,
-    {
-        if let Some(tok) = self.peek()
-            && tok == expect
-        {
-            self.pos += 1;
-            return true;
-        }
-        false
-    }
-
-    fn bump_if_keyword(&mut self, kw: &str) -> bool {
-        if let Some(Token::KeyWord(s)) = self.peek()
-            && *s == kw
-        {
-            self.pos += 1;
-            return true;
-        }
-        false
-    }
-
-    fn expect_token(&mut self, expect: Token<'a>) -> Result<SpannedToken<'a>, ParseError> {
-        if let Some(t) = self.tokens.get(self.pos) {
-            if t.kind == expect {
-                self.pos += 1;
-                Ok(t.clone())
-            } else {
-                Err(ParseError {
-                    msg: format!("expected {:?}, found {:?}", expect, t.kind),
-                    start: t.start,
-                    end: t.end,
-                })
-            }
-        } else {
-            Err(ParseError::eof_error(&format!("{:?}", expect)))
-        }
-    }
-
-    fn expect_keyword<'b>(&mut self, kw: &'b str) -> Result<&'a str, ParseError>
-    where
-        'b: 'a,
-    {
-        match self.next() {
-            Some(t) => match &t.kind {
-                Token::KeyWord(name) if *name == kw => Ok(*name),
-                other => Err(ParseError {
-                    msg: format!("expected keyword {kw}, found {:?}", other),
-                    start: t.start,
-                    end: t.end,
-                }),
-            },
-            None => Err(ParseError::eof_error("keyword")),
-        }
-    }
-
-    fn expect_ident(&mut self) -> Result<Identifier, ParseError> {
-        match self.next() {
-            Some(t) => match &t.kind {
-                Token::Ident(name) => Ok(Identifier((*name).to_string())),
-                other => Err(ParseError {
-                    msg: format!("expected identifier, found {:?}", other),
-                    start: t.start,
-                    end: t.end,
-                }),
-            },
-            None => Err(ParseError::eof_error("identifier")),
         }
     }
 
@@ -154,22 +72,6 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    // Try to parse with the given parsing function.
-    // ... rollbacks on failure.
-    fn try_parse<T, F>(&mut self, parse_fn: F) -> Result<Option<T>, ParseError>
-    where
-        F: Fn(&mut Self) -> Result<T, ParseError>,
-    {
-        let save_pos = self.pos;
-        match parse_fn(self) {
-            Ok(result) => Ok(Some(result)),
-            Err(_) => {
-                self.pos = save_pos; // rollback
-                Ok(None)
-            }
-        }
-    }
-
     fn parse_parenthesized<F, T>(&mut self, parse_inner: F) -> Result<T, ParseError>
     where
         F: FnOnce(&mut Self) -> Result<T, ParseError>,
@@ -200,14 +102,14 @@ impl<'a> TermParser<'a> {
         }
         if self.bump_if_keyword("\\Set") {
             let number = self
-                .try_parse(|parser| parser.parse_number_paren())?
+                .attempt(|parser| parser.parse_number_paren())
                 .unwrap_or_default();
 
             return Ok(kernel::sort::Sort::Set(number));
         }
         if self.bump_if_keyword("\\SetKind") {
             let number = self
-                .try_parse(|parser| parser.parse_number_paren())?
+                .attempt(|parser| parser.parse_number_paren())
                 .unwrap_or_default();
             return Ok(kernel::sort::Sort::SetKind(number));
         }
@@ -332,15 +234,15 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::RParen)?;
             self.expect_token(Token::LBrace)?;
             let mut branches = Vec::new();
-            while !self.bump_if_token(&Token::RBrace) {
+            while !self.bump_if_token(Token::RBrace) {
                 self.expect_token(Token::Pipe)?;
                 let constructor = self.expect_ident()?;
                 self.expect_token(Token::LParen)?;
                 let mut binders = Vec::new();
-                if !self.bump_if_token(&Token::RParen) {
+                if !self.bump_if_token(Token::RParen) {
                     loop {
                         binders.push(self.expect_ident()?);
-                        if self.bump_if_token(&Token::RParen) {
+                        if self.bump_if_token(Token::RParen) {
                             break;
                         }
                         self.expect_token(Token::Comma)?;
@@ -643,7 +545,7 @@ impl<'a> TermParser<'a> {
             let mut cases = Vec::new();
             self.expect_token(Token::LBrace)?; // expect '{'
             // loop until '}'
-            while !self.bump_if_token(&Token::RBrace) {
+            while !self.bump_if_token(Token::RBrace) {
                 self.expect_token(Token::Pipe)?; // expect '|'
                 let case_name = self.expect_ident()?; // expect case name
                 self.expect_token(Token::DoubleArrow)?; // expect '=>'
@@ -666,7 +568,7 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Comma)?;
             let path = self.parse_access_path()?;
             let parameters = self
-                .try_parse(|parser| parser.parse_parameter())?
+                .attempt(|parser| parser.parse_parameter())
                 .unwrap_or_default();
 
             self.expect_token(Token::RParen)?;
@@ -691,7 +593,7 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::LParen)?;
             let existence = self.parse_sexp()?;
             let uniqueness = self
-                .bump_if_token(&Token::Comma)
+                .bump_if_token(Token::Comma)
                 .then(|| self.parse_sexp())
                 .transpose()?;
             self.expect_token(Token::RParen)?;
@@ -935,7 +837,7 @@ impl<'a> TermParser<'a> {
                 let mut binds: Vec<RightBind> = Vec::new();
                 while let Ok(bind) = self.parse_simple_binds_paren() {
                     binds.extend(bind);
-                    if !self.bump_if_token(&Token::Comma) {
+                    if !self.bump_if_token(Token::Comma) {
                         break;
                     }
                 }
@@ -963,7 +865,7 @@ impl<'a> TermParser<'a> {
                 self.expect_token(Token::LParen)?;
                 let existence = self.parse_sexp()?;
                 let uniqueness = self
-                    .bump_if_token(&Token::Comma)
+                    .bump_if_token(Token::Comma)
                     .then(|| self.parse_sexp())
                     .transpose()?;
                 self.expect_token(Token::RParen)?;
@@ -1006,7 +908,7 @@ impl<'a> TermParser<'a> {
         let mut params = Vec::new();
         while let Ok(param) = self.parse_sexp() {
             params.push(param);
-            if !self.bump_if_token(&Token::Comma) {
+            if !self.bump_if_token(Token::Comma) {
                 break;
             }
         }
@@ -1021,7 +923,7 @@ impl<'a> TermParser<'a> {
         // 1. expect first identifier
         let first_ident = self.expect_ident()?;
         // 2. if ".", expect more identifiers
-        if self.bump_if_token(&Token::Period) {
+        if self.bump_if_token(Token::Period) {
             // named scope access
             let next_ident = self.expect_ident()?;
             Ok(LocalAccess::Named {
@@ -1039,13 +941,13 @@ impl<'a> TermParser<'a> {
         let mut fields = Vec::new();
 
         self.expect_token(Token::LBrace)?; // expect '{'
-        while !self.bump_if_token(&Token::RBrace) {
+        while !self.bump_if_token(Token::RBrace) {
             let field_name = self.expect_ident()?;
             self.expect_token(Token::Assign)?;
             let field_exp = self.parse_sexp()?;
             fields.push((field_name, field_exp));
 
-            if !self.bump_if_token(&Token::Comma) {
+            if !self.bump_if_token(Token::Comma) {
                 self.expect_token(Token::RBrace)?; // expect '}'
                 break;
             }
@@ -1138,11 +1040,11 @@ impl<'a> TermParser<'a> {
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
                 let parameters = self
-                    .try_parse(|parser| parser.parse_parameter())?
+                    .attempt(|parser| parser.parse_parameter())
                     .unwrap_or_default();
 
                 // field access case or record construction case
-                if self.bump_if_token(&Token::DoubleColon) {
+                if self.bump_if_token(Token::DoubleColon) {
                     // field access case
                     let field_name = self.expect_ident()?;
                     return Ok(SExp::AssociatedAccess {
@@ -1151,7 +1053,7 @@ impl<'a> TermParser<'a> {
                     });
                 }
 
-                match self.try_parse(|parser| parser.parse_record_body())? {
+                match self.attempt(|parser| parser.parse_record_body()) {
                     Some(fields) => {
                         // record construction
                         Ok(SExp::RecordTypeCtor {
@@ -1208,7 +1110,7 @@ impl<'a> TermParser<'a> {
     // this includes atom parsing
     fn field_access(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
-        while self.bump_if_token(&Token::DoubleColon) {
+        while self.bump_if_token(Token::DoubleColon) {
             let field_name = self.expect_ident()?;
             expr = SExp::AssociatedAccess {
                 base: Box::new(expr),
@@ -1224,7 +1126,7 @@ impl<'a> TermParser<'a> {
         // 1. first atom
         let mut expr = self.field_access()?;
 
-        while let Some(try_exp) = self.try_parse(|parser| parser.field_access())? {
+        while let Some(try_exp) = self.attempt(|parser| parser.field_access()) {
             expr = SExp::App {
                 func: Box::new(expr),
                 arg: Box::new(try_exp),
@@ -1243,7 +1145,7 @@ impl<'a> TermParser<'a> {
         fn piped(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let mut expr = parser.parse_atom_sequence()?;
 
-            while parser.bump_if_token(&Token::Pipe) {
+            while parser.bump_if_token(Token::Pipe) {
                 let right = parser.parse_atom_sequence()?;
                 expr = SExp::App {
                     arg: Box::new(expr),
@@ -1258,7 +1160,7 @@ impl<'a> TermParser<'a> {
         }
         fn equal_exp(parser: &mut TermParser) -> Result<SExp, ParseError> {
             let left_exp = as_exp(parser)?;
-            if parser.bump_if_token(&Token::Equal) {
+            if parser.bump_if_token(Token::Equal) {
                 let right_exp = as_exp(parser)?;
                 Ok(SExp::Equal {
                     left: Box::new(left_exp),
@@ -1279,7 +1181,7 @@ impl<'a> TermParser<'a> {
         let mut vars = vec![];
         vars.push(self.expect_binder_ident()?);
 
-        while self.bump_if_token(&Token::Comma) {
+        while self.bump_if_token(Token::Comma) {
             vars.push(self.expect_binder_ident()?);
         }
 
@@ -1293,26 +1195,26 @@ impl<'a> TermParser<'a> {
 
     // parse multiple annotations separated by commas
     // trailing comma is allowed (it consumes trailing comma)
-    fn parse_annotate_comma_separated(&mut self) -> Result<Vec<RightBind>, ParseError> {
+    fn parse_annotate_comma_separated(&mut self) -> Vec<RightBind> {
         let mut annotations = vec![];
 
         // this implementation allows trailing commas
-        while let Some((vars, ty)) = self.try_parse(|parser| parser.parse_annotate())? {
+        while let Some((vars, ty)) = self.attempt(|parser| parser.parse_annotate()) {
             annotations.push(RightBind {
                 vars,
                 ty: Box::new(ty),
             });
 
             // allow trailing comma
-            self.bump_if_token(&Token::Comma);
+            self.bump_if_token(Token::Comma);
         }
 
-        Ok(annotations)
+        annotations
     }
 
     // "(" <multiple annotations comma separated> ")"
     fn parse_simple_binds_paren(&mut self) -> Result<Vec<RightBind>, ParseError> {
-        self.parse_parenthesized(|parser| parser.parse_annotate_comma_separated())
+        self.parse_parenthesized(|parser| Ok(parser.parse_annotate_comma_separated()))
     }
 
     pub fn parse_simple_binds_advanced(&mut self) -> Result<(Vec<RightBind>, usize), ParseError> {
@@ -1347,7 +1249,7 @@ impl<'a> TermParser<'a> {
 
         // try to parse proof style first (annotation)
         // fail => it is rollbacked to after '|'
-        if let Some((vars, exp)) = self.try_parse(|parser| parser.parse_annotate())? {
+        if let Some((vars, exp)) = self.attempt(|parser| parser.parse_annotate()) {
             let [proof_var] = vars.as_slice() else {
                 return Err(ParseError {
                     msg: "expected single identifier in subset bind proof var".into(),
@@ -1378,7 +1280,7 @@ impl<'a> TermParser<'a> {
     fn parse_arrow_expr(&mut self) -> Result<SExp, ParseError> {
         let left_head = self.parse_left_arrow_head()?;
 
-        if self.bump_if_token(&Token::Arrow) {
+        if self.bump_if_token(Token::Arrow) {
             let right = self.parse_sexp()?;
             return Ok(SExp::Prod {
                 bind: left_head,
@@ -1386,7 +1288,7 @@ impl<'a> TermParser<'a> {
             });
         }
 
-        if self.bump_if_token(&Token::DoubleArrow) {
+        if self.bump_if_token(Token::DoubleArrow) {
             let right = self.parse_sexp()?;
             return Ok(SExp::Lam {
                 bind: left_head,
@@ -1407,11 +1309,11 @@ impl<'a> TermParser<'a> {
         let mut binds = vec![];
         // parse right binds until fail
         loop {
-            let bind = match self.try_parse(|parser| parser.parse_simple_binds_paren())? {
+            let bind = match self.attempt(|parser| parser.parse_simple_binds_paren()) {
                 Some(b) => b,
                 None => {
                     let maybe_body = self.parse_combined()?;
-                    if self.bump_if_token(&Token::Arrow) {
+                    if self.bump_if_token(Token::Arrow) {
                         // continue parsing binds
                         binds.push(RightBind {
                             vars: vec![],
@@ -1441,12 +1343,12 @@ impl<'a> TermParser<'a> {
     // e.g. `x y -> z`, `(x y) -> z`, `(x: y) -> z`, `((x: y) | P) -> z`
     fn parse_left_arrow_head(&mut self) -> Result<Bind, ParseError> {
         // 1. try to parse susbet bind
-        if let Some(bind) = self.try_parse(|parser| parser.parse_subsetbind())? {
+        if let Some(bind) = self.attempt(|parser| parser.parse_subsetbind()) {
             return Ok(bind);
         }
 
         // 2. try to parse named bind
-        if let Some(rightbinds) = self.try_parse(|parser| parser.parse_simple_binds_paren())? {
+        if let Some(rightbinds) = self.attempt(|parser| parser.parse_simple_binds_paren()) {
             let [rightbind] = rightbinds.as_slice() else {
                 return Err(ParseError {
                     msg: "expected single right bind in named bind".into(),
@@ -1466,7 +1368,7 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_sexp_withgoals(&mut self) -> Result<SExp, ParseError> {
-        self.try_parse(|p| p.parse_arrow_expr())?
+        self.attempt(|p| p.parse_arrow_expr())
             .map_or_else(|| self.parse_combined(), Ok)
     }
 
@@ -1511,9 +1413,9 @@ impl<'a> TermParser<'a> {
             return Ok(MacroExp::Quoted(value));
         }
         // 3. Parended sequence of macro tokens
-        if self.bump_if_token(&Token::LParen) {
+        if self.bump_if_token(Token::LParen) {
             let mut exps = Vec::new();
-            while !self.bump_if_token(&Token::RParen) {
+            while !self.bump_if_token(Token::RParen) {
                 let exp = self.parse_one_macro()?;
                 exps.push(exp);
             }
@@ -1524,6 +1426,20 @@ impl<'a> TermParser<'a> {
             start: self.pos,
             end: self.pos,
         })
+    }
+}
+
+impl<'a> TokenCursor<'a> for TermParser<'a> {
+    fn tokens(&self) -> &'a [SpannedToken<'a>] {
+        self.tokens
+    }
+
+    fn position(&self) -> usize {
+        self.pos
+    }
+
+    fn set_position(&mut self, position: usize) {
+        self.pos = position;
     }
 }
 
@@ -1556,15 +1472,8 @@ mod tests {
         fn print_and_unwrap_rightbinds(input: &'static str) {
             let lex = &lex_all(input).expect("lexing failed for rightbinds test");
             let mut parser = TermParser::new(lex);
-            let result = parser.parse_annotate_comma_separated();
-            match result {
-                Ok(binds) => {
-                    println!("Parsed SExp: {:?} => {:?}", input, binds);
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
+            let binds = parser.parse_annotate_comma_separated();
+            println!("Parsed SExp: {:?} => {:?}", input, binds);
         }
         print_and_unwrap_rightbinds(r"x: X");
         print_and_unwrap_rightbinds(r"x: X, y: Y");

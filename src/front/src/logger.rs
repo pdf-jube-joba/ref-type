@@ -62,13 +62,7 @@ impl Logger {
         });
     }
 
-    pub fn reduce_one(
-        &mut self,
-        env: &CrateEnv,
-        _module: ModuleId,
-        _ctx: &mut ExpContext,
-        exp: Exp,
-    ) -> Option<Exp> {
+    pub fn reduce_one(&mut self, env: &CrateEnv, exp: Exp) -> Option<Exp> {
         self.record(
             LogLevel::Trace,
             vec!["reduce_one".into()],
@@ -93,13 +87,7 @@ impl Logger {
         reduced
     }
 
-    pub fn normalize(
-        &mut self,
-        env: &CrateEnv,
-        _module: ModuleId,
-        _ctx: &mut ExpContext,
-        exp: Exp,
-    ) -> Exp {
+    pub fn normalize(&mut self, env: &CrateEnv, exp: Exp) -> Exp {
         let result = kernel::calculus::normalize(env, exp);
         self.record(
             LogLevel::Debug,

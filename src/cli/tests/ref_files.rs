@@ -145,3 +145,16 @@ fn library_root_succeeds() {
         output_details(&output),
     );
 }
+
+#[test]
+fn file_errors_are_only_written_to_stderr() {
+    let workspace = workspace_root();
+    let path = workspace.join("tests/ng/param_free.ref");
+    let output = run_ref_file(&workspace, &path).unwrap_or_else(|error| panic!("{error}"));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(!stdout.contains("Elaboration Error:"));
+    assert_eq!(stderr.matches("Elaboration Error:").count(), 1);
+}

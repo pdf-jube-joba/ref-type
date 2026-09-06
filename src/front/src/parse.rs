@@ -1,7 +1,7 @@
 use crate::{parse::term_parse::TermParser, syntax::*};
 use logos::Logos;
 
-#[derive(Logos, Debug, PartialEq, Clone)]
+#[derive(Logos, Debug, PartialEq, Clone, Copy)]
 #[logos(skip r"[ \t\n\f]+")]
 pub enum Token<'a> {
     // Keywords (start from "\" character)
@@ -170,43 +170,13 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     end: span.end,
                 });
             }
-            Ok(Token::KeyWord(kw)) => {
-                let mapped = Token::KeyWord(kw);
+            Ok(kind) => {
                 let span = lexer.span();
                 out.push(SpannedToken {
-                    kind: mapped,
+                    kind,
                     start: span.start,
                     end: span.end,
                 });
-            }
-            Ok(Token::Ident(_))
-            | Ok(Token::ProofBlock)
-            | Ok(Token::Goal)
-            | Ok(Token::Number(_))
-            | Ok(Token::UnspecifiedVar(_))
-            | Ok(Token::MacroVar(_))
-            | Ok(Token::QuotedMacroToken(_))
-            | Ok(Token::EscapedMacroToken(_))
-            | Ok(Token::Hole)
-            | Ok(
-                Token::LParen
-                | Token::RParen
-                | Token::MathLParen
-                | Token::MathRParen
-                | Token::LBrace
-                | Token::RBrace
-                | Token::LBracket
-                | Token::RBracket,
-            ) => {
-                let span = lexer.span();
-                out.push(SpannedToken {
-                    kind: tok.unwrap(),
-                    start: span.start,
-                    end: span.end,
-                });
-            }
-            Ok(_) => {
-                unreachable!("logos does not produce other tokens here");
             }
             Err(_) => {
                 let span = lexer.span();
@@ -222,7 +192,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
     Ok(out)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SpannedToken<'a> {
     pub kind: Token<'a>,
     pub start: usize,
@@ -248,83 +218,66 @@ impl ParseError {
 
 mod term_parse;
 
-#[derive(Debug)]
-pub struct Parser<'a> {
-    tokens: &'a [SpannedToken<'a>],
-    pos: usize,
-}
+trait TokenCursor<'a>: Sized {
+    fn tokens(&self) -> &'a [SpannedToken<'a>];
+    fn position(&self) -> usize;
+    fn set_position(&mut self, position: usize);
 
-// `fn bump_if_*` consumes tokens only if matched
-// `fn parse_*` consumes tokens whether succeed or fail, the parser position is advanced
-// `fn try_parse_*` consumes tokens only if matched, otherwise rollbacks
-impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
-        Self { tokens, pos: 0 }
+    fn peek(&self) -> Option<&'a Token<'a>> {
+        self.tokens().get(self.position()).map(|token| &token.kind)
     }
 
-    fn peek(&self) -> Option<&Token<'a>> {
-        self.tokens.get(self.pos).map(|t| &t.kind)
-    }
-
-    fn next(&mut self) -> Option<&SpannedToken<'a>> {
-        let t = self.tokens.get(self.pos);
-        if t.is_some() {
-            self.pos += 1;
+    fn next(&mut self) -> Option<&'a SpannedToken<'a>> {
+        let token = self.tokens().get(self.position());
+        if token.is_some() {
+            self.set_position(self.position() + 1);
         }
-        t
+        token
     }
 
-    fn bump_if_token(&mut self, expect: &Token<'a>) -> bool
-    where
-        Token<'a>: PartialEq,
-    {
-        if let Some(tok) = self.peek()
-            && tok == expect
-        {
-            self.pos += 1;
+    fn bump_if_token(&mut self, expected: Token<'a>) -> bool {
+        if self.peek() == Some(&expected) {
+            self.set_position(self.position() + 1);
             return true;
         }
         false
     }
 
-    fn bump_if_keyword(&mut self, kw: &str) -> bool {
-        if let Some(Token::KeyWord(s)) = self.peek()
-            && *s == kw
+    fn bump_if_keyword(&mut self, keyword: &str) -> bool {
+        if let Some(Token::KeyWord(actual)) = self.peek()
+            && *actual == keyword
         {
-            self.pos += 1;
+            self.set_position(self.position() + 1);
             return true;
         }
         false
     }
 
-    fn expect_token(&mut self, expect: Token<'a>) -> Result<SpannedToken<'a>, ParseError> {
-        if let Some(t) = self.tokens.get(self.pos) {
-            if t.kind == expect {
-                self.pos += 1;
-                Ok(t.clone())
+    fn expect_token(&mut self, expected: Token<'a>) -> Result<SpannedToken<'a>, ParseError> {
+        if let Some(token) = self.tokens().get(self.position()) {
+            if token.kind == expected {
+                self.set_position(self.position() + 1);
+                Ok(*token)
             } else {
                 Err(ParseError {
-                    msg: format!("expected {:?}, found {:?}", expect, t.kind),
-                    start: t.start,
-                    end: t.end,
+                    msg: format!("expected {expected:?}, found {:?}", token.kind),
+                    start: token.start,
+                    end: token.end,
                 })
             }
         } else {
-            Err(ParseError::eof_error(&format!("{:?}", expect)))
+            Err(ParseError::eof_error(&format!("{expected:?}")))
         }
     }
 
-    fn expect_keyword<'b>(&mut self, kw: &'b str) -> Result<&'a str, ParseError>
-    where
-        'b: 'a,
-    {
+    fn expect_keyword(&mut self, keyword: &str) -> Result<&'a str, ParseError> {
         match self.next() {
-            Some(t) => match &t.kind {
-                Token::KeyWord(name) if *name == kw => Ok(*name),
+            Some(token) => match token.kind {
+                Token::KeyWord(actual) if actual == keyword => Ok(actual),
                 other => Err(ParseError {
-                    msg: format!("expected keyword {kw}, found {:?}", other),
-                    start: t.start,
-                    end: t.end,
+                    msg: format!("expected keyword {keyword}, found {other:?}"),
+                    start: token.start,
+                    end: token.end,
                 }),
             },
             None => Err(ParseError::eof_error("keyword")),
@@ -333,32 +286,46 @@ impl<'a> Parser<'a> {
 
     fn expect_ident(&mut self) -> Result<Identifier, ParseError> {
         match self.next() {
-            Some(t) => match &t.kind {
-                Token::Ident(name) => Ok(Identifier((*name).to_string())),
+            Some(token) => match token.kind {
+                Token::Ident(name) => Ok(Identifier(name.to_owned())),
                 other => Err(ParseError {
-                    msg: format!("expected identifier, found {:?}", other),
-                    start: t.start,
-                    end: t.end,
+                    msg: format!("expected identifier, found {other:?}"),
+                    start: token.start,
+                    end: token.end,
                 }),
             },
             None => Err(ParseError::eof_error("identifier")),
         }
     }
 
-    // Try to parse with the given parsing function.
-    // ... rollbacks on failure.
-    fn try_parse<T, F>(&mut self, parse_fn: F) -> Result<Option<T>, ParseError>
-    where
-        F: Fn(&mut Self) -> Result<T, ParseError>,
-    {
-        let save_pos = self.pos;
-        match parse_fn(self) {
-            Ok(result) => Ok(Some(result)),
+    /// Runs a speculative parse and restores the cursor when it fails.
+    ///
+    /// Errors are deliberately discarded. This must only be used for grammar
+    /// productions whose absence is not itself an error.
+    fn attempt<T>(&mut self, parse: impl FnOnce(&mut Self) -> Result<T, ParseError>) -> Option<T> {
+        let checkpoint = self.position();
+        match parse(self) {
+            Ok(result) => Some(result),
             Err(_) => {
-                self.pos = save_pos; // rollback
-                Ok(None)
+                self.set_position(checkpoint);
+                None
             }
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Parser<'a> {
+    tokens: &'a [SpannedToken<'a>],
+    pos: usize,
+}
+
+// `fn bump_if_*` consumes tokens only if matched
+// `fn parse_*` consumes tokens whether succeed or fail, the parser position is advanced
+// `attempt` consumes tokens only on success and rolls back otherwise.
+impl<'a> Parser<'a> {
+    pub fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
+        Self { tokens, pos: 0 }
     }
 
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
@@ -394,13 +361,13 @@ impl<'a> Parser<'a> {
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
         let first_name = self.expect_ident()?;
         let mut first_binders = Vec::new();
-        while let Some(binders) = self.try_parse(|p| p.parse_rightbinds())? {
+        while let Some(binders) = self.attempt(|p| p.parse_rightbinds()) {
             first_binders.extend(binders);
         }
-        let (owner, name, binders) = if self.bump_if_token(&Token::DoubleColon) {
+        let (owner, name, binders) = if self.bump_if_token(Token::DoubleColon) {
             let name = self.expect_ident()?;
             let mut binders = Vec::new();
-            while let Some(parsed) = self.try_parse(|p| p.parse_rightbinds())? {
+            while let Some(parsed) = self.attempt(|p| p.parse_rightbinds()) {
                 binders.extend(parsed);
             }
             (
@@ -431,16 +398,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_optional_proof_block(&mut self) -> Result<Option<ProofBlock>, ParseError> {
-        if !self.bump_if_token(&Token::ProofBlock) {
+        if !self.bump_if_token(Token::ProofBlock) {
             return Ok(None);
         }
         self.expect_token(Token::LBrace)?;
         let mut entries = Vec::new();
-        while !self.bump_if_token(&Token::RBrace) {
+        while !self.bump_if_token(Token::RBrace) {
             self.expect_token(Token::MacroToken("-"))?;
             self.expect_token(Token::Goal)?;
             let mut binders = Vec::new();
-            while let Some(parsed) = self.try_parse(|parser| parser.parse_rightbinds())? {
+            while let Some(parsed) = self.attempt(|parser| parser.parse_rightbinds()) {
                 binders.extend(parsed);
             }
             self.expect_token(Token::Colon)?;
@@ -461,7 +428,7 @@ impl<'a> Parser<'a> {
     fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
         let mut parameters = Vec::new();
-        while let Some(parsed) = self.try_parse(|p| p.parse_rightbinds())? {
+        while let Some(parsed) = self.attempt(|p| p.parse_rightbinds()) {
             parameters.extend(parsed);
         }
         self.expect_token(Token::Colon)?;
@@ -479,12 +446,12 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::Assign)?;
         self.expect_token(Token::LBrace)?;
         let mut fields = Vec::new();
-        while !self.bump_if_token(&Token::RBrace) {
+        while !self.bump_if_token(Token::RBrace) {
             let name = self.expect_ident()?;
             self.expect_token(Token::Colon)?;
             let ty = self.parse_sexp()?;
             fields.push((name, ty));
-            if self.bump_if_token(&Token::RBrace) {
+            if self.bump_if_token(Token::RBrace) {
                 break;
             }
             self.expect_token(Token::Comma)?;
@@ -514,10 +481,10 @@ impl<'a> Parser<'a> {
 
         let mut calls = vec![];
 
-        while let Some((mod_name, args)) = self.try_parse(|p| p.parse_module_access_path())? {
+        while let Some((mod_name, args)) = self.attempt(|p| p.parse_module_access_path()) {
             calls.push((mod_name, args));
 
-            if !self.bump_if_token(&Token::Period) {
+            if !self.bump_if_token(Token::Period) {
                 break;
             }
         }
@@ -546,14 +513,14 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::LParen)?;
 
         let mut assign_pairs = Vec::new();
-        if !self.bump_if_token(&Token::RParen) {
+        if !self.bump_if_token(Token::RParen) {
             loop {
                 let param = self.expect_ident()?;
                 self.expect_token(Token::Assign)?; // expect ':='
                 let arg = self.parse_sexp()?;
                 assign_pairs.push((param, arg));
 
-                if self.bump_if_token(&Token::RParen) {
+                if self.bump_if_token(Token::RParen) {
                     break; // end of parameter list
                 }
                 self.expect_token(Token::Comma)?; // expect ','
@@ -579,7 +546,7 @@ impl<'a> Parser<'a> {
 
         let mut parameters = vec![];
 
-        while let Some(param) = self.try_parse(|p| p.parse_rightbinds())? {
+        while let Some(param) = self.attempt(|p| p.parse_rightbinds()) {
             parameters.extend(param);
         }
 
@@ -951,10 +918,10 @@ impl<'a> Parser<'a> {
         let module_name = self.expect_ident()?;
 
         let parameters = self
-            .try_parse(|parser| parser.parse_rightbinds())?
+            .attempt(|parser| parser.parse_rightbinds())
             .unwrap_or_default();
 
-        let body = if self.bump_if_token(&Token::Semicolon) {
+        let body = if self.bump_if_token(Token::Semicolon) {
             ModuleBody::External
         } else {
             self.expect_token(Token::LBrace)?; // expect '{'
@@ -976,6 +943,20 @@ impl<'a> Parser<'a> {
             declarations.push(item);
         }
         Ok(declarations)
+    }
+}
+
+impl<'a> TokenCursor<'a> for Parser<'a> {
+    fn tokens(&self) -> &'a [SpannedToken<'a>] {
+        self.tokens
+    }
+
+    fn position(&self) -> usize {
+        self.pos
+    }
+
+    fn set_position(&mut self, position: usize) {
+        self.pos = position;
     }
 }
 

@@ -177,7 +177,7 @@ fn alpha_bind_type(
         Bind::Subset { var, ty, predicate } => {
             alpha_rename(ty, order, counter, scopes);
             let binding = fresh_binder(var, order, counter);
-            let scope = HashMap::from([binding.clone()]);
+            let scope = HashMap::from([binding]);
             scopes.push(scope.clone());
             alpha_rename(predicate, order, counter, scopes);
             scopes.pop();

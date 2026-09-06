@@ -775,7 +775,7 @@ impl LocalScope {
                     handler.arena(),
                     inductive,
                     handler.env().inductive(inductive),
-                    parameters,
+                    &parameters,
                     *sort,
                 ))
             }

@@ -506,7 +506,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             elim,
             return_type,
             cases,
-        } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, cases),
+        } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, &cases),
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
@@ -1216,7 +1216,7 @@ fn infer_ind_elim(
     indspec: InductiveId,
     elim: Exp,
     return_type: Exp,
-    cases: Vec<Exp>,
+    cases: &[Exp],
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
     let inferred = add_infer!(session, rule, phase, elim, "infer eliminator type")?;
@@ -1248,7 +1248,7 @@ fn infer_ind_elim(
         arena,
         indspec,
         spec,
-        parameters.clone(),
+        &parameters,
         sort,
     );
     let current_kind = utils::assoc_prod(arena, telescope, arena.sort(sort));

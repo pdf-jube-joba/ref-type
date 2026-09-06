@@ -122,13 +122,13 @@ impl InductiveTypeSpecs {
         arena: &Arena,
         inductive: InductiveId,
         indspec: &Self,
-        parameters: Vec<Exp>,
+        parameters: &[Exp],
         sort: Sort,
     ) -> Exp {
-        let indices = indspec.instantiate_indices(arena, &parameters);
+        let indices = indspec.instantiate_indices(arena, parameters);
         let this = arena.alloc(ExpNode::IndType {
             indspec: inductive,
-            parameters,
+            parameters: parameters.to_vec(),
         });
         let index_arguments = bound_arguments(arena, indices.len());
         let shifted_this = shift_bound_indices(arena, this, indices.len(), 0);
@@ -337,16 +337,16 @@ impl InductiveTypeSpecs {
         arena: &Arena,
         inductive: InductiveId,
         indspec: &Self,
-        parameters: Vec<Exp>,
+        parameters: &[Exp],
         sort: Sort,
     ) -> Exp {
         let this = arena.alloc(ExpNode::IndType {
             indspec: inductive,
-            parameters: parameters.clone(),
+            parameters: parameters.to_vec(),
         });
         let mut telescope = vec![];
         let q = SymbolId::ANONYMOUS;
-        let q_ty = Self::return_type_kind(arena, inductive, indspec, parameters.clone(), sort);
+        let q_ty = Self::return_type_kind(arena, inductive, indspec, parameters, sort);
         telescope.push((q, q_ty));
 
         let mut cases = vec![];
@@ -377,7 +377,7 @@ impl InductiveTypeSpecs {
         }
 
         let c = SymbolId::ANONYMOUS;
-        let indices = indspec.instantiate_indices(arena, &parameters);
+        let indices = indspec.instantiate_indices(arena, parameters);
         let case_count = indspec.constructor_len();
         let index_arguments = bound_arguments(arena, indices.len());
         let shifted_this = shift_bound_indices(arena, this, telescope.len() + indices.len(), 0);

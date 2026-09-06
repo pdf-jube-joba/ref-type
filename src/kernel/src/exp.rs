@@ -336,6 +336,46 @@ impl Arena {
         handle.get(self)
     }
 
+    pub(crate) fn reuse_value_type(&self, original: ValueType, node: ValueTypeNode) -> ValueType {
+        if self.value_types.borrow()[original.index()] == node {
+            original
+        } else {
+            self.alloc(node)
+        }
+    }
+
+    pub(crate) fn reuse_computation_type(
+        &self,
+        original: ComputationType,
+        node: ComputationTypeNode,
+    ) -> ComputationType {
+        if self.computation_types.borrow()[original.index()] == node {
+            original
+        } else {
+            self.alloc(node)
+        }
+    }
+
+    pub(crate) fn reuse_value(&self, original: Value, node: ValueNode) -> Value {
+        if self.values.borrow()[original.index()] == node {
+            original
+        } else {
+            self.alloc(node)
+        }
+    }
+
+    pub(crate) fn reuse_computation(
+        &self,
+        original: Computation,
+        node: ComputationNode,
+    ) -> Computation {
+        if self.computations.borrow()[original.index()] == node {
+            original
+        } else {
+            self.alloc(node)
+        }
+    }
+
     pub fn sort(&self, sort: Sort) -> Exp {
         self.alloc(ExpNode::Sort(sort))
     }

@@ -90,13 +90,12 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
 }
 
 // ---- 共通処理 ---------------------------------------------
-fn parse_and_format(src: String) -> (Vec<Log>, Option<String>) {
-    let parsed = front::parse::str_parse_modules(&src);
+fn parse_and_format(src: &str) -> (Vec<Log>, Option<String>) {
+    let parsed = front::parse::str_parse_modules(src);
     let modules = match parsed {
         Ok(modules) => modules,
         Err(e) => {
-            let msg = format!("Parse Error: {}\n", e);
-            return (vec![Log::Message(msg.clone())], Some(msg));
+            return (Vec::new(), Some(format!("Parse Error: {e}")));
         }
     };
 
@@ -108,17 +107,15 @@ fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<Log>, Optio
     let mut logs: Vec<Log> = vec![];
     for module in modules {
         match global.add_new_module_to_root(&module) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(err) => {
                 let detail = match &err {
                     front::metavariables::ElaborationError::AmbiguousImplicit(_)
                     | front::metavariables::ElaborationError::UnsolvedGoals(_) => err.to_string(),
                     _ => front::metavariables::format_elaboration_error(global.crate_env(), &err),
                 };
-                let msg = format!("Elaboration Error: {detail}\n");
-                logs.push(Log::Message(msg.clone()));
                 push_internal_logs(&global, &mut logs);
-                return (logs, Some(msg));
+                return (logs, Some(format!("Elaboration Error: {detail}")));
             }
         }
     }
@@ -140,10 +137,7 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
             .await?;
     let (out, err_message) = match loaded {
         Ok(modules) => tokio::task::spawn_blocking(move || elaborate_and_format(modules)).await?,
-        Err(error) => {
-            let message = format!("Module Load Error: {}\n", error);
-            (vec![Log::Message(message.clone())], Some(message))
-        }
+        Err(error) => (Vec::new(), Some(format!("Module Load Error: {error}"))),
     };
     for entry in out {
         match entry {
@@ -153,8 +147,7 @@ async fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
         }
     }
     if let Some(msg) = &err_message {
-        let trimmed = msg.trim_end_matches('\n');
-        eprintln!("\x1b[31m{}\x1b[0m", trimmed);
+        eprintln!("\x1b[31m{msg}\x1b[0m");
     }
     Ok(err_message)
 }
@@ -173,8 +166,7 @@ async fn run_serve_mode(port: u16) -> anyhow::Result<()> {
 
 async fn run_api(Json(req): Json<Req>) -> Json<Resp> {
     // 重いなら spawn_blocking(move || heavy(req.text)) を使う
-    let content = req.text;
-    let (out, err) = parse_and_format(content);
+    let (out, err) = parse_and_format(&req.text);
     Json(Resp {
         result: out,
         error: err,

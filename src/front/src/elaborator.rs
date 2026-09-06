@@ -212,7 +212,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         expression: &SExp,
     ) -> Result<kernel::program::ProgramType, String> {
-        let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+        let mut scope = program_term_elaborator::ProgramScope::new();
         if let Ok(value_ty) = ValueTypeExp::try_from(expression.clone()) {
             return scope
                 .elaborate_value_type(&value_ty, self)
@@ -229,7 +229,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         expression: &SExp,
         ty: kernel::program::ProgramType,
     ) -> Result<kernel::program::Program, String> {
-        let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+        let mut scope = program_term_elaborator::ProgramScope::new();
         match ty {
             kernel::program::ProgramType::Value(_) => {
                 let value = ValueExp::try_from(expression.clone())?;
@@ -747,7 +747,7 @@ impl GlobalEnvironment {
                 indspec: inductive,
                 parameters: Vec::new(),
             });
-        let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+        let mut scope = program_term_elaborator::ProgramScope::new();
         scope.bind_value_type_name(type_name_symbol, self_ty);
 
         let mut parameter_names = Vec::new();
@@ -929,7 +929,7 @@ impl GlobalEnvironment {
             let mut parameter_position = 0_u32;
 
             let mut local_scope = term_elaborator::LocalScope::default();
-            let mut program_scope = program_term_elaborator::ProgramScope::from_environment(self);
+            let mut program_scope = program_term_elaborator::ProgramScope::new();
 
             for RightBind { vars, ty } in parameters.iter() {
                 let parameter_kind = if matches!(ty.as_ref(), SExp::ValueType) {
@@ -995,8 +995,7 @@ impl GlobalEnvironment {
                         | ModuleParameterKind::ProgramValue { .. } => {
                             // The parameter was just published, so rebuild the
                             // scope and resolve it through its stable module ID.
-                            program_scope =
-                                program_term_elaborator::ProgramScope::from_environment(self);
+                            program_scope = program_term_elaborator::ProgramScope::new();
                         }
                     }
                 }
@@ -1123,7 +1122,7 @@ impl GlobalEnvironment {
                     if !binders.is_empty() {
                         return Err("Program definitions do not use Set/Prop product binders; use module parameters or Program computation lambdas".into());
                     }
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let body = scope.elaborate_value(body, self)?;
                     let (body, ty) = scope.check_value_with_metas(self, body, ty)?;
@@ -1157,7 +1156,7 @@ impl GlobalEnvironment {
                     if !binders.is_empty() {
                         return Err("Program definitions do not use Set/Prop product binders; use module parameters or Program computation lambdas".into());
                     }
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let body = scope.elaborate_computation(body, self)?;
                     let (body, ty) = scope.check_computation_with_metas(self, body, ty)?;
@@ -1501,8 +1500,7 @@ impl GlobalEnvironment {
                         self.crate_env.root_module()
                     };
                     let mut program_substitutions = Vec::new();
-                    let mut program_scope =
-                        program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut program_scope = program_term_elaborator::ProgramScope::new();
                     let mut args = Vec::with_capacity(calls.len());
                     for (child_name, supplied) in calls.iter() {
                         let child = self
@@ -1659,12 +1657,7 @@ impl GlobalEnvironment {
                             &mut ctx, exp_elab, judgement, &evidence,
                         )?;
                     }
-                    self.logger.reduce_one(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut ctx,
-                        exp_elab,
-                    );
+                    self.logger.reduce_one(&self.crate_env, exp_elab);
                 }
                 ModuleItem::Normalize { exp, proof } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
@@ -1688,15 +1681,10 @@ impl GlobalEnvironment {
                             &mut ctx, exp_elab, judgement, &evidence,
                         )?;
                     }
-                    self.logger.normalize(
-                        &self.crate_env,
-                        self.module_manager.current(),
-                        &mut ctx,
-                        exp_elab,
-                    );
+                    self.logger.normalize(&self.crate_env, exp_elab);
                 }
                 ModuleItem::ValueEval { exp } | ModuleItem::ValueNormalize { exp } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let value = scope.elaborate_value(exp, self)?;
                     let value = if scope.has_metas() {
                         scope.infer_value_with_metas(self, value)?.0
@@ -1711,7 +1699,7 @@ impl GlobalEnvironment {
                     );
                 }
                 ModuleItem::ComputationEval { exp } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
                     let computation = if scope.has_metas() {
                         scope.infer_computation_with_metas(self, computation)?.0
@@ -1737,7 +1725,7 @@ impl GlobalEnvironment {
                     );
                 }
                 ModuleItem::ComputationNormalize { exp } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
                     let computation = if scope.has_metas() {
                         scope.infer_computation_with_metas(self, computation)?.0
@@ -1748,7 +1736,7 @@ impl GlobalEnvironment {
                         .evaluate_computation(&self.crate_env, computation);
                 }
                 ModuleItem::ValueCheck { exp, ty } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let value = scope.elaborate_value(exp, self)?;
                     let (value, ty) = scope.check_value_with_metas(self, value, ty)?;
@@ -1764,7 +1752,7 @@ impl GlobalEnvironment {
                     );
                 }
                 ModuleItem::ComputationCheck { exp, ty } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let computation = scope.elaborate_computation(exp, self)?;
                     let (computation, ty) =
@@ -1781,10 +1769,9 @@ impl GlobalEnvironment {
                     );
                 }
                 ModuleItem::ValueInfer { exp } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let value = scope.elaborate_value(exp, self)?;
-                    let (value, ty) = scope.infer_value_with_metas(self, value)?;
-                    let _ = value;
+                    let (_, ty) = scope.infer_value_with_metas(self, value)?;
                     self.logger.record(
                         LogLevel::Debug,
                         vec!["program infer".into()],
@@ -1793,11 +1780,9 @@ impl GlobalEnvironment {
                     );
                 }
                 ModuleItem::ComputationInfer { exp } => {
-                    let mut scope = program_term_elaborator::ProgramScope::from_environment(self);
+                    let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
-                    let (computation, ty) =
-                        scope.infer_computation_with_metas(self, computation)?;
-                    let _ = computation;
+                    let (_, ty) = scope.infer_computation_with_metas(self, computation)?;
                     self.logger.record(
                         LogLevel::Debug,
                         vec!["program infer".into()],

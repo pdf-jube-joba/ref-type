@@ -7,7 +7,8 @@ use crate::{
     ids::SymbolId,
     program::*,
     program_calculus::{
-        computation_type_is_alpha_eq, shift_value_type_indices, value_type_is_alpha_eq,
+        computation_type_is_alpha_eq, shift_value_type_indices, strengthen_computation_type,
+        value_type_is_alpha_eq,
     },
 };
 
@@ -493,64 +494,17 @@ pub fn infer_computation(
     }
 }
 
-fn remove_context_entry_from_value_type(
-    arena: &Arena,
-    ty: ValueType,
-    target: usize,
-) -> Result<ValueType, Box<JudgementError>> {
-    Ok(match arena.get(ty) {
-        ValueTypeNode::Bound(index) if index == target => {
-            return Err(failure(
-                "ProgramContext",
-                "strengthening",
-                "a Program type depends on a value binder",
-            ));
-        }
-        ValueTypeNode::Bound(index) if index > target => arena.value_type_bound(index - 1),
-        ValueTypeNode::Thunk { computation_ty } => arena.alloc(ValueTypeNode::Thunk {
-            computation_ty: remove_context_entry_from_computation_type(
-                arena,
-                computation_ty,
-                target,
-            )?,
-        }),
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => arena.alloc(ValueTypeNode::RunStep {
-            state_ty: remove_context_entry_from_value_type(arena, state_ty, target)?,
-            result_ty: remove_context_entry_from_value_type(arena, result_ty, target)?,
-        }),
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => arena.alloc(ValueTypeNode::Inductive {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|parameter| remove_context_entry_from_value_type(arena, parameter, target))
-                .collect::<Result<_, _>>()?,
-        }),
-        node => arena.alloc(node),
-    })
-}
-
 fn remove_context_entry_from_computation_type(
     arena: &Arena,
     ty: ComputationType,
     target: usize,
 ) -> Result<ComputationType, Box<JudgementError>> {
-    Ok(match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.alloc(ComputationTypeNode::Return {
-            value_ty: remove_context_entry_from_value_type(arena, value_ty, target)?,
-        }),
-        ComputationTypeNode::Function { domain, codomain } => {
-            arena.alloc(ComputationTypeNode::Function {
-                domain: remove_context_entry_from_value_type(arena, domain, target)?,
-                codomain: remove_context_entry_from_computation_type(arena, codomain, target)?,
-            })
-        }
-        node => arena.alloc(node),
+    strengthen_computation_type(arena, ty, target).ok_or_else(|| {
+        failure(
+            "ProgramContext",
+            "strengthening",
+            "a Program type depends on a value binder",
+        )
     })
 }
 
