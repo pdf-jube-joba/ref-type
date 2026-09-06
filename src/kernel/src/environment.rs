@@ -20,10 +20,12 @@ pub enum DefinedConstant {
     ProgramValue {
         ty: ValueType,
         body: Value,
+        certified_reflection: Option<Exp>,
     },
     ProgramComputation {
         ty: ComputationType,
         body: Computation,
+        certified_reflection: Option<Exp>,
     },
 }
 

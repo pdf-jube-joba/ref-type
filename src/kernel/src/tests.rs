@@ -61,9 +61,12 @@ fn boxed_program_types_compare_structurally() {
         }),
         output,
     });
+    let certified_reflection = crate::reflection::reflect_value(&env, &Vec::new(), program)
+        .expect("run-free Program values reflect without a certificate");
     let boxed = arena.alloc(ExpNode::BoxProgram {
         program_ty: ProgramType::Value(left_state),
         program: Program::Value(program),
+        certified_reflection,
     });
     let forced = arena.alloc(ExpNode::ForceBox {
         program_ty: ProgramType::Value(right_state),

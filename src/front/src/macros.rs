@@ -239,7 +239,6 @@ fn alpha_rename(
         | SExp::Return { value: base }
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
-        | SExp::Proof { proposition: base }
         | SExp::BoxType { program_ty: base }
         | SExp::IdRefl { element: base } => alpha_rename(base, order, counter, scopes),
         SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
@@ -561,13 +560,25 @@ fn alpha_rename(
             result_ty,
             step,
             initial,
-        }
-        | SExp::PRun {
+            accessibility,
+        } => alpha_many(
+            [state_ty, result_ty, step, initial, accessibility],
+            order,
+            counter,
+            scopes,
+        ),
+        SExp::PRun {
             state_ty,
             result_ty,
             step,
             initial,
-        } => alpha_many([state_ty, result_ty, step, initial], order, counter, scopes),
+            accessibility,
+        } => {
+            alpha_many([state_ty, result_ty, step, initial], order, counter, scopes);
+            if let Some(proof) = accessibility {
+                alpha_rename(proof, order, counter, scopes);
+            }
+        }
         SExp::AccIntro {
             state_ty,
             result_ty,
@@ -586,19 +597,44 @@ fn alpha_rename(
             step,
             initial,
             transition,
-        }
-        | SExp::PRunCase {
+            accessibility,
+            transition_equality,
+        } => alpha_many(
+            [
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+            ],
+            order,
+            counter,
+            scopes,
+        ),
+        SExp::PRunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => alpha_many(
-            [state_ty, result_ty, step, initial, transition],
-            order,
-            counter,
-            scopes,
-        ),
+            accessibility,
+            transition_equality,
+        } => {
+            alpha_many(
+                [state_ty, result_ty, step, initial, transition],
+                order,
+                counter,
+                scopes,
+            );
+            if let Some(proof) = accessibility {
+                alpha_rename(proof, order, counter, scopes);
+            }
+            if let Some(proof) = transition_equality {
+                alpha_rename(proof, order, counter, scopes);
+            }
+        }
         SExp::RunStepRec {
             state_ty,
             result_ty,
@@ -1115,7 +1151,6 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
         | SExp::Return { value: base }
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
-        | SExp::Proof { proposition: base }
         | SExp::BoxType { program_ty: base }
         | SExp::IdRefl { element: base } => walk_sexp_mut(base, action),
         SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
@@ -1278,27 +1313,57 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
             result_ty,
             step,
             initial,
-        }
-        | SExp::PRun {
+            accessibility,
+        } => walk_many_mut([state_ty, result_ty, step, initial, accessibility], action),
+        SExp::PRun {
             state_ty,
             result_ty,
             step,
             initial,
-        } => walk_many_mut([state_ty, result_ty, step, initial], action),
+            accessibility,
+        } => {
+            walk_many_mut([state_ty, result_ty, step, initial], action);
+            if let Some(proof) = accessibility {
+                walk_sexp_mut(proof, action);
+            }
+        }
         SExp::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        }
-        | SExp::PRunCase {
+            accessibility,
+            transition_equality,
+        } => walk_many_mut(
+            [
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+            ],
+            action,
+        ),
+        SExp::PRunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => walk_many_mut([state_ty, result_ty, step, initial, transition], action),
+            accessibility,
+            transition_equality,
+        } => {
+            walk_many_mut([state_ty, result_ty, step, initial, transition], action);
+            if let Some(proof) = accessibility {
+                walk_sexp_mut(proof, action);
+            }
+            if let Some(proof) = transition_equality {
+                walk_sexp_mut(proof, action);
+            }
+        }
         SExp::RunStepRec {
             state_ty,
             result_ty,

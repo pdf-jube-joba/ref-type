@@ -166,7 +166,6 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(step),
             child(state)
         ),
-        ExpNode::Proof { proposition } => format!("\\Proof {}", child(proposition)),
         ExpNode::RunStepRec {
             state_ty,
             result_ty,
@@ -188,12 +187,14 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             result_ty,
             step,
             initial,
+            accessibility,
         } => format!(
-            "\\run({}, {}, {}, {})",
+            "\\run({}, {}, {}, {}) \\by {}",
             child(state_ty),
             child(result_ty),
             child(step),
-            child(initial)
+            child(initial),
+            child(accessibility)
         ),
         ExpNode::SetRunCase {
             state_ty,
@@ -201,13 +202,17 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => format!(
-            "\\runCase({}, {}, {}, {}, {})",
+            "\\runCase({}, {}, {}, {}, {}) \\by ({}, {})",
             child(state_ty),
             child(result_ty),
             child(step),
             child(initial),
-            child(transition)
+            child(transition),
+            child(accessibility),
+            child(transition_equality)
         ),
         ExpNode::BoxType { program_ty } => {
             format!("\\Box({})", format_program_type(env, program_ty))
@@ -215,10 +220,12 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         ExpNode::BoxProgram {
             program_ty,
             program,
+            certified_reflection,
         } => format!(
-            "\\box({}, {})",
+            "\\box({}, {}) \\by {}",
             format_program_type(env, program_ty),
-            format_program(env, program)
+            format_program(env, program),
+            child(certified_reflection)
         ),
         ExpNode::ForceBox { program_ty, boxed } => {
             format!(

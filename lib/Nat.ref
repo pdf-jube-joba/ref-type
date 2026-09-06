@@ -36,17 +36,6 @@
 
 /* Program run is intentionally partial; totality is required only when a
  * computation crosses into Set through a box. */
-\cdefinition add:
-  \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
-  \clam(left, Nat,
-    \return(\thunk(\clam(right, Nat,
-      \Prun(
-        AddState,
-        Nat,
-        addStep,
-        AddState::running left right)))));
-
-
 /* Set specifications and the termination certificate for the Program above. */
 \definition addStepSet: AddState -> \RunStep(AddState, Nat) :=
   \Force(\U(\CFun(AddState, \F(\PRunStep(AddState, Nat)))),
@@ -77,13 +66,16 @@
     ((n: Nat) => (ih: (a: Nat) -> \Acc(AddState, Nat, addStepSet, AddState::running a n)) =>
       (a: Nat) => addAccIntro (AddState::running a (Nat::succ n)) (ih (Nat::succ a)));
 
+\cdefinition add:
+  \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+  \clam(left, Nat,
+    \return(\thunk(\clam(right, Nat,
+      \Prun(AddState, Nat, addStep, AddState::running left right)
+        \by addTerminates right left))));
+
 \definition addSet: Nat -> Nat -> Nat :=
   \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
-    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), add))
-  proof {
-    - goal (left, right: Nat):
-        \Acc(AddState, Nat, addStepSet, AddState::running left right) := addTerminates right left;
-  };
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), add));
 
 \definition addPrec: Nat -> Nat -> Nat :=
   (a, b: Nat) => \prec(\Set, Nat) ((n: Nat) => Nat)
@@ -140,8 +132,6 @@
       };
     };
   }));
-\cdefinition sub: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
-  \Prun(SubState, Nat, subStep, SubState::running a b)))));
 \definition subStepSet: SubState -> \RunStep(SubState, Nat) := \Force(\U(\CFun(SubState, \F(\PRunStep(SubState,
   Nat)))), \box(\U(\CFun(SubState, \F(\PRunStep(SubState, Nat)))), subStep));
 \definition subReady: \RunStep(SubState, Nat) -> \Prop :=
@@ -167,10 +157,10 @@
         (subAccIntro (SubState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
         ((j: Nat) => (unused: \Acc(SubState, Nat, subStepSet, SubState::running (j) (Nat::succ k))) =>
           subAccIntro (SubState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\cdefinition sub: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(SubState, Nat, subStep, SubState::running a b) \by subTerminates b a))));
 \definition subSet: Nat -> Nat -> Nat := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), \box(\CFun(Nat,
-  \F(\U(\CFun(Nat, \F(Nat))))), sub))
-  proof { - goal (a, b: Nat): \Acc(SubState, Nat, subStepSet, SubState::running (a) (b)) := subTerminates b a;
-    };
+  \F(\U(\CFun(Nat, \F(Nat))))), sub));
 \definition subPrec: Nat -> Nat -> Nat := (a, b: Nat) =>
   \prec(\Set, Nat) ((b: Nat) => Nat -> Nat)
     ((a: Nat) => a)
@@ -201,8 +191,6 @@
       };
     };
   }));
-\cdefinition eqb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
-  \Prun(EqbState, B.Bool, eqbStep, EqbState::running a b)))));
 \definition eqbStepSet: EqbState -> \RunStep(EqbState, B.Bool) := \Force(\U(\CFun(EqbState,
   \F(\PRunStep(EqbState, B.Bool)))), \box(\U(\CFun(EqbState, \F(\PRunStep(EqbState, B.Bool)))), eqbStep));
 \definition eqbReady: \RunStep(EqbState, B.Bool) -> \Prop :=
@@ -228,10 +216,10 @@
         (eqbAccIntro (EqbState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
         ((j: Nat) => (unused: \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (j) (Nat::succ k))) =>
           eqbAccIntro (EqbState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\cdefinition eqb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(EqbState, B.Bool, eqbStep, EqbState::running a b) \by eqbTerminates b a))));
 \definition eqbSet: Nat -> Nat -> B.Bool := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))), \box(\CFun(Nat,
-  \F(\U(\CFun(Nat, \F(B.Bool))))), eqb))
-  proof { - goal (a, b: Nat): \Acc(EqbState, B.Bool, eqbStepSet, EqbState::running (a) (b)) := eqbTerminates b
-    a; };
+  \F(\U(\CFun(Nat, \F(B.Bool))))), eqb));
 \definition eqbPrec: Nat -> Nat -> B.Bool := (a, b: Nat) =>
   \prec(\Set, Nat) ((b: Nat) => Nat -> B.Bool)
     ((a: Nat) => isZeroSet a)
@@ -262,8 +250,6 @@
       };
     };
   }));
-\cdefinition leb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
-  \Prun(LebState, B.Bool, lebStep, LebState::running a b)))));
 \definition lebStepSet: LebState -> \RunStep(LebState, B.Bool) := \Force(\U(\CFun(LebState,
   \F(\PRunStep(LebState, B.Bool)))), \box(\U(\CFun(LebState, \F(\PRunStep(LebState, B.Bool)))), lebStep));
 \definition lebReady: \RunStep(LebState, B.Bool) -> \Prop :=
@@ -289,10 +275,10 @@
         (lebAccIntro (LebState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
         ((j: Nat) => (unused: \Acc(LebState, B.Bool, lebStepSet, LebState::running (j) (Nat::succ k))) =>
           lebAccIntro (LebState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\cdefinition leb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(LebState, B.Bool, lebStep, LebState::running a b) \by lebTerminates b a))));
 \definition lebSet: Nat -> Nat -> B.Bool := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))), \box(\CFun(Nat,
-  \F(\U(\CFun(Nat, \F(B.Bool))))), leb))
-  proof { - goal (a, b: Nat): \Acc(LebState, B.Bool, lebStepSet, LebState::running (a) (b)) := lebTerminates b
-    a; };
+  \F(\U(\CFun(Nat, \F(B.Bool))))), leb));
 \definition lebPrec: Nat -> Nat -> B.Bool := (a, b: Nat) =>
   \prec(\Set, Nat) ((b: Nat) => Nat -> B.Bool)
     ((a: Nat) => isZeroSet a)
@@ -322,8 +308,6 @@
       };
     };
   }));
-\cdefinition ltb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
-  \Prun(LtbState, B.Bool, ltbStep, LtbState::running a b)))));
 \definition ltbStepSet: LtbState -> \RunStep(LtbState, B.Bool) := \Force(\U(\CFun(LtbState,
   \F(\PRunStep(LtbState, B.Bool)))), \box(\U(\CFun(LtbState, \F(\PRunStep(LtbState, B.Bool)))), ltbStep));
 \definition ltbReady: \RunStep(LtbState, B.Bool) -> \Prop :=
@@ -349,10 +333,10 @@
         (ltbAccIntro (LtbState::running Nat::zero (Nat::succ k)) (\refl(Nat::zero)))
         ((j: Nat) => (unused: \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (j) (Nat::succ k))) =>
           ltbAccIntro (LtbState::running (Nat::succ j) (Nat::succ k)) (ih j)));
+\cdefinition ltb: \CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+  \Prun(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a))));
 \definition ltbSet: Nat -> Nat -> B.Bool := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(B.Bool))))), \box(\CFun(Nat,
-  \F(\U(\CFun(Nat, \F(B.Bool))))), ltb))
-  proof { - goal (a, b: Nat): \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running (a) (b)) := ltbTerminates b
-    a; };
+  \F(\U(\CFun(Nat, \F(B.Bool))))), ltb));
 \definition ltbPrec: Nat -> Nat -> B.Bool := (a, b: Nat) =>
   \prec(\Set, Nat) ((b: Nat) => Nat -> B.Bool)
     ((a: Nat) => B.Bool::false)
@@ -382,10 +366,6 @@
         \return(\Pcontinue(IterState, Nat, IterState::running f next k)));
     };
   }));
-\cdefinition iter:
-  \CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))) :=
-  \clam(f, \U(\CFun(Nat, \F(Nat))), \return(\thunk(\clam(value, Nat,
-    \return(\thunk(\clam(count, Nat, \Prun(IterState, Nat, iterStep, IterState::running f value count))))))));
 \definition iterStepSet: IterState -> \RunStep(IterState, Nat) :=
   \Force(\U(\CFun(IterState, \F(\PRunStep(IterState, Nat)))),
     \box(\U(\CFun(IterState, \F(\PRunStep(IterState, Nat)))), iterStep));
@@ -411,13 +391,15 @@
       \Acc(IterState, Nat, iterStepSet, IterState::running f value k)) =>
       (f: Nat -> Nat) => (value: Nat) =>
         iterAccIntro (IterState::running f value (Nat::succ k)) (ih f (f value)));
+\cdefinition iter:
+  \CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))) :=
+  \clam(f, \U(\CFun(Nat, \F(Nat))), \return(\thunk(\clam(value, Nat,
+    \return(\thunk(\clam(count, Nat,
+      \Prun(IterState, Nat, iterStep, IterState::running f value count)
+        \by iterTerminates count f value)))))));
 \definition iterSet: (Nat -> Nat) -> Nat -> Nat -> Nat :=
   \Force(\CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))),
-    \box(\CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))), iter))
-  proof {
-    - goal (f: Nat -> Nat) (value, count: Nat):
-      \Acc(IterState, Nat, iterStepSet, IterState::running f value count) := iterTerminates count f value;
-  };
+    \box(\CFun(\U(\CFun(Nat, \F(Nat))), \F(\U(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat)))))))), iter));
 \definition iterPrec: (Nat -> Nat) -> Nat -> Nat -> Nat :=
   (f: Nat -> Nat) => (value, count: Nat) =>
     \prec(\Set, Nat) ((n: Nat) => Nat) value ((k: Nat) => (previous: Nat) => f previous) count;
@@ -445,17 +427,12 @@
 \cdefinition mul: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
   \clam(a, Nat, \return(\thunk(\clam(b, Nat,
     \Prun(IterState, Nat, iterStep, IterState::running
-      \thunk(\clam(current, Nat, \Prun(AddState, Nat, addStep, AddState::running a current)))
-      Nat::zero b)))));
+      \thunk(\clam(current, Nat, \Prun(AddState, Nat, addStep, AddState::running a current)
+        \by addTerminates current a))
+      Nat::zero b) \by iterTerminates b (addSet a) Nat::zero))));
 \definition mulSet: Nat -> Nat -> Nat :=
   \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
-    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), mul))
-  proof {
-    - goal (a, b, current: Nat): \Acc(AddState, Nat, addStepSet, AddState::running a current) := addTerminates
-      current a;
-    - goal (a, b: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running (addSet a) Nat::zero b) :=
-      iterTerminates b (addSet a) Nat::zero;
-  };
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), mul));
 \definition mulPrec: Nat -> Nat -> Nat :=
   (a, b: Nat) => iterPrec (addSet a) Nat::zero b;
 \definition mulMatchesPrec: (a, b: Nat) -> mulSet a b = mulPrec a b :=
@@ -466,22 +443,13 @@
     \Prun(IterState, Nat, iterStep, IterState::running
       \thunk(\clam(current, Nat,
         \Prun(IterState, Nat, iterStep, IterState::running
-          \thunk(\clam(next, Nat, \Prun(AddState, Nat, addStep, AddState::running a next)))
-          Nat::zero current)))
-      one b)))));
+          \thunk(\clam(next, Nat, \Prun(AddState, Nat, addStep, AddState::running a next)
+            \by addTerminates next a))
+          Nat::zero current) \by iterTerminates current (addSet a) Nat::zero))
+      one b) \by iterTerminates b (mulSet a) (Nat::succ Nat::zero)))));
 \definition powSet: Nat -> Nat -> Nat :=
   \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
-    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), pow))
-  proof {
-    - goal (a, b, current, next: Nat): \Acc(AddState, Nat, addStepSet, AddState::running a next) :=
-      addTerminates next a;
-    - goal (a, b, current: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running (addSet a) Nat::zero
-      current) :=
-      iterTerminates current (addSet a) Nat::zero;
-    - goal (a, b: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running (mulSet a) (Nat::succ Nat::zero) b)
-      :=
-      iterTerminates b (mulSet a) (Nat::succ Nat::zero);
-  };
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), pow));
 \definition powPrec: Nat -> Nat -> Nat := (a, b: Nat) => iterPrec (mulSet a) (Nat::succ Nat::zero) b;
 \definition powMatchesPrec: (a, b: Nat) -> powSet a b = powPrec a b :=
   (a, b: Nat) => iterMatchesPrec (mulSet a) b (Nat::succ Nat::zero);
@@ -577,11 +545,10 @@
     ((yes, no: Nat) => \refl(no)) ((yes, no: Nat) => \refl(yes));
 
 \cdefinition min: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
-  \sequence(\Prun(LtbState, B.Bool, ltbStep, LtbState::running a b), test, B.Bool,
+  \sequence(\Prun(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a, test, B.Bool,
     \vcase(B.Bool, test) { | false() => \return(b); | true() => \return(a); })))));
 \definition minSet: Nat -> Nat -> Nat := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), \box(\CFun(Nat,
-  \F(\U(\CFun(Nat, \F(Nat))))), min))
-  proof { - goal (a, b: Nat): \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running a b) := ltbTerminates b a; };
+  \F(\U(\CFun(Nat, \F(Nat))))), min));
 \definition minPrec: Nat -> Nat -> Nat := (a, b: Nat) => choosePrec (ltbPrec a b) a b;
 \definition minMatchesPrec: (a, b: Nat) -> minSet a b = minPrec a b :=
   (a, b: Nat) =>
@@ -590,11 +557,10 @@
     \by (chooseMatchesPrec (ltbSet a b) a b, ltbMatchesPrec b a);
 
 \cdefinition max: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) := \clam(a, Nat, \return(\thunk(\clam(b, Nat,
-  \sequence(\Prun(LtbState, B.Bool, ltbStep, LtbState::running a b), test, B.Bool,
+  \sequence(\Prun(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a, test, B.Bool,
     \vcase(B.Bool, test) { | false() => \return(a); | true() => \return(b); })))));
 \definition maxSet: Nat -> Nat -> Nat := \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), \box(\CFun(Nat,
-  \F(\U(\CFun(Nat, \F(Nat))))), max))
-  proof { - goal (a, b: Nat): \Acc(LtbState, B.Bool, ltbStepSet, LtbState::running a b) := ltbTerminates b a; };
+  \F(\U(\CFun(Nat, \F(Nat))))), max));
 \definition maxPrec: Nat -> Nat -> Nat := (a, b: Nat) => choosePrec (ltbPrec a b) b a;
 \definition maxMatchesPrec: (a, b: Nat) -> maxSet a b = maxPrec a b :=
   (a, b: Nat) =>
@@ -612,11 +578,10 @@
     (\refl(Nat::succ Nat::zero)) ((k: Nat) => (ih: toggleSet k = togglePrec k) => \refl(Nat::zero));
 
 \cdefinition even: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
-  \sequence(\Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n), parity, Nat,
+  \sequence(\Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n)
+    \by iterTerminates n toggleSet Nat::zero, parity, Nat,
     \vcase(Nat, parity) { | zero() => \return(B.Bool::true); | succ(k) => \return(B.Bool::false); }));
-\definition evenSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), even))
-  proof { - goal (n: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running toggleSet Nat::zero n) :=
-    iterTerminates n toggleSet Nat::zero; };
+\definition evenSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), even));
 \definition evenResult: Nat -> B.Bool := (n: Nat) =>
   \prec(\Set, Nat) ((n: Nat) => B.Bool) B.Bool::true ((k: Nat) => (ih: B.Bool) => B.Bool::false) n;
 \cdefinition evenTest: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
@@ -634,11 +599,10 @@
     eqSym _ _ (iterMatchesPrec toggleSet n Nat::zero));
 
 \cdefinition odd: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,
-  \sequence(\Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n), parity, Nat,
+  \sequence(\Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n)
+    \by iterTerminates n toggleSet Nat::zero, parity, Nat,
     \vcase(Nat, parity) { | zero() => \return(B.Bool::false); | succ(k) => \return(B.Bool::true); }));
-\definition oddSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), odd))
-  proof { - goal (n: Nat): \Acc(IterState, Nat, iterStepSet, IterState::running toggleSet Nat::zero n) :=
-    iterTerminates n toggleSet Nat::zero; };
+\definition oddSet: Nat -> B.Bool := \Force(\CFun(Nat, \F(B.Bool)), \box(\CFun(Nat, \F(B.Bool)), odd));
 \definition oddResult: Nat -> B.Bool := (n: Nat) =>
   \prec(\Set, Nat) ((n: Nat) => B.Bool) B.Bool::false ((k: Nat) => (ih: B.Bool) => B.Bool::true) n;
 \cdefinition oddTest: \CFun(Nat, \F(B.Bool)) := \clam(n, Nat,

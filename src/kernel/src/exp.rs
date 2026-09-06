@@ -162,9 +162,6 @@ pub enum ExpNode {
         result_ty: Exp,
         output: Exp,
     },
-    Proof {
-        proposition: Exp,
-    },
     Acc {
         state_ty: Exp,
         result_ty: Exp,
@@ -184,6 +181,7 @@ pub enum ExpNode {
         result_ty: Exp,
         step: Exp,
         initial: Exp,
+        accessibility: Exp,
     },
     SetRunCase {
         state_ty: Exp,
@@ -191,6 +189,8 @@ pub enum ExpNode {
         step: Exp,
         initial: Exp,
         transition: Exp,
+        accessibility: Exp,
+        transition_equality: Exp,
     },
     BoxType {
         program_ty: ProgramType,
@@ -198,6 +198,7 @@ pub enum ExpNode {
     BoxProgram {
         program_ty: ProgramType,
         program: Program,
+        certified_reflection: Exp,
     },
     ForceBox {
         program_ty: ProgramType,
@@ -251,20 +252,6 @@ pub enum ExpNode {
         map: Exp,
         existence: Exp,
     },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProofObligation {
-    pub context: ExpContext,
-    pub proposition: Exp,
-    pub rule: &'static str,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProofEvidence {
-    pub context: ExpContext,
-    pub proposition: Exp,
-    pub witness: Exp,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

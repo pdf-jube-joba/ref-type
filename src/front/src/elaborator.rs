@@ -19,7 +19,6 @@ use kernel::{
     program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
     sort::Sort,
 };
-use std::cell::RefCell;
 
 pub mod module_manager;
 pub mod program_term_elaborator;
@@ -213,20 +212,23 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         expression: &SExp,
         ty: kernel::program::ProgramType,
-    ) -> Result<kernel::program::Program, String> {
+    ) -> Result<(kernel::program::Program, Option<Exp>), String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         match ty {
             kernel::program::ProgramType::Value(_) => {
                 let value = ValueExp::try_from(expression.clone())?;
-                scope
-                    .elaborate_value(&value, self)
-                    .map(kernel::program::Program::Value)
+                let value = scope.elaborate_value(&value, self)?;
+                let certificate = scope.certified_value(self, value);
+                Ok((kernel::program::Program::Value(value), certificate))
             }
             kernel::program::ProgramType::Computation(_) => {
                 let computation = ComputationExp::try_from(expression.clone())?;
-                scope
-                    .elaborate_computation(&computation, self)
-                    .map(kernel::program::Program::Computation)
+                let computation = scope.elaborate_computation(&computation, self)?;
+                let certificate = scope.certified_computation(self, computation);
+                Ok((
+                    kernel::program::Program::Computation(computation),
+                    certificate,
+                ))
             }
         }
     }
@@ -409,162 +411,16 @@ impl GlobalEnvironment {
         Ok(())
     }
 
-    fn collect_definition_obligations(
+    fn validate_definition(
         &self,
         context: &mut ExpContext,
         body: Exp,
         ty: Exp,
-    ) -> Result<(DefinitionKind, Vec<ProofObligation>), String> {
-        let obligations = RefCell::new(Vec::new());
-        let mut session = CheckSession::collecting(
-            &self.crate_env,
-            self.module_manager.current(),
-            context,
-            &obligations,
-        );
-        session
+    ) -> Result<DefinitionKind, String> {
+        CheckSession::new(&self.crate_env, self.module_manager.current(), context)
             .check_pts(body, ty)
             .map_err(|error| format!("Set/Prop definition check failed: {error:?}"))?;
-        Ok((DefinitionKind::Pts, obligations.into_inner()))
-    }
-
-    fn elaborate_proof_evidence(
-        &mut self,
-        proof: Option<&ProofBlock>,
-        obligations: &[ProofObligation],
-        module_context: &ExpContext,
-    ) -> Result<Vec<ProofEvidence>, ElaborationError> {
-        let Some(proof) = proof else {
-            if obligations.is_empty() {
-                return Ok(Vec::new());
-            }
-            let rules = obligations
-                .iter()
-                .map(|obligation| obligation.rule)
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Err(format!(
-                "missing proof block: {} undischarged obligation(s) from {rules}",
-                obligations.len()
-            )
-            .into());
-        };
-
-        let mut evidence = Vec::with_capacity(proof.entries.len());
-        for entry in &proof.entries {
-            self.metavariables.clear();
-            let mut scope = LocalScope::default();
-            scope.elab_telescope_bind_in_decl(&entry.binders, self)?;
-            let proposition = scope.elab_exp(&entry.proposition, self)?;
-            let witness = scope.elab_exp(&entry.witness, self)?;
-            let mut evidence_context = module_context.clone();
-            evidence_context.extend(scope.typing_context().iter().cloned());
-
-            if !self.metavariables.is_empty() {
-                self.check_term_with_metavariables(&mut evidence_context, witness, proposition)
-                    .map_err(|message| self.metavariables.constraint_error(message))?;
-                self.finish_metavariables()?;
-            }
-            let proposition = self.metavariables.zonk(&self.crate_env, proposition);
-            let witness = self.metavariables.zonk(&self.crate_env, witness);
-            for context_entry in &mut evidence_context {
-                context_entry.ty = self.metavariables.zonk(&self.crate_env, context_entry.ty);
-            }
-            evidence.push(ProofEvidence {
-                context: evidence_context,
-                proposition,
-                witness,
-            });
-        }
-
-        for obligation in obligations {
-            let matches = evidence
-                .iter()
-                .filter(|candidate| {
-                    kernel::derivation::evidence_matches_obligation(
-                        &self.crate_env,
-                        candidate,
-                        obligation,
-                    )
-                })
-                .count();
-            if matches != 1 {
-                return Err(format!(
-                    "proof obligation from {} has {matches} matching proof-block entries (expected exactly one)",
-                    obligation.rule
-                )
-                .into());
-            }
-        }
-        for candidate in &evidence {
-            if !obligations.iter().any(|obligation| {
-                kernel::derivation::evidence_matches_obligation(
-                    &self.crate_env,
-                    candidate,
-                    obligation,
-                )
-            }) {
-                return Err("proof block contains an unused goal".into());
-            }
-        }
-        Ok(evidence)
-    }
-
-    fn validate_definition_with_evidence(
-        &self,
-        context: &mut ExpContext,
-        kind: DefinitionKind,
-        body: Exp,
-        ty: Exp,
-        evidence: &[ProofEvidence],
-    ) -> Result<(), String> {
-        let mut session = CheckSession::with_evidence(
-            &self.crate_env,
-            self.module_manager.current(),
-            context,
-            evidence,
-        );
-        let result = match kind {
-            DefinitionKind::Pts => session.check_pts(body, ty),
-            DefinitionKind::ProgramValue | DefinitionKind::ProgramComputation => {
-                return Err("Program definitions use ProgramCheckSession".into());
-            }
-        };
-        result.map_err(|error| format!("definition proof validation failed: {error:?}"))
-    }
-
-    fn collect_inference_obligations(
-        &self,
-        context: &mut ExpContext,
-        exp: Exp,
-    ) -> Result<(kernel::exp::ExpJudgement, Vec<ProofObligation>), String> {
-        let obligations = RefCell::new(Vec::new());
-        let judgement = CheckSession::collecting(
-            &self.crate_env,
-            self.module_manager.current(),
-            context,
-            &obligations,
-        )
-        .infer_exp_judgement(exp)
-        .map_err(|error| format!("Set/Prop inference failed: {error:?}"))?;
-        Ok((judgement, obligations.into_inner()))
-    }
-
-    fn validate_inference_with_evidence(
-        &self,
-        context: &mut ExpContext,
-        exp: Exp,
-        _judgement: kernel::exp::ExpJudgement,
-        evidence: &[ProofEvidence],
-    ) -> Result<(), String> {
-        let mut session = CheckSession::with_evidence(
-            &self.crate_env,
-            self.module_manager.current(),
-            context,
-            evidence,
-        );
-        let result = session.infer_pts(exp).map(|_| ());
-        result.map_err(|error| format!("proof validation failed: {error:?}"))
+        Ok(DefinitionKind::Pts)
     }
 
     fn add_record_projection_definitions(
@@ -967,7 +823,6 @@ impl GlobalEnvironment {
                     binders,
                     ty,
                     body,
-                    proof,
                 } => {
                     if let Some(owner) = owner {
                         let expected = self
@@ -1021,24 +876,14 @@ impl GlobalEnvironment {
                     }
                     let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
                     let body_elab = self.metavariables.zonk(&self.crate_env, body_elab);
-                    let module_context = ctx.clone();
-                    let (kind, obligations) = self
-                        .collect_definition_obligations(&mut ctx, body_elab, ty_elab)
+                    let kind = self
+                        .validate_definition(&mut ctx, body_elab, ty_elab)
                         .map_err(|message| {
                             format!(
                                 "Definition {} body does not check against declared type: {message}",
                                 name.as_str()
                             )
                         })?;
-                    let evidence = self.elaborate_proof_evidence(
-                        proof.as_ref(),
-                        &obligations,
-                        &module_context,
-                    )?;
-                    ctx = module_context;
-                    self.validate_definition_with_evidence(
-                        &mut ctx, kind, body_elab, ty_elab, &evidence,
-                    )?;
                     debug_assert_eq!(kind, DefinitionKind::Pts);
                     let defined_constant = DefinedConstant::Pts {
                         ty: ty_elab,
@@ -1064,6 +909,7 @@ impl GlobalEnvironment {
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let body = scope.elaborate_value(body, self)?;
                     let (body, ty) = scope.check_value_with_metas(self, body, ty)?;
+                    let certified_reflection = scope.certified_value(self, body);
                     let mut program_context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
                         .check_value(body, ty)
@@ -1073,10 +919,34 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
+                    if scope.has_certificates()
+                        && let Some(certificate) = certified_reflection
+                    {
+                        let reflected_ty =
+                            kernel::reflection::reflect_value_type(&self.crate_env, ty)
+                                .map_err(|error| error.to_string())?;
+                        let mut context = self.module_manager.current_context(&self.crate_env);
+                        CheckSession::new(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut context,
+                        )
+                        .check_pts(certificate, reflected_ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program value definition {} has an invalid certificate: {error:?}",
+                                name.as_str()
+                            )
+                        })?;
+                    }
                     self.module_manager.add_def(
                         &mut self.crate_env,
                         name.clone(),
-                        DefinedConstant::ProgramValue { ty, body },
+                        DefinedConstant::ProgramValue {
+                            ty,
+                            body,
+                            certified_reflection,
+                        },
                     )?;
                 }
                 ModuleItem::ComputationDefinition { name, ty, body } => {
@@ -1084,6 +954,7 @@ impl GlobalEnvironment {
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let body = scope.elaborate_computation(body, self)?;
                     let (body, ty) = scope.check_computation_with_metas(self, body, ty)?;
+                    let certified_reflection = scope.certified_computation(self, body);
                     let mut program_context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
                         .check_computation(body, ty)
@@ -1093,10 +964,34 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
+                    if scope.has_certificates()
+                        && let Some(certificate) = certified_reflection
+                    {
+                        let reflected_ty =
+                            kernel::reflection::reflect_computation_type(&self.crate_env, ty)
+                                .map_err(|error| error.to_string())?;
+                        let mut context = self.module_manager.current_context(&self.crate_env);
+                        CheckSession::new(
+                            &self.crate_env,
+                            self.module_manager.current(),
+                            &mut context,
+                        )
+                        .check_pts(certificate, reflected_ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program computation definition {} has an invalid certificate: {error:?}",
+                                name.as_str()
+                            )
+                        })?;
+                    }
                     self.module_manager.add_def(
                         &mut self.crate_env,
                         name.clone(),
-                        DefinedConstant::ProgramComputation { ty, body },
+                        DefinedConstant::ProgramComputation {
+                            ty,
+                            body,
+                            certified_reflection,
+                        },
                     )?;
                 }
                 ModuleItem::Inductive {
@@ -1508,7 +1403,7 @@ impl GlobalEnvironment {
                 } => self
                     .module_manager
                     .use_macro(&self.crate_env, import_name, macro_name)?,
-                ModuleItem::Eval { exp, proof } => {
+                ModuleItem::Eval { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
                         self.infer_term_with_metavariables(&mut ctx, exp_elab)
@@ -1516,25 +1411,11 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
-                    if proof.is_some() {
-                        let module_context = ctx.clone();
-                        let (judgement, obligations) =
-                            self.collect_inference_obligations(&mut ctx, exp_elab)?;
-                        let evidence = self.elaborate_proof_evidence(
-                            proof.as_ref(),
-                            &obligations,
-                            &module_context,
-                        )?;
-                        ctx = module_context;
-                        self.validate_inference_with_evidence(
-                            &mut ctx, exp_elab, judgement, &evidence,
-                        )?;
-                    }
                     self.outputs.push(Output::Exp(
                         kernel::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
                     ));
                 }
-                ModuleItem::Normalize { exp, proof } => {
+                ModuleItem::Normalize { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
                         self.infer_term_with_metavariables(&mut ctx, exp_elab)
@@ -1542,20 +1423,6 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
-                    if proof.is_some() {
-                        let module_context = ctx.clone();
-                        let (judgement, obligations) =
-                            self.collect_inference_obligations(&mut ctx, exp_elab)?;
-                        let evidence = self.elaborate_proof_evidence(
-                            proof.as_ref(),
-                            &obligations,
-                            &module_context,
-                        )?;
-                        ctx = module_context;
-                        self.validate_inference_with_evidence(
-                            &mut ctx, exp_elab, judgement, &evidence,
-                        )?;
-                    }
                     self.outputs.push(Output::Exp(kernel::calculus::normalize(
                         &self.crate_env,
                         exp_elab,
@@ -1633,7 +1500,7 @@ impl GlobalEnvironment {
                     let (_, ty) = scope.infer_computation_with_metas(self, computation)?;
                     self.outputs.push(Output::ComputationType(ty));
                 }
-                ModuleItem::Check { exp, ty, proof } => {
+                ModuleItem::Check { exp, ty } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     let ty_elab = local_scope.elab_exp(ty, self)?;
                     if !self.metavariables.is_empty() {
@@ -1643,36 +1510,20 @@ impl GlobalEnvironment {
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
                     let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
-                    if proof.is_some() {
-                        let module_context = ctx.clone();
-                        let (kind, obligations) =
-                            self.collect_definition_obligations(&mut ctx, exp_elab, ty_elab)?;
-                        let evidence = self.elaborate_proof_evidence(
-                            proof.as_ref(),
-                            &obligations,
-                            &module_context,
-                        )?;
-                        ctx = module_context;
-                        self.validate_definition_with_evidence(
-                            &mut ctx, kind, exp_elab, ty_elab, &evidence,
-                        )?;
-                        self.outputs.push(Output::Exp(ty_elab));
-                    } else {
-                        match CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut ctx,
-                        )
-                        .check_pts(exp_elab, ty_elab)
-                        {
-                            Ok(()) => self.outputs.push(Output::Exp(ty_elab)),
-                            Err(error) => self
-                                .outputs
-                                .push(Output::Message(format!("check failed: {error:?}"))),
-                        }
+                    match CheckSession::new(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                    )
+                    .check_pts(exp_elab, ty_elab)
+                    {
+                        Ok(()) => self.outputs.push(Output::Exp(ty_elab)),
+                        Err(error) => self
+                            .outputs
+                            .push(Output::Message(format!("check failed: {error:?}"))),
                     }
                 }
-                ModuleItem::Infer { exp, proof } => {
+                ModuleItem::Infer { exp } => {
                     let exp_elab = local_scope.elab_exp(exp, self)?;
                     if !self.metavariables.is_empty() {
                         self.infer_term_with_metavariables(&mut ctx, exp_elab)
@@ -1680,33 +1531,17 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
-                    if proof.is_some() {
-                        let module_context = ctx.clone();
-                        let (judgement, obligations) =
-                            self.collect_inference_obligations(&mut ctx, exp_elab)?;
-                        let evidence = self.elaborate_proof_evidence(
-                            proof.as_ref(),
-                            &obligations,
-                            &module_context,
-                        )?;
-                        ctx = module_context;
-                        self.validate_inference_with_evidence(
-                            &mut ctx, exp_elab, judgement, &evidence,
-                        )?;
-                        self.outputs.push(Output::Exp(judgement.ty));
-                    } else {
-                        match CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut ctx,
-                        )
-                        .infer_exp_judgement(exp_elab)
-                        {
-                            Ok(judgement) => self.outputs.push(Output::Exp(judgement.ty)),
-                            Err(error) => self
-                                .outputs
-                                .push(Output::Message(format!("infer failed: {error:?}"))),
-                        }
+                    match CheckSession::new(
+                        &self.crate_env,
+                        self.module_manager.current(),
+                        &mut ctx,
+                    )
+                    .infer_exp_judgement(exp_elab)
+                    {
+                        Ok(judgement) => self.outputs.push(Output::Exp(judgement.ty)),
+                        Err(error) => self
+                            .outputs
+                            .push(Output::Message(format!("infer failed: {error:?}"))),
                     }
                 }
             }

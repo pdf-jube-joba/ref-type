@@ -56,7 +56,6 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             result_ty,
             output,
         } => one!(state_ty, result_ty, output),
-        ExpNode::Proof { proposition } => one!(proposition),
         ExpNode::Acc {
             state_ty,
             result_ty,
@@ -83,15 +82,30 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             result_ty,
             step,
             initial,
-        } => one!(state_ty, result_ty, step, initial),
+            accessibility,
+        } => one!(state_ty, result_ty, step, initial, accessibility),
         ExpNode::SetRunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => one!(state_ty, result_ty, step, initial, transition),
-        ExpNode::BoxType { .. } | ExpNode::BoxProgram { .. } => {}
+            accessibility,
+            transition_equality,
+        } => one!(
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality
+        ),
+        ExpNode::BoxType { .. } => {}
+        ExpNode::BoxProgram {
+            certified_reflection,
+            ..
+        } => one!(certified_reflection),
         ExpNode::ForceBox { boxed, .. } => one!(boxed),
         ExpNode::BoxApp { function, argument } => one!(function, argument),
         ExpNode::Prove(Prove::AccIntro {
@@ -188,6 +202,51 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         }) => one!(func, domain, codomain, element, existence, uniqueness),
     }
     node
+}
+
+fn map_computational_children(node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNode {
+    match node {
+        ExpNode::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            accessibility,
+        } => ExpNode::SetRun {
+            state_ty: map(state_ty),
+            result_ty: map(result_ty),
+            step: map(step),
+            initial: map(initial),
+            accessibility,
+        },
+        ExpNode::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality,
+        } => ExpNode::SetRunCase {
+            state_ty: map(state_ty),
+            result_ty: map(result_ty),
+            step: map(step),
+            initial: map(initial),
+            transition: map(transition),
+            accessibility,
+            transition_equality,
+        },
+        ExpNode::BoxProgram {
+            program_ty,
+            program,
+            certified_reflection,
+        } => ExpNode::BoxProgram {
+            program_ty,
+            program,
+            certified_reflection,
+        },
+        other => map_children(other, map),
+    }
 }
 
 fn transform<F>(arena: &Arena, exp: Exp, depth: usize, operation: &mut F) -> Exp
@@ -526,6 +585,7 @@ pub fn remap_all_global_ids(
         ExpNode::BoxProgram {
             program_ty,
             program,
+            certified_reflection: _,
         } => {
             remap_program_type(program_ty);
             *program = match *program {
@@ -616,10 +676,12 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
             ExpNode::BoxProgram {
                 program_ty: left_ty,
                 program: left_program,
+                ..
             },
             ExpNode::BoxProgram {
                 program_ty: right_ty,
                 program: right_program,
+                ..
             },
         ) => {
             crate::program_calculus::program_type_is_alpha_eq(arena, *left_ty, *right_ty)
@@ -699,8 +761,23 @@ fn alpha_rec(
     if !same_node_shape(arena, &left_node, &right_node) {
         return false;
     }
-    let l = direct_children(left_node);
-    let r = direct_children(right_node);
+    let children = |node| {
+        let mut result = Vec::new();
+        let _ = if reduce {
+            map_computational_children(node, |child| {
+                result.push(child);
+                child
+            })
+        } else {
+            map_children(node, |child| {
+                result.push(child);
+                child
+            })
+        };
+        result
+    };
+    let l = children(left_node);
+    let r = children(right_node);
     l.len() == r.len()
         && l.into_iter()
             .zip(r)
@@ -802,6 +879,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             result_ty,
             step,
             initial,
+            accessibility,
         } => Some(arena.alloc(ExpNode::SetRunCase {
             state_ty,
             result_ty,
@@ -811,12 +889,22 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 func: step,
                 arg: initial,
             }),
+            accessibility,
+            transition_equality: arena.alloc(ExpNode::Prove(Prove::IdRefl {
+                element: arena.alloc(ExpNode::App {
+                    func: step,
+                    arg: initial,
+                }),
+            })),
         })),
         ExpNode::SetRunCase {
             state_ty,
             result_ty,
             step,
+            initial,
             transition,
+            accessibility,
+            transition_equality,
             ..
         } => match arena.get(whnf(env, transition)) {
             ExpNode::Continue { next, .. } => Some(arena.alloc(ExpNode::SetRun {
@@ -824,6 +912,15 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 result_ty,
                 step,
                 initial: next,
+                accessibility: arena.alloc(ExpNode::Prove(Prove::AccDescent {
+                    state_ty,
+                    result_ty,
+                    step,
+                    from: initial,
+                    to: next,
+                    accessibility,
+                    transition: transition_equality,
+                })),
             })),
             ExpNode::Finish { output, .. } => Some(output),
             _ => None,
@@ -831,16 +928,20 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
         ExpNode::BoxProgram {
             program_ty,
             program: Program::Computation(term),
+            certified_reflection,
         } => crate::program_calculus::reduce_computation_once(env, term).map(|next| {
             arena.alloc(ExpNode::BoxProgram {
                 program_ty,
                 program: Program::Computation(next),
+                certified_reflection: exp_reduce_if_top(env, certified_reflection)
+                    .unwrap_or(certified_reflection),
             })
         }),
         ExpNode::ForceBox { program_ty, boxed } => match arena.get(whnf(env, boxed)) {
             ExpNode::BoxProgram {
                 program_ty: actual,
                 program,
+                certified_reflection,
             } if crate::program_calculus::program_type_is_alpha_eq(arena, actual, program_ty)
                 && match program {
                     Program::Computation(c) => {
@@ -849,7 +950,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     Program::Value(_) => true,
                 } =>
             {
-                crate::reflection::reflect_program(env, &Vec::new(), program).ok()
+                Some(certified_reflection)
             }
             _ => None,
         },
@@ -862,10 +963,12 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     ExpNode::BoxProgram {
                         program_ty: ProgramType::Computation(ft),
                         program: Program::Computation(function),
+                        certified_reflection: function_reflection,
                     },
                     ExpNode::BoxProgram {
                         program_ty: ProgramType::Value(argument_ty),
                         program: Program::Value(argument),
+                        certified_reflection: argument_reflection,
                     },
                 ) => match arena.get(ft) {
                     crate::program::ComputationTypeNode::Function { domain, codomain }
@@ -883,6 +986,10 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                                     value: argument,
                                 },
                             )),
+                            certified_reflection: arena.alloc(ExpNode::App {
+                                func: function_reflection,
+                                arg: argument_reflection,
+                            }),
                         }))
                     }
                     _ => None,
@@ -909,7 +1016,7 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     }
     let node = env.arena().get(exp);
     let mut changed = false;
-    let mapped = map_children(node, |child| {
+    let mapped = map_computational_children(node, |child| {
         if changed {
             child
         } else if let Some(next) = reduce_one(env, child) {
@@ -933,7 +1040,7 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
     let head = whnf(env, exp);
     let node = arena.get(head);
     let mut changed = false;
-    let normalized = map_children(node, |child| {
+    let normalized = map_computational_children(node, |child| {
         let result = normalize_with_cache(env, child, cache);
         changed |= result != child;
         result

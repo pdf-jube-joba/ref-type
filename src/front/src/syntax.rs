@@ -65,7 +65,6 @@ pub enum ModuleItem {
         binders: Vec<RightBind>,
         ty: SExp,
         body: SExp,
-        proof: Option<ProofBlock>,
     },
     ValueDefinition {
         name: Identifier,
@@ -113,11 +112,9 @@ pub enum ModuleItem {
     },
     Eval {
         exp: SExp,
-        proof: Option<ProofBlock>,
     },
     Normalize {
         exp: SExp,
-        proof: Option<ProofBlock>,
     },
     ComputationEval {
         exp: ComputationExp,
@@ -142,24 +139,10 @@ pub enum ModuleItem {
     Check {
         exp: SExp,
         ty: SExp,
-        proof: Option<ProofBlock>,
     },
     Infer {
         exp: SExp,
-        proof: Option<ProofBlock>,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct ProofBlock {
-    pub entries: Vec<ProofEntry>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ProofEntry {
-    pub binders: Vec<RightBind>,
-    pub proposition: SExp,
-    pub witness: SExp,
 }
 
 #[derive(Debug, Clone)]
@@ -297,6 +280,7 @@ pub enum ComputationExp {
         result_ty: Box<ValueTypeExp>,
         step: Box<ValueExp>,
         initial: Box<ValueExp>,
+        accessibility: Option<Box<SExp>>,
     },
     RunCase {
         state_ty: Box<ValueTypeExp>,
@@ -304,6 +288,8 @@ pub enum ComputationExp {
         step: Box<ValueExp>,
         initial: Box<ValueExp>,
         transition: Box<ComputationExp>,
+        accessibility: Option<Box<SExp>>,
+        transition_equality: Option<Box<SExp>>,
     },
 }
 
@@ -528,12 +514,14 @@ pub enum SExp {
         result_ty: Box<SExp>,
         step: Box<SExp>,
         initial: Box<SExp>,
+        accessibility: Box<SExp>,
     },
     PRun {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         step: Box<SExp>,
         initial: Box<SExp>,
+        accessibility: Option<Box<SExp>>,
     },
     RunCase {
         state_ty: Box<SExp>,
@@ -541,6 +529,8 @@ pub enum SExp {
         step: Box<SExp>,
         initial: Box<SExp>,
         transition: Box<SExp>,
+        accessibility: Box<SExp>,
+        transition_equality: Box<SExp>,
     },
     PRunCase {
         state_ty: Box<SExp>,
@@ -548,6 +538,8 @@ pub enum SExp {
         step: Box<SExp>,
         initial: Box<SExp>,
         transition: Box<SExp>,
+        accessibility: Option<Box<SExp>>,
+        transition_equality: Option<Box<SExp>>,
     },
     RunStepRec {
         state_ty: Box<SExp>,
@@ -556,9 +548,6 @@ pub enum SExp {
         on_continue: Box<SExp>,
         on_finish: Box<SExp>,
         scrutinee: Box<SExp>,
-    },
-    Proof {
-        proposition: Box<SExp>,
     },
     BoxType {
         program_ty: Box<SExp>,
@@ -851,11 +840,13 @@ impl TryFrom<SExp> for ComputationExp {
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => Ok(Self::Run {
                 state_ty: Box::new((*state_ty).try_into()?),
                 result_ty: Box::new((*result_ty).try_into()?),
                 step: Box::new((*step).try_into()?),
                 initial: Box::new((*initial).try_into()?),
+                accessibility,
             }),
             SExp::PRunCase {
                 state_ty,
@@ -863,12 +854,16 @@ impl TryFrom<SExp> for ComputationExp {
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => Ok(Self::RunCase {
                 state_ty: Box::new((*state_ty).try_into()?),
                 result_ty: Box::new((*result_ty).try_into()?),
                 step: Box::new((*step).try_into()?),
                 initial: Box::new((*initial).try_into()?),
                 transition: Box::new((*transition).try_into()?),
+                accessibility,
+                transition_equality,
             }),
             _ => Err("expected Program computation syntax".into()),
         }

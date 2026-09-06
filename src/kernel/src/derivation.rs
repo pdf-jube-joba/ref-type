@@ -5,12 +5,9 @@ use crate::ids::{InductiveId, ModuleId, SymbolId};
 use crate::inductive::eliminator_type;
 use crate::program::{ComputationTypeNode, Program, ProgramType};
 use crate::program_derivation::ProgramCheckSession;
-use crate::reflection::{
-    reflect_computation, reflect_computation_type, reflect_value, reflect_value_type,
-};
+use crate::reflection::{reflect_computation_type, reflect_value_type};
 use crate::sort::Sort;
 use crate::utils;
-use std::cell::RefCell;
 use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
@@ -30,14 +27,6 @@ pub struct CheckSession<'env, 'context> {
     env: &'env CrateEnv,
     current_module: ModuleId,
     context: &'context mut ExpContext,
-    proof_mode: ProofMode<'context>,
-}
-
-#[derive(Clone, Copy)]
-enum ProofMode<'a> {
-    Strict,
-    Collect(&'a RefCell<Vec<ProofObligation>>),
-    Provided(&'a [ProofEvidence]),
 }
 
 impl<'env, 'context> CheckSession<'env, 'context> {
@@ -50,39 +39,6 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             env,
             current_module,
             context,
-            proof_mode: ProofMode::Strict,
-        }
-    }
-
-    /// Construct a checker which records judgement-level provability
-    /// premises instead of silently accepting them.
-    pub fn collecting(
-        env: &'env CrateEnv,
-        current_module: ModuleId,
-        context: &'context mut ExpContext,
-        obligations: &'context RefCell<Vec<ProofObligation>>,
-    ) -> Self {
-        Self {
-            env,
-            current_module,
-            context,
-            proof_mode: ProofMode::Collect(obligations),
-        }
-    }
-
-    /// Construct a strict checker with explicit witnesses for every
-    /// judgement-level provability premise.
-    pub fn with_evidence(
-        env: &'env CrateEnv,
-        current_module: ModuleId,
-        context: &'context mut ExpContext,
-        evidence: &'context [ProofEvidence],
-    ) -> Self {
-        Self {
-            env,
-            current_module,
-            context,
-            proof_mode: ProofMode::Provided(evidence),
         }
     }
 
@@ -129,92 +85,6 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     pub fn check_wellformed_context(&mut self) -> Result<(), Box<JudgementError>> {
         check_wellformed_context(self)
     }
-
-    fn require_provable(
-        &mut self,
-        proposition: Exp,
-        rule: &'static str,
-    ) -> Result<(), Box<JudgementError>> {
-        // Weakening of a proof already present in the PTS context is the only
-        // automatic proof search performed by the kernel.
-        if self
-            .context
-            .iter()
-            .any(|entry| convertible(self.env, entry.ty, proposition))
-        {
-            return Ok(());
-        }
-
-        match self.proof_mode {
-            ProofMode::Strict => Err(failure(
-                rule,
-                "provability",
-                "provability premise has no explicit evidence",
-            )),
-            ProofMode::Collect(obligations) => {
-                let context = self.context.clone();
-                let duplicate = obligations.borrow().iter().any(|obligation| {
-                    contexts_alpha_eq(self.env, &obligation.context, &context)
-                        && convertible(self.env, obligation.proposition, proposition)
-                });
-                if !duplicate {
-                    obligations.borrow_mut().push(ProofObligation {
-                        context,
-                        proposition,
-                        rule,
-                    });
-                }
-                Ok(())
-            }
-            ProofMode::Provided(evidence) => {
-                let Some(candidate) = evidence.iter().find(|candidate| {
-                    contexts_alpha_eq(self.env, &candidate.context, self.context)
-                        && convertible(self.env, candidate.proposition, proposition)
-                }) else {
-                    return Err(failure(
-                        rule,
-                        "provability",
-                        "no proof-block entry matches this context and proposition",
-                    ));
-                };
-                let mut context = candidate.context.clone();
-                CheckSession::new(self.env, self.current_module, &mut context)
-                    // The matching step established conversion to the obligation.
-                    // Check the independently stated certificate: the obligation
-                    // may contain an expanded run whose own certificate is another
-                    // entry in this block, whereas the statement uses a checked
-                    // definition for that same computation.
-                    .check_pts(candidate.witness, candidate.proposition)
-                    .map_err(|error| {
-                        Box::new(error.with_frame(
-                            rule,
-                            "provability evidence",
-                            "proof witness checks against the required proposition",
-                        ))
-                    })
-            }
-        }
-    }
-}
-
-fn contexts_alpha_eq(env: &CrateEnv, left: &ExpContext, right: &ExpContext) -> bool {
-    left.len() == right.len()
-        && left
-            .iter()
-            .zip(right)
-            .all(|(left, right)| exp_is_alpha_eq(env, left.ty, right.ty))
-}
-
-/// Whether supplied evidence addresses a particular judgement-level proof
-/// obligation.  The witness itself is checked separately by
-/// [`CheckSession::with_evidence`].
-pub fn evidence_matches_obligation(
-    env: &CrateEnv,
-    evidence: &ProofEvidence,
-    obligation: &ProofObligation,
-) -> bool {
-    contexts_alpha_eq(env, &evidence.context, &obligation.context)
-        && convertible(env, evidence.proposition, obligation.proposition)
 }
 
 impl JudgementError {
@@ -579,18 +449,12 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             )?;
             Ok(arena.sort(Sort::Prop))
         }
-        ExpNode::Proof { proposition } => {
-            if add_sort!(session, rule, phase, proposition, "check proposition")? != Sort::Prop {
-                return Err(failure(rule, phase, "Proof argument is not a proposition"));
-            }
-            session.require_provable(proposition, "Proof")?;
-            Ok(proposition)
-        }
         ExpNode::SetRun {
             state_ty,
             result_ty,
             step,
             initial,
+            accessibility,
         } => {
             check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
             add_check!(
@@ -601,13 +465,19 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 state_ty,
                 "check initial state"
             )?;
-            let accessibility = arena.alloc(ExpNode::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state: initial,
-            });
-            session.require_provable(accessibility, "SetRun")?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                accessibility,
+                arena.alloc(ExpNode::Acc {
+                    state_ty,
+                    result_ty,
+                    step,
+                    state: initial,
+                }),
+                "check accessibility proof"
+            )?;
             Ok(result_ty)
         }
         ExpNode::SetRunCase {
@@ -616,6 +486,8 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => {
             check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
             add_check!(
@@ -638,16 +510,24 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 run_step,
                 "check transition"
             )?;
-            session.require_provable(
+            add_check!(
+                session,
+                rule,
+                phase,
+                accessibility,
                 arena.alloc(ExpNode::Acc {
                     state_ty,
                     result_ty,
                     step,
                     state: initial,
                 }),
-                "SetRunCase",
+                "check accessibility proof"
             )?;
-            session.require_provable(
+            add_check!(
+                session,
+                rule,
+                phase,
+                transition_equality,
                 arena.alloc(ExpNode::Equal {
                     left: arena.alloc(ExpNode::App {
                         func: step,
@@ -655,7 +535,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                     }),
                     right: transition,
                 }),
-                "SetRunCase",
+                "check transition equality proof"
             )?;
             Ok(result_ty)
         }
@@ -684,8 +564,14 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         ExpNode::BoxProgram {
             program_ty,
             program,
+            certified_reflection,
         } => {
-            check_closed_well_terminated_program(session, program_ty, program)?;
+            check_closed_well_terminated_program(
+                session,
+                program_ty,
+                program,
+                certified_reflection,
+            )?;
             Ok(arena.alloc(ExpNode::BoxType { program_ty }))
         }
         ExpNode::ForceBox { program_ty, boxed } => {
@@ -1102,6 +988,7 @@ fn check_closed_well_terminated_program(
     session: &mut CheckSession<'_, '_>,
     program_ty: ProgramType,
     program: Program,
+    certified_reflection: Exp,
 ) -> Result<(), Box<JudgementError>> {
     check_closed_program_type(session, program_ty)?;
     let mut empty_program = Vec::new();
@@ -1121,24 +1008,22 @@ fn check_closed_well_terminated_program(
             ));
         }
     }
+    if !crate::reflection::certificate_matches_program(session.env(), program, certified_reflection)
+    {
+        return Err(failure(
+            "Box",
+            "certification",
+            "certified reflection does not correspond to the boxed Program",
+        ));
+    }
     let reflected_ty = match program_ty {
         ProgramType::Value(ty) => reflect_value_type(session.env(), ty),
         ProgramType::Computation(ty) => reflect_computation_type(session.env(), ty),
     }
     .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
-    let reflected_term = match program {
-        Program::Value(value) => reflect_value(session.env(), &Vec::new(), value),
-        Program::Computation(term) => reflect_computation(session.env(), &Vec::new(), term),
-    }
-    .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let mut reflected_context = Vec::new();
-    let mut reflected_session = CheckSession {
-        env: session.env,
-        current_module: session.current_module,
-        context: &mut reflected_context,
-        proof_mode: session.proof_mode,
-    };
-    reflected_session.check_pts(reflected_term, reflected_ty)
+    CheckSession::new(session.env, session.current_module, &mut reflected_context)
+        .check_pts(certified_reflection, reflected_ty)
 }
 
 fn check_parameters(
@@ -1395,7 +1280,6 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::Continue { .. } => "Continue",
         ExpNode::Finish { .. } => "Finish",
         ExpNode::Acc { .. } => "Acc",
-        ExpNode::Proof { .. } => "Proof",
         ExpNode::RunStepRec { .. } => "RunStepRec",
         ExpNode::SetRun { .. } => "SetRun",
         ExpNode::SetRunCase { .. } => "SetRunCase",

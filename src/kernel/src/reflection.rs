@@ -7,13 +7,17 @@ use crate::{
     program::*,
     program_derivation::ProgramCheckSession,
 };
-use std::{collections::HashSet, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReflectionError {
     UnresolvedMetavariable,
     NotProgramTerm,
     RecursiveDefinition(DefId),
+    MissingRunCertificate,
 }
 
 impl fmt::Display for ReflectionError {
@@ -24,6 +28,7 @@ impl fmt::Display for ReflectionError {
             Self::RecursiveDefinition(id) => {
                 write!(f, "recursive Program definition during reflection: {id:?}")
             }
+            Self::MissingRunCertificate => write!(f, "Program run has no certificate"),
         }
     }
 }
@@ -137,18 +142,93 @@ pub fn reflect_program(
     }
 }
 
+/// Checks that a certificate is the reflection of the supplied runtime
+/// Program. Proof fields are checked by the ordinary Set/Prop checker and are
+/// deliberately omitted from this structural correspondence check.
+pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate: Exp) -> bool {
+    let arena = env.arena();
+    match (program, arena.get(certificate)) {
+        (
+            Program::Computation(computation),
+            ExpNode::SetRun {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                ..
+            },
+        ) => match arena.get(computation) {
+            ComputationNode::Run {
+                state_ty: p_state_ty,
+                result_ty: p_result_ty,
+                step: p_step,
+                initial: p_initial,
+            } => {
+                let context = Vec::new();
+                reflect_value_type(env, p_state_ty)
+                    .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, state_ty))
+                    && reflect_value_type(env, p_result_ty)
+                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, result_ty))
+                    && reflect_value(env, &context, p_step)
+                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, step))
+                    && reflect_value(env, &context, p_initial)
+                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, initial))
+            }
+            _ => false,
+        },
+        (
+            Program::Computation(computation),
+            ExpNode::SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                ..
+            },
+        ) => match arena.get(computation) {
+            ComputationNode::RunCase {
+                state_ty: p_state_ty,
+                result_ty: p_result_ty,
+                step: p_step,
+                initial: p_initial,
+                transition: p_transition,
+            } => {
+                let context = Vec::new();
+                reflect_value_type(env, p_state_ty)
+                    .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, state_ty))
+                    && reflect_value_type(env, p_result_ty)
+                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, result_ty))
+                    && reflect_value(env, &context, p_step)
+                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, step))
+                    && reflect_value(env, &context, p_initial)
+                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, initial))
+                    && certificate_matches_program(
+                        env,
+                        Program::Computation(p_transition),
+                        transition,
+                    )
+            }
+            _ => false,
+        },
+        (program, _) => reflect_program(env, &Vec::new(), program)
+            .is_ok_and(|term| crate::calculus::exp_is_alpha_eq(env, term, certificate)),
+    }
+}
+
 pub fn reflect_value(
     env: &CrateEnv,
     context: &ProgramContext,
     value: Value,
 ) -> Result<Exp, ReflectionError> {
-    reflect_value_inner(env, context, value, &mut HashSet::new())
+    reflect_value_inner(env, context, value, &HashMap::new(), &mut HashSet::new())
 }
 
 fn reflect_value_inner(
     env: &CrateEnv,
     context: &ProgramContext,
     value: Value,
+    certificates: &HashMap<Computation, Exp>,
     visiting: &mut HashSet<DefId>,
 ) -> Result<Exp, ReflectionError> {
     let arena = env.arena();
@@ -161,8 +241,12 @@ fn reflect_value_inner(
                 return Err(ReflectionError::RecursiveDefinition(id));
             }
             let result = match env.definition(id) {
+                DefinedConstant::ProgramValue {
+                    certified_reflection: Some(term),
+                    ..
+                } => Ok(*term),
                 DefinedConstant::ProgramValue { body, .. } => {
-                    reflect_value_inner(env, &Vec::new(), *body, visiting)
+                    reflect_value_inner(env, &Vec::new(), *body, certificates, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -170,7 +254,7 @@ fn reflect_value_inner(
             result?
         }
         ValueNode::Thunk { computation } => {
-            reflect_computation_inner(env, context, computation, visiting)?
+            reflect_computation_inner(env, context, computation, certificates, visiting)?
         }
         ValueNode::Continue {
             state_ty,
@@ -179,7 +263,7 @@ fn reflect_value_inner(
         } => arena.alloc(ExpNode::Continue {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            next: reflect_value_inner(env, context, next, visiting)?,
+            next: reflect_value_inner(env, context, next, certificates, visiting)?,
         }),
         ValueNode::Finish {
             state_ty,
@@ -188,7 +272,7 @@ fn reflect_value_inner(
         } => arena.alloc(ExpNode::Finish {
             state_ty: reflect_value_type(env, state_ty)?,
             result_ty: reflect_value_type(env, result_ty)?,
-            output: reflect_value_inner(env, context, output, visiting)?,
+            output: reflect_value_inner(env, context, output, certificates, visiting)?,
         }),
         ValueNode::InductiveConstructor {
             indspec,
@@ -208,7 +292,7 @@ fn reflect_value_inner(
             for field in fields {
                 term = arena.alloc(ExpNode::App {
                     func: term,
-                    arg: reflect_value_inner(env, context, field, visiting)?,
+                    arg: reflect_value_inner(env, context, field, certificates, visiting)?,
                 });
             }
             term
@@ -221,15 +305,39 @@ pub fn reflect_computation(
     context: &ProgramContext,
     term: Computation,
 ) -> Result<Exp, ReflectionError> {
-    reflect_computation_inner(env, context, term, &mut HashSet::new())
+    reflect_computation_inner(env, context, term, &HashMap::new(), &mut HashSet::new())
+}
+
+pub fn reflect_computation_with_certificates(
+    env: &CrateEnv,
+    context: &ProgramContext,
+    term: Computation,
+    certificates: &HashMap<Computation, Exp>,
+) -> Result<Exp, ReflectionError> {
+    reflect_computation_inner(env, context, term, certificates, &mut HashSet::new())
+}
+
+pub fn reflect_value_with_certificates(
+    env: &CrateEnv,
+    context: &ProgramContext,
+    value: Value,
+    certificates: &HashMap<Computation, Exp>,
+) -> Result<Exp, ReflectionError> {
+    reflect_value_inner(env, context, value, certificates, &mut HashSet::new())
 }
 
 fn reflect_computation_inner(
     env: &CrateEnv,
     context: &ProgramContext,
     term: Computation,
+    certificates: &HashMap<Computation, Exp>,
     visiting: &mut HashSet<DefId>,
 ) -> Result<Exp, ReflectionError> {
+    if let Some((_, certificate)) = certificates.iter().find(|(candidate, _)| {
+        crate::program_calculus::computation_is_alpha_eq(env.arena(), **candidate, term)
+    }) {
+        return Ok(*certificate);
+    }
     let arena = env.arena();
     Ok(match arena.get(term) {
         ComputationNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
@@ -238,8 +346,12 @@ fn reflect_computation_inner(
                 return Err(ReflectionError::RecursiveDefinition(id));
             }
             let result = match env.definition(id) {
+                DefinedConstant::ProgramComputation {
+                    certified_reflection: Some(term),
+                    ..
+                } => Ok(*term),
                 DefinedConstant::ProgramComputation { body, .. } => {
-                    reflect_computation_inner(env, &Vec::new(), *body, visiting)
+                    reflect_computation_inner(env, &Vec::new(), *body, certificates, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -247,7 +359,7 @@ fn reflect_computation_inner(
             result?
         }
         ComputationNode::Return { value } | ComputationNode::Force { value } => {
-            reflect_value_inner(env, context, value, visiting)?
+            reflect_value_inner(env, context, value, certificates, visiting)?
         }
         ComputationNode::Lambda {
             var,
@@ -260,12 +372,12 @@ fn reflect_computation_inner(
             arena.alloc(ExpNode::Lam {
                 var,
                 ty,
-                body: reflect_computation_inner(env, &nested, body, visiting)?,
+                body: reflect_computation_inner(env, &nested, body, certificates, visiting)?,
             })
         }
         ComputationNode::Application { computation, value } => arena.alloc(ExpNode::App {
-            func: reflect_computation_inner(env, context, computation, visiting)?,
-            arg: reflect_value_inner(env, context, value, visiting)?,
+            func: reflect_computation_inner(env, context, computation, certificates, visiting)?,
+            arg: reflect_value_inner(env, context, value, certificates, visiting)?,
         }),
         ComputationNode::Sequence {
             computation,
@@ -273,14 +385,15 @@ fn reflect_computation_inner(
             value_ty,
             body,
         } => {
-            let source = reflect_computation_inner(env, context, computation, visiting)?;
+            let source =
+                reflect_computation_inner(env, context, computation, certificates, visiting)?;
             let ty = reflect_value_type(env, value_ty)?;
             let mut nested = context.clone();
             nested.push(ProgramContextEntry::Value { var, ty: value_ty });
             let function = arena.alloc(ExpNode::Lam {
                 var,
                 ty,
-                body: reflect_computation_inner(env, &nested, body, visiting)?,
+                body: reflect_computation_inner(env, &nested, body, certificates, visiting)?,
             });
             arena.alloc(ExpNode::App {
                 func: function,
@@ -298,11 +411,11 @@ fn reflect_computation_inner(
             let function = arena.alloc(ExpNode::Lam {
                 var,
                 ty: reflect_value_type(env, value_ty)?,
-                body: reflect_computation_inner(env, &nested, body, visiting)?,
+                body: reflect_computation_inner(env, &nested, body, certificates, visiting)?,
             });
             arena.alloc(ExpNode::App {
                 func: function,
-                arg: reflect_value_inner(env, context, value, visiting)?,
+                arg: reflect_value_inner(env, context, value, certificates, visiting)?,
             })
         }
         ComputationNode::Case {
@@ -341,38 +454,23 @@ fn reflect_computation_inner(
                 }
                 reflected_branches.push(ReflectedProgramCaseBranch {
                     binders: branch.binders,
-                    body: reflect_computation_inner(env, &nested, branch.body, visiting)?,
+                    body: reflect_computation_inner(
+                        env,
+                        &nested,
+                        branch.body,
+                        certificates,
+                        visiting,
+                    )?,
                 });
             }
             arena.alloc(ExpNode::ReflectedProgramCase {
                 indspec,
-                scrutinee: reflect_value_inner(env, context, scrutinee, visiting)?,
+                scrutinee: reflect_value_inner(env, context, scrutinee, certificates, visiting)?,
                 branches: reflected_branches,
             })
         }
-        ComputationNode::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-        } => arena.alloc(ExpNode::SetRun {
-            state_ty: reflect_value_type(env, state_ty)?,
-            result_ty: reflect_value_type(env, result_ty)?,
-            step: reflect_value_inner(env, context, step, visiting)?,
-            initial: reflect_value_inner(env, context, initial, visiting)?,
-        }),
-        ComputationNode::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-        } => arena.alloc(ExpNode::SetRunCase {
-            state_ty: reflect_value_type(env, state_ty)?,
-            result_ty: reflect_value_type(env, result_ty)?,
-            step: reflect_value_inner(env, context, step, visiting)?,
-            initial: reflect_value_inner(env, context, initial, visiting)?,
-            transition: reflect_computation_inner(env, context, transition, visiting)?,
-        }),
+        ComputationNode::Run { .. } | ComputationNode::RunCase { .. } => {
+            return Err(ReflectionError::MissingRunCertificate);
+        }
     })
 }

@@ -1,7 +1,9 @@
 //! Elaboration for the four disjoint Program syntactic categories.
 
 use crate::{
-    elaborator::{GlobalEnvironment, module_manager::ItemAccessResult},
+    elaborator::{
+        GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
+    },
     syntax::{
         ComputationExp, ComputationTypeExp, LocalAccess, SourceSpan, SurfaceMeta, ValueExp,
         ValueTypeExp,
@@ -9,6 +11,7 @@ use crate::{
 };
 use kernel::{
     environment::DefinedConstant,
+    exp::{Exp, ExpNode},
     ids::{MetaVarId, SymbolId},
     program::{
         Computation, ComputationNode, ComputationType, ComputationTypeNode, ProgramArgument,
@@ -49,6 +52,7 @@ pub struct ProgramScope {
     value_type_bindings: Vec<(SymbolId, ValueType)>,
     metas: Vec<ProgramMeta>,
     named_metas: HashMap<u32, MetaVarId>,
+    certificates: HashMap<Computation, Exp>,
 }
 
 impl Default for ProgramScope {
@@ -68,6 +72,7 @@ impl ProgramScope {
             value_type_bindings: Vec::new(),
             metas: Vec::new(),
             named_metas: HashMap::new(),
+            certificates: HashMap::new(),
         }
     }
 
@@ -77,6 +82,48 @@ impl ProgramScope {
 
     pub fn has_metas(&self) -> bool {
         !self.metas.is_empty()
+    }
+
+    pub fn has_certificates(&self) -> bool {
+        !self.certificates.is_empty()
+    }
+
+    pub fn certified_computation(
+        &self,
+        environment: &GlobalEnvironment,
+        computation: Computation,
+    ) -> Option<Exp> {
+        let certificates = self
+            .certificates
+            .iter()
+            .map(|(program, certificate)| {
+                (self.zonk_computation(environment, *program), *certificate)
+            })
+            .collect::<HashMap<_, _>>();
+        kernel::reflection::reflect_computation_with_certificates(
+            &environment.crate_env,
+            &self.context,
+            computation,
+            &certificates,
+        )
+        .ok()
+    }
+
+    pub fn certified_value(&self, environment: &GlobalEnvironment, value: Value) -> Option<Exp> {
+        let certificates = self
+            .certificates
+            .iter()
+            .map(|(program, certificate)| {
+                (self.zonk_computation(environment, *program), *certificate)
+            })
+            .collect::<HashMap<_, _>>();
+        kernel::reflection::reflect_value_with_certificates(
+            &environment.crate_env,
+            &self.context,
+            value,
+            &certificates,
+        )
+        .ok()
     }
 
     pub fn finish_metas(&self) -> Result<(), String> {
@@ -629,17 +676,55 @@ impl ProgramScope {
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => {
                 let state_ty = self.elaborate_value_type(state_ty, environment)?;
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let step = self.elaborate_value(step, environment)?;
                 let initial = self.elaborate_value(initial, environment)?;
-                Ok(environment.crate_env.arena().alloc(ComputationNode::Run {
+                let computation = environment.crate_env.arena().alloc(ComputationNode::Run {
                     state_ty,
                     result_ty,
                     step,
                     initial,
-                }))
+                });
+                if let Some(accessibility) = accessibility {
+                    let reflected_context =
+                        kernel::reflection::reflect_context(&environment.crate_env, &self.context)
+                            .map_err(|error| error.to_string())?;
+                    let proof = LocalScope::from_typing_context(reflected_context)
+                        .elab_exp(accessibility, environment)?;
+                    let arena = environment.crate_env.arena();
+                    let certificate = arena.alloc(ExpNode::SetRun {
+                        state_ty: kernel::reflection::reflect_value_type(
+                            &environment.crate_env,
+                            state_ty,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        result_ty: kernel::reflection::reflect_value_type(
+                            &environment.crate_env,
+                            result_ty,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        step: kernel::reflection::reflect_value_with_certificates(
+                            &environment.crate_env,
+                            &self.context,
+                            step,
+                            &self.certificates,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        initial: kernel::reflection::reflect_value_with_certificates(
+                            &environment.crate_env,
+                            &self.context,
+                            initial,
+                            &self.certificates,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        accessibility: proof,
+                    });
+                    self.certificates.insert(computation, certificate);
+                }
+                Ok(computation)
             }
             ComputationExp::RunCase {
                 state_ty,
@@ -647,13 +732,15 @@ impl ProgramScope {
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => {
                 let state_ty = self.elaborate_value_type(state_ty, environment)?;
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let step = self.elaborate_value(step, environment)?;
                 let initial = self.elaborate_value(initial, environment)?;
                 let transition = self.elaborate_computation(transition, environment)?;
-                Ok(environment
+                let computation = environment
                     .crate_env
                     .arena()
                     .alloc(ComputationNode::RunCase {
@@ -662,7 +749,52 @@ impl ProgramScope {
                         step,
                         initial,
                         transition,
-                    }))
+                    });
+                if let (Some(accessibility), Some(transition_equality)) =
+                    (accessibility, transition_equality)
+                {
+                    let reflected_context =
+                        kernel::reflection::reflect_context(&environment.crate_env, &self.context)
+                            .map_err(|error| error.to_string())?;
+                    let mut proof_scope = LocalScope::from_typing_context(reflected_context);
+                    let accessibility = proof_scope.elab_exp(accessibility, environment)?;
+                    let transition_equality =
+                        proof_scope.elab_exp(transition_equality, environment)?;
+                    let arena = environment.crate_env.arena();
+                    let certificate = arena.alloc(ExpNode::SetRunCase {
+                        state_ty: kernel::reflection::reflect_value_type(
+                            &environment.crate_env,
+                            state_ty,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        result_ty: kernel::reflection::reflect_value_type(
+                            &environment.crate_env,
+                            result_ty,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        step: kernel::reflection::reflect_value_with_certificates(
+                            &environment.crate_env,
+                            &self.context,
+                            step,
+                            &self.certificates,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        initial: kernel::reflection::reflect_value_with_certificates(
+                            &environment.crate_env,
+                            &self.context,
+                            initial,
+                            &self.certificates,
+                        )
+                        .map_err(|error| error.to_string())?,
+                        transition: self
+                            .certified_computation(environment, transition)
+                            .ok_or("runCase transition is not certified")?,
+                        accessibility,
+                        transition_equality,
+                    });
+                    self.certificates.insert(computation, certificate);
+                }
+                Ok(computation)
             }
         }
     }

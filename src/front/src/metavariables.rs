@@ -720,19 +720,12 @@ impl MetaStore {
                 self.check_pts(env, module, context, state, state_ty)?;
                 Ok(arena.sort(Sort::Prop))
             }
-            ExpNode::Proof { proposition } => {
-                if self.infer_sort(env, module, context, proposition)? != Sort::Prop {
-                    return Err("Proof argument is not a proposition".into());
-                }
-                // Provability is a judgement-level obligation collected by
-                // the strict kernel after metavariables have been solved.
-                Ok(proposition)
-            }
             ExpNode::SetRun {
                 state_ty,
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => {
                 ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
                 ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
@@ -744,6 +737,18 @@ impl MetaStore {
                     set_step_function_type(arena, state_ty, result_ty),
                 )?;
                 self.check_pts(env, module, context, initial, state_ty)?;
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    accessibility,
+                    arena.alloc(ExpNode::Acc {
+                        state_ty,
+                        result_ty,
+                        step,
+                        state: initial,
+                    }),
+                )?;
                 Ok(result_ty)
             }
             ExpNode::SetRunCase {
@@ -752,6 +757,8 @@ impl MetaStore {
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => {
                 ensure_set_sort(self.infer_sort(env, module, context, state_ty)?)?;
                 ensure_set_sort(self.infer_sort(env, module, context, result_ty)?)?;
@@ -761,6 +768,31 @@ impl MetaStore {
                     context,
                     step,
                     set_step_function_type(arena, state_ty, result_ty),
+                )?;
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    accessibility,
+                    arena.alloc(ExpNode::Acc {
+                        state_ty,
+                        result_ty,
+                        step,
+                        state: initial,
+                    }),
+                )?;
+                self.check_pts(
+                    env,
+                    module,
+                    context,
+                    transition_equality,
+                    arena.alloc(ExpNode::Equal {
+                        left: arena.alloc(ExpNode::App {
+                            func: step,
+                            arg: initial,
+                        }),
+                        right: transition,
+                    }),
                 )?;
                 self.check_pts(env, module, context, initial, state_ty)?;
                 self.check_pts(
@@ -858,6 +890,7 @@ impl MetaStore {
             ExpNode::BoxProgram {
                 program_ty,
                 program,
+                certified_reflection,
             } => {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
@@ -876,6 +909,9 @@ impl MetaStore {
                     }
                 }
                 .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
+                let reflected_ty = kernel::reflection::reflect_program_type(env, program_ty)
+                    .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
+                self.check_pts(env, module, context, certified_reflection, reflected_ty)?;
                 Ok(arena.alloc(ExpNode::BoxType { program_ty }))
             }
             ExpNode::ForceBox { program_ty, boxed } => {

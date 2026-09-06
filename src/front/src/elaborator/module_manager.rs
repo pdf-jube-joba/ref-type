@@ -565,7 +565,7 @@ impl ModuleManager {
                                         &reflected_substitutions,
                                     ),
                                 },
-                                DefinedConstant::ProgramValue { ty, body } => {
+                                DefinedConstant::ProgramValue { ty, body, certified_reflection } => {
                                     DefinedConstant::ProgramValue {
                                         ty: kernel::program_calculus::subst_value_type_module_params(
                                             env.arena(), ty, &substitutions,
@@ -573,9 +573,12 @@ impl ModuleManager {
                                         body: kernel::program_calculus::subst_value_module_params(
                                             env.arena(), body, &substitutions,
                                         ),
+                                        certified_reflection: certified_reflection.map(|term| {
+                                            exp_subst_map(env.arena(), term, &reflected_substitutions)
+                                        }),
                                     }
                                 }
-                                DefinedConstant::ProgramComputation { ty, body } => {
+                                DefinedConstant::ProgramComputation { ty, body, certified_reflection } => {
                                     DefinedConstant::ProgramComputation {
                                         ty: kernel::program_calculus::subst_computation_type_module_params(
                                             env.arena(), ty, &substitutions,
@@ -583,6 +586,9 @@ impl ModuleManager {
                                         body: kernel::program_calculus::subst_computation_module_params(
                                             env.arena(), body, &substitutions,
                                         ),
+                                        certified_reflection: certified_reflection.map(|term| {
+                                            exp_subst_map(env.arena(), term, &reflected_substitutions)
+                                        }),
                                     }
                                 }
                             },
@@ -691,38 +697,60 @@ impl ModuleManager {
                                     &program_inductive_ids,
                                 ),
                             },
-                            DefinedConstant::ProgramValue { ty, body } => {
-                                DefinedConstant::ProgramValue {
-                                    ty: kernel::program_calculus::remap_value_type_global_ids(
+                            DefinedConstant::ProgramValue {
+                                ty,
+                                body,
+                                certified_reflection,
+                            } => DefinedConstant::ProgramValue {
+                                ty: kernel::program_calculus::remap_value_type_global_ids(
+                                    env.arena(),
+                                    ty,
+                                    &definition_ids,
+                                    &program_inductive_ids,
+                                ),
+                                body: kernel::program_calculus::remap_value_global_ids(
+                                    env.arena(),
+                                    body,
+                                    &definition_ids,
+                                    &program_inductive_ids,
+                                ),
+                                certified_reflection: certified_reflection.map(|term| {
+                                    remap_all_global_ids(
                                         env.arena(),
-                                        ty,
+                                        term,
                                         &definition_ids,
+                                        &inductive_ids,
                                         &program_inductive_ids,
-                                    ),
-                                    body: kernel::program_calculus::remap_value_global_ids(
+                                    )
+                                }),
+                            },
+                            DefinedConstant::ProgramComputation {
+                                ty,
+                                body,
+                                certified_reflection,
+                            } => DefinedConstant::ProgramComputation {
+                                ty: kernel::program_calculus::remap_computation_type_global_ids(
+                                    env.arena(),
+                                    ty,
+                                    &definition_ids,
+                                    &program_inductive_ids,
+                                ),
+                                body: kernel::program_calculus::remap_computation_global_ids(
+                                    env.arena(),
+                                    body,
+                                    &definition_ids,
+                                    &program_inductive_ids,
+                                ),
+                                certified_reflection: certified_reflection.map(|term| {
+                                    remap_all_global_ids(
                                         env.arena(),
-                                        body,
+                                        term,
                                         &definition_ids,
+                                        &inductive_ids,
                                         &program_inductive_ids,
-                                    ),
-                                }
-                            }
-                            DefinedConstant::ProgramComputation { ty, body } => {
-                                DefinedConstant::ProgramComputation {
-                                    ty: kernel::program_calculus::remap_computation_type_global_ids(
-                                        env.arena(),
-                                        ty,
-                                        &definition_ids,
-                                        &program_inductive_ids,
-                                    ),
-                                    body: kernel::program_calculus::remap_computation_global_ids(
-                                        env.arena(),
-                                        body,
-                                        &definition_ids,
-                                        &program_inductive_ids,
-                                    ),
-                                }
-                            }
+                                    )
+                                }),
+                            },
                         };
                         let definition = env.add_definition(materialized, definition);
                         definition_ids.insert(source_id, definition);

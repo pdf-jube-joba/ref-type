@@ -19,7 +19,11 @@ pub trait Handler {
     fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String>;
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, String>;
     fn elaborate_program_type(&mut self, expression: &SExp) -> Result<ProgramType, String>;
-    fn elaborate_program(&mut self, expression: &SExp, ty: ProgramType) -> Result<Program, String>;
+    fn elaborate_program(
+        &mut self,
+        expression: &SExp,
+        ty: ProgramType,
+    ) -> Result<(Program, Option<Exp>), String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(
@@ -71,6 +75,14 @@ impl LocalScope {
             binded_vars: vec![],
             decl_binds: vec![],
             typing_binds: vec![],
+        }
+    }
+
+    pub fn from_typing_context(context: ExpContext) -> Self {
+        Self {
+            binded_vars: Vec::new(),
+            decl_binds: context.iter().map(|entry| (entry.var, None)).collect(),
+            typing_binds: context,
         }
     }
 
@@ -868,16 +880,19 @@ impl LocalScope {
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => {
                 let state_ty = self.elab_exp_rec(state_ty, handler)?;
                 let result_ty = self.elab_exp_rec(result_ty, handler)?;
                 let step = self.elab_exp_rec(step, handler)?;
                 let initial = self.elab_exp_rec(initial, handler)?;
+                let accessibility = self.elab_exp_rec(accessibility, handler)?;
                 Ok(handler.arena().alloc(ExpNode::SetRun {
                     state_ty,
                     result_ty,
                     step,
                     initial,
+                    accessibility,
                 }))
             }
             SExp::RunCase {
@@ -886,18 +901,24 @@ impl LocalScope {
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => {
                 let state_ty = self.elab_exp_rec(state_ty, handler)?;
                 let result_ty = self.elab_exp_rec(result_ty, handler)?;
                 let step = self.elab_exp_rec(step, handler)?;
                 let initial = self.elab_exp_rec(initial, handler)?;
                 let transition = self.elab_exp_rec(transition, handler)?;
+                let accessibility = self.elab_exp_rec(accessibility, handler)?;
+                let transition_equality = self.elab_exp_rec(transition_equality, handler)?;
                 Ok(handler.arena().alloc(ExpNode::SetRunCase {
                     state_ty,
                     result_ty,
                     step,
                     initial,
                     transition,
+                    accessibility,
+                    transition_equality,
                 }))
             }
             SExp::RunStepRec {
@@ -923,10 +944,6 @@ impl LocalScope {
                     scrutinee,
                 }))
             }
-            SExp::Proof { proposition } => {
-                let proposition = self.elab_exp_rec(proposition, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Proof { proposition }))
-            }
             SExp::BoxType { program_ty } => {
                 let program_ty = handler.elaborate_program_type(program_ty)?;
                 Ok(handler.arena().alloc(ExpNode::BoxType { program_ty }))
@@ -936,10 +953,18 @@ impl LocalScope {
                 program,
             } => {
                 let program_ty = handler.elaborate_program_type(program_ty)?;
-                let program = handler.elaborate_program(program, program_ty)?;
+                let (program, certified_reflection) =
+                    handler.elaborate_program(program, program_ty)?;
+                let certified_reflection = certified_reflection.ok_or_else(|| {
+                    format!(
+                        "cannot box a partial Program: a run is missing its `\\by` certificate ({})",
+                        kernel::printing::format_program(handler.env(), program)
+                    )
+                })?;
                 Ok(handler.arena().alloc(ExpNode::BoxProgram {
                     program_ty,
                     program,
+                    certified_reflection,
                 }))
             }
             SExp::ForceBox { program_ty, boxed } => {
