@@ -993,7 +993,7 @@ pub fn instantiate_value_in_computation(
 }
 
 fn unfold_value(env: &CrateEnv, mut value: Value) -> Value {
-    while let ValueNode::DefinedConstant(id) = env.arena().get(value) {
+    while let ValueNode::DefinedConstant(id) = *env.arena().borrow_value(value) {
         let DefinedConstant::ProgramValue { body, .. } = env.definition(id) else {
             break;
         };
@@ -1004,16 +1004,20 @@ fn unfold_value(env: &CrateEnv, mut value: Value) -> Value {
 
 pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Computation> {
     let arena = env.arena();
-    match arena.get(term) {
+    // In particular, selecting a Case branch does not need to clone every
+    // branch and its binders. Release the guard before recursive allocation.
+    let node = arena.borrow_computation(term);
+    match *node {
         ComputationNode::DefinedConstant(id) => match env.definition(id) {
             DefinedConstant::ProgramComputation { body, .. } => Some(*body),
             _ => None,
         },
-        ComputationNode::Force { value } => match arena.get(unfold_value(env, value)) {
+        ComputationNode::Force { value } => match *arena.borrow_value(unfold_value(env, value)) {
             ValueNode::Thunk { computation } => Some(computation),
             _ => None,
         },
         ComputationNode::Application { computation, value } => {
+            drop(node);
             if let Some(next) = reduce_computation_once(env, computation) {
                 Some(arena.alloc(ComputationNode::Application {
                     computation: next,
@@ -1031,6 +1035,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Comp
             value_ty,
             body,
         } => {
+            drop(node);
             if let Some(next) = reduce_computation_once(env, computation) {
                 Some(arena.alloc(ComputationNode::Sequence {
                     computation: next,
@@ -1045,6 +1050,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Comp
             }
         }
         ComputationNode::ValueLet { value, body, .. } => {
+            drop(node);
             Some(instantiate_value_in_computation(arena, body, value))
         }
         ComputationNode::Run {
@@ -1053,6 +1059,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Comp
             step,
             initial,
         } => {
+            drop(node);
             let force = arena.alloc(ComputationNode::Force { value: step });
             let transition = arena.alloc(ComputationNode::Application {
                 computation: force,
@@ -1073,6 +1080,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Comp
             initial,
             transition,
         } => {
+            drop(node);
             if let Some(next) = reduce_computation_once(env, transition) {
                 return Some(arena.alloc(ComputationNode::RunCase {
                     state_ty,
@@ -1101,7 +1109,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Comp
         ComputationNode::Case {
             indspec,
             scrutinee,
-            branches,
+            ref branches,
         } => {
             let ValueNode::InductiveConstructor {
                 indspec: actual,
@@ -1117,6 +1125,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: Computation) -> Option<Comp
             }
             let branch = branches.get(idx)?;
             let mut body = branch.body;
+            drop(node);
             for field in fields.iter().rev() {
                 body = instantiate_value_in_computation(arena, body, *field);
             }

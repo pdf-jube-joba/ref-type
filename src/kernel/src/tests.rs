@@ -146,6 +146,48 @@ fn beta_reduction_remains_set_only() {
 }
 
 #[test]
+fn substitution_preserves_free_variables_under_binders() {
+    use crate::calculus::shift_bound_indices;
+
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let ty = arena.sort(Sort::Set(0));
+    let argument = arena.alloc(ExpNode::App {
+        func: arena.exp_bound(0),
+        arg: arena.exp_bound(1),
+    });
+    assert_eq!(shift_bound_indices(arena, argument, 0, 0), argument);
+    assert_eq!(instantiate(arena, arena.exp_bound(0), argument), argument);
+
+    // In lambda y. x y, replacing x with an open term must still shift
+    // its free variables, while y remains bound to the inner lambda.
+    let body = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty,
+        body: arena.alloc(ExpNode::App {
+            func: arena.exp_bound(1),
+            arg: arena.exp_bound(0),
+        }),
+    });
+    let expected = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty,
+        body: arena.alloc(ExpNode::App {
+            func: arena.alloc(ExpNode::App {
+                func: arena.exp_bound(1),
+                arg: arena.exp_bound(2),
+            }),
+            arg: arena.exp_bound(0),
+        }),
+    });
+    assert!(exp_is_alpha_eq(
+        &env,
+        instantiate(arena, body, argument),
+        expected
+    ));
+}
+
+#[test]
 fn set_and_program_contexts_are_distinct() {
     let env = CrateEnv::new();
     let set = env.arena().sort(Sort::Set(0));
@@ -174,6 +216,72 @@ fn program_typing_and_evaluation_use_program_handles() {
         evaluate_computation(&env, returned),
         Evaluation::Normal(returned)
     );
+}
+
+#[test]
+fn program_case_preserves_field_order_and_fuel_boundary() {
+    use crate::program::ProgramCaseBranch;
+    use crate::program_calculus::{evaluate_computation_with_fuel, value_is_alpha_eq};
+
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let indspec = ProgramInductiveId {
+        module: env.root_module(),
+        index: 0,
+    };
+    let fields: Vec<_> = (0..2)
+        .map(|position| {
+            arena.alloc(ValueNode::ModuleParam(ModuleParamId {
+                module: env.root_module(),
+                position,
+            }))
+        })
+        .collect();
+    let pair = |fields| {
+        arena.alloc(ValueNode::InductiveConstructor {
+            indspec,
+            parameters: vec![],
+            idx: 1,
+            fields,
+        })
+    };
+    let scrutinee = pair(fields);
+    let body = arena.alloc(ComputationNode::Return {
+        value: pair(vec![arena.value_bound(1), arena.value_bound(0)]),
+    });
+    let case = arena.alloc(ComputationNode::Case {
+        indspec,
+        scrutinee,
+        branches: vec![
+            ProgramCaseBranch {
+                binders: vec![],
+                body: arena.alloc(ComputationNode::Force {
+                    value: arena.value_bound(0),
+                }),
+            },
+            ProgramCaseBranch {
+                binders: vec![SymbolId::ANONYMOUS; 2],
+                body,
+            },
+        ],
+    });
+    assert_eq!(
+        evaluate_computation_with_fuel(&env, case, 0),
+        Evaluation::OutOfFuel(case)
+    );
+    for fuel in [1, 2] {
+        let Evaluation::Normal(result) = evaluate_computation_with_fuel(&env, case, fuel) else {
+            panic!("case should finish in one step");
+        };
+        let ComputationNode::Return { value } = arena.get(result) else {
+            panic!("selected the wrong branch");
+        };
+        assert!(value_is_alpha_eq(arena, value, scrutinee));
+        assert_eq!(
+            evaluate_computation_with_fuel(&env, result, 0),
+            Evaluation::Normal(result)
+        );
+    }
 }
 
 #[test]

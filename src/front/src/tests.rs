@@ -63,6 +63,40 @@ fn record_fields_are_generated_as_eliminator_definitions() {
 }
 
 #[test]
+fn deeply_nested_expressions_and_arrow_precedence() {
+    // Re-parsing a non-arrow expression at every level makes these inputs
+    // exponential, although their syntax trees are small.
+    let nested = format!("{}x{}", "(".repeat(48), ")".repeat(48));
+    assert!(matches!(
+        parse::str_parse_exp(&nested).unwrap(),
+        SExp::AccessPath { .. }
+    ));
+    let nested = format!("{}x{}", r"\return(".repeat(48), ")".repeat(48));
+    let mut term = parse::str_parse_exp(&nested).unwrap();
+    for _ in 0..48 {
+        let SExp::Return { value } = term else {
+            panic!("missing nested return");
+        };
+        term = *value;
+    }
+    assert!(matches!(term, SExp::AccessPath { .. }));
+
+    let SExp::Prod { bind, body } = parse::str_parse_exp("f x -> Y => z").unwrap() else {
+        panic!("expected outer product");
+    };
+    let crate::syntax::Bind::Named(bind) = bind else {
+        panic!("expected unnamed domain");
+    };
+    assert!(bind.vars.is_empty());
+    assert!(matches!(*bind.ty, SExp::App { .. }));
+    assert!(matches!(*body, SExp::Lam { .. }));
+
+    for invalid in ["(x: X)", "((x: X) | P)", "x ->", "x =>", "(x"] {
+        assert!(parse::str_parse_exp(invalid).is_err(), "accepted {invalid}");
+    }
+}
+
+#[test]
 fn parses_implicit_and_goal_metavariables_as_atoms() {
     assert!(matches!(
         parse::str_parse_exp("_").unwrap(),

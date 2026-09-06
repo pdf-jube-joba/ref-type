@@ -1,6 +1,6 @@
 //! Set/Prop syntax and the typed kernel arena.
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 
 use crate::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -326,6 +326,15 @@ impl Arena {
 
     pub fn get<H: ArenaHandle>(&self, handle: H) -> H::Node {
         handle.get(self)
+    }
+
+    // Drop the guard before allocating in the same arena partition.
+    pub(crate) fn borrow_value(&self, value: Value) -> Ref<'_, ValueNode> {
+        Ref::map(self.values.borrow(), |nodes| &nodes[value.index()])
+    }
+
+    pub(crate) fn borrow_computation(&self, term: Computation) -> Ref<'_, ComputationNode> {
+        Ref::map(self.computations.borrow(), |nodes| &nodes[term.index()])
     }
 
     pub(crate) fn reuse_value_type(&self, original: ValueType, node: ValueTypeNode) -> ValueType {

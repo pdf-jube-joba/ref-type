@@ -1327,6 +1327,14 @@ impl<'a> TermParser<'a> {
             });
         }
 
+        // An unnamed head is already a complete ordinary expression. Reuse
+        // it instead of rolling back and parsing every nested term again.
+        if let Bind::Named(RightBind { vars, ty }) = left_head
+            && vars.is_empty()
+        {
+            return Ok(*ty);
+        }
+
         Err(ParseError {
             msg: "expected '->' or '=>' after bind".into(),
             start: self.span_at(self.pos).start,

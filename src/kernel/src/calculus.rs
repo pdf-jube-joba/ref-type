@@ -431,6 +431,9 @@ pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -
 }
 
 pub fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff: usize) -> Exp {
+    if amount == 0 {
+        return exp;
+    }
     transform(arena, exp, 0, &mut |node, depth| match node {
         ExpNode::Bound(index) if *index >= cutoff + depth => Some(arena.exp_bound(index + amount)),
         _ => None,
