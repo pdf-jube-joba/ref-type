@@ -144,3 +144,5 @@ in Type Theory
   - Towards a practical programming language based on dependent type theory
   - Module system と metavariable ありの制約の解き方についても書いてる
   - agda の参考？
+- https://www.sciencedirect.com/science/article/pii/0890540191900535
+  - stratified polymorphism というのがすでにあるらしい。よかった。

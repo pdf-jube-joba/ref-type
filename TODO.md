@@ -1,0 +1,7 @@
+- [ ] Program 側に record と type associated item を定義する
+- [ ] module parameter として Program 側を入れていいことにする
+- [ ] Program 側も Set/Prop と同様の階層構造を入れる
+- [ ] 構文の stratification (asTy と asTm なし)
+- [ ] 型クラスの実装
+- [ ] マクロの可変化
+- [ ] パッケージの定義
