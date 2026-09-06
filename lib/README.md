@@ -17,6 +17,7 @@ Set への反映時に停止性を検査する。他の再帰演算も同じ構�
 | Nat | `iter`, `mul`, `pow` | `MatchesPrec`、乗算の零・一・後者・交換・結合・分配則、累乗の零・後者則 |
 | Nat | `eqb`, `leb`, `ltb`, `choose`, `min`, `max` | `MatchesPrec`、等値判定の健全性と完全性、`Le` の反射・推移・反対称性、`Lt` の非反射性 |
 | Nat | `toggle`, `even`, `odd` | `MatchesPrec` |
+| Nat | `divMod`, `div`, `mod`, `gcd` | `MatchesPrec`、商・余りによる復元、余りの上限、GCD の公約数性と最大性 |
 | Bool | `neg`, `and`, `or`, `xor`, `implies`, `eqb` | `MatchesPrec`、交換・結合・冪等・吸収・分配則、De Morgan 則、否定の対合、等値判定の健全性と完全性 |
 
 `sub` は零で切り捨てる自然数減算、`pow a zero` は一（`0^0` も一）である。
@@ -26,9 +27,28 @@ Set への反映時に停止性を検査する。他の再帰演算も同じ構�
 `zeroSet` / `oneSet` は Set 側の定数。Bool の `ite A test yes no` は Set 多相の
 条件分岐で、閉じた Program 型を要求する box の制約から直接 `prec` で定義する。
 
-この追加は基本算術・比較・論理演算を対象とする。除算・剰余・最大公約数などの
-追加の再帰アルゴリズムはまだ含めていない。`Rat.ref` 内の独自の Set 自然数との
-統合も別途必要であり、この変更だけで有理数の obligation が解消するわけではない。
+`divMod a b` は Program の自然数対 `NatPair::pair q r` を返し、`div` / `mod` は
+その商・余りを取り出す。被除数の後者を一つずつ消費する有限反復で、正の除数に達すると
+余りを零に戻して商を増やす。零除数も全域化し、`div a 0 = 0`、`mod a 0 = a` とする。
+`divModReconstructs` は全入力で `b * div a b + mod a b = a` を証明し、
+`modLt a d` は `mod a (d+1) < d+1` を証明する。零・一に関する法則も公開している。
+
+`gcd a b` は `(a,b) → (b, mod a b)` というユークリッド互除法を使う。第二成分が
+零になると状態を保つ。`pairIterTerminates` が反復の停止性を保証し、`gcdIterSettles` は
+第二成分の減少から `b` 回の反復で必ず零に達することを証明する。
+`gcd a 0 = a`、`gcd 0 b = b`（従って `gcd 0 0 = 0`）である。
+`Divides d a` は自然数の因子を持つという構成的な存在命題。
+`gcdDividesLeft` / `gcdDividesRight` が GCD の公約数性を、`gcdGreatest` が
+任意の公約数は GCD を割り切るという最大性を証明する。これらの証明に公理の追加はない。
+
+`divModPrec` は Set の自然数再帰と `divModNextPrec`、`gcdPrec` は同じく自然数再帰と
+`gcdNextPrec` / `modPrec` による仕様であり、各 `MatchesPrec` で Program の反映との一致を示す。
+補助演算 `first`, `second`, `pairChoose`, `pairIter`, `divModNext`, `gcdNext` にも
+反映・仕様・一致証明がある。自然数は単項表現で、互除法の反復も第二引数の値だけ行うため、
+大きな具体値の計算には適していない。
+
+`Rat.ref` 内の独自の Set 自然数との統合は別途必要であり、この変更だけで有理数の
+obligation が解消するわけではない。
 
 [`Int.ref`](Int.ref) は Program の整数を `Int::ofNat n`（非負整数）と
 `Int::negSucc n`（`-(n+1)`）の直和 `Nat + Nat` で表す。零の表現は一つである。
@@ -61,7 +81,7 @@ Set 側には三つの層がある。
 | `even`, `odd` | 負の整数も含む偶奇判定 |
 
 加法の零・交換・結合・逆元則を商側で証明している。この整数 API は基本算術と判定を対象とし、
-除算・剰余・GCD は Nat 側と同様に含めていない。既存の `Rat.ref` の整数表現の置換は行っていない。
+整数の除算・剰余・GCD はまだ含めていない。既存の `Rat.ref` の整数表現の置換は行っていない。
 
 module import は型の instance を作るため、`Int` 内の Nat / Bool と別に import した型は混ぜない。
 Set 側では公開 alias `Int.Nat` / `Int.Bool` を使える。`natZero!{}`、`natSucc!{n}`、

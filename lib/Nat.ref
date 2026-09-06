@@ -753,3 +753,527 @@
 /* Convenient Set constants, reflected from the Program constants. */
 \definition zeroSet: Nat := \Force(Nat, \box(Nat, zero));
 \definition oneSet: Nat := \Force(Nat, \box(Nat, one));
+
+/* Pairs are Program data so that quotient/remainder and Euclidean states can
+ * cross the reflection boundary together. */
+\inductive NatPair: \VType := | pair: Nat -> Nat -> NatPair; ;
+\cdefinition first: \CFun(NatPair, \F(Nat)) := \clam(p, NatPair,
+  \vcase(NatPair, p) { | pair(a, b) => \return(a); });
+\cdefinition second: \CFun(NatPair, \F(Nat)) := \clam(p, NatPair,
+  \vcase(NatPair, p) { | pair(a, b) => \return(b); });
+\definition firstSet: NatPair -> Nat :=
+  \Force(\CFun(NatPair, \F(Nat)), \box(\CFun(NatPair, \F(Nat)), first));
+\definition secondSet: NatPair -> Nat :=
+  \Force(\CFun(NatPair, \F(Nat)), \box(\CFun(NatPair, \F(Nat)), second));
+\definition pairCong: (f: NatPair -> NatPair) -> (p, q: NatPair) -> p = q -> f p = f q :=
+  (f: NatPair -> NatPair) => (p, q: NatPair) => (e: p = q) =>
+    \idelim(p = q \with x: NatPair => f p = f x) \by (\refl(f p), e);
+\definition pairObserve: (f: NatPair -> Nat) -> (p, q: NatPair) -> p = q -> f p = f q :=
+  (f: NatPair -> Nat) => (p, q: NatPair) => (e: p = q) =>
+    \idelim(p = q \with x: NatPair => f p = f x) \by (\refl(f p), e);
+
+/* A pair-valued finite iterator. Its count, not the payload, proves totality. */
+\inductive PairIterState: \VType :=
+| running: \U(\CFun(NatPair, \F(NatPair))) -> NatPair -> Nat -> PairIterState;
+;
+\vdefinition pairIterStep: \U(\CFun(PairIterState, \F(\PRunStep(PairIterState, NatPair)))) :=
+  \thunk(\clam(state, PairIterState, \vcase(PairIterState, state) {
+  | running(f, value, count) => \vcase(Nat, count) {
+    | zero() => \return(\Pfinish(PairIterState, NatPair, value));
+    | succ(k) => \sequence(\capp(\force(f), value), next, NatPair,
+        \return(\Pcontinue(PairIterState, NatPair, PairIterState::running f next k)));
+    };
+  }));
+\definition pairIterStepSet: PairIterState -> \RunStep(PairIterState, NatPair) :=
+  \Force(\U(\CFun(PairIterState, \F(\PRunStep(PairIterState, NatPair)))),
+    \box(\U(\CFun(PairIterState, \F(\PRunStep(PairIterState, NatPair)))), pairIterStep));
+\definition pairIterReady: \RunStep(PairIterState, NatPair) -> \Prop :=
+  (t: \RunStep(PairIterState, NatPair)) => \Pred(Nat,
+    \runStepRec(PairIterState, NatPair, ((t: \RunStep(PairIterState, NatPair)) => \Power(Nat)),
+      ((s: PairIterState) => \Subset(n, Nat, \Acc(PairIterState, NatPair, pairIterStepSet, s))),
+      ((r: NatPair) => \Subset(n, Nat, Nat::zero = Nat::zero)), t), Nat::zero);
+\definition pairIterAccIntro: (s: PairIterState) -> pairIterReady (pairIterStepSet s) ->
+    \Acc(PairIterState, NatPair, pairIterStepSet, s) :=
+  (s: PairIterState) => (ready: pairIterReady (pairIterStepSet s)) =>
+    \accintro(PairIterState, NatPair, pairIterStepSet, s,
+      (next: PairIterState) => (edge: pairIterStepSet s = \continue(PairIterState, NatPair, next)) =>
+        \idelim(pairIterStepSet s = \continue(PairIterState, NatPair, next)
+          \with t: \RunStep(PairIterState, NatPair) => pairIterReady t) \by (ready, edge));
+\definition pairIterTerminates: (count: Nat) -> (f: NatPair -> NatPair) -> (value: NatPair) ->
+    \Acc(PairIterState, NatPair, pairIterStepSet, PairIterState::running f value count) :=
+  \prec(\Prop, Nat)
+    ((count: Nat) => (f: NatPair -> NatPair) -> (value: NatPair) ->
+      \Acc(PairIterState, NatPair, pairIterStepSet, PairIterState::running f value count))
+    ((f: NatPair -> NatPair) => (value: NatPair) =>
+      pairIterAccIntro (PairIterState::running f value Nat::zero) (\refl(Nat::zero)))
+    ((k: Nat) => (ih: (f: NatPair -> NatPair) -> (value: NatPair) ->
+      \Acc(PairIterState, NatPair, pairIterStepSet, PairIterState::running f value k)) =>
+      (f: NatPair -> NatPair) => (value: NatPair) =>
+        pairIterAccIntro (PairIterState::running f value (Nat::succ k)) (ih f (f value)));
+\cdefinition pairIter:
+  \CFun(\U(\CFun(NatPair, \F(NatPair))), \F(\U(\CFun(NatPair, \F(\U(\CFun(Nat, \F(NatPair)))))))) :=
+  \clam(f, \U(\CFun(NatPair, \F(NatPair))), \return(\thunk(\clam(value, NatPair,
+    \return(\thunk(\clam(count, Nat,
+      \Prun(PairIterState, NatPair, pairIterStep, PairIterState::running f value count)
+        \by pairIterTerminates count f value)))))));
+\definition pairIterSet: (NatPair -> NatPair) -> NatPair -> Nat -> NatPair :=
+  \Force(\CFun(\U(\CFun(NatPair, \F(NatPair))), \F(\U(\CFun(NatPair, \F(\U(\CFun(Nat, \F(NatPair)))))))),
+    \box(\CFun(\U(\CFun(NatPair, \F(NatPair))), \F(\U(\CFun(NatPair, \F(\U(\CFun(Nat, \F(NatPair)))))))), pairIter));
+\definition pairIterPrec: (NatPair -> NatPair) -> NatPair -> Nat -> NatPair :=
+  (f: NatPair -> NatPair) => (value: NatPair) => (count: Nat) =>
+    \prec(\Set, Nat) ((n: Nat) => NatPair) value ((k: Nat) => (previous: NatPair) => f previous) count;
+\definition pairIterPrecStep: (f: NatPair -> NatPair) -> (count: Nat) -> (value: NatPair) ->
+  pairIterPrec f (f value) count = f (pairIterPrec f value count) :=
+  (f: NatPair -> NatPair) => \prec(\Prop, Nat)
+    ((count: Nat) => (value: NatPair) -> pairIterPrec f (f value) count = f (pairIterPrec f value count))
+    ((value: NatPair) => \refl(f value))
+    ((k: Nat) => (ih: (value: NatPair) -> pairIterPrec f (f value) k = f (pairIterPrec f value k)) =>
+      (value: NatPair) => pairCong f _ _ (ih value));
+\definition pairIterMatchesPrec: (f: NatPair -> NatPair) -> (count: Nat) -> (value: NatPair) ->
+  pairIterSet f value count = pairIterPrec f value count :=
+  (f: NatPair -> NatPair) => \prec(\Prop, Nat)
+    ((count: Nat) => (value: NatPair) -> pairIterSet f value count = pairIterPrec f value count)
+    ((value: NatPair) => \refl(value))
+    ((k: Nat) => (ih: (value: NatPair) -> pairIterSet f value k = pairIterPrec f value k) =>
+      (value: NatPair) =>
+        \idelim(pairIterPrec f (f value) k = f (pairIterPrec f value k)
+          \with x: NatPair => pairIterSet f value (Nat::succ k) = x)
+        \by (ih (f value), pairIterPrecStep f k value));
+
+\cdefinition pairChoose:
+  \CFun(B.Bool, \F(\U(\CFun(NatPair, \F(\U(\CFun(NatPair, \F(NatPair)))))))) :=
+  \clam(test, B.Bool, \return(\thunk(\clam(yes, NatPair, \return(\thunk(\clam(no, NatPair,
+    \vcase(B.Bool, test) { | false() => \return(no); | true() => \return(yes); })))))));
+\definition pairChooseSet: B.Bool -> NatPair -> NatPair -> NatPair :=
+  \Force(\CFun(B.Bool, \F(\U(\CFun(NatPair, \F(\U(\CFun(NatPair, \F(NatPair)))))))),
+    \box(\CFun(B.Bool, \F(\U(\CFun(NatPair, \F(\U(\CFun(NatPair, \F(NatPair)))))))), pairChoose));
+\definition pairChoosePrec: B.Bool -> NatPair -> NatPair -> NatPair :=
+  (test: B.Bool) => (yes, no: NatPair) => \prec(\Set, B.Bool) ((b: B.Bool) => NatPair) no yes test;
+\definition pairChooseMatchesPrec: (test: B.Bool) -> (yes, no: NatPair) ->
+  pairChooseSet test yes no = pairChoosePrec test yes no :=
+  \prec(\Prop, B.Bool)
+    ((test: B.Bool) => (yes, no: NatPair) -> pairChooseSet test yes no = pairChoosePrec test yes no)
+    ((yes, no: NatPair) => \refl(no)) ((yes, no: NatPair) => \refl(yes));
+
+/* Consume one unit of the dividend. At a positive divisor's boundary the
+ * remainder wraps to zero and the quotient increases. At divisor zero only
+ * the remainder increases: div a 0 = 0, mod a 0 = a. */
+\cdefinition divModNext: \CFun(Nat, \F(\U(\CFun(NatPair, \F(NatPair))))) :=
+  \clam(b, Nat, \return(\thunk(\clam(p, NatPair, \vcase(NatPair, p) {
+  | pair(q, r) => \vcase(Nat, b) {
+    | zero() => \return(NatPair::pair q (Nat::succ r));
+    | succ(d) =>
+      \sequence(\Prun(EqbState, B.Bool, eqbStep, EqbState::running r d)
+        \by eqbTerminates d r, hit, B.Bool,
+        \sequence(\capp(pairChoose, hit), pick, \U(\CFun(NatPair, \F(\U(\CFun(NatPair, \F(NatPair)))))),
+          \sequence(\capp(\force(pick), NatPair::pair (Nat::succ q) Nat::zero), pickYes,
+            \U(\CFun(NatPair, \F(NatPair))),
+            \capp(\force(pickYes), NatPair::pair q (Nat::succ r)))));
+    };
+  }))));
+\definition divModNextSet: Nat -> NatPair -> NatPair :=
+  \Force(\CFun(Nat, \F(\U(\CFun(NatPair, \F(NatPair))))),
+    \box(\CFun(Nat, \F(\U(\CFun(NatPair, \F(NatPair))))), divModNext));
+\definition divModNextPrec: Nat -> NatPair -> NatPair :=
+  (b: Nat) => \prec(\Set, NatPair) ((p: NatPair) => NatPair)
+    ((q, r: Nat) => \prec(\Set, Nat) ((b: Nat) => NatPair)
+      (NatPair::pair q (Nat::succ r))
+      ((d: Nat) => (unused: NatPair) => \prec(\Set, B.Bool) ((hit: B.Bool) => NatPair)
+        (NatPair::pair q (Nat::succ r)) (NatPair::pair (Nat::succ q) Nat::zero) (eqbSet r d)) b);
+\definition divModNextMatchesPrec: (b: Nat) -> (p: NatPair) -> divModNextSet b p = divModNextPrec b p :=
+  (b: Nat) => \prec(\Prop, NatPair)
+    ((p: NatPair) => divModNextSet b p = divModNextPrec b p)
+    ((q, r: Nat) => \prec(\Prop, Nat)
+      ((b: Nat) => divModNextSet b (NatPair::pair q r) = divModNextPrec b (NatPair::pair q r))
+      (\refl(NatPair::pair q (Nat::succ r)))
+      ((d: Nat) => (ih: divModNextSet d (NatPair::pair q r) = divModNextPrec d (NatPair::pair q r)) =>
+        pairChooseMatchesPrec (eqbSet r d) (NatPair::pair (Nat::succ q) Nat::zero) (NatPair::pair q (Nat::succ r))) b);
+\cdefinition divMod: \CFun(Nat, \F(\U(\CFun(Nat, \F(NatPair))))) :=
+  \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+    \sequence(\capp(divModNext, b), advance, \U(\CFun(NatPair, \F(NatPair))),
+      \Prun(PairIterState, NatPair, pairIterStep,
+        PairIterState::running advance (NatPair::pair Nat::zero Nat::zero) a)
+        \by pairIterTerminates a advance (NatPair::pair Nat::zero Nat::zero))))));
+\definition divModSet: Nat -> Nat -> NatPair :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(NatPair))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(NatPair))))), divMod));
+\definition divModPrec: Nat -> Nat -> NatPair :=
+  (a, b: Nat) => pairIterPrec (divModNextPrec b) (NatPair::pair Nat::zero Nat::zero) a;
+\definition pairEqTrans: (p, q, r: NatPair) -> p = q -> q = r -> p = r :=
+  (p, q, r: NatPair) => (e: p = q) => (h: q = r) =>
+    \idelim(q = r \with x: NatPair => p = x) \by (e, h);
+\definition pairIterPrecCong: (f, g: NatPair -> NatPair) -> ((p: NatPair) -> f p = g p) ->
+  (count: Nat) -> (value: NatPair) -> pairIterPrec f value count = pairIterPrec g value count :=
+  (f, g: NatPair -> NatPair) => (e: (p: NatPair) -> f p = g p) => \prec(\Prop, Nat)
+    ((count: Nat) => (value: NatPair) -> pairIterPrec f value count = pairIterPrec g value count)
+    ((value: NatPair) => \refl(value))
+    ((k: Nat) => (ih: (value: NatPair) -> pairIterPrec f value k = pairIterPrec g value k) =>
+      (value: NatPair) => pairEqTrans _ _ _ (pairCong f _ _ (ih value)) (e (pairIterPrec g value k)));
+\definition divModMatchesPrec: (a, b: Nat) -> divModSet a b = divModPrec a b :=
+  (a, b: Nat) => pairEqTrans _ _ _
+    (pairIterMatchesPrec (divModNextSet b) a (NatPair::pair Nat::zero Nat::zero))
+    (pairIterPrecCong (divModNextSet b) (divModNextPrec b) (divModNextMatchesPrec b)
+      a (NatPair::pair Nat::zero Nat::zero));
+\cdefinition div: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+  \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+    \sequence(\capp(divMod, a), partial, \U(\CFun(Nat, \F(NatPair))),
+      \sequence(\capp(\force(partial), b), result, NatPair, \capp(first, result)))))));
+\cdefinition mod: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+  \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+    \sequence(\capp(divMod, a), partial, \U(\CFun(Nat, \F(NatPair))),
+      \sequence(\capp(\force(partial), b), result, NatPair, \capp(second, result)))))));
+\definition divSet: Nat -> Nat -> Nat :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), div));
+\definition modSet: Nat -> Nat -> Nat :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), mod));
+\definition divPrec: Nat -> Nat -> Nat := (a, b: Nat) => firstSet (divModPrec a b);
+\definition modPrec: Nat -> Nat -> Nat := (a, b: Nat) => secondSet (divModPrec a b);
+\definition divMatchesPrec: (a, b: Nat) -> divSet a b = divPrec a b :=
+  (a, b: Nat) => pairObserve firstSet _ _ (divModMatchesPrec a b);
+\definition modMatchesPrec: (a, b: Nat) -> modSet a b = modPrec a b :=
+  (a, b: Nat) => pairObserve secondSet _ _ (divModMatchesPrec a b);
+
+/* Euclid's transition is stationary at (a,0). Starting at (a,b), b steps
+ * suffice because each nonzero second component strictly decreases. */
+\vdefinition gcdNext: \U(\CFun(NatPair, \F(NatPair))) :=
+  \thunk(\clam(p, NatPair, \vcase(NatPair, p) {
+  | pair(a, b) => \vcase(Nat, b) {
+    | zero() => \return(NatPair::pair a Nat::zero);
+    | succ(d) => \sequence(\capp(mod, a), partial, \U(\CFun(Nat, \F(Nat))),
+        \sequence(\capp(\force(partial), Nat::succ d), r, Nat,
+          \return(NatPair::pair (Nat::succ d) r)));
+    };
+  }));
+\definition gcdNextSet: NatPair -> NatPair :=
+  \Force(\U(\CFun(NatPair, \F(NatPair))), \box(\U(\CFun(NatPair, \F(NatPair))), gcdNext));
+\definition gcdNextPrec: NatPair -> NatPair :=
+  \prec(\Set, NatPair) ((p: NatPair) => NatPair)
+    ((a, b: Nat) => \prec(\Set, Nat) ((b: Nat) => NatPair) (NatPair::pair a Nat::zero)
+      ((d: Nat) => (unused: NatPair) => NatPair::pair (Nat::succ d) (modPrec a (Nat::succ d))) b);
+\definition gcdNextMatchesPrec: (p: NatPair) -> gcdNextSet p = gcdNextPrec p :=
+  \prec(\Prop, NatPair) ((p: NatPair) => gcdNextSet p = gcdNextPrec p)
+    ((a, b: Nat) => \prec(\Prop, Nat)
+      ((b: Nat) => gcdNextSet (NatPair::pair a b) = gcdNextPrec (NatPair::pair a b))
+      (\refl(NatPair::pair a Nat::zero))
+      ((d: Nat) => (ih: gcdNextSet (NatPair::pair a d) = gcdNextPrec (NatPair::pair a d)) =>
+        \idelim(modSet a (Nat::succ d) = modPrec a (Nat::succ d)
+          \with r: Nat => NatPair::pair (Nat::succ d) (modSet a (Nat::succ d)) = NatPair::pair (Nat::succ d) r)
+          \by (\refl(NatPair::pair (Nat::succ d) (modSet a (Nat::succ d))), modMatchesPrec a (Nat::succ d))) b);
+\cdefinition gcd: \CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))) :=
+  \clam(a, Nat, \return(\thunk(\clam(b, Nat,
+    \sequence(\Prun(PairIterState, NatPair, pairIterStep, PairIterState::running gcdNext (NatPair::pair a b) b)
+      \by pairIterTerminates b gcdNextSet (NatPair::pair a b), result, NatPair,
+      \capp(first, result))))));
+\definition gcdSet: Nat -> Nat -> Nat :=
+  \Force(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))),
+    \box(\CFun(Nat, \F(\U(\CFun(Nat, \F(Nat))))), gcd));
+\definition gcdPrec: Nat -> Nat -> Nat :=
+  (a, b: Nat) => firstSet (pairIterPrec gcdNextPrec (NatPair::pair a b) b);
+\definition gcdMatchesPrec: (a, b: Nat) -> gcdSet a b = gcdPrec a b :=
+  (a, b: Nat) => pairObserve firstSet _ _ (pairEqTrans _ _ _
+    (pairIterMatchesPrec gcdNextSet b (NatPair::pair a b))
+    (pairIterPrecCong gcdNextSet gcdNextPrec gcdNextMatchesPrec b (NatPair::pair a b)));
+
+/* Projection specifications and reusable invariants for finite iterations. */
+\definition firstPrec: NatPair -> Nat :=
+  \prec(\Set, NatPair) ((p: NatPair) => Nat) ((a, b: Nat) => a);
+\definition secondPrec: NatPair -> Nat :=
+  \prec(\Set, NatPair) ((p: NatPair) => Nat) ((a, b: Nat) => b);
+\definition firstMatchesPrec: (p: NatPair) -> firstSet p = firstPrec p :=
+  \prec(\Prop, NatPair) ((p: NatPair) => firstSet p = firstPrec p) ((a, b: Nat) => \refl(a));
+\definition secondMatchesPrec: (p: NatPair) -> secondSet p = secondPrec p :=
+  \prec(\Prop, NatPair) ((p: NatPair) => secondSet p = secondPrec p) ((a, b: Nat) => \refl(b));
+\definition pairIterInvariant: (f: NatPair -> NatPair) -> (P: NatPair -> \Prop) ->
+  ((p: NatPair) -> P p -> P (f p)) -> (n: Nat) -> (p: NatPair) -> P p -> P (pairIterPrec f p n) :=
+  (f: NatPair -> NatPair) => (P: NatPair -> \Prop) => (step: (p: NatPair) -> P p -> P (f p)) =>
+    \prec(\Prop, Nat) ((n: Nat) => (p: NatPair) -> P p -> P (pairIterPrec f p n))
+      ((p: NatPair) => (h: P p) => h)
+      ((n: Nat) => (ih: (p: NatPair) -> P p -> P (pairIterPrec f p n)) =>
+        (p: NatPair) => (h: P p) => step (pairIterPrec f p n) (ih p h));
+\definition leSuccOfEqbFalse: (d, r: Nat) -> Le r d -> eqbSet r d = B.Bool::false -> Le (Nat::succ r) d :=
+  \prec(\Prop, Nat)
+    ((d: Nat) => (r: Nat) -> Le r d -> eqbSet r d = B.Bool::false -> Le (Nat::succ r) d)
+    (\prec(\Prop, Nat)
+      ((r: Nat) => Le r Nat::zero -> eqbSet r Nat::zero = B.Bool::false -> Le (Nat::succ r) Nat::zero)
+      ((h: Le Nat::zero Nat::zero) => (e: B.Bool::true = B.Bool::false) =>
+        B.absurd (Le (Nat::succ Nat::zero) Nat::zero)
+          (\idelim(B.Bool::true = B.Bool::false \with t: B.Bool => t = B.Bool::true) \by (\refl(B.Bool::true), e)))
+      ((r: Nat) => (ih: Le r Nat::zero -> eqbSet r Nat::zero = B.Bool::false -> Le (Nat::succ r) Nat::zero) =>
+        (h: Le (Nat::succ r) Nat::zero) => (e: eqbSet (Nat::succ r) Nat::zero = B.Bool::false) =>
+          B.absurd (Le (Nat::succ (Nat::succ r)) Nat::zero) h))
+    ((d: Nat) => (ih: (r: Nat) -> Le r d -> eqbSet r d = B.Bool::false -> Le (Nat::succ r) d) =>
+      \prec(\Prop, Nat)
+        ((r: Nat) => Le r (Nat::succ d) -> eqbSet r (Nat::succ d) = B.Bool::false -> Le (Nat::succ r) (Nat::succ d))
+        ((h: Le Nat::zero (Nat::succ d)) => (e: eqbSet Nat::zero (Nat::succ d) = B.Bool::false) => zeroLe d)
+        ((r: Nat) => (unused: Le r (Nat::succ d) -> eqbSet r (Nat::succ d) = B.Bool::false -> Le (Nat::succ r) (Nat::succ d)) =>
+          (h: Le (Nat::succ r) (Nat::succ d)) => (e: eqbSet (Nat::succ r) (Nat::succ d) = B.Bool::false) => ih r h e));
+\definition divModNextBound: (d: Nat) -> (p: NatPair) -> Le (secondSet p) d ->
+  Le (secondSet (divModNextPrec (Nat::succ d) p)) d :=
+  (d: Nat) => \prec(\Prop, NatPair)
+    ((p: NatPair) => Le (secondSet p) d -> Le (secondSet (divModNextPrec (Nat::succ d) p)) d)
+    ((q, r: Nat) => (h: Le r d) =>
+      (\prec(\Prop, B.Bool)
+        ((hit: B.Bool) => eqbSet r d = hit ->
+          Le (secondSet (pairChoosePrec hit (NatPair::pair (Nat::succ q) Nat::zero) (NatPair::pair q (Nat::succ r)))) d)
+        ((e: eqbSet r d = B.Bool::false) => leSuccOfEqbFalse d r h e)
+        ((e: eqbSet r d = B.Bool::true) => zeroLe d) (eqbSet r d)) (\refl(eqbSet r d)));
+\definition modPrecBound: (a, d: Nat) -> Le (modPrec a (Nat::succ d)) d :=
+  (a, d: Nat) => pairIterInvariant (divModNextPrec (Nat::succ d))
+    ((p: NatPair) => Le (secondSet p) d) (divModNextBound d) a
+    (NatPair::pair Nat::zero Nat::zero) (zeroLe d);
+\definition modBound: (a, d: Nat) -> Le (modSet a (Nat::succ d)) d :=
+  (a, d: Nat) =>
+    \idelim(modPrec a (Nat::succ d) = modSet a (Nat::succ d) \with r: Nat => Le r d)
+      \by (modPrecBound a d, eqSym _ _ (modMatchesPrec a (Nat::succ d)));
+
+/* Reconstruction holds even at divisor zero. */
+\definition divModValue: Nat -> NatPair -> Nat :=
+  (b: Nat) => (p: NatPair) => addSet (mulSet b (firstSet p)) (secondSet p);
+\definition divisionCarryValue: (d, q: Nat) ->
+  divModValue (Nat::succ d) (NatPair::pair (Nat::succ q) Nat::zero) =
+    Nat::succ (divModValue (Nat::succ d) (NatPair::pair q d)) :=
+  (d, q: Nat) => eqTrans _ _ _ (mulSuccRight (Nat::succ d) q)
+    (eqTrans _ _ _ (addSuccLeft d (mulSet (Nat::succ d) q))
+      (succCong _ _ (addComm d (mulSet (Nat::succ d) q))));
+\definition divModNextValue: (b: Nat) -> (p: NatPair) ->
+  divModValue b (divModNextPrec b p) = Nat::succ (divModValue b p) :=
+  (b: Nat) => \prec(\Prop, NatPair)
+    ((p: NatPair) => divModValue b (divModNextPrec b p) = Nat::succ (divModValue b p))
+    ((q, r: Nat) => \prec(\Prop, Nat)
+      ((b: Nat) => divModValue b (divModNextPrec b (NatPair::pair q r)) = Nat::succ (divModValue b (NatPair::pair q r)))
+      (addSuccRight (mulSet Nat::zero q) r)
+      ((d: Nat) => (ih: divModValue d (divModNextPrec d (NatPair::pair q r)) = Nat::succ (divModValue d (NatPair::pair q r))) =>
+        (\prec(\Prop, B.Bool)
+          ((hit: B.Bool) => eqbSet r d = hit ->
+            divModValue (Nat::succ d) (pairChoosePrec hit (NatPair::pair (Nat::succ q) Nat::zero) (NatPair::pair q (Nat::succ r))) =
+              Nat::succ (divModValue (Nat::succ d) (NatPair::pair q r)))
+          ((e: eqbSet r d = B.Bool::false) => addSuccRight (mulSet (Nat::succ d) q) r)
+          ((e: eqbSet r d = B.Bool::true) =>
+            \idelim(d = r \with x: Nat =>
+              divModValue (Nat::succ d) (NatPair::pair (Nat::succ q) Nat::zero) =
+                Nat::succ (divModValue (Nat::succ d) (NatPair::pair q x)))
+              \by (divisionCarryValue d q, eqSym r d (eqOfEqbTrue d r e))) (eqbSet r d)) (\refl(eqbSet r d))) b);
+\definition divModPrecReconstructs: (a, b: Nat) -> divModValue b (divModPrec a b) = a :=
+  \prec(\Prop, Nat) ((a: Nat) => (b: Nat) -> divModValue b (divModPrec a b) = a)
+    ((b: Nat) => \refl(Nat::zero))
+    ((a: Nat) => (ih: (b: Nat) -> divModValue b (divModPrec a b) = a) => (b: Nat) =>
+      eqTrans _ _ _ (divModNextValue b (divModPrec a b)) (succCong _ _ (ih b)));
+\definition divModReconstructs: (a, b: Nat) -> addSet (mulSet b (divSet a b)) (modSet a b) = a :=
+  (a, b: Nat) => eqTrans _ _ _ (pairObserve (divModValue b) _ _ (divModMatchesPrec a b))
+    (divModPrecReconstructs a b);
+
+/* The Euclidean loop's bound is proved, rather than assumed as fuel. */
+\definition gcdIterZero: (n, a: Nat) ->
+  pairIterPrec gcdNextSet (NatPair::pair a Nat::zero) n = NatPair::pair a Nat::zero :=
+  \prec(\Prop, Nat)
+    ((n: Nat) => (a: Nat) -> pairIterPrec gcdNextSet (NatPair::pair a Nat::zero) n = NatPair::pair a Nat::zero)
+    ((a: Nat) => \refl(NatPair::pair a Nat::zero))
+    ((n: Nat) => (ih: (a: Nat) -> pairIterPrec gcdNextSet (NatPair::pair a Nat::zero) n = NatPair::pair a Nat::zero) =>
+      (a: Nat) => pairCong gcdNextSet _ _ (ih a));
+\definition gcdIterSettles: (n, a, b: Nat) -> Le b n ->
+  secondSet (pairIterPrec gcdNextSet (NatPair::pair a b) n) = Nat::zero :=
+  \prec(\Prop, Nat)
+    ((n: Nat) => (a, b: Nat) -> Le b n -> secondSet (pairIterPrec gcdNextSet (NatPair::pair a b) n) = Nat::zero)
+    ((a, b: Nat) => (h: Le b Nat::zero) => leZeroEq b h)
+    ((n: Nat) => (ih: (a, b: Nat) -> Le b n -> secondSet (pairIterPrec gcdNextSet (NatPair::pair a b) n) = Nat::zero) =>
+      (a: Nat) => \prec(\Prop, Nat)
+        ((b: Nat) => Le b (Nat::succ n) -> secondSet (pairIterPrec gcdNextSet (NatPair::pair a b) (Nat::succ n)) = Nat::zero)
+        ((h: Le Nat::zero (Nat::succ n)) => pairObserve secondSet _ _ (gcdIterZero (Nat::succ n) a))
+        ((d: Nat) => (unused: Le d (Nat::succ n) -> secondSet (pairIterPrec gcdNextSet (NatPair::pair a d) (Nat::succ n)) = Nat::zero) =>
+          (h: Le (Nat::succ d) (Nat::succ n)) =>
+            \idelim(pairIterPrec gcdNextSet (gcdNextSet (NatPair::pair a (Nat::succ d))) n =
+                gcdNextSet (pairIterPrec gcdNextSet (NatPair::pair a (Nat::succ d)) n)
+              \with p: NatPair => secondSet p = Nat::zero)
+              \by (ih (Nat::succ d) (modSet a (Nat::succ d))
+                (leTrans (modSet a (Nat::succ d)) d n (modBound a d) h),
+                pairIterPrecStep gcdNextSet n (NatPair::pair a (Nat::succ d)))));
+\definition gcdRemainderZero: (a, b: Nat) ->
+  secondSet (pairIterSet gcdNextSet (NatPair::pair a b) b) = Nat::zero :=
+  (a, b: Nat) => eqTrans _ _ _
+    (pairObserve secondSet _ _ (pairIterMatchesPrec gcdNextSet b (NatPair::pair a b)))
+    (gcdIterSettles b a b (leRefl b));
+
+/* Zero conventions and division of zero are universal equations. */
+\definition divModZeroDivisor: (a: Nat) -> divModPrec a Nat::zero = NatPair::pair Nat::zero a :=
+  \prec(\Prop, Nat) ((a: Nat) => divModPrec a Nat::zero = NatPair::pair Nat::zero a)
+    (\refl(NatPair::pair Nat::zero Nat::zero))
+    ((a: Nat) => (ih: divModPrec a Nat::zero = NatPair::pair Nat::zero a) =>
+      pairCong (divModNextPrec Nat::zero) (divModPrec a Nat::zero) (NatPair::pair Nat::zero a) ih);
+\definition divZeroRight: (a: Nat) -> divSet a Nat::zero = Nat::zero :=
+  (a: Nat) => eqTrans _ _ _ (divMatchesPrec a Nat::zero) (pairObserve firstSet _ _ (divModZeroDivisor a));
+\definition modZeroRight: (a: Nat) -> modSet a Nat::zero = a :=
+  (a: Nat) => eqTrans _ _ _ (modMatchesPrec a Nat::zero) (pairObserve secondSet _ _ (divModZeroDivisor a));
+\definition divZeroLeft: (b: Nat) -> divSet Nat::zero b = Nat::zero := (b: Nat) => \refl(Nat::zero);
+\definition modZeroLeft: (b: Nat) -> modSet Nat::zero b = Nat::zero := (b: Nat) => \refl(Nat::zero);
+\definition gcdZeroRight: (a: Nat) -> gcdSet a Nat::zero = a := (a: Nat) => \refl(a);
+\definition gcdZeroLeft: (b: Nat) -> gcdSet Nat::zero b = b :=
+  \prec(\Prop, Nat) ((b: Nat) => gcdSet Nat::zero b = b) (\refl(Nat::zero))
+    ((d: Nat) => (ih: gcdSet Nat::zero d = d) => eqTrans _ _ _
+      (pairObserve firstSet _ _ (pairIterMatchesPrec gcdNextSet d (NatPair::pair (Nat::succ d) Nat::zero)))
+      (pairObserve firstSet _ _ (gcdIterZero d (Nat::succ d))));
+
+/* Divisibility is constructive: a proof supplies a natural-number factor to
+ * any propositional consumer (the usual existential encoding). */
+\definition Divides: Nat -> Nat -> \Prop :=
+  (d, a: Nat) => (P: \Prop) -> ((q: Nat) -> a = mulSet d q -> P) -> P;
+\definition dividesIntro: (d, a, q: Nat) -> a = mulSet d q -> Divides d a :=
+  (d, a, q: Nat) => (e: a = mulSet d q) => (P: \Prop) =>
+    (use: (q: Nat) -> a = mulSet d q -> P) => use q e;
+\definition dividesZero: (d: Nat) -> Divides d Nat::zero :=
+  (d: Nat) => dividesIntro d Nat::zero Nat::zero (\refl(Nat::zero));
+\definition dividesSelf: (d: Nat) -> Divides d d :=
+  (d: Nat) => dividesIntro d d (Nat::succ Nat::zero) (eqSym _ _ (mulOneRight d));
+\definition dividesTransport: (d, a, b: Nat) -> a = b -> Divides d a -> Divides d b :=
+  (d, a, b: Nat) => (e: a = b) => (h: Divides d a) =>
+    \idelim(a = b \with x: Nat => Divides d x) \by (h, e);
+\definition dividesAdd: (d, a, b: Nat) -> Divides d a -> Divides d b -> Divides d (addSet a b) :=
+  (d, a, b: Nat) => (ha: Divides d a) => (hb: Divides d b) =>
+    ha (Divides d (addSet a b)) ((x: Nat) => (ex: a = mulSet d x) =>
+      hb (Divides d (addSet a b)) ((y: Nat) => (ey: b = mulSet d y) =>
+        dividesIntro d (addSet a b) (addSet x y)
+          (eqTrans _ _ _ (addCong _ _ _ _ ex ey) (eqSym _ _ (mulDistribLeft d x y)))));
+\definition dividesMul: (d, a, b: Nat) -> Divides d a -> Divides d (mulSet a b) :=
+  (d, a, b: Nat) => (ha: Divides d a) =>
+    ha (Divides d (mulSet a b)) ((x: Nat) => (ex: a = mulSet d x) =>
+      dividesIntro d (mulSet a b) (mulSet x b)
+        (eqTrans _ _ _ (congr ((n: Nat) => mulSet n b) _ _ ex) (mulAssoc d x b)));
+\definition subCong: (a, b, c, d: Nat) -> a = b -> c = d -> subSet a c = subSet b d :=
+  (a, b, c, d: Nat) => (ab: a = b) => (cd: c = d) =>
+    eqTrans _ _ _ (congr ((x: Nat) => subSet x c) a b ab) (congr (subSet b) c d cd);
+\definition subAddBoth: (c, a, b: Nat) -> subSet (addSet a c) (addSet b c) = subSet a b :=
+  \prec(\Prop, Nat)
+    ((c: Nat) => (a, b: Nat) -> subSet (addSet a c) (addSet b c) = subSet a b)
+    ((a, b: Nat) => \refl(subSet a b))
+    ((c: Nat) => (ih: (a, b: Nat) -> subSet (addSet a c) (addSet b c) = subSet a b) =>
+      (a, b: Nat) => eqTrans _ _ _
+        (subCong _ _ _ _ (addSuccRight a c) (addSuccRight b c)) (ih a b));
+\definition mulSub: (d, b, a: Nat) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b) :=
+  (d: Nat) => \prec(\Prop, Nat)
+    ((b: Nat) => (a: Nat) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b))
+    ((a: Nat) => \refl(mulSet d a))
+    ((b: Nat) => (ih: (a: Nat) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b)) =>
+      \prec(\Prop, Nat)
+        ((a: Nat) => subSet (mulSet d a) (mulSet d (Nat::succ b)) = mulSet d (subSet a (Nat::succ b)))
+        (eqTrans _ _ _ (subZeroLeft (mulSet d (Nat::succ b)))
+          (eqSym _ _ (congr (mulSet d) _ _ (subZeroLeft (Nat::succ b)))))
+        ((a: Nat) => (unused: subSet (mulSet d a) (mulSet d (Nat::succ b)) = mulSet d (subSet a (Nat::succ b))) =>
+          eqTrans _ _ _ (subCong _ _ _ _ (mulSuccRight d a) (mulSuccRight d b))
+            (eqTrans _ _ _ (subCong _ _ _ _ (addComm d (mulSet d a)) (addComm d (mulSet d b)))
+              (eqTrans _ _ _ (subAddBoth d (mulSet d a) (mulSet d b)) (ih a)))));
+\definition dividesSub: (d, a, b: Nat) -> Divides d a -> Divides d b -> Divides d (subSet a b) :=
+  (d, a, b: Nat) => (ha: Divides d a) => (hb: Divides d b) =>
+    ha (Divides d (subSet a b)) ((x: Nat) => (ex: a = mulSet d x) =>
+      hb (Divides d (subSet a b)) ((y: Nat) => (ey: b = mulSet d y) =>
+        dividesIntro d (subSet a b) (subSet x y)
+          (eqTrans _ _ _ (subCong _ _ _ _ ex ey) (mulSub d y x))));
+\definition modAsSub: (a, b: Nat) -> modSet a b = subSet a (mulSet b (divSet a b)) :=
+  (a, b: Nat) => eqTrans _ _ _ (eqSym _ _ (subAddCancel (mulSet b (divSet a b)) (modSet a b)))
+    (congr ((x: Nat) => subSet x (mulSet b (divSet a b))) _ _
+      (eqTrans _ _ _ (addComm (modSet a b) (mulSet b (divSet a b))) (divModReconstructs a b)));
+\definition dividesMod: (d, a, b: Nat) -> Divides d a -> Divides d b -> Divides d (modSet a b) :=
+  (d, a, b: Nat) => (ha: Divides d a) => (hb: Divides d b) =>
+    dividesTransport d (subSet a (mulSet b (divSet a b))) (modSet a b) (eqSym _ _ (modAsSub a b))
+      (dividesSub d a (mulSet b (divSet a b)) ha (dividesMul d b (divSet a b) hb));
+\definition dividesOfMod: (d, a, b: Nat) -> Divides d b -> Divides d (modSet a b) -> Divides d a :=
+  (d, a, b: Nat) => (hb: Divides d b) => (hr: Divides d (modSet a b)) =>
+    dividesTransport d (addSet (mulSet b (divSet a b)) (modSet a b)) a (divModReconstructs a b)
+      (dividesAdd d (mulSet b (divSet a b)) (modSet a b) (dividesMul d b (divSet a b) hb) hr);
+
+\definition CommonDivisor: Nat -> Nat -> Nat -> \Prop :=
+  (d, a, b: Nat) => (P: \Prop) -> (Divides d a -> Divides d b -> P) -> P;
+\definition commonDivisorIntro: (d, a, b: Nat) -> Divides d a -> Divides d b -> CommonDivisor d a b :=
+  (d, a, b: Nat) => (ha: Divides d a) => (hb: Divides d b) =>
+    (P: \Prop) => (use: Divides d a -> Divides d b -> P) => use ha hb;
+\definition gcdNextPreserves: (d: Nat) -> (p: NatPair) -> CommonDivisor d (firstSet p) (secondSet p) ->
+  CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)) :=
+  (d: Nat) => \prec(\Prop, NatPair)
+    ((p: NatPair) => CommonDivisor d (firstSet p) (secondSet p) ->
+      CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)))
+    ((a, b: Nat) => \prec(\Prop, Nat)
+      ((b: Nat) => CommonDivisor d a b ->
+        CommonDivisor d (firstSet (gcdNextSet (NatPair::pair a b))) (secondSet (gcdNextSet (NatPair::pair a b))))
+      ((h: CommonDivisor d a Nat::zero) => h)
+      ((k: Nat) => (ih: CommonDivisor d a k ->
+        CommonDivisor d (firstSet (gcdNextSet (NatPair::pair a k))) (secondSet (gcdNextSet (NatPair::pair a k)))) =>
+        (h: CommonDivisor d a (Nat::succ k)) => h (CommonDivisor d (Nat::succ k) (modSet a (Nat::succ k)))
+          ((ha: Divides d a) => (hb: Divides d (Nat::succ k)) =>
+            commonDivisorIntro d (Nat::succ k) (modSet a (Nat::succ k)) hb (dividesMod d a (Nat::succ k) ha hb))) b);
+\definition gcdNextReflects: (d: Nat) -> (p: NatPair) ->
+  CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)) -> CommonDivisor d (firstSet p) (secondSet p) :=
+  (d: Nat) => \prec(\Prop, NatPair)
+    ((p: NatPair) => CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)) ->
+      CommonDivisor d (firstSet p) (secondSet p))
+    ((a, b: Nat) => \prec(\Prop, Nat)
+      ((b: Nat) => CommonDivisor d (firstSet (gcdNextSet (NatPair::pair a b))) (secondSet (gcdNextSet (NatPair::pair a b))) ->
+        CommonDivisor d a b)
+      ((h: CommonDivisor d a Nat::zero) => h)
+      ((k: Nat) => (ih: CommonDivisor d (firstSet (gcdNextSet (NatPair::pair a k))) (secondSet (gcdNextSet (NatPair::pair a k))) -> CommonDivisor d a k) =>
+        (h: CommonDivisor d (Nat::succ k) (modSet a (Nat::succ k))) => h (CommonDivisor d a (Nat::succ k))
+          ((hb: Divides d (Nat::succ k)) => (hr: Divides d (modSet a (Nat::succ k))) =>
+            commonDivisorIntro d a (Nat::succ k) (dividesOfMod d a (Nat::succ k) hb hr) hb)) b);
+\definition gcdIterReflects: (d, n: Nat) -> (p: NatPair) ->
+  CommonDivisor d (firstSet (pairIterPrec gcdNextSet p n)) (secondSet (pairIterPrec gcdNextSet p n)) ->
+    CommonDivisor d (firstSet p) (secondSet p) :=
+  (d: Nat) => \prec(\Prop, Nat)
+    ((n: Nat) => (p: NatPair) ->
+      CommonDivisor d (firstSet (pairIterPrec gcdNextSet p n)) (secondSet (pairIterPrec gcdNextSet p n)) ->
+        CommonDivisor d (firstSet p) (secondSet p))
+    ((p: NatPair) => (h: CommonDivisor d (firstSet p) (secondSet p)) => h)
+    ((n: Nat) => (ih: (p: NatPair) ->
+      CommonDivisor d (firstSet (pairIterPrec gcdNextSet p n)) (secondSet (pairIterPrec gcdNextSet p n)) ->
+        CommonDivisor d (firstSet p) (secondSet p)) =>
+      (p: NatPair) => (h: CommonDivisor d (firstSet (pairIterPrec gcdNextSet p (Nat::succ n)))
+        (secondSet (pairIterPrec gcdNextSet p (Nat::succ n)))) =>
+          ih p (gcdNextReflects d (pairIterPrec gcdNextSet p n) h));
+\definition gcdFinal: Nat -> Nat -> NatPair :=
+  (a, b: Nat) => pairIterPrec gcdNextSet (NatPair::pair a b) b;
+\definition gcdFinalFirst: (a, b: Nat) -> firstSet (gcdFinal a b) = gcdSet a b :=
+  (a, b: Nat) => eqSym _ _ (pairObserve firstSet _ _ (pairIterMatchesPrec gcdNextSet b (NatPair::pair a b)));
+\definition gcdFinalSecond: (a, b: Nat) -> secondSet (gcdFinal a b) = Nat::zero :=
+  (a, b: Nat) => gcdIterSettles b a b (leRefl b);
+\definition gcdCommonDivisor: (a, b: Nat) -> CommonDivisor (gcdSet a b) a b :=
+  (a, b: Nat) => gcdIterReflects (gcdSet a b) b (NatPair::pair a b)
+    (commonDivisorIntro (gcdSet a b) (firstSet (gcdFinal a b)) (secondSet (gcdFinal a b))
+      (dividesTransport (gcdSet a b) (gcdSet a b) (firstSet (gcdFinal a b))
+        (eqSym _ _ (gcdFinalFirst a b)) (dividesSelf (gcdSet a b)))
+      (dividesTransport (gcdSet a b) Nat::zero (secondSet (gcdFinal a b))
+        (eqSym _ _ (gcdFinalSecond a b)) (dividesZero (gcdSet a b))));
+\definition gcdDividesLeft: (a, b: Nat) -> Divides (gcdSet a b) a :=
+  (a, b: Nat) => gcdCommonDivisor a b (Divides (gcdSet a b) a)
+    ((ha: Divides (gcdSet a b) a) => (hb: Divides (gcdSet a b) b) => ha);
+\definition gcdDividesRight: (a, b: Nat) -> Divides (gcdSet a b) b :=
+  (a, b: Nat) => gcdCommonDivisor a b (Divides (gcdSet a b) b)
+    ((ha: Divides (gcdSet a b) a) => (hb: Divides (gcdSet a b) b) => hb);
+\definition gcdGreatest: (d, a, b: Nat) -> Divides d a -> Divides d b -> Divides d (gcdSet a b) :=
+  (d, a, b: Nat) => (ha: Divides d a) => (hb: Divides d b) =>
+    (pairIterInvariant gcdNextSet ((p: NatPair) => CommonDivisor d (firstSet p) (secondSet p))
+      (gcdNextPreserves d) b (NatPair::pair a b) (commonDivisorIntro d a b ha hb))
+        (Divides d (gcdSet a b))
+        ((hfirst: Divides d (firstSet (gcdFinal a b))) => (hsecond: Divides d (secondSet (gcdFinal a b))) =>
+          dividesTransport d (firstSet (gcdFinal a b)) (gcdSet a b) (gcdFinalFirst a b) hfirst);
+
+\definition leToLtSucc: (d, r: Nat) -> Le r d -> Lt r (Nat::succ d) :=
+  \prec(\Prop, Nat) ((d: Nat) => (r: Nat) -> Le r d -> Lt r (Nat::succ d))
+    (\prec(\Prop, Nat) ((r: Nat) => Le r Nat::zero -> Lt r (Nat::succ Nat::zero))
+      ((h: Le Nat::zero Nat::zero) => \refl(B.Bool::true))
+      ((r: Nat) => (ih: Le r Nat::zero -> Lt r (Nat::succ Nat::zero)) =>
+        (h: Le (Nat::succ r) Nat::zero) => B.absurd (Lt (Nat::succ r) (Nat::succ Nat::zero)) h))
+    ((d: Nat) => (ih: (r: Nat) -> Le r d -> Lt r (Nat::succ d)) =>
+      \prec(\Prop, Nat) ((r: Nat) => Le r (Nat::succ d) -> Lt r (Nat::succ (Nat::succ d)))
+        ((h: Le Nat::zero (Nat::succ d)) => \refl(B.Bool::true))
+        ((r: Nat) => (unused: Le r (Nat::succ d) -> Lt r (Nat::succ (Nat::succ d))) =>
+          (h: Le (Nat::succ r) (Nat::succ d)) => ih r h));
+\definition modLt: (a, d: Nat) -> Lt (modSet a (Nat::succ d)) (Nat::succ d) :=
+  (a, d: Nat) => leToLtSucc d (modSet a (Nat::succ d)) (modBound a d);
+\definition divModOne: (a: Nat) -> divModPrec a (Nat::succ Nat::zero) = NatPair::pair a Nat::zero :=
+  \prec(\Prop, Nat) ((a: Nat) => divModPrec a (Nat::succ Nat::zero) = NatPair::pair a Nat::zero)
+    (\refl(NatPair::pair Nat::zero Nat::zero))
+    ((a: Nat) => (ih: divModPrec a (Nat::succ Nat::zero) = NatPair::pair a Nat::zero) =>
+      pairCong (divModNextPrec (Nat::succ Nat::zero))
+        (divModPrec a (Nat::succ Nat::zero)) (NatPair::pair a Nat::zero) ih);
+\definition divOne: (a: Nat) -> divSet a (Nat::succ Nat::zero) = a :=
+  (a: Nat) => eqTrans _ _ _ (divMatchesPrec a (Nat::succ Nat::zero)) (pairObserve firstSet _ _ (divModOne a));
+\definition modOne: (a: Nat) -> modSet a (Nat::succ Nat::zero) = Nat::zero :=
+  (a: Nat) => eqTrans _ _ _ (modMatchesPrec a (Nat::succ Nat::zero)) (pairObserve secondSet _ _ (divModOne a));
