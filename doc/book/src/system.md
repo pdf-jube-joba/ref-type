@@ -1,44 +1,63 @@
-# 体系について
-とりあえず、現在考えている core calculus をここにまとめる。
-ただし、まだ定義できていない部分は載ってない。
-
-体系は Set/Prop を記述する PTS 部分と、CBPV に基づく Program 部分からなる。
-両者は別の構文、context、judgement を持つ。
-Reflection は Program の raw 構文から Set/Prop の構文へのメタレベルの写像とする。
-帰納型関連はまとめて章立てする。
+# Core calculus
+> [! note]
+> この block quote は削除しないし追記しないでください。
+> ここは体系を簡潔に述べるところです。
+> 会話由来の「○○しない」とか、
+> の状態から変更した理由とかを書かないでください。
 
 ## Sort
-pure type system のような形で \(S, A, R\) の組を次のように定義する。
-以降は特別に書かない限り \(i \in \mathbb{N}\) とする。
 
-- \(\mathcal{S} = \{*^s_{i}, \sq^s_{i} \mid i \in \mathbb{N}\} \cup \{*^p, \sq^p\}\)
-    - \(*^s_{i}, \sq^s_{i}\) は set 用の sort
-    - \(*^p, \sq^p\) は proposition 用の sort
-- \(\mathcal{A} = \{(*^s_{i}, \sq^s_{i})\} \cup \{(*^p, \sq^p)\}\)
-- \(\mathcal{R} =\) union of
-    - \(\{(*^s_i, *^s_j, *^s_{\max(i,j)}), (*^s_i, \sq^s_j, \sq^s_{\max(i,j)}), (\sq^s_i, \sq^s_j, \sq^s_{\max(i,j)})\}\) ... universe level の異なる dependent product は最小の共通 level に置く
-    - \(\{(\sq^s_i, *^s_j, *^s_{\max(i+1,j)})\}\) ... universe 自身を走る場合だけ domain 側の level を一つ上げる
-    - \(\{(*^p, *^p, *^p), (\sq^p, *^p, *^p), (\sq^p, \sq^p, \sq^p)\}\) ... \(*^p\) は impredicative だけど依存型のような \((*^p, \sq^p, \sq^p)\) はない。
-    - \(\{(s, s', s') \mid s \in \{* ^s_i, \sq^s_i\}, s' \in \{* ^p, \sq ^p\} \}\) ... \(* ^s\) についての命題を用意するため。
+\[
+\begin{aligned}
+\mathcal S
+&:=\{*^s_i,\sq^s_i\mid i\in\mathbb N\}\cup\{*^p,\sq^p\},\\
+\mathcal A
+&:=\{(*^s_i,\sq^s_i)\mid i\in\mathbb N\}\cup\{(*^p,\sq^p)\},\\
+\mathcal R
+&:=\bigcup_{i\in\mathbb N}
+\left\{
+\begin{aligned}
+&(*^s_i,*^s_i,*^s_i),\quad
+(*^s_i,\sq^s_i,\sq^s_i),\\
+&(\sq^s_i,\sq^s_i,\sq^s_i),\quad
+(\sq^s_i,*^s_i,*^s_{i+1})
+\end{aligned}
+\right\}\\
+&\quad\cup\{(*^p,*^p,*^p),(\sq^p,*^p,*^p),(\sq^p,\sq^p,\sq^p)\}\\
+&\quad\cup\bigcup_{i\in\mathbb N}
+\{(s,q,q)\mid s\in\{*^s_i,\sq^s_i\},\ q\in\{*^p,\sq^p\}\}.
+\end{aligned}
+\]
 
-普通の変数を \(x\)、Program の type variable を \(X\) とする。
-\(s\) や \(s_i\) は \(\mathcal{S}\) の元とする。
+\[
+i\in\mathbb N,\qquad s,s_1,s_2,s_3\in\mathcal S,\qquad *^s:=*^s_i.
+\]
 
-> [!note]
-> - PTS の変数には sort をつけて \(x^s\) にする
-> - Program の value variable は \(x^v\) と書く
-> - PTS の typing には sort をつける
+| variable | notation |
+| --- | --- |
+| Set/Prop | \(x^s\) |
+| Program type | \(X\) |
+| Program value | \(x^v\) |
 
 ## Term, Context, Judgement
 
-（2つあるものは、別の書き方として用意している。）
+項は alpha 同値で同一視し、\(t[x:=u]\) は capture-avoiding substitution とする。
+
+| constructor | bound variable | scope |
+| --- | --- | --- |
+| \(\lambda x^s:A.t\), \(\Pi x^s:A.t\), \(\{x^s:A\mid t\}\) | \(x^s\) | \(t\) |
+| \(\operatorname{prec}_{\operatorname{RunStep}(A,B)}(x^s.P,c,d,r)\) | \(x^s\) | \(P\) |
+| \(\lambda x^v:A.M\) | \(x^v\) | \(M\) |
+| \(M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ N\) | \(x^v\) | \(N\) |
+| \(\operatorname{let}^v x^v:A=V\ \operatorname{in}\ N\) | \(x^v\) | \(N\) |
+| \(\operatorname{case}^v(V;\overline{C_i^v(\vec x_i^v)\mapsto M_i})\) | \(\vec x_i^v\) | \(M_i\) |
 
 ### Term
 
 #### Set/Prop
 
 - term: \(t = \)
-    - 普通の Lambda 項
+    - λ-calculus
         | category | definition |
         | --- | --- |
         | sort | \(s\) |
@@ -57,7 +76,7 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
         | power set | \(\Power t\) |
         | type lift | \(\Ty (t, t)\) |
         | predicate | \(\Pred_t t (t)\) or \(\Pred(t, t, t)\) |
-    - equiality の記述
+    - equality
         | category | definition |
         | --- | --- |
         | equality type | \(t = t\) |
@@ -69,7 +88,7 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
         | run step type | \(\operatorname{RunStep}(t,t)\) |
         | continue | \(\operatorname{continue}_{t,t}(t)\) |
         | finish | \(\operatorname{finish}_{t,t}(t)\) |
-        | run step recursor | \(\operatorname{prec}_{\operatorname{RunStep}(t,t)}(t,t,t,t)\) |
+        | run step recursor | \(\operatorname{prec}_{\operatorname{RunStep}(t,t)}(x^s.t,t,t,t)\) |
         | accessibility | \(\operatorname{Acc}_{t,t}(t,t)\) |
         | run | \(\operatorname{run}_{t,t}(t,t)\) |
         | run case | \(\operatorname{runCase}_{t,t}(t,t,t)\) |
@@ -87,7 +106,7 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
     | --- | --- |
     | type variable | \(X\) |
     | thunk type | \(\text{U}\underline B\) |
-    | run step type | \(\operatorname{RunStep}(A,A)\) |
+    | run step type | \(\operatorname{RunStep}(A,B)\) |
 - computation type: \(\underline B = \)
     | category | definition |
     | --- | --- |
@@ -98,8 +117,8 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
     | --- | --- |
     | variable | \(x^v\) |
     | thunk | \(\operatorname{thunk}(M)\) |
-    | continue | \(\operatorname{continue}_{A,A}(V)\) |
-    | finish | \(\operatorname{finish}_{A,A}(V)\) |
+    | continue | \(\operatorname{continue}_{A,B}(V)\) |
+    | finish | \(\operatorname{finish}_{A,B}(V)\) |
 - computation: \(M = \)
     | category | definition |
     | --- | --- |
@@ -109,8 +128,8 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
     | application | \(M @^c V\) |
     | sequence | \(M\ \operatorname{to}\ x^v:A\ \operatorname{in}\ M\) |
     | value let | \(\operatorname{let}^v x^v:A=V\ \operatorname{in}\ M\) |
-    | run | \(\operatorname{run}_{A,A}(V,V)\) |
-    | run case | \(\operatorname{runCase}_{A,A}(V,V,M)\) |
+    | run | \(\operatorname{run}_{A,B}(V,V)\) |
+    | run case | \(\operatorname{runCase}_{A,B}(V,V,M)\) |
 - program type: \(P = \)
     | category | definition |
     | --- | --- |
@@ -164,7 +183,14 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
 
 ### Set/Prop
 
-\(\Rightarrow_s\) は通常の Lambda 項の reduction と次の root rule の compatible closure とする。
+\(C_s\) を Set/Prop 項の一穴文脈（Program payload 内を除く）とする。
+\(\Rightarrow_s\) は以下の規則で生成される最小の関係とする。
+
+\[
+\frac{t\Rightarrow_s t'}{C_s[t]\Rightarrow_s C_s[t']},
+\qquad
+(\lambda x^s:A.t)@u\Rightarrow_s t[x^s:=u].
+\]
 
 \[
 \Pred (A, \{x^s: B \mid P\}, t)
@@ -175,10 +201,10 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
 \[
 \begin{aligned}
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(P,c,d,\operatorname{continue}_{A,B}(a))
+(x^s.P,c,d,\operatorname{continue}_{A,B}(a))
 &\Rightarrow_s c@a,\\
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(P,c,d,\operatorname{finish}_{A,B}(b))
+(x^s.P,c,d,\operatorname{finish}_{A,B}(b))
 &\Rightarrow_s d@b,\\
 \operatorname{run}_{A,B}(f,a)
 &\Rightarrow_s
@@ -200,24 +226,9 @@ pure type system のような形で \(S, A, R\) の組を次のように定義�
 | force box | \(\operatorname{Force}_P(\operatorname{box}_P(r))\Rightarrow_s\operatorname{RfTerm}(r)\) | \(\emptyset\vdash_Pr:P\)<br>\(\nexists r'.\ r\Rightarrow_cr'\) |
 | boxed application | \(\operatorname{box}_{A\Rightarrow\underline B}(M)@^{\operatorname{Box}}\operatorname{box}_A(V)\Rightarrow_s\operatorname{box}_{\underline B}(M@^cV)\) | |
 
-\[
-C_{\operatorname{Box}}::=
-[\,]
-\mid\operatorname{Force}_P(C_{\operatorname{Box}})
-\mid C_{\operatorname{Box}}@^{\operatorname{Box}}t
-\mid t@^{\operatorname{Box}}C_{\operatorname{Box}}.
-\]
-
-\[
-t\Rightarrow_st'
-\quad\Longrightarrow\quad
-C_{\operatorname{Box}}[t]\Rightarrow_sC_{\operatorname{Box}}[t'].
-\]
-
 ### Program
 
-Program reduction \(\Rightarrow_c\) は、次の evaluation context による
-weak call-by-value reduction とする。
+\(\Rightarrow_c\) は以下の規則で生成される最小の関係とする。
 
 \[
 \begin{aligned}
@@ -225,7 +236,7 @@ E::={}&
 [\,]
 \mid E @^c V\\
 &\mid E\ \operatorname{to}\ x^v:A\ \operatorname{in}\ M\\
-&\mid\operatorname{runCase}_{A,A}(V,V,E).
+&\mid\operatorname{runCase}_{A,B}(V,V,E).
 \end{aligned}
 \]
 
@@ -263,7 +274,9 @@ M\Rightarrow_cM'
 
 ### Set/Prop
 
-\(\Gamma::e\) は \(\Gamma,e\) の別表記とする。
+\[
+\Gamma::e:=\Gamma,e.
+\]
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
@@ -275,8 +288,8 @@ M\Rightarrow_cM'
 | variable | \(\Gamma::(x^s: t: s) \vdash x^s: t: s\) | \(\operatorname{WF}(\Gamma::(x^s: t: s))\) | \(s\in\mathcal{S}\) |
 | conversion | \(\Gamma \vdash t: T_2: s\) | \(\Gamma \vdash t: T_1: s\)<br>\(\Gamma \vdash T_2: s\) | \(s\in\mathcal{S}\)<br>\(T_1 \equiv_s T_2\) |
 | dep form | \(\Gamma \vdash (\Pi x^{s_1}:t. T): s_3\) | \(\Gamma \vdash t: s_1\)<br>\(\Gamma::(x^{s_1}: t: s_1) \vdash T: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\((s_1, s_2, s_3) \in \mathcal{R}\)<br>\(x^{s_1}\notin\Gamma\) |
-| dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma \vdash (\Pi x^{s_1}:t. M): s_3\)<br>\(\Gamma::(x^{s_1}:t: s_1) \vdash m: M: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\(x^{s_1}\notin\Gamma\) |
-| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma \vdash f: (\Pi x^{s_1}: t. T): s_3\)<br>\(\Gamma \vdash a: t: s_1\)<br>\(\Gamma::(x^{s_1}: t: s_1) \vdash T: s_2\) | \(s_1,s_2,s_3\in\mathcal{S}\)<br>\((s_1, s_2, s_3) \in \mathcal{R}\) |
+| dep intro | \(\Gamma \vdash (\lambda x^{s_1}:t.m): (\Pi x^{s_1}:t.M) : s_3\) | \(\Gamma\vdash t:s_1\)<br>\(\Gamma::(x^{s_1}:t:s_1)\vdash M:s_2\)<br>\(\Gamma \vdash (\Pi x^{s_1}:t.M):s_3\)<br>\(\Gamma::(x^{s_1}:t:s_1)\vdash m:M:s_2\) | \(x^{s_1}\notin\Gamma\) |
+| dep elim | \(\Gamma \vdash (f @ a): T[x := a]: s_2\) | \(\Gamma\vdash t:s_1\)<br>\(\Gamma::(x^{s_1}:t:s_1)\vdash T:s_2\)<br>\(\Gamma\vdash(\Pi x^{s_1}:t.T):s_3\)<br>\(\Gamma\vdash f:(\Pi x^{s_1}:t.T):s_3\)<br>\(\Gamma\vdash a:t:s_1\) | \(x^{s_1}\notin\Gamma\) |
 | type elem | \(\Gamma \vdash A: s: t\) | \(\Gamma \vdash A: s\)<br>\(\Gamma \vdash s: t\) | \(s,t\in\mathcal{S}\) |
 | type sort | \(\Gamma \vdash A: s\) | \(\Gamma \vdash A: s: t\) | \(s,t\in\mathcal{S}\) |
 
@@ -289,63 +302,64 @@ M\Rightarrow_cM'
 
 #### power set, subset
 
-ここで出てくる \(*^s\) は全部 \(i\) を同じにする。
-
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
 | power set form | \(\Gamma\vdash\Power A:*^s\) | \(\Gamma\vdash A:*^s\) | |
-| power set intro | \(\Gamma\vdash\Ty(A,B):*^s\) | \(\Gamma\vdash B:\Power A:*^s\) | |
-| predicate | \(\Gamma\vdash\Pred(A,B,t):*^p\) | \(\Gamma\vdash B:\Power A:*^s\)<br>\(\Gamma\vdash t:A:*^s\) | |
-| subset form | \(\Gamma\vdash\{x^{*^s}:A\mid P\}:\Power A:*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma,x^{*^s}:A:*^s\vdash P:*^p\) | |
-| subset intro | \(\Gamma\vdash t:\Ty(A,B):*^s\) | \(\Gamma\vdash B:\Power A:*^s\)<br>\(\Gamma\vdash t:A:*^s\)<br>\(\Gamma\vDash\Pred(A,B,t)\) | |
-| subset weak | \(\Gamma\vdash t:A:*^s\) | \(\Gamma\vdash t:\Ty(A,B):*^s\) | |
-| subset prop | \(\Gamma\vDash\Pred(A,B,t)\) | \(\Gamma\vdash t:\Ty(A,B):*^s\) | |
+| power set intro | \(\Gamma\vdash\Ty(A,B):*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:\Power A:*^s\) | |
+| predicate | \(\Gamma\vdash\Pred(A,B,t):*^p\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:\Power A:*^s\)<br>\(\Gamma\vdash t:A:*^s\) | |
+| subset form | \(\Gamma\vdash\{x^{*^s}:A\mid P\}:\Power A:*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma,x^{*^s}:A:*^s\vdash P:*^p\) | \(x^{*^s}\notin\Gamma\) |
+| subset intro | \(\Gamma\vdash t:\Ty(A,B):*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:\Power A:*^s\)<br>\(\Gamma\vdash t:A:*^s\)<br>\(\Gamma\vDash\Pred(A,B,t)\) | |
+| subset weak | \(\Gamma\vdash t:A:*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:\Power A:*^s\)<br>\(\Gamma\vdash t:\Ty(A,B):*^s\) | |
+| subset prop | \(\Gamma\vDash\Pred(A,B,t)\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:\Power A:*^s\)<br>\(\Gamma\vdash t:\Ty(A,B):*^s\) | |
 
 #### equality
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| id form | \(\Gamma\vdash a=b:*^p\) | \(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vdash b:A:*^s\) | |
-| id intro | \(\Gamma\vDash a=a\) | \(\Gamma\vdash a:A:*^s\) | |
-| id elim | \(\Gamma\vDash(\lambda x:A.P)@b\) | \(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vdash b:A:*^s\)<br>\(\Gamma\vDash a=b\)<br>\(\Gamma,x:A:*^s\vdash P:*^p\)<br>\(\Gamma\vDash(\lambda x:A.P)@a\) | |
+| id form | \(\Gamma\vdash a=b:*^p\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vdash b:A:*^s\) | |
+| id intro | \(\Gamma\vDash a=a\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash a:A:*^s\) | |
+| id elim | \(\Gamma\vDash(\lambda x:A.P)@b\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vdash b:A:*^s\)<br>\(\Gamma\vDash a=b\)<br>\(\Gamma,x:A:*^s\vdash P:*^p\)<br>\(\Gamma\vDash(\lambda x:A.P)@a\) | |
 
 #### choice
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
 | exists form | \(\Gamma\vdash\exists T:*^p\) | \(\Gamma\vdash T:*^s\) | |
-| exists intro | \(\Gamma\vDash\exists T\) | \(\Gamma\vdash e:T:*^s\) | |
-| take elim set | \(\Gamma\vdash\Take(X,T,f):T:*^s\) | \(\Gamma\vdash X:*^s\)<br>\(\Gamma\vdash T:*^s\)<br>\(\Gamma\vdash f:X\to T:*^s\)<br>\(\Gamma\vDash\exists X\)<br>\(\Gamma\vDash(x_1:X)\to(x_2:X)\to f@x_1=f@x_2\) | |
-| take elim prop | \(\Gamma\vdash\Take(X,T,f):T:*^p\) | \(\Gamma\vdash X:*^s\)<br>\(\Gamma\vdash T:*^p\)<br>\(\Gamma\vdash f:X\to T:*^p\)<br>\(\Gamma\vDash\exists X\) | |
-| take equal | \(\Gamma\vDash\Take(X,T,f)=f@t\) | \(\Gamma\vdash\Take(X,T,f):T:*^s\)<br>\(\Gamma\vdash t:X:*^s\) | |
+| exists intro | \(\Gamma\vDash\exists T\) | \(\Gamma\vdash T:*^s\)<br>\(\Gamma\vdash e:T:*^s\) | |
+| take elim set | \(\Gamma\vdash\Take(X,T,f):T:*^s\) | \(\Gamma\vdash X:*^s\)<br>\(\Gamma\vdash T:*^s\)<br>\(\Gamma\vdash X\to T:*^s\)<br>\(\Gamma\vdash f:X\to T:*^s\)<br>\(\Gamma\vDash\exists X\)<br>\(\Gamma\vDash(x_1:X)\to(x_2:X)\to f@x_1=f@x_2\) | |
+| take elim prop | \(\Gamma\vdash\Take(X,T,f):T:*^p\) | \(\Gamma\vdash X:*^s\)<br>\(\Gamma\vdash T:*^p\)<br>\(\Gamma\vdash X\to T:*^p\)<br>\(\Gamma\vdash f:X\to T:*^p\)<br>\(\Gamma\vDash\exists X\) | |
+| take equal | \(\Gamma\vDash\Take(X,T,f)=f@t\) | \(\Gamma\vdash X:*^s\)<br>\(\Gamma\vdash T:*^s\)<br>\(\Gamma\vdash X\to T:*^s\)<br>\(\Gamma\vdash f:X\to T:*^s\)<br>\(\Gamma\vdash\Take(X,T,f):T:*^s\)<br>\(\Gamma\vdash t:X:*^s\) | |
 
 #### RunStep
 
-ここで \(k=\max(i,j)\) とする。
-
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^s_k\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_j\) | |
-| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^s_k\) | \(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma\vdash B:*^s_j\) | |
-| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^s_k\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash b:B:*^s_j\) | |
-| prec | \(\Gamma\vdash\operatorname{prec}_{\operatorname{RunStep}(A,B)}(P,c,d,r):P[x:=r]:s\) | \(\Gamma\vdash r:\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma,x:\operatorname{RunStep}(A,B):*^s_k\vdash P:s\)<br>\(\Gamma\vdash c:(a:A)\to P[x:=\operatorname{continue}_{A,B}(a)]:s_c\)<br>\(\Gamma\vdash d:(b:B)\to P[x:=\operatorname{finish}_{A,B}(b)]:s_d\) | 各 product は \(\mathcal R\) により形成可能 |
+| run step form | \(\Gamma\vdash\operatorname{RunStep}(A,B):*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\) | |
+| continue intro | \(\Gamma\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B):*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash a:A:*^s\) | |
+| finish intro | \(\Gamma\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B):*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash b:B:*^s\) | |
+| prec | \(\Gamma\vdash\operatorname{prec}_{\operatorname{RunStep}(A,B)}(x^{*^s}.P,c,d,r):P[x:=r]:s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash r:\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma,x^{*^s}:\operatorname{RunStep}(A,B):*^s\vdash P:s\)<br>\(\Gamma\vdash(a:A)\to P[x:=\operatorname{continue}_{A,B}(a)]:s\)<br>\(\Gamma\vdash c:(a:A)\to P[x:=\operatorname{continue}_{A,B}(a)]:s\)<br>\(\Gamma\vdash(b:B)\to P[x:=\operatorname{finish}_{A,B}(b)]:s\)<br>\(\Gamma\vdash d:(b:B)\to P[x:=\operatorname{finish}_{A,B}(b)]:s\) | \(\{x,a,b\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(\lvert\{x,a,b\}\rvert=3\) |
 
 #### Acc と run
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\) | |
-| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma,b:A:*^s_i\vDash(f@a=\operatorname{continue}_{A,B}(b))\to\operatorname{Acc}_{A,B}(f,b)\) | |
-| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@a=\operatorname{continue}_{A,B}(b)\) | |
-| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^s_j\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | |
-| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,r):B:*^s_j\) | \(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vdash a:A:*^s_i\)<br>\(\Gamma\vdash r:\operatorname{RunStep}(A,B):*^s_k\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@a=r\) | |
+| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma\vdash a:A:*^s\) | |
+| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma\vdash a:A:*^s\)<br>\(\Gamma,b:A:*^s\vDash(f@a=\operatorname{continue}_{A,B}(b))\to\operatorname{Acc}_{A,B}(f,b)\) | \(b\notin\operatorname{dom}(\Gamma)\) |
+| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vdash b:A:*^s\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@a=\operatorname{continue}_{A,B}(b)\) | |
+| run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B:*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | |
+| run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,r):B:*^s\) | \(\Gamma\vdash A:*^s\)<br>\(\Gamma\vdash B:*^s\)<br>\(\Gamma\vdash f:A\to\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma\vdash a:A:*^s\)<br>\(\Gamma\vdash r:\operatorname{RunStep}(A,B):*^s\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@a=r\) | |
 
 ### Program
 
 #### Program context と type formation
 
-\(\Delta\vdash_PJ\) は value type formation、computation type formation、
-value typing、computation typing のいずれか一つを表す。
+\[
+\Delta\vdash_PJ\ ::=
+\Delta\vdash A\ \mathsf{vtype}
+\ \mid\ \Delta\vdash\underline B\ \mathsf{ctype}
+\ \mid\ \Delta\vdash_vV:A
+\ \mid\ \Delta\vdash_cM:\underline B.
+\]
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
@@ -543,19 +557,14 @@ C_i^v:
 A_{i1}\to\cdots\to A_{ik_i}\to I^v(\vec X).
 \]
 
-再帰 occurrence \(I^v(\vec X)\) は strictly positive でなければならない。
-特に、再帰 occurrence を
-\(\text{U}(A\Rightarrow\underline B)\) の function domain に置く宣言は拒否する。
-declaration name と constructor name は declaration environment 内で
-一意とする。
+\(I^v(\vec X)\) の各 \(A_{ij}\) における出現は strictly positive とする。
+宣言環境内の型名・constructor 名は pairwise distinct とする。
 
-各 Program datatype 宣言と同時に、Set 側へ名前付きの鏡像
-\(I^s\) と constructor \(C_i^s\) を生成する。
-鏡像の type parameter は通常の Set variable とする。
-Program field type \(A_{ij}\) の鏡像 \(A^s_{ij}\) は、
-\(\operatorname{RfType}(A_{ij})\) に現れる
-\(\operatorname{RfType}(X_\ell)\) を対応する Set variable
-\(X^s_\ell\) で置き換えたものとする。
+\[
+A^s_{ij}:=
+\operatorname{RfType}(A_{ij})
+[X_\ell^{\sq^s_0}:=X^s_\ell]_{\ell=1}^n.
+\]
 
 \[
 \begin{aligned}
@@ -610,8 +619,6 @@ C_i^s[\operatorname{RfType}(\vec A)]
 \end{aligned}
 \]
 
-Program case は Set case へ写す。
-
 \[
 \begin{aligned}
 &\operatorname{RfTerm}
@@ -630,32 +637,3 @@ C_i^s(\vec x_i^{*^s_0})
 \right).
 \end{aligned}
 \]
-
-Set case と induction は declaration から生成される通常の規則を持つ。
-
-### case と run への elaboration
-
-Program 側の構造再帰を surface syntax として提供する場合、core では
-case を使う一段の step function へ elaboration する。再帰呼び出し後に処理を続ける定義や
-複数の recursive field を処理する定義では、Program state に
-未処理の field、途中結果、defunctionalize した continuation stack を
-含める。
-
-elaboration が生成する Program step function は case で state の外側を一層だけ
-観察し、continue で次状態を返す。Reflection によって得られる Set step
-function に対して Acc proof を構成し、Set の run を適用する。
-
-## 課題
-- datatype declaration environment の well-formedness と positivity 判定
-- Set の鏡像に対する case と induction の raw syntax、typing、reduction の生成規則
-- inductive type や record を定義する際に気を付けるのは、dependent sum type と W-type にしたときの大きさ
-    - 基本的には \(\mathcal{R}\) と同じものを使ってよい。
-    - impredicative にならないように、\((*^s, *^p, *^s) \in \mathcal{R}\) にすること。
-        - これが必要になるのはおかしい気がする（subtype で対応するべきだから。）。
-- judgement を stratified（\(\Gamma \vdash^s t: T\)）にしなくてもいいのでは...
-- \(\Ty\) を2引数にしない場合
-    - \(\Ty(A, B)\) の代わりに \(t: \Ty B\) と \(B: \Power A\) を premise に入れる。
-- take elim prop の set-theoretic な意味は、普通に \(\bullet \in \lbrack T \rbrack\) への map になっているということ？
-    - take elim は \(X: *^p\) なら cut elimination に見える。
-- reduction の仮定にあらわれる合同性について：
-    - Pred: \(\Pred (A, \{x: B \mid P\}, t) \Rightarrow_s (\lambda x: B. P) @ t\) としたが、同値関係としての \(\beta\) を定めるときには、\(\Pred (A, \{x: B \mid P\}, t) \cong (\lambda x: B. P) @ t\) if \(A \cong B\) のようにしてもいいかも。
