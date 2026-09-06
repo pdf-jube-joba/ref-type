@@ -111,7 +111,7 @@ fn materialize_associated_definitions(
             },
             other => other,
         };
-        let materialized = env.add_definition(module, definition);
+        let materialized = env.add_definition(module, definition)?;
         definition_ids.insert(source_id, materialized);
         definition_origins.insert(materialized, origin);
         env.publish_associated_definition(module, owner, name, materialized)?;
@@ -247,7 +247,7 @@ impl ModuleManager {
         name: Identifier,
         definition: DefinedConstant,
     ) -> Result<(), String> {
-        let definition = env.add_definition(self.current, definition);
+        let definition = env.add_definition(self.current, definition)?;
         env.publish_item(
             self.current,
             ModuleItem::Definition {
@@ -264,7 +264,7 @@ impl ModuleManager {
         name: Identifier,
         definition: DefinedConstant,
     ) -> Result<(), String> {
-        let definition = env.add_definition(self.current, definition);
+        let definition = env.add_definition(self.current, definition)?;
         env.publish_associated_definition(self.current, owner.as_str(), name.0, definition)
     }
 
@@ -673,7 +673,7 @@ impl ModuleManager {
         let mut module_ids = HashMap::new();
         let mut last_instance = None;
         for (source_module, item_source, is_path_component, pending) in pending_groups {
-            let materialized = env.add_module();
+            let materialized = env.add_module_in_scope(self.current, context.clone())?;
             module_ids.insert(item_source, materialized);
             let mut definition_origins = HashMap::new();
             for item in pending {
@@ -751,7 +751,7 @@ impl ModuleManager {
                                 }),
                             },
                         };
-                        let definition = env.add_definition(materialized, definition);
+                        let definition = env.add_definition(materialized, definition)?;
                         definition_ids.insert(source_id, definition);
                         definition_origins.insert(definition, origin);
                         env.publish_item(

@@ -115,8 +115,8 @@ impl<'a> TermParser<'a> {
         }
         Err(ParseError {
             msg: "expected sort keyword".into(),
-            start: self.pos,
-            end: self.pos,
+            start: self.span_at(self.pos).start,
+            end: self.span_at(self.pos).end,
         })
     }
 
@@ -651,8 +651,8 @@ impl<'a> TermParser<'a> {
 
         Err(ParseError {
             msg: "expected expression starting with keyword".into(),
-            start: self.pos,
-            end: self.pos,
+            start: self.span_at(self.pos).start,
+            end: self.span_at(self.pos).end,
         })
     }
 
@@ -706,8 +706,8 @@ impl<'a> TermParser<'a> {
                 }
                 _ => Err(ParseError {
                     msg: format!("unknown axiom: {}", name.as_str()),
-                    start: self.pos,
-                    end: self.pos,
+                    start: self.span_at(self.pos).start,
+                    end: self.span_at(self.pos).end,
                 }),
             };
         }
@@ -854,8 +854,8 @@ impl<'a> TermParser<'a> {
 
         Err(ParseError {
             msg: "expected expression starting with keyword".into(),
-            start: self.pos,
-            end: self.pos,
+            start: self.span_at(self.pos).start,
+            end: self.span_at(self.pos).end,
         })
     }
 
@@ -927,8 +927,8 @@ impl<'a> TermParser<'a> {
 
         Err(ParseError {
             msg: "expected block statement or \\return".into(),
-            start: self.pos,
-            end: self.pos,
+            start: self.span_at(self.pos).start,
+            end: self.span_at(self.pos).end,
         })
     }
 
@@ -1125,13 +1125,13 @@ impl<'a> TermParser<'a> {
             }
             Some(Token::KeyWord(keyword)) => Err(ParseError {
                 msg: format!("unexpected keyword in atom: {}", keyword),
-                start: self.pos,
-                end: self.pos,
+                start: self.span_at(self.pos).start,
+                end: self.span_at(self.pos).end,
             }),
             _ => Err(ParseError {
                 msg: "expected atom".into(),
-                start: self.pos,
-                end: self.pos,
+                start: self.span_at(self.pos).start,
+                end: self.span_at(self.pos).end,
             }),
         }
     }
@@ -1269,8 +1269,8 @@ impl<'a> TermParser<'a> {
         let [var] = first_var.as_slice() else {
             return Err(ParseError {
                 msg: "expected single identifier in subset bind".into(),
-                start: self.pos,
-                end: self.pos,
+                start: self.span_at(self.pos).start,
+                end: self.span_at(self.pos).end,
             });
         };
 
@@ -1284,8 +1284,8 @@ impl<'a> TermParser<'a> {
             let [proof_var] = vars.as_slice() else {
                 return Err(ParseError {
                     msg: "expected single identifier in subset bind proof var".into(),
-                    start: self.pos,
-                    end: self.pos,
+                    start: self.span_at(self.pos).start,
+                    end: self.span_at(self.pos).end,
                 });
             };
             self.expect_token(Token::RParen)?; // expect ')'
@@ -1329,8 +1329,8 @@ impl<'a> TermParser<'a> {
 
         Err(ParseError {
             msg: "expected '->' or '=>' after bind".into(),
-            start: self.pos,
-            end: self.pos,
+            start: self.span_at(self.pos).start,
+            end: self.span_at(self.pos).end,
         })
     }
 
@@ -1383,8 +1383,8 @@ impl<'a> TermParser<'a> {
             let [rightbind] = rightbinds.as_slice() else {
                 return Err(ParseError {
                     msg: "expected single right bind in named bind".into(),
-                    start: self.pos,
-                    end: self.pos,
+                    start: self.span_at(self.pos).start,
+                    end: self.span_at(self.pos).end,
                 });
             };
             return Ok(Bind::Named(rightbind.clone()));
@@ -1454,8 +1454,8 @@ impl<'a> TermParser<'a> {
         }
         Err(ParseError {
             msg: "expected macro expression".into(),
-            start: self.pos,
-            end: self.pos,
+            start: self.span_at(self.pos).start,
+            end: self.span_at(self.pos).end,
         })
     }
 }

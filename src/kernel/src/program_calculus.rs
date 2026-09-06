@@ -1139,15 +1139,22 @@ pub fn evaluate_computation_with_fuel(
     mut term: Computation,
     fuel: usize,
 ) -> Evaluation {
-    for _ in 0..fuel {
+    let span = tracing::debug_span!(target: "ref_type::reduction::program", "evaluate",
+        fuel, term = %crate::printing::format_computation(env, term));
+    let _entered = span.enter();
+    for steps in 0..fuel {
         let Some(next) = reduce_computation_once(env, term) else {
+            tracing::debug!(target: "ref_type::reduction::program", steps, result = %crate::printing::format_computation(env, term), "evaluation finished");
             return Evaluation::Normal(term);
         };
+        tracing::trace!(target: "ref_type::reduction::program", steps, before = %crate::printing::format_computation(env, term), after = %crate::printing::format_computation(env, next), "evaluation step");
         term = next;
     }
     if reduce_computation_once(env, term).is_some() {
+        tracing::warn!(target: "ref_type::reduction::program", fuel, remaining = %crate::printing::format_computation(env, term), "evaluation fuel exhausted");
         Evaluation::OutOfFuel(term)
     } else {
+        tracing::debug!(target: "ref_type::reduction::program", steps = fuel, result = %crate::printing::format_computation(env, term), "evaluation finished");
         Evaluation::Normal(term)
     }
 }

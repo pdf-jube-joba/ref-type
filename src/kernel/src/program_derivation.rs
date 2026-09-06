@@ -31,12 +31,15 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
         self.context
     }
     pub fn push_type(&mut self, var: SymbolId) {
+        tracing::trace!(target: "ref_type::typing::program", binder = %self.env.symbol(var), depth = self.context.len(), "enter type binder");
         self.context.push(ProgramContextEntry::Type { var });
     }
     pub fn push_value(&mut self, var: SymbolId, ty: ValueType) {
+        tracing::trace!(target: "ref_type::typing::program", binder = %self.env.symbol(var), ty = %crate::printing::format_value_type(self.env, ty), depth = self.context.len(), "enter value binder");
         self.context.push(ProgramContextEntry::Value { var, ty });
     }
     pub fn pop(&mut self) {
+        tracing::trace!(target: "ref_type::typing::program", depth = self.context.len(), "leave binder");
         self.context.pop().expect("Program context stack underflow");
     }
     pub fn check_value_type(&mut self, ty: ValueType) -> Result<(), Box<JudgementError>> {
@@ -70,6 +73,7 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
 }
 
 fn failure(rule: &str, phase: &str, cause: &str) -> Box<JudgementError> {
+    tracing::error!(target: "ref_type::typing::program", rule, phase, cause, "Program judgement failed");
     Box::new(JudgementError::caused(cause).with_frame(rule, phase, "well-typed Program syntax"))
 }
 
@@ -92,6 +96,8 @@ fn context_entry(
         })
 }
 
+#[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
+    fields(context_depth = session.context().len(), term = %crate::printing::format_value_type(session.env(), ty)), ret, err)]
 pub fn check_value_type(
     session: &mut ProgramCheckSession<'_, '_>,
     ty: ValueType,
@@ -143,6 +149,8 @@ pub fn check_value_type(
     }
 }
 
+#[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
+    fields(context_depth = session.context().len(), term = %crate::printing::format_computation_type(session.env(), ty)), ret, err)]
 pub fn check_computation_type(
     session: &mut ProgramCheckSession<'_, '_>,
     ty: ComputationType,
@@ -161,6 +169,8 @@ pub fn check_computation_type(
     }
 }
 
+#[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
+    fields(context_depth = session.context().len(), term = %crate::printing::format_value(session.env(), value), expected = %crate::printing::format_value_type(session.env(), expected)), ret, err)]
 pub fn check_value(
     session: &mut ProgramCheckSession<'_, '_>,
     value: Value,
@@ -183,7 +193,20 @@ pub fn check_value(
     }
 }
 
+#[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
+    fields(context_depth = session.context().len(), term = %crate::printing::format_value(session.env(), value)), ret, err)]
 pub fn infer_value(
+    session: &mut ProgramCheckSession<'_, '_>,
+    value: Value,
+) -> Result<ValueType, Box<JudgementError>> {
+    let result = infer_value_inner(session, value);
+    if let Ok(ty) = &result {
+        tracing::debug!(target: "ref_type::typing::program", inferred = %crate::printing::format_value_type(session.env(), *ty), "Program type inferred");
+    }
+    result
+}
+
+fn infer_value_inner(
     session: &mut ProgramCheckSession<'_, '_>,
     value: Value,
 ) -> Result<ValueType, Box<JudgementError>> {
@@ -284,6 +307,8 @@ pub fn infer_value(
     }
 }
 
+#[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
+    fields(context_depth = session.context().len(), term = %crate::printing::format_computation(session.env(), term), expected = %crate::printing::format_computation_type(session.env(), expected)), ret, err)]
 pub fn check_computation(
     session: &mut ProgramCheckSession<'_, '_>,
     term: Computation,
@@ -306,7 +331,20 @@ pub fn check_computation(
     }
 }
 
+#[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
+    fields(context_depth = session.context().len(), term = %crate::printing::format_computation(session.env(), term)), ret, err)]
 pub fn infer_computation(
+    session: &mut ProgramCheckSession<'_, '_>,
+    term: Computation,
+) -> Result<ComputationType, Box<JudgementError>> {
+    let result = infer_computation_inner(session, term);
+    if let Ok(ty) = &result {
+        tracing::debug!(target: "ref_type::typing::program", inferred = %crate::printing::format_computation_type(session.env(), *ty), "Program type inferred");
+    }
+    result
+}
+
+fn infer_computation_inner(
     session: &mut ProgramCheckSession<'_, '_>,
     term: Computation,
 ) -> Result<ComputationType, Box<JudgementError>> {

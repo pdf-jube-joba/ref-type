@@ -1,11 +1,12 @@
 use crate::{
-    parse::{str_parse_module_items, str_parse_modules},
-    syntax::{Module, ModuleBody, ModuleItem},
+    parse::{parse_module_items_from_source, parse_modules_from_source},
+    syntax::{Module, ModuleBody, ModuleItem, SourceFile, SourceId},
 };
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub const SOURCE_EXTENSION: &str = "ref";
@@ -24,8 +25,15 @@ pub fn load_modules_from_root(root_file: &Path) -> Result<Vec<Module>, String> {
     }
 
     let root_source = read_source(root_file, "root source file")?;
-    let modules = str_parse_modules(&root_source)
+    let root_source = Arc::new(SourceFile {
+        id: SourceId(root_file.to_path_buf()),
+        text: root_source,
+    });
+    let mut modules = parse_modules_from_source(&root_source)
         .map_err(|error| format!("failed to parse {}: {}", root_file.display(), error))?;
+    for module in &mut modules {
+        attach_source(module, &root_source);
+    }
     let source_root = root_file.parent().unwrap_or_else(|| Path::new("."));
     let mut loader = ModuleLoader {
         source_root,
@@ -77,9 +85,15 @@ impl ModuleLoader<'_> {
             }
 
             let source = read_source(&source_path, &format!("module '{}'", display_module_path))?;
-            let declarations = str_parse_module_items(&source)
+            let source = Arc::new(SourceFile {
+                id: SourceId(source_path.clone()),
+                text: source,
+            });
+            let (declarations, spans) = parse_module_items_from_source(&source)
                 .map_err(|error| format!("failed to parse {}: {}", source_path.display(), error))?;
             module.body = ModuleBody::Inline(declarations);
+            module.declaration_spans = spans;
+            attach_source(&mut module, &source);
         }
 
         let ModuleBody::Inline(declarations) = &mut module.body else {
@@ -114,4 +128,18 @@ fn read_source(path: &Path, description: &str) -> Result<String, String> {
             error
         )
     })
+}
+
+fn attach_source(module: &mut Module, source: &Arc<SourceFile>) {
+    module.source = Some(Arc::clone(source));
+    module
+        .header_source
+        .get_or_insert_with(|| Arc::clone(source));
+    if let ModuleBody::Inline(items) = &mut module.body {
+        for item in items {
+            if let ModuleItem::ChildModule { module } = item {
+                attach_source(module, source);
+            }
+        }
+    }
 }

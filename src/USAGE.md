@@ -62,3 +62,32 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 
 旧構文 `\vlet(x, value, body)` は受け付けない。注釈位置の `_` は他の型注釈と
 同様に制約から補完し、解決できなければエラーになる。
+
+## 実行と診断
+
+```sh
+cargo run -p cli -- lib/root.ref
+cargo run -p cli -- lib/root.ref --trace
+RUST_LOG=ref_type=trace cargo run -p cli -- lib/root.ref
+```
+
+`--trace` は Set/Prop・Program の型検査、定義登録、反映、正規化・評価のログを木構造で表示します。
+`RUST_LOG=ref_type=trace` では束縛の出入りと簡約ステップも表示します。
+特定の処理だけを追う場合は `RUST_LOG=ref_type::typing::program=debug` や
+`RUST_LOG=ref_type::reduction=trace` を指定できます。`RUST_LOG` は `--trace` の既定フィルタより優先されます。
+ログとエラーは標準エラー出力へ書き込みます。ファイルへ保存する場合は `2> kernel.log` を付けます。
+
+未解決ゴールには文脈・要求される型・制約を表示します。ファイルから読み込んだ宣言のエラーには
+元ファイル・行・列とソースの抜粋を付けます。型検査の位置表示は宣言単位、構文エラーはトークン単位です。
+外部モジュールのパラメータは宣言元ファイル、本文は外部ファイルの位置を使います。
+
+`CrateEnv::add_definition` は型検査に成功した定義だけを登録し、`Result<DefId, String>` を返します。
+Program 定義では本体と、指定された反映証明の型を検査します。
+モジュール実体化でも同じ登録 API を使い、実体化時の検証済み文脈を保持します。
+
+```sh
+cargo test --workspace --offline
+```
+
+`tests/ng` の各ファイルには `/* expect-error: 診断に含まれる文字列 */` を書きます。
+複数指定した場合はすべて照合します。終了コード 1 と診断を確認し、panic やシグナル終了は失敗として扱います。

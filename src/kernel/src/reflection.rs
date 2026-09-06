@@ -210,6 +210,8 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
     }
 }
 
+#[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
+    fields(term = %crate::printing::format_value(env, value)), ret, err)]
 pub fn reflect_value(env: &CrateEnv, value: Value) -> Result<Exp, ReflectionError> {
     reflect_value_inner(env, value, &HashMap::new(), &mut HashSet::new())
 }
@@ -289,6 +291,8 @@ fn reflect_value_inner(
     })
 }
 
+#[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
+    fields(term = %crate::printing::format_computation(env, term)), ret, err)]
 pub fn reflect_computation(env: &CrateEnv, term: Computation) -> Result<Exp, ReflectionError> {
     reflect_computation_inner(env, term, &HashMap::new(), &mut HashSet::new())
 }

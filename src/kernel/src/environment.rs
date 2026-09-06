@@ -29,6 +29,16 @@ pub enum DefinedConstant {
     },
 }
 
+impl DefinedConstant {
+    fn kind_name(&self) -> &'static str {
+        match self {
+            Self::Pts { .. } => "Set/Prop",
+            Self::ProgramValue { .. } => "Program value",
+            Self::ProgramComputation { .. } => "Program computation",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefinitionKind {
     Pts,
@@ -196,6 +206,8 @@ pub struct CrateEnv {
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
     materialized_instances: HashMap<ModuleId, ModuleInstanceId>,
+    checking_scopes: HashMap<ModuleId, ModuleId>,
+    checking_contexts: HashMap<ModuleId, crate::exp::ExpContext>,
 }
 
 impl Default for CrateEnv {
@@ -217,6 +229,8 @@ impl CrateEnv {
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
             materialized_instances: HashMap::new(),
+            checking_scopes: HashMap::new(),
+            checking_contexts: HashMap::new(),
         }
     }
 
@@ -246,6 +260,21 @@ impl CrateEnv {
 
     pub fn add_module(&mut self) -> ModuleId {
         self.add_module_entry("<instance>".into(), None, vec![])
+    }
+
+    /// An unpublished instance inherits the importing module's checking scope.
+    pub fn add_module_in_scope(
+        &mut self,
+        owner: ModuleId,
+        mut context: crate::exp::ExpContext,
+    ) -> Result<ModuleId, String> {
+        crate::derivation::CheckSession::new(self, owner, &mut context)
+            .check_wellformed_context()
+            .map_err(|error| error.to_string())?;
+        let module = self.add_module();
+        self.checking_scopes.insert(module, owner);
+        self.checking_contexts.insert(module, context);
+        Ok(module)
     }
 
     pub fn add_child_module(
@@ -297,12 +326,126 @@ impl CrateEnv {
         self.module(id.module).parameters.get(id.position as usize)
     }
 
-    pub fn add_definition(&mut self, module: ModuleId, definition: DefinedConstant) -> DefId {
+    /// Check a declaration in its owning module before making it available.
+    /// Ordinary declarations use module parameters. Instances retain the checked
+    /// context supplied at instantiation, including any local binders.
+    /// A failed check never inserts a definition.
+    pub fn add_definition(
+        &mut self,
+        module: ModuleId,
+        definition: DefinedConstant,
+    ) -> Result<DefId, String> {
+        let span = tracing::debug_span!(target: "ref_type::environment",
+            "register_definition", ?module, kind = definition.kind_name());
+        let _entered = span.enter();
+        self.check_definition(module, &definition)
+            .inspect_err(|error| {
+                tracing::error!(target: "ref_type::environment", %error, "definition rejected");
+            })?;
         let module_env = self.module_mut(module);
         let index = u32::try_from(module_env.definitions.len())
             .expect("module definition table exceeded u32::MAX");
         module_env.definitions.push(definition);
-        DefId { module, index }
+        let id = DefId { module, index };
+        tracing::debug!(target: "ref_type::environment", ?id, "checked definition registered");
+        Ok(id)
+    }
+
+    fn check_definition(
+        &self,
+        module: ModuleId,
+        definition: &DefinedConstant,
+    ) -> Result<(), String> {
+        use crate::{
+            derivation::CheckSession, program_derivation::ProgramCheckSession, reflection,
+        };
+        let mut ancestors = Vec::new();
+        let mut current = Some(module);
+        while let Some(id) = current {
+            ancestors.push(id);
+            current = self
+                .checking_scopes
+                .get(&id)
+                .copied()
+                .or(self.module(id).parent());
+        }
+        ancestors.reverse();
+        let parameters: Vec<_> = ancestors
+            .iter()
+            .flat_map(|id| self.module(*id).parameters())
+            .collect();
+        let mut pts_context = parameters
+            .iter()
+            .filter_map(|parameter| match parameter.kind {
+                ModuleParameterKind::Pts { ty } => Some(crate::exp::ExpContextEntry {
+                    var: parameter.name,
+                    ty,
+                }),
+                _ => None,
+            })
+            .collect();
+        if let Some(context) = self.checking_contexts.get(&module) {
+            pts_context = context.clone();
+        }
+        let mut program_context = Vec::new();
+        let certificate = match *definition {
+            DefinedConstant::Pts { ty, body } => {
+                CheckSession::new(self, module, &mut pts_context)
+                    .check_pts(body, ty)
+                    .map_err(|error| format!("definition check failed: {error:?}"))?;
+                None
+            }
+            DefinedConstant::ProgramValue {
+                ty,
+                body,
+                certified_reflection,
+            } => {
+                ProgramCheckSession::new(self, &mut program_context)
+                    .check_value(body, ty)
+                    .map_err(|error| format!("Program value definition check failed: {error:?}"))?;
+                certified_reflection
+                    .map(|term| reflection::reflect_value_type(self, ty).map(|ty| (term, ty)))
+                    .transpose()
+                    .map_err(|error| error.to_string())?
+            }
+            DefinedConstant::ProgramComputation {
+                ty,
+                body,
+                certified_reflection,
+            } => {
+                ProgramCheckSession::new(self, &mut program_context)
+                    .check_computation(body, ty)
+                    .map_err(|error| {
+                        format!("Program computation definition check failed: {error:?}")
+                    })?;
+                certified_reflection
+                    .map(|term| reflection::reflect_computation_type(self, ty).map(|ty| (term, ty)))
+                    .transpose()
+                    .map_err(|error| error.to_string())?
+            }
+        };
+        if let Some((term, ty)) = certificate {
+            for parameter in parameters {
+                let ty = match parameter.kind {
+                    ModuleParameterKind::Pts { .. } => continue,
+                    ModuleParameterKind::ProgramType => {
+                        self.arena().sort(crate::sort::Sort::Set(0))
+                    }
+                    ModuleParameterKind::ProgramValue { ty } => {
+                        reflection::reflect_value_type(self, ty)
+                            .map_err(|error| error.to_string())?
+                    }
+                };
+                pts_context.push(crate::exp::ExpContextEntry {
+                    var: parameter.name,
+                    ty,
+                });
+            }
+            CheckSession::new(self, module, &mut pts_context)
+                .check_pts(term, ty)
+                .map_err(|error| format!("reflection certificate check failed: {error:?}"))?;
+        }
+        Ok(())
     }
 
     pub fn definition(&self, id: DefId) -> &DefinedConstant {

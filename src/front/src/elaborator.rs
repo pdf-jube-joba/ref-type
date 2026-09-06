@@ -57,6 +57,7 @@ fn projected_record_field_type(
 pub struct GlobalEnvironment {
     crate_env: CrateEnv,
     outputs: Vec<Output>,
+    diagnostic_location: Option<SourceLocation>,
     module_manager: module_manager::ModuleManager,
     metavariables: MetaStore,
 }
@@ -405,9 +406,16 @@ impl GlobalEnvironment {
 
 impl GlobalEnvironment {
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ElaborationError> {
+        self.diagnostic_location = None;
         self.module_manager.moveto_root();
-        self.module_add_rec(module)?;
-        Ok(())
+        let result = self.module_add_rec(module);
+        match (result, self.diagnostic_location.take()) {
+            (Err(error), Some(location)) => Err(ElaborationError::Located {
+                location,
+                error: Box::new(error),
+            }),
+            (result, _) => result,
+        }
     }
 
     fn validate_definition(
@@ -538,7 +546,7 @@ impl GlobalEnvironment {
                 })?;
             let definition = self
                 .crate_env
-                .add_definition(module, DefinedConstant::Pts { ty, body });
+                .add_definition(module, DefinedConstant::Pts { ty, body })?;
             projections.push((name, definition));
         }
 
@@ -715,7 +723,12 @@ impl GlobalEnvironment {
             name,
             parameters,
             body,
+            ..
         } = module;
+        self.diagnostic_location = module.header_source.as_ref().map(|source| SourceLocation {
+            source: source.clone(),
+            span: module.span,
+        });
 
         let ModuleBody::Inline(declarations) = body else {
             return Err(format!(
@@ -812,7 +825,15 @@ impl GlobalEnvironment {
         let mut ctx = self.module_manager.current_context(&self.crate_env);
 
         // 2. elaborate declarations
-        for decl in declarations {
+        for (index, decl) in declarations.iter().enumerate() {
+            self.diagnostic_location = module.source.as_ref().map(|source| SourceLocation {
+                source: source.clone(),
+                span: module
+                    .declaration_spans
+                    .get(index)
+                    .copied()
+                    .unwrap_or(module.span),
+            });
             self.metavariables.clear();
             let mut local_scope = LocalScope::default();
             match decl {
@@ -1547,6 +1568,10 @@ impl GlobalEnvironment {
         }
 
         // 3. move back to parent
+        self.diagnostic_location = module.header_source.as_ref().map(|source| SourceLocation {
+            source: source.clone(),
+            span: module.span,
+        });
         self.module_manager
             .publish_current_module(&mut self.crate_env)?;
         self.module_manager.moveto_parent(&self.crate_env);

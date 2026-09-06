@@ -71,6 +71,8 @@ impl ProgramInductiveTypeSpecs {
         self.reflected
     }
 
+    #[tracing::instrument(target = "ref_type::typing::inductive", level = "debug", skip_all,
+        fields(?inductive, parameters = self.parameters.len(), constructors = self.constructors.len()), ret, err)]
     pub fn validate(
         &self,
         session: &mut ProgramCheckSession<'_, '_>,

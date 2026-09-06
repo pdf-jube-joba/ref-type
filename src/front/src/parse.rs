@@ -215,6 +215,20 @@ mod term_parse;
 
 trait TokenCursor<'a>: Sized {
     fn tokens(&self) -> &'a [SpannedToken<'a>];
+
+    fn span_at(&self, position: usize) -> SourceSpan {
+        self.tokens().get(position).map_or_else(
+            || {
+                let end = self.tokens().last().map_or(0, |token| token.end);
+                SourceSpan { start: end, end }
+            },
+            |token| SourceSpan {
+                start: token.start,
+                end: token.end,
+            },
+        )
+    }
+
     fn position(&self) -> usize;
     fn set_position(&mut self, position: usize);
 
@@ -413,8 +427,8 @@ impl<'a> Parser<'a> {
             _ => {
                 return Err(ParseError {
                     msg: "expected PTS sort in structure declaration".into(),
-                    start: 0,
-                    end: 0,
+                    start: self.span_at(self.pos.saturating_sub(1)).start,
+                    end: self.span_at(self.pos.saturating_sub(1)).end,
                 });
             }
         };
@@ -536,15 +550,15 @@ impl<'a> Parser<'a> {
             SExp::ValueType => {
                 return Err(ParseError {
                     msg: "Program datatype declarations cannot have indices".into(),
-                    start: 0,
-                    end: 0,
+                    start: self.span_at(self.pos.saturating_sub(1)).start,
+                    end: self.span_at(self.pos.saturating_sub(1)).end,
                 });
             }
             _ => {
                 return Err(ParseError {
                     msg: "expected PTS sort or \\VType in inductive declaration".into(),
-                    start: 0,
-                    end: 0,
+                    start: self.span_at(self.pos.saturating_sub(1)).start,
+                    end: self.span_at(self.pos.saturating_sub(1)).end,
                 });
             }
         };
@@ -666,13 +680,13 @@ impl<'a> Parser<'a> {
             let (name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
-                start: save_pos,
-                end: self.pos,
+                start: self.span_at(save_pos).start,
+                end: self.span_at(self.pos).end,
             })?;
             let body = body.try_into().map_err(|msg| ParseError {
                 msg,
-                start: save_pos,
-                end: self.pos,
+                start: self.span_at(save_pos).start,
+                end: self.span_at(self.pos).end,
             })?;
             return Ok(Some(ModuleItem::ValueDefinition { name, ty, body }));
         }
@@ -680,13 +694,13 @@ impl<'a> Parser<'a> {
             let (name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
-                start: save_pos,
-                end: self.pos,
+                start: self.span_at(save_pos).start,
+                end: self.span_at(self.pos).end,
             })?;
             let body = body.try_into().map_err(|msg| ParseError {
                 msg,
-                start: save_pos,
-                end: self.pos,
+                start: self.span_at(save_pos).start,
+                end: self.span_at(self.pos).end,
             })?;
             return Ok(Some(ModuleItem::ComputationDefinition { name, ty, body }));
         }
@@ -732,8 +746,8 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationEval {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
             }));
         }
@@ -743,8 +757,8 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationNormalize {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
             }));
         }
@@ -756,13 +770,13 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ValueCheck {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
                 ty: ty.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
             }));
         }
@@ -774,13 +788,13 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationCheck {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
                 ty: ty.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
             }));
         }
@@ -790,8 +804,8 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ValueInfer {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
             }));
         }
@@ -801,8 +815,8 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationInfer {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: save_pos,
-                    end: self.pos,
+                    start: self.span_at(save_pos).start,
+                    end: self.span_at(self.pos).end,
                 })?,
             }));
         }
@@ -825,6 +839,8 @@ impl<'a> Parser<'a> {
     // parse an inline or external module
     // "\module" <module_name: Ident> <parameters>? ("{" (<module_item>)* "}" | ";")
     pub fn parse_module(&mut self) -> Result<Module, ParseError> {
+        let start = self.tokens.get(self.pos).map_or(0, |token| token.start);
+        let mut declaration_spans = Vec::new();
         self.expect_keyword("\\module")?;
         let module_name = self.expect_ident()?;
 
@@ -836,7 +852,8 @@ impl<'a> Parser<'a> {
             ModuleBody::External
         } else {
             self.expect_token(Token::LBrace)?; // expect '{'
-            let declarations = self.parse_module_items()?;
+            let (declarations, spans) = self.parse_module_items_with_spans()?;
+            declaration_spans = spans;
             self.expect_token(Token::RBrace)?; // expect '}'
             ModuleBody::Inline(declarations)
         };
@@ -845,15 +862,33 @@ impl<'a> Parser<'a> {
             name: module_name,
             parameters,
             body,
+            span: SourceSpan {
+                start,
+                end: self.tokens[self.pos - 1].end,
+            },
+            declaration_spans,
+            source: None,
+            header_source: None,
         })
     }
 
-    fn parse_module_items(&mut self) -> Result<Vec<ModuleItem>, ParseError> {
+    fn parse_module_items_with_spans(
+        &mut self,
+    ) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), ParseError> {
         let mut declarations = Vec::new();
-        while let Some(item) = self.try_parse_module_item()? {
+        let mut spans = Vec::new();
+        loop {
+            let start = self.tokens.get(self.pos).map_or(0, |token| token.start);
+            let Some(item) = self.try_parse_module_item()? else {
+                break;
+            };
+            spans.push(SourceSpan {
+                start,
+                end: self.tokens[self.pos - 1].end,
+            });
             declarations.push(item);
         }
-        Ok(declarations)
+        Ok((declarations, spans))
     }
 }
 
@@ -890,6 +925,50 @@ pub fn str_parse_exp(input: &str) -> Result<SExp, String> {
 }
 
 pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, String> {
+    parse_modules(input, None)
+}
+
+pub fn parse_modules_from_source(
+    source: &std::sync::Arc<SourceFile>,
+) -> Result<Vec<Module>, String> {
+    parse_modules(&source.text, Some(source))
+}
+
+fn source_parse_error(error: ParseError, source: Option<&std::sync::Arc<SourceFile>>) -> String {
+    let message = format!(
+        "parse error: {} ({}..{})",
+        error.msg, error.start, error.end
+    );
+    match source {
+        Some(source) => {
+            let span = if error.start == 0 && error.end == 0 {
+                SourceSpan {
+                    start: source.text.len(),
+                    end: source.text.len(),
+                }
+            } else {
+                SourceSpan {
+                    start: error.start,
+                    end: error.end,
+                }
+            };
+            format!(
+                "{message}\n{}",
+                SourceLocation {
+                    source: source.clone(),
+                    span
+                }
+                .render()
+            )
+        }
+        None => message,
+    }
+}
+
+fn parse_modules(
+    input: &str,
+    source: Option<&std::sync::Arc<SourceFile>>,
+) -> Result<Vec<Module>, String> {
     let v = lex_all(input)?;
     let mut parser = Parser::new(&v);
     let mut modules = Vec::new();
@@ -897,7 +976,7 @@ pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, String> {
     while parser.pos < parser.tokens.len() {
         let module = parser
             .parse_module()
-            .map_err(|e| format!("parse error: {} ({}..{})", e.msg, e.start, e.end))?;
+            .map_err(|e| source_parse_error(e, source))?;
         modules.push(module);
     }
 
@@ -906,11 +985,30 @@ pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, String> {
 
 /// Parse an external module file. Its contents are the module body directly.
 pub fn str_parse_module_items(input: &str) -> Result<Vec<ModuleItem>, String> {
+    str_parse_module_items_with_spans(input).map(|(items, _)| items)
+}
+
+pub fn str_parse_module_items_with_spans(
+    input: &str,
+) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {
+    parse_module_items(input, None)
+}
+
+pub fn parse_module_items_from_source(
+    source: &std::sync::Arc<SourceFile>,
+) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {
+    parse_module_items(&source.text, Some(source))
+}
+
+fn parse_module_items(
+    input: &str,
+    source: Option<&std::sync::Arc<SourceFile>>,
+) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {
     let v = lex_all(input)?;
     let mut parser = Parser::new(&v);
     let declarations = parser
-        .parse_module_items()
-        .map_err(|e| format!("parse error: {} ({}..{})", e.msg, e.start, e.end))?;
+        .parse_module_items_with_spans()
+        .map_err(|e| source_parse_error(e, source))?;
 
     if parser.pos < parser.tokens.len() {
         let extra = &parser.tokens[parser.pos];

@@ -140,6 +140,8 @@ impl InductiveTypeSpecs {
         utils::assoc_prod(arena, indices, result)
     }
 
+    #[tracing::instrument(target = "ref_type::typing::inductive", level = "debug", skip_all,
+        fields(?inductive, parameters = self.parameters.len(), constructors = self.constructors.len()), ret, err)]
     pub fn validate(
         &self,
         session: &mut CheckSession<'_, '_>,

@@ -1003,6 +1003,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 
 pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
     while let Some(next) = exp_reduce_if_top(env, exp) {
+        tracing::trace!(target: "ref_type::reduction", before = %crate::printing::format_exp(env, exp), after = %crate::printing::format_exp(env, next), "weak-head reduction step");
         if next == exp {
             break;
         }
@@ -1029,7 +1030,11 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     changed.then(|| env.arena().alloc(mapped))
 }
 pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
-    normalize_with_cache(env, exp, &mut HashMap::new())
+    let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::printing::format_exp(env, exp));
+    let _entered = span.enter();
+    let result = normalize_with_cache(env, exp, &mut HashMap::new());
+    tracing::debug!(target: "ref_type::reduction", result = %crate::printing::format_exp(env, result), "normalization finished");
+    result
 }
 
 fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>) -> Exp {
@@ -1060,7 +1065,9 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
     result
 }
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    alpha_rec(env, left, right, true, false, &mut HashMap::new())
+    let result = alpha_rec(env, left, right, true, false, &mut HashMap::new());
+    tracing::trace!(target: "ref_type::conversion", left = %crate::printing::format_exp(env, left), right = %crate::printing::format_exp(env, right), result, "conversion compared");
+    result
 }
 
 pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {

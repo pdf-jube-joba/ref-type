@@ -23,6 +23,18 @@ pub struct JudgementError {
     pub frames: Vec<ErrorFrame>,
 }
 
+impl std::fmt::Display for JudgementError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.cause)?;
+        for frame in &self.frames {
+            writeln!(f, "  {} / {}: {}", frame.rule, frame.phase, frame.expected)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for JudgementError {}
+
 pub struct CheckSession<'env, 'context> {
     env: &'env CrateEnv,
     current_module: ModuleId,
@@ -55,26 +67,39 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     }
 
     pub fn push_pts(&mut self, var: SymbolId, ty: Exp) {
+        tracing::trace!(target: "ref_type::typing", binder = %self.env.symbol(var),
+            ty = %crate::printing::format_exp(self.env, ty), depth = self.context.len(), "enter Set/Prop binder");
         self.context.push(ExpContextEntry { var, ty });
     }
 
     pub fn pop(&mut self) {
+        tracing::trace!(target: "ref_type::typing", depth = self.context.len(), "leave Set/Prop binder");
         self.context
             .pop()
             .expect("CheckSession context stack underflow");
     }
 
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
-        check(self, term, ty)
+        let result = check(self, term, ty);
+        if result.is_ok() {
+            debug!(target: "ref_type::typing", term = %crate::printing::format_exp(self.env, term),
+                ty = %crate::printing::format_exp(self.env, ty), "Set/Prop check succeeded");
+        }
+        result
     }
 
     pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
-        infer(self, term)
+        let result = infer(self, term);
+        if let Ok(ty) = &result {
+            debug!(target: "ref_type::typing", term = %crate::printing::format_exp(self.env, term),
+                ty = %crate::printing::format_exp(self.env, *ty), "Set/Prop type inferred");
+        }
+        result
     }
 
     /// Infer a Set/Prop term and return only classified `Exp` handles.
     pub fn infer_exp_judgement(&mut self, term: Exp) -> Result<ExpJudgement, Box<JudgementError>> {
-        let ty = infer(self, term)?;
+        let ty = self.infer_pts(term)?;
         Ok(ExpJudgement { term, ty })
     }
 
@@ -144,7 +169,7 @@ macro_rules! add_sort {
 }
 
 fn failure(rule: &str, phase: &str, cause: &str) -> Box<JudgementError> {
-    error!(target: "ref_type::typing", outcome = "failure", cause);
+    error!(target: "ref_type::typing", rule, phase, outcome = "failure", cause, "Set/Prop judgement failed");
     Box::new(JudgementError::caused(cause).with_frame(rule, phase, "current judgement"))
 }
 
@@ -188,6 +213,7 @@ fn check(
     }
     add_sort!(session, rule, phase, ty, "infer expected type sort")?;
     if erased_convertible(session.env(), ty, inferred_ty) {
+        debug!(target: "ref_type::typing", "types agree after proof erasure");
         return Ok(());
     }
 
@@ -197,13 +223,17 @@ fn check(
         (arena.get(inferred_head), arena.get(expected_head))
     {
         if inferred.can_lift_to(expected) {
+            debug!(target: "ref_type::typing", ?inferred, ?expected, "universe lift accepted");
             return Ok(());
         }
         return Err(failure(rule, phase, "fail universe lift"));
     }
     if can_weaken_to(session.env(), inferred_ty, ty) {
+        debug!(target: "ref_type::typing", "subset weakening accepted");
         return Ok(());
     }
+    error!(target: "ref_type::typing", inferred = %crate::printing::format_exp(session.env(), inferred_ty),
+        expected = %crate::printing::format_exp(session.env(), ty), "type mismatch");
     Err(failure(rule, phase, "ty, inferred_ty not convertible"))
 }
 

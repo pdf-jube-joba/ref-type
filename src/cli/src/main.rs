@@ -1,12 +1,12 @@
 use clap::Parser;
-use std::path::PathBuf;
+use std::{io::IsTerminal, path::PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Args {
     /// ファイルをパースして結果を標準出力に出す
     file: PathBuf,
-    /// typing の span/event を木構造で表示する
+    /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
     #[arg(long)]
     trace: bool,
 }
@@ -27,15 +27,19 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
     let default_filter = if show_typing_tree {
-        "ref_type::typing=debug"
+        "ref_type=debug"
     } else {
-        "ref_type::typing=off"
+        "ref_type=off"
     };
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter));
     tracing_subscriber::registry()
         .with(filter)
-        .with(tracing_tree::HierarchicalLayer::new(2))
+        .with(
+            tracing_tree::HierarchicalLayer::new(2)
+                .with_writer(std::io::stderr)
+                .with_ansi(std::io::stderr().is_terminal()),
+        )
         .try_init()?;
     Ok(())
 }
@@ -47,11 +51,8 @@ fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<String>, Op
         match global.add_new_module_to_root(&module) {
             Ok(()) => {}
             Err(err) => {
-                let detail = match &err {
-                    front::metavariables::ElaborationError::AmbiguousImplicit(_)
-                    | front::metavariables::ElaborationError::UnsolvedGoals(_) => err.to_string(),
-                    _ => front::metavariables::format_elaboration_error(global.crate_env(), &err),
-                };
+                let detail =
+                    front::metavariables::format_elaboration_error(global.crate_env(), &err);
                 push_outputs(&global, &mut output_lines);
                 return (output_lines, Some(format!("Elaboration Error: {detail}")));
             }
@@ -78,7 +79,11 @@ fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
         println!("{entry}");
     }
     if let Some(msg) = &err_message {
-        eprintln!("\x1b[31m{msg}\x1b[0m");
+        if std::io::stderr().is_terminal() {
+            eprintln!("\x1b[31m{msg}\x1b[0m");
+        } else {
+            eprintln!("{msg}");
+        }
     }
     Ok(err_message)
 }

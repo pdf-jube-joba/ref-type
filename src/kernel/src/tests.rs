@@ -567,3 +567,161 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
         }
     }
 }
+
+#[test]
+fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
+    use crate::{environment::DefinedConstant, ids::MetaVarId};
+    let mut env = CrateEnv::new();
+    let module = env.root_module();
+    let set = env.arena().sort(Sort::Set(0));
+    let kind = env.arena().sort(Sort::SetKind(0));
+    let prop = env.arena().sort(Sort::Prop);
+    assert!(
+        env.add_definition(
+            module,
+            DefinedConstant::Pts {
+                ty: prop,
+                body: set
+            }
+        )
+        .is_err()
+    );
+    let meta = env.arena().alloc(ExpNode::Meta {
+        metavariable: MetaVarId(0),
+        spine: vec![],
+    });
+    assert!(
+        env.add_definition(
+            module,
+            DefinedConstant::Pts {
+                ty: set,
+                body: meta
+            }
+        )
+        .is_err()
+    );
+    let bound = env.arena().exp_bound(0);
+    assert!(
+        env.add_definition(
+            module,
+            DefinedConstant::Pts {
+                ty: set,
+                body: bound
+            }
+        )
+        .is_err()
+    );
+    let valid = env
+        .add_definition(
+            module,
+            DefinedConstant::Pts {
+                ty: kind,
+                body: set,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        valid.index, 0,
+        "rejected definitions must not consume a slot"
+    );
+}
+
+#[test]
+fn program_registration_checks_body_and_reflection_certificate() {
+    use crate::environment::{DefinedConstant, ModuleParameter, ModuleParameterKind};
+    let mut env = CrateEnv::new();
+    let module = env.root_module();
+    let a = env.intern("A");
+    env.add_module_parameter(
+        module,
+        ModuleParameter {
+            name: a,
+            kind: ModuleParameterKind::ProgramType,
+        },
+    );
+    let ty = env.arena().value_type_module_param(ModuleParamId {
+        module,
+        position: 0,
+    });
+    let v = env.intern("v");
+    env.add_module_parameter(
+        module,
+        ModuleParameter {
+            name: v,
+            kind: ModuleParameterKind::ProgramValue { ty },
+        },
+    );
+    let body = env.arena().alloc(ValueNode::ModuleParam(ModuleParamId {
+        module,
+        position: 1,
+    }));
+    let bad_body = env.arena().value_bound(0);
+    assert!(
+        env.add_definition(
+            module,
+            DefinedConstant::ProgramValue {
+                ty,
+                body: bad_body,
+                certified_reflection: None,
+            }
+        )
+        .is_err()
+    );
+    let bad_certificate = env.arena().sort(Sort::Set(0));
+    assert!(
+        env.add_definition(
+            module,
+            DefinedConstant::ProgramValue {
+                ty,
+                body,
+                certified_reflection: Some(bad_certificate),
+            }
+        )
+        .unwrap_err()
+        .contains("certificate")
+    );
+    let certificate = crate::reflection::reflect_value(&env, body).unwrap();
+    let id = env
+        .add_definition(
+            module,
+            DefinedConstant::ProgramValue {
+                ty,
+                body,
+                certified_reflection: Some(certificate),
+            },
+        )
+        .unwrap();
+    assert_eq!(id.index, 0);
+    let computation_ty = env
+        .arena()
+        .alloc(crate::program::ComputationTypeNode::Return { value_ty: ty });
+    let computation = env.arena().alloc(ComputationNode::Return { value: body });
+    assert!(
+        env.add_definition(
+            module,
+            DefinedConstant::ProgramComputation {
+                ty: computation_ty,
+                body: computation,
+                certified_reflection: None,
+            }
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn instance_context_must_be_well_formed() {
+    let mut env = CrateEnv::new();
+    let module = env.root_module();
+    let bound = env.arena().exp_bound(0);
+    assert!(
+        env.add_module_in_scope(
+            module,
+            vec![ExpContextEntry {
+                var: SymbolId::ANONYMOUS,
+                ty: bound,
+            }]
+        )
+        .is_err()
+    );
+}

@@ -1,6 +1,6 @@
 //! Elaboration-time contextual metavariables and their diagnostics.
 
-use crate::syntax::{SourceSpan, SurfaceMeta};
+use crate::syntax::{SourceLocation, SourceSpan, SurfaceMeta};
 use kernel::{
     calculus::{
         can_weaken_to, common_ambient_carrier, erased_convertible, instantiate_telescope,
@@ -83,6 +83,10 @@ impl MetaGoal {
 
 #[derive(Debug, Clone)]
 pub enum ElaborationError {
+    Located {
+        location: SourceLocation,
+        error: Box<ElaborationError>,
+    },
     Message(String),
     ConstraintFailure {
         message: String,
@@ -95,6 +99,9 @@ pub enum ElaborationError {
 impl fmt::Display for ElaborationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Located { location, error } => {
+                write!(formatter, "{error}\n{}", location.render())
+            }
             Self::Message(message) => formatter.write_str(message),
             Self::ConstraintFailure { message, .. } => write!(formatter, "{message}"),
             Self::AmbiguousImplicit(goals) => write!(
@@ -113,10 +120,22 @@ impl fmt::Display for ElaborationError {
     }
 }
 
-impl Error for ElaborationError {}
+impl Error for ElaborationError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Located { error, .. } => Some(error.as_ref()),
+            _ => None,
+        }
+    }
+}
 
 pub fn format_elaboration_error(env: &CrateEnv, error: &ElaborationError) -> String {
     match error {
+        ElaborationError::Located { location, error } => format!(
+            "{}\n{}",
+            format_elaboration_error(env, error),
+            location.render()
+        ),
         ElaborationError::Message(message) => message.clone(),
         ElaborationError::ConstraintFailure {
             message,

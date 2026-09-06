@@ -20,6 +20,48 @@ pub enum SurfaceMeta {
     Named(u32),
 }
 
+/// A source file identity, retained together with the original text.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SourceId(pub std::path::PathBuf);
+
+#[derive(Debug)]
+pub struct SourceFile {
+    pub id: SourceId,
+    pub text: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SourceLocation {
+    pub source: std::sync::Arc<SourceFile>,
+    pub span: SourceSpan,
+}
+
+impl SourceLocation {
+    pub fn render(&self) -> String {
+        let text = &self.source.text;
+        let mut start = self.span.start.min(text.len());
+        while !text.is_char_boundary(start) {
+            start -= 1;
+        }
+        let line_start = text[..start].rfind('\n').map_or(0, |at| at + 1);
+        let line_end = text[start..].find('\n').map_or(text.len(), |at| start + at);
+        let line = text[..start].bytes().filter(|byte| *byte == b'\n').count() + 1;
+        let column = text[line_start..start].chars().count() + 1;
+        let mut end = self.span.end.min(line_end).max(start);
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        let width = text[start..end].chars().count().max(1);
+        format!(
+            "{}:{line}:{column}\n  |\n{line:>2} | {}\n  | {}{}",
+            self.source.id.0.display(),
+            &text[line_start..line_end],
+            " ".repeat(column - 1),
+            "^".repeat(width)
+        )
+    }
+}
+
 // identifier for any naming
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Identifier(pub String);
@@ -41,6 +83,10 @@ pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
     pub body: ModuleBody,
+    pub span: SourceSpan,
+    pub declaration_spans: Vec<SourceSpan>,
+    pub source: Option<std::sync::Arc<SourceFile>>,
+    pub header_source: Option<std::sync::Arc<SourceFile>>,
 }
 
 #[derive(Debug, Clone)]
