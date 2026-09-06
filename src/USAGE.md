@@ -63,6 +63,17 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 旧構文 `\vlet(x, value, body)` は受け付けない。注釈位置の `_` は他の型注釈と
 同様に制約から補完し、解決できなければエラーになる。
 
+## 実行速度の計測
+
+```sh
+cargo bench -p cli --bench performance -- --save-baseline before
+# 実装を変更した後
+cargo bench -p cli --bench performance -- --baseline before --save-baseline after
+```
+
+構文解析・型検査・正規化・Program 評価を計測します。
+対象の絞り込みや結果の見方は [ベンチマークの手順](cli/benches/README.md) を参照してください。
+
 ## 実行と診断
 
 ```sh
