@@ -30,6 +30,44 @@ Set への反映時に停止性を検査する。他の再帰演算も同じ構�
 追加の再帰アルゴリズムはまだ含めていない。`Rat.ref` 内の独自の Set 自然数との
 統合も別途必要であり、この変更だけで有理数の obligation が解消するわけではない。
 
+[`Int.ref`](Int.ref) は Program の整数を `Int::ofNat n`（非負整数）と
+`Int::negSucc n`（`-(n+1)`）の直和 `Nat + Nat` で表す。零の表現は一つである。
+
+Set 側には三つの層がある。
+
+- `Int` と `*Set`: Program の型と演算の reflection。
+- `*Prec`: primitive recursor と検証済みの Nat 演算による仕様。
+- `Grothendieck` と `*Math`: 加法モノイド `(Nat,+,0)` の群完成。
+
+数学的構成では、自然数対 `Difference` の `(a,b)` と `(c,d)` を `a+d=c+b` で同一視する。
+この同値関係の三法則を証明し、`Power(Difference)` 内の同値類そのものを refinement して
+商集合を作る。`diffPrec` による正規化が代表元に依存しないことを示し、
+`toMath` / `fromMath` の両方向の逆写像則を `fromTo` / `toFrom` として証明する。
+`fromMath` は一意な値を取り出す `\take` を使う。新しい公理や `admit`、未証明の
+閉性 parameter は使わず、同値類の等号には既存の `\axiom:setext` を使う。
+
+商上の加算・反数・乗算は自然数対の通常の公式で定義し、`*RepRespects` と
+`*MathClass` が任意の代表元についての整合性を保証する。補助演算は商の一意な正規形で定義する。
+各公開演算の `*MatchesPrec` と `*MatchesMath` が Program の reflection、仕様、商上の演算の一致を表す。
+例えば `addMatchesMath x y` は `toMath (addSet x y) = addMath (toMath x) (toMath y)` である。
+
+| 整数の演算 | 内容 |
+| --- | --- |
+| `zero`, `one`, `minusOne`, `ofNat`, `negOfNat`, `diff` | 定数・自然数の埋め込み・自然数対の差 |
+| `neg`, `add`, `sub`, `mul`, `succ`, `pred` | 符号付き算術 |
+| `pow` | 自然数指数の累乗。`0^0 = 1` |
+| `positive`, `negative`, `natAbs`, `abs`, `sign` | 非負・負の成分、絶対値、`-1/0/1` の符号 |
+| `isZero`, `eqb`, `leb`, `ltb`, `choose`, `min`, `max` | 判定・選択。`Le` / `Lt` は判定が true になる命題 |
+| `even`, `odd` | 負の整数も含む偶奇判定 |
+
+加法の零・交換・結合・逆元則を商側で証明している。この整数 API は基本算術と判定を対象とし、
+除算・剰余・GCD は Nat 側と同様に含めていない。既存の `Rat.ref` の整数表現の置換は行っていない。
+
+module import は型の instance を作るため、`Int` 内の Nat / Bool と別に import した型は混ぜない。
+Set 側では公開 alias `Int.Nat` / `Int.Bool` を使える。`natZero!{}`、`natSucc!{n}`、
+`boolTrue!{}`、`boolFalse!{}` は `\use` して使うマクロで、Program / Set の両方から
+同じ instance のコンストラクタを参照できる。具体例は `tests.ref` の `IntegerExamples` を参照。
+
 [Pair.ref](Pair.ref) は型引数 `A, B : Set` を取る直積 `Times[A, B]` を
 一要素コンストラクタの inductive type として定義する。module parameter は使わず、
 `pair`、`first`、`second` などが通常の引数として `A` と `B` を取る。それぞれの
