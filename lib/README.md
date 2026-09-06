@@ -1,186 +1,144 @@
-# 実数の形式化
+# 標準ライブラリと実数の形式化
 
-[`Nat.ref`](Nat.ref) と [`Bool.ref`](Bool.ref) は Program universe (`\VType`) で
-データ型と演算を定義する。Set の式では、同名の型・コンストラクタが自動生成された
-Set 側の型・コンストラクタを指す。Program 演算 `add` などに対して、`addSet` は
-`\box` / `\Force` による反映、`addPrec` は `\prec` による仕様、
-`addMatchesPrec` は両者の一致を表す。証明に `admit` や新しい公理は使っていない。
+`root.ref` がライブラリのモジュール一覧、`tests.ref` が利用例を兼ねた型検査用のルートである。
+証明に `admit` や新しい公理は追加していない。商集合と切断の等号には既存の
+`\axiom:setext`、整数の一意な正規形の取り出しには `\take` を使う。
 
-`addTerminates` は残りの加数について帰納法を使い、任意の accumulator に対する
-`\Acc` を証明する。`addMatchesPrec b a` は任意の `a, b` について
-`addSet a b = addPrec a b` を証明する。Program の `\Prun` 自体は証明を要求せず、
-Set への反映時に停止性を検査する。他の再帰演算も同じ構成を使う。
+## 定義の配置
 
-| ファイル | Program 演算（Set では末尾に `Set`） | 主な証明 |
+| 層 | ファイル | 責務 |
 | --- | --- | --- |
-| Nat | `add`, `pred`, `isZero`, `sub` | `MatchesPrec`、加算の零・後者・交換・結合・消去則、減算の零・自己差・加算の消去 |
-| Nat | `iter`, `mul`, `pow` | `MatchesPrec`、乗算の零・一・後者・交換・結合・分配則、累乗の零・後者則 |
-| Nat | `eqb`, `leb`, `ltb`, `choose`, `min`, `max` | `MatchesPrec`、等値判定の健全性と完全性、`Le` の反射・推移・反対称性、`Lt` の非反射性 |
-| Nat | `toggle`, `even`, `odd` | `MatchesPrec` |
-| Nat | `divMod`, `div`, `mod`, `gcd` | `MatchesPrec`、商・余りによる復元、余りの上限、GCD の公約数性と最大性 |
-| Bool | `neg`, `and`, `or`, `xor`, `implies`, `eqb` | `MatchesPrec`、交換・結合・冪等・吸収・分配則、De Morgan 則、否定の対合、等値判定の健全性と完全性 |
+| 論理 | [Logic.ref](Logic.ref) | `False`、`Not`、`And`、`Or` と論理結合の記法 |
+| 等式 | [Equality.ref](Equality.ref)、[Equality/Laws.ref](Equality/Laws.ref) | 任意の台集合上の対称律・推移律・transport・一〜三引数の合同則 |
+| 直積 | [Pair.ref](Pair.ref) | Program の `Times` と Set 側の構築・射影・交換・写像・カリー化 |
+| 直積の法則 | [Pair/Laws.ref](Pair/Laws.ref)、[Pair/MapLaws.ref](Pair/MapLaws.ref)、[Pair/FunctionLaws.ref](Pair/FunctionLaws.ref) | β・η・外延性、写像の合成、カリー化の逆写像則 |
+| 有限部分集合 | [Finset.ref](Finset.ref) | 一点集合・二点集合と所属の証明。対のデータ型は定義しない |
+| 商集合 | [Quotient.ref](Quotient.ref) | 関係とその同値関係則から、同値類の集合・商の台集合・外延性を構成 |
+| データと算術 | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref)、[Int.ref](Int.ref) | Program 演算、Set への反映、仕様、一致証明、型固有の法則 |
+| 有理数の代表元 | [Rat.ref](Rat.ref) | 共通の Nat 上の整数対と、正の分母を持つ分数の算術 |
+| 有理数の商 | [Rat/Quotient.ref](Rat/Quotient.ref)、[Rat/Quotient/ClassClosed.ref](Rat/Quotient/ClassClosed.ref) | 汎用商の適用、同値類上の演算、閉性を仮定した精密化 |
+| Dedekind 切断 | [DedekindReal.ref](DedekindReal.ref)、[DedekindReal/Operations.ref](DedekindReal/Operations.ref) | 切断と順序、算術 lower set。閉性の仮定は `Operations/Closed.ref` |
+| Cauchy 列 | [CauchyReal.ref](CauchyReal.ref)、[CauchyReal/Quotient.ref](CauchyReal/Quotient.ref) | Cauchy 性、列の同値関係、汎用商の適用 |
+| Cauchy 列の演算 | [CauchyReal/Quotient/Operations.ref](CauchyReal/Quotient/Operations.ref) 以下 | 列演算、`SequenceClosed` による Cauchy 性、`ClassClosed` による商上の閉性 |
+| 実数の仕様・古典原理 | [AxiomaticReals.ref](AxiomaticReals.ref)、[Classical.ref](Classical.ref) | 公理的実数の構造。Classical は現在、将来の構成についての注記のみ |
 
-`sub` は零で切り捨てる自然数減算、`pow a zero` は一（`0^0` も一）である。
-`iterSet f value count` は `f` を `count` 回適用する。乗算・累乗・偶奇の `Prec` 仕様は
-この primitive iterator と、すでに `prec` との一致を証明した下位演算を組み合わせる。
-`Le a b` と `Lt a b` は、それぞれ `lebSet a b` と `ltbSet a b` が true になる命題である。
-`zeroSet` / `oneSet` は Set 側の定数。Bool の `ite A test yes no` は Set 多相の
-条件分岐で、閉じた Program 型を要求する box の制約から直接 `prec` で定義する。
+汎用の論理・等式・直積・商の構成を数のモジュールから独立させる。一方、Program の
+状態機械・停止性証明・反映・`Prec` 仕様・`MatchesPrec` は対応を追えるよう近くに置く。
+算術の `succCong` や `addCong` は型固有の名前として残し、証明は共通の合同則を使う。
 
-`divMod a b` は Program の自然数対 `NatPair::pair q r` を返し、`div` / `mod` は
-その商・余りを取り出す。被除数の後者を一つずつ消費する有限反復で、正の除数に達すると
-余りを零に戻して商を増やす。零除数も全域化し、`div a 0 = 0`、`mod a 0 = a` とする。
-`divModReconstructs` は全入力で `b * div a b + mod a b = a` を証明し、
-`modLt a d` は `mod a (d+1) < d+1` を証明する。零・一に関する法則も公開している。
+入れ子モジュールのファイルは、その論理上のパスに合わせて配置する。
+例えば `Rat.ref` の `\module Quotient(...);` は `Rat/Quotient.ref` を読む。
+ファイルを分けるだけで新しい import を挟まず、元のスコープと型の同一性を保つ。
 
-`gcd a b` は `(a,b) → (b, mod a b)` というユークリッド互除法を使う。第二成分が
-零になると状態を保つ。`pairIterTerminates` が反復の停止性を保証し、`gcdIterSettles` は
-第二成分の減少から `b` 回の反復で必ず零に達することを証明する。
-`gcd a 0 = a`、`gcd 0 b = b`（従って `gcd 0 0 = 0`）である。
-`Divides d a` は自然数の因子を持つという構成的な存在命題。
-`gcdDividesLeft` / `gcdDividesRight` が GCD の公約数性を、`gcdGreatest` が
-任意の公約数は GCD を割り切るという最大性を証明する。これらの証明に公理の追加はない。
+## 等式の使い方
 
-`divModPrec` は Set の自然数再帰と `divModNextPrec`、`gcdPrec` は同じく自然数再帰と
-`gcdNextPrec` / `modPrec` による仕様であり、各 `MatchesPrec` で Program の反映との一致を示す。
-補助演算 `first`, `second`, `pairChoose`, `pairIter`, `divModNext`, `gcdNext` にも
-反映・仕様・一致証明がある。自然数は単項表現で、互除法の反復も第二引数の値だけ行うため、
-大きな具体値の計算には適していない。
+```text
+\import \root.Equality() \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+```
 
-`Rat.ref` 内の独自の Set 自然数との統合は別途必要であり、この変更だけで有理数の
-obligation が解消するわけではない。
+`trans!{Nat} a b c ab bc` は `a = c`、`congr!{A B} f a b ab` は `f a = f b` を証明する。
+`congr2!{A B C}` と `congr3!{A B C D}` は成分ごとに等しい引数を持つ関数の合同則である。
+`transport!{A} P a b ab pa` は `P a` を `P b` に移す。
 
-[`Int.ref`](Int.ref) は Program の整数を `Int::ofNat n`（非負整数）と
-`Int::negSucc n`（`-(n+1)`）の直和 `Nat + Nat` で表す。零の表現は一つである。
+現在の PTS は命題内で `Set` 自体を量化しないため、台集合はマクロ展開時に指定する。
+テンプレートには明示的な型を付け、`_` で省略した等式の両辺も推論できるようにしている。
+`Equality/Laws.ref` は同じテンプレートを任意の台集合で型検査し、名前付きの API も提供する。
+例えば `\import \root.Equality().Laws(A := X) \as E;` で `E.sym`、`E.trans` を使える。
 
-Set 側には三つの層がある。
+数のモジュールではマクロを使う。現状の import は型のインスタンスを作り直すため、
+同じモジュールで宣言した型を引数にする補助モジュールの import を増やすと、外側の再 import 時に
+型の対応が崩れる場合がある。テンプレートを使用箇所で具体化すると、この問題を避けられる。
 
-- `Int` と `*Set`: Program の型と演算の reflection。
-- `*Prec`: primitive recursor と検証済みの Nat 演算による仕様。
-- `Grothendieck` と `*Math`: 加法モノイド `(Nat,+,0)` の群完成。
+## 直積と有限部分集合
 
-数学的構成では、自然数対 `Difference` の `(a,b)` と `(c,d)` を `a+d=c+b` で同一視する。
-この同値関係の三法則を証明し、`Power(Difference)` 内の同値類そのものを refinement して
-商集合を作る。`diffPrec` による正規化が代表元に依存しないことを示し、
-`toMath` / `fromMath` の両方向の逆写像則を `fromTo` / `toFrom` として証明する。
-`fromMath` は一意な値を取り出す `\take` を使う。新しい公理や `admit`、未証明の
-閉性 parameter は使わず、同値類の等号には既存の `\axiom:setext` を使う。
+`Times(A, B: \VType): \VType` は一つの Program データ型であり、Set 側の型と
+コンストラクタを自動生成する。Set 側の `Times[A, B]` は任意の `A, B: Set` に使える。
 
-商上の加算・反数・乗算は自然数対の通常の公式で定義し、`*RepRespects` と
-`*MathClass` が任意の代表元についての整合性を保証する。補助演算は商の一意な正規形で定義する。
-各公開演算の `*MatchesPrec` と `*MatchesMath` が Program の reflection、仕様、商上の演算の一致を表す。
-例えば `addMatchesMath x y` は `toMath (addSet x y) = addMath (toMath x) (toMath y)` である。
+- `pair A B a b`、`first A B p`、`second A B p`: 構築と射影。
+- `swap A B p`: 成分の交換。
+- `map A B C D f g p`: 各成分への関数適用。
+- `curry A B C f`、`uncurry A B C f`: 対を取る関数と二引数関数の変換。
 
-| 整数の演算 | 内容 |
-| --- | --- |
-| `zero`, `one`, `minusOne`, `ofNat`, `negOfNat`, `diff` | 定数・自然数の埋め込み・自然数対の差 |
-| `neg`, `add`, `sub`, `mul`, `succ`, `pred` | 符号付き算術 |
-| `pow` | 自然数指数の累乗。`0^0 = 1` |
-| `positive`, `negative`, `natAbs`, `abs`, `sign` | 非負・負の成分、絶対値、`-1/0/1` の符号 |
-| `isZero`, `eqb`, `leb`, `ltb`, `choose`, `min`, `max` | 判定・選択。`Le` / `Lt` は判定が true になる命題 |
-| `even`, `odd` | 負の整数も含む偶奇判定 |
+法則には射影の β 則、対の η 則と外延性、交換の対合、写像の恒等・合成則、
+カリー化の点ごとの逆写像則がある。Program の具体的な射影と、その反映との一致は
+`tests.ref` の `PairExamples` に例がある。現在の処理系では型引数付き Program モジュールの
+反映証明と Program マクロに制約があるため、`Nat.first` / `Nat.second` は具体型で定義する。
 
-加法の零・交換・結合・逆元則を商側で証明している。この整数 API は基本算術と判定を対象とし、
-整数の除算・剰余・GCD はまだ含めていない。既存の `Rat.ref` の整数表現の置換は行っていない。
+`NatPair`、整数の形式差 `Difference`、有理数の分子代表 `Integer` は、この直積の Set alias である。
+`Nat.natPair`、`Int.pair`、`Rat.integer` は各用途の構築関数であり、別の対型を宣言しない。
 
-module import は型の instance を作るため、`Int` 内の Nat / Bool と別に import した型は混ぜない。
-Set 側では公開 alias `Int.Nat` / `Int.Bool` を使える。`natZero!{}`、`natSucc!{n}`、
-`boolTrue!{}`、`boolFalse!{}` は `\use` して使うマクロで、Program / Set の両方から
-同じ instance のコンストラクタを参照できる。具体例は `tests.ref` の `IntegerExamples` を参照。
+`Finset(A: Set)` は `Power(A)` 上の `singleton` と `pair` を提供する。
+それぞれ `inSingleton`、`inPairLeft`、`inPairRight` で所属を証明できる。
+これは有限集合の初歩的な構成であり、一般の有限性の述語や濃度までは定義していない。
 
-[Pair.ref](Pair.ref) は型引数 `A, B : Set` を取る直積 `Times[A, B]` を
-一要素コンストラクタの inductive type として定義する。module parameter は使わず、
-`pair`、`first`、`second` などが通常の引数として `A` と `B` を取る。それぞれの
-β則、pair の η則、二つの射影が等しい pair は等しいという外延性を証明する。
+## Program 演算と仕様
 
-[`AxiomaticReals.ref`](AxiomaticReals.ref) は、台集合上の零、一、四則演算、逆数と
-`Power(Times)` で表した二項順序関係を named field を持つ proof-free な
-Bourbaki structure `RawRealStructure` として定義する。体、線形順序、順序との両立、上限性の条件は
-`IsAxiomaticRealStructure` にまとめ、条件を満たす構造を refinement type
-`AxiomaticRealStructure` とする。
+Bool・Nat・Int のデータ型は `\VType` に置く。Set の式で同名の型・コンストラクタを参照すると、
+自動生成された Set 側を使う。Program 演算 `add` に対し、`addSet` は `\box` / `\Force` による反映、
+`addPrec` は primitive recursor による仕様、`addMatchesPrec` は両者の一致を表す。
+Program の `\Prun` 自体は部分計算を許し、Set に反映するときに停止性を検査する。
 
-[`Rat.ref`](Rat.ref) は、inductive type と primitive recursor から `Nat` を構成し、
-自然数対による整数と正の分母を持つ分数代表は named-field structure として定義する。`Fraction` が保持する
-分母 `d` は実際の分母 `d + 1` を表すため、零分母は構文的に作れない。これにより
-`zero`、`one`、`lt`、`add`、`neg`、`sub`、`mul` は証明 parameter なしの具体的な
-定義になっている。
+| 型 | 演算 | 主な証明 |
+| --- | --- | --- |
+| Nat | `add`, `pred`, `isZero`, `sub` | 零・後者則、加法の交換・結合・消去、切り捨て減算 |
+| Nat | `iter`, `mul`, `pow` | 有限反復、乗法の交換・結合・分配、累乗の零・後者則 |
+| Nat | `eqb`, `leb`, `ltb`, `choose`, `min`, `max` | 等値判定、`Le` の反射・推移・反対称性、`Lt` の非反射性 |
+| Nat | `toggle`, `even`, `odd` | Program と `Prec` の一致 |
+| Nat | `divMod`, `div`, `mod`, `gcd` | 商・余りによる復元、余りの上限、GCD の公約数性と最大性 |
+| Bool | `neg`, `and`, `or`, `xor`, `implies`, `eqb` | 交換・結合・冪等・吸収・分配、De Morgan 則、否定の対合、等値判定 |
+| Int | 定数、`ofNat`, `negOfNat`, `diff`, `neg`, `add`, `sub`, `mul`, `succ`, `pred`, `pow` | Program・仕様・群完成上の演算の一致、加法の群の法則 |
+| Int | 符号・絶対値・比較・選択・偶奇 | `positive`, `negative`, `natAbs`, `abs`, `sign`, `isZero`, `eqb`, `leb`, `ltb`, `choose`, `min`, `max`, `even`, `odd` |
 
-`FractionEq` は交差積による代表元の等価関係である。反射律 `fractionEqRefl` と
-対称律 `fractionEqSym` は証明済みで、推移律は自然数の加法の交換・結合・消去律が
-必要な obligation として `Quotient` に残している。`Quotient` は `FractionEq` の
-同値類を `Power(Fraction)` の refinement として表し、その等号には
-`\axiom:setext` を使う。演算は同値類全体の relational image で定義し、
-`ClassClosed` に congruence の証明を渡す。
+`sub` は零で切り捨て、`0^0 = 1` とする。零除数では `div a 0 = 0`、`mod a 0 = a`。
+`divMod` は共通の対型で商と余りを返す。`gcd` はユークリッド互除法を有限反復で実装し、
+第二成分の減少により反復が収束することを証明する。自然数は単項表現なので、大きな具体値の計算には向かない。
+`Divides d a` は自然数の因子を証拠として持つ構成的な存在命題である。
 
-[`DedekindReal.ref`](DedekindReal.ref) は module parameter を取らず `Rat.ref` を import し、
-実数を located・rounded Dedekind cut として定義する。切断の membership が
-`FractionEq` の代表元に依存しないことも `RespectsFractionEq` として条件に含める。
-次を構成する。
+Int は `ofNat n` と `negSucc n`（`-(n+1)`）で表し、零の表現は一つだけである。
+数学的には自然数対 `(a,b)` と `(c,d)` を `a+d=c+b` で同一視し、その同値類から
+群完成 `Grothendieck` を作る。`toMath` / `fromMath` は相互に逆で、
+`*MatchesMath` が Program 演算と群完成上の演算を結ぶ。整数の除算・剰余・GCD はまだない。
 
-- 切断の条件 `Inhabited`、`Proper`、`Lower`、`Rounded`、`Located`
-- 条件を満たす `Power(Rat)` の refinement type `Real`
-- `Le`、`Lt` と、`Le` の反射律・推移律
-- `\axiom:setext` による kernel 等号と反対称律
-- 有理数の埋め込み、加法、反数、減法を与える lower set
+module import ごとに型の instance が作られるため、別々に import した Nat / Bool を混ぜない。
+Int が公開する `Nat` / `Bool` alias と、`natZero!{}`、`natSucc!{n}`、`boolTrue!{}`、
+`boolFalse!{}` のマクロは同じ instance を参照する。
 
-[`CauchyReal.ref`](CauchyReal.ref) も module parameter を取らず `Rat.ref` を import する。
-`Rat.ref` の `Nat` と `NatLe` を共通の添字基盤として使い、Cauchy 有理数列の型 `CauchySeq` と、差が 0 に
-収束する同値関係 `Equivalent` を定義する。距離条件は `abs` を別の演算として
-受け取らず、`x - y < eps` と `y - x < eps` の連言 `Close` で表す。
-`Quotient` は反射律・対称律・推移律を parameter に取り、集合外延性には
-`\axiom:setext` を使って、
-`ClassOf x = { y | Equivalent x y }` の像を商集合 `Real` とする。そのため
-`Real` の要素は代表列ではなく同値類そのものであり、`Eq` は kernel の `=` である。
+## 有理数・実数と残る証明
 
-加法と反数は代表元を選択せず、二つの同値類に属する列の和・反数すべてからなる
-relational image として定義する。`SequenceClosed` は列演算が Cauchy 性を保つ証明、
-`ClassClosed` はその image が一つの同値類になる証明を parameter に要求する。
+Rat の `Nat`、`natAdd`、`natMul`、`NatLe`、`NatLt` は共通の Nat ライブラリを使う。
+`natLeRefl` / `natLeTrans` も共通の順序則を公開する。Cauchy 列の添字もこの自然数である。
+有理数の分子は形式差の対、分数 `Fraction` は named-field structure であり、
+分母として保持する `d` は実際の分母 `d+1` を表す。零分母は構文的に作れない。
 
-[`root.ref`](root.ref) が各 module のルートである。`False`、`Not`、`And`、`Or` は
-[`Logic.ref`](Logic.ref) にまとめる。`And` は二つの証明を named field に持つ structure であり、
-`not!`、`and!`、`and4!` などのマクロを各構成から必要に応じて `\use` する。
+`FractionEq` は交差積による同値関係である。反射律・対称律は証明済みだが、
+推移律と商上の演算の閉性は引き続き parameter として要求する。
+Nat の共有により算術の証明を利用できる基盤は揃ったが、分数のこれらの証明自体は未完了である。
 
-## 記述上の方針
+汎用 `Quotient` は台集合・関係・同値関係則を受け取り、`ClassOf x` の像を
+`Power(A)` の refinement として表す。Rat と CauchyReal はその構成を使い、
+それぞれの `Quotient` ファイルには語彙の alias と算術固有の構成だけを置く。
+演算は代表元を選ばず同値類全体の relational image として定義し、
+`ClassClosed` がその image が再び一つの同値類になる証明を受け取る。
 
-単なるデータの束には `\structure` を使い、帰納法が必要な型だけを `\inductive` にする。
-このため `RawRealStructure`、`Integer`、`Fraction`、`FinitePair`、`And` は structure、
-`Nat`、`Or`、Cartesian product `Times` は inductive type である。structure の値は
-field 名付きで構築する。
+Dedekind 実数は inhabited・proper・lower・rounded・located で、分数の代表元に依存しない切断である。
+包含による順序の反射・推移・反対称性は証明済みで、lower set 上に有理数の埋め込み・加法・反数・減法を構成する。
+`Operations.Closed` はこれらが切断になる閉性証明を要求する。
 
-反復する論理結合は `Logic.ref` の hygienic macro に集約する。型引数が使用箇所から一意に決まる場合は
-`_` の implicit metavariable を使う一方、公開定義の型は明示してモジュール境界を読みやすく保つ。
+Cauchy 実数は有理数列を差が零に収束する関係で割った商である。
+同値関係則、列演算の Cauchy 性、商上の閉性は parameter に残る。
+どちらの実数にも乗法・逆数・完備性の証明がまだなく、
+`AxiomaticRealStructure` の具体的な項の構成には到達していない。
 
-## 公理的実数への接続と現在の制限
+## API の整理による変更
 
-`AxiomaticReals.ref` の `LinearOrderLaws` のうち、Dedekind 側の反射律と推移律は
-`leRefl`、`leTrans` として証明済みである。反対称律も `\axiom:setext` を使う
-`leAntisym` として証明済みである。しかし、現在の `LinearOrderLaws` が要求する
-`Le x y \/ Le y x` は古典的な全順序性であり、located cut と現在の constructive な
-`Logic.Or` だけからは導けない。
-
-さらに、どちらの実数構成にも乗法・逆数がまだなく、Dedekind 側の上限構成と
-Cauchy 側の完備性も未証明である。Cauchy 側では、`Equivalent` の同値関係則と
-列演算の閉性を有理数算術から示す必要があり、完備性の証明では可算選択に
-相当する原理も問題になる。このため、現時点で `AxiomaticRealStructure` の項そのものを
-構成するところまでは到達していない。
-
-`Rat.ref` 側で残る最初の基礎 obligation は、`FractionEq` の推移律、四則演算の
-congruence、`lt` の稠密線形順序性と演算との両立性である。Nat.ref には加法の結合・交換・消去律を追加済みだが、
-Rat.ref の独自の自然数型に接続する作業が残っている。
-
-`Operations.Closed` は、`RatLower`、`SumLower`、`NegLower` が切断になるという
-閉性証明を引数に要求する。`ofRat`、`add`、`neg` はそれぞれの refinement cast に
-この証明を明示的に渡す。そのため、これらは有理数側の閉性を仮定した演算であり、
-未証明の cast ではない。
-
-kernel の `=` は集合の外延性を自動では使わないため、Rat・Dedekind・Cauchy の
-`eqByExt` はいずれも双方向の包含を `\axiom:setext` に渡して kernel 等号を構成する。
-Dedekind/Cauchy 実数上の乗法・逆数・完備性定理はまだ含めていない。
-
-Cauchy 構成では primitive な quotient type は使わず、`Power(CauchySeq)` のうち
-実際に `ClassOf x` として得られる集合だけを refinement して商集合を作る。
-`Equivalent` が本当に同値関係になることや、演算が同値類を保つことは `Rat` の
-演算名だけからは導けないため、それぞれ明示的な parameter として要求する。
+- `Nat.eqSym` / `eqTrans` / `congr`、Int の型別の合同則は `Equality` の共通 API に移した。
+- `Nat.NatPair::pair` の代わりに Set では `Nat.natPair` を使う。
+- Rat の独自の Nat / NatLe / NatLt と、そのコンストラクタは共通の Nat と順序に置き換えた。
+- `Integer` / `Difference` は直積の alias に変わったため、構築・射影には公開関数を使う。
+- `Finset.FinitePair` とその射影は廃止した。データの対は `Pair`、有限部分集合は `Finset(A := ...)` を使う。
 
 ## 確認
 
@@ -190,4 +148,4 @@ cargo run --quiet -- lib/tests.ref
 cargo test --workspace
 ```
 
-コマンドは各定義と、module parameter として残した obligation の型を検査する。
+これらは証明済みの定義と、parameter として残した obligation の型を検査する。

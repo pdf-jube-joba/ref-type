@@ -1,0 +1,83 @@
+\import \root.Logic() \as QuotientLogic;
+
+\import \root.Quotient(
+  A := Fraction, Equivalent := FractionEq,
+  equivalentRefl := fractionEqRefl, equivalentSym := fractionEqSym, equivalentTrans := fractionEqTrans
+) \as Q;
+
+\definition ClassOf: Fraction -> \Power(Fraction) := Q.ClassOf;
+\definition classOfEq: (x, y: Fraction) -> FractionEq x y -> ClassOf x = ClassOf y := Q.classOfEq;
+\definition IsClass: \Power(Fraction) -> \Prop := Q.IsClass;
+\definition ClassSet: \Power(\Power(Fraction)) := Q.ClassSet;
+\definition Rat: \Set := Q.Carrier;
+\definition mem: Rat -> Fraction -> \Prop := Q.mem;
+\definition underlying: Rat -> \Power(Fraction) := Q.underlying;
+\definition Eq: Rat -> Rat -> \Prop := Q.Eq;
+\definition eqByExt: (x, y: Rat) ->
+  ((a: Fraction) -> mem x a -> mem y a) -> ((a: Fraction) -> mem y a -> mem x a) -> Eq x y := Q.eqByExt;
+\definition classIsClass: (x: Fraction) -> IsClass (ClassOf x) := Q.classIsClass;
+\definition class: Fraction -> Rat := Q.class;
+
+\definition IsNonZero: Rat -> \Prop :=
+  (x: Rat) =>
+    (a: Fraction) -> mem x a -> NumeratorNonZero a;
+
+\definition NonZeroRatSet: \Power(Rat) :=
+  \Subset(x, Rat, IsNonZero x);
+
+\definition NonZeroRat: \Set :=
+  \Ty(Rat, NonZeroRatSet);
+
+\definition AddClass: Rat -> Rat -> \Power(Fraction) :=
+  (x, y: Rat) =>
+    \Subset(z, Fraction,
+      \exists \Ty(Fraction,
+        \Subset(a, Fraction,
+          QuotientLogic.And[mem x a,
+            \exists \Ty(Fraction,
+              \Subset(b, Fraction,
+                QuotientLogic.And[mem y b,
+                  FractionEq z (add a b)]))])));
+
+\definition SubClass: Rat -> Rat -> \Power(Fraction) :=
+  (x, y: Rat) =>
+    \Subset(z, Fraction,
+      \exists \Ty(Fraction,
+        \Subset(a, Fraction,
+          QuotientLogic.And[mem x a,
+            \exists \Ty(Fraction,
+              \Subset(b, Fraction,
+                QuotientLogic.And[mem y b,
+                  FractionEq z (sub a b)]))])));
+
+\definition MulClass: Rat -> Rat -> \Power(Fraction) :=
+  (x, y: Rat) =>
+    \Subset(z, Fraction,
+      \exists \Ty(Fraction,
+        \Subset(a, Fraction,
+          QuotientLogic.And[mem x a,
+            \exists \Ty(Fraction,
+              \Subset(b, Fraction,
+                QuotientLogic.And[mem y b,
+                  FractionEq z (mul a b)]))])));
+
+/* z is x/y exactly when z*y=x; y is separately refined as nonzero. */
+\definition DivClass: Rat -> NonZeroRat -> \Power(Fraction) :=
+  (x: Rat) => (y: NonZeroRat) =>
+    \Subset(z, Fraction,
+      \exists \Ty(Fraction,
+        \Subset(a, Fraction,
+          QuotientLogic.And[mem x a,
+            \exists \Ty(Fraction,
+              \Subset(b, Fraction,
+                QuotientLogic.And[mem y b,
+                  QuotientLogic.And[NumeratorNonZero b,
+                    FractionEq (mul z b) a]]))])));
+
+\module ClassClosed(
+  addClassIsClass: (x, y: Rat) -> IsClass (AddClass x y),
+  subClassIsClass: (x, y: Rat) -> IsClass (SubClass x y),
+  mulClassIsClass: (x, y: Rat) -> IsClass (MulClass x y),
+  divClassIsClass: (x: Rat) -> (y: NonZeroRat) ->
+    IsClass (DivClass x y),
+);

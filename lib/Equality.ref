@@ -1,0 +1,41 @@
+/* Equality is independent of arithmetic. Proof templates specialize the carrier
+ * before elaboration: this avoids quantifying a proposition over Set, and keeps
+ * local datatypes valid when their enclosing module is instantiated again. */
+\macro sym($A) :=
+  ((law: (a, b: $A) -> a = b -> b = a) => law)
+  ((a, b: $A) => (e: a = b) =>
+    \idelim(a = b \with x: $A => x = a) \by (\refl(a), e));
+
+\macro trans($A) :=
+  ((law: (a, b, c: $A) -> a = b -> b = c -> a = c) => law)
+  ((a, b, c: $A) => (ab: a = b) => (bc: b = c) =>
+    \idelim(b = c \with x: $A => a = x) \by (ab, bc));
+
+\macro transport($A) :=
+  ((law: (P: $A -> \Prop) -> (a, b: $A) -> a = b -> P a -> P b) => law)
+  ((P: $A -> \Prop) => (a, b: $A) => (e: a = b) => (p: P a) =>
+    \idelim(a = b \with x: $A => P x) \by (p, e));
+
+\macro congr($A, $B) :=
+  ((law: (f: $A -> $B) -> (a, b: $A) -> a = b -> f a = f b) => law)
+  ((f: $A -> $B) => (a, b: $A) => (e: a = b) =>
+      \idelim(a = b \with x: $A => f a = f x) \by (\refl(f a), e));
+
+\macro congr2($A, $B, $C) :=
+  ((law: (f: $A -> $B -> $C) -> (a, b: $A) -> (c, d: $B) -> a = b -> c = d -> f a c = f b d) => law)
+  ((f: $A -> $B -> $C) => (a, b: $A) => (c, d: $B) => (ab: a = b) => (cd: c = d) =>
+      \idelim(c = d \with y: $B => f a c = f b y)
+      \by (\idelim(a = b \with x: $A => f a c = f x c)
+        \by (\refl(f a c), ab), cd));
+
+\macro congr3($A, $B, $C, $D) :=
+  ((law: (f: $A -> $B -> $C -> $D) -> (a, b: $A) -> (c, d: $B) -> (e, g: $C) -> a = b -> c = d -> e = g -> f a c e = f b d g) => law)
+  ((f: $A -> $B -> $C -> $D) => (a, b: $A) => (c, d: $B) => (e, g: $C) =>
+      (ab: a = b) => (cd: c = d) => (eg: e = g) =>
+        \idelim(e = g \with z: $C => f a c e = f b d z)
+        \by (\idelim(c = d \with y: $B => f a c e = f b y e)
+          \by (\idelim(a = b \with x: $A => f a c e = f x c e)
+            \by (\refl(f a c e), ab), cd), eg));
+
+/* A checked, named API is also available for a fixed carrier. */
+\module Laws(A: \Set);

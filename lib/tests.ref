@@ -1,5 +1,16 @@
 /* Concrete boundary cases supplement the universally quantified library laws. */
 \module Logic;
+\module Equality;
+
+\module Quotient(
+  A: \Set,
+  Equivalent: A -> A -> \Prop,
+  equivalentRefl: (x: A) -> Equivalent x x,
+  equivalentSym: (x, y: A) -> Equivalent x y -> Equivalent y x,
+  equivalentTrans: (x, y, z: A) -> Equivalent x y -> Equivalent y z -> Equivalent x z,
+);
+
+\module Pair;
 \module Bool;
 \module Nat;
 \module Int;
@@ -40,8 +51,8 @@
   \definition remainderExact: N.modSet six three = z := \refl(z);
   \definition remainderInexact: N.modSet eight three = two := \refl(two);
   \definition remainderSmall: N.modSet two three = two := \refl(two);
-  \definition divisionTogether: N.divModSet eight three = N.NatPair::pair two two :=
-    \refl(N.NatPair::pair two two);
+  \definition divisionTogether: N.divModSet eight three = N.natPair two two :=
+    \refl(N.natPair two two);
   \definition divisionByZero: N.divSet three z = z := \refl(z);
   \definition remainderByZero: N.modSet three z = three := \refl(three);
   \definition divisionZeroZero: N.divSet z z = z := \refl(z);
@@ -84,7 +95,6 @@
   \definition implication: B.impliesSet B.Bool::true B.Bool::false = B.Bool::false := \refl(B.Bool::false);
   \definition importedLaw: (a: B.Bool) -> B.negSet (B.negSet a) = a := B.negInvolutive;
 }
-
 
 \module IntegerExamples {
   \import \root.Int() \as I;
@@ -149,4 +159,79 @@
   \definition multiplicationAgreement: (x, y: I.Int) ->
     I.toMath (I.mulSet x y) = I.mulMath (I.toMath x) (I.toMath y) := I.mulMatchesMath;
   \definition inverseLaw: (x: I.Int) -> I.addSet (I.negSet x) x = I.zeroSet := I.negInverse;
+}
+
+/* Heterogeneous products share one Program datatype and Set mirror. */
+\module PairExamples {
+  \import \root.Pair() \as P;
+  \import \root.Bool() \as B;
+  \import \root.Nat() \as N;
+  \vdefinition value: P.Times[B.Bool, N.Nat] :=
+    P.Times[B.Bool, N.Nat]::pair B.Bool::true (N.Nat::succ N.Nat::zero);
+  \definition reflected: P.Times[B.Bool, N.Nat] :=
+    \Force(P.Times[B.Bool, N.Nat], \box(P.Times[B.Bool, N.Nat], value));
+  \definition first: P.first B.Bool N.Nat reflected = B.Bool::true := \refl(B.Bool::true);
+  \definition second: P.second B.Bool N.Nat reflected = N.oneSet := \refl(N.oneSet);
+  \definition swapped: P.swap B.Bool N.Nat reflected = P.pair N.Nat B.Bool N.oneSet B.Bool::true :=
+    \refl(P.pair N.Nat B.Bool N.oneSet B.Bool::true);
+  \definition mapped: P.map B.Bool N.Nat B.Bool N.Nat B.negSet N.predSet reflected = P.pair B.Bool N.Nat B.Bool::false N.zeroSet :=
+    \refl(P.pair B.Bool N.Nat B.Bool::false N.zeroSet);
+  \cdefinition project: \CFun(P.Times[B.Bool, N.Nat], \F(N.Nat)) :=
+    \clam(p, P.Times[B.Bool, N.Nat], \vcase(P.Times, p) { | pair(b, n) => \return(n); });
+  \definition reflectedProjection: P.Times[B.Bool, N.Nat] -> N.Nat :=
+    \Force(\CFun(P.Times[B.Bool, N.Nat], \F(N.Nat)),
+      \box(\CFun(P.Times[B.Bool, N.Nat], \F(N.Nat)), project));
+  \definition projectionAgrees: (p: P.Times[B.Bool, N.Nat]) -> reflectedProjection p = P.second B.Bool N.Nat p :=
+    \prec(\Prop, P.Times[B.Bool, N.Nat])
+      ((p: P.Times[B.Bool, N.Nat]) => reflectedProjection p = P.second B.Bool N.Nat p)
+      ((b: B.Bool) => (n: N.Nat) => \refl(n));
+}
+
+/* The Set API also accepts carriers that have no Program representation. */
+\module AbstractPairExamples(A, B: \Set, a: A, b: B) {
+  \import \root.Pair() \as P;
+  \definition value: P.Times[A, B] := P.pair A B a b;
+  \definition first: P.first A B value = a := \refl(a);
+  \definition second: P.second A B value = b := \refl(b);
+  \definition uncurried: P.uncurry A B A ((x: A) => (y: B) => x) value = a := \refl(a);
+}
+
+\module EqualityExamples(A, B: \Set, f: A -> B, a, b, c: A, ab: a = b, bc: b = c) {
+  \import \root.Equality() \as E;
+  \use E.sym;
+  \use E.trans;
+  \use E.congr;
+  \import \root.Equality().Laws(A := A) \as Laws;
+  \definition reverse: b = a := sym!{A} _ _ ab;
+  \definition chained: a = c := trans!{A} _ _ _ ab bc;
+  \definition mapped: f a = f c := congr!{A B} f _ _ (Laws.trans a b c ab bc);
+}
+
+\module Finset(A: \Set);
+\module FinsetExamples(A: \Set, a, b: A) {
+  \import \root.Finset(A := A) \as F;
+  \definition singletonMember: \Pred(A, F.singleton a, a) := F.inSingleton a;
+  \definition leftMember: \Pred(A, F.pair a b, a) := F.inPairLeft a b;
+  \definition rightMember: \Pred(A, F.pair a b, b) := F.inPairRight a b;
+}
+
+\module Rat;
+\module RationalExamples {
+  \import \root.Rat() \as R;
+  \definition two: R.Nat := R.natAdd R.oneNat R.oneNat;
+  \definition multiply: R.natMul two R.oneNat = two := \refl(two);
+  \definition indexOrder: R.NatLe two two := R.natLeRefl two;
+  \definition fractionSymmetry: (x, y: R.Fraction) -> R.FractionEq x y -> R.FractionEq y x :=
+    R.fractionEqSym;
+}
+
+\module QuotientExamples(A: \Set, x, y: A, xy: x = y) {
+  \import \root.Equality().Laws(A := A) \as E;
+  \import \root.Quotient(
+    A := A, Equivalent := ((a, b: A) => a = b),
+    equivalentRefl := ((a: A) => \refl(a)), equivalentSym := E.sym, equivalentTrans := E.trans
+  ) \as Q;
+  \definition equalClasses: Q.ClassOf x = Q.ClassOf y := Q.classOfEq x y xy;
+  \definition extensionality: (a, b: Q.Carrier) ->
+    ((z: A) -> Q.mem a z -> Q.mem b z) -> ((z: A) -> Q.mem b z -> Q.mem a z) -> a = b := Q.eqByExt;
 }

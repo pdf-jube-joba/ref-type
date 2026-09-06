@@ -1,0 +1,66 @@
+/* Equivalence classes as subsets: shared by the rational and Cauchy quotients.
+ * The relation laws are explicit parameters; no new quotient axiom is used. */
+/* The equivalence class represented by x. */
+\definition ClassOf: A -> \Power(A) :=
+  (x: A) =>
+    \Subset(y, A, Equivalent x y);
+
+/* Equivalent representatives determine the same subset. */
+\definition classOfEq:
+  (x, y: A) -> Equivalent x y -> ClassOf x = ClassOf y :=
+  (x, y: A) => (xy: Equivalent x y) =>
+    \axiom:setext(ClassOf x, ClassOf y,
+      ((z: A) => (xz: Equivalent x z) =>
+        equivalentTrans y x z (equivalentSym x y xy) xz),
+      ((z: A) => (yz: Equivalent y z) =>
+        equivalentTrans x y z xy yz));
+
+/*
+ * IsClass is the impredicative existential
+ *   exists x: A, C = ClassOf x.
+ * Thus ClassSet is precisely the image of ClassOf.
+ */
+\definition IsClass: \Power(A) -> \Prop :=
+  (C: \Power(A)) =>
+    (P: \Prop) ->
+      ((x: A) -> C = ClassOf x -> P) -> P;
+
+\definition ClassSet: \Power(\Power(A)) :=
+  \Subset(C, \Power(A), IsClass C);
+
+/* The quotient A / Equivalent. */
+\definition Carrier: \Set :=
+  \Ty(\Power(A), ClassSet);
+
+\definition mem: Carrier -> A -> \Prop :=
+  (x: Carrier) => (seq: A) =>
+    \Pred(A, x, seq);
+
+\definition underlying: Carrier -> \Power(A) :=
+  (x: Carrier) => x;
+
+/* Equality of reals is kernel equality of their equivalence classes. */
+\definition Eq: Carrier -> Carrier -> \Prop :=
+  (x, y: Carrier) => x = y;
+
+\definition eqByExt:
+  (x, y: Carrier) ->
+    ((seq: A) -> mem x seq -> mem y seq) ->
+    ((seq: A) -> mem y seq -> mem x seq) ->
+    Eq x y :=
+  (x, y: Carrier) =>
+    (xy: (seq: A) -> mem x seq -> mem y seq) =>
+    (yx: (seq: A) -> mem y seq -> mem x seq) =>
+      \axiom:setext(underlying x, underlying y, xy, yx);
+
+/* Every representative gives a genuine member of the quotient. */
+\definition classIsClass:
+  (x: A) -> IsClass (ClassOf x) :=
+  (x: A) =>
+    (P: \Prop) =>
+    (intro: (y: A) -> ClassOf x = ClassOf y -> P) =>
+      intro x (\refl(ClassOf x));
+
+\definition class: A -> Carrier :=
+  (x: A) =>
+    \subsetinto(\Power(A), ClassSet, ClassOf x, classIsClass x);

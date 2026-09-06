@@ -1,5 +1,5 @@
 /* A proof-free Cartesian product and its basic equations. */
-\inductive Times(A, B: \Set): \Set :=
+\inductive Times(A, B: \VType): \VType :=
 | pair: A -> B -> Times;
 ;
 
@@ -24,53 +24,23 @@
       ((a: A) => (b: B) => b)
       p;
 
-/* The new PTS does not quantify propositions over a universe.  Laws are
- * therefore parameterized at the module level, leaving the computational
- * operations universe-polymorphic. */
-\module Laws(A, B: \Set) {
-  \definition firstPair:
-    (a: A) -> (b: B) -> first A B (pair A B a b) = a :=
-    (a: A) => (b: B) => \refl(a);
+\definition swap: (A, B: \Set) -> Times[A, B] -> Times[B, A] :=
+  (A, B: \Set) => (p: Times[A, B]) =>
+    pair B A (second A B p) (first A B p);
 
-  \definition secondPair:
-    (a: A) -> (b: B) -> second A B (pair A B a b) = b :=
-    (a: A) => (b: B) => \refl(b);
+\definition map: (A, B, C, D: \Set) -> (A -> C) -> (B -> D) -> Times[A, B] -> Times[C, D] :=
+  (A, B, C, D: \Set) => (f: A -> C) => (g: B -> D) => (p: Times[A, B]) =>
+    pair C D (f (first A B p)) (g (second A B p));
 
-  \definition eta:
-    (p: Times[A, B]) -> pair A B (first A B p) (second A B p) = p :=
-    (p: Times[A, B]) =>
-      \prec(\Prop, Times[A, B])
-        ((q: Times[A, B]) =>
-          pair A B (first A B q) (second A B q) = q)
-        ((a: A) => (b: B) => \refl(pair A B a b))
-        p;
+\definition curry: (A, B, C: \Set) -> (Times[A, B] -> C) -> A -> B -> C :=
+  (A, B, C: \Set) => (f: Times[A, B] -> C) => (a: A) => (b: B) =>
+    f (pair A B a b);
 
-  \definition ext:
-    (p: Times[A, B]) -> (q: Times[A, B]) ->
-      first A B p = first A B q ->
-      second A B p = second A B q -> p = q :=
-    (p: Times[A, B]) =>
-      \prec(\Prop, Times[A, B])
-        ((left: Times[A, B]) =>
-          (right: Times[A, B]) ->
-          first A B left = first A B right ->
-          second A B left = second A B right ->
-          left = right)
-        ((a: A) => (b: B) => (q: Times[A, B]) =>
-          \prec(\Prop, Times[A, B])
-            ((right: Times[A, B]) =>
-              first A B (pair A B a b) = first A B right ->
-              second A B (pair A B a b) = second A B right ->
-              pair A B a b = right)
-            ((c: A) => (d: B) =>
-              (ac: a = c) => (bd: b = d) =>
-                \idelim(a = c
-                  \with x: A => pair A B a b = pair A B x d)
-                \by (
-                  \idelim(b = d
-                    \with y: B => pair A B a b = pair A B a y)
-                  \by (\refl(pair A B a b), bd),
-                  ac))
-            q)
-        p;
-}
+\definition uncurry: (A, B, C: \Set) -> (A -> B -> C) -> Times[A, B] -> C :=
+  (A, B, C: \Set) => (f: A -> B -> C) => (p: Times[A, B]) =>
+    f (first A B p) (second A B p);
+
+/* Laws quantify over elements; their carrier universes are module parameters. */
+\module Laws(A, B: \Set);
+\module MapLaws(A, B, C, D: \Set);
+\module FunctionLaws(A, B, C: \Set);
