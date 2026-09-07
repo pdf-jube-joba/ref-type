@@ -53,6 +53,7 @@
     - [1](./対話/stratification/stratification1.md)
     - [2](./対話/stratification/stratification2.md)
     - [3](./対話/stratification/stratification3.md)
+    - [4](./対話/stratification/stratification4.md)
   - [reflection](./対話/reflection/_目標.md)
     - [1](./対話/reflection/reflection1.md)
     - [2](./対話/reflection/reflection2.md)
