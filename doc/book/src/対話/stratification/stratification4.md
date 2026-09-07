@@ -6,6 +6,8 @@ term/type/kind 構文へ移す。Program には型抽象・型適用を加える
 
 ### 1. Sort と構文の分類
 
+#### Sort と axiom
+
 \[
 \begin{aligned}
 \mathcal B_{sp}&=\{*^s_i\mid i\in\mathbb N\}\cup\{*^p\},\\
@@ -19,6 +21,8 @@ term/type/kind 構文へ移す。Program には型抽象・型適用を加える
 \mathcal A&=\{(b,\kappa(b))\mid b\in\mathcal B\}.
 \end{aligned}
 \]
+
+#### 三つの構文 family
 
 \(b\in\mathcal B\) ごとに、互いに異なる三つの構文を相互帰納的に生成する。
 
@@ -45,6 +49,8 @@ Program の \(\mathsf{Tm}_{*^v_i}\) を value、
 \(\mathsf{Ty}_{*^v_i}\)、\(\mathsf{Ty}_{*^c_i}\) はそれぞれ value/computation
 type constructor、\(\mathsf{Kd}_{*^v_i}\)、\(\mathsf{Kd}_{*^c_i}\) はその kind である。
 
+#### Judgement 用の family の略記
+
 規則をまとめるため、次の略記を使う。
 
 \[
@@ -62,6 +68,8 @@ b&\mathsf{Tm}_b&\mathsf{Ty}_b\\
 
 ### 2. Product signature
 
+#### Set の product rule
+
 Set の異なる level は、次の \(\max\) 規則で組み合わせる。
 
 \[
@@ -73,6 +81,8 @@ Set の異なる level は、次の \(\max\) 規則で組み合わせる。
 &(\square^s_i,*^s_j,*^s_{\max(i+1,j)})\}.
 \end{aligned}
 \]
+
+#### Prop と領域間の product rule
 
 Prop と Set/Prop 間の規則は次とする。
 
@@ -86,6 +96,8 @@ Prop と Set/Prop 間の規則は次とする。
   \tau\in\{*^p,\square^p\}\}.
 \end{aligned}
 \]
+
+#### Program の product rule
 
 Program は value から computation への関数、型についての多相性、
 型演算子を持つ。\(q,r\in\{v,c\}\) として、
@@ -105,11 +117,15 @@ Program は value から computation への関数、型についての多相性�
 抽象・適用できる。Program type/kind の自由変数は Program type variable
 だけからなる。Program の value 引数に関する関数型は非依存である。
 
+#### Level
+
 level は non-cumulative な自然数の構文添字であり、各規則は表示された level で適用する。
 level の繰上げは上の product rule に従う。level polymorphic な宣言は、
 この規則群を level パラメータでメタレベルに一般化した schema として扱う。
 
 ### 3. 基本構文の生成
+
+#### Product・abstraction・application
 
 \(r=(\sigma_1,\sigma_2,\sigma_3)\in\mathcal R_{sp}\cup\mathcal R_{pr}\)
 ごとに、次で構文を生成する。\(z^{\sigma_1}\) は
@@ -130,14 +146,29 @@ level の繰上げは上の product rule に従う。level polymorphic な宣言
 
 binder の scope は body である。Program の
 \((*^v_i,*^c_j,*^c_k)\) に対する \(\Pi\) は
-\(z\notin\mathrm{FV}(B)\) を満たすものとし、\(A\Rightarrow B\) と書く。
-Program の \((\square^q_i,*^c_j,*^c_k)\) に対する
-\(\Pi,\lambda,@\) は、\(\forall X:K.B,\Lambda X:K.M,M[P]\) と書く。
-型演算子の lambda/application は \(\lambda^{\mathrm{ty}},@^{\mathrm{ty}}\) とも書く。
+\(z\notin\mathrm{FV}(B)\) を満たすものとする。
+term 引数と型引数のどちらにも、同じ \(\Pi_r,\lambda_r,@_r\) を使う。
+
+#### Rule label
+
+以下で使う product rule の名前を定める。
+
+\[
+\begin{aligned}
+s^{i,j}&:=(*^s_i,*^s_j,*^s_{\max(i,j)}),\\
+r^{i,j}_{vc}&:=(*^v_i,*^c_j,*^c_{\max(i,j)}),\\
+r^{q;i,j}_{tc}&:=(\square^q_i,*^c_j,*^c_{\max(i+1,j)}).
+\end{aligned}
+\]
+
+非依存 product の略記は、その label を含めて
+\(A\to_r B:=\Pi_r z:A.B\)（\(z\notin\mathrm{FV}(B)\)）とする。
 
 \(r\) の三添字は constructor が持つ情報である。例えば多相関数の level は
 \(k=\max(i+1,j)\) だが、その型適用の結果は level \(j\) に属する。
 application の結果の level を、関数の level と同一にはしない。
+
+#### Alpha 同値と代入
 
 項は alpha 同値で同一視する。renaming と capture-avoiding substitution は
 三構文を同時に辿り、\(x_b\) には \(\mathsf{Tm}_b\)、
@@ -145,6 +176,8 @@ application の結果の level を、関数の level と同一にはしない。
 Program type substitution は term 内の型注釈と型引数にも作用する。
 
 ### 4. Set/Prop 固有の構文
+
+#### Constructor
 
 次の表では \(A,B,X,T\in\mathsf{Ty}_{*^s_i}\)、
 \(a,b,u,f\in\mathsf{Tm}_{*^s_i}\)、\(P\in\mathsf{Ty}_{*^p}\) とする。
@@ -169,6 +202,8 @@ Program type substitution は term 内の型注釈と型引数にも作用する
 特に subset \(\{x:A\mid P\}\) は \(\Power A\) の term であり、
 その要素の型は \(\Ty(A,\{x:A\mid P\})\) で表す。
 
+#### RunStep recursor
+
 RunStep recursor は結果の分類 \(\sigma\in\mathcal S_{sp}\) を持つ。
 \(P\in\mathsf C_\sigma\)、\(r\in\mathsf{Tm}_{*^s_i}\) とし、
 \((*^s_i,\sigma,\tau)\in\mathcal R_{sp}\) のとき、
@@ -184,6 +219,8 @@ motive が kind なら結果は type constructor になる。
 
 ### 5. Program 固有の構文
 
+#### Type constructor
+
 \(A\in\mathsf{Ty}_{*^v_i}\)、\(B\in\mathsf{Ty}_{*^v_i}\)、
 \(\underline C\in\mathsf{Ty}_{*^c_i}\) に対して、
 
@@ -192,6 +229,8 @@ F A\in\mathsf{Ty}_{*^c_i},\qquad
 U\underline C\in\mathsf{Ty}_{*^v_i},\qquad
 \operatorname{RunStep}(A,B)\in\mathsf{Ty}_{*^v_i}.
 \]
+
+#### Term constructor
 
 term constructor は次とする。\(V,W\in\mathsf{Tm}_{*^v_i}\)、
 \(M\in\mathsf{Tm}_{*^c_i}\)、\(N\in\mathsf{Tm}_{*^c_j}\)。
@@ -212,6 +251,8 @@ value lambda/application、多相 lambda/application、型演算子は §3 の�
 
 ### 6. Reflection と Box の構文
 
+#### Reflection の構文写像
+
 reflection はメタレベルの構文写像とする。
 Program の各名前を Set の名前へ単射で写し、binder と変数 occurrence に同じ写像を使う。
 sort、rule label、構文の写像を次で定める。
@@ -229,7 +270,7 @@ sort、rule label、構文の写像を次で定める。
 \]
 
 \(q=v,c\) のどちらも同じ level の Set 側へ写る。
-基本構文の \(\Pi,\lambda,@\) は、引数を再帰的に写し、rule label を
+基本構文の \(\Pi_r,\lambda_r,@_r\) は、引数を再帰的に写し、rule label を
 \(r\mapsto\bar r\) と置き換える。特に、
 
 \[
@@ -237,33 +278,39 @@ sort、rule label、構文の写像を次で定める。
 \operatorname{RfKind}(*^q_i)&=*^s_i,\\
 \operatorname{RfType}(F A)&=\operatorname{RfType}(A),\\
 \operatorname{RfType}(U\underline B)&=\operatorname{RfType}(\underline B),\\
-\operatorname{RfType}(A\Rightarrow\underline B)
- &=\operatorname{RfType}(A)\to\operatorname{RfType}(\underline B),\\
-\operatorname{RfType}(\forall X:K.\underline B)
- &=\Pi\bar X:\operatorname{RfKind}(K).\operatorname{RfType}(\underline B),\\
-\operatorname{RfTerm}(\Lambda X:K.M)
- &=\lambda\bar X:\operatorname{RfKind}(K).\operatorname{RfTerm}(M),\\
-\operatorname{RfTerm}(M[P])
- &=\operatorname{RfTerm}(M)@\operatorname{RfType}(P).
+\operatorname{RfType}(\Pi_r z:A.B)
+ &=\Pi_{\bar r}\bar z:\operatorname{Rf}(A).\operatorname{Rf}(B),\\
+\operatorname{RfTerm}(\lambda_r z:A.M)
+ &=\lambda_{\bar r}\bar z:\operatorname{Rf}(A).\operatorname{RfTerm}(M),\\
+\operatorname{RfTerm}(M@_r a)
+ &=\operatorname{RfTerm}(M)@_{\bar r}\operatorname{Rf}(a).
 \end{aligned}
 \]
 
+\(\operatorname{Rf}\) は引数の family に応じた
+\(\operatorname{RfKind},\operatorname{RfType},\operatorname{RfTerm}\) を表す。
+type/kind の \(\Pi_r,\lambda_r,@_r\) にも同じ再帰的な写像を適用する。
+
+#### Program 固有 constructor の reflection
+
 \(\operatorname{return},\operatorname{thunk},\operatorname{force}\) は各引数の
-reflection へ写す。sequence と value let はそれぞれ
+reflection へ写す。§5 の level \(i,j\) を使うと、sequence と value let はそれぞれ
 
 \[
 \begin{aligned}
 \operatorname{RfTerm}(M\ \operatorname{to}\ x:A\ \operatorname{in}\ N)
- &=(\lambda\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N))
-       @\operatorname{RfTerm}(M),\\
+ &=(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N))
+       @_{s^{i,j}}\operatorname{RfTerm}(M),\\
 \operatorname{RfTerm}(\operatorname{let}^v x:A=V\ \operatorname{in}\ N)
- &=(\lambda\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N))
-       @\operatorname{RfTerm}(V)
+ &=(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N))
+       @_{s^{i,j}}\operatorname{RfTerm}(V)
 \end{aligned}
 \]
 
 へ写す。RunStep、continue、finish、run、runCase は、引数と型注釈を再帰的に
 写した同名の Set constructor へ写す。
+
+#### Box と boxed application
 
 Box には閉じた Program 型・項を格納する。\(P\in\mathsf{Ty}_{*^q_i}\) として、
 
@@ -294,87 +341,164 @@ bapp の引数は \(f\in\mathsf{Tm}_{*^s_{\max(i,j)}}\)、
 
 ### 7. Reduction 定義
 
-Set/Prop の \(\Rightarrow_{sp}\) は三構文の argument category を保つ
-compatible closure、Program 型演算子の \(\Rightarrow_{\mathrm{ty}}\) は
-Program type/kind 上の compatible closure とする。基本 root は
+#### 関係族と compatible closure
+
+\(b\in\mathcal B\) ごとに、三構文上の一段簡約を相互帰納的に定義する。
 
 \[
-(\lambda_r z:A.e)@_r a\Rightarrow e[z:=a].
+\begin{aligned}
+\Rightarrow_{\mathsf{Tm}_b}
+ &\subseteq\mathsf{Tm}_b\times\mathsf{Tm}_b,\\
+\Rightarrow_{\mathsf{Ty}_b}
+ &\subseteq\mathsf{Ty}_b\times\mathsf{Ty}_b,\\
+\Rightarrow_{\mathsf{Kd}_b}
+ &\subseteq\mathsf{Kd}_b\times\mathsf{Kd}_b.
+\end{aligned}
+\]
+
+以下の root と閉包規則、および §12 の datatype 規則を満たす最小の関係族とする。
+\(\Rightarrow_{\mathsf E_\sigma}\) は §1 の略記に従い、
+\(\sigma=b\) なら \(\Rightarrow_{\mathsf{Tm}_b}\)、
+\(\sigma=\kappa(b)\) なら \(\Rightarrow_{\mathsf{Ty}_b}\) を表す。
+
+Set/Prop の三構文では、各 constructor の Set/Prop 引数の位置について
+compatible closure を取る。Program の type/kind では、各 type/kind 引数の
+位置について compatible closure を取る。具体的には、これらの位置に穴を持つ
+一穴構文 context \(C:\mathsf F\rightsquigarrow\mathsf G\) に対して
+
+\[
+\frac{e\Rightarrow_{\mathsf F}e'}
+ {C[e]\Rightarrow_{\mathsf G}C[e']}.
+\]
+
+context は binder の注釈と body の位置も含み、穴の family と出力の family を
+固定する。これにより、Set/Prop の型・kind 内に含まれる term の簡約も伝播する。
+Program term の閉包は後述の evaluation context で定める。
+
+#### 基本 beta
+
+\(r=(\sigma_1,\sigma_2,\sigma_3)\) に対する基本 root は
+
+\[
+(\lambda_r z:A.e)@_r a\Rightarrow_{\mathsf E_{\sigma_2}}e[z:=a].
 \]
 
 Set/Prop では \(r\in\mathcal R_{sp}\)、Program 型演算子では
-\(r=(\square^q_i,\square^r_j,\square^r_k)\) の instance を使う。
-型・kind 内に含まれる各構文の簡約も、その slot を通して閉じる。
+\(r=(\square^q_i,\square^{q'}_j,\square^{q'}_k)\) の instance を使う。
 
-Set 固有の root は次とする。
+#### Set/Prop 固有の root
+
+次の label を使う。
+
+\[
+p_i:=(*^s_i,\square^p,\square^p),\qquad
+h_{i,\sigma}:=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}.
+\]
+
+\(h_{i,\sigma}\) の \(\tau\) は §2 の signature で一意に定まる。
 
 \[
 \begin{aligned}
 \Pred(A,\{x:B\mid P\},t)
- &\Rightarrow_{sp}(\lambda^{\mathrm{ty}}x:B.P)@^{\mathrm{ty}}t,\\
-\operatorname{prec}^{\sigma}(x.P,c,d,\operatorname{continue}_{A,B}(a))
- &\Rightarrow_{sp}c@a,\\
-\operatorname{prec}^{\sigma}(x.P,c,d,\operatorname{finish}_{A,B}(b))
- &\Rightarrow_{sp}d@b,\\
+ &\Rightarrow_{\mathsf{Ty}_{*^p}}(\lambda_{p_i}x:B.P)@_{p_i}t,\\
+\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{continue}_{A,B}(a))
+ &\Rightarrow_{\mathsf E_\sigma}c@_{h_{i,\sigma}}a,\\
+\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{finish}_{A,B}(b))
+ &\Rightarrow_{\mathsf E_\sigma}d@_{h_{i,\sigma}}b,\\
 \operatorname{run}_{A,B}(f,a)
- &\Rightarrow_{sp}\operatorname{runCase}_{A,B}(f,a,f@a),\\
+ &\Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{runCase}_{A,B}(f,a,f@_{s^{i,i}}a),\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{A,B}(a'))
- &\Rightarrow_{sp}\operatorname{run}_{A,B}(f,a'),\\
+ &\Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{run}_{A,B}(f,a'),\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{A,B}(b))
- &\Rightarrow_{sp}b.
+ &\Rightarrow_{\mathsf{Tm}_{*^s_i}}b.
 \end{aligned}
 \]
 
-prec の略記は左辺の recursor 添字を \(\operatorname{RunStep}(A,B)\) とする。
-application の label は、その branch の product rule から決める。
+prec の branch application は、branch の product label
+\(h_{i,\sigma}\) を持ち、結果は \(\mathsf E_\sigma\) に属する。
 
-Program 実行の \(\Rightarrow_c\) は次の evaluation context で閉じる。
+#### Program computation の evaluation context
+
+\(E_h^j\) は、穴が \(\mathsf{Tm}_{*^c_h}\)、出力が
+\(\mathsf{Tm}_{*^c_j}\) に属する一穴構文 context とする。次で生成する。
 
 \[
-E::=[\,]\mid E@^cV\mid E[P]
- \mid E\ \operatorname{to}\ x:A\ \operatorname{in}\ N
- \mid\operatorname{runCase}_{A,B}(V,W,E).
+\frac{}{[\,]\in E_h^h},
+\qquad
+\frac{E\in E_h^{\max(i,j)}\quad V\in\mathsf{Tm}_{*^v_i}}
+ {E@_{r^{i,j}_{vc}}V\in E_h^j},
 \]
 
-各 context は入力と出力の computation level を持つ。root は
+\[
+\frac{E\in E_h^{\max(i+1,j)}\quad P\in\mathsf{Ty}_{*^q_i}}
+ {E@_{r^{q;i,j}_{tc}}P\in E_h^j},
+\]
+
+\[
+\frac{E\in E_h^i\quad A\in\mathsf{Ty}_{*^v_i}
+ \quad N\in\mathsf{Tm}_{*^c_j}}
+ {E\ \operatorname{to}\ x_{*^v_i}:A\ \operatorname{in}\ N\in E_h^j},
+\]
+
+\[
+\frac{E\in E_h^i\quad A,B\in\mathsf{Ty}_{*^v_i}
+ \quad V,W\in\mathsf{Tm}_{*^v_i}}
+ {\operatorname{runCase}_{A,B}(V,W,E)\in E_h^i}.
+\]
+
+computation の簡約をこの context で閉じる。
+
+\[
+\frac{M\Rightarrow_{\mathsf{Tm}_{*^c_h}}M'\quad E\in E_h^j}
+ {E[M]\Rightarrow_{\mathsf{Tm}_{*^c_j}}E[M']}.
+\]
+
+#### Program computation の root
+
+root は次とする。各 level は §3・§5 の出力構文に従う。
 
 \[
 \begin{aligned}
-\operatorname{force}(\operatorname{thunk}(M))&\Rightarrow_c M,\\
-(\lambda x:A.M)@^cV&\Rightarrow_c M[x:=V],\\
-(\Lambda X:K.M)[P]&\Rightarrow_c M[X:=P],\\
+\operatorname{force}(\operatorname{thunk}(M))&\Rightarrow_{\mathsf{Tm}_{*^c_i}}M,\\
+(\lambda_{r^{i,j}_{vc}}x:A.M)@_{r^{i,j}_{vc}}V&\Rightarrow_{\mathsf{Tm}_{*^c_j}}M[x:=V],\\
+(\lambda_{r^{q;i,j}_{tc}}X:K.M)@_{r^{q;i,j}_{tc}}P&\Rightarrow_{\mathsf{Tm}_{*^c_j}}M[X:=P],\\
 \operatorname{return}(V)\ \operatorname{to}\ x:A\ \operatorname{in}\ N
- &\Rightarrow_c N[x:=V],\\
+ &\Rightarrow_{\mathsf{Tm}_{*^c_j}}N[x:=V],\\
 \operatorname{let}^v x:A=V\ \operatorname{in}\ N
- &\Rightarrow_c N[x:=V],\\
+ &\Rightarrow_{\mathsf{Tm}_{*^c_j}}N[x:=V],\\
 \operatorname{run}_{A,B}(f,a)
- &\Rightarrow_c\operatorname{runCase}_{A,B}(f,a,\operatorname{force}(f)@^c a),\\
+ &\Rightarrow_{\mathsf{Tm}_{*^c_i}}\operatorname{runCase}_{A,B}(f,a,\operatorname{force}(f)@_{r^{i,i}_{vc}}a),\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{continue}_{A,B}(a')))
- &\Rightarrow_c\operatorname{run}_{A,B}(f,a'),\\
+ &\Rightarrow_{\mathsf{Tm}_{*^c_i}}\operatorname{run}_{A,B}(f,a'),\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{finish}_{A,B}(b)))
- &\Rightarrow_c\operatorname{return}(b).
+ &\Rightarrow_{\mathsf{Tm}_{*^c_i}}\operatorname{return}(b).
 \end{aligned}
 \]
 
-型適用の引数 \(P\) は型構文として代入する。実行の評価位置は \(E\) が指定し、
-型演算子の簡約は型検査時の \(\Rightarrow_{\mathrm{ty}}\) が扱う。
+型適用の引数 \(P\) は型構文として代入する。実行の評価位置は \(E_h^j\) が指定し、
+型演算子の簡約は型検査時の \(\Rightarrow_{\mathsf{Ty}_{*^q_i}}\) と
+\(\Rightarrow_{\mathsf{Kd}_{*^q_i}}\) が扱う。
+Program value の \(\Rightarrow_{\mathsf{Tm}_{*^v_i}}\) は空関係となる。
+
+#### Box の root
 
 Box の root は次とする。\(r\) は閉じて型付けされた Program の
-\(\Rightarrow_c\)-normal form である。
+\(\mathsf{Tm}_{*^q_i}\) の項であり、
+\(\Rightarrow_{\mathsf{Tm}_{*^q_i}}\)-normal form である。
 
 \[
 \begin{aligned}
-M\Rightarrow_cM'&\Longrightarrow
+M\Rightarrow_{\mathsf{Tm}_{*^c_i}}M'&\Longrightarrow
  \operatorname{box}_{\underline B}(M)
- \Rightarrow_{sp}\operatorname{box}_{\underline B}(M'),\\
+ \Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{box}_{\underline B}(M'),\\
 \operatorname{Force}_P(\operatorname{box}_P(r))
- &\Rightarrow_{sp}\operatorname{RfTerm}(r),\\
+ &\Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{RfTerm}(r),\\
 \operatorname{bapp}_{A,\underline B}
- (\operatorname{box}_{A\Rightarrow\underline B}(M),\operatorname{box}_A(V))
- &\Rightarrow_{sp}\operatorname{box}_{\underline B}(M@^cV),\\
+ (\operatorname{box}_{A\to_{r^{i,j}_{vc}}\underline B}(M),\operatorname{box}_A(V))
+ &\Rightarrow_{\mathsf{Tm}_{*^s_j}}\operatorname{box}_{\underline B}(M@_{r^{i,j}_{vc}}V),\\
 \operatorname{btapp}_{X:K,\underline B}
- (\operatorname{box}_{\forall X:K.\underline B}(M),P)
- &\Rightarrow_{sp}\operatorname{box}_{\underline B[X:=P]}(M[P]).
+ (\operatorname{box}_{\Pi_{r^{q;i,j}_{tc}}X:K.\underline B}(M),P)
+ &\Rightarrow_{\mathsf{Tm}_{*^s_j}}\operatorname{box}_{\underline B[X:=P]}(M@_{r^{q;i,j}_{tc}}P).
 \end{aligned}
 \]
 
@@ -382,6 +506,8 @@ Set の compatible context は Program payload を一つの構文引数として
 payload の実行は box step が与える。
 
 ### 8. Context と judgement 定義
+
+#### Context と基本 judgement
 
 Set/Prop context と Program context を次で生成する。
 
@@ -411,6 +537,8 @@ context extension では上の context grammar、freshness、構文 family を�
 変数規則は \(H,z:A\vdash z:A\)。各 judgement は well-formed context への
 weakening を持つ。以下の規則の前提は、その context の well-formedness も含む。
 
+#### Product・abstraction・application の typing
+
 \(r=(\sigma_1,\sigma_2,\sigma_3)\) に対する基本規則は
 
 \[
@@ -435,32 +563,66 @@ weakening を持つ。以下の規則の前提は、その context の well-form
 \(H\vdash A:b\) は type constructor の typing そのものである。
 これによって sorting と type-as-term の接続が同じ judgement に入る。
 
-conversion は、型演算子にも適用する。
+#### Conversion
+
+比較する構文 family を一つ固定する。
+
+\[
+\mathsf F\in
+\{\mathsf{Ty}_b,\mathsf{Kd}_b\mid b\in\mathcal B\}.
+\]
+
+ここで同じ family とは、type constructor / kind の区別、領域、level が
+すべて一致することをいう。§7 で定めた簡約から、conversion を次で定義する。
+
+\[
+\equiv_{\mathsf{Ty}_b}
+ :=(\Rightarrow_{\mathsf{Ty}_b}\cup\Leftarrow_{\mathsf{Ty}_b})^*,
+\qquad
+\equiv_{\mathsf{Kd}_b}
+ :=(\Rightarrow_{\mathsf{Kd}_b}\cup\Leftarrow_{\mathsf{Kd}_b})^*.
+\]
+
+\(\Leftarrow_{\mathsf F}\) は \(\Rightarrow_{\mathsf F}\) の逆関係、
+\((-)^*\) は反射的・推移的閉包を表す。
+conversion \(\equiv_{\mathsf F}\) は、一段簡約 \(\Rightarrow_{\mathsf F}\) を含む
+\(\mathsf F\) 上の最小の反射的・対称的・推移的関係とする。明示的には、
+\(A,B\in\mathsf F\) に対して
+
+\[
+\begin{aligned}
+A\equiv_{\mathsf F}B
+\quad:\Longleftrightarrow\quad
+&\exists n\in\mathbb N,\ \exists A_0,\ldots,A_n\in\mathsf F,\\
+&A_0=A,\quad A_n=B,\\
+&\forall j<n,\quad
+ A_j\Rightarrow_{\mathsf F}A_{j+1}
+ \ \lor\ A_{j+1}\Rightarrow_{\mathsf F}A_j.
+\end{aligned}
+\]
+
+§3 のとおり構文は alpha 同値で同一視する。各段の構文には rule label と
+分類情報を保持し、簡約の各 instance は §7 の label の条件を満たす。
+途中の \(A_j\) に要求するのは \(\mathsf F\) への所属であり、
+端点の formation は次の conversion 規則の前提で検査する。
+
+conversion 規則は \(\sigma\in\mathcal S\)、
+\(e\in\mathsf E_\sigma\)、\(A,B\in\mathsf C_\sigma\) に対して
 
 \[
 \frac{H\vdash e:A\quad H\vdash A:\sigma\quad H\vdash B:\sigma
-       \quad A\equiv B}
+       \quad A\equiv_{\mathsf C_\sigma}B}
  {H\vdash e:B}.
 \]
 
-#### Conversion の比較対象
-
-\(|-|\) を、三構文の分類情報と rule label を消去する写像とする。
-Box の payload では Program の value/computation と型 binder の区別を保つ。
-比較先 \(\mathcal U\) は、system.md に §2 の product signature、Program の型演算子・
-多相性、level 付き Box を反映した、分類前の参照体系である。
-各固有規則は §9–§12 と同じ前提を持つ。
-
-\[
-A\equiv B\quad:\Longleftrightarrow\quad |A|\equiv_{\mathcal U}|B|.
-\]
-
-Set 側の \(\equiv_{\mathcal U}\) は system.md と同じ raw compatible reduction の
-同値閉包、Program の type/kind 側では型 lambda の raw beta の同値閉包とする。
-新しい分類情報はこの比較に影響しない。この定義では、Set の conversion の途中の
-raw 項も比較対象に含まれる。三構文内の簡約の同値閉包との一致は、移行の補題となる。
+\(\sigma=b\) では term の型を \(\mathsf{Ty}_b\) 内で比較し、
+\(\sigma=\kappa(b)\) では type constructor の kind を
+\(\mathsf{Kd}_b\) 内で比較する。family が明らかな場合は
+\(A\equiv B\) と略記する。
 
 ### 9. Set/Prop の固有 judgement
+
+#### 規則 schema の移行
 
 system.md の power set/subset、equality、choice、RunStep の形成・constructor、
 Acc/run の各規則を、
@@ -473,7 +635,11 @@ Acc/run の各規則を、
 | \(\Gamma,x:A:\sigma\) | \(\Gamma,x:A\)、\(x\in\mathsf E_\sigma\) |
 | \(\Gamma\vDash P\) | \(\Gamma\vDash P\)、\(P\in\mathsf{Ty}_{*^p}\) |
 
-formation・provability の全前提を引き継ぐ。例えば、
+formation・provability の全前提を引き継ぐ。
+
+#### Power set と subset
+
+例えば、
 
 \[
 \frac{\Gamma\vdash A:*^s_i}{\Gamma\vdash\Power A:*^s_i},
@@ -493,6 +659,8 @@ formation・provability の全前提を引き継ぐ。例えば、
  {\Gamma\vdash t:\Ty(A,S)}.
 \]
 
+#### Provability と proof term
+
 provable と proof term は
 
 \[
@@ -501,19 +669,24 @@ provable と proof term は
 \frac{\Gamma\vDash P}{\Gamma\vdash\Proof P:P}.
 \]
 
+#### Acc・run・runCase
+
 Set run は \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) を前提とする。
 runCase はさらに transition \(r\) の型付けと
-\(\Gamma\vDash f@a=r\) を前提とする。
+\(\Gamma\vDash f@_{s^{i,i}}a=r\) を前提とする。
 
-prec は \(D=\operatorname{RunStep}(A,B)\) と置き、
+#### RunStep recursor の typing
+
+prec は \(D=\operatorname{RunStep}(A,B)\)、
+\(h_{i,\sigma}=(*^s_i,\sigma,\tau)\) と置き、
 
 \[
 \begin{gathered}
 \Gamma\vdash A:*^s_i,\quad\Gamma\vdash B:*^s_i,\quad\Gamma\vdash r:D,\\
 \Gamma,x:D\vdash P:\sigma,\qquad
-(*^s_i,\sigma,\tau)\in\mathcal R_{sp},\\
-\Gamma\vdash c:\Pi a:A.P[x:=\operatorname{continue}_{A,B}(a)],\\
-\Gamma\vdash d:\Pi b:B.P[x:=\operatorname{finish}_{A,B}(b)]
+h_{i,\sigma}\in\mathcal R_{sp},\\
+\Gamma\vdash c:\Pi_{h_{i,\sigma}}a:A.P[x:=\operatorname{continue}_{A,B}(a)],\\
+\Gamma\vdash d:\Pi_{h_{i,\sigma}}b:B.P[x:=\operatorname{finish}_{A,B}(b)]
 \end{gathered}
 \]
 
@@ -527,6 +700,8 @@ prec は \(D=\operatorname{RunStep}(A,B)\) と置き、
 
 ### 10. Program の固有 judgement と多相性
 
+#### Type formation
+
 \(F,U,\operatorname{RunStep}\) の formation は
 
 \[
@@ -535,6 +710,8 @@ prec は \(D=\operatorname{RunStep}(A,B)\) と置き、
 \frac{\Theta\vdash A:*^v_i\quad\Theta\vdash B:*^v_i}
  {\Theta\vdash\operatorname{RunStep}(A,B):*^v_i}.
 \]
+
+#### Term typing と run
 
 system.md の return/thunk/force、sequence、value let、continue/finish、run/runCase の
 規則は §5 の構文 family に沿って二項 judgement へ移す。
@@ -546,10 +723,12 @@ type formation は \(\Theta\vdash A:*^v_i\)、
 Program run の step function は
 
 \[
-f:U(A\Rightarrow F(\operatorname{RunStep}(A,B)))
+f:U(A\to_{r^{i,i}_{vc}}F(\operatorname{RunStep}(A,B)))
 \]
 
 という value 型を持つ。Program run はこの型と初期値の型で導入する。
+
+#### 型引数に関する product・abstraction・application
 
 多相性を明示すると、\(K\in\mathsf{Kd}_{*^q_i}\)、
 \(\underline B\in\mathsf{Ty}_{*^c_j}\)、\(k=\max(i+1,j)\) に対して、
@@ -557,30 +736,32 @@ f:U(A\Rightarrow F(\operatorname{RunStep}(A,B)))
 \[
 \frac{\Theta\vdash K:\square^q_i
        \quad\Theta,X:K\vdash\underline B:*^c_j}
- {\Theta\vdash\forall X:K.\underline B:*^c_k},
+ {\Theta\vdash\Pi_{r^{q;i,j}_{tc}}X:K.\underline B:*^c_k},
 \]
 
 \[
-\frac{\Theta\vdash\forall X:K.\underline B:*^c_k
+\frac{\Theta\vdash\Pi_{r^{q;i,j}_{tc}}X:K.\underline B:*^c_k
        \quad\Delta,X:K\vdash M:\underline B}
- {\Delta\vdash\Lambda X:K.M:\forall X:K.\underline B},
+ {\Delta\vdash\lambda_{r^{q;i,j}_{tc}}X:K.M:\Pi_{r^{q;i,j}_{tc}}X:K.\underline B},
 \]
 
 \[
 \frac{\Theta\vdash K:\square^q_i
        \quad\Theta,X:K\vdash\underline B:*^c_j
-       \quad\Delta\vdash M:\forall X:K.\underline B
+       \quad\Delta\vdash M:\Pi_{r^{q;i,j}_{tc}}X:K.\underline B
        \quad\Theta\vdash P:K}
- {\Delta\vdash M[P]:\underline B[X:=P]}.
+ {\Delta\vdash M@_{r^{q;i,j}_{tc}}P:\underline B[X:=P]}.
 \]
 
 \(X\) は fresh とする。\(K=*^v_i\) は value type についての量化、
 \(K=*^c_i\) は computation type についての量化である。
 一般の \(K\) では型演算子について量化できる。
 多相 computation を value として渡す型は
-\(U(\forall X:K.\underline B)\) で表す。
+\(U(\Pi_{r^{q;i,j}_{tc}}X:K.\underline B)\) で表す。
 
 ### 11. Well-termination と Box の judgement
+
+#### Reflection context と well-termination
 
 reflection context は
 
@@ -608,6 +789,8 @@ reflection context は
 右側の反映された型は \(*^s_i\) に属する。
 第二の導出は Set run の Acc 条件も検査する。
 
+#### Box の formation・導入・Force
+
 \(\operatorname{WF}(\Gamma)\) の下で Box の規則は次とする。
 
 \[
@@ -622,8 +805,10 @@ reflection context は
  {\Gamma\vdash\operatorname{Force}_P(b):\operatorname{RfType}(P)}.
 \]
 
+#### Boxed application
+
 閉じた \(A:*^v_i\)、\(\underline B:*^c_j\) の formation と
-\(\Gamma\vdash f:\operatorname{Box}(A\Rightarrow\underline B)\)、
+\(\Gamma\vdash f:\operatorname{Box}(A\to_{r^{i,j}_{vc}}\underline B)\)、
 \(\Gamma\vdash a:\operatorname{Box}(A)\) から、
 
 \[
@@ -632,7 +817,7 @@ reflection context は
 
 を得る。また、\(\varnothing\vdash K:\square^q_i\)、
 \(X:K\vdash\underline B:*^c_j\)、\(\varnothing\vdash P:K\)、
-\(\Gamma\vdash f:\operatorname{Box}(\forall X:K.\underline B)\) から、
+\(\Gamma\vdash f:\operatorname{Box}(\Pi_{r^{q;i,j}_{tc}}X:K.\underline B)\) から、
 
 \[
 \Gamma\vdash\operatorname{btapp}_{X:K,\underline B}(f,P):
@@ -642,6 +827,8 @@ reflection context は
 を得る。Box の level は Program 型の level に一致する。
 
 ### 12. Datatype 宣言の移行
+
+#### 宣言と field の条件
 
 宣言環境 \(\mathcal D\) の datatype に、parameter kind と結果 level を付ける。
 
@@ -658,6 +845,8 @@ parameter kind の level も \(k\) 以下とする。宣言の自己参照は st
 constructor の括弧は field telescope を表す。各 field 型は value 変数に依存せず、
 constructor application はこの telescope の全引数を受け取る。
 
+#### Program constructor と case
+
 宣言から \(I^v(\vec P)\in\mathsf{Ty}_{*^v_k}\)、
 \(C_h^v[\vec P](\vec V)\in\mathsf{Tm}_{*^v_k}\) を生成する。
 Program case は結果型 \(\underline B:*^c_j\) を注釈に持つ
@@ -669,8 +858,10 @@ formation、constructor、case の premise は system.md の規則を telescope 
 \[
 \operatorname{case}^v_{\underline B}
  (C_h^v[\vec P](\vec V);\overline{C_l^v(\vec x_l)\mapsto M_l})
-\Rightarrow_c M_h[\vec x_h:=\vec V].
+\Rightarrow_{\mathsf{Tm}_{*^c_j}}M_h[\vec x_h:=\vec V].
 \]
+
+#### Set の鏡像と case
 
 Set の鏡像は parameter kind、field 型、名前を reflection した宣言とする。
 \(I^s\) と \(C_h^s\) はそれぞれ \(\mathsf{Ty}_{*^s_k}\)、
@@ -685,7 +876,9 @@ constructor に対して対応する branch への代入を簡約規則とする
  (\operatorname{RfTerm}(V);\operatorname{RfTerm}(\vec M)).
 \]
 
-両 case の compatible/evaluation context には scrutinee の位置を加える。
+Set case の compatible context には scrutinee の位置を加える。
+Program case の scrutinee は value であり、§7 の computation evaluation context は
+そのまま使う。
 constructor と datatype application の reflection は、名前を鏡像名へ写し、
 parameter と field を再帰的に写す。
 
@@ -693,15 +886,24 @@ parameter と field を再帰的に写す。
 
 ### Set の型演算子と多相 term
 
+この例の label を
+
+\[
+t_i:=(\square^s_i,\square^s_i,\square^s_i),\qquad
+u_i:=(\square^s_i,*^s_i,*^s_{i+1})
+\]
+
+と置く。
+
 \[
 \begin{aligned}
-\lambda^{\mathrm{ty}}X:*^s_i.X
- &: \Pi X:*^s_i.*^s_i
+\lambda_{t_i}X:*^s_i.X
+ &: \Pi_{t_i}X:*^s_i.*^s_i
  &&\text{type constructor と kind},\\
-\lambda X:*^s_i.\lambda x:X.x
- &: \Pi X:*^s_i.X\to X
+\lambda_{u_i}X:*^s_i.\lambda_{s^{i,i}}x:X.x
+ &: \Pi_{u_i}X:*^s_i.(X\to_{s^{i,i}}X)
  &&\text{term と type},\\
-\Pi X:*^s_i.X\to X &: *^s_{i+1}.
+\Pi_{u_i}X:*^s_i.(X\to_{s^{i,i}}X) &: *^s_{i+1}.
 \end{aligned}
 \]
 
@@ -712,44 +914,56 @@ parameter と field を再帰的に写す。
 
 ### Program の型演算子と多相 identity
 
+#### 定義と適用
+
+型演算子の label を \(t^{vc}_i:=(\square^v_i,\square^c_i,\square^c_i)\) と置く。
+
 \[
 \begin{aligned}
-\lambda^{\mathrm{ty}}X:*^v_i.FX
- &: \Pi X:*^v_i.*^c_i,\\
+\lambda_{t^{vc}_i}X:*^v_i.FX
+ &: \Pi_{t^{vc}_i}X:*^v_i.*^c_i,\\
 \mathrm{Id}_i
- &:=\forall X:*^v_i.\,X\Rightarrow FX,\\
+ &:=\Pi_{r^{v;i,i}_{tc}}X:*^v_i.\,(X\to_{r^{i,i}_{vc}}FX),\\
 \mathrm{id}_i
- &:=\Lambda X:*^v_i.\lambda x:X.\operatorname{return}(x),\\
+ &:=\lambda_{r^{v;i,i}_{tc}}X:*^v_i.
+       \lambda_{r^{i,i}_{vc}}x:X.\operatorname{return}(x),\\
 \varnothing\vdash\mathrm{Id}_i&:*^c_{i+1},\\
 \varnothing\vdash\mathrm{id}_i&:\mathrm{Id}_i.
 \end{aligned}
 \]
 
 \(A:*^v_i\)、\(V:A\) に対して
-\(\mathrm{id}_i[A]:A\Rightarrow FA\)、
-\(\mathrm{id}_i[A]@^cV:FA\) であり、結果は \(\operatorname{return}(V)\) へ簡約する。
+\(\mathrm{id}_i@_{r^{v;i,i}_{tc}}A:A\to_{r^{i,i}_{vc}}FA\)、
+\((\mathrm{id}_i@_{r^{v;i,i}_{tc}}A)@_{r^{i,i}_{vc}}V:FA\) であり、
+結果は \(\operatorname{return}(V)\) へ簡約する。
 \(\operatorname{thunk}(\mathrm{id}_i)\) は \(U\mathrm{Id}_i\) の value である。
 
-reflection は
+#### Reflection と Box
+
+reflection は \(\overline{r^{v;i,i}_{tc}}=u_i\)、
+\(\overline{r^{i,i}_{vc}}=s^{i,i}\) より、
 
 \[
+\begin{aligned}
 \operatorname{RfType}(\mathrm{Id}_i)
-=\Pi X:*^s_i.X\to X,
-\qquad
+ &=\Pi_{u_i}X:*^s_i.(X\to_{s^{i,i}}X),\\
 \operatorname{RfTerm}(\mathrm{id}_i)
-=\lambda X:*^s_i.\lambda x:X.x.
+ &=\lambda_{u_i}X:*^s_i.\lambda_{s^{i,i}}x:X.x.
+\end{aligned}
 \]
 
+ここでは反映後の bound variable の名前を alpha 同値で \(X,x\) とした。
 したがって \(\varnothing\Vdash\mathrm{id}_i:\mathrm{Id}_i\) の両方の導出を構成でき、
 \(\operatorname{box}_{\mathrm{Id}_i}(\mathrm{id}_i)\) は
 level \(i+1\) の Box に入る。
 
-computation type の量化の例は
+#### Computation type の量化
 
 \[
-\Lambda Y:*^c_i.\lambda u:UY.\operatorname{force}(u)
+\lambda_{r^{c;i,i}_{tc}}Y:*^c_i.
+ \lambda_{r^{i,i}_{vc}}u:UY.\operatorname{force}(u)
 :
-\forall Y:*^c_i.\,UY\Rightarrow Y.
+\Pi_{r^{c;i,i}_{tc}}Y:*^c_i.\,(UY\to_{r^{i,i}_{vc}}Y).
 \]
 
 ## 現行体系との対応と証明義務
@@ -768,9 +982,21 @@ computation type の量化の例は
 | level 付き Box、btapp | 多相 Program の型形成と反映先に合わせる |
 | datatype の level と Set case | 宣言・reflection に必要な schema を具体化する |
 
-構文分離の保存性は、比較先 \(\mathcal U\) との間で示す。
+#### 比較先と消去写像
+
+移行の比較先 \(\mathcal U\) を、system.md に §2 の product signature、
+Program の型演算子・多相性、level 付き Box を反映した分類前の参照体系とする。
+各固有規則は §9–§12 と同じ前提を持つ。\(|-|\) は三構文の分類情報と
+rule label を消去する写像とし、Box の payload では Program の
+value/computation と型 binder の区別を保つ。\(\mathcal U\) の conversion は、
+Set 側では raw compatible reduction、Program type/kind 側では型 lambda の
+raw beta の、それぞれの同値閉包とする。
+
+構文分離の保存性は、この比較先 \(\mathcal U\) との間の証明課題である。
 新しい多相 Program を旧 Program へ逆変換できることとは区別する。
 既存 Program の型と項は level 0 に写せる。
+
+#### 保存性と構文的な証明課題
 
 必要な構文的性質は次である。
 
@@ -778,14 +1004,18 @@ computation type の量化の例は
 2. 新しい導出の消去が \(\mathcal U\) の導出になること。
 3. 比較先の導出へ分類情報を付けて新しい導出を構成できること。
 4. 注釈付けと代入・簡約の対応、および kind/type formation の generation。
-5. conversion の一致と subject reduction。特に sort の異なる label を持つ項が
-   消去後に同じ項となる場合の扱い。
+5. conversion の消去による保存と subject reduction。同じ family の端点について、
+   逆に参照体系の conversion を持ち上げられるかは追加の証明課題とする。
+   その際は、中間項を同じ family に分類できるか、異なる rule label が
+   消去後に一致する場合をどう扱うかを検査する。
 
 subset による複数の型付けは維持される。ここで必要なのは、通常の PTS の型一意性を
 引用することではなく、各 typing に必要な formation と分類を回収することである。
 構文的に family を保つ簡約と、具体的な型を保つ subject reduction は別々に示す。
 
 ### Reflection と Box 消去
+
+#### Formation の保存
 
 \(\bar r\in\mathcal R_{sp}\) はすべての Program product rule について成立する。
 型・kind の formation の保存は、この対応と \(F/U\) の消去を使って証明する。
@@ -801,6 +1031,8 @@ subset による複数の型付けは維持される。ここで必要なのは�
 \end{aligned}
 \]
 
+#### 代入と簡約の対応
+
 型引数についても、
 
 \[
@@ -812,13 +1044,15 @@ subset による複数の型付けは維持される。ここで必要なのは�
 value substitution の対応と合わせて、
 
 \[
-p\Rightarrow_c p'
+p\Rightarrow_{\mathsf{Tm}_{*^c_i}}p'
 \Longrightarrow
-\operatorname{RfTerm}(p)\Rightarrow_{sp}^{*}\operatorname{RfTerm}(p')
+\operatorname{RfTerm}(p)\Rightarrow_{\mathsf{Tm}_{*^s_i}}^{*}\operatorname{RfTerm}(p')
 \]
 
 を得るための追加 case が型 beta である。
 Program term の Set typing は well-termination の第二の導出が保証する。
+
+#### Box 消去写像
 
 Box 消去は
 
@@ -827,13 +1061,15 @@ Box 消去は
 \lfloor\operatorname{Box}(P)\rfloor&=\operatorname{RfType}(P),\\
 \lfloor\operatorname{box}_P(p)\rfloor&=\operatorname{RfTerm}(p),\\
 \lfloor\operatorname{Force}_P(t)\rfloor&=\lfloor t\rfloor,\\
-\lfloor\operatorname{bapp}(f,a)\rfloor&=\lfloor f\rfloor @\lfloor a\rfloor,\\
-\lfloor\operatorname{btapp}(f,P)\rfloor
- &=\lfloor f\rfloor @\operatorname{RfType}(P)
+\lfloor\operatorname{bapp}_{A,\underline B}(f,a)\rfloor
+ &=\lfloor f\rfloor @_{\overline{r^{i,j}_{vc}}}\lfloor a\rfloor,\\
+\lfloor\operatorname{btapp}_{X:K,\underline B}(f,P)\rfloor
+ &=\lfloor f\rfloor @_{\overline{r^{q;i,j}_{tc}}}\operatorname{RfType}(P)
 \end{aligned}
 \]
 
-へ拡張する。各 application の label は型注釈の reflected product rule で決める。
+へ拡張する。\(A:*^v_i\)、\(K:\square^q_i\)、\(\underline B:*^c_j\) とし、
+各 application には表示した reflected product rule を記録する。
 btapp の導出保存は、閉じた \(P:K\) の reflection と Set の型引数への dep elim による。
 Box 消去全体は、well-termination を展開した有限導出の同時帰納法で示す。
 
@@ -842,6 +1078,8 @@ proof.md §3.2 の「閉じた Program 型が存在しない」という補助�
 上の一般の formation・代入・application の証明へ置き換える。
 
 ### 集合モデル
+
+#### Sort と valuation の解釈
 
 proof.md の trace encoding と raw 解釈を消去後の式に適用する。
 Set/Prop の sort の解釈は
@@ -857,6 +1095,8 @@ Set/Prop の sort の解釈は
 \(U_{\max(i,j)}\)、\(U_{\max(i,j)+1}\)、または
 \(U_{\max(i+1,j)}\) へ入れて universe の閉性を使う。
 context の valuation は \(\rho(z)\in\llbracket A\rrbracket_\rho\) で定義する。
+
+#### 健全性の主張と証明課題
 
 二項 judgement の健全性の主張は
 
@@ -875,18 +1115,25 @@ universe 内の帰納的集合、case の意味保存も必要になる。
 
 ## Rust の構文への対応
 
+### Family と node
+
 三構文の handle を、それぞれ領域と level を持つ node に対応させる。
 Set/Prop には `SetTerm`・`SetType`・`SetKind`、Program には
 `Value`・`Computation`・`ValueType`・`ComputationType`・`ValueKind`・`ComputationKind`
 を用意する。Set/Prop の区別も node の分類情報として保持する。
+
+### Product・abstraction・application
 
 `Prod` の domain は term binder なら type handle、type binder なら kind handle を持つ。
 lambda/application も binder・引数の分類で constructor を分け、rule label に入力・body・
 結果の level を記録する。型演算子の適用結果を term の型に使うときは、同じ type handle
 を参照し、kind が基底 sort であることを検査する。
 
-Program の多相性には `Forall`、`TypeLambda`、`TypeApplication` を追加する。
-型演算子の lambda/application はこれらとは別の type node とする。
+型引数の product・abstraction・application も、対応する family の
+`Prod`・`Lambda`・`Application` として表し、binder と引数の family、rule label を持たせる。
+
+### 代入と kernel の検査
+
 型代入は Program type/kind と、Program term の型注釈を同時に辿る。
 runtime value substitution は value 変数の occurrence を置き換える。
 
