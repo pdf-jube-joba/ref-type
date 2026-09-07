@@ -146,3 +146,6 @@ in Type Theory
   - agda の参考？
 - https://www.sciencedirect.com/science/article/pii/0890540191900535
   - stratified polymorphism というのがすでにあるらしい。よかった。
+- [Ager, Danvy, Midtgaard (2004)](https://tidsskrift.dk/brics/article/view/21828)
+- [Kunze, Smolka, Forster (2018)](https://arxiv.org/abs/1806.03205)
+- [Christiansen の NbE チュートリアル](https://davidchristiansen.dk/tutorials/nbe/)
