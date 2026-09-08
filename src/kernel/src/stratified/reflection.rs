@@ -9,7 +9,7 @@ pub fn reflect_type(env: &Environment, k: ProgramType) -> Result<SetType, String
     reflect(env, k.into())?.try_into()
 }
 
-pub fn reflect_term(env: &Environment, k: Program) -> Result<SetTerm, String> {
+pub fn reflect_term(env: &Environment, k: ProgramTerm) -> Result<SetTerm, String> {
     reflect(env, k.into())?.try_into()
 }
 

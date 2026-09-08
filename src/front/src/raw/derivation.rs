@@ -3,7 +3,7 @@ use crate::raw::environment::{CrateEnv, DefinedConstant, ModuleParameterKind};
 use crate::raw::exp::*;
 use crate::raw::ids::{InductiveId, ModuleId, SymbolId};
 use crate::raw::inductive::eliminator_type;
-use crate::raw::program::{ComputationTypeNode, Program, ProgramType};
+use crate::raw::program::{ComputationTypeNode, ProgramTerm, ProgramType};
 use crate::raw::program_derivation::ProgramCheckSession;
 use crate::raw::reflection::{reflect_computation_type, reflect_value_type};
 use crate::raw::sort::Sort;
@@ -625,8 +625,8 @@ fn infer_uncached(
                 "check boxed Program"
             )?;
             match program_ty {
-                ProgramType::Value(ty) => reflect_value_type(session.env(), ty),
-                ProgramType::Computation(ty) => reflect_computation_type(session.env(), ty),
+                ProgramType::ValueType(ty) => reflect_value_type(session.env(), ty),
+                ProgramType::ComputationType(ty) => reflect_computation_type(session.env(), ty),
             }
             .map_err(|error| failure(rule, phase, &format!("cannot reflect type: {error}")))
         }
@@ -637,7 +637,7 @@ fn infer_uncached(
             else {
                 return Err(failure(rule, phase, "boxed application head is not Box(P)"));
             };
-            let ProgramType::Computation(program_ty) = program_ty else {
+            let ProgramType::ComputationType(program_ty) = program_ty else {
                 return Err(failure(
                     rule,
                     phase,
@@ -657,12 +657,12 @@ fn infer_uncached(
                 phase,
                 argument,
                 arena.alloc(ExpNode::BoxType {
-                    program_ty: ProgramType::Value(domain)
+                    program_ty: ProgramType::ValueType(domain)
                 }),
                 "check boxed argument"
             )?;
             Ok(arena.alloc(ExpNode::BoxType {
-                program_ty: ProgramType::Computation(codomain),
+                program_ty: ProgramType::ComputationType(codomain),
             }))
         }
         ExpNode::SubsetIntro {
@@ -1023,8 +1023,8 @@ fn check_closed_program_type(
     let mut empty = Vec::new();
     let mut nested = ProgramCheckSession::new(session.env, &mut empty);
     let result = match program_ty {
-        ProgramType::Value(ty) => nested.check_value_type(ty),
-        ProgramType::Computation(ty) => nested.check_computation_type(ty),
+        ProgramType::ValueType(ty) => nested.check_value_type(ty),
+        ProgramType::ComputationType(ty) => nested.check_computation_type(ty),
     };
     result.map_err(|error| {
         Box::new(error.with_frame(
@@ -1038,18 +1038,18 @@ fn check_closed_program_type(
 fn check_closed_well_terminated_program(
     session: &mut CheckSession<'_, '_>,
     program_ty: ProgramType,
-    program: Program,
+    program: ProgramTerm,
     certified_reflection: Exp,
 ) -> Result<(), Box<JudgementError>> {
     check_closed_program_type(session, program_ty)?;
     let mut empty_program = Vec::new();
     let mut program_session = ProgramCheckSession::new(session.env, &mut empty_program);
     match (program, program_ty) {
-        (Program::Value(value), ProgramType::Value(ty)) => {
-            program_session.check_value(value, ty)?
+        (ProgramTerm::ValueTerm(value), ProgramType::ValueType(ty)) => {
+            program_session.check_value_term(value, ty)?
         }
-        (Program::Computation(term), ProgramType::Computation(ty)) => {
-            program_session.check_computation(term, ty)?
+        (ProgramTerm::ComputationTerm(term), ProgramType::ComputationType(ty)) => {
+            program_session.check_computation_term(term, ty)?
         }
         _ => {
             return Err(failure(
@@ -1071,8 +1071,8 @@ fn check_closed_well_terminated_program(
         ));
     }
     let reflected_ty = match program_ty {
-        ProgramType::Value(ty) => reflect_value_type(session.env(), ty),
-        ProgramType::Computation(ty) => reflect_computation_type(session.env(), ty),
+        ProgramType::ValueType(ty) => reflect_value_type(session.env(), ty),
+        ProgramType::ComputationType(ty) => reflect_computation_type(session.env(), ty),
     }
     .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let mut reflected_context = Vec::new();

@@ -9,7 +9,7 @@ use crate::raw::{
     environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, Prove},
     ids::{MetaVarId, ModuleId, SymbolId},
-    program::{ComputationTypeNode, Program, ProgramType},
+    program::{ComputationTypeNode, ProgramTerm, ProgramType},
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
@@ -906,8 +906,8 @@ impl MetaStore {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
                 match program_ty {
-                    ProgramType::Value(ty) => session.check_value_type(ty),
-                    ProgramType::Computation(ty) => session.check_computation_type(ty),
+                    ProgramType::ValueType(ty) => session.check_value_type(ty),
+                    ProgramType::ComputationType(ty) => session.check_computation_type(ty),
                 }
                 .map_err(|error| format!("ill-formed boxed Program type: {error:?}"))?;
                 Ok(arena.sort(Sort::Set(0)))
@@ -920,11 +920,11 @@ impl MetaStore {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
                 match (program_ty, program) {
-                    (ProgramType::Value(ty), Program::Value(value)) => {
-                        session.check_value(value, ty)
+                    (ProgramType::ValueType(ty), ProgramTerm::ValueTerm(value)) => {
+                        session.check_value_term(value, ty)
                     }
-                    (ProgramType::Computation(ty), Program::Computation(term)) => {
-                        session.check_computation(term, ty)
+                    (ProgramType::ComputationType(ty), ProgramTerm::ComputationTerm(term)) => {
+                        session.check_computation_term(term, ty)
                     }
                     _ => {
                         return Err(
@@ -956,7 +956,7 @@ impl MetaStore {
                 let ExpNode::BoxType { program_ty } = arena.get(function_ty) else {
                     return Err("boxed application head is not Box(P)".into());
                 };
-                let ProgramType::Computation(program_ty) = program_ty else {
+                let ProgramType::ComputationType(program_ty) = program_ty else {
                     return Err("boxed application head is not a computation function".into());
                 };
                 let ComputationTypeNode::Function { domain, codomain } = arena.get(program_ty)
@@ -969,11 +969,11 @@ impl MetaStore {
                     context,
                     argument,
                     arena.alloc(ExpNode::BoxType {
-                        program_ty: ProgramType::Value(domain),
+                        program_ty: ProgramType::ValueType(domain),
                     }),
                 )?;
                 Ok(arena.alloc(ExpNode::BoxType {
-                    program_ty: ProgramType::Computation(codomain),
+                    program_ty: ProgramType::ComputationType(codomain),
                 }))
             }
             ExpNode::SubsetIntro {

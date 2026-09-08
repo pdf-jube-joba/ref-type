@@ -36,8 +36,8 @@ impl std::error::Error for ReflectionError {}
 
 pub fn reflect_program_type(env: &CrateEnv, ty: ProgramType) -> Result<Exp, ReflectionError> {
     match ty {
-        ProgramType::Value(ty) => reflect_value_type(env, ty),
-        ProgramType::Computation(ty) => reflect_computation_type(env, ty),
+        ProgramType::ValueType(ty) => reflect_value_type(env, ty),
+        ProgramType::ComputationType(ty) => reflect_computation_type(env, ty),
     }
 }
 
@@ -118,11 +118,11 @@ pub fn reflect_context(
     let mut result = Vec::with_capacity(context.len());
     for entry in context {
         match *entry {
-            ProgramContextEntry::Type { var } => result.push(ExpContextEntry {
+            ProgramContextEntry::ValueType { var } => result.push(ExpContextEntry {
                 var,
                 ty: env.arena().sort(crate::raw::sort::Sort::Set(0)),
             }),
-            ProgramContextEntry::Value { var, ty } => result.push(ExpContextEntry {
+            ProgramContextEntry::ValueTerm { var, ty } => result.push(ExpContextEntry {
                 var,
                 ty: reflect_value_type(env, ty)?,
             }),
@@ -132,17 +132,17 @@ pub fn reflect_context(
 }
 
 /// Structurally reflects a type-checked Program, preserving bound indices.
-pub fn reflect_program(env: &CrateEnv, program: Program) -> Result<Exp, ReflectionError> {
+pub fn reflect_program(env: &CrateEnv, program: ProgramTerm) -> Result<Exp, ReflectionError> {
     match program {
-        Program::Value(v) => reflect_value(env, v),
-        Program::Computation(c) => reflect_computation(env, c),
+        ProgramTerm::ValueTerm(v) => reflect_value(env, v),
+        ProgramTerm::ComputationTerm(c) => reflect_computation(env, c),
     }
 }
 
 /// Checks that a certificate is the reflection of the supplied runtime
 /// Program. Proof fields are checked by the ordinary Set/Prop checker and are
 /// deliberately omitted from this structural correspondence check.
-pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate: Exp) -> bool {
+pub fn certificate_matches_program(env: &CrateEnv, program: ProgramTerm, certificate: Exp) -> bool {
     // Named definitions already carry their checked reflection. Resolve them
     // before inspecting Run/RunCase, whose certificate exposes the body.
     if reflect_program(env, program)
@@ -153,7 +153,7 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
     let arena = env.arena();
     match (program, arena.get(certificate)) {
         (
-            Program::Computation(computation),
+            ProgramTerm::ComputationTerm(computation),
             ExpNode::SetRun {
                 state_ty,
                 result_ty,
@@ -162,7 +162,7 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                 ..
             },
         ) => match arena.get(computation) {
-            ComputationNode::Run {
+            ComputationTermNode::Run {
                 state_ty: p_state_ty,
                 result_ty: p_result_ty,
                 step: p_step,
@@ -180,7 +180,7 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
             _ => false,
         },
         (
-            Program::Computation(computation),
+            ProgramTerm::ComputationTerm(computation),
             ExpNode::SetRunCase {
                 state_ty,
                 result_ty,
@@ -190,7 +190,7 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                 ..
             },
         ) => match arena.get(computation) {
-            ComputationNode::RunCase {
+            ComputationTermNode::RunCase {
                 state_ty: p_state_ty,
                 result_ty: p_result_ty,
                 step: p_step,
@@ -207,7 +207,7 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                         .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, initial))
                     && certificate_matches_program(
                         env,
-                        Program::Computation(p_transition),
+                        ProgramTerm::ComputationTerm(p_transition),
                         transition,
                     )
             }
@@ -219,22 +219,22 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
 
 #[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
     fields(term = %crate::raw::printing::format_value(env, value)), ret, err)]
-pub fn reflect_value(env: &CrateEnv, value: Value) -> Result<Exp, ReflectionError> {
+pub fn reflect_value(env: &CrateEnv, value: ValueTerm) -> Result<Exp, ReflectionError> {
     reflect_value_inner(env, value, &HashMap::new(), &mut HashSet::new())
 }
 
 fn reflect_value_inner(
     env: &CrateEnv,
-    value: Value,
-    certificates: &HashMap<Computation, Exp>,
+    value: ValueTerm,
+    certificates: &HashMap<ComputationTerm, Exp>,
     visiting: &mut HashSet<DefId>,
 ) -> Result<Exp, ReflectionError> {
     let arena = env.arena();
     Ok(match arena.get(value) {
-        ValueNode::Bound(index) => arena.exp_bound(index),
-        ValueNode::ModuleParam(id) => arena.alloc(ExpNode::ReflectedProgramParam(id)),
-        ValueNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
-        ValueNode::DefinedConstant(id) => {
+        ValueTermNode::Bound(index) => arena.exp_bound(index),
+        ValueTermNode::ModuleParam(id) => arena.alloc(ExpNode::ReflectedProgramParam(id)),
+        ValueTermNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
+        ValueTermNode::DefinedConstant(id) => {
             if !visiting.insert(id) {
                 return Err(ReflectionError::RecursiveDefinition(id));
             }
@@ -251,10 +251,10 @@ fn reflect_value_inner(
             visiting.remove(&id);
             result?
         }
-        ValueNode::Thunk { computation } => {
+        ValueTermNode::Thunk { computation } => {
             reflect_computation_inner(env, computation, certificates, visiting)?
         }
-        ValueNode::Continue {
+        ValueTermNode::Continue {
             state_ty,
             result_ty,
             next,
@@ -263,7 +263,7 @@ fn reflect_value_inner(
             result_ty: reflect_value_type(env, result_ty)?,
             next: reflect_value_inner(env, next, certificates, visiting)?,
         }),
-        ValueNode::Finish {
+        ValueTermNode::Finish {
             state_ty,
             result_ty,
             output,
@@ -272,7 +272,7 @@ fn reflect_value_inner(
             result_ty: reflect_value_type(env, result_ty)?,
             output: reflect_value_inner(env, output, certificates, visiting)?,
         }),
-        ValueNode::InductiveConstructor {
+        ValueTermNode::InductiveConstructor {
             indspec,
             parameters,
             idx,
@@ -300,30 +300,30 @@ fn reflect_value_inner(
 
 #[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
     fields(term = %crate::raw::printing::format_computation(env, term)), ret, err)]
-pub fn reflect_computation(env: &CrateEnv, term: Computation) -> Result<Exp, ReflectionError> {
+pub fn reflect_computation(env: &CrateEnv, term: ComputationTerm) -> Result<Exp, ReflectionError> {
     reflect_computation_inner(env, term, &HashMap::new(), &mut HashSet::new())
 }
 
 pub fn reflect_computation_with_certificates(
     env: &CrateEnv,
-    term: Computation,
-    certificates: &HashMap<Computation, Exp>,
+    term: ComputationTerm,
+    certificates: &HashMap<ComputationTerm, Exp>,
 ) -> Result<Exp, ReflectionError> {
     reflect_computation_inner(env, term, certificates, &mut HashSet::new())
 }
 
 pub fn reflect_value_with_certificates(
     env: &CrateEnv,
-    value: Value,
-    certificates: &HashMap<Computation, Exp>,
+    value: ValueTerm,
+    certificates: &HashMap<ComputationTerm, Exp>,
 ) -> Result<Exp, ReflectionError> {
     reflect_value_inner(env, value, certificates, &mut HashSet::new())
 }
 
 fn reflect_computation_inner(
     env: &CrateEnv,
-    term: Computation,
-    certificates: &HashMap<Computation, Exp>,
+    term: ComputationTerm,
+    certificates: &HashMap<ComputationTerm, Exp>,
     visiting: &mut HashSet<DefId>,
 ) -> Result<Exp, ReflectionError> {
     if let Some((_, certificate)) = certificates.iter().find(|(candidate, _)| {
@@ -333,8 +333,8 @@ fn reflect_computation_inner(
     }
     let arena = env.arena();
     Ok(match arena.get(term) {
-        ComputationNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
-        ComputationNode::DefinedConstant(id) => {
+        ComputationTermNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
+        ComputationTermNode::DefinedConstant(id) => {
             if !visiting.insert(id) {
                 return Err(ReflectionError::RecursiveDefinition(id));
             }
@@ -351,10 +351,10 @@ fn reflect_computation_inner(
             visiting.remove(&id);
             result?
         }
-        ComputationNode::Return { value } | ComputationNode::Force { value } => {
+        ComputationTermNode::Return { value } | ComputationTermNode::Force { value } => {
             reflect_value_inner(env, value, certificates, visiting)?
         }
-        ComputationNode::Lambda {
+        ComputationTermNode::Lambda {
             var,
             value_ty,
             body,
@@ -366,11 +366,11 @@ fn reflect_computation_inner(
                 body: reflect_computation_inner(env, body, certificates, visiting)?,
             })
         }
-        ComputationNode::Application { computation, value } => arena.alloc(ExpNode::App {
+        ComputationTermNode::Application { computation, value } => arena.alloc(ExpNode::App {
             func: reflect_computation_inner(env, computation, certificates, visiting)?,
             arg: reflect_value_inner(env, value, certificates, visiting)?,
         }),
-        ComputationNode::Sequence {
+        ComputationTermNode::Sequence {
             computation,
             var,
             value_ty,
@@ -388,7 +388,7 @@ fn reflect_computation_inner(
                 arg: source,
             })
         }
-        ComputationNode::ValueLet {
+        ComputationTermNode::ValueLet {
             var,
             value_ty,
             value,
@@ -404,7 +404,7 @@ fn reflect_computation_inner(
                 arg: reflect_value_inner(env, value, certificates, visiting)?,
             })
         }
-        ComputationNode::Case {
+        ComputationTermNode::Case {
             indspec,
             scrutinee,
             branches,
@@ -424,7 +424,7 @@ fn reflect_computation_inner(
                 branches: reflected_branches,
             })
         }
-        ComputationNode::Run { .. } | ComputationNode::RunCase { .. } => {
+        ComputationTermNode::Run { .. } | ComputationTermNode::RunCase { .. } => {
             return Err(ReflectionError::MissingRunCertificate);
         }
     })

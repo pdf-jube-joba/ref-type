@@ -5,7 +5,8 @@ use crate::raw::{
     exp::{ExpContextEntry, ExpNode},
     ids::{DefId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
-        ComputationNode, Program, ProgramContextEntry, ProgramType, ValueNode, ValueTypeNode,
+        ComputationTermNode, ProgramContextEntry, ProgramTerm, ProgramType, ValueTermNode,
+        ValueTypeNode,
     },
     program_calculus::{
         Evaluation, evaluate_computation, instantiate_value_type, remap_computation_global_ids,
@@ -90,15 +91,15 @@ fn boxed_program_types_compare_structurally() {
     });
     assert_ne!(left_state, right_state);
     let left = arena.alloc(ExpNode::BoxType {
-        program_ty: ProgramType::Value(left_state),
+        program_ty: ProgramType::ValueType(left_state),
     });
     let right = arena.alloc(ExpNode::BoxType {
-        program_ty: ProgramType::Value(right_state),
+        program_ty: ProgramType::ValueType(right_state),
     });
     assert!(exp_is_alpha_eq(&env, left, right));
 
     let output = arena.value_bound(0);
-    let program = arena.alloc(ValueNode::Finish {
+    let program = arena.alloc(ValueTermNode::Finish {
         state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 0,
@@ -112,12 +113,12 @@ fn boxed_program_types_compare_structurally() {
     let certified_reflection = crate::raw::reflection::reflect_value(&env, program)
         .expect("run-free Program values reflect without a certificate");
     let boxed = arena.alloc(ExpNode::BoxProgram {
-        program_ty: ProgramType::Value(left_state),
-        program: Program::Value(program),
+        program_ty: ProgramType::ValueType(left_state),
+        program: ProgramTerm::ValueTerm(program),
         certified_reflection,
     });
     let forced = arena.alloc(ExpNode::ForceBox {
-        program_ty: ProgramType::Value(right_state),
+        program_ty: ProgramType::ValueType(right_state),
         boxed,
     });
     assert!(matches!(
@@ -200,7 +201,7 @@ fn set_and_program_contexts_are_distinct() {
         .unwrap();
 
     let value_ty = env.arena().alloc(ValueTypeNode::Bound(0));
-    let mut program_context = vec![ProgramContextEntry::Type { var: SymbolId(3) }];
+    let mut program_context = vec![ProgramContextEntry::ValueType { var: SymbolId(3) }];
     ProgramCheckSession::new(&env, &mut program_context)
         .check_value_type(value_ty)
         .unwrap();
@@ -211,7 +212,7 @@ fn program_typing_and_evaluation_use_program_handles() {
     let env = CrateEnv::new();
     let arena = env.arena();
     let value = arena.value_bound(0);
-    let returned = arena.alloc(ComputationNode::Return { value });
+    let returned = arena.alloc(ComputationTermNode::Return { value });
     assert_eq!(
         evaluate_computation(&env, returned),
         Evaluation::Normal(returned)
@@ -231,14 +232,14 @@ fn program_case_preserves_field_order_and_fuel_boundary() {
     };
     let fields: Vec<_> = (0..2)
         .map(|position| {
-            arena.alloc(ValueNode::ModuleParam(ModuleParamId {
+            arena.alloc(ValueTermNode::ModuleParam(ModuleParamId {
                 module: env.root_module(),
                 position,
             }))
         })
         .collect();
     let pair = |fields| {
-        arena.alloc(ValueNode::InductiveConstructor {
+        arena.alloc(ValueTermNode::InductiveConstructor {
             indspec,
             parameters: vec![],
             idx: 1,
@@ -246,16 +247,16 @@ fn program_case_preserves_field_order_and_fuel_boundary() {
         })
     };
     let scrutinee = pair(fields);
-    let body = arena.alloc(ComputationNode::Return {
+    let body = arena.alloc(ComputationTermNode::Return {
         value: pair(vec![arena.value_bound(1), arena.value_bound(0)]),
     });
-    let case = arena.alloc(ComputationNode::Case {
+    let case = arena.alloc(ComputationTermNode::Case {
         indspec,
         scrutinee,
         branches: vec![
             ProgramCaseBranch {
                 binders: vec![],
-                body: arena.alloc(ComputationNode::Force {
+                body: arena.alloc(ComputationTermNode::Force {
                     value: arena.value_bound(0),
                 }),
             },
@@ -273,7 +274,7 @@ fn program_case_preserves_field_order_and_fuel_boundary() {
         let Evaluation::Normal(result) = evaluate_computation_with_fuel(&env, case, fuel) else {
             panic!("case should finish in one step");
         };
-        let ComputationNode::Return { value } = arena.get(result) else {
+        let ComputationTermNode::Return { value } = arena.get(result) else {
             panic!("selected the wrong branch");
         };
         assert!(value_is_alpha_eq(arena, value, scrutinee));
@@ -289,15 +290,15 @@ fn program_run_has_no_set_exp_node() {
     let env = CrateEnv::new();
     let arena = env.arena();
     let state_ty = arena.alloc(ValueTypeNode::Bound(0));
-    let step = arena.alloc(ValueNode::Bound(0));
-    let initial = arena.alloc(ValueNode::Bound(1));
-    let run = arena.alloc(ComputationNode::Run {
+    let step = arena.alloc(ValueTermNode::Bound(0));
+    let initial = arena.alloc(ValueTermNode::Bound(1));
+    let run = arena.alloc(ComputationTermNode::Run {
         state_ty,
         result_ty: state_ty,
         step,
         initial,
     });
-    assert!(matches!(arena.get(run), ComputationNode::Run { .. }));
+    assert!(matches!(arena.get(run), ComputationTermNode::Run { .. }));
 }
 
 #[test]
@@ -343,8 +344,8 @@ fn unchanged_program_transforms_reuse_arena_handles() {
     );
     assert_eq!(strengthen_value_type(arena, thunk, 0), Some(thunk));
 
-    let value = arena.alloc(ValueNode::ModuleParam(parameter_id));
-    let computation = arena.alloc(ComputationNode::Return { value });
+    let value = arena.alloc(ValueTermNode::ModuleParam(parameter_id));
+    let computation = arena.alloc(ComputationTermNode::Return { value });
     let definition_remapping = std::collections::HashMap::from([(
         DefId {
             module: env.root_module(),
@@ -393,16 +394,16 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
     let arena = env.arena();
     // A: VType, a: A. The annotation is outside the new let binder.
     let mut context = vec![
-        ProgramContextEntry::Type { var: SymbolId(0) },
-        ProgramContextEntry::Value {
+        ProgramContextEntry::ValueType { var: SymbolId(0) },
+        ProgramContextEntry::ValueTerm {
             var: SymbolId(1),
             ty: arena.value_type_bound(0),
         },
     ];
     let value = arena.value_bound(0);
-    let body = arena.alloc(ComputationNode::Return { value });
+    let body = arena.alloc(ComputationTermNode::Return { value });
     let make_let = |value_ty| {
-        arena.alloc(ComputationNode::ValueLet {
+        arena.alloc(ComputationTermNode::ValueLet {
             var: SymbolId(2),
             value_ty,
             value,
@@ -411,7 +412,7 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
     };
     let term = make_let(arena.value_type_bound(1));
     let inferred = ProgramCheckSession::new(&env, &mut context)
-        .infer_computation(term)
+        .infer_computation_term(term)
         .unwrap();
     let ComputationTypeNode::Return { value_ty } = arena.get(inferred) else {
         panic!()
@@ -423,7 +424,7 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
     for annotation in [arena.value_type_bound(0), wrong] {
         assert!(
             ProgramCheckSession::new(&env, &mut context)
-                .infer_computation(make_let(annotation))
+                .infer_computation_term(make_let(annotation))
                 .is_err()
         );
         assert_eq!(context.len(), 2);
@@ -454,22 +455,22 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
     let env = CrateEnv::new();
     let arena = env.arena();
     // In A: VType, a: A, bind x = a and then y = x.
-    let inner = arena.alloc(ComputationNode::ValueLet {
+    let inner = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(3),
         value_ty: arena.value_type_bound(2),
         value: arena.value_bound(0),
-        body: arena.alloc(ComputationNode::Return {
+        body: arena.alloc(ComputationTermNode::Return {
             value: arena.value_bound(0),
         }),
     });
-    let outer = arena.alloc(ComputationNode::ValueLet {
+    let outer = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(2),
         value_ty: arena.value_type_bound(1),
         value: arena.value_bound(0),
         body: inner,
     });
     let shifted = shift_computation_indices(arena, outer, 1, 0);
-    let ComputationNode::ValueLet {
+    let ComputationTermNode::ValueLet {
         value_ty,
         value,
         body,
@@ -479,29 +480,29 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
         panic!()
     };
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(2));
-    assert_eq!(arena.get(value), ValueNode::Bound(1));
-    let ComputationNode::ValueLet {
+    assert_eq!(arena.get(value), ValueTermNode::Bound(1));
+    let ComputationTermNode::ValueLet {
         value_ty, value, ..
     } = arena.get(body)
     else {
         panic!()
     };
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(3));
-    assert_eq!(arena.get(value), ValueNode::Bound(0));
+    assert_eq!(arena.get(value), ValueTermNode::Bound(0));
 
     let substituted = instantiate_value_in_computation(arena, inner, arena.value_bound(0));
-    let ComputationNode::ValueLet { value_ty, .. } = arena.get(substituted) else {
+    let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(substituted) else {
         panic!()
     };
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(1));
     let Evaluation::Normal(normal) = evaluate_computation(&env, outer) else {
         panic!()
     };
-    let ComputationNode::Return { value } = arena.get(normal) else {
+    let ComputationTermNode::Return { value } = arena.get(normal) else {
         panic!()
     };
-    assert_eq!(arena.get(value), ValueNode::Bound(0));
-    let renamed = arena.alloc(ComputationNode::ValueLet {
+    assert_eq!(arena.get(value), ValueTermNode::Bound(0));
+    let renamed = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(99),
         value_ty: arena.value_type_bound(1),
         value: arena.value_bound(0),
@@ -509,7 +510,7 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
     });
     assert!(computation_is_alpha_eq(arena, outer, renamed));
     assert!(!computation_is_alpha_eq(arena, outer, shifted));
-    let different_annotation = arena.alloc(ComputationNode::ValueLet {
+    let different_annotation = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(2),
         value_ty: arena.value_type_bound(2),
         value: arena.value_bound(0),
@@ -534,10 +535,10 @@ fn value_let_annotations_follow_module_instantiation() {
         module: env.root_module(),
         index: 1,
     };
-    let body = arena.alloc(ComputationNode::Return {
+    let body = arena.alloc(ComputationTermNode::Return {
         value: arena.value_bound(0),
     });
-    let term = arena.alloc(ComputationNode::ValueLet {
+    let term = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(0),
         value_ty: arena.value_type_module_param(parameter),
         value: arena.value_bound(0),
@@ -552,7 +553,7 @@ fn value_let_annotations_follow_module_instantiation() {
         term,
         &[(parameter, ModuleArgument::ProgramType(datatype))],
     );
-    let ComputationNode::ValueLet { value_ty, .. } = arena.get(instantiated) else {
+    let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(instantiated) else {
         panic!()
     };
     assert_eq!(value_ty, datatype);
@@ -562,7 +563,7 @@ fn value_let_annotations_follow_module_instantiation() {
         &Default::default(),
         &std::collections::HashMap::from([(old, new)]),
     );
-    let ComputationNode::ValueLet { value_ty, .. } = arena.get(remapped) else {
+    let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(remapped) else {
         panic!()
     };
     assert_eq!(
@@ -584,13 +585,13 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
     let arena = env.arena();
     let ty = arena.value_type_bound(1);
     let value = arena.value_bound(0);
-    let run = arena.alloc(ComputationNode::Run {
+    let run = arena.alloc(ComputationTermNode::Run {
         state_ty: ty,
         result_ty: ty,
         step: value,
         initial: value,
     });
-    let term = arena.alloc(ComputationNode::ValueLet {
+    let term = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(0),
         value_ty: ty,
         value,
@@ -615,11 +616,11 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
         metavariable: MetaVarId(0),
         spine: vec![],
     });
-    let term = arena.alloc(ComputationNode::ValueLet {
+    let term = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(0),
         value_ty: meta,
         value,
-        body: arena.alloc(ComputationNode::Return { value }),
+        body: arena.alloc(ComputationTermNode::Return { value }),
     });
     assert_eq!(
         reflect_computation(&env, term),
@@ -807,7 +808,7 @@ fn program_registration_checks_body_and_reflection_certificate() {
             kind: ModuleParameterKind::ProgramValue { ty },
         },
     );
-    let body = env.arena().alloc(ValueNode::ModuleParam(ModuleParamId {
+    let body = env.arena().alloc(ValueTermNode::ModuleParam(ModuleParamId {
         module,
         position: 1,
     }));
@@ -851,7 +852,9 @@ fn program_registration_checks_body_and_reflection_certificate() {
     let computation_ty = env
         .arena()
         .alloc(crate::raw::program::ComputationTypeNode::Return { value_ty: ty });
-    let computation = env.arena().alloc(ComputationNode::Return { value: body });
+    let computation = env
+        .arena()
+        .alloc(ComputationTermNode::Return { value: body });
     assert!(
         env.add_definition(
             module,

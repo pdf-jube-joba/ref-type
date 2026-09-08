@@ -20,25 +20,25 @@ macro_rules! handle {
 
 handle!(ValueType);
 handle!(ComputationType);
-handle!(Value);
-handle!(Computation);
+handle!(ValueTerm);
+handle!(ComputationTerm);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProgramType {
-    Value(ValueType),
-    Computation(ComputationType),
+    ValueType(ValueType),
+    ComputationType(ComputationType),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Program {
-    Value(Value),
-    Computation(Computation),
+pub enum ProgramTerm {
+    ValueTerm(ValueTerm),
+    ComputationTerm(ComputationTerm),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProgramArgument {
-    Type(ValueType),
-    Value(Value),
+    ValueType(ValueType),
+    ValueTerm(ValueTerm),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,11 +80,11 @@ pub enum ComputationTypeNode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProgramCaseBranch {
     pub binders: Vec<SymbolId>,
-    pub body: Computation,
+    pub body: ComputationTerm,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ValueNode {
+pub enum ValueTermNode {
     Bound(usize),
     ModuleParam(ModuleParamId),
     Meta {
@@ -93,84 +93,84 @@ pub enum ValueNode {
     },
     DefinedConstant(DefId),
     Thunk {
-        computation: Computation,
+        computation: ComputationTerm,
     },
     Continue {
         state_ty: ValueType,
         result_ty: ValueType,
-        next: Value,
+        next: ValueTerm,
     },
     Finish {
         state_ty: ValueType,
         result_ty: ValueType,
-        output: Value,
+        output: ValueTerm,
     },
     InductiveConstructor {
         indspec: ProgramInductiveId,
         parameters: Vec<ValueType>,
         idx: usize,
-        fields: Vec<Value>,
+        fields: Vec<ValueTerm>,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ComputationNode {
+pub enum ComputationTermNode {
     Meta {
         metavariable: MetaVarId,
         spine: Vec<ProgramArgument>,
     },
     DefinedConstant(DefId),
     Return {
-        value: Value,
+        value: ValueTerm,
     },
     Force {
-        value: Value,
+        value: ValueTerm,
     },
     Lambda {
         var: SymbolId,
         value_ty: ValueType,
-        body: Computation,
+        body: ComputationTerm,
     },
     Application {
-        computation: Computation,
-        value: Value,
+        computation: ComputationTerm,
+        value: ValueTerm,
     },
     Sequence {
-        computation: Computation,
+        computation: ComputationTerm,
         var: SymbolId,
         value_ty: ValueType,
-        body: Computation,
+        body: ComputationTerm,
     },
     ValueLet {
         var: SymbolId,
         value_ty: ValueType,
-        value: Value,
-        body: Computation,
+        value: ValueTerm,
+        body: ComputationTerm,
     },
     Case {
         indspec: ProgramInductiveId,
-        scrutinee: Value,
+        scrutinee: ValueTerm,
         branches: Vec<ProgramCaseBranch>,
     },
     Run {
         state_ty: ValueType,
         result_ty: ValueType,
-        step: Value,
-        initial: Value,
+        step: ValueTerm,
+        initial: ValueTerm,
     },
     RunCase {
         state_ty: ValueType,
         result_ty: ValueType,
-        step: Value,
-        initial: Value,
-        transition: Computation,
+        step: ValueTerm,
+        initial: ValueTerm,
+        transition: ComputationTerm,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProgramContextEntry {
-    Type { var: SymbolId },
-    Value { var: SymbolId, ty: ValueType },
+    ValueType { var: SymbolId },
+    ValueTerm { var: SymbolId, ty: ValueType },
 }
 
 pub type ProgramContext = Vec<ProgramContextEntry>;

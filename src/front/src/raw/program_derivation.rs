@@ -36,12 +36,13 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
 
     pub fn push_type(&mut self, var: SymbolId) {
         tracing::trace!(target: "ref_type::typing::program", binder = %self.env.symbol(var), depth = self.context.len(), "enter type binder");
-        self.context.push(ProgramContextEntry::Type { var });
+        self.context.push(ProgramContextEntry::ValueType { var });
     }
 
     pub fn push_value(&mut self, var: SymbolId, ty: ValueType) {
         tracing::trace!(target: "ref_type::typing::program", binder = %self.env.symbol(var), ty = %crate::raw::printing::format_value_type(self.env, ty), depth = self.context.len(), "enter value binder");
-        self.context.push(ProgramContextEntry::Value { var, ty });
+        self.context
+            .push(ProgramContextEntry::ValueTerm { var, ty });
     }
 
     pub fn pop(&mut self) {
@@ -60,27 +61,31 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
         check_computation_type(self, ty)
     }
 
-    pub fn check_value(&mut self, value: Value, ty: ValueType) -> Result<(), Box<JudgementError>> {
-        check_value(self, value, ty)
-    }
-
-    pub fn infer_value(&mut self, value: Value) -> Result<ValueType, Box<JudgementError>> {
-        infer_value(self, value)
-    }
-
-    pub fn check_computation(
+    pub fn check_value_term(
         &mut self,
-        term: Computation,
+        value: ValueTerm,
+        ty: ValueType,
+    ) -> Result<(), Box<JudgementError>> {
+        check_value_term(self, value, ty)
+    }
+
+    pub fn infer_value_term(&mut self, value: ValueTerm) -> Result<ValueType, Box<JudgementError>> {
+        infer_value_term(self, value)
+    }
+
+    pub fn check_computation_term(
+        &mut self,
+        term: ComputationTerm,
         ty: ComputationType,
     ) -> Result<(), Box<JudgementError>> {
-        check_computation(self, term, ty)
+        check_computation_term(self, term, ty)
     }
 
-    pub fn infer_computation(
+    pub fn infer_computation_term(
         &mut self,
-        term: Computation,
+        term: ComputationTerm,
     ) -> Result<ComputationType, Box<JudgementError>> {
-        infer_computation(self, term)
+        infer_computation_term(self, term)
     }
 }
 
@@ -116,7 +121,7 @@ pub fn check_value_type(
 ) -> Result<(), Box<JudgementError>> {
     match session.arena().get(ty) {
         ValueTypeNode::Bound(index) => match context_entry(session, index)? {
-            ProgramContextEntry::Type { .. } => Ok(()),
+            ProgramContextEntry::ValueType { .. } => Ok(()),
             _ => Err(failure(
                 "ValueType",
                 "formation",
@@ -183,13 +188,13 @@ pub fn check_computation_type(
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
     fields(context_depth = session.context().len(), term = %crate::raw::printing::format_value(session.env(), value), expected = %crate::raw::printing::format_value_type(session.env(), expected)), ret, err)]
-pub fn check_value(
+pub fn check_value_term(
     session: &mut ProgramCheckSession<'_, '_>,
-    value: Value,
+    value: ValueTerm,
     expected: ValueType,
 ) -> Result<(), Box<JudgementError>> {
     check_value_type(session, expected)?;
-    let inferred = infer_value(session, value)?;
+    let inferred = infer_value_term(session, value)?;
     if value_type_is_alpha_eq(session.arena(), inferred, expected) {
         Ok(())
     } else {
@@ -207,25 +212,25 @@ pub fn check_value(
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
     fields(context_depth = session.context().len(), term = %crate::raw::printing::format_value(session.env(), value)), ret, err)]
-pub fn infer_value(
+pub fn infer_value_term(
     session: &mut ProgramCheckSession<'_, '_>,
-    value: Value,
+    value: ValueTerm,
 ) -> Result<ValueType, Box<JudgementError>> {
-    let result = infer_value_inner(session, value);
+    let result = infer_value_term_inner(session, value);
     if let Ok(ty) = &result {
         tracing::debug!(target: "ref_type::typing::program", inferred = %crate::raw::printing::format_value_type(session.env(), *ty), "Program type inferred");
     }
     result
 }
 
-fn infer_value_inner(
+fn infer_value_term_inner(
     session: &mut ProgramCheckSession<'_, '_>,
-    value: Value,
+    value: ValueTerm,
 ) -> Result<ValueType, Box<JudgementError>> {
     let arena = session.arena();
     match arena.get(value) {
-        ValueNode::Bound(index) => match context_entry(session, index)? {
-            ProgramContextEntry::Value { ty, .. } => {
+        ValueTermNode::Bound(index) => match context_entry(session, index)? {
+            ProgramContextEntry::ValueTerm { ty, .. } => {
                 Ok(shift_value_type_indices(arena, ty, index + 1, 0))
             }
             _ => Err(failure(
@@ -234,13 +239,13 @@ fn infer_value_inner(
                 "bound variable is not a Program value",
             )),
         },
-        ValueNode::ModuleParam(id) => session
+        ValueTermNode::ModuleParam(id) => session
             .env
             .module_parameter_opt(id)
             .and_then(|p| p.value_ty())
             .ok_or_else(|| failure("Value", "infer", "module parameter is not a Program value")),
-        ValueNode::Meta { .. } => Err(failure("Value", "infer", "unresolved metavariable")),
-        ValueNode::DefinedConstant(id) => match session.env.definition(id) {
+        ValueTermNode::Meta { .. } => Err(failure("Value", "infer", "unresolved metavariable")),
+        ValueTermNode::DefinedConstant(id) => match session.env.definition(id) {
             DefinedConstant::ProgramValue { ty, .. } => Ok(*ty),
             _ => Err(failure(
                 "Value",
@@ -248,36 +253,36 @@ fn infer_value_inner(
                 "definition is not a Program value",
             )),
         },
-        ValueNode::Thunk { computation } => Ok(arena.alloc(ValueTypeNode::Thunk {
-            computation_ty: infer_computation(session, computation)?,
+        ValueTermNode::Thunk { computation } => Ok(arena.alloc(ValueTypeNode::Thunk {
+            computation_ty: infer_computation_term(session, computation)?,
         })),
-        ValueNode::Continue {
+        ValueTermNode::Continue {
             state_ty,
             result_ty,
             next,
         } => {
             check_value_type(session, state_ty)?;
             check_value_type(session, result_ty)?;
-            check_value(session, next, state_ty)?;
+            check_value_term(session, next, state_ty)?;
             Ok(arena.alloc(ValueTypeNode::RunStep {
                 state_ty,
                 result_ty,
             }))
         }
-        ValueNode::Finish {
+        ValueTermNode::Finish {
             state_ty,
             result_ty,
             output,
         } => {
             check_value_type(session, state_ty)?;
             check_value_type(session, result_ty)?;
-            check_value(session, output, result_ty)?;
+            check_value_term(session, output, result_ty)?;
             Ok(arena.alloc(ValueTypeNode::RunStep {
                 state_ty,
                 result_ty,
             }))
         }
-        ValueNode::InductiveConstructor {
+        ValueTermNode::InductiveConstructor {
             indspec,
             parameters,
             idx,
@@ -309,7 +314,7 @@ fn infer_value_inner(
                 ));
             }
             for (field, (_, ty)) in fields.into_iter().zip(expected) {
-                check_value(session, field, ty)?;
+                check_value_term(session, field, ty)?;
             }
             Ok(arena.alloc(ValueTypeNode::Inductive {
                 indspec,
@@ -321,13 +326,13 @@ fn infer_value_inner(
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
     fields(context_depth = session.context().len(), term = %crate::raw::printing::format_computation(session.env(), term), expected = %crate::raw::printing::format_computation_type(session.env(), expected)), ret, err)]
-pub fn check_computation(
+pub fn check_computation_term(
     session: &mut ProgramCheckSession<'_, '_>,
-    term: Computation,
+    term: ComputationTerm,
     expected: ComputationType,
 ) -> Result<(), Box<JudgementError>> {
     check_computation_type(session, expected)?;
-    let inferred = infer_computation(session, term)?;
+    let inferred = infer_computation_term(session, term)?;
     if computation_type_is_alpha_eq(session.arena(), inferred, expected) {
         Ok(())
     } else {
@@ -345,27 +350,27 @@ pub fn check_computation(
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
     fields(context_depth = session.context().len(), term = %crate::raw::printing::format_computation(session.env(), term)), ret, err)]
-pub fn infer_computation(
+pub fn infer_computation_term(
     session: &mut ProgramCheckSession<'_, '_>,
-    term: Computation,
+    term: ComputationTerm,
 ) -> Result<ComputationType, Box<JudgementError>> {
-    let result = infer_computation_inner(session, term);
+    let result = infer_computation_term_inner(session, term);
     if let Ok(ty) = &result {
         tracing::debug!(target: "ref_type::typing::program", inferred = %crate::raw::printing::format_computation_type(session.env(), *ty), "Program type inferred");
     }
     result
 }
 
-fn infer_computation_inner(
+fn infer_computation_term_inner(
     session: &mut ProgramCheckSession<'_, '_>,
-    term: Computation,
+    term: ComputationTerm,
 ) -> Result<ComputationType, Box<JudgementError>> {
     let arena = session.arena();
     match arena.get(term) {
-        ComputationNode::Meta { .. } => {
+        ComputationTermNode::Meta { .. } => {
             Err(failure("Computation", "infer", "unresolved metavariable"))
         }
-        ComputationNode::DefinedConstant(id) => match session.env.definition(id) {
+        ComputationTermNode::DefinedConstant(id) => match session.env.definition(id) {
             DefinedConstant::ProgramComputation { ty, .. } => Ok(*ty),
             _ => Err(failure(
                 "Computation",
@@ -373,35 +378,37 @@ fn infer_computation_inner(
                 "definition is not a Program computation",
             )),
         },
-        ComputationNode::Return { value } => Ok(arena.alloc(ComputationTypeNode::Return {
-            value_ty: infer_value(session, value)?,
+        ComputationTermNode::Return { value } => Ok(arena.alloc(ComputationTypeNode::Return {
+            value_ty: infer_value_term(session, value)?,
         })),
-        ComputationNode::Force { value } => match arena.get(infer_value(session, value)?) {
-            ValueTypeNode::Thunk { computation_ty } => Ok(computation_ty),
-            _ => Err(failure(
-                "Computation",
-                "infer",
-                "forced value does not have a thunk type",
-            )),
-        },
-        ComputationNode::Lambda {
+        ComputationTermNode::Force { value } => {
+            match arena.get(infer_value_term(session, value)?) {
+                ValueTypeNode::Thunk { computation_ty } => Ok(computation_ty),
+                _ => Err(failure(
+                    "Computation",
+                    "infer",
+                    "forced value does not have a thunk type",
+                )),
+            }
+        }
+        ComputationTermNode::Lambda {
             var,
             value_ty,
             body,
         } => {
             check_value_type(session, value_ty)?;
             session.push_value(var, value_ty);
-            let body_ty = infer_computation(session, body);
+            let body_ty = infer_computation_term(session, body);
             session.pop();
             Ok(arena.alloc(ComputationTypeNode::Function {
                 domain: value_ty,
                 codomain: remove_context_entry_from_computation_type(arena, body_ty?, 0)?,
             }))
         }
-        ComputationNode::Application { computation, value } => {
-            match arena.get(infer_computation(session, computation)?) {
+        ComputationTermNode::Application { computation, value } => {
+            match arena.get(infer_computation_term(session, computation)?) {
                 ComputationTypeNode::Function { domain, codomain } => {
-                    check_value(session, value, domain)?;
+                    check_value_term(session, value, domain)?;
                     Ok(codomain)
                 }
                 _ => Err(failure(
@@ -411,7 +418,7 @@ fn infer_computation_inner(
                 )),
             }
         }
-        ComputationNode::Sequence {
+        ComputationTermNode::Sequence {
             computation,
             var,
             value_ty,
@@ -419,38 +426,38 @@ fn infer_computation_inner(
         } => {
             check_value_type(session, value_ty)?;
             let source = arena.alloc(ComputationTypeNode::Return { value_ty });
-            check_computation(session, computation, source)?;
+            check_computation_term(session, computation, source)?;
             session.push_value(var, value_ty);
-            let result = infer_computation(session, body);
+            let result = infer_computation_term(session, body);
             session.pop();
             remove_context_entry_from_computation_type(arena, result?, 0)
         }
-        ComputationNode::ValueLet {
+        ComputationTermNode::ValueLet {
             var,
             value_ty,
             value,
             body,
         } => {
             check_value_type(session, value_ty)?;
-            check_value(session, value, value_ty)?;
+            check_value_term(session, value, value_ty)?;
             session.push_value(var, value_ty);
-            let result = infer_computation(session, body);
+            let result = infer_computation_term(session, body);
             session.pop();
             remove_context_entry_from_computation_type(arena, result?, 0)
         }
-        ComputationNode::Run {
+        ComputationTermNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
         } => {
             check_recursion_signature(session, state_ty, result_ty, step)?;
-            check_value(session, initial, state_ty)?;
+            check_value_term(session, initial, state_ty)?;
             Ok(arena.alloc(ComputationTypeNode::Return {
                 value_ty: result_ty,
             }))
         }
-        ComputationNode::RunCase {
+        ComputationTermNode::RunCase {
             state_ty,
             result_ty,
             step,
@@ -458,18 +465,18 @@ fn infer_computation_inner(
             transition,
         } => {
             check_recursion_signature(session, state_ty, result_ty, step)?;
-            check_value(session, initial, state_ty)?;
+            check_value_term(session, initial, state_ty)?;
             let step_ty = arena.alloc(ValueTypeNode::RunStep {
                 state_ty,
                 result_ty,
             });
             let transition_ty = arena.alloc(ComputationTypeNode::Return { value_ty: step_ty });
-            check_computation(session, transition, transition_ty)?;
+            check_computation_term(session, transition, transition_ty)?;
             Ok(arena.alloc(ComputationTypeNode::Return {
                 value_ty: result_ty,
             }))
         }
-        ComputationNode::Case {
+        ComputationTermNode::Case {
             indspec,
             scrutinee,
             branches,
@@ -477,7 +484,7 @@ fn infer_computation_inner(
             let ValueTypeNode::Inductive {
                 indspec: actual,
                 parameters,
-            } = arena.get(infer_value(session, scrutinee)?)
+            } = arena.get(infer_value_term(session, scrutinee)?)
             else {
                 return Err(failure(
                     "Computation",
@@ -523,7 +530,7 @@ fn infer_computation_inner(
                     let ty = shift_value_type_indices(arena, ty, field_index, 0);
                     session.push_value(binder, ty);
                 }
-                let branch_ty = infer_computation(session, branch.body);
+                let branch_ty = infer_computation_term(session, branch.body);
                 for _ in &branch.binders {
                     session.pop();
                 }
@@ -568,7 +575,7 @@ fn check_recursion_signature(
     session: &mut ProgramCheckSession<'_, '_>,
     state_ty: ValueType,
     result_ty: ValueType,
-    step: Value,
+    step: ValueTerm,
 ) -> Result<(), Box<JudgementError>> {
     check_value_type(session, state_ty)?;
     check_value_type(session, result_ty)?;
@@ -587,5 +594,5 @@ fn check_recursion_signature(
     let expected = arena.alloc(ValueTypeNode::Thunk {
         computation_ty: function,
     });
-    check_value(session, step, expected)
+    check_value_term(session, step, expected)
 }

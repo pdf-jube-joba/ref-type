@@ -5,7 +5,7 @@ use front::raw::{
     calculus::normalize,
     environment::{CrateEnv, DefinedConstant, ModuleItem},
     exp::ExpNode,
-    program::{ComputationNode, ValueNode},
+    program::{ComputationTermNode, ValueTermNode},
     program_calculus::{Evaluation, evaluate_computation},
     sort::Sort,
 };
@@ -132,11 +132,11 @@ fn countdown(modules: &[Module]) -> Duration {
     let Evaluation::Normal(result) = result else {
         panic!("countdown exhausted evaluation fuel")
     };
-    let ComputationNode::Return { value } = env.arena().get(result) else {
+    let ComputationTermNode::Return { value } = env.arena().get(result) else {
         panic!("countdown did not return a value")
     };
     assert!(
-        matches!(env.arena().get(value), ValueNode::InductiveConstructor { idx: 0, fields, .. } if fields.is_empty())
+        matches!(env.arena().get(value), ValueTermNode::InductiveConstructor { idx: 0, fields, .. } if fields.is_empty())
     );
     elapsed
 }

@@ -115,12 +115,12 @@ pub enum ModuleItem {
     ValueDefinition {
         name: Identifier,
         ty: ValueTypeExp,
-        body: ValueExp,
+        body: ValueTermExp,
     },
     ComputationDefinition {
         name: Identifier,
         ty: ComputationTypeExp,
-        body: ComputationExp,
+        body: ComputationTermExp,
     },
     Inductive {
         type_name: Identifier,
@@ -163,24 +163,24 @@ pub enum ModuleItem {
         exp: SExp,
     },
     ComputationEval {
-        exp: ComputationExp,
+        exp: ComputationTermExp,
     },
     ComputationNormalize {
-        exp: ComputationExp,
+        exp: ComputationTermExp,
     },
     ValueCheck {
-        exp: ValueExp,
+        exp: ValueTermExp,
         ty: ValueTypeExp,
     },
     ComputationCheck {
-        exp: ComputationExp,
+        exp: ComputationTermExp,
         ty: ComputationTypeExp,
     },
     ValueInfer {
-        exp: ValueExp,
+        exp: ValueTermExp,
     },
     ComputationInfer {
-        exp: ComputationExp,
+        exp: ComputationTermExp,
     },
     Check {
         exp: SExp,
@@ -262,7 +262,7 @@ pub enum ComputationTypeExp {
 }
 
 #[derive(Debug, Clone)]
-pub enum ValueExp {
+pub enum ValueTermExp {
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -272,69 +272,69 @@ pub enum ValueExp {
         datatype: LocalAccess,
         constructor: Identifier,
         parameters: Vec<ValueTypeExp>,
-        fields: Vec<ValueExp>,
+        fields: Vec<ValueTermExp>,
     },
-    Thunk(Box<ComputationExp>),
+    Thunk(Box<ComputationTermExp>),
     Continue {
         state_ty: Box<ValueTypeExp>,
         result_ty: Box<ValueTypeExp>,
-        next: Box<ValueExp>,
+        next: Box<ValueTermExp>,
     },
     Finish {
         state_ty: Box<ValueTypeExp>,
         result_ty: Box<ValueTypeExp>,
-        output: Box<ValueExp>,
+        output: Box<ValueTermExp>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub enum ComputationExp {
+pub enum ComputationTermExp {
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
     },
     Access(LocalAccess),
-    Return(Box<ValueExp>),
-    Force(Box<ValueExp>),
+    Return(Box<ValueTermExp>),
+    Force(Box<ValueTermExp>),
     Lambda {
         var: Identifier,
         value_ty: Box<ValueTypeExp>,
-        body: Box<ComputationExp>,
+        body: Box<ComputationTermExp>,
     },
     Application {
-        computation: Box<ComputationExp>,
-        value: Box<ValueExp>,
+        computation: Box<ComputationTermExp>,
+        value: Box<ValueTermExp>,
     },
     Sequence {
-        computation: Box<ComputationExp>,
+        computation: Box<ComputationTermExp>,
         var: Identifier,
         value_ty: Box<ValueTypeExp>,
-        body: Box<ComputationExp>,
+        body: Box<ComputationTermExp>,
     },
     ValueLet {
         var: Identifier,
         value_ty: Box<ValueTypeExp>,
-        value: Box<ValueExp>,
-        body: Box<ComputationExp>,
+        value: Box<ValueTermExp>,
+        body: Box<ComputationTermExp>,
     },
     Case {
         datatype: LocalAccess,
-        scrutinee: Box<ValueExp>,
-        branches: Vec<(Identifier, Vec<Identifier>, ComputationExp)>,
+        scrutinee: Box<ValueTermExp>,
+        branches: Vec<(Identifier, Vec<Identifier>, ComputationTermExp)>,
     },
     Run {
         state_ty: Box<ValueTypeExp>,
         result_ty: Box<ValueTypeExp>,
-        step: Box<ValueExp>,
-        initial: Box<ValueExp>,
+        step: Box<ValueTermExp>,
+        initial: Box<ValueTermExp>,
         accessibility: Option<Box<SExp>>,
     },
     RunCase {
         state_ty: Box<ValueTypeExp>,
         result_ty: Box<ValueTypeExp>,
-        step: Box<ValueExp>,
-        initial: Box<ValueExp>,
-        transition: Box<ComputationExp>,
+        step: Box<ValueTermExp>,
+        initial: Box<ValueTermExp>,
+        transition: Box<ComputationTermExp>,
         accessibility: Option<Box<SExp>>,
         transition_equality: Option<Box<SExp>>,
     },
@@ -773,7 +773,7 @@ impl TryFrom<SExp> for ComputationTypeExp {
     }
 }
 
-impl TryFrom<SExp> for ValueExp {
+impl TryFrom<SExp> for ValueTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
@@ -830,7 +830,7 @@ impl TryFrom<SExp> for ValueExp {
     }
 }
 
-impl TryFrom<SExp> for ComputationExp {
+impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {

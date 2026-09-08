@@ -5,8 +5,8 @@ use crate::raw::{
     exp::{Axiom, Exp, ExpContext, ExpNode, Prove},
     ids::{ModuleParamId, SymbolId},
     program::{
-        Computation, ComputationNode, ComputationType, ComputationTypeNode, Program, ProgramType,
-        Value, ValueNode, ValueType, ValueTypeNode,
+        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ProgramTerm,
+        ProgramType, ValueTerm, ValueTermNode, ValueType, ValueTypeNode,
     },
     sort::Sort,
 };
@@ -425,8 +425,8 @@ pub fn format_ctx(env: &CrateEnv, ctx: &ExpContext) -> String {
 
 pub fn format_program_type(env: &CrateEnv, ty: ProgramType) -> String {
     match ty {
-        ProgramType::Value(ty) => format_value_type(env, ty),
-        ProgramType::Computation(ty) => format_computation_type(env, ty),
+        ProgramType::ValueType(ty) => format_value_type(env, ty),
+        ProgramType::ComputationType(ty) => format_computation_type(env, ty),
     }
 }
 
@@ -477,23 +477,23 @@ pub fn format_computation_type(env: &CrateEnv, ty: ComputationType) -> String {
     }
 }
 
-pub fn format_program(env: &CrateEnv, program: Program) -> String {
+pub fn format_program(env: &CrateEnv, program: ProgramTerm) -> String {
     match program {
-        Program::Value(value) => format_value(env, value),
-        Program::Computation(term) => format_computation(env, term),
+        ProgramTerm::ValueTerm(value) => format_value(env, value),
+        ProgramTerm::ComputationTerm(term) => format_computation(env, term),
     }
 }
 
-pub fn format_value(env: &CrateEnv, value: Value) -> String {
+pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
     match env.arena().get(value) {
-        ValueNode::Bound(index) => format!("#v{index}"),
-        ValueNode::ModuleParam(id) => format_var(env, id),
-        ValueNode::Meta { metavariable, .. } => format!("?v{}", metavariable.0),
-        ValueNode::DefinedConstant(id) => format!("vdef({}:{})", id.module.0, id.index),
-        ValueNode::Thunk { computation } => {
+        ValueTermNode::Bound(index) => format!("#v{index}"),
+        ValueTermNode::ModuleParam(id) => format_var(env, id),
+        ValueTermNode::Meta { metavariable, .. } => format!("?v{}", metavariable.0),
+        ValueTermNode::DefinedConstant(id) => format!("vdef({}:{})", id.module.0, id.index),
+        ValueTermNode::Thunk { computation } => {
             format!("\\thunk({})", format_computation(env, computation))
         }
-        ValueNode::Continue {
+        ValueTermNode::Continue {
             state_ty,
             result_ty,
             next,
@@ -503,7 +503,7 @@ pub fn format_value(env: &CrateEnv, value: Value) -> String {
             format_value_type(env, result_ty),
             format_value(env, next)
         ),
-        ValueNode::Finish {
+        ValueTermNode::Finish {
             state_ty,
             result_ty,
             output,
@@ -513,7 +513,7 @@ pub fn format_value(env: &CrateEnv, value: Value) -> String {
             format_value_type(env, result_ty),
             format_value(env, output)
         ),
-        ValueNode::InductiveConstructor {
+        ValueTermNode::InductiveConstructor {
             indspec,
             idx,
             fields,
@@ -532,13 +532,13 @@ pub fn format_value(env: &CrateEnv, value: Value) -> String {
     }
 }
 
-pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
+pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
     match env.arena().get(term) {
-        ComputationNode::Meta { metavariable, .. } => format!("?c{}", metavariable.0),
-        ComputationNode::DefinedConstant(id) => format!("cdef({}:{})", id.module.0, id.index),
-        ComputationNode::Return { value } => format!("\\return({})", format_value(env, value)),
-        ComputationNode::Force { value } => format!("\\force({})", format_value(env, value)),
-        ComputationNode::Lambda {
+        ComputationTermNode::Meta { metavariable, .. } => format!("?c{}", metavariable.0),
+        ComputationTermNode::DefinedConstant(id) => format!("cdef({}:{})", id.module.0, id.index),
+        ComputationTermNode::Return { value } => format!("\\return({})", format_value(env, value)),
+        ComputationTermNode::Force { value } => format!("\\force({})", format_value(env, value)),
+        ComputationTermNode::Lambda {
             var,
             value_ty,
             body,
@@ -548,12 +548,12 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             format_value_type(env, value_ty),
             format_computation(env, body)
         ),
-        ComputationNode::Application { computation, value } => format!(
+        ComputationTermNode::Application { computation, value } => format!(
             "({}) @c ({})",
             format_computation(env, computation),
             format_value(env, value)
         ),
-        ComputationNode::Sequence {
+        ComputationTermNode::Sequence {
             computation,
             var,
             value_ty,
@@ -565,7 +565,7 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             format_value_type(env, value_ty),
             format_computation(env, body)
         ),
-        ComputationNode::ValueLet {
+        ComputationTermNode::ValueLet {
             var,
             value_ty,
             value,
@@ -577,7 +577,7 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             format_value(env, value),
             format_computation(env, body)
         ),
-        ComputationNode::Case {
+        ComputationTermNode::Case {
             indspec, scrutinee, ..
         } => format!(
             "case vind({}:{}) {}",
@@ -585,7 +585,7 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             indspec.index,
             format_value(env, scrutinee)
         ),
-        ComputationNode::Run {
+        ComputationTermNode::Run {
             state_ty,
             result_ty,
             step,
@@ -597,7 +597,7 @@ pub fn format_computation(env: &CrateEnv, term: Computation) -> String {
             format_value(env, step),
             format_value(env, initial)
         ),
-        ComputationNode::RunCase {
+        ComputationTermNode::RunCase {
             state_ty,
             result_ty,
             step,

@@ -1,36 +1,42 @@
 # Sort-indexed kernel
 
-`stratification4.md` の term/type/kind を九つの arena handle で表す。
-Set/Prop の node は `SetSort`、Program の node は自然数の `level` を持つ。
+Set・Prop・Value・Computation のそれぞれに term/type/kind を持ち、十二個の arena handle で表す。
+各系列は `SetTerm` / `PropTerm` / `ValueTerm` / `ComputationTerm` のように命名し、
+対応する `*Node` と `*Form` を持つ。Set・Value・Computation の node は自然数の `level` を持ち、
+Prop の node は level を持たない。Set と Prop の区別は handle の型で固定する。
 handle は作成した `Environment::arena()` 内で使う。
 
 `syntax::Expression` は分類済み handle の直和で、共通の走査・診断に使う。
 未分類の式と metavariable は front 側の `raw` 構文に属する。
+Set/Prop の両方を量化・適用する箇所には `LogicalTerm` / `LogicalType` / `LogicalKind`、
+`SetArgument` / `PropArgument` と `SetExpression` / `PropExpression` も分離し、
+両者の帰納型引数や消去には、それらを包む `LogicalArgument` / `LogicalExpression` を使う。
+証明専用の構文は `PropTermForm`、命題専用の構文は `PropTypeForm` に属する。
 
 ## 型演算子の例
 
 ```rust
 use kernel::{check::Checker, environment::Environment, ids::SymbolId,
-             sort::{BaseSort, ProductRule, SetSort, Sort}, syntax::*};
+             sort::{BaseSort, ProductRule, Sort}, syntax::*};
 
 let env = Environment::new();
 let arena = env.arena();
 let kind = arena.alloc(SetKindNode {
-    sort: SetSort::Set(0), form: SetKindForm::Base,
+    level: 0, form: SetKindForm::Base,
 });
 let body = arena.alloc(SetTypeNode {
-    sort: SetSort::Set(0), form: SetTypeForm::Bound { index: 0 },
+    level: 0, form: SetTypeForm::Bound { index: 0 },
 });
 let rule = ProductRule::new(
     Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Set(0)),
 ).unwrap();
 let identity = arena.alloc(SetTypeNode {
-    sort: SetSort::Set(0),
+    level: 0,
     form: SetTypeForm::LambdaType {
         rule, var: SymbolId::ANONYMOUS, domain: kind, body,
     },
 });
-let inferred_kind = Checker::new(&env, vec![]).infer_type(identity).unwrap();
+let inferred_kind = Checker::new(&env, vec![]).infer_set_type(identity).unwrap();
 ```
 
 `ProductRule` は domain・body・result の三つの sort を持つ。
@@ -42,7 +48,8 @@ Set/Prop と Program の context は別々で、各 context 内の term/type bin
 ## 検査と登録
 
 `Checker` は公開の推論入口で context の well-formedness も検査する。
-term の推論結果は type、type constructor の推論結果は kind である。
+`infer_set_term` / `infer_prop_term` / `infer_value_term` / `infer_computation_term` の
+推論結果はそれぞれの type である。各系列に `infer_*_type` と `check_*_kind` も用意する。
 kind formation の右辺には `Classifier::Upper` を使う。
 
 `Environment::register_definition` は検査成功後に登録する。名前付き定義にする際は

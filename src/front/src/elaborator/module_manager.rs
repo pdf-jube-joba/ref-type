@@ -221,11 +221,11 @@ impl ModuleManager {
                     .parameters()
                     .iter()
                     .filter_map(|parameter| match parameter.kind {
-                        ModuleParameterKind::ProgramType => Some(ProgramContextEntry::Type {
+                        ModuleParameterKind::ProgramType => Some(ProgramContextEntry::ValueType {
                             var: parameter.name,
                         }),
                         ModuleParameterKind::ProgramValue { ty } => {
-                            Some(ProgramContextEntry::Value {
+                            Some(ProgramContextEntry::ValueTerm {
                                 var: parameter.name,
                                 ty,
                             })
@@ -497,7 +497,7 @@ impl ModuleManager {
                             env,
                             &mut Vec::new(),
                         )
-                        .check_value(*value, expected)
+                        .check_value_term(*value, expected)
                         .map_err(|error| {
                             format!("Program value module argument is ill-typed: {error:?}")
                         })?;
@@ -523,7 +523,7 @@ impl ModuleManager {
                     }
                     ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
                         env,
-                        crate::raw::program::Program::Value(*value),
+                        crate::raw::program::ProgramTerm::ValueTerm(*value),
                     )
                     .map_err(|error| {
                         format!("cannot reflect Program value module argument: {error}")

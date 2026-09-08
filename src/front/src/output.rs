@@ -1,6 +1,6 @@
 use crate::raw::{
     exp::Exp,
-    program::{Computation, ComputationType, ValueType},
+    program::{ComputationTerm, ComputationType, ValueType},
 };
 
 #[derive(Debug, Clone)]
@@ -9,6 +9,6 @@ pub enum Output {
     Exp(Exp),
     ValueType(ValueType),
     ComputationType(ComputationType),
-    Computation(Computation),
-    OutOfFuel(Computation),
+    ComputationTerm(ComputationTerm),
+    OutOfFuel(ComputationTerm),
 }

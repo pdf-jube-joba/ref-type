@@ -5,8 +5,9 @@ use crate::raw::{
     exp::{Exp, ExpNode},
     ids::{MetaVarId, SymbolId},
     program::{
-        Computation, ComputationNode, ComputationType, ComputationTypeNode, ProgramArgument,
-        ProgramContext, ProgramContextEntry, Value, ValueNode, ValueType, ValueTypeNode,
+        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
+        ProgramArgument, ProgramContext, ProgramContextEntry, ValueTerm, ValueTermNode, ValueType,
+        ValueTypeNode,
     },
     program_calculus::strengthen_computation_type,
     program_derivation::ProgramCheckSession,
@@ -16,7 +17,7 @@ use crate::{
         GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
     },
     syntax::{
-        ComputationExp, ComputationTypeExp, LocalAccess, SourceSpan, SurfaceMeta, ValueExp,
+        ComputationTermExp, ComputationTypeExp, LocalAccess, SourceSpan, SurfaceMeta, ValueTermExp,
         ValueTypeExp,
     },
 };
@@ -26,8 +27,8 @@ use std::collections::HashMap;
 enum MetaCategory {
     ValueType,
     ComputationType,
-    Value,
-    Computation,
+    ValueTerm,
+    ComputationTerm,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -52,7 +53,7 @@ pub(crate) struct ProgramScope {
     value_type_bindings: Vec<(SymbolId, ValueType)>,
     metas: Vec<ProgramMeta>,
     named_metas: HashMap<u32, MetaVarId>,
-    certificates: HashMap<Computation, Exp>,
+    certificates: HashMap<ComputationTerm, Exp>,
 }
 
 impl Default for ProgramScope {
@@ -91,7 +92,7 @@ impl ProgramScope {
     pub(crate) fn certified_computation(
         &self,
         environment: &GlobalEnvironment,
-        computation: Computation,
+        computation: ComputationTerm,
     ) -> Option<Exp> {
         let certificates = self
             .certificates
@@ -111,7 +112,7 @@ impl ProgramScope {
     pub(crate) fn certified_value(
         &self,
         environment: &GlobalEnvironment,
-        value: Value,
+        value: ValueTerm,
     ) -> Option<Exp> {
         let certificates = self
             .certificates
@@ -140,7 +141,11 @@ impl ProgramScope {
         self.zonk_value_type(environment, ty)
     }
 
-    pub(crate) fn zonk_module_value(&self, environment: &GlobalEnvironment, value: Value) -> Value {
+    pub(crate) fn zonk_module_value(
+        &self,
+        environment: &GlobalEnvironment,
+        value: ValueTerm,
+    ) -> ValueTerm {
         self.zonk_value(environment, value)
     }
 
@@ -150,12 +155,13 @@ impl ProgramScope {
 
     pub(crate) fn push_type(&mut self, var: SymbolId) {
         self.names.push(var);
-        self.context.push(ProgramContextEntry::Type { var });
+        self.context.push(ProgramContextEntry::ValueType { var });
     }
 
     pub(crate) fn push_value(&mut self, var: SymbolId, ty: ValueType) {
         self.names.push(var);
-        self.context.push(ProgramContextEntry::Value { var, ty });
+        self.context
+            .push(ProgramContextEntry::ValueTerm { var, ty });
     }
 
     pub(crate) fn truncate(&mut self, len: usize) {
@@ -198,11 +204,11 @@ impl ProgramScope {
             .rev()
             .enumerate()
             .map(|(index, entry)| match entry {
-                ProgramContextEntry::Type { .. } => {
-                    ProgramArgument::Type(environment.crate_env.arena().value_type_bound(index))
-                }
-                ProgramContextEntry::Value { .. } => {
-                    ProgramArgument::Value(environment.crate_env.arena().value_bound(index))
+                ProgramContextEntry::ValueType { .. } => ProgramArgument::ValueType(
+                    environment.crate_env.arena().value_type_bound(index),
+                ),
+                ProgramContextEntry::ValueTerm { .. } => {
+                    ProgramArgument::ValueTerm(environment.crate_env.arena().value_bound(index))
                 }
             })
             .collect()
@@ -290,8 +296,8 @@ impl ProgramScope {
                         return Err("Program type variables do not accept parameters".into());
                     }
                     return match entry {
-                        ProgramContextEntry::Type { .. } => Ok(arena.value_type_bound(index)),
-                        ProgramContextEntry::Value { .. } => {
+                        ProgramContextEntry::ValueType { .. } => Ok(arena.value_type_bound(index)),
+                        ProgramContextEntry::ValueTerm { .. } => {
                             Err("Program value used as a value type".into())
                         }
                     };
@@ -373,36 +379,36 @@ impl ProgramScope {
 
     pub(crate) fn elaborate_value(
         &mut self,
-        expression: &ValueExp,
+        expression: &ValueTermExp,
         environment: &mut GlobalEnvironment,
-    ) -> Result<Value, String> {
+    ) -> Result<ValueTerm, String> {
         let arena = environment.crate_env.arena();
         match expression {
-            ValueExp::Meta { kind, span } => {
+            ValueTermExp::Meta { kind, span } => {
                 let (metavariable, spine) =
-                    self.fresh_meta(environment, *kind, *span, MetaCategory::Value)?;
-                Ok(arena.alloc(ValueNode::Meta {
+                    self.fresh_meta(environment, *kind, *span, MetaCategory::ValueTerm)?;
+                Ok(arena.alloc(ValueTermNode::Meta {
                     metavariable,
                     spine,
                 }))
             }
-            ValueExp::Access(access) => {
+            ValueTermExp::Access(access) => {
                 if let Some((index, entry)) = self.local_index(environment, access) {
                     return match entry {
-                        ProgramContextEntry::Value { .. } => Ok(arena.value_bound(index)),
-                        ProgramContextEntry::Type { .. } => {
+                        ProgramContextEntry::ValueTerm { .. } => Ok(arena.value_bound(index)),
+                        ProgramContextEntry::ValueType { .. } => {
                             Err("Program type variable used as a value".into())
                         }
                     };
                 }
                 match self.item(environment, access)? {
                     ItemAccessResult::ProgramValueParameter(id) => {
-                        Ok(arena.alloc(ValueNode::ModuleParam(id)))
+                        Ok(arena.alloc(ValueTermNode::ModuleParam(id)))
                     }
                     ItemAccessResult::Definition(item) => {
                         match environment.crate_env.definition(item.definition) {
                             DefinedConstant::ProgramValue { .. } => {
-                                Ok(arena.alloc(ValueNode::DefinedConstant(item.definition)))
+                                Ok(arena.alloc(ValueTermNode::DefinedConstant(item.definition)))
                             }
                             _ => Err("definition is not a Program value".into()),
                         }
@@ -410,7 +416,7 @@ impl ProgramScope {
                     _ => Err("name does not denote a Program value".into()),
                 }
             }
-            ValueExp::Constructor {
+            ValueTermExp::Constructor {
                 datatype,
                 constructor,
                 parameters,
@@ -437,21 +443,21 @@ impl ProgramScope {
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ValueNode::InductiveConstructor {
+                    .alloc(ValueTermNode::InductiveConstructor {
                         indspec: item.inductive,
                         parameters,
                         idx,
                         fields,
                     }))
             }
-            ValueExp::Thunk(computation) => {
+            ValueTermExp::Thunk(computation) => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ValueNode::Thunk { computation }))
+                    .alloc(ValueTermNode::Thunk { computation }))
             }
-            ValueExp::Continue {
+            ValueTermExp::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -459,13 +465,16 @@ impl ProgramScope {
                 let state_ty = self.elaborate_value_type(state_ty, environment)?;
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let next = self.elaborate_value(next, environment)?;
-                Ok(environment.crate_env.arena().alloc(ValueNode::Continue {
-                    state_ty,
-                    result_ty,
-                    next,
-                }))
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ValueTermNode::Continue {
+                        state_ty,
+                        result_ty,
+                        next,
+                    }))
             }
-            ValueExp::Finish {
+            ValueTermExp::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -473,7 +482,7 @@ impl ProgramScope {
                 let state_ty = self.elaborate_value_type(state_ty, environment)?;
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let output = self.elaborate_value(output, environment)?;
-                Ok(environment.crate_env.arena().alloc(ValueNode::Finish {
+                Ok(environment.crate_env.arena().alloc(ValueTermNode::Finish {
                     state_ty,
                     result_ty,
                     output,
@@ -484,45 +493,48 @@ impl ProgramScope {
 
     pub(crate) fn elaborate_computation(
         &mut self,
-        expression: &ComputationExp,
+        expression: &ComputationTermExp,
         environment: &mut GlobalEnvironment,
-    ) -> Result<Computation, String> {
+    ) -> Result<ComputationTerm, String> {
         match expression {
-            ComputationExp::Meta { kind, span } => {
+            ComputationTermExp::Meta { kind, span } => {
                 let (metavariable, spine) =
-                    self.fresh_meta(environment, *kind, *span, MetaCategory::Computation)?;
-                Ok(environment.crate_env.arena().alloc(ComputationNode::Meta {
-                    metavariable,
-                    spine,
-                }))
+                    self.fresh_meta(environment, *kind, *span, MetaCategory::ComputationTerm)?;
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::Meta {
+                        metavariable,
+                        spine,
+                    }))
             }
-            ComputationExp::Access(access) => match self.item(environment, access)? {
+            ComputationTermExp::Access(access) => match self.item(environment, access)? {
                 ItemAccessResult::Definition(item) => {
                     match environment.crate_env.definition(item.definition) {
                         DefinedConstant::ProgramComputation { .. } => Ok(environment
                             .crate_env
                             .arena()
-                            .alloc(ComputationNode::DefinedConstant(item.definition))),
+                            .alloc(ComputationTermNode::DefinedConstant(item.definition))),
                         _ => Err("definition is not a Program computation".into()),
                     }
                 }
                 _ => Err("name does not denote a Program computation".into()),
             },
-            ComputationExp::Return(value) => {
+            ComputationTermExp::Return(value) => {
                 let value = self.elaborate_value(value, environment)?;
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationNode::Return { value }))
+                    .alloc(ComputationTermNode::Return { value }))
             }
-            ComputationExp::Force(value) => {
+            ComputationTermExp::Force(value) => {
                 let value = self.elaborate_value(value, environment)?;
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationNode::Force { value }))
+                    .alloc(ComputationTermNode::Force { value }))
             }
-            ComputationExp::Lambda {
+            ComputationTermExp::Lambda {
                 var,
                 value_ty,
                 body,
@@ -531,28 +543,28 @@ impl ProgramScope {
                 let var = environment.crate_env.intern(var.as_str());
                 self.names.push(var);
                 self.context
-                    .push(ProgramContextEntry::Value { var, ty: value_ty });
+                    .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let body = self.elaborate_computation(body, environment);
                 self.names.pop();
                 self.context.pop();
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationNode::Lambda {
+                    .alloc(ComputationTermNode::Lambda {
                         var,
                         value_ty,
                         body: body?,
                     }))
             }
-            ComputationExp::Application { computation, value } => {
+            ComputationTermExp::Application { computation, value } => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 let value = self.elaborate_value(value, environment)?;
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationNode::Application { computation, value }))
+                    .alloc(ComputationTermNode::Application { computation, value }))
             }
-            ComputationExp::Sequence {
+            ComputationTermExp::Sequence {
                 computation,
                 var,
                 value_ty,
@@ -563,21 +575,21 @@ impl ProgramScope {
                 let var = environment.crate_env.intern(var.as_str());
                 self.names.push(var);
                 self.context
-                    .push(ProgramContextEntry::Value { var, ty: value_ty });
+                    .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let body = self.elaborate_computation(body, environment);
                 self.names.pop();
                 self.context.pop();
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationNode::Sequence {
+                    .alloc(ComputationTermNode::Sequence {
                         computation,
                         var,
                         value_ty,
                         body: body?,
                     }))
             }
-            ComputationExp::ValueLet {
+            ComputationTermExp::ValueLet {
                 var,
                 value_ty,
                 value,
@@ -588,21 +600,21 @@ impl ProgramScope {
                 let var = environment.crate_env.intern(var.as_str());
                 self.names.push(var);
                 self.context
-                    .push(ProgramContextEntry::Value { var, ty: value_ty });
+                    .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let body = self.elaborate_computation(body, environment);
                 self.names.pop();
                 self.context.pop();
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationNode::ValueLet {
+                    .alloc(ComputationTermNode::ValueLet {
                         var,
                         value_ty,
                         value,
                         body: body?,
                     }))
             }
-            ComputationExp::Case {
+            ComputationTermExp::Case {
                 datatype,
                 scrutinee,
                 branches,
@@ -618,7 +630,7 @@ impl ProgramScope {
                 let mut check_context = self.context.clone();
                 let scrutinee_ty =
                     ProgramCheckSession::new(&environment.crate_env, &mut check_context)
-                        .infer_value(scrutinee)
+                        .infer_value_term(scrutinee)
                         .map_err(|error| {
                             format!("cannot infer Program case scrutinee: {error:?}")
                         })?;
@@ -672,13 +684,16 @@ impl ProgramScope {
                         body,
                     });
                 }
-                Ok(environment.crate_env.arena().alloc(ComputationNode::Case {
-                    indspec: item.inductive,
-                    scrutinee,
-                    branches: result,
-                }))
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::Case {
+                        indspec: item.inductive,
+                        scrutinee,
+                        branches: result,
+                    }))
             }
-            ComputationExp::Run {
+            ComputationTermExp::Run {
                 state_ty,
                 result_ty,
                 step,
@@ -689,12 +704,15 @@ impl ProgramScope {
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let step = self.elaborate_value(step, environment)?;
                 let initial = self.elaborate_value(initial, environment)?;
-                let computation = environment.crate_env.arena().alloc(ComputationNode::Run {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial,
-                });
+                let computation = environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::Run {
+                        state_ty,
+                        result_ty,
+                        step,
+                        initial,
+                    });
                 if let Some(accessibility) = accessibility {
                     let reflected_context = crate::raw::reflection::reflect_context(
                         &environment.crate_env,
@@ -733,7 +751,7 @@ impl ProgramScope {
                 }
                 Ok(computation)
             }
-            ComputationExp::RunCase {
+            ComputationTermExp::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -747,16 +765,17 @@ impl ProgramScope {
                 let step = self.elaborate_value(step, environment)?;
                 let initial = self.elaborate_value(initial, environment)?;
                 let transition = self.elaborate_computation(transition, environment)?;
-                let computation = environment
-                    .crate_env
-                    .arena()
-                    .alloc(ComputationNode::RunCase {
-                        state_ty,
-                        result_ty,
-                        step,
-                        initial,
-                        transition,
-                    });
+                let computation =
+                    environment
+                        .crate_env
+                        .arena()
+                        .alloc(ComputationTermNode::RunCase {
+                            state_ty,
+                            result_ty,
+                            step,
+                            initial,
+                            transition,
+                        });
                 if let (Some(accessibility), Some(transition_equality)) =
                     (accessibility, transition_equality)
                 {
@@ -878,53 +897,53 @@ impl ProgramScope {
         arguments
             .into_iter()
             .map(|argument| match argument {
-                ProgramArgument::Type(ty) => {
-                    ProgramArgument::Type(self.zonk_value_type(environment, ty))
+                ProgramArgument::ValueType(ty) => {
+                    ProgramArgument::ValueType(self.zonk_value_type(environment, ty))
                 }
-                ProgramArgument::Value(value) => {
-                    ProgramArgument::Value(self.zonk_value(environment, value))
+                ProgramArgument::ValueTerm(value) => {
+                    ProgramArgument::ValueTerm(self.zonk_value(environment, value))
                 }
             })
             .collect()
     }
 
-    fn zonk_value(&self, environment: &GlobalEnvironment, value: Value) -> Value {
+    fn zonk_value(&self, environment: &GlobalEnvironment, value: ValueTerm) -> ValueTerm {
         let arena = environment.crate_env.arena();
         match arena.get(value) {
-            ValueNode::Meta {
+            ValueTermNode::Meta {
                 metavariable,
                 spine,
-            } => arena.alloc(ValueNode::Meta {
+            } => arena.alloc(ValueTermNode::Meta {
                 metavariable,
                 spine: self.zonk_arguments(environment, spine),
             }),
-            ValueNode::Thunk { computation } => arena.alloc(ValueNode::Thunk {
+            ValueTermNode::Thunk { computation } => arena.alloc(ValueTermNode::Thunk {
                 computation: self.zonk_computation(environment, computation),
             }),
-            ValueNode::Continue {
+            ValueTermNode::Continue {
                 state_ty,
                 result_ty,
                 next,
-            } => arena.alloc(ValueNode::Continue {
+            } => arena.alloc(ValueTermNode::Continue {
                 state_ty: self.zonk_value_type(environment, state_ty),
                 result_ty: self.zonk_value_type(environment, result_ty),
                 next: self.zonk_value(environment, next),
             }),
-            ValueNode::Finish {
+            ValueTermNode::Finish {
                 state_ty,
                 result_ty,
                 output,
-            } => arena.alloc(ValueNode::Finish {
+            } => arena.alloc(ValueTermNode::Finish {
                 state_ty: self.zonk_value_type(environment, state_ty),
                 result_ty: self.zonk_value_type(environment, result_ty),
                 output: self.zonk_value(environment, output),
             }),
-            ValueNode::InductiveConstructor {
+            ValueTermNode::InductiveConstructor {
                 indspec,
                 parameters,
                 idx,
                 fields,
-            } => arena.alloc(ValueNode::InductiveConstructor {
+            } => arena.alloc(ValueTermNode::InductiveConstructor {
                 indspec,
                 parameters: parameters
                     .into_iter()
@@ -943,65 +962,65 @@ impl ProgramScope {
     fn zonk_computation(
         &self,
         environment: &GlobalEnvironment,
-        computation: Computation,
-    ) -> Computation {
+        computation: ComputationTerm,
+    ) -> ComputationTerm {
         let arena = environment.crate_env.arena();
         match arena.get(computation) {
-            ComputationNode::Meta {
+            ComputationTermNode::Meta {
                 metavariable,
                 spine,
-            } => arena.alloc(ComputationNode::Meta {
+            } => arena.alloc(ComputationTermNode::Meta {
                 metavariable,
                 spine: self.zonk_arguments(environment, spine),
             }),
-            ComputationNode::Return { value } => arena.alloc(ComputationNode::Return {
+            ComputationTermNode::Return { value } => arena.alloc(ComputationTermNode::Return {
                 value: self.zonk_value(environment, value),
             }),
-            ComputationNode::Force { value } => arena.alloc(ComputationNode::Force {
+            ComputationTermNode::Force { value } => arena.alloc(ComputationTermNode::Force {
                 value: self.zonk_value(environment, value),
             }),
-            ComputationNode::Lambda {
+            ComputationTermNode::Lambda {
                 var,
                 value_ty,
                 body,
-            } => arena.alloc(ComputationNode::Lambda {
+            } => arena.alloc(ComputationTermNode::Lambda {
                 var,
                 value_ty: self.zonk_value_type(environment, value_ty),
                 body: self.zonk_computation(environment, body),
             }),
-            ComputationNode::Application { computation, value } => {
-                arena.alloc(ComputationNode::Application {
+            ComputationTermNode::Application { computation, value } => {
+                arena.alloc(ComputationTermNode::Application {
                     computation: self.zonk_computation(environment, computation),
                     value: self.zonk_value(environment, value),
                 })
             }
-            ComputationNode::Sequence {
+            ComputationTermNode::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
-            } => arena.alloc(ComputationNode::Sequence {
+            } => arena.alloc(ComputationTermNode::Sequence {
                 computation: self.zonk_computation(environment, computation),
                 var,
                 value_ty: self.zonk_value_type(environment, value_ty),
                 body: self.zonk_computation(environment, body),
             }),
-            ComputationNode::ValueLet {
+            ComputationTermNode::ValueLet {
                 var,
                 value_ty,
                 value,
                 body,
-            } => arena.alloc(ComputationNode::ValueLet {
+            } => arena.alloc(ComputationTermNode::ValueLet {
                 var,
                 value_ty: self.zonk_value_type(environment, value_ty),
                 value: self.zonk_value(environment, value),
                 body: self.zonk_computation(environment, body),
             }),
-            ComputationNode::Case {
+            ComputationTermNode::Case {
                 indspec,
                 scrutinee,
                 branches,
-            } => arena.alloc(ComputationNode::Case {
+            } => arena.alloc(ComputationTermNode::Case {
                 indspec,
                 scrutinee: self.zonk_value(environment, scrutinee),
                 branches: branches
@@ -1012,24 +1031,24 @@ impl ProgramScope {
                     })
                     .collect(),
             }),
-            ComputationNode::Run {
+            ComputationTermNode::Run {
                 state_ty,
                 result_ty,
                 step,
                 initial,
-            } => arena.alloc(ComputationNode::Run {
+            } => arena.alloc(ComputationTermNode::Run {
                 state_ty: self.zonk_value_type(environment, state_ty),
                 result_ty: self.zonk_value_type(environment, result_ty),
                 step: self.zonk_value(environment, step),
                 initial: self.zonk_value(environment, initial),
             }),
-            ComputationNode::RunCase {
+            ComputationTermNode::RunCase {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 transition,
-            } => arena.alloc(ComputationNode::RunCase {
+            } => arena.alloc(ComputationTermNode::RunCase {
                 state_ty: self.zonk_value_type(environment, state_ty),
                 result_ty: self.zonk_value_type(environment, result_ty),
                 step: self.zonk_value(environment, step),
@@ -1235,10 +1254,10 @@ impl ProgramScope {
         &self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
-        value: Value,
+        value: ValueTerm,
     ) -> Result<ValueType, String> {
         ProgramCheckSession::new(&environment.crate_env, context)
-            .infer_value(value)
+            .infer_value_term(value)
             .map_err(|error| format!("cannot infer Program value: {error:?}"))
     }
 
@@ -1246,10 +1265,10 @@ impl ProgramScope {
         &self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
-        computation: Computation,
+        computation: ComputationTerm,
     ) -> Result<ComputationType, String> {
         ProgramCheckSession::new(&environment.crate_env, context)
-            .infer_computation(computation)
+            .infer_computation_term(computation)
             .map_err(|error| format!("cannot infer Program computation: {error:?}"))
     }
 
@@ -1257,29 +1276,32 @@ impl ProgramScope {
         &mut self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
-        value: Value,
+        value: ValueTerm,
         expected: ValueType,
     ) -> Result<(), String> {
         let arena = environment.crate_env.arena();
         let expected = self.zonk_value_type(environment, expected);
         match arena.get(value) {
-            ValueNode::Meta { .. } => Ok(()),
-            ValueNode::Bound(_) | ValueNode::ModuleParam(_) | ValueNode::DefinedConstant(_) => {
+            ValueTermNode::Meta { .. } => Ok(()),
+            ValueTermNode::Bound(_)
+            | ValueTermNode::ModuleParam(_)
+            | ValueTermNode::DefinedConstant(_) => {
                 let inferred = self.infer_kernel_value(environment, context, value)?;
                 self.unify_value_types(environment, inferred, expected)
             }
-            ValueNode::Thunk { computation } => {
+            ValueTermNode::Thunk { computation } => {
                 if let ValueTypeNode::Thunk { computation_ty } = arena.get(expected) {
                     self.solve_computation(environment, context, computation, computation_ty)
                 } else {
-                    let inferred = self.infer_computation(environment, context, computation)?;
+                    let inferred =
+                        self.infer_computation_term(environment, context, computation)?;
                     let inferred = arena.alloc(ValueTypeNode::Thunk {
                         computation_ty: inferred,
                     });
                     self.unify_value_types(environment, inferred, expected)
                 }
             }
-            ValueNode::Continue {
+            ValueTermNode::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -1299,7 +1321,7 @@ impl ProgramScope {
                 });
                 self.unify_value_types(environment, inferred, expected)
             }
-            ValueNode::Finish {
+            ValueTermNode::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -1319,7 +1341,7 @@ impl ProgramScope {
                 });
                 self.unify_value_types(environment, inferred, expected)
             }
-            ValueNode::InductiveConstructor {
+            ValueTermNode::InductiveConstructor {
                 indspec,
                 parameters,
                 idx,
@@ -1352,25 +1374,28 @@ impl ProgramScope {
         }
     }
 
-    fn infer_value(
+    fn infer_value_term(
         &mut self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
-        value: Value,
+        value: ValueTerm,
     ) -> Result<ValueType, String> {
         let arena = environment.crate_env.arena();
         match arena.get(value) {
-            ValueNode::Meta { .. } => {
+            ValueTermNode::Meta { .. } => {
                 Err("cannot infer an unconstrained Program value metavariable".into())
             }
-            ValueNode::Bound(_) | ValueNode::ModuleParam(_) | ValueNode::DefinedConstant(_) => {
+            ValueTermNode::Bound(_)
+            | ValueTermNode::ModuleParam(_)
+            | ValueTermNode::DefinedConstant(_) => {
                 self.infer_kernel_value(environment, context, value)
             }
-            ValueNode::Thunk { computation } => {
-                let computation_ty = self.infer_computation(environment, context, computation)?;
+            ValueTermNode::Thunk { computation } => {
+                let computation_ty =
+                    self.infer_computation_term(environment, context, computation)?;
                 Ok(arena.alloc(ValueTypeNode::Thunk { computation_ty }))
             }
-            ValueNode::Continue {
+            ValueTermNode::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -1381,7 +1406,7 @@ impl ProgramScope {
                     result_ty: self.zonk_value_type(environment, result_ty),
                 }))
             }
-            ValueNode::Finish {
+            ValueTermNode::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -1392,7 +1417,7 @@ impl ProgramScope {
                     result_ty: self.zonk_value_type(environment, result_ty),
                 }))
             }
-            ValueNode::InductiveConstructor {
+            ValueTermNode::InductiveConstructor {
                 indspec,
                 parameters,
                 idx,
@@ -1426,46 +1451,47 @@ impl ProgramScope {
         &mut self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
-        computation: Computation,
+        computation: ComputationTerm,
         expected: ComputationType,
     ) -> Result<(), String> {
         let arena = environment.crate_env.arena();
         let expected = self.zonk_computation_type(environment, expected);
         match arena.get(computation) {
-            ComputationNode::Meta { .. } => Ok(()),
-            ComputationNode::DefinedConstant(_) => {
+            ComputationTermNode::Meta { .. } => Ok(()),
+            ComputationTermNode::DefinedConstant(_) => {
                 let inferred = self.infer_kernel_computation(environment, context, computation)?;
                 self.unify_computation_types(environment, inferred, expected)
             }
-            ComputationNode::Return { value } => {
+            ComputationTermNode::Return { value } => {
                 if let ComputationTypeNode::Return { value_ty } = arena.get(expected) {
                     self.solve_value(environment, context, value, value_ty)
                 } else {
-                    let value_ty = self.infer_value(environment, context, value)?;
+                    let value_ty = self.infer_value_term(environment, context, value)?;
                     let inferred = arena.alloc(ComputationTypeNode::Return { value_ty });
                     self.unify_computation_types(environment, inferred, expected)
                 }
             }
-            ComputationNode::Force { value } => {
-                let value_ty = self.infer_value(environment, context, value)?;
+            ComputationTermNode::Force { value } => {
+                let value_ty = self.infer_value_term(environment, context, value)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
                 let ValueTypeNode::Thunk { computation_ty } = arena.get(value_ty) else {
                     return Err("forced Program value is not a thunk".into());
                 };
                 self.unify_computation_types(environment, computation_ty, expected)
             }
-            ComputationNode::Lambda {
+            ComputationTermNode::Lambda {
                 var,
                 value_ty,
                 body,
             } => {
                 let ComputationTypeNode::Function { domain, codomain } = arena.get(expected) else {
-                    let inferred = self.infer_computation(environment, context, computation)?;
+                    let inferred =
+                        self.infer_computation_term(environment, context, computation)?;
                     return self.unify_computation_types(environment, inferred, expected);
                 };
                 self.unify_value_types(environment, value_ty, domain)?;
                 let domain = self.zonk_value_type(environment, domain);
-                context.push(ProgramContextEntry::Value { var, ty: domain });
+                context.push(ProgramContextEntry::ValueTerm { var, ty: domain });
                 let codomain = crate::raw::program_calculus::shift_computation_type_indices(
                     arena, codomain, 1, 0,
                 );
@@ -1473,8 +1499,8 @@ impl ProgramScope {
                 context.pop();
                 result
             }
-            ComputationNode::Application { computation, value } => {
-                let function_ty = self.infer_computation(environment, context, computation)?;
+            ComputationTermNode::Application { computation, value } => {
+                let function_ty = self.infer_computation_term(environment, context, computation)?;
                 let function_ty = self.zonk_computation_type(environment, function_ty);
                 let ComputationTypeNode::Function { domain, codomain } = arena.get(function_ty)
                 else {
@@ -1483,7 +1509,7 @@ impl ProgramScope {
                 self.solve_value(environment, context, value, domain)?;
                 self.unify_computation_types(environment, codomain, expected)
             }
-            ComputationNode::ValueLet {
+            ComputationTermNode::ValueLet {
                 var,
                 value_ty,
                 value,
@@ -1491,7 +1517,7 @@ impl ProgramScope {
             } => {
                 self.solve_value(environment, context, value, value_ty)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::Value { var, ty: value_ty });
+                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let expected = crate::raw::program_calculus::shift_computation_type_indices(
                     arena, expected, 1, 0,
                 );
@@ -1499,20 +1525,20 @@ impl ProgramScope {
                 context.pop();
                 result
             }
-            ComputationNode::Sequence {
+            ComputationTermNode::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
             } => {
-                let first_ty = self.infer_computation(environment, context, computation)?;
+                let first_ty = self.infer_computation_term(environment, context, computation)?;
                 let first_ty = self.zonk_computation_type(environment, first_ty);
                 let ComputationTypeNode::Return { value_ty: returned } = arena.get(first_ty) else {
                     return Err("Program sequence head does not return a value".into());
                 };
                 self.unify_value_types(environment, value_ty, returned)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::Value { var, ty: value_ty });
+                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let expected = crate::raw::program_calculus::shift_computation_type_indices(
                     arena, expected, 1, 0,
                 );
@@ -1521,54 +1547,54 @@ impl ProgramScope {
                 result
             }
             _ => {
-                let inferred = self.infer_computation(environment, context, computation)?;
+                let inferred = self.infer_computation_term(environment, context, computation)?;
                 self.unify_computation_types(environment, inferred, expected)
             }
         }
     }
 
-    fn infer_computation(
+    fn infer_computation_term(
         &mut self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
-        computation: Computation,
+        computation: ComputationTerm,
     ) -> Result<ComputationType, String> {
         let arena = environment.crate_env.arena();
         match arena.get(computation) {
-            ComputationNode::Meta { .. } => {
+            ComputationTermNode::Meta { .. } => {
                 Err("cannot infer an unconstrained Program computation metavariable".into())
             }
-            ComputationNode::DefinedConstant(_) => {
+            ComputationTermNode::DefinedConstant(_) => {
                 self.infer_kernel_computation(environment, context, computation)
             }
-            ComputationNode::Return { value } => {
-                let value_ty = self.infer_value(environment, context, value)?;
+            ComputationTermNode::Return { value } => {
+                let value_ty = self.infer_value_term(environment, context, value)?;
                 Ok(arena.alloc(ComputationTypeNode::Return { value_ty }))
             }
-            ComputationNode::Force { value } => {
-                let value_ty = self.infer_value(environment, context, value)?;
+            ComputationTermNode::Force { value } => {
+                let value_ty = self.infer_value_term(environment, context, value)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
                 let ValueTypeNode::Thunk { computation_ty } = arena.get(value_ty) else {
                     return Err("forced Program value is not a thunk".into());
                 };
                 Ok(computation_ty)
             }
-            ComputationNode::Lambda {
+            ComputationTermNode::Lambda {
                 var,
                 value_ty,
                 body,
             } => {
                 let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let body_ty = self.infer_computation(environment, context, body);
+                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let body_ty = self.infer_computation_term(environment, context, body);
                 context.pop();
                 Ok(arena.alloc(ComputationTypeNode::Function {
                     domain: value_ty,
                     codomain: body_ty?,
                 }))
             }
-            ComputationNode::Application { computation, value } => {
-                let function_ty = self.infer_computation(environment, context, computation)?;
+            ComputationTermNode::Application { computation, value } => {
+                let function_ty = self.infer_computation_term(environment, context, computation)?;
                 let function_ty = self.zonk_computation_type(environment, function_ty);
                 let ComputationTypeNode::Function { domain, codomain } = arena.get(function_ty)
                 else {
@@ -1577,7 +1603,7 @@ impl ProgramScope {
                 self.solve_value(environment, context, value, domain)?;
                 Ok(codomain)
             }
-            ComputationNode::ValueLet {
+            ComputationTermNode::ValueLet {
                 var,
                 value_ty,
                 value,
@@ -1585,27 +1611,27 @@ impl ProgramScope {
             } => {
                 self.solve_value(environment, context, value, value_ty)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let result = self.infer_computation(environment, context, body);
+                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let result = self.infer_computation_term(environment, context, body);
                 context.pop();
                 strengthen_computation_type(arena, result?, 0)
                     .ok_or_else(|| "Program result type depends on a local value".into())
             }
-            ComputationNode::Sequence {
+            ComputationTermNode::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
             } => {
-                let first_ty = self.infer_computation(environment, context, computation)?;
+                let first_ty = self.infer_computation_term(environment, context, computation)?;
                 let first_ty = self.zonk_computation_type(environment, first_ty);
                 let ComputationTypeNode::Return { value_ty: returned } = arena.get(first_ty) else {
                     return Err("Program sequence head does not return a value".into());
                 };
                 self.unify_value_types(environment, value_ty, returned)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let result = self.infer_computation(environment, context, body);
+                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let result = self.infer_computation_term(environment, context, body);
                 context.pop();
                 let mut result = result?;
                 result = strengthen_computation_type(arena, result, 0)
@@ -1620,12 +1646,12 @@ impl ProgramScope {
         }
     }
 
-    pub(crate) fn check_value_with_metas(
+    pub(crate) fn check_value_term_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
-        value: Value,
+        value: ValueTerm,
         expected: ValueType,
-    ) -> Result<(Value, ValueType), String> {
+    ) -> Result<(ValueTerm, ValueType), String> {
         let mut context = Vec::new();
         self.solve_value(environment, &mut context, value, expected)?;
         self.finish_program_metas()?;
@@ -1635,12 +1661,12 @@ impl ProgramScope {
         ))
     }
 
-    pub(crate) fn check_computation_with_metas(
+    pub(crate) fn check_computation_term_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
-        computation: Computation,
+        computation: ComputationTerm,
         expected: ComputationType,
-    ) -> Result<(Computation, ComputationType), String> {
+    ) -> Result<(ComputationTerm, ComputationType), String> {
         let mut context = Vec::new();
         self.solve_computation(environment, &mut context, computation, expected)?;
         self.finish_program_metas()?;
@@ -1650,13 +1676,13 @@ impl ProgramScope {
         ))
     }
 
-    pub(crate) fn infer_value_with_metas(
+    pub(crate) fn infer_value_term_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
-        value: Value,
-    ) -> Result<(Value, ValueType), String> {
+        value: ValueTerm,
+    ) -> Result<(ValueTerm, ValueType), String> {
         let mut context = Vec::new();
-        let ty = self.infer_value(environment, &mut context, value)?;
+        let ty = self.infer_value_term(environment, &mut context, value)?;
         self.finish_program_metas()?;
         Ok((
             self.zonk_value(environment, value),
@@ -1664,13 +1690,13 @@ impl ProgramScope {
         ))
     }
 
-    pub(crate) fn infer_computation_with_metas(
+    pub(crate) fn infer_computation_term_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
-        computation: Computation,
-    ) -> Result<(Computation, ComputationType), String> {
+        computation: ComputationTerm,
+    ) -> Result<(ComputationTerm, ComputationType), String> {
         let mut context = Vec::new();
-        let ty = self.infer_computation(environment, &mut context, computation)?;
+        let ty = self.infer_computation_term(environment, &mut context, computation)?;
         self.finish_program_metas()?;
         Ok((
             self.zonk_computation(environment, computation),

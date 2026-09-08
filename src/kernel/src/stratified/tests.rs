@@ -10,7 +10,7 @@ fn vk(a: &Arena, i: usize) -> ValueKind {
 
 fn sk(a: &Arena, i: usize) -> SetKind {
     a.alloc(SetKindNode {
-        sort: SetSort::Set(i),
+        level: i,
         form: SetKindForm::Base,
     })
 }
@@ -20,7 +20,7 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
     let a = Arena::new();
     let ty = |index| {
         a.alloc(SetTypeNode {
-            sort: SetSort::Set(0),
+            level: 0,
             form: SetTypeForm::Bound { index },
         })
     };
@@ -28,7 +28,7 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
         ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
     let product = |domain, body| {
         a.alloc(SetTypeNode {
-            sort: SetSort::Set(0),
+            level: 0,
             form: SetTypeForm::ProdTerm {
                 rule,
                 var: SymbolId::ANONYMOUS,
@@ -38,7 +38,7 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
         })
     };
     let argument = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::ModuleParam {
             parameter: ModuleParamId {
                 module: ModuleId(0),
@@ -72,22 +72,22 @@ fn polymorphic_program_identity_and_reflection() {
         level: 0,
         form: ValueTypeForm::Bound { index: 0 },
     });
-    let v = a.alloc(ValueNode {
+    let v = a.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::Bound { index: 0 },
+        form: ValueTermForm::Bound { index: 0 },
     });
-    let ret = a.alloc(ComputationNode {
+    let ret = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::Return { value: v },
+        form: ComputationTermForm::Return { value: v },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(0)),
         Sort::Base(BaseSort::Computation(0)),
     )
     .unwrap();
-    let lam = a.alloc(ComputationNode {
+    let lam = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::LambdaTerm {
+        form: ComputationTermForm::LambdaTerm {
             rule: r,
             var: SymbolId(2),
             domain: x,
@@ -99,9 +99,9 @@ fn polymorphic_program_identity_and_reflection() {
         Sort::Base(BaseSort::Computation(0)),
     )
     .unwrap();
-    let poly = a.alloc(ComputationNode {
+    let poly = a.alloc(ComputationTermNode {
         level: 1,
-        form: ComputationForm::LambdaType {
+        form: ComputationTermForm::LambdaType {
             rule: poly_rule,
             var: SymbolId(1),
             domain: k.into(),
@@ -109,7 +109,7 @@ fn polymorphic_program_identity_and_reflection() {
         },
     });
     let mut checker = Checker::new(&env, vec![]);
-    let ty = checker.infer_computation(poly).unwrap();
+    let ty = checker.infer_computation_term(poly).unwrap();
     assert_eq!(a.sort(ty), BaseSort::Computation(1));
     let refl = reflect_term(&env, poly.into()).unwrap();
     let rty = reflect_type(&env, ty.into()).unwrap();
@@ -119,17 +119,17 @@ fn polymorphic_program_identity_and_reflection() {
         level: 0,
         form: ValueTypeForm::Bound { index: 1 },
     });
-    let applied = a.alloc(ComputationNode {
+    let applied = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::AppType {
+        form: ComputationTermForm::AppType {
             rule: poly_rule,
             function: poly,
             argument: arg.into(),
         },
     });
-    let applied = a.alloc(ComputationNode {
+    let applied = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::AppTerm {
+        form: ComputationTermForm::AppTerm {
             rule: r,
             function: applied,
             argument: v,
@@ -148,7 +148,7 @@ fn polymorphic_program_identity_and_reflection() {
             },
         ],
     );
-    let result_ty = checker.infer_computation(applied).unwrap();
+    let result_ty = checker.infer_computation_term(applied).unwrap();
     assert_eq!(a.sort(result_ty), BaseSort::Computation(0));
     let result = normalize(&env, applied).unwrap();
     assert!(matches!(a.data(result).op, Op::Return));
@@ -206,11 +206,11 @@ fn incorrect_labels_levels_and_kind_as_type_are_rejected() {
     let a = &env.arena;
     let k = sk(a, 0);
     let ty = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::Bound { index: 0 },
     });
     let bad = a.alloc(SetTypeNode {
-        sort: SetSort::Set(1),
+        level: 1,
         form: SetTypeForm::Bound { index: 0 },
     });
     let mut checker = Checker::new(
@@ -220,7 +220,7 @@ fn incorrect_labels_levels_and_kind_as_type_are_rejected() {
             classifier: k.into(),
         }],
     );
-    assert!(checker.infer_type(bad).is_err());
+    assert!(checker.infer_set_type(bad).is_err());
     assert!(checker.check(ty, sk(a, 1)).is_err());
     let r = ProductRule {
         domain: Sort::Base(BaseSort::Set(0)),
@@ -234,37 +234,37 @@ fn incorrect_labels_levels_and_kind_as_type_are_rejected() {
 fn substitution_rejects_cross_level_arguments() {
     let a = Arena::new();
     let x = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::Bound { index: 0 },
     });
     let y = a.alloc(SetTypeNode {
-        sort: SetSort::Set(1),
+        level: 1,
         form: SetTypeForm::Bound { index: 0 },
     });
     assert!(substitute(&a, x, y).is_err());
 }
 
-fn program_id(a: &Arena, i: usize) -> Computation {
+fn program_id(a: &Arena, i: usize) -> ComputationTerm {
     let x = a.alloc(ValueTypeNode {
         level: i,
         form: ValueTypeForm::Bound { index: 0 },
     });
-    let v = a.alloc(ValueNode {
+    let v = a.alloc(ValueTermNode {
         level: i,
-        form: ValueForm::Bound { index: 0 },
+        form: ValueTermForm::Bound { index: 0 },
     });
-    let ret = a.alloc(ComputationNode {
+    let ret = a.alloc(ComputationTermNode {
         level: i,
-        form: ComputationForm::Return { value: v },
+        form: ComputationTermForm::Return { value: v },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(i)),
         Sort::Base(BaseSort::Computation(i)),
     )
     .unwrap();
-    let lambda = a.alloc(ComputationNode {
+    let lambda = a.alloc(ComputationTermNode {
         level: i,
-        form: ComputationForm::LambdaTerm {
+        form: ComputationTermForm::LambdaTerm {
             rule: r,
             var: SymbolId(2),
             domain: x,
@@ -276,9 +276,9 @@ fn program_id(a: &Arena, i: usize) -> Computation {
         Sort::Base(BaseSort::Computation(i)),
     )
     .unwrap();
-    a.alloc(ComputationNode {
+    a.alloc(ComputationTermNode {
         level: i + 1,
-        form: ComputationForm::LambdaType {
+        form: ComputationTermForm::LambdaType {
             rule: r,
             var: SymbolId(1),
             domain: vk(a, i).into(),
@@ -293,11 +293,11 @@ fn closed_polymorphic_box_type_application_then_value_application() {
     let id0 = program_id(a, 0);
     let id1 = program_id(a, 1);
     let mut c = Checker::new(&env, vec![]);
-    let ty0 = c.infer_computation(id0).unwrap();
-    let ty1 = c.infer_computation(id1).unwrap();
+    let ty0 = c.infer_computation_term(id0).unwrap();
+    let ty1 = c.infer_computation_term(id1).unwrap();
     let cert1 = reflect_term(&env, id1.into()).unwrap();
     let boxed = a.alloc(SetTermNode {
-        sort: SetSort::Set(2),
+        level: 2,
         form: SetTermForm::BoxProgram {
             program_ty: ty1.into(),
             program: id1.into(),
@@ -320,7 +320,7 @@ fn closed_polymorphic_box_type_application_then_value_application() {
         },
     });
     let tapp = a.alloc(SetTermNode {
-        sort: SetSort::Set(1),
+        level: 1,
         form: SetTermForm::BoxTypeApp {
             rule,
             var,
@@ -330,14 +330,14 @@ fn closed_polymorphic_box_type_application_then_value_application() {
             argument: arg_ty.into(),
         },
     });
-    c.infer_term(tapp).unwrap();
-    let arg = a.alloc(ValueNode {
+    c.infer_set_term(tapp).unwrap();
+    let arg = a.alloc(ValueTermNode {
         level: 1,
-        form: ValueForm::ThunkValue { computation: id0 },
+        form: ValueTermForm::ThunkValue { computation: id0 },
     });
     let cert0 = reflect_term(&env, arg.into()).unwrap();
     let boxed_arg = a.alloc(SetTermNode {
-        sort: SetSort::Set(1),
+        level: 1,
         form: SetTermForm::BoxProgram {
             program_ty: arg_ty.into(),
             program: arg.into(),
@@ -354,7 +354,7 @@ fn closed_polymorphic_box_type_application_then_value_application() {
     )
     .unwrap();
     let app = a.alloc(SetTermNode {
-        sort: SetSort::Set(1),
+        level: 1,
         form: SetTermForm::BoxApp {
             rule: r,
             domain: arg_ty,
@@ -363,15 +363,15 @@ fn closed_polymorphic_box_type_application_then_value_application() {
             argument: boxed_arg,
         },
     });
-    c.infer_term(app).unwrap();
+    c.infer_set_term(app).unwrap();
     let forced = a.alloc(SetTermNode {
-        sort: SetSort::Set(1),
+        level: 1,
         form: SetTermForm::ForceBox {
             program_ty: result_ty.into(),
             boxed: app,
         },
     });
-    c.infer_term(forced).unwrap();
+    c.infer_set_term(forced).unwrap();
     assert!(convertible(&env, forced.into(), cert0.into()).unwrap());
     let nf = normalize(&env, forced).unwrap();
     c.inferred(nf).unwrap();
@@ -393,22 +393,22 @@ fn computation_type_quantification_and_type_operator_domains() {
         level: 2,
         form: ValueTypeForm::Thunk { computation_ty: y },
     });
-    let v = a.alloc(ValueNode {
+    let v = a.alloc(ValueTermNode {
         level: 2,
-        form: ValueForm::Bound { index: 0 },
+        form: ValueTermForm::Bound { index: 0 },
     });
-    let force = a.alloc(ComputationNode {
+    let force = a.alloc(ComputationTermNode {
         level: 2,
-        form: ComputationForm::Force { value: v },
+        form: ComputationTermForm::Force { value: v },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(2)),
         Sort::Base(BaseSort::Computation(2)),
     )
     .unwrap();
-    let lam = a.alloc(ComputationNode {
+    let lam = a.alloc(ComputationTermNode {
         level: 2,
-        form: ComputationForm::LambdaTerm {
+        form: ComputationTermForm::LambdaTerm {
             rule: r,
             var: SymbolId(2),
             domain: u,
@@ -420,9 +420,9 @@ fn computation_type_quantification_and_type_operator_domains() {
         Sort::Base(BaseSort::Computation(2)),
     )
     .unwrap();
-    let lam = a.alloc(ComputationNode {
+    let lam = a.alloc(ComputationTermNode {
         level: 3,
-        form: ComputationForm::LambdaType {
+        form: ComputationTermForm::LambdaType {
             rule: r,
             var: SymbolId(1),
             domain: k.into(),
@@ -430,7 +430,7 @@ fn computation_type_quantification_and_type_operator_domains() {
         },
     });
     let mut checker = Checker::new(&env, vec![]);
-    let ty = checker.infer_computation(lam).unwrap();
+    let ty = checker.infer_computation_term(lam).unwrap();
     let reflected = reflect_term(&env, lam.into()).unwrap();
     let reflected_ty = reflect_type(&env, ty.into()).unwrap();
     checker.check(reflected, reflected_ty).unwrap();
@@ -496,7 +496,7 @@ fn product_signature_checks_all_program_rules_and_overflow() {
     assert!(ProductRule::new(Sort::Base(BaseSort::Prop), Sort::Upper(BaseSort::Prop)).is_err());
 }
 
-fn natural(env: &mut Environment) -> (ProgramInductiveId, ValueType, Value) {
+fn natural(env: &mut Environment) -> (ProgramInductiveId, ValueType, ValueTerm) {
     let id = ProgramInductiveId {
         module: ModuleId(0),
         index: 0,
@@ -522,9 +522,9 @@ fn natural(env: &mut Environment) -> (ProgramInductiveId, ValueType, Value) {
         },
     )
     .unwrap();
-    let zero = env.arena.alloc(ValueNode {
+    let zero = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::InductiveConstructor {
+        form: ValueTermForm::InductiveConstructor {
             inductive: id,
             constructor: 0,
             parameters: vec![],
@@ -539,9 +539,9 @@ fn datatype_registration_generates_and_checks_its_set_mirror() {
     let (id, ty, zero) = natural(&mut env);
     let mirror = env.datatype(id).unwrap().reflected;
     assert_eq!(env.inductive(mirror).unwrap().constructors.len(), 2);
-    let s = env.arena.alloc(ValueNode {
+    let s = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::InductiveConstructor {
+        form: ValueTermForm::InductiveConstructor {
             inductive: id,
             constructor: 1,
             parameters: vec![],
@@ -665,9 +665,9 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
         vec![],
     )
     .unwrap();
-    let body = env.arena.alloc(ValueNode {
+    let body = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::ModuleParam { parameter: p },
+        form: ValueTermForm::ModuleParam { parameter: p },
     });
     let id = DefId {
         module: ModuleId(0),
@@ -683,13 +683,13 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
         },
     )
     .unwrap();
-    let constant = env.arena.alloc(ValueNode {
+    let constant = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::Constant { definition: id },
+        form: ValueTermForm::Constant { definition: id },
     });
     let cert = reflect_term(&env, zero.into()).unwrap();
     let boxed = env.arena.alloc(SetTermNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTermForm::BoxProgram {
             program_ty: ty.into(),
             program: constant.into(),
@@ -698,7 +698,7 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
     });
     assert!(
         Checker::new(&env, vec![])
-            .infer_term(boxed)
+            .infer_set_term(boxed)
             .unwrap_err()
             .contains("closed")
     );
@@ -709,39 +709,39 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
     let mut env = Environment::new();
     let (_, ty, zero) = natural(&mut env);
     let a = &env.arena;
-    let finish = a.alloc(ValueNode {
+    let finish = a.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::Finish {
+        form: ValueTermForm::Finish {
             state_ty: ty,
             result_ty: ty,
             output: zero,
         },
     });
-    let ret = a.alloc(ComputationNode {
+    let ret = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::Return { value: finish },
+        form: ComputationTermForm::Return { value: finish },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(0)),
         Sort::Base(BaseSort::Computation(0)),
     )
     .unwrap();
-    let lam = a.alloc(ComputationNode {
+    let lam = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::LambdaTerm {
+        form: ComputationTermForm::LambdaTerm {
             rule: r,
             var: SymbolId(1),
             domain: ty,
             body: ret,
         },
     });
-    let step = a.alloc(ValueNode {
+    let step = a.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::ThunkValue { computation: lam },
+        form: ValueTermForm::ThunkValue { computation: lam },
     });
-    let run = a.alloc(ComputationNode {
+    let run = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationForm::Run {
+        form: ComputationTermForm::Run {
             state_ty: ty,
             result_ty: ty,
             step,
@@ -749,7 +749,7 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
         },
     });
     let mut c = Checker::new(&env, vec![]);
-    let result_ty = c.infer_computation(run).unwrap();
+    let result_ty = c.infer_computation_term(run).unwrap();
     assert!(matches!(
         evaluate(&env, run, 0).unwrap(),
         Evaluation::OutOfFuel(_)
@@ -761,14 +761,14 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
     assert_eq!(a.data(result).op, Op::Return);
     let certificate = reflect_term(&env, zero.into()).unwrap();
     let boxed = a.alloc(SetTermNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTermForm::BoxProgram {
             program_ty: result_ty.into(),
             program: run.into(),
             certified_reflection: certificate,
         },
     });
-    assert!(c.infer_term(boxed).is_err());
+    assert!(c.infer_set_term(boxed).is_err());
 }
 #[test]
 fn kind_valued_recursor_preserves_the_lower_result_level() {
@@ -777,7 +777,7 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
     let b_kind = sk(a, 0);
     let a_kind = sk(a, 2);
     let a_var = a.alloc(SetTypeNode {
-        sort: SetSort::Set(2),
+        level: 2,
         form: SetTypeForm::Bound { index: 0 },
     });
     let context = vec![
@@ -795,25 +795,25 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
         },
     ];
     let state = a.alloc(SetTypeNode {
-        sort: SetSort::Set(2),
+        level: 2,
         form: SetTypeForm::Bound { index: 1 },
     });
     let value = a.alloc(SetTermNode {
-        sort: SetSort::Set(2),
+        level: 2,
         form: SetTermForm::Bound { index: 0 },
     });
     let b = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::Bound { index: 2 },
     });
     let nested_b = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::Bound { index: 3 },
     });
     let rule =
         ProductRule::new(Sort::Base(BaseSort::Set(2)), Sort::Upper(BaseSort::Set(0))).unwrap();
     let branch = a.alloc(SetTypeNode {
-        sort: SetSort::Set(2),
+        level: 2,
         form: SetTypeForm::LambdaTerm {
             rule,
             var: SymbolId(4),
@@ -822,7 +822,7 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
         },
     });
     let scrutinee = a.alloc(SetTermNode {
-        sort: SetSort::Set(2),
+        level: 2,
         form: SetTermForm::Continue {
             state_ty: state,
             result_ty: state,
@@ -830,7 +830,7 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
         },
     });
     let rec = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::Recursor {
             rule,
             var: SymbolId(4),
@@ -843,7 +843,7 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
         },
     });
     let mut checker = Checker::new(&env, context);
-    checker.infer_type(rec).unwrap();
+    checker.infer_set_type(rec).unwrap();
     let reduced = normalize(&env, rec).unwrap();
     assert!(convertible(&env, reduced, b.into()).unwrap());
     checker.inferred(reduced).unwrap();
@@ -854,11 +854,11 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
     let (_, ty, _) = natural(&mut env);
     let a = &env.arena;
     let bad_ty = a.alloc(SetTypeNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTypeForm::Bound { index: 0 },
     });
     let term = a.alloc(SetTermNode {
-        sort: SetSort::Set(0),
+        level: 0,
         form: SetTermForm::Bound { index: 0 },
     });
     assert!(
@@ -869,12 +869,12 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
                 classifier: bad_ty.into()
             }]
         )
-        .infer_term(term)
+        .infer_set_term(term)
         .is_err()
     );
-    let value = a.alloc(ValueNode {
+    let value = a.alloc(ValueTermNode {
         level: 0,
-        form: ValueForm::Bound { index: 0 },
+        form: ValueTermForm::Bound { index: 0 },
     });
     let context = vec![Binding {
         var: SymbolId(1),
@@ -897,4 +897,158 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
         .is_err()
     );
     assert!(env.definition(id).is_none());
+}
+
+#[test]
+fn prop_proofs_have_their_own_family_and_beta_reduce() {
+    let env = Environment::new();
+    let a = env.arena();
+    let set_kind = sk(a, 0);
+    let carrier = a.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let element = a.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::Bound { index: 0 },
+    });
+    let context = vec![
+        Binding {
+            var: SymbolId::ANONYMOUS,
+            classifier: set_kind.into(),
+        },
+        Binding {
+            var: SymbolId::ANONYMOUS,
+            classifier: carrier.into(),
+        },
+    ];
+    let proposition_node = PropTypeNode {
+        form: PropTypeForm::Equal {
+            left: element,
+            right: element,
+        },
+    };
+    let proposition = a.alloc(proposition_node.clone());
+    let proof_node = PropTermNode {
+        form: PropTermForm::IdRefl { element },
+    };
+    let proof = a.alloc(proof_node.clone());
+    assert_eq!(a.get(proposition), proposition_node);
+    assert_eq!(a.get(proof), proof_node);
+    assert_eq!(a.sort(proof), BaseSort::Prop);
+    assert_eq!(Expression::from(proof).family(), Family::PropTerm);
+    assert!(SetTerm::try_from(Expression::from(proof)).is_err());
+    assert!(SetExpression::try_from(Expression::from(proof)).is_err());
+    assert!(SetArgument::try_from(Expression::from(proof)).is_err());
+    assert!(matches!(LogicalExpression::from(proof),
+        LogicalExpression::Prop(PropExpression::PropTerm(h)) if h == proof));
+    assert!(matches!(LogicalArgument::from(element),
+        LogicalArgument::Set(SetArgument::SetTerm(h)) if h == element));
+    assert!(PropTerm::try_from(Expression::from(element)).is_err());
+    assert!(SetType::try_from(Expression::from(proposition)).is_err());
+
+    let mut checker = Checker::new(&env, context);
+    assert_eq!(checker.infer_prop_term(proof).unwrap(), proposition);
+    let kind = checker.infer_prop_type(proposition).unwrap();
+    assert_eq!(
+        a.get(kind),
+        PropKindNode {
+            form: PropKindForm::Base
+        }
+    );
+    checker.check_prop_kind(kind).unwrap();
+    assert!(SetKind::try_from(Expression::from(kind)).is_err());
+
+    let rule = ProductRule::new(Sort::Base(BaseSort::Prop), Sort::Base(BaseSort::Prop)).unwrap();
+    let body = a.alloc(PropTermNode {
+        form: PropTermForm::Bound { index: 0 },
+    });
+    let identity_node = PropTermNode {
+        form: PropTermForm::LambdaTerm {
+            rule,
+            var: SymbolId::ANONYMOUS,
+            domain: proposition.into(),
+            body,
+        },
+    };
+    let identity = a.alloc(identity_node.clone());
+    assert_eq!(a.get(identity), identity_node);
+    let application = a.alloc(PropTermNode {
+        form: PropTermForm::AppTerm {
+            rule,
+            function: identity,
+            argument: proof.into(),
+        },
+    });
+    assert_eq!(checker.infer_prop_term(application).unwrap(), proposition);
+    assert_eq!(normalize(&env, application).unwrap(), proof.into());
+    assert!(checker.check(proof, carrier).is_err());
+}
+
+#[test]
+fn prop_type_operators_quantify_over_set_and_prop_kinds() {
+    let env = Environment::new();
+    let a = env.arena();
+    let set_kind = sk(a, 0);
+    let prop_kind = a.alloc(PropKindNode {
+        form: PropKindForm::Base,
+    });
+    let set = a.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let proposition = a.alloc(PropTypeNode {
+        form: PropTypeForm::Exists { set },
+    });
+    let set_rule =
+        ProductRule::new(Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Prop)).unwrap();
+    let predicate = a.alloc(PropTypeNode {
+        form: PropTypeForm::LambdaType {
+            rule: set_rule,
+            var: SymbolId::ANONYMOUS,
+            domain: set_kind.into(),
+            body: proposition,
+        },
+    });
+    let prop_rule =
+        ProductRule::new(Sort::Upper(BaseSort::Prop), Sort::Upper(BaseSort::Prop)).unwrap();
+    let bound_prop = a.alloc(PropTypeNode {
+        form: PropTypeForm::Bound { index: 0 },
+    });
+    let identity = a.alloc(PropTypeNode {
+        form: PropTypeForm::LambdaType {
+            rule: prop_rule,
+            var: SymbolId::ANONYMOUS,
+            domain: prop_kind.into(),
+            body: bound_prop,
+        },
+    });
+    let mut checker = Checker::new(
+        &env,
+        vec![Binding {
+            var: SymbolId::ANONYMOUS,
+            classifier: set_kind.into(),
+        }],
+    );
+    for operator in [predicate, identity] {
+        let kind = checker.infer_prop_type(operator).unwrap();
+        checker.check_prop_kind(kind).unwrap();
+        assert_eq!(a.alloc(a.get(kind)), kind);
+    }
+    for (rule, function, argument) in [
+        (set_rule, predicate, LogicalType::from(set)),
+        (prop_rule, identity, LogicalType::from(proposition)),
+    ] {
+        let node = PropTypeNode {
+            form: PropTypeForm::AppType {
+                rule,
+                function,
+                argument,
+            },
+        };
+        let application = a.alloc(node.clone());
+        assert_eq!(a.get(application), node);
+        assert_eq!(checker.infer_prop_type(application).unwrap(), prop_kind);
+        assert_eq!(normalize(&env, application).unwrap(), proposition.into());
+    }
 }

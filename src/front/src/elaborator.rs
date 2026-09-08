@@ -194,33 +194,36 @@ impl term_elaborator::Handler for GlobalEnvironment {
         if let Ok(value_ty) = ValueTypeExp::try_from(expression.clone()) {
             return scope
                 .elaborate_value_type(&value_ty, self)
-                .map(crate::raw::program::ProgramType::Value);
+                .map(crate::raw::program::ProgramType::ValueType);
         }
         let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
         scope
             .elaborate_computation_type(&computation_ty, self)
-            .map(crate::raw::program::ProgramType::Computation)
+            .map(crate::raw::program::ProgramType::ComputationType)
     }
 
     fn elaborate_program(
         &mut self,
         expression: &SExp,
         ty: crate::raw::program::ProgramType,
-    ) -> Result<(crate::raw::program::Program, Option<Exp>), String> {
+    ) -> Result<(crate::raw::program::ProgramTerm, Option<Exp>), String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         match ty {
-            crate::raw::program::ProgramType::Value(_) => {
-                let value = ValueExp::try_from(expression.clone())?;
+            crate::raw::program::ProgramType::ValueType(_) => {
+                let value = ValueTermExp::try_from(expression.clone())?;
                 let value = scope.elaborate_value(&value, self)?;
                 let certificate = scope.certified_value(self, value);
-                Ok((crate::raw::program::Program::Value(value), certificate))
+                Ok((
+                    crate::raw::program::ProgramTerm::ValueTerm(value),
+                    certificate,
+                ))
             }
-            crate::raw::program::ProgramType::Computation(_) => {
-                let computation = ComputationExp::try_from(expression.clone())?;
+            crate::raw::program::ProgramType::ComputationType(_) => {
+                let computation = ComputationTermExp::try_from(expression.clone())?;
                 let computation = scope.elaborate_computation(&computation, self)?;
                 let certificate = scope.certified_computation(self, computation);
                 Ok((
-                    crate::raw::program::Program::Computation(computation),
+                    crate::raw::program::ProgramTerm::ComputationTerm(computation),
                     certificate,
                 ))
             }
@@ -251,7 +254,7 @@ impl GlobalEnvironment {
     fn certify_program_query(
         &mut self,
         context: &crate::raw::program::ProgramContext,
-        term: crate::raw::program::Program,
+        term: crate::raw::program::ProgramTerm,
         ty: crate::raw::program::ProgramType,
     ) -> Result<(), String> {
         let mut lower = crate::lowering::Lowerer::new(&self.crate_env);
@@ -404,7 +407,7 @@ impl GlobalEnvironment {
                     }
                     ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
                         &self.crate_env,
-                        crate::raw::program::Program::Value(value),
+                        crate::raw::program::ProgramTerm::ValueTerm(value),
                     )
                     .map_err(|error| {
                         ElaborationError::Message(format!(
@@ -964,11 +967,11 @@ impl GlobalEnvironment {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let body = scope.elaborate_value(body, self)?;
-                    let (body, ty) = scope.check_value_with_metas(self, body, ty)?;
+                    let (body, ty) = scope.check_value_term_with_metas(self, body, ty)?;
                     let certified_reflection = scope.certified_value(self, body);
                     let mut program_context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                        .check_value(body, ty)
+                        .check_value_term(body, ty)
                         .map_err(|error| {
                             format!(
                                 "Program value definition {} is ill-typed: {error:?}",
@@ -1009,11 +1012,11 @@ impl GlobalEnvironment {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let body = scope.elaborate_computation(body, self)?;
-                    let (body, ty) = scope.check_computation_with_metas(self, body, ty)?;
+                    let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
                     let certified_reflection = scope.certified_computation(self, body);
                     let mut program_context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                        .check_computation(body, ty)
+                        .check_computation_term(body, ty)
                         .map_err(|error| {
                             format!(
                                 "Program computation definition {} is ill-typed: {error:?}",
@@ -1368,7 +1371,7 @@ impl GlobalEnvironment {
                                     ModuleArgument::ProgramType(ty)
                                 }
                                 ModuleParameterKind::ProgramValue { ty } => {
-                                    let syntax: ValueExp = expression.clone().try_into()?;
+                                    let syntax: ValueTermExp = expression.clone().try_into()?;
                                     let value = program_scope.elaborate_value(&syntax, self)?;
                                     let expected =
                                         crate::raw::program_calculus::subst_value_type_module_params(
@@ -1377,7 +1380,7 @@ impl GlobalEnvironment {
                                             &program_substitutions,
                                         );
                                     let (value, _) = program_scope
-                                        .check_value_with_metas(self, value, expected)?;
+                                        .check_value_term_with_metas(self, value, expected)?;
                                     ModuleArgument::ProgramValue(value)
                                 }
                             };
@@ -1490,7 +1493,9 @@ impl GlobalEnvironment {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
                     let computation = if scope.has_metas() {
-                        scope.infer_computation_with_metas(self, computation)?.0
+                        scope
+                            .infer_computation_term_with_metas(self, computation)?
+                            .0
                     } else {
                         computation
                     };
@@ -1499,13 +1504,15 @@ impl GlobalEnvironment {
                         computation,
                     );
                     self.outputs
-                        .push(Output::Computation(reduced.unwrap_or(computation)));
+                        .push(Output::ComputationTerm(reduced.unwrap_or(computation)));
                 }
                 ModuleItem::ComputationNormalize { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
                     let computation = if scope.has_metas() {
-                        scope.infer_computation_with_metas(self, computation)?.0
+                        scope
+                            .infer_computation_term_with_metas(self, computation)?
+                            .0
                     } else {
                         computation
                     };
@@ -1515,7 +1522,7 @@ impl GlobalEnvironment {
                             computation,
                         ) {
                             crate::raw::program_calculus::Evaluation::Normal(result) => {
-                                Output::Computation(result)
+                                Output::ComputationTerm(result)
                             }
                             crate::raw::program_calculus::Evaluation::OutOfFuel(result) => {
                                 Output::OutOfFuel(result)
@@ -1527,15 +1534,15 @@ impl GlobalEnvironment {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let value = scope.elaborate_value(exp, self)?;
-                    let (value, ty) = scope.check_value_with_metas(self, value, ty)?;
+                    let (value, ty) = scope.check_value_term_with_metas(self, value, ty)?;
                     let mut context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut context)
-                        .check_value(value, ty)
+                        .check_value_term(value, ty)
                         .map_err(|error| format!("Program value check failed: {error:?}"))?;
                     self.certify_program_query(
                         scope.context(),
-                        crate::raw::program::Program::Value(value),
-                        crate::raw::program::ProgramType::Value(ty),
+                        crate::raw::program::ProgramTerm::ValueTerm(value),
+                        crate::raw::program::ProgramType::ValueType(ty),
                     )?;
                     self.outputs.push(Output::ValueType(ty));
                 }
@@ -1544,26 +1551,26 @@ impl GlobalEnvironment {
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let computation = scope.elaborate_computation(exp, self)?;
                     let (computation, ty) =
-                        scope.check_computation_with_metas(self, computation, ty)?;
+                        scope.check_computation_term_with_metas(self, computation, ty)?;
                     let mut context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut context)
-                        .check_computation(computation, ty)
+                        .check_computation_term(computation, ty)
                         .map_err(|error| format!("Program computation check failed: {error:?}"))?;
                     self.certify_program_query(
                         scope.context(),
-                        crate::raw::program::Program::Computation(computation),
-                        crate::raw::program::ProgramType::Computation(ty),
+                        crate::raw::program::ProgramTerm::ComputationTerm(computation),
+                        crate::raw::program::ProgramType::ComputationType(ty),
                     )?;
                     self.outputs.push(Output::ComputationType(ty));
                 }
                 ModuleItem::ValueInfer { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let value = scope.elaborate_value(exp, self)?;
-                    let (value, ty) = scope.infer_value_with_metas(self, value)?;
+                    let (value, ty) = scope.infer_value_term_with_metas(self, value)?;
                     self.certify_program_query(
                         scope.context(),
-                        crate::raw::program::Program::Value(value),
-                        crate::raw::program::ProgramType::Value(ty),
+                        crate::raw::program::ProgramTerm::ValueTerm(value),
+                        crate::raw::program::ProgramType::ValueType(ty),
                     )?;
                     self.outputs.push(Output::ValueType(ty));
                 }
@@ -1571,11 +1578,11 @@ impl GlobalEnvironment {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
                     let (computation, ty) =
-                        scope.infer_computation_with_metas(self, computation)?;
+                        scope.infer_computation_term_with_metas(self, computation)?;
                     self.certify_program_query(
                         scope.context(),
-                        crate::raw::program::Program::Computation(computation),
-                        crate::raw::program::ProgramType::Computation(ty),
+                        crate::raw::program::ProgramTerm::ComputationTerm(computation),
+                        crate::raw::program::ProgramType::ComputationType(ty),
                     )?;
                     self.outputs.push(Output::ComputationType(ty));
                 }

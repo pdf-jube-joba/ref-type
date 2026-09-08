@@ -4,7 +4,7 @@ use crate::raw::environment::CrateEnv;
 use crate::raw::exp::*;
 use crate::raw::ids::*;
 use crate::raw::inductive::InductiveTypeSpecs;
-use crate::raw::program::{Program, ProgramType};
+use crate::raw::program::{ProgramTerm, ProgramType};
 use crate::syntax::*;
 
 pub(crate) trait Handler {
@@ -21,7 +21,7 @@ pub(crate) trait Handler {
         &mut self,
         expression: &SExp,
         ty: ProgramType,
-    ) -> Result<(Program, Option<Exp>), String>;
+    ) -> Result<(ProgramTerm, Option<Exp>), String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(

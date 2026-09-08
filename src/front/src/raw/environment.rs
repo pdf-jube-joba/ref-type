@@ -6,7 +6,7 @@ use crate::raw::{
         DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId, SymbolId,
     },
     inductive::InductiveTypeSpecs,
-    program::{Computation, ComputationType, Value, ValueType},
+    program::{ComputationTerm, ComputationType, ValueTerm, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
 };
 use std::collections::HashMap;
@@ -19,12 +19,12 @@ pub enum DefinedConstant {
     },
     ProgramValue {
         ty: ValueType,
-        body: Value,
+        body: ValueTerm,
         certified_reflection: Option<Exp>,
     },
     ProgramComputation {
         ty: ComputationType,
-        body: Computation,
+        body: ComputationTerm,
         certified_reflection: Option<Exp>,
     },
 }
@@ -72,7 +72,7 @@ impl ModuleParameter {
 pub enum ModuleArgument {
     Pts(Exp),
     ProgramType(ValueType),
-    ProgramValue(Value),
+    ProgramValue(ValueTerm),
 }
 
 impl From<Exp> for ModuleArgument {
@@ -405,7 +405,7 @@ impl CrateEnv {
                 certified_reflection,
             } => {
                 ProgramCheckSession::new(self, &mut program_context)
-                    .check_value(body, ty)
+                    .check_value_term(body, ty)
                     .map_err(|error| format!("Program value definition check failed: {error:?}"))?;
                 certified_reflection
                     .map(|term| reflection::reflect_value_type(self, ty).map(|ty| (term, ty)))
@@ -418,7 +418,7 @@ impl CrateEnv {
                 certified_reflection,
             } => {
                 ProgramCheckSession::new(self, &mut program_context)
-                    .check_computation(body, ty)
+                    .check_computation_term(body, ty)
                     .map_err(|error| {
                         format!("Program computation definition check failed: {error:?}")
                     })?;

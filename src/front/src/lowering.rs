@@ -31,6 +31,27 @@ impl<'a> Lowerer<'a> {
         }
     }
 
+    fn logical_base_kind(&self, sort: k::BaseSort) -> Result<s::Expression, String> {
+        Ok(match sort {
+            k::BaseSort::Set(level) => self
+                .kernel
+                .arena()
+                .alloc(s::SetKindNode {
+                    level,
+                    form: s::SetKindForm::Base,
+                })
+                .into(),
+            k::BaseSort::Prop => self
+                .kernel
+                .arena()
+                .alloc(s::PropKindNode {
+                    form: s::PropKindForm::Base,
+                })
+                .into(),
+            _ => return Err("expected Set/Prop sort".into()),
+        })
+    }
+
     fn infer(&self, e: Exp, ctx: &mut ExpContext, m: ModuleId) -> Result<Exp, String> {
         raw::derivation::CheckSession::new(self.raw, m, ctx)
             .infer_pts(e)
@@ -102,14 +123,7 @@ impl<'a> Lowerer<'a> {
             if sort.is_upper() {
                 return Err("upper sort is a judgement classifier, not an expression".into());
             }
-            return Ok(self
-                .kernel
-                .arena()
-                .alloc(s::SetKindNode {
-                    sort: sort.base().try_into().map_err(|e| format!("{e:?}"))?,
-                    form: s::SetKindForm::Base,
-                })
-                .into());
+            return Ok(self.logical_base_kind(sort.base())?);
         }
         let ty = self.infer(e, ctx, m)?;
         let head = raw::calculus::whnf(self.raw, ty);
@@ -134,7 +148,6 @@ impl<'a> Lowerer<'a> {
                 },
             )
         };
-        let sort_index: k::SetSort = sort.try_into().map_err(|e| format!("{e:?}"))?;
         let syntax_family = s::Family::at(sort, stage);
         let result = match node {
             ExpNode::Bound(index) => match syntax_family {
@@ -142,16 +155,30 @@ impl<'a> Lowerer<'a> {
                     .kernel
                     .arena()
                     .alloc(s::SetTermNode {
-                        sort: sort_index,
+                        level: sort.level().ok_or("expected Set level")?,
                         form: s::SetTermForm::Bound { index },
+                    })
+                    .into(),
+                s::Family::PropTerm => self
+                    .kernel
+                    .arena()
+                    .alloc(s::PropTermNode {
+                        form: s::PropTermForm::Bound { index },
                     })
                     .into(),
                 s::Family::SetType => self
                     .kernel
                     .arena()
                     .alloc(s::SetTypeNode {
-                        sort: sort_index,
+                        level: sort.level().ok_or("expected Set level")?,
                         form: s::SetTypeForm::Bound { index },
+                    })
+                    .into(),
+                s::Family::PropType => self
+                    .kernel
+                    .arena()
+                    .alloc(s::PropTypeNode {
+                        form: s::PropTypeForm::Bound { index },
                     })
                     .into(),
                 _ => return Err("constructor cannot inhabit this syntax family".into()),
@@ -163,24 +190,45 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::ModuleParam { parameter },
+                        })
+                        .into(),
+                    s::Family::PropTerm => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTermNode {
+                            form: s::PropTermForm::ModuleParam { parameter },
                         })
                         .into(),
                     s::Family::SetType => self
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::ModuleParam { parameter },
+                        })
+                        .into(),
+                    s::Family::PropType => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::ModuleParam { parameter },
                         })
                         .into(),
                     s::Family::SetKind => self
                         .kernel
                         .arena()
                         .alloc(s::SetKindNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetKindForm::ModuleParam { parameter },
+                        })
+                        .into(),
+                    s::Family::PropKind => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropKindNode {
+                            form: s::PropKindForm::ModuleParam { parameter },
                         })
                         .into(),
                     _ => return Err("constructor cannot inhabit this syntax family".into()),
@@ -193,24 +241,45 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::Constant { definition },
+                        })
+                        .into(),
+                    s::Family::PropTerm => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTermNode {
+                            form: s::PropTermForm::Constant { definition },
                         })
                         .into(),
                     s::Family::SetType => self
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::Constant { definition },
+                        })
+                        .into(),
+                    s::Family::PropType => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::Constant { definition },
                         })
                         .into(),
                     s::Family::SetKind => self
                         .kernel
                         .arena()
                         .alloc(s::SetKindNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetKindForm::Constant { definition },
+                        })
+                        .into(),
+                    s::Family::PropKind => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropKindNode {
+                            form: s::PropKindForm::Constant { definition },
                         })
                         .into(),
                     _ => return Err("constructor cannot inhabit this syntax family".into()),
@@ -230,7 +299,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::Subset {
                                 var,
                                 set: set.try_into().map_err(|e| format!("{e:?}"))?,
@@ -248,7 +317,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::PowerSet {
                                 set: set.try_into().map_err(|e| format!("{e:?}"))?,
                             },
@@ -272,7 +341,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::SubsetIntro {
                                 superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
                                 subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
@@ -292,7 +361,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::TypeLift {
                                 superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
                                 subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
@@ -311,12 +380,11 @@ impl<'a> Lowerer<'a> {
                 let subset = self.set(subset, ctx, m)?;
                 let element = self.set(element, ctx, m)?;
                 match syntax_family {
-                    s::Family::SetType => self
+                    s::Family::PropType => self
                         .kernel
                         .arena()
-                        .alloc(s::SetTypeNode {
-                            sort: sort_index,
-                            form: s::SetTypeForm::Pred {
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::Pred {
                                 superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
                                 subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
                                 element: element.try_into().map_err(|e| format!("{e:?}"))?,
@@ -330,12 +398,11 @@ impl<'a> Lowerer<'a> {
                 let left = self.set(left, ctx, m)?;
                 let right = self.set(right, ctx, m)?;
                 match syntax_family {
-                    s::Family::SetType => self
+                    s::Family::PropType => self
                         .kernel
                         .arena()
-                        .alloc(s::SetTypeNode {
-                            sort: sort_index,
-                            form: s::SetTypeForm::Equal {
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::Equal {
                                 left: left.try_into().map_err(|e| format!("{e:?}"))?,
                                 right: right.try_into().map_err(|e| format!("{e:?}"))?,
                             },
@@ -347,12 +414,11 @@ impl<'a> Lowerer<'a> {
             ExpNode::Exists { set } => {
                 let set = self.set(set, ctx, m)?;
                 match syntax_family {
-                    s::Family::SetType => self
+                    s::Family::PropType => self
                         .kernel
                         .arena()
-                        .alloc(s::SetTypeNode {
-                            sort: sort_index,
-                            form: s::SetTypeForm::Exists {
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::Exists {
                                 set: set.try_into().map_err(|e| format!("{e:?}"))?,
                             },
                         })
@@ -371,7 +437,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::RunStep {
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -394,7 +460,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::Continue {
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -418,7 +484,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::Finish {
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -440,12 +506,11 @@ impl<'a> Lowerer<'a> {
                 let step = self.set(step, ctx, m)?;
                 let state = self.set(state, ctx, m)?;
                 match syntax_family {
-                    s::Family::SetType => self
+                    s::Family::PropType => self
                         .kernel
                         .arena()
-                        .alloc(s::SetTypeNode {
-                            sort: sort_index,
-                            form: s::SetTypeForm::Acc {
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::Acc {
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 step: step.try_into().map_err(|e| format!("{e:?}"))?,
@@ -473,7 +538,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::SetRun {
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -509,7 +574,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::SetRunCase {
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                 result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -545,7 +610,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::TakeSet {
                                 domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
                                 codomain: codomain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -569,12 +634,11 @@ impl<'a> Lowerer<'a> {
                 let map = self.set(map, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
                 match syntax_family {
-                    s::Family::SetTerm => self
+                    s::Family::PropTerm => self
                         .kernel
                         .arena()
-                        .alloc(s::SetTermNode {
-                            sort: sort_index,
-                            form: s::SetTermForm::TakeProp {
+                        .alloc(s::PropTermNode {
+                            form: s::PropTermForm::TakeProp {
                                 domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
                                 proposition: proposition
                                     .try_into()
@@ -594,7 +658,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::BoxType { program_ty },
                         })
                         .into(),
@@ -607,14 +671,14 @@ impl<'a> Lowerer<'a> {
                 certified_reflection,
             } => {
                 let program_ty = self.program_type(program_ty)?;
-                let program = self.program(program)?;
+                let program = self.program_term(program)?;
                 let certified_reflection = self.set(certified_reflection, ctx, m)?;
                 match syntax_family {
                     s::Family::SetTerm => self
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::BoxProgram {
                                 program_ty,
                                 program,
@@ -635,7 +699,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::ForceBox {
                                 program_ty,
                                 boxed: boxed.try_into().map_err(|e| format!("{e:?}"))?,
@@ -660,8 +724,21 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::IndType {
+                                inductive,
+                                parameters: parameters
+                                    .into_iter()
+                                    .map(TryInto::try_into)
+                                    .collect::<Result<_, _>>()?,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropType => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::IndType {
                                 inductive,
                                 parameters: parameters
                                     .into_iter()
@@ -674,8 +751,21 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetKindNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetKindForm::IndType {
+                                inductive,
+                                parameters: parameters
+                                    .into_iter()
+                                    .map(TryInto::try_into)
+                                    .collect::<Result<_, _>>()?,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropKind => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropKindNode {
+                            form: s::PropKindForm::IndType {
                                 inductive,
                                 parameters: parameters
                                     .into_iter()
@@ -704,8 +794,22 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::IndCtor {
+                                inductive,
+                                constructor,
+                                parameters: parameters
+                                    .into_iter()
+                                    .map(TryInto::try_into)
+                                    .collect::<Result<_, _>>()?,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropTerm => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTermNode {
+                            form: s::PropTermForm::IndCtor {
                                 inductive,
                                 constructor,
                                 parameters: parameters
@@ -719,8 +823,22 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::IndCtor {
+                                inductive,
+                                constructor,
+                                parameters: parameters
+                                    .into_iter()
+                                    .map(TryInto::try_into)
+                                    .collect::<Result<_, _>>()?,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropType => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::IndCtor {
                                 inductive,
                                 constructor,
                                 parameters: parameters
@@ -782,8 +900,22 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::IndElim {
+                                inductive,
+                                motive_vars,
+                                scrutinee,
+                                motive_domains,
+                                motive_body,
+                                cases,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropTerm => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTermNode {
+                            form: s::PropTermForm::IndElim {
                                 inductive,
                                 motive_vars,
                                 scrutinee,
@@ -797,8 +929,22 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::IndElim {
+                                inductive,
+                                motive_vars,
+                                scrutinee,
+                                motive_domains,
+                                motive_body,
+                                cases,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropType => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::IndElim {
                                 inductive,
                                 motive_vars,
                                 scrutinee,
@@ -841,8 +987,26 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::Recursor {
+                                rule,
+                                var,
+                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
+                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
+                                motive: motive.try_into().map_err(|e| format!("{e:?}"))?,
+                                on_continue: on_continue
+                                    .try_into()
+                                    .map_err(|e| format!("{e:?}"))?,
+                                on_finish: on_finish.try_into().map_err(|e| format!("{e:?}"))?,
+                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropTerm => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTermNode {
+                            form: s::PropTermForm::Recursor {
                                 rule,
                                 var,
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -860,8 +1024,26 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTypeNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTypeForm::Recursor {
+                                rule,
+                                var,
+                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
+                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
+                                motive: motive.try_into().map_err(|e| format!("{e:?}"))?,
+                                on_continue: on_continue
+                                    .try_into()
+                                    .map_err(|e| format!("{e:?}"))?,
+                                on_finish: on_finish.try_into().map_err(|e| format!("{e:?}"))?,
+                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
+                            },
+                        })
+                        .into(),
+                    s::Family::PropType => self
+                        .kernel
+                        .arena()
+                        .alloc(s::PropTypeNode {
+                            form: s::PropTypeForm::Recursor {
                                 rule,
                                 var,
                                 state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
@@ -897,8 +1079,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTypeForm::ProdTerm {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropType => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTypeNode {
+                                form: s::PropTypeForm::ProdTerm {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -910,8 +1104,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetKindNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetKindForm::ProdTerm {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropKind => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropKindNode {
+                                form: s::PropKindForm::ProdTerm {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -926,8 +1132,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTypeForm::ProdType {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropType => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTypeNode {
+                                form: s::PropTypeForm::ProdType {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -939,8 +1157,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetKindNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetKindForm::ProdType {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropKind => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropKindNode {
+                                form: s::PropKindForm::ProdType {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -955,8 +1185,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTermNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTermForm::LambdaTerm {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropTerm => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::LambdaTerm {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -968,8 +1210,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTypeForm::LambdaTerm {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropType => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTypeNode {
+                                form: s::PropTypeForm::LambdaTerm {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -984,8 +1238,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTermNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTermForm::LambdaType {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropTerm => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::LambdaType {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -997,8 +1263,20 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTypeForm::LambdaType {
+                                    rule,
+                                    var,
+                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
+                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropType => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTypeNode {
+                                form: s::PropTypeForm::LambdaType {
                                     rule,
                                     var,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1027,8 +1305,19 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTermNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTermForm::AppType {
+                                    rule,
+                                    function: function.try_into().map_err(|e| format!("{e:?}"))?,
+                                    argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropTerm => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::AppType {
                                     rule,
                                     function: function.try_into().map_err(|e| format!("{e:?}"))?,
                                     argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1039,8 +1328,19 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTypeForm::AppType {
+                                    rule,
+                                    function: function.try_into().map_err(|e| format!("{e:?}"))?,
+                                    argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropType => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTypeNode {
+                                form: s::PropTypeForm::AppType {
                                     rule,
                                     function: function.try_into().map_err(|e| format!("{e:?}"))?,
                                     argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1055,8 +1355,19 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTermNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTermForm::AppTerm {
+                                    rule,
+                                    function: function.try_into().map_err(|e| format!("{e:?}"))?,
+                                    argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropTerm => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::AppTerm {
                                     rule,
                                     function: function.try_into().map_err(|e| format!("{e:?}"))?,
                                     argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1067,8 +1378,19 @@ impl<'a> Lowerer<'a> {
                             .kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form: s::SetTypeForm::AppTerm {
+                                    rule,
+                                    function: function.try_into().map_err(|e| format!("{e:?}"))?,
+                                    argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
+                                },
+                            })
+                            .into(),
+                        s::Family::PropType => self
+                            .kernel
+                            .arena()
+                            .alloc(s::PropTypeNode {
+                                form: s::PropTypeForm::AppTerm {
                                     rule,
                                     function: function.try_into().map_err(|e| format!("{e:?}"))?,
                                     argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1083,12 +1405,11 @@ impl<'a> Lowerer<'a> {
                 Prove::IdRefl { element } => {
                     let element = self.set(element, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::IdRefl {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::IdRefl {
                                     element: element.try_into().map_err(|e| format!("{e:?}"))?,
                                 },
                             })
@@ -1100,12 +1421,11 @@ impl<'a> Lowerer<'a> {
                     let element = self.set(element, ctx, m)?;
                     let set = self.set(set, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::ExistsIntro {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::ExistsIntro {
                                     element: element.try_into().map_err(|e| format!("{e:?}"))?,
                                     set: set.try_into().map_err(|e| format!("{e:?}"))?,
                                 },
@@ -1123,12 +1443,11 @@ impl<'a> Lowerer<'a> {
                     let subset = self.set(subset, ctx, m)?;
                     let superset = self.set(superset, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::SubsetElim {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::SubsetElim {
                                     element: element.try_into().map_err(|e| format!("{e:?}"))?,
                                     subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
                                     superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1156,12 +1475,11 @@ impl<'a> Lowerer<'a> {
                     let base = self.set(base, ctx, m)?;
                     let equality = self.set(equality, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::IdElim {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::IdElim {
                                     var,
                                     left: left.try_into().map_err(|e| format!("{e:?}"))?,
                                     right: right.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1192,12 +1510,11 @@ impl<'a> Lowerer<'a> {
                     let existence = self.set(existence, ctx, m)?;
                     let uniqueness = self.set(uniqueness, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::TakeEq {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::TakeEq {
                                     func: func.try_into().map_err(|e| format!("{e:?}"))?,
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
                                     codomain: codomain.try_into().map_err(|e| format!("{e:?}"))?,
@@ -1225,12 +1542,11 @@ impl<'a> Lowerer<'a> {
                     let left_to_right = self.set(left_to_right, ctx, m)?;
                     let right_to_left = self.set(right_to_left, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::SetExt {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::SetExt {
                                     left: left.try_into().map_err(|e| format!("{e:?}"))?,
                                     right: right.try_into().map_err(|e| format!("{e:?}"))?,
                                     left_to_right: left_to_right
@@ -1254,12 +1570,11 @@ impl<'a> Lowerer<'a> {
                     let right = self.set(right, ctx, m)?;
                     let pointwise = self.set(pointwise, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::FunExt {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::FunExt {
                                     left: left.try_into().map_err(|e| format!("{e:?}"))?,
                                     right: right.try_into().map_err(|e| format!("{e:?}"))?,
                                     pointwise: pointwise
@@ -1280,12 +1595,11 @@ impl<'a> Lowerer<'a> {
                     let family = self.set(family, ctx, m)?;
                     let inhabited = self.set(inhabited, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::ClassicalIndefiniteChoice {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::ClassicalIndefiniteChoice {
                                     domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
                                     family: family.try_into().map_err(|e| format!("{e:?}"))?,
                                     inhabited: inhabited
@@ -1310,12 +1624,11 @@ impl<'a> Lowerer<'a> {
                     let state = self.set(state, ctx, m)?;
                     let predecessors = self.set(predecessors, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::AccIntro {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::AccIntro {
                                     state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                     result_ty: result_ty
                                         .try_into()
@@ -1348,12 +1661,11 @@ impl<'a> Lowerer<'a> {
                     let accessibility = self.set(accessibility, ctx, m)?;
                     let transition = self.set(transition, ctx, m)?;
                     match syntax_family {
-                        s::Family::SetTerm => self
+                        s::Family::PropTerm => self
                             .kernel
                             .arena()
-                            .alloc(s::SetTermNode {
-                                sort: sort_index,
-                                form: s::SetTermForm::AccDescent {
+                            .alloc(s::PropTermNode {
+                                form: s::PropTermForm::AccDescent {
                                     state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
                                     result_ty: result_ty
                                         .try_into()
@@ -1378,7 +1690,7 @@ impl<'a> Lowerer<'a> {
                 let ty = self.infer(function, ctx, m)?;
                 let head = raw::calculus::whnf(self.raw, ty);
                 let ExpNode::BoxType {
-                    program_ty: raw::program::ProgramType::Computation(ty),
+                    program_ty: raw::program::ProgramType::ComputationType(ty),
                 } = self.raw.arena().get(head)
                 else {
                     return Err("expected boxed function".into());
@@ -1401,7 +1713,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::BoxApp {
                                 rule,
                                 domain,
@@ -1459,7 +1771,7 @@ impl<'a> Lowerer<'a> {
                         .kernel
                         .arena()
                         .alloc(s::SetTermNode {
-                            sort: sort_index,
+                            level: sort.level().ok_or("expected Set level")?,
                             form: s::SetTermForm::SetCase {
                                 inductive,
                                 binders,
@@ -1487,7 +1799,7 @@ impl<'a> Lowerer<'a> {
                         self.kernel
                             .arena()
                             .alloc(s::SetTypeNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form,
                             })
                             .into()
@@ -1497,7 +1809,7 @@ impl<'a> Lowerer<'a> {
                         self.kernel
                             .arena()
                             .alloc(s::SetTermNode {
-                                sort: sort_index,
+                                level: sort.level().ok_or("expected Set level")?,
                                 form,
                             })
                             .into()
@@ -1517,8 +1829,8 @@ impl<'a> Lowerer<'a> {
         ty: raw::program::ProgramType,
     ) -> Result<s::ProgramType, String> {
         match ty {
-            raw::program::ProgramType::Value(t) => Ok(self.value_type(t)?.into()),
-            raw::program::ProgramType::Computation(t) => Ok(self.computation_type(t)?.into()),
+            raw::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?.into()),
+            raw::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?.into()),
         }
     }
 
@@ -1597,19 +1909,21 @@ impl<'a> Lowerer<'a> {
             .alloc(s::ComputationTypeNode { level: 0, form }))
     }
 
-    fn program(&mut self, p: raw::program::Program) -> Result<s::Program, String> {
+    fn program_term(&mut self, p: raw::program::ProgramTerm) -> Result<s::ProgramTerm, String> {
         self.program_in_context(p, &mut vec![])
     }
 
     pub(crate) fn program_in_context(
         &mut self,
-        p: raw::program::Program,
+        p: raw::program::ProgramTerm,
         context: &mut raw::program::ProgramContext,
-    ) -> Result<s::Program, String> {
+    ) -> Result<s::ProgramTerm, String> {
         match p {
-            raw::program::Program::Value(value) => Ok(self.value(value, context)?.into()),
-            raw::program::Program::Computation(computation) => {
-                Ok(self.computation(computation, context)?.into())
+            raw::program::ProgramTerm::ValueTerm(value) => {
+                Ok(self.value_term(value, context)?.into())
+            }
+            raw::program::ProgramTerm::ComputationTerm(computation) => {
+                Ok(self.computation_term(computation, context)?.into())
             }
         }
     }
@@ -1621,7 +1935,7 @@ impl<'a> Lowerer<'a> {
         context
             .iter()
             .map(|b| match b {
-                raw::program::ProgramContextEntry::Type { var } => Ok(ke::Binding {
+                raw::program::ProgramContextEntry::ValueType { var } => Ok(ke::Binding {
                     var: *var,
                     classifier: self
                         .kernel
@@ -1632,7 +1946,7 @@ impl<'a> Lowerer<'a> {
                         })
                         .into(),
                 }),
-                raw::program::ProgramContextEntry::Value { var, ty } => Ok(ke::Binding {
+                raw::program::ProgramContextEntry::ValueTerm { var, ty } => Ok(ke::Binding {
                     var: *var,
                     classifier: self.value_type(*ty)?.into(),
                 }),
@@ -1640,13 +1954,13 @@ impl<'a> Lowerer<'a> {
             .collect()
     }
 
-    fn value(
+    fn value_term(
         &mut self,
-        v: raw::program::Value,
+        v: raw::program::ValueTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::Value, String> {
-        use raw::program::ValueNode as R;
-        use s::ValueForm as F;
+    ) -> Result<s::ValueTerm, String> {
+        use raw::program::ValueTermNode as R;
+        use s::ValueTermForm as F;
         let form = match self.raw.arena().get(v) {
             R::Bound(index) => F::Bound { index },
             R::ModuleParam(parameter) => {
@@ -1659,7 +1973,7 @@ impl<'a> Lowerer<'a> {
                 F::Constant { definition }
             }
             R::Thunk { computation } => F::ThunkValue {
-                computation: self.computation(computation, ctx)?,
+                computation: self.computation_term(computation, ctx)?,
             },
             R::Continue {
                 state_ty,
@@ -1668,7 +1982,7 @@ impl<'a> Lowerer<'a> {
             } => F::Continue {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
-                next: self.value(next, ctx)?,
+                next: self.value_term(next, ctx)?,
             },
             R::Finish {
                 state_ty,
@@ -1677,7 +1991,7 @@ impl<'a> Lowerer<'a> {
             } => F::Finish {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
-                output: self.value(output, ctx)?,
+                output: self.value_term(output, ctx)?,
             },
             R::InductiveConstructor {
                 indspec,
@@ -1695,21 +2009,24 @@ impl<'a> Lowerer<'a> {
                         .collect::<Result<_, _>>()?,
                     fields: fields
                         .into_iter()
-                        .map(|v| self.value(v, ctx))
+                        .map(|v| self.value_term(v, ctx))
                         .collect::<Result<_, _>>()?,
                 }
             }
         };
-        Ok(self.kernel.arena().alloc(s::ValueNode { level: 0, form }))
+        Ok(self
+            .kernel
+            .arena()
+            .alloc(s::ValueTermNode { level: 0, form }))
     }
 
-    fn computation(
+    fn computation_term(
         &mut self,
-        e: raw::program::Computation,
+        e: raw::program::ComputationTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::Computation, String> {
-        use raw::program::{ComputationNode as R, ProgramContextEntry};
-        use s::ComputationForm as F;
+    ) -> Result<s::ComputationTerm, String> {
+        use raw::program::{ComputationTermNode as R, ProgramContextEntry};
+        use s::ComputationTermForm as F;
         let form = match self.raw.arena().get(e) {
             R::Meta { .. } => return Err("unresolved computation".into()),
             R::DefinedConstant(definition) => {
@@ -1717,10 +2034,10 @@ impl<'a> Lowerer<'a> {
                 F::Constant { definition }
             }
             R::Return { value } => F::Return {
-                value: self.value(value, ctx)?,
+                value: self.value_term(value, ctx)?,
             },
             R::Force { value } => F::Force {
-                value: self.value(value, ctx)?,
+                value: self.value_term(value, ctx)?,
             },
             R::Lambda {
                 var,
@@ -1728,8 +2045,8 @@ impl<'a> Lowerer<'a> {
                 body,
             } => {
                 let domain = self.value_type(value_ty)?;
-                ctx.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let body = self.computation(body, ctx);
+                ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let body = self.computation_term(body, ctx);
                 ctx.pop();
                 F::LambdaTerm {
                     rule: k::ProductRule::new(
@@ -1746,8 +2063,8 @@ impl<'a> Lowerer<'a> {
                     k::Sort::Base(k::BaseSort::Value(0)),
                     k::Sort::Base(k::BaseSort::Computation(0)),
                 )?,
-                function: self.computation(computation, ctx)?,
-                argument: self.value(value, ctx)?,
+                function: self.computation_term(computation, ctx)?,
+                argument: self.value_term(value, ctx)?,
             },
             R::Sequence {
                 computation,
@@ -1755,9 +2072,9 @@ impl<'a> Lowerer<'a> {
                 value_ty,
                 body,
             } => {
-                let computation = self.computation(computation, ctx)?;
-                ctx.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let body = self.computation(body, ctx);
+                let computation = self.computation_term(computation, ctx)?;
+                ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let body = self.computation_term(body, ctx);
                 ctx.pop();
                 F::Sequence {
                     var,
@@ -1772,9 +2089,9 @@ impl<'a> Lowerer<'a> {
                 value,
                 body,
             } => {
-                let value = self.value(value, ctx)?;
-                ctx.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let body = self.computation(body, ctx);
+                let value = self.value_term(value, ctx)?;
+                ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let body = self.computation_term(body, ctx);
                 ctx.pop();
                 F::ValueLet {
                     var,
@@ -1791,8 +2108,8 @@ impl<'a> Lowerer<'a> {
             } => F::Run {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
-                step: self.value(step, ctx)?,
-                initial: self.value(initial, ctx)?,
+                step: self.value_term(step, ctx)?,
+                initial: self.value_term(initial, ctx)?,
             },
             R::RunCase {
                 state_ty,
@@ -1803,9 +2120,9 @@ impl<'a> Lowerer<'a> {
             } => F::RunCase {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
-                step: self.value(step, ctx)?,
-                initial: self.value(initial, ctx)?,
-                transition: self.computation(transition, ctx)?,
+                step: self.value_term(step, ctx)?,
+                initial: self.value_term(initial, ctx)?,
+                transition: self.computation_term(transition, ctx)?,
             },
             R::Case {
                 indspec,
@@ -1815,10 +2132,10 @@ impl<'a> Lowerer<'a> {
                 self.datatype(indspec)?;
                 let mut checker = raw::program_derivation::ProgramCheckSession::new(self.raw, ctx);
                 let ty = checker
-                    .infer_computation(e)
+                    .infer_computation_term(e)
                     .map_err(|e| format!("case inference: {e:?}"))?;
                 let scrutinee_ty = checker
-                    .infer_value(scrutinee)
+                    .infer_value_term(scrutinee)
                     .map_err(|e| format!("case inference: {e:?}"))?;
                 let raw::program::ValueTypeNode::Inductive { parameters, .. } =
                     self.raw.arena().get(scrutinee_ty)
@@ -1836,7 +2153,7 @@ impl<'a> Lowerer<'a> {
                         .zip(&branch.binders)
                         .enumerate()
                     {
-                        local.push(ProgramContextEntry::Value {
+                        local.push(ProgramContextEntry::ValueTerm {
                             var: *var,
                             ty: raw::program_calculus::shift_value_type_indices(
                                 self.raw.arena(),
@@ -1846,13 +2163,13 @@ impl<'a> Lowerer<'a> {
                             ),
                         });
                     }
-                    bodies.push(self.computation(branch.body, &mut local)?);
+                    bodies.push(self.computation_term(branch.body, &mut local)?);
                 }
                 F::Case {
                     inductive: indspec,
                     binders,
                     result_ty: self.computation_type(ty)?,
-                    scrutinee: self.value(scrutinee, ctx)?,
+                    scrutinee: self.value_term(scrutinee, ctx)?,
                     branches: bodies,
                 }
             }
@@ -1860,7 +2177,7 @@ impl<'a> Lowerer<'a> {
         Ok(self
             .kernel
             .arena()
-            .alloc(s::ComputationNode { level: 0, form }))
+            .alloc(s::ComputationTermNode { level: 0, form }))
     }
 
     fn definition(&mut self, id: DefId) -> Result<(), String> {
@@ -1919,12 +2236,12 @@ impl<'a> Lowerer<'a> {
             }
             raw::environment::DefinedConstant::ProgramValue { ty, body, .. } => {
                 let ty = self.value_type(ty)?;
-                let body = self.value(body, &mut vec![])?;
+                let body = self.value_term(body, &mut vec![])?;
                 (body.into(), ty.into(), vec![])
             }
             raw::environment::DefinedConstant::ProgramComputation { ty, body, .. } => {
                 let ty = self.computation_type(ty)?;
-                let body = self.computation(body, &mut vec![])?;
+                let body = self.computation_term(body, &mut vec![])?;
                 (body.into(), ty.into(), vec![])
             }
         };
@@ -2005,13 +2322,7 @@ impl<'a> Lowerer<'a> {
         let arity = raw.arity(self.raw.arena());
         let sort = Self::sort(raw.sort());
         let arity = if sort.is_upper() {
-            self.kernel
-                .arena()
-                .alloc(s::SetKindNode {
-                    sort: sort.base().try_into().map_err(|e| format!("{e:?}"))?,
-                    form: s::SetKindForm::Base,
-                })
-                .into()
+            self.logical_base_kind(sort.base())?
         } else {
             self.set(arity, &mut ctx, m)?
         };
@@ -2124,28 +2435,29 @@ impl<'a> Lowerer<'a> {
 // Rust call stack while classifying syntax.
 fn definition_dependencies(raw: &raw::environment::CrateEnv, id: DefId) -> Vec<DefId> {
     use raw::program::{
-        ComputationNode as C, ComputationTypeNode as CT, ValueNode as V, ValueTypeNode as VT,
+        ComputationTermNode as C, ComputationTypeNode as CT, ValueTermNode as V,
+        ValueTypeNode as VT,
     };
     #[derive(Clone, Copy, PartialEq, Eq, Hash)]
     enum E {
         Set(Exp),
         Vt(raw::program::ValueType),
         Ct(raw::program::ComputationType),
-        V(raw::program::Value),
-        C(raw::program::Computation),
+        V(raw::program::ValueTerm),
+        C(raw::program::ComputationTerm),
     }
 
     fn ty(t: raw::program::ProgramType) -> E {
         match t {
-            raw::program::ProgramType::Value(x) => E::Vt(x),
-            raw::program::ProgramType::Computation(x) => E::Ct(x),
+            raw::program::ProgramType::ValueType(x) => E::Vt(x),
+            raw::program::ProgramType::ComputationType(x) => E::Ct(x),
         }
     }
 
-    fn term(t: raw::program::Program) -> E {
+    fn term(t: raw::program::ProgramTerm) -> E {
         match t {
-            raw::program::Program::Value(x) => E::V(x),
-            raw::program::Program::Computation(x) => E::C(x),
+            raw::program::ProgramTerm::ValueTerm(x) => E::V(x),
+            raw::program::ProgramTerm::ComputationTerm(x) => E::C(x),
         }
     }
     let mut stack = match raw.definition(id) {

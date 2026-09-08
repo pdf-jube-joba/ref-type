@@ -5,8 +5,8 @@ use std::cell::{Ref, RefCell};
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
-        Computation, ComputationNode, ComputationType, ComputationTypeNode, Program, ProgramType,
-        Value, ValueNode, ValueType, ValueTypeNode,
+        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ProgramTerm,
+        ProgramType, ValueTerm, ValueTermNode, ValueType, ValueTypeNode,
     },
     sort::Sort,
 };
@@ -197,7 +197,7 @@ pub enum ExpNode {
     },
     BoxProgram {
         program_ty: ProgramType,
-        program: Program,
+        program: ProgramTerm,
         certified_reflection: Exp,
     },
     ForceBox {
@@ -305,15 +305,15 @@ pub struct Arena {
     exps: RefCell<Vec<ExpNode>>,
     value_types: RefCell<Vec<ValueTypeNode>>,
     computation_types: RefCell<Vec<ComputationTypeNode>>,
-    values: RefCell<Vec<ValueNode>>,
-    computations: RefCell<Vec<ComputationNode>>,
+    values: RefCell<Vec<ValueTermNode>>,
+    computations: RefCell<Vec<ComputationTermNode>>,
 }
 
 arena_partition!(ExpNode, Exp, exps);
 arena_partition!(ValueTypeNode, ValueType, value_types);
 arena_partition!(ComputationTypeNode, ComputationType, computation_types);
-arena_partition!(ValueNode, Value, values);
-arena_partition!(ComputationNode, Computation, computations);
+arena_partition!(ValueTermNode, ValueTerm, values);
+arena_partition!(ComputationTermNode, ComputationTerm, computations);
 
 impl Arena {
     pub fn new() -> Self {
@@ -329,11 +329,11 @@ impl Arena {
     }
 
     // Drop the guard before allocating in the same arena partition.
-    pub(crate) fn borrow_value(&self, value: Value) -> Ref<'_, ValueNode> {
+    pub(crate) fn borrow_value(&self, value: ValueTerm) -> Ref<'_, ValueTermNode> {
         Ref::map(self.values.borrow(), |nodes| &nodes[value.index()])
     }
 
-    pub(crate) fn borrow_computation(&self, term: Computation) -> Ref<'_, ComputationNode> {
+    pub(crate) fn borrow_computation(&self, term: ComputationTerm) -> Ref<'_, ComputationTermNode> {
         Ref::map(self.computations.borrow(), |nodes| &nodes[term.index()])
     }
 
@@ -357,7 +357,7 @@ impl Arena {
         }
     }
 
-    pub(crate) fn reuse_value(&self, original: Value, node: ValueNode) -> Value {
+    pub(crate) fn reuse_value(&self, original: ValueTerm, node: ValueTermNode) -> ValueTerm {
         if self.values.borrow()[original.index()] == node {
             original
         } else {
@@ -367,9 +367,9 @@ impl Arena {
 
     pub(crate) fn reuse_computation(
         &self,
-        original: Computation,
-        node: ComputationNode,
-    ) -> Computation {
+        original: ComputationTerm,
+        node: ComputationTermNode,
+    ) -> ComputationTerm {
         if self.computations.borrow()[original.index()] == node {
             original
         } else {
@@ -389,8 +389,8 @@ impl Arena {
         self.alloc(ValueTypeNode::Bound(index))
     }
 
-    pub fn value_bound(&self, index: usize) -> Value {
-        self.alloc(ValueNode::Bound(index))
+    pub fn value_bound(&self, index: usize) -> ValueTerm {
+        self.alloc(ValueTermNode::Bound(index))
     }
 
     pub fn exp_module_param(&self, parameter: ModuleParamId) -> Exp {

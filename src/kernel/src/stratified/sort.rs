@@ -1,10 +1,5 @@
 //! The non-cumulative product signature of stratification4 §2.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SetSort {
-    Set(usize),
-    Prop,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BaseSort {
     Set(usize),
     Prop,
@@ -21,26 +16,6 @@ pub struct ProductRule {
     pub domain: Sort,
     pub body: Sort,
     pub result: Sort,
-}
-
-impl From<SetSort> for BaseSort {
-    fn from(s: SetSort) -> Self {
-        match s {
-            SetSort::Set(i) => Self::Set(i),
-            SetSort::Prop => Self::Prop,
-        }
-    }
-}
-
-impl TryFrom<BaseSort> for SetSort {
-    type Error = String;
-    fn try_from(s: BaseSort) -> Result<Self, String> {
-        match s {
-            BaseSort::Set(i) => Ok(Self::Set(i)),
-            BaseSort::Prop => Ok(Self::Prop),
-            _ => Err("expected Set/Prop sort".into()),
-        }
-    }
 }
 
 impl BaseSort {

@@ -299,7 +299,7 @@ pub(crate) fn apply(
 }
 
 fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
-    if e.family() == Family::Value {
+    if e.family() == Family::ValueTerm {
         return Ok(None);
     }
     let a = &env.arena;
@@ -335,7 +335,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
             }
         }
         Op::BoxProgram => {
-            if c(1).family() == Family::Computation {
+            if c(1).family() == Family::ComputationTerm {
                 if let Some(next) = reduce_once(env, c(1))? {
                     let mut next_box = d.clone();
                     next_box.fields[1][0].expression = next;
@@ -352,7 +352,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
             let boxed = a.data(c(1));
             if boxed.op == Op::BoxProgram
                 && convertible(env, c(0), boxed.child(0))?
-                && (boxed.child(1).family() == Family::Value
+                && (boxed.child(1).family() == Family::ValueTerm
                     || reduce_once(env, boxed.child(1))?.is_none())
             {
                 Some(boxed.child(2))
@@ -411,7 +411,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
             let step = if program {
                 node(
                     a,
-                    Family::Computation,
+                    Family::ComputationTerm,
                     super::sort::BaseSort::Computation(i),
                     Op::Force,
                     &[(c(2), 0)],
@@ -437,7 +437,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
                 );
                 let proof = node(
                     a,
-                    Family::SetTerm,
+                    Family::PropTerm,
                     super::sort::BaseSort::Prop,
                     Op::IdRefl,
                     &[(transition, 0)],
@@ -459,7 +459,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
                 Op::Finish => {
                     let out = tr.child(2);
                     Some(if program {
-                        node(a, Family::Computation, d.sort, Op::Return, &[(out, 0)])
+                        node(a, Family::ComputationTerm, d.sort, Op::Return, &[(out, 0)])
                     } else {
                         out
                     })
@@ -469,7 +469,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
                     if program {
                         Some(node(
                             a,
-                            Family::Computation,
+                            Family::ComputationTerm,
                             d.sort,
                             Op::Run,
                             &[(c(0), 0), (c(1), 0), (c(2), 0), (next, 0)],
@@ -477,7 +477,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
                     } else {
                         let proof = node(
                             a,
-                            Family::SetTerm,
+                            Family::PropTerm,
                             super::sort::BaseSort::Prop,
                             Op::AccDescent,
                             &[
@@ -521,7 +521,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
         }
         Op::IndElim { .. } => reduce_inductive(env, e)?,
         Op::Case { .. } | Op::SetCase { .. } => {
-            let scrutinee = if c(1).family() == Family::Value {
+            let scrutinee = if c(1).family() == Family::ValueTerm {
                 unfold_value(env, c(1))?
             } else {
                 c(1)
@@ -568,10 +568,10 @@ pub fn reduce_once(
     let a = &env.arena;
     let d = a.data(e);
     // Program values do not step. Computations use precisely the evaluation contexts.
-    if e.family() == Family::Value {
+    if e.family() == Family::ValueTerm {
         return Ok(None);
     }
-    let positions: Vec<(usize, usize)> = if e.family() == Family::Computation {
+    let positions: Vec<(usize, usize)> = if e.family() == Family::ComputationTerm {
         match d.op {
             Op::AppTerm { .. } | Op::AppType { .. } => vec![(0, 0)],
             Op::Sequence { .. } => vec![(1, 0)],

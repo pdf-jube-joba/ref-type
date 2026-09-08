@@ -721,7 +721,7 @@ fn program_value_let_requires_an_annotation() {
 
 #[test]
 fn program_value_let_solves_and_zonks_type_annotations() {
-    use crate::raw::program::{ComputationNode, ValueTypeNode};
+    use crate::raw::program::{ComputationTermNode, ValueTypeNode};
     let modules = parse::str_parse_modules(
         r#"
         \module AnnotatedLet(A: \VType, a: A) {
@@ -748,7 +748,7 @@ fn program_value_let_solves_and_zonks_type_annotations() {
     else {
         panic!()
     };
-    let ComputationNode::ValueLet { value_ty, .. } = env.arena().get(*body) else {
+    let ComputationTermNode::ValueLet { value_ty, .. } = env.arena().get(*body) else {
         panic!()
     };
     assert!(matches!(
@@ -842,7 +842,7 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
 
 #[test]
 fn program_case_reflects_value_let_in_parameterized_branches() {
-    use crate::raw::program::ComputationNode;
+    use crate::raw::program::ComputationTermNode;
     let modules = parse::str_parse_modules(
         r#"
         \module LetCase(A: \VType) {
@@ -874,7 +874,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
         panic!()
     };
     assert!(certified_reflection.is_some());
-    let ComputationNode::Lambda { body, .. } = env.arena().get(*body) else {
+    let ComputationTermNode::Lambda { body, .. } = env.arena().get(*body) else {
         panic!()
     };
     // Reflect the open case directly, without the enclosing lambda's context.
@@ -1057,11 +1057,11 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
         };
         let term = raw
             .arena()
-            .alloc(crate::raw::program::ComputationNode::DefinedConstant(
+            .alloc(crate::raw::program::ComputationTermNode::DefinedConstant(
                 *definition,
             ));
         (
-            crate::raw::program::Program::Computation(term),
+            crate::raw::program::ProgramTerm::ComputationTerm(term),
             *certificate,
         )
     };

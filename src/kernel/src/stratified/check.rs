@@ -88,23 +88,54 @@ impl<'a> Checker<'a> {
         }
     }
 
-    pub fn infer_term(&mut self, t: SetTerm) -> Result<SetType, String> {
+    pub fn infer_set_term(&mut self, t: SetTerm) -> Result<SetType, String> {
         self.inferred(t.into())?.try_into()
     }
 
-    pub fn infer_type(&mut self, t: SetType) -> Result<SetKind, String> {
+    pub fn infer_set_type(&mut self, t: SetType) -> Result<SetKind, String> {
         self.inferred(t.into())?.try_into()
     }
 
-    pub fn check_kind(&mut self, k: SetKind) -> Result<(), String> {
+    pub fn check_set_kind(&mut self, k: SetKind) -> Result<(), String> {
         self.formation(k.into()).map(|_| ())
     }
 
-    pub fn infer_value(&mut self, t: Value) -> Result<ValueType, String> {
+    pub fn infer_value_term(&mut self, t: ValueTerm) -> Result<ValueType, String> {
         self.inferred(t.into())?.try_into()
     }
 
-    pub fn infer_computation(&mut self, t: Computation) -> Result<ComputationType, String> {
+    pub fn infer_computation_term(
+        &mut self,
+        t: ComputationTerm,
+    ) -> Result<ComputationType, String> {
+        self.inferred(t.into())?.try_into()
+    }
+
+    pub fn infer_prop_term(&mut self, t: PropTerm) -> Result<PropType, String> {
+        self.inferred(t.into())?.try_into()
+    }
+    pub fn infer_prop_type(&mut self, t: PropType) -> Result<PropKind, String> {
+        self.inferred(t.into())?.try_into()
+    }
+    pub fn check_prop_kind(&mut self, k: PropKind) -> Result<(), String> {
+        self.formation(k.into()).map(|_| ())
+    }
+    pub fn infer_value_type(&mut self, t: ValueType) -> Result<ValueKind, String> {
+        self.inferred(t.into())?.try_into()
+    }
+    pub fn check_value_kind(&mut self, k: ValueKind) -> Result<(), String> {
+        self.formation(k.into()).map(|_| ())
+    }
+    pub fn infer_computation_type(
+        &mut self,
+        t: ComputationType,
+    ) -> Result<ComputationKind, String> {
+        self.inferred(t.into())?.try_into()
+    }
+    pub fn check_computation_kind(&mut self, k: ComputationKind) -> Result<(), String> {
+        self.formation(k.into()).map(|_| ())
+    }
+    pub fn infer_program_term(&mut self, t: ProgramTerm) -> Result<ProgramType, String> {
         self.inferred(t.into())?.try_into()
     }
 
