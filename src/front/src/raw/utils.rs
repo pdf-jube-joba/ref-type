@@ -1,5 +1,5 @@
 use super::exp::*;
-use crate::ids::SymbolId;
+use crate::raw::ids::SymbolId;
 
 pub fn assoc_apply(arena: &Arena, mut func: Exp, args: Vec<Exp>) -> Exp {
     for arg in args {
@@ -46,19 +46,19 @@ pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(SymbolId, Exp)>, Exp
 #[macro_export]
 macro_rules! app {
     ($arena:expr, func: $func:expr, arg: $arg:expr $(,)?) => {
-        $arena.alloc($crate::exp::ExpNode::App {
+        $arena.alloc($crate::raw::exp::ExpNode::App {
             func: $func,
             arg: $arg,
         })
     };
     ($arena:expr, arg: $arg:expr, func: $func:expr $(,)?) => {
-        $arena.alloc($crate::exp::ExpNode::App {
+        $arena.alloc($crate::raw::exp::ExpNode::App {
             func: $func,
             arg: $arg,
         })
     };
     ($arena:expr, $func:expr, $arg:expr) => {
-        $arena.alloc($crate::exp::ExpNode::App {
+        $arena.alloc($crate::raw::exp::ExpNode::App {
             func: $func,
             arg: $arg,
         })
@@ -68,14 +68,14 @@ macro_rules! app {
 #[macro_export]
 macro_rules! lam {
     ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
-        $arena.alloc($crate::exp::ExpNode::Lam {
+        $arena.alloc($crate::raw::exp::ExpNode::Lam {
             var: $var,
             ty: $ty,
             body: $body,
         })
     };
     ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
-        $arena.alloc($crate::exp::ExpNode::Lam {
+        $arena.alloc($crate::raw::exp::ExpNode::Lam {
             var: $var,
             ty: $ty,
             body: $body,
@@ -86,14 +86,14 @@ macro_rules! lam {
 #[macro_export]
 macro_rules! prod {
     ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
-        $arena.alloc($crate::exp::ExpNode::Prod {
+        $arena.alloc($crate::raw::exp::ExpNode::Prod {
             var: $var,
             ty: $ty,
             body: $body,
         })
     };
     ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
-        $arena.alloc($crate::exp::ExpNode::Prod {
+        $arena.alloc($crate::raw::exp::ExpNode::Prod {
             var: $var,
             ty: $ty,
             body: $body,
@@ -106,8 +106,8 @@ pub use {app, lam, prod};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::{ModuleId, ModuleParamId};
-    use crate::sort::Sort;
+    use crate::raw::ids::{ModuleId, ModuleParamId};
+    use crate::raw::sort::Sort;
 
     #[test]
     fn test_macros_and_decompose() {

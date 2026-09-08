@@ -1,13 +1,13 @@
-use crate::calculus::*;
-use crate::environment::{CrateEnv, DefinedConstant, ModuleParameterKind};
-use crate::exp::*;
-use crate::ids::{InductiveId, ModuleId, SymbolId};
-use crate::inductive::eliminator_type;
-use crate::program::{ComputationTypeNode, Program, ProgramType};
-use crate::program_derivation::ProgramCheckSession;
-use crate::reflection::{reflect_computation_type, reflect_value_type};
-use crate::sort::Sort;
-use crate::utils;
+use crate::raw::calculus::*;
+use crate::raw::environment::{CrateEnv, DefinedConstant, ModuleParameterKind};
+use crate::raw::exp::*;
+use crate::raw::ids::{InductiveId, ModuleId, SymbolId};
+use crate::raw::inductive::eliminator_type;
+use crate::raw::program::{ComputationTypeNode, Program, ProgramType};
+use crate::raw::program_derivation::ProgramCheckSession;
+use crate::raw::reflection::{reflect_computation_type, reflect_value_type};
+use crate::raw::sort::Sort;
+use crate::raw::utils;
 use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
@@ -68,7 +68,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
 
     pub fn push_pts(&mut self, var: SymbolId, ty: Exp) {
         tracing::trace!(target: "ref_type::typing", binder = %self.env.symbol(var),
-            ty = %crate::printing::format_exp(self.env, ty), depth = self.context.len(), "enter Set/Prop binder");
+            ty = %crate::raw::printing::format_exp(self.env, ty), depth = self.context.len(), "enter Set/Prop binder");
         self.context.push(ExpContextEntry { var, ty });
     }
 
@@ -82,8 +82,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
         let result = check(self, term, ty);
         if result.is_ok() {
-            debug!(target: "ref_type::typing", term = %crate::printing::format_exp(self.env, term),
-                ty = %crate::printing::format_exp(self.env, ty), "Set/Prop check succeeded");
+            debug!(target: "ref_type::typing", term = %crate::raw::printing::format_exp(self.env, term),
+                ty = %crate::raw::printing::format_exp(self.env, ty), "Set/Prop check succeeded");
         }
         result
     }
@@ -91,8 +91,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
         let result = infer(self, term);
         if let Ok(ty) = &result {
-            debug!(target: "ref_type::typing", term = %crate::printing::format_exp(self.env, term),
-                ty = %crate::printing::format_exp(self.env, *ty), "Set/Prop type inferred");
+            debug!(target: "ref_type::typing", term = %crate::raw::printing::format_exp(self.env, term),
+                ty = %crate::raw::printing::format_exp(self.env, *ty), "Set/Prop type inferred");
         }
         result
     }
@@ -151,7 +151,7 @@ macro_rules! add_infer {
                 debug!(
                     target: "ref_type::typing",
                     premise = $expected,
-                    result = %crate::printing::format_exp($session.env(), *ty),
+                    result = %crate::raw::printing::format_exp($session.env(), *ty),
                 );
             })
             .map_err(|error| propagate(error, $rule, $phase, $expected))
@@ -198,8 +198,8 @@ fn check(
         "check",
         rule = "Check",
         ctx_len = session.context.len(),
-        term = %crate::printing::format_exp(session.env(), term),
-        expected = %crate::printing::format_exp(session.env(), ty),
+        term = %crate::raw::printing::format_exp(session.env(), term),
+        expected = %crate::raw::printing::format_exp(session.env(), ty),
     );
     let _entered = span.enter();
     let rule = "Check";
@@ -232,12 +232,28 @@ fn check(
         debug!(target: "ref_type::typing", "subset weakening accepted");
         return Ok(());
     }
-    error!(target: "ref_type::typing", inferred = %crate::printing::format_exp(session.env(), inferred_ty),
-        expected = %crate::printing::format_exp(session.env(), ty), "type mismatch");
+    error!(target: "ref_type::typing", inferred = %crate::raw::printing::format_exp(session.env(), inferred_ty),
+        expected = %crate::raw::printing::format_exp(session.env(), ty), "type mismatch");
     Err(failure(rule, phase, "ty, inferred_ty not convertible"))
 }
 
 fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<JudgementError>> {
+    let key = (
+        term,
+        session.context.iter().map(|b| (b.var, b.ty)).collect(),
+        session.current_module,
+    );
+    if let Some(&ty) = session.env.inference_cache.borrow().get(&key) {
+        return Ok(ty);
+    }
+    let ty = infer_uncached(session, term)?;
+    session.env.inference_cache.borrow_mut().insert(key, ty);
+    Ok(ty)
+}
+fn infer_uncached(
+    session: &mut CheckSession<'_, '_>,
+    term: Exp,
+) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
     let rule = exp_rule(arena, term);
     let span = tracing::debug_span!(
@@ -245,7 +261,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
         "infer",
         rule,
         ctx_len = session.context.len(),
-        term = %crate::printing::format_exp(session.env(), term),
+        term = %crate::raw::printing::format_exp(session.env(), term),
     );
     let _entered = span.enter();
     let phase = "infer";
@@ -400,7 +416,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
                 return Err(failure(rule, phase, "constructor index out of bounds"));
             }
             check_parameters(session, rule, phase, &parameters, spec.parameters())?;
-            let constructor = crate::inductive::InductiveTypeSpecs::type_of_constructor(
+            let constructor = crate::raw::inductive::InductiveTypeSpecs::type_of_constructor(
                 arena, indspec, spec, idx, parameters,
             );
             Ok(constructor)
@@ -847,7 +863,7 @@ fn infer_run_step_recursor(
         state_ty,
         result_ty,
     });
-    let motive_ty = session.infer_pts(motive)?;
+    let motive_ty = infer_motive_kind(session, rule, phase, motive)?;
     let Some((_, motive_domain, motive_body)) = expose_product(session.env(), motive_ty) else {
         return Err(failure(
             rule,
@@ -870,6 +886,10 @@ fn infer_run_step_recursor(
         ));
     };
 
+    let branch_sort = session
+        .infer_sort(state_ty)?
+        .relation_of_sort(motive_sort)
+        .ok_or_else(|| failure(rule, phase, "invalid recursor product rule"))?;
     let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
     let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
     let continue_value = arena.alloc(ExpNode::Continue {
@@ -886,11 +906,11 @@ fn infer_run_step_recursor(
         ty: state_ty,
         body: continue_result,
     });
-    if session.infer_sort(continue_ty)? != motive_sort {
+    if session.infer_sort(continue_ty)? != branch_sort {
         return Err(failure(
             rule,
             phase,
-            "RunStep continue branch type must have the motive sort",
+            "RunStep continue branch type must have the branch product sort",
         ));
     }
     session.check_pts(on_continue, continue_ty)?;
@@ -909,11 +929,11 @@ fn infer_run_step_recursor(
         ty: result_ty,
         body: finish_result,
     });
-    if session.infer_sort(finish_ty)? != motive_sort {
+    if session.infer_sort(finish_ty)? != branch_sort {
         return Err(failure(
             rule,
             phase,
-            "RunStep finish branch type must have the motive sort",
+            "RunStep finish branch type must have the branch product sort",
         ));
     }
     session.check_pts(on_finish, finish_ty)?;
@@ -928,7 +948,7 @@ fn infer_reflected_program_case(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
-    indspec: crate::ids::ProgramInductiveId,
+    indspec: crate::raw::ids::ProgramInductiveId,
     scrutinee: Exp,
     branches: Vec<ReflectedProgramCaseBranch>,
 ) -> Result<Exp, Box<JudgementError>> {
@@ -1038,8 +1058,11 @@ fn check_closed_well_terminated_program(
             ));
         }
     }
-    if !crate::reflection::certificate_matches_program(session.env(), program, certified_reflection)
-    {
+    if !crate::raw::reflection::certificate_matches_program(
+        session.env(),
+        program,
+        certified_reflection,
+    ) {
         return Err(failure(
             "Box",
             "certification",
@@ -1087,7 +1110,7 @@ fn check_parameters(
 /// product itself inhabit another sort. Motives returning `SetKind` or
 /// `PropKind` are intentionally top-kinded, so their abstraction kind has no
 /// type above it.
-fn infer_motive_kind(
+pub(crate) fn infer_motive_kind(
     session: &mut CheckSession<'_, '_>,
     rule: &str,
     phase: &str,
@@ -1154,7 +1177,7 @@ fn infer_ind_elim(
     {
         return Err(failure(rule, phase, "cannot form eliminator"));
     }
-    let expected_kind = crate::inductive::InductiveTypeSpecs::return_type_kind(
+    let expected_kind = crate::raw::inductive::InductiveTypeSpecs::return_type_kind(
         arena,
         indspec,
         spec,
@@ -1187,7 +1210,7 @@ fn infer_ind_elim(
         func: motive,
         arg: elim,
     });
-    Ok(crate::calculus::whnf(session.env(), result))
+    Ok(crate::raw::calculus::whnf(session.env(), result))
 }
 
 #[allow(clippy::too_many_arguments)]

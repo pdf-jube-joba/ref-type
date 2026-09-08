@@ -1,5 +1,5 @@
 use front::output::Output;
-use kernel::{environment::CrateEnv, printing};
+use front::raw::{environment::CrateEnv, printing};
 
 pub fn format_output(env: &CrateEnv, output: &Output) -> String {
     match output {

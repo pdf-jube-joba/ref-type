@@ -1,4 +1,4 @@
-use crate::{
+use crate::raw::{
     calculus::{exp_is_alpha_eq, exp_reduce_if_top, instantiate, normalize},
     derivation::CheckSession,
     environment::{CrateEnv, ModuleArgument},
@@ -18,7 +18,7 @@ use crate::{
 
 #[test]
 fn conversion_does_not_reduce_alpha_equal_applications() {
-    use crate::calculus::{convertible, erased_convertible};
+    use crate::raw::calculus::{convertible, erased_convertible};
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -69,21 +69,21 @@ fn boxed_program_types_compare_structurally() {
     let env = CrateEnv::new();
     let arena = env.arena();
     let left_state = arena.alloc(ValueTypeNode::RunStep {
-        state_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+        state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 0,
         }),
-        result_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+        result_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 1,
         }),
     });
     let right_state = arena.alloc(ValueTypeNode::RunStep {
-        state_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+        state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 0,
         }),
-        result_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+        result_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 1,
         }),
@@ -99,17 +99,17 @@ fn boxed_program_types_compare_structurally() {
 
     let output = arena.value_bound(0);
     let program = arena.alloc(ValueNode::Finish {
-        state_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+        state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 0,
         }),
-        result_ty: arena.value_type_module_param(crate::ids::ModuleParamId {
+        result_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
             module: env.root_module(),
             position: 1,
         }),
         output,
     });
-    let certified_reflection = crate::reflection::reflect_value(&env, program)
+    let certified_reflection = crate::raw::reflection::reflect_value(&env, program)
         .expect("run-free Program values reflect without a certificate");
     let boxed = arena.alloc(ExpNode::BoxProgram {
         program_ty: ProgramType::Value(left_state),
@@ -147,7 +147,7 @@ fn beta_reduction_remains_set_only() {
 
 #[test]
 fn substitution_preserves_free_variables_under_binders() {
-    use crate::calculus::shift_bound_indices;
+    use crate::raw::calculus::shift_bound_indices;
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -220,8 +220,8 @@ fn program_typing_and_evaluation_use_program_handles() {
 
 #[test]
 fn program_case_preserves_field_order_and_fuel_boundary() {
-    use crate::program::ProgramCaseBranch;
-    use crate::program_calculus::{evaluate_computation_with_fuel, value_is_alpha_eq};
+    use crate::raw::program::ProgramCaseBranch;
+    use crate::raw::program_calculus::{evaluate_computation_with_fuel, value_is_alpha_eq};
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -309,7 +309,7 @@ fn unchanged_program_transforms_reuse_arena_handles() {
         position: 0,
     };
     let parameter = arena.value_type_module_param(parameter_id);
-    let returned = arena.alloc(crate::program::ComputationTypeNode::Return {
+    let returned = arena.alloc(crate::raw::program::ComputationTypeNode::Return {
         value_ty: parameter,
     });
     let thunk = arena.alloc(ValueTypeNode::Thunk {
@@ -388,7 +388,7 @@ fn strengthening_rejects_a_dependent_program_type() {
 
 #[test]
 fn value_let_checks_its_annotation_and_reflects_open_terms() {
-    use crate::program::ComputationTypeNode;
+    use crate::raw::program::ComputationTypeNode;
     let env = CrateEnv::new();
     let arena = env.arena();
     // A: VType, a: A. The annotation is outside the new let binder.
@@ -429,7 +429,7 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
         assert_eq!(context.len(), 2);
     }
 
-    let reflected = crate::reflection::reflect_computation(&env, term).unwrap();
+    let reflected = crate::raw::reflection::reflect_computation(&env, term).unwrap();
     let ExpNode::App { func, arg } = arena.get(reflected) else {
         panic!()
     };
@@ -439,18 +439,18 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
     };
     assert_eq!(arena.get(ty), ExpNode::Bound(1));
     assert_eq!(arena.get(body), ExpNode::Bound(0));
-    let mut reflected_context = crate::reflection::reflect_context(&env, &context).unwrap();
+    let mut reflected_context = crate::raw::reflection::reflect_context(&env, &context).unwrap();
     CheckSession::new(&env, env.root_module(), &mut reflected_context)
         .check_pts(
             reflected,
-            crate::reflection::reflect_computation_type(&env, inferred).unwrap(),
+            crate::raw::reflection::reflect_computation_type(&env, inferred).unwrap(),
         )
         .unwrap();
 }
 
 #[test]
 fn value_let_annotations_follow_binder_shifts_and_substitution() {
-    use crate::program_calculus::{computation_is_alpha_eq, instantiate_value_in_computation};
+    use crate::raw::program_calculus::{computation_is_alpha_eq, instantiate_value_in_computation};
     let env = CrateEnv::new();
     let arena = env.arena();
     // In A: VType, a: A, bind x = a and then y = x.
@@ -576,7 +576,7 @@ fn value_let_annotations_follow_module_instantiation() {
 
 #[test]
 fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations() {
-    use crate::{
+    use crate::raw::{
         ids::MetaVarId,
         reflection::{ReflectionError, reflect_computation, reflect_computation_with_certificates},
     };
@@ -696,14 +696,14 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
                 on_finish: argument,
                 scrutinee: argument,
             },
-            ExpNode::Prove(crate::exp::Prove::AccIntro {
+            ExpNode::Prove(crate::raw::exp::Prove::AccIntro {
                 state_ty,
                 result_ty,
                 step: argument,
                 state: argument,
                 predecessors: argument,
             }),
-            ExpNode::Prove(crate::exp::Prove::AccDescent {
+            ExpNode::Prove(crate::raw::exp::Prove::AccDescent {
                 state_ty,
                 result_ty,
                 step: argument,
@@ -726,7 +726,7 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
 
 #[test]
 fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
-    use crate::{environment::DefinedConstant, ids::MetaVarId};
+    use crate::raw::{environment::DefinedConstant, ids::MetaVarId};
     let mut env = CrateEnv::new();
     let module = env.root_module();
     let set = env.arena().sort(Sort::Set(0));
@@ -784,7 +784,7 @@ fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
 
 #[test]
 fn program_registration_checks_body_and_reflection_certificate() {
-    use crate::environment::{DefinedConstant, ModuleParameter, ModuleParameterKind};
+    use crate::raw::environment::{DefinedConstant, ModuleParameter, ModuleParameterKind};
     let mut env = CrateEnv::new();
     let module = env.root_module();
     let a = env.intern("A");
@@ -836,7 +836,7 @@ fn program_registration_checks_body_and_reflection_certificate() {
         .unwrap_err()
         .contains("certificate")
     );
-    let certificate = crate::reflection::reflect_value(&env, body).unwrap();
+    let certificate = crate::raw::reflection::reflect_value(&env, body).unwrap();
     let id = env
         .add_definition(
             module,
@@ -850,7 +850,7 @@ fn program_registration_checks_body_and_reflection_certificate() {
     assert_eq!(id.index, 0);
     let computation_ty = env
         .arena()
-        .alloc(crate::program::ComputationTypeNode::Return { value_ty: ty });
+        .alloc(crate::raw::program::ComputationTypeNode::Return { value_ty: ty });
     let computation = env.arena().alloc(ComputationNode::Return { value: body });
     assert!(
         env.add_definition(

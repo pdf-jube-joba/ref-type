@@ -53,8 +53,8 @@ impl Sort {
 
     pub fn can_lift_to(self, to: Self) -> bool {
         match (self, to) {
-            (Sort::Set(i), Sort::Set(j)) if i <= j => true,
-            (Sort::SetKind(i), Sort::SetKind(j)) if i <= j => true,
+            (Sort::Set(i), Sort::Set(j)) if i == j => true,
+            (Sort::SetKind(i), Sort::SetKind(j)) if i == j => true,
             _ => false,
         }
     }

@@ -54,9 +54,8 @@ pub struct ProgramInductiveId {
 
 /// Identity of an elaboration-time metavariable.
 ///
-/// Metavariables are never valid members of a checked [`CrateEnv`].  The
-/// identifier lives in the kernel crate because intermediate expressions use
-/// the ordinary expression arena while the front-end is solving constraints.
+/// Used by the front-end's unclassified elaboration syntax. None of the
+/// kernel's nine indexed node families admits a metavariable constructor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetaVarId(pub u32);
 

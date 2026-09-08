@@ -1,15 +1,6 @@
 //! Elaboration for the four disjoint Program syntactic categories.
 
-use crate::{
-    elaborator::{
-        GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
-    },
-    syntax::{
-        ComputationExp, ComputationTypeExp, LocalAccess, SourceSpan, SurfaceMeta, ValueExp,
-        ValueTypeExp,
-    },
-};
-use kernel::{
+use crate::raw::{
     environment::DefinedConstant,
     exp::{Exp, ExpNode},
     ids::{MetaVarId, SymbolId},
@@ -19,6 +10,15 @@ use kernel::{
     },
     program_calculus::strengthen_computation_type,
     program_derivation::ProgramCheckSession,
+};
+use crate::{
+    elaborator::{
+        GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
+    },
+    syntax::{
+        ComputationExp, ComputationTypeExp, LocalAccess, SourceSpan, SurfaceMeta, ValueExp,
+        ValueTypeExp,
+    },
 };
 use std::collections::HashMap;
 
@@ -100,7 +100,7 @@ impl ProgramScope {
                 (self.zonk_computation(environment, *program), *certificate)
             })
             .collect::<HashMap<_, _>>();
-        kernel::reflection::reflect_computation_with_certificates(
+        crate::raw::reflection::reflect_computation_with_certificates(
             &environment.crate_env,
             computation,
             &certificates,
@@ -116,7 +116,7 @@ impl ProgramScope {
                 (self.zonk_computation(environment, *program), *certificate)
             })
             .collect::<HashMap<_, _>>();
-        kernel::reflection::reflect_value_with_certificates(
+        crate::raw::reflection::reflect_value_with_certificates(
             &environment.crate_env,
             value,
             &certificates,
@@ -652,7 +652,7 @@ impl ProgramScope {
                         binders.iter().zip(field_types).enumerate()
                     {
                         let binder = environment.crate_env.intern(binder.as_str());
-                        let ty = kernel::program_calculus::shift_value_type_indices(
+                        let ty = crate::raw::program_calculus::shift_value_type_indices(
                             environment.crate_env.arena(),
                             ty,
                             field_index,
@@ -663,7 +663,7 @@ impl ProgramScope {
                     }
                     let body = self.elaborate_computation(body, environment)?;
                     self.truncate(mark);
-                    result.push(kernel::program::ProgramCaseBranch {
+                    result.push(crate::raw::program::ProgramCaseBranch {
                         binders: binder_ids,
                         body,
                     });
@@ -692,30 +692,32 @@ impl ProgramScope {
                     initial,
                 });
                 if let Some(accessibility) = accessibility {
-                    let reflected_context =
-                        kernel::reflection::reflect_context(&environment.crate_env, &self.context)
-                            .map_err(|error| error.to_string())?;
+                    let reflected_context = crate::raw::reflection::reflect_context(
+                        &environment.crate_env,
+                        &self.context,
+                    )
+                    .map_err(|error| error.to_string())?;
                     let proof = LocalScope::from_typing_context(reflected_context)
                         .elab_exp(accessibility, environment)?;
                     let arena = environment.crate_env.arena();
                     let certificate = arena.alloc(ExpNode::SetRun {
-                        state_ty: kernel::reflection::reflect_value_type(
+                        state_ty: crate::raw::reflection::reflect_value_type(
                             &environment.crate_env,
                             state_ty,
                         )
                         .map_err(|error| error.to_string())?,
-                        result_ty: kernel::reflection::reflect_value_type(
+                        result_ty: crate::raw::reflection::reflect_value_type(
                             &environment.crate_env,
                             result_ty,
                         )
                         .map_err(|error| error.to_string())?,
-                        step: kernel::reflection::reflect_value_with_certificates(
+                        step: crate::raw::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
                             step,
                             &self.certificates,
                         )
                         .map_err(|error| error.to_string())?,
-                        initial: kernel::reflection::reflect_value_with_certificates(
+                        initial: crate::raw::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
                             initial,
                             &self.certificates,
@@ -754,32 +756,34 @@ impl ProgramScope {
                 if let (Some(accessibility), Some(transition_equality)) =
                     (accessibility, transition_equality)
                 {
-                    let reflected_context =
-                        kernel::reflection::reflect_context(&environment.crate_env, &self.context)
-                            .map_err(|error| error.to_string())?;
+                    let reflected_context = crate::raw::reflection::reflect_context(
+                        &environment.crate_env,
+                        &self.context,
+                    )
+                    .map_err(|error| error.to_string())?;
                     let mut proof_scope = LocalScope::from_typing_context(reflected_context);
                     let accessibility = proof_scope.elab_exp(accessibility, environment)?;
                     let transition_equality =
                         proof_scope.elab_exp(transition_equality, environment)?;
                     let arena = environment.crate_env.arena();
                     let certificate = arena.alloc(ExpNode::SetRunCase {
-                        state_ty: kernel::reflection::reflect_value_type(
+                        state_ty: crate::raw::reflection::reflect_value_type(
                             &environment.crate_env,
                             state_ty,
                         )
                         .map_err(|error| error.to_string())?,
-                        result_ty: kernel::reflection::reflect_value_type(
+                        result_ty: crate::raw::reflection::reflect_value_type(
                             &environment.crate_env,
                             result_ty,
                         )
                         .map_err(|error| error.to_string())?,
-                        step: kernel::reflection::reflect_value_with_certificates(
+                        step: crate::raw::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
                             step,
                             &self.certificates,
                         )
                         .map_err(|error| error.to_string())?,
-                        initial: kernel::reflection::reflect_value_with_certificates(
+                        initial: crate::raw::reflection::reflect_value_with_certificates(
                             &environment.crate_env,
                             initial,
                             &self.certificates,
@@ -998,7 +1002,7 @@ impl ProgramScope {
                 scrutinee: self.zonk_value(environment, scrutinee),
                 branches: branches
                     .into_iter()
-                    .map(|branch| kernel::program::ProgramCaseBranch {
+                    .map(|branch| crate::raw::program::ProgramCaseBranch {
                         binders: branch.binders,
                         body: self.zonk_computation(environment, branch.body),
                     })
@@ -1086,7 +1090,7 @@ impl ProgramScope {
         let arena = environment.crate_env.arena();
         let left = self.zonk_value_type(environment, left);
         let right = self.zonk_value_type(environment, right);
-        if kernel::program_calculus::value_type_is_alpha_eq(arena, left, right) {
+        if crate::raw::program_calculus::value_type_is_alpha_eq(arena, left, right) {
             return Ok(());
         }
         match (arena.get(left), arena.get(right)) {
@@ -1157,7 +1161,7 @@ impl ProgramScope {
         let arena = environment.crate_env.arena();
         let left = self.zonk_computation_type(environment, left);
         let right = self.zonk_computation_type(environment, right);
-        if kernel::program_calculus::computation_type_is_alpha_eq(arena, left, right) {
+        if crate::raw::program_calculus::computation_type_is_alpha_eq(arena, left, right) {
             return Ok(());
         }
         match (arena.get(left), arena.get(right)) {
@@ -1458,8 +1462,9 @@ impl ProgramScope {
                 self.unify_value_types(environment, value_ty, domain)?;
                 let domain = self.zonk_value_type(environment, domain);
                 context.push(ProgramContextEntry::Value { var, ty: domain });
-                let codomain =
-                    kernel::program_calculus::shift_computation_type_indices(arena, codomain, 1, 0);
+                let codomain = crate::raw::program_calculus::shift_computation_type_indices(
+                    arena, codomain, 1, 0,
+                );
                 let result = self.solve_computation(environment, context, body, codomain);
                 context.pop();
                 result
@@ -1483,8 +1488,9 @@ impl ProgramScope {
                 self.solve_value(environment, context, value, value_ty)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
                 context.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let expected =
-                    kernel::program_calculus::shift_computation_type_indices(arena, expected, 1, 0);
+                let expected = crate::raw::program_calculus::shift_computation_type_indices(
+                    arena, expected, 1, 0,
+                );
                 let result = self.solve_computation(environment, context, body, expected);
                 context.pop();
                 result
@@ -1503,8 +1509,9 @@ impl ProgramScope {
                 self.unify_value_types(environment, value_ty, returned)?;
                 let value_ty = self.zonk_value_type(environment, value_ty);
                 context.push(ProgramContextEntry::Value { var, ty: value_ty });
-                let expected =
-                    kernel::program_calculus::shift_computation_type_indices(arena, expected, 1, 0);
+                let expected = crate::raw::program_calculus::shift_computation_type_indices(
+                    arena, expected, 1, 0,
+                );
                 let result = self.solve_computation(environment, context, body, expected);
                 context.pop();
                 result

@@ -1,6 +1,6 @@
 //! Structural operations and reduction for Set/Prop expressions.
 
-use crate::{
+use crate::raw::{
     environment::{CrateEnv, DefinedConstant},
     exp::*,
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -553,7 +553,7 @@ pub fn remap_all_global_ids(
     let remap_program_type = |ty: &mut ProgramType| {
         *ty = match *ty {
             ProgramType::Value(value) => {
-                ProgramType::Value(crate::program_calculus::remap_value_type_global_ids(
+                ProgramType::Value(crate::raw::program_calculus::remap_value_type_global_ids(
                     arena,
                     value,
                     definitions,
@@ -561,7 +561,7 @@ pub fn remap_all_global_ids(
                 ))
             }
             ProgramType::Computation(computation) => ProgramType::Computation(
-                crate::program_calculus::remap_computation_type_global_ids(
+                crate::raw::program_calculus::remap_computation_type_global_ids(
                     arena,
                     computation,
                     definitions,
@@ -593,21 +593,21 @@ pub fn remap_all_global_ids(
             remap_program_type(program_ty);
             *program = match *program {
                 Program::Value(value) => {
-                    Program::Value(crate::program_calculus::remap_value_global_ids(
+                    Program::Value(crate::raw::program_calculus::remap_value_global_ids(
                         arena,
                         value,
                         definitions,
                         program_inductives,
                     ))
                 }
-                Program::Computation(computation) => {
-                    Program::Computation(crate::program_calculus::remap_computation_global_ids(
+                Program::Computation(computation) => Program::Computation(
+                    crate::raw::program_calculus::remap_computation_global_ids(
                         arena,
                         computation,
                         definitions,
                         program_inductives,
-                    ))
-                }
+                    ),
+                ),
             };
         }
         _ => {}
@@ -673,7 +673,7 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                     .all(|(left, right)| left.binders.len() == right.binders.len())
         }
         (ExpNode::BoxType { program_ty: left }, ExpNode::BoxType { program_ty: right }) => {
-            crate::program_calculus::program_type_is_alpha_eq(arena, *left, *right)
+            crate::raw::program_calculus::program_type_is_alpha_eq(arena, *left, *right)
         }
         (
             ExpNode::BoxProgram {
@@ -687,8 +687,8 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                 ..
             },
         ) => {
-            crate::program_calculus::program_type_is_alpha_eq(arena, *left_ty, *right_ty)
-                && crate::program_calculus::program_is_alpha_eq(
+            crate::raw::program_calculus::program_type_is_alpha_eq(arena, *left_ty, *right_ty)
+                && crate::raw::program_calculus::program_is_alpha_eq(
                     arena,
                     *left_program,
                     *right_program,
@@ -701,7 +701,7 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
             ExpNode::ForceBox {
                 program_ty: right, ..
             },
-        ) => crate::program_calculus::program_type_is_alpha_eq(arena, *left, *right),
+        ) => crate::raw::program_calculus::program_type_is_alpha_eq(arena, *left, *right),
         _ => std::mem::discriminant(left) == std::mem::discriminant(right),
     }
 }
@@ -839,7 +839,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     cases,
                 })
             };
-            crate::inductive::inductive_type_elim_reduce(env, candidate)
+            crate::raw::inductive::inductive_type_elim_reduce(env, candidate)
                 .ok()
                 .or((candidate != exp).then_some(candidate))
         }
@@ -849,7 +849,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             branches,
         } => {
             let reduced = whnf(env, scrutinee);
-            let (head, fields) = crate::utils::decompose_app(arena, reduced);
+            let (head, fields) = crate::raw::utils::decompose_app(arena, reduced);
             match arena.get(head) {
                 ExpNode::IndCtor {
                     indspec: actual,
@@ -939,7 +939,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             program_ty,
             program: Program::Computation(term),
             certified_reflection,
-        } => crate::program_calculus::reduce_computation_once(env, term).map(|next| {
+        } => crate::raw::program_calculus::reduce_computation_once(env, term).map(|next| {
             arena.alloc(ExpNode::BoxProgram {
                 program_ty,
                 program: Program::Computation(next),
@@ -952,13 +952,14 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 program_ty: actual,
                 program,
                 certified_reflection,
-            } if crate::program_calculus::program_type_is_alpha_eq(arena, actual, program_ty)
-                && match program {
-                    Program::Computation(c) => {
-                        crate::program_calculus::reduce_computation_once(env, c).is_none()
-                    }
-                    Program::Value(_) => true,
-                } =>
+            } if crate::raw::program_calculus::program_type_is_alpha_eq(
+                arena, actual, program_ty,
+            ) && match program {
+                Program::Computation(c) => {
+                    crate::raw::program_calculus::reduce_computation_once(env, c).is_none()
+                }
+                Program::Value(_) => true,
+            } =>
             {
                 Some(certified_reflection)
             }
@@ -981,8 +982,8 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                         certified_reflection: argument_reflection,
                     },
                 ) => match arena.get(ft) {
-                    crate::program::ComputationTypeNode::Function { domain, codomain }
-                        if crate::program_calculus::value_type_is_alpha_eq(
+                    crate::raw::program::ComputationTypeNode::Function { domain, codomain }
+                        if crate::raw::program_calculus::value_type_is_alpha_eq(
                             arena,
                             domain,
                             argument_ty,
@@ -1013,7 +1014,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 
 pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
     while let Some(next) = exp_reduce_if_top(env, exp) {
-        tracing::trace!(target: "ref_type::reduction", before = %crate::printing::format_exp(env, exp), after = %crate::printing::format_exp(env, next), "weak-head reduction step");
+        tracing::trace!(target: "ref_type::reduction", before = %crate::raw::printing::format_exp(env, exp), after = %crate::raw::printing::format_exp(env, next), "weak-head reduction step");
         if next == exp {
             break;
         }
@@ -1040,10 +1041,10 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     changed.then(|| env.arena().alloc(mapped))
 }
 pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
-    let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::printing::format_exp(env, exp));
+    let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::raw::printing::format_exp(env, exp));
     let _entered = span.enter();
     let result = normalize_with_cache(env, exp, &mut HashMap::new());
-    tracing::debug!(target: "ref_type::reduction", result = %crate::printing::format_exp(env, result), "normalization finished");
+    tracing::debug!(target: "ref_type::reduction", result = %crate::raw::printing::format_exp(env, result), "normalization finished");
     result
 }
 
@@ -1076,7 +1077,7 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
 }
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     let result = alpha_rec(env, left, right, true, false, &mut HashMap::new());
-    tracing::trace!(target: "ref_type::conversion", left = %crate::printing::format_exp(env, left), right = %crate::printing::format_exp(env, right), result, "conversion compared");
+    tracing::trace!(target: "ref_type::conversion", left = %crate::raw::printing::format_exp(env, left), right = %crate::raw::printing::format_exp(env, right), result, "conversion compared");
     result
 }
 

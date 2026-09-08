@@ -1,6 +1,6 @@
 //! Meta-level reflection from Program syntax into Set/Prop syntax.
 
-use crate::{
+use crate::raw::{
     environment::{CrateEnv, DefinedConstant},
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, ReflectedProgramCaseBranch},
     ids::DefId,
@@ -102,7 +102,7 @@ fn reflect_computation_type_inner(
             let domain = reflect_value_type_inner(env, domain, visiting)?;
             let codomain = reflect_computation_type_inner(env, codomain, visiting)?;
             arena.alloc(ExpNode::Prod {
-                var: crate::ids::SymbolId::ANONYMOUS,
+                var: crate::raw::ids::SymbolId::ANONYMOUS,
                 ty: domain,
                 body: codomain,
             })
@@ -119,7 +119,7 @@ pub fn reflect_context(
         match *entry {
             ProgramContextEntry::Type { var } => result.push(ExpContextEntry {
                 var,
-                ty: env.arena().sort(crate::sort::Sort::Set(0)),
+                ty: env.arena().sort(crate::raw::sort::Sort::Set(0)),
             }),
             ProgramContextEntry::Value { var, ty } => result.push(ExpContextEntry {
                 var,
@@ -161,13 +161,13 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                 initial: p_initial,
             } => {
                 reflect_value_type(env, p_state_ty)
-                    .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, state_ty))
+                    .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, state_ty))
                     && reflect_value_type(env, p_result_ty)
-                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, result_ty))
+                        .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, result_ty))
                     && reflect_value(env, p_step)
-                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, step))
+                        .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, step))
                     && reflect_value(env, p_initial)
-                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, initial))
+                        .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, initial))
             }
             _ => false,
         },
@@ -190,13 +190,13 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
                 transition: p_transition,
             } => {
                 reflect_value_type(env, p_state_ty)
-                    .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, state_ty))
+                    .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, state_ty))
                     && reflect_value_type(env, p_result_ty)
-                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, result_ty))
+                        .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, result_ty))
                     && reflect_value(env, p_step)
-                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, step))
+                        .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, step))
                     && reflect_value(env, p_initial)
-                        .is_ok_and(|e| crate::calculus::exp_is_alpha_eq(env, e, initial))
+                        .is_ok_and(|e| crate::raw::calculus::exp_is_alpha_eq(env, e, initial))
                     && certificate_matches_program(
                         env,
                         Program::Computation(p_transition),
@@ -206,12 +206,12 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
             _ => false,
         },
         (program, _) => reflect_program(env, program)
-            .is_ok_and(|term| crate::calculus::exp_is_alpha_eq(env, term, certificate)),
+            .is_ok_and(|term| crate::raw::calculus::exp_is_alpha_eq(env, term, certificate)),
     }
 }
 
 #[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
-    fields(term = %crate::printing::format_value(env, value)), ret, err)]
+    fields(term = %crate::raw::printing::format_value(env, value)), ret, err)]
 pub fn reflect_value(env: &CrateEnv, value: Value) -> Result<Exp, ReflectionError> {
     reflect_value_inner(env, value, &HashMap::new(), &mut HashSet::new())
 }
@@ -292,7 +292,7 @@ fn reflect_value_inner(
 }
 
 #[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
-    fields(term = %crate::printing::format_computation(env, term)), ret, err)]
+    fields(term = %crate::raw::printing::format_computation(env, term)), ret, err)]
 pub fn reflect_computation(env: &CrateEnv, term: Computation) -> Result<Exp, ReflectionError> {
     reflect_computation_inner(env, term, &HashMap::new(), &mut HashSet::new())
 }
@@ -320,7 +320,7 @@ fn reflect_computation_inner(
     visiting: &mut HashSet<DefId>,
 ) -> Result<Exp, ReflectionError> {
     if let Some((_, certificate)) = certificates.iter().find(|(candidate, _)| {
-        crate::program_calculus::computation_is_alpha_eq(env.arena(), **candidate, term)
+        crate::raw::program_calculus::computation_is_alpha_eq(env.arena(), **candidate, term)
     }) {
         return Ok(*certificate);
     }

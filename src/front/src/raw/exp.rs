@@ -2,7 +2,7 @@
 
 use std::cell::{Ref, RefCell};
 
-use crate::{
+use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
         Computation, ComputationNode, ComputationType, ComputationTypeNode, Program, ProgramType,

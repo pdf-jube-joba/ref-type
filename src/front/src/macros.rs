@@ -1,12 +1,12 @@
-use crate::{
-    elaborator::module_manager::ModuleManager,
-    syntax::{Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, Statement},
-};
-use kernel::{
+use crate::raw::{
     calculus::{exp_subst_map, remap_all_global_ids},
     environment::CrateEnv,
     exp::Exp,
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
+};
+use crate::{
+    elaborator::module_manager::ModuleManager,
+    syntax::{Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, Statement},
 };
 use std::collections::{HashMap, HashSet};
 

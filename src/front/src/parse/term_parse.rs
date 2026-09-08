@@ -93,25 +93,25 @@ impl<'a> TermParser<'a> {
 
     // Parse a sort expression.
     // \Prop | \PropKind | \Set ( "(" <number> ")" )? | \SetKind ( "(" <number> ")" )?
-    fn parse_sort(&mut self) -> Result<kernel::sort::Sort, ParseError> {
+    fn parse_sort(&mut self) -> Result<crate::raw::sort::Sort, ParseError> {
         if self.bump_if_keyword("\\Prop") {
-            return Ok(kernel::sort::Sort::Prop);
+            return Ok(crate::raw::sort::Sort::Prop);
         }
         if self.bump_if_keyword("\\PropKind") {
-            return Ok(kernel::sort::Sort::PropKind);
+            return Ok(crate::raw::sort::Sort::PropKind);
         }
         if self.bump_if_keyword("\\Set") {
             let number = self
                 .attempt(|parser| parser.parse_number_paren())
                 .unwrap_or_default();
 
-            return Ok(kernel::sort::Sort::Set(number));
+            return Ok(crate::raw::sort::Sort::Set(number));
         }
         if self.bump_if_keyword("\\SetKind") {
             let number = self
                 .attempt(|parser| parser.parse_number_paren())
                 .unwrap_or_default();
-            return Ok(kernel::sort::Sort::SetKind(number));
+            return Ok(crate::raw::sort::Sort::SetKind(number));
         }
         Err(ParseError {
             msg: "expected sort keyword".into(),

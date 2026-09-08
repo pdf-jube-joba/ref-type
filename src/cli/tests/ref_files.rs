@@ -199,6 +199,12 @@ fn library_arithmetic_examples_succeed() {
     let path = workspace.join("lib/tests.ref");
     let output = run_ref_file(&workspace, &path).unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("check failed:") && !stdout.contains("infer failed:"),
+        "{}",
+        output_details(&output)
+    );
 }
 
 #[test]

@@ -1,11 +1,5 @@
 use crate::macros::MacroKind;
-use crate::{
-    elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
-    metavariables::{ElaborationError, MetaStore},
-    output::Output,
-    syntax::*,
-};
-use kernel::{
+use crate::raw::{
     calculus::{exp_contains_inductive, exp_subst_map, instantiate_telescope, shift_bound_indices},
     derivation::CheckSession,
     environment::{
@@ -19,6 +13,12 @@ use kernel::{
     program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
     sort::Sort,
 };
+use crate::{
+    elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
+    metavariables::{ElaborationError, MetaStore},
+    output::Output,
+    syntax::*,
+};
 
 pub mod module_manager;
 pub mod program_term_elaborator;
@@ -26,7 +26,7 @@ pub mod term_elaborator;
 
 fn apply_pts_projection(arena: &Arena, definition: DefId, parameters: &[Exp], value: Exp) -> Exp {
     let projection = arena.alloc(ExpNode::DefinedConstant(definition));
-    kernel::utils::assoc_apply(
+    crate::raw::utils::assoc_apply(
         arena,
         projection,
         parameters.iter().copied().chain([value]).collect(),
@@ -55,6 +55,7 @@ fn projected_record_field_type(
 // do type checking
 #[derive(Default)]
 pub struct GlobalEnvironment {
+    kernel_env: kernel::stratified::environment::Environment,
     crate_env: CrateEnv,
     outputs: Vec<Output>,
     diagnostic_location: Option<SourceLocation>,
@@ -196,38 +197,38 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn elaborate_program_type(
         &mut self,
         expression: &SExp,
-    ) -> Result<kernel::program::ProgramType, String> {
+    ) -> Result<crate::raw::program::ProgramType, String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         if let Ok(value_ty) = ValueTypeExp::try_from(expression.clone()) {
             return scope
                 .elaborate_value_type(&value_ty, self)
-                .map(kernel::program::ProgramType::Value);
+                .map(crate::raw::program::ProgramType::Value);
         }
         let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
         scope
             .elaborate_computation_type(&computation_ty, self)
-            .map(kernel::program::ProgramType::Computation)
+            .map(crate::raw::program::ProgramType::Computation)
     }
 
     fn elaborate_program(
         &mut self,
         expression: &SExp,
-        ty: kernel::program::ProgramType,
-    ) -> Result<(kernel::program::Program, Option<Exp>), String> {
+        ty: crate::raw::program::ProgramType,
+    ) -> Result<(crate::raw::program::Program, Option<Exp>), String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         match ty {
-            kernel::program::ProgramType::Value(_) => {
+            crate::raw::program::ProgramType::Value(_) => {
                 let value = ValueExp::try_from(expression.clone())?;
                 let value = scope.elaborate_value(&value, self)?;
                 let certificate = scope.certified_value(self, value);
-                Ok((kernel::program::Program::Value(value), certificate))
+                Ok((crate::raw::program::Program::Value(value), certificate))
             }
-            kernel::program::ProgramType::Computation(_) => {
+            crate::raw::program::ProgramType::Computation(_) => {
                 let computation = ComputationExp::try_from(expression.clone())?;
                 let computation = scope.elaborate_computation(&computation, self)?;
                 let certificate = scope.certified_computation(self, computation);
                 Ok((
-                    kernel::program::Program::Computation(computation),
+                    crate::raw::program::Program::Computation(computation),
                     certificate,
                 ))
             }
@@ -238,6 +239,43 @@ impl term_elaborator::Handler for GlobalEnvironment {
 impl GlobalEnvironment {
     pub fn arena(&self) -> &Arena {
         self.crate_env.arena()
+    }
+
+    fn certify_query(&mut self, context: &ExpContext, term: Exp, ty: Exp) -> Result<(), String> {
+        let mut lower = crate::lowering::Lowerer::new(&self.crate_env);
+        lower.kernel = std::mem::take(&mut self.kernel_env);
+        let result = (|| {
+            let module = self.module_manager.current();
+            let mut raw_context = context.clone();
+            let term = lower.set(term, &mut raw_context, module)?;
+            let expected = lower.classifier(ty, &mut raw_context, module)?;
+            let context = lower.context(context, module)?;
+            kernel::check::Checker::new(&lower.kernel, context).check(term, expected)
+        })();
+        self.kernel_env = lower.kernel;
+        result
+    }
+
+    fn certify_program_query(
+        &mut self,
+        context: &crate::raw::program::ProgramContext,
+        term: crate::raw::program::Program,
+        ty: crate::raw::program::ProgramType,
+    ) -> Result<(), String> {
+        let mut lower = crate::lowering::Lowerer::new(&self.crate_env);
+        lower.kernel = std::mem::take(&mut self.kernel_env);
+        let result = (|| {
+            let term = lower.program_in_context(term, &mut context.clone())?;
+            let ty = lower.program_type(ty)?;
+            let context = lower.program_context(context)?;
+            kernel::check::Checker::new(&lower.kernel, context).check(term, ty)
+        })();
+        self.kernel_env = lower.kernel;
+        result
+    }
+
+    pub fn kernel_env(&self) -> &kernel::stratified::environment::Environment {
+        &self.kernel_env
     }
 
     pub fn crate_env(&self) -> &CrateEnv {
@@ -364,7 +402,7 @@ impl GlobalEnvironment {
                 let reflected = match *argument {
                     ModuleArgument::Pts(exp) => exp,
                     ModuleArgument::ProgramType(ty) => {
-                        kernel::reflection::reflect_value_type(&self.crate_env, ty).map_err(
+                        crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
                             |error| {
                                 ElaborationError::Message(format!(
                                     "cannot reflect Program type module argument: {error}"
@@ -372,9 +410,9 @@ impl GlobalEnvironment {
                             },
                         )?
                     }
-                    ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
+                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
                         &self.crate_env,
-                        kernel::program::Program::Value(value),
+                        crate::raw::program::Program::Value(value),
                     )
                     .map_err(|error| {
                         ElaborationError::Message(format!(
@@ -408,7 +446,13 @@ impl GlobalEnvironment {
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         self.module_manager.moveto_root();
-        let result = self.module_add_rec(module);
+        let result = self.module_add_rec(module).and_then(|()| {
+            let (kernel, result) = crate::lowering::Lowerer::new(&self.crate_env)
+                .extend(std::mem::take(&mut self.kernel_env));
+            self.kernel_env = kernel;
+            result.map_err(ElaborationError::from)?;
+            Ok(())
+        });
         match (result, self.diagnostic_location.take()) {
             (Err(error), Some(location)) => Err(ElaborationError::Located {
                 location,
@@ -482,7 +526,7 @@ impl GlobalEnvironment {
                     ty: record_ty,
                     body: projected_ty,
                 });
-                let ty = kernel::utils::assoc_prod(arena, parameters.clone(), projection_ty);
+                let ty = crate::raw::utils::assoc_prod(arena, parameters.clone(), projection_ty);
 
                 let parameters_under_motive = parameters_under_value
                     .iter()
@@ -519,7 +563,7 @@ impl GlobalEnvironment {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let selected = arena.exp_bound(field_count - 1 - field);
-                let case = kernel::utils::assoc_lam(arena, case_telescope, selected);
+                let case = crate::raw::utils::assoc_lam(arena, case_telescope, selected);
                 let elimination = arena.alloc(ExpNode::IndElim {
                     indspec: inductive,
                     elim: arena.exp_bound(0),
@@ -531,7 +575,7 @@ impl GlobalEnvironment {
                     ty: record_ty,
                     body: elimination,
                 });
-                let body = kernel::utils::assoc_lam(arena, parameters.clone(), projection);
+                let body = crate::raw::utils::assoc_lam(arena, parameters.clone(), projection);
                 (name, ty, body)
             };
 
@@ -566,7 +610,7 @@ impl GlobalEnvironment {
         let self_ty = self
             .crate_env
             .arena()
-            .alloc(kernel::program::ValueTypeNode::Inductive {
+            .alloc(crate::raw::program::ValueTypeNode::Inductive {
                 indspec: inductive,
                 parameters: Vec::new(),
             });
@@ -614,7 +658,7 @@ impl GlobalEnvironment {
             }
             let result: ValueTypeExp = result.clone().try_into()?;
             let result = scope.elaborate_value_type(&result, self)?;
-            let kernel::program::ValueTypeNode::Inductive {
+            let crate::raw::program::ValueTypeNode::Inductive {
                 indspec,
                 parameters,
             } = self.crate_env.arena().get(result)
@@ -631,7 +675,7 @@ impl GlobalEnvironment {
                     && parameters.iter().enumerate().all(|(index, parameter)| {
                         matches!(
                             self.crate_env.arena().get(*parameter),
-                            kernel::program::ValueTypeNode::Bound(bound)
+                            crate::raw::program::ValueTypeNode::Bound(bound)
                                 if bound == parameter_names.len() - 1 - index
                         )
                     }));
@@ -660,9 +704,9 @@ impl GlobalEnvironment {
             .collect();
         let reflected_constructors = self.crate_env.program_inductive(inductive).constructors().iter().map(|constructor| {
             let telescope = constructor.fields().iter().enumerate().map(|(field_index, (name, ty))| {
-                let ty = kernel::reflection::reflect_value_type(&self.crate_env, *ty)
+                let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, *ty)
                     .map_err(|error| format!("cannot reflect Program constructor field: {error}"))?;
-                let ty = kernel::calculus::shift_bound_indices(
+                let ty = crate::raw::calculus::shift_bound_indices(
                     self.crate_env.arena(),
                     ty,
                     field_index,
@@ -671,14 +715,14 @@ impl GlobalEnvironment {
                 if !exp_contains_inductive(self.crate_env.arena(), ty, reflected) {
                     return Ok(CtorBinder::Simple((*name, ty)));
                 }
-                let (binders, tail) = kernel::utils::decompose_prod(self.crate_env.arena(), ty);
-                let (head, self_indices) = kernel::utils::decompose_app(self.crate_env.arena(), tail);
+                let (binders, tail) = crate::raw::utils::decompose_prod(self.crate_env.arena(), ty);
+                let (head, self_indices) = crate::raw::utils::decompose_app(self.crate_env.arena(), tail);
                 if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == reflected) {
                     return Err("reflected recursive Program field is not strictly positive".to_string());
                 }
                 Ok(CtorBinder::StrictPositive { binders, self_indices })
             }).collect::<Result<Vec<_>, String>>()?;
-            Ok(kernel::inductive::CtorType { telescope, indices: Vec::new() })
+            Ok(crate::raw::inductive::CtorType { telescope, indices: Vec::new() })
         }).collect::<Result<Vec<_>, String>>()?;
         self.crate_env.define_inductive(
             reflected,
@@ -699,7 +743,7 @@ impl GlobalEnvironment {
             )
             .map_err(|error| format!("Ill-formed Program datatype: {error:?}"))?;
         let mut reflected_context =
-            kernel::reflection::reflect_context(&self.crate_env, &program_context)
+            crate::raw::reflection::reflect_context(&self.crate_env, &program_context)
                 .map_err(|error| format!("cannot reflect Program context: {error}"))?;
         self.crate_env
             .inductive(reflected)
@@ -943,7 +987,7 @@ impl GlobalEnvironment {
                         && let Some(certificate) = certified_reflection
                     {
                         let reflected_ty =
-                            kernel::reflection::reflect_value_type(&self.crate_env, ty)
+                            crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
                                 .map_err(|error| error.to_string())?;
                         let mut context = self.module_manager.current_context(&self.crate_env);
                         CheckSession::new(
@@ -988,7 +1032,7 @@ impl GlobalEnvironment {
                         && let Some(certificate) = certified_reflection
                     {
                         let reflected_ty =
-                            kernel::reflection::reflect_computation_type(&self.crate_env, ty)
+                            crate::raw::reflection::reflect_computation_type(&self.crate_env, ty)
                                 .map_err(|error| error.to_string())?;
                         let mut context = self.module_manager.current_context(&self.crate_env);
                         CheckSession::new(
@@ -1082,7 +1126,7 @@ impl GlobalEnvironment {
                                 self.finish_metavariables()?;
                                 term_elab = self.metavariables.zonk(&self.crate_env, term_elab);
                             }
-                            kernel::utils::decompose_prod(self.crate_env.arena(), term_elab)
+                            crate::raw::utils::decompose_prod(self.crate_env.arena(), term_elab)
                         };
 
                         let mut ctor_binders = vec![];
@@ -1090,7 +1134,7 @@ impl GlobalEnvironment {
                             if exp_contains_inductive(self.crate_env.arena(), e, inductive) {
                                 // strict positive case
                                 let (inner_binders, inner_tail) =
-                                    kernel::utils::decompose_prod(self.crate_env.arena(), e);
+                                    crate::raw::utils::decompose_prod(self.crate_env.arena(), e);
                                 for (_, it) in inner_binders.iter() {
                                     if exp_contains_inductive(
                                         self.crate_env.arena(),
@@ -1100,7 +1144,7 @@ impl GlobalEnvironment {
                                         return Err("Ctor contains inductive type name  in non-strictly positive position".into());
                                     }
                                 }
-                                let (head, tail) = kernel::utils::decompose_app(
+                                let (head, tail) = crate::raw::utils::decompose_app(
                                     self.crate_env.arena(),
                                     inner_tail,
                                 );
@@ -1129,7 +1173,7 @@ impl GlobalEnvironment {
                         }
 
                         let (head, tail) =
-                            kernel::utils::decompose_app(self.crate_env.arena(), ends_elab);
+                            crate::raw::utils::decompose_app(self.crate_env.arena(), ends_elab);
                         if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == inductive)
                         {
                             return Err(
@@ -1144,7 +1188,7 @@ impl GlobalEnvironment {
                             }
                         }
 
-                        ctor_type_elabs.push(kernel::inductive::CtorType {
+                        ctor_type_elabs.push(crate::raw::inductive::CtorType {
                             telescope: ctor_binders,
                             indices: tail,
                         });
@@ -1221,7 +1265,7 @@ impl GlobalEnvironment {
                         parameter_elab,
                         vec![],
                         *sort,
-                        vec![kernel::inductive::CtorType {
+                        vec![crate::raw::inductive::CtorType {
                             telescope,
                             indices: vec![],
                         }],
@@ -1335,7 +1379,7 @@ impl GlobalEnvironment {
                                     let syntax: ValueExp = expression.clone().try_into()?;
                                     let value = program_scope.elaborate_value(&syntax, self)?;
                                     let expected =
-                                        kernel::program_calculus::subst_value_type_module_params(
+                                        crate::raw::program_calculus::subst_value_type_module_params(
                                             self.crate_env.arena(),
                                             ty,
                                             &program_substitutions,
@@ -1432,7 +1476,8 @@ impl GlobalEnvironment {
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
                     self.outputs.push(Output::Exp(
-                        kernel::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
+                        crate::raw::calculus::reduce_one(&self.crate_env, exp_elab)
+                            .unwrap_or(exp_elab),
                     ));
                 }
                 ModuleItem::Normalize { exp } => {
@@ -1443,10 +1488,11 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                     }
                     let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
-                    self.outputs.push(Output::Exp(kernel::calculus::normalize(
-                        &self.crate_env,
-                        exp_elab,
-                    )));
+                    self.outputs
+                        .push(Output::Exp(crate::raw::calculus::normalize(
+                            &self.crate_env,
+                            exp_elab,
+                        )));
                 }
                 ModuleItem::ComputationEval { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
@@ -1456,7 +1502,7 @@ impl GlobalEnvironment {
                     } else {
                         computation
                     };
-                    let reduced = kernel::program_calculus::reduce_computation_once(
+                    let reduced = crate::raw::program_calculus::reduce_computation_once(
                         &self.crate_env,
                         computation,
                     );
@@ -1472,14 +1518,14 @@ impl GlobalEnvironment {
                         computation
                     };
                     self.outputs.push(
-                        match kernel::program_calculus::evaluate_computation(
+                        match crate::raw::program_calculus::evaluate_computation(
                             &self.crate_env,
                             computation,
                         ) {
-                            kernel::program_calculus::Evaluation::Normal(result) => {
+                            crate::raw::program_calculus::Evaluation::Normal(result) => {
                                 Output::Computation(result)
                             }
-                            kernel::program_calculus::Evaluation::OutOfFuel(result) => {
+                            crate::raw::program_calculus::Evaluation::OutOfFuel(result) => {
                                 Output::OutOfFuel(result)
                             }
                         },
@@ -1494,6 +1540,11 @@ impl GlobalEnvironment {
                     ProgramCheckSession::new(&self.crate_env, &mut context)
                         .check_value(value, ty)
                         .map_err(|error| format!("Program value check failed: {error:?}"))?;
+                    self.certify_program_query(
+                        scope.context(),
+                        crate::raw::program::Program::Value(value),
+                        crate::raw::program::ProgramType::Value(ty),
+                    )?;
                     self.outputs.push(Output::ValueType(ty));
                 }
                 ModuleItem::ComputationCheck { exp, ty } => {
@@ -1506,18 +1557,34 @@ impl GlobalEnvironment {
                     ProgramCheckSession::new(&self.crate_env, &mut context)
                         .check_computation(computation, ty)
                         .map_err(|error| format!("Program computation check failed: {error:?}"))?;
+                    self.certify_program_query(
+                        scope.context(),
+                        crate::raw::program::Program::Computation(computation),
+                        crate::raw::program::ProgramType::Computation(ty),
+                    )?;
                     self.outputs.push(Output::ComputationType(ty));
                 }
                 ModuleItem::ValueInfer { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let value = scope.elaborate_value(exp, self)?;
-                    let (_, ty) = scope.infer_value_with_metas(self, value)?;
+                    let (value, ty) = scope.infer_value_with_metas(self, value)?;
+                    self.certify_program_query(
+                        scope.context(),
+                        crate::raw::program::Program::Value(value),
+                        crate::raw::program::ProgramType::Value(ty),
+                    )?;
                     self.outputs.push(Output::ValueType(ty));
                 }
                 ModuleItem::ComputationInfer { exp } => {
                     let mut scope = program_term_elaborator::ProgramScope::new();
                     let computation = scope.elaborate_computation(exp, self)?;
-                    let (_, ty) = scope.infer_computation_with_metas(self, computation)?;
+                    let (computation, ty) =
+                        scope.infer_computation_with_metas(self, computation)?;
+                    self.certify_program_query(
+                        scope.context(),
+                        crate::raw::program::Program::Computation(computation),
+                        crate::raw::program::ProgramType::Computation(ty),
+                    )?;
                     self.outputs.push(Output::ComputationType(ty));
                 }
                 ModuleItem::Check { exp, ty } => {
@@ -1537,7 +1604,12 @@ impl GlobalEnvironment {
                     )
                     .check_pts(exp_elab, ty_elab)
                     {
-                        Ok(()) => self.outputs.push(Output::Exp(ty_elab)),
+                        Ok(()) => match self.certify_query(&ctx, exp_elab, ty_elab) {
+                            Ok(()) => self.outputs.push(Output::Exp(ty_elab)),
+                            Err(error) => self
+                                .outputs
+                                .push(Output::Message(format!("check failed: {error}"))),
+                        },
                         Err(error) => self
                             .outputs
                             .push(Output::Message(format!("check failed: {error:?}"))),
@@ -1558,7 +1630,12 @@ impl GlobalEnvironment {
                     )
                     .infer_exp_judgement(exp_elab)
                     {
-                        Ok(judgement) => self.outputs.push(Output::Exp(judgement.ty)),
+                        Ok(judgement) => match self.certify_query(&ctx, exp_elab, judgement.ty) {
+                            Ok(()) => self.outputs.push(Output::Exp(judgement.ty)),
+                            Err(error) => self
+                                .outputs
+                                .push(Output::Message(format!("infer failed: {error}"))),
+                        },
                         Err(error) => self
                             .outputs
                             .push(Output::Message(format!("infer failed: {error:?}"))),

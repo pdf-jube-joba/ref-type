@@ -1,6 +1,6 @@
 //! Human-readable formatting for kernel expressions.
 
-use crate::{
+use crate::raw::{
     environment::CrateEnv,
     exp::{Axiom, Exp, ExpContext, ExpNode, Prove},
     ids::{ModuleParamId, SymbolId},

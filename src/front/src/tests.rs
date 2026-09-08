@@ -1,12 +1,12 @@
+use crate::raw::{
+    environment::{DefinedConstant, ModuleItem},
+    exp::ExpNode,
+};
 use crate::{
     elaborator::GlobalEnvironment,
     metavariables::ElaborationError,
     parse,
     syntax::{SExp, SurfaceMeta},
-};
-use kernel::{
-    environment::{DefinedConstant, ModuleItem},
-    exp::ExpNode,
 };
 
 #[test]
@@ -55,7 +55,7 @@ fn record_fields_are_generated_as_eliminator_definitions() {
     let ExpNode::Prod { body, .. } = env.arena().get(*ty) else {
         panic!("value projection should accept the structure");
     };
-    let (head, _) = kernel::utils::decompose_app(env.arena(), body);
+    let (head, _) = crate::raw::utils::decompose_app(env.arena(), body);
     assert!(matches!(
         env.arena().get(head),
         ExpNode::DefinedConstant(definition) if definition == carrier
@@ -721,7 +721,7 @@ fn program_value_let_requires_an_annotation() {
 
 #[test]
 fn program_value_let_solves_and_zonks_type_annotations() {
-    use kernel::program::{ComputationNode, ValueTypeNode};
+    use crate::raw::program::{ComputationNode, ValueTypeNode};
     let modules = parse::str_parse_modules(
         r#"
         \module AnnotatedLet(A: \VType, a: A) {
@@ -799,7 +799,7 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
     else {
         panic!()
     };
-    let env = kernel::environment::CrateEnv::new();
+    let env = crate::raw::environment::CrateEnv::new();
     let mut manager = ModuleManager::new();
     manager
         .register_macro(
@@ -842,7 +842,7 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
 
 #[test]
 fn program_case_reflects_value_let_in_parameterized_branches() {
-    use kernel::program::ComputationNode;
+    use crate::raw::program::ComputationNode;
     let modules = parse::str_parse_modules(
         r#"
         \module LetCase(A: \VType) {
@@ -878,7 +878,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
         panic!()
     };
     // Reflect the open case directly, without the enclosing lambda's context.
-    let reflected = kernel::reflection::reflect_computation(env, body).unwrap();
+    let reflected = crate::raw::reflection::reflect_computation(env, body).unwrap();
     let ExpNode::ReflectedProgramCase {
         scrutinee,
         branches,
@@ -935,7 +935,7 @@ fn set_recursion_preserves_a_shared_universe() {
 }
 
 #[test]
-fn run_step_recursor_rejects_branch_sort_above_motive_sort() {
+fn run_step_recursor_distinguishes_branch_and_result_sorts() {
     let source = r#"
         \module InvalidMotive(A: \Set(2), a: A, B: \Set(0), b: B) {
             \definition bad: B := \runStepRec(A, A,
@@ -945,17 +945,13 @@ fn run_step_recursor_rejects_branch_sort_above_motive_sort() {
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
-    let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-    assert!(
-        format!("{error:?}").contains("branch type must have the motive sort"),
-        "{error:?}"
-    );
+    environment.add_new_module_to_root(&modules[0]).unwrap();
 }
 
 #[test]
 fn run_step_inference_with_metavariables_preserves_the_universe() {
+    use crate::raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
     use crate::{metavariables::MetaStore, syntax::SourceSpan};
-    use kernel::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
 
     for level in [0, 2] {
         let env = CrateEnv::new();
@@ -1012,4 +1008,54 @@ fn inferred_recursion_annotations_still_reject_mixed_universes() {
             "{error:?}"
         );
     }
+}
+
+#[test]
+fn indexed_box_steps_preserve_accessibility_certificates() {
+    let source = r#"
+        \module CertifiedSteps {
+          \inductive Unit: \VType := | unit: Unit; ;
+          \vdefinition step: \U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))) :=
+            \thunk(\clam(s, Unit, \return(\Pfinish(Unit, Unit, Unit::unit))));
+          \definition stepSet: Unit -> \RunStep(Unit, Unit) :=
+            \Force(\U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))),
+              \box(\U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))), step));
+          \definition ready: \RunStep(Unit, Unit) -> \Prop :=
+            (r: \RunStep(Unit, Unit)) => \Pred(Unit,
+              \runStepRec(Unit, Unit, (r: \RunStep(Unit, Unit)) => \Power(Unit),
+                (s: Unit) => \Subset(x, Unit, \Acc(Unit, Unit, stepSet, s)),
+                (o: Unit) => \Subset(x, Unit, Unit::unit = Unit::unit), r), Unit::unit);
+          \definition terminates: (s: Unit) -> \Acc(Unit, Unit, stepSet, s) :=
+            (s: Unit) => \accintro(Unit, Unit, stepSet, s,
+              (next: Unit) => (edge: stepSet s = \continue(Unit, Unit, next)) =>
+                \idelim(stepSet s = \continue(Unit, Unit, next)
+                  \with r: \RunStep(Unit, Unit) => ready r) \by (\refl(Unit::unit), edge));
+          \cdefinition result: \F(Unit) :=
+            \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit::unit;
+          \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), result);
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut global = GlobalEnvironment::default();
+    global.add_new_module_to_root(&modules[0]).unwrap();
+    let raw = global.crate_env();
+    let module = raw.module(raw.root_module()).children()[0];
+    let crate::raw::environment::ModuleItem::Definition { definition, .. } =
+        raw.module(module).item("boxed").unwrap()
+    else {
+        panic!("boxed definition")
+    };
+    let env = global.kernel_env();
+    let def = env.definition(*definition).unwrap();
+    let mut term = def.body;
+    let mut steps = 0;
+    while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
+        kernel::check::Checker::new(env, vec![])
+            .check(next, def.classifier)
+            .unwrap();
+        term = next;
+        steps += 1;
+        assert!(steps < 20);
+    }
+    assert!(steps >= 3);
 }

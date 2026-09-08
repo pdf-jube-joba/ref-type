@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
+use crate::raw::{
     calculus::{
         exp_contains_inductive, exp_subst_map, instantiate_outer_telescope, remap_ambient_indices,
         shift_bound_indices,
@@ -29,7 +29,8 @@ impl InductiveTypeSpecs {
         definitions: &HashMap<DefId, DefId>,
         inductives: &HashMap<InductiveId, InductiveId>,
     ) -> Self {
-        let remap = |exp| crate::calculus::remap_global_ids(arena, exp, definitions, inductives);
+        let remap =
+            |exp| crate::raw::calculus::remap_global_ids(arena, exp, definitions, inductives);
         Self {
             parameters: self
                 .parameters
@@ -437,7 +438,8 @@ impl CtorType {
         definitions: &HashMap<DefId, DefId>,
         inductives: &HashMap<InductiveId, InductiveId>,
     ) -> Self {
-        let remap = |exp| crate::calculus::remap_global_ids(arena, exp, definitions, inductives);
+        let remap =
+            |exp| crate::raw::calculus::remap_global_ids(arena, exp, definitions, inductives);
         Self {
             telescope: self
                 .telescope
@@ -666,7 +668,9 @@ pub fn eliminator_type(
     let shifted_q = shift_bound_indices(arena, q, telescope.len(), 0);
     let motive = utils::assoc_apply(arena, shifted_q, indices);
     let result = match arena.get(motive) {
-        ExpNode::Lam { body, .. } => crate::calculus::instantiate(arena, body, applied_constructor),
+        ExpNode::Lam { body, .. } => {
+            crate::raw::calculus::instantiate(arena, body, applied_constructor)
+        }
         _ => arena.alloc(ExpNode::App {
             func: motive,
             arg: applied_constructor,

@@ -1,20 +1,20 @@
 use crate::macros::{MacroInstantiation, ModuleMacroScope};
+use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
+use crate::raw::derivation::CheckSession;
+use crate::raw::environment::{
+    CrateEnv, DefinedConstant, ModuleArgument, ModuleItem, ModuleParameter, ModuleParameterKind,
+};
+use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
+use crate::raw::ids::{
+    DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId,
+};
+use crate::raw::inductive::InductiveTypeSpecs;
+use crate::raw::program::{ProgramContext, ProgramContextEntry};
+use crate::raw::program_inductive::ProgramInductiveTypeSpecs;
 use crate::syntax::{
     Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
     ModItemRecord,
 };
-use kernel::calculus::{exp_subst_map, remap_all_global_ids};
-use kernel::derivation::CheckSession;
-use kernel::environment::{
-    CrateEnv, DefinedConstant, ModuleArgument, ModuleItem, ModuleParameter, ModuleParameterKind,
-};
-use kernel::exp::{Exp, ExpContext, ExpContextEntry};
-use kernel::ids::{
-    DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId,
-};
-use kernel::inductive::InductiveTypeSpecs;
-use kernel::program::{ProgramContext, ProgramContextEntry};
-use kernel::program_inductive::ProgramInductiveTypeSpecs;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -467,26 +467,32 @@ impl ModuleManager {
                             })?;
                     }
                     (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(ty)) => {
-                        kernel::program_derivation::ProgramCheckSession::new(env, &mut Vec::new())
-                            .check_value_type(*ty)
-                            .map_err(|error| {
-                                format!("Program type module argument is ill-formed: {error:?}")
-                            })?;
+                        crate::raw::program_derivation::ProgramCheckSession::new(
+                            env,
+                            &mut Vec::new(),
+                        )
+                        .check_value_type(*ty)
+                        .map_err(|error| {
+                            format!("Program type module argument is ill-formed: {error:?}")
+                        })?;
                     }
                     (
                         ModuleParameterKind::ProgramValue { ty },
                         ModuleArgument::ProgramValue(value),
                     ) => {
-                        let expected = kernel::program_calculus::subst_value_type_module_params(
+                        let expected = crate::raw::program_calculus::subst_value_type_module_params(
                             env.arena(),
                             ty,
                             &substitutions,
                         );
-                        kernel::program_derivation::ProgramCheckSession::new(env, &mut Vec::new())
-                            .check_value(*value, expected)
-                            .map_err(|error| {
-                                format!("Program value module argument is ill-typed: {error:?}")
-                            })?;
+                        crate::raw::program_derivation::ProgramCheckSession::new(
+                            env,
+                            &mut Vec::new(),
+                        )
+                        .check_value(*value, expected)
+                        .map_err(|error| {
+                            format!("Program value module argument is ill-typed: {error:?}")
+                        })?;
                     }
                     _ => {
                         return Err(format!(
@@ -503,13 +509,13 @@ impl ModuleManager {
                 let reflected = match argument {
                     ModuleArgument::Pts(exp) => *exp,
                     ModuleArgument::ProgramType(ty) => {
-                        kernel::reflection::reflect_value_type(env, *ty).map_err(|error| {
+                        crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
                             format!("cannot reflect Program type module argument: {error}")
                         })?
                     }
-                    ModuleArgument::ProgramValue(value) => kernel::reflection::reflect_program(
+                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
                         env,
-                        kernel::program::Program::Value(*value),
+                        crate::raw::program::Program::Value(*value),
                     )
                     .map_err(|error| {
                         format!("cannot reflect Program value module argument: {error}")
@@ -566,10 +572,10 @@ impl ModuleManager {
                                 },
                                 DefinedConstant::ProgramValue { ty, body, certified_reflection } => {
                                     DefinedConstant::ProgramValue {
-                                        ty: kernel::program_calculus::subst_value_type_module_params(
+                                        ty: crate::raw::program_calculus::subst_value_type_module_params(
                                             env.arena(), ty, &substitutions,
                                         ),
-                                        body: kernel::program_calculus::subst_value_module_params(
+                                        body: crate::raw::program_calculus::subst_value_module_params(
                                             env.arena(), body, &substitutions,
                                         ),
                                         certified_reflection: certified_reflection.map(|term| {
@@ -579,10 +585,10 @@ impl ModuleManager {
                                 }
                                 DefinedConstant::ProgramComputation { ty, body, certified_reflection } => {
                                     DefinedConstant::ProgramComputation {
-                                        ty: kernel::program_calculus::subst_computation_type_module_params(
+                                        ty: crate::raw::program_calculus::subst_computation_type_module_params(
                                             env.arena(), ty, &substitutions,
                                         ),
-                                        body: kernel::program_calculus::subst_computation_module_params(
+                                        body: crate::raw::program_calculus::subst_computation_module_params(
                                             env.arena(), body, &substitutions,
                                         ),
                                         certified_reflection: certified_reflection.map(|term| {
@@ -701,13 +707,13 @@ impl ModuleManager {
                                 body,
                                 certified_reflection,
                             } => DefinedConstant::ProgramValue {
-                                ty: kernel::program_calculus::remap_value_type_global_ids(
+                                ty: crate::raw::program_calculus::remap_value_type_global_ids(
                                     env.arena(),
                                     ty,
                                     &definition_ids,
                                     &program_inductive_ids,
                                 ),
-                                body: kernel::program_calculus::remap_value_global_ids(
+                                body: crate::raw::program_calculus::remap_value_global_ids(
                                     env.arena(),
                                     body,
                                     &definition_ids,
@@ -728,13 +734,13 @@ impl ModuleManager {
                                 body,
                                 certified_reflection,
                             } => DefinedConstant::ProgramComputation {
-                                ty: kernel::program_calculus::remap_computation_type_global_ids(
+                                ty: crate::raw::program_calculus::remap_computation_type_global_ids(
                                     env.arena(),
                                     ty,
                                     &definition_ids,
                                     &program_inductive_ids,
                                 ),
-                                body: kernel::program_calculus::remap_computation_global_ids(
+                                body: crate::raw::program_calculus::remap_computation_global_ids(
                                     env.arena(),
                                     body,
                                     &definition_ids,
@@ -1027,9 +1033,9 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kernel::exp::ExpNode;
-    use kernel::inductive::{CtorType, InductiveTypeSpecs};
-    use kernel::sort::Sort;
+    use crate::raw::exp::ExpNode;
+    use crate::raw::inductive::{CtorType, InductiveTypeSpecs};
+    use crate::raw::sort::Sort;
 
     fn pts_body(definition: &DefinedConstant) -> Exp {
         match definition {
@@ -1138,14 +1144,14 @@ mod tests {
         );
         assert_eq!(
             env.definition_origin(first_ids[0]),
-            Some(kernel::environment::DefinitionOrigin {
+            Some(crate::raw::environment::DefinitionOrigin {
                 instance: first,
                 source: base,
             })
         );
         assert_eq!(
             env.definition_origin(second_ids[0]),
-            Some(kernel::environment::DefinitionOrigin {
+            Some(crate::raw::environment::DefinitionOrigin {
                 instance: second,
                 source: base,
             })
@@ -1394,9 +1400,9 @@ mod tests {
         let child = env
             .arena()
             .alloc(ExpNode::DefinedConstant(*child_definition));
-        assert!(kernel::calculus::exp_is_alpha_eq(
+        assert!(crate::raw::calculus::exp_is_alpha_eq(
             &env,
-            kernel::calculus::whnf(&env, child),
+            crate::raw::calculus::whnf(&env, child),
             argument,
         ));
     }
@@ -1517,9 +1523,9 @@ mod tests {
             unreachable!()
         };
         let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
-        assert!(kernel::calculus::exp_is_alpha_eq(
+        assert!(crate::raw::calculus::exp_is_alpha_eq(
             &env,
-            kernel::calculus::whnf(&env, result),
+            crate::raw::calculus::whnf(&env, result),
             argument,
         ));
     }

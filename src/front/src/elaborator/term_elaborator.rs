@@ -1,11 +1,11 @@
 use crate::elaborator::ItemAccessResult;
+use crate::raw::calculus::{exp_contains_bound, instantiate};
+use crate::raw::environment::CrateEnv;
+use crate::raw::exp::*;
+use crate::raw::ids::*;
+use crate::raw::inductive::InductiveTypeSpecs;
+use crate::raw::program::{Program, ProgramType};
 use crate::syntax::*;
-use kernel::calculus::{exp_contains_bound, instantiate};
-use kernel::environment::CrateEnv;
-use kernel::exp::*;
-use kernel::ids::*;
-use kernel::inductive::InductiveTypeSpecs;
-use kernel::program::{Program, ProgramType};
 
 pub trait Handler {
     fn env(&self) -> &CrateEnv;
@@ -379,7 +379,7 @@ impl LocalScope {
                                     self.associated_parameters(parameters, count, handler)?;
                                 let definition =
                                     handler.arena().alloc(ExpNode::DefinedConstant(*definition));
-                                return Ok(kernel::utils::assoc_apply(
+                                return Ok(crate::raw::utils::assoc_apply(
                                     handler.arena(),
                                     definition,
                                     parameters,
@@ -423,7 +423,7 @@ impl LocalScope {
                                     self.associated_parameters(parameters, count, handler)?;
                                 let definition =
                                     handler.arena().alloc(ExpNode::DefinedConstant(*definition));
-                                return Ok(kernel::utils::assoc_apply(
+                                return Ok(crate::raw::utils::assoc_apply(
                                     handler.arena(),
                                     definition,
                                     parameters,
@@ -440,7 +440,7 @@ impl LocalScope {
                             let shifted_parameters = parameters
                                 .iter()
                                 .map(|parameter| {
-                                    kernel::calculus::shift_bound_indices(
+                                    crate::raw::calculus::shift_bound_indices(
                                         handler.arena(),
                                         *parameter,
                                         1,
@@ -515,7 +515,7 @@ impl LocalScope {
                         let ty = self.elab_exp_rec(ty, handler)?;
                         let body = self.elab_exp_rec(body, handler)?;
                         let inferred = handler.infer(&mut self.typing_binds, body)?;
-                        if !kernel::calculus::convertible(handler.env(), inferred, ty) {
+                        if !crate::raw::calculus::convertible(handler.env(), inferred, ty) {
                             return Err(format!(
                                 "where definition '{}' does not match its declared type",
                                 name.as_str(),
@@ -576,9 +576,9 @@ impl LocalScope {
                         }
 
                         Ok(if is_prod {
-                            kernel::utils::assoc_prod(handler.arena(), telescope, body_elab)
+                            crate::raw::utils::assoc_prod(handler.arena(), telescope, body_elab)
                         } else {
-                            kernel::utils::assoc_lam(handler.arena(), telescope, body_elab)
+                            crate::raw::utils::assoc_lam(handler.arena(), telescope, body_elab)
                         })
                     }
                     Bind::Subset { var, ty, predicate } => {
@@ -958,7 +958,7 @@ impl LocalScope {
                 let certified_reflection = certified_reflection.ok_or_else(|| {
                     format!(
                         "cannot box a partial Program: a run is missing its `\\by` certificate ({})",
-                        kernel::printing::format_program(handler.env(), program)
+                        crate::raw::printing::format_program(handler.env(), program)
                     )
                 })?;
                 Ok(handler.arena().alloc(ExpNode::BoxProgram {
@@ -1046,7 +1046,7 @@ impl LocalScope {
                             .telescope
                             .iter()
                             .map(|binder| match binder {
-                                kernel::inductive::CtorBinder::Simple((name, _)) => {
+                                crate::raw::inductive::CtorBinder::Simple((name, _)) => {
                                     handler.symbol(*name).to_string()
                                 }
                                 _ => {
@@ -1090,7 +1090,7 @@ impl LocalScope {
                     parameters,
                     idx: 0,
                 });
-                Ok(kernel::utils::assoc_apply(
+                Ok(crate::raw::utils::assoc_apply(
                     handler.arena(),
                     constructor,
                     ordered,

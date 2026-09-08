@@ -1,7 +1,7 @@
 // this file describes the surface syntax tree
-use kernel::exp::{Exp, ExpNode};
-use kernel::ids::{DefId, InductiveId, ModuleId};
-use kernel::sort::Sort;
+use crate::raw::exp::{Exp, ExpNode};
+use crate::raw::ids::{DefId, InductiveId, ModuleId};
+use crate::raw::sort::Sort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SourceSpan {
@@ -981,7 +981,7 @@ pub struct ModItemInductive {
 pub struct ModItemProgramInductive {
     pub type_name: Identifier,
     pub ctor_names: Vec<Identifier>,
-    pub inductive: kernel::ids::ProgramInductiveId,
+    pub inductive: crate::raw::ids::ProgramInductiveId,
     pub reflected: InductiveId,
     pub associated_definitions: Vec<(Identifier, DefId)>,
 }
@@ -997,7 +997,7 @@ impl ModItemRecord {
     // Apply the projection definition generated for a record field.
     pub fn field_projection(
         &self,
-        env: &kernel::environment::CrateEnv,
+        env: &crate::raw::environment::CrateEnv,
         e: Exp,
         field_name: &Identifier,
         parameters: &[Exp],
@@ -1008,7 +1008,7 @@ impl ModItemRecord {
             .iter()
             .find(|(name, _)| name == field_name)?;
         let projection = arena.alloc(ExpNode::DefinedConstant(*definition));
-        Some(kernel::utils::assoc_apply(
+        Some(crate::raw::utils::assoc_apply(
             arena,
             projection,
             parameters.iter().copied().chain([e]).collect(),

@@ -1,6 +1,6 @@
 //! Crate/module declarations and materialized-instance provenance.
 
-use crate::{
+use crate::raw::{
     exp::{Arena, Exp},
     ids::{
         DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId, SymbolId,
@@ -202,12 +202,14 @@ impl ModuleEnv {
 #[derive(Debug)]
 pub struct CrateEnv {
     arena: Arena,
+    pub(crate) inference_cache:
+        std::cell::RefCell<HashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
     materialized_instances: HashMap<ModuleId, ModuleInstanceId>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
-    checking_contexts: HashMap<ModuleId, crate::exp::ExpContext>,
+    checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
 }
 
 impl Default for CrateEnv {
@@ -225,6 +227,7 @@ impl CrateEnv {
         symbol_ids.insert(root.clone(), SymbolId(1));
         Self {
             arena: Arena::new(),
+            inference_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
@@ -266,9 +269,9 @@ impl CrateEnv {
     pub fn add_module_in_scope(
         &mut self,
         owner: ModuleId,
-        mut context: crate::exp::ExpContext,
+        mut context: crate::raw::exp::ExpContext,
     ) -> Result<ModuleId, String> {
-        crate::derivation::CheckSession::new(self, owner, &mut context)
+        crate::raw::derivation::CheckSession::new(self, owner, &mut context)
             .check_wellformed_context()
             .map_err(|error| error.to_string())?;
         let module = self.add_module();
@@ -356,7 +359,7 @@ impl CrateEnv {
         module: ModuleId,
         definition: &DefinedConstant,
     ) -> Result<(), String> {
-        use crate::{
+        use crate::raw::{
             derivation::CheckSession, program_derivation::ProgramCheckSession, reflection,
         };
         let mut ancestors = Vec::new();
@@ -377,7 +380,7 @@ impl CrateEnv {
         let mut pts_context = parameters
             .iter()
             .filter_map(|parameter| match parameter.kind {
-                ModuleParameterKind::Pts { ty } => Some(crate::exp::ExpContextEntry {
+                ModuleParameterKind::Pts { ty } => Some(crate::raw::exp::ExpContextEntry {
                     var: parameter.name,
                     ty,
                 }),
@@ -429,14 +432,14 @@ impl CrateEnv {
                 let ty = match parameter.kind {
                     ModuleParameterKind::Pts { .. } => continue,
                     ModuleParameterKind::ProgramType => {
-                        self.arena().sort(crate::sort::Sort::Set(0))
+                        self.arena().sort(crate::raw::sort::Sort::Set(0))
                     }
                     ModuleParameterKind::ProgramValue { ty } => {
                         reflection::reflect_value_type(self, ty)
                             .map_err(|error| error.to_string())?
                     }
                 };
-                pts_context.push(crate::exp::ExpContextEntry {
+                pts_context.push(crate::raw::exp::ExpContextEntry {
                     var: parameter.name,
                     ty,
                 });
@@ -623,5 +626,102 @@ impl CrateEnv {
         self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
             matches!(item, ModuleItem::Record { inductive: candidate, .. } if *candidate == inductive)
         })
+    }
+}
+
+impl CrateEnv {
+    pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
+        if let Some(context) = self.checking_contexts.get(&module) {
+            return context.clone();
+        }
+        let mut ancestors = vec![];
+        let mut current = Some(module);
+        while let Some(id) = current {
+            ancestors.push(id);
+            current = self
+                .checking_scopes
+                .get(&id)
+                .copied()
+                .or(self.module(id).parent());
+        }
+        ancestors.reverse();
+        ancestors
+            .into_iter()
+            .flat_map(|id| self.module(id).parameters())
+            .filter_map(|p| match p.kind {
+                ModuleParameterKind::Pts { ty } => {
+                    Some(crate::raw::exp::ExpContextEntry { var: p.name, ty })
+                }
+                ModuleParameterKind::ProgramType => Some(crate::raw::exp::ExpContextEntry {
+                    var: p.name,
+                    ty: self.arena.sort(crate::raw::sort::Sort::Set(0)),
+                }),
+                ModuleParameterKind::ProgramValue { ty } => {
+                    crate::raw::reflection::reflect_value_type(self, ty)
+                        .ok()
+                        .map(|ty| crate::raw::exp::ExpContextEntry { var: p.name, ty })
+                }
+            })
+            .collect()
+    }
+    pub(crate) fn parameter_ids(&self) -> Vec<ModuleParamId> {
+        self.modules
+            .iter()
+            .enumerate()
+            .flat_map(|(m, module)| {
+                (0..module.parameters.len()).map(move |i| ModuleParamId {
+                    module: ModuleId(m as u32),
+                    position: i as u32,
+                })
+            })
+            .collect()
+    }
+    pub(crate) fn definition_ids(&self) -> Vec<DefId> {
+        self.modules
+            .iter()
+            .enumerate()
+            .flat_map(|(m, module)| {
+                (0..module.definitions.len()).map(move |i| DefId {
+                    module: ModuleId(m as u32),
+                    index: i as u32,
+                })
+            })
+            .collect()
+    }
+    pub(crate) fn inductive_ids(&self) -> Vec<InductiveId> {
+        self.modules
+            .iter()
+            .enumerate()
+            .flat_map(|(m, module)| {
+                module
+                    .inductives
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(i, x)| {
+                        x.as_ref().map(|_| InductiveId {
+                            module: ModuleId(m as u32),
+                            index: i as u32,
+                        })
+                    })
+            })
+            .collect()
+    }
+    pub(crate) fn datatype_ids(&self) -> Vec<ProgramInductiveId> {
+        self.modules
+            .iter()
+            .enumerate()
+            .flat_map(|(m, module)| {
+                module
+                    .program_inductives
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(i, x)| {
+                        x.as_ref().map(|_| ProgramInductiveId {
+                            module: ModuleId(m as u32),
+                            index: i as u32,
+                        })
+                    })
+            })
+            .collect()
     }
 }

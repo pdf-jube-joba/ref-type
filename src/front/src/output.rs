@@ -1,4 +1,4 @@
-use kernel::{
+use crate::raw::{
     exp::Exp,
     program::{Computation, ComputationType, ValueType},
 };

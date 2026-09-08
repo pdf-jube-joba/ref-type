@@ -1,7 +1,6 @@
 //! Elaboration-time contextual metavariables and their diagnostics.
 
-use crate::syntax::{SourceLocation, SourceSpan, SurfaceMeta};
-use kernel::{
+use crate::raw::{
     calculus::{
         can_weaken_to, common_ambient_carrier, erased_convertible, instantiate_telescope,
         map_children, remove_unused_ambient_binders, shift_bound_indices,
@@ -14,6 +13,7 @@ use kernel::{
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
+use crate::syntax::{SourceLocation, SourceSpan, SurfaceMeta};
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
@@ -163,7 +163,7 @@ fn format_goals(env: &CrateEnv, heading: &str, goals: &[MetaGoal]) -> String {
     goals
         .iter()
         .map(|goal| {
-            let context = kernel::printing::format_ctx(env, &goal.context);
+            let context = crate::raw::printing::format_ctx(env, &goal.context);
             let principal = goal
                 .principal
                 .as_ref()
@@ -198,7 +198,7 @@ fn format_constraint_record(env: &CrateEnv, record: &ConstraintRecord) -> String
 }
 
 fn format_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> String {
-    let exp = |term| kernel::printing::format_exp(env, term);
+    let exp = |term| crate::raw::printing::format_exp(env, term);
     match constraint {
         GoalConstraint::HasType { term, expected } => {
             format!("{} : {}", exp(*term), exp(*expected))
@@ -505,11 +505,11 @@ impl MetaStore {
                 let mut preceding = Vec::new();
                 for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
                     let expected =
-                        kernel::calculus::instantiate_telescope(arena, *expected, &preceding);
+                        crate::raw::calculus::instantiate_telescope(arena, *expected, &preceding);
                     self.check_pts(env, module, context, argument, expected)?;
                     preceding.push(argument);
                 }
-                Ok(kernel::calculus::instantiate_telescope(
+                Ok(crate::raw::calculus::instantiate_telescope(
                     arena,
                     spec.arity(arena),
                     &parameters,
@@ -527,16 +527,18 @@ impl MetaStore {
                 let mut preceding = Vec::new();
                 for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
                     let expected =
-                        kernel::calculus::instantiate_telescope(arena, *expected, &preceding);
+                        crate::raw::calculus::instantiate_telescope(arena, *expected, &preceding);
                     self.check_pts(env, module, context, argument, expected)?;
                     preceding.push(argument);
                 }
                 if idx >= spec.constructor_len() {
                     return Err("constructor index out of bounds".into());
                 }
-                Ok(kernel::inductive::InductiveTypeSpecs::type_of_constructor(
-                    arena, indspec, spec, idx, parameters,
-                ))
+                Ok(
+                    crate::raw::inductive::InductiveTypeSpecs::type_of_constructor(
+                        arena, indspec, spec, idx, parameters,
+                    ),
+                )
             }
             ExpNode::Prod { var, ty, body } => {
                 let domain_sort = self.infer_sort(env, module, context, ty)?;
@@ -563,7 +565,7 @@ impl MetaStore {
             ExpNode::App { func, arg } => {
                 let func_ty = self.infer_pts(env, module, context, func)?;
                 let func_ty = self.zonk(env, func_ty);
-                let (domain, codomain) = match arena.get(kernel::calculus::whnf(env, func_ty)) {
+                let (domain, codomain) = match arena.get(crate::raw::calculus::whnf(env, func_ty)) {
                     ExpNode::Prod { ty, body, .. } => (ty, body),
                     ExpNode::Meta { .. } => {
                         let span = meta_span(env, func_ty, &self.entries);
@@ -580,7 +582,7 @@ impl MetaStore {
                     _ => return Err("application head type is not a product".into()),
                 };
                 self.check_pts(env, module, context, arg, domain)?;
-                Ok(kernel::calculus::instantiate(arena, codomain, arg))
+                Ok(crate::raw::calculus::instantiate(arena, codomain, arg))
             }
             ExpNode::PowerSet { set } => {
                 let sort = self.infer_sort(env, module, context, set)?;
@@ -838,16 +840,20 @@ impl MetaStore {
                     ty: motive_domain,
                     body: motive_body,
                     ..
-                } = arena.get(kernel::calculus::whnf(env, self.zonk(env, motive_ty)))
+                } = arena.get(crate::raw::calculus::whnf(env, self.zonk(env, motive_ty)))
                 else {
                     return Err("RunStep recursor motive is not a family".into());
                 };
                 self.unify(env, motive_domain, run_step)?;
                 let ExpNode::Sort(motive_sort) =
-                    arena.get(kernel::calculus::whnf(env, self.zonk(env, motive_body)))
+                    arena.get(crate::raw::calculus::whnf(env, self.zonk(env, motive_body)))
                 else {
                     return Err("RunStep recursor motive does not return a sort".into());
                 };
+                let branch_sort = self
+                    .infer_sort(env, module, context, state_ty)?
+                    .relation_of_sort(motive_sort)
+                    .ok_or("invalid recursor product rule")?;
                 let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
                 let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
                 let continue_value = arena.alloc(ExpNode::Continue {
@@ -864,8 +870,10 @@ impl MetaStore {
                     ty: state_ty,
                     body: continue_result,
                 });
-                if self.infer_sort(env, module, context, continue_ty)? != motive_sort {
-                    return Err("RunStep continue branch type must have the motive sort".into());
+                if self.infer_sort(env, module, context, continue_ty)? != branch_sort {
+                    return Err(
+                        "RunStep continue branch type must have the branch product sort".into(),
+                    );
                 }
                 self.check_pts(env, module, context, on_continue, continue_ty)?;
                 let finish_value = arena.alloc(ExpNode::Finish {
@@ -882,8 +890,10 @@ impl MetaStore {
                     ty: result_ty,
                     body: finish_result,
                 });
-                if self.infer_sort(env, module, context, finish_ty)? != motive_sort {
-                    return Err("RunStep finish branch type must have the motive sort".into());
+                if self.infer_sort(env, module, context, finish_ty)? != branch_sort {
+                    return Err(
+                        "RunStep finish branch type must have the branch product sort".into(),
+                    );
                 }
                 self.check_pts(env, module, context, on_finish, finish_ty)?;
                 self.check_pts(env, module, context, scrutinee, run_step)?;
@@ -924,7 +934,7 @@ impl MetaStore {
                     }
                 }
                 .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
-                let reflected_ty = kernel::reflection::reflect_program_type(env, program_ty)
+                let reflected_ty = crate::raw::reflection::reflect_program_type(env, program_ty)
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
                 self.check_pts(env, module, context, certified_reflection, reflected_ty)?;
                 Ok(arena.alloc(ExpNode::BoxType { program_ty }))
@@ -937,7 +947,7 @@ impl MetaStore {
                     boxed,
                     arena.alloc(ExpNode::BoxType { program_ty }),
                 )?;
-                kernel::reflection::reflect_program_type(env, program_ty)
+                crate::raw::reflection::reflect_program_type(env, program_ty)
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))
             }
             ExpNode::BoxApp { function, argument } => {
@@ -1504,7 +1514,7 @@ fn rigid_heads_compatible(left: &ExpNode, right: &ExpNode) -> bool {
     }
 }
 
-fn nondependent_product(arena: &kernel::exp::Arena, domain: Exp, codomain: Exp) -> Exp {
+fn nondependent_product(arena: &crate::raw::exp::Arena, domain: Exp, codomain: Exp) -> Exp {
     arena.alloc(ExpNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
@@ -1512,7 +1522,7 @@ fn nondependent_product(arena: &kernel::exp::Arena, domain: Exp, codomain: Exp) 
     })
 }
 
-fn set_step_function_type(arena: &kernel::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
+fn set_step_function_type(arena: &crate::raw::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
     let run_step = arena.alloc(ExpNode::RunStep {
         state_ty,
         result_ty,

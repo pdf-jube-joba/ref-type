@@ -10,3 +10,8 @@ pub mod parse;
 pub mod elaborator;
 #[cfg(test)]
 mod tests;
+
+#[doc(hidden)]
+pub mod raw;
+
+pub mod lowering;

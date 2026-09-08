@@ -1,6 +1,6 @@
 //! CBPV value datatypes and their generated Set reflections.
 
-use crate::{
+use crate::raw::{
     derivation::JudgementError,
     environment::ModuleArgument,
     exp::Arena,

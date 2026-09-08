@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::{
+use crate::raw::{
     environment::{CrateEnv, DefinedConstant, ModuleArgument},
     exp::Arena,
     ids::{DefId, ModuleParamId, ProgramInductiveId},
@@ -1149,21 +1149,21 @@ pub fn evaluate_computation_with_fuel(
     fuel: usize,
 ) -> Evaluation {
     let span = tracing::debug_span!(target: "ref_type::reduction::program", "evaluate",
-        fuel, term = %crate::printing::format_computation(env, term));
+        fuel, term = %crate::raw::printing::format_computation(env, term));
     let _entered = span.enter();
     for steps in 0..fuel {
         let Some(next) = reduce_computation_once(env, term) else {
-            tracing::debug!(target: "ref_type::reduction::program", steps, result = %crate::printing::format_computation(env, term), "evaluation finished");
+            tracing::debug!(target: "ref_type::reduction::program", steps, result = %crate::raw::printing::format_computation(env, term), "evaluation finished");
             return Evaluation::Normal(term);
         };
-        tracing::trace!(target: "ref_type::reduction::program", steps, before = %crate::printing::format_computation(env, term), after = %crate::printing::format_computation(env, next), "evaluation step");
+        tracing::trace!(target: "ref_type::reduction::program", steps, before = %crate::raw::printing::format_computation(env, term), after = %crate::raw::printing::format_computation(env, next), "evaluation step");
         term = next;
     }
     if reduce_computation_once(env, term).is_some() {
-        tracing::warn!(target: "ref_type::reduction::program", fuel, remaining = %crate::printing::format_computation(env, term), "evaluation fuel exhausted");
+        tracing::warn!(target: "ref_type::reduction::program", fuel, remaining = %crate::raw::printing::format_computation(env, term), "evaluation fuel exhausted");
         Evaluation::OutOfFuel(term)
     } else {
-        tracing::debug!(target: "ref_type::reduction::program", steps = fuel, result = %crate::printing::format_computation(env, term), "evaluation finished");
+        tracing::debug!(target: "ref_type::reduction::program", steps = fuel, result = %crate::raw::printing::format_computation(env, term), "evaluation finished");
         Evaluation::Normal(term)
     }
 }

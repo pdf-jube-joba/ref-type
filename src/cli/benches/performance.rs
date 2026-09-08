@@ -1,8 +1,7 @@
 //! Run with `cargo bench -p cli --bench performance -- --help`.
 mod support;
 
-use front::{elaborator::GlobalEnvironment, syntax::Module};
-use kernel::{
+use front::raw::{
     calculus::normalize,
     environment::{CrateEnv, DefinedConstant, ModuleItem},
     exp::ExpNode,
@@ -10,6 +9,7 @@ use kernel::{
     program_calculus::{Evaluation, evaluate_computation},
     sort::Sort,
 };
+use front::{elaborator::GlobalEnvironment, syntax::Module};
 use std::{hint::black_box, path::Path, time::Duration};
 use support::{Case, timed};
 

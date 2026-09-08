@@ -1,6 +1,6 @@
 //! The four syntactic categories of the CBPV Program calculus.
 
-use crate::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId};
+use crate::raw::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId};
 
 macro_rules! handle {
     ($name:ident) => {

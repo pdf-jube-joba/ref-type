@@ -92,9 +92,14 @@ RUST_LOG=ref_type=trace cargo run -p cli -- lib/root.ref
 元ファイル・行・列とソースの抜粋を付けます。型検査の位置表示は宣言単位、構文エラーはトークン単位です。
 外部モジュールのパラメータは宣言元ファイル、本文は外部ファイルの位置を使います。
 
-`CrateEnv::add_definition` は型検査に成功した定義だけを登録し、`Result<DefId, String>` を返します。
-Program 定義では本体と、指定された反映証明の型を検査します。
-モジュール実体化でも同じ登録 API を使い、実体化時の検証済み文脈を保持します。
+kernel の `Environment::register_definition` は、分類済みの本体・classifier・文脈を
+検査してから指定された `DefId` に登録します。Program の反映証明を指定した場合は、
+その Set typing と Program 本体との構造的な対応も検査します。
+
+front は未分類構文で elaboration と meta の解決を行い、分類・level・product rule を
+付けた構文を kernel に渡します。`GlobalEnvironment::kernel_env()` が検査済みの環境です。
+`crate_env()` は elaboration・macro・診断・raw 評価に使う front 側の環境を返します。
+module 実体化で生じた定義も新しい ID で kernel の登録検査を通します。
 
 ```sh
 cargo test --workspace --offline
@@ -102,3 +107,19 @@ cargo test --workspace --offline
 
 `tests/ng` の各ファイルには `/* expect-error: 診断に含まれる文字列 */` を書きます。
 複数指定した場合はすべて照合します。終了コード 1 と診断を確認し、panic やシグナル終了は失敗として扱います。
+
+## Sort-index と level
+
+Set/Prop の kernel 構文は `SetTerm`・`SetType`・`SetKind`、Program は
+`Value`・`Computation` とそれぞれの type・kind に分かれています。
+`SetType` は型演算子も含みます。term の型に使う場合は、その kind が基底 sort であることを検査します。
+
+level は non-cumulative です。たとえば `A: \Set(0)` を `\Set(1)` の要素として
+暗黙に使うことはできません。product の level は `max` の規則で決まり、
+多相関数の型適用では適用結果の level が関数自身より小さくなる場合があります。
+RunStep recursor の branch と結果の level も、それぞれの product rule に従います。
+
+既存の Program 表面構文は level 0 に対応します。Program の型演算子、多相性、
+level 付き Box、boxed type application は kernel API から利用できます。
+API の例は [kernel の説明](kernel/README.md) を参照してください。
+`\eval`・`\normalize` による未分類の式の簡約は front が引き続き処理します。
