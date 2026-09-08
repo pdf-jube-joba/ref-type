@@ -401,7 +401,8 @@ impl Arena {
         self.alloc(ValueTypeNode::ModuleParam(parameter))
     }
 
-    pub fn as_module_param(&self, exp: Exp) -> Option<ModuleParamId> {
+    #[cfg(test)]
+    pub(crate) fn as_module_param(&self, exp: Exp) -> Option<ModuleParamId> {
         match self.get(exp) {
             ExpNode::ModuleParam(parameter) => Some(parameter),
             _ => None,

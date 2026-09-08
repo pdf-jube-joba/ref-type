@@ -40,10 +40,10 @@ pub fn load_modules_from_root(root_file: &Path) -> Result<Vec<Module>, String> {
         loaded_files: HashMap::new(),
     };
 
-    modules
-        .into_iter()
-        .map(|module| loader.resolve_module(module, &[]))
-        .collect()
+    for module in &mut modules {
+        loader.resolve_module(module, &[])?;
+    }
+    Ok(modules)
 }
 
 struct ModuleLoader<'a> {
@@ -54,9 +54,9 @@ struct ModuleLoader<'a> {
 impl ModuleLoader<'_> {
     fn resolve_module(
         &mut self,
-        mut module: Module,
+        module: &mut Module,
         parent_module_path: &[String],
-    ) -> Result<Module, String> {
+    ) -> Result<(), String> {
         let mut module_path = parent_module_path.to_vec();
         module_path.push(module.name.0.clone());
         let display_module_path = format!("root.{}", module_path.join("."));
@@ -93,7 +93,7 @@ impl ModuleLoader<'_> {
                 .map_err(|error| format!("failed to parse {}: {}", source_path.display(), error))?;
             module.body = ModuleBody::Inline(declarations);
             module.declaration_spans = spans;
-            attach_source(&mut module, &source);
+            attach_source(module, &source);
         }
 
         let ModuleBody::Inline(declarations) = &mut module.body else {
@@ -101,11 +101,11 @@ impl ModuleLoader<'_> {
         };
         for declaration in declarations {
             if let ModuleItem::ChildModule { module: child } = declaration {
-                **child = self.resolve_module((**child).clone(), &module_path)?;
+                self.resolve_module(child, &module_path)?;
             }
         }
 
-        Ok(module)
+        Ok(())
     }
 
     fn external_source_path(&self, parent_module_path: &[String], name: &str) -> PathBuf {

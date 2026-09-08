@@ -281,7 +281,8 @@ impl CrateEnv {
         Ok(module)
     }
 
-    pub fn add_child_module(
+    #[cfg(test)]
+    pub(crate) fn add_child_module(
         &mut self,
         parent: ModuleId,
         name: String,
@@ -456,7 +457,8 @@ impl CrateEnv {
         &self.module(id.module).definitions[id.index as usize]
     }
 
-    pub fn add_inductive(
+    #[cfg(test)]
+    pub(crate) fn add_inductive(
         &mut self,
         module: ModuleId,
         inductive: InductiveTypeSpecs,

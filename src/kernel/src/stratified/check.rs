@@ -364,16 +364,17 @@ impl<'a> Checker<'a> {
                 return Ok(Classifier::Upper(sort));
             }
             Op::Bound { index } => {
+                let offset = index.checked_add(1).ok_or("bound variable outside context")?;
                 let entry = self
                     .context
                     .get(
                         self.context
                             .len()
-                            .checked_sub(index + 1)
+                            .checked_sub(offset)
                             .ok_or("bound variable outside context")?,
                     )
                     .ok_or("bound variable outside context")?;
-                let classifier = shift(self.arena(), entry.classifier, index + 1, 0)?;
+                let classifier = shift(self.arena(), entry.classifier, offset, 0)?;
                 if sort.is_program()
                     && stage != Stage::Term
                     && classifier.family().stage() != Stage::Kind

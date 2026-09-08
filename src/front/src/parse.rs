@@ -983,17 +983,7 @@ fn parse_modules(
     Ok(modules)
 }
 
-/// Parse an external module file. Its contents are the module body directly.
-pub fn str_parse_module_items(input: &str) -> Result<Vec<ModuleItem>, String> {
-    str_parse_module_items_with_spans(input).map(|(items, _)| items)
-}
-
-pub fn str_parse_module_items_with_spans(
-    input: &str,
-) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {
-    parse_module_items(input, None)
-}
-
+/// Parse an external module file, preserving declaration spans for diagnostics.
 pub fn parse_module_items_from_source(
     source: &std::sync::Arc<SourceFile>,
 ) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {

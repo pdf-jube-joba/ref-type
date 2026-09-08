@@ -85,6 +85,9 @@ impl Environment {
         }
         if !super::calculus::locally_closed(&self.arena, definition.body)
             || matches!(definition.classifier,Classifier::Expression(t) if !super::calculus::locally_closed(&self.arena,t))
+            || definition.certified_reflection.is_some_and(|certificate| {
+                !super::calculus::locally_closed(&self.arena, certificate.into())
+            })
         {
             return Err("a definition must abstract over its local bound variables".into());
         }
@@ -101,6 +104,10 @@ impl Environment {
             super::reflection::reflect_with_certificate(self, definition.body, certificate)?;
         }
         self.definitions.insert(id, definition);
+        // Normalization can have visited this name before it was registered.
+        // Inference also depends on those cached conversion results.
+        self.head_cache.borrow_mut().clear();
+        self.inference_cache.borrow_mut().clear();
         Ok(())
     }
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]

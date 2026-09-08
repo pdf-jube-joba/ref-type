@@ -380,22 +380,6 @@ pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
     go(arena, exp, target, 0)
 }
 
-pub fn exp_contains_module_param(env: &CrateEnv, exp: Exp, parameter: ModuleParamId) -> bool {
-    match env.arena().get(exp) {
-        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => id == parameter,
-        ExpNode::DefinedConstant(id) => match env.definition(id) {
-            DefinedConstant::Pts { ty, body } => {
-                exp_contains_module_param(env, *ty, parameter)
-                    || exp_contains_module_param(env, *body, parameter)
-            }
-            _ => false,
-        },
-        node => direct_children(node)
-            .into_iter()
-            .any(|e| exp_contains_module_param(env, e, parameter)),
-    }
-}
-
 pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
     match arena.get(exp) {
         ExpNode::IndType {
@@ -1085,29 +1069,6 @@ pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     let result = alpha_rec(env, left, right, true, false, &mut HashMap::new());
     tracing::trace!(target: "ref_type::conversion", left = %crate::raw::printing::format_exp(env, left), right = %crate::raw::printing::format_exp(env, right), result, "conversion compared");
     result
-}
-
-pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
-    match env.arena().get(exp) {
-        ExpNode::SubsetIntro { element, .. } => erase(env, element),
-        ExpNode::DefinedConstant(definition) => match env.definition(definition) {
-            DefinedConstant::Pts { body, .. } => erase(env, *body),
-            _ => exp,
-        },
-        node => {
-            let mut changed = false;
-            let erased = map_children(node, |child| {
-                let result = erase(env, child);
-                changed |= result != child;
-                result
-            });
-            if changed {
-                env.arena().alloc(erased)
-            } else {
-                exp
-            }
-        }
-    }
 }
 
 pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {

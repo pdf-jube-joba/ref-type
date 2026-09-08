@@ -135,7 +135,7 @@ pub fn is_closed(arena: &Arena, e: Expression) -> bool {
         let d = a.data(e);
         match d.op {
             Op::Bound { index } => index < depth,
-            Op::ModuleParam { .. } => false,
+            Op::ModuleParam { .. } | Op::ReflectedProgramParam { .. } => false,
             _ => d
                 .fields
                 .iter()

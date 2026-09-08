@@ -1052,3 +1052,111 @@ fn prop_type_operators_quantify_over_set_and_prop_kinds() {
         assert_eq!(normalize(&env, application).unwrap(), proposition.into());
     }
 }
+
+#[test]
+fn maximum_bound_index_is_rejected_without_overflow() {
+    let env = Environment::new();
+    let term = env.arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::Bound { index: usize::MAX },
+    });
+    assert!(Checker::new(&env, vec![]).infer_set_term(term).is_err());
+}
+
+#[test]
+fn reflected_module_parameters_are_not_closed() {
+    let env = Environment::new();
+    let parameter = ModuleParamId {
+        module: ModuleId(0),
+        position: 0,
+    };
+    let term = env.arena.alloc(ValueTermNode {
+        level: 0,
+        form: ValueTermForm::ModuleParam { parameter },
+    });
+    let reflected = reflect_term(&env, term.into()).unwrap();
+    assert!(!is_closed(&env.arena, term.into()));
+    assert!(!is_closed(&env.arena, reflected.into()));
+    assert!(locally_closed(&env.arena, reflected.into()));
+}
+
+#[test]
+fn registering_definition_invalidates_cached_unknown_constant() {
+    let mut env = Environment::new();
+    let kind = sk(&env.arena, 0);
+    let id = DefId {
+        module: ModuleId(0),
+        index: 0,
+    };
+    let constant = env.arena.alloc(SetKindNode {
+        level: 0,
+        form: SetKindForm::Constant { definition: id },
+    });
+    assert_eq!(whnf(&env, constant.into()).unwrap(), constant.into());
+    env.register_definition(
+        id,
+        Definition {
+            context: vec![],
+            body: kind.into(),
+            classifier: Classifier::Upper(BaseSort::Set(0)),
+            certified_reflection: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(whnf(&env, constant.into()).unwrap(), kind.into());
+    assert!(convertible(&env, constant.into(), kind.into()).unwrap());
+}
+
+#[test]
+fn definition_reflection_certificate_cannot_capture_locals() {
+    let mut env = Environment::new();
+    let (_, ty, zero) = natural(&mut env);
+    let reflected_ty = reflect_type(&env, ty.into()).unwrap();
+    let reflected_zero = reflect_term(&env, zero.into()).unwrap();
+    let rule =
+        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
+    let lambda = env.arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::LambdaTerm {
+            rule,
+            var: SymbolId::ANONYMOUS,
+            domain: reflected_ty,
+            body: reflected_zero,
+        },
+    });
+    let bound = env.arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::Bound { index: 0 },
+    });
+    let certificate = env.arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::AppTerm {
+            rule,
+            function: lambda,
+            argument: bound,
+        },
+    });
+    let id = DefId {
+        module: ModuleId(0),
+        index: 0,
+    };
+    let definition = Definition {
+        context: vec![Binding {
+            var: SymbolId(1),
+            classifier: ty.into(),
+        }],
+        body: zero.into(),
+        classifier: ty.into(),
+        certified_reflection: Some(certificate),
+    };
+    assert!(env.register_definition(id, definition.clone()).is_err());
+    assert!(env.definition(id).is_none());
+    env.register_definition(
+        id,
+        Definition {
+            certified_reflection: Some(reflected_zero),
+            ..definition
+        },
+    )
+    .unwrap();
+}
