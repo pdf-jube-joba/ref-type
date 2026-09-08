@@ -142,6 +142,13 @@ pub fn reflect_program(env: &CrateEnv, program: Program) -> Result<Exp, Reflecti
 /// Program. Proof fields are checked by the ordinary Set/Prop checker and are
 /// deliberately omitted from this structural correspondence check.
 pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate: Exp) -> bool {
+    // Named definitions already carry their checked reflection. Resolve them
+    // before inspecting Run/RunCase, whose certificate exposes the body.
+    if reflect_program(env, program)
+        .is_ok_and(|term| crate::raw::calculus::exp_is_alpha_eq(env, term, certificate))
+    {
+        return true;
+    }
     let arena = env.arena();
     match (program, arena.get(certificate)) {
         (
@@ -205,8 +212,7 @@ pub fn certificate_matches_program(env: &CrateEnv, program: Program, certificate
             }
             _ => false,
         },
-        (program, _) => reflect_program(env, program)
-            .is_ok_and(|term| crate::raw::calculus::exp_is_alpha_eq(env, term, certificate)),
+        _ => false,
     }
 }
 

@@ -1014,7 +1014,7 @@ fn inferred_recursion_annotations_still_reject_mixed_universes() {
 fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
-          \inductive Unit: \VType := | unit: Unit; ;
+          \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
           \vdefinition step: \U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))) :=
             \thunk(\clam(s, Unit, \return(\Pfinish(Unit, Unit, Unit::unit))));
           \definition stepSet: Unit -> \RunStep(Unit, Unit) :=
@@ -1032,6 +1032,8 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
                   \with r: \RunStep(Unit, Unit) => ready r) \by (\refl(Unit::unit), edge));
           \cdefinition result: \F(Unit) :=
             \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit::unit;
+          \cdefinition otherResult: \F(Unit) :=
+            \Prun(Unit, Unit, step, Unit::other) \by terminates Unit::other;
           \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), result);
         }
     "#;
@@ -1040,6 +1042,41 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     global.add_new_module_to_root(&modules[0]).unwrap();
     let raw = global.crate_env();
     let module = raw.module(raw.root_module()).children()[0];
+    let computation = |name| {
+        let crate::raw::environment::ModuleItem::Definition { definition, .. } =
+            raw.module(module).item(name).unwrap()
+        else {
+            panic!("computation definition")
+        };
+        let crate::raw::environment::DefinedConstant::ProgramComputation {
+            certified_reflection: Some(certificate),
+            ..
+        } = raw.definition(*definition)
+        else {
+            panic!("certified computation")
+        };
+        let term = raw
+            .arena()
+            .alloc(crate::raw::program::ComputationNode::DefinedConstant(
+                *definition,
+            ));
+        (
+            crate::raw::program::Program::Computation(term),
+            *certificate,
+        )
+    };
+    let (result, certificate) = computation("result");
+    let (_, unrelated_certificate) = computation("otherResult");
+    assert!(crate::raw::reflection::certificate_matches_program(
+        raw,
+        result,
+        certificate
+    ));
+    assert!(!crate::raw::reflection::certificate_matches_program(
+        raw,
+        result,
+        unrelated_certificate,
+    ));
     let crate::raw::environment::ModuleItem::Definition { definition, .. } =
         raw.module(module).item("boxed").unwrap()
     else {

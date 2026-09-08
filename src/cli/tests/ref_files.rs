@@ -8,6 +8,9 @@ use std::{
 };
 
 const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
+// These projects elaborate and independently check the entire library. Allow
+// for both debug-build processes running concurrently in the test harness.
+const LIBRARY_TIMEOUT: Duration = Duration::from_secs(60);
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -42,6 +45,15 @@ fn run_ref_file(workspace: &Path, path: &Path) -> Result<Output, String> {
 }
 
 fn run_ref_file_with_args(workspace: &Path, path: &Path, args: &[&str]) -> Result<Output, String> {
+    run_ref_file_with_timeout(workspace, path, args, PROCESS_TIMEOUT)
+}
+
+fn run_ref_file_with_timeout(
+    workspace: &Path,
+    path: &Path,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<Output, String> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_cli"))
         .arg(path)
         .args(args)
@@ -82,7 +94,7 @@ fn run_ref_file_with_args(workspace: &Path, path: &Path, args: &[&str]) -> Resul
                 stderr,
             });
         }
-        if started.elapsed() >= PROCESS_TIMEOUT {
+        if started.elapsed() >= timeout {
             let _ = child.kill();
             let _ = child.wait();
             let _ = stdout_reader.join();
@@ -90,7 +102,7 @@ fn run_ref_file_with_args(workspace: &Path, path: &Path, args: &[&str]) -> Resul
             return Err(format!(
                 "{} did not finish within {} seconds",
                 path.display(),
-                PROCESS_TIMEOUT.as_secs()
+                timeout.as_secs()
             ));
         }
         thread::sleep(Duration::from_millis(10));
@@ -183,7 +195,8 @@ fn ng_ref_files_fail() {
 fn library_root_succeeds() {
     let workspace = workspace_root();
     let path = workspace.join("lib/root.ref");
-    let output = run_ref_file(&workspace, &path).unwrap_or_else(|error| panic!("{error}"));
+    let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
+        .unwrap_or_else(|error| panic!("{error}"));
 
     assert!(
         output.status.success(),
@@ -197,7 +210,8 @@ fn library_root_succeeds() {
 fn library_arithmetic_examples_succeed() {
     let workspace = workspace_root();
     let path = workspace.join("lib/tests.ref");
-    let output = run_ref_file(&workspace, &path).unwrap_or_else(|error| panic!("{error}"));
+    let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
+        .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(

@@ -12,6 +12,55 @@ fn sk(a: &Arena, i: usize) -> SetKind {
         form: SetKindForm::Base,
     })
 }
+
+#[test]
+fn shared_syntax_transformations_respect_each_binder_depth() {
+    let a = Arena::new();
+    let ty = |index| {
+        a.alloc(SetTypeNode {
+            sort: SetSort::Set(0),
+            form: SetTypeForm::Bound { index },
+        })
+    };
+    let rule =
+        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
+    let product = |domain, body| {
+        a.alloc(SetTypeNode {
+            sort: SetSort::Set(0),
+            form: SetTypeForm::ProdTerm {
+                rule,
+                var: SymbolId::ANONYMOUS,
+                domain,
+                body,
+            },
+        })
+    };
+    let argument = a.alloc(SetTypeNode {
+        sort: SetSort::Set(0),
+        form: SetTypeForm::ModuleParam {
+            parameter: ModuleParamId {
+                module: ModuleId(0),
+                position: 0,
+            },
+        },
+    });
+    let mut shared = ty(0);
+    let mut shifted = ty(1);
+    let mut substituted = argument;
+    // Only the path through domains keeps index 0 free. Every body binds it.
+    // This DAG has 25 nodes but more than 16 million paths to its leaf.
+    for _ in 0..24 {
+        shifted = product(shifted, shared);
+        substituted = product(substituted, shared);
+        shared = product(shared, shared);
+    }
+    assert_eq!(shift(&a, shared, 1, 0).unwrap(), shifted.into());
+    assert_eq!(
+        substitute(&a, shared, argument).unwrap(),
+        substituted.into()
+    );
+    assert_eq!(shift(&a, shared, 0, 0).unwrap(), shared.into());
+}
 #[test]
 fn polymorphic_program_identity_and_reflection() {
     let env = Environment::new();

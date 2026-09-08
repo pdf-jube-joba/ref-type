@@ -1,6 +1,7 @@
 //! Simultaneous, family-preserving transformations of all nine syntax partitions.
 use super::{environment::Environment, syntax::*};
 use crate::ids::*;
+use std::collections::HashMap;
 
 pub(crate) fn map_children(
     arena: &Arena,
@@ -32,7 +33,19 @@ pub fn shift(
     amount: usize,
     cutoff: usize,
 ) -> Result<Expression, String> {
-    fn walk(a: &Arena, e: Expression, n: usize, c: usize) -> Result<Expression, String> {
+    fn walk(
+        a: &Arena,
+        e: Expression,
+        n: usize,
+        c: usize,
+        cache: &mut HashMap<(Expression, usize), Expression>,
+    ) -> Result<Expression, String> {
+        if a.max_loose_bound(e).is_none_or(|index| index < c) {
+            return Ok(e);
+        }
+        if let Some(&result) = cache.get(&(e, c)) {
+            return Ok(result);
+        }
         let mut d = a.data(e);
         if let Op::Bound { index } = d.op {
             if index >= c {
@@ -43,16 +56,34 @@ pub fn shift(
             }
             return Ok(e);
         }
-        map_children(a, e, |e, depth| walk(a, e, n, c + depth))
+        let result = map_children(a, e, |e, depth| walk(a, e, n, c + depth, cache))?;
+        cache.insert((e, c), result);
+        Ok(result)
     }
-    walk(arena, e.into(), amount, cutoff)
+    let e = e.into();
+    if amount == 0 {
+        return Ok(e);
+    }
+    walk(arena, e, amount, cutoff, &mut HashMap::new())
 }
 pub fn substitute(
     arena: &Arena,
     body: impl Into<Expression>,
     argument: impl Into<Expression>,
 ) -> Result<Expression, String> {
-    fn walk(a: &Arena, e: Expression, arg: Expression, depth: usize) -> Result<Expression, String> {
+    fn walk(
+        a: &Arena,
+        e: Expression,
+        arg: Expression,
+        depth: usize,
+        cache: &mut HashMap<(Expression, usize), Expression>,
+    ) -> Result<Expression, String> {
+        if a.max_loose_bound(e).is_none_or(|index| index < depth) {
+            return Ok(e);
+        }
+        if let Some(&result) = cache.get(&(e, depth)) {
+            return Ok(result);
+        }
         let mut d = a.data(e);
         if let Op::Bound { index } = d.op {
             if index == depth {
@@ -67,9 +98,11 @@ pub fn substitute(
             }
             return Ok(e);
         }
-        map_children(a, e, |x, n| walk(a, x, arg, depth + n))
+        let result = map_children(a, e, |x, n| walk(a, x, arg, depth + n, cache))?;
+        cache.insert((e, depth), result);
+        Ok(result)
     }
-    walk(arena, body.into(), argument.into(), 0)
+    walk(arena, body.into(), argument.into(), 0, &mut HashMap::new())
 }
 pub fn instantiate_telescope(
     arena: &Arena,

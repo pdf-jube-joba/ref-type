@@ -1,4 +1,4 @@
-//! Set/Prop syntax and the typed kernel arena.
+//! Unclassified Set/Prop syntax and the front-end arena used during elaboration.
 
 use std::cell::{Ref, RefCell};
 

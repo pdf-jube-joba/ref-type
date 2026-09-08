@@ -1100,6 +1100,7 @@ impl Data {
 #[derive(Debug, Default)]
 pub struct Arena {
     interner: RefCell<std::collections::HashMap<(Family, Data), Expression>>,
+    loose_bound_cache: RefCell<std::collections::HashMap<Expression, Option<usize>>>,
     setterm: RefCell<Vec<Data>>,
     settype: RefCell<Vec<Data>>,
     setkind: RefCell<Vec<Data>>,
@@ -1129,7 +1130,17 @@ impl Arena {
         h.get(self)
     }
     pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
-        self.data(e.into()).sort
+        match e.into() {
+            Expression::SetTerm(h) => self.setterm.borrow()[h.index()].sort,
+            Expression::SetType(h) => self.settype.borrow()[h.index()].sort,
+            Expression::SetKind(h) => self.setkind.borrow()[h.index()].sort,
+            Expression::ValueType(h) => self.valuetype.borrow()[h.index()].sort,
+            Expression::ComputationType(h) => self.computationtype.borrow()[h.index()].sort,
+            Expression::ValueKind(h) => self.valuekind.borrow()[h.index()].sort,
+            Expression::ComputationKind(h) => self.computationkind.borrow()[h.index()].sort,
+            Expression::Value(h) => self.value.borrow()[h.index()].sort,
+            Expression::Computation(h) => self.computation.borrow()[h.index()].sort,
+        }
     }
     pub(crate) fn data(&self, e: Expression) -> Data {
         match e {
@@ -1143,6 +1154,28 @@ impl Arena {
             Expression::Value(h) => self.value.borrow()[h.index()].clone(),
             Expression::Computation(h) => self.computation.borrow()[h.index()].clone(),
         }
+    }
+    /// Largest index that escapes the expression's own binders. Arena nodes
+    /// are immutable, so this summary also applies to every later traversal.
+    pub(crate) fn max_loose_bound(&self, e: Expression) -> Option<usize> {
+        if let Some(&cached) = self.loose_bound_cache.borrow().get(&e) {
+            return cached;
+        }
+        let data = self.data(e);
+        let result = if let Op::Bound { index } = data.op {
+            Some(index)
+        } else {
+            data.fields
+                .iter()
+                .flatten()
+                .filter_map(|child| {
+                    self.max_loose_bound(child.expression)?
+                        .checked_sub(child.depth)
+                })
+                .max()
+        };
+        self.loose_bound_cache.borrow_mut().insert(e, result);
+        result
     }
     pub(crate) fn store(&self, family: Family, data: Data) -> Expression {
         let key = (family, data.clone());
