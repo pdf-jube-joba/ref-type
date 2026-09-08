@@ -1,8 +1,10 @@
 use crate::macros::{MacroInstantiation, ModuleMacroScope};
 use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
 use crate::raw::derivation::CheckSession;
+#[cfg(test)]
+use crate::raw::environment::ModuleParameter;
 use crate::raw::environment::{
-    CrateEnv, DefinedConstant, ModuleArgument, ModuleItem, ModuleParameter, ModuleParameterKind,
+    CrateEnv, DefinedConstant, ModuleArgument, ModuleItem, ModuleParameterKind,
 };
 use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
 use crate::raw::ids::{
@@ -18,7 +20,7 @@ use crate::syntax::{
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-pub enum ItemAccessResult {
+pub(crate) enum ItemAccessResult {
     Definition(ModItemDefinition),
     Inductive(ModItemInductive),
     Record(ModItemRecord),
@@ -120,7 +122,7 @@ fn materialize_associated_definitions(
 }
 
 #[derive(Debug)]
-pub struct ModuleManager {
+pub(crate) struct ModuleManager {
     current: ModuleId,
     pub(crate) macro_scopes: HashMap<ModuleId, ModuleMacroScope>,
     pub(crate) next_macro_order: u64,
@@ -133,7 +135,7 @@ impl Default for ModuleManager {
 }
 
 impl ModuleManager {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             current: ModuleId(0),
             macro_scopes: HashMap::new(),
@@ -141,11 +143,12 @@ impl ModuleManager {
         }
     }
 
-    pub fn current(&self) -> ModuleId {
+    pub(crate) fn current(&self) -> ModuleId {
         self.current
     }
 
-    pub fn add_child_and_moveto(
+    #[cfg(test)]
+    fn add_child_and_moveto(
         &mut self,
         env: &mut CrateEnv,
         module_name: String,
@@ -155,7 +158,7 @@ impl ModuleManager {
         Ok(())
     }
 
-    pub fn reserve_child_and_moveto(
+    pub(crate) fn reserve_child_and_moveto(
         &mut self,
         env: &mut CrateEnv,
         module_name: String,
@@ -165,21 +168,21 @@ impl ModuleManager {
         id
     }
 
-    pub fn moveto_parent(&mut self, env: &CrateEnv) {
+    pub(crate) fn moveto_parent(&mut self, env: &CrateEnv) {
         if let Some(parent) = env.module(self.current).parent() {
             self.current = parent;
         }
     }
 
-    pub fn publish_current_module(&self, env: &mut CrateEnv) -> Result<(), String> {
+    pub(crate) fn publish_current_module(&self, env: &mut CrateEnv) -> Result<(), String> {
         env.publish_child_module(self.current)
     }
 
-    pub fn moveto_root(&mut self) {
+    pub(crate) fn moveto_root(&mut self) {
         self.current = ModuleId(0);
     }
 
-    pub fn current_context(&self, env: &CrateEnv) -> ExpContext {
+    pub(crate) fn current_context(&self, env: &CrateEnv) -> ExpContext {
         let mut context = Vec::new();
         let mut current = self.current;
         loop {
@@ -208,7 +211,7 @@ impl ModuleManager {
         context.into_iter().flatten().collect()
     }
 
-    pub fn current_program_context(&self, env: &CrateEnv) -> ProgramContext {
+    pub(crate) fn current_program_context(&self, env: &CrateEnv) -> ProgramContext {
         let mut contexts = Vec::new();
         let mut current = self.current;
         loop {
@@ -241,7 +244,7 @@ impl ModuleManager {
         contexts.into_iter().flatten().collect()
     }
 
-    pub fn add_def(
+    pub(crate) fn add_def(
         &mut self,
         env: &mut CrateEnv,
         name: Identifier,
@@ -257,7 +260,7 @@ impl ModuleManager {
         )
     }
 
-    pub fn add_associated_def(
+    pub(crate) fn add_associated_def(
         &mut self,
         env: &mut CrateEnv,
         owner: &Identifier,
@@ -268,7 +271,11 @@ impl ModuleManager {
         env.publish_associated_definition(self.current, owner.as_str(), name.0, definition)
     }
 
-    pub fn associated_parameter_count(&self, env: &CrateEnv, owner: &Identifier) -> Option<usize> {
+    pub(crate) fn associated_parameter_count(
+        &self,
+        env: &CrateEnv,
+        owner: &Identifier,
+    ) -> Option<usize> {
         match env.module(self.current).item(owner.as_str())? {
             ModuleItem::Inductive { inductive, .. } | ModuleItem::Record { inductive, .. } => {
                 Some(env.inductive(*inductive).parameters().len())
@@ -280,7 +287,8 @@ impl ModuleManager {
         }
     }
 
-    pub fn add_inductive(
+    #[cfg(test)]
+    fn add_inductive(
         &mut self,
         env: &mut CrateEnv,
         type_name: Identifier,
@@ -299,7 +307,7 @@ impl ModuleManager {
         )
     }
 
-    pub fn publish_reserved_inductive(
+    pub(crate) fn publish_reserved_inductive(
         &mut self,
         env: &mut CrateEnv,
         type_name: Identifier,
@@ -317,7 +325,7 @@ impl ModuleManager {
         )
     }
 
-    pub fn publish_reserved_program_inductive(
+    pub(crate) fn publish_reserved_program_inductive(
         &mut self,
         env: &mut CrateEnv,
         type_name: Identifier,
@@ -337,7 +345,7 @@ impl ModuleManager {
         )
     }
 
-    pub fn publish_reserved_record(
+    pub(crate) fn publish_reserved_record(
         &mut self,
         env: &mut CrateEnv,
         type_name: Identifier,
@@ -357,7 +365,7 @@ impl ModuleManager {
         )
     }
 
-    pub fn add_import(
+    pub(crate) fn add_import(
         &mut self,
         env: &mut CrateEnv,
         import_name: Identifier,
@@ -366,7 +374,7 @@ impl ModuleManager {
         env.publish_import(self.current, import_name.0, instance)
     }
 
-    pub fn get_moditem_record(
+    pub(crate) fn get_moditem_record(
         &self,
         env: &CrateEnv,
         inductive: InductiveId,
@@ -407,7 +415,7 @@ impl ModuleManager {
         Ok(module)
     }
 
-    pub fn instantiate_module(
+    pub(crate) fn instantiate_module(
         &mut self,
         env: &mut CrateEnv,
         context: &mut ExpContext,
@@ -898,7 +906,11 @@ impl ModuleManager {
         Ok(last_instance.expect("non-empty route was checked above"))
     }
 
-    pub fn get_item(&self, env: &CrateEnv, access: &LocalAccess) -> Option<ItemAccessResult> {
+    pub(crate) fn get_item(
+        &self,
+        env: &CrateEnv,
+        access: &LocalAccess,
+    ) -> Option<ItemAccessResult> {
         match access {
             LocalAccess::Current { access } => {
                 let mut module = self.current;

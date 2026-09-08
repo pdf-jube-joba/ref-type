@@ -14,4 +14,4 @@ mod tests;
 #[doc(hidden)]
 pub mod raw;
 
-pub mod lowering;
+mod lowering;

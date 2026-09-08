@@ -9,7 +9,7 @@ use std::{
     sync::Arc,
 };
 
-pub const SOURCE_EXTENSION: &str = "ref";
+const SOURCE_EXTENSION: &str = "ref";
 
 /// Load the complete module tree starting at an anonymous root source file.
 ///

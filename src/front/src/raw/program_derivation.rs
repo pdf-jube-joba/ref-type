@@ -21,42 +21,53 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
     pub fn new(env: &'env CrateEnv, context: &'context mut ProgramContext) -> Self {
         Self { env, context }
     }
+
     pub fn env(&self) -> &'env CrateEnv {
         self.env
     }
+
     pub fn arena(&self) -> &'env Arena {
         self.env.arena()
     }
+
     pub fn context(&self) -> &ProgramContext {
         self.context
     }
+
     pub fn push_type(&mut self, var: SymbolId) {
         tracing::trace!(target: "ref_type::typing::program", binder = %self.env.symbol(var), depth = self.context.len(), "enter type binder");
         self.context.push(ProgramContextEntry::Type { var });
     }
+
     pub fn push_value(&mut self, var: SymbolId, ty: ValueType) {
         tracing::trace!(target: "ref_type::typing::program", binder = %self.env.symbol(var), ty = %crate::raw::printing::format_value_type(self.env, ty), depth = self.context.len(), "enter value binder");
         self.context.push(ProgramContextEntry::Value { var, ty });
     }
+
     pub fn pop(&mut self) {
         tracing::trace!(target: "ref_type::typing::program", depth = self.context.len(), "leave binder");
         self.context.pop().expect("Program context stack underflow");
     }
+
     pub fn check_value_type(&mut self, ty: ValueType) -> Result<(), Box<JudgementError>> {
         check_value_type(self, ty)
     }
+
     pub fn check_computation_type(
         &mut self,
         ty: ComputationType,
     ) -> Result<(), Box<JudgementError>> {
         check_computation_type(self, ty)
     }
+
     pub fn check_value(&mut self, value: Value, ty: ValueType) -> Result<(), Box<JudgementError>> {
         check_value(self, value, ty)
     }
+
     pub fn infer_value(&mut self, value: Value) -> Result<ValueType, Box<JudgementError>> {
         infer_value(self, value)
     }
+
     pub fn check_computation(
         &mut self,
         term: Computation,
@@ -64,6 +75,7 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
     ) -> Result<(), Box<JudgementError>> {
         check_computation(self, term, ty)
     }
+
     pub fn infer_computation(
         &mut self,
         term: Computation,

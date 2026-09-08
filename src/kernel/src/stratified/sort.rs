@@ -22,6 +22,7 @@ pub struct ProductRule {
     pub body: Sort,
     pub result: Sort,
 }
+
 impl From<SetSort> for BaseSort {
     fn from(s: SetSort) -> Self {
         match s {
@@ -30,6 +31,7 @@ impl From<SetSort> for BaseSort {
         }
     }
 }
+
 impl TryFrom<BaseSort> for SetSort {
     type Error = String;
     fn try_from(s: BaseSort) -> Result<Self, String> {
@@ -40,6 +42,7 @@ impl TryFrom<BaseSort> for SetSort {
         }
     }
 }
+
 impl BaseSort {
     pub fn level(self) -> Option<usize> {
         match self {
@@ -47,9 +50,11 @@ impl BaseSort {
             Self::Prop => None,
         }
     }
+
     pub fn is_program(self) -> bool {
         matches!(self, Self::Value(_) | Self::Computation(_))
     }
+
     pub fn reflected(self) -> Self {
         match self {
             Self::Value(i) | Self::Computation(i) => Self::Set(i),
@@ -57,21 +62,25 @@ impl BaseSort {
         }
     }
 }
+
 impl Sort {
     pub fn base(self) -> BaseSort {
         match self {
             Self::Base(b) | Self::Upper(b) => b,
         }
     }
+
     pub fn is_upper(self) -> bool {
         matches!(self, Self::Upper(_))
     }
+
     pub fn reflected(self) -> Self {
         match self {
             Self::Base(b) => Self::Base(b.reflected()),
             Self::Upper(b) => Self::Upper(b.reflected()),
         }
     }
+
     pub fn product(self, body: Self) -> Option<Self> {
         use BaseSort::*;
         use Sort::{Base as B, Upper as U};
@@ -92,6 +101,7 @@ impl Sort {
         }
     }
 }
+
 impl ProductRule {
     pub fn new(domain: Sort, body: Sort) -> Result<Self, String> {
         Ok(Self {
@@ -102,6 +112,7 @@ impl ProductRule {
                 .ok_or("no product rule for these sorts")?,
         })
     }
+
     pub fn validate(self) -> Result<(), String> {
         if self.domain.product(self.body) == Some(self.result) {
             Ok(())
@@ -109,6 +120,7 @@ impl ProductRule {
             Err("invalid product rule label".into())
         }
     }
+
     pub fn reflected(self) -> Self {
         Self {
             domain: self.domain.reflected(),

@@ -46,7 +46,7 @@ struct ProgramMeta {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProgramScope {
+pub(crate) struct ProgramScope {
     names: Vec<SymbolId>,
     context: ProgramContext,
     value_type_bindings: Vec<(SymbolId, ValueType)>,
@@ -62,7 +62,7 @@ impl Default for ProgramScope {
 }
 
 impl ProgramScope {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         // Module parameters have stable identities and must not be captured as
         // de Bruijn locals: declarations and their uses can be nested beneath
         // different numbers of Program binders.
@@ -76,19 +76,19 @@ impl ProgramScope {
         }
     }
 
-    pub fn context(&self) -> &ProgramContext {
+    pub(crate) fn context(&self) -> &ProgramContext {
         &self.context
     }
 
-    pub fn has_metas(&self) -> bool {
+    pub(crate) fn has_metas(&self) -> bool {
         !self.metas.is_empty()
     }
 
-    pub fn has_certificates(&self) -> bool {
+    pub(crate) fn has_certificates(&self) -> bool {
         !self.certificates.is_empty()
     }
 
-    pub fn certified_computation(
+    pub(crate) fn certified_computation(
         &self,
         environment: &GlobalEnvironment,
         computation: Computation,
@@ -108,7 +108,11 @@ impl ProgramScope {
         .ok()
     }
 
-    pub fn certified_value(&self, environment: &GlobalEnvironment, value: Value) -> Option<Exp> {
+    pub(crate) fn certified_value(
+        &self,
+        environment: &GlobalEnvironment,
+        value: Value,
+    ) -> Option<Exp> {
         let certificates = self
             .certificates
             .iter()
@@ -124,11 +128,11 @@ impl ProgramScope {
         .ok()
     }
 
-    pub fn finish_metas(&self) -> Result<(), String> {
+    pub(crate) fn finish_metas(&self) -> Result<(), String> {
         self.finish_program_metas()
     }
 
-    pub fn zonk_module_value_type(
+    pub(crate) fn zonk_module_value_type(
         &self,
         environment: &GlobalEnvironment,
         ty: ValueType,
@@ -136,25 +140,25 @@ impl ProgramScope {
         self.zonk_value_type(environment, ty)
     }
 
-    pub fn zonk_module_value(&self, environment: &GlobalEnvironment, value: Value) -> Value {
+    pub(crate) fn zonk_module_value(&self, environment: &GlobalEnvironment, value: Value) -> Value {
         self.zonk_value(environment, value)
     }
 
-    pub fn bind_value_type_name(&mut self, name: SymbolId, ty: ValueType) {
+    pub(crate) fn bind_value_type_name(&mut self, name: SymbolId, ty: ValueType) {
         self.value_type_bindings.push((name, ty));
     }
 
-    pub fn push_type(&mut self, var: SymbolId) {
+    pub(crate) fn push_type(&mut self, var: SymbolId) {
         self.names.push(var);
         self.context.push(ProgramContextEntry::Type { var });
     }
 
-    pub fn push_value(&mut self, var: SymbolId, ty: ValueType) {
+    pub(crate) fn push_value(&mut self, var: SymbolId, ty: ValueType) {
         self.names.push(var);
         self.context.push(ProgramContextEntry::Value { var, ty });
     }
 
-    pub fn truncate(&mut self, len: usize) {
+    pub(crate) fn truncate(&mut self, len: usize) {
         self.names.truncate(len);
         self.context.truncate(len);
     }
@@ -244,7 +248,7 @@ impl ProgramScope {
         Ok((id, spine))
     }
 
-    pub fn elaborate_value_type(
+    pub(crate) fn elaborate_value_type(
         &mut self,
         expression: &ValueTypeExp,
         environment: &mut GlobalEnvironment,
@@ -332,7 +336,7 @@ impl ProgramScope {
         }
     }
 
-    pub fn elaborate_computation_type(
+    pub(crate) fn elaborate_computation_type(
         &mut self,
         expression: &ComputationTypeExp,
         environment: &mut GlobalEnvironment,
@@ -367,7 +371,7 @@ impl ProgramScope {
         }
     }
 
-    pub fn elaborate_value(
+    pub(crate) fn elaborate_value(
         &mut self,
         expression: &ValueExp,
         environment: &mut GlobalEnvironment,
@@ -478,7 +482,7 @@ impl ProgramScope {
         }
     }
 
-    pub fn elaborate_computation(
+    pub(crate) fn elaborate_computation(
         &mut self,
         expression: &ComputationExp,
         environment: &mut GlobalEnvironment,
@@ -1616,7 +1620,7 @@ impl ProgramScope {
         }
     }
 
-    pub fn check_value_with_metas(
+    pub(crate) fn check_value_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
         value: Value,
@@ -1631,7 +1635,7 @@ impl ProgramScope {
         ))
     }
 
-    pub fn check_computation_with_metas(
+    pub(crate) fn check_computation_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
         computation: Computation,
@@ -1646,7 +1650,7 @@ impl ProgramScope {
         ))
     }
 
-    pub fn infer_value_with_metas(
+    pub(crate) fn infer_value_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
         value: Value,
@@ -1660,7 +1664,7 @@ impl ProgramScope {
         ))
     }
 
-    pub fn infer_computation_with_metas(
+    pub(crate) fn infer_computation_with_metas(
         &mut self,
         environment: &GlobalEnvironment,
         computation: Computation,

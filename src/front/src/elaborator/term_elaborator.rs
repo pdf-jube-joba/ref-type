@@ -7,11 +7,9 @@ use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{Program, ProgramType};
 use crate::syntax::*;
 
-pub trait Handler {
+pub(crate) trait Handler {
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
-    fn current_module(&self) -> ModuleId;
-    fn module_context(&self) -> ExpContext;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -51,7 +49,7 @@ pub trait Handler {
 
 // local scope during elaboration
 #[derive(Debug, Clone)]
-pub struct LocalScope {
+pub(crate) struct LocalScope {
     // for find binded variables inside term
     // lambda abstraction variables, product, subset,
     // after any call of elab_exp outside the elab_exp, this should be cleared
@@ -70,7 +68,7 @@ impl Default for LocalScope {
 }
 
 impl LocalScope {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         LocalScope {
             binded_vars: vec![],
             decl_binds: vec![],
@@ -78,7 +76,7 @@ impl LocalScope {
         }
     }
 
-    pub fn from_typing_context(context: ExpContext) -> Self {
+    pub(crate) fn from_typing_context(context: ExpContext) -> Self {
         Self {
             binded_vars: Vec::new(),
             decl_binds: context.iter().map(|entry| (entry.var, None)).collect(),
@@ -86,26 +84,22 @@ impl LocalScope {
         }
     }
 
-    pub fn typing_context(&self) -> &ExpContext {
-        &self.typing_binds
-    }
-
-    pub fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
+    pub(crate) fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
         self.decl_binds.push((var, Some(exp)));
     }
 
-    pub fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
+    pub(crate) fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
         self.decl_binds.push((var, None));
         self.typing_binds.push(ExpContextEntry { var, ty });
     }
 
-    pub fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
+    pub(crate) fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
         self.decl_binds.push((var, Some(exp)));
         self.typing_binds.push(ExpContextEntry { var, ty });
     }
 
     // does not pop decl_binds
-    pub fn elab_telescope_bind_in_decl(
+    pub(crate) fn elab_telescope_bind_in_decl(
         &mut self,
         binds: &[RightBind],
         handler: &mut impl Handler,
@@ -123,7 +117,7 @@ impl LocalScope {
         Ok(result)
     }
 
-    pub fn infer_elaborated(
+    pub(crate) fn infer_elaborated(
         &mut self,
         exp: Exp,
         handler: &mut impl Handler,
@@ -151,6 +145,7 @@ impl LocalScope {
         self.binded_vars.push(var);
         self.typing_binds.push(ExpContextEntry { var, ty });
     }
+
     fn push_named_binder(&mut self, var: SymbolId, ty: Exp, _handler: &impl Handler) {
         self.push_binded_var(var, ty);
     }
@@ -183,12 +178,17 @@ impl LocalScope {
             .map(|parameter| self.elab_exp_rec(parameter, handler))
             .collect()
     }
+
     fn pop_binded_var(&mut self) {
         self.binded_vars.pop();
         self.typing_binds.pop();
     }
 
-    pub fn elab_exp(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
+    pub(crate) fn elab_exp(
+        &mut self,
+        exp: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, String> {
         assert!(self.binded_vars.is_empty());
         let e = self.elab_exp_rec(exp, handler);
         assert!(e.is_err() || self.binded_vars.is_empty());

@@ -3,16 +3,16 @@ use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Clone, Copy)]
 #[logos(skip r"[ \t\n\f]+")]
-pub enum Token<'a> {
+enum Token<'a> {
     // Keywords (start from "\" character)
     #[regex(r"\\[a-zA-Z][a-zA-Z0-9-]*")]
     KeyWord(&'a str), // any concatenation of non-alphanumeric symbols without spaces
     #[regex(r"\$[a-zA-Z][a-zA-Z0-9_]*")]
     MacroVar(&'a str),
     #[regex(r#""[^"\n]*""#)]
-    QuotedMacroToken(&'a str),
+    QuotedMacro(&'a str),
     #[regex(r"\\[^a-zA-Z0-9\s(){}$\[\]_,]+")]
-    EscapedMacroToken(&'a str),
+    EscapedMacro(&'a str),
     #[regex(r"[a-zA-Z][a-zA-Z0-9_]*")]
     Ident(&'a str),
     #[regex(r"[0-9]+")]
@@ -24,7 +24,7 @@ pub enum Token<'a> {
     // any non-space sequence that does not include reserved delimiters or `_`/`?`
     #[token("/\\")]
     #[regex(r#"[^\s\\A-Za-z0-9?(){}$\[\]_\"]+"#)]
-    MacroToken(&'a str),
+    Macro(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
     LParen,
@@ -117,7 +117,7 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\accdescent",
 ];
 
-pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
+fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
     let mut lexer = Token::lexer(input);
     let mut out = Vec::new();
 
@@ -141,7 +141,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
             Ok(_) if comment_level > 0 => {
                 continue; // skip tokens inside comments
             }
-            Ok(Token::MacroToken(s)) => {
+            Ok(Token::Macro(s)) => {
                 // map known symbol sequences to specific token variants
                 let mapped = match s {
                     "->" => Token::Arrow,
@@ -155,7 +155,7 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
                     "::" => Token::DoubleColon,
-                    _ => Token::MacroToken(s),
+                    _ => Token::Macro(s),
                 };
 
                 let span = lexer.span();
@@ -188,17 +188,17 @@ pub fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct SpannedToken<'a> {
-    pub kind: Token<'a>,
-    pub start: usize,
-    pub end: usize,
+struct SpannedToken<'a> {
+    kind: Token<'a>,
+    start: usize,
+    end: usize,
 }
 
 #[derive(Debug)]
-pub struct ParseError {
-    pub msg: String,
-    pub start: usize,
-    pub end: usize,
+struct ParseError {
+    msg: String,
+    start: usize,
+    end: usize,
 }
 
 impl ParseError {
@@ -324,7 +324,7 @@ trait TokenCursor<'a>: Sized {
 }
 
 #[derive(Debug)]
-pub struct Parser<'a> {
+struct Parser<'a> {
     tokens: &'a [SpannedToken<'a>],
     pos: usize,
 }
@@ -333,7 +333,7 @@ pub struct Parser<'a> {
 // `fn parse_*` consumes tokens whether succeed or fail, the parser position is advanced
 // `attempt` consumes tokens only on success and rolls back otherwise.
 impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
+    fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
         Self { tokens, pos: 0 }
     }
 
@@ -592,11 +592,11 @@ impl<'a> Parser<'a> {
                 ..
             }) => Ok(MacroSeqAtom::Capture(Identifier(name[1..].to_string()))),
             Some(SpannedToken {
-                kind: Token::EscapedMacroToken(token),
+                kind: Token::EscapedMacro(token),
                 ..
             }) => Ok(MacroSeqAtom::Tok(MacroToken(token[1..].to_string()))),
             Some(SpannedToken {
-                kind: Token::QuotedMacroToken(token),
+                kind: Token::QuotedMacro(token),
                 ..
             }) => Ok(MacroSeqAtom::Quoted(token[1..token.len() - 1].to_string())),
             Some(SpannedToken {
@@ -670,7 +670,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
+    fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
         let save_pos = self.pos;
         if self.bump_if_keyword("\\definition") {
             let def = self.parse_definition()?;
@@ -838,7 +838,7 @@ impl<'a> Parser<'a> {
 
     // parse an inline or external module
     // "\module" <module_name: Ident> <parameters>? ("{" (<module_item>)* "}" | ";")
-    pub fn parse_module(&mut self) -> Result<Module, ParseError> {
+    fn parse_module(&mut self) -> Result<Module, ParseError> {
         let start = self.tokens.get(self.pos).map_or(0, |token| token.start);
         let mut declaration_spans = Vec::new();
         self.expect_keyword("\\module")?;

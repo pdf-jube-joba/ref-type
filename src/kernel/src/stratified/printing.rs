@@ -1,5 +1,6 @@
 //! Diagnostic rendering includes syntax family, sort index, and product labels.
 use super::{environment::Environment, syntax::*};
+
 pub fn format_expression(env: &Environment, expression: impl Into<Expression>) -> String {
     fn render(
         arena: &Arena,

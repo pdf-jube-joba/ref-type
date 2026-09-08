@@ -336,6 +336,7 @@ fn value_types_alpha_eq(arena: &Arena, left: &[ValueType], right: &[ValueType]) 
             .zip(right)
             .all(|(l, r)| value_type_is_alpha_eq(arena, *l, *r))
 }
+
 fn values_alpha_eq(arena: &Arena, left: &[Value], right: &[Value]) -> bool {
     left.len() == right.len()
         && left
@@ -353,6 +354,7 @@ pub fn shift_value_type_indices(
     if amount == 0 {
         return ty;
     }
+
     fn go(arena: &Arena, ty: ValueType, amount: usize, cutoff: usize) -> ValueType {
         match arena.get(ty) {
             ValueTypeNode::Bound(index) if index >= cutoff => {
@@ -606,6 +608,7 @@ pub fn shift_value_indices(arena: &Arena, value: Value, amount: usize, cutoff: u
     if amount == 0 {
         return value;
     }
+
     fn go(arena: &Arena, value: Value, amount: usize, cutoff: usize) -> Value {
         match arena.get(value) {
             ValueNode::Bound(index) if index >= cutoff => {
@@ -698,6 +701,7 @@ pub fn shift_computation_indices(
     if amount == 0 {
         return computation;
     }
+
     fn go(arena: &Arena, term: Computation, amount: usize, cutoff: usize) -> Computation {
         match arena.get(term) {
             ComputationNode::Return { value } => arena.reuse_computation(
@@ -876,6 +880,7 @@ pub fn instantiate_value_in_computation(
             _ => value,
         }
     }
+
     fn subst_comp(arena: &Arena, term: Computation, argument: Value, depth: usize) -> Computation {
         match arena.get(term) {
             ComputationNode::Return { value } => arena.reuse_computation(

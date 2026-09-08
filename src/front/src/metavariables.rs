@@ -232,31 +232,31 @@ struct MetaEntry {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct MetaStore {
+pub(crate) struct MetaStore {
     entries: Vec<MetaEntry>,
     named: HashMap<u32, MetaVarId>,
     constraints: Vec<ConstraintRecord>,
 }
 
 impl MetaStore {
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.entries.clear();
         self.named.clear();
         self.constraints.clear();
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
-    pub fn constraint_error(&self, message: String) -> ElaborationError {
+    pub(crate) fn constraint_error(&self, message: String) -> ElaborationError {
         ElaborationError::ConstraintFailure {
             message,
             constraints: self.constraints.clone(),
         }
     }
 
-    pub fn fresh(
+    pub(crate) fn fresh(
         &mut self,
         env: &CrateEnv,
         kind: SurfaceMeta,
@@ -317,7 +317,7 @@ impl MetaStore {
         })
     }
 
-    pub fn constrain(&mut self, constraint: GoalConstraint) {
+    pub(crate) fn constrain(&mut self, constraint: GoalConstraint) {
         self.constraints.push(ConstraintRecord {
             original: constraint.clone(),
             normalized: constraint,
@@ -394,7 +394,7 @@ impl MetaStore {
         Ok(ty)
     }
 
-    pub fn check_pts(
+    pub(crate) fn check_pts(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -454,7 +454,7 @@ impl MetaStore {
         self.unify(env, expected, inferred).map(|_| ())
     }
 
-    pub fn infer_pts(
+    pub(crate) fn infer_pts(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -1109,7 +1109,7 @@ impl MetaStore {
         Ok(state_sort)
     }
 
-    pub fn infer_sort(
+    pub(crate) fn infer_sort(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -1139,7 +1139,7 @@ impl MetaStore {
         }
     }
 
-    pub fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
+    pub(crate) fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
         let index = self.constraints.len();
         self.constrain(GoalConstraint::Equal { left, right });
         let result = self.unify_rec(env, left, right, &mut HashSet::new());
@@ -1267,7 +1267,7 @@ impl MetaStore {
         }
     }
 
-    pub fn zonk(&self, env: &CrateEnv, exp: Exp) -> Exp {
+    pub(crate) fn zonk(&self, env: &CrateEnv, exp: Exp) -> Exp {
         self.zonk_rec(env, exp, &mut HashMap::new(), &mut HashSet::new())
     }
 
@@ -1320,7 +1320,7 @@ impl MetaStore {
         result
     }
 
-    pub fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
+    pub(crate) fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
         match env.arena().get(self.zonk(env, exp)) {
             ExpNode::Meta { .. } => true,
             node => node_children(node)
@@ -1329,7 +1329,7 @@ impl MetaStore {
         }
     }
 
-    pub fn finish(&self, env: &CrateEnv) -> Result<(), ElaborationError> {
+    pub(crate) fn finish(&self, env: &CrateEnv) -> Result<(), ElaborationError> {
         let mut implicits = Vec::new();
         let mut goals = Vec::new();
         for (index, entry) in self.entries.iter().enumerate() {

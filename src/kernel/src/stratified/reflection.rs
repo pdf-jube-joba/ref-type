@@ -4,12 +4,15 @@ use super::{calculus::*, environment::*, sort::*, syntax::*};
 pub fn reflect_kind(env: &Environment, k: ProgramKind) -> Result<SetKind, String> {
     reflect(env, k.into())?.try_into()
 }
+
 pub fn reflect_type(env: &Environment, k: ProgramType) -> Result<SetType, String> {
     reflect(env, k.into())?.try_into()
 }
+
 pub fn reflect_term(env: &Environment, k: Program) -> Result<SetTerm, String> {
     reflect(env, k.into())?.try_into()
 }
+
 pub fn reflect_context(env: &Environment, c: &Context) -> Result<Context, String> {
     c.iter()
         .map(|b| {
@@ -20,6 +23,7 @@ pub fn reflect_context(env: &Environment, c: &Context) -> Result<Context, String
         })
         .collect()
 }
+
 pub fn reflect(env: &Environment, e: Expression) -> Result<Expression, String> {
     let a = &env.arena;
     let d = a.data(e);
@@ -123,6 +127,7 @@ pub fn reflect(env: &Environment, e: Expression) -> Result<Expression, String> {
     }
     Ok(a.store(family, mapped))
 }
+
 /// Supply the proof fields needed to reflect a partial Program. The caller also
 /// checks the certificate's Set type; correspondence alone is not a typing proof.
 pub fn reflect_with_certificate(
@@ -132,10 +137,10 @@ pub fn reflect_with_certificate(
 ) -> Result<SetTerm, String> {
     fn go(env: &Environment, p: Expression, g: Expression) -> Result<Expression, String> {
         let a = &env.arena;
-        if let Ok(expected) = reflect(env, p) {
-            if convertible(env, expected, g)? {
-                return Ok(g);
-            }
+        if let Ok(expected) = reflect(env, p)
+            && convertible(env, expected, g)?
+        {
+            return Ok(g);
         }
         let d = a.data(p);
         let guide = a.data(g);

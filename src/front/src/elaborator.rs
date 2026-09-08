@@ -20,9 +20,9 @@ use crate::{
     syntax::*,
 };
 
-pub mod module_manager;
-pub mod program_term_elaborator;
-pub mod term_elaborator;
+pub(crate) mod module_manager;
+pub(crate) mod program_term_elaborator;
+pub(crate) mod term_elaborator;
 
 fn apply_pts_projection(arena: &Arena, definition: DefId, parameters: &[Exp], value: Exp) -> Exp {
     let projection = arena.alloc(ExpNode::DefinedConstant(definition));
@@ -70,14 +70,6 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
     fn arena(&self) -> &Arena {
         self.crate_env.arena()
-    }
-
-    fn current_module(&self) -> ModuleId {
-        self.module_manager.current()
-    }
-
-    fn module_context(&self) -> ExpContext {
-        self.module_manager.current_context(&self.crate_env)
     }
 
     fn intern(&mut self, name: &str) -> SymbolId {

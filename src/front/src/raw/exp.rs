@@ -380,21 +380,27 @@ impl Arena {
     pub fn sort(&self, sort: Sort) -> Exp {
         self.alloc(ExpNode::Sort(sort))
     }
+
     pub fn exp_bound(&self, index: usize) -> Exp {
         self.alloc(ExpNode::Bound(index))
     }
+
     pub fn value_type_bound(&self, index: usize) -> ValueType {
         self.alloc(ValueTypeNode::Bound(index))
     }
+
     pub fn value_bound(&self, index: usize) -> Value {
         self.alloc(ValueNode::Bound(index))
     }
+
     pub fn exp_module_param(&self, parameter: ModuleParamId) -> Exp {
         self.alloc(ExpNode::ModuleParam(parameter))
     }
+
     pub fn value_type_module_param(&self, parameter: ModuleParamId) -> ValueType {
         self.alloc(ValueTypeNode::ModuleParam(parameter))
     }
+
     pub fn as_module_param(&self, exp: Exp) -> Option<ModuleParamId> {
         match self.get(exp) {
             ExpNode::ModuleParam(parameter) => Some(parameter),

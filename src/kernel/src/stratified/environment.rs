@@ -7,6 +7,7 @@ pub enum Classifier {
     Expression(Expression),
     Upper(BaseSort),
 }
+
 impl<T: Into<Expression>> From<T> for Classifier {
     fn from(x: T) -> Self {
         Self::Expression(x.into())
@@ -17,6 +18,7 @@ pub struct Binding {
     pub var: SymbolId,
     pub classifier: Expression,
 }
+
 pub type Context = Vec<Binding>;
 #[derive(Debug, Clone)]
 pub struct Definition {
@@ -51,22 +53,28 @@ pub struct Environment {
     pub(crate) inductives: HashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: HashMap<ProgramInductiveId, ProgramDatatype>,
 }
+
 impl Environment {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn arena(&self) -> &Arena {
         &self.arena
     }
+
     pub fn definition(&self, id: DefId) -> Option<&Definition> {
         self.definitions.get(&id)
     }
+
     pub fn parameter(&self, id: ModuleParamId) -> Option<&Binding> {
         self.parameters.get(&id)
     }
+
     pub fn inductive(&self, id: InductiveId) -> Option<&InductiveSpec> {
         self.inductives.get(&id)
     }
+
     pub fn datatype(&self, id: ProgramInductiveId) -> Option<&ProgramDatatype> {
         self.datatypes.get(&id)
     }
@@ -115,6 +123,7 @@ impl Environment {
         Ok(())
     }
 }
+
 impl Environment {
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
     pub fn register_inductive(
@@ -228,6 +237,7 @@ impl Environment {
         result
     }
 }
+
 fn check_positive(
     env: &Environment,
     e: Expression,
@@ -251,6 +261,7 @@ fn check_positive(
     }
     Ok(())
 }
+
 fn check_program_positive(
     env: &Environment,
     e: Expression,
@@ -277,6 +288,7 @@ fn check_program_positive(
     }
     Ok(())
 }
+
 fn contains_inductive(env: &Environment, e: Expression, id: InductiveId) -> bool {
     let d = env.arena.data(e);
     matches!(d.op,Op::IndType{inductive}|Op::IndCtor{inductive,..}|Op::IndElim{inductive,..} if inductive==id)
@@ -285,6 +297,7 @@ fn contains_inductive(env: &Environment, e: Expression, id: InductiveId) -> bool
             .flatten()
             .any(|c| contains_inductive(env, c.expression, id))
 }
+
 impl Environment {
     pub(crate) fn singleton_elimination(&self, id: InductiveId) -> bool {
         let Some(spec) = self.inductive(id) else {
@@ -306,6 +319,7 @@ impl Environment {
             }
         }
     }
+
     fn install_datatype_mirror(&mut self, spec: &ProgramDatatype) -> Result<(), String> {
         use super::calculus::{alpha_equal, node, shift};
         let sort = BaseSort::Set(spec.level);

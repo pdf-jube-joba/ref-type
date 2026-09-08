@@ -1,11 +1,13 @@
 use super::{calculus::*, check::Checker, environment::*, reflection::*, sort::*, syntax::*};
 use crate::ids::*;
+
 fn vk(a: &Arena, i: usize) -> ValueKind {
     a.alloc(ValueKindNode {
         level: i,
         form: ValueKindForm::Base,
     })
 }
+
 fn sk(a: &Arena, i: usize) -> SetKind {
     a.alloc(SetKindNode {
         sort: SetSort::Set(i),
@@ -241,6 +243,7 @@ fn substitution_rejects_cross_level_arguments() {
     });
     assert!(substitute(&a, x, y).is_err());
 }
+
 fn program_id(a: &Arena, i: usize) -> Computation {
     let x = a.alloc(ValueTypeNode {
         level: i,
@@ -492,6 +495,7 @@ fn product_signature_checks_all_program_rules_and_overflow() {
     );
     assert!(ProductRule::new(Sort::Base(BaseSort::Prop), Sort::Upper(BaseSort::Prop)).is_err());
 }
+
 fn natural(env: &mut Environment) -> (ProgramInductiveId, ValueType, Value) {
     let id = ProgramInductiveId {
         module: ModuleId(0),

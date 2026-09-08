@@ -71,21 +71,25 @@ pub enum SetExpression {
     SetType(SetType),
     SetKind(SetKind),
 }
+
 impl From<SetTerm> for SetExpression {
     fn from(x: SetTerm) -> Self {
         Self::SetTerm(x)
     }
 }
+
 impl From<SetType> for SetExpression {
     fn from(x: SetType) -> Self {
         Self::SetType(x)
     }
 }
+
 impl From<SetKind> for SetExpression {
     fn from(x: SetKind) -> Self {
         Self::SetKind(x)
     }
 }
+
 impl From<SetExpression> for Expression {
     fn from(x: SetExpression) -> Self {
         match x {
@@ -95,6 +99,7 @@ impl From<SetExpression> for Expression {
         }
     }
 }
+
 impl TryFrom<Expression> for SetExpression {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -111,16 +116,19 @@ pub enum SetArgument {
     SetTerm(SetTerm),
     SetType(SetType),
 }
+
 impl From<SetTerm> for SetArgument {
     fn from(x: SetTerm) -> Self {
         Self::SetTerm(x)
     }
 }
+
 impl From<SetType> for SetArgument {
     fn from(x: SetType) -> Self {
         Self::SetType(x)
     }
 }
+
 impl From<SetArgument> for Expression {
     fn from(x: SetArgument) -> Self {
         match x {
@@ -129,6 +137,7 @@ impl From<SetArgument> for Expression {
         }
     }
 }
+
 impl TryFrom<Expression> for SetArgument {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -144,16 +153,19 @@ pub enum ProgramType {
     ValueType(ValueType),
     ComputationType(ComputationType),
 }
+
 impl From<ValueType> for ProgramType {
     fn from(x: ValueType) -> Self {
         Self::ValueType(x)
     }
 }
+
 impl From<ComputationType> for ProgramType {
     fn from(x: ComputationType) -> Self {
         Self::ComputationType(x)
     }
 }
+
 impl From<ProgramType> for Expression {
     fn from(x: ProgramType) -> Self {
         match x {
@@ -162,6 +174,7 @@ impl From<ProgramType> for Expression {
         }
     }
 }
+
 impl TryFrom<Expression> for ProgramType {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -177,16 +190,19 @@ pub enum ProgramKind {
     ValueKind(ValueKind),
     ComputationKind(ComputationKind),
 }
+
 impl From<ValueKind> for ProgramKind {
     fn from(x: ValueKind) -> Self {
         Self::ValueKind(x)
     }
 }
+
 impl From<ComputationKind> for ProgramKind {
     fn from(x: ComputationKind) -> Self {
         Self::ComputationKind(x)
     }
 }
+
 impl From<ProgramKind> for Expression {
     fn from(x: ProgramKind) -> Self {
         match x {
@@ -195,6 +211,7 @@ impl From<ProgramKind> for Expression {
         }
     }
 }
+
 impl TryFrom<Expression> for ProgramKind {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -210,16 +227,19 @@ pub enum Program {
     Value(Value),
     Computation(Computation),
 }
+
 impl From<Value> for Program {
     fn from(x: Value) -> Self {
         Self::Value(x)
     }
 }
+
 impl From<Computation> for Program {
     fn from(x: Computation) -> Self {
         Self::Computation(x)
     }
 }
+
 impl From<Program> for Expression {
     fn from(x: Program) -> Self {
         match x {
@@ -228,6 +248,7 @@ impl From<Program> for Expression {
         }
     }
 }
+
 impl TryFrom<Expression> for Program {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -250,51 +271,61 @@ pub enum Expression {
     Value(Value),
     Computation(Computation),
 }
+
 impl From<SetTerm> for Expression {
     fn from(x: SetTerm) -> Self {
         Self::SetTerm(x)
     }
 }
+
 impl From<SetType> for Expression {
     fn from(x: SetType) -> Self {
         Self::SetType(x)
     }
 }
+
 impl From<SetKind> for Expression {
     fn from(x: SetKind) -> Self {
         Self::SetKind(x)
     }
 }
+
 impl From<ValueType> for Expression {
     fn from(x: ValueType) -> Self {
         Self::ValueType(x)
     }
 }
+
 impl From<ComputationType> for Expression {
     fn from(x: ComputationType) -> Self {
         Self::ComputationType(x)
     }
 }
+
 impl From<ValueKind> for Expression {
     fn from(x: ValueKind) -> Self {
         Self::ValueKind(x)
     }
 }
+
 impl From<ComputationKind> for Expression {
     fn from(x: ComputationKind) -> Self {
         Self::ComputationKind(x)
     }
 }
+
 impl From<Value> for Expression {
     fn from(x: Value) -> Self {
         Self::Value(x)
     }
 }
+
 impl From<Computation> for Expression {
     fn from(x: Computation) -> Self {
         Self::Computation(x)
     }
 }
+
 impl TryFrom<Expression> for SetTerm {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -512,6 +543,7 @@ pub struct SetTermNode {
     pub sort: SetSort,
     pub form: SetTermForm,
 }
+
 impl TryFrom<Expression> for SetType {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -635,6 +667,7 @@ pub struct SetTypeNode {
     pub sort: SetSort,
     pub form: SetTypeForm,
 }
+
 impl TryFrom<Expression> for SetKind {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -676,6 +709,7 @@ pub struct SetKindNode {
     pub sort: SetSort,
     pub form: SetKindForm,
 }
+
 impl TryFrom<Expression> for ValueType {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -725,6 +759,7 @@ pub struct ValueTypeNode {
     pub level: usize,
     pub form: ValueTypeForm,
 }
+
 impl TryFrom<Expression> for ComputationType {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -778,6 +813,7 @@ pub struct ComputationTypeNode {
     pub level: usize,
     pub form: ComputationTypeForm,
 }
+
 impl TryFrom<Expression> for ValueKind {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -803,6 +839,7 @@ pub struct ValueKindNode {
     pub level: usize,
     pub form: ValueKindForm,
 }
+
 impl TryFrom<Expression> for ComputationKind {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -828,6 +865,7 @@ pub struct ComputationKindNode {
     pub level: usize,
     pub form: ComputationKindForm,
 }
+
 impl TryFrom<Expression> for Value {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -874,6 +912,7 @@ pub struct ValueNode {
     pub level: usize,
     pub form: ValueForm,
 }
+
 impl TryFrom<Expression> for Computation {
     type Error = String;
     fn try_from(x: Expression) -> Result<Self, String> {
@@ -1089,10 +1128,12 @@ pub(crate) struct Data {
     pub op: Op,
     pub fields: Vec<Vec<Child>>,
 }
+
 impl Data {
     pub fn child(&self, i: usize) -> Expression {
         self.fields[i][0].expression
     }
+
     pub fn children(&self, i: usize) -> Vec<Expression> {
         self.fields[i].iter().map(|x| x.expression).collect()
     }
@@ -1111,24 +1152,30 @@ pub struct Arena {
     value: RefCell<Vec<Data>>,
     computation: RefCell<Vec<Data>>,
 }
+
 pub trait ArenaNode {
     type Handle;
     fn allocate(self, arena: &Arena) -> Self::Handle;
 }
+
 pub trait ArenaHandle: Copy {
     type Node;
     fn get(self, arena: &Arena) -> Self::Node;
 }
+
 impl Arena {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn alloc<N: ArenaNode>(&self, node: N) -> N::Handle {
         node.allocate(self)
     }
+
     pub fn get<H: ArenaHandle>(&self, h: H) -> H::Node {
         h.get(self)
     }
+
     pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
         match e.into() {
             Expression::SetTerm(h) => self.setterm.borrow()[h.index()].sort,
@@ -1142,6 +1189,7 @@ impl Arena {
             Expression::Computation(h) => self.computation.borrow()[h.index()].sort,
         }
     }
+
     pub(crate) fn data(&self, e: Expression) -> Data {
         match e {
             Expression::SetTerm(h) => self.setterm.borrow()[h.index()].clone(),
@@ -1177,6 +1225,7 @@ impl Arena {
         self.loose_bound_cache.borrow_mut().insert(e, result);
         result
     }
+
     pub(crate) fn store(&self, family: Family, data: Data) -> Expression {
         let key = (family, data.clone());
         if let Some(&e) = self.interner.borrow().get(&key) {
@@ -1254,6 +1303,7 @@ pub enum Family {
     Value,
     Computation,
 }
+
 impl Expression {
     pub fn family(self) -> Family {
         match self {
@@ -1269,6 +1319,7 @@ impl Expression {
         }
     }
 }
+
 impl Family {
     pub fn stage(self) -> Stage {
         match self {
@@ -1290,6 +1341,7 @@ pub enum Stage {
     Type,
     Kind,
 }
+
 impl Family {
     pub fn at(sort: BaseSort, stage: Stage) -> Self {
         match (sort, stage) {
@@ -1305,6 +1357,7 @@ impl Family {
         }
     }
 }
+
 impl ArenaNode for SetTermNode {
     type Handle = SetTerm;
     fn allocate(self, arena: &Arena) -> SetTerm {
@@ -1999,8 +2052,7 @@ impl ArenaNode for SetTermNode {
                 let fields = vec![
                     parameters
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -2041,8 +2093,7 @@ impl ArenaNode for SetTermNode {
                     }],
                     cases
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -2090,6 +2141,7 @@ impl ArenaNode for SetTermNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for SetTerm {
     type Node = SetTermNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -2318,6 +2370,7 @@ impl ArenaHandle for SetTerm {
         }
     }
 }
+
 impl ArenaNode for SetTypeNode {
     type Handle = SetType;
     fn allocate(self, arena: &Arena) -> SetType {
@@ -2600,8 +2653,7 @@ impl ArenaNode for SetTypeNode {
                 let fields = vec![
                     parameters
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -2617,8 +2669,7 @@ impl ArenaNode for SetTypeNode {
                 let fields = vec![
                     parameters
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -2659,8 +2710,7 @@ impl ArenaNode for SetTypeNode {
                     }],
                     cases
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -2681,6 +2731,7 @@ impl ArenaNode for SetTypeNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for SetType {
     type Node = SetTypeNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -2815,6 +2866,7 @@ impl ArenaHandle for SetType {
         }
     }
 }
+
 impl ArenaNode for SetKindNode {
     type Handle = SetKind;
     fn allocate(self, arena: &Arena) -> SetKind {
@@ -2867,8 +2919,7 @@ impl ArenaNode for SetKindNode {
                 let fields = vec![
                     parameters
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -2891,6 +2942,7 @@ impl ArenaNode for SetKindNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for SetKind {
     type Node = SetKindNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -2927,6 +2979,7 @@ impl ArenaHandle for SetKind {
         }
     }
 }
+
 impl ArenaNode for ValueTypeNode {
     type Handle = ValueType;
     fn allocate(self, arena: &Arena) -> ValueType {
@@ -2974,8 +3027,7 @@ impl ArenaNode for ValueTypeNode {
                 let fields = vec![
                     parameters
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -3025,6 +3077,7 @@ impl ArenaNode for ValueTypeNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for ValueType {
     type Node = ValueTypeNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -3067,6 +3120,7 @@ impl ArenaHandle for ValueType {
         }
     }
 }
+
 impl ArenaNode for ComputationTypeNode {
     type Handle = ComputationType;
     fn allocate(self, arena: &Arena) -> ComputationType {
@@ -3169,6 +3223,7 @@ impl ArenaNode for ComputationTypeNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for ComputationType {
     type Node = ComputationTypeNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -3211,6 +3266,7 @@ impl ArenaHandle for ComputationType {
         }
     }
 }
+
 impl ArenaNode for ValueKindNode {
     type Handle = ValueKind;
     fn allocate(self, arena: &Arena) -> ValueKind {
@@ -3245,6 +3301,7 @@ impl ArenaNode for ValueKindNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for ValueKind {
     type Node = ValueKindNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -3265,6 +3322,7 @@ impl ArenaHandle for ValueKind {
         }
     }
 }
+
 impl ArenaNode for ComputationKindNode {
     type Handle = ComputationKind;
     fn allocate(self, arena: &Arena) -> ComputationKind {
@@ -3299,6 +3357,7 @@ impl ArenaNode for ComputationKindNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for ComputationKind {
     type Node = ComputationKindNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -3319,6 +3378,7 @@ impl ArenaHandle for ComputationKind {
         }
     }
 }
+
 impl ArenaNode for ValueNode {
     type Handle = Value;
     fn allocate(self, arena: &Arena) -> Value {
@@ -3394,16 +3454,14 @@ impl ArenaNode for ValueNode {
                 let fields = vec![
                     parameters
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
                         .collect(),
                     fields
                         .into_iter()
-                        .enumerate()
-                        .map(|(_i, x)| Child {
+                        .map(|x| Child {
                             depth: 0,
                             expression: x.into(),
                         })
@@ -3424,6 +3482,7 @@ impl ArenaNode for ValueNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for Value {
     type Node = ValueNode;
     fn get(self, arena: &Arena) -> Self::Node {
@@ -3470,6 +3529,7 @@ impl ArenaHandle for Value {
         }
     }
 }
+
 impl ArenaNode for ComputationNode {
     type Handle = Computation;
     fn allocate(self, arena: &Arena) -> Computation {
@@ -3702,6 +3762,7 @@ impl ArenaNode for ComputationNode {
             .expect("family")
     }
 }
+
 impl ArenaHandle for Computation {
     type Node = ComputationNode;
     fn get(self, arena: &Arena) -> Self::Node {

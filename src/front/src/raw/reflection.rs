@@ -31,6 +31,7 @@ impl fmt::Display for ReflectionError {
         }
     }
 }
+
 impl std::error::Error for ReflectionError {}
 
 pub fn reflect_program_type(env: &CrateEnv, ty: ProgramType) -> Result<Exp, ReflectionError> {

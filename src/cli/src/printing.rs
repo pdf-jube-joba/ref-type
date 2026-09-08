@@ -1,7 +1,7 @@
 use front::output::Output;
 use front::raw::{environment::CrateEnv, printing};
 
-pub fn format_output(env: &CrateEnv, output: &Output) -> String {
+pub(super) fn format_output(env: &CrateEnv, output: &Output) -> String {
     match output {
         Output::Message(message) => message.clone(),
         Output::Exp(exp) => printing::format_exp(env, *exp),

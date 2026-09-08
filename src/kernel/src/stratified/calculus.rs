@@ -27,6 +27,7 @@ pub(crate) fn map_children(
         arena.store(e.family(), data)
     })
 }
+
 pub fn shift(
     arena: &Arena,
     e: impl Into<Expression>,
@@ -66,6 +67,7 @@ pub fn shift(
     }
     walk(arena, e, amount, cutoff, &mut HashMap::new())
 }
+
 pub fn substitute(
     arena: &Arena,
     body: impl Into<Expression>,
@@ -104,6 +106,7 @@ pub fn substitute(
     }
     walk(arena, body.into(), argument.into(), 0, &mut HashMap::new())
 }
+
 pub fn instantiate_telescope(
     arena: &Arena,
     e: Expression,
@@ -115,6 +118,7 @@ pub fn instantiate_telescope(
     }
     Ok(result)
 }
+
 pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
     let d = arena.data(e);
     if let Op::Bound { index: i } = d.op {
@@ -125,6 +129,7 @@ pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
         .flatten()
         .any(|c| contains_bound(arena, c.expression, index + c.depth))
 }
+
 pub fn is_closed(arena: &Arena, e: Expression) -> bool {
     fn go(a: &Arena, e: Expression, depth: usize) -> bool {
         let d = a.data(e);
@@ -140,6 +145,7 @@ pub fn is_closed(arena: &Arena, e: Expression) -> bool {
     }
     go(arena, e, 0)
 }
+
 pub fn substitute_parameters(
     arena: &Arena,
     e: Expression,
@@ -151,18 +157,19 @@ pub fn substitute_parameters(
         p: &std::collections::HashMap<ModuleParamId, Expression>,
         depth: usize,
     ) -> Result<Expression, String> {
-        if let Op::ModuleParam { parameter } = a.data(e).op {
-            if let Some(&arg) = p.get(&parameter) {
-                if arg.family() != e.family() || a.sort(arg) != a.sort(e) {
-                    return Err("module argument classification mismatch".into());
-                }
-                return shift(a, arg, depth, 0);
+        if let Op::ModuleParam { parameter } = a.data(e).op
+            && let Some(&arg) = p.get(&parameter)
+        {
+            if arg.family() != e.family() || a.sort(arg) != a.sort(e) {
+                return Err("module argument classification mismatch".into());
             }
+            return shift(a, arg, depth, 0);
         }
         map_children(a, e, |x, n| go(a, x, p, depth + n))
     }
     go(arena, e, parameters, 0)
 }
+
 pub fn remap_ids(
     arena: &Arena,
     e: Expression,
@@ -198,6 +205,7 @@ pub fn remap_ids(
         arena.store(mapped.family(), d)
     })
 }
+
 fn alpha_op(mut op: Op) -> Op {
     match &mut op {
         Op::ProdTerm { var, .. }
@@ -220,6 +228,7 @@ fn alpha_op(mut op: Op) -> Op {
     }
     op
 }
+
 pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
     if left == right {
         return true;
@@ -243,6 +252,7 @@ pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
                     })
             })
 }
+
 pub(crate) fn node(
     arena: &Arena,
     family: Family,
@@ -262,6 +272,7 @@ pub(crate) fn node(
         },
     )
 }
+
 pub(crate) fn apply(
     arena: &Arena,
     rule: super::sort::ProductRule,
@@ -286,6 +297,7 @@ pub(crate) fn apply(
         &[(function, 0), (argument, 0)],
     )
 }
+
 fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
     if e.family() == Family::Value {
         return Ok(None);
@@ -544,6 +556,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
     }
     Ok(None)
 }
+
 pub fn reduce_once(
     env: &Environment,
     e: impl Into<Expression>,
@@ -603,6 +616,7 @@ pub enum Evaluation {
     Normal(Expression),
     OutOfFuel(Expression),
 }
+
 pub fn evaluate(
     env: &Environment,
     e: impl Into<Expression>,
@@ -621,12 +635,14 @@ pub fn evaluate(
         Evaluation::OutOfFuel(e)
     })
 }
+
 pub fn normalize(env: &Environment, e: impl Into<Expression>) -> Result<Expression, String> {
     match evaluate(env, e, 100_000)? {
         Evaluation::Normal(e) => Ok(e),
         Evaluation::OutOfFuel(_) => Err("normalization fuel exhausted".into()),
     }
 }
+
 pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bool, String> {
     fn go(
         env: &Environment,
@@ -676,6 +692,7 @@ pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bo
     }
     go(env, a, b, &mut std::collections::HashMap::new())
 }
+
 pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
     if let Some(&cached) = env.head_cache.borrow().get(&e) {
         return Ok(cached);
@@ -731,6 +748,7 @@ fn decompose_application(a: &Arena, mut e: Expression) -> (Expression, Vec<Expre
         }
     }
 }
+
 fn expression_sort(a: &Arena, e: Expression) -> super::sort::Sort {
     if e.family().stage() == Stage::Type {
         super::sort::Sort::Upper(a.sort(e))
@@ -738,6 +756,7 @@ fn expression_sort(a: &Arena, e: Expression) -> super::sort::Sort {
         super::sort::Sort::Base(a.sort(e))
     }
 }
+
 fn recursive_case_argument(
     env: &Environment,
     elimination: Expression,
@@ -797,6 +816,7 @@ fn recursive_case_argument(
         }
     }
 }
+
 fn reduce_inductive(
     env: &Environment,
     elimination: Expression,
@@ -885,6 +905,7 @@ fn unfold_value(env: &Environment, mut value: Expression) -> Result<Expression, 
     }
     Ok(value)
 }
+
 pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
     fn go(
         env: &Environment,
@@ -927,6 +948,7 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
         &mut std::collections::HashMap::new(),
     )
 }
+
 /// Local binders must be abstracted before an expression becomes a named
 /// declaration. Named module parameters remain explicit global references.
 pub fn locally_closed(arena: &Arena, e: Expression) -> bool {

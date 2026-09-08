@@ -4,14 +4,14 @@ use super::{
 };
 use crate::syntax::*;
 
-pub struct TermParser<'a> {
+pub(super) struct TermParser<'a> {
     tokens: &'a [SpannedToken<'a>],
     pos: usize,
     allow_macro_parameters: bool,
 }
 
 impl<'a> TermParser<'a> {
-    pub fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
+    pub(super) fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
         Self {
             tokens,
             pos: 0,
@@ -19,7 +19,7 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    pub fn new_macro_template(tokens: &'a [SpannedToken<'a>]) -> Self {
+    pub(super) fn new_macro_template(tokens: &'a [SpannedToken<'a>]) -> Self {
         Self {
             tokens,
             pos: 0,
@@ -61,7 +61,7 @@ impl<'a> TermParser<'a> {
     fn expect_othersymbol(&mut self) -> Result<&'a str, ParseError> {
         match self.next() {
             Some(t) => match &t.kind {
-                Token::MacroToken(sym_str) => Ok(sym_str),
+                Token::Macro(sym_str) => Ok(sym_str),
                 other => Err(ParseError {
                     msg: format!("expected other symbol, found {:?}", other),
                     start: t.start,
@@ -1248,7 +1248,9 @@ impl<'a> TermParser<'a> {
         self.parse_parenthesized(|parser| Ok(parser.parse_annotate_comma_separated()))
     }
 
-    pub fn parse_simple_binds_advanced(&mut self) -> Result<(Vec<RightBind>, usize), ParseError> {
+    pub(super) fn parse_simple_binds_advanced(
+        &mut self,
+    ) -> Result<(Vec<RightBind>, usize), ParseError> {
         let binds = self.parse_simple_binds_paren()?;
         let advanced_pos = self.pos;
         Ok((binds, advanced_pos))
@@ -1369,7 +1371,7 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    pub fn parse_arrow_nosubset_advanced(
+    pub(super) fn parse_arrow_nosubset_advanced(
         &mut self,
     ) -> Result<(Vec<RightBind>, SExp, usize), ParseError> {
         let (binds, body) = self.parse_arrow_nosubset()?;
@@ -1415,7 +1417,7 @@ impl<'a> TermParser<'a> {
         self.parse_sexp_withgoals()
     }
 
-    pub fn parse_sexp_advanced(&mut self) -> Result<(SExp, usize), ParseError> {
+    pub(super) fn parse_sexp_advanced(&mut self) -> Result<(SExp, usize), ParseError> {
         let exp = self.parse_sexp()?;
         let advanced_pos = self.pos;
         Ok((exp, advanced_pos))
@@ -1442,11 +1444,11 @@ impl<'a> TermParser<'a> {
         self.pos = save;
         // 2. challenge one macro token
         // OthetSymbolStart or KeyWord which is not contained in *_KEYWORDS
-        if let Some(Token::MacroToken(_)) = self.peek() {
+        if let Some(Token::Macro(_)) = self.peek() {
             let sym = self.expect_othersymbol()?;
             return Ok(MacroExp::Tok(MacroToken(sym.to_string())));
         }
-        if let Some(Token::QuotedMacroToken(value)) = self.peek() {
+        if let Some(Token::QuotedMacro(value)) = self.peek() {
             let value = value[1..value.len() - 1].to_string();
             self.next();
             return Ok(MacroExp::Quoted(value));
@@ -1627,6 +1629,7 @@ mod tests {
         print_and_unwrap(r"$( x + y $)");
         print_and_unwrap(r"mymacro!{ a + b c }");
     }
+
     fn print_and_unwrap(input: &'static str) {
         let lex = &lex_all(input).expect("lexing failed for exp test");
         let mut parser = TermParser::new(lex);

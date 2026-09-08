@@ -2,15 +2,17 @@
 use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
 use kernel::stratified::{environment as ke, sort as k, syntax as s};
 use std::collections::{HashMap, HashSet};
-pub struct Lowerer<'a> {
-    pub raw: &'a raw::environment::CrateEnv,
-    pub kernel: ke::Environment,
+
+pub(crate) struct Lowerer<'a> {
+    raw: &'a raw::environment::CrateEnv,
+    pub(crate) kernel: ke::Environment,
     active: HashSet<InductiveId>,
     active_program: HashSet<ProgramInductiveId>,
     cache: HashMap<(Exp, Vec<Exp>, ModuleId), s::Expression>,
 }
+
 impl<'a> Lowerer<'a> {
-    pub fn new(raw: &'a raw::environment::CrateEnv) -> Self {
+    pub(crate) fn new(raw: &'a raw::environment::CrateEnv) -> Self {
         Self {
             raw,
             kernel: ke::Environment::new(),
@@ -19,6 +21,7 @@ impl<'a> Lowerer<'a> {
             cache: HashMap::new(),
         }
     }
+
     fn sort(s: RawSort) -> k::Sort {
         match s {
             RawSort::Set(i) => k::Sort::Base(k::BaseSort::Set(i)),
@@ -27,17 +30,20 @@ impl<'a> Lowerer<'a> {
             RawSort::PropKind => k::Sort::Upper(k::BaseSort::Prop),
         }
     }
+
     fn infer(&self, e: Exp, ctx: &mut ExpContext, m: ModuleId) -> Result<Exp, String> {
         raw::derivation::CheckSession::new(self.raw, m, ctx)
             .infer_pts(e)
             .map_err(|e| format!("classification: {e:?}"))
     }
+
     fn formation(&self, e: Exp, ctx: &mut ExpContext, m: ModuleId) -> Result<k::Sort, String> {
         raw::derivation::CheckSession::new(self.raw, m, ctx)
             .infer_sort(e)
             .map(Self::sort)
             .map_err(|e| format!("classification formation: {e:?}"))
     }
+
     fn under<T>(
         &mut self,
         ctx: &mut ExpContext,
@@ -50,7 +56,8 @@ impl<'a> Lowerer<'a> {
         ctx.pop();
         r
     }
-    pub fn context(&mut self, ctx: &ExpContext, m: ModuleId) -> Result<ke::Context, String> {
+
+    pub(crate) fn context(&mut self, ctx: &ExpContext, m: ModuleId) -> Result<ke::Context, String> {
         let mut prefix = vec![];
         let mut result = vec![];
         for b in ctx {
@@ -63,7 +70,8 @@ impl<'a> Lowerer<'a> {
         }
         Ok(result)
     }
-    pub fn classifier(
+
+    pub(crate) fn classifier(
         &mut self,
         e: Exp,
         ctx: &mut ExpContext,
@@ -77,7 +85,8 @@ impl<'a> Lowerer<'a> {
             Ok(self.set(e, ctx, m)?.into())
         }
     }
-    pub fn set(
+
+    pub(crate) fn set(
         &mut self,
         e: Exp,
         ctx: &mut ExpContext,
@@ -586,9 +595,7 @@ impl<'a> Lowerer<'a> {
                         .arena()
                         .alloc(s::SetTypeNode {
                             sort: sort_index,
-                            form: s::SetTypeForm::BoxType {
-                                program_ty: program_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
+                            form: s::SetTypeForm::BoxType { program_ty },
                         })
                         .into(),
                     _ => return Err("constructor cannot inhabit this syntax family".into()),
@@ -609,8 +616,8 @@ impl<'a> Lowerer<'a> {
                         .alloc(s::SetTermNode {
                             sort: sort_index,
                             form: s::SetTermForm::BoxProgram {
-                                program_ty: program_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                program: program.try_into().map_err(|e| format!("{e:?}"))?,
+                                program_ty,
+                                program,
                                 certified_reflection: certified_reflection
                                     .try_into()
                                     .map_err(|e| format!("{e:?}"))?,
@@ -630,7 +637,7 @@ impl<'a> Lowerer<'a> {
                         .alloc(s::SetTermNode {
                             sort: sort_index,
                             form: s::SetTermForm::ForceBox {
-                                program_ty: program_ty.try_into().map_err(|e| format!("{e:?}"))?,
+                                program_ty,
                                 boxed: boxed.try_into().map_err(|e| format!("{e:?}"))?,
                             },
                         })
@@ -1397,8 +1404,8 @@ impl<'a> Lowerer<'a> {
                             sort: sort_index,
                             form: s::SetTermForm::BoxApp {
                                 rule,
-                                domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                codomain: codomain.try_into().map_err(|e| format!("{e:?}"))?,
+                                domain,
+                                codomain,
                                 function: function.try_into().map_err(|e| format!("{e:?}"))?,
                                 argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
                             },
@@ -1504,7 +1511,8 @@ impl<'a> Lowerer<'a> {
         self.cache.insert(key, result);
         Ok(result)
     }
-    pub fn program_type(
+
+    pub(crate) fn program_type(
         &mut self,
         ty: raw::program::ProgramType,
     ) -> Result<s::ProgramType, String> {
@@ -1513,7 +1521,8 @@ impl<'a> Lowerer<'a> {
             raw::program::ProgramType::Computation(t) => Ok(self.computation_type(t)?.into()),
         }
     }
-    pub fn value_type(&mut self, ty: raw::program::ValueType) -> Result<s::ValueType, String> {
+
+    fn value_type(&mut self, ty: raw::program::ValueType) -> Result<s::ValueType, String> {
         use raw::program::ValueTypeNode as R;
         use s::ValueTypeForm as F;
         let form = match self.raw.arena().get(ty) {
@@ -1552,7 +1561,8 @@ impl<'a> Lowerer<'a> {
             .arena()
             .alloc(s::ValueTypeNode { level: 0, form }))
     }
-    pub fn computation_type(
+
+    fn computation_type(
         &mut self,
         ty: raw::program::ComputationType,
     ) -> Result<s::ComputationType, String> {
@@ -1586,10 +1596,12 @@ impl<'a> Lowerer<'a> {
             .arena()
             .alloc(s::ComputationTypeNode { level: 0, form }))
     }
-    pub fn program(&mut self, p: raw::program::Program) -> Result<s::Program, String> {
+
+    fn program(&mut self, p: raw::program::Program) -> Result<s::Program, String> {
         self.program_in_context(p, &mut vec![])
     }
-    pub fn program_in_context(
+
+    pub(crate) fn program_in_context(
         &mut self,
         p: raw::program::Program,
         context: &mut raw::program::ProgramContext,
@@ -1601,7 +1613,8 @@ impl<'a> Lowerer<'a> {
             }
         }
     }
-    pub fn program_context(
+
+    pub(crate) fn program_context(
         &mut self,
         context: &raw::program::ProgramContext,
     ) -> Result<ke::Context, String> {
@@ -1626,6 +1639,7 @@ impl<'a> Lowerer<'a> {
             })
             .collect()
     }
+
     fn value(
         &mut self,
         v: raw::program::Value,
@@ -1688,6 +1702,7 @@ impl<'a> Lowerer<'a> {
         };
         Ok(self.kernel.arena().alloc(s::ValueNode { level: 0, form }))
     }
+
     fn computation(
         &mut self,
         e: raw::program::Computation,
@@ -1847,7 +1862,8 @@ impl<'a> Lowerer<'a> {
             .arena()
             .alloc(s::ComputationNode { level: 0, form }))
     }
-    pub fn definition(&mut self, id: DefId) -> Result<(), String> {
+
+    fn definition(&mut self, id: DefId) -> Result<(), String> {
         let mut pending = vec![(id, false)];
         let mut active = HashSet::new();
         while let Some((id, ready)) = pending.pop() {
@@ -1871,6 +1887,7 @@ impl<'a> Lowerer<'a> {
         }
         Ok(())
     }
+
     fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
         if self.kernel.definition(id).is_some() {
             return Ok(());
@@ -1923,7 +1940,8 @@ impl<'a> Lowerer<'a> {
             )
             .map_err(|e| format!("indexed definition {id:?}: {e}"))
     }
-    pub fn parameter(&mut self, id: ModuleParamId) -> Result<(), String> {
+
+    fn parameter(&mut self, id: ModuleParamId) -> Result<(), String> {
         if self.kernel.parameter(id).is_some() {
             return Ok(());
         }
@@ -1958,7 +1976,8 @@ impl<'a> Lowerer<'a> {
             vec![],
         )
     }
-    pub fn inductive(
+
+    fn inductive(
         &mut self,
         id: InductiveId,
         m: ModuleId,
@@ -2026,7 +2045,8 @@ impl<'a> Lowerer<'a> {
         self.active.remove(&id);
         Ok(())
     }
-    pub fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+
+    fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
         if self.kernel.datatype(id).is_some() {
             return Ok(());
         }
@@ -2072,15 +2092,16 @@ impl<'a> Lowerer<'a> {
         self.active_program.remove(&id);
         Ok(())
     }
-    pub fn extend(mut self, existing: ke::Environment) -> (ke::Environment, Result<(), String>) {
+
+    pub(crate) fn extend(
+        mut self,
+        existing: ke::Environment,
+    ) -> (ke::Environment, Result<(), String>) {
         self.kernel = existing;
         let result = self.lower_all();
         (self.kernel, result)
     }
-    pub fn all(mut self) -> Result<ke::Environment, String> {
-        self.lower_all()?;
-        Ok(self.kernel)
-    }
+
     fn lower_all(&mut self) -> Result<(), String> {
         for id in self.raw.parameter_ids() {
             self.parameter(id)?
@@ -2097,6 +2118,7 @@ impl<'a> Lowerer<'a> {
         Ok(())
     }
 }
+
 // Materialized modules need not store declarations in dependency order. Schedule
 // the dependency graph explicitly so a long import chain does not consume the
 // Rust call stack while classifying syntax.
@@ -2112,12 +2134,14 @@ fn definition_dependencies(raw: &raw::environment::CrateEnv, id: DefId) -> Vec<D
         V(raw::program::Value),
         C(raw::program::Computation),
     }
+
     fn ty(t: raw::program::ProgramType) -> E {
         match t {
             raw::program::ProgramType::Value(x) => E::Vt(x),
             raw::program::ProgramType::Computation(x) => E::Ct(x),
         }
     }
+
     fn term(t: raw::program::Program) -> E {
         match t {
             raw::program::Program::Value(x) => E::V(x),

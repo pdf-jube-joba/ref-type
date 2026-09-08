@@ -250,6 +250,7 @@ fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<Judge
     session.env.inference_cache.borrow_mut().insert(key, ty);
     Ok(ty)
 }
+
 fn infer_uncached(
     session: &mut CheckSession<'_, '_>,
     term: Exp,

@@ -443,12 +443,15 @@ pub fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff: usize
 pub fn instantiate(arena: &Arena, body: Exp, argument: Exp) -> Exp {
     instantiate_at(arena, body, argument, 0)
 }
+
 pub fn instantiate_at(arena: &Arena, body: Exp, argument: Exp, inner: usize) -> Exp {
     instantiate_telescope_at(arena, body, &[argument], inner)
 }
+
 pub fn instantiate_telescope(arena: &Arena, exp: Exp, arguments: &[Exp]) -> Exp {
     instantiate_telescope_at(arena, exp, arguments, 0)
 }
+
 pub fn instantiate_outer_telescope(
     arena: &Arena,
     exp: Exp,
@@ -1022,6 +1025,7 @@ pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
     }
     exp
 }
+
 pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     if let Some(next) = exp_reduce_if_top(env, exp) {
         return Some(next);
@@ -1040,6 +1044,7 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     });
     changed.then(|| env.arena().alloc(mapped))
 }
+
 pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
     let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::raw::printing::format_exp(env, exp));
     let _entered = span.enter();
@@ -1075,6 +1080,7 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
     cache.insert(exp, result);
     result
 }
+
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     let result = alpha_rec(env, left, right, true, false, &mut HashMap::new());
     tracing::trace!(target: "ref_type::conversion", left = %crate::raw::printing::format_exp(env, left), right = %crate::raw::printing::format_exp(env, right), result, "conversion compared");
@@ -1103,12 +1109,15 @@ pub fn erase(env: &CrateEnv, exp: Exp) -> Exp {
         }
     }
 }
+
 pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     alpha_rec(env, left, right, true, true, &mut HashMap::new())
 }
+
 pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {
     whnf_with_erasure(env, ty, true)
 }
+
 pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(SymbolId, Exp, Exp)> {
     let arena = env.arena();
     let mut current = type_head_normal(env, ty);
@@ -1120,6 +1129,7 @@ pub(crate) fn expose_product(env: &CrateEnv, ty: Exp) -> Option<(SymbolId, Exp, 
         }
     }
 }
+
 pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
     let arena = env.arena();
     let mut current = type_head_normal(env, ty);
@@ -1130,10 +1140,12 @@ pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
         }
     }
 }
+
 pub fn common_ambient_carrier(env: &CrateEnv, left: Exp, right: Exp) -> Option<Exp> {
     let carrier = base_carrier(env, left);
     erased_convertible(env, carrier, base_carrier(env, right)).then_some(carrier)
 }
+
 pub fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
     if erased_convertible(env, inferred, expected) {
         return true;

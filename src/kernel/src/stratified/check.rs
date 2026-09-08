@@ -1,6 +1,7 @@
 //! Independent formation and typing checks for indexed syntax.
 use super::{calculus::*, environment::*, sort::*, syntax::*};
 use crate::ids::*;
+
 pub struct Checker<'a> {
     pub env: &'a Environment,
     pub context: Context,
@@ -8,6 +9,7 @@ pub struct Checker<'a> {
     checking_context: bool,
     validated_context: Option<Vec<Expression>>,
 }
+
 impl<'a> Checker<'a> {
     pub fn new(env: &'a Environment, context: Context) -> Self {
         Self {
@@ -18,9 +20,11 @@ impl<'a> Checker<'a> {
             validated_context: None,
         }
     }
+
     fn arena(&self) -> &Arena {
         &self.env.arena
     }
+
     pub fn check_context(&mut self) -> Result<(), String> {
         let key = self
             .context
@@ -56,6 +60,7 @@ impl<'a> Checker<'a> {
         }
         result
     }
+
     fn under<T>(
         &mut self,
         var: SymbolId,
@@ -67,6 +72,7 @@ impl<'a> Checker<'a> {
         self.context.pop();
         result
     }
+
     pub fn formation(&mut self, e: Expression) -> Result<Sort, String> {
         match self.infer(e)? {
             Classifier::Upper(b) => Ok(Sort::Upper(b)),
@@ -81,33 +87,42 @@ impl<'a> Checker<'a> {
             }
         }
     }
+
     pub fn infer_term(&mut self, t: SetTerm) -> Result<SetType, String> {
         self.inferred(t.into())?.try_into()
     }
+
     pub fn infer_type(&mut self, t: SetType) -> Result<SetKind, String> {
         self.inferred(t.into())?.try_into()
     }
+
     pub fn check_kind(&mut self, k: SetKind) -> Result<(), String> {
         self.formation(k.into()).map(|_| ())
     }
+
     pub fn infer_value(&mut self, t: Value) -> Result<ValueType, String> {
         self.inferred(t.into())?.try_into()
     }
+
     pub fn infer_computation(&mut self, t: Computation) -> Result<ComputationType, String> {
         self.inferred(t.into())?.try_into()
     }
+
     pub fn infer_program_type(&mut self, t: ProgramType) -> Result<ProgramKind, String> {
         self.inferred(t.into())?.try_into()
     }
+
     pub fn check_program_kind(&mut self, k: ProgramKind) -> Result<(), String> {
         self.formation(k.into()).map(|_| ())
     }
+
     pub fn inferred(&mut self, e: Expression) -> Result<Expression, String> {
         match self.infer(e)? {
             Classifier::Expression(t) => Ok(t),
             Classifier::Upper(_) => Err("kind has a formation sort, not an expression type".into()),
         }
     }
+
     pub fn check(
         &mut self,
         e: impl Into<Expression>,
@@ -133,6 +148,7 @@ impl<'a> Checker<'a> {
             _ => Err("judgement classification mismatch".into()),
         }
     }
+
     fn weaken(&self, a: Expression, b: Expression) -> Result<bool, String> {
         if convertible(self.env, a, b)? {
             return Ok(true);
@@ -157,21 +173,25 @@ impl<'a> Checker<'a> {
             _ => Ok(false),
         }
     }
+
     fn base_kind(&self, b: BaseSort) -> Expression {
         node(self.arena(), Family::at(b, Stage::Kind), b, Op::Base, &[])
     }
+
     fn base_type(&mut self, e: Expression) -> Result<BaseSort, String> {
         match self.formation(e)? {
             Sort::Base(b) => Ok(b),
             _ => Err("expected a type, found a kind".into()),
         }
     }
+
     fn set_type(&mut self, e: Expression) -> Result<usize, String> {
         match self.base_type(e)? {
             BaseSort::Set(i) => Ok(i),
             _ => Err("expected Set(i)".into()),
         }
     }
+
     fn proposition(&mut self, e: Expression) -> Result<(), String> {
         if self.base_type(e)? == BaseSort::Prop {
             Ok(())
@@ -179,6 +199,7 @@ impl<'a> Checker<'a> {
             Err("expected proposition".into())
         }
     }
+
     fn make(
         &self,
         sort: BaseSort,
@@ -188,6 +209,7 @@ impl<'a> Checker<'a> {
     ) -> Expression {
         node(self.arena(), Family::at(sort, stage), sort, op, children)
     }
+
     fn type_node(&self, sort: BaseSort, op: Op, args: &[Expression]) -> Expression {
         self.make(
             sort,
@@ -196,6 +218,7 @@ impl<'a> Checker<'a> {
             &args.iter().map(|&e| (e, 0)).collect::<Vec<_>>(),
         )
     }
+
     fn product(
         &mut self,
         var: SymbolId,
@@ -220,10 +243,12 @@ impl<'a> Checker<'a> {
             &[(domain, 0), (body, 1)],
         ))
     }
+
     fn arrow(&mut self, domain: Expression, codomain: Expression) -> Result<Expression, String> {
         let body = shift(self.arena(), codomain, 1, 0)?;
         self.product(SymbolId::ANONYMOUS, domain, body)
     }
+
     fn application(
         &mut self,
         function: Expression,
@@ -239,6 +264,7 @@ impl<'a> Checker<'a> {
         self.check(argument, d.child(0))?;
         Ok(apply(self.arena(), rule, function, argument))
     }
+
     fn expose_product(&self, mut ty: Expression) -> Result<Expression, String> {
         loop {
             ty = whnf(self.env, ty)?;
@@ -250,6 +276,7 @@ impl<'a> Checker<'a> {
             }
         }
     }
+
     fn common_carrier(&mut self, l: Expression, r: Expression) -> Result<Expression, String> {
         let l = self.inferred(l)?;
         let r = self.inferred(r)?;
@@ -272,6 +299,7 @@ impl<'a> Checker<'a> {
         self.set_type(l)?;
         Ok(l)
     }
+
     pub fn infer(&mut self, e: impl Into<Expression>) -> Result<Classifier, String> {
         let e = e.into();
         if self.inference_depth == 0 && !self.checking_context {
@@ -288,6 +316,7 @@ impl<'a> Checker<'a> {
         self.env.inference_cache.borrow_mut().insert(key, result);
         Ok(result)
     }
+
     fn infer_inner(&mut self, e: Expression) -> Result<Classifier, String> {
         let d = self.arena().data(e);
         let sort = d.sort;
@@ -646,6 +675,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
+
     fn validate_inferred(&mut self, e: Expression, ty: Expression) -> Result<(), String> {
         let expected = match e.family().stage() {
             Stage::Term => Stage::Type,
@@ -657,6 +687,7 @@ impl<'a> Checker<'a> {
         }
         Ok(())
     }
+
     fn closed_program_type(&mut self, p: Expression) -> Result<(), String> {
         if !self.arena().sort(p).is_program() || !closed_in_environment(self.env, p) {
             return Err("Box requires a closed Program type".into());
@@ -664,6 +695,7 @@ impl<'a> Checker<'a> {
         Checker::new(self.env, vec![]).base_type(p)?;
         Ok(())
     }
+
     fn infer_recursion(&mut self, d: &Data) -> Result<Expression, String> {
         let c = |i| d.child(i);
         let b = self.base_type(c(0))?;
@@ -726,6 +758,7 @@ impl<'a> Checker<'a> {
             ))
         }
     }
+
     fn quantified(
         &mut self,
         domain: Expression,
@@ -741,12 +774,15 @@ impl<'a> Checker<'a> {
         let result = self.under(SymbolId::ANONYMOUS, domain, |ch| body(ch, var))?;
         self.product(SymbolId::ANONYMOUS, domain, result)
     }
+
     fn lifted(&self, e: Expression, n: usize) -> Result<Expression, String> {
         shift(self.arena(), e, n, 0)
     }
+
     fn equality(&self, left: Expression, right: Expression) -> Expression {
         self.type_node(BaseSort::Prop, Op::Equal, &[left, right])
     }
+
     fn transition(
         &mut self,
         state: Expression,
@@ -764,6 +800,7 @@ impl<'a> Checker<'a> {
         );
         Ok(self.equality(applied, ctor))
     }
+
     fn infer_proof(&mut self, d: &Data) -> Result<Expression, String> {
         let c = |i| d.child(i);
         match d.op {
@@ -897,6 +934,7 @@ impl<'a> Checker<'a> {
             _ => Err("not a proof constructor".into()),
         }
     }
+
     fn check_arguments(&mut self, args: &[Expression], telescope: &Context) -> Result<(), String> {
         if args.len() != telescope.len() {
             return Err("parameter count mismatch".into());
@@ -907,6 +945,7 @@ impl<'a> Checker<'a> {
         }
         Ok(())
     }
+
     fn infer_inductive(&mut self, e: Expression, d: &Data) -> Result<Classifier, String> {
         let c = |i| d.child(i);
         let ty = match d.op.clone() {
@@ -1116,6 +1155,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, ty)?;
         Ok(Classifier::Expression(ty))
     }
+
     fn decompose_app(&self, mut e: Expression) -> (Expression, Vec<Expression>) {
         let mut args = vec![];
         loop {
@@ -1129,6 +1169,7 @@ impl<'a> Checker<'a> {
             }
         }
     }
+
     fn apply_motive(&mut self, motive: &Motive, args: &[Expression]) -> Result<Expression, String> {
         if args.len() != motive.domains.len() {
             return Err("motive argument count mismatch".into());
@@ -1138,6 +1179,7 @@ impl<'a> Checker<'a> {
         }
         instantiate_telescope(self.arena(), motive.body, args)
     }
+
     fn lift_motive(&self, m: &Motive) -> Result<Motive, String> {
         Ok(Motive {
             domains: m
@@ -1149,6 +1191,7 @@ impl<'a> Checker<'a> {
             body: shift(self.arena(), m.body, 1, m.domains.len())?,
         })
     }
+
     fn recursive_hypothesis(
         &mut self,
         ind: InductiveId,
@@ -1181,6 +1224,7 @@ impl<'a> Checker<'a> {
         args.push(x);
         self.apply_motive(motive, &args).map(Some)
     }
+
     fn case_type(
         &mut self,
         ind: InductiveId,
@@ -1210,6 +1254,7 @@ impl<'a> Checker<'a> {
         self.apply_motive(motive, &args)
     }
 }
+
 struct Motive {
     domains: Vec<Expression>,
     body: Expression,

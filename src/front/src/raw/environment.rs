@@ -199,11 +199,12 @@ impl ModuleEnv {
     }
 }
 
+type InferenceCache = HashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>;
+
 #[derive(Debug)]
 pub struct CrateEnv {
     arena: Arena,
-    pub(crate) inference_cache:
-        std::cell::RefCell<HashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>>,
+    pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
@@ -664,6 +665,7 @@ impl CrateEnv {
             })
             .collect()
     }
+
     pub(crate) fn parameter_ids(&self) -> Vec<ModuleParamId> {
         self.modules
             .iter()
@@ -676,6 +678,7 @@ impl CrateEnv {
             })
             .collect()
     }
+
     pub(crate) fn definition_ids(&self) -> Vec<DefId> {
         self.modules
             .iter()
@@ -688,6 +691,7 @@ impl CrateEnv {
             })
             .collect()
     }
+
     pub(crate) fn inductive_ids(&self) -> Vec<InductiveId> {
         self.modules
             .iter()
@@ -706,6 +710,7 @@ impl CrateEnv {
             })
             .collect()
     }
+
     pub(crate) fn datatype_ids(&self) -> Vec<ProgramInductiveId> {
         self.modules
             .iter()
