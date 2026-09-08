@@ -500,7 +500,7 @@ pub fn exp_subst_module_param(
     replacement: Exp,
 ) -> Exp {
     transform(arena, exp, 0, &mut |node, depth| match node {
-        ExpNode::ModuleParam(id) if *id == parameter => {
+        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) if *id == parameter => {
             Some(shift_bound_indices(arena, replacement, depth, 0))
         }
         _ => None,

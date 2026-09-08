@@ -63,6 +63,36 @@ impl Default for ProgramScope {
 }
 
 impl ProgramScope {
+    fn associated_arguments(
+        &mut self,
+        environment: &mut GlobalEnvironment,
+        parameters: &[ValueTypeExp],
+        expected: usize,
+    ) -> Result<Vec<ValueType>, String> {
+        if parameters.is_empty() && expected > 0 {
+            return (0..expected)
+                .map(|_| {
+                    self.elaborate_value_type(
+                        &ValueTypeExp::Meta {
+                            kind: SurfaceMeta::Implicit,
+                            span: SourceSpan { start: 0, end: 0 },
+                        },
+                        environment,
+                    )
+                })
+                .collect();
+        }
+        if parameters.len() != expected {
+            return Err(format!(
+                "Program associated item expects {expected} type parameter(s), found {}",
+                parameters.len()
+            ));
+        }
+        parameters
+            .iter()
+            .map(|ty| self.elaborate_value_type(ty, environment))
+            .collect()
+    }
     pub(crate) fn new() -> Self {
         // Module parameters have stable identities and must not be captured as
         // de Bruijn locals: declarations and their uses can be nested beneath
@@ -384,6 +414,58 @@ impl ProgramScope {
     ) -> Result<ValueTerm, String> {
         let arena = environment.crate_env.arena();
         match expression {
+            ValueTermExp::Record {
+                datatype,
+                parameters,
+                fields,
+            } => {
+                let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
+                else {
+                    return Err("expected Program structure type in record literal".into());
+                };
+                let Some(names) = &item.record_fields else {
+                    return Err("expected Program structure type in record literal".into());
+                };
+                let parameters = self.associated_arguments(
+                    environment,
+                    parameters,
+                    environment
+                        .crate_env
+                        .program_inductive(item.inductive)
+                        .parameters()
+                        .len(),
+                )?;
+                let mut supplied = HashMap::new();
+                for (name, value) in fields {
+                    if supplied.insert(name.as_str(), value).is_some() {
+                        return Err(format!(
+                            "Structure field {} was supplied more than once",
+                            name.as_str()
+                        ));
+                    }
+                    if !names.contains(name) {
+                        return Err(format!("Unknown structure field {}", name.as_str()));
+                    }
+                }
+                let fields = names
+                    .iter()
+                    .map(|name| {
+                        let value = supplied
+                            .get(name.as_str())
+                            .ok_or_else(|| format!("Missing structure field {}", name.as_str()))?;
+                        self.elaborate_value(value, environment)
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ValueTermNode::InductiveConstructor {
+                        indspec: item.inductive,
+                        parameters,
+                        idx: 0,
+                        fields,
+                    }))
+            }
             ValueTermExp::Meta { kind, span } => {
                 let (metavariable, spine) =
                     self.fresh_meta(environment, *kind, *span, MetaCategory::ValueTerm)?;
@@ -426,6 +508,41 @@ impl ProgramScope {
                 else {
                     return Err("Program constructor path does not name a Program datatype".into());
                 };
+                if let Some((_, definition)) = item
+                    .associated_definitions
+                    .iter()
+                    .find(|(name, _)| name == constructor)
+                {
+                    if !fields.is_empty() {
+                        return Err("Program associated values do not take value arguments".into());
+                    }
+                    if !matches!(
+                        environment.crate_env.definition(*definition),
+                        DefinedConstant::ProgramValue { .. }
+                    ) {
+                        return Err("associated item is not a Program value".into());
+                    }
+                    let parameters = self.associated_arguments(
+                        environment,
+                        parameters,
+                        environment
+                            .crate_env
+                            .definition_parameters(*definition)
+                            .len(),
+                    )?;
+                    return Ok(environment.crate_env.arena().alloc(
+                        ValueTermNode::DefinitionInstance {
+                            definition: *definition,
+                            parameters,
+                        },
+                    ));
+                }
+                if item.record_fields.is_some() {
+                    return Err(format!(
+                        "Program associated item {} was not found",
+                        constructor.as_str()
+                    ));
+                }
                 let parameters = parameters
                     .iter()
                     .map(|parameter| self.elaborate_value_type(parameter, environment))
@@ -497,6 +614,44 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, String> {
         match expression {
+            ComputationTermExp::Associated {
+                datatype,
+                item: name,
+                parameters,
+            } => {
+                let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
+                else {
+                    return Err("expected Program type before associated access".into());
+                };
+                let (_, definition) = item
+                    .associated_definitions
+                    .iter()
+                    .find(|(candidate, _)| candidate == name)
+                    .ok_or_else(|| {
+                        format!("Program associated item {} was not found", name.as_str())
+                    })?;
+                if !matches!(
+                    environment.crate_env.definition(*definition),
+                    DefinedConstant::ProgramComputation { .. }
+                ) {
+                    return Err("associated item is not a Program computation".into());
+                }
+                let parameters = self.associated_arguments(
+                    environment,
+                    parameters,
+                    environment
+                        .crate_env
+                        .definition_parameters(*definition)
+                        .len(),
+                )?;
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::DefinitionInstance {
+                        definition: *definition,
+                        parameters,
+                    }))
+            }
             ComputationTermExp::Meta { kind, span } => {
                 let (metavariable, spine) =
                     self.fresh_meta(environment, *kind, *span, MetaCategory::ComputationTerm)?;
@@ -910,6 +1065,16 @@ impl ProgramScope {
     fn zonk_value(&self, environment: &GlobalEnvironment, value: ValueTerm) -> ValueTerm {
         let arena = environment.crate_env.arena();
         match arena.get(value) {
+            ValueTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => arena.alloc(ValueTermNode::DefinitionInstance {
+                definition,
+                parameters: parameters
+                    .into_iter()
+                    .map(|ty| self.zonk_value_type(environment, ty))
+                    .collect(),
+            }),
             ValueTermNode::Meta {
                 metavariable,
                 spine,
@@ -966,6 +1131,16 @@ impl ProgramScope {
     ) -> ComputationTerm {
         let arena = environment.crate_env.arena();
         match arena.get(computation) {
+            ComputationTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => arena.alloc(ComputationTermNode::DefinitionInstance {
+                definition,
+                parameters: parameters
+                    .into_iter()
+                    .map(|ty| self.zonk_value_type(environment, ty))
+                    .collect(),
+            }),
             ComputationTermNode::Meta {
                 metavariable,
                 spine,
@@ -1282,6 +1457,10 @@ impl ProgramScope {
         let arena = environment.crate_env.arena();
         let expected = self.zonk_value_type(environment, expected);
         match arena.get(value) {
+            ValueTermNode::DefinitionInstance { .. } => {
+                let inferred = self.infer_value_term(environment, context, value)?;
+                self.unify_value_types(environment, inferred, expected)
+            }
             ValueTermNode::Meta { .. } => Ok(()),
             ValueTermNode::Bound(_)
             | ValueTermNode::ModuleParam(_)
@@ -1382,6 +1561,22 @@ impl ProgramScope {
     ) -> Result<ValueType, String> {
         let arena = environment.crate_env.arena();
         match arena.get(value) {
+            ValueTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => {
+                let DefinedConstant::ProgramValue { ty, .. } =
+                    environment.crate_env.definition(definition)
+                else {
+                    return Err("wrong Program associated item category".into());
+                };
+                Ok(crate::raw::program_definitions::instantiate_value_type(
+                    arena,
+                    *ty,
+                    &parameters,
+                    0,
+                ))
+            }
             ValueTermNode::Meta { .. } => {
                 Err("cannot infer an unconstrained Program value metavariable".into())
             }
@@ -1457,6 +1652,10 @@ impl ProgramScope {
         let arena = environment.crate_env.arena();
         let expected = self.zonk_computation_type(environment, expected);
         match arena.get(computation) {
+            ComputationTermNode::DefinitionInstance { .. } => {
+                let inferred = self.infer_computation_term(environment, context, computation)?;
+                self.unify_computation_types(environment, inferred, expected)
+            }
             ComputationTermNode::Meta { .. } => Ok(()),
             ComputationTermNode::DefinedConstant(_) => {
                 let inferred = self.infer_kernel_computation(environment, context, computation)?;
@@ -1561,6 +1760,24 @@ impl ProgramScope {
     ) -> Result<ComputationType, String> {
         let arena = environment.crate_env.arena();
         match arena.get(computation) {
+            ComputationTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => {
+                let DefinedConstant::ProgramComputation { ty, .. } =
+                    environment.crate_env.definition(definition)
+                else {
+                    return Err("wrong Program associated item category".into());
+                };
+                Ok(
+                    crate::raw::program_definitions::instantiate_computation_type(
+                        arena,
+                        *ty,
+                        &parameters,
+                        0,
+                    ),
+                )
+            }
             ComputationTermNode::Meta { .. } => {
                 Err("cannot infer an unconstrained Program computation metavariable".into())
             }
@@ -1590,7 +1807,8 @@ impl ProgramScope {
                 context.pop();
                 Ok(arena.alloc(ComputationTypeNode::Function {
                     domain: value_ty,
-                    codomain: body_ty?,
+                    codomain: strengthen_computation_type(arena, body_ty?, 0)
+                        .ok_or("Program result type depends on a local value")?,
                 }))
             }
             ComputationTermNode::Application { computation, value } => {
@@ -1652,7 +1870,7 @@ impl ProgramScope {
         value: ValueTerm,
         expected: ValueType,
     ) -> Result<(ValueTerm, ValueType), String> {
-        let mut context = Vec::new();
+        let mut context = self.context.clone();
         self.solve_value(environment, &mut context, value, expected)?;
         self.finish_program_metas()?;
         Ok((
@@ -1667,7 +1885,7 @@ impl ProgramScope {
         computation: ComputationTerm,
         expected: ComputationType,
     ) -> Result<(ComputationTerm, ComputationType), String> {
-        let mut context = Vec::new();
+        let mut context = self.context.clone();
         self.solve_computation(environment, &mut context, computation, expected)?;
         self.finish_program_metas()?;
         Ok((
@@ -1681,7 +1899,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         value: ValueTerm,
     ) -> Result<(ValueTerm, ValueType), String> {
-        let mut context = Vec::new();
+        let mut context = self.context.clone();
         let ty = self.infer_value_term(environment, &mut context, value)?;
         self.finish_program_metas()?;
         Ok((
@@ -1695,7 +1913,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         computation: ComputationTerm,
     ) -> Result<(ComputationTerm, ComputationType), String> {
-        let mut context = Vec::new();
+        let mut context = self.context.clone();
         let ty = self.infer_computation_term(environment, &mut context, computation)?;
         self.finish_program_metas()?;
         Ok((

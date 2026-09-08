@@ -113,11 +113,13 @@ pub enum ModuleItem {
         body: SExp,
     },
     ValueDefinition {
+        owner: Option<AssociatedOwner>,
         name: Identifier,
         ty: ValueTypeExp,
         body: ValueTermExp,
     },
     ComputationDefinition {
+        owner: Option<AssociatedOwner>,
         name: Identifier,
         ty: ComputationTypeExp,
         body: ComputationTermExp,
@@ -132,7 +134,7 @@ pub enum ModuleItem {
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
-        sort: Sort,
+        kind: InductiveKind,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {
@@ -268,6 +270,11 @@ pub enum ValueTermExp {
         span: SourceSpan,
     },
     Access(LocalAccess),
+    Record {
+        datatype: LocalAccess,
+        parameters: Vec<ValueTypeExp>,
+        fields: Vec<(Identifier, ValueTermExp)>,
+    },
     Constructor {
         datatype: LocalAccess,
         constructor: Identifier,
@@ -294,6 +301,11 @@ pub enum ComputationTermExp {
         span: SourceSpan,
     },
     Access(LocalAccess),
+    Associated {
+        datatype: LocalAccess,
+        item: Identifier,
+        parameters: Vec<ValueTypeExp>,
+    },
     Return(Box<ValueTermExp>),
     Force(Box<ValueTermExp>),
     Lambda {
@@ -779,6 +791,21 @@ impl TryFrom<SExp> for ValueTermExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            SExp::RecordTypeCtor {
+                access,
+                parameters,
+                fields,
+            } if arguments.is_empty() => Ok(Self::Record {
+                datatype: access,
+                parameters: parameters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<_, _>>()?,
+                fields: fields
+                    .into_iter()
+                    .map(|(name, value)| Ok((name, value.try_into()?)))
+                    .collect::<Result<_, String>>()?,
+            }),
             SExp::Meta { kind, span } if arguments.is_empty() => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } if parameters.is_empty() => {
                 if arguments.is_empty() {
@@ -835,6 +862,19 @@ impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::AssociatedAccess { base, field } => {
+                let SExp::AccessPath { access, parameters } = *base else {
+                    return Err("expected a Program datatype before associated access".into());
+                };
+                Ok(Self::Associated {
+                    datatype: access,
+                    item: field,
+                    parameters: parameters
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                })
+            }
             SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } if parameters.is_empty() => {
                 Ok(Self::Access(access))
@@ -980,6 +1020,7 @@ pub struct ModItemInductive {
 
 #[derive(Debug, Clone)]
 pub struct ModItemProgramInductive {
+    pub record_fields: Option<Vec<Identifier>>,
     pub type_name: Identifier,
     pub ctor_names: Vec<Identifier>,
     pub inductive: crate::raw::ids::ProgramInductiveId,

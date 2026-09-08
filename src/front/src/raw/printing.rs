@@ -489,6 +489,19 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
         ValueTermNode::Bound(index) => format!("#v{index}"),
         ValueTermNode::ModuleParam(id) => format_var(env, id),
         ValueTermNode::Meta { metavariable, .. } => format!("?v{}", metavariable.0),
+        ValueTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => format!(
+            "vdef({}:{})[{}]",
+            definition.module.0,
+            definition.index,
+            parameters
+                .iter()
+                .map(|ty| format_value_type(env, *ty))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         ValueTermNode::DefinedConstant(id) => format!("vdef({}:{})", id.module.0, id.index),
         ValueTermNode::Thunk { computation } => {
             format!("\\thunk({})", format_computation(env, computation))
@@ -535,6 +548,19 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
 pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
     match env.arena().get(term) {
         ComputationTermNode::Meta { metavariable, .. } => format!("?c{}", metavariable.0),
+        ComputationTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => format!(
+            "cdef({}:{})[{}]",
+            definition.module.0,
+            definition.index,
+            parameters
+                .iter()
+                .map(|ty| format_value_type(env, *ty))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         ComputationTermNode::DefinedConstant(id) => format!("cdef({}:{})", id.module.0, id.index),
         ComputationTermNode::Return { value } => format!("\\return({})", format_value(env, value)),
         ComputationTermNode::Force { value } => format!("\\force({})", format_value(env, value)),

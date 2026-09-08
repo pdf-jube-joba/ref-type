@@ -245,6 +245,43 @@ fn infer_value_term_inner(
             .and_then(|p| p.value_ty())
             .ok_or_else(|| failure("Value", "infer", "module parameter is not a Program value")),
         ValueTermNode::Meta { .. } => Err(failure("Value", "infer", "unresolved metavariable")),
+        ValueTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => {
+            if parameters.len() != session.env.definition_parameters(definition).len() {
+                return Err(failure(
+                    "Value",
+                    "infer",
+                    "Program definition type argument count mismatch",
+                ));
+            }
+            for parameter in &parameters {
+                check_value_type(session, *parameter)?;
+            }
+            match session.env.definition(definition) {
+                DefinedConstant::ProgramValue { ty, .. } => {
+                    Ok(crate::raw::program_definitions::instantiate_value_type(
+                        arena,
+                        *ty,
+                        &parameters,
+                        0,
+                    ))
+                }
+                _ => Err(failure(
+                    "Value",
+                    "infer",
+                    "wrong Program associated item category",
+                )),
+            }
+        }
+        ValueTermNode::DefinedConstant(id) if !session.env.definition_parameters(id).is_empty() => {
+            Err(failure(
+                "Value",
+                "infer",
+                "Program definition requires type arguments",
+            ))
+        }
         ValueTermNode::DefinedConstant(id) => match session.env.definition(id) {
             DefinedConstant::ProgramValue { ty, .. } => Ok(*ty),
             _ => Err(failure(
@@ -369,6 +406,45 @@ fn infer_computation_term_inner(
     match arena.get(term) {
         ComputationTermNode::Meta { .. } => {
             Err(failure("Computation", "infer", "unresolved metavariable"))
+        }
+        ComputationTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => {
+            if parameters.len() != session.env.definition_parameters(definition).len() {
+                return Err(failure(
+                    "Computation",
+                    "infer",
+                    "Program definition type argument count mismatch",
+                ));
+            }
+            for parameter in &parameters {
+                check_value_type(session, *parameter)?;
+            }
+            match session.env.definition(definition) {
+                DefinedConstant::ProgramComputation { ty, .. } => Ok(
+                    crate::raw::program_definitions::instantiate_computation_type(
+                        arena,
+                        *ty,
+                        &parameters,
+                        0,
+                    ),
+                ),
+                _ => Err(failure(
+                    "Computation",
+                    "infer",
+                    "wrong Program associated item category",
+                )),
+            }
+        }
+        ComputationTermNode::DefinedConstant(id)
+            if !session.env.definition_parameters(id).is_empty() =>
+        {
+            Err(failure(
+                "Computation",
+                "infer",
+                "Program definition requires type arguments",
+            ))
         }
         ComputationTermNode::DefinedConstant(id) => match session.env.definition(id) {
             DefinedConstant::ProgramComputation { ty, .. } => Ok(*ty),

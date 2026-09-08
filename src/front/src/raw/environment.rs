@@ -99,6 +99,7 @@ pub enum ModuleItem {
         inductive: InductiveId,
     },
     ProgramInductive {
+        record_fields: Option<Vec<String>>,
         name: String,
         constructor_names: Vec<String>,
         associated_definitions: Vec<(String, DefId)>,
@@ -203,6 +204,7 @@ type InferenceCache = HashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>;
 
 #[derive(Debug)]
 pub struct CrateEnv {
+    definition_parameters: HashMap<DefId, Vec<SymbolId>>,
     arena: Arena,
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
     symbols: Vec<String>,
@@ -227,6 +229,7 @@ impl CrateEnv {
         symbol_ids.insert(anonymous.clone(), SymbolId::ANONYMOUS);
         symbol_ids.insert(root.clone(), SymbolId(1));
         Self {
+            definition_parameters: HashMap::new(),
             arena: Arena::new(),
             inference_cache: Default::default(),
             symbols: vec![anonymous, root],
@@ -340,10 +343,26 @@ impl CrateEnv {
         module: ModuleId,
         definition: DefinedConstant,
     ) -> Result<DefId, String> {
+        self.add_parameterized_definition(module, definition, Vec::new())
+    }
+
+    pub fn definition_parameters(&self, id: DefId) -> &[SymbolId] {
+        self.definition_parameters
+            .get(&id)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn add_parameterized_definition(
+        &mut self,
+        module: ModuleId,
+        definition: DefinedConstant,
+        parameters: Vec<SymbolId>,
+    ) -> Result<DefId, String> {
         let span = tracing::debug_span!(target: "ref_type::environment",
             "register_definition", ?module, kind = definition.kind_name());
         let _entered = span.enter();
-        self.check_definition(module, &definition)
+        self.check_definition(module, &definition, &parameters)
             .inspect_err(|error| {
                 tracing::error!(target: "ref_type::environment", %error, "definition rejected");
             })?;
@@ -352,6 +371,7 @@ impl CrateEnv {
             .expect("module definition table exceeded u32::MAX");
         module_env.definitions.push(definition);
         let id = DefId { module, index };
+        self.definition_parameters.insert(id, parameters);
         tracing::debug!(target: "ref_type::environment", ?id, "checked definition registered");
         Ok(id)
     }
@@ -360,6 +380,7 @@ impl CrateEnv {
         &self,
         module: ModuleId,
         definition: &DefinedConstant,
+        type_parameters: &[SymbolId],
     ) -> Result<(), String> {
         use crate::raw::{
             derivation::CheckSession, program_derivation::ProgramCheckSession, reflection,
@@ -392,7 +413,10 @@ impl CrateEnv {
         if let Some(context) = self.checking_contexts.get(&module) {
             pts_context = context.clone();
         }
-        let mut program_context = Vec::new();
+        let mut program_context = type_parameters
+            .iter()
+            .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var })
+            .collect();
         let certificate = match *definition {
             DefinedConstant::Pts { ty, body } => {
                 CheckSession::new(self, module, &mut pts_context)
@@ -446,6 +470,12 @@ impl CrateEnv {
                     ty,
                 });
             }
+            pts_context.extend(type_parameters.iter().map(|var| {
+                crate::raw::exp::ExpContextEntry {
+                    var: *var,
+                    ty: self.arena().sort(crate::raw::sort::Sort::Set(0)),
+                }
+            }));
             CheckSession::new(self, module, &mut pts_context)
                 .check_pts(term, ty)
                 .map_err(|error| format!("reflection certificate check failed: {error:?}"))?;
@@ -633,6 +663,47 @@ impl CrateEnv {
 }
 
 impl CrateEnv {
+    /// Materialized modules retain the importing PTS context separately from
+    /// the named Program parameters needed to classify reflection certificates.
+    pub(crate) fn program_reflection_context(
+        &self,
+        module: ModuleId,
+    ) -> crate::raw::exp::ExpContext {
+        let mut context = self.definition_context(module);
+        if !self.checking_contexts.contains_key(&module) {
+            return context;
+        }
+        let mut ancestors = Vec::new();
+        let mut current = Some(module);
+        while let Some(id) = current {
+            ancestors.push(id);
+            current = self
+                .checking_scopes
+                .get(&id)
+                .copied()
+                .or(self.module(id).parent());
+        }
+        for id in ancestors.into_iter().rev() {
+            for parameter in self.module(id).parameters() {
+                let ty = match parameter.kind {
+                    ModuleParameterKind::Pts { .. } => continue,
+                    ModuleParameterKind::ProgramType => {
+                        self.arena.sort(crate::raw::sort::Sort::Set(0))
+                    }
+                    ModuleParameterKind::ProgramValue { ty } => {
+                        crate::raw::reflection::reflect_value_type(self, ty)
+                            .expect("checked Program parameter")
+                    }
+                };
+                context.push(crate::raw::exp::ExpContextEntry {
+                    var: parameter.name,
+                    ty,
+                });
+            }
+        }
+        context
+    }
+
     pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
         if let Some(context) = self.checking_contexts.get(&module) {
             return context.clone();

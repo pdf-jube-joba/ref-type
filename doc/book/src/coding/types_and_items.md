@@ -79,8 +79,8 @@ surface syntax としては `\inductive` と `\structure` を完全に分ける�
 
 result kind には PTS の `\Prop`、`\Set`、`\PropKind`、`\SetKind` を指定できる。
 
-Program の constructor は `Type::item` で参照する。Program の関数は
-module-level の `\vdefinition` または `\cdefinition` として定義する。
+Program の constructor は `Type::item` で参照する。Program の値・計算は
+module-level または型関連 item の `\vdefinition`／`\cdefinition` として定義する。
 Program value の確認・推論には `\vcheck`、`\vinfer` を使い、computation には
 `\ccheck`、`\cinfer`、`\ceval`、`\cnormalize` を使う。汎用の `\definition`、
 `\check`、`\infer`、`\eval`、`\normalize` は Set/Prop 専用である。
@@ -88,8 +88,7 @@ Program の各カテゴリでも `_`、`?`、`?N` を使える。型注釈や da
 に現れる metavariable は、その Program judgement 内の制約から解決される。
 
 PTS structure の field は宣言順に依存できる。たとえば次の `value` の型は先行する
-`carrier` projection によって定まる。Program では structure を提供しないため、
-named constructor を持つ `\inductive` と computation-level の case を使う。
+`carrier` projection によって定まる。
 
 ```text
 \structure Packed: \SetKind := {
@@ -97,3 +96,41 @@ named constructor を持つ `\inductive` と computation-level の case を使�
   value: carrier,
 };
 ```
+
+## Program の structure と型関連 item
+
+Program の structure は `\VType` の型パラメータと、非依存・非再帰の値 field を持つ。
+field に thunk 型 `\U(C)` を使うこともできる。空の structure も宣言できる。
+
+```text
+\structure Pair(A: \VType): \VType := {
+  first: A,
+  second: A,
+};
+
+\cdefinition Pair(A: \VType)::swap: Pair[A] ~> \F(Pair[A]) :=
+  \cfun (p: Pair[A]) => \do {
+    \bind x: A <- \capp(Pair[A]::first, p);
+    \bind y: A <- \capp(Pair[A]::second, p);
+    \return \record Pair[A] { first := y, second := x }
+  };
+
+\vdefinition Pair(A: \VType)::swap_thunk:
+  \U(Pair[A] ~> \F(Pair[A])) := \thunk (Pair[A]::swap);
+```
+
+各 projection は `Pair[A] ~> \F(A)` 型の計算として生成する。
+`\capp` で適用し、結果の値を使う場合は `\bind` で受け取る。
+record literal の field は任意の順序で指定できるが、全 field を一度ずつ指定する。
+
+型関連の `\vdefinition`／`\cdefinition` は Program の inductive にも定義できる。
+owner と同じ module 内で、owner の型パラメータをすべて `\VType` として束縛する。
+値引数を取る計算の本体には `\cfun` を使う。
+constructor、projection、ユーザー定義 item の名前は重複できない。
+
+参照は `Type[A]::item`、import 経由では `Module.Type[A]::item` と書く。
+record literal と型関連定義の型引数は全省略または `_` によって推論できる。
+文脈から決まらない型引数はエラーになる。
+`\vcheck`／`\vinfer` は関連値、`\ccheck`／`\cinfer` は関連計算を扱う。
+structure は内部で単一 constructor の Program datatype として表現し、
+その constructor を表面構文で公開しない。

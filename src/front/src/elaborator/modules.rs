@@ -321,8 +321,13 @@ impl GlobalEnvironment {
                         )?;
                     }
                 }
-                ModuleItem::ValueDefinition { name, ty, body } => {
-                    let mut scope = program_term_elaborator::ProgramScope::new();
+                ModuleItem::ValueDefinition {
+                    owner,
+                    name,
+                    ty,
+                    body,
+                } => {
+                    let (mut scope, parameters) = self.program_associated_scope(owner.as_ref())?;
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let body = scope.elaborate_value(body, self)?;
                     let (body, ty) = scope.check_value_term_with_metas(self, body, ty)?;
@@ -343,6 +348,10 @@ impl GlobalEnvironment {
                             crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
                                 .map_err(|error| error.to_string())?;
                         let mut context = self.module_manager.current_context(&self.crate_env);
+                        context.extend(parameters.iter().map(|var| ExpContextEntry {
+                            var: *var,
+                            ty: self.crate_env.arena().sort(Sort::Set(0)),
+                        }));
                         CheckSession::new(
                             &self.crate_env,
                             self.module_manager.current(),
@@ -356,9 +365,10 @@ impl GlobalEnvironment {
                             )
                         })?;
                     }
-                    self.module_manager.add_def(
-                        &mut self.crate_env,
+                    self.publish_program_definition(
+                        owner.as_ref(),
                         name.clone(),
+                        parameters,
                         DefinedConstant::ProgramValue {
                             ty,
                             body,
@@ -366,8 +376,13 @@ impl GlobalEnvironment {
                         },
                     )?;
                 }
-                ModuleItem::ComputationDefinition { name, ty, body } => {
-                    let mut scope = program_term_elaborator::ProgramScope::new();
+                ModuleItem::ComputationDefinition {
+                    owner,
+                    name,
+                    ty,
+                    body,
+                } => {
+                    let (mut scope, parameters) = self.program_associated_scope(owner.as_ref())?;
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let body = scope.elaborate_computation(body, self)?;
                     let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
@@ -388,6 +403,10 @@ impl GlobalEnvironment {
                             crate::raw::reflection::reflect_computation_type(&self.crate_env, ty)
                                 .map_err(|error| error.to_string())?;
                         let mut context = self.module_manager.current_context(&self.crate_env);
+                        context.extend(parameters.iter().map(|var| ExpContextEntry {
+                            var: *var,
+                            ty: self.crate_env.arena().sort(Sort::Set(0)),
+                        }));
                         CheckSession::new(
                             &self.crate_env,
                             self.module_manager.current(),
@@ -401,9 +420,10 @@ impl GlobalEnvironment {
                             )
                         })?;
                     }
-                    self.module_manager.add_def(
-                        &mut self.crate_env,
+                    self.publish_program_definition(
+                        owner.as_ref(),
                         name.clone(),
+                        parameters,
                         DefinedConstant::ProgramComputation {
                             ty,
                             body,
@@ -419,7 +439,12 @@ impl GlobalEnvironment {
                     constructors,
                 } => {
                     if matches!(kind, InductiveKind::Program) {
-                        self.add_typed_program_inductive_decl(type_name, parameters, constructors)?;
+                        self.add_typed_program_inductive_decl(
+                            type_name,
+                            parameters,
+                            constructors,
+                            None,
+                        )?;
                         continue;
                     }
                     let InductiveKind::Pts(sort) = kind else {
@@ -577,9 +602,16 @@ impl GlobalEnvironment {
                 ModuleItem::Record {
                     type_name,
                     parameters,
-                    sort,
+                    kind,
                     fields,
                 } => {
+                    if matches!(kind, InductiveKind::Program) {
+                        self.add_program_record_decl(type_name, parameters, fields)?;
+                        continue;
+                    }
+                    let InductiveKind::Pts(sort) = kind else {
+                        unreachable!()
+                    };
                     // treat record as inductive type with one constructor without recursive definition
                     // no register of type name as binded var since no recursive definition
 

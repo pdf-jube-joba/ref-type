@@ -92,6 +92,10 @@ pub enum ValueTermNode {
         spine: Vec<ProgramArgument>,
     },
     DefinedConstant(DefId),
+    DefinitionInstance {
+        definition: DefId,
+        parameters: Vec<ValueType>,
+    },
     Thunk {
         computation: ComputationTerm,
     },
@@ -120,6 +124,10 @@ pub enum ComputationTermNode {
         spine: Vec<ProgramArgument>,
     },
     DefinedConstant(DefId),
+    DefinitionInstance {
+        definition: DefId,
+        parameters: Vec<ValueType>,
+    },
     Return {
         value: ValueTerm,
     },

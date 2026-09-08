@@ -1131,3 +1131,145 @@ fn program_blocks_preserve_shadowing_and_evaluate_the_selected_branch() {
         matches!(env.arena().get(value), ValueTermNode::InductiveConstructor { idx: 1, fields, .. } if fields.is_empty())
     );
 }
+
+#[test]
+fn program_records_generate_checked_projections_and_swap_fields() {
+    use crate::raw::{
+        program::{ComputationTermNode as C, ValueTermNode as V},
+        program_calculus::{Evaluation, evaluate_computation},
+    };
+    let modules =
+        parse::str_parse_modules(include_str!("../../../tests/ok/program-items/records.ref"))
+            .unwrap();
+    let mut global = GlobalEnvironment::default();
+    global.add_new_module_to_root(&modules[0]).unwrap();
+    let env = global.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::ProgramInductive {
+        record_fields: Some(fields),
+        associated_definitions,
+        ..
+    } = env.module(module).item("Pair").unwrap()
+    else {
+        panic!("Program record metadata");
+    };
+    assert_eq!(fields, &["first", "second"]);
+    for (_, definition) in &associated_definitions[..2] {
+        assert_eq!(env.definition_parameters(*definition).len(), 1);
+        let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
+            panic!("projection computation");
+        };
+        assert!(
+            matches!(env.arena().get(*body), C::Lambda { body, .. } if matches!(env.arena().get(body), C::Case { .. }))
+        );
+    }
+    let returned = |name| {
+        let ModuleItem::Definition { definition, .. } = env.module(module).item(name).unwrap()
+        else {
+            panic!("named result");
+        };
+        let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
+            panic!("computation result");
+        };
+        let Evaluation::Normal(term) = evaluate_computation(env, *body) else {
+            panic!("evaluation must finish");
+        };
+        let C::Return { value } = env.arena().get(term) else {
+            panic!("expected return");
+        };
+        env.arena().get(value)
+    };
+    assert!(
+        matches!(returned("first"), V::InductiveConstructor { idx: 0, fields, .. } if fields.is_empty())
+    );
+    let V::InductiveConstructor { fields, .. } = returned("swapped") else {
+        panic!("swapped record");
+    };
+    assert_eq!(fields.len(), 2);
+    assert!(matches!(
+        env.arena().get(fields[0]),
+        V::InductiveConstructor { idx: 1, .. }
+    ));
+    assert!(matches!(
+        env.arena().get(fields[1]),
+        V::InductiveConstructor { idx: 0, .. }
+    ));
+}
+
+#[test]
+fn program_associated_imports_remap_later_declarations() {
+    use crate::raw::program::{ValueTermNode, ValueTypeNode};
+    let modules = parse::str_parse_modules(include_str!(
+        "../../../tests/ok/program-items/associated-order.ref"
+    ))
+    .unwrap();
+    let mut global = GlobalEnvironment::default();
+    for module in &modules {
+        global.add_new_module_to_root(module).unwrap();
+    }
+    let env = global.crate_env();
+    let consumer = env.module(env.root_module()).children()[1];
+    let instance = &env.module(consumer).instances()[0];
+    let module = instance.materialized;
+    let ModuleItem::ProgramInductive {
+        associated_definitions,
+        ..
+    } = env.module(module).item("First").unwrap()
+    else {
+        panic!("owner");
+    };
+    let DefinedConstant::ProgramValue { ty, body, .. } =
+        env.definition(associated_definitions[0].1)
+    else {
+        panic!("associated value");
+    };
+    assert!(
+        matches!(env.arena().get(*ty), ValueTypeNode::Inductive { indspec, .. } if indspec.module == module)
+    );
+    assert!(
+        matches!(env.arena().get(*body), ValueTermNode::DefinedConstant(id) if id.module == module)
+    );
+}
+
+#[test]
+fn program_definition_parameters_are_substituted_simultaneously_under_binders() {
+    use crate::raw::{
+        program::{ComputationTermNode as C, ValueTypeNode as T},
+        program_definitions::instantiate_computation,
+    };
+    let env = crate::raw::environment::CrateEnv::new();
+    let arena = env.arena();
+    // Under A, B, the function takes A and then B. The instantiation arguments themselves are open types.
+    let body = arena.alloc(C::Lambda {
+        var: crate::raw::ids::SymbolId::ANONYMOUS,
+        value_ty: arena.value_type_bound(1),
+        body: arena.alloc(C::Lambda {
+            var: crate::raw::ids::SymbolId::ANONYMOUS,
+            value_ty: arena.value_type_bound(1),
+            body: arena.alloc(C::Return {
+                value: arena.value_bound(0),
+            }),
+        }),
+    });
+    let instantiated = instantiate_computation(
+        arena,
+        body,
+        &[arena.value_type_bound(0), arena.value_type_bound(1)],
+        0,
+    );
+    let C::Lambda { value_ty, body, .. } = arena.get(instantiated) else {
+        panic!("outer lambda");
+    };
+    assert_eq!(arena.get(value_ty), T::Bound(0));
+    let C::Lambda { value_ty, body, .. } = arena.get(body) else {
+        panic!("inner lambda");
+    };
+    assert_eq!(arena.get(value_ty), T::Bound(2));
+    let C::Return { value } = arena.get(body) else {
+        panic!("return");
+    };
+    assert_eq!(
+        arena.get(value),
+        crate::raw::program::ValueTermNode::Bound(0)
+    );
+}

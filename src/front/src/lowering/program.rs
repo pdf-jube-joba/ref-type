@@ -152,6 +152,24 @@ impl Lowerer<'_> {
                 F::ModuleParam { parameter }
             }
             R::Meta { .. } => return Err("unresolved Program value".into()),
+            R::DefinitionInstance {
+                definition,
+                parameters,
+            } => {
+                self.definition(definition)?;
+                let raw::environment::DefinedConstant::ProgramValue { body, .. } =
+                    self.raw.definition(definition)
+                else {
+                    return Err("wrong Program definition category".into());
+                };
+                let body = raw::program_definitions::instantiate_value(
+                    self.raw.arena(),
+                    *body,
+                    &parameters,
+                    0,
+                );
+                return self.value_term(body, ctx);
+            }
             R::DefinedConstant(definition) => {
                 self.definition(definition)?;
                 F::Constant { definition }
@@ -213,6 +231,24 @@ impl Lowerer<'_> {
         use s::ComputationTermForm as F;
         let form = match self.raw.arena().get(e) {
             R::Meta { .. } => return Err("unresolved computation".into()),
+            R::DefinitionInstance {
+                definition,
+                parameters,
+            } => {
+                self.definition(definition)?;
+                let raw::environment::DefinedConstant::ProgramComputation { body, .. } =
+                    self.raw.definition(definition)
+                else {
+                    return Err("wrong Program definition category".into());
+                };
+                let body = raw::program_definitions::instantiate_computation(
+                    self.raw.arena(),
+                    *body,
+                    &parameters,
+                    0,
+                );
+                return self.computation_term(body, ctx);
+            }
             R::DefinedConstant(definition) => {
                 self.definition(definition)?;
                 F::Constant { definition }

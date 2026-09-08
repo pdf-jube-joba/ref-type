@@ -1,0 +1,32 @@
+
+        \module CertifiedSteps {
+          \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
+          \structure Owner(A: \VType): \VType := {};
+          \vdefinition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
+            \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
+          \definition stepSet: Unit -> \RunStep(Unit, Unit) :=
+            \Force(\U((Unit ~> \F(\PRunStep(Unit, Unit)))),
+              \box(\U((Unit ~> \F(\PRunStep(Unit, Unit)))), step));
+          \definition ready: \RunStep(Unit, Unit) -> \Prop :=
+            \fun (r: \RunStep(Unit, Unit)) => \Pred(Unit,
+              \runStepRec(Unit, Unit, \fun (r: \RunStep(Unit, Unit)) => \Power(Unit),
+                \fun (s: Unit) => \Subset(x, Unit, \Acc(Unit, Unit, stepSet, s)),
+                \fun (o: Unit) => \Subset(x, Unit, Unit::unit = Unit::unit), r), Unit::unit);
+          \definition terminates: \forall (s: Unit) -> \Acc(Unit, Unit, stepSet, s) :=
+            \fun (s: Unit) => \accintro(Unit, Unit, stepSet, s,
+              \fun (next: Unit) => \fun (edge: stepSet s = \continue(Unit, Unit, next)) =>
+                \idelim(stepSet s = \continue(Unit, Unit, next)
+                  \with r: \RunStep(Unit, Unit) => ready r) \by (\refl(Unit::unit), edge));
+          \cdefinition Owner(A: \VType)::result: \F(Unit) :=
+            \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit::unit;
+          \cdefinition Owner(A: \VType)::otherResult: \F(Unit) :=
+            \Prun(Unit, Unit, step, Unit::other) \by terminates Unit::other;
+          \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), Owner[Unit]::result);
+        }
+    
+\module CertifiedConsumer {
+  \import \root.CertifiedSteps() \as S;
+  \definition boxed: \Box(\F(S.Unit)) := \box(\F(S.Unit), S.Owner[S.Unit]::result);
+  \normalize \Force(\F(S.Unit), boxed);
+  \cnormalize S.Owner[S.Unit]::result;
+}

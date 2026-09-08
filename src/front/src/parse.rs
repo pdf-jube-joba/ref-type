@@ -395,14 +395,27 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_program_definition(&mut self) -> Result<(Identifier, SExp, SExp), ParseError> {
-        let name = self.expect_ident()?;
-        self.expect_token(Token::Colon)?;
-        let ty = self.parse_sexp()?;
-        self.expect_token(Token::Assign)?;
-        let body = self.parse_sexp()?;
-        self.expect_token(Token::Semicolon)?;
-        Ok((name, ty, body))
+    fn parse_program_definition(
+        &mut self,
+    ) -> Result<(Option<AssociatedOwner>, Identifier, SExp, SExp), ParseError> {
+        let ModuleItem::Definition {
+            owner,
+            name,
+            binders,
+            ty,
+            body,
+        } = self.parse_definition()?
+        else {
+            unreachable!()
+        };
+        if !binders.is_empty() {
+            return Err(ParseError {
+                msg: "Program definitions use explicit \\cfun binders in their body".into(),
+                start: self.span_at(self.pos.saturating_sub(1)).start,
+                end: self.span_at(self.pos.saturating_sub(1)).end,
+            });
+        }
+        Ok((owner, name, ty, body))
     }
 
     fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
@@ -414,11 +427,12 @@ impl<'a> Parser<'a> {
         }
         self.expect_token(Token::Colon)?;
         let result = self.parse_sexp()?;
-        let sort = match result {
-            SExp::Sort(sort) => sort,
+        let kind = match result {
+            SExp::Sort(sort) => InductiveKind::Pts(sort),
+            SExp::ValueType => InductiveKind::Program,
             _ => {
                 return Err(ParseError {
-                    msg: "expected PTS sort in structure declaration".into(),
+                    msg: "expected PTS sort or \\VType in structure declaration".into(),
                     start: self.span_at(self.pos.saturating_sub(1)).start,
                     end: self.span_at(self.pos.saturating_sub(1)).end,
                 });
@@ -441,7 +455,7 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Record {
             type_name,
             parameters,
-            sort,
+            kind,
             fields,
         })
     }
@@ -665,7 +679,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(def));
         }
         if self.bump_if_keyword("\\vdefinition") {
-            let (name, ty, body) = self.parse_program_definition()?;
+            let (owner, name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
                 start: self.span_at(start_pos).start,
@@ -676,10 +690,15 @@ impl<'a> Parser<'a> {
                 start: self.span_at(start_pos).start,
                 end: self.span_at(self.pos).end,
             })?;
-            return Ok(Some(ModuleItem::ValueDefinition { name, ty, body }));
+            return Ok(Some(ModuleItem::ValueDefinition {
+                owner,
+                name,
+                ty,
+                body,
+            }));
         }
         if self.bump_if_keyword("\\cdefinition") {
-            let (name, ty, body) = self.parse_program_definition()?;
+            let (owner, name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
                 start: self.span_at(start_pos).start,
@@ -690,7 +709,12 @@ impl<'a> Parser<'a> {
                 start: self.span_at(start_pos).start,
                 end: self.span_at(self.pos).end,
             })?;
-            return Ok(Some(ModuleItem::ComputationDefinition { name, ty, body }));
+            return Ok(Some(ModuleItem::ComputationDefinition {
+                owner,
+                name,
+                ty,
+                body,
+            }));
         }
         if self.bump_if_keyword("\\import") {
             let imp = self.parse_import()?;

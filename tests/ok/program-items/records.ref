@@ -1,0 +1,21 @@
+\module Example {
+  \inductive Bool: \VType := | no: Bool; | yes: Bool; ;
+  \structure Pair(A: \VType): \VType := { first: A, second: A };
+  \cdefinition Pair(A: \VType)::swap: Pair[A] ~> \F(Pair[A]) :=
+    \cfun (p: Pair[A]) => \do {
+      \bind x: A <- \capp(Pair::first, p);
+      \bind y: A <- \capp(Pair[_]::second, p);
+      \return \record Pair[A] { first := y, second := x }
+    };
+  \vdefinition Pair(A: \VType)::swap_thunk: \U(Pair[A] ~> \F(Pair[A])) := \thunk (Pair[A]::swap);
+  \vdefinition pair: Pair[Bool] := \record Pair[Bool] { second := Bool::yes, first := Bool::no };
+  \cdefinition first: \F(Bool) := \capp(Pair[Bool]::first, pair);
+  \cdefinition swapped: \F(Pair[Bool]) := \capp(Pair[Bool]::swap, pair);
+  \cnormalize first;
+  \cnormalize \capp(Pair[Bool]::swap, pair);
+  \ccheck \capp(Pair::first, pair): \F(Bool);
+  \ccheck \capp(Pair[_]::second, pair): \F(Bool);
+  \vcheck \record Pair { first := Bool::yes, second := Bool::no }: Pair[Bool];
+  \vcheck Pair::swap_thunk: \U(Pair[Bool] ~> \F(Pair[Bool]));
+  \cnormalize \capp(\force Pair[Bool]::swap_thunk, pair);
+}

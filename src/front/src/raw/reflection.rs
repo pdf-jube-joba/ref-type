@@ -105,7 +105,7 @@ fn reflect_computation_type_inner(
             arena.alloc(ExpNode::Prod {
                 var: crate::raw::ids::SymbolId::ANONYMOUS,
                 ty: domain,
-                body: codomain,
+                body: crate::raw::calculus::shift_bound_indices(arena, codomain, 1, 0),
             })
         }
     })
@@ -234,6 +234,44 @@ fn reflect_value_inner(
         ValueTermNode::Bound(index) => arena.exp_bound(index),
         ValueTermNode::ModuleParam(id) => arena.alloc(ExpNode::ReflectedProgramParam(id)),
         ValueTermNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
+        ValueTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => {
+            if !visiting.insert(definition) {
+                return Err(ReflectionError::RecursiveDefinition(definition));
+            }
+            let result = match env.definition(definition) {
+                DefinedConstant::ProgramValue {
+                    body,
+                    certified_reflection,
+                    ..
+                } => {
+                    if let Some(certificate) = certified_reflection {
+                        let arguments = parameters
+                            .iter()
+                            .map(|ty| reflect_value_type(env, *ty))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Ok(crate::raw::calculus::instantiate_telescope(
+                            arena,
+                            *certificate,
+                            &arguments,
+                        ))
+                    } else {
+                        let body = crate::raw::program_definitions::instantiate_value(
+                            arena,
+                            *body,
+                            &parameters,
+                            0,
+                        );
+                        reflect_value_inner(env, body, certificates, visiting)
+                    }
+                }
+                _ => Err(ReflectionError::NotProgramTerm),
+            };
+            visiting.remove(&definition);
+            result?
+        }
         ValueTermNode::DefinedConstant(id) => {
             if !visiting.insert(id) {
                 return Err(ReflectionError::RecursiveDefinition(id));
@@ -334,6 +372,44 @@ fn reflect_computation_inner(
     let arena = env.arena();
     Ok(match arena.get(term) {
         ComputationTermNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
+        ComputationTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => {
+            if !visiting.insert(definition) {
+                return Err(ReflectionError::RecursiveDefinition(definition));
+            }
+            let result = match env.definition(definition) {
+                DefinedConstant::ProgramComputation {
+                    body,
+                    certified_reflection,
+                    ..
+                } => {
+                    if let Some(certificate) = certified_reflection {
+                        let arguments = parameters
+                            .iter()
+                            .map(|ty| reflect_value_type(env, *ty))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Ok(crate::raw::calculus::instantiate_telescope(
+                            arena,
+                            *certificate,
+                            &arguments,
+                        ))
+                    } else {
+                        let body = crate::raw::program_definitions::instantiate_computation(
+                            arena,
+                            *body,
+                            &parameters,
+                            0,
+                        );
+                        reflect_computation_inner(env, body, certificates, visiting)
+                    }
+                }
+                _ => Err(ReflectionError::NotProgramTerm),
+            };
+            visiting.remove(&definition);
+            result?
+        }
         ComputationTermNode::DefinedConstant(id) => {
             if !visiting.insert(id) {
                 return Err(ReflectionError::RecursiveDefinition(id));

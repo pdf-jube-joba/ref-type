@@ -6,7 +6,7 @@ impl Lowerer<'_> {
         let mut pending = vec![(id, false)];
         let mut active = HashSet::new();
         while let Some((id, ready)) = pending.pop() {
-            if self.kernel.definition(id).is_some() {
+            if self.kernel.definition(id).is_some() || self.checked_templates.contains(&id) {
                 continue;
             }
             if ready {
@@ -18,7 +18,12 @@ impl Lowerer<'_> {
                 return Err("cyclic definition dependency".into());
             }
             pending.push((id, true));
-            for dependency in definition_dependencies(self.raw, id).into_iter().rev() {
+            for dependency in
+                raw::dependencies::definition_dependencies(self.raw, self.raw.definition(id))
+                    .definitions
+                    .into_iter()
+                    .rev()
+            {
                 if self.kernel.definition(dependency).is_none() {
                     pending.push((dependency, false))
                 }
@@ -28,12 +33,25 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
-        if self.kernel.definition(id).is_some() {
+        if self.kernel.definition(id).is_some() || self.checked_templates.contains(&id) {
             return Ok(());
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
         let raw = self.raw.definition(id).clone();
-        let mut ctx = self.raw.definition_context(id.module);
+        let mut ctx = if matches!(raw, raw::environment::DefinedConstant::Pts { .. }) {
+            self.raw.definition_context(id.module)
+        } else {
+            self.raw.program_reflection_context(id.module)
+        };
+        let parameters = self.raw.definition_parameters(id).to_vec();
+        ctx.extend(parameters.iter().map(|var| ExpContextEntry {
+            var: *var,
+            ty: self.raw.arena().sort(RawSort::Set(0)),
+        }));
+        let mut program_context = parameters
+            .iter()
+            .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
+            .collect::<Vec<_>>();
         let certificate = match &raw {
             raw::environment::DefinedConstant::ProgramValue {
                 certified_reflection,
@@ -58,15 +76,40 @@ impl Lowerer<'_> {
             }
             raw::environment::DefinedConstant::ProgramValue { ty, body, .. } => {
                 let ty = self.value_type(ty)?;
-                let body = self.value_term(body, &mut vec![])?;
-                (body.into(), ty.into(), vec![])
+                let body = self.value_term(body, &mut program_context)?;
+                (
+                    body.into(),
+                    ty.into(),
+                    self.program_context(&program_context)?,
+                )
             }
             raw::environment::DefinedConstant::ProgramComputation { ty, body, .. } => {
                 let ty = self.computation_type(ty)?;
-                let body = self.computation_term(body, &mut vec![])?;
-                (body.into(), ty.into(), vec![])
+                let body = self.computation_term(body, &mut program_context)?;
+                (
+                    body.into(),
+                    ty.into(),
+                    self.program_context(&program_context)?,
+                )
             }
         };
+        if !parameters.is_empty() {
+            let mut checker = kernel::check::Checker::new(self.kernel, context.clone());
+            checker.check_context()?;
+            checker.check(body, classifier)?;
+            if let Some(certificate) = certified_reflection {
+                let ke::Classifier::Expression(ty) = classifier else {
+                    return Err("expected Program classifier".into());
+                };
+                let reflected_context = kernel::reflection::reflect_context(self.kernel, &context)?;
+                let reflected_ty = kernel::reflection::reflect(self.kernel, ty)?;
+                kernel::check::Checker::new(self.kernel, reflected_context)
+                    .check(certificate, reflected_ty)?;
+                kernel::reflection::reflect_with_certificate(self.kernel, body, certificate)?;
+            }
+            self.checked_templates.insert(id);
+            return Ok(());
+        }
         self.kernel
             .register_definition(
                 id,
@@ -241,180 +284,4 @@ impl Lowerer<'_> {
         }
         Ok(())
     }
-}
-
-// Materialized modules need not store declarations in dependency order. Schedule
-// the dependency graph explicitly so a long import chain does not consume the
-// Rust call stack while classifying syntax.
-fn definition_dependencies(raw: &raw::environment::CrateEnv, id: DefId) -> Vec<DefId> {
-    use raw::program::{
-        ComputationTermNode as C, ComputationTypeNode as CT, ValueTermNode as V,
-        ValueTypeNode as VT,
-    };
-    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-    enum E {
-        Set(Exp),
-        Vt(raw::program::ValueType),
-        Ct(raw::program::ComputationType),
-        V(raw::program::ValueTerm),
-        C(raw::program::ComputationTerm),
-    }
-
-    fn ty(t: raw::program::ProgramType) -> E {
-        match t {
-            raw::program::ProgramType::ValueType(x) => E::Vt(x),
-            raw::program::ProgramType::ComputationType(x) => E::Ct(x),
-        }
-    }
-
-    fn term(t: raw::program::ProgramTerm) -> E {
-        match t {
-            raw::program::ProgramTerm::ValueTerm(x) => E::V(x),
-            raw::program::ProgramTerm::ComputationTerm(x) => E::C(x),
-        }
-    }
-    let mut stack = match raw.definition(id) {
-        raw::environment::DefinedConstant::Pts { ty, body } => vec![E::Set(*ty), E::Set(*body)],
-        raw::environment::DefinedConstant::ProgramValue {
-            ty,
-            body,
-            certified_reflection,
-        } => {
-            let mut s = vec![E::Vt(*ty), E::V(*body)];
-            s.extend(certified_reflection.map(E::Set));
-            s
-        }
-        raw::environment::DefinedConstant::ProgramComputation {
-            ty,
-            body,
-            certified_reflection,
-        } => {
-            let mut s = vec![E::Ct(*ty), E::C(*body)];
-            s.extend(certified_reflection.map(E::Set));
-            s
-        }
-    };
-    let mut visited = HashSet::new();
-    let mut definitions = HashSet::new();
-    while let Some(e) = stack.pop() {
-        if !visited.insert(e) {
-            continue;
-        }
-        match e {
-            E::Set(x) => {
-                let node = raw.arena().get(x);
-                match &node {
-                    ExpNode::DefinedConstant(id) => {
-                        definitions.insert(*id);
-                    }
-                    ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
-                        stack.push(ty(*program_ty))
-                    }
-                    ExpNode::BoxProgram {
-                        program_ty,
-                        program,
-                        ..
-                    } => {
-                        stack.push(ty(*program_ty));
-                        stack.push(term(*program));
-                    }
-                    _ => {}
-                }
-                raw::calculus::map_children(node, |e| {
-                    stack.push(E::Set(e));
-                    e
-                });
-            }
-            E::Vt(x) => match raw.arena().get(x) {
-                VT::Thunk { computation_ty } => stack.push(E::Ct(computation_ty)),
-                VT::RunStep {
-                    state_ty,
-                    result_ty,
-                } => stack.extend([E::Vt(state_ty), E::Vt(result_ty)]),
-                VT::Inductive { parameters, .. } => stack.extend(parameters.into_iter().map(E::Vt)),
-                _ => {}
-            },
-            E::Ct(x) => match raw.arena().get(x) {
-                CT::Return { value_ty } => stack.push(E::Vt(value_ty)),
-                CT::Function { domain, codomain } => stack.extend([E::Vt(domain), E::Ct(codomain)]),
-                _ => {}
-            },
-            E::V(x) => match raw.arena().get(x) {
-                V::DefinedConstant(id) => {
-                    definitions.insert(id);
-                }
-                V::Thunk { computation } => stack.push(E::C(computation)),
-                V::Continue {
-                    state_ty,
-                    result_ty,
-                    next,
-                } => stack.extend([E::Vt(state_ty), E::Vt(result_ty), E::V(next)]),
-                V::Finish {
-                    state_ty,
-                    result_ty,
-                    output,
-                } => stack.extend([E::Vt(state_ty), E::Vt(result_ty), E::V(output)]),
-                V::InductiveConstructor {
-                    parameters, fields, ..
-                } => {
-                    stack.extend(parameters.into_iter().map(E::Vt));
-                    stack.extend(fields.into_iter().map(E::V));
-                }
-                _ => {}
-            },
-            E::C(x) => match raw.arena().get(x) {
-                C::DefinedConstant(id) => {
-                    definitions.insert(id);
-                }
-                C::Return { value } | C::Force { value } => stack.push(E::V(value)),
-                C::Lambda { value_ty, body, .. } => stack.extend([E::Vt(value_ty), E::C(body)]),
-                C::Application { computation, value } => {
-                    stack.extend([E::C(computation), E::V(value)])
-                }
-                C::Sequence {
-                    value_ty,
-                    computation,
-                    body,
-                    ..
-                } => stack.extend([E::Vt(value_ty), E::C(computation), E::C(body)]),
-                C::ValueLet {
-                    value_ty,
-                    value,
-                    body,
-                    ..
-                } => stack.extend([E::Vt(value_ty), E::V(value), E::C(body)]),
-                C::Case {
-                    scrutinee,
-                    branches,
-                    ..
-                } => {
-                    stack.push(E::V(scrutinee));
-                    stack.extend(branches.into_iter().map(|b| E::C(b.body)));
-                }
-                C::Run {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial,
-                } => stack.extend([E::Vt(state_ty), E::Vt(result_ty), E::V(step), E::V(initial)]),
-                C::RunCase {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial,
-                    transition,
-                } => stack.extend([
-                    E::Vt(state_ty),
-                    E::Vt(result_ty),
-                    E::V(step),
-                    E::V(initial),
-                    E::C(transition),
-                ]),
-                _ => {}
-            },
-        }
-    }
-    let mut definitions = definitions.into_iter().collect::<Vec<_>>();
-    definitions.sort_by_key(|id| (id.module.0, id.index));
-    definitions
 }

@@ -77,8 +77,23 @@ Program の関数型は `A ~> C`、ラムダは `\cfun (x: A) => computation`。
 
 論理側の束縛は `\fun (x: A) => body` と `\forall (x: A) -> B`。
 束縛のない `A -> B` はそのまま使える。レコード生成は
-`\record T { field := value }` と書く。この表面構文は論理／Program 共通に
-拡張できる形で解析するが、Program のレコード型はまだ実装していない。
+`\record T { field := value }` と書く。論理／Program 共通の構文であり、Program では次のように使う。
+
+```text
+\structure Pair(A: \VType): \VType := { first: A, second: A };
+\cdefinition Pair(A: \VType)::first_again: Pair[A] ~> \F(A) := Pair[A]::first;
+\vdefinition Pair(A: \VType)::get_first: \U(Pair[A] ~> \F(A)) :=
+  \thunk (Pair[A]::first);
+```
+
+Program record の field は非依存・非再帰の値型とする。構築は
+`\record Pair[A] { first := a, second := b }`、field の取得は
+`\capp(Pair[A]::first, pair)` と書く。取得結果は `\F(A)` なので、
+後続の計算で使うには `\bind` で受け取る。
+Program の inductive／structure には `\vdefinition Type(A: \VType)::item`
+と `\cdefinition Type(A: \VType)::item` を定義できる。
+型引数は `Type[A]::item` で指定し、省略や `_` は文脈から推論する。
+
 マクロ内の `(...)` はマクロ列であり、通常式の埋め込みには `\expr { ... }` を使う。
 詳細は [構文](../doc/book/src/coding/syntax.md) を参照。
 

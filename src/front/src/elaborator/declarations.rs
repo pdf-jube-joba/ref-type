@@ -2,6 +2,176 @@
 use super::*;
 
 impl GlobalEnvironment {
+    pub(super) fn program_associated_scope(
+        &mut self,
+        owner: Option<&AssociatedOwner>,
+    ) -> Result<(program_term_elaborator::ProgramScope, Vec<SymbolId>), String> {
+        let mut scope = program_term_elaborator::ProgramScope::new();
+        let Some(owner) = owner else {
+            return Ok((scope, Vec::new()));
+        };
+        let access = LocalAccess::Current {
+            access: owner.type_name.clone(),
+        };
+        let Some(module_manager::ItemAccessResult::ProgramInductive(item)) =
+            self.module_manager.get_item(&self.crate_env, &access)
+        else {
+            return Err(
+                "Program associated item owner must be a Program type in this module".into(),
+            );
+        };
+        if item.inductive.module != self.module_manager.current() {
+            return Err("Program associated item owner must be in this module".into());
+        }
+        let expected = self
+            .crate_env
+            .program_inductive(item.inductive)
+            .parameters()
+            .len();
+        let mut names = Vec::new();
+        for binder in &owner.parameters {
+            if !matches!(binder.ty.as_ref(), SExp::ValueType) {
+                return Err("Program associated item parameters must have type \\VType".into());
+            }
+            for name in &binder.vars {
+                let symbol = self.crate_env.intern(name.as_str());
+                if names.contains(&symbol) {
+                    return Err("duplicate Program associated item parameter".into());
+                }
+                names.push(symbol);
+                scope.push_type(symbol);
+            }
+        }
+        if names.len() != expected {
+            return Err(format!(
+                "Program associated item expects {expected} owner parameter(s), found {}",
+                names.len()
+            ));
+        }
+        Ok((scope, names))
+    }
+
+    pub(super) fn publish_program_definition(
+        &mut self,
+        owner: Option<&AssociatedOwner>,
+        name: Identifier,
+        parameters: Vec<SymbolId>,
+        definition: DefinedConstant,
+    ) -> Result<(), String> {
+        if let Some(owner) = owner {
+            let id = self.crate_env.add_parameterized_definition(
+                self.module_manager.current(),
+                definition,
+                parameters,
+            )?;
+            self.crate_env.publish_associated_definition(
+                self.module_manager.current(),
+                owner.type_name.as_str(),
+                name.0,
+                id,
+            )
+        } else {
+            self.module_manager
+                .add_def(&mut self.crate_env, name, definition)
+        }
+    }
+
+    pub(super) fn add_program_record_decl(
+        &mut self,
+        type_name: &Identifier,
+        parameters: &[RightBind],
+        fields: &[(Identifier, SExp)],
+    ) -> Result<(), ElaborationError> {
+        use crate::raw::program::*;
+        let mut names = Vec::new();
+        for (name, _) in fields {
+            if names.contains(&name.0) {
+                return Err(format!("duplicate record field name: {}", name.0).into());
+            }
+            names.push(name.0.clone());
+        }
+        let constructor = (
+            Identifier("<record>".into()),
+            fields
+                .iter()
+                .map(|(name, ty)| RightBind {
+                    vars: vec![name.clone()],
+                    ty: Box::new(ty.clone()),
+                })
+                .collect(),
+            SExp::AccessPath {
+                access: LocalAccess::Current {
+                    access: type_name.clone(),
+                },
+                parameters: Vec::new(),
+            },
+        );
+        self.add_typed_program_inductive_decl(type_name, parameters, &[constructor], Some(names))?;
+        let Some(module_manager::ItemAccessResult::ProgramInductive(item)) =
+            self.module_manager.get_item(
+                &self.crate_env,
+                &LocalAccess::Current {
+                    access: type_name.clone(),
+                },
+            )
+        else {
+            unreachable!()
+        };
+        let spec = self.crate_env.program_inductive(item.inductive).clone();
+        let parameter_names = spec.parameters().to_vec();
+        let fields = spec.constructors()[0].fields().to_vec();
+        let structure = self.crate_env.intern("structure");
+        for (index, (field_name, field_ty)) in fields.iter().enumerate() {
+            let arena = self.crate_env.arena();
+            let ty = arena.alloc(ComputationTypeNode::Function {
+                domain: arena.alloc(ValueTypeNode::Inductive {
+                    indspec: item.inductive,
+                    parameters: (0..parameter_names.len())
+                        .rev()
+                        .map(|i| arena.value_type_bound(i))
+                        .collect(),
+                }),
+                codomain: arena.alloc(ComputationTypeNode::Return {
+                    value_ty: *field_ty,
+                }),
+            });
+            let ComputationTypeNode::Function { domain, .. } = arena.get(ty) else {
+                unreachable!()
+            };
+            let body = arena.alloc(ComputationTermNode::Lambda {
+                var: structure,
+                value_ty: domain,
+                body: arena.alloc(ComputationTermNode::Case {
+                    indspec: item.inductive,
+                    scrutinee: arena.value_bound(0),
+                    branches: vec![ProgramCaseBranch {
+                        binders: fields.iter().map(|(name, _)| *name).collect(),
+                        body: arena.alloc(ComputationTermNode::Return {
+                            value: arena.value_bound(fields.len() - 1 - index),
+                        }),
+                    }],
+                }),
+            });
+            let name = self.crate_env.symbol(*field_name).to_owned();
+            let definition = self.crate_env.add_parameterized_definition(
+                self.module_manager.current(),
+                DefinedConstant::ProgramComputation {
+                    ty,
+                    body,
+                    certified_reflection: None,
+                },
+                parameter_names.clone(),
+            )?;
+            self.crate_env.publish_associated_definition(
+                self.module_manager.current(),
+                type_name.as_str(),
+                name,
+                definition,
+            )?;
+        }
+        Ok(())
+    }
+
     pub(super) fn validate_definition(
         &self,
         context: &mut ExpContext,
@@ -141,6 +311,7 @@ impl GlobalEnvironment {
         type_name: &Identifier,
         parameters: &[RightBind],
         constructors: &[(Identifier, Vec<RightBind>, SExp)],
+        record_fields: Option<Vec<String>>,
     ) -> Result<(), ElaborationError> {
         let module = self.module_manager.current();
         let inductive = self.crate_env.reserve_program_inductive(module);
@@ -154,7 +325,9 @@ impl GlobalEnvironment {
                 parameters: Vec::new(),
             });
         let mut scope = program_term_elaborator::ProgramScope::new();
-        scope.bind_value_type_name(type_name_symbol, self_ty);
+        if record_fields.is_none() {
+            scope.bind_value_type_name(type_name_symbol, self_ty);
+        }
 
         let mut parameter_names = Vec::new();
         for RightBind { vars, ty } in parameters {
@@ -194,6 +367,10 @@ impl GlobalEnvironment {
                         elaborated_fields.push((variable, field_ty));
                     }
                 }
+            }
+            // A structure cannot refer to itself in fields; bind its result only now.
+            if record_fields.is_some() {
+                scope.bind_value_type_name(type_name_symbol, self_ty);
             }
             let result: ValueTypeExp = result.clone().try_into()?;
             let result = scope.elaborate_value_type(&result, self)?;
@@ -297,6 +474,7 @@ impl GlobalEnvironment {
             constructor_names,
             inductive,
             reflected,
+            record_fields,
         )?;
         Ok(())
     }

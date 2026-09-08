@@ -159,6 +159,23 @@ pub fn value_is_alpha_eq(arena: &Arena, left: ValueTerm, right: ValueTerm) -> bo
     match (arena.get(left), arena.get(right)) {
         (ValueTermNode::Bound(left), ValueTermNode::Bound(right)) => left == right,
         (ValueTermNode::ModuleParam(left), ValueTermNode::ModuleParam(right)) => left == right,
+        (
+            ValueTermNode::DefinitionInstance {
+                definition: left,
+                parameters: lp,
+            },
+            ValueTermNode::DefinitionInstance {
+                definition: right,
+                parameters: rp,
+            },
+        ) => {
+            left == right
+                && lp.len() == rp.len()
+                && lp
+                    .iter()
+                    .zip(rp)
+                    .all(|(l, r)| value_type_is_alpha_eq(arena, *l, r))
+        }
         (ValueTermNode::DefinedConstant(left), ValueTermNode::DefinedConstant(right)) => {
             left == right
         }
@@ -240,6 +257,23 @@ pub fn computation_is_alpha_eq(
         return true;
     }
     match (arena.get(left), arena.get(right)) {
+        (
+            ComputationTermNode::DefinitionInstance {
+                definition: left,
+                parameters: lp,
+            },
+            ComputationTermNode::DefinitionInstance {
+                definition: right,
+                parameters: rp,
+            },
+        ) => {
+            left == right
+                && lp.len() == rp.len()
+                && lp
+                    .iter()
+                    .zip(rp)
+                    .all(|(l, r)| value_type_is_alpha_eq(arena, *l, r))
+        }
         (
             ComputationTermNode::DefinedConstant(left),
             ComputationTermNode::DefinedConstant(right),
@@ -521,13 +555,10 @@ pub fn instantiate_computation_type(
 
 pub fn instantiate_type_telescope(
     arena: &Arena,
-    mut ty: ValueType,
+    ty: ValueType,
     arguments: &[ValueType],
 ) -> ValueType {
-    for argument in arguments.iter().rev() {
-        ty = instantiate_value_type(arena, ty, *argument, 0);
-    }
-    ty
+    crate::raw::program_definitions::instantiate_value_type(arena, ty, arguments, 0)
 }
 
 /// Removes one value binder from a value type, adjusting outer de Bruijn
@@ -630,6 +661,19 @@ pub fn shift_value_indices(
 
     fn go(arena: &Arena, value: ValueTerm, amount: usize, cutoff: usize) -> ValueTerm {
         match arena.get(value) {
+            ValueTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => arena.reuse_value(
+                value,
+                ValueTermNode::DefinitionInstance {
+                    definition: definition,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
+                        .collect(),
+                },
+            ),
             ValueTermNode::Bound(index) if index >= cutoff => {
                 arena.reuse_value(value, ValueTermNode::Bound(index + amount))
             }
@@ -723,6 +767,19 @@ pub fn shift_computation_indices(
 
     fn go(arena: &Arena, term: ComputationTerm, amount: usize, cutoff: usize) -> ComputationTerm {
         match arena.get(term) {
+            ComputationTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => arena.reuse_computation(
+                term,
+                ComputationTermNode::DefinitionInstance {
+                    definition: definition,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
+                        .collect(),
+                },
+            ),
             ComputationTermNode::Return { value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Return {
@@ -848,6 +905,22 @@ pub fn instantiate_value_in_computation(
         depth: usize,
     ) -> ValueTerm {
         match arena.get(value) {
+            ValueTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => arena.reuse_value(
+                value,
+                ValueTermNode::DefinitionInstance {
+                    definition,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|ty| {
+                            strengthen_value_type(arena, ty, depth)
+                                .expect("value-independent type argument")
+                        })
+                        .collect(),
+                },
+            ),
             ValueTermNode::Bound(index) if index == depth => {
                 shift_value_indices(arena, argument, depth, 0)
             }
@@ -912,6 +985,22 @@ pub fn instantiate_value_in_computation(
         depth: usize,
     ) -> ComputationTerm {
         match arena.get(term) {
+            ComputationTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => arena.reuse_computation(
+                term,
+                ComputationTermNode::DefinitionInstance {
+                    definition,
+                    parameters: parameters
+                        .into_iter()
+                        .map(|ty| {
+                            strengthen_value_type(arena, ty, depth)
+                                .expect("value-independent type argument")
+                        })
+                        .collect(),
+                },
+            ),
             ComputationTermNode::Return { value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Return {
@@ -1027,11 +1116,30 @@ pub fn instantiate_value_in_computation(
 }
 
 fn unfold_value(env: &CrateEnv, mut value: ValueTerm) -> ValueTerm {
-    while let ValueTermNode::DefinedConstant(id) = *env.arena().borrow_value(value) {
-        let DefinedConstant::ProgramValue { body, .. } = env.definition(id) else {
-            break;
-        };
-        value = *body;
+    loop {
+        match env.arena().get(value) {
+            ValueTermNode::DefinedConstant(id) => {
+                let DefinedConstant::ProgramValue { body, .. } = env.definition(id) else {
+                    break;
+                };
+                value = *body;
+            }
+            ValueTermNode::DefinitionInstance {
+                definition,
+                parameters,
+            } => {
+                let DefinedConstant::ProgramValue { body, .. } = env.definition(definition) else {
+                    break;
+                };
+                value = crate::raw::program_definitions::instantiate_value(
+                    env.arena(),
+                    *body,
+                    &parameters,
+                    0,
+                );
+            }
+            _ => break,
+        }
     }
     value
 }
@@ -1042,15 +1150,35 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
     // branch and its binders. Release the guard before recursive allocation.
     let node = arena.borrow_computation(term);
     match *node {
+        ComputationTermNode::DefinitionInstance {
+            definition,
+            ref parameters,
+        } => {
+            let parameters = parameters.clone();
+            drop(node);
+            match env.definition(definition) {
+                DefinedConstant::ProgramComputation { body, .. } => {
+                    Some(crate::raw::program_definitions::instantiate_computation(
+                        arena,
+                        *body,
+                        &parameters,
+                        0,
+                    ))
+                }
+                _ => None,
+            }
+        }
         ComputationTermNode::DefinedConstant(id) => match env.definition(id) {
             DefinedConstant::ProgramComputation { body, .. } => Some(*body),
             _ => None,
         },
-        ComputationTermNode::Force { value } => match *arena.borrow_value(unfold_value(env, value))
-        {
-            ValueTermNode::Thunk { computation } => Some(computation),
-            _ => None,
-        },
+        ComputationTermNode::Force { value } => {
+            drop(node);
+            match *arena.borrow_value(unfold_value(env, value)) {
+                ValueTermNode::Thunk { computation } => Some(computation),
+                _ => None,
+            }
+        }
         ComputationTermNode::Application { computation, value } => {
             drop(node);
             if let Some(next) = reduce_computation_once(env, computation) {
@@ -1144,10 +1272,9 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             }
         }
         ComputationTermNode::Case {
-            indspec,
-            scrutinee,
-            ref branches,
+            indspec, scrutinee, ..
         } => {
+            drop(node);
             let ValueTermNode::InductiveConstructor {
                 indspec: actual,
                 idx,
@@ -1160,9 +1287,13 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             if actual != indspec {
                 return None;
             }
-            let branch = branches.get(idx)?;
-            let mut body = branch.body;
-            drop(node);
+            let mut body = {
+                let node = arena.borrow_computation(term);
+                let ComputationTermNode::Case { branches, .. } = &*node else {
+                    unreachable!()
+                };
+                branches.get(idx)?.body
+            };
             for field in fields.iter().rev() {
                 body = instantiate_value_in_computation(arena, body, *field);
             }
@@ -1318,6 +1449,19 @@ pub fn remap_value_global_ids(
         return value;
     }
     match arena.get(value) {
+        ValueTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => arena.reuse_value(
+            value,
+            ValueTermNode::DefinitionInstance {
+                definition: definitions.get(&definition).copied().unwrap_or(definition),
+                parameters: parameters
+                    .into_iter()
+                    .map(|t| remap_value_type_global_ids(arena, t, definitions, inductives))
+                    .collect(),
+            },
+        ),
         ValueTermNode::DefinedConstant(id) => arena.reuse_value(
             value,
             ValueTermNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
@@ -1404,6 +1548,19 @@ pub fn remap_computation_global_ids(
     let recur = |term| remap_computation_global_ids(arena, term, definitions, inductives);
     let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
     match arena.get(computation) {
+        ComputationTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => arena.reuse_computation(
+            computation,
+            ComputationTermNode::DefinitionInstance {
+                definition: definitions.get(&definition).copied().unwrap_or(definition),
+                parameters: parameters
+                    .into_iter()
+                    .map(|t| remap_value_type_global_ids(arena, t, definitions, inductives))
+                    .collect(),
+            },
+        ),
         ComputationTermNode::DefinedConstant(id) => arena.reuse_computation(
             computation,
             ComputationTermNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
@@ -1634,6 +1791,19 @@ pub fn subst_value_module_params(
         return value;
     }
     match arena.get(value) {
+        ValueTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => arena.reuse_value(
+            value,
+            ValueTermNode::DefinitionInstance {
+                definition: definition,
+                parameters: parameters
+                    .into_iter()
+                    .map(|t| subst_value_type_module_params(arena, t, substitutions))
+                    .collect(),
+            },
+        ),
         ValueTermNode::ModuleParam(id) => substitutions
             .iter()
             .find_map(|(candidate, argument)| (*candidate == id).then_some(argument))
@@ -1715,6 +1885,19 @@ pub fn subst_computation_module_params(
         return term;
     }
     match arena.get(term) {
+        ComputationTermNode::DefinitionInstance {
+            definition,
+            parameters,
+        } => arena.reuse_computation(
+            term,
+            ComputationTermNode::DefinitionInstance {
+                definition: definition,
+                parameters: parameters
+                    .into_iter()
+                    .map(|t| subst_value_type_module_params(arena, t, substitutions))
+                    .collect(),
+            },
+        ),
         ComputationTermNode::Meta {
             metavariable,
             spine,
