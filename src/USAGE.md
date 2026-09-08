@@ -46,22 +46,41 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 
 `setext` は同じ `Power(X)` の要素と双方向の包含証明を、`funext` は同じ関数型の
 二項と各点での等号を要求する。`classicalIndefiniteChoice` は `Family: X -> Set` と
-`(x: X) -> exists (Family x)` から `exists ((x: X) -> Family x)` を返す。
+`\forall (x: X) -> exists (Family x)` から `exists (\forall (x: X) -> Family x)` を返す。
 
-## Program の値束縛
+## Program の構文
 
-`let^v` は型注釈を含む `\vlet(x, A, value, body)` と書く。`A` は
-`ValueType` で、`value` がその型を持つことを検査する。`x` は `body` 内だけで
-有効であり、型注釈と右辺は外側のスコープで解釈する。
+Program の関数型は `A ~> C`、ラムダは `\cfun (x: A) => computation`。
+値の型と計算の型は区別し、`\F(A)` と `\U(C)` は従来どおり使う。
+計算の適用は `\capp(function, value)` と書く。
 
 ```text
 \module Example(A: \VType, a: A) {
-  \cdefinition result: \F(A) := \vlet(x, A, a, \return(x));
+  \cdefinition identity: A ~> \F(A) :=
+    \cfun (x: A) => \return x;
+  \cdefinition result: \F(A) := \do {
+    \let x: A := a;
+    \bind y: A <- \capp(identity, x);
+    \return y
+  };
 }
 ```
 
-旧構文 `\vlet(x, value, body)` は受け付けない。注釈位置の `_` は他の型注釈と
-同様に制約から補完し、解決できなければエラーになる。
+`\let` は値、`\bind` は計算結果を束縛する。型注釈は必須で、`_` を使うと
+制約から補完する。解決できなければエラーになる。名前は後続部分だけで有効であり、
+型注釈と右辺は外側のスコープで解釈する。ブロック末尾には計算式が必要で、
+その末尾の `;` は省略できる。
+
+`\force suspended` は thunk を実行し、`\thunk (computation)` は計算を値に包む。
+場合分けは `\case value \in Datatype { | ctor(x) => computation; }`。
+旧 `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は受け付けない。
+
+論理側の束縛は `\fun (x: A) => body` と `\forall (x: A) -> B`。
+束縛のない `A -> B` はそのまま使える。レコード生成は
+`\record T { field := value }` と書く。この表面構文は論理／Program 共通に
+拡張できる形で解析するが、Program のレコード型はまだ実装していない。
+マクロ内の `(...)` はマクロ列であり、通常式の埋め込みには `\expr { ... }` を使う。
+詳細は [構文](../doc/book/src/coding/syntax.md) を参照。
 
 ## 実行速度の計測
 

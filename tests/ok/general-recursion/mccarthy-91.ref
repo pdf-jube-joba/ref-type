@@ -60,9 +60,8 @@
   \vdefinition hundredOne: Nat := Nat::succ hundred;
 
   \vdefinition step:
-    \U(\CFun(State, \F(\PRunStep(State, Nat)))) :=
-    \thunk(\clam(state, State,
-      \vcase(State, state) {
+    \U((State ~> \F(\PRunStep(State, Nat)))) :=
+    \thunk((\cfun (state: State) => \case (state) \in State {
       | call(argument, continuation) =>
           \return(\Pcontinue(
             State,
@@ -73,7 +72,7 @@
               hundredOne
               continuation));
       | inspect(original, remaining, threshold, continuation) =>
-          \vcase(Nat, threshold) {
+          \case (threshold) \in Nat {
           | zero() =>
               /* original >= 101, and remaining + 91 = original - 10. */
               \return(\Pcontinue(
@@ -81,7 +80,7 @@
                 Nat,
                 State::raise remaining ninetyOne continuation));
           | succ(smallerThreshold) =>
-              \vcase(Nat, remaining) {
+              \case (remaining) \in Nat {
               | zero() =>
                   /* original <= 100: first evaluate M(original + 11),
                    * then the pending continuation evaluates M once more.
@@ -105,9 +104,9 @@
               };
           };
       | raise(result, additions, continuation) =>
-          \vcase(Nat, additions) {
+          \case (additions) \in Nat {
           | zero() =>
-              \vcase(Continuation, continuation) {
+              \case (continuation) \in Continuation {
               | done() =>
                   \return(\Pfinish(State, Nat, result));
               | pending(rest) =>
@@ -126,7 +125,7 @@
                   continuation));
           };
       | raiseAndCall(argument, additions, continuation) =>
-          \vcase(Nat, additions) {
+          \case (additions) \in Nat {
           | zero() =>
               \return(\Pcontinue(
                 State,
@@ -143,9 +142,8 @@
           };
       }));
 
-  \cdefinition mcCarthy91: \CFun(Nat, \F(Nat)) :=
-    \clam(argument, Nat,
-      \Prun(
+  \cdefinition mcCarthy91: (Nat ~> \F(Nat)) :=
+    (\cfun (argument: Nat) => \Prun(
         State,
         Nat,
         step,

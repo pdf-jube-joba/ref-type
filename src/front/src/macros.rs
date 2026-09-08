@@ -59,7 +59,18 @@ fn pattern_captures(
             MacroSeqAtom::Tok(token) => {
                 if matches!(
                     token.0.as_str(),
-                    "->" | "=>" | ":=" | "|" | ":" | ";" | "." | "," | "=" | "!" | "::"
+                    "~>" | "<-"
+                        | "->"
+                        | "=>"
+                        | ":="
+                        | "|"
+                        | ":"
+                        | ";"
+                        | "."
+                        | ","
+                        | "="
+                        | "!"
+                        | "::"
                 ) {
                     return Err(format!(
                         "Macro token '{}' conflicts with reserved syntax",

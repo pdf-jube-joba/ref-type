@@ -58,7 +58,7 @@ structure の parameter は通常の名前付き parameter とする。
 structure が carrier を持つとは限らないため、特別な carrier binder は用意しない。
 
 ```text
-\definition origin: Point[Nat] := Point[Nat] {
+\definition origin: Point[Nat] := \record Point[Nat] {
   x := Nat::zero,
   y := Nat::zero,
 };

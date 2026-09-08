@@ -81,7 +81,8 @@ fn deeply_nested_expressions_and_arrow_precedence() {
     }
     assert!(matches!(term, SExp::AccessPath { .. }));
 
-    let SExp::Prod { bind, body } = parse::str_parse_exp("f x -> Y => z").unwrap() else {
+    let SExp::Prod { bind, body } = parse::str_parse_exp(r"f x -> \fun (_: Y) => z").unwrap()
+    else {
         panic!("expected outer product");
     };
     let crate::syntax::Bind::Named(bind) = bind else {
@@ -126,8 +127,8 @@ fn parses_implicit_and_goal_metavariables_as_atoms() {
 fn implicit_type_argument_is_solved_by_a_later_application() {
     let source = r#"
         \module Metas(A: \Set(0), x: A) {
-            \definition id: (X: \Set(0)) -> X -> X :=
-                (X: \Set(0)) => (value: X) => value;
+            \definition id: \forall (X: \Set(0)) -> X -> X :=
+                \fun (X: \Set(0)) => \fun (value: X) => value;
             \definition inferred: A := id _ x;
             \definition named: A := id ?2 x;
         }
@@ -141,7 +142,7 @@ fn implicit_type_argument_is_solved_by_a_later_application() {
 fn local_math_and_named_macros_expand_before_elaboration() {
     let source = r#"
         \module Macros(A: \Set(0), x: A, y: A) {
-            \definition first: A -> A -> A := (left: A) => (right: A) => left;
+            \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
             \math-macro plus($left, \+, $right) := first $left $right;
             \math-macro meet($left, \/\, $right) := first $left $right;
             \macro via_math($left, $right) := $($left + $right $);
@@ -169,7 +170,7 @@ fn only_the_documented_macro_surface_syntax_is_accepted() {
 fn math_macro_requires_the_complete_sequence() {
     let source = r#"
         \module Macros(A: \Set(0), x: A, y: A) {
-            \definition first: A -> A -> A := (left: A) => (right: A) => left;
+            \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
             \math-macro plus($left, \+, $right) := first $left $right;
             \definition chained: A := $(x + y + x $);
         }
@@ -183,8 +184,8 @@ fn math_macro_requires_the_complete_sequence() {
 fn earlier_math_macro_wins_when_patterns_are_equally_applicable() {
     let source = r#"
         \module Priority(A: \Set(0), B: \Set(0), a: A, b: B) {
-            \definition keep_a: A -> A -> A := (left: A) => (right: A) => left;
-            \definition keep_b: A -> A -> B := (left: A) => (right: A) => b;
+            \definition keep_a: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
+            \definition keep_b: A -> A -> B := \fun (left: A) => \fun (right: A) => b;
             \math-macro earlier($left, \+, $right) := keep_a $left $right;
             \math-macro later($left, \+, $right) := keep_b $left $right;
             \definition selected: A := $(a + a $);
@@ -199,7 +200,7 @@ fn earlier_math_macro_wins_when_patterns_are_equally_applicable() {
 fn macro_templates_cannot_see_later_macro_declarations() {
     let source = r#"
         \module Ordered(A: \Set(0), x: A, y: A) {
-            \definition first: A -> A -> A := (left: A) => (right: A) => left;
+            \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
             \macro too_early($left, $right) := $($left + $right $);
             \math-macro plus($left, \+, $right) := first $left $right;
             \definition result: A := too_early!{x y};
@@ -275,9 +276,9 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
 fn macro_binders_do_not_capture_call_site_expressions() {
     let source = r#"
         \module Hygiene(A: \Set(0)) {
-            \macro constant($body) := (x: A) => $body;
+            \macro constant($body) := \fun (x: A) => $body;
             \definition keep_outer: A -> A -> A :=
-                (x: A) => constant!{x};
+                \fun (x: A) => constant!{x};
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -289,7 +290,7 @@ fn macro_binders_do_not_capture_call_site_expressions() {
 fn macro_hygiene_does_not_rename_a_same_named_free_identifier() {
     let source = r#"
         \module Hygiene(A: \Set(0), x: A) {
-            \macro mixed() := ((x: A) => x) x;
+            \macro mixed() := (\fun (x: A) => x) x;
             \definition result: A := mixed!{};
         }
     "#;
@@ -334,6 +335,8 @@ fn invalid_macro_patterns_fail_at_declaration() {
     for source in [
         r#"\module Duplicate { \macro bad($value, $value) := $value; }"#,
         r#"\module Reserved { \math-macro bad($left, \:, $right) := $left; }"#,
+        r#"\module ReservedTypeArrow { \math-macro bad($left, \~>, $right) := $left; }"#,
+        r#"\module ReservedBindArrow { \math-macro bad($left, \<-, $right) := $left; }"#,
         r#"\module NoToken { \math-macro bad($value) := $value; }"#,
         r#"\module UnknownCapture { \macro bad($value) := $other; }"#,
     ] {
@@ -360,7 +363,7 @@ fn macro_expansion_has_a_finite_depth_limit() {
 fn lambda_annotation_is_solved_bidirectionally() {
     let source = r#"
         \module LambdaMeta(A: \Set(0)) {
-            \definition identity: A -> A := (x: _) => x;
+            \definition identity: A -> A := \fun (x: _) => x;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -418,8 +421,8 @@ fn conflicting_named_meta_constraints_are_structured() {
     let source = r#"
         \module Conflict(A: \Set(0), B: \Set(0), a: A, b: B) {
             \definition choose:
-                (X: \Set(0)) -> X -> X -> X :=
-                (X: \Set(0)) => (left: X) => (right: X) => left;
+                \forall (X: \Set(0)) -> X -> X -> X :=
+                \fun (X: \Set(0)) => \fun (left: X) => \fun (right: X) => left;
             \definition impossible: A := choose ?2 a b;
         }
     "#;
@@ -436,7 +439,7 @@ fn conflicting_named_meta_constraints_are_structured() {
 fn contextual_goal_reports_the_local_binder_context() {
     let source = r#"
         \module Context(A: \Set(0)) {
-            \definition pending: A -> A := (x: A) => ?;
+            \definition pending: A -> A := \fun (x: A) => ?;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -457,9 +460,9 @@ fn implicit_solution_may_depend_on_its_local_binder_context() {
     let source = r#"
         \module Contextual {
             \definition apply:
-                (A: \Set(0)) -> A -> A :=
-                (A: \Set(0)) => (x: A) =>
-                    ((X: \Set(0)) => (value: X) => value) _ x;
+                \forall (A: \Set(0)) -> A -> A :=
+                \fun (A: \Set(0)) => \fun (x: A) =>
+                    (\fun (X: \Set(0)) => \fun (value: X) => value) _ x;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -604,9 +607,9 @@ fn subset_intro_construction_and_reuse() {
         \module NamedSubset(A: \Set(0)) {
             \definition XSet: \Power(A) := \Subset(x, A, x = x);
             \definition X: \Set(0) := \Ty(A, XSet);
-            \definition make: (x: A) -> X :=
-                (x: A) => \subsetinto(A, XSet, x, \refl(x));
-            \definition reuse: (x: X) -> X := (x: X) => x;
+            \definition make: \forall (x: A) -> X :=
+                \fun (x: A) => \subsetinto(A, XSet, x, \refl(x));
+            \definition reuse: \forall (x: X) -> X := \fun (x: X) => x;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -621,8 +624,8 @@ fn subset_intro_rejects_wrong_membership_proof() {
         \module NamedSubset(A: \Set(0)) {
             \definition XSet: \Power(A) := \Subset(x, A, x = x);
             \definition X: \Set(0) := \Ty(A, XSet);
-            \definition bad: (x: A) -> X :=
-                (x: A) => \subsetinto(A, XSet, x, x);
+            \definition bad: \forall (x: A) -> X :=
+                \fun (x: A) => \subsetinto(A, XSet, x, x);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -637,8 +640,8 @@ fn subset_intro_syntax_requires_an_explicit_proof() {
         \module NamedSubset(A: \Set(0)) {
             \definition XSet: \Power(A) := \Subset(x, A, x = x);
             \definition X: \Set(0) := \Ty(A, XSet);
-            \definition bad: (x: A) -> X :=
-                (x: A) => \subsetinto(A, XSet, x);
+            \definition bad: \forall (x: A) -> X :=
+                \fun (x: A) => \subsetinto(A, XSet, x);
         }
     "#;
     assert!(parse::str_parse_modules(source).is_err());
@@ -650,7 +653,7 @@ fn general_recursion_surface_typechecks_and_normalizes() {
         \module GeneralRecursion(
             A: \VType,
             B: \VType,
-            f: \U(\CFun(A, \F(\PRunStep(A, B)))),
+            f: \U((A ~> \F(\PRunStep(A, B)))),
             a: A
         ) {
             \cdefinition result: \F(B) := \Prun(A, B, f, a);
@@ -694,7 +697,7 @@ fn accessibility_intro_and_descent_follow_the_system_premises() {
             a: A,
             b: A,
             predecessors:
-                (next: A) ->
+                \forall (next: A) ->
                 (f a = \continue(A, B, next)) ->
                 \Acc(A, B, f, next),
             p: \Acc(A, B, f, a),
@@ -714,9 +717,9 @@ fn accessibility_intro_and_descent_follow_the_system_premises() {
 
 #[test]
 fn program_value_let_requires_an_annotation() {
-    let parsed = parse::str_parse_exp(r"\vlet(x, A, a, \return(x))").unwrap();
+    let parsed = parse::str_parse_exp(r"\do { \let x: A := a; \return(x) }").unwrap();
     assert!(matches!(parsed, SExp::ValueLet { .. }));
-    assert!(parse::str_parse_exp(r"\vlet(x, a, \return(x))").is_err());
+    assert!(parse::str_parse_exp(r"\do { \let x := a; \return x }").is_err());
 }
 
 #[test]
@@ -725,9 +728,9 @@ fn program_value_let_solves_and_zonks_type_annotations() {
     let modules = parse::str_parse_modules(
         r#"
         \module AnnotatedLet(A: \VType, a: A) {
-            \cdefinition identity: \F(A) := \vlet(x, _, a, \return(x));
-            \cdefinition nested: \F(A) := \vlet(x, A, a, \vlet(y, _, x, \return(y)));
-            \cinfer \vlet(x, _, a, \return(x));
+            \cdefinition identity: \F(A) := \do { \let x: _ := a; \return(x) };
+            \cdefinition nested: \F(A) := \do { \let x: A := a; \do { \let y: _ := x; \return(y) } };
+            \cinfer \do { \let x: _ := a; \return(x) };
         }
     "#,
     )
@@ -761,9 +764,9 @@ fn program_value_let_solves_and_zonks_type_annotations() {
 #[test]
 fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
     for term in [
-        r"\vlet(x, B, a, \return(a))",
-        r"\vlet(x, a, a, \return(a))",
-        r"\vlet(x, _, ?, \return(a))",
+        r"\do { \let x: B := a; \return(a) }",
+        r"\do { \let x: a := a; \return(a) }",
+        r"\do { \let x: _ := ?; \return(a) }",
     ] {
         let source = format!(
             r"\module InvalidLet(A: \VType, B: \VType, a: A) {{ \cdefinition result: \F(A) := {term}; }}"
@@ -783,7 +786,7 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
     let modules = parse::str_parse_modules(
         r#"
         \module LetMacros {
-            \macro local($type, $value) := \vlet(A, $type, $value, \return(A));
+            \macro local($type, $value) := \do { \let A: $type := $value; \return(A) };
         }
     "#,
     )
@@ -849,9 +852,9 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
             \inductive Pair(X: \VType): \VType :=
             | pair: X -> X -> Pair;
             ;
-            \cdefinition first: \CFun(Pair[A], \F(A)) :=
-                \clam(p, Pair[A], \vcase(Pair, p) {
-                | pair(left, right) => \vlet(x, A, left, \return(x));
+            \cdefinition first: (Pair[A] ~> \F(A)) :=
+                (\cfun (p: Pair[A]) => \case (p) \in Pair {
+                | pair(left, right) => \do { \let x: A := left; \return(x) };
                 });
         }
     "#,
@@ -903,7 +906,7 @@ fn set_recursion_preserves_a_shared_universe() {
                 A: \Set(LEVEL), B: \Set(LEVEL), a: A, b: B,
                 f: A -> \RunStep(A, B),
                 p: \Acc(A, B, f, a),
-                predecessors: (next: A) ->
+                predecessors: \forall (next: A) ->
                     (f a = \continue(A, B, next)) -> \Acc(A, B, f, next),
                 edge: f a = \continue(A, B, a),
                 P: \Prop, proof: P
@@ -922,9 +925,9 @@ fn set_recursion_preserves_a_shared_universe() {
                 \definition case_result: B :=
                     \runCase(A, B, f, a, \continue(A, B, a)) \by (p, edge);
                 \definition recursed: B := \runStepRec(A, B,
-                    (r: step_type) => B, (x: A) => b, (y: B) => y, finished);
+                    \fun (r: step_type) => B, \fun (x: A) => b, \fun (y: B) => y, finished);
                 \definition recursed_proof: P := \runStepRec(A, B,
-                    (r: step_type) => P, (x: A) => proof, (y: B) => proof, continued);
+                    \fun (r: step_type) => P, \fun (x: A) => proof, \fun (y: B) => proof, continued);
             }
         "#
         .replace("LEVEL", &level.to_string());
@@ -939,8 +942,8 @@ fn run_step_recursor_distinguishes_branch_and_result_sorts() {
     let source = r#"
         \module InvalidMotive(A: \Set(2), a: A, B: \Set(0), b: B) {
             \definition bad: B := \runStepRec(A, A,
-                (r: \RunStep(A, A)) => B,
-                (x: A) => b, (x: A) => b, \finish(A, A, a));
+                \fun (r: \RunStep(A, A)) => B,
+                \fun (x: A) => b, \fun (x: A) => b, \finish(A, A, a));
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1015,19 +1018,19 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
           \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
-          \vdefinition step: \U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))) :=
-            \thunk(\clam(s, Unit, \return(\Pfinish(Unit, Unit, Unit::unit))));
+          \vdefinition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
+            \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
           \definition stepSet: Unit -> \RunStep(Unit, Unit) :=
-            \Force(\U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))),
-              \box(\U(\CFun(Unit, \F(\PRunStep(Unit, Unit)))), step));
+            \Force(\U((Unit ~> \F(\PRunStep(Unit, Unit)))),
+              \box(\U((Unit ~> \F(\PRunStep(Unit, Unit)))), step));
           \definition ready: \RunStep(Unit, Unit) -> \Prop :=
-            (r: \RunStep(Unit, Unit)) => \Pred(Unit,
-              \runStepRec(Unit, Unit, (r: \RunStep(Unit, Unit)) => \Power(Unit),
-                (s: Unit) => \Subset(x, Unit, \Acc(Unit, Unit, stepSet, s)),
-                (o: Unit) => \Subset(x, Unit, Unit::unit = Unit::unit), r), Unit::unit);
-          \definition terminates: (s: Unit) -> \Acc(Unit, Unit, stepSet, s) :=
-            (s: Unit) => \accintro(Unit, Unit, stepSet, s,
-              (next: Unit) => (edge: stepSet s = \continue(Unit, Unit, next)) =>
+            \fun (r: \RunStep(Unit, Unit)) => \Pred(Unit,
+              \runStepRec(Unit, Unit, \fun (r: \RunStep(Unit, Unit)) => \Power(Unit),
+                \fun (s: Unit) => \Subset(x, Unit, \Acc(Unit, Unit, stepSet, s)),
+                \fun (o: Unit) => \Subset(x, Unit, Unit::unit = Unit::unit), r), Unit::unit);
+          \definition terminates: \forall (s: Unit) -> \Acc(Unit, Unit, stepSet, s) :=
+            \fun (s: Unit) => \accintro(Unit, Unit, stepSet, s,
+              \fun (next: Unit) => \fun (edge: stepSet s = \continue(Unit, Unit, next)) =>
                 \idelim(stepSet s = \continue(Unit, Unit, next)
                   \with r: \RunStep(Unit, Unit) => ready r) \by (\refl(Unit::unit), edge));
           \cdefinition result: \F(Unit) :=
@@ -1095,4 +1098,36 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
         assert!(steps < 20);
     }
     assert!(steps >= 3);
+}
+
+#[test]
+fn program_blocks_preserve_shadowing_and_evaluate_the_selected_branch() {
+    use crate::raw::{
+        program::{ComputationTermNode, ValueTermNode},
+        program_calculus::{Evaluation, evaluate_computation},
+    };
+    let modules = parse::str_parse_modules(include_str!(
+        "../../../tests/ok/general-recursion/block-syntax.ref"
+    ))
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::Definition { definition, .. } = env.module(module).item("result").unwrap()
+    else {
+        panic!("missing result definition");
+    };
+    let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
+        panic!("result should be a computation");
+    };
+    let Evaluation::Normal(result) = evaluate_computation(env, *body) else {
+        panic!("block did not finish");
+    };
+    let ComputationTermNode::Return { value } = env.arena().get(result) else {
+        panic!("block did not return a value");
+    };
+    assert!(
+        matches!(env.arena().get(value), ValueTermNode::InductiveConstructor { idx: 1, fields, .. } if fields.is_empty())
+    );
 }

@@ -8,6 +8,8 @@ pub(super) struct TermParser<'a> {
     tokens: &'a [SpannedToken<'a>],
     pos: usize,
     allow_macro_parameters: bool,
+    #[cfg(test)]
+    consumed: usize,
 }
 
 impl<'a> TermParser<'a> {
@@ -16,6 +18,8 @@ impl<'a> TermParser<'a> {
             tokens,
             pos: 0,
             allow_macro_parameters: false,
+            #[cfg(test)]
+            consumed: 0,
         }
     }
 
@@ -24,6 +28,8 @@ impl<'a> TermParser<'a> {
             tokens,
             pos: 0,
             allow_macro_parameters: true,
+            #[cfg(test)]
+            consumed: 0,
         }
     }
 
@@ -54,7 +60,7 @@ impl<'a> TermParser<'a> {
                     end: t.end,
                 }),
             },
-            None => Err(ParseError::eof_error("number")),
+            None => Err(self.eof_error("number")),
         }
     }
 
@@ -68,7 +74,7 @@ impl<'a> TermParser<'a> {
                     end: t.end,
                 }),
             },
-            None => Err(ParseError::eof_error("other symbol")),
+            None => Err(self.eof_error("other symbol")),
         }
     }
 
@@ -82,7 +88,7 @@ impl<'a> TermParser<'a> {
         Ok(result)
     }
 
-    // Try to parse a parenthesized number (e.g., "(0)").
+    // Parse a parenthesized number (e.g., "(0)").
     fn parse_number_paren(&mut self) -> Result<usize, ParseError> {
         self.expect_token(Token::LParen)?;
         let number = self.expect_number()?;
@@ -101,16 +107,28 @@ impl<'a> TermParser<'a> {
             return Ok(crate::raw::sort::Sort::PropKind);
         }
         if self.bump_if_keyword("\\Set") {
-            let number = self
-                .attempt(|parser| parser.parse_number_paren())
-                .unwrap_or_default();
+            let number = if self.peek() == Some(&Token::LParen)
+                && matches!(
+                    self.tokens.get(self.pos + 1).map(|t| t.kind),
+                    Some(Token::Number(_))
+                ) {
+                self.parse_number_paren()?
+            } else {
+                0
+            };
 
             return Ok(crate::raw::sort::Sort::Set(number));
         }
         if self.bump_if_keyword("\\SetKind") {
-            let number = self
-                .attempt(|parser| parser.parse_number_paren())
-                .unwrap_or_default();
+            let number = if self.peek() == Some(&Token::LParen)
+                && matches!(
+                    self.tokens.get(self.pos + 1).map(|t| t.kind),
+                    Some(Token::Number(_))
+                ) {
+                self.parse_number_paren()?
+            } else {
+                0
+            };
             return Ok(crate::raw::sort::Sort::SetKind(number));
         }
         Err(ParseError {
@@ -138,50 +156,14 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        if self.bump_if_keyword("\\CFun") {
-            return self.parse_parenthesized(|parser| {
-                let domain = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let codomain = parser.parse_sexp()?;
-                Ok(SExp::ComputationFunction {
-                    domain: Box::new(domain),
-                    codomain: Box::new(codomain),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\thunk") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|computation| SExp::Thunk {
-                    computation: Box::new(computation),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\return") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|value| SExp::Return {
-                    value: Box::new(value),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\force") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|value| SExp::Force {
-                    value: Box::new(value),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\clam") {
-            return self.parse_parenthesized(|parser| {
-                let var = parser.expect_ident()?;
-                parser.expect_token(Token::Comma)?;
-                let value_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let body = parser.parse_sexp()?;
-                Ok(SExp::ComputationLam {
-                    var,
-                    value_ty: Box::new(value_ty),
-                    body: Box::new(body),
-                })
+        if self.bump_if_keyword(r"\record") {
+            let access = self.parse_access_path()?;
+            let parameters = self.parse_optional_parameters()?;
+            let fields = self.parse_record_body()?;
+            return Ok(SExp::RecordTypeCtor {
+                access,
+                parameters,
+                fields,
             });
         }
         if self.bump_if_keyword("\\capp") {
@@ -195,46 +177,10 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        if self.bump_if_keyword("\\sequence") {
-            return self.parse_parenthesized(|parser| {
-                let computation = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let var = parser.expect_ident()?;
-                parser.expect_token(Token::Comma)?;
-                let value_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let body = parser.parse_sexp()?;
-                Ok(SExp::Sequence {
-                    computation: Box::new(computation),
-                    var,
-                    value_ty: Box::new(value_ty),
-                    body: Box::new(body),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\vlet") {
-            return self.parse_parenthesized(|parser| {
-                let var = parser.expect_ident()?;
-                parser.expect_token(Token::Comma)?;
-                let value_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let value = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let body = parser.parse_sexp()?;
-                Ok(SExp::ValueLet {
-                    var,
-                    value_ty: Box::new(value_ty),
-                    value: Box::new(value),
-                    body: Box::new(body),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\vcase") {
-            self.expect_token(Token::LParen)?;
-            let path = self.parse_access_path()?;
-            self.expect_token(Token::Comma)?;
+        if self.bump_if_keyword(r"\case") {
             let scrutinee = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?;
+            self.expect_keyword(r"\in")?;
+            let path = self.parse_access_path()?;
             self.expect_token(Token::LBrace)?;
             let mut branches = Vec::new();
             while !self.bump_if_token(Token::RBrace) {
@@ -565,7 +511,7 @@ impl<'a> TermParser<'a> {
         }
         // elimination of inductive type
         if self.bump_if_keyword("\\elim") {
-            // "\elim" <elim: SExp> "\in" <path: Path> "\\return" <return_type: SExp>
+            // r"\elim" <elim: SExp> r"\in" <path: Path> "\\return" <return_type: SExp>
             let elim = self.parse_sexp()?;
             self.expect_keyword("\\in")?; // expect '\in'
             let path = self.parse_access_path()?;
@@ -593,14 +539,12 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\prec") {
-            // "\prec" "(" <sort: Sort> "," <path: AccessPath> <parameter>? ")"
+            // r"\prec" "(" <sort: Sort> "," <path: AccessPath> <parameter>? ")"
             self.expect_token(Token::LParen)?;
             let sort = self.parse_sort()?;
             self.expect_token(Token::Comma)?;
             let path = self.parse_access_path()?;
-            let parameters = self
-                .attempt(|parser| parser.parse_parameter())
-                .unwrap_or_default();
+            let parameters = self.parse_optional_parameters()?;
 
             self.expect_token(Token::RParen)?;
 
@@ -610,14 +554,21 @@ impl<'a> TermParser<'a> {
                 sort,
             });
         }
-        // "\exists" <binding>
+        // r"\exists" <binding>
         if self.bump_if_keyword("\\exists") {
-            let bind = self.parse_left_arrow_head()?;
+            let bind = if self.peek() == Some(&Token::LBrace) {
+                self.parse_binding(Token::LBrace, Token::RBrace)?
+            } else {
+                Bind::Named(RightBind {
+                    vars: Vec::new(),
+                    ty: Box::new(self.parse_combined()?),
+                })
+            };
             return Ok(SExp::Exists { bind });
         }
-        // "\take" <binding> "=>" <body>
+        // r"\take" <binding> "=>" <body>
         if self.bump_if_keyword("\\take") {
-            let bind = self.parse_left_arrow_head()?;
+            let bind = self.parse_binding(Token::LParen, Token::RParen)?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let body = self.parse_sexp()?;
             self.expect_keyword("\\by")?;
@@ -748,7 +699,7 @@ impl<'a> TermParser<'a> {
             });
         }
 
-        // \\idelim "(" <left: SExp> "=" <right: SExp> "\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
+        // \\idelim "(" <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
         if self.bump_if_keyword("\\idelim") {
             self.expect_token(Token::LParen)?; // expect '('
             let left = self.parse_atom_sequence()?;
@@ -864,9 +815,10 @@ impl<'a> TermParser<'a> {
 
         loop {
             if self.bump_if_keyword("\\fix") {
-                // "\fix" ("(" RightBind ")" ",")* ";"
+                // r"\fix" ("(" RightBind ")" ",")* ";"
                 let mut binds: Vec<RightBind> = Vec::new();
-                while let Ok(bind) = self.parse_simple_binds_paren() {
+                while self.peek() == Some(&Token::LParen) {
+                    let bind = self.parse_simple_binds_paren()?;
                     binds.extend(bind);
                     if !self.bump_if_token(Token::Comma) {
                         break;
@@ -878,7 +830,7 @@ impl<'a> TermParser<'a> {
             }
 
             if self.bump_if_keyword("\\let") {
-                // "\let" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
+                // r"\let" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
                 let var = self.expect_ident()?;
                 self.expect_token(Token::Colon)?; // expect ':'
                 let ty = self.parse_sexp()?;
@@ -890,8 +842,8 @@ impl<'a> TermParser<'a> {
             }
 
             if self.bump_if_keyword("\\take") {
-                // "\take" <bind: Bind> "\by" "(" proof ("," proof)? ")" ";"
-                let bind = self.parse_left_arrow_head()?;
+                // r"\take" <bind: Bind> r"\by" "(" proof ("," proof)? ")" ";"
+                let bind = self.parse_binding(Token::LParen, Token::RParen)?;
                 self.expect_keyword("\\by")?;
                 self.expect_token(Token::LParen)?;
                 let existence = self.parse_sexp()?;
@@ -913,7 +865,7 @@ impl<'a> TermParser<'a> {
             }
 
             if self.bump_if_keyword("\\return") {
-                // "\return" <exp: SExp> ";"
+                // r"\return" <exp: SExp> ";"
                 let result = self.parse_sexp()?;
                 self.expect_token(Token::Semicolon)?; // expect ';'
                 return Ok(Block {
@@ -937,8 +889,8 @@ impl<'a> TermParser<'a> {
     fn parse_parameter(&mut self) -> Result<Vec<SExp>, ParseError> {
         self.expect_token(Token::LBracket)?; // expect '['
         let mut params = Vec::new();
-        while let Ok(param) = self.parse_sexp() {
-            params.push(param);
+        while self.peek() != Some(&Token::RBracket) {
+            params.push(self.parse_sexp()?);
             if !self.bump_if_token(Token::Comma) {
                 break;
             }
@@ -1070,9 +1022,7 @@ impl<'a> TermParser<'a> {
                 }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
-                let parameters = self
-                    .attempt(|parser| parser.parse_parameter())
-                    .unwrap_or_default();
+                let parameters = self.parse_optional_parameters()?;
 
                 // field access case or record construction case
                 if self.bump_if_token(Token::DoubleColon) {
@@ -1084,17 +1034,7 @@ impl<'a> TermParser<'a> {
                     });
                 }
 
-                match self.attempt(|parser| parser.parse_record_body()) {
-                    Some(fields) => {
-                        // record construction
-                        Ok(SExp::RecordTypeCtor {
-                            access,
-                            parameters,
-                            fields,
-                        })
-                    }
-                    None => Ok(SExp::AccessPath { access, parameters }),
-                }
+                Ok(SExp::AccessPath { access, parameters })
             }
             Some(Token::LParen) => {
                 self.next(); // consume '('
@@ -1112,6 +1052,12 @@ impl<'a> TermParser<'a> {
                     max_order: None,
                     depth: 0,
                 })
+            }
+            Some(Token::KeyWord("\\return" | "\\thunk" | "\\force")) => self.parse_unary(),
+            Some(Token::KeyWord("\\fun" | "\\forall" | "\\cfun")) => self.parse_lambda(),
+            Some(Token::KeyWord("\\do")) => {
+                self.next();
+                self.parse_do()
             }
             Some(Token::KeyWord(keyword)) if SORT_KEYWORDS.contains(keyword) => {
                 // check if it's a reserved sort keyword
@@ -1157,7 +1103,8 @@ impl<'a> TermParser<'a> {
         // 1. first atom
         let mut expr = self.field_access()?;
 
-        while let Some(try_exp) = self.attempt(|parser| parser.field_access()) {
+        while self.starts_atom() {
+            let try_exp = self.field_access()?;
             expr = SExp::App {
                 func: Box::new(expr),
                 arg: Box::new(try_exp),
@@ -1205,7 +1152,7 @@ impl<'a> TermParser<'a> {
         equal_exp(self)
     }
 
-    // Try to parse an annotation
+    // Parse an annotation
     // Ident ("," Ident)* ":" SExp
     fn parse_annotate(&mut self) -> Result<(Vec<Identifier>, SExp), ParseError> {
         // 1. parse identifiers separated by commas
@@ -1226,26 +1173,24 @@ impl<'a> TermParser<'a> {
 
     // parse multiple annotations separated by commas
     // trailing comma is allowed (it consumes trailing comma)
-    fn parse_annotate_comma_separated(&mut self) -> Vec<RightBind> {
-        let mut annotations = vec![];
-
-        // this implementation allows trailing commas
-        while let Some((vars, ty)) = self.attempt(|parser| parser.parse_annotate()) {
+    fn parse_annotate_comma_separated(&mut self) -> Result<Vec<RightBind>, ParseError> {
+        let mut annotations = Vec::new();
+        while self.peek().is_some() && self.peek() != Some(&Token::RParen) {
+            let (vars, ty) = self.parse_annotate()?;
             annotations.push(RightBind {
                 vars,
                 ty: Box::new(ty),
             });
-
-            // allow trailing comma
-            self.bump_if_token(Token::Comma);
+            if !self.bump_if_token(Token::Comma) {
+                break;
+            }
         }
-
-        annotations
+        Ok(annotations)
     }
 
     // "(" <multiple annotations comma separated> ")"
     fn parse_simple_binds_paren(&mut self) -> Result<Vec<RightBind>, ParseError> {
-        self.parse_parenthesized(|parser| Ok(parser.parse_annotate_comma_separated()))
+        self.parse_parenthesized(|parser| parser.parse_annotate_comma_separated())
     }
 
     pub(super) fn parse_simple_binds_advanced(
@@ -1256,165 +1201,209 @@ impl<'a> TermParser<'a> {
         Ok((binds, advanced_pos))
     }
 
-    // subset like bind
-    // "(" "(" Ident ":" SExp ")" "|" SExp ")"
-    // "(" "(" Ident ":" SExp ")" "|" Ident ":" SExp ")"
-    // rollback is handled by caller
-    fn parse_subsetbind(&mut self) -> Result<Bind, ParseError> {
-        // check "(" "(" <annotate> ... otherwise error
+    fn error(&self, msg: &str) -> ParseError {
+        let span = self.span_at(self.pos);
+        ParseError {
+            msg: msg.into(),
+            start: span.start,
+            end: span.end,
+        }
+    }
 
-        self.expect_token(Token::LParen)?; // expect '('
-        self.expect_token(Token::LParen)?; // expect '('
+    fn parse_optional_parameters(&mut self) -> Result<Vec<SExp>, ParseError> {
+        if self.peek() == Some(&Token::LBracket) {
+            self.parse_parameter()
+        } else {
+            Ok(Vec::new())
+        }
+    }
 
-        let (first_var, first_ty) = self.parse_annotate()?;
+    fn starts_atom(&self) -> bool {
+        match self.peek() {
+            Some(
+                Token::Ident(_)
+                | Token::Hole
+                | Token::UnspecifiedVar(_)
+                | Token::MacroVar(_)
+                | Token::LParen
+                | Token::MathLParen,
+            ) => true,
+            Some(Token::KeyWord(k)) => {
+                SORT_KEYWORDS.contains(k)
+                    || EXPRESSION_ATOM_KEYWORDS.contains(k)
+                    || PROOF_TERM_KEYWORDS.contains(k)
+            }
+            _ => false,
+        }
+    }
 
-        let [var] = first_var.as_slice() else {
-            return Err(ParseError {
-                msg: "expected single identifier in subset bind".into(),
-                start: self.span_at(self.pos).start,
-                end: self.span_at(self.pos).end,
-            });
-        };
-
-        // there is "(" "(" <annot> ")" ... now ")" and "|" expected
-        self.expect_token(Token::RParen)?; // expect ')'
-        self.expect_token(Token::Pipe)?; // expect '|'
-
-        // try to parse proof style first (annotation)
-        // fail => it is rollbacked to after '|'
-        if let Some((vars, exp)) = self.attempt(|parser| parser.parse_annotate()) {
-            let [proof_var] = vars.as_slice() else {
-                return Err(ParseError {
-                    msg: "expected single identifier in subset bind proof var".into(),
-                    start: self.span_at(self.pos).start,
-                    end: self.span_at(self.pos).end,
-                });
+    fn parse_binding(&mut self, open: Token<'a>, close: Token<'a>) -> Result<Bind, ParseError> {
+        self.expect_token(open)?;
+        let (vars, ty) = self.parse_annotate()?;
+        let bind = if self.bump_if_keyword(r"\where") {
+            let [var] = vars.as_slice() else {
+                return Err(self.error("expected single identifier in refinement binder"));
             };
-            self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(Bind::SubsetWithProof {
-                var: var.clone(),
-                ty: Box::new(first_ty),
-                predicate: Box::new(exp),
-                proof_var: proof_var.clone(),
-            });
-        }
-        // usual subset bind => parse exp
-        let predicate = self.parse_sexp()?;
-        self.expect_token(Token::RParen)?; // expect ')'
-        Ok(Bind::Subset {
-            var: var.clone(),
-            ty: Box::new(first_ty),
-            predicate: Box::new(predicate),
-        })
+            let predicate = Box::new(self.parse_sexp()?);
+            if self.bump_if_keyword(r"\as") {
+                Bind::SubsetWithProof {
+                    var: var.clone(),
+                    ty: Box::new(ty),
+                    predicate,
+                    proof_var: self.expect_binder_ident()?,
+                }
+            } else {
+                Bind::Subset {
+                    var: var.clone(),
+                    ty: Box::new(ty),
+                    predicate,
+                }
+            }
+        } else {
+            Bind::Named(RightBind {
+                vars,
+                ty: Box::new(ty),
+            })
+        };
+        self.expect_token(close)?;
+        Ok(bind)
     }
 
-    // parse an arrow expression
-    // e.g. `bind -> x` or `bind => x` or just piped atom sequence
-    fn parse_arrow_expr(&mut self) -> Result<SExp, ParseError> {
-        let left_head = self.parse_left_arrow_head()?;
-
-        if self.bump_if_token(Token::Arrow) {
-            let right = self.parse_sexp()?;
-            return Ok(SExp::Prod {
-                bind: left_head,
-                body: Box::new(right),
-            });
+    fn parse_unary(&mut self) -> Result<SExp, ParseError> {
+        match self.next().unwrap().kind {
+            Token::KeyWord("\\return") => Ok(SExp::Return {
+                value: Box::new(self.parse_sexp()?),
+            }),
+            Token::KeyWord("\\thunk") => Ok(SExp::Thunk {
+                computation: Box::new(self.field_access()?),
+            }),
+            Token::KeyWord("\\force") => Ok(SExp::Force {
+                value: Box::new(self.field_access()?),
+            }),
+            _ => unreachable!(),
         }
-
-        if self.bump_if_token(Token::DoubleArrow) {
-            let right = self.parse_sexp()?;
-            return Ok(SExp::Lam {
-                bind: left_head,
-                body: Box::new(right),
-            });
-        }
-
-        // An unnamed head is already a complete ordinary expression. Reuse
-        // it instead of rolling back and parsing every nested term again.
-        if let Bind::Named(RightBind { vars, ty }) = left_head
-            && vars.is_empty()
-        {
-            return Ok(*ty);
-        }
-
-        Err(ParseError {
-            msg: "expected '->' or '=>' after bind".into(),
-            start: self.span_at(self.pos).start,
-            end: self.span_at(self.pos).end,
-        })
     }
 
-    // parse arrow expression without subset-style binds on the right-hand side
-    // e.g. ([<rightbind> | <sexp>] "->")* <sexp>
-    fn parse_arrow_nosubset(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
-        let mut binds = vec![];
-        // parse right binds until fail
-        loop {
-            let bind = match self.attempt(|parser| parser.parse_simple_binds_paren()) {
-                Some(b) => b,
-                None => {
-                    let maybe_body = self.parse_combined()?;
-                    if self.bump_if_token(Token::Arrow) {
-                        // continue parsing binds
-                        binds.push(RightBind {
-                            vars: vec![],
-                            ty: Box::new(maybe_body),
-                        });
-                        continue;
-                    } else {
-                        return Ok((binds, maybe_body));
+    fn parse_lambda(&mut self) -> Result<SExp, ParseError> {
+        let keyword = self.next().unwrap().kind;
+        let mut binds = vec![self.parse_binding(Token::LParen, Token::RParen)?];
+        while self.peek() == Some(&Token::LParen) {
+            binds.push(self.parse_binding(Token::LParen, Token::RParen)?);
+        }
+        self.expect_token(if keyword == Token::KeyWord(r"\forall") {
+            Token::Arrow
+        } else {
+            Token::DoubleArrow
+        })?;
+        let mut body = self.parse_sexp()?;
+        for bind in binds.into_iter().rev() {
+            body = match keyword {
+                Token::KeyWord(r"\forall") => SExp::Prod {
+                    bind,
+                    body: Box::new(body),
+                },
+                Token::KeyWord(r"\fun") => SExp::Lam {
+                    bind,
+                    body: Box::new(body),
+                },
+                _ => {
+                    let Bind::Named(RightBind { vars, ty }) = bind else {
+                        return Err(self.error("Program lambda requires a plain value binder"));
+                    };
+                    for var in vars.into_iter().rev() {
+                        body = SExp::ComputationLam {
+                            var,
+                            value_ty: ty.clone(),
+                            body: Box::new(body),
+                        };
                     }
+                    body
                 }
             };
-            binds.extend(bind);
-            self.expect_token(Token::Arrow)?; // expect '->' after each bind
         }
+        Ok(body)
+    }
+
+    fn parse_do(&mut self) -> Result<SExp, ParseError> {
+        self.expect_token(Token::LBrace)?;
+        let mut statements = Vec::new();
+        while matches!(self.peek(), Some(Token::KeyWord(r"\let" | r"\bind"))) {
+            let sequence = self.next().unwrap().kind == Token::KeyWord(r"\bind");
+            let var = self.expect_binder_ident()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            self.expect_token(if sequence {
+                Token::BindArrow
+            } else {
+                Token::Assign
+            })?;
+            let rhs = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            statements.push((sequence, var, Box::new(ty), Box::new(rhs)));
+        }
+        let mut body = self.parse_sexp()?;
+        self.bump_if_token(Token::Semicolon);
+        self.expect_token(Token::RBrace)?;
+        for (sequence, var, value_ty, rhs) in statements.into_iter().rev() {
+            body = if sequence {
+                SExp::Sequence {
+                    computation: rhs,
+                    var,
+                    value_ty,
+                    body: Box::new(body),
+                }
+            } else {
+                SExp::ValueLet {
+                    var,
+                    value_ty,
+                    value: rhs,
+                    body: Box::new(body),
+                }
+            };
+        }
+        Ok(body)
+    }
+
+    fn parse_arrow_nosubset(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
+        let mut body = self.parse_sexp()?;
+        let mut binds = Vec::new();
+        while let SExp::Prod { bind, body: tail } = body {
+            let Bind::Named(bind) = bind else {
+                return Err(
+                    self.error("refinement binders are not allowed in inductive signatures")
+                );
+            };
+            binds.push(bind);
+            body = *tail;
+        }
+        Ok((binds, body))
     }
 
     pub(super) fn parse_arrow_nosubset_advanced(
         &mut self,
     ) -> Result<(Vec<RightBind>, SExp, usize), ParseError> {
         let (binds, body) = self.parse_arrow_nosubset()?;
-        let advanced_pos = self.pos;
-        Ok((binds, body, advanced_pos))
-    }
-
-    // parse the left-hand side of an arrow expression
-    // may be a bind or a simple expression or a parenthesized expression
-    // e.g. `x y -> z`, `(x y) -> z`, `(x: y) -> z`, `((x: y) | P) -> z`
-    fn parse_left_arrow_head(&mut self) -> Result<Bind, ParseError> {
-        // 1. try to parse susbet bind
-        if let Some(bind) = self.attempt(|parser| parser.parse_subsetbind()) {
-            return Ok(bind);
-        }
-
-        // 2. try to parse named bind
-        if let Some(rightbinds) = self.attempt(|parser| parser.parse_simple_binds_paren()) {
-            let [rightbind] = rightbinds.as_slice() else {
-                return Err(ParseError {
-                    msg: "expected single right bind in named bind".into(),
-                    start: self.span_at(self.pos).start,
-                    end: self.span_at(self.pos).end,
-                });
-            };
-            return Ok(Bind::Named(rightbind.clone()));
-        }
-
-        // 3. otherwise, parse simple expression as a bind
-        let expr = self.parse_combined()?;
-        Ok(Bind::Named(RightBind {
-            vars: vec![],
-            ty: expr.into(),
-        }))
-    }
-
-    fn parse_sexp_withgoals(&mut self) -> Result<SExp, ParseError> {
-        self.attempt(|p| p.parse_arrow_expr())
-            .map_or_else(|| self.parse_combined(), Ok)
+        Ok((binds, body, self.pos))
     }
 
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
-        self.parse_sexp_withgoals()
+        let left = self.parse_combined()?;
+        if self.bump_if_token(Token::Arrow) {
+            Ok(SExp::Prod {
+                bind: Bind::Named(RightBind {
+                    vars: Vec::new(),
+                    ty: Box::new(left),
+                }),
+                body: Box::new(self.parse_sexp()?),
+            })
+        } else if self.bump_if_token(Token::ComputationArrow) {
+            Ok(SExp::ComputationFunction {
+                domain: Box::new(left),
+                codomain: Box::new(self.parse_sexp()?),
+            })
+        } else {
+            Ok(left)
+        }
     }
 
     pub(super) fn parse_sexp_advanced(&mut self) -> Result<(SExp, usize), ParseError> {
@@ -1436,12 +1425,15 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_one_macro(&mut self) -> Result<MacroExp, ParseError> {
-        // 1, challenge atom
-        let save = self.pos;
-        if let Ok(atom) = self.parse_atom() {
-            return Ok(MacroExp::RawExp(atom));
+        if self.bump_if_keyword(r"\expr") {
+            self.expect_token(Token::LBrace)?;
+            let exp = self.parse_sexp()?;
+            self.expect_token(Token::RBrace)?;
+            return Ok(MacroExp::RawExp(exp));
         }
-        self.pos = save;
+        if self.peek() != Some(&Token::LParen) && self.starts_atom() {
+            return self.parse_atom().map(MacroExp::RawExp);
+        }
         // 2. challenge one macro token
         // OthetSymbolStart or KeyWord which is not contained in *_KEYWORDS
         if let Some(Token::Macro(_)) = self.peek() {
@@ -1480,6 +1472,14 @@ impl<'a> TokenCursor<'a> for TermParser<'a> {
     }
 
     fn set_position(&mut self, position: usize) {
+        debug_assert!(
+            position >= self.pos,
+            "parser cursor must never move backwards"
+        );
+        #[cfg(test)]
+        {
+            self.consumed += position - self.pos;
+        }
         self.pos = position;
     }
 }
@@ -1488,6 +1488,156 @@ impl<'a> TokenCursor<'a> for TermParser<'a> {
 mod tests {
     use super::super::lex_all;
     use super::*;
+
+    fn complete(input: &str) -> SExp {
+        let tokens = lex_all(input).unwrap();
+        let mut parser = TermParser::new(&tokens);
+        let exp = parser.parse_sexp().unwrap();
+        assert_eq!(parser.pos, tokens.len(), "unconsumed input: {input}");
+        assert_eq!(parser.consumed, tokens.len());
+        exp
+    }
+
+    #[test]
+    fn predictive_parser_consumes_nested_tokens_once() {
+        for depth in [8, 24, 48] {
+            complete(&format!("{}x{}", "(".repeat(depth), ")".repeat(depth)));
+            complete(&format!(
+                "{}x{}",
+                r"\return(".repeat(depth),
+                ")".repeat(depth)
+            ));
+        }
+    }
+
+    #[test]
+    fn new_arrows_binders_and_prefix_precedence() {
+        let SExp::ComputationFunction { codomain, .. } = complete(r"A ~> B ~> \F(C)") else {
+            panic!()
+        };
+        assert!(matches!(*codomain, SExp::ComputationFunction { .. }));
+        let SExp::Prod { body, .. } = complete(r"A -> B ~> \F(C)") else {
+            panic!()
+        };
+        assert!(matches!(*body, SExp::ComputationFunction { .. }));
+        let SExp::Lam {
+            bind: Bind::SubsetWithProof { proof_var, .. },
+            body,
+        } = complete(r"\fun (x: A \where P x \as h) (y: B) => f x y")
+        else {
+            panic!()
+        };
+        assert_eq!(proof_var.0, "h");
+        assert!(matches!(*body, SExp::Lam { .. }));
+        assert!(matches!(
+            complete(r"\exists {x: A \where P x}"),
+            SExp::Exists {
+                bind: Bind::Subset { .. }
+            }
+        ));
+        let SExp::Return { value } = complete(r"\return C::pair x y") else {
+            panic!()
+        };
+        assert!(matches!(*value, SExp::App { .. }));
+        let SExp::App { func, .. } = complete(r"\force f x") else {
+            panic!()
+        };
+        assert!(matches!(*func, SExp::Force { .. }));
+        complete(r"\cfun (x: A) (y: B) => \return y");
+    }
+
+    #[test]
+    fn do_desugars_in_order_and_requires_a_tail() {
+        let SExp::ValueLet { var, body, .. } =
+            complete(r"\do { \let x: A := outer; \bind y: B <- \capp(f, x); \return y; }")
+        else {
+            panic!()
+        };
+        assert_eq!(var.0, "x");
+        let SExp::Sequence { var, body, .. } = *body else {
+            panic!()
+        };
+        assert_eq!(var.0, "y");
+        assert!(matches!(*body, SExp::Return { .. }));
+        assert!(matches!(
+            complete(r"\do { computation }"),
+            SExp::AccessPath { .. }
+        ));
+        complete(r"\do { \do { \return x } }");
+    }
+
+    #[test]
+    fn records_remain_unclassified_and_case_has_an_unambiguous_body() {
+        let SExp::RecordTypeCtor { fields, .. } =
+            complete(r"\record Future[A] { suspended := \thunk (\return x) }")
+        else {
+            panic!()
+        };
+        assert!(matches!(fields[0].1, SExp::Thunk { .. }));
+        complete(r"\record Empty {}");
+        complete(r"\elim x \in T \return R { | ctor => branch; }");
+        let SExp::ProgramCase { branches, .. } =
+            complete(r"\case x \in T { | ctor(a, b) => \do { \return a }; }")
+        else {
+            panic!()
+        };
+        assert_eq!(branches[0].1.len(), 2);
+    }
+
+    #[test]
+    fn macro_groups_and_embedded_expressions_are_distinct() {
+        let SExp::NamedMacro { tokens, .. } = complete(r"m!{(x) \expr { f (g x) }}") else {
+            panic!()
+        };
+        assert!(matches!(&tokens[0], MacroExp::Seq(xs) if xs.len() == 1));
+        assert!(matches!(&tokens[1], MacroExp::RawExp(SExp::App { .. })));
+        complete(r"$( (a + b) + \expr { f (g x) } $)");
+    }
+
+    #[test]
+    fn malformed_productions_commit_at_the_failing_token() {
+        for (input, bad) in [
+            (r"f[x, ;]", ";"),
+            (r"\fun (x: A \where P \as ) => x", ")"),
+            (r"\record T { field := ; }", ";"),
+            (r"\case x \in T { | ctor(x) => ; }", ";"),
+            (r"m!{\expr { f (x ; } }", ";"),
+            (r"\do { \let x: A := a; }", "}"),
+            (r"\Set(12 x)", "x"),
+        ] {
+            let tokens = lex_all(input).unwrap();
+            let mut parser = TermParser::new(&tokens);
+            let error = parser.parse_sexp().unwrap_err();
+            assert_eq!(&input[error.start..error.end], bad, "{input}: {error:?}");
+            assert_eq!(parser.consumed, parser.pos);
+        }
+    }
+
+    #[test]
+    fn retired_syntax_and_incomplete_blocks_are_rejected() {
+        for input in [
+            r"(x: A) => x",
+            r"(x: A) -> B",
+            r"A => x",
+            r"((x: A) | P) -> B",
+            r"T { field := x }",
+            r"\CFun(A, \F(B))",
+            r"\clam(x, A, \return(x))",
+            r"\sequence(c, x, A, d)",
+            r"\vlet(x, A, a, c)",
+            r"\vcase(T, x) {}",
+            r"\do {}",
+            r"\do { \let x := a; \return x }",
+            r"\do { \bind x: A <- c; }",
+            r"\do { \let x: A := a \return x }",
+        ] {
+            assert!(
+                crate::parse::str_parse_exp(input).is_err(),
+                "accepted {input}"
+            );
+        }
+    }
+
     #[test]
     fn parse_annotate_test() {
         fn print_and_unwrap_annotate(input: &'static str) {
@@ -1544,7 +1694,7 @@ mod tests {
         fn print_and_unwrap_subsetbind(input: &'static str) {
             let lex = &lex_all(input).expect("lexing failed for complex bind test");
             let mut parser = TermParser::new(lex);
-            let result = parser.parse_subsetbind();
+            let result = parser.parse_binding(Token::LParen, Token::RParen);
             match result {
                 Ok(bind) => {
                     println!("Parsed SExp: {:?} => {:?}", input, bind);
@@ -1554,9 +1704,9 @@ mod tests {
                 }
             }
         }
-        print_and_unwrap_subsetbind(r"((x: X) | P)");
-        print_and_unwrap_subsetbind(r"((x: X) | p1 p2)");
-        print_and_unwrap_subsetbind(r"((x: X) | h: p1 p2)");
+        print_and_unwrap_subsetbind(r"(x: X \where P)");
+        print_and_unwrap_subsetbind(r"(x: X \where p1 p2)");
+        print_and_unwrap_subsetbind(r"(x: X \where p1 p2 \as h)");
     }
     #[test]
     fn parse_combined_test() {
@@ -1595,8 +1745,8 @@ mod tests {
                 }
             }
         }
-        print_and_unwrap_nosubset(r"(x: X) -> Y");
-        print_and_unwrap_nosubset(r"(x: X) -> (y: Y) -> Z");
+        print_and_unwrap_nosubset(r"\forall (x: X) -> Y");
+        print_and_unwrap_nosubset(r"\forall (x: X) -> \forall (y: Y) -> Z");
     }
     #[test]
     fn parse_atom_test() {
@@ -1619,13 +1769,13 @@ mod tests {
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x[ A, B, C ]");
         print_and_unwrap(r"x.y[ A, B ]");
-        print_and_unwrap(r"x { a := A, b := B }");
-        print_and_unwrap(r"x.y { a := A, b := B }");
-        print_and_unwrap(r"x.y[ A, B ] { a := A, b := B }");
+        print_and_unwrap(r"\record x { a := A, b := B }");
+        print_and_unwrap(r"\record x.y { a := A, b := B }");
+        print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");
         print_and_unwrap(r"x::y"); // x::y::z is "combined expression" ... not tested here
         print_and_unwrap(r"List[Nat]::Nil");
         print_and_unwrap(r"list.List[Nat]::Nil");
-        print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
+        print_and_unwrap(r"\record Group[Nat] { mul := x, e := y }");
         print_and_unwrap(r"$( x + y $)");
         print_and_unwrap(r"mymacro!{ a + b c }");
     }
@@ -1654,20 +1804,20 @@ mod tests {
         print_and_unwrap(r"x | y");
         print_and_unwrap(r"x | f");
         print_and_unwrap(r"x x | y u | f g");
-        print_and_unwrap(r"(x: X) -> Y");
-        print_and_unwrap(r"(x: X) => y");
-        print_and_unwrap(r"(x: X) -> Y => z");
+        print_and_unwrap(r"\forall (x: X) -> Y");
+        print_and_unwrap(r"\fun (x: X) => y");
+        print_and_unwrap(r"\forall (x: X) -> \fun (_: Y) => z");
         print_and_unwrap(r"X -> Z");
         print_and_unwrap(r"x y z -> Y");
         print_and_unwrap(r"(x y) -> Y");
         print_and_unwrap(r"x y | z -> Y");
-        print_and_unwrap(r"(x: X) -> (y: Y) -> Z");
-        print_and_unwrap(r"((x: X) | P) -> (y: Y) -> Z");
-        print_and_unwrap(r"((x: X) | h: P) -> (y: Y) -> Z");
-        print_and_unwrap(r"((x: P y | F) | h: (u | a) | b ) -> (y: Y) -> Z");
-        print_and_unwrap(r"(X -> Y) Z ((t: T) => z)");
-        print_and_unwrap(r"((x: X) => y)");
-        print_and_unwrap(r"((x: X) | P) => y");
+        print_and_unwrap(r"\forall (x: X) -> \forall (y: Y) -> Z");
+        print_and_unwrap(r"\forall (x: X \where P) -> \forall (y: Y) -> Z");
+        print_and_unwrap(r"\forall (x: X \where P \as h) -> \forall (y: Y) -> Z");
+        print_and_unwrap(r"\forall (x: P y | F \where (u | a) | b \as h) -> \forall (y: Y) -> Z");
+        print_and_unwrap(r"(X -> Y) Z (\fun (t: T) => z)");
+        print_and_unwrap(r"(\fun (x: X) => y)");
+        print_and_unwrap(r"\fun (x: X \where P) => y");
     }
     #[test]
     fn parse_access_and_record_test() {
@@ -1676,14 +1826,14 @@ mod tests {
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x[ A, B, C ]");
         print_and_unwrap(r"x.y[ A, B ]");
-        print_and_unwrap(r"x { a := A, b := B }");
-        print_and_unwrap(r"x.y { a := A, b := B }");
-        print_and_unwrap(r"x.y[ A, B ] { a := A, b := B }");
+        print_and_unwrap(r"\record x { a := A, b := B }");
+        print_and_unwrap(r"\record x.y { a := A, b := B }");
+        print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");
         print_and_unwrap(r"x::y");
         print_and_unwrap(r"x::y::z");
         print_and_unwrap(r"List[Nat]::Nil");
         print_and_unwrap(r"list.List[Nat]::Nil");
-        print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
+        print_and_unwrap(r"\record Group[Nat] { mul := x, e := y }");
     }
     #[test]
     fn parse_special_exp_test() {
@@ -1746,7 +1896,8 @@ mod tests {
         }
         parse_middle(r"x ;");
         parse_middle(r"x {");
-        parse_middle(r"x (( y: Y)");
+        let tokens = lex_all(r"x (( y: Y)").unwrap();
+        assert!(TermParser::new(&tokens).parse_sexp().is_err());
         parse_middle(r"x::y x::y;");
     }
 }

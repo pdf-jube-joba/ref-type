@@ -1,147 +1,151 @@
-# code での文法の検討
-- checker 用の命令は `#` で始まる
-  - `#include` ... 他の読むべきファイルを連結する（ファイルの頭に）
-  - `#eval` ... normalize する
-- ファイルに対してではなくて、 それの中身を（適当な順で並べた） `module` の集まりを処理することを考える。
-  - 本当は `module` の順は不問としたいけど、実装の都合とかがあるので、しばらくは順序を指定することにする。
-- なるべく機械と目でのパースを楽にするため、目的ごとに記号を分ける。
-- 基本的には、パースの際に空白で区切ったものが token になるようにする。
-- ユーザーが処理するように自由に使える token と、言語側で予約している token をわける。
-  - `'name` と `'variable` は identifier にする。
-    - 気持ち的には、 `'name` は展開されないやつで、 `'variable` は展開されるやつ。
-  - `'number` はそのまま数字のこと
-  - `'macro` は `'name` の後に空白無しで `!` とする。
-    - 例： `reasoning!`, `either!`
-  - `'macro-acceptable` は token 側とかぶらないようなやつのこと。 
-    - 例： `"mod"`, `+++`, `!hello` は acceptable
-    - ダメな例： `:` は記法がかぶるのでダメ。
-- 記号の解釈を選ぶ必要があるような部分を明示的に書くための文法として `$(` から `$)` で囲むことができるようにする。
-  - context を選ぶ場合には、 `$ ... )` の間に何か書く。
-  - これは別のやり方の方が読みやすいかも。
-- refinement のようなことをする部分では、常に `|` を書いていいほうがうれしい。
-  - 普通の subset を扱うときは `(x: \Ty({x: A | P}) ) => ...` のように書くのはめんどくさいので、 `(x: A | P) => (some x occurence)` と書きたい
-  - set の nonempty も、 `\exists { x: A | P } => ...` は嫌かもしれないから、 `\exists (x: A | P) => (some x occurence)` とか
-  - take も `\Take x: A. ...` 以外に `\Take (x: A | P). (some x occurence)` とか。
-- module と定義の展開とか等しさの定義を考える。
+# 表面構文
 
-## 今はちょっと置いておく部分
-- 数学的構造の話には Record 型"のようなもの"を使う。
-  - 項は nominal にするために `RecordName { fiele := expression}` とする。
-  - 一般の Record 型が混ざると話がややこしい（帰納型で十分に記述できる）ので、数学的構造を扱うことを念頭に考える。
-  - 構造の性質については、構造に含めずに、 subset を記述しやすくするものと考えて、形容詞みたいに扱えるようにしたい。
-- `import a.b` や `import a.*` の仕組みや std は自動的に import されるみたいな仕組みを考える。
-- 使うかもしれない記法のメモ
-  - `a@b`
+パーサーは先頭トークンと固定長の先読みで構文を選び、消費したトークンを読み直さない。
+構文を選んだ後のエラーは、その構文内のエラーとして報告する。
 
-# 構文（案）
-## 概要
-- 式、文、ブロックによる構造化
-  - 'exp := ... | 'block
-  - 'block := "{" ('stmt)* 'exp "}"
-  - 'stmt := "fix" (x: A) ";" | "have" x: A := t ; | ...
-- where と proof で証明の補助を明示的に書く
-  - 例：
-    ```
-    definition x: A := t where {
-      - l1: P1 := p1;
-      - l2: P2 := p2;
-    } proof {
-      - goal: P3 := p3;
-      - goal: P4 := p4;
-    }
-    ```
-- parametrized module の入れ子とアクセスを簡単に
-  - `module Name((param : paramtype)* ) { ... }` で module にパラメータを
-  - `ModName(param := arg)` で module に引数を与える
-  - `a.b.c.d` 記法
-  - `import ModName(param := arg) as AnotherName` で簡単なアクセスができるように
-- 型チェックの中で proof の構成が要求されることがある...expression の一部として組み込んだりすることにする。
-  - 型チェックある所に proof あるので全部に `'proof` 句がくるように syntax を調整しないと。
+## 字句と式
 
-### subset introduction
-`2: 2N` でゴールが生成されるのが普通に使いずらかったため、
-体系としては存在しないが実装上は存在する項として、 `SubsetIntro(A: Set, X: Power A, a: A, p: Pred(A, X, a))` を定義している。
-表面構文は `\subsetinto(A, X, a, p)` で、型は `\Ty(A, X)` と推論される。`A` と `X` を直接持たせ、refinement type から台集合を逆算しない。
+キーワードは `\definition` のようにバックスラッシュで始まる。
+識別子は英字で始まり、英数字と `_` を使える。`/* ... */` は入れ子可能なコメント。
+記号列はまとめて字句解析されるので、隣り合う別々の記号トークンは空白で区切る。
+`->`・`~>`・`<-`・`=>`・`:=` などの予約記号はマクロの演算子に使えない。
 
-通常の簡約は `SubsetIntro` を保持する。計算内容を比較する `erase` / `erased_normal` / `erased_convertible` では `a` に消去する。
+- `_` は制約から補完する implicit hole。解が確定しなければ ambiguity error。
+- `?` は出現ごとに fresh な goal、`?2` などの番号付き goal は一つの宣言内で共有する。
+- 束縛名の `_` は匿名束縛であり、式位置の implicit hole とは異なる。
+- sort は `\Prop`・`\PropKind`・`\Set`・`\SetKind`。Set 系は `\Set(2)` のように level を指定でき、省略時は 0。
 
-これを使うと、検査時に「未証明のゴール」が生成されなくてよくなる。
+式には `(expression)` で括弧を付けられる。優先順位は強い順に以下となる。
 
-## 全体
-ここは core calculus + α ぐらい。
+| 構文 | 結合 |
+| --- | --- |
+| `value::field` | 左 |
+| `f x y` | 左 |
+| `x \| f`（`f x` の意味） | 左 |
+| `x = y` | 連鎖不可 |
+| `A -> B`、`A ~> C` | 同順位、右 |
 
-## exp
-- `'exp` = either
-  - 普通じゃないやつ
-    - metavariable:
-      - `_` は制約単一化だけで補完する implicit hole。解が確定しなければ ambiguity error になる。
-      - `?` は出現ごとに fresh な goal、`?2` のような `?` + 数字は一つの宣言内で共有される goal。
-      - goal が単一化で解けなければ、ローカル context、期待 judgement、関連する制約の履歴と残余を返す。証明項の探索自体は行わない。
-      - binder 名の `_` は匿名 binder であり、式位置の implicit hole とは区別する。
-    - math macro: `"$(" ('exp | 'macro-acceptable)+ "$)"`
-    - user macro: `'name "!" "{" ('exp | 'macro-acceptable)+ "}"`
-    - paren: `'parend-exp` ... `"(" 'exp ")"` のこと。
-    - pipe: `'exp "|" 'exp` ... `x | f` は `f x` と同じ意味
-    - block: `'block`
-    - module.access: `'module "." 'name`
-  - それ以外
-    - sort: `("\Prop" | "\PropKind" | "\Set" ("(" 'number ")")? | "\SetKind" ("(" 'number ")")?)`
-    - variable: `'variable`
-    - depprod.form: `"(" 'variable ":" 'exp ")" "->"  'exp`
-    - depprod.intro: `"(" 'variable ":" 'exp ")" "=>"  'exp`
-    - depprod.elim: `'exp 'exp`
-    - ind.form: `'name`
-    - ind.intro: `'name "::" 'name`
-    - ind.elim: `"elim" "(" 'name ")" 'exp "return" 'exp "with" ( "|" 'name "(" ('variable ",") ")" "="> 'exp )* "end"`
-    - record.form ``'name "(" ('exp ",")* ")"``
-    - record.intro: `'name "(" ('exp ",")* ")" "{" "}"`
-    - type-associated item / structure projection: `'exp "::" 'name`
-    - proof.term: `\Proof 'exp`
-    - subset.intro: `"\subsetinto(" 'exp "," 'exp "," 'exp "," 'exp ")"`
-    - power.set: `'\Power 'exp`
-    - sub.set: `"{" 'variable ":" 'exp "|" 'exp "}"`
-    - predicate: `\Pred "(" 'exp "," 'exp "," 'exp ")"`
-    - identity: `'exp "=" 'exp`
-    - take: `\take 'variable ":" 'exp ( "|" 'exp)?`
-    - let: `\let 'variable: ":" 'exp ":=" 'exp "in" 'exp`
-- `'block` = `"{" ('block-decl)* 'exp "}" ('where)? ('proof)?`
-- `'block-decl` =  either
-  - `"fix" ('variable ":" 'exp)+ ";"`
-  - `"take 'variable ":" 'exp "|" 'variable ":" 'exp ";"`
-  - `"have" 'variable ":" 'exp ":=" 'code-body`
-  - `"sufficient" 'exp "by" 'exp;`
-- `'where` = `"where" "{" ("-" 'variable ":" 'exp ":=" 'exp ";")+ "}"`
-- `'proof` = ` "proof" "{" ("-" "goal" ":" 'exp ":=" 'proof-by ";")+ "}"`
-- `'proof-by` = either
-  - construct `"\by" 'exp` ... \(\Gamma \vdash P\) if \(\Gamma \vdash p: P\)
-  - exact `"\exact" 'exp` ... \(\Gamma \vdash \exists A\) if \(\Gamma \vdash a: A\)
-  - subset `"\subelim" 'exp "\in" 'exp "\subset" 'exp` ... \(\Gamma \vdash \Pred(A, a, x)\) if \(\Gamma \vdash x: \Ty(a, A)\)
-  - idrefl `"\idrefl" 'exp "\in" 'exp` ... \(\Gamma \vdash a = a\) if \(\Gamma \vdash a: A\)
-  - idelim `"\idelim" 'exp "=" 'exp "\with" "(" 'var ":" 'ty ")" "=>" 'exp` ... \(\Gamma \vdash (\lambda x: A. P) a_2\) if \(\Gamma \vdash a_1 = a_2\), \(\Gamma \vdash a_1, a_2: A\), \(\Gamma x: A \vdash P_1\), \(\Gamma \vdash (\lambda x: A. P) a_1\)
-  - takeeq `"\takeeq" 'exp "=" 'exp "\with" 'exp` ... \(\Gamma \vdash \Take f = t\) if \(\Gamma \vdash \Take f, t: X: *^s\)
-  - abort: `\abort`
+`T[A, B]` は型・定義の明示的パラメータ指定、`scope.name` は import したスコープへのアクセス。
+`T[A]::ctor x y` はコンストラクタへの適用、`T[A]::field value` は field projection。
 
-## module
-- `'module-decl` = `"module" 'name "(" ('parameter-decl)* ")" ("requires" ('name)+)* "{" ('code-decl)+ "}"`
-- `'parameter-decl` = `'variable ":" 'exp`
-- `'code-decl` = either
-  - `"definition" 'variable ":" 'exp ":=" 'exp`
-  - `"theorem" 'variable ":" 'exp ":=" 'exp`
-  - `"\math-macro" 'name "(" 'macro-pattern ")" ":=" 'exp ";"`
-  - `"\macro" 'name "(" 'macro-pattern ")" ":=" 'exp ";"`
-  - `"\use" 'name "." 'name ";"`
-  - `"inductive" 'name ":" ":=" ";"`
-  - `"import" 'name "(" ( 'variable ":=" 'exp ) ")" "as" 'name ";"`
-  - `"module"`
-  - 以降はまだ構文が決まってない部分
-    - `"structure"` ... 構造の定義
-    - `"property"` ... 構造についての性質の定義
-    - `"instance"` ... 構造と集合の結び付けの宣言
-    - `"satisfy"` ... 構造が性質を満たすことの宣言と証明
-- `'code-body` = either
-  - `'exp 'where 'proof`
-  - `"{" ('block-decl)* 'exp "}" 'where 'proof`
-- `'macro-pattern` = comma-separated `$name`, escaped symbol tokens such as `\+`, quoted literal tokens, or nested patterns
-- `'module` = either
-  - `'name "(" ('variable ":=" 'exp)* ")"`
-  - `'name`
+## 論理側の束縛
+
+```text
+\forall (x: A) -> B
+\fun (x: A) => body
+\fun (x: A) (y: B) => body
+\fun (x, y: A) => body
+A -> B
+```
+
+複数の束縛は左から順にスコープへ入る。匿名ラムダは `\fun (_: A) => body`。
+接頭辞のない `(x: A) -> B`・`(x: A) => body`・`A => body` は使わない。
+帰納型のコンストラクタ型・添字にも、依存する積型には `\forall` を使う。
+
+refinement を持つ束縛は次のように書く。`\where` は条件、`\as` はその証明名。
+
+```text
+\forall (x: A \where P x) -> B
+\fun (x: A \where P x \as h) => body
+\exists A
+\exists {x: A \where P x}
+\take (x: A) => body \by (existence, uniqueness)
+```
+
+refinement 束縛では値の名前は一つ。証明名の利用可否や存在・選択の意味上の制約は
+従来の型規則に従う。Prop の選択では `\by (existence)` とする。
+条件付き束縛の旧 `((x: A) | P)` と `((x: A) | h: P)` は使わない。
+
+集合・証明の専用演算は従来の関数形式を使う。
+
+```text
+\Power(A)
+\Subset(x, A, P x)
+\Pred(A, X, a)
+\Ty(A, X)
+\subsetinto(A, X, a, proof)
+\exact(a, A)
+\refl(a)
+\axiom:funext(f, g, pointwise)
+```
+
+`\block { ... }` は論理側のブロック。`\fix`・`\let`・`\take` の文に続き、
+`\return expression;` で終える。Program の `\do` とは別の構文・意味を持つ。
+
+## Program（CBPV）
+
+値の型と計算の型を区別する。`\VType` は値型の sort、`\F(A)` は値を返す計算の型、
+`\U(C)` は計算を thunk にした値の型。計算関数型は `A ~> C` と書く。
+
+```text
+\cdefinition identity: A ~> \F(A) :=
+  \cfun (x: A) => \return x;
+\vdefinition suspended: \U(A ~> \F(A)) := \thunk identity;
+\cdefinition result: \F(A) := \do {
+  \let x: A := a;
+  \bind y: A <- \capp(\force suspended, x);
+  \return y
+};
+```
+
+`\cfun` は複数の括弧付き束縛や同じ型の複数名を受け付ける。Program の束縛には
+refinement を指定しない。関数の適用は `\capp(computation, value)` と書く。
+
+`\return` は後続の値式全体を引数とする。`\force`・`\thunk` は一つの atom と
+その関連アクセスを引数とし、複合式は括弧で囲む。
+例えば `\return Pair::pair x y`、`\thunk (\cfun (x: A) => \return x)`。
+
+`\do` 内の `\let` は値を、`\bind` は計算結果を束縛する。型注釈は必須で、推論には `_` を使う。
+名前は後続部分でのみ有効。型注釈と右辺は外側のスコープで解釈する。
+各束縛文には `;` が必要。末尾には計算式が必須で、その `;` だけ省略できる。
+末尾は return に限らず、計算名・適用・場合分け・別の do ブロックでもよい。
+
+```text
+\case value \in Datatype {
+  | empty() => \return fallback;
+  | pair(left, right) => \do {
+      \bind result: B <- \capp(f, left);
+      \return result
+    };
+}
+```
+
+分岐のコンストラクタ引数は値として束縛される。各分岐の末尾には `;` が必要。
+旧 `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は使わない。
+再帰・反映の `\Prun`・`\Pcontinue`・`\box` などは従来の専用構文を使う。
+
+## レコード
+
+```text
+\structure Point(A: \Set): \Set := { x: A, y: A };
+\definition point(A: \Set, a: A): Point[A] :=
+  \record Point[A] { x := a, y := a };
+```
+
+生成には `\record` が必須。空のレコード本体も `{}` と書ける。
+パーサーと未分類 AST はレコードを論理側に限定しない。型名・パラメータ・フィールド式を
+保持し、後段で分類する。現在利用できる型規則は論理側の structure のものであり、
+将来の Program レコードも同じ表面構文で追加できるようにしている。
+
+## マクロ
+
+`$( ... $)` は数式マクロ、`name!{ ... }` は名前付きマクロ。
+マクロ内の `(...)` は常にマクロ列とする。通常の複合式は `\expr { ... }` で渡す。
+その内部では括弧を通常の式として使える。識別子などの atom は直接渡せる。
+
+```text
+$( (x + y) + \expr { f (g z) } $)
+tagged!{\expr { f x } "keep"}
+```
+
+パターン定義、可視性、衛生性は [マクロ](macro.md) を参照。
+
+## 宣言とモジュール
+
+`\definition`・`\vdefinition`・`\cdefinition` は名前・型・`:=`・本体・`;` の順。
+論理側の定義には名前の後に括弧付き引数を付けられる。
+`\module Name(parameters) { ... }` は入れ子のモジュール、`\module Name;` は外部ファイル。
+`\import M(argument := value) \as Alias;` でモジュールを実体化する。
+
+実行方法と診断は [利用方法](../../../../src/USAGE.md)、
+型関連のアクセスは [型関連 item](types_and_items.md) を参照。

@@ -49,9 +49,11 @@ enum Token<'a> {
     RBracket,
     // mapped tokens (will be produced by mapping MacroToken in lex_all)
     // 2 char
-    Arrow,       // "->"
-    DoubleArrow, // "=>"
-    Assign,      // ":="
+    ComputationArrow, // "~>"
+    BindArrow,        // "<-"
+    Arrow,            // "->"
+    DoubleArrow,      // "=>"
+    Assign,           // ":="
     // 1 char
     Pipe,        // "|"
     Colon,       // ":"
@@ -73,18 +75,19 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Pred",
     "\\Ty",
     "\\subsetinto", // usuals
+    "\\fun",
+    "\\forall",
+    "\\cfun",
+    "\\do",
+    "\\case",
+    "\\record",
     "\\VType",
     "\\U",
     "\\F",
-    "\\CFun",
     "\\thunk",
     "\\return",
     "\\force",
-    "\\clam",
     "\\capp",
-    "\\sequence",
-    "\\vlet",
-    "\\vcase",
     "\\RunStep",
     "\\PRunStep",
     "\\continue",
@@ -144,6 +147,8 @@ fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
             Ok(Token::Macro(s)) => {
                 // map known symbol sequences to specific token variants
                 let mapped = match s {
+                    "~>" => Token::ComputationArrow,
+                    "<-" => Token::BindArrow,
                     "->" => Token::Arrow,
                     "=>" => Token::DoubleArrow,
                     ":=" => Token::Assign,
@@ -201,16 +206,6 @@ struct ParseError {
     end: usize,
 }
 
-impl ParseError {
-    fn eof_error(expect: &str) -> Self {
-        Self {
-            msg: format!("expected {}, found <eof>", expect),
-            start: 0,
-            end: 0,
-        }
-    }
-}
-
 mod term_parse;
 
 trait TokenCursor<'a>: Sized {
@@ -227,6 +222,15 @@ trait TokenCursor<'a>: Sized {
                 end: token.end,
             },
         )
+    }
+
+    fn eof_error(&self, expect: &str) -> ParseError {
+        let span = self.span_at(self.tokens().len());
+        ParseError {
+            msg: format!("expected {expect}, found <eof>"),
+            start: span.start,
+            end: span.end,
+        }
     }
 
     fn position(&self) -> usize;
@@ -275,7 +279,7 @@ trait TokenCursor<'a>: Sized {
                 })
             }
         } else {
-            Err(ParseError::eof_error(&format!("{expected:?}")))
+            Err(self.eof_error(&format!("{expected:?}")))
         }
     }
 
@@ -289,7 +293,7 @@ trait TokenCursor<'a>: Sized {
                     end: token.end,
                 }),
             },
-            None => Err(ParseError::eof_error("keyword")),
+            None => Err(self.eof_error("keyword")),
         }
     }
 
@@ -303,22 +307,7 @@ trait TokenCursor<'a>: Sized {
                     end: token.end,
                 }),
             },
-            None => Err(ParseError::eof_error("identifier")),
-        }
-    }
-
-    /// Runs a speculative parse and restores the cursor when it fails.
-    ///
-    /// Errors are deliberately discarded. This must only be used for grammar
-    /// productions whose absence is not itself an error.
-    fn attempt<T>(&mut self, parse: impl FnOnce(&mut Self) -> Result<T, ParseError>) -> Option<T> {
-        let checkpoint = self.position();
-        match parse(self) {
-            Ok(result) => Some(result),
-            Err(_) => {
-                self.set_position(checkpoint);
-                None
-            }
+            None => Err(self.eof_error("identifier")),
         }
     }
 }
@@ -331,7 +320,7 @@ struct Parser<'a> {
 
 // `fn bump_if_*` consumes tokens only if matched
 // `fn parse_*` consumes tokens whether succeed or fail, the parser position is advanced
-// `attempt` consumes tokens only on success and rolls back otherwise.
+// A selected production commits: errors never restore the cursor.
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [SpannedToken<'a>]) -> Self {
         Self { tokens, pos: 0 }
@@ -370,13 +359,15 @@ impl<'a> Parser<'a> {
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
         let first_name = self.expect_ident()?;
         let mut first_binders = Vec::new();
-        while let Some(binders) = self.attempt(|p| p.parse_rightbinds()) {
+        while self.peek() == Some(&Token::LParen) {
+            let binders = self.parse_rightbinds()?;
             first_binders.extend(binders);
         }
         let (owner, name, binders) = if self.bump_if_token(Token::DoubleColon) {
             let name = self.expect_ident()?;
             let mut binders = Vec::new();
-            while let Some(parsed) = self.attempt(|p| p.parse_rightbinds()) {
+            while self.peek() == Some(&Token::LParen) {
+                let parsed = self.parse_rightbinds()?;
                 binders.extend(parsed);
             }
             (
@@ -417,7 +408,8 @@ impl<'a> Parser<'a> {
     fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
         let mut parameters = Vec::new();
-        while let Some(parsed) = self.attempt(|p| p.parse_rightbinds()) {
+        while self.peek() == Some(&Token::LParen) {
+            let parsed = self.parse_rightbinds()?;
             parameters.extend(parsed);
         }
         self.expect_token(Token::Colon)?;
@@ -470,11 +462,12 @@ impl<'a> Parser<'a> {
 
         let mut calls = vec![];
 
-        while let Some((mod_name, args)) = self.attempt(|p| p.parse_module_access_path()) {
-            calls.push((mod_name, args));
-
-            if !self.bump_if_token(Token::Period) {
-                break;
+        if matches!(self.peek(), Some(Token::Ident(_))) {
+            loop {
+                calls.push(self.parse_module_access_path()?);
+                if !self.bump_if_token(Token::Period) {
+                    break;
+                }
             }
         }
 
@@ -535,7 +528,8 @@ impl<'a> Parser<'a> {
 
         let mut parameters = vec![];
 
-        while let Some(param) = self.attempt(|p| p.parse_rightbinds()) {
+        while self.peek() == Some(&Token::LParen) {
+            let param = self.parse_rightbinds()?;
             parameters.extend(param);
         }
 
@@ -566,14 +560,8 @@ impl<'a> Parser<'a> {
         // body of constructors
         self.expect_token(Token::Assign)?;
         let mut constructors = vec![];
-        loop {
-            let save_pos = self.pos;
-            if let Ok((ctor_name, ctor_type, ends)) = self.parse_ctor_decl() {
-                constructors.push((ctor_name, ctor_type, ends));
-            } else {
-                self.pos = save_pos;
-                break;
-            }
+        while self.peek() == Some(&Token::Pipe) {
+            constructors.push(self.parse_ctor_decl()?);
         }
         self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::Inductive {
@@ -615,7 +603,7 @@ impl<'a> Parser<'a> {
                 start: token.start,
                 end: token.end,
             }),
-            None => Err(ParseError::eof_error("macro pattern atom")),
+            None => Err(self.eof_error("macro pattern atom")),
         }
     }
 
@@ -671,7 +659,7 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
-        let save_pos = self.pos;
+        let start_pos = self.pos;
         if self.bump_if_keyword("\\definition") {
             let def = self.parse_definition()?;
             return Ok(Some(def));
@@ -680,12 +668,12 @@ impl<'a> Parser<'a> {
             let (name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
-                start: self.span_at(save_pos).start,
+                start: self.span_at(start_pos).start,
                 end: self.span_at(self.pos).end,
             })?;
             let body = body.try_into().map_err(|msg| ParseError {
                 msg,
-                start: self.span_at(save_pos).start,
+                start: self.span_at(start_pos).start,
                 end: self.span_at(self.pos).end,
             })?;
             return Ok(Some(ModuleItem::ValueDefinition { name, ty, body }));
@@ -694,12 +682,12 @@ impl<'a> Parser<'a> {
             let (name, ty, body) = self.parse_program_definition()?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
-                start: self.span_at(save_pos).start,
+                start: self.span_at(start_pos).start,
                 end: self.span_at(self.pos).end,
             })?;
             let body = body.try_into().map_err(|msg| ParseError {
                 msg,
-                start: self.span_at(save_pos).start,
+                start: self.span_at(start_pos).start,
                 end: self.span_at(self.pos).end,
             })?;
             return Ok(Some(ModuleItem::ComputationDefinition { name, ty, body }));
@@ -746,7 +734,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationEval {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
             }));
@@ -757,7 +745,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationNormalize {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
             }));
@@ -770,12 +758,12 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ValueCheck {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
                 ty: ty.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
             }));
@@ -788,12 +776,12 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationCheck {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
                 ty: ty.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
             }));
@@ -804,7 +792,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ValueInfer {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
             }));
@@ -815,7 +803,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(ModuleItem::ComputationInfer {
                 exp: exp.try_into().map_err(|msg| ParseError {
                     msg,
-                    start: self.span_at(save_pos).start,
+                    start: self.span_at(start_pos).start,
                     end: self.span_at(self.pos).end,
                 })?,
             }));
@@ -832,7 +820,6 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::Semicolon)?;
             return Ok(Some(ModuleItem::Infer { exp }));
         }
-        self.pos = save_pos;
         Ok(None)
     }
 
@@ -844,9 +831,11 @@ impl<'a> Parser<'a> {
         self.expect_keyword("\\module")?;
         let module_name = self.expect_ident()?;
 
-        let parameters = self
-            .attempt(|parser| parser.parse_rightbinds())
-            .unwrap_or_default();
+        let parameters = if self.peek() == Some(&Token::LParen) {
+            self.parse_rightbinds()?
+        } else {
+            Vec::new()
+        };
 
         let body = if self.bump_if_token(Token::Semicolon) {
             ModuleBody::External
@@ -902,6 +891,10 @@ impl<'a> TokenCursor<'a> for Parser<'a> {
     }
 
     fn set_position(&mut self, position: usize) {
+        debug_assert!(
+            position >= self.pos,
+            "parser cursor must never move backwards"
+        );
         self.pos = position;
     }
 }
@@ -1029,7 +1022,7 @@ mod tests {
                 }
             }
         }
-        tok_all_ok(r"(x: X) -> Y => z");
+        tok_all_ok(r"\forall (x: X) -> Y => z");
         tok_all_ok(r"(x @ z # a");
         tok_all_ok(r"x $( y += z $)");
     }
@@ -1042,7 +1035,7 @@ mod tests {
                 println!("{:?}", tok);
             }
         }
-        print_and_unwrap(r"(x: X) -> Y => z");
+        print_and_unwrap(r"\forall (x: X) -> Y => z");
         print_and_unwrap(r"x $( y + z $) l");
         print_and_unwrap(r"x mymacro!{ a + b c } l");
         print_and_unwrap(r"x /* this is a comment */ (y z)");
@@ -1051,6 +1044,27 @@ mod tests {
         print_and_unwrap(r"(( $( $) ))");
         print_and_unwrap(r"x.y # name { hello: ");
     }
+
+    #[test]
+    fn malformed_declarations_do_not_end_optional_lists() {
+        for input in [
+            r"\definition f(x: A, y): A := x;",
+            r"\module M(x: A, y) {}",
+            r"\inductive T: \Set := | ctor: ; ;",
+            r"\import M(x := ) \as Alias;",
+            r"\import M(). \as Alias;",
+        ] {
+            let tokens = lex_all(input).unwrap();
+            let mut parser = Parser::new(&tokens);
+            let error = parser.try_parse_module_item().unwrap_err();
+            assert!(error.start > 0, "lost failure position: {input}: {error:?}");
+        }
+        let input = r"\definition f: A := x";
+        let tokens = lex_all(input).unwrap();
+        let error = Parser::new(&tokens).try_parse_module_item().unwrap_err();
+        assert_eq!((error.start, error.end), (input.len(), input.len()));
+    }
+
     #[test]
     fn parse_rightbinds_test() {
         fn print_and_unwrap(input: &'static str) {
@@ -1074,7 +1088,7 @@ mod tests {
         print_and_unwrap(r"| true : Bool ;");
         print_and_unwrap(r"| succ : Nat -> Nat ;");
         print_and_unwrap(r"| u: A -> B -> U ;");
-        print_and_unwrap(r"| cons : (X : \Set) -> X -> List X -> List X ;");
+        print_and_unwrap(r"| cons : \forall (X : \Set) -> X -> List X -> List X ;");
     }
     #[test]
     fn parse_module_item() {
@@ -1094,12 +1108,14 @@ mod tests {
                 }
             }
         }
-        print_and_unwrap(r"\definition id : (X : \Set) -> X -> X := (x : X) => x ;");
-        print_and_unwrap(r"\definition l : (X : \Set) -> X -> X := (x : X) => x ;");
-        print_and_unwrap(r"\definition l: (X, Y: \Set) -> \SetKind := \Set => a;");
+        print_and_unwrap(r"\definition id : \forall (X : \Set) -> X -> X := \fun (x : X) => x ;");
+        print_and_unwrap(r"\definition l : \forall (X : \Set) -> X -> X := \fun (x : X) => x ;");
+        print_and_unwrap(
+            r"\definition l: \forall (X, Y: \Set) -> \SetKind := \fun (_: \Set) => a;",
+        );
         print_and_unwrap(r"\definition one: Nat := Nat::succ Nat::zero;");
         print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
-        print_and_unwrap(r"\import MyModule ( A := B, C := (x: X) => y) \as T;");
+        print_and_unwrap(r"\import MyModule ( A := B, C := \fun (x: X) => y) \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
         print_and_unwrap(r"\inductive Nat : \Set := | zero : Nat ; | succ : Nat -> Nat ; ;");
     }

@@ -342,7 +342,7 @@ pub enum ComputationTermExp {
 
 #[derive(Debug, Clone)]
 // general binding syntax
-// A = (_: A), (x: A), ((x: A) | P), ((x: A) | h: P),
+// (x: A), (x: A \where P), (x: A \where P \as h).
 pub enum Bind {
     Named(RightBind),
     Subset {
@@ -631,6 +631,7 @@ pub enum SExp {
 
     // --- record type
     // nominal style
+    // Shared, unclassified record construction; classification belongs to elaboration.
     RecordTypeCtor {
         access: LocalAccess,
         parameters: Vec<SExp>,

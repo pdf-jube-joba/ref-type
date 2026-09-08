@@ -15,53 +15,53 @@
   \definition Rat: \Set := Rational.Fraction;
 
   \definition lt: Rat -> Rat -> \Prop :=
-    (x, y: Rat) => Rational.lt x y;
+    \fun (x, y: Rat) => Rational.lt x y;
 
   \definition addRat: Rat -> Rat -> Rat :=
-    (x, y: Rat) => Rational.add x y;
+    \fun (x, y: Rat) => Rational.add x y;
 
   \definition negRat: Rat -> Rat :=
-    (x: Rat) => Rational.neg x;
+    \fun (x: Rat) => Rational.neg x;
 
   \definition zeroRat: Rat := Rational.zero;
 
   /* Membership in a rational lower set. */
   \definition In: \Power(Rat) -> Rat -> \Prop :=
-    (L: \Power(Rat)) => (q: Rat) => \Pred(Rat, L, q);
+    \fun (L: \Power(Rat)) => \fun (q: Rat) => \Pred(Rat, L, q);
 
   /* A lower set is inhabited and proper. */
   \definition Inhabited: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
+    \fun (L: \Power(Rat)) =>
       \exists \Ty(Rat, \Subset(q, Rat, In L q));
 
   \definition Proper: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
-      \exists \Ty(Rat, \Subset(q, Rat, not!{(In L q)}));
+    \fun (L: \Power(Rat)) =>
+      \exists \Ty(Rat, \Subset(q, Rat, not!{\expr { In L q }}));
 
   /* It is downward closed and has no greatest member. */
   \definition Lower: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
-      (p, q: Rat) -> lt p q -> In L q -> In L p;
+    \fun (L: \Power(Rat)) =>
+      \forall (p, q: Rat) -> lt p q -> In L q -> In L p;
 
   \definition Rounded: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
-      (p: Rat) -> In L p ->
-        \exists \Ty(Rat, \Subset(q, Rat, and!{(In L q) (lt p q)}));
+    \fun (L: \Power(Rat)) =>
+      \forall (p: Rat) -> In L p ->
+        \exists \Ty(Rat, \Subset(q, Rat, and!{\expr { In L q } \expr { lt p q }}));
 
   /* Locatedness is the constructive replacement for deciding membership. */
   \definition Located: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
-      (p, q: Rat) -> lt p q -> or!{(In L p) (not!{(In L q)})};
+    \fun (L: \Power(Rat)) =>
+      \forall (p, q: Rat) -> lt p q -> or!{\expr { In L p } \expr { not!{\expr { In L q }} }};
 
   /* Membership must not depend on the chosen fraction representative. */
   \definition RespectsFractionEq: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
-      (p, q: Rat) -> Rational.FractionEq p q -> In L p -> In L q;
+    \fun (L: \Power(Rat)) =>
+      \forall (p, q: Rat) -> Rational.FractionEq p q -> In L p -> In L q;
 
   \definition IsCut: \Power(Rat) -> \Prop :=
-    (L: \Power(Rat)) =>
-      and6!{(Inhabited L) (Proper L) (Lower L)
-        (Rounded L) (Located L) (RespectsFractionEq L)};
+    \fun (L: \Power(Rat)) =>
+      and6!{\expr { Inhabited L } \expr { Proper L } \expr { Lower L }
+        \expr { Rounded L } \expr { Located L } \expr { RespectsFractionEq L }};
 
   /* Real is the refinement of rational lower sets by the cut laws. */
   \definition CutSet: \Power(\Power(Rat)) :=
@@ -72,41 +72,41 @@
 
   /* A real weakens to its underlying rational lower set. */
   \definition mem: Real -> Rat -> \Prop :=
-    (x: Real) => (q: Rat) => In x q;
+    \fun (x: Real) => \fun (q: Rat) => In x q;
 
   \definition underlying: Real -> \Power(Rat) :=
-    (x: Real) => x;
+    \fun (x: Real) => x;
 
   /* Inclusion is available without any extensionality principle. */
   \definition Le: Real -> Real -> \Prop :=
-    (x, y: Real) => (q: Rat) -> mem x q -> mem y q;
+    \fun (x, y: Real) => \forall (q: Rat) -> mem x q -> mem y q;
 
   \definition Eq: Real -> Real -> \Prop :=
-    (x, y: Real) => x = y;
+    \fun (x, y: Real) => x = y;
 
-  \definition leRefl: (x: Real) -> Le x x :=
-    (x: Real) => (q: Rat) => (qx: mem x q) => qx;
+  \definition leRefl: \forall (x: Real) -> Le x x :=
+    \fun (x: Real) => \fun (q: Rat) => \fun (qx: mem x q) => qx;
 
   \definition leTrans:
-    (x, y, z: Real) -> Le x y -> Le y z -> Le x z :=
-    (x, y, z: Real) => (xy: Le x y) => (yz: Le y z) =>
-      (q: Rat) => (qx: mem x q) => yz q (xy q qx);
+    \forall (x, y, z: Real) -> Le x y -> Le y z -> Le x z :=
+    \fun (x, y, z: Real) => \fun (xy: Le x y) => \fun (yz: Le y z) =>
+      \fun (q: Rat) => \fun (qx: mem x q) => yz q (xy q qx);
 
   /* Kernel equality of cuts follows from the trusted subset extensionality. */
   \definition eqByExt:
-    (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
-    (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+    \forall (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
+    \fun (x, y: Real) => \fun (xy: Le x y) => \fun (yx: Le y x) =>
       \axiom:setext(underlying x, underlying y, xy, yx);
 
   \definition leAntisym:
-    (x, y: Real) -> Le x y -> Le y x -> x = y :=
-    (x, y: Real) => (xy: Le x y) => (yx: Le y x) =>
+    \forall (x, y: Real) -> Le x y -> Le y x -> x = y :=
+    \fun (x, y: Real) => \fun (xy: Le x y) => \fun (yx: Le y x) =>
       eqByExt x y xy yx;
 
   \definition Lt: Real -> Real -> \Prop :=
-    (x, y: Real) =>
+    \fun (x, y: Real) =>
       \exists \Ty(Rat,
-        \Subset(q, Rat, and!{(not!{(mem x q)}) (mem y q)}));
+        \Subset(q, Rat, and!{\expr { not!{\expr { mem x q }} } \expr { mem y q }}));
 
   /*
    * Arithmetic lower sets.  The nested Closed module asks for exactly the

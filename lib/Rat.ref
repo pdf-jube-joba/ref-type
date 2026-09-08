@@ -15,8 +15,8 @@
 \definition oneNat: Nat := N.oneSet;
 \definition NatLt: Nat -> Nat -> \Prop := N.Lt;
 \definition NatLe: Nat -> Nat -> \Prop := N.Le;
-\definition natLeRefl: (n: Nat) -> NatLe n n := N.leRefl;
-\definition natLeTrans: (a, b, c: Nat) -> NatLe a b -> NatLe b c -> NatLe a c := N.leTrans;
+\definition natLeRefl: \forall (n: Nat) -> NatLe n n := N.leRefl;
+\definition natLeTrans: \forall (a, b, c: Nat) -> NatLe a b -> NatLe b c -> NatLe a c := N.leTrans;
 
 /* The pair (a,b) represents a-b. */
 \definition Integer: \Set := P.Times[Nat, Nat];
@@ -29,17 +29,17 @@
 \definition oneInteger: Integer := integer oneNat zeroNat;
 
 \definition negInteger: Integer -> Integer :=
-  (x: Integer) => integer (negative x) (positive x);
+  \fun (x: Integer) => integer (negative x) (positive x);
 
 \definition addInteger: Integer -> Integer -> Integer :=
-  (x, y: Integer) =>
+  \fun (x, y: Integer) =>
     integer
       (natAdd (positive x) (positive y))
       (natAdd (negative x) (negative y));
 
 /* (a-b)(c-d) = (ac+bd) - (ad+bc). */
 \definition mulInteger: Integer -> Integer -> Integer :=
-  (x, y: Integer) =>
+  \fun (x, y: Integer) =>
     integer
       (natAdd
         (natMul (positive x) (positive y))
@@ -49,34 +49,34 @@
         (natMul (negative x) (positive y)));
 
 \definition subInteger: Integer -> Integer -> Integer :=
-  (x, y: Integer) => addInteger x (negInteger y);
+  \fun (x, y: Integer) => addInteger x (negInteger y);
 
 \definition IntegerEq: Integer -> Integer -> \Prop :=
-  (x, y: Integer) =>
+  \fun (x, y: Integer) =>
     natAdd (positive x) (negative y) =
       natAdd (positive y) (negative x);
 
 \definition integerEqRefl:
-  (x: Integer) -> IntegerEq x x :=
-  (x: Integer) =>
+  \forall (x: Integer) -> IntegerEq x x :=
+  \fun (x: Integer) =>
     \refl(natAdd (positive x) (negative x));
 
 \definition integerEqSym:
-  (x, y: Integer) -> IntegerEq x y -> IntegerEq y x :=
-  (x, y: Integer) => (xy: IntegerEq x y) =>
+  \forall (x, y: Integer) -> IntegerEq x y -> IntegerEq y x :=
+  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
     sym!{N.Nat}
       (natAdd (positive x) (negative y))
       (natAdd (positive y) (negative x))
       xy;
 
 \definition IntegerLt: Integer -> Integer -> \Prop :=
-  (x, y: Integer) =>
+  \fun (x, y: Integer) =>
     NatLt
       (natAdd (positive x) (negative y))
       (natAdd (positive y) (negative x));
 
 \definition IntegerNonZero: Integer -> \Prop :=
-  (x: Integer) => not!{(IntegerEq x zeroInteger)};
+  \fun (x: Integer) => not!{\expr { IntegerEq x zeroInteger }};
 
 /*
  * A fraction stores a numerator and the predecessor of a positive natural
@@ -89,59 +89,59 @@
 };
 
 \definition numerator: Fraction -> Integer :=
-  (x: Fraction) => Fraction::numerator x;
+  \fun (x: Fraction) => Fraction::numerator x;
 
 \definition denominatorIndex: Fraction -> Nat :=
-  (x: Fraction) => Fraction::denominatorIndex x;
+  \fun (x: Fraction) => Fraction::denominatorIndex x;
 
 \definition denominator: Fraction -> Integer :=
-  (x: Fraction) =>
+  \fun (x: Fraction) =>
     integer (N.Nat::succ (denominatorIndex x)) zeroNat;
 
 \definition fraction: Integer -> Nat -> Fraction :=
-  (n: Integer) => (d: Nat) =>
-    Fraction { numerator := n, denominatorIndex := d };
+  \fun (n: Integer) => \fun (d: Nat) =>
+    \record Fraction { numerator := n, denominatorIndex := d };
 
 /* (d + 1)(e + 1) = (de + d + e) + 1. */
 \definition denominatorProductIndex: Nat -> Nat -> Nat :=
-  (d, e: Nat) => natAdd (natAdd (natMul d e) d) e;
+  \fun (d, e: Nat) => natAdd (natAdd (natMul d e) d) e;
 
 \definition zero: Fraction := fraction zeroInteger zeroNat;
 
 \definition one: Fraction := fraction oneInteger zeroNat;
 
 \definition lt: Fraction -> Fraction -> \Prop :=
-  (x, y: Fraction) =>
+  \fun (x, y: Fraction) =>
     IntegerLt
       (mulInteger (numerator x) (denominator y))
       (mulInteger (numerator y) (denominator x));
 
 /* Equality before quotienting is equality after cross multiplication. */
 \definition FractionEq: Fraction -> Fraction -> \Prop :=
-  (x, y: Fraction) =>
+  \fun (x, y: Fraction) =>
     IntegerEq
       (mulInteger (numerator x) (denominator y))
       (mulInteger (numerator y) (denominator x));
 
 \definition fractionEqRefl:
-  (x: Fraction) -> FractionEq x x :=
-  (x: Fraction) =>
+  \forall (x: Fraction) -> FractionEq x x :=
+  \fun (x: Fraction) =>
     integerEqRefl
       (mulInteger (numerator x) (denominator x));
 
 \definition fractionEqSym:
-  (x, y: Fraction) -> FractionEq x y -> FractionEq y x :=
-  (x, y: Fraction) => (xy: FractionEq x y) =>
+  \forall (x, y: Fraction) -> FractionEq x y -> FractionEq y x :=
+  \fun (x, y: Fraction) => \fun (xy: FractionEq x y) =>
     integerEqSym
       (mulInteger (numerator x) (denominator y))
       (mulInteger (numerator y) (denominator x))
       xy;
 
 \definition NumeratorNonZero: Fraction -> \Prop :=
-  (x: Fraction) => IntegerNonZero (numerator x);
+  \fun (x: Fraction) => IntegerNonZero (numerator x);
 
 \definition add: Fraction -> Fraction -> Fraction :=
-  (x, y: Fraction) =>
+  \fun (x, y: Fraction) =>
     fraction
       (addInteger
         (mulInteger (numerator x) (denominator y))
@@ -150,14 +150,14 @@
         (denominatorIndex x) (denominatorIndex y));
 
 \definition neg: Fraction -> Fraction :=
-  (x: Fraction) =>
+  \fun (x: Fraction) =>
     fraction (negInteger (numerator x)) (denominatorIndex x);
 
 \definition sub: Fraction -> Fraction -> Fraction :=
-  (x, y: Fraction) => add x (neg y);
+  \fun (x, y: Fraction) => add x (neg y);
 
 \definition mul: Fraction -> Fraction -> Fraction :=
-  (x, y: Fraction) =>
+  \fun (x, y: Fraction) =>
     fraction
       (mulInteger (numerator x) (numerator y))
       (denominatorProductIndex
@@ -170,6 +170,6 @@
  */
 \module Quotient(
     fractionEqTrans:
-      (x, y, z: Fraction) ->
+      \forall (x, y, z: Fraction) ->
         FractionEq x y -> FractionEq y z -> FractionEq x z,
   );

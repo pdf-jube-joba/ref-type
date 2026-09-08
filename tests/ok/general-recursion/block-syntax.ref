@@ -1,0 +1,23 @@
+/* Surface sequencing preserves CBPV value/computation scopes and evaluation. */
+\module Blocks {
+  \inductive Bit: \VType :=
+  | zero: Bit;
+  | one: Bit;
+  ;
+  \cdefinition identity: Bit ~> \F(Bit) :=
+    \cfun (x: Bit) => \return x;
+  \vdefinition suspended: \U(Bit ~> \F(Bit)) := \thunk identity;
+  \cdefinition result: \F(Bit) := \do {
+    \let x: Bit := Bit::one;
+    \bind x: Bit <- \capp(\force suspended, x);
+    \case x \in Bit {
+      | zero() => \return Bit::zero;
+      | one() => \do {
+          \let y: Bit := x;
+          \capp(identity, y)
+        };
+    }
+  };
+  \ceval result;
+  \ccheck result: \F(Bit);
+}

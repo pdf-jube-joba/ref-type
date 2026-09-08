@@ -8,7 +8,7 @@
 \module RoseMap(
   A: \VType,
   B: \VType,
-  function: \U(\CFun(A, \F(B)))
+  function: \U((A ~> \F(B)))
 ) {
   \inductive InputRose: \VType :=
   | empty: InputRose;
@@ -34,11 +34,10 @@
   ;
 
   \vdefinition step:
-    \U(\CFun(State, \F(\PRunStep(State, OutputRose)))) :=
-    \thunk(\clam(state, State,
-      \vcase(State, state) {
+    \U((State ~> \F(\PRunStep(State, OutputRose)))) :=
+    \thunk((\cfun (state: State) => \case (state) \in State {
       | visit(input, continuation) =>
-          \vcase(InputRose, input) {
+          \case (input) \in InputRose {
           | empty() =>
               \return(\Pcontinue(
                 State,
@@ -47,11 +46,7 @@
                   continuation
                   OutputRose::empty));
           | node(label, children, siblings) =>
-              \sequence(
-                \capp(\force(function), label),
-                mappedLabel,
-                B,
-                \return(\Pcontinue(
+              \do { \bind mappedLabel: B <- \capp(\force(function), label); \return(\Pcontinue(
                   State,
                   OutputRose,
                   State::visit
@@ -59,10 +54,10 @@
                     (Continuation::afterChildren
                       mappedLabel
                       siblings
-                      continuation))));
+                      continuation))) };
           };
       | resume(continuation, mapped) =>
-          \vcase(Continuation, continuation) {
+          \case (continuation) \in Continuation {
           | done() =>
               \return(\Pfinish(State, OutputRose, mapped));
           | afterChildren(mappedLabel, siblings, rest) =>
@@ -85,9 +80,8 @@
           };
       }));
 
-  \cdefinition map: \CFun(InputRose, \F(OutputRose)) :=
-    \clam(input, InputRose,
-      \Prun(
+  \cdefinition map: (InputRose ~> \F(OutputRose)) :=
+    (\cfun (input: InputRose) => \Prun(
         State,
         OutputRose,
         step,
