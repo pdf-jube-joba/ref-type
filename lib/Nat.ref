@@ -706,6 +706,82 @@
           (trans!{Nat} _ _ _ (sym!{Nat} _ _ (mulDistribLeft a b (mulSet b c)))
             (congr!{Nat Nat} (mulSet a) _ _ (sym!{Nat} _ _ (mulSuccRight b c))))));
 
+\definition zeroEqSuccElim: \forall (n: Nat) -> \forall (P: \Prop) ->
+  Nat::zero = Nat::succ n -> P :=
+  \fun (n: Nat) => \fun (P: \Prop) => \fun (e: Nat::zero = Nat::succ n) =>
+    B.absurd P
+      (sym!{B.Bool} B.Bool::true B.Bool::false
+        (congr!{Nat B.Bool} isZeroSet Nat::zero (Nat::succ n) e));
+
+\definition succEqZeroElim: \forall (n: Nat) -> \forall (P: \Prop) ->
+  Nat::succ n = Nat::zero -> P :=
+  \fun (n: Nat) => \fun (P: \Prop) => \fun (e: Nat::succ n = Nat::zero) =>
+    B.absurd P
+      (congr!{Nat B.Bool} isZeroSet (Nat::succ n) Nat::zero e);
+
+\definition mulSuccSucc: \forall (a, k: Nat) ->
+  mulSet (Nat::succ a) (Nat::succ k) =
+    Nat::succ (addSet k (mulSet a (Nat::succ k))) :=
+  \fun (a, k: Nat) =>
+    trans!{Nat} _ _ _ (mulSuccLeft a (Nat::succ k))
+      (addSuccLeft k (mulSet a (Nat::succ k)));
+
+/* Multiplication by a successor is injective. */
+\definition mulCancelRightSucc: \forall (k, a, b: Nat) ->
+  mulSet a (Nat::succ k) = mulSet b (Nat::succ k) -> a = b :=
+  \fun (k: Nat) =>
+    \prec(\Prop, Nat)
+      (\fun (a: Nat) => \forall (b: Nat) ->
+        mulSet a (Nat::succ k) = mulSet b (Nat::succ k) -> a = b)
+      (\prec(\Prop, Nat)
+        (\fun (b: Nat) =>
+          mulSet Nat::zero (Nat::succ k) = mulSet b (Nat::succ k) ->
+          Nat::zero = b)
+        (\fun (e: mulSet Nat::zero (Nat::succ k) =
+          mulSet Nat::zero (Nat::succ k)) => \refl(Nat::zero))
+        (\fun (b: Nat) =>
+        \fun (unused: mulSet Nat::zero (Nat::succ k) =
+          mulSet b (Nat::succ k) -> Nat::zero = b) =>
+        \fun (e: mulSet Nat::zero (Nat::succ k) =
+          mulSet (Nat::succ b) (Nat::succ k)) =>
+          zeroEqSuccElim
+            (addSet k (mulSet b (Nat::succ k)))
+            (Nat::zero = Nat::succ b)
+            (trans!{Nat} _ _ _
+              (sym!{Nat} _ _ (mulZeroLeft (Nat::succ k)))
+              (trans!{Nat} _ _ _ e (mulSuccSucc b k)))))
+      (\fun (a: Nat) =>
+      \fun (ih: \forall (b: Nat) ->
+        mulSet a (Nat::succ k) = mulSet b (Nat::succ k) -> a = b) =>
+        \prec(\Prop, Nat)
+          (\fun (b: Nat) =>
+            mulSet (Nat::succ a) (Nat::succ k) =
+              mulSet b (Nat::succ k) -> Nat::succ a = b)
+          (\fun (e: mulSet (Nat::succ a) (Nat::succ k) =
+            mulSet Nat::zero (Nat::succ k)) =>
+            succEqZeroElim
+              (addSet k (mulSet a (Nat::succ k)))
+              (Nat::succ a = Nat::zero)
+              (trans!{Nat} _ _ _
+                (sym!{Nat} _ _ (mulSuccSucc a k))
+                (trans!{Nat} _ _ _ e (mulZeroLeft (Nat::succ k)))))
+          (\fun (b: Nat) =>
+          \fun (unused: mulSet (Nat::succ a) (Nat::succ k) =
+            mulSet b (Nat::succ k) -> Nat::succ a = b) =>
+          \fun (e: mulSet (Nat::succ a) (Nat::succ k) =
+            mulSet (Nat::succ b) (Nat::succ k)) =>
+            succCong a b
+              (ih b
+                (addCancelLeft k
+                  (mulSet a (Nat::succ k))
+                  (mulSet b (Nat::succ k))
+                  (succInjective
+                    (addSet k (mulSet a (Nat::succ k)))
+                    (addSet k (mulSet b (Nat::succ k)))
+                    (trans!{Nat} _ _ _
+                      (sym!{Nat} _ _ (mulSuccSucc a k))
+                      (trans!{Nat} _ _ _ e (mulSuccSucc b k))))))));
+
 /* Convenient Set constants, reflected from the Program constants. */
 \definition zeroSet: Nat := \Force(Nat, \box(Nat, zero));
 \definition oneSet: Nat := \Force(Nat, \box(Nat, one));

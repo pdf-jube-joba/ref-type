@@ -1,5 +1,8 @@
 \import \root.Equality() \as Equality;
 \use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
 
 /* Rational representatives with an integer numerator and positive denominator. */
 \import \root.Logic() \as Logic;
@@ -69,6 +72,264 @@
       (natAdd (positive y) (negative x))
       xy;
 
+/* Rearranging four summands is the normalization step used by transitivity. */
+\definition integerAddShuffle: \forall (a, b, c, d: Nat) ->
+  natAdd (natAdd a b) (natAdd c d) =
+    natAdd (natAdd a d) (natAdd c b) :=
+  \fun (a, b, c, d: Nat) =>
+    trans!{Nat} _ _ _ (N.addInterchange a b c d)
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat} (natAdd (natAdd a c)) _ _ (N.addComm b d))
+        (sym!{Nat} _ _ (N.addInterchange a d c b)));
+
+\definition integerEqTrans:
+  \forall (x, y, z: Integer) ->
+    IntegerEq x y -> IntegerEq y z -> IntegerEq x z :=
+  \fun (x, y, z: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (yz: IntegerEq y z) =>
+    N.addCancelRight
+      (natAdd (positive y) (negative y))
+      (natAdd (positive x) (negative z))
+      (natAdd (positive z) (negative x))
+      (trans!{Nat} _ _ _
+        (integerAddShuffle
+          (positive x) (negative z) (positive y) (negative y))
+        (trans!{Nat} _ _ _
+          (congr2!{Nat Nat Nat} natAdd
+            (natAdd (positive x) (negative y))
+            (natAdd (positive y) (negative x))
+            (natAdd (positive y) (negative z))
+            (natAdd (positive z) (negative y))
+            xy yz)
+          (trans!{Nat} _ _ _
+            (N.addInterchange
+              (positive y) (negative x) (positive z) (negative y))
+            (trans!{Nat} _ _ _
+              (congr!{Nat Nat}
+                (\fun (n: Nat) =>
+                  natAdd n (natAdd (negative x) (negative y)))
+                _ _ (N.addComm (positive y) (positive z)))
+              (sym!{Nat} _ _
+                (N.addInterchange
+                  (positive z) (negative x)
+                  (positive y) (negative y)))))));
+
+\definition integerEqOfFields:
+  \forall (x, y: Integer) ->
+    positive x = positive y -> negative x = negative y -> IntegerEq x y :=
+  \fun (x, y: Integer) =>
+  \fun (p: positive x = positive y) =>
+  \fun (n: negative x = negative y) =>
+    congr2!{Nat Nat Nat} natAdd
+      _ _ _ _ p (sym!{Nat} _ _ n);
+
+\definition addIntegerRespects:
+  \forall (x, y, u, v: Integer) ->
+    IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (addInteger x u) (addInteger y v) :=
+  \fun (x, y, u, v: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (uv: IntegerEq u v) =>
+    trans!{Nat} _ _ _
+      (N.addInterchange
+        (positive x) (positive u) (negative y) (negative v))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAdd
+          (natAdd (positive x) (negative y))
+          (natAdd (positive y) (negative x))
+          (natAdd (positive u) (negative v))
+          (natAdd (positive v) (negative u))
+          xy uv)
+        (sym!{Nat} _ _
+          (N.addInterchange
+            (positive y) (positive v) (negative x) (negative u))));
+
+\definition negIntegerRespects:
+  \forall (x, y: Integer) ->
+    IntegerEq x y -> IntegerEq (negInteger x) (negInteger y) :=
+  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+    trans!{Nat} _ _ _ (N.addComm (negative x) (positive y))
+      (trans!{Nat}
+        (natAdd (positive y) (negative x))
+        (natAdd (positive x) (negative y))
+        (natAdd (negative y) (positive x))
+        (sym!{Nat}
+          (natAdd (positive x) (negative y))
+          (natAdd (positive y) (negative x)) xy)
+        (N.addComm (positive x) (negative y)));
+
+\definition subIntegerRespects:
+  \forall (x, y, u, v: Integer) ->
+    IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (subInteger x u) (subInteger y v) :=
+  \fun (x, y, u, v: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (uv: IntegerEq u v) =>
+    addIntegerRespects x y (negInteger u) (negInteger v)
+      xy (negIntegerRespects u v uv);
+
+\definition scaleInteger: Integer -> Nat -> Integer :=
+  \fun (x: Integer) => \fun (n: Nat) =>
+    integer (natMul (positive x) n) (natMul (negative x) n);
+
+\definition scaleIntegerRespects:
+  \forall (x, y: Integer) -> \forall (n: Nat) ->
+    IntegerEq x y -> IntegerEq (scaleInteger x n) (scaleInteger y n) :=
+  \fun (x, y: Integer) => \fun (n: Nat) => \fun (xy: IntegerEq x y) =>
+    trans!{Nat}
+      (natAdd (natMul (positive x) n) (natMul (negative y) n))
+      (natMul (natAdd (positive x) (negative y)) n)
+      (natAdd (natMul (positive y) n) (natMul (negative x) n))
+      (sym!{Nat}
+        (natMul (natAdd (positive x) (negative y)) n)
+        (natAdd (natMul (positive x) n) (natMul (negative y) n))
+        (N.mulDistribRight (positive x) (negative y) n))
+      (trans!{Nat}
+        (natMul (natAdd (positive x) (negative y)) n)
+        (natMul (natAdd (positive y) (negative x)) n)
+        (natAdd (natMul (positive y) n) (natMul (negative x) n))
+        (congr!{Nat Nat} (\fun (a: Nat) => natMul a n)
+          (natAdd (positive x) (negative y))
+          (natAdd (positive y) (negative x)) xy)
+        (N.mulDistribRight (positive y) (negative x) n));
+
+\definition natMulSwapRight: \forall (x, a, b: Nat) ->
+  natMul (natMul x a) b = natMul (natMul x b) a :=
+  \fun (x, a, b: Nat) =>
+    trans!{Nat} _ _ _ (N.mulAssoc x a b)
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat} (natMul x) _ _ (N.mulComm a b))
+        (sym!{Nat} _ _ (N.mulAssoc x b a)));
+
+\definition scaleIntegerSwap:
+  \forall (x: Integer) -> \forall (a, b: Nat) ->
+    IntegerEq (scaleInteger (scaleInteger x a) b)
+      (scaleInteger (scaleInteger x b) a) :=
+  \fun (x: Integer) => \fun (a, b: Nat) =>
+    integerEqOfFields
+      (scaleInteger (scaleInteger x a) b)
+      (scaleInteger (scaleInteger x b) a)
+      (natMulSwapRight (positive x) a b)
+      (natMulSwapRight (negative x) a b);
+
+\definition scaleIntegerCancelPositive:
+  \forall (x, y: Integer) -> \forall (k: Nat) ->
+    IntegerEq
+      (scaleInteger x (N.Nat::succ k))
+      (scaleInteger y (N.Nat::succ k)) ->
+    IntegerEq x y :=
+  \fun (x, y: Integer) => \fun (k: Nat) =>
+  \fun (xy:
+    IntegerEq
+      (scaleInteger x (N.Nat::succ k))
+      (scaleInteger y (N.Nat::succ k))) =>
+    N.mulCancelRightSucc k
+      (natAdd (positive x) (negative y))
+      (natAdd (positive y) (negative x))
+      (trans!{Nat}
+        (natMul (natAdd (positive x) (negative y)) (N.Nat::succ k))
+        (natAdd
+          (natMul (positive x) (N.Nat::succ k))
+          (natMul (negative y) (N.Nat::succ k)))
+        (natMul (natAdd (positive y) (negative x)) (N.Nat::succ k))
+        (N.mulDistribRight (positive x) (negative y) (N.Nat::succ k))
+        (trans!{Nat}
+          (natAdd
+            (natMul (positive x) (N.Nat::succ k))
+            (natMul (negative y) (N.Nat::succ k)))
+          (natAdd
+            (natMul (positive y) (N.Nat::succ k))
+            (natMul (negative x) (N.Nat::succ k)))
+          (natMul (natAdd (positive y) (negative x)) (N.Nat::succ k))
+          xy
+          (sym!{Nat}
+            (natMul (natAdd (positive y) (negative x)) (N.Nat::succ k))
+            (natAdd
+              (natMul (positive y) (N.Nat::succ k))
+              (natMul (negative x) (N.Nat::succ k)))
+            (N.mulDistribRight
+              (positive y) (negative x) (N.Nat::succ k)))));
+
+\definition mulIntegerAsSum:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger x y)
+      (addInteger
+        (scaleInteger x (positive y))
+        (negInteger (scaleInteger x (negative y)))) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields (mulInteger x y)
+      (addInteger
+        (scaleInteger x (positive y))
+        (negInteger (scaleInteger x (negative y))))
+      (\refl(positive (mulInteger x y)))
+      (N.addComm
+        (natMul (positive x) (negative y))
+        (natMul (negative x) (positive y)));
+
+\definition mulIntegerComm:
+  \forall (x, y: Integer) -> IntegerEq (mulInteger x y) (mulInteger y x) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields (mulInteger x y) (mulInteger y x)
+      (congr2!{Nat Nat Nat} natAdd _ _ _ _
+        (N.mulComm (positive x) (positive y))
+        (N.mulComm (negative x) (negative y)))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAdd _ _ _ _
+          (N.mulComm (positive x) (negative y))
+          (N.mulComm (negative x) (positive y)))
+        (N.addComm
+          (natMul (negative y) (positive x))
+          (natMul (positive y) (negative x))));
+
+\definition mulIntegerRespectsLeft:
+  \forall (x, y, z: Integer) ->
+    IntegerEq x y -> IntegerEq (mulInteger x z) (mulInteger y z) :=
+  \fun (x, y, z: Integer) => \fun (xy: IntegerEq x y) =>
+    integerEqTrans (mulInteger x z)
+      (addInteger
+        (scaleInteger x (positive z))
+        (negInteger (scaleInteger x (negative z))))
+      (mulInteger y z)
+      (mulIntegerAsSum x z)
+      (integerEqTrans
+        (addInteger
+          (scaleInteger x (positive z))
+          (negInteger (scaleInteger x (negative z))))
+        (addInteger
+          (scaleInteger y (positive z))
+          (negInteger (scaleInteger y (negative z))))
+        (mulInteger y z)
+        (addIntegerRespects
+          (scaleInteger x (positive z)) (scaleInteger y (positive z))
+          (negInteger (scaleInteger x (negative z)))
+          (negInteger (scaleInteger y (negative z)))
+          (scaleIntegerRespects x y (positive z) xy)
+          (negIntegerRespects
+            (scaleInteger x (negative z))
+            (scaleInteger y (negative z))
+            (scaleIntegerRespects x y (negative z) xy)))
+        (integerEqSym (mulInteger y z)
+          (addInteger
+            (scaleInteger y (positive z))
+            (negInteger (scaleInteger y (negative z))))
+          (mulIntegerAsSum y z)));
+
+\definition mulIntegerRespects:
+  \forall (x, y, u, v: Integer) ->
+    IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (mulInteger x u) (mulInteger y v) :=
+  \fun (x, y, u, v: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (uv: IntegerEq u v) =>
+    integerEqTrans (mulInteger x u) (mulInteger y u) (mulInteger y v)
+      (mulIntegerRespectsLeft x y u xy)
+      (integerEqTrans (mulInteger y u) (mulInteger u y) (mulInteger y v)
+        (mulIntegerComm y u)
+        (integerEqTrans (mulInteger u y) (mulInteger v y) (mulInteger y v)
+          (mulIntegerRespectsLeft u v y uv)
+          (mulIntegerComm v y)));
+
 \definition IntegerLt: Integer -> Integer -> \Prop :=
   \fun (x, y: Integer) =>
     NatLt
@@ -97,6 +358,26 @@
 \definition denominator: Fraction -> Integer :=
   \fun (x: Fraction) =>
     integer (N.Nat::succ (denominatorIndex x)) zeroNat;
+
+\definition mulIntegerDenominator:
+  \forall (x: Integer) -> \forall (d: Nat) ->
+    IntegerEq
+      (mulInteger x (integer (N.Nat::succ d) zeroNat))
+      (scaleInteger x (N.Nat::succ d)) :=
+  \fun (x: Integer) => \fun (d: Nat) =>
+    integerEqOfFields
+      (mulInteger x (integer (N.Nat::succ d) zeroNat))
+      (scaleInteger x (N.Nat::succ d))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAdd _ _ _ _
+          (\refl(natMul (positive x) (N.Nat::succ d)))
+          (N.mulZeroRight (negative x)))
+        (N.addZeroRight (natMul (positive x) (N.Nat::succ d))))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAdd _ _ _ _
+          (N.mulZeroRight (positive x))
+          (\refl(natMul (negative x) (N.Nat::succ d))))
+        (N.addZeroLeft (natMul (negative x) (N.Nat::succ d))));
 
 \definition fraction: Integer -> Nat -> Fraction :=
   \fun (n: Integer) => \fun (d: Nat) =>
@@ -137,6 +418,102 @@
       (mulInteger (numerator y) (denominator x))
       xy;
 
+\definition fractionEqAsScales:
+  \forall (x, y: Fraction) -> FractionEq x y ->
+    IntegerEq
+      (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex y)))
+      (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex x))) :=
+  \fun (x, y: Fraction) => \fun (xy: FractionEq x y) =>
+    integerEqTrans
+      (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex y)))
+      (mulInteger (numerator x) (denominator y))
+      (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex x)))
+      (integerEqSym
+        (mulInteger (numerator x) (denominator y))
+        (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex y)))
+        (mulIntegerDenominator (numerator x) (denominatorIndex y)))
+      (integerEqTrans
+        (mulInteger (numerator x) (denominator y))
+        (mulInteger (numerator y) (denominator x))
+        (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex x)))
+        xy
+        (mulIntegerDenominator (numerator y) (denominatorIndex x)));
+
+\definition fractionEqTrans:
+  \forall (x, y, z: Fraction) ->
+    FractionEq x y -> FractionEq y z -> FractionEq x z :=
+  \fun (x, y, z: Fraction) =>
+  \fun (xy: FractionEq x y) =>
+  \fun (yz: FractionEq y z) =>
+    integerEqTrans
+      (mulInteger (numerator x) (denominator z))
+      (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex z)))
+      (mulInteger (numerator z) (denominator x))
+      (mulIntegerDenominator (numerator x) (denominatorIndex z))
+      (integerEqTrans
+        (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex z)))
+        (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+        (mulInteger (numerator z) (denominator x))
+        (scaleIntegerCancelPositive
+          (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex z)))
+          (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+          (denominatorIndex y)
+          (integerEqTrans
+            (scaleInteger
+              (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex z)))
+              (N.Nat::succ (denominatorIndex y)))
+            (scaleInteger
+              (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex y)))
+              (N.Nat::succ (denominatorIndex z)))
+            (scaleInteger
+              (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+              (N.Nat::succ (denominatorIndex y)))
+            (scaleIntegerSwap (numerator x)
+              (N.Nat::succ (denominatorIndex z))
+              (N.Nat::succ (denominatorIndex y)))
+            (integerEqTrans
+              (scaleInteger
+                (scaleInteger (numerator x) (N.Nat::succ (denominatorIndex y)))
+                (N.Nat::succ (denominatorIndex z)))
+              (scaleInteger
+                (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex x)))
+                (N.Nat::succ (denominatorIndex z)))
+              (scaleInteger
+                (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+                (N.Nat::succ (denominatorIndex y)))
+              (scaleIntegerRespects _ _ _ (fractionEqAsScales x y xy))
+              (integerEqTrans
+                (scaleInteger
+                  (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex x)))
+                  (N.Nat::succ (denominatorIndex z)))
+                (scaleInteger
+                  (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex z)))
+                  (N.Nat::succ (denominatorIndex x)))
+                (scaleInteger
+                  (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+                  (N.Nat::succ (denominatorIndex y)))
+                (scaleIntegerSwap (numerator y)
+                  (N.Nat::succ (denominatorIndex x))
+                  (N.Nat::succ (denominatorIndex z)))
+                (integerEqTrans
+                  (scaleInteger
+                    (scaleInteger (numerator y) (N.Nat::succ (denominatorIndex z)))
+                    (N.Nat::succ (denominatorIndex x)))
+                  (scaleInteger
+                    (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex y)))
+                    (N.Nat::succ (denominatorIndex x)))
+                  (scaleInteger
+                    (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+                    (N.Nat::succ (denominatorIndex y)))
+                  (scaleIntegerRespects _ _ _ (fractionEqAsScales y z yz))
+                  (scaleIntegerSwap (numerator z)
+                    (N.Nat::succ (denominatorIndex y))
+                    (N.Nat::succ (denominatorIndex x))))))))
+        (integerEqSym
+          (mulInteger (numerator z) (denominator x))
+          (scaleInteger (numerator z) (N.Nat::succ (denominatorIndex x)))
+          (mulIntegerDenominator (numerator z) (denominatorIndex x))));
+
 \definition NumeratorNonZero: Fraction -> \Prop :=
   \fun (x: Fraction) => IntegerNonZero (numerator x);
 
@@ -163,13 +540,5 @@
       (denominatorProductIndex
         (denominatorIndex x) (denominatorIndex y));
 
-/*
- * The quotient is fixed to FractionEq.  Its remaining parameter is the
- * arithmetic transitivity proof; subset extensionality is supplied by the
- * kernel axiom.
- */
-\module Quotient(
-    fractionEqTrans:
-      \forall (x, y, z: Fraction) ->
-        FractionEq x y -> FractionEq y z -> FractionEq x z,
-  );
+/* The quotient is fixed to the proved FractionEq equivalence relation. */
+\module Quotient;
