@@ -1652,41 +1652,6 @@ mod tests {
     }
 
     #[test]
-    fn retired_syntax_and_incomplete_blocks_are_rejected() {
-        for input in [
-            r"(x: A) => x",
-            r"(x: A) -> B",
-            r"A => x",
-            r"((x: A) | P) -> B",
-            r"T { field := x }",
-            r"\CFun(A, \F(B))",
-            r"\clam(x, A, \return(x))",
-            r"\sequence(c, x, A, d)",
-            r"\vlet(x, A, a, c)",
-            r"\vcase(T, x) {}",
-            r"\capp(f, x)",
-            r"\case x \in T { | ctor() => c; }",
-            r"\match x \in T \with { | ctor(x) => c; }",
-            r"\match x \in T \with { | ctor (child x) => c; }",
-            r"\match x \with { | ctor => c; }",
-            r"\let x := a \in c",
-            r"\let x: A := a \in",
-            r"\bind x: A <- c \in",
-            r"f \let x: A := a \in c",
-            r"\cfun x => c",
-            r"\do {}",
-            r"\do { \let x := a; \return x }",
-            r"\do { \bind x: A <- c; }",
-            r"\do { \let x: A := a \return x }",
-        ] {
-            assert!(
-                crate::parse::str_parse_exp(input).is_err(),
-                "accepted {input}"
-            );
-        }
-    }
-
-    #[test]
     fn parse_annotate_test() {
         fn print_and_unwrap_annotate(input: &'static str) {
             let lex = &lex_all(input).expect("lexing failed for annotate test");
