@@ -57,7 +57,7 @@ fn projected_record_field_type(
 // do type checking
 #[derive(Default)]
 pub struct GlobalEnvironment {
-    kernel_env: kernel::stratified::environment::Environment,
+    kernel_env: kernel::environment::Environment,
     crate_env: CrateEnv,
     outputs: Vec<Output>,
     diagnostic_location: Option<SourceLocation>,
@@ -238,7 +238,7 @@ impl GlobalEnvironment {
         self.crate_env.arena()
     }
 
-    pub fn kernel_env(&self) -> &kernel::stratified::environment::Environment {
+    pub fn kernel_env(&self) -> &kernel::environment::Environment {
         &self.kernel_env
     }
 

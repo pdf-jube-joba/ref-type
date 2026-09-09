@@ -1,6 +1,6 @@
 //! Elaboration boundary: attach syntax families and rule labels, then check in the kernel.
 use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
-use kernel::stratified::{environment as ke, sort as k, syntax as s};
+use kernel::{environment as ke, sort as k, syntax as s};
 use std::collections::{HashMap, HashSet};
 
 mod declarations;

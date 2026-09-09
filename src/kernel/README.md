@@ -76,5 +76,5 @@ Program type/kind の型 beta も扱う。証明を記録する内部注釈は�
 Program value 自身は step せず、computation は定められた評価位置で簡約する。
 `normalize` と `whnf` は上限を超えた場合にエラーを返す。
 
-`stratified/tests.rs` に多相 identity、computation 型の量化、型適用後の level、
+`src/tests.rs` に多相 identity、computation 型の量化、型適用後の level、
 Box / boxed type application、datatype の反映、positivity と拒否例を収録している。

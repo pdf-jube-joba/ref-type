@@ -69,7 +69,7 @@ impl Lowerer<'_> {
             R::Function { domain, codomain } => {
                 let domain = self.value_type(domain)?;
                 let body = self.computation_type(codomain)?;
-                let body = kernel::stratified::calculus::shift(self.kernel.arena(), body, 1, 0)?
+                let body = kernel::calculus::shift(self.kernel.arena(), body, 1, 0)?
                     .try_into()
                     .map_err(|e| format!("{e:?}"))?;
                 let rule = k::ProductRule::new(

@@ -364,7 +364,9 @@ impl<'a> Checker<'a> {
                 return Ok(Classifier::Upper(sort));
             }
             Op::Bound { index } => {
-                let offset = index.checked_add(1).ok_or("bound variable outside context")?;
+                let offset = index
+                    .checked_add(1)
+                    .ok_or("bound variable outside context")?;
                 let entry = self
                     .context
                     .get(
