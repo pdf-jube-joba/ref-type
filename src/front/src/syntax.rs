@@ -229,7 +229,7 @@ pub enum ModuleInstantiatePath {
 pub enum MacroExp {
     RawExp(SExp),
     /// A bare template-sequence name, resolved during template preparation.
-    /// Keeping it separate preserves the expression boundary of `\expr { ... }`.
+    /// Keeping it separate preserves the expression boundary of `{ ... }`.
     TemplateName(Identifier),
     TokenParameter(Identifier),
     Splice(Identifier),

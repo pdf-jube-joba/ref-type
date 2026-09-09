@@ -1436,8 +1436,7 @@ impl<'a> TermParser<'a> {
             return Ok(MacroExp::Splice(name));
         }
 
-        if self.bump_if_keyword(r"\expr") {
-            self.expect_token(Token::LBrace)?;
+        if self.bump_if_token(Token::LBrace) {
             let exp = self.parse_sexp()?;
             self.expect_token(Token::RBrace)?;
             return Ok(MacroExp::RawExp(exp));
@@ -1620,12 +1619,12 @@ mod tests {
 
     #[test]
     fn macro_groups_and_embedded_expressions_are_distinct() {
-        let SExp::NamedMacro { tokens, .. } = complete(r"m!{(x) \expr { f (g x) }}") else {
+        let SExp::NamedMacro { tokens, .. } = complete(r"m!{(x) { f (g x) }}") else {
             panic!()
         };
         assert!(matches!(&tokens[0], MacroExp::Seq(xs) if xs.len() == 1));
         assert!(matches!(&tokens[1], MacroExp::RawExp(SExp::App { .. })));
-        complete(r"$( (a + b) + \expr { f (g x) } $)");
+        complete(r"$( (a + b) + { f (g x) } $)");
     }
 
     #[test]
@@ -1637,7 +1636,7 @@ mod tests {
             (r"\match x \in T \with { | ctor x => ; }", ";"),
             (r"\match x \in T { | ctor => c; }", "{"),
             (r"\match x \in T \with { | ctor => c }", "}"),
-            (r"m!{\expr { f (x ; } }", ";"),
+            (r"m!{{ f (x ; }}", ";"),
             (r"\let x: A := a;", ";"),
             (r"\let x: A := a \in ;", ";"),
             (r"\bind x <- c \in d", "<-"),

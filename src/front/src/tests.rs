@@ -151,6 +151,8 @@ fn local_math_and_named_macros_expand_before_elaboration() {
             \definition from_nested_math: A := $((x + y) + x $);
             \definition from_separate_operators: A := $((x + y) + (x /\ y) $);
             \definition from_named: A := tagged!{y "ok"};
+            \definition from_braced_named: A := tagged!{{ first x y } "ok"};
+            \definition from_braced_math: A := $({ first x y } + y $);
             \definition from_nested_macro: A := via_math!{x y};
         }
     "#;
@@ -164,6 +166,7 @@ fn only_the_documented_macro_surface_syntax_is_accepted() {
     assert!(parse::str_parse_exp("$value").is_err());
     assert!(parse::str_parse_exp("named !{value}").is_err());
     assert!(parse::str_parse_exp("$(value )$").is_err());
+    assert!(parse::str_parse_exp(r"named!{\expr { value }}").is_err());
 }
 
 #[test]

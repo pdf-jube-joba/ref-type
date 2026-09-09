@@ -110,7 +110,7 @@ Program の inductive／structure には `\vdefinition Type(A: \VType)::item`
 と `\cdefinition Type(A: \VType)::item` を定義できる。
 型引数は `Type[A]::item` で指定し、省略や `_` は文脈から推論する。
 
-マクロ内の `(...)` はマクロ列であり、通常式の埋め込みには `\expr { ... }` を使う。
+マクロ内の `(...)` はマクロ列であり、通常式の埋め込みには `{ ... }` を使う。
 詳細は [構文](../doc/book/src/coding/syntax.md) を参照。
 
 ## 実行速度の計測
