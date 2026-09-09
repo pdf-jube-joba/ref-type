@@ -9,6 +9,8 @@ enum Token<'a> {
     KeyWord(&'a str), // any concatenation of non-alphanumeric symbols without spaces
     #[regex(r"\$[a-zA-Z][a-zA-Z0-9_]*")]
     MacroVar(&'a str),
+    #[regex(r"\.\.[a-zA-Z][a-zA-Z0-9_]*")]
+    MacroRest(&'a str),
     #[regex(r#""[^"\n]*""#)]
     QuotedMacro(&'a str),
     #[regex(r"\\[^a-zA-Z0-9\s(){}$\[\]_,]+")]
@@ -21,9 +23,10 @@ enum Token<'a> {
     UnspecifiedVar(&'a str),
     #[token("_", priority = 3)]
     Hole,
-    // any non-space sequence that does not include reserved delimiters or `_`/`?`
+    // Commas delimit patterns even when adjacent to a rest capture (`$x,..r`).
+    // Other non-space symbol sequences are classified in lex_all.
     #[token("/\\")]
-    #[regex(r#"[^\s\\A-Za-z0-9?(){}$\[\]_\"]+"#)]
+    #[regex(r#"[^\s\\A-Za-z0-9?(){}$\[\]_\",]+"#)]
     Macro(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]
@@ -55,12 +58,13 @@ enum Token<'a> {
     DoubleArrow,      // "=>"
     Assign,           // ":="
     // 1 char
-    Pipe,        // "|"
-    Colon,       // ":"
-    Semicolon,   // ";"
-    Period,      // "."
-    Comma,       // ","
-    Equal,       // "="
+    Pipe,      // "|"
+    Colon,     // ":"
+    Semicolon, // ";"
+    Period,    // "."
+    #[token(",")]
+    Comma, // ","
+    Equal,     // "="
     Exclamation, // "!"
     DoubleColon, // "::"
 }
@@ -79,6 +83,7 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\forall",
     "\\cfun",
     "\\match",
+    "\\tmatch",
     "\\record",
     "\\VType",
     "\\U",
@@ -154,7 +159,6 @@ fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     ":" => Token::Colon,
                     ";" => Token::Semicolon,
                     "." => Token::Period,
-                    "," => Token::Comma,
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
                     "::" => Token::DoubleColon,
@@ -606,6 +610,14 @@ impl<'a> Parser<'a> {
                 ..
             }) => Ok(MacroSeqAtom::Capture(Identifier(name[1..].to_string()))),
             Some(SpannedToken {
+                kind: Token::Ident(name),
+                ..
+            }) => Ok(MacroSeqAtom::TokenCapture(Identifier(name.to_string()))),
+            Some(SpannedToken {
+                kind: Token::MacroRest(name),
+                ..
+            }) => Ok(MacroSeqAtom::Rest(Identifier(name[2..].to_string()))),
+            Some(SpannedToken {
                 kind: Token::EscapedMacro(token),
                 ..
             }) => Ok(MacroSeqAtom::Tok(MacroToken(token[1..].to_string()))),
@@ -623,7 +635,7 @@ impl<'a> Parser<'a> {
             }
             Some(token) => Err(ParseError {
                 msg: format!(
-                    "expected macro capture, escaped token, quoted literal, or nested pattern; found {:?}",
+                    "expected expression/token/rest capture, escaped token, quoted literal, or nested pattern; found {:?}",
                     token.kind
                 ),
                 start: token.start,

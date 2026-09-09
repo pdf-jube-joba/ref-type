@@ -1,0 +1,37 @@
+\module RecursiveProvider(A: \Set(0), value: A) {
+    \macro keep($chosen, ..r) := \tmatch r {
+        | () => $chosen;
+        | ($ignored, ..tail) => (\fun (x: A) => keep!{$chosen ..tail}) value;
+    };
+    \macro outer(..r) := (\fun (x: A) => keep!{x ..r}) value;
+    \macro last(..r) := \tmatch r {
+        | () => value;
+        | ($t) => $t;
+        | ($t, ..tail) => last!{..tail};
+    };
+    \macro save_first(tk, $saved, ..r) := \tmatch r {
+        | ($value, ..tail) => (\fun (x: A) => \tmatch tk {
+            | "save" => save_first!{"keep" x ..tail};
+            | _ => save_first!{"keep" $saved ..tail};
+        }) $value;
+        | () => $saved;
+    };
+    \macro bind_again($chosen, ..r) := \tmatch r {
+        | () => $chosen;
+        | ($t, ..tail) => (\fun (x: A) => bind_again!{\expr { (\fun (ignored: A) => $chosen) x } ..tail}) value;
+    };
+}
+\module RecursiveConsumer(A: \Set(0), a: A, b: A) {
+    \import \root.RecursiveProvider(A := A, value := a) \as provider;
+    \use provider.keep;
+    \use provider.outer;
+    \use provider.last;
+    \use provider.bind_again;
+    \use provider.save_first;
+    \definition caller_scope: (\fun (x: A) => keep!{x a b}) b = b := \refl(b);
+    \definition definition_scope: outer!{b b} = a := \refl(a);
+    \definition empty: last!{} = a := \refl(a);
+    \definition recursive: last!{a a b} = b := \refl(b);
+    \definition saved_binder: save_first!{"save" a b a} = b := \refl(b);
+    \definition recursive_binders: bind_again!{b a a} = b := \refl(b);
+}

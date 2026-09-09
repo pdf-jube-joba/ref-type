@@ -47,6 +47,45 @@ pub(crate) trait Handler {
     ) -> Result<SExp, String>;
 }
 
+// Expand the entire selected syntax before entering the much larger elaborator
+// stack frames. Non-tail macro recursion must reach the expansion limit rather
+// than overflowing the stack while elaborating intermediate templates.
+fn expand_macros(exp: &SExp, handler: &mut impl Handler) -> Result<SExp, String> {
+    let mut expanded = exp.clone();
+    let mut result = Ok(());
+    crate::macros::walk_sexp_control(&mut expanded, &mut |node| {
+        if result.is_err() {
+            return false;
+        }
+        loop {
+            let next = match node {
+                SExp::MathMacro {
+                    tokens,
+                    scope,
+                    depth,
+                    max_order,
+                } => handler.expand_math_macro(tokens, *scope, *depth, *max_order),
+                SExp::NamedMacro {
+                    name,
+                    tokens,
+                    scope,
+                    depth,
+                    max_order,
+                } => handler.expand_named_macro(name, tokens, *scope, *depth, *max_order),
+                _ => return true,
+            };
+            match next {
+                Ok(next) => *node = next,
+                Err(error) => {
+                    result = Err(error);
+                    return false;
+                }
+            }
+        }
+    });
+    result.map(|()| expanded)
+}
+
 // local scope during elaboration
 #[derive(Debug, Clone)]
 pub(crate) struct LocalScope {
@@ -480,29 +519,10 @@ impl LocalScope {
                 }
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
-                let mut expanded = exp.clone();
-                loop {
-                    expanded = match &expanded {
-                        SExp::MathMacro {
-                            tokens,
-                            scope,
-                            max_order,
-                            depth,
-                        } => handler.expand_math_macro(tokens, *scope, *depth, *max_order)?,
-                        SExp::NamedMacro {
-                            name,
-                            tokens,
-                            scope,
-                            max_order,
-                            depth,
-                        } => {
-                            handler.expand_named_macro(name, tokens, *scope, *depth, *max_order)?
-                        }
-                        _ => break,
-                    };
-                }
+                let expanded = expand_macros(exp, handler)?;
                 self.elab_exp_rec(&expanded, handler)
             }
+            SExp::TokenMatch { .. } => Err("Token match escaped template expansion".into()),
             SExp::MacroParameter(name) => Err(format!(
                 "Macro capture '${}' escaped template expansion",
                 name.as_str()

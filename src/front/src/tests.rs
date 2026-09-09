@@ -1377,3 +1377,150 @@ fn program_definition_parameters_are_substituted_simultaneously_under_binders() 
         crate::raw::program::ValueTermNode::Bound(0)
     );
 }
+
+#[test]
+fn variadic_macros_match_tokens_and_sequences() {
+    for source in [
+        include_str!("../../../tests/ok/macros/variadic_token_match.ref"),
+        include_str!("../../../tests/ok/macros/recursive_hygiene.ref"),
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        for module in &modules {
+            environment.add_new_module_to_root(module).unwrap();
+        }
+    }
+}
+
+#[test]
+fn invalid_variadic_macro_templates_fail_at_declaration() {
+    let cases = [
+        (
+            r"\macro bad(..r, $x) := $x;",
+            "Rest capture must be the last",
+        ),
+        (
+            r"\macro bad(($x, ..r, tk)) := $x;",
+            "Rest capture must be the last",
+        ),
+        (r"\macro bad($x, x) := $x;", "declared more than once"),
+        (r"\macro bad($x, ..x) := $x;", "declared more than once"),
+        (
+            r"\macro bad(..r) := last!{..missing};",
+            "undeclared capture",
+        ),
+        (r"\macro bad($x) := last!{..x};", "expected Sequence"),
+        (r"\macro bad(tk) := $tk;", "expected Expression"),
+        (r"\macro bad(..r) := $r;", "expected Expression"),
+        (
+            r"\macro bad($x) := \tmatch x {};",
+            "requires a token or sequence",
+        ),
+        (r"\macro bad() := \tmatch missing {};", "undeclared capture"),
+        (
+            r"\macro bad(tk) := \tmatch tk { | () => value; };",
+            "expected Sequence",
+        ),
+        (
+            r"\macro bad(..r) := \tmatch r { | \+ => value; };",
+            "expected Token",
+        ),
+        (
+            r"\macro bad(..r) := \tmatch r { | ($x, $x) => $x; };",
+            "declared more than once",
+        ),
+        (
+            r"\macro bad($x, ..r) := \tmatch r { | ($x) => $x; };",
+            "declared more than once",
+        ),
+        (
+            r"\macro bad(..r) := \tmatch r { | ($x) => $x; | () => $x; };",
+            "undeclared capture",
+        ),
+        (
+            r"\macro bad(..r) := \tmatch r { | ($x) => $x; } $x;",
+            "undeclared capture",
+        ),
+        (
+            r"\math-macro bad(..r, \+) := value;",
+            "only valid in named macros",
+        ),
+        (
+            r"\math-macro bad(tk, \+) := value;",
+            "only valid in named macros",
+        ),
+        (
+            r"\math-macro bad(\+) := \tmatch missing {};",
+            "only valid in named macros",
+        ),
+        (
+            r"\macro bad() := later!{}; \macro later() := value;",
+            "not visible at template declaration",
+        ),
+    ];
+    for (declaration, expected) in cases {
+        let source = format!(r"\module Invalid(A: \Set(0), value: A) {{ {declaration} }}");
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
+        assert!(
+            format!("{error:?}").contains(expected),
+            "{declaration}: {error:?}"
+        );
+    }
+    for source in [r"\tmatch tk {}", r"m!{..r}", r"$r"] {
+        assert!(parse::str_parse_exp(source).is_err(), "{source}");
+    }
+}
+
+#[test]
+fn non_exhaustive_macro_matches_fail_only_when_selected() {
+    for (declaration, call, expected) in [
+        (
+            r#"\macro m(tk) := \tmatch tk { | "+" => value; };"#,
+            "m!{+}",
+            "No token match branch",
+        ),
+        (
+            r#"\macro m(tk) := \tmatch tk { | \+ => value; };"#,
+            r#"m!{"+"}"#,
+            "No token match branch",
+        ),
+        (
+            r"\macro m(..r) := \tmatch r {};",
+            "m!{}",
+            "No token match branch",
+        ),
+        (
+            r"\macro m(tk) := value;",
+            "m!{value}",
+            "Input does not match",
+        ),
+        (r"\macro m(tk) := value;", "m!{(+)}", "Input does not match"),
+        (r"\macro m($x) := $x;", "m!{+}", "Input does not match"),
+    ] {
+        let source = format!(
+            r"\module Invalid(A: \Set(0), value: A) {{ {declaration} \definition result: A := {call}; }}"
+        );
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
+        assert!(format!("{error:?}").contains(expected), "{call}: {error:?}");
+    }
+}
+
+#[test]
+fn self_recursive_macro_expansion_respects_depth_limit() {
+    for source in [
+        include_str!("../../../tests/ng/macros/self_recursion_depth.ref"),
+        include_str!("../../../tests/ng/macros/non_tail_recursion_depth.ref"),
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
+        assert!(
+            format!("{error:?}").contains("Macro expansion exceeded depth 128"),
+            "{error:?}"
+        );
+    }
+}

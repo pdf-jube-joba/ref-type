@@ -98,9 +98,18 @@ pub enum ModuleBody {
 #[derive(Debug, Clone)]
 pub enum MacroSeqAtom {
     Capture(Identifier),
+    TokenCapture(Identifier),
+    Rest(Identifier),
     Tok(MacroToken),
     Quoted(String),
     Seq(Vec<MacroSeqAtom>),
+}
+
+#[derive(Debug, Clone)]
+pub enum TokenMatchPattern {
+    Token(MacroSeqAtom),
+    Sequence(Vec<MacroSeqAtom>),
+    Default,
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +228,11 @@ pub enum ModuleInstantiatePath {
 #[derive(Debug, Clone)]
 pub enum MacroExp {
     RawExp(SExp),
+    /// A bare template-sequence name, resolved during template preparation.
+    /// Keeping it separate preserves the expression boundary of `\expr { ... }`.
+    TemplateName(Identifier),
+    TokenParameter(Identifier),
+    Splice(Identifier),
     Tok(MacroToken),
     Quoted(String),
     Seq(Vec<MacroExp>),
@@ -425,11 +439,18 @@ pub enum SExp {
         name: Identifier,
         tokens: Vec<MacroExp>,
         scope: Option<ModuleId>,
+        /// Template calls can see declarations up to and including their own
+        /// definition, allowing self recursion without forward references.
         max_order: Option<u64>,
         depth: u16,
     },
     /// A reference to a pattern capture. Only valid in macro templates.
     MacroParameter(Identifier),
+    /// Expansion-time matching, available only in named macro templates.
+    TokenMatch {
+        target: Identifier,
+        branches: Vec<(TokenMatchPattern, SExp)>,
+    },
     /// A core expression captured while resolving a macro template (currently
     /// used for module parameters). It is remapped when a module is instantiated.
     ResolvedExp(Exp),

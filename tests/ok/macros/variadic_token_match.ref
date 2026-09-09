@@ -1,0 +1,66 @@
+\module Variadic(A: \Set(0), x: A, y: A) {
+    \definition tk: A := y;
+    \definition first: A -> A -> A := \fun (a: A) => \fun (b: A) => a;
+    \definition second: A -> A -> A := \fun (a: A) => \fun (b: A) => b;
+    \math-macro plus($a, \+, $b) := first $a $b;
+    \macro choose($a, tk, $b) :=
+        \tmatch tk {
+            | \+ => first;
+            | "+" => second;
+            | _ => first;
+        } $a $b;
+    \macro identity($x) := $x;
+    \macro explicit_expression(tk) := identity!{\expr { tk }};
+    \macro token_scope(tk) := choose!{x tk y};
+    \macro forward($a,tk,..r) := choose!{$a tk ..r};
+    \macro math_forward($a, tk, ..r) := $($a tk ..r $);
+    \macro math_rest(..r) := $(..r $);
+    \macro last(..r) := \tmatch r {
+        | () => x;
+        | ($t) => $t;
+        | ($t,..rest) => last!{..rest};
+    };
+    \macro repeated(..r) := last!{..r ..r};
+    \macro fold(..r) := \tmatch r {
+        | () => x;
+        | ($t,..tail) => second $t fold!{..tail};
+    };
+    \macro relay(..r) := last!{..r};
+    \macro grouped((..r), "end") := relay!{..r};
+    \macro preserve(..r) := grouped!{..r};
+    \macro inspect(..r) := \tmatch r {
+        | ((tk, $a, ..tail), "end") => \tmatch tk {
+            | "keep" => $a;
+            | _ => last!{..tail};
+        };
+        | _ => x;
+    };
+    \macro no_match(tk) := \tmatch tk {};
+    \macro lazy(tk) := \tmatch tk {
+        | "stop" => x;
+        | _ => no_match!{tk};
+    };
+    \macro again(tk, ..r) := \tmatch tk {
+        | "stop" => last!{..r};
+        | _ => again!{"stop" ..r};
+    };
+
+    \definition explicit_atom: explicit_expression!{+} = y := \refl(y);
+    \definition bare_token: token_scope!{+} = x := \refl(x);
+    \definition repeat: repeated!{x y} = y := \refl(y);
+    \definition symbol: forward!{x + y} = x := \refl(x);
+    \definition quoted: forward!{x "+" y} = y := \refl(y);
+    \definition fallback: choose!{x - y} = x := \refl(x);
+    \definition math: math_forward!{x + y} = x := \refl(x);
+    \definition nested_math: math_rest!{(x + y) + y} = x := \refl(x);
+    \definition folded: fold!{y y y y} = x := \refl(x);
+    \definition empty: relay!{} = x := \refl(x);
+    \definition single: relay!{y} = y := \refl(y);
+    \definition multiple: relay!{x y x y} = y := \refl(y);
+    \definition group: preserve!{(x y) "end"} = y := \refl(y);
+    \definition empty_group: preserve!{() "end"} = x := \refl(x);
+    \definition nested_capture: inspect!{("keep" y x) "end"} = y := \refl(y);
+    \definition nested_rest: inspect!{("last" x x y) "end"} = y := \refl(y);
+    \definition unevaluated: lazy!{"stop"} = x := \refl(x);
+    \definition token_recursion: again!{"start" x y} = y := \refl(y);
+}

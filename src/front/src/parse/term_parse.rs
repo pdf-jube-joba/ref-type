@@ -1,6 +1,6 @@
 use super::{
-    EXPRESSION_ATOM_KEYWORDS, PROOF_TERM_KEYWORDS, ParseError, SORT_KEYWORDS, SpannedToken, Token,
-    TokenCursor,
+    EXPRESSION_ATOM_KEYWORDS, PROOF_TERM_KEYWORDS, ParseError, Parser, SORT_KEYWORDS, SpannedToken,
+    Token, TokenCursor,
 };
 use crate::syntax::*;
 
@@ -139,6 +139,36 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
+        if self.bump_if_keyword(r"\tmatch") {
+            if !self.allow_macro_parameters {
+                return Err(self.error("token matching is only valid in named macro templates"));
+            }
+            let target = self.expect_ident()?;
+            self.expect_token(Token::LBrace)?;
+            let mut branches = Vec::new();
+            while !self.bump_if_token(Token::RBrace) {
+                self.expect_token(Token::Pipe)?;
+                let pattern = if self.bump_if_token(Token::Hole) {
+                    TokenMatchPattern::Default
+                } else {
+                    let mut parser = Parser::new(&self.tokens[self.pos..]);
+                    let atom = parser.parse_macro_pattern_atom()?;
+                    self.set_position(self.pos + parser.pos);
+                    match atom {
+                        MacroSeqAtom::Seq(items) => TokenMatchPattern::Sequence(items),
+                        atom @ (MacroSeqAtom::Tok(_) | MacroSeqAtom::Quoted(_)) => {
+                            TokenMatchPattern::Token(atom)
+                        }
+                        _ => return Err(self.error("expected fixed token, sequence pattern, or _")),
+                    }
+                };
+                self.expect_token(Token::DoubleArrow)?;
+                let body = self.parse_sexp()?;
+                self.expect_token(Token::Semicolon)?;
+                branches.push((pattern, body));
+            }
+            return Ok(SExp::TokenMatch { target, branches });
+        }
         if self.bump_if_keyword("\\VType") {
             return Ok(SExp::ValueType);
         }
@@ -1397,6 +1427,15 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_one_macro(&mut self) -> Result<MacroExp, ParseError> {
+        if let Some(Token::MacroRest(name)) = self.peek() {
+            if !self.allow_macro_parameters {
+                return Err(self.error("rest splices are only valid in macro templates"));
+            }
+            let name = Identifier(name[2..].to_string());
+            self.next();
+            return Ok(MacroExp::Splice(name));
+        }
+
         if self.bump_if_keyword(r"\expr") {
             self.expect_token(Token::LBrace)?;
             let exp = self.parse_sexp()?;
@@ -1404,7 +1443,17 @@ impl<'a> TermParser<'a> {
             return Ok(MacroExp::RawExp(exp));
         }
         if self.peek() != Some(&Token::LParen) && self.starts_atom() {
-            return self.parse_atom().map(MacroExp::RawExp);
+            let exp = self.parse_atom()?;
+            if self.allow_macro_parameters
+                && let SExp::AccessPath {
+                    access: LocalAccess::Current { access },
+                    parameters,
+                } = &exp
+                && parameters.is_empty()
+            {
+                return Ok(MacroExp::TemplateName(access.clone()));
+            }
+            return Ok(MacroExp::RawExp(exp));
         }
         // 2. challenge one macro token
         // OthetSymbolStart or KeyWord which is not contained in *_KEYWORDS
