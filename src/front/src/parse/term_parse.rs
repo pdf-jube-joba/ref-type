@@ -166,36 +166,19 @@ impl<'a> TermParser<'a> {
                 fields,
             });
         }
-        if self.bump_if_keyword("\\capp") {
-            return self.parse_parenthesized(|parser| {
-                let computation = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let value = parser.parse_sexp()?;
-                Ok(SExp::ComputationApp {
-                    computation: Box::new(computation),
-                    value: Box::new(value),
-                })
-            });
-        }
-        if self.bump_if_keyword(r"\case") {
+        if self.bump_if_keyword(r"\match") {
             let scrutinee = self.parse_sexp()?;
             self.expect_keyword(r"\in")?;
             let path = self.parse_access_path()?;
+            self.expect_keyword(r"\with")?;
             self.expect_token(Token::LBrace)?;
             let mut branches = Vec::new();
             while !self.bump_if_token(Token::RBrace) {
                 self.expect_token(Token::Pipe)?;
                 let constructor = self.expect_ident()?;
-                self.expect_token(Token::LParen)?;
                 let mut binders = Vec::new();
-                if !self.bump_if_token(Token::RParen) {
-                    loop {
-                        binders.push(self.expect_ident()?);
-                        if self.bump_if_token(Token::RParen) {
-                            break;
-                        }
-                        self.expect_token(Token::Comma)?;
-                    }
+                while matches!(self.peek(), Some(Token::Ident(_))) {
+                    binders.push(self.expect_ident()?);
                 }
                 self.expect_token(Token::DoubleArrow)?;
                 let body = self.parse_sexp()?;
@@ -1055,10 +1038,6 @@ impl<'a> TermParser<'a> {
             }
             Some(Token::KeyWord("\\return" | "\\thunk" | "\\force")) => self.parse_unary(),
             Some(Token::KeyWord("\\fun" | "\\forall" | "\\cfun")) => self.parse_lambda(),
-            Some(Token::KeyWord("\\do")) => {
-                self.next();
-                self.parse_do()
-            }
             Some(Token::KeyWord(keyword)) if SORT_KEYWORDS.contains(keyword) => {
                 // check if it's a reserved sort keyword
                 self.parse_sort().map(SExp::Sort)
@@ -1324,44 +1303,34 @@ impl<'a> TermParser<'a> {
         Ok(body)
     }
 
-    fn parse_do(&mut self) -> Result<SExp, ParseError> {
-        self.expect_token(Token::LBrace)?;
-        let mut statements = Vec::new();
-        while matches!(self.peek(), Some(Token::KeyWord(r"\let" | r"\bind"))) {
-            let sequence = self.next().unwrap().kind == Token::KeyWord(r"\bind");
-            let var = self.expect_binder_ident()?;
-            self.expect_token(Token::Colon)?;
-            let ty = self.parse_sexp()?;
-            self.expect_token(if sequence {
-                Token::BindArrow
-            } else {
-                Token::Assign
-            })?;
-            let rhs = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            statements.push((sequence, var, Box::new(ty), Box::new(rhs)));
-        }
-        let mut body = self.parse_sexp()?;
-        self.bump_if_token(Token::Semicolon);
-        self.expect_token(Token::RBrace)?;
-        for (sequence, var, value_ty, rhs) in statements.into_iter().rev() {
-            body = if sequence {
-                SExp::Sequence {
-                    computation: rhs,
-                    var,
-                    value_ty,
-                    body: Box::new(body),
-                }
-            } else {
-                SExp::ValueLet {
-                    var,
-                    value_ty,
-                    value: rhs,
-                    body: Box::new(body),
-                }
-            };
-        }
-        Ok(body)
+    fn parse_program_binding(&mut self) -> Result<SExp, ParseError> {
+        let sequence = self.next().unwrap().kind == Token::KeyWord(r"\bind");
+        let var = self.expect_binder_ident()?;
+        self.expect_token(Token::Colon)?;
+        let value_ty = Box::new(self.parse_sexp()?);
+        self.expect_token(if sequence {
+            Token::BindArrow
+        } else {
+            Token::Assign
+        })?;
+        let rhs = Box::new(self.parse_sexp()?);
+        self.expect_keyword(r"\in")?;
+        let body = Box::new(self.parse_sexp()?);
+        Ok(if sequence {
+            SExp::Sequence {
+                computation: rhs,
+                var,
+                value_ty,
+                body,
+            }
+        } else {
+            SExp::ValueLet {
+                var,
+                value_ty,
+                value: rhs,
+                body,
+            }
+        })
     }
 
     fn parse_arrow_nosubset(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
@@ -1387,6 +1356,9 @@ impl<'a> TermParser<'a> {
     }
 
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
+        if matches!(self.peek(), Some(Token::KeyWord(r"\let" | r"\bind"))) {
+            return self.parse_program_binding();
+        }
         let left = self.parse_combined()?;
         if self.bump_if_token(Token::Arrow) {
             Ok(SExp::Prod {
@@ -1507,6 +1479,12 @@ mod tests {
                 r"\return(".repeat(depth),
                 ")".repeat(depth)
             ));
+            complete(&format!("{}c", r"\bind x: A <- f x \in ".repeat(depth)));
+            complete(&format!(
+                "{}c{}",
+                r"\match x \in T \with { | ctor => ".repeat(depth),
+                "; }".repeat(depth)
+            ));
         }
     }
 
@@ -1547,9 +1525,9 @@ mod tests {
     }
 
     #[test]
-    fn do_desugars_in_order_and_requires_a_tail() {
+    fn program_bindings_scope_over_the_remaining_expression() {
         let SExp::ValueLet { var, body, .. } =
-            complete(r"\do { \let x: A := outer; \bind y: B <- \capp(f, x); \return y; }")
+            complete(r"\let x: A := outer \in \bind y: B <- f x \in \return y")
         else {
             panic!()
         };
@@ -1559,11 +1537,15 @@ mod tests {
         };
         assert_eq!(var.0, "y");
         assert!(matches!(*body, SExp::Return { .. }));
-        assert!(matches!(
-            complete(r"\do { computation }"),
-            SExp::AccessPath { .. }
-        ));
-        complete(r"\do { \do { \return x } }");
+        let SExp::Sequence {
+            computation, body, ..
+        } = complete(r"\bind x: A <- \bind y: A <- c \in f y \in g x")
+        else {
+            panic!()
+        };
+        assert!(matches!(*computation, SExp::Sequence { .. }));
+        assert!(matches!(*body, SExp::App { .. }));
+        complete(r"f (\thunk (\let x: A := a \in \return x))");
     }
 
     #[test]
@@ -1577,11 +1559,14 @@ mod tests {
         complete(r"\record Empty {}");
         complete(r"\elim x \in T \return R { | ctor => branch; }");
         let SExp::ProgramCase { branches, .. } =
-            complete(r"\case x \in T { | ctor(a, b) => \do { \return a }; }")
+            complete(r"\match x \in T \with { | ctor a b => \return a; }")
         else {
             panic!()
         };
         assert_eq!(branches[0].1.len(), 2);
+        complete(
+            r"\match x \in T \with { | empty => x | f; | ctor a => \bind y: A <- f a \in g y; }",
+        );
     }
 
     #[test]
@@ -1600,9 +1585,13 @@ mod tests {
             (r"f[x, ;]", ";"),
             (r"\fun (x: A \where P \as ) => x", ")"),
             (r"\record T { field := ; }", ";"),
-            (r"\case x \in T { | ctor(x) => ; }", ";"),
+            (r"\match x \in T \with { | ctor x => ; }", ";"),
+            (r"\match x \in T { | ctor => c; }", "{"),
+            (r"\match x \in T \with { | ctor => c }", "}"),
             (r"m!{\expr { f (x ; } }", ";"),
-            (r"\do { \let x: A := a; }", "}"),
+            (r"\let x: A := a;", ";"),
+            (r"\let x: A := a \in ;", ";"),
+            (r"\bind x <- c \in d", "<-"),
             (r"\Set(12 x)", "x"),
         ] {
             let tokens = lex_all(input).unwrap();
@@ -1626,6 +1615,16 @@ mod tests {
             r"\sequence(c, x, A, d)",
             r"\vlet(x, A, a, c)",
             r"\vcase(T, x) {}",
+            r"\capp(f, x)",
+            r"\case x \in T { | ctor() => c; }",
+            r"\match x \in T \with { | ctor(x) => c; }",
+            r"\match x \in T \with { | ctor (child x) => c; }",
+            r"\match x \with { | ctor => c; }",
+            r"\let x := a \in c",
+            r"\let x: A := a \in",
+            r"\bind x: A <- c \in",
+            r"f \let x: A := a \in c",
+            r"\cfun x => c",
             r"\do {}",
             r"\do { \let x := a; \return x }",
             r"\do { \bind x: A <- c; }",

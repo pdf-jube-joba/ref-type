@@ -108,24 +108,22 @@ field に thunk 型 `\U(C)` を使うこともできる。空の structure も�
   second: A,
 };
 
-\cdefinition Pair(A: \VType)::swap: Pair[A] ~> \F(Pair[A]) :=
-  \cfun (p: Pair[A]) => \do {
-    \bind x: A <- \capp(Pair[A]::first, p);
-    \bind y: A <- \capp(Pair[A]::second, p);
-    \return \record Pair[A] { first := y, second := x }
-  };
+\cdefinition Pair(A: \VType)::swap(p: Pair[A]): \F(Pair[A]) :=
+  \bind x: A <- Pair[A]::first p \in
+  \bind y: A <- Pair[A]::second p \in
+  \return \record Pair[A] { first := y, second := x };
 
 \vdefinition Pair(A: \VType)::swap_thunk:
   \U(Pair[A] ~> \F(Pair[A])) := \thunk (Pair[A]::swap);
 ```
 
 各 projection は `Pair[A] ~> \F(A)` 型の計算として生成する。
-`\capp` で適用し、結果の値を使う場合は `\bind` で受け取る。
+`Pair[A]::first pair` のように適用し、結果の値を使う場合は `\bind` で受け取る。
 record literal の field は任意の順序で指定できるが、全 field を一度ずつ指定する。
 
 型関連の `\vdefinition`／`\cdefinition` は Program の inductive にも定義できる。
 owner と同じ module 内で、owner の型パラメータをすべて `\VType` として束縛する。
-値引数を取る計算の本体には `\cfun` を使う。
+値引数を取る計算は item 名の後に引数を書ける。本体に明示的な `\cfun` を書いてもよい。
 constructor、projection、ユーザー定義 item の名前は重複できない。
 
 参照は `Type[A]::item`、import 経由では `Module.Type[A]::item` と書く。

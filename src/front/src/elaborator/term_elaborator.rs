@@ -1348,7 +1348,6 @@ impl LocalScope {
             | SExp::Return { .. }
             | SExp::Force { .. }
             | SExp::ComputationLam { .. }
-            | SExp::ComputationApp { .. }
             | SExp::Sequence { .. }
             | SExp::ValueLet { .. }
             | SExp::ProgramCase { .. }

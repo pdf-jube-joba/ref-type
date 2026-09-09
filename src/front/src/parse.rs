@@ -78,8 +78,7 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\fun",
     "\\forall",
     "\\cfun",
-    "\\do",
-    "\\case",
+    "\\match",
     "\\record",
     "\\VType",
     "\\U",
@@ -87,7 +86,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\thunk",
     "\\return",
     "\\force",
-    "\\capp",
     "\\RunStep",
     "\\PRunStep",
     "\\continue",
@@ -397,23 +395,37 @@ impl<'a> Parser<'a> {
 
     fn parse_program_definition(
         &mut self,
+        computation: bool,
     ) -> Result<(Option<AssociatedOwner>, Identifier, SExp, SExp), ParseError> {
         let ModuleItem::Definition {
             owner,
             name,
             binders,
-            ty,
-            body,
+            mut ty,
+            mut body,
         } = self.parse_definition()?
         else {
             unreachable!()
         };
-        if !binders.is_empty() {
+        if !computation && !binders.is_empty() {
             return Err(ParseError {
-                msg: "Program definitions use explicit \\cfun binders in their body".into(),
+                msg: "Program value definitions do not accept function binders".into(),
                 start: self.span_at(self.pos.saturating_sub(1)).start,
                 end: self.span_at(self.pos.saturating_sub(1)).end,
             });
+        }
+        for bind in binders.into_iter().rev() {
+            for var in bind.vars.into_iter().rev() {
+                ty = SExp::ComputationFunction {
+                    domain: bind.ty.clone(),
+                    codomain: Box::new(ty),
+                };
+                body = SExp::ComputationLam {
+                    var,
+                    value_ty: bind.ty.clone(),
+                    body: Box::new(body),
+                };
+            }
         }
         Ok((owner, name, ty, body))
     }
@@ -679,7 +691,7 @@ impl<'a> Parser<'a> {
             return Ok(Some(def));
         }
         if self.bump_if_keyword("\\vdefinition") {
-            let (owner, name, ty, body) = self.parse_program_definition()?;
+            let (owner, name, ty, body) = self.parse_program_definition(false)?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
                 start: self.span_at(start_pos).start,
@@ -698,7 +710,7 @@ impl<'a> Parser<'a> {
             }));
         }
         if self.bump_if_keyword("\\cdefinition") {
-            let (owner, name, ty, body) = self.parse_program_definition()?;
+            let (owner, name, ty, body) = self.parse_program_definition(true)?;
             let ty = ty.try_into().map_err(|msg| ParseError {
                 msg,
                 start: self.span_at(start_pos).start,

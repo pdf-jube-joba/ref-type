@@ -61,8 +61,8 @@
 
   \vdefinition step:
     \U((State ~> \F(\PRunStep(State, Nat)))) :=
-    \thunk((\cfun (state: State) => \case (state) \in State {
-      | call(argument, continuation) =>
+    \thunk((\cfun (state: State) => \match (state) \in State \with {
+      | call argument continuation =>
           \return(\Pcontinue(
             State,
             Nat,
@@ -71,17 +71,17 @@
               argument
               hundredOne
               continuation));
-      | inspect(original, remaining, threshold, continuation) =>
-          \case (threshold) \in Nat {
-          | zero() =>
+      | inspect original remaining threshold continuation =>
+          \match (threshold) \in Nat \with {
+          | zero =>
               /* original >= 101, and remaining + 91 = original - 10. */
               \return(\Pcontinue(
                 State,
                 Nat,
                 State::raise remaining ninetyOne continuation));
-          | succ(smallerThreshold) =>
-              \case (remaining) \in Nat {
-              | zero() =>
+          | succ smallerThreshold =>
+              \match (remaining) \in Nat \with {
+              | zero =>
                   /* original <= 100: first evaluate M(original + 11),
                    * then the pending continuation evaluates M once more.
                    */
@@ -92,7 +92,7 @@
                       original
                       eleven
                       (Continuation::pending continuation)));
-              | succ(smallerRemaining) =>
+              | succ smallerRemaining =>
                   \return(\Pcontinue(
                     State,
                     Nat,
@@ -103,19 +103,19 @@
                       continuation));
               };
           };
-      | raise(result, additions, continuation) =>
-          \case (additions) \in Nat {
-          | zero() =>
-              \case (continuation) \in Continuation {
-              | done() =>
+      | raise result additions continuation =>
+          \match (additions) \in Nat \with {
+          | zero =>
+              \match (continuation) \in Continuation \with {
+              | done =>
                   \return(\Pfinish(State, Nat, result));
-              | pending(rest) =>
+              | pending rest =>
                   \return(\Pcontinue(
                     State,
                     Nat,
                     State::call result rest));
               };
-          | succ(smallerAdditions) =>
+          | succ smallerAdditions =>
               \return(\Pcontinue(
                 State,
                 Nat,
@@ -124,14 +124,14 @@
                   smallerAdditions
                   continuation));
           };
-      | raiseAndCall(argument, additions, continuation) =>
-          \case (additions) \in Nat {
-          | zero() =>
+      | raiseAndCall argument additions continuation =>
+          \match (additions) \in Nat \with {
+          | zero =>
               \return(\Pcontinue(
                 State,
                 Nat,
                 State::call argument continuation));
-          | succ(smallerAdditions) =>
+          | succ smallerAdditions =>
               \return(\Pcontinue(
                 State,
                 Nat,
@@ -149,5 +149,5 @@
         step,
         State::call argument Continuation::done));
 
-  \cnormalize \capp(mcCarthy91, hundred);
+  \cnormalize (mcCarthy91 hundred);
 }

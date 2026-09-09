@@ -280,10 +280,6 @@ fn alpha_rename(
             domain: func,
             codomain: arg,
         }
-        | SExp::ComputationApp {
-            computation: func,
-            value: arg,
-        }
         | SExp::Equal {
             left: func,
             right: arg,
@@ -1198,10 +1194,6 @@ pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) 
         | SExp::ComputationFunction {
             domain: func,
             codomain: arg,
-        }
-        | SExp::ComputationApp {
-            computation: func,
-            value: arg,
         }
         | SExp::Equal {
             left: func,

@@ -105,9 +105,9 @@ fn countdown_modules(size: usize) -> Vec<Module> {
   | succ: Nat -> Nat;
   ;
   \vdefinition step: \U((Nat ~> \F(\PRunStep(Nat, Nat)))) :=
-    \thunk((\cfun (n: Nat) => \case (n) \in Nat {{
-      | zero() => \return(\Pfinish(Nat, Nat, Nat::zero));
-      | succ(rest) => \return(\Pcontinue(Nat, Nat, rest));
+    \thunk((\cfun (n: Nat) => \match (n) \in Nat \with {{
+      | zero => \return(\Pfinish(Nat, Nat, Nat::zero));
+      | succ rest => \return(\Pcontinue(Nat, Nat, rest));
       }}));
   {number_definitions}
   \cdefinition main: \F(Nat) := \Prun(Nat, Nat, step, n{size});

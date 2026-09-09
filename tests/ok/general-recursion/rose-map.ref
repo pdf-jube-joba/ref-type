@@ -35,18 +35,18 @@
 
   \vdefinition step:
     \U((State ~> \F(\PRunStep(State, OutputRose)))) :=
-    \thunk((\cfun (state: State) => \case (state) \in State {
-      | visit(input, continuation) =>
-          \case (input) \in InputRose {
-          | empty() =>
+    \thunk((\cfun (state: State) => \match (state) \in State \with {
+      | visit input continuation =>
+          \match (input) \in InputRose \with {
+          | empty =>
               \return(\Pcontinue(
                 State,
                 OutputRose,
                 State::resume
                   continuation
                   OutputRose::empty));
-          | node(label, children, siblings) =>
-              \do { \bind mappedLabel: B <- \capp(\force(function), label); \return(\Pcontinue(
+          | node label children siblings =>
+              (\bind mappedLabel: B <- ((\force(function)) label) \in \return(\Pcontinue(
                   State,
                   OutputRose,
                   State::visit
@@ -54,13 +54,13 @@
                     (Continuation::afterChildren
                       mappedLabel
                       siblings
-                      continuation))) };
+                      continuation))));
           };
-      | resume(continuation, mapped) =>
-          \case (continuation) \in Continuation {
-          | done() =>
+      | resume continuation mapped =>
+          \match (continuation) \in Continuation \with {
+          | done =>
               \return(\Pfinish(State, OutputRose, mapped));
-          | afterChildren(mappedLabel, siblings, rest) =>
+          | afterChildren mappedLabel siblings rest =>
               \return(\Pcontinue(
                 State,
                 OutputRose,
@@ -70,7 +70,7 @@
                     mappedLabel
                     mapped
                     rest)));
-          | afterSiblings(mappedLabel, mappedChildren, rest) =>
+          | afterSiblings mappedLabel mappedChildren rest =>
               \return(\Pcontinue(
                 State,
                 OutputRose,

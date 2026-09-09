@@ -717,9 +717,9 @@ fn accessibility_intro_and_descent_follow_the_system_premises() {
 
 #[test]
 fn program_value_let_requires_an_annotation() {
-    let parsed = parse::str_parse_exp(r"\do { \let x: A := a; \return(x) }").unwrap();
+    let parsed = parse::str_parse_exp(r"(\let x: A := a \in \return(x))").unwrap();
     assert!(matches!(parsed, SExp::ValueLet { .. }));
-    assert!(parse::str_parse_exp(r"\do { \let x := a; \return x }").is_err());
+    assert!(parse::str_parse_exp(r"(\let x := a \in \return x)").is_err());
 }
 
 #[test]
@@ -728,9 +728,9 @@ fn program_value_let_solves_and_zonks_type_annotations() {
     let modules = parse::str_parse_modules(
         r#"
         \module AnnotatedLet(A: \VType, a: A) {
-            \cdefinition identity: \F(A) := \do { \let x: _ := a; \return(x) };
-            \cdefinition nested: \F(A) := \do { \let x: A := a; \do { \let y: _ := x; \return(y) } };
-            \cinfer \do { \let x: _ := a; \return(x) };
+            \cdefinition identity: \F(A) := (\let x: _ := a \in \return(x));
+            \cdefinition nested: \F(A) := (\let x: A := a \in (\let y: _ := x \in \return(y)));
+            \cinfer (\let x: _ := a \in \return(x));
         }
     "#,
     )
@@ -764,9 +764,9 @@ fn program_value_let_solves_and_zonks_type_annotations() {
 #[test]
 fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
     for term in [
-        r"\do { \let x: B := a; \return(a) }",
-        r"\do { \let x: a := a; \return(a) }",
-        r"\do { \let x: _ := ?; \return(a) }",
+        r"(\let x: B := a \in \return(a))",
+        r"(\let x: a := a \in \return(a))",
+        r"(\let x: _ := ? \in \return(a))",
     ] {
         let source = format!(
             r"\module InvalidLet(A: \VType, B: \VType, a: A) {{ \cdefinition result: \F(A) := {term}; }}"
@@ -786,7 +786,7 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
     let modules = parse::str_parse_modules(
         r#"
         \module LetMacros {
-            \macro local($type, $value) := \do { \let A: $type := $value; \return(A) };
+            \macro local($type, $value) := (\let A: $type := $value \in \return(A));
         }
     "#,
     )
@@ -853,8 +853,8 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
             | pair: X -> X -> Pair;
             ;
             \cdefinition first: (Pair[A] ~> \F(A)) :=
-                (\cfun (p: Pair[A]) => \case (p) \in Pair {
-                | pair(left, right) => \do { \let x: A := left; \return(x) };
+                (\cfun (p: Pair[A]) => \match (p) \in Pair \with {
+                | pair left right => (\let x: A := left \in \return(x));
                 });
         }
     "#,
@@ -1101,7 +1101,7 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
 }
 
 #[test]
-fn program_blocks_preserve_shadowing_and_evaluate_the_selected_branch() {
+fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
     use crate::raw::{
         program::{ComputationTermNode, ValueTermNode},
         program_calculus::{Evaluation, evaluate_computation},
@@ -1118,9 +1118,15 @@ fn program_blocks_preserve_shadowing_and_evaluate_the_selected_branch() {
     else {
         panic!("missing result definition");
     };
-    let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
+    let DefinedConstant::ProgramComputation {
+        body,
+        certified_reflection,
+        ..
+    } = env.definition(*definition)
+    else {
         panic!("result should be a computation");
     };
+    assert!(certified_reflection.is_some());
     let Evaluation::Normal(result) = evaluate_computation(env, *body) else {
         panic!("block did not finish");
     };
@@ -1130,6 +1136,104 @@ fn program_blocks_preserve_shadowing_and_evaluate_the_selected_branch() {
     assert!(
         matches!(env.arena().get(value), ValueTermNode::InductiveConstructor { idx: 1, fields, .. } if fields.is_empty())
     );
+}
+
+#[test]
+fn program_application_classification_preserves_cbpv_boundaries() {
+    use crate::syntax::{ComputationTermExp as C, ValueTermExp as V};
+    let C::Application { computation, value } =
+        C::try_from(parse::str_parse_exp(r"\force f x y").unwrap()).unwrap()
+    else {
+        panic!("outer application")
+    };
+    assert!(matches!(*value, V::Access(_)));
+    let C::Application { computation, .. } = *computation else {
+        panic!("inner application")
+    };
+    assert!(matches!(*computation, C::Force(_)));
+
+    let V::Constructor { fields, .. } =
+        V::try_from(parse::str_parse_exp("Pair::pair x y").unwrap()).unwrap()
+    else {
+        panic!("constructor application")
+    };
+    assert_eq!(fields.len(), 2);
+    for term in [r"f (g x)", r"f (\return x)", r"f (\force suspended)"] {
+        assert!(
+            C::try_from(parse::str_parse_exp(term).unwrap()).is_err(),
+            "accepted {term}"
+        );
+    }
+    for term in [
+        r"f x",
+        r"(\thunk c) x",
+        r"\Pcontinue(A, B, x) y",
+        r"\Pfinish(A, B, x) y",
+    ] {
+        assert!(
+            V::try_from(parse::str_parse_exp(term).unwrap()).is_err(),
+            "accepted {term}"
+        );
+    }
+    C::try_from(parse::str_parse_exp(r"f (\thunk (g x))").unwrap()).unwrap();
+}
+
+#[test]
+fn computation_definition_headers_expand_to_explicit_lambdas() {
+    let modules = parse::str_parse_modules(
+        r"
+        \module Headers(A: \VType, B: \VType) {
+            \cdefinition f(x, y: A)(z: B): \F(A) := \return x;
+            \cdefinition explicit: A ~> A ~> B ~> \F(A) :=
+                \cfun (x, y: A) (z: B) => \return x;
+        }
+    ",
+    )
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let checked_definition = |name| {
+        let ModuleItem::Definition { definition, .. } = env.module(module).item(name).unwrap()
+        else {
+            panic!("missing definition")
+        };
+        let DefinedConstant::ProgramComputation {
+            ty,
+            body,
+            certified_reflection,
+        } = env.definition(*definition)
+        else {
+            panic!("expected computation")
+        };
+        assert!(certified_reflection.is_some());
+        (*ty, *body, *certified_reflection)
+    };
+    let (ty, body, reflection) = checked_definition("f");
+    let (explicit_ty, explicit_body, explicit_reflection) = checked_definition("explicit");
+    assert!(crate::raw::program_calculus::computation_type_is_alpha_eq(
+        env.arena(),
+        ty,
+        explicit_ty
+    ));
+    assert!(crate::raw::program_calculus::computation_is_alpha_eq(
+        env.arena(),
+        body,
+        explicit_body
+    ));
+    assert!(crate::raw::calculus::exp_is_alpha_eq(
+        env,
+        reflection.unwrap(),
+        explicit_reflection.unwrap()
+    ));
+    for declaration in [
+        r"\vdefinition f(x: A): \U(A ~> \F(A)) := \thunk c;",
+        r"\cdefinition f(x): \F(A) := \return x;",
+        r"\cdefinition f(x: A \where P x): \F(A) := \return x;",
+    ] {
+        assert!(parse::str_parse_modules(&format!(r"\module Bad {{ {declaration} }}")).is_err());
+    }
 }
 
 #[test]

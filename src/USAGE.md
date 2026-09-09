@@ -52,17 +52,16 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 
 Program の関数型は `A ~> C`、ラムダは `\cfun (x: A) => computation`。
 値の型と計算の型は区別し、`\F(A)` と `\U(C)` は従来どおり使う。
-計算の適用は `\capp(function, value)` と書く。
+計算の適用は `function value` と書き、左結合する。引数は値であり、
+計算結果を渡す場合は先に `\bind` で受け取る。
 
 ```text
 \module Example(A: \VType, a: A) {
-  \cdefinition identity: A ~> \F(A) :=
-    \cfun (x: A) => \return x;
-  \cdefinition result: \F(A) := \do {
-    \let x: A := a;
-    \bind y: A <- \capp(identity, x);
-    \return y
-  };
+  \cdefinition identity(x: A): \F(A) := \return x;
+  \cdefinition result: \F(A) :=
+    \let x: A := a \in
+    \bind y: A <- identity x \in
+    \return y;
 }
 ```
 
@@ -81,12 +80,16 @@ Program の値型と値は module parameter にできる。具体化するとき
 
 `\let` は値、`\bind` は計算結果を束縛する。型注釈は必須で、`_` を使うと
 制約から補完する。解決できなければエラーになる。名前は後続部分だけで有効であり、
-型注釈と右辺は外側のスコープで解釈する。ブロック末尾には計算式が必要で、
-その末尾の `;` は省略できる。
+型注釈と右辺は外側のスコープで解釈する。`\in` の後には計算式が必要で、
+その本体を右端まで読む。束縛式を適用の引数に置く場合は括弧で囲む。
+`\cdefinition f(x: A, y: B): C := body;` は、型 `A ~> B ~> C` と
+本体 `\cfun (x: A) (y: B) => body` に展開する。`\vdefinition` は関数引数を受け付けない。
 
 `\force suspended` は thunk を実行し、`\thunk (computation)` は計算を値に包む。
-場合分けは `\case value \in Datatype { | ctor(x) => computation; }`。
-旧 `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は受け付けない。
+`\force f x` は `(\force f) x`。`return`・`thunk`・`force` の自動挿入は行わない。
+場合分けは `\match value \in Datatype \with { | ctor x => computation; }`。
+型名と分岐末尾の `;` は必須。引数なしの分岐は `| ctor => computation;` とする。
+旧 `\capp`・`\do`・`\case` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は受け付けない。
 
 論理側の束縛は `\fun (x: A) => body` と `\forall (x: A) -> B`。
 束縛のない `A -> B` はそのまま使える。レコード生成は
@@ -101,7 +104,7 @@ Program の値型と値は module parameter にできる。具体化するとき
 
 Program record の field は非依存・非再帰の値型とする。構築は
 `\record Pair[A] { first := a, second := b }`、field の取得は
-`\capp(Pair[A]::first, pair)` と書く。取得結果は `\F(A)` なので、
+`Pair[A]::first pair` と書く。取得結果は `\F(A)` なので、
 後続の計算で使うには `\bind` で受け取る。
 Program の inductive／structure には `\vdefinition Type(A: \VType)::item`
 と `\cdefinition Type(A: \VType)::item` を定義できる。

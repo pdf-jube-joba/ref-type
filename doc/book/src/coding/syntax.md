@@ -70,7 +70,7 @@ refinement 束縛では値の名前は一つ。証明名の利用可否や存在
 ```
 
 `\block { ... }` は論理側のブロック。`\fix`・`\let`・`\take` の文に続き、
-`\return expression;` で終える。Program の `\do` とは別の構文・意味を持つ。
+`\return expression;` で終える。Program の `\let ... \in` とは別の構文・意味を持つ。
 
 ## Program（CBPV）
 
@@ -78,40 +78,50 @@ refinement 束縛では値の名前は一つ。証明名の利用可否や存在
 `\U(C)` は計算を thunk にした値の型。計算関数型は `A ~> C` と書く。
 
 ```text
-\cdefinition identity: A ~> \F(A) :=
-  \cfun (x: A) => \return x;
+\cdefinition identity(x: A): \F(A) := \return x;
 \vdefinition suspended: \U(A ~> \F(A)) := \thunk identity;
-\cdefinition result: \F(A) := \do {
-  \let x: A := a;
-  \bind y: A <- \capp(\force suspended, x);
-  \return y
-};
+\cdefinition result: \F(A) :=
+  \let x: A := a \in
+  \bind y: A <- \force suspended x \in
+  \return y;
 ```
 
 `\cfun` は複数の括弧付き束縛や同じ型の複数名を受け付ける。Program の束縛には
-refinement を指定しない。関数の適用は `\capp(computation, value)` と書く。
+refinement を指定しない。関数の適用は `computation value` と書き、左結合する。
+例えば `f x y` は `(f x) y`、`\force f x` は `(\force f) x`。
+引数は値であり、計算結果を引数にする場合は先に `\bind` で受け取る。
+`return`・`thunk`・`force` を自動では挿入しない。
+
+`\cdefinition f(x: A, y: B): C := body;` は型 `A ~> B ~> C` と本体
+`\cfun (x: A) (y: B) => body` に展開する。`f(x, y: A)` や `f(x: A)(y: B)` も使える。
+この省略記法は型関連の計算定義にも使える。`\vdefinition` は関数引数を受け付けない。
 
 `\return` は後続の値式全体を引数とする。`\force`・`\thunk` は一つの atom と
 その関連アクセスを引数とし、複合式は括弧で囲む。
 例えば `\return Pair::pair x y`、`\thunk (\cfun (x: A) => \return x)`。
 
-`\do` 内の `\let` は値を、`\bind` は計算結果を束縛する。型注釈は必須で、推論には `_` を使う。
-名前は後続部分でのみ有効。型注釈と右辺は外側のスコープで解釈する。
-各束縛文には `;` が必要。末尾には計算式が必須で、その `;` だけ省略できる。
-末尾は return に限らず、計算名・適用・場合分け・別の do ブロックでもよい。
+`\let x: A := value \in body` は値を、`\bind x: A <- computation \in body` は
+計算結果を束縛する。型注釈は必須で、推論には `_` を使う。
+名前は本体でのみ有効。型注釈と右辺は外側のスコープで解釈する。本体は計算式。
+束縛は式の先頭で解析し、本体を右端まで読む。適用の引数として置く場合は括弧で囲む。
+例えば `f (\thunk (\let x: A := a \in \return x))`。
+束縛の区切りに `;` は使わず、宣言や分岐の末尾にだけ置く。
 
 ```text
-\case value \in Datatype {
-  | empty() => \return fallback;
-  | pair(left, right) => \do {
-      \bind result: B <- \capp(f, left);
-      \return result
-    };
+\match value \in Datatype \with {
+  | empty => \return fallback;
+  | pair left right =>
+      \bind result: B <- f left \in
+      \return result;
 }
 ```
 
-分岐のコンストラクタ引数は値として束縛される。各分岐の末尾には `;` が必要。
-旧 `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は使わない。
+対象の型名は必須。分岐にはコンストラクタ名とその直下の変数名を並べる。
+入れ子のパターンやガードは使わない。引数は値として束縛され、各分岐の末尾には `;` が必要。
+分岐内でも `x | f` のパイプ適用を使える。
+分岐は型のコンストラクタ宣言順に一つずつ書く。現在の型分類では対象の値の型が
+この時点で判明している必要があるため、直前の束縛で型が `_` のままなら型名を明示する。
+旧 `\capp`・`\do`・`\case` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は使わない。
 再帰・反映の `\Prun`・`\Pcontinue`・`\box` などは従来の専用構文を使う。
 
 ## レコード
@@ -124,8 +134,7 @@ refinement を指定しない。関数の適用は `\capp(computation, value)` �
 
 生成には `\record` が必須。空のレコード本体も `{}` と書ける。
 パーサーと未分類 AST はレコードを論理側に限定しない。型名・パラメータ・フィールド式を
-保持し、後段で分類する。現在利用できる型規則は論理側の structure のものであり、
-将来の Program レコードも同じ表面構文で追加できるようにしている。
+保持し、後段で分類する。Program の structure も同じ表面構文を使う。
 
 ## マクロ
 
@@ -143,7 +152,7 @@ tagged!{\expr { f x } "keep"}
 ## 宣言とモジュール
 
 `\definition`・`\vdefinition`・`\cdefinition` は名前・型・`:=`・本体・`;` の順。
-論理側の定義には名前の後に括弧付き引数を付けられる。
+論理側の定義と `\cdefinition` には名前の後に括弧付き引数を付けられる。
 `\module Name(parameters) { ... }` は入れ子のモジュール、`\module Name;` は外部ファイル。
 `\import M(argument := value) \as Alias;` でモジュールを実体化する。
 

@@ -1,7 +1,7 @@
 \module Source(X: \VType, x: X) {
   \structure Duo(A, B: \VType): \VType := { left: A, right: B };
-  \cdefinition Duo(A, B: \VType)::make: A ~> B ~> \F(Duo[A, B]) :=
-    \cfun (a: A) => \cfun (b: B) => \return \record Duo[A, B] { left := a, right := b };
+  \cdefinition Duo(A, B: \VType)::make(a: A, b: B): \F(Duo[A, B]) :=
+    \return \record Duo[A, B] { left := a, right := b };
   \cdefinition Duo(A, B: \VType)::left_again: Duo[A, B] ~> \F(A) := Duo[A, B]::left;
   \vdefinition Duo(A, B: \VType)::get_x: X := x;
   \structure Empty: \VType := {};
@@ -12,24 +12,23 @@
   };
   \inductive List(A: \VType): \VType := | nil: List; | cons: A -> List[A] -> List; ;
   \vdefinition List(A: \VType)::empty: List[A] := List[A]::nil;
-  \cdefinition List(A: \VType)::is_empty: List[A] ~> \F(X) :=
-    \cfun (xs: List[A]) => \case xs \in List { | nil() => \return x; | cons(a, rest) => \return x; };
-  \cdefinition List(A: \VType)::singleton: A ~> \F(List[A]) :=
-    \cfun (a: A) => \return List[A]::cons a List[A]::empty;
+  \cdefinition List(A: \VType)::is_empty(xs: List[A]): \F(X) :=
+    \match xs \in List \with { | nil => \return x; | cons a rest => \return x; };
+  \cdefinition List(A: \VType)::singleton(a: A): \F(List[A]) :=
+    \return List[A]::cons a List[A]::empty;
 }
 \module Consumer {
   \inductive Unit: \VType := | unit: Unit; ;
   \import \root.Source(X := Unit, x := Unit::unit) \as S;
   \vcheck S.Duo[Unit, Unit]::get_x: Unit;
-  \ccheck \capp(S.List[Unit]::is_empty, S.List[Unit]::empty): \F(Unit);
+  \ccheck S.List[Unit]::is_empty S.List[Unit]::empty: \F(Unit);
   \vcheck S.Empty::empty: S.Empty;
-  \ccheck \capp(\capp(S.Duo[Unit, Unit]::make, Unit::unit), Unit::unit): \F(S.Duo[Unit, Unit]);
-  \cnormalize \capp(\capp(S.Duo[Unit, Unit]::make, Unit::unit), Unit::unit);
-  \cnormalize \do {
-    \bind f: \U(Unit ~> \F(Unit)) <- \capp(S.Thunked[Unit]::thunk, S.Thunked[Unit]::identity);
-    \capp(\force f, Unit::unit)
-  };
-  \cnormalize \capp(S.List[Unit]::singleton, Unit::unit);
+  \ccheck S.Duo[Unit, Unit]::make Unit::unit Unit::unit: \F(S.Duo[Unit, Unit]);
+  \cnormalize S.Duo[Unit, Unit]::make Unit::unit Unit::unit;
+  \cnormalize
+    \bind f: \U(Unit ~> \F(Unit)) <- S.Thunked[Unit]::thunk S.Thunked[Unit]::identity \in
+    \force f Unit::unit;
+  \cnormalize S.List[Unit]::singleton Unit::unit;
   \definition package: \Box(S.Duo[Unit, Unit] ~> \F(Unit)) := \box(S.Duo[Unit, Unit] ~> \F(Unit), S.Duo[Unit, Unit]::left_again);
   \normalize \Force(S.Duo[Unit, Unit] ~> \F(Unit), package);
 }
@@ -37,7 +36,7 @@
 \module Reexport(X: \VType, x: X) {
   \import \root.Source(X := X, x := x) \as S;
   \vdefinition empty: S.Empty := S.Empty::empty;
-  \cdefinition identity: X ~> \F(X) := \cfun (a: X) => \return a;
+  \cdefinition identity(a: X): \F(X) := \return a;
 }
 \module Again {
   \inductive Unit: \VType := | unit: Unit; ;
@@ -46,5 +45,5 @@
   \import \root.Source(X := Unit, x := Unit::unit) \as S2;
   \vcheck S1.Empty::empty: S1.Empty;
   \vcheck S2.Empty::empty: S2.Empty;
-  \cnormalize \capp(R.identity, Unit::unit);
+  \cnormalize R.identity Unit::unit;
 }

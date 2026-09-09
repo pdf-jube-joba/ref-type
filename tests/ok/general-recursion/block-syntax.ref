@@ -4,20 +4,20 @@
   | zero: Bit;
   | one: Bit;
   ;
-  \cdefinition identity: Bit ~> \F(Bit) :=
-    \cfun (x: Bit) => \return x;
+  \cdefinition identity(x: Bit): \F(Bit) := \return x;
+  \cdefinition first(x, y: Bit): \F(Bit) := \return x;
+  \cdefinition second(x: Bit)(y: Bit): \F(Bit) := \return y;
   \vdefinition suspended: \U(Bit ~> \F(Bit)) := \thunk identity;
-  \cdefinition result: \F(Bit) := \do {
-    \let x: Bit := Bit::one;
-    \bind x: Bit <- \capp(\force suspended, x);
-    \case x \in Bit {
-      | zero() => \return Bit::zero;
-      | one() => \do {
-          \let y: Bit := x;
-          \capp(identity, y)
-        };
-    }
-  };
+  \cdefinition result: \F(Bit) :=
+    \let x: Bit := Bit::one \in
+    \bind x: Bit <- \force suspended x \in
+    \bind x: Bit <- first x Bit::zero \in
+    \match x \in Bit \with {
+      | zero => \return Bit::zero;
+      | one =>
+          \let y: Bit := x \in
+          second Bit::zero y;
+    };
   \ceval result;
   \ccheck result: \F(Bit);
 }

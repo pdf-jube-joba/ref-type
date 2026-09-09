@@ -512,10 +512,6 @@ pub enum SExp {
         value_ty: Box<SExp>,
         body: Box<SExp>,
     },
-    ComputationApp {
-        computation: Box<SExp>,
-        value: Box<SExp>,
-    },
     Sequence {
         computation: Box<SExp>,
         var: Identifier,
@@ -834,12 +830,14 @@ impl TryFrom<SExp> for ValueTermExp {
                         .collect::<Result<_, _>>()?,
                 })
             }
-            SExp::Thunk { computation } => Ok(Self::Thunk(Box::new((*computation).try_into()?))),
+            SExp::Thunk { computation } if arguments.is_empty() => {
+                Ok(Self::Thunk(Box::new((*computation).try_into()?)))
+            }
             SExp::PContinue {
                 state_ty,
                 result_ty,
                 next,
-            } => Ok(Self::Continue {
+            } if arguments.is_empty() => Ok(Self::Continue {
                 state_ty: Box::new((*state_ty).try_into()?),
                 result_ty: Box::new((*result_ty).try_into()?),
                 next: Box::new((*next).try_into()?),
@@ -848,7 +846,7 @@ impl TryFrom<SExp> for ValueTermExp {
                 state_ty,
                 result_ty,
                 output,
-            } => Ok(Self::Finish {
+            } if arguments.is_empty() => Ok(Self::Finish {
                 state_ty: Box::new((*state_ty).try_into()?),
                 result_ty: Box::new((*result_ty).try_into()?),
                 output: Box::new((*output).try_into()?),
@@ -890,9 +888,9 @@ impl TryFrom<SExp> for ComputationTermExp {
                 value_ty: Box::new((*value_ty).try_into()?),
                 body: Box::new((*body).try_into()?),
             }),
-            SExp::ComputationApp { computation, value } => Ok(Self::Application {
-                computation: Box::new((*computation).try_into()?),
-                value: Box::new((*value).try_into()?),
+            SExp::App { func, arg, .. } => Ok(Self::Application {
+                computation: Box::new((*func).try_into()?),
+                value: Box::new((*arg).try_into()?),
             }),
             SExp::Sequence {
                 computation,
