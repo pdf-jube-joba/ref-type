@@ -297,8 +297,9 @@ fn infer_uncached(
                 {
                     Some(ty)
                 }
-                ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => None,
-                ModuleParameterKind::Pts { .. } => None,
+                ModuleParameterKind::ProgramType
+                | ModuleParameterKind::ProgramValue { .. }
+                | ModuleParameterKind::Pts { .. } => None,
             })
             .ok_or_else(|| failure(rule, phase, "module parameter is not a PTS term")),
         ExpNode::ReflectedProgramParam(parameter) => session
@@ -1017,7 +1018,7 @@ fn infer_reflected_program_case(
 }
 
 fn check_closed_program_type(
-    session: &mut CheckSession<'_, '_>,
+    session: &CheckSession<'_, '_>,
     program_ty: ProgramType,
 ) -> Result<(), Box<JudgementError>> {
     let mut empty = Vec::new();
@@ -1036,7 +1037,7 @@ fn check_closed_program_type(
 }
 
 fn check_closed_well_terminated_program(
-    session: &mut CheckSession<'_, '_>,
+    session: &CheckSession<'_, '_>,
     program_ty: ProgramType,
     program: ProgramTerm,
     certified_reflection: Exp,

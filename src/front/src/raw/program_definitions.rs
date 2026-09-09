@@ -99,7 +99,7 @@ pub fn instantiate_value(
             } => arena.reuse_value(
                 value,
                 ValueTermNode::DefinitionInstance {
-                    definition: definition,
+                    definition,
                     parameters: parameters
                         .into_iter()
                         .map(|t| instantiate_value_type(arena, t, arguments, cutoff))
@@ -210,7 +210,7 @@ pub fn instantiate_computation(
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::DefinitionInstance {
-                    definition: definition,
+                    definition,
                     parameters: parameters
                         .into_iter()
                         .map(|t| instantiate_value_type(arena, t, arguments, cutoff))

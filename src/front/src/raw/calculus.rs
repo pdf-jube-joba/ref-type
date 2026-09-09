@@ -16,7 +16,8 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         | ExpNode::Bound(_)
         | ExpNode::ModuleParam(_)
         | ExpNode::ReflectedProgramParam(_)
-        | ExpNode::DefinedConstant(_) => {}
+        | ExpNode::DefinedConstant(_)
+        | ExpNode::BoxType { .. } => {}
         ExpNode::Meta { spine, .. } => vecs!(spine),
         ExpNode::Prod { ty, body, .. } | ExpNode::Lam { ty, body, .. } => one!(ty, body),
         ExpNode::App { func, arg } => one!(func, arg),
@@ -101,7 +102,6 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             accessibility,
             transition_equality
         ),
-        ExpNode::BoxType { .. } => {}
         ExpNode::BoxProgram {
             certified_reflection,
             ..

@@ -250,7 +250,7 @@ impl GlobalEnvironment {
         &self.outputs
     }
 
-    fn finish_metavariables(&mut self) -> Result<(), ElaborationError> {
+    fn finish_metavariables(&self) -> Result<(), ElaborationError> {
         self.metavariables.finish(&self.crate_env)
     }
 

@@ -64,7 +64,7 @@ pub fn reflect(env: &Environment, e: Expression) -> Result<Expression, String> {
         }
         _ => {}
     }
-    let mut mapped = d.clone();
+    let mut mapped = d;
     mapped.sort = sort;
     for field in &mut mapped.fields {
         for child in field {

@@ -710,7 +710,7 @@ impl<'a> Checker<'a> {
         Ok(Classifier::Expression(inferred))
     }
 
-    fn validate_inferred(&mut self, e: Expression, ty: Expression) -> Result<(), String> {
+    fn validate_inferred(&self, e: Expression, ty: Expression) -> Result<(), String> {
         let expected = match e.family().stage() {
             Stage::Term => Stage::Type,
             Stage::Type => Stage::Kind,
@@ -722,7 +722,7 @@ impl<'a> Checker<'a> {
         Ok(())
     }
 
-    fn closed_program_type(&mut self, p: Expression) -> Result<(), String> {
+    fn closed_program_type(&self, p: Expression) -> Result<(), String> {
         if !self.arena().sort(p).is_program() || !closed_in_environment(self.env, p) {
             return Err("Box requires a closed Program type".into());
         }
@@ -1137,10 +1137,12 @@ impl<'a> Checker<'a> {
                 }
                 let result_sort = local.formation(motive.body)?;
                 let permitted = match (spec.sort, result_sort) {
-                    (_, Sort::Base(BaseSort::Prop)) => true,
                     (Sort::Base(BaseSort::Set(i)), Sort::Base(BaseSort::Set(j))) => i <= j,
-                    (Sort::Base(BaseSort::Set(_)), Sort::Upper(BaseSort::Prop)) => true,
-                    (Sort::Upper(BaseSort::Prop), Sort::Upper(BaseSort::Prop)) => true,
+                    (_, Sort::Base(BaseSort::Prop))
+                    | (
+                        Sort::Base(BaseSort::Set(_)) | Sort::Upper(BaseSort::Prop),
+                        Sort::Upper(BaseSort::Prop),
+                    ) => true,
                     _ => self.env.singleton_elimination(inductive),
                 };
                 if !permitted {

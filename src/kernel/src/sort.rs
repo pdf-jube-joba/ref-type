@@ -61,17 +61,17 @@ impl Sort {
         use Sort::{Base as B, Upper as U};
         match (self, body) {
             (B(Set(i)), B(Set(j))) => Some(B(Set(i.max(j)))),
-            (B(Set(i)), U(Set(j))) | (U(Set(i)), U(Set(j))) => Some(U(Set(i.max(j)))),
+            (B(Set(i)) | U(Set(i)), U(Set(j))) => Some(U(Set(i.max(j)))),
             (U(Set(i)), B(Set(j))) => Some(B(Set(i.checked_add(1)?.max(j)))),
-            (B(Prop), B(Prop)) | (U(Prop), B(Prop)) => Some(B(Prop)),
+            (B(Prop) | U(Prop), B(Prop)) => Some(B(Prop)),
             (U(Prop), U(Prop)) => Some(U(Prop)),
             (B(Set(_)) | U(Set(_)), b @ (B(Prop) | U(Prop))) => Some(b),
             (B(Value(i)), B(Computation(j))) => Some(B(Computation(i.max(j)))),
-            (U(Value(i)) | U(Computation(i)), B(Computation(j))) => {
+            (U(Value(i) | Computation(i)), B(Computation(j))) => {
                 Some(B(Computation(i.checked_add(1)?.max(j))))
             }
-            (U(Value(i)) | U(Computation(i)), U(Value(j))) => Some(U(Value(i.max(j)))),
-            (U(Value(i)) | U(Computation(i)), U(Computation(j))) => Some(U(Computation(i.max(j)))),
+            (U(Value(i) | Computation(i)), U(Value(j))) => Some(U(Value(i.max(j)))),
+            (U(Value(i) | Computation(i)), U(Computation(j))) => Some(U(Computation(i.max(j)))),
             _ => None,
         }
     }

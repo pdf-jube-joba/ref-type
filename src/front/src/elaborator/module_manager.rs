@@ -74,8 +74,8 @@ fn instantiate_associated_definitions(
                 .map_or(source_id, |origin| origin.source);
             let value = match value {
                 DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                    ty: exp_subst_map(env.arena(), ty, &reflected_substitutions),
-                    body: exp_subst_map(env.arena(), body, &reflected_substitutions),
+                    ty: exp_subst_map(env.arena(), ty, reflected_substitutions),
+                    body: exp_subst_map(env.arena(), body, reflected_substitutions),
                 },
                 DefinedConstant::ProgramValue {
                     ty,
@@ -85,15 +85,15 @@ fn instantiate_associated_definitions(
                     ty: crate::raw::program_calculus::subst_value_type_module_params(
                         env.arena(),
                         ty,
-                        &substitutions,
+                        substitutions,
                     ),
                     body: crate::raw::program_calculus::subst_value_module_params(
                         env.arena(),
                         body,
-                        &substitutions,
+                        substitutions,
                     ),
                     certified_reflection: certified_reflection
-                        .map(|term| exp_subst_map(env.arena(), term, &reflected_substitutions)),
+                        .map(|term| exp_subst_map(env.arena(), term, reflected_substitutions)),
                 },
                 DefinedConstant::ProgramComputation {
                     ty,
@@ -103,15 +103,15 @@ fn instantiate_associated_definitions(
                     ty: crate::raw::program_calculus::subst_computation_type_module_params(
                         env.arena(),
                         ty,
-                        &substitutions,
+                        substitutions,
                     ),
                     body: crate::raw::program_calculus::subst_computation_module_params(
                         env.arena(),
                         body,
-                        &substitutions,
+                        substitutions,
                     ),
                     certified_reflection: certified_reflection
-                        .map(|term| exp_subst_map(env.arena(), term, &reflected_substitutions)),
+                        .map(|term| exp_subst_map(env.arena(), term, reflected_substitutions)),
                 },
             };
             (name, source_id, origin, value)
@@ -151,16 +151,16 @@ fn materialize_associated_definitions(
                 ty: remap_all_global_ids(
                     env.arena(),
                     ty,
-                    &definition_ids,
-                    &inductive_ids,
-                    &program_inductive_ids,
+                    definition_ids,
+                    inductive_ids,
+                    program_inductive_ids,
                 ),
                 body: remap_all_global_ids(
                     env.arena(),
                     body,
-                    &definition_ids,
-                    &inductive_ids,
-                    &program_inductive_ids,
+                    definition_ids,
+                    inductive_ids,
+                    program_inductive_ids,
                 ),
             },
             DefinedConstant::ProgramValue {
@@ -171,22 +171,22 @@ fn materialize_associated_definitions(
                 ty: crate::raw::program_calculus::remap_value_type_global_ids(
                     env.arena(),
                     ty,
-                    &definition_ids,
-                    &program_inductive_ids,
+                    definition_ids,
+                    program_inductive_ids,
                 ),
                 body: crate::raw::program_calculus::remap_value_global_ids(
                     env.arena(),
                     body,
-                    &definition_ids,
-                    &program_inductive_ids,
+                    definition_ids,
+                    program_inductive_ids,
                 ),
                 certified_reflection: certified_reflection.map(|term| {
                     remap_all_global_ids(
                         env.arena(),
                         term,
-                        &definition_ids,
-                        &inductive_ids,
-                        &program_inductive_ids,
+                        definition_ids,
+                        inductive_ids,
+                        program_inductive_ids,
                     )
                 }),
             },
@@ -198,22 +198,22 @@ fn materialize_associated_definitions(
                 ty: crate::raw::program_calculus::remap_computation_type_global_ids(
                     env.arena(),
                     ty,
-                    &definition_ids,
-                    &program_inductive_ids,
+                    definition_ids,
+                    program_inductive_ids,
                 ),
                 body: crate::raw::program_calculus::remap_computation_global_ids(
                     env.arena(),
                     body,
-                    &definition_ids,
-                    &program_inductive_ids,
+                    definition_ids,
+                    program_inductive_ids,
                 ),
                 certified_reflection: certified_reflection.map(|term| {
                     remap_all_global_ids(
                         env.arena(),
                         term,
-                        &definition_ids,
-                        &inductive_ids,
-                        &program_inductive_ids,
+                        definition_ids,
+                        inductive_ids,
+                        program_inductive_ids,
                     )
                 }),
             },
@@ -351,7 +351,7 @@ impl ModuleManager {
     }
 
     pub(crate) fn add_def(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         name: Identifier,
         definition: DefinedConstant,
@@ -367,7 +367,7 @@ impl ModuleManager {
     }
 
     pub(crate) fn add_associated_def(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         owner: &Identifier,
         name: Identifier,
@@ -395,7 +395,7 @@ impl ModuleManager {
 
     #[cfg(test)]
     fn add_inductive(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         type_name: Identifier,
         constructor_names: Vec<Identifier>,
@@ -414,7 +414,7 @@ impl ModuleManager {
     }
 
     pub(crate) fn publish_reserved_inductive(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         type_name: Identifier,
         constructor_names: Vec<Identifier>,
@@ -432,7 +432,7 @@ impl ModuleManager {
     }
 
     pub(crate) fn publish_reserved_program_inductive(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         type_name: Identifier,
         constructor_names: Vec<Identifier>,
@@ -454,7 +454,7 @@ impl ModuleManager {
     }
 
     pub(crate) fn publish_reserved_record(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         type_name: Identifier,
         inductive: InductiveId,
@@ -474,7 +474,7 @@ impl ModuleManager {
     }
 
     pub(crate) fn add_import(
-        &mut self,
+        &self,
         env: &mut CrateEnv,
         import_name: Identifier,
         instance: ModuleInstanceId,

@@ -1652,10 +1652,6 @@ impl ProgramScope {
         let arena = environment.crate_env.arena();
         let expected = self.zonk_computation_type(environment, expected);
         match arena.get(computation) {
-            ComputationTermNode::DefinitionInstance { .. } => {
-                let inferred = self.infer_computation_term(environment, context, computation)?;
-                self.unify_computation_types(environment, inferred, expected)
-            }
             ComputationTermNode::Meta { .. } => Ok(()),
             ComputationTermNode::DefinedConstant(_) => {
                 let inferred = self.infer_kernel_computation(environment, context, computation)?;

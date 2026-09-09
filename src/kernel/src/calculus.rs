@@ -708,10 +708,13 @@ pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
         let mut d = a.data(e);
         let indices: &[usize] = match d.op {
             Op::AppTerm { .. } | Op::AppType { .. } | Op::IndElim { .. } => &[0],
-            Op::Pred | Op::Case { .. } | Op::SetCase { .. } | Op::ForceBox => &[1],
+            Op::Pred
+            | Op::Case { .. }
+            | Op::SetCase { .. }
+            | Op::ForceBox
+            | Op::Sequence { .. } => &[1],
             Op::Recursor { .. } => &[5],
             Op::RunCase | Op::SetRunCase => &[4],
-            Op::Sequence { .. } => &[1],
             Op::BoxApp { .. } => &[2, 3],
             Op::BoxTypeApp { .. } => &[2],
             _ => &[],

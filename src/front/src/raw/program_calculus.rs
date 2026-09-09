@@ -667,7 +667,7 @@ pub fn shift_value_indices(
             } => arena.reuse_value(
                 value,
                 ValueTermNode::DefinitionInstance {
-                    definition: definition,
+                    definition,
                     parameters: parameters
                         .into_iter()
                         .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
@@ -773,7 +773,7 @@ pub fn shift_computation_indices(
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::DefinitionInstance {
-                    definition: definition,
+                    definition,
                     parameters: parameters
                         .into_iter()
                         .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
@@ -1797,7 +1797,7 @@ pub fn subst_value_module_params(
         } => arena.reuse_value(
             value,
             ValueTermNode::DefinitionInstance {
-                definition: definition,
+                definition,
                 parameters: parameters
                     .into_iter()
                     .map(|t| subst_value_type_module_params(arena, t, substitutions))
@@ -1891,7 +1891,7 @@ pub fn subst_computation_module_params(
         } => arena.reuse_computation(
             term,
             ComputationTermNode::DefinitionInstance {
-                definition: definition,
+                definition,
                 parameters: parameters
                     .into_iter()
                     .map(|t| subst_value_type_module_params(arena, t, substitutions))

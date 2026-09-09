@@ -132,10 +132,10 @@ impl Lowerer<'_> {
             .module_parameter_opt(id)
             .ok_or("unknown parameter")?
             .clone();
-        let ctx = self.raw.definition_context(id.module);
+        let mut ctx = self.raw.definition_context(id.module);
         let classifier = match p.kind {
             raw::environment::ModuleParameterKind::Pts { ty } => {
-                self.set(ty, &mut ctx.clone(), id.module)?
+                self.set(ty, &mut ctx, id.module)?
             }
             raw::environment::ModuleParameterKind::ProgramType => self
                 .kernel
