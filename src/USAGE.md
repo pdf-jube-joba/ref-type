@@ -66,6 +66,19 @@ Program の関数型は `A ~> C`、ラムダは `\cfun (x: A) => computation`。
 }
 ```
 
+Program の値型と値は module parameter にできる。具体化するときも Program 構文を渡す。
+
+```text
+\module Source(A: \VType, a: A) {
+  \vdefinition value: A := a;
+}
+\module Consumer {
+  \inductive Unit: \VType := | unit: Unit; ;
+  \import \root.Source(A := Unit, a := Unit::unit) \as S;
+  \vcheck S.value: Unit;
+}
+```
+
 `\let` は値、`\bind` は計算結果を束縛する。型注釈は必須で、`_` を使うと
 制約から補完する。解決できなければエラーになる。名前は後続部分だけで有効であり、
 型注釈と右辺は外側のスコープで解釈する。ブロック末尾には計算式が必要で、

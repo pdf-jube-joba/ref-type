@@ -321,6 +321,39 @@ fn external_module_parameter_error_uses_the_header_file() {
 }
 
 #[test]
+fn external_program_module_parameters_are_instantiated_in_nested_modules() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r#"
+\module Source(X: \VType, x: X);
+\module Consumer {
+  \inductive Unit: \VType := | unit: Unit; ;
+  \import \root.Source(X := Unit, x := Unit::unit) \as S;
+  \import \root.Source(X := Unit, x := Unit::unit).Child() \as C;
+  \vcheck S.value: Unit;
+  \ccheck S.result: \F(Unit);
+  \vcheck C.value: Unit;
+  \definition package: \Box(Unit) := \box(Unit, C.value);
+  \normalize \Force(Unit, package);
+}
+"#,
+    );
+    fixture.write(
+        "Source.ref",
+        r#"
+\vdefinition value: X := x;
+\cdefinition result: \F(X) := \return x;
+\module Child;
+"#,
+    );
+    fixture.write("Source/Child.ref", "\\vdefinition value: X := x;\n");
+
+    let output = run_ref_file(&fixture.0, &root).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
 fn trace_is_on_stderr_and_preserves_command_output() {
     let workspace = workspace_root();
     let path = workspace.join("tests/ok/general-recursion/finish.ref");
