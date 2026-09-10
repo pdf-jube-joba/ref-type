@@ -4,7 +4,10 @@
 Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 ここでは Box-free な raw 項の候補解釈を構成する。
-[健全性](soundness.md)は未証明の条件 TC を仮定し、[相対無矛盾性](proof.md)もその条件のもとでのみ得られる。
+[この解釈の健全性](soundness.md)は未証明の条件 TC を仮定する。
+core の相対無矛盾性は、別の[型コードモデル](coded_model.md)と
+[導出移送](semantic_conversion.md)によって、この TC を仮定せず証明する。
+以下の trace と停止計算の集合論的補題は、新しいモデルでも再利用する。
 
 ## 集合論的演算
 

@@ -1,5 +1,9 @@
 # Core calculus の条件付き健全性
 
+このページは従来の非コード化解釈についての条件付き定理を保持する。
+現行 core の相対無矛盾性は、別の[型コードモデル](coded_model.md)による
+[証明](semantic_conversion.md)で得られており、このページの TC はその前提ではない。
+
 対象は [system.md](../system.md) の、一般の datatype 宣言を除いた体系である。
 以下では現行の構文 family と rule label を保持し、Set/Prop の判断を扱う。
 Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を

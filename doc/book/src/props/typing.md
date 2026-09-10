@@ -186,7 +186,9 @@ Pred/subset についても、内側の domain \(B\) での引数 typing を回�
 一方、[補助体系の SR](subject_reduction.md#sr-plus) は、
 generation を用いて compatible closure と provability まで含めて証明できる。
 元の体系の導出は補助体系にも移せるので、無矛盾性を補助体系で示す経路がある。
-この場合に残るのは、同ページの Semantic-step-plus である。
+この従来の解釈を使う経路に残るのは、同ページの Semantic-step-plus である。
+core の無矛盾性は、別の[型コードモデルと導出移送](semantic_conversion.md)によって証明でき、
+Semantic-step-plus を前提にしない。
 
 ## 旧記法による検討メモ
 

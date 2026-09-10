@@ -6,13 +6,10 @@ Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除�
 well-termination の略記は、その二つの判断の導出へ展開して数える。
 
 > **証明の到達点。**
-> 現行の構文 family・rule label・多相 Program 型を含めて、Box 消去、構文的代入、
-> context conversion、集合演算の構成、および条件付き健全性を示す。
-> さらに、補助体系 \(\mathcal S_+\) では refinement を含む generation と一般の SR、
-> 型付きの共通簡約先を示す。
-> raw conversion の意味保存 \(\mathrm{TC}\) は未証明である。
-> したがって、現行体系の無条件の相対無矛盾性証明はまだ完成していない。
-> 元の \(\mathcal S_0\) の一般の SR と、\(\mathcal S_+\) の SR は区別する。
+> datatype を除く現行 core について、外部の集合論的仮定だけから相対無矛盾性を示す。
+> 新しい型コードモデルと証明項の消去により、raw conversion を含む全導出を
+> 意味的 conversion の補助体系へ移す。従来の候補解釈の未証明条件 TC は仮定しない。
+> Box は既存の消去定理で扱う。一般の datatype への拡張は未証明である。
 
 ## 証明すべき命題
 
@@ -32,19 +29,22 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 
 を示すことである。これは強正規化、Program の停止性、型検査の決定可能性とは別の命題である。
 
-以下の証明は
+完成した core の証明は
 
 \[
-\text{Box 消去}\quad+\quad
-\bigl(\mathrm{TC}\Longrightarrow\mathcal S_0\text{ の健全性}\bigr)
-\quad+\quad\llbracket\bot\rrbracket=\varnothing
+\mathcal S_\Box\ \longrightarrow\ \mathcal S_0\ \subseteq\ \mathcal S_+
+\ \xrightarrow{\epsilon}\ \mathcal H
+\quad+\quad\mathcal H\text{ の健全性}
+\quad+\quad\langle\bot\rangle=0
 \]
 
-までを与える。\(\mathrm{TC}\) を外部集合論の公理に紛れ込ませない。
+という構成である。\(\mathcal H\) の健全性と簡約保存を先に証明してから、
+最後の導出移送で元の raw conversion を取り込む。
+\(\mathrm{TC}\) を外部集合論の公理に紛れ込ませない。
 
 ## 証明の構成
 
-導出の基本補題から Box 消去へ進み、Box-free core の集合モデルと条件付き健全性を使う。
+導出の基本補題と Box 消去、補助 reduction の合流性を用意し、型コードモデルへ進む。
 
 - [構文的補題](metatheory.md)：束縛と raw 代入の合成。
 - [合流性](confluence.md)：補助 reduction による共通簡約先と head の区別。
@@ -52,10 +52,12 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 - [Generation](generation.md)：補助体系で refinement を含む導出から導入時の型を回収する。
 - [Subject reduction](subject_reduction.md)：補助体系での一般の保存と型付きの共通簡約先。
 - [Box 消去](box_elimination.md)：reflection と Box-free core への導出の移送。
-- [集合モデル](model.md)：universe、集合演算、raw 項と context の解釈、未証明の条件 TC。
-- [条件付き健全性](soundness.md)：TC を仮定した各規則の健全性と、TC の残る証明義務。
+- [型コードモデル](coded_model.md)：rank 再帰によるコード、decoding、証明消去、universe 閉性。
+- [Conversion と無矛盾性](semantic_conversion.md)：補助体系の健全性・意味保存、元の導出の移送、最終定理。
+- [従来の集合モデル](model.md)：再利用する集合演算と、別の候補解釈に対する条件 TC。
+- [従来の条件付き健全性](soundness.md)：非コード化解釈についての条件付き定理。
 
-## 総合したときに残る証明義務
+## 結果と残る証明義務
 
 | 結果 | 到達点 | 証明 |
 | --- | --- | --- |
@@ -65,25 +67,38 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 | refinement を含む generation | \(\mathcal S_+\) で証明済み。型の一意性は使わない | [generation](generation.md) |
 | 一般の SR と型付きの共通簡約先 | \(\mathcal S_+\) で証明済み | [subject reduction](subject_reduction.md) |
 | Box 消去 | 型引数への btapp を含めて証明済み | [Box 消去](box_elimination.md) |
-| 集合モデルの健全性 | TC を仮定した定理 | [健全性](soundness.md) |
+| 型コードモデルと元の導出の移送 | TC の仮定なしに証明済み | [型コード](coded_model.md)、[意味保存](semantic_conversion.md) |
+| 従来の非コード化モデルの健全性 | その解釈の TC を仮定した定理 | [健全性](soundness.md) |
 | conversion を一切使わない Box-free 部分体系の無矛盾性 | 外部の集合論的仮定だけで証明済み | [部分体系の系](soundness.md#conversion-free) |
-| 現行 core の無条件の相対無矛盾性 | 未証明。TC が残る | [TC の証明義務](soundness.md#tc-obligation) |
+| 現行 core の相対無矛盾性 | 外部の集合論的仮定だけから証明済み | [最終定理](semantic_conversion.md#相対無矛盾性) |
 | datatype を含む体系への拡張 | 未証明 | [拡張に必要な事項](#datatypes) |
 
-従って、これらの文書を合わせても、現時点では現行体系の無条件の相対無矛盾性は出ない。
-補助体系を経由する経路では、subset を含む generation、一般の SR、
-型付きの共通簡約先までは得られた。
-残るのは[型付き一歩簡約の意味保存](subject_reduction.md#semantic-step)を、
-健全性の証明との循環なしに示すことである。
-これが得られれば \(\mathrm{TC}_+\)、元の TC、現行 core の無矛盾性が順に従う。
-この経路では、元の \(\mathcal S_0\) の SR を追加の仮定にする必要はない。
+従来の解釈についての [Semantic-step-plus](subject_reduction.md#semantic-step) は未証明のままだが、
+core の無矛盾性証明の前提ではなくなった。
+新しいモデルでは、関数型のコードが domain と fiber の情報を保持し、
+意味的 conversion を経た lambda の generation を直接示せる。
+命題の product は真理値に潰れるため、proof を返す lambda/application は先に消去する。
+これにより、\(\mathcal H\) の一歩保存をその健全性の後に独立に証明できる。
+元の \(\mathcal S_0\) の一般の SR も、この証明の追加仮定ではない。
 
-[Stratified judgement](stratified_judgement.md) の検討は、この穴を埋めない。
+[Stratified judgement](stratified_judgement.md) の議論は、この証明では利用しない。
 その議論は全 product rule に \(\sigma_2=\sigma_3\) を仮定しているが、
 現行の \((*^s_1,*^s_0,*^s_1)\in\mathcal R_s\) はその仮定を満たさない。
 また、構文 family の保存だけでは、raw zigzag の中間項の typing や意味保存は保証されない。
 
-## 条件付きの無矛盾性
+## Core の無矛盾性
+
+**定理。** [集合論的仮定](model.md#universes)のもとで Consistency が成り立つ。
+
+**証明。** [Coded-embedding と Core-consistency](semantic_conversion.md)を使う。
+\(\bot\) の解釈は 0 であり、空 context は valid valuation を持つ。
+仮に core の証明があれば H に移せるが、H の健全性はそれぞれ
+\(0=1\)、\(0\in0\) を要求して矛盾する。
+Box 付きの証明は Clear で先に消去する。□
+
+これは文書上の数学的証明であり、証明支援系による機械検証までは行っていない。
+
+## 従来の解釈に対する条件付き定理
 
 **定理。** [集合モデルの集合論的仮定](model.md#universes)と [TC](model.md#tc) のもとで Consistency が成り立つ。
 
@@ -98,9 +113,8 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 \(\llbracket t\rrbracket\in\varnothing\) となって矛盾。
 Box 付きの導出は [Box 消去の Clear](box_elimination.md) により Box-free の導出へ移る。□
 
-これは TC を証明したという主張ではなく、TC 以外のモデル側の接続を示す定理である。
-現時点で得た結果は「この候補解釈に対する TC が成り立てば無矛盾」であり、
-「現行体系の無矛盾性を証明した」ではない。
+これは従来の候補解釈に対する TC 以外の接続を記録した定理である。
+上の型コードモデルによる無矛盾性は、この条件付き定理を経由しない。
 
 <a id="datatypes"></a>
 
@@ -114,7 +128,7 @@ Set case だけを除けば十分、とはしていない。
 2. reflection 後の signature の positivity と universe 内の最小不動点の構成。
 3. Program case を含む reflection の全域的な定義と対応する Set case の規則。
 4. case の代入・簡約 simulation と Box 消去の追加 case。
-5. 追加規則についての健全性、および拡張した raw conversion の TC。
+5. 追加規則についてのコードモデルの健全性、消去後の合流性と H-step、導出の移送。
 
 また、well-termination の定義に Set typing が含まれることと、
 Program の operational な停止性を示すことは別である。
