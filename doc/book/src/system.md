@@ -1,7 +1,8 @@
 # Core calculus
-> [! note]
+> [!note]
 > この block quote は削除しないし追記しないでください。
-> ここは体系を簡潔に述べるところです。
+> 
+> `system.md` は体系を簡潔に述べるところです。
 > 次のことをしないでください。
 > 会話由来の「○○しない」を書かない
 > 過去の状態から変更した理由を書かない
@@ -9,55 +10,34 @@
 
 ## Sort
 
-- \(\mathcal B_{sp}=\{*^s_i\mid i\in\mathbb N\}\cup\{*^p\}\)
-- \(\mathcal B_{pr}=\{*^v_i,*^c_i\mid i\in\mathbb N\}\)
-- \(\mathcal B=\mathcal B_{sp}\cup\mathcal B_{pr}\)
-- \(\mathcal S_{sp}=\mathcal B_{sp}\cup\kappa(\mathcal B_{sp})\)
-- \(\kappa(*^s_i)=\square^s_i\)
-- \(\kappa(*^p)=\square^p\)
-- \(\kappa(*^q_i)=\square^q_i\quad(q\in\{v,c\})\)
-- \(\mathcal S=\mathcal B\cup\kappa(\mathcal B)\)
-- \(\mathcal A=\{(b,\kappa(b))\mid b\in\mathcal B\}\)
+- \(\mathcal B:=\mathcal B_{sp}\cup\mathcal B_{pr}\)
+  - \(\mathcal B_{sp}:=\{*^s_i\mid i\in\mathbb N\}\cup\{*^p\}\)
+  - \(\mathcal B_{pr}:=\{*^v_i,*^c_i\mid i\in\mathbb N\}\)
+- \(\mathcal K:=\mathcal K_{sp}\cup\mathcal K_{pr}\)
+  - \(\mathcal K_{sp}:=\{\square^s_i\mid i\in\mathbb N\}\cup\{\square^p\}\)
+  - \(\mathcal K_{pr}:=\{\square^v_i,\square^c_i\mid i\in\mathbb N\}\)
+- \(\kappa:\mathcal B\to\mathcal K\)
+  - \(\kappa(*^s_i):=\square^s_i\) for \(i \in \mathbb N\)
+  - \(\kappa(*^p):=\square^p\)
+  - \(\kappa(*^q_i):=\square^q_i\) for \(q\in\{v,c\}, i \in \mathbb N\)
+- \(\mathcal S:=\mathcal B\cup\mathcal K\)
+  - \(\mathcal S_{sp}:=\mathcal B_{sp}\cup\mathcal K_{sp}\)
+  - \(\mathcal S_{pr}:=\mathcal B_{pr}\cup\mathcal K_{pr}\)
+- \(\mathcal A:=\{(b,\kappa(b))\mid b\in\mathcal B\}\)
+
+### 以降での添え字についての仮定
+
 - \(i,j,k,h\in\mathbb N\)
 - \(q,q'\in\{v,c\}\)
 - \(b\in\mathcal B\)
 - \(\sigma,\sigma_1,\sigma_2,\sigma_3\in\mathcal S\)
-- \(\mathcal S_{pr}:=\mathcal B_{pr}\cup\kappa(\mathcal B_{pr})\)
 
 ### Product signature
 
-\[
-\begin{aligned}
-\mathcal R_s=\bigcup_{i,j\in\mathbb N}\{&
-(*^s_i,*^s_j,*^s_{\max(i,j)}),\\
-&(*^s_i,\square^s_j,\square^s_{\max(i,j)}),\\
-&(\square^s_i,\square^s_j,\square^s_{\max(i,j)}),\\
-&(\square^s_i,*^s_j,*^s_{\max(i+1,j)})\}.
-\end{aligned}
-\]
-
-\[
-\begin{aligned}
-\mathcal R_{sp}={}&\mathcal R_s\\
-&\cup\{(*^p,*^p,*^p),(\square^p,*^p,*^p),
-               (\square^p,\square^p,\square^p)\}\\
-&\cup\bigcup_i\{(\sigma,\tau,\tau)\mid
-  \sigma\in\{*^s_i,\square^s_i\},\
-  \tau\in\{*^p,\square^p\}\}.
-\end{aligned}
-\]
-
-\[
-\begin{aligned}
-\mathcal R_{pr}=\bigcup_{i,j}\{&
-(*^v_i,*^c_j,*^c_{\max(i,j)})\}\\
-\cup\bigcup_{q,i,j}\{&
-(\square^q_i,*^c_j,*^c_{\max(i+1,j)})\}\\
-\cup\bigcup_{q,q',i,j}\{&
-(\square^q_i,\square^{q'}_j,\square^{q'}_{\max(i,j)})\}.
-\end{aligned}
-\]
-
+- \(\mathcal R_s:=\bigcup_{i,j\in\mathbb N}\{(*^s_i,*^s_j,*^s_{\max(i,j)}),(*^s_i,\square^s_j,\square^s_{\max(i,j)}),(\square^s_i,\square^s_j,\square^s_{\max(i,j)}),(\square^s_i,*^s_j,*^s_{\max(i+1,j)})\}\)
+- \(\mathcal R_p:=\{(*^p,*^p,*^p),(\square^p,*^p,*^p),(\square^p,\square^p,\square^p)\}\cup\bigcup_{i\in\mathbb N}\{(\sigma,\tau,\tau)\mid\sigma\in\{*^s_i,\square^s_i\},\ \tau\in\{*^p,\square^p\}\}\)
+- \(\mathcal R_{sp}:=\mathcal R_s\cup\mathcal R_p\)
+- \(\mathcal R_{pr}:=\bigcup_{i,j\in\mathbb N}\{(*^v_i,*^c_j,*^c_{\max(i,j)})\}\cup\bigcup_{q\in\{v,c\},\ i,j\in\mathbb N}\{(\square^q_i,*^c_j,*^c_{\max(i+1,j)})\}\cup\bigcup_{q,q'\in\{v,c\},\ i,j\in\mathbb N}\{(\square^q_i,\square^{q'}_j,\square^{q'}_{\max(i,j)})\}\)
 - \(\mathcal R:=\mathcal R_{sp}\cup\mathcal R_{pr}\)
 
 level は non-cumulative な構文添字とし、level パラメータ付き規則・宣言は schema とする。
@@ -81,23 +61,23 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 
 三構文を相互帰納的に生成し、alpha 同値で同一視する。
 
-| category | syntax | judgement |
-| --- | --- | --- |
-| term | \(t\in\mathsf{Tm}_b\) | \(H\vdash t:A\), \(H\vdash A:b\) |
-| type constructor | \(A\in\mathsf{Ty}_b\) | \(H\vdash A:K\), \(H\vdash K:\kappa(b)\) |
-| kind | \(K\in\mathsf{Kd}_b\) | \(H\vdash K:\kappa(b)\) |
+| category | syntax |
+| --- | --- |
+| term | \(t\in\mathsf{Tm}_b\) |
+| type constructor | \(A\in\mathsf{Ty}_b\) |
+| kind | \(K\in\mathsf{Kd}_b\) |
 
-- \(\mathsf F_b\cap\mathsf G_{b'}=\varnothing\quad((\mathsf F,b)\ne(\mathsf G,b'))\)
-- \(\mathsf F,\mathsf G\in\{\mathsf{Tm},\mathsf{Ty},\mathsf{Kd}\}\)
+各 syntax family は tag 付けした互いに素な carrier 上で生成する。
 
-| \(\sigma\) | \(\mathsf E_\sigma\) | \(\mathsf C_\sigma\) | variable \(z^\sigma\) |
-| --- | --- | --- | --- |
-| \(b\) | \(\mathsf{Tm}_b\) | \(\mathsf{Ty}_b\) | \(x_b\) |
-| \(\kappa(b)\) | \(\mathsf{Ty}_b\) | \(\mathsf{Kd}_b\) | \(X_b\) |
+互いに素な variable 集合 \(\mathsf{Var}_{sp}\) と \(\mathsf{Var}_{pr}\) を次で定める。
 
 - \(\mathsf{Var}_{sp}:=\{x_b,X_b\mid b\in\mathcal B_{sp}\}\)
 - \(\mathsf{Var}_{pr}:=\{x_{*^v_i},X_{*^q_i}\mid i\in\mathbb N,\ q\in\{v,c\}\}\)
-- \(\mathsf{Var}_{sp}\cap\mathsf{Var}_{pr}=\varnothing\)
+
+| \(\sigma\) | expression family | classifier family | variable convention |
+| --- | --- | --- | --- |
+| \(b\) | \(\mathsf E_b:=\mathsf{Tm}_b\) | \(\mathsf C_b:=\mathsf{Ty}_b\) | \(z^b:=x_b\) |
+| \(\kappa(b)\) | \(\mathsf E_{\kappa(b)}:=\mathsf{Ty}_b\) | \(\mathsf C_{\kappa(b)}:=\mathsf{Kd}_b\) | \(z^{\kappa(b)}:=X_b\) |
 
 #### Basic constructor
 
@@ -107,12 +87,13 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | --- | --- | --- | --- |
 | base kind | \(b\) | \(\mathsf{Kd}_b\) | |
 | term variable | \(x_b\) | \(\mathsf{Tm}_b\) | \(x_b\in\mathsf{Var}_{sp}\cup\mathsf{Var}_{pr}\) |
-| type variable | \(X_b\) | \(\mathsf{Ty}_b\) | |
-| dependent product | \(\Pi_r z^{\sigma_1}:A.B\) | \(\mathsf C_{\sigma_3}\) | \(A\in\mathsf C_{\sigma_1}\), \(B\in\mathsf C_{\sigma_2}\) |
+| type variable | \(X_b\) | \(\mathsf{Ty}_b\) | \(X_b\in\mathsf{Var}_{sp}\cup\mathsf{Var}_{pr}\) |
+| dependent product | \(\Pi_r z^{\sigma_1}:A.B\) | \(\mathsf C_{\sigma_3}\) | \(A\in\mathsf C_{\sigma_1}\), \(B\in\mathsf C_{\sigma_2}\)<br>\(r=r^{i,j}_{vc}\Longrightarrow z\notin\operatorname{FV}(B)\) |
 | lambda abstraction | \(\lambda_r z^{\sigma_1}:A.e\) | \(\mathsf E_{\sigma_3}\) | \(A\in\mathsf C_{\sigma_1}\), \(e\in\mathsf E_{\sigma_2}\) |
 | application | \(f@_r a\) | \(\mathsf E_{\sigma_2}\) | \(f\in\mathsf E_{\sigma_3}\), \(a\in\mathsf E_{\sigma_1}\) |
 
-- \(r=r^{i,j}_{vc}\Longrightarrow z\notin\operatorname{FV}(B)\)
+構文上、Program の type constructor と kind は次の自由変数条件を満たすものに限る。
+
 - \(P\in\mathsf{Ty}_{*^q_i}\cup\mathsf{Kd}_{*^q_i} \Longrightarrow\operatorname{FV}(P)\subseteq\{X_{*^{q'}_j}\mid q'\in\{v,c\},\ j\in\mathbb N\}\)
 
 #### Set/Prop
@@ -122,26 +103,24 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 - \(P\in\mathsf{Ty}_{*^p}\)
 - \(g\in\mathsf{Tm}_{*^p}\)
 
-| category | definition | family |
-| --- | --- | --- |
-| power set | \(\Power A\) | \(\mathsf{Ty}_{*^s_i}\) |
-| type lift | \(\Ty(A,u)\) | \(\mathsf{Ty}_{*^s_i}\) |
-| refinement | \(\{x_{*^s_i}:A\mid P\}\) | \(\mathsf{Tm}_{*^s_i}\) |
-| predicate | \(\Pred(A,u,a)\) | \(\mathsf{Ty}_{*^p}\) |
-| equality | \(a=b\) | \(\mathsf{Ty}_{*^p}\) |
-| existence | \(\exists A\) | \(\mathsf{Ty}_{*^p}\) |
-| proof mark | \(\Proof P\) | \(\mathsf{Tm}_{*^p}\) |
-| take set | \(\Take^s_i(X,T,f)\) | \(\mathsf{Tm}_{*^s_i}\) |
-| take prop | \(\Take^p_i(X,P,g)\) | \(\mathsf{Tm}_{*^p}\) |
-| run step | \(\operatorname{RunStep}(A,B)\) | \(\mathsf{Ty}_{*^s_i}\) |
-| continue | \(\operatorname{continue}_{A,B}(a)\) | \(\mathsf{Tm}_{*^s_i}\) |
-| finish | \(\operatorname{finish}_{A,B}(b)\) | \(\mathsf{Tm}_{*^s_i}\) |
-| accessibility | \(\operatorname{Acc}_{A,B}(f,a)\) | \(\mathsf{Ty}_{*^p}\) |
-| run | \(\operatorname{run}_{A,B}(f,a)\) | \(\mathsf{Tm}_{*^s_i}\) |
-| run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) | \(\mathsf{Tm}_{*^s_i}\) |
-
-- \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x_{*^s_i}.P,c,d,r)\in\mathsf E_\sigma\)
-  - premises: \(A,B\in\mathsf{Ty}_{*^s_i}\), \(P\in\mathsf C_\sigma\), \(c,d\in\mathsf E_\tau\), \(r\in\mathsf{Tm}_{*^s_i}\), \(h_{i,\sigma}=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}\)
+| category | definition | family | other |
+| --- | --- | --- | --- |
+| power set | \(\Power A\) | \(\mathsf{Ty}_{*^s_i}\) | |
+| type lift | \(\Ty(A,u)\) | \(\mathsf{Ty}_{*^s_i}\) | |
+| refinement | \(\{x_{*^s_i}:A\mid P\}\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| predicate | \(\Pred(A,u,a)\) | \(\mathsf{Ty}_{*^p}\) | |
+| equality | \(a=b\) | \(\mathsf{Ty}_{*^p}\) | |
+| existence | \(\exists A\) | \(\mathsf{Ty}_{*^p}\) | |
+| proof mark | \(\Proof P\) | \(\mathsf{Tm}_{*^p}\) | |
+| take set | \(\Take^s_i(X,T,f)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| take prop | \(\Take^p_i(X,P,g)\) | \(\mathsf{Tm}_{*^p}\) | |
+| run step | \(\operatorname{RunStep}(A,B)\) | \(\mathsf{Ty}_{*^s_i}\) | |
+| continue | \(\operatorname{continue}_{A,B}(a)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| finish | \(\operatorname{finish}_{A,B}(b)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| accessibility | \(\operatorname{Acc}_{A,B}(f,a)\) | \(\mathsf{Ty}_{*^p}\) | |
+| run | \(\operatorname{run}_{A,B}(f,a)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| run step recursor | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x_{*^s_i}.P,c,d,r)\) | \(\mathsf E_\sigma\) | \(A,B\in\mathsf{Ty}_{*^s_i}\), \(P\in\mathsf C_\sigma\), \(c,d\in\mathsf E_\tau\), \(r\in\mathsf{Tm}_{*^s_i}\), \(h_{i,\sigma}=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}\) |
 
 #### Program
 
@@ -237,8 +216,8 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 
 ### Compatible closure
 
-- \(\Rightarrow_{\mathsf F}\;\subseteq\;\mathsf F\times\mathsf F\)
 - \(\mathsf F\in\{\mathsf{Tm}_b,\mathsf{Ty}_b,\mathsf{Kd}_b\mid b\in\mathcal B\}\)
+- \(\Rightarrow_{\mathsf F}\;\subseteq\;\mathsf F\times\mathsf F\)
 
 \(\Rightarrow_{\mathsf F}\) は以下の root・閉包規則と帰納型の case 規則で生成される最小の関係族とする。
 \(C:\mathsf F\rightsquigarrow\mathsf G\) は、次の位置に穴を持つ一穴構文文脈とする。
@@ -307,7 +286,6 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 
 - \(\mathsf F\in\{\mathsf{Ty}_b,\mathsf{Kd}_b\mid b\in\mathcal B\}\)
 - \(\equiv_{\mathsf F}:=(\Rightarrow_{\mathsf F}\cup\Leftarrow_{\mathsf F})^*\)
-- \(A\equiv_{\mathsf F}B\;:\Longleftrightarrow\; \exists n\in\mathbb N,\ A_0,\ldots,A_n\in\mathsf F.\ A_0=A\land A_n=B\land \forall l<n.\ (A_l\Rightarrow_{\mathsf F}A_{l+1}\lor A_{l+1}\Rightarrow_{\mathsf F}A_l)\)
 
 ## derivation
 
@@ -317,9 +295,8 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 - \(H::e:=H,e\)
 - \(r=(\sigma_1,\sigma_2,\sigma_3)\in\mathcal R\)
-- \(\mathsf{Ctx}_{ty}\subseteq\mathsf{Ctx}_{pr}\)
 - \(d\in\{sp,pr\}\)
-- \(H\in\mathsf{Ctx}_d\Longrightarrow \bigl(b\in\mathcal B_d\ \land\ \sigma\in\mathcal S_d\ \land\ r\in\mathcal R_d\bigr)\)
+- \(H\in\mathsf{Ctx}_d\) の規則では \(b\in\mathcal B_d\), \(\sigma\in\mathcal S_d\), \(r\in\mathcal R_d\) とする。
 - \(H\vdash e:A\quad(e\in\mathsf E_\sigma,\ A\in\mathsf C_\sigma)\)
 - \(H\vdash K:\kappa(b)\quad(K\in\mathsf{Kd}_b)\)
 
@@ -453,9 +430,9 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 名前の反映 \(z\mapsto\bar z\) は単射とする。
 
-- \(\overline{*^q_i}=*^s_i\)
-- \(\overline{\square^q_i}=\square^s_i\)
-- \(\overline{(\sigma_1,\sigma_2,\sigma_3)} =(\bar\sigma_1,\bar\sigma_2,\bar\sigma_3)\)
+- \(\overline{*^q_i}:=*^s_i\)
+- \(\overline{\square^q_i}:=\square^s_i\)
+- \(\overline{(\sigma_1,\sigma_2,\sigma_3)}:=(\bar\sigma_1,\bar\sigma_2,\bar\sigma_3)\)
 - \(\operatorname{RfKind}:\mathsf{Kd}_{*^q_i}\to\mathsf{Kd}_{*^s_i}\)
 - \(\operatorname{RfType}:\mathsf{Ty}_{*^q_i}\to\mathsf{Ty}_{*^s_i}\)
 - \(\operatorname{RfTerm}:\mathsf{Tm}_{*^q_i}\to\mathsf{Tm}_{*^s_i}\)
@@ -496,8 +473,8 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 - \(M\in\mathsf{Tm}_{*^c_i}\)
 - \(V\in\mathsf{Tm}_{*^v_i}\)
 - \(N\in\mathsf{Tm}_{*^c_j}\)
-- \(\operatorname{RfTerm}(M\ \operatorname{to}\ x:A\ \operatorname{in}\ N) =(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N)) @_{s^{i,j}}\operatorname{RfTerm}(M)\)
-- \(\operatorname{RfTerm}(\operatorname{let}^v x:A=V\ \operatorname{in}\ N) =(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N)) @_{s^{i,j}}\operatorname{RfTerm}(V)\)
+- \(\operatorname{RfTerm}(M\ \operatorname{to}\ x:A\ \operatorname{in}\ N):=(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N)) @_{s^{i,j}}\operatorname{RfTerm}(M)\)
+- \(\operatorname{RfTerm}(\operatorname{let}^v x:A=V\ \operatorname{in}\ N):=(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N)) @_{s^{i,j}}\operatorname{RfTerm}(V)\)
 
 #### Well-termination
 

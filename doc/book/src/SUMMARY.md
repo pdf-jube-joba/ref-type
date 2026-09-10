@@ -6,7 +6,6 @@
   - [example](./motivation/example.md)
   - [changelog](./motivation/changelog.md)
   - [issues.md](./motivation/issues.md)
-    - [non-structural recursion](./motivation/non-structural-recursion.md)
 - [coding](./coding/coding.md)
   - [syntax](./coding/syntax.md)
   - [proof](./coding/proof_writing.md)
