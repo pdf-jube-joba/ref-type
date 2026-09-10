@@ -15,78 +15,144 @@
 \definition negSet: Bool -> Bool := \Force((Bool ~> \F(Bool)), \box((Bool ~> \F(Bool)), neg));
 \definition negPrec: Bool -> Bool := \fun (x: Bool) => \prec(\Set, Bool) (\fun (b: Bool) => Bool) (Bool::true)
   (Bool::false) x;
-\definition negMatchesPrec: \forall (x: Bool) -> negSet x = negPrec x := \fun (x: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  negSet x = negPrec x) (\refl(negPrec Bool::false)) (\refl(negPrec Bool::true)) x;
+\definition negMatchesPrec: \forall (x: Bool) -> negSet x = negPrec x :=
+  \block {
+    \fix (x: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => negSet x = negPrec x)
+      (\refl(negPrec Bool::false)) (\refl(negPrec Bool::true)) x;
+  };
 
 \cdefinition and: (Bool ~> \F(\U((Bool ~> \F(Bool))))) := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match (x) \in Bool \with { | false => \return(Bool::false); | true => \return(y); }))));
 \definition andSet: Bool -> Bool -> Bool := \Force((Bool ~> \F(\U((Bool ~> \F(Bool))))), \box((Bool ~> \F(\U((Bool ~> \F(Bool))))), and));
 \definition andPrec: Bool -> Bool -> Bool := \fun (x, y: Bool) => \prec(\Set, Bool) (\fun (b: Bool) => Bool) (Bool::false)
   (y) x;
-\definition andMatchesPrec: \forall (x, y: Bool) -> andSet x y = andPrec x y := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x:
-  Bool) => andSet x y = andPrec x y) (\prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false y = andPrec
-  Bool::false y) (\refl(andPrec Bool::false Bool::false)) (\refl(andPrec Bool::false Bool::true)) y)
-  (\prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::true y = andPrec Bool::true y) (\refl(andPrec Bool::true
-  Bool::false)) (\refl(andPrec Bool::true Bool::true)) y) x;
+\definition andMatchesPrec: \forall (x, y: Bool) -> andSet x y = andPrec x y :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: andSet Bool::false y = andPrec Bool::false y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false y = andPrec Bool::false y)
+        (\refl(andPrec Bool::false Bool::false)) (\refl(andPrec Bool::false Bool::true)) y;
+    \let trueCase: andSet Bool::true y = andPrec Bool::true y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::true y = andPrec Bool::true y)
+        (\refl(andPrec Bool::true Bool::false)) (\refl(andPrec Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => andSet x y = andPrec x y)
+      falseCase trueCase x;
+  };
 
 \cdefinition or: (Bool ~> \F(\U((Bool ~> \F(Bool))))) := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match (x) \in Bool \with { | false => \return(y); | true => \return(Bool::true); }))));
 \definition orSet: Bool -> Bool -> Bool := \Force((Bool ~> \F(\U((Bool ~> \F(Bool))))), \box((Bool ~> \F(\U((Bool ~> \F(Bool))))), or));
 \definition orPrec: Bool -> Bool -> Bool := \fun (x, y: Bool) => \prec(\Set, Bool) (\fun (b: Bool) => Bool) (y)
   (Bool::true) x;
-\definition orMatchesPrec: \forall (x, y: Bool) -> orSet x y = orPrec x y := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x:
-  Bool) => orSet x y = orPrec x y) (\prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::false y = orPrec Bool::false y)
-  (\refl(orPrec Bool::false Bool::false)) (\refl(orPrec Bool::false Bool::true)) y) (\prec(\Prop, Bool) (\fun (y:
-  Bool) => orSet Bool::true y = orPrec Bool::true y) (\refl(orPrec Bool::true Bool::false)) (\refl(orPrec
-  Bool::true Bool::true)) y) x;
+\definition orMatchesPrec: \forall (x, y: Bool) -> orSet x y = orPrec x y :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: orSet Bool::false y = orPrec Bool::false y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::false y = orPrec Bool::false y)
+        (\refl(orPrec Bool::false Bool::false)) (\refl(orPrec Bool::false Bool::true)) y;
+    \let trueCase: orSet Bool::true y = orPrec Bool::true y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::true y = orPrec Bool::true y)
+        (\refl(orPrec Bool::true Bool::false)) (\refl(orPrec Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => orSet x y = orPrec x y)
+      falseCase trueCase x;
+  };
 
 \cdefinition xor: (Bool ~> \F(\U((Bool ~> \F(Bool))))) := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match (x) \in Bool \with { | false => \return(y); | true => (neg y); }))));
 \definition xorSet: Bool -> Bool -> Bool := \Force((Bool ~> \F(\U((Bool ~> \F(Bool))))), \box((Bool ~> \F(\U((Bool ~> \F(Bool))))), xor));
 \definition xorPrec: Bool -> Bool -> Bool := \fun (x, y: Bool) => \prec(\Set, Bool) (\fun (b: Bool) => Bool) (y) (negPrec
   y) x;
-\definition xorMatchesPrec: \forall (x, y: Bool) -> xorSet x y = xorPrec x y := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x:
-  Bool) => xorSet x y = xorPrec x y) (\prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::false y = xorPrec
-  Bool::false y) (\refl(xorPrec Bool::false Bool::false)) (\refl(xorPrec Bool::false Bool::true)) y)
-  (\prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::true y = xorPrec Bool::true y) (\refl(xorPrec Bool::true
-  Bool::false)) (\refl(xorPrec Bool::true Bool::true)) y) x;
+\definition xorMatchesPrec: \forall (x, y: Bool) -> xorSet x y = xorPrec x y :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: xorSet Bool::false y = xorPrec Bool::false y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::false y = xorPrec Bool::false y)
+        (\refl(xorPrec Bool::false Bool::false)) (\refl(xorPrec Bool::false Bool::true)) y;
+    \let trueCase: xorSet Bool::true y = xorPrec Bool::true y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::true y = xorPrec Bool::true y)
+        (\refl(xorPrec Bool::true Bool::false)) (\refl(xorPrec Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => xorSet x y = xorPrec x y)
+      falseCase trueCase x;
+  };
 
 \cdefinition implies: (Bool ~> \F(\U((Bool ~> \F(Bool))))) := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match (x) \in Bool \with { | false => \return(Bool::true); | true => \return(y); }))));
 \definition impliesSet: Bool -> Bool -> Bool := \Force((Bool ~> \F(\U((Bool ~> \F(Bool))))),
   \box((Bool ~> \F(\U((Bool ~> \F(Bool))))), implies));
 \definition impliesPrec: Bool -> Bool -> Bool := \fun (x, y: Bool) => \prec(\Set, Bool) (\fun (b: Bool) => Bool)
   (Bool::true) (y) x;
-\definition impliesMatchesPrec: \forall (x, y: Bool) -> impliesSet x y = impliesPrec x y := \fun (x, y: Bool) => \prec(\Prop,
-  Bool) (\fun (x: Bool) => impliesSet x y = impliesPrec x y) (\prec(\Prop, Bool) (\fun (y: Bool) => impliesSet Bool::false
-  y = impliesPrec Bool::false y) (\refl(impliesPrec Bool::false Bool::false)) (\refl(impliesPrec Bool::false
-  Bool::true)) y) (\prec(\Prop, Bool) (\fun (y: Bool) => impliesSet Bool::true y = impliesPrec Bool::true y)
-  (\refl(impliesPrec Bool::true Bool::false)) (\refl(impliesPrec Bool::true Bool::true)) y) x;
+\definition impliesMatchesPrec: \forall (x, y: Bool) -> impliesSet x y = impliesPrec x y :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: impliesSet Bool::false y = impliesPrec Bool::false y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => impliesSet Bool::false y = impliesPrec Bool::false y)
+        (\refl(impliesPrec Bool::false Bool::false)) (\refl(impliesPrec Bool::false Bool::true)) y;
+    \let trueCase: impliesSet Bool::true y = impliesPrec Bool::true y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => impliesSet Bool::true y = impliesPrec Bool::true y)
+        (\refl(impliesPrec Bool::true Bool::false)) (\refl(impliesPrec Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => impliesSet x y = impliesPrec x y)
+      falseCase trueCase x;
+  };
 
 \cdefinition eqb: (Bool ~> \F(\U((Bool ~> \F(Bool))))) := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match (x) \in Bool \with { | false => (neg y); | true => \return(y); }))));
 \definition eqbSet: Bool -> Bool -> Bool := \Force((Bool ~> \F(\U((Bool ~> \F(Bool))))), \box((Bool ~> \F(\U((Bool ~> \F(Bool))))), eqb));
 \definition eqbPrec: Bool -> Bool -> Bool := \fun (x, y: Bool) => \prec(\Set, Bool) (\fun (b: Bool) => Bool) (negPrec y)
   (y) x;
-\definition eqbMatchesPrec: \forall (x, y: Bool) -> eqbSet x y = eqbPrec x y := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x:
-  Bool) => eqbSet x y = eqbPrec x y) (\prec(\Prop, Bool) (\fun (y: Bool) => eqbSet Bool::false y = eqbPrec
-  Bool::false y) (\refl(eqbPrec Bool::false Bool::false)) (\refl(eqbPrec Bool::false Bool::true)) y)
-  (\prec(\Prop, Bool) (\fun (y: Bool) => eqbSet Bool::true y = eqbPrec Bool::true y) (\refl(eqbPrec Bool::true
-  Bool::false)) (\refl(eqbPrec Bool::true Bool::true)) y) x;
-\definition negInvolutive: \forall (x: Bool) -> negSet (negSet x) = x := \fun (x: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  negSet (negSet x) = x) (\refl(Bool::false)) (\refl(Bool::true)) x;
-\definition andComm: \forall (x, y: Bool) -> andSet x y = andSet y x := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  andSet x y = andSet y x) (\prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false y = andSet y Bool::false)
-  (\refl(andSet Bool::false Bool::false)) (\refl(andSet Bool::true Bool::false)) y) (\prec(\Prop, Bool) (\fun (y:
-  Bool) => andSet Bool::true y = andSet y Bool::true) (\refl(andSet Bool::false Bool::true)) (\refl(andSet
-  Bool::true Bool::true)) y) x;
-\definition orComm: \forall (x, y: Bool) -> orSet x y = orSet y x := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  orSet x y = orSet y x) (\prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::false y = orSet y Bool::false)
-  (\refl(orSet Bool::false Bool::false)) (\refl(orSet Bool::true Bool::false)) y) (\prec(\Prop, Bool) (\fun (y: Bool)
-  => orSet Bool::true y = orSet y Bool::true) (\refl(orSet Bool::false Bool::true)) (\refl(orSet Bool::true
-  Bool::true)) y) x;
-\definition xorComm: \forall (x, y: Bool) -> xorSet x y = xorSet y x := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  xorSet x y = xorSet y x) (\prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::false y = xorSet y Bool::false)
-  (\refl(xorSet Bool::false Bool::false)) (\refl(xorSet Bool::true Bool::false)) y) (\prec(\Prop, Bool) (\fun (y:
-  Bool) => xorSet Bool::true y = xorSet y Bool::true) (\refl(xorSet Bool::false Bool::true)) (\refl(xorSet
-  Bool::true Bool::true)) y) x;
-\definition andAssoc: \forall (x, y, z: Bool) -> andSet (andSet x y) z = andSet x (andSet y z) := \fun (x, y, z: Bool) =>
-  \prec(\Prop, Bool) (\fun (x: Bool) => andSet (andSet x y) z = andSet x (andSet y z)) (\prec(\Prop, Bool) (\fun (y: Bool)
+\definition eqbMatchesPrec: \forall (x, y: Bool) -> eqbSet x y = eqbPrec x y :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: eqbSet Bool::false y = eqbPrec Bool::false y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => eqbSet Bool::false y = eqbPrec Bool::false y)
+        (\refl(eqbPrec Bool::false Bool::false)) (\refl(eqbPrec Bool::false Bool::true)) y;
+    \let trueCase: eqbSet Bool::true y = eqbPrec Bool::true y :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => eqbSet Bool::true y = eqbPrec Bool::true y)
+        (\refl(eqbPrec Bool::true Bool::false)) (\refl(eqbPrec Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => eqbSet x y = eqbPrec x y)
+      falseCase trueCase x;
+  };
+\definition negInvolutive: \forall (x: Bool) -> negSet (negSet x) = x :=
+  \block {
+    \fix (x: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => negSet (negSet x) = x)
+      (\refl(Bool::false)) (\refl(Bool::true)) x;
+  };
+\definition andComm: \forall (x, y: Bool) -> andSet x y = andSet y x :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: andSet Bool::false y = andSet y Bool::false :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false y = andSet y Bool::false)
+        (\refl(andSet Bool::false Bool::false)) (\refl(andSet Bool::true Bool::false)) y;
+    \let trueCase: andSet Bool::true y = andSet y Bool::true :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::true y = andSet y Bool::true)
+        (\refl(andSet Bool::false Bool::true)) (\refl(andSet Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => andSet x y = andSet y x)
+      falseCase trueCase x;
+  };
+\definition orComm: \forall (x, y: Bool) -> orSet x y = orSet y x :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: orSet Bool::false y = orSet y Bool::false :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::false y = orSet y Bool::false)
+        (\refl(orSet Bool::false Bool::false)) (\refl(orSet Bool::true Bool::false)) y;
+    \let trueCase: orSet Bool::true y = orSet y Bool::true :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::true y = orSet y Bool::true)
+        (\refl(orSet Bool::false Bool::true)) (\refl(orSet Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => orSet x y = orSet y x)
+      falseCase trueCase x;
+  };
+\definition xorComm: \forall (x, y: Bool) -> xorSet x y = xorSet y x :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: xorSet Bool::false y = xorSet y Bool::false :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::false y = xorSet y Bool::false)
+        (\refl(xorSet Bool::false Bool::false)) (\refl(xorSet Bool::true Bool::false)) y;
+    \let trueCase: xorSet Bool::true y = xorSet y Bool::true :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => xorSet Bool::true y = xorSet y Bool::true)
+        (\refl(xorSet Bool::false Bool::true)) (\refl(xorSet Bool::true Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => xorSet x y = xorSet y x)
+      falseCase trueCase x;
+  };
+\definition andAssoc: \forall (x, y, z: Bool) -> andSet (andSet x y) z = andSet x (andSet y z) :=
+  \block {
+    \fix (x, y, z: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => andSet (andSet x y) z = andSet x (andSet y z)) (\prec(\Prop, Bool) (\fun (y: Bool)
   => andSet (andSet Bool::false y) z = andSet Bool::false (andSet y z)) (\prec(\Prop, Bool) (\fun (z: Bool) => andSet
   (andSet Bool::false Bool::false) z = andSet Bool::false (andSet Bool::false z)) (\refl(andSet Bool::false
   (andSet Bool::false Bool::false))) (\refl(andSet Bool::false (andSet Bool::false Bool::true))) z)
@@ -98,8 +164,11 @@
   Bool::true (andSet Bool::false Bool::true))) z) (\prec(\Prop, Bool) (\fun (z: Bool) => andSet (andSet Bool::true
   Bool::true) z = andSet Bool::true (andSet Bool::true z)) (\refl(andSet Bool::true (andSet Bool::true
   Bool::false))) (\refl(andSet Bool::true (andSet Bool::true Bool::true))) z) y) x;
-\definition orAssoc: \forall (x, y, z: Bool) -> orSet (orSet x y) z = orSet x (orSet y z) := \fun (x, y, z: Bool) =>
-  \prec(\Prop, Bool) (\fun (x: Bool) => orSet (orSet x y) z = orSet x (orSet y z)) (\prec(\Prop, Bool) (\fun (y: Bool) =>
+  };
+\definition orAssoc: \forall (x, y, z: Bool) -> orSet (orSet x y) z = orSet x (orSet y z) :=
+  \block {
+    \fix (x, y, z: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => orSet (orSet x y) z = orSet x (orSet y z)) (\prec(\Prop, Bool) (\fun (y: Bool) =>
   orSet (orSet Bool::false y) z = orSet Bool::false (orSet y z)) (\prec(\Prop, Bool) (\fun (z: Bool) => orSet (orSet
   Bool::false Bool::false) z = orSet Bool::false (orSet Bool::false z)) (\refl(orSet Bool::false (orSet
   Bool::false Bool::false))) (\refl(orSet Bool::false (orSet Bool::false Bool::true))) z) (\prec(\Prop, Bool)
@@ -111,8 +180,11 @@
   Bool::true))) z) (\prec(\Prop, Bool) (\fun (z: Bool) => orSet (orSet Bool::true Bool::true) z = orSet Bool::true
   (orSet Bool::true z)) (\refl(orSet Bool::true (orSet Bool::true Bool::false))) (\refl(orSet Bool::true (orSet
   Bool::true Bool::true))) z) y) x;
-\definition xorAssoc: \forall (x, y, z: Bool) -> xorSet (xorSet x y) z = xorSet x (xorSet y z) := \fun (x, y, z: Bool) =>
-  \prec(\Prop, Bool) (\fun (x: Bool) => xorSet (xorSet x y) z = xorSet x (xorSet y z)) (\prec(\Prop, Bool) (\fun (y: Bool)
+  };
+\definition xorAssoc: \forall (x, y, z: Bool) -> xorSet (xorSet x y) z = xorSet x (xorSet y z) :=
+  \block {
+    \fix (x, y, z: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => xorSet (xorSet x y) z = xorSet x (xorSet y z)) (\prec(\Prop, Bool) (\fun (y: Bool)
   => xorSet (xorSet Bool::false y) z = xorSet Bool::false (xorSet y z)) (\prec(\Prop, Bool) (\fun (z: Bool) => xorSet
   (xorSet Bool::false Bool::false) z = xorSet Bool::false (xorSet Bool::false z)) (\refl(xorSet Bool::false
   (xorSet Bool::false Bool::false))) (\refl(xorSet Bool::false (xorSet Bool::false Bool::true))) z)
@@ -124,28 +196,53 @@
   Bool::true (xorSet Bool::false Bool::true))) z) (\prec(\Prop, Bool) (\fun (z: Bool) => xorSet (xorSet Bool::true
   Bool::true) z = xorSet Bool::true (xorSet Bool::true z)) (\refl(xorSet Bool::true (xorSet Bool::true
   Bool::false))) (\refl(xorSet Bool::true (xorSet Bool::true Bool::true))) z) y) x;
-\definition andIdem: \forall (x: Bool) -> andSet x x = x := \fun (x: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) => andSet x x =
-  x) (\refl(Bool::false)) (\refl(Bool::true)) x;
-\definition orIdem: \forall (x: Bool) -> orSet x x = x := \fun (x: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) => orSet x x = x)
-  (\refl(Bool::false)) (\refl(Bool::true)) x;
-\definition xorSelf: \forall (x: Bool) -> xorSet x x = Bool::false := \fun (x: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  xorSet x x = Bool::false) (\refl(Bool::false)) (\refl(Bool::false)) x;
-\definition eqbRefl: \forall (x: Bool) -> eqbSet x x = Bool::true := \fun (x: Bool) => \prec(\Prop, Bool) (\fun (x: Bool) =>
-  eqbSet x x = Bool::true) (\refl(Bool::true)) (\refl(Bool::true)) x;
-\definition deMorganAnd: \forall (x, y: Bool) -> negSet (andSet x y) = orSet (negSet x) (negSet y) := \fun (x, y: Bool) =>
-  \prec(\Prop, Bool) (\fun (x: Bool) => negSet (andSet x y) = orSet (negSet x) (negSet y)) (\prec(\Prop, Bool) (\fun (y:
+  };
+\definition andIdem: \forall (x: Bool) -> andSet x x = x :=
+  \block {
+    \fix (x: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => andSet x x = x)
+      (\refl(Bool::false)) (\refl(Bool::true)) x;
+  };
+\definition orIdem: \forall (x: Bool) -> orSet x x = x :=
+  \block {
+    \fix (x: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => orSet x x = x)
+      (\refl(Bool::false)) (\refl(Bool::true)) x;
+  };
+\definition xorSelf: \forall (x: Bool) -> xorSet x x = Bool::false :=
+  \block {
+    \fix (x: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => xorSet x x = Bool::false)
+      (\refl(Bool::false)) (\refl(Bool::false)) x;
+  };
+\definition eqbRefl: \forall (x: Bool) -> eqbSet x x = Bool::true :=
+  \block {
+    \fix (x: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => eqbSet x x = Bool::true)
+      (\refl(Bool::true)) (\refl(Bool::true)) x;
+  };
+\definition deMorganAnd: \forall (x, y: Bool) -> negSet (andSet x y) = orSet (negSet x) (negSet y) :=
+  \block {
+    \fix (x, y: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => negSet (andSet x y) = orSet (negSet x) (negSet y)) (\prec(\Prop, Bool) (\fun (y:
   Bool) => negSet (andSet Bool::false y) = orSet (negSet Bool::false) (negSet y)) (\refl(orSet (negSet
   Bool::false) (negSet Bool::false))) (\refl(orSet (negSet Bool::false) (negSet Bool::true))) y) (\prec(\Prop,
   Bool) (\fun (y: Bool) => negSet (andSet Bool::true y) = orSet (negSet Bool::true) (negSet y)) (\refl(orSet (negSet
   Bool::true) (negSet Bool::false))) (\refl(orSet (negSet Bool::true) (negSet Bool::true))) y) x;
-\definition deMorganOr: \forall (x, y: Bool) -> negSet (orSet x y) = andSet (negSet x) (negSet y) := \fun (x, y: Bool) =>
-  \prec(\Prop, Bool) (\fun (x: Bool) => negSet (orSet x y) = andSet (negSet x) (negSet y)) (\prec(\Prop, Bool) (\fun (y:
+  };
+\definition deMorganOr: \forall (x, y: Bool) -> negSet (orSet x y) = andSet (negSet x) (negSet y) :=
+  \block {
+    \fix (x, y: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => negSet (orSet x y) = andSet (negSet x) (negSet y)) (\prec(\Prop, Bool) (\fun (y:
   Bool) => negSet (orSet Bool::false y) = andSet (negSet Bool::false) (negSet y)) (\refl(andSet (negSet
   Bool::false) (negSet Bool::false))) (\refl(andSet (negSet Bool::false) (negSet Bool::true))) y) (\prec(\Prop,
   Bool) (\fun (y: Bool) => negSet (orSet Bool::true y) = andSet (negSet Bool::true) (negSet y)) (\refl(andSet (negSet
   Bool::true) (negSet Bool::false))) (\refl(andSet (negSet Bool::true) (negSet Bool::true))) y) x;
-\definition andDistrib: \forall (x, y, z: Bool) -> andSet x (orSet y z) = orSet (andSet x y) (andSet x z) := \fun (x, y, z:
-  Bool) => \prec(\Prop, Bool) (\fun (x: Bool) => andSet x (orSet y z) = orSet (andSet x y) (andSet x z))
+  };
+\definition andDistrib: \forall (x, y, z: Bool) -> andSet x (orSet y z) = orSet (andSet x y) (andSet x z) :=
+  \block {
+    \fix (x, y, z: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => andSet x (orSet y z) = orSet (andSet x y) (andSet x z))
   (\prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false (orSet y z) = orSet (andSet Bool::false y) (andSet
   Bool::false z)) (\prec(\Prop, Bool) (\fun (z: Bool) => andSet Bool::false (orSet Bool::false z) = orSet (andSet
   Bool::false Bool::false) (andSet Bool::false z)) (\refl(orSet (andSet Bool::false Bool::false) (andSet
@@ -160,8 +257,11 @@
   Bool) (\fun (z: Bool) => andSet Bool::true (orSet Bool::true z) = orSet (andSet Bool::true Bool::true) (andSet
   Bool::true z)) (\refl(orSet (andSet Bool::true Bool::true) (andSet Bool::true Bool::false))) (\refl(orSet
   (andSet Bool::true Bool::true) (andSet Bool::true Bool::true))) z) y) x;
-\definition orDistrib: \forall (x, y, z: Bool) -> orSet x (andSet y z) = andSet (orSet x y) (orSet x z) := \fun (x, y, z:
-  Bool) => \prec(\Prop, Bool) (\fun (x: Bool) => orSet x (andSet y z) = andSet (orSet x y) (orSet x z)) (\prec(\Prop,
+  };
+\definition orDistrib: \forall (x, y, z: Bool) -> orSet x (andSet y z) = andSet (orSet x y) (orSet x z) :=
+  \block {
+    \fix (x, y, z: Bool);
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => orSet x (andSet y z) = andSet (orSet x y) (orSet x z)) (\prec(\Prop,
   Bool) (\fun (y: Bool) => orSet Bool::false (andSet y z) = andSet (orSet Bool::false y) (orSet Bool::false z))
   (\prec(\Prop, Bool) (\fun (z: Bool) => orSet Bool::false (andSet Bool::false z) = andSet (orSet Bool::false
   Bool::false) (orSet Bool::false z)) (\refl(andSet (orSet Bool::false Bool::false) (orSet Bool::false
@@ -176,48 +276,84 @@
   Bool::true z) = andSet (orSet Bool::true Bool::true) (orSet Bool::true z)) (\refl(andSet (orSet Bool::true
   Bool::true) (orSet Bool::true Bool::false))) (\refl(andSet (orSet Bool::true Bool::true) (orSet Bool::true
   Bool::true))) z) y) x;
-\definition andAbsorb: \forall (x, y: Bool) -> andSet x (orSet x y) = x := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x: Bool)
-  => andSet x (orSet x y) = x) (\prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false (orSet Bool::false y) =
-  Bool::false) (\refl(Bool::false)) (\refl(Bool::false)) y) (\prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::true
-  (orSet Bool::true y) = Bool::true) (\refl(Bool::true)) (\refl(Bool::true)) y) x;
-\definition orAbsorb: \forall (x, y: Bool) -> orSet x (andSet x y) = x := \fun (x, y: Bool) => \prec(\Prop, Bool) (\fun (x: Bool)
-  => orSet x (andSet x y) = x) (\prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::false (andSet Bool::false y) =
-  Bool::false) (\refl(Bool::false)) (\refl(Bool::false)) y) (\prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::true
-  (andSet Bool::true y) = Bool::true) (\refl(Bool::true)) (\refl(Bool::true)) y) x;
+  };
+\definition andAbsorb: \forall (x, y: Bool) -> andSet x (orSet x y) = x :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: andSet Bool::false (orSet Bool::false y) = Bool::false :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::false (orSet Bool::false y) = Bool::false)
+        (\refl(Bool::false)) (\refl(Bool::false)) y;
+    \let trueCase: andSet Bool::true (orSet Bool::true y) = Bool::true :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => andSet Bool::true (orSet Bool::true y) = Bool::true)
+        (\refl(Bool::true)) (\refl(Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => andSet x (orSet x y) = x)
+      falseCase trueCase x;
+  };
+\definition orAbsorb: \forall (x, y: Bool) -> orSet x (andSet x y) = x :=
+  \block {
+    \fix (x, y: Bool);
+    \let falseCase: orSet Bool::false (andSet Bool::false y) = Bool::false :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::false (andSet Bool::false y) = Bool::false)
+        (\refl(Bool::false)) (\refl(Bool::false)) y;
+    \let trueCase: orSet Bool::true (andSet Bool::true y) = Bool::true :=
+      \prec(\Prop, Bool) (\fun (y: Bool) => orSet Bool::true (andSet Bool::true y) = Bool::true)
+        (\refl(Bool::true)) (\refl(Bool::true)) y;
+    \return \prec(\Prop, Bool) (\fun (x: Bool) => orSet x (andSet x y) = x)
+      falseCase trueCase x;
+  };
 
 /* Propositional views and elimination of impossible Boolean equalities. */
 \definition IsTrue: Bool -> \Prop := \fun (b: Bool) => b = Bool::true;
 \definition IsFalse: Bool -> \Prop := \fun (b: Bool) => b = Bool::false;
 \definition falseNeTrue: NotEq Bool::false Bool::true :=
-  \fun (e: Bool::false = Bool::true) =>
-    \idelim(Bool::false = Bool::true
+  \block {
+    \fix (e: Bool::false = Bool::true);
+    \return \idelim(Bool::false = Bool::true
       \with b: Bool => \Pred(Bool,
         \prec(\Set, Bool) (\fun (b: Bool) => \Power(Bool))
           (\Subset(x, Bool, Bool::false = Bool::false))
           (\Subset(x, Bool, Logic.False)) b, Bool::false))
     \by (\refl(Bool::false), e);
+  };
 \definition trueNeFalse: NotEq Bool::true Bool::false :=
-  \fun (e: Bool::true = Bool::false) => falseNeTrue
-    (\idelim(Bool::true = Bool::false \with b: Bool => b = Bool::true) \by (\refl(Bool::true), e));
+  \block {
+    \fix (e: Bool::true = Bool::false);
+    \let reversed: Bool::false = Bool::true :=
+      \idelim(Bool::true = Bool::false \with b: Bool => b = Bool::true)
+        \by (\refl(Bool::true), e);
+    \return falseNeTrue reversed;
+  };
 \definition absurd: \forall (P: \Prop) -> Bool::false = Bool::true -> P :=
-  \fun (P: \Prop) => \fun (e: Bool::false = Bool::true) =>
-    \idelim(Bool::false = Bool::true
+  \block {
+    \fix (P: \Prop);
+    \fix (e: Bool::false = Bool::true);
+    \return \idelim(Bool::false = Bool::true
       \with b: Bool => \Pred(Bool,
         \prec(\Set, Bool) (\fun (b: Bool) => \Power(Bool))
           (\Subset(x, Bool, Bool::false = Bool::false))
           (\Subset(x, Bool, P)) b, Bool::false))
     \by (\refl(Bool::false), e);
+  };
 \definition eqOfEqbTrue: \forall (a, b: Bool) -> IsTrue (eqbSet a b) -> a = b :=
-  \prec(\Prop, Bool) (\fun (a: Bool) => \forall (b: Bool) -> IsTrue (eqbSet a b) -> a = b)
-    (\prec(\Prop, Bool) (\fun (b: Bool) => IsTrue (eqbSet Bool::false b) -> Bool::false = b)
-      (\fun (e: Bool::true = Bool::true) => \refl(Bool::false))
-      (\fun (e: Bool::false = Bool::true) => absurd (Bool::false = Bool::true) e))
-    (\prec(\Prop, Bool) (\fun (b: Bool) => IsTrue (eqbSet Bool::true b) -> Bool::true = b)
-      (\fun (e: Bool::false = Bool::true) => absurd (Bool::true = Bool::false) e)
-      (\fun (e: Bool::true = Bool::true) => \refl(Bool::true)));
+  \block {
+    \fix (a, b: Bool);
+    \fix (e: IsTrue (eqbSet a b));
+    \let byCases: \forall (a, b: Bool) -> IsTrue (eqbSet a b) -> a = b :=
+      \prec(\Prop, Bool) (\fun (a: Bool) => \forall (b: Bool) -> IsTrue (eqbSet a b) -> a = b)
+        (\prec(\Prop, Bool) (\fun (b: Bool) => IsTrue (eqbSet Bool::false b) -> Bool::false = b)
+          (\fun (e: Bool::true = Bool::true) => \refl(Bool::false))
+          (\fun (e: Bool::false = Bool::true) => absurd (Bool::false = Bool::true) e))
+        (\prec(\Prop, Bool) (\fun (b: Bool) => IsTrue (eqbSet Bool::true b) -> Bool::true = b)
+          (\fun (e: Bool::false = Bool::true) => absurd (Bool::true = Bool::false) e)
+          (\fun (e: Bool::true = Bool::true) => \refl(Bool::true)));
+    \return byCases a b e;
+  };
 \definition eqbTrueOfEq: \forall (a, b: Bool) -> a = b -> IsTrue (eqbSet a b) :=
-  \fun (a, b: Bool) => \fun (e: a = b) =>
-    \idelim(a = b \with x: Bool => IsTrue (eqbSet a x)) \by (eqbRefl a, e);
+  \block {
+    \fix (a, b: Bool);
+    \fix (e: a = b);
+    \return \idelim(a = b \with x: Bool => IsTrue (eqbSet a x)) \by (eqbRefl a, e);
+  };
 
 /* Set-polymorphic selection: a box requires a closed Program type,
  * so this universe-polymorphic wrapper uses prec directly. */
