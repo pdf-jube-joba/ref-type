@@ -1,9 +1,16 @@
-考えている体系の性質を示す。
-ほしいのは、何かしらの基礎の下での無矛盾性：
-\(\Gamma \vDash ((P: *^p) \to P)\) （任意の命題 \(P\) について \(P\) が成り立つ。）が、 **示せない** こと
+# 体系の性質
 
-集合論をもとにモデルを作って、「\(\Gamma \vDash P\) なら \(\gamma \vDash P\)」みたいな感じの、健全性の話で示せそう。
-このモデルを作るときに、 \(*^s\) は冪で閉じる宇宙を持ってきて、 \(*^p\) は boolean とする。
+[system.md](../system.md) の体系について、構文・導出・集合モデルの性質をまとめる。
+現行 core に対する相対無矛盾性の議論は、一般の datatype 宣言を除いた範囲を対象とする。
+raw conversion の意味保存 TC と一般の subject reduction は未証明であり、無条件の相対無矛盾性証明はまだ完成していない。
 
-1. context \(\Gamma\) と項 \(t\) (自由変数は全部 context に現れる)に対して、 \(\Gamma \Vdash t\) という\(\Gamma\) のもと \(t\) はどんな集合になるか」の解釈を定義する。
-2. \(\Gamma \vdash t: T: s\) とかの構文側の定義に対して、
+- [相対無矛盾性](proof.md)：目標、証明の構成、条件付きの結論、datatype への拡張。
+- [構文的補題](metatheory.md)：束縛と raw 代入。
+- [合流性](confluence.md)：補助 reduction の共通簡約先と head の区別。
+- [Typing](typing.md)：導出の基本補題と subject reduction。
+- [Box 消去](box_elimination.md)：reflection と導出の保存。
+- [集合モデル](model.md)：集合演算、raw 項・context の解釈、条件 TC。
+- [条件付き健全性](soundness.md)：TC を仮定した健全性と残る証明義務。
+- [Stratified judgement](stratified_judgement.md)：sorted PTS と判断の層化に関する検討メモ。
+
+Typing・合流性・集合モデルの旧記法による検討は、各ページ末尾に保存している。
