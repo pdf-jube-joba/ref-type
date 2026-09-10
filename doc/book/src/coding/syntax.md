@@ -28,6 +28,19 @@
 `T[A, B]` は型・定義の明示的パラメータ指定、`scope.name` は import したスコープへのアクセス。
 `T[A]::ctor x y` はコンストラクタへの適用、`T[A]::field value` は field projection。
 
+## Module instance と child module
+
+module path 全体を一度に instance 化するほか、import 済みの generative instance を
+起点に child module を instance 化できる。
+
+```text
+\import \root.Parent(A := Nat) \as P;
+\import P.Child(x := value) \as C;
+```
+
+このとき `C` 内から参照される親の型と定義は、同じ引数から再生成された別の親ではなく
+`P` のものになる。別途 `P.Child(...)` を実行すれば、child 自体は新しい instance になる。
+
 ## 論理側の束縛
 
 ```text

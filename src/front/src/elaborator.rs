@@ -1,6 +1,9 @@
 use crate::macros::MacroKind;
 use crate::raw::{
-    calculus::{exp_contains_inductive, exp_subst_map, instantiate_telescope, shift_bound_indices},
+    calculus::{
+        exp_contains_inductive, exp_subst_map, instantiate_telescope, remap_all_global_ids,
+        shift_bound_indices,
+    },
     derivation::CheckSession,
     environment::{
         CrateEnv, DefinedConstant, ModuleArgument, ModuleParameter, ModuleParameterKind,

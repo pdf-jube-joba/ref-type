@@ -34,6 +34,16 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
+生成済み module instance を起点に、その child module だけを instance 化できる。
+
+```text
+\import \root.Parent(A := Nat) \as P;
+\import P.Child(x := value) \as C;
+```
+
+`C` は `P` の置換と型・定義の identity を引き継ぐ。一方、`P.Child(...)` を
+繰り返すたびに新しい child instance が生成されるため、module 全体は generative のままである。
+
 ## 公理
 
 kernel が提供する公理は proof term として使う。各引数は通常の typing rule で検査される。

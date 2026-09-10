@@ -4,7 +4,7 @@ use crate::raw::derivation::CheckSession;
 #[cfg(test)]
 use crate::raw::environment::ModuleParameter;
 use crate::raw::environment::{
-    CrateEnv, DefinedConstant, ModuleArgument, ModuleItem, ModuleParameterKind,
+    CrateEnv, DefinedConstant, InstanceRemapping, ModuleArgument, ModuleItem, ModuleParameterKind,
 };
 use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
 use crate::raw::ids::{
@@ -530,9 +530,57 @@ impl ModuleManager {
         back_parent: Option<usize>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleInstanceId, String> {
-        let mut source = self.resolve_start(env, back_parent)?;
-        let mut substitutions = Vec::new();
-        let mut reflected_substitutions = Vec::new();
+        let source = self.resolve_start(env, back_parent)?;
+        self.instantiate_module_from(env, context, source, None, calls)
+    }
+
+    pub(crate) fn instantiate_module_from_instance(
+        &mut self,
+        env: &mut CrateEnv,
+        context: &mut ExpContext,
+        base: ModuleInstanceId,
+        calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
+    ) -> Result<ModuleInstanceId, String> {
+        let source = env.instance(base).source;
+        self.instantiate_module_from(env, context, source, Some(base), calls)
+    }
+
+    fn instantiate_module_from(
+        &mut self,
+        env: &mut CrateEnv,
+        context: &mut ExpContext,
+        mut source: ModuleId,
+        base: Option<ModuleInstanceId>,
+        calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
+    ) -> Result<ModuleInstanceId, String> {
+        let (mut substitutions, mut remapping) = base.map_or_else(
+            || (Vec::new(), InstanceRemapping::default()),
+            |base| {
+                let base = env.instance(base);
+                (base.arguments.clone(), base.remapping.clone())
+            },
+        );
+        let mut reflected_substitutions = substitutions
+            .iter()
+            .map(|(parameter, argument)| {
+                let reflected = match argument {
+                    ModuleArgument::Pts(exp) => *exp,
+                    ModuleArgument::ProgramType(ty) => {
+                        crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
+                            format!("cannot reflect Program type module argument: {error}")
+                        })?
+                    }
+                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
+                        env,
+                        crate::raw::program::ProgramTerm::ValueTerm(*value),
+                    )
+                    .map_err(|error| {
+                        format!("cannot reflect Program value module argument: {error}")
+                    })?,
+                };
+                Ok((*parameter, reflected))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         let mut route = Vec::new();
 
         for (child_name, arguments) in calls {
@@ -572,6 +620,13 @@ impl ModuleManager {
                 match (parameter.kind, argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(argument)) => {
                         let expected = exp_subst_map(env.arena(), ty, &reflected_substitutions);
+                        let expected = remap_all_global_ids(
+                            env.arena(),
+                            expected,
+                            &remapping.definition_ids,
+                            &remapping.inductive_ids,
+                            &remapping.program_inductive_ids,
+                        );
                         CheckSession::new(env, self.current, context)
                             .check_pts(*argument, expected)
                             .map_err(|error| {
@@ -600,6 +655,12 @@ impl ModuleManager {
                             env.arena(),
                             ty,
                             &substitutions,
+                        );
+                        let expected = crate::raw::program_calculus::remap_value_type_global_ids(
+                            env.arena(),
+                            expected,
+                            &remapping.definition_ids,
+                            &remapping.program_inductive_ids,
                         );
                         crate::raw::program_derivation::ProgramCheckSession::new(
                             env,
@@ -794,10 +855,12 @@ impl ModuleManager {
             pending_groups.push((instance_source, item_source, is_path_component, pending));
         }
 
-        let mut definition_ids = HashMap::new();
-        let mut inductive_ids = HashMap::new();
-        let mut program_inductive_ids = HashMap::new();
-        let mut module_ids = HashMap::new();
+        let InstanceRemapping {
+            ref mut module_ids,
+            ref mut definition_ids,
+            ref mut inductive_ids,
+            ref mut program_inductive_ids,
+        } = remapping;
         let mut last_instance = None;
         for (source_module, item_source, is_path_component, pending) in pending_groups {
             let materialized = env.add_module_in_scope(self.current, context.clone())?;
@@ -975,7 +1038,7 @@ impl ModuleManager {
                     materialized,
                     item_source,
                     &mut pending_associated,
-                    &mut definition_ids,
+                    definition_ids,
                     &inductive_ids,
                     &program_inductive_ids,
                     &mut definition_origins,
@@ -998,12 +1061,18 @@ impl ModuleManager {
                     program_inductive_ids: &program_inductive_ids,
                 },
             );
-            let instance = env.add_instance(
+            let instance = env.add_instance_with_remapping(
                 self.current,
                 source_module,
                 materialized,
                 substitutions.clone(),
                 definition_origins,
+                InstanceRemapping {
+                    module_ids: module_ids.clone(),
+                    definition_ids: definition_ids.clone(),
+                    inductive_ids: inductive_ids.clone(),
+                    program_inductive_ids: program_inductive_ids.clone(),
+                },
             );
             if is_path_component {
                 last_instance = Some(instance);

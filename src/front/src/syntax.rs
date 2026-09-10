@@ -223,6 +223,10 @@ pub enum ModuleInstantiatePath {
     FromRoot {
         calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
     },
+    FromImport {
+        import_name: Identifier,
+        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
+    },
 }
 
 #[derive(Debug, Clone)]

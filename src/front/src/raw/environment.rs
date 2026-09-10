@@ -127,6 +127,15 @@ pub struct ModuleInstance {
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
+    pub(crate) remapping: InstanceRemapping,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct InstanceRemapping {
+    pub module_ids: HashMap<ModuleId, ModuleId>,
+    pub definition_ids: HashMap<DefId, DefId>,
+    pub inductive_ids: HashMap<InductiveId, InductiveId>,
+    pub program_inductive_ids: HashMap<ProgramInductiveId, ProgramInductiveId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -550,6 +559,25 @@ impl CrateEnv {
         arguments: Vec<(ModuleParamId, ModuleArgument)>,
         definition_origins: HashMap<DefId, DefId>,
     ) -> ModuleInstanceId {
+        self.add_instance_with_remapping(
+            owner,
+            source,
+            materialized,
+            arguments,
+            definition_origins,
+            InstanceRemapping::default(),
+        )
+    }
+
+    pub(crate) fn add_instance_with_remapping(
+        &mut self,
+        owner: ModuleId,
+        source: ModuleId,
+        materialized: ModuleId,
+        arguments: Vec<(ModuleParamId, ModuleArgument)>,
+        definition_origins: HashMap<DefId, DefId>,
+        remapping: InstanceRemapping,
+    ) -> ModuleInstanceId {
         let local = u32::try_from(self.module(owner).instances.len())
             .expect("module instance table exceeded u32::MAX");
         let id = ModuleInstanceId { owner, local };
@@ -564,6 +592,7 @@ impl CrateEnv {
             materialized,
             arguments,
             definition_origins,
+            remapping,
         });
         id
     }

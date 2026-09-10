@@ -252,6 +252,65 @@ fn child_modules_see_macros_already_declared_by_their_parent() {
 }
 
 #[test]
+fn child_can_be_instantiated_from_an_existing_generative_parent() {
+    let source = r#"
+        \module Parent(A: \Set(0), X: \VType, x: X) {
+            \inductive Token: \Set(0) := | token: Token; ;
+            \inductive PToken: \VType := | ptoken: PToken; ;
+            \module Child(y: Token, z: X) {
+                \definition inherited: Token := y;
+                \vdefinition program_inherited: PToken := PToken::ptoken;
+                \vdefinition inherited_x: X := z;
+                \inductive Local: \Set(0) := | local: Local; ;
+                \module Grandchild {
+                    \definition parent_value: Token := Token::token;
+                    \definition child_value: Local := Local::local;
+                }
+            }
+        }
+        \module Consumer(A: \Set(0)) {
+            \inductive Unit: \VType := | unit: Unit; ;
+            \import \root.Parent(A := A, X := Unit, x := Unit::unit) \as P;
+            \import P.Child(y := P.Token::token, z := Unit::unit) \as C1;
+            \import P.Child(y := P.Token::token, z := Unit::unit) \as C2;
+            \import C1.Grandchild() \as G;
+            \definition inherited1: P.Token := C1.inherited;
+            \definition inherited2: P.Token := C2.inherited;
+            \vcheck C1.program_inherited: P.PToken;
+            \vcheck C1.inherited_x: Unit;
+            \definition grandparent_value: P.Token := G.parent_value;
+            \definition parent_value: C1.Local := G.child_value;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    for (index, module) in modules.iter().enumerate() {
+        environment
+            .add_new_module_to_root(module)
+            .unwrap_or_else(|error| panic!("module {index}: {error:?}"));
+    }
+
+    let env = environment.crate_env();
+    let consumer = env.module(env.root_module()).children()[1];
+    let p = env.instance(env.module(consumer).import("P").unwrap());
+    let c1 = env.instance(env.module(consumer).import("C1").unwrap());
+    let c2 = env.instance(env.module(consumer).import("C2").unwrap());
+    assert_eq!(
+        c1.remapping.module_ids.get(&p.source),
+        Some(&p.materialized)
+    );
+    let local = |instance: &crate::raw::environment::ModuleInstance| {
+        let ModuleItem::Inductive { inductive, .. } =
+            env.module(instance.materialized).item("Local").unwrap()
+        else {
+            unreachable!()
+        };
+        *inductive
+    };
+    assert_ne!(local(c1), local(c2));
+}
+
+#[test]
 fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
     let source = r#"
         \module Base(A: \Set(0), value: A) {

@@ -6,12 +6,15 @@ impl GlobalEnvironment {
         &mut self,
         context: &mut ExpContext,
         back_parent: Option<usize>,
+        base: Option<ModuleInstanceId>,
         calls: &mut [(Identifier, Vec<(Identifier, ModuleArgument)>)],
     ) -> Result<(), ElaborationError> {
         if self.metavariables.is_empty() {
             return Ok(());
         }
-        let mut source = if let Some(back_parent) = back_parent {
+        let mut source = if let Some(base) = base {
+            self.crate_env.instance(base).source
+        } else if let Some(back_parent) = back_parent {
             let mut module = self.module_manager.current();
             for _ in 0..back_parent {
                 module =
@@ -23,7 +26,37 @@ impl GlobalEnvironment {
         } else {
             self.crate_env.root_module()
         };
-        let mut substitutions = Vec::new();
+        let inherited_arguments = base
+            .map(|base| self.crate_env.instance(base).arguments.clone())
+            .unwrap_or_default();
+        let base_remapping = base.map(|base| self.crate_env.instance(base).remapping.clone());
+        let mut substitutions = inherited_arguments
+            .into_iter()
+            .map(|(parameter, argument)| {
+                let reflected = match argument {
+                    ModuleArgument::Pts(exp) => exp,
+                    ModuleArgument::ProgramType(ty) => {
+                        crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
+                            |error| {
+                                ElaborationError::Message(format!(
+                                    "cannot reflect Program type module argument: {error}"
+                                ))
+                            },
+                        )?
+                    }
+                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
+                        &self.crate_env,
+                        crate::raw::program::ProgramTerm::ValueTerm(value),
+                    )
+                    .map_err(|error| {
+                        ElaborationError::Message(format!(
+                            "cannot reflect Program value module argument: {error}"
+                        ))
+                    })?,
+                };
+                Ok((parameter, reflected))
+            })
+            .collect::<Result<Vec<_>, ElaborationError>>()?;
         for (child_name, arguments) in calls.iter_mut() {
             let child = self
                 .crate_env
@@ -56,7 +89,17 @@ impl GlobalEnvironment {
                 }
                 match (parameter.kind, *argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(exp)) => {
-                        let expected = exp_subst_map(self.crate_env.arena(), ty, &substitutions);
+                        let mut expected =
+                            exp_subst_map(self.crate_env.arena(), ty, &substitutions);
+                        if let Some(remapping) = &base_remapping {
+                            expected = remap_all_global_ids(
+                                self.crate_env.arena(),
+                                expected,
+                                &remapping.definition_ids,
+                                &remapping.inductive_ids,
+                                &remapping.program_inductive_ids,
+                            );
+                        }
                         self.metavariables
                             .check_pts(
                                 &self.crate_env,
@@ -696,14 +739,29 @@ impl GlobalEnvironment {
                         )
                         .into());
                     }
-                    let (from, calls) = match path {
+                    let (from, base, calls) = match path {
                         ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-                            (Some(*back_parent), calls)
+                            (Some(*back_parent), None, calls)
                         }
-                        ModuleInstantiatePath::FromRoot { calls } => (None, calls),
+                        ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
+                        ModuleInstantiatePath::FromImport { import_name, calls } => {
+                            let instance = self
+                                .crate_env
+                                .module(self.module_manager.current())
+                                .import(import_name.as_str())
+                                .ok_or_else(|| {
+                                    format!(
+                                        "Module import '{}' was not found",
+                                        import_name.as_str()
+                                    )
+                                })?;
+                            (None, Some(instance), calls)
+                        }
                     };
 
-                    let mut source = if let Some(back_parent) = from {
+                    let mut source = if let Some(base) = base {
+                        self.crate_env.instance(base).source
+                    } else if let Some(back_parent) = from {
                         let mut module = self.module_manager.current();
                         for _ in 0..back_parent {
                             module = self
@@ -716,7 +774,9 @@ impl GlobalEnvironment {
                     } else {
                         self.crate_env.root_module()
                     };
-                    let mut program_substitutions = Vec::new();
+                    let mut program_substitutions = base
+                        .map(|base| self.crate_env.instance(base).arguments.clone())
+                        .unwrap_or_default();
                     let mut program_scope = program_term_elaborator::ProgramScope::new();
                     let mut args = Vec::with_capacity(calls.len());
                     for (child_name, supplied) in calls.iter() {
@@ -763,12 +823,21 @@ impl GlobalEnvironment {
                                 ModuleParameterKind::ProgramValue { ty } => {
                                     let syntax: ValueTermExp = expression.clone().try_into()?;
                                     let value = program_scope.elaborate_value(&syntax, self)?;
-                                    let expected =
+                                    let mut expected =
                                         crate::raw::program_calculus::subst_value_type_module_params(
                                             self.crate_env.arena(),
                                             ty,
                                             &program_substitutions,
                                         );
+                                    if let Some(base) = base {
+                                        let remapping = &self.crate_env.instance(base).remapping;
+                                        expected = crate::raw::program_calculus::remap_value_type_global_ids(
+                                            self.crate_env.arena(),
+                                            expected,
+                                            &remapping.definition_ids,
+                                            &remapping.program_inductive_ids,
+                                        );
+                                    }
                                     let (value, _) = program_scope
                                         .check_value_term_with_metas(self, value, expected)?;
                                     ModuleArgument::ProgramValue(value)
@@ -811,12 +880,24 @@ impl GlobalEnvironment {
                         }
                     }
 
-                    self.solve_module_arguments(&mut ctx, from, &mut args)?;
+                    self.solve_module_arguments(&mut ctx, from, base, &mut args)?;
 
-                    let access_result = self
-                        .module_manager
-                        .instantiate_module(&mut self.crate_env, &mut ctx, from, args)
-                        .map_err(|e| format!("Module instantiation failed: {}", e))?;
+                    let access_result = if let Some(base) = base {
+                        self.module_manager.instantiate_module_from_instance(
+                            &mut self.crate_env,
+                            &mut ctx,
+                            base,
+                            args,
+                        )
+                    } else {
+                        self.module_manager.instantiate_module(
+                            &mut self.crate_env,
+                            &mut ctx,
+                            from,
+                            args,
+                        )
+                    }
+                    .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
                     self.module_manager.add_import(
                         &mut self.crate_env,

@@ -478,19 +478,35 @@ impl<'a> Parser<'a> {
 
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
-        let parent_num: Option<usize> = if self.bump_if_keyword("\\root") {
+        let rooted = if self.bump_if_keyword("\\root") {
             self.expect_token(Token::Period)?; // expect '.'
-            None
+            Some(None)
         } else {
             let mut count = 0;
             while self.bump_if_keyword("\\parent") {
                 count += 1;
                 self.expect_token(Token::Period)?; // expect '.'
             }
-            Some(count)
+            (count > 0).then_some(Some(count))
         };
 
         let mut calls = vec![];
+        let starts_from_import = rooted.is_none()
+            && matches!(
+                self.tokens.get(self.pos).map(|token| &token.kind),
+                Some(Token::Ident(_))
+            )
+            && matches!(
+                self.tokens.get(self.pos + 1).map(|token| &token.kind),
+                Some(Token::Period)
+            );
+        let imported_parent = if starts_from_import {
+            let candidate = self.expect_ident()?;
+            self.expect_token(Token::Period)?;
+            Some(candidate)
+        } else {
+            None
+        };
 
         if matches!(self.peek(), Some(Token::Ident(_))) {
             loop {
@@ -506,12 +522,16 @@ impl<'a> Parser<'a> {
         let import_name = self.expect_ident()?;
         self.expect_token(Token::Semicolon)?;
 
-        let path = match parent_num {
-            Some(num) => ModuleInstantiatePath::FromCurrent {
-                back_parent: num,
-                calls,
-            },
-            None => ModuleInstantiatePath::FromRoot { calls },
+        let path = if let Some(import_name) = imported_parent {
+            ModuleInstantiatePath::FromImport { import_name, calls }
+        } else {
+            match rooted.unwrap_or(Some(0)) {
+                Some(num) => ModuleInstantiatePath::FromCurrent {
+                    back_parent: num,
+                    calls,
+                },
+                None => ModuleInstantiatePath::FromRoot { calls },
+            }
         };
 
         Ok(ModuleItem::Import { path, import_name })
