@@ -1,5 +1,9 @@
 /* Equivalence classes as subsets: shared by the rational and Cauchy quotients.
  * The relation laws are explicit parameters; no new quotient axiom is used. */
+\import \root.Equality() \as QuotientEquality;
+\use QuotientEquality.sym;
+\use QuotientEquality.trans;
+
 /* The equivalence class represented by x. */
 \definition ClassOf: A -> \Power(A) :=
   \fun (x: A) =>
@@ -64,3 +68,127 @@
 \definition class: A -> Carrier :=
   \fun (x: A) =>
     \subsetinto(\Power(A), ClassSet, ClassOf x, classIsClass x);
+
+\definition classProperty: \forall (C: Carrier) -> IsClass C :=
+  \fun (C: Carrier) => \bysub(\Power(A), ClassSet, C);
+
+/* Propositions on the quotient are proved on representatives. */
+\definition induction: \forall (P: Carrier -> \Prop) ->
+  (\forall (x: A) -> P (class x)) -> \forall (C: Carrier) -> P C :=
+  \fun (P: Carrier -> \Prop) =>
+  \fun (step: \forall (x: A) -> P (class x)) =>
+  \fun (C: Carrier) =>
+    classProperty C (P C)
+      (\fun (x: A) => \fun (cx: C = ClassOf x) =>
+        (\idelim(class x = C \with D: \Power(A) =>
+          \forall (hd: IsClass D) ->
+            P (\subsetinto(\Power(A), ClassSet, D, hd)))
+          \by ((\fun (hd: IsClass (class x)) => step x),
+            \idelim(C = ClassOf x \with D: \Power(A) => D = C)
+              \by (\refl(C), cx)))
+          (classProperty C));
+
+\definition equivalentOfClassEq:
+  \forall (x, y: A) -> ClassOf x = ClassOf y -> Equivalent x y :=
+  \fun (x, y: A) => \fun (e: ClassOf x = ClassOf y) =>
+    \idelim(ClassOf y = ClassOf x \with C: \Power(A) => \Pred(A, C, y))
+      \by (equivalentRefl y,
+        \idelim(ClassOf x = ClassOf y \with C: \Power(A) => C = ClassOf x)
+          \by (\refl(ClassOf x), e));
+
+\definition sameClassRelated:
+  \forall (C: \Power(A)) -> \forall (x, y: A) ->
+    C = ClassOf x -> C = ClassOf y -> Equivalent x y :=
+  \fun (C: \Power(A)) => \fun (x, y: A) =>
+  \fun (cx: C = ClassOf x) => \fun (cy: C = ClassOf y) =>
+    equivalentOfClassEq x y
+      (trans!{\Power(A)} (ClassOf x) C (ClassOf y)
+        (sym!{\Power(A)} C (ClassOf x) cx) cy);
+
+/* Relational images lift representative-independent operations to the quotient. */
+\definition UnaryRespects: (A -> A) -> \Prop :=
+  \fun (f: A -> A) =>
+    \forall (x, y: A) -> Equivalent x y -> Equivalent (f x) (f y);
+
+\definition UnaryImage: (A -> A) -> \Power(A) -> \Power(A) :=
+  \fun (f: A -> A) => \fun (C: \Power(A)) =>
+    \Subset(z, A, \forall (P: \Prop) ->
+      (\forall (x: A) -> C = ClassOf x -> Equivalent (f x) z -> P) -> P);
+
+\definition unaryImageClass:
+  \forall (f: A -> A) -> UnaryRespects f ->
+  \forall (C: \Power(A)) -> \forall (x: A) -> C = ClassOf x ->
+    UnaryImage f C = ClassOf (f x) :=
+  \fun (f: A -> A) => \fun (respects: UnaryRespects f) =>
+  \fun (C: \Power(A)) => \fun (x: A) => \fun (cx: C = ClassOf x) =>
+    \axiom:setext(UnaryImage f C, ClassOf (f x),
+      (\fun (z: A) => \fun (hz: \Pred(A, UnaryImage f C, z)) =>
+        hz (Equivalent (f x) z)
+          (\fun (y: A) => \fun (cy: C = ClassOf y) =>
+          \fun (yz: Equivalent (f y) z) =>
+            equivalentTrans (f x) (f y) z
+              (respects x y (sameClassRelated C x y cx cy)) yz)),
+      (\fun (z: A) => \fun (xz: Equivalent (f x) z) =>
+        \fun (P: \Prop) =>
+        \fun (step: \forall (y: A) -> C = ClassOf y ->
+          Equivalent (f y) z -> P) =>
+          step x cx xz));
+
+\definition unaryImageClosed:
+  \forall (f: A -> A) -> UnaryRespects f ->
+  \forall (C: Carrier) -> IsClass (UnaryImage f C) :=
+  \fun (f: A -> A) => \fun (respects: UnaryRespects f) =>
+  \fun (C: Carrier) =>
+    classProperty C (IsClass (UnaryImage f C))
+      (\fun (x: A) => \fun (cx: C = ClassOf x) =>
+        \fun (P: \Prop) =>
+        \fun (step: \forall (y: A) -> UnaryImage f C = ClassOf y -> P) =>
+          step (f x) (unaryImageClass f respects C x cx));
+
+\definition BinaryRespects: (A -> A -> A) -> \Prop :=
+  \fun (f: A -> A -> A) =>
+    \forall (x, y, u, v: A) ->
+      Equivalent x y -> Equivalent u v -> Equivalent (f x u) (f y v);
+
+\definition BinaryImage:
+  (A -> A -> A) -> \Power(A) -> \Power(A) -> \Power(A) :=
+  \fun (f: A -> A -> A) => \fun (C, D: \Power(A)) =>
+    \Subset(z, A, \forall (P: \Prop) ->
+      (\forall (x, y: A) -> C = ClassOf x -> D = ClassOf y ->
+        Equivalent (f x y) z -> P) -> P);
+
+\definition binaryImageClass:
+  \forall (f: A -> A -> A) -> BinaryRespects f ->
+  \forall (C, D: \Power(A)) -> \forall (x, y: A) ->
+    C = ClassOf x -> D = ClassOf y ->
+    BinaryImage f C D = ClassOf (f x y) :=
+  \fun (f: A -> A -> A) => \fun (respects: BinaryRespects f) =>
+  \fun (C, D: \Power(A)) => \fun (x, y: A) =>
+  \fun (cx: C = ClassOf x) => \fun (dy: D = ClassOf y) =>
+    \axiom:setext(BinaryImage f C D, ClassOf (f x y),
+      (\fun (z: A) => \fun (hz: \Pred(A, BinaryImage f C D, z)) =>
+        hz (Equivalent (f x y) z)
+          (\fun (u, v: A) => \fun (cu: C = ClassOf u) =>
+          \fun (dv: D = ClassOf v) => \fun (uvz: Equivalent (f u v) z) =>
+            equivalentTrans (f x y) (f u v) z
+              (respects x u y v
+                (sameClassRelated C x u cx cu)
+                (sameClassRelated D y v dy dv)) uvz)),
+      (\fun (z: A) => \fun (xyz: Equivalent (f x y) z) =>
+        \fun (P: \Prop) =>
+        \fun (step: \forall (u, v: A) -> C = ClassOf u ->
+          D = ClassOf v -> Equivalent (f u v) z -> P) =>
+          step x y cx dy xyz));
+
+\definition binaryImageClosed:
+  \forall (f: A -> A -> A) -> BinaryRespects f ->
+  \forall (C, D: Carrier) -> IsClass (BinaryImage f C D) :=
+  \fun (f: A -> A -> A) => \fun (respects: BinaryRespects f) =>
+  \fun (C, D: Carrier) =>
+    classProperty C (IsClass (BinaryImage f C D))
+      (\fun (x: A) => \fun (cx: C = ClassOf x) =>
+        classProperty D (IsClass (BinaryImage f C D))
+          (\fun (y: A) => \fun (dy: D = ClassOf y) =>
+            \fun (P: \Prop) =>
+            \fun (step: \forall (z: A) -> BinaryImage f C D = ClassOf z -> P) =>
+              step (f x y) (binaryImageClass f respects C D x y cx dy)));

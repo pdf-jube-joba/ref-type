@@ -1,0 +1,359 @@
+/* Groups, semirings, rings and fields over one fixed carrier. */
+\import \root.Logic() \as Logic;
+\import \root.Monoid(Carrier := Carrier) \as M;
+\use Logic.not;
+
+\structure RawGroup: \Set := {
+  unit: Carrier,
+  op: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+};
+
+\definition groupUnit: RawGroup -> Carrier :=
+  \fun (s: RawGroup) => RawGroup::unit s;
+\definition groupOp: RawGroup -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawGroup) => RawGroup::op s;
+\definition groupInv: RawGroup -> Carrier -> Carrier :=
+  \fun (s: RawGroup) => RawGroup::inv s;
+\definition groupMonoid: RawGroup -> M.RawMonoid :=
+  \fun (s: RawGroup) => \record M.RawMonoid {
+    unit := groupUnit s,
+    op := groupOp s,
+  };
+
+\structure GroupLaws(s: RawGroup): \Prop := {
+  monoid: M.MonoidLaws[groupMonoid s],
+  leftInverse: \forall (x: Carrier) ->
+    groupOp s (groupInv s x) x = groupUnit s,
+  rightInverse: \forall (x: Carrier) ->
+    groupOp s x (groupInv s x) = groupUnit s,
+};
+
+\definition groupLawsIntro:
+  \forall (s: RawGroup) ->
+  (\forall (x: Carrier) -> groupOp s (groupUnit s) x = x) ->
+  (\forall (x: Carrier) -> groupOp s x (groupUnit s) = x) ->
+  (\forall (x, y, z: Carrier) ->
+    groupOp s (groupOp s x y) z = groupOp s x (groupOp s y z)) ->
+  (\forall (x: Carrier) -> groupOp s (groupInv s x) x = groupUnit s) ->
+  (\forall (x: Carrier) -> groupOp s x (groupInv s x) = groupUnit s) ->
+  GroupLaws[s] :=
+  \fun (s: RawGroup) =>
+  \fun (left: \forall (x: Carrier) -> groupOp s (groupUnit s) x = x) =>
+  \fun (right: \forall (x: Carrier) -> groupOp s x (groupUnit s) = x) =>
+  \fun (assoc: \forall (x, y, z: Carrier) ->
+    groupOp s (groupOp s x y) z = groupOp s x (groupOp s y z)) =>
+  \fun (leftInv: \forall (x: Carrier) ->
+    groupOp s (groupInv s x) x = groupUnit s) =>
+  \fun (rightInv: \forall (x: Carrier) ->
+    groupOp s x (groupInv s x) = groupUnit s) =>
+    \record GroupLaws[s] {
+      monoid := M.monoidLawsIntro (groupMonoid s) left right assoc,
+      leftInverse := leftInv,
+      rightInverse := rightInv,
+    };
+
+\definition GroupSet: \Power(RawGroup) :=
+  \Subset(s, RawGroup, GroupLaws[s]);
+\definition Group: \Set := \Ty(RawGroup, GroupSet);
+\definition groupLaws: \forall (s: Group) -> GroupLaws[s] :=
+  \fun (s: Group) => \bysub(RawGroup, GroupSet, s);
+
+\structure CommutativeGroupLaws(s: RawGroup): \Prop := {
+  group: GroupLaws[s],
+  commutative: \forall (x, y: Carrier) ->
+    groupOp s x y = groupOp s y x,
+};
+
+\definition commutativeGroupLawsIntro:
+  \forall (s: RawGroup) -> GroupLaws[s] ->
+  (\forall (x, y: Carrier) -> groupOp s x y = groupOp s y x) ->
+  CommutativeGroupLaws[s] :=
+  \fun (s: RawGroup) => \fun (base: GroupLaws[s]) =>
+  \fun (comm: \forall (x, y: Carrier) -> groupOp s x y = groupOp s y x) =>
+    \record CommutativeGroupLaws[s] {
+      group := base,
+      commutative := comm,
+    };
+
+\definition CommutativeGroupSet: \Power(RawGroup) :=
+  \Subset(s, RawGroup, CommutativeGroupLaws[s]);
+\definition CommutativeGroup: \Set :=
+  \Ty(RawGroup, CommutativeGroupSet);
+\definition commutativeGroupLaws:
+  \forall (s: CommutativeGroup) -> CommutativeGroupLaws[s] :=
+  \fun (s: CommutativeGroup) =>
+    \bysub(RawGroup, CommutativeGroupSet, s);
+\definition asGroup: CommutativeGroup -> Group :=
+  \fun (s: CommutativeGroup) =>
+    \subsetinto(RawGroup, GroupSet, s,
+      CommutativeGroupLaws::group (commutativeGroupLaws s));
+
+\structure RawSemiring: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+};
+
+\definition zero: RawSemiring -> Carrier :=
+  \fun (s: RawSemiring) => RawSemiring::zero s;
+\definition one: RawSemiring -> Carrier :=
+  \fun (s: RawSemiring) => RawSemiring::one s;
+\definition add: RawSemiring -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawSemiring) => RawSemiring::add s;
+\definition mul: RawSemiring -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawSemiring) => RawSemiring::mul s;
+
+\definition additiveMonoid: RawSemiring -> M.RawMonoid :=
+  \fun (s: RawSemiring) => \record M.RawMonoid {
+    unit := zero s,
+    op := add s,
+  };
+\definition multiplicativeMonoid: RawSemiring -> M.RawMonoid :=
+  \fun (s: RawSemiring) => \record M.RawMonoid {
+    unit := one s,
+    op := mul s,
+  };
+
+\structure SemiringLaws(s: RawSemiring): \Prop := {
+  additive: M.CommutativeMonoidLaws[additiveMonoid s],
+  multiplicative: M.MonoidLaws[multiplicativeMonoid s],
+  leftDistributive: \forall (x, y, z: Carrier) ->
+    mul s x (add s y z) = add s (mul s x y) (mul s x z),
+  rightDistributive: \forall (x, y, z: Carrier) ->
+    mul s (add s x y) z = add s (mul s x z) (mul s y z),
+  zeroAbsorbsLeft: \forall (x: Carrier) -> mul s (zero s) x = zero s,
+  zeroAbsorbsRight: \forall (x: Carrier) -> mul s x (zero s) = zero s,
+};
+
+\definition semiringLawsIntro:
+  \forall (s: RawSemiring) ->
+  (\forall (x: Carrier) -> add s (zero s) x = x) ->
+  (\forall (x: Carrier) -> add s x (zero s) = x) ->
+  (\forall (x, y, z: Carrier) -> add s (add s x y) z = add s x (add s y z)) ->
+  (\forall (x, y: Carrier) -> add s x y = add s y x) ->
+  (\forall (x: Carrier) -> mul s (one s) x = x) ->
+  (\forall (x: Carrier) -> mul s x (one s) = x) ->
+  (\forall (x, y, z: Carrier) -> mul s (mul s x y) z = mul s x (mul s y z)) ->
+  (\forall (x, y, z: Carrier) ->
+    mul s x (add s y z) = add s (mul s x y) (mul s x z)) ->
+  (\forall (x, y, z: Carrier) ->
+    mul s (add s x y) z = add s (mul s x z) (mul s y z)) ->
+  (\forall (x: Carrier) -> mul s (zero s) x = zero s) ->
+  (\forall (x: Carrier) -> mul s x (zero s) = zero s) ->
+  SemiringLaws[s] :=
+  \fun (s: RawSemiring) =>
+  \fun (addLeft: \forall (x: Carrier) -> add s (zero s) x = x) =>
+  \fun (addRight: \forall (x: Carrier) -> add s x (zero s) = x) =>
+  \fun (addAssoc: \forall (x, y, z: Carrier) ->
+    add s (add s x y) z = add s x (add s y z)) =>
+  \fun (addComm: \forall (x, y: Carrier) -> add s x y = add s y x) =>
+  \fun (mulLeft: \forall (x: Carrier) -> mul s (one s) x = x) =>
+  \fun (mulRight: \forall (x: Carrier) -> mul s x (one s) = x) =>
+  \fun (mulAssoc: \forall (x, y, z: Carrier) ->
+    mul s (mul s x y) z = mul s x (mul s y z)) =>
+  \fun (distribLeft: \forall (x, y, z: Carrier) ->
+    mul s x (add s y z) = add s (mul s x y) (mul s x z)) =>
+  \fun (distribRight: \forall (x, y, z: Carrier) ->
+    mul s (add s x y) z = add s (mul s x z) (mul s y z)) =>
+  \fun (absorbLeft: \forall (x: Carrier) -> mul s (zero s) x = zero s) =>
+  \fun (absorbRight: \forall (x: Carrier) -> mul s x (zero s) = zero s) =>
+    \record SemiringLaws[s] {
+      additive := M.commutativeMonoidLawsIntro (additiveMonoid s)
+        (M.monoidLawsIntro (additiveMonoid s)
+          addLeft addRight addAssoc) addComm,
+      multiplicative := M.monoidLawsIntro (multiplicativeMonoid s)
+        mulLeft mulRight mulAssoc,
+      leftDistributive := distribLeft,
+      rightDistributive := distribRight,
+      zeroAbsorbsLeft := absorbLeft,
+      zeroAbsorbsRight := absorbRight,
+    };
+
+\definition SemiringSet: \Power(RawSemiring) :=
+  \Subset(s, RawSemiring, SemiringLaws[s]);
+\definition Semiring: \Set := \Ty(RawSemiring, SemiringSet);
+\definition semiringLaws: \forall (s: Semiring) -> SemiringLaws[s] :=
+  \fun (s: Semiring) => \bysub(RawSemiring, SemiringSet, s);
+
+\structure RawRing: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+};
+
+\definition ringZero: RawRing -> Carrier :=
+  \fun (s: RawRing) => RawRing::zero s;
+\definition ringOne: RawRing -> Carrier :=
+  \fun (s: RawRing) => RawRing::one s;
+\definition ringAdd: RawRing -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawRing) => RawRing::add s;
+\definition ringNeg: RawRing -> Carrier -> Carrier :=
+  \fun (s: RawRing) => RawRing::neg s;
+\definition ringMul: RawRing -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawRing) => RawRing::mul s;
+\definition ringSemiring: RawRing -> RawSemiring :=
+  \fun (s: RawRing) => \record RawSemiring {
+    zero := ringZero s,
+    one := ringOne s,
+    add := ringAdd s,
+    mul := ringMul s,
+  };
+
+\structure RingLaws(s: RawRing): \Prop := {
+  semiring: SemiringLaws[ringSemiring s],
+  additiveInverse: \forall (x: Carrier) ->
+    ringAdd s (ringNeg s x) x = ringZero s,
+};
+
+\definition ringLawsIntro:
+  \forall (s: RawRing) -> SemiringLaws[ringSemiring s] ->
+  (\forall (x: Carrier) -> ringAdd s (ringNeg s x) x = ringZero s) ->
+  RingLaws[s] :=
+  \fun (s: RawRing) => \fun (base: SemiringLaws[ringSemiring s]) =>
+  \fun (inverse: \forall (x: Carrier) ->
+    ringAdd s (ringNeg s x) x = ringZero s) =>
+    \record RingLaws[s] {
+      semiring := base,
+      additiveInverse := inverse,
+    };
+
+\definition RingSet: \Power(RawRing) :=
+  \Subset(s, RawRing, RingLaws[s]);
+\definition Ring: \Set := \Ty(RawRing, RingSet);
+\definition ringLaws: \forall (s: Ring) -> RingLaws[s] :=
+  \fun (s: Ring) => \bysub(RawRing, RingSet, s);
+\definition ringAsSemiring: Ring -> Semiring :=
+  \fun (s: Ring) =>
+    \subsetinto(RawSemiring, SemiringSet, ringSemiring s,
+      RingLaws::semiring (ringLaws s));
+
+\structure CommutativeRingLaws(s: RawRing): \Prop := {
+  ring: RingLaws[s],
+  mulCommutative: \forall (x, y: Carrier) ->
+    ringMul s x y = ringMul s y x,
+};
+
+\definition commutativeRingLawsIntro:
+  \forall (s: RawRing) -> RingLaws[s] ->
+  (\forall (x, y: Carrier) -> ringMul s x y = ringMul s y x) ->
+  CommutativeRingLaws[s] :=
+  \fun (s: RawRing) => \fun (base: RingLaws[s]) =>
+  \fun (comm: \forall (x, y: Carrier) -> ringMul s x y = ringMul s y x) =>
+    \record CommutativeRingLaws[s] {
+      ring := base,
+      mulCommutative := comm,
+    };
+
+\definition CommutativeRingSet: \Power(RawRing) :=
+  \Subset(s, RawRing, CommutativeRingLaws[s]);
+\definition CommutativeRing: \Set :=
+  \Ty(RawRing, CommutativeRingSet);
+\definition commutativeRingLaws:
+  \forall (s: CommutativeRing) -> CommutativeRingLaws[s] :=
+  \fun (s: CommutativeRing) =>
+    \bysub(RawRing, CommutativeRingSet, s);
+\definition commutativeRingAsRing: CommutativeRing -> Ring :=
+  \fun (s: CommutativeRing) =>
+    \subsetinto(RawRing, RingSet, s,
+      CommutativeRingLaws::ring (commutativeRingLaws s));
+
+\structure RawField: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+};
+
+\definition fieldZero: RawField -> Carrier :=
+  \fun (s: RawField) => RawField::zero s;
+\definition fieldOne: RawField -> Carrier :=
+  \fun (s: RawField) => RawField::one s;
+\definition fieldAdd: RawField -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawField) => RawField::add s;
+\definition fieldNeg: RawField -> Carrier -> Carrier :=
+  \fun (s: RawField) => RawField::neg s;
+\definition fieldMul: RawField -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawField) => RawField::mul s;
+\definition fieldInv: RawField -> Carrier -> Carrier :=
+  \fun (s: RawField) => RawField::inv s;
+\definition fieldRing: RawField -> RawRing :=
+  \fun (s: RawField) => \record RawRing {
+    zero := fieldZero s,
+    one := fieldOne s,
+    add := fieldAdd s,
+    neg := fieldNeg s,
+    mul := fieldMul s,
+  };
+\definition FieldNonZero: RawField -> Carrier -> \Prop :=
+  \fun (s: RawField) => \fun (x: Carrier) =>
+    not!{{ x = fieldZero s }};
+\definition FieldNontrivial: RawField -> \Prop :=
+  \fun (s: RawField) => not!{{ fieldZero s = fieldOne s }};
+\definition FieldInverseLaws: RawField -> \Prop :=
+  \fun (s: RawField) =>
+    \forall (x: Carrier) -> FieldNonZero s x ->
+      fieldMul s (fieldInv s x) x = fieldOne s;
+
+\definition FieldLaws: RawField -> \Prop :=
+  \fun (s: RawField) =>
+    Logic.And[CommutativeRingLaws[fieldRing s],
+      Logic.And[FieldNontrivial s, FieldInverseLaws s]];
+
+\definition fieldLawsIntro:
+  \forall (s: RawField) -> CommutativeRingLaws[fieldRing s] ->
+  FieldNontrivial s -> FieldInverseLaws s -> FieldLaws s :=
+  \fun (s: RawField) =>
+  \fun (ring: CommutativeRingLaws[fieldRing s]) =>
+  \fun (nontrivial: FieldNontrivial s) =>
+  \fun (inverse: FieldInverseLaws s) =>
+    \record Logic.And[
+      CommutativeRingLaws[fieldRing s],
+      Logic.And[FieldNontrivial s, FieldInverseLaws s]
+    ] {
+      left := ring,
+      right := \record Logic.And[FieldNontrivial s, FieldInverseLaws s] {
+        left := nontrivial,
+        right := inverse,
+      },
+    };
+
+\definition FieldSet: \Power(RawField) :=
+  \Subset(s, RawField, FieldLaws s);
+\definition Field: \Set := \Ty(RawField, FieldSet);
+\definition fieldLaws: \forall (s: Field) -> FieldLaws s :=
+  \fun (s: Field) => \bysub(RawField, FieldSet, s);
+\definition fieldCommutativeRingLaws:
+  \forall (s: Field) -> CommutativeRingLaws[fieldRing s] :=
+  \fun (s: Field) =>
+    (\fun (h: Logic.And[
+      CommutativeRingLaws[fieldRing s],
+      Logic.And[FieldNontrivial s, FieldInverseLaws s]
+    ]) => Logic.And::left h) (fieldLaws s);
+\definition fieldNontrivial:
+  \forall (s: Field) -> FieldNontrivial s :=
+  \fun (s: Field) =>
+    (\fun (h: Logic.And[FieldNontrivial s, FieldInverseLaws s]) =>
+      Logic.And::left h)
+      ((\fun (h: Logic.And[
+        CommutativeRingLaws[fieldRing s],
+        Logic.And[FieldNontrivial s, FieldInverseLaws s]
+      ]) => Logic.And::right h) (fieldLaws s));
+\definition fieldInverse:
+  \forall (s: Field) -> FieldInverseLaws s :=
+  \fun (s: Field) =>
+    (\fun (h: Logic.And[FieldNontrivial s, FieldInverseLaws s]) =>
+      Logic.And::right h)
+      ((\fun (h: Logic.And[
+        CommutativeRingLaws[fieldRing s],
+        Logic.And[FieldNontrivial s, FieldInverseLaws s]
+      ]) => Logic.And::right h) (fieldLaws s));
+\definition fieldAsCommutativeRing: Field -> CommutativeRing :=
+  \fun (s: Field) =>
+    \subsetinto(RawRing, CommutativeRingSet, fieldRing s,
+      fieldCommutativeRingLaws s);

@@ -13,8 +13,9 @@
 | 等式 | [Equality.ref](Equality.ref)、[Equality/Laws.ref](Equality/Laws.ref) | 対称律、推移律、transport、合同則 |
 | 直積 | [Pair.ref](Pair.ref) と `Pair/` 以下 | 構築・射影・交換・写像・カリー化とその法則 |
 | 有限部分集合 | [Finset.ref](Finset.ref) | 一点集合と二点集合 |
-| 商集合 | [Quotient.ref](Quotient.ref) | 同値類と商の台集合 |
-| 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref)、[Int.ref](Int.ref) | Program 演算、Set への反映、仕様と法則 |
+| 商集合 | [Quotient.ref](Quotient.ref) | 同値類、商の台集合、演算の relational image |
+| 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref)、[Int.ref](Int.ref)、[IntAlgebra.ref](IntAlgebra.ref) | Program 演算、Set への反映、仕様と法則、整数の代数構造 |
+| 代数構造 | [Monoid.ref](Monoid.ref)、[Algebra.ref](Algebra.ref) | Monoid、Group、Semiring、Ring、Field |
 | 有理数 | [Rat.ref](Rat.ref) と `Rat/` 以下 | 分数代表、同値関係、商上の演算 |
 | Dedekind 実数 | [DedekindReal.ref](DedekindReal.ref) とその子モジュール | 切断、順序、lower set 上の演算 |
 | Cauchy 実数 | [CauchyReal.ref](CauchyReal.ref) とその子モジュール | Cauchy 列、商、点ごとの演算 |
@@ -62,6 +63,26 @@ congr2!{Nat Nat Nat} natAdd _ _ _ _ leftEq rightEq
 同じモジュールで宣言した型に対しては、補助モジュールを再 import するより、
 使用箇所で等式マクロを具体化する方が安全である。
 
+## 代数構造
+
+`Monoid(Carrier := A)` は `RawMonoid` と `MonoidLaws` を分離し、両者を満たす値を
+refinement `Monoid` として表す。`CommutativeMonoid` も同じ raw data を使う。
+`monoidLawsIntro` と `commutativeMonoidLawsIntro` は法則レコードの構築を補助する。
+
+`Algebra(Carrier := A)` は次の構造を提供する。
+
+- `Group` / `CommutativeGroup`
+- `Semiring`
+- `Ring` / `CommutativeRing`
+- `Field`
+
+ここでも `RawSemiring` のような Set-valued data、`SemiringLaws` のような Prop-valued laws、
+その refinement を分ける。加法・乗法部分は `Monoid` の法則を再利用する。
+`tests.ref` では Nat の加法モノイドと半環を具体的に構成している。
+`IntAlgebra` は `Int` の加法について、左右単位元・結合則・左右逆元・可換律をまとめた
+`CommutativeGroup` を公開する。`Int` が `Algebra` より先にロードされる依存順を保つため、
+この接続は整数本体とは別モジュールに置いている。
+
 ## 直積と有限部分集合
 
 `Pair.Times(A, B: \VType): \VType` が Program の対を定義し、その Set 表現も自動生成する。
@@ -77,6 +98,14 @@ Set 側では次を使う。
 
 `Finset(A := A)` は `Power(A)` 上の `singleton` と `pair`、および各要素の所属証明を提供する。
 一般の有限性述語や濃度はまだ扱わない。
+
+## 商への演算の持ち上げ
+
+`Quotient` は、同値関係を保つ単項・二項演算のために `UnaryRespects` / `BinaryRespects`、
+`UnaryImage` / `BinaryImage` を提供する。`induction` は商についての命題を代表元の場合へ帰着する。
+`unaryImageClass` / `binaryImageClass` は代表元上の
+image が期待する同値類に一致することを示し、`unaryImageClosed` / `binaryImageClosed` は
+image が再び商の要素になることを示す。演算ごとに同じ外延性証明を作り直す必要はない。
 
 ## Program 演算と仕様
 
@@ -96,6 +125,7 @@ Nat は加減乗除、累乗、比較、有限反復、偶奇、GCD を持つ。
 Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持つ。
 数学側では自然数対 `(a,b)` を `a+d=c+b` で同一視した群完成 `Grothendieck` を構成し、
 `toMath` / `fromMath` と `*MatchesMath` が Program 演算との対応を与える。
+加法の結合則と乗法の可換律も、この対応を通して具体的な `Int` 上へ戻してある。
 整数の除算・剰余・GCD は未実装である。
 
 別々に import した Nat / Bool の instance は混ぜられない。Int と組み合わせる場合は、
@@ -116,6 +146,9 @@ Rat の分子 `Integer` は自然数対による形式差である。`IntegerEq`
 同値関係の証明を parameter として要求しない。商上の `add`、`sub`、`mul`、`div` は
 代表元を選ばない relational image として定義されている。現在は、それらの image が
 再び一つの同値類になる証明を `Rat.Quotient.ClassClosed` の parameter として要求する。
+反数は `fractionNegRespects` と汎用の `UnaryImage` によって閉性まで証明済みであり、
+parameter なしの `Rat.Quotient.neg` として利用できる。商上の `zeroRat` / `oneRat`、
+`ofNat` / `ofInteger`、`negInvolutive`、`negZero` も証明済みである。
 
 ## 実数と未完了事項
 

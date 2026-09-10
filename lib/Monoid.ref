@@ -1,0 +1,99 @@
+/* Algebraic structures keep Set-valued data separate from Prop-valued laws. */
+
+\structure RawMonoid: \Set := {
+  unit: Carrier,
+  op: Carrier -> Carrier -> Carrier,
+};
+
+\definition unit: RawMonoid -> Carrier :=
+  \fun (s: RawMonoid) => RawMonoid::unit s;
+
+\definition op: RawMonoid -> Carrier -> Carrier -> Carrier :=
+  \fun (s: RawMonoid) => RawMonoid::op s;
+
+\structure MonoidLaws(s: RawMonoid): \Prop := {
+  leftIdentity: \forall (x: Carrier) -> op s (unit s) x = x,
+  rightIdentity: \forall (x: Carrier) -> op s x (unit s) = x,
+  associative: \forall (x, y, z: Carrier) ->
+    op s (op s x y) z = op s x (op s y z),
+};
+
+\definition monoidLawsIntro:
+  \forall (s: RawMonoid) ->
+  (\forall (x: Carrier) -> op s (unit s) x = x) ->
+  (\forall (x: Carrier) -> op s x (unit s) = x) ->
+  (\forall (x, y, z: Carrier) ->
+    op s (op s x y) z = op s x (op s y z)) ->
+  MonoidLaws[s] :=
+  \fun (s: RawMonoid) =>
+  \fun (left: \forall (x: Carrier) -> op s (unit s) x = x) =>
+  \fun (right: \forall (x: Carrier) -> op s x (unit s) = x) =>
+  \fun (assoc: \forall (x, y, z: Carrier) ->
+    op s (op s x y) z = op s x (op s y z)) =>
+    \record MonoidLaws[s] {
+      leftIdentity := left,
+      rightIdentity := right,
+      associative := assoc,
+    };
+
+\definition MonoidSet: \Power(RawMonoid) :=
+  \Subset(s, RawMonoid, MonoidLaws[s]);
+
+\definition Monoid: \Set :=
+  \Ty(RawMonoid, MonoidSet);
+
+\definition raw: Monoid -> RawMonoid :=
+  \fun (s: Monoid) => s;
+
+\definition laws: \forall (s: Monoid) -> MonoidLaws[s] :=
+  \fun (s: Monoid) => \bysub(RawMonoid, MonoidSet, s);
+
+\definition leftIdentity: \forall (s: Monoid) -> \forall (x: Carrier) ->
+  op s (unit s) x = x :=
+  \fun (s: Monoid) => MonoidLaws::leftIdentity (laws s);
+
+\definition rightIdentity: \forall (s: Monoid) -> \forall (x: Carrier) ->
+  op s x (unit s) = x :=
+  \fun (s: Monoid) => MonoidLaws::rightIdentity (laws s);
+
+\definition associative: \forall (s: Monoid) -> \forall (x, y, z: Carrier) ->
+  op s (op s x y) z = op s x (op s y z) :=
+  \fun (s: Monoid) => MonoidLaws::associative (laws s);
+
+\structure CommutativeMonoidLaws(s: RawMonoid): \Prop := {
+  monoid: MonoidLaws[s],
+  commutative: \forall (x, y: Carrier) -> op s x y = op s y x,
+};
+
+\definition commutativeMonoidLawsIntro:
+  \forall (s: RawMonoid) -> MonoidLaws[s] ->
+  (\forall (x, y: Carrier) -> op s x y = op s y x) ->
+  CommutativeMonoidLaws[s] :=
+  \fun (s: RawMonoid) => \fun (base: MonoidLaws[s]) =>
+  \fun (comm: \forall (x, y: Carrier) -> op s x y = op s y x) =>
+    \record CommutativeMonoidLaws[s] {
+      monoid := base,
+      commutative := comm,
+    };
+
+\definition CommutativeMonoidSet: \Power(RawMonoid) :=
+  \Subset(s, RawMonoid, CommutativeMonoidLaws[s]);
+
+\definition CommutativeMonoid: \Set :=
+  \Ty(RawMonoid, CommutativeMonoidSet);
+
+\definition commutativeLaws:
+  \forall (s: CommutativeMonoid) -> CommutativeMonoidLaws[s] :=
+  \fun (s: CommutativeMonoid) =>
+    \bysub(RawMonoid, CommutativeMonoidSet, s);
+
+\definition asMonoid: CommutativeMonoid -> Monoid :=
+  \fun (s: CommutativeMonoid) =>
+    \subsetinto(RawMonoid, MonoidSet, s,
+      CommutativeMonoidLaws::monoid (commutativeLaws s));
+
+\definition commutative:
+  \forall (s: CommutativeMonoid) -> \forall (x, y: Carrier) ->
+    op s x y = op s y x :=
+  \fun (s: CommutativeMonoid) =>
+    CommutativeMonoidLaws::commutative (commutativeLaws s);

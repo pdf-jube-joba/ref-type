@@ -282,6 +282,21 @@
           (natMul (negative y) (positive x))
           (natMul (positive y) (negative x))));
 
+\definition mulIntegerNegLeft:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger (negInteger x) y)
+      (negInteger (mulInteger x y)) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields
+      (mulInteger (negInteger x) y)
+      (negInteger (mulInteger x y))
+      (N.addComm
+        (natMul (negative x) (positive y))
+        (natMul (positive x) (negative y)))
+      (N.addComm
+        (natMul (negative x) (negative y))
+        (natMul (positive x) (positive y)));
+
 \definition mulIntegerRespectsLeft:
   \forall (x, y, z: Integer) ->
     IntegerEq x y -> IntegerEq (mulInteger x z) (mulInteger y z) :=
@@ -529,6 +544,34 @@
 \definition neg: Fraction -> Fraction :=
   \fun (x: Fraction) =>
     fraction (negInteger (numerator x)) (denominatorIndex x);
+
+\definition fractionNegRespects:
+  \forall (x, y: Fraction) ->
+    FractionEq x y -> FractionEq (neg x) (neg y) :=
+  \fun (x, y: Fraction) => \fun (xy: FractionEq x y) =>
+    integerEqTrans
+      (mulInteger (negInteger (numerator x)) (denominator y))
+      (negInteger (mulInteger (numerator x) (denominator y)))
+      (mulInteger (negInteger (numerator y)) (denominator x))
+      (mulIntegerNegLeft (numerator x) (denominator y))
+      (integerEqTrans
+        (negInteger (mulInteger (numerator x) (denominator y)))
+        (negInteger (mulInteger (numerator y) (denominator x)))
+        (mulInteger (negInteger (numerator y)) (denominator x))
+        (negIntegerRespects
+          (mulInteger (numerator x) (denominator y))
+          (mulInteger (numerator y) (denominator x)) xy)
+        (integerEqSym
+          (mulInteger (negInteger (numerator y)) (denominator x))
+          (negInteger (mulInteger (numerator y) (denominator x)))
+          (mulIntegerNegLeft (numerator y) (denominator x))));
+
+\definition fractionNegInvolutive:
+  \forall (x: Fraction) -> FractionEq (neg (neg x)) x :=
+  \fun (x: Fraction) => fractionEqRefl x;
+
+\definition fractionNegZero: neg zero = zero :=
+  \refl(zero);
 
 \definition sub: Fraction -> Fraction -> Fraction :=
   \fun (x, y: Fraction) => add x (neg y);

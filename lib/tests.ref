@@ -14,6 +14,10 @@
 \module Bool;
 \module Nat;
 \module Int;
+
+\module Monoid(Carrier: \Set);
+\module Algebra(Carrier: \Set);
+\module IntAlgebra;
 \module ArithmeticExamples {
   \import \root.Nat() \as N;
   \definition z: N.Nat := N.Nat::zero;
@@ -91,6 +95,41 @@
     N.mulMatchesPrec;
 }
 
+\module AlgebraExamples {
+  \import \root.Nat() \as N;
+  \import \root.Monoid(Carrier := N.Nat) \as M;
+  \import \root.Algebra(Carrier := N.Nat) \as A;
+
+  \definition additiveRaw: M.RawMonoid := \record M.RawMonoid {
+    unit := N.zeroSet,
+    op := N.addSet,
+  };
+  \definition additiveLaws: M.MonoidLaws[additiveRaw] :=
+    M.monoidLawsIntro additiveRaw
+      N.addZeroLeft N.addZeroRight N.addAssoc;
+  \definition additiveMonoid: M.Monoid :=
+    \subsetinto(M.RawMonoid, M.MonoidSet, additiveRaw, additiveLaws);
+  \definition additiveIdentity: \forall (n: N.Nat) ->
+    M.op additiveMonoid (M.unit additiveMonoid) n = n :=
+    M.leftIdentity additiveMonoid;
+
+  \definition naturalSemiringRaw: A.RawSemiring := \record A.RawSemiring {
+    zero := N.zeroSet,
+    one := N.oneSet,
+    add := N.addSet,
+    mul := N.mulSet,
+  };
+  \definition naturalSemiringLaws: A.SemiringLaws[naturalSemiringRaw] :=
+    A.semiringLawsIntro naturalSemiringRaw
+      N.addZeroLeft N.addZeroRight N.addAssoc N.addComm
+      N.mulOneLeft N.mulOneRight N.mulAssoc
+      N.mulDistribLeft N.mulDistribRight
+      N.mulZeroLeft N.mulZeroRight;
+  \definition naturalSemiring: A.Semiring :=
+    \subsetinto(A.RawSemiring, A.SemiringSet,
+      naturalSemiringRaw, naturalSemiringLaws);
+}
+
 \module BooleanExamples {
   \import \root.Bool() \as B;
   \definition neg: B.negSet B.Bool::false = B.Bool::true := \refl(B.Bool::true);
@@ -162,6 +201,18 @@
   \definition multiplicationAgreement: \forall (x, y: I.Int) ->
     I.toMath (I.mulSet x y) = I.mulMath (I.toMath x) (I.toMath y) := I.mulMatchesMath;
   \definition inverseLaw: \forall (x: I.Int) -> I.addSet (I.negSet x) x = I.zeroSet := I.negInverse;
+  \definition rightInverseLaw: \forall (x: I.Int) -> I.addSet x (I.negSet x) = I.zeroSet := I.negInverseRight;
+  \definition additionAssociative: \forall (x, y, z: I.Int) ->
+    I.addSet (I.addSet x y) z = I.addSet x (I.addSet y z) := I.addAssoc;
+  \definition multiplicationCommutative: \forall (x, y: I.Int) ->
+    I.mulSet x y = I.mulSet y x := I.mulComm;
+}
+
+\module IntegerAlgebraExamples {
+  \import \root.IntAlgebra() \as IA;
+  \definition additiveGroup: IA.Group := IA.additiveGroup;
+  \definition additiveCommutativeGroup: IA.CommutativeGroup :=
+    IA.additiveCommutativeGroup;
 }
 
 /* Heterogeneous products share one Program datatype and Set mirror. */
@@ -246,6 +297,18 @@
     R.fractionEqSym;
 }
 
+\module RationalQuotientExamples {
+  \import \root.Rat().Quotient() \as R;
+  \definition quotientNegation: R.Rat -> R.Rat := R.neg;
+  \definition quotientNegationInvolutive:
+    \forall (x: R.Rat) -> R.neg (R.neg x) = x := R.negInvolutive;
+  \definition quotientNegatesZero: R.neg R.zeroRat = R.zeroRat := R.negZero;
+  \definition quotientNegatesInteger:
+    \forall (n: R.IntegerCarrier) ->
+      R.neg (R.ofInteger n) = R.ofInteger (R.integerNeg n) :=
+    R.negOfInteger;
+}
+
 \module QuotientExamples(A: \Set, x, y: A, xy: x = y) {
   \import \root.Equality().Laws(A := A) \as E;
   \import \root.Quotient(
@@ -255,4 +318,9 @@
   \definition equalClasses: Q.ClassOf x = Q.ClassOf y := Q.classOfEq x y xy;
   \definition extensionality: \forall (a, b: Q.Carrier) ->
     (\forall (z: A) -> Q.mem a z -> Q.mem b z) -> (\forall (z: A) -> Q.mem b z -> Q.mem a z) -> a = b := Q.eqByExt;
+  \definition identityRespects: Q.UnaryRespects (\fun (a: A) => a) :=
+    \fun (a, b: A) => \fun (ab: a = b) => ab;
+  \definition identityImageClosed:
+    \forall (a: Q.Carrier) -> Q.IsClass (Q.UnaryImage (\fun (z: A) => z) a) :=
+    Q.unaryImageClosed (\fun (z: A) => z) identityRespects;
 }

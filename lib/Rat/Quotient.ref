@@ -18,6 +18,69 @@
 \definition classIsClass: \forall (x: Fraction) -> IsClass (ClassOf x) := Q.classIsClass;
 \definition class: Fraction -> Rat := Q.class;
 
+\definition quotientInduction: \forall (P: Rat -> \Prop) ->
+  (\forall (x: Fraction) -> P (class x)) -> \forall (x: Rat) -> P x :=
+  Q.induction;
+
+\definition IntegerCarrier: \Set := Integer;
+\definition integerNeg: IntegerCarrier -> IntegerCarrier := negInteger;
+\definition ofInteger: Integer -> Rat :=
+  \fun (n: Integer) => class (fraction n zeroNat);
+\definition ofNat: Nat -> Rat :=
+  \fun (n: Nat) => ofInteger (integer n zeroNat);
+
+\definition zeroRat: Rat := ofInteger zeroInteger;
+\definition oneRat: Rat := ofInteger oneInteger;
+
+\definition negFraction: Fraction -> Fraction := neg;
+\definition NegClass: Rat -> \Power(Fraction) :=
+  \fun (x: Rat) => Q.UnaryImage negFraction x;
+\definition negClassIsClass:
+  \forall (x: Rat) -> IsClass (NegClass x) :=
+  Q.unaryImageClosed negFraction fractionNegRespects;
+\definition negClassOf:
+  \forall (x: Fraction) -> NegClass (class x) = ClassOf (negFraction x) :=
+  \fun (x: Fraction) =>
+    Q.unaryImageClass negFraction fractionNegRespects
+      (class x) x (\refl(ClassOf x));
+\definition neg: Rat -> Rat :=
+  \fun (x: Rat) =>
+    \subsetinto(\Power(Fraction), ClassSet,
+      NegClass x, negClassIsClass x);
+
+\definition negClass:
+  \forall (x: Fraction) -> neg (class x) = class (negFraction x) :=
+  \fun (x: Fraction) => negClassOf x;
+
+\definition negOfInteger:
+  \forall (n: IntegerCarrier) ->
+    neg (ofInteger n) = ofInteger (integerNeg n) :=
+  \fun (n: Integer) => negClass (fraction n zeroNat);
+
+\definition negInvolutive:
+  \forall (x: Rat) -> neg (neg x) = x :=
+  quotientInduction (\fun (x: Rat) => neg (neg x) = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (neg (neg (class x)))
+        (neg (class (negFraction x)))
+        (class x)
+        (congr!{Rat Rat} neg
+          (neg (class x)) (class (negFraction x))
+          (negClass x))
+        (trans!{Rat}
+          (neg (class (negFraction x)))
+          (class (negFraction (negFraction x)))
+          (class x)
+          (negClass (negFraction x))
+          (classOfEq
+            (negFraction (negFraction x)) x
+            (fractionNegInvolutive x))));
+
+\definition negZero: neg zeroRat = zeroRat :=
+  trans!{Rat} _ _ _ (negClass zero)
+    (congr!{Fraction Rat} class (negFraction zero) zero fractionNegZero);
+
 \definition IsNonZero: Rat -> \Prop :=
   \fun (x: Rat) =>
     \forall (a: Fraction) -> mem x a -> NumeratorNonZero a;
