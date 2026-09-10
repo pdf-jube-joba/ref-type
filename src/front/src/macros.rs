@@ -539,6 +539,16 @@ fn alpha_rename(
                         scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
                         pushed += 1;
                     }
+                    Statement::Bind {
+                        var,
+                        ty,
+                        computation,
+                    } => {
+                        alpha_rename(ty, order, counter, scopes);
+                        alpha_rename(computation, order, counter, scopes);
+                        scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
+                        pushed += 1;
+                    }
                     Statement::TakeSet {
                         bind,
                         existence,
@@ -1832,6 +1842,12 @@ fn walk_statement_mut(statement: &mut Statement, action: &mut impl FnMut(&mut SE
         Statement::Let { ty, body, .. } => {
             walk_sexp_control(ty, action);
             walk_sexp_control(body, action);
+        }
+        Statement::Bind {
+            ty, computation, ..
+        } => {
+            walk_sexp_control(ty, action);
+            walk_sexp_control(computation, action);
         }
         Statement::TakeSet {
             bind,

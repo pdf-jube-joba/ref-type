@@ -1407,6 +1407,11 @@ impl LocalScope {
                                 piped: false,
                             };
                         }
+                        Statement::Bind { .. } => {
+                            return Err(
+                                "\\bind statements are only available in Program blocks".into()
+                            );
+                        }
                         Statement::TakeSet {
                             bind,
                             existence,

@@ -107,6 +107,20 @@ refinement を指定しない。関数の適用は `computation value` と書き
 例えば `f (\thunk (\let x: A := a \in \return x))`。
 束縛の区切りに `;` は使わず、宣言や分岐の末尾にだけ置く。
 
+連続する束縛は Program ブロックでも書ける。
+
+```text
+\block {
+  \let x: A := value;
+  \bind y: B <- computation;
+  \return result;
+}
+```
+
+ここで `\let` と `\bind` の束縛は後続の文で有効になり、末尾の
+`\return` は値を Program computation として返す。論理側の `\block` と同じ表面構文だが、
+期待されるカテゴリに応じて Program の `ValueLet`／`Sequence`／`Return` に分類される。
+
 ```text
 \match value \in Datatype \with {
   | empty => \return fallback;

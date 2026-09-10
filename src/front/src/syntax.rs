@@ -935,6 +935,39 @@ impl TryFrom<SExp> for ComputationTermExp {
                 value: Box::new((*value).try_into()?),
                 body: Box::new((*body).try_into()?),
             }),
+            SExp::Block(Block { statements, result }) => {
+                let mut body = Self::Return(Box::new((*result).try_into()?));
+                for statement in statements.into_iter().rev() {
+                    body = match statement {
+                        Statement::Let {
+                            var,
+                            ty,
+                            body: value,
+                        } => Self::ValueLet {
+                            var,
+                            value_ty: Box::new(ty.try_into()?),
+                            value: Box::new(value.try_into()?),
+                            body: Box::new(body),
+                        },
+                        Statement::Bind {
+                            var,
+                            ty,
+                            computation,
+                        } => Self::Sequence {
+                            computation: Box::new(computation.try_into()?),
+                            var,
+                            value_ty: Box::new(ty.try_into()?),
+                            body: Box::new(body),
+                        },
+                        _ => {
+                            return Err(
+                                "Program blocks only support \\let and \\bind statements".into()
+                            );
+                        }
+                    };
+                }
+                Ok(body)
+            }
             SExp::ProgramCase {
                 path,
                 scrutinee,
@@ -1008,6 +1041,11 @@ pub enum Statement {
         ty: SExp,
         body: SExp,
     }, // have x: A := t;
+    Bind {
+        var: Identifier,
+        ty: SExp,
+        computation: SExp,
+    }, // bind x: A <- computation;
     TakeSet {
         bind: Bind,
         existence: SExp,

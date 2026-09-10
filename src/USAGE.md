@@ -82,6 +82,18 @@ Program の値型と値は module parameter にできる。具体化するとき
 制約から補完する。解決できなければエラーになる。名前は後続部分だけで有効であり、
 型注釈と右辺は外側のスコープで解釈する。`\in` の後には計算式が必要で、
 その本体を右端まで読む。束縛式を適用の引数に置く場合は括弧で囲む。
+同じ束縛を文として並べる Program ブロックも使える。
+
+```text
+\cdefinition result: \F(A) := \block {
+  \let x: A := a;
+  \bind y: A <- identity x;
+  \return y;
+};
+```
+
+Program ブロックは `\let`・`\bind` の文を順に並べ、値を返す
+`\return value;` で終える。各束縛名は後続の文だけで有効になる。
 `\cdefinition f(x: A, y: B): C := body;` は、型 `A ~> B ~> C` と
 本体 `\cfun (x: A) (y: B) => body` に展開する。`\vdefinition` は関数引数を受け付けない。
 

@@ -854,6 +854,22 @@ impl<'a> TermParser<'a> {
                 continue;
             }
 
+            if self.bump_if_keyword("\\bind") {
+                // r"\bind" <var: Ident> ":" <ty: SExp> "<-" <computation: SExp> ";"
+                let var = self.expect_binder_ident()?;
+                self.expect_token(Token::Colon)?;
+                let ty = self.parse_sexp()?;
+                self.expect_token(Token::BindArrow)?;
+                let computation = self.parse_sexp()?;
+                self.expect_token(Token::Semicolon)?;
+                statements.push(Statement::Bind {
+                    var,
+                    ty,
+                    computation,
+                });
+                continue;
+            }
+
             if self.bump_if_keyword("\\take") {
                 // r"\take" <bind: Bind> r"\by" "(" proof ("," proof)? ")" ";"
                 let bind = self.parse_binding(Token::LParen, Token::RParen)?;
@@ -1594,6 +1610,18 @@ mod tests {
         assert!(matches!(*computation, SExp::Sequence { .. }));
         assert!(matches!(*body, SExp::App { .. }));
         complete(r"f (\thunk (\let x: A := a \in \return x))");
+    }
+
+    #[test]
+    fn program_block_parses_statement_sequencing() {
+        let SExp::Block(block) =
+            complete(r"\block { \let x: A := a; \bind y: B <- f x; \return y; }")
+        else {
+            panic!()
+        };
+        assert!(matches!(block.statements[0], Statement::Let { .. }));
+        assert!(matches!(block.statements[1], Statement::Bind { .. }));
+        assert!(matches!(*block.result, SExp::AccessPath { .. }));
     }
 
     #[test]
