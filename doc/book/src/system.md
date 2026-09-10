@@ -1,7 +1,8 @@
 # Core calculus
-> [! note]
+> [!note]
 > この block quote は削除しないし追記しないでください。
-> ここは体系を簡潔に述べるところです。
+> 
+> `system.md` は体系を簡潔に述べるところです。
 > 次のことをしないでください。
 > 会話由来の「○○しない」を書かない
 > 過去の状態から変更した理由を書かない
@@ -9,23 +10,36 @@
 
 ## Sort
 
-- \(\mathcal B_{sp}=\{*^s_i\mid i\in\mathbb N\}\cup\{*^p\}\)
-- \(\mathcal B_{pr}=\{*^v_i,*^c_i\mid i\in\mathbb N\}\)
+/* ここはこっちで直した。
+listing をするときは適正にタブでインデントをする。
+TODO \sq^{fooba} をまず定義してから使うこと。
+*/
 - \(\mathcal B=\mathcal B_{sp}\cup\mathcal B_{pr}\)
-- \(\mathcal S_{sp}=\mathcal B_{sp}\cup\kappa(\mathcal B_{sp})\)
-- \(\kappa(*^s_i)=\square^s_i\)
-- \(\kappa(*^p)=\square^p\)
-- \(\kappa(*^q_i)=\square^q_i\quad(q\in\{v,c\})\)
+  - \(\mathcal B_{sp}=\{*^s_i\mid i\in\mathbb N\}\cup\{*^p\}\)
+  - \(\mathcal B_{pr}=\{*^v_i,*^c_i\mid i\in\mathbb N\}\)
 - \(\mathcal S=\mathcal B\cup\kappa(\mathcal B)\)
+  - \(\mathcal S_{sp}=\mathcal B_{sp}\cup\kappa(\mathcal B_{sp})\)
+  - \(\mathcal S_{pr}:=\mathcal B_{pr}\cup\kappa(\mathcal B_{pr})\)
+- \(\kappa: \mathcal S \to \kappa(\mathcal S)\)
+  - \(\kappa(*^s_i)=\square^s_i\) for \(i \in \mathbb N\)
+  - \(\kappa(*^p)=\square^p\)
+  - \(\kappa(*^q_i)=\square^q_i\) for \(q\in\{v,c\}, i \in \mathbb N\)
 - \(\mathcal A=\{(b,\kappa(b))\mid b\in\mathcal B\}\)
+
+### 以降での添え字についての仮定
 - \(i,j,k,h\in\mathbb N\)
 - \(q,q'\in\{v,c\}\)
 - \(b\in\mathcal B\)
 - \(\sigma,\sigma_1,\sigma_2,\sigma_3\in\mathcal S\)
-- \(\mathcal S_{pr}:=\mathcal B_{pr}\cup\kappa(\mathcal B_{pr})\)
 
 ### Product signature
 
+/* ここも listing って display 数式を使わない。
+- R_s :=
+- R_p :=
+- R_sp :=
+- R_pr :=
+*/
 \[
 \begin{aligned}
 \mathcal R_s=\bigcup_{i,j\in\mathbb N}\{&
@@ -80,6 +94,7 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 #### Syntax family
 
 三構文を相互帰納的に生成し、alpha 同値で同一視する。
+/* ここで judgement の定義をしているわけではないので、 table から judgement を削除する。 */
 
 | category | syntax | judgement |
 | --- | --- | --- |
@@ -87,13 +102,30 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | type constructor | \(A\in\mathsf{Ty}_b\) | \(H\vdash A:K\), \(H\vdash K:\kappa(b)\) |
 | kind | \(K\in\mathsf{Kd}_b\) | \(H\vdash K:\kappa(b)\) |
 
+/* \mathsf F や \mathsf G は未定義。
+もし \(= \empty\) が、性質であるなら書かない。
+もし \(= \empty\) が定義である場合には残す。*/
+
 - \(\mathsf F_b\cap\mathsf G_{b'}=\varnothing\quad((\mathsf F,b)\ne(\mathsf G,b'))\)
 - \(\mathsf F,\mathsf G\in\{\mathsf{Tm},\mathsf{Ty},\mathsf{Kd}\}\)
+
+/*
+これは何を定義している？
+- \mathsf E や \mathsf C の定義をしているなら := を入れる。
+- variable の定義をしているなら、 := を入れる。
+*/
 
 | \(\sigma\) | \(\mathsf E_\sigma\) | \(\mathsf C_\sigma\) | variable \(z^\sigma\) |
 | --- | --- | --- | --- |
 | \(b\) | \(\mathsf{Tm}_b\) | \(\mathsf{Ty}_b\) | \(x_b\) |
 | \(\kappa(b)\) | \(\mathsf{Ty}_b\) | \(\mathsf{Kd}_b\) | \(X_b\) |
+
+/* 見たところ variable の定義をしているのはこっちっぽい。
+もしこれが定義であるなら、これより前に variable が現れるべきではないので、順序を入れ替える。
+- Var_sp \cap Var_pr = \emptyset は定義？性質？
+  - 定義であるなら := を適切に入れる
+  - 性質であるなら削除する
+*/
 
 - \(\mathsf{Var}_{sp}:=\{x_b,X_b\mid b\in\mathcal B_{sp}\}\)
 - \(\mathsf{Var}_{pr}:=\{x_{*^v_i},X_{*^q_i}\mid i\in\mathbb N,\ q\in\{v,c\}\}\)
@@ -102,6 +134,10 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 #### Basic constructor
 
 - \(r=(\sigma_1,\sigma_2,\sigma_3)\in\mathcal R\)
+
+/*
+- type variable には term variable にあるような other の仮定がない理由は？
+*/
 
 | category | definition | family | other |
 | --- | --- | --- | --- |
@@ -112,6 +148,7 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | lambda abstraction | \(\lambda_r z^{\sigma_1}:A.e\) | \(\mathsf E_{\sigma_3}\) | \(A\in\mathsf C_{\sigma_1}\), \(e\in\mathsf E_{\sigma_2}\) |
 | application | \(f@_r a\) | \(\mathsf E_{\sigma_2}\) | \(f\in\mathsf E_{\sigma_3}\), \(a\in\mathsf E_{\sigma_1}\) |
 
+/* これは定義？性質？ */
 - \(r=r^{i,j}_{vc}\Longrightarrow z\notin\operatorname{FV}(B)\)
 - \(P\in\mathsf{Ty}_{*^q_i}\cup\mathsf{Kd}_{*^q_i} \Longrightarrow\operatorname{FV}(P)\subseteq\{X_{*^{q'}_j}\mid q'\in\{v,c\},\ j\in\mathbb N\}\)
 
@@ -140,8 +177,13 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | run | \(\operatorname{run}_{A,B}(f,a)\) | \(\mathsf{Tm}_{*^s_i}\) |
 | run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) | \(\mathsf{Tm}_{*^s_i}\) |
 
+/* これだけ table に入ってない */
+
 - \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x_{*^s_i}.P,c,d,r)\in\mathsf E_\sigma\)
   - premises: \(A,B\in\mathsf{Ty}_{*^s_i}\), \(P\in\mathsf C_\sigma\), \(c,d\in\mathsf E_\tau\), \(r\in\mathsf{Tm}_{*^s_i}\), \(h_{i,\sigma}=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}\)
+
+> [!note]
+> ここ以降は見てませんが、これより上で指摘を受けたようなものがあるか調べて直してください。
 
 #### Program
 

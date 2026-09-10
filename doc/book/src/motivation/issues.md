@@ -6,11 +6,6 @@
 つまり、理想的な記述の仕方（普通に矛盾しうる世界）を考えて、
 それが well-grounded(?) なら Set 側の項として実現してよい。
 
-### non-structural recursion がほしい。
-全てが structural recursion や recursor による記述だとつらい。
-proof-term の存在が示せればよかったように、普通の rec も、 upper bound が存在することが示せれば、
-structural recursion になっていなくても項として受け入れたほうがいい。
-
 ### universe level polymorphism について
 構造として \(X: U_i\), \(\mu: X \times X \to X\) の組を考えてみる。
 このとき \((X, \mu): (X: U_i) \times (X \times X \to X): U_{i+1}\) のようになるが、
@@ -33,117 +28,6 @@ Bool 型を用いて \(f: X \to \text{Bool}\) と \(p: X \to *^p\) がいい感�
 なので、 `leq 3 5` を見たときに `by leqb 3 5` と簡単に結び付けられるといい。
 つまり、 `leq` と `leb` を自動で補完する？
 これをやるにはそもそもなにか結び付けを宣言する機構が必要になるので、やめたほうがいいかも。
-
-## sort について
-### stratification を行いたい
-term: type: kind: \(\square\) のような感じの階層構造があった方が説明が楽なので、
-これを表現したかった。
-基本的には PTS の \(*: \square\) のみの設定が綺麗なので、
-これに添え字をいろいろくっつけることでどうにかしたい。
-- set 用の universes ... \(*^s_{i \in \mathbb{N}}: \sq^s_{i \in \mathbb{N}}\)
-- prop 用の universes ... \(*^p: \sq^p\)
-
-set 側は predicative にするために、 \((\sq^s_i, *^s_i, *^s_{i+1})\) とレベルをあげて、
-cumulative を入れることで下のレベルを無理して挙げなくていいことにする。
-
-### 構造付き集合を型にしたい
-record 型を考えたときに、
-```
-record {
-  X: s;
-  mu: X -> X -> X;
-}
-```
-がどの universe にいるか？
-普通に sum で考えたら、 \((X, \mu): (X: s) \times (X \to X \to X)\) なので、 \(\text{max}(s', s)\) ただし \(s: s'\) みたいなところにいる。
-だから、 \(s = U_0\) なら record は \(U_1\) に住む。
-
-これを帰納型に持ってくる？
-```
-inductive Lift: s1 :=
-| lift: (X: s) -> (mu: X -> X -> X) -> Lift
-```
-みたいなのを考えたときに、
-\(\textit{Lift}: s_1 \vdash [(X: s) \to (\mu: X \to X \to X) \to \textit{Lift}]: s_1\) である必要がある。
-\(s: s', (X \to X \to X: s), \textit{Lift}: s1\) と並んでいるので、
-\(R(A(s), R(s, s_1)) = s_1\) が満たされていればいい。
-
-\(s = *^s_0\) とすると、 \(R(\sq^s_0, R(*^s_0, s_1)) = s_1\) 
-現状だと \(R(*^s_0, s_1)\) が書けるのが \(*^s_0, \sq^s_0\) しかないので、
-\(\sq^s_0\) になってしまう。
-一応、上の \(U_0, U_1\) と同じようにはなっていて、 \(\sq^s_0\) と \(*^s_1\) が同じところに住んでいるイメージだからこれはいい。
-
-ただ、 \(\sq^s_0\) になっているのはこれはちょっと扱いにくいかも。
-構造付き集合は、存在型と同じと思うことで、 type level に落としたい。
-階層自体は上がるのはしょうがない。
-cumulative があるので、 \((*^s_i, *^s_j, *^s_j) \in \mathcal{R}\) を \(i < j\) に対して用意すれば自動的に max と同じような効果にはなる。（ついでに \((\sq^s_i, \sq^s_j, \sq^s_j) \in \mathcal{R}\) も入れておく。）
-また、 \(R(\sq^s_i, *^s_j, *^s_j)\) も \(i < j\) に対して入れておく。
-そうするとさっきのは解決できる。
-
-結局、こんな感じになる：
-- \(*^s_i : \sq^s_i\)
-- \(\{(*^s_i, *^s_j, *^s_j) \mid i \leq j\}\)
-- \(\{(\sq^s_i, \sq^s_j, \sq^s_j) \mid i \leq j\}\)
-- \(\{(*^s_i, \sq^s_i, \sq^s_i)\}\) ... これも \(i \leq j\) にしていいかも
-- \(\{(\sq^s_i, *^s_j, *^s_j) \mid i < j\}\) ... これだけ \(i < j\) じゃないといけない。
-
-これは普通に \(*^s_i \mapsto U_i, \sq^s_i \mapsto U_{i+1}\) とすれば普通の階層構造のものに埋め込める。
-
-これで、 inductive type として、構造付き集合が書ける。
-```
-inductive Lift: \Set(1) :=
-| lift: (X: \Set(0)) -> (mu: X -> X -> X) -> Lift
-```
-これのコンストラクタの検査が、 \(L: *^s_1 \vdash [(X: *^s_0) \to (X \to X \to X) \to L]: *^s_1\) になっていて、導出は次
-- \(L: *^s_1 \vdash [(X: *^s_0) \to (X \to X \to X) \to L]: *^s_1\) ... \((\sq^s_0, *^s_1, *^s_1)\)
-  - \(L: *^s_1 \vdash *^s_0: \sq^s_0\)
-  - \(L: *^s_1, X: *^s_0 \vdash (X \to X \to X) \to L: *^s_1\) ... \((*^s_0, *^s_1, *^s_1)\)
-    - \(L: *^s_1, X: *^s_0 \vdash (X \to X \to X): *^s_0\)
-    - \(L: *^s_1, X: *^s_0, \_: (X \to X \to X): L: *^s_1\)
-
-### \((*^p, *^s, *^s)\) がない。
-必要かどうかはわからないが、 \((*^p, *^s, *^s) \in \mathcal{R}\) を入れてない。
-入れても多分大丈夫そうだが、とりあえず分けてる。
-モデルの側で考えるとどうなるのか... \(X: *^p, Y: *^s \vdash X \to Y: *^s\) に対しては、
-\(X \in S_i, Y \in \{\bullet, \{\bullet\}\}\) が適用されて、 \((\Pi_{\alpha \in X} Y) \in S_i\) が要求される。
-これは \(\bullet \in S_i\) と \(\{\bullet\} \in S_i\) ならいいので楽勝。
-
-pure type system としては functional + injective は保っていても、
-普通のやつの組み合わせにはなっていない。
-（ 『structural theory ...』 でいうところの \(\forall \mathcal{P}. \mathcal{Q}\) の形にはなっていない。）
-
-この場合、 \(X: *^s, Y: *^s \vdash (X = Y) \to X \to Y\) が type を持たないことになっている。
-一応、 \(X: *^s, Y: *^s, p: (X = Y) \vdash X \to Y: *^s\) のように型はつくが、 context から pop することができない（し、 \(t: X \to Y\) となる項が作れない）。
-こんな感じで、 context として push するしかないものがいくつかある。
-
-この点で、コードとしての定理や関数の定義において、引数の意味合いが変わる可能性がある。
-例として、
-```
-variable X, Y: Set(0);
-f0 (p: X = Y): X -> Y := (t: X) => t; // これは context に push した記述
-f1: (X = Y) -> X -> Y := (p: X = Y) => (t: x) => t; // これは context から pop した記述
-```
-この場合には定理の適用の仕方も異なって、
-subst lemma 的に代入するものと関数適用をするもので別れる？
-
-### 部分集合の場合は？
-\((X = Y) \to X \to Y\) が欲しいのはいつかと考えると、そのほとんどは部分集合と \(\Pred\) で賄えると思う。
-普通に考えて \(\text{Bool} = \text{Nat} \to \text{Bool} \to \text{Nat}\) は使わない。
-\(n \text{Nat} := \{m : \text{Nat} \mid \text{div}(m, n) = 0\}\) に対して \(n_1 = n_2 \to \Ty(n_1 \text{Nat}) \to \Ty(n_2 \text{Nat})\) は作れないが、
-\(n_1 = n_2 \to (m: \text{Nat}) \to \Pred(n_1 \text{Nat}, m) \to \Pred(n_2 \text{Nat}, m)\) は示せるとか。
-
-ただこの場合にも \(n_1 = n_2 \to n_1 \text{Nat} \to n_2 \text{Nat}\) は定義できていない。
-あくまでも、 \(n_1 = n_2 \to ("m \in n_1 \text{Nat}") \to ("m \in n_1 \text{Nat}")\) という、 type じゃなくて prop としての \(\in\) が表現できているだけ。
-
-### \(X = Y \to X \to Y\) について
-\(*^s_i\) の階層があることを考えると、どうにか \(Z: *^s_i\) に対して \(\Pred(*^s_{i+1}, *^s_{i}, Z)\) が作れるようなら、
-\(X = Y\) を入れて \(\lambda t: X. t\) が \(X \to Y\) と型付けされるようになるので、 \(X \to Y\) が inhabited になる。
-ただこれのためには \(X: \Power(*^s_{i})\) でなければいけない。
-もともとは \(X: *^s_{i}\) であり \(*^s_{i}: *^s_{i+1}\) にはなっていて、 \(\Power(*^s_{i}): *^s_{i+1}\) にはなっていた。
-ただ、そのまま \(X: *^s_{i}\) なら \(X: \Power{*^s_{i}}\) を入れるのは、あまりいい感じがしない。
-
-考えたこととして、 \(*^s\) と \(\square^s\) をわけて、 \(*^s_{i}\) から \(*^s_{i+1}\) へのリフトを与えることで、階層と整合性をとりつつできないか？
-\(X: *^s_{i}\) に対して \(\Pred(?, ?, "X")\) が作れればいい。
 
 ## \(\exists\) について
 \(\exists T\) という項を導入したけれど、これは新たに導入せずに CoC の impredicative encoding の話が使うこともできそう。
