@@ -137,6 +137,14 @@ a\in D&\Longrightarrow
 
 ## raw 項の解釈
 
+以下の式では可読性のため \(\Pi,\lambda,@\) の rule label を省略するが、
+解釈の入力は現行の label 付き構文である。label は集合演算の値には使わない。
+これは異なる label の raw conversion を同一視するという意味ではない。
+変数 \(x^s\) は項変数と型変数の双方を表す。
+\(\square^s_i,\square^p\) への集合の割当ては、判断の sort を解釈するためのものであり、
+それらを新しい object term として追加しない。
+\(\Take(X,T,f)\) の式は \(\Take^s_i\) と \(\Take^p_i\) の両方に用いる。
+
 valuation \(\rho\) は自由変数に集合を割り当てる。
 \(\mathbf t(Q)\) は集合論の命題 Q が真なら 1、偽なら 0 とする。
 
@@ -225,7 +233,7 @@ body に帰納法を適用すると indexed family が点ごとに一致する�
 \[
 \begin{aligned}
 \operatorname{Val}(\emptyset)&=\{\emptyset\},\\
-\operatorname{Val}(\Gamma,x^s:A:s)
+\operatorname{Val}(\Gamma,x^s:A)
 &=\{\rho[x^s:=a]\mid\rho\in\operatorname{Val}(\Gamma),\
                     a\in\llbracket A\rrbracket_\rho\}.
 \end{aligned}
@@ -247,6 +255,9 @@ body に帰納法を適用すると indexed family が点ごとに一致する�
 
 TC の判断は現行体系の判断であり、結論の解釈は [raw 項の解釈](#interpretation)で固定した写像である。
 TC 自体を帰納的な規則として体系に追加してはいない。
+ここで \(s\in\mathcal S_{sp}\)、\(T,T'\in\mathsf C_s\) とし、
+\(\equiv_0\) は現行の同じ構文 family 内の raw conversion を指す。
+とくに term typing の型だけでなく、型演算子 typing の kind の conversion も含む。
 
 ## 旧記法による検討メモ
 

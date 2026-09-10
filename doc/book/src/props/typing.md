@@ -1,175 +1,192 @@
 # Core calculus の typing
 
-対象は [system.md](../system.md) の、一般の datatype 宣言を除いた体系である。
-Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を
-\(\mathcal S_0\) と書く。判断は有限導出によって生成する。
+対象は [system.md](../system.md) の、Box と datatype 宣言を除いた Set/Prop core である。
+現行の kind formation、型演算子 typing、項 typing、provability と WF を扱う。
+\(z^\sigma\) は、\(\sigma=b\) なら項変数、\(\sigma=\kappa(b)\) なら型変数を表す。
+rule label と構文 family は各導出で保持する。
 
-## 導出についての基本補題
+## Weakening と substitution
 
-ここでは \(\mathcal S_0\) を扱う。代入は context の後続の宣言にも作用する。
-raw 代入の合成則は [構文的補題の代入の合成則](metatheory.md#substitution) を使う。
+**補題（weakening）。** context の順序を保って fresh な宣言を挿入し、
+その結果が well-formed なら、その context への全判断の weakening は許容的である。
 
-### Weakening と substitution
+**証明。** 五判断の導出について同時帰納する。
+variable の宣言より後に挿入するときは weak を使い、
+前に挿入するときは挿入後の context で variable を使う。
+start は型・kind の formation に帰納法を使う。
+他の規則では局所 binder を fresh に取り直し、全 premise に同じ挿入を行う。
+conversion の raw equality は context を参照しない。
+provability には provable weak または各規則の再適用を使う。
+free-variable の side condition は fresh な名前の選択で保存される。□
 
-\(J\) は sorting、typing、provability のいずれかとする。
-
+**補題（substitution）。** \(J\) を kind formation、型演算子 typing、項 typing、
+provability のいずれかとする。
 \[
 \begin{gathered}
-\Gamma\vdash J,\quad \operatorname{WF}(\Gamma,\Delta)
-\ \Longrightarrow\ \Gamma,\Delta\vdash J,\\
-\Gamma,x^s:A:s,\Delta\vdash J,\quad\Gamma\vdash u:A:s
-\ \Longrightarrow\
-\Gamma,\Delta[x:=u]\vdash J[x:=u].
-\tag{Substitution}
+\Gamma,z^\sigma:A,\Delta\vdash J,\qquad \Gamma\vdash u:A\\
+\Longrightarrow
+\Gamma,\Delta[z:=u]\vdash J[z:=u].
 \end{gathered}
+\tag{Substitution}
 \]
+WF についても
+\[
+\operatorname{WF}(\Gamma,z^\sigma:A,\Delta),\quad\Gamma\vdash u:A
+\Longrightarrow\operatorname{WF}(\Gamma,\Delta[z:=u])
+\]
+が成り立つ。代入は後続 context の型・kind と構文中の注釈にも作用する。
 
-第二式には、WF 判断の対応する主張も含める。
-より一般の weakening、すなわち well-formed な宣言を context の途中へ挿入する操作も許容的である。
+**証明。** 五判断の導出について同時帰納する。
+代入項と変数は同じ \(\mathsf E_\sigma\) に属するため構文 family が保存され、
+rule label は代入で変化しない。
 
-**証明。**
-weakening は判断の導出に関する同時帰納法。
-provability の末尾への weakening は
-\(\Proof P:P:*^p\)、weak type、provable の三規則でも得られる。
-途中への挿入では、context の順序を保って全 premise に同じ宣言を挿入する。
-局所変数は挿入する宣言の変数と異なる名前に取り直す。
-variable の場合は宣言位置まで variable を使い、その後続を weak type で追加する。
+- variable が \(z\) なら \(u\) の導出を後続 context へ weakening する。
+  他の変数なら、代入後の宣言を variable と weak で取り出す。
+- empty と axiom は変化しない。start/weak で \(z:A\) 自身を追加する段は削除し、
+  他の宣言は帰納法で得た formation を用いて再構成する。
+- conversion の三つの typing/formation premise に帰納法を使う。
+  raw beta の代入保存は[代入の合成則](metatheory.md#substitution)、
+  Pred、prec、run、runCase は同じ metavariable への一様な代入による。
+  重複した型添字にも同じ代入をするので root の一致条件は保存される。
+  compatible closure と有限 zigzag へ拡張すれば conversion の側条件も保存される。
+- dep form/intro/elim、subset form、id elim、prec、acc intro では、
+  局所 binder を fresh に取り直して premise に帰納法を使う。
+  結論や branch 型に現れる二重の代入は代入の合成則で交換する。
+- power set form、type lift、predicate、subset intro/weak/prop、
+  id form/intro、exists form/intro、両 take elim、take equal、
+  RunStep formation と constructor、acc form/descent、run/runCase、
+  provable と proof term は、全 premise に帰納法を使って同じ規則を適用する。
 
-代入は WF、sorting、typing、provability の導出の同時帰納法。
-variable が \(x^s\) の場合は \(u\) の導出を代入後の後続 context へ weakening する。
-他の変数は、その宣言を代入した context の variable と weakening で得る。
-start では型の sorting に帰納法を使い、代入後の宣言を追加する。
-axiom は context を持たず、代入で変化しない。
-weak sort/type では代入対象の宣言を追加した step だけを削除し、他の step を再構成する。
-
-conversion では、raw reduction が代入で保存されることを使う。
-root beta は代入の合成則、その他の root は規則中の metavariable への同一の代入による。
-繰り返し現れる型添字にも同じ代入を行うため、添字の一致は失われない。
-compatible closure と有限 zigzag に拡張すれば
-\(T\equiv_0T'\Rightarrow T[x:=u]\equiv_0T'[x:=u]\)。
-
-dep form/intro/elim、subset form、prec、id elim、acc intro では、
-局所 binder を fresh にして premise に帰納法を使う。
-結論中の \(B[y:=a]\)、\(P[y:=r]\) には代入の合成則を使う。
-残る規則は、表示された項への代入と規則の instance 化が可換である：
-type elem/sort、provable/Proof、Power/Ty/Pred、subset intro/weak/prop、
-id form/intro、exists、Take、RunStep の constructor、acc form/descent、run/runCase。
-すべての premise は元の導出の真部分木であり、循環的な帰納法は使っていない。□
+take の定値性の premise にも代入が作用する。
+すべての再帰呼び出しは元の導出の真部分木に対するものである。□
 
 <a id="regularity"></a>
 
-### Regularity と命題の conversion
+## Regularity と命題の conversion
 
+**補題（Regularity）。**
 \[
 \begin{aligned}
-\Gamma\vdash T:s\text{ または }\Gamma\vdash t:T:s\text{ または }\Gamma\vDash P
-&\Longrightarrow\operatorname{WF}(\Gamma),\\
-\Gamma\vdash t:T:s&\Longrightarrow\Gamma\vdash T:s,\\
+\Gamma\vdash J\text{ または }\Gamma\vDash P
+ &\Longrightarrow\operatorname{WF}(\Gamma),\\
+\Gamma\vdash t:A,\quad t\in\mathsf{Tm}_b
+ &\Longrightarrow\Gamma\vdash A:b,\\
+\Gamma\vdash A:K,\quad A\in\mathsf{Ty}_b
+ &\Longrightarrow\Gamma\vdash K:\kappa(b),\\
 \Gamma\vDash P&\Longrightarrow\Gamma\vdash P:*^p.
 \end{aligned}
 \tag{Regularity}
 \]
 
-**証明。** 導出の同時帰納法。
-WF の主張は各規則の context premise を遡る。
-typing の variable は start の sorting を weakening する。
-conversion、dep intro、type elem、Take、continue/finish、run/runCase は
-明示された formation premise、またはそれらからの Power/Ty/RunStep formation を使う。
-dep elim と prec の結果型の sorting は Substitution。
-Proof の場合は provability 側の帰納法である。
+**証明。** WF は規則の共通 premise である。残りは導出の同時帰納法。
+variable は宣言を追加した start の formation を weakening する。
+conversion は目標の formation premise、weak は帰納法による。
+dep intro の結果型は dep form、dep elim と prec の結果型は Substitution で形成する。
+型・項の他の導入規則は、表示された formation premise に対応する formation 規則を使う。
+subset intro の結果型は type lift、subset weak と run/runCase は formation premise そのもの。
+take elim の結果型の formation も明示されている。
 
-provable は typing 側の帰納法を使う。
-subset prop、id intro、exists intro、acc intro/descent は対応する formation を適用する。
-take equal は premise の Take typing と dep elim による \(f@t\) の typing に id form を適用する。
-id elim では \(\Gamma,x:A\vdash P:*^p\) から type elem によって
-\(P:*^p:\sq^p\) を得る。
-\((*^s_i,\sq^p,\sq^p)\in\mathcal R\) により \(\lambda x:A.P\) を型付けし、
-\(b\) に適用して type sort を使えば、結論の proposition の sorting を得る。
-subset form の結果型は Power formation。
-type sort は typing の premise 自身から WF を得る。
-これで全規則の場合を尽くす。□
+provable には \(P:*^p\) の premise があり、proof term には provability の帰納法を使う。
+subset prop、id intro、exists intro、acc intro/descent は対応する formation である。
+take equal は Take と application を同じ \(T\) で型付けして id form を使う。
+id elim の結論は \(p_i=(*^s_i,\square^p,\square^p)\) による
+型演算子の dep intro/elim で \(*^p\) に型付けできる。□
 
-従って、次は許容的である。
-
+従って
 \[
-\Gamma\vDash P,\quad \Gamma\vdash Q:*^p,\quad P\equiv_0Q
-\quad\Longrightarrow\quad\Gamma\vDash Q.
+\Gamma\vDash P,\quad\Gamma\vdash Q:*^p,\quad
+P\equiv_{\mathsf{Ty}_{*^p}}Q
+\Longrightarrow\Gamma\vDash Q.
 \tag{Prop-conversion}
 \]
+証明は proof term、conversion、provable の順の適用である。
+conversion に必要な \(P:*^p\) は Regularity から得る。
 
-実際、Proof、conversion、provable をこの順に適用すればよい。
-これは命題の構文的な conversion であって、集合モデルの意味保存ではない。
+## Context conversion
+
+**補題。** \(\Gamma\vdash A:\sigma\)、\(\Gamma\vdash A':\sigma\)、
+\(A\equiv_{\mathsf C_\sigma}A'\) とする。
+\[
+\Gamma,z^\sigma:A,\Delta\vdash J
+\Longrightarrow
+\Gamma,z^\sigma:A',\Delta\vdash J.
+\tag{Context-conversion}
+\]
+WF に対しても同じ置換が許容的である。
+
+**証明。** \(y^\sigma\) を全自由変数と異なる名前に取る。
+\(\Gamma,y:A'\) は well-formed であり、
+variable、weakening、conversion により \(\Gamma,y:A'\vdash y:A\)。
+元の導出に \(y:A'\) を \(z:A\) の直前で挿入する。
+Substitution で \(z\) に \(y\) を代入すると
+\(\Gamma,y:A',\Delta[z:=y]\vdash J[z:=y]\) を得る。
+最後に \(y\) を \(z\) に名前替えする。WF も同じ操作による。
+この証明は subject reduction も集合モデルも使わない。□
 
 <a id="subject-reduction"></a>
 
-## Subject reduction の到達点と未解決部分
+## Subject reduction の到達点
 
 <a id="principal-root"></a>
 
-### 証明できる principal root の保存
+### Principal root の保存
 
-以下では、消去規則の premise に現れる constructor の typing が、
-対応する導入規則そのものによって与えられている場合を principal と呼ぶ。
-型・motive の表示はその導入と消去で一致するとする。
+ここで principal とは、消去規則に渡す constructor の typing が対応する導入規則で終わり、
+導入・消去の型、motive、rule label が表示どおり一致する場合をいう。
 
 - beta：lambda の body typing に Substitution を適用する。
-- Pred/subset：subset の premise の \(P:*^p\) から
-  \(\lambda x:A.P\) を [Regularity と命題の conversion](#regularity) と同じ方法で型付けし、a に適用する。
-  type sort により結果の sorting は \(*^p\)。
-- prec/continue と prec/finish：constructor の argument typing を取り出し、
-  対応する branch に dep elim を適用する。motive の代入が結果型そのものである。
-- run：\(f@a\) を dep elim で型付けする。
-  id intro で \(\Gamma\vDash f@a=f@a\) を得れば、runCase の全 premise が揃う。
-- runCase/continue：constructor の premise から \(a':A:*^s_i\)。
-  Acc と equality の premise に acc descent を適用して Acc(f,a') を得る。
-  run によって reduct の \(B:*^s_i\) での typing を得る。
-- runCase/finish：constructor の premise がそのまま \(b:B:*^s_i\)。
+- Pred/subset：subset form の \(P:*^p\) に、rule label \(p_i\) の
+  型演算子の dep intro を適用する。引数 \(t:B\) が与えられていれば、
+  dep elim で reduct を \(*^p\) に型付けできる。
+  ここでは外側の predicate が要求する \(t:A\) だけから \(t:B\) を推論していない。
+- prec/continue と prec/finish：constructor の argument typing と
+  branch の typing に dep elim を適用する。motive の代入が結果型になる。
+- run：dep elim で \(f@_{s^{i,i}}a:\operatorname{RunStep}(A,B)\)。
+  id intro による自己等号と元の Acc premise を合わせ、runCase を適用する。
+- runCase/continue：constructor の argument typing と、
+  元の Acc・equality premise に acc descent を適用して後続の Acc を得る。
+  run により reduct を \(B\) に型付けする。
+- runCase/finish：constructor の premise がそのまま reduct の \(B\) での typing である。
 
-これらは集合モデルを使わない導出の構成である。
-しかし次の一般形を証明したことにはならない。
+これらは有限導出の明示的な構成である。
 
+### 一般形に残る問題
+
+目標は、各 Set/Prop family の compatible reduction に対する
 \[
 \begin{aligned}
-\Gamma\vdash t:T:s,\ t\Rightarrow_0t'
- &\Longrightarrow\Gamma\vdash t':T:s,\\
-\Gamma\vdash T:s,\ T\Rightarrow_0T'
- &\Longrightarrow\Gamma\vdash T':s.
+\Gamma\vdash e:A,\quad e\Rightarrow_0e'
+ &\Longrightarrow\Gamma\vdash e':A,\\
+\Gamma\vdash K:\kappa(b),\quad K\Rightarrow_0K'
+ &\Longrightarrow\Gamma\vdash K':\kappa(b).
 \end{aligned}
 \tag{SR}
 \]
+provability の保存は、命題の typing の SR と Prop-conversion から得られる。
 
-sorting の SR があれば、provability の対応する主張は Prop-conversion から従う。
+Context-conversion は上で証明した。しかし、元の \(\equiv_0\) を使う体系では、
+constructor の typing が conversion、subset intro/weak、weak を経由した場合の generation はまだ必要である。
+補助 conversion を使う \(\mathcal S_+\) については、
+[refinement root による generation](generation.md#generation)でこの部分を証明した。
+とくに \(t:A\) と \(t:\Ty(A,S)\) の両方が導出できるため、
+通常の PTS の型の一意性をそのまま使えない。
+必要なのは、消去規則の表示型で body/argument の typing を回収する補題である。
+Pred/subset についても、内側の domain \(B\) での引数 typing を回収する必要がある。
 
-### 一般の SR に必要な議論
+さらに binder 内の簡約、subset prop の移送、重複した型添字の一方だけを
+簡約した場合を含めて compatible closure を扱う必要がある。
+[補助 reduction の共通簡約先](confluence.md#auxiliary-reduction)は、
+その共通簡約先の typing や元の reduction の合流性までは与えない。
+同ページの補助関係は現行の family と rule label を保持するが、
+そのことだけでは typing の保存は得られない。
 
-constructor の typing は最後が導入規則とは限らず、
-conversion、subset intro/weak、weakening、type elem/sort を経由する。
-特に \(t:A\) と \(t:\Ty(A,S)\) は同時に導出され得るので、
-通常の PTS の「型の一意性」をそのまま引用してはいけない。
+[条件 TC](model.md#tc)の証明には、さらに[意味保存](soundness.md#tc-obligation)が必要である。
+上の構文的補題だけから、一般の SR や TC を証明済みとは結論しない。
 
-必要なのは少なくとも次である。
-
-1. 上記の迂回を含む generation。lambda、subset、continue、finish の
-   導出から、消去規則が要求する型での body/argument の導出を回収する。
-2. binder の型注釈を簡約した場合の context conversion と、
-   motive/body の型の変化を追う substitution。
-3. subset intro の subject を簡約するとき、typing の保存と
-   \(\Pred(A,S,t)\) の provability の移送を同時に扱う。
-4. constructor の重複した型添字の一方だけを簡約した場合も含む compatible closure。
-
-[補助 reduction の合流性](confluence.md#auxiliary-reduction) が示したのは、内外の添字の一致条件を外した
-補助関係 \(\rightsquigarrow\) の合流性である。
-\(\equiv_0\) の両端は補助関係で join するが、
-共通簡約先の typing や元の関係 \(\Rightarrow_0\) の合流性はそこからは出ない。
-
-証明上の別案として、conversion を \(\rightsquigarrow\) の同値閉包に広げた
-体系 \(\mathcal S_+\) を定義できる。
-元の有限導出はそのまま \(\mathcal S_+\) の導出になる。
-この大きな体系の健全性を示せば元の無矛盾性は従う。
-ただし、\(\mathcal S_+\) の generation、SR、意味保存は別途証明する必要があり、
-その SR を元の体系の SR と呼んではならない。
-
-TC の定義は[集合モデル](model.md#tc)、意味保存の未解決部分は[条件付き健全性](soundness.md#tc-obligation)を参照する。
+一方、[補助体系の SR](subject_reduction.md#sr-plus) は、
+generation を用いて compatible closure と provability まで含めて証明できる。
+元の体系の導出は補助体系にも移せるので、無矛盾性を補助体系で示す経路がある。
+この場合に残るのは、同ページの Semantic-step-plus である。
 
 ## 旧記法による検討メモ
 

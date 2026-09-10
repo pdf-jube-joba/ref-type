@@ -20,6 +20,8 @@
   - [core metatheory](./props/metatheory.md)
   - [confluence](./props/confluence.md)
   - [typing](./props/typing.md)
+  - [refinement と generation](./props/generation.md)
+  - [補助体系の subject reduction](./props/subject_reduction.md)
   - [Box 消去](./props/box_elimination.md)
   - [model](./props/model.md)
   - [条件付き健全性](./props/soundness.md)

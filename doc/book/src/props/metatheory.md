@@ -10,6 +10,7 @@ core を扱う。集合モデル、無矛盾性、subject reduction は仮定し
 
 ## 束縛と代入
 
+以下の構造帰納法は現行の三構文について同時に行い、rule label は固定する。
 項は alpha 同値で同一視する。変数の sort 注釈は名前の一部とし、
 代入 \(t[x^s:=u]\) はその注釈を持つ変数だけを置換する。
 lambda、product、subset は表示された変数を body で束縛する。

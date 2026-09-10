@@ -5,6 +5,13 @@ Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除�
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 ここで示すのは補助 reduction の合流性である。元の reduction の合流性や subject reduction は結論しない。
 代入の合成則は[構文的補題](metatheory.md#substitution)を使う。
+以下の本文は現行の Set/Prop の三構文に適用する。
+式中で省略した \(\Pi,\lambda,@,\operatorname{prec}\) の rule label・sort 添字は固定し、
+全 congruence rule はそれらを保持する。
+beta の lambda と application は同じ \(r\) を持つ場合にだけ root とする。
+Pred の reduct は \(p_i\)、prec の branch application は \(h_{i,\sigma}\)、
+run の application は \(s^{i,i}\) を持つ。
+補助規則で外すのは、下に明記する constructor の型引数の一致条件だけである。
 
 <a id="auxiliary-reduction"></a>
 
@@ -44,7 +51,7 @@ beta、Pred、run の規則は \(\to_0\) と同じとし、次の四規則では
    束縛 body は同じ局所変数のもとで簡約する。
 3. beta は
    \[
-   (\lambda x:A.m)@a\Rrightarrow m'[x:=a']
+   (\lambda_r x:A.m)@_r a\Rrightarrow m'[x:=a']
    \quad(A\Rrightarrow A',\ m\Rrightarrow m',\ a\Rrightarrow a').
    \]
 4. Pred には次の二規則を置く。
@@ -99,7 +106,7 @@ run が \(f,a\) を複製する場合も、同じ \(f',a'\) を両方に使え�
 
 \[
 \begin{aligned}
-((\lambda x:A.m)@a)^\star&=m^\star[x:=a^\star],\\
+((\lambda_r x:A.m)@_r a)^\star&=m^\star[x:=a^\star],\\
 \Pred(A,\{x:B\mid P\},a)^\star&=P^\star[x:=a^\star],\\
 \operatorname{prec}_{\operatorname{RunStep}(A,B)}
 (x^s.P,c,d,\operatorname{continue}_{C,D}(a))^\star&=c^\star @a^\star,\\
@@ -129,6 +136,7 @@ root に一致する場合は、導出が congruence か root かで分ける。
   constructor はその congruence によって失われない。引数の帰納法を premise として
   並列 root を適用すれば \(t^\star\) を得る。
   ここで内外の型添字の一致を要求しないことが必要である。
+  beta の二つの rule label は congruence で変化しないため、同じ root に一致し続ける。
 - beta root の場合は `parallel-subst` を使う。
 - Pred の第一 root の場合、得られた application に並列 beta を適用する。
   第二 root の場合は `parallel-subst` を使う。
@@ -154,6 +162,8 @@ t\equiv_0 u
 この結論は **補助関係での共通簡約先** であり、
 \(\to_0\) 自体の合流性を証明した、と読み替えてはならない。
 とくに、この段階では \(w\) の typing は保証されない。
+後で[補助体系の SR](subject_reduction.md#typed-join)を用いると、
+両端の typing から \(w\) と途中の項の \(\mathcal S_+\) における typing を得られる。
 
 ### Head discrimination と injectivity
 
@@ -165,7 +175,7 @@ sort、変数、Power、Ty、product、RunStep は、
 - 自由変数は sort、Ty、Power、product、RunStep と \(\equiv_0\) でない。
 - Ty、Power、product、RunStep の異なる head 同士は \(\equiv_0\) でない。
 - \(\Power A\equiv_0\Power B\) なら \(A,B\) は補助関係で共通簡約先を持つ。
-- 二つの product が \(\equiv_0\) なら、binder の sort 注釈は一致し、
+- 二つの product が \(\equiv_0\) なら、rule label と binder の sort 注釈は一致し、
   alpha-renaming 後の domain 同士、body 同士はそれぞれ補助関係で共通簡約先を持つ。
 
 最後の二項について、ここで得た引数の join を直ちに
