@@ -355,6 +355,26 @@ pub fn computation_is_alpha_eq(
                 && computation_is_alpha_eq(arena, lb, rb)
         }
         (
+            ComputationTermNode::Case {
+                indspec: li,
+                scrutinee: ls,
+                branches: lb,
+            },
+            ComputationTermNode::Case {
+                indspec: ri,
+                scrutinee: rs,
+                branches: rb,
+            },
+        ) => {
+            li == ri
+                && value_is_alpha_eq(arena, ls, rs)
+                && lb.len() == rb.len()
+                && lb.iter().zip(rb).all(|(left, right)| {
+                    left.binders.len() == right.binders.len()
+                        && computation_is_alpha_eq(arena, left.body, right.body)
+                })
+        }
+        (
             ComputationTermNode::Run {
                 state_ty: ls,
                 result_ty: lr,
@@ -372,6 +392,28 @@ pub fn computation_is_alpha_eq(
                 && value_type_is_alpha_eq(arena, lr, rr)
                 && value_is_alpha_eq(arena, lp, rp)
                 && value_is_alpha_eq(arena, li, ri)
+        }
+        (
+            ComputationTermNode::RunCase {
+                state_ty: ls,
+                result_ty: lr,
+                step: lp,
+                initial: li,
+                transition: lt,
+            },
+            ComputationTermNode::RunCase {
+                state_ty: rs,
+                result_ty: rr,
+                step: rp,
+                initial: ri,
+                transition: rt,
+            },
+        ) => {
+            value_type_is_alpha_eq(arena, ls, rs)
+                && value_type_is_alpha_eq(arena, lr, rr)
+                && value_is_alpha_eq(arena, lp, rp)
+                && value_is_alpha_eq(arena, li, ri)
+                && computation_is_alpha_eq(arena, lt, rt)
         }
         _ => false,
     }

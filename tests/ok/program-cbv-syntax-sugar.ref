@@ -1,0 +1,91 @@
+\module ProgramCbvSyntaxSugar {
+  \inductive Bool: \VType :=
+  | false: Bool;
+  | true: Bool;
+  ;
+  \inductive Holder: \VType :=
+  | hold: (Bool -> Bool) -> Holder;
+  ;
+
+  /* The new type and lambda elaborate to the explicit CBPV definition. */
+  \cdefinition andExplicit: Bool ~> \F(\U(Bool ~> \F(Bool))) :=
+    \cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) =>
+      \match x \in Bool \with {
+      | false => \return(Bool::false);
+      | true => \return(y);
+      }));
+
+  \cdefinition and: Bool -> Bool -> Bool :=
+    \fun (x, y: Bool) =>
+      \match x \in Bool \with {
+      | false => \return(Bool::false);
+      | true => \return(y);
+      };
+  \cdefinition newTypeOldBody: Bool -> Bool :=
+    \cfun (x: Bool) => \return(x);
+  \cdefinition oldTypeNewBody: Bool ~> \F(Bool) :=
+    \fun (x: Bool) => \return(x);
+  \cdefinition mixedArrow: Bool ~> (Bool -> Bool) :=
+    \cfun (x: Bool) => \fun (y: Bool) => \return(y);
+
+  /* A value-position lambda is thunked, and value application is forced. */
+  \vdefinition identity: Bool -> Bool :=
+    \fun (x: Bool) => \return(x);
+  \vdefinition holder: Holder := Holder::hold (\fun (x: Bool) => \return(x));
+  \cdefinition apply(f: Bool -> Bool, x: Bool): \F(Bool) := f x;
+  \cdefinition applyExplicit(f: \U(Bool ~> \F(Bool)), x: Bool): \F(Bool) :=
+    (\force f) x;
+  \cdefinition shadow(and: Bool -> Bool, x: Bool): \F(Bool) := and x;
+
+  /* Curried application binds and forces intermediate function values. */
+  \cdefinition falseAndTrue: \F(Bool) := and Bool::false Bool::true;
+  \cdefinition falseAndTrueExplicit: \F(Bool) :=
+    \bind next: Bool -> Bool <- and Bool::false \in
+    (\force next) Bool::true;
+  \cdefinition trueAndFalse: \F(Bool) := andExplicit Bool::true Bool::false;
+  \cdefinition partial: \F(Bool -> Bool) := and Bool::true;
+  \cdefinition fromPartial: \F(Bool) := partial Bool::false;
+
+  \cdefinition choose3: Bool -> Bool -> Bool -> Bool :=
+    \fun (x: Bool) => \fun (y, z: Bool) =>
+      \match x \in Bool \with {
+      | false => \return(y);
+      | true => \return(z);
+      };
+  \cdefinition choose3Explicit:
+      Bool ~> \F(\U(Bool ~> \F(\U(Bool ~> \F(Bool))))) :=
+    \cfun (x: Bool) => \return(\thunk(
+      \cfun (y: Bool) => \return(\thunk(
+        \cfun (z: Bool) =>
+          \match x \in Bool \with {
+          | false => \return(y);
+          | true => \return(z);
+          }))));
+  \cdefinition chosen: \F(Bool) := choose3 Bool::true Bool::false Bool::true;
+
+  \ccheck (\fun (x: Bool) => \return(x)): Bool -> Bool;
+  \vcheck (\fun (x: Bool) => \return(x)): Bool -> Bool;
+  \ccheck apply (\fun (x: Bool) => \return(x)) Bool::true: \F(Bool);
+  \ccheck (\force identity) Bool::true: \F(Bool);
+  \ccheck and Bool::true Bool::false: _;
+
+  \cnormalize and Bool::false Bool::false;
+  \cnormalize and Bool::false Bool::true;
+  \cnormalize and Bool::true Bool::false;
+  \cnormalize and Bool::true Bool::true;
+
+  /* Naked arrows in reflection forms denote computation types. */
+  \definition andSet: \Force(Bool -> Bool -> Bool, \box(Bool -> Bool -> Bool, and)) =
+      \Force(Bool ~> \F(\U(Bool ~> \F(Bool))),
+        \box(Bool ~> \F(\U(Bool ~> \F(Bool))), andExplicit)) :=
+    \refl(\Force(Bool -> Bool -> Bool, \box(Bool -> Bool -> Bool, and)));
+
+  \definition identityValueBox: \Box(\U(Bool -> Bool)) :=
+    \box(\U(Bool -> Bool), identity);
+}
+
+\module ProgramCbvSyntaxSugarGeneric(A: \VType, a: A) {
+  \cdefinition identity: A -> A := \fun (x: A) => \return(x);
+  \cdefinition inferred: \F(A) := identity a;
+  \cdefinition inferFunctionType(f: _, x: A): \F(A) := f x;
+}

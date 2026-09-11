@@ -196,6 +196,14 @@ impl term_elaborator::Handler for GlobalEnvironment {
         expression: &SExp,
     ) -> Result<crate::raw::program::ProgramType, String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
+        // A bare CBV arrow in \Box/\box/\Force denotes its computation
+        // translation. Function values remain explicit through \U(...).
+        if matches!(expression, SExp::Prod { .. }) {
+            let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
+            return scope
+                .elaborate_computation_type(&computation_ty, self)
+                .map(crate::raw::program::ProgramType::ComputationType);
+        }
         if let Ok(value_ty) = ValueTypeExp::try_from(expression.clone()) {
             return scope
                 .elaborate_value_type(&value_ty, self)

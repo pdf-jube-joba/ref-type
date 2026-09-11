@@ -10,7 +10,7 @@ use std::{
 const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 // These projects elaborate and independently check the entire library. Allow
 // for both debug-build processes running concurrently in the test harness.
-const LIBRARY_TIMEOUT: Duration = Duration::from_secs(60);
+const LIBRARY_TIMEOUT: Duration = Duration::from_secs(90);
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

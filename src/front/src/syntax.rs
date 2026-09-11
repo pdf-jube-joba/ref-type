@@ -332,8 +332,8 @@ pub enum ComputationTermExp {
         body: Box<ComputationTermExp>,
     },
     Application {
-        computation: Box<ComputationTermExp>,
-        value: Box<ValueTermExp>,
+        function: ProgramFunctionExp,
+        arguments: Vec<ValueTermExp>,
     },
     Sequence {
         computation: Box<ComputationTermExp>,
@@ -368,6 +368,21 @@ pub enum ComputationTermExp {
         accessibility: Option<Box<SExp>>,
         transition_equality: Option<Box<SExp>>,
     },
+}
+
+/// The head of an ordinary Program application. An access is deliberately
+/// left unclassified until elaboration, where name resolution can distinguish
+/// local values from global value and computation definitions.
+#[derive(Debug, Clone)]
+pub enum ProgramFunctionExp {
+    Access(LocalAccess),
+    Associated {
+        datatype: LocalAccess,
+        item: Identifier,
+        parameters: Vec<ValueTypeExp>,
+    },
+    Value(Box<ValueTermExp>),
+    Computation(Box<ComputationTermExp>),
 }
 
 #[derive(Debug, Clone)]
@@ -780,6 +795,12 @@ impl TryFrom<SExp> for ValueTypeExp {
             SExp::ThunkType { computation_ty } => {
                 Ok(Self::Thunk(Box::new((*computation_ty).try_into()?)))
             }
+            SExp::Prod {
+                bind: Bind::Named(RightBind { vars, ty }),
+                body,
+            } if vars.is_empty() => Ok(Self::Thunk(Box::new(cbv_arrow_as_computation_type(
+                *ty, *body,
+            )?))),
             SExp::PRunStep {
                 state_ty,
                 result_ty,
@@ -802,6 +823,10 @@ impl TryFrom<SExp> for ComputationTypeExp {
                 domain: Box::new((*domain).try_into()?),
                 codomain: Box::new((*codomain).try_into()?),
             }),
+            SExp::Prod {
+                bind: Bind::Named(RightBind { vars, ty }),
+                body,
+            } if vars.is_empty() => cbv_arrow_as_computation_type(*ty, *body),
             _ => Err("expected Program computation-type syntax".into()),
         }
     }
@@ -858,6 +883,9 @@ impl TryFrom<SExp> for ValueTermExp {
             SExp::Thunk { computation } if arguments.is_empty() => {
                 Ok(Self::Thunk(Box::new((*computation).try_into()?)))
             }
+            expression @ SExp::Lam { .. } if arguments.is_empty() => Ok(Self::Thunk(Box::new(
+                cbv_lambda_as_computation(expression)?,
+            ))),
             SExp::PContinue {
                 state_ty,
                 result_ty,
@@ -913,10 +941,41 @@ impl TryFrom<SExp> for ComputationTermExp {
                 value_ty: Box::new((*value_ty).try_into()?),
                 body: Box::new((*body).try_into()?),
             }),
-            SExp::App { func, arg, .. } => Ok(Self::Application {
-                computation: Box::new((*func).try_into()?),
-                value: Box::new((*arg).try_into()?),
-            }),
+            expression @ SExp::App { .. } => {
+                let (head, arguments) = decompose_surface_application(expression);
+                let function = match head {
+                    SExp::AccessPath { access, parameters } if parameters.is_empty() => {
+                        ProgramFunctionExp::Access(access)
+                    }
+                    SExp::AssociatedAccess { base, field } => {
+                        let SExp::AccessPath { access, parameters } = *base else {
+                            return Err(
+                                "expected a Program datatype before associated access".into()
+                            );
+                        };
+                        ProgramFunctionExp::Associated {
+                            datatype: access,
+                            item: field,
+                            parameters: parameters
+                                .into_iter()
+                                .map(TryInto::try_into)
+                                .collect::<Result<_, _>>()?,
+                        }
+                    }
+                    expression @ SExp::Thunk { .. } => {
+                        ProgramFunctionExp::Value(Box::new(expression.try_into()?))
+                    }
+                    expression => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
+                };
+                Ok(Self::Application {
+                    function,
+                    arguments: arguments
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                })
+            }
+            expression @ SExp::Lam { .. } => cbv_lambda_as_computation(expression),
             SExp::Sequence {
                 computation,
                 var,
@@ -1019,6 +1078,50 @@ impl TryFrom<SExp> for ComputationTermExp {
             _ => Err("expected Program computation syntax".into()),
         }
     }
+}
+
+fn cbv_arrow_as_computation_type(
+    domain: SExp,
+    codomain: SExp,
+) -> Result<ComputationTypeExp, String> {
+    Ok(ComputationTypeExp::Function {
+        domain: Box::new(domain.try_into()?),
+        codomain: Box::new(ComputationTypeExp::Return(Box::new(codomain.try_into()?))),
+    })
+}
+
+fn cbv_lambda_as_computation(expression: SExp) -> Result<ComputationTermExp, String> {
+    let mut expression = expression;
+    let mut binders = Vec::new();
+    while let SExp::Lam { bind, body } = expression {
+        let Bind::Named(RightBind { vars, ty }) = bind else {
+            return Err("Program lambda requires a plain value binder".into());
+        };
+        if vars.is_empty() {
+            return Err("Program lambda requires at least one value binder".into());
+        }
+        binders.extend(vars.into_iter().map(|var| (var, (*ty).clone())));
+        expression = *body;
+    }
+    let mut body: ComputationTermExp = expression.try_into()?;
+    let (var, ty) = binders
+        .pop()
+        .ok_or_else(|| "Program lambda requires at least one value binder".to_string())?;
+    body = ComputationTermExp::Lambda {
+        var,
+        value_ty: Box::new(ty.try_into()?),
+        body: Box::new(body),
+    };
+    for (var, ty) in binders.into_iter().rev() {
+        body = ComputationTermExp::Lambda {
+            var,
+            value_ty: Box::new(ty.try_into()?),
+            body: Box::new(ComputationTermExp::Return(Box::new(ValueTermExp::Thunk(
+                Box::new(body),
+            )))),
+        };
+    }
+    Ok(body)
 }
 
 fn decompose_surface_application(mut expression: SExp) -> (SExp, Vec<SExp>) {

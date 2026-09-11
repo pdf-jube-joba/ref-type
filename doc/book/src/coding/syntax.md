@@ -90,6 +90,16 @@ refinement 束縛では値の名前は一つ。証明名の利用可否や存在
 値の型と計算の型を区別する。`\VType` は値型の sort、`\F(A)` は値を返す計算の型、
 `\U(C)` は計算を thunk にした値の型。計算関数型は `A ~> C` と書く。
 
+Program では通常の call-by-value 関数を `A -> B` とも書ける。値型として読む位置では
+`A -> B` を `\U(A ~> \F(B))`、計算型として読む位置では `A ~> \F(B)` に展開する。
+したがって `\vdefinition` の型と関数引数の型は前者、`\cdefinition` の型は後者になる。
+`\Box`・`\box`・`\Force` の型指定にある裸の `->` も計算型として読み、関数値を
+指定するときは `\U(A -> B)` と明示する。矢印は右結合する。
+
+`~>` の引数は値型、結果は計算型、`\F` の引数は値型、`\U` の引数は計算型として
+再帰的に読む。このため `A ~> (B -> C)` は使えるが、`A -> \F(B)` は値型と計算型を
+取り違えているためエラーになる。Program の `->` は依存型や refinement 束縛を導入しない。
+
 ```text
 \cdefinition identity(x: A): \F(A) := \return x;
 \vdefinition suspended: \U(A ~> \F(A)) := \thunk identity;
@@ -99,11 +109,32 @@ refinement 束縛では値の名前は一つ。証明名の利用可否や存在
   \return y;
 ```
 
+`\fun` も同じ CBV 展開を行う。計算位置では外側を `\cfun` にし、値位置ではさらに
+`\thunk` で包む。複数引数では、後続の関数を返すために引数間へ
+`\return(\thunk(...))` が入る。最後の本体は計算なので、戻り値の `\return` は省略しない。
+
+```text
+\cdefinition and: Bool -> Bool -> Bool :=
+  \fun (x, y: Bool) =>
+    \match x \in Bool \with {
+    | false => \return(Bool::false);
+    | true => \return(y);
+    };
+```
+
+この定義の型は `Bool ~> \F(\U(Bool ~> \F(Bool)))`、本体は
+`\cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) => ...))` に展開される。
+新旧の型記法と本体記法は独立に混在できる。
+
 `\cfun` は複数の括弧付き束縛や同じ型の複数名を受け付ける。Program の束縛には
 refinement を指定しない。関数の適用は `computation value` と書き、左結合する。
 例えば `f x y` は `(f x) y`、`\force f x` は `(\force f) x`。
 引数は値であり、計算結果を引数にする場合は先に `\bind` で受け取る。
-`return`・`thunk`・`force` を自動では挿入しない。
+通常の計算関数は直接適用する。`\U(A ~> C)` の関数値には `force` を、カリー化の
+途中で得る `\F(\U(A ~> C))` には `bind` と `force` を補う。この補完はローカル変数、
+module 引数、定義、型関連項、明示的な thunk に適用される。引数位置の計算には
+一般的な `bind` を自動挿入せず、`f (g x)` の `g x` が計算なら明示的な `\bind` が必要。
+これ以外の任意の値・計算に対する `return`・`thunk` の自動挿入は行わない。
 
 `\cdefinition f(x: A, y: B): C := body;` は型 `A ~> B ~> C` と本体
 `\cfun (x: A) (y: B) => body` に展開する。`f(x, y: A)` や `f(x: A)(y: B)` も使える。

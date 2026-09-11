@@ -1202,17 +1202,17 @@ fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
 
 #[test]
 fn program_application_classification_preserves_cbpv_boundaries() {
-    use crate::syntax::{ComputationTermExp as C, ValueTermExp as V};
-    let C::Application { computation, value } =
-        C::try_from(parse::str_parse_exp(r"\force f x y").unwrap()).unwrap()
+    use crate::syntax::{ComputationTermExp as C, ProgramFunctionExp as F, ValueTermExp as V};
+    let C::Application {
+        function,
+        arguments,
+    } = C::try_from(parse::str_parse_exp(r"\force f x y").unwrap()).unwrap()
     else {
-        panic!("outer application")
+        panic!("application")
     };
-    assert!(matches!(*value, V::Access(_)));
-    let C::Application { computation, .. } = *computation else {
-        panic!("inner application")
-    };
-    assert!(matches!(*computation, C::Force(_)));
+    assert_eq!(arguments.len(), 2);
+    assert!(arguments.iter().all(|value| matches!(value, V::Access(_))));
+    assert!(matches!(function, F::Computation(computation) if matches!(*computation, C::Force(_))));
 
     let V::Constructor { fields, .. } =
         V::try_from(parse::str_parse_exp("Pair::pair x y").unwrap()).unwrap()
@@ -1238,6 +1238,61 @@ fn program_application_classification_preserves_cbpv_boundaries() {
         );
     }
     C::try_from(parse::str_parse_exp(r"f (\thunk (g x))").unwrap()).unwrap();
+}
+
+#[test]
+fn program_cbv_sugar_elaborates_to_alpha_equivalent_cbpv() {
+    use crate::raw::{
+        environment::{DefinedConstant, ModuleItem},
+        program_calculus::{computation_is_alpha_eq, computation_type_is_alpha_eq},
+    };
+
+    let modules = parse::str_parse_modules(include_str!(
+        "../../../tests/ok/program-cbv-syntax-sugar.ref"
+    ))
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+
+    for (sugared, explicit) in [
+        ("and", "andExplicit"),
+        ("choose3", "choose3Explicit"),
+        ("apply", "applyExplicit"),
+        ("falseAndTrue", "falseAndTrueExplicit"),
+    ] {
+        let get = |name| {
+            let ModuleItem::Definition { definition, .. } = env.module(module).item(name).unwrap()
+            else {
+                panic!("missing Program definition {name}")
+            };
+            let DefinedConstant::ProgramComputation { ty, body, .. } = env.definition(*definition)
+            else {
+                panic!("{name} is not a Program computation")
+            };
+            (*ty, *body)
+        };
+        let (sugared_ty, sugared_body) = get(sugared);
+        let (explicit_ty, explicit_body) = get(explicit);
+        assert!(computation_type_is_alpha_eq(
+            env.arena(),
+            sugared_ty,
+            explicit_ty
+        ));
+        assert!(
+            computation_is_alpha_eq(env.arena(), sugared_body, explicit_body),
+            "{sugared} did not match {explicit}:\nsugared: {}\nexplicit: {}",
+            crate::raw::printing::format_program(
+                env,
+                crate::raw::program::ProgramTerm::ComputationTerm(sugared_body)
+            ),
+            crate::raw::printing::format_program(
+                env,
+                crate::raw::program::ProgramTerm::ComputationTerm(explicit_body)
+            )
+        );
+    }
 }
 
 #[test]
