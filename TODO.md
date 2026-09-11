@@ -9,3 +9,5 @@
   - よく考えるとコピーされるときに Id を分けてコピーしないといけないので微妙かも。
   - あと、FVar はなくて ModuleId のようにして束縛されるケースしかない。
 - convertibility の判定って weakかheadかのnormalization してる？もっと楽な方法がありそう。
+- module の定義を全部インスタンス化しない。
+- module のインスタンス化を別の module で再利用できるようにする。 export の仕組み？
