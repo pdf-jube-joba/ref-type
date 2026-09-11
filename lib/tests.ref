@@ -226,35 +226,172 @@
   \import \root.Pair() \as P;
   \import \root.Bool() \as B;
   \import \root.Nat() \as N;
-  \import N.Laws() \as NL;
+  \import P.Laws(A := B.Bool, B := N.Nat) \as PL;
+  \import P.Program(A := B.Bool, B := N.Nat) \as PP;
+  \import PP.Mapping(C := N.Nat, D := B.Bool) \as PM;
+  \import PP.Functions(C := N.Nat) \as PF;
+
   \vdefinition value: P.Times[B.Bool, N.Nat] :=
-    P.Times[B.Bool, N.Nat]::pair B.Bool::true (N.Nat::succ N.Nat::zero);
+    P.Times[_, _]::pair B.Bool::true (N.Nat::succ N.Nat::zero);
   \definition reflected: P.Times[B.Bool, N.Nat] :=
     \Force(P.Times[B.Bool, N.Nat], \box(P.Times[B.Bool, N.Nat], value));
   \definition first: P.first B.Bool N.Nat reflected = B.Bool::true := \refl(B.Bool::true);
   \definition second: P.second B.Bool N.Nat reflected = N.oneSet := \refl(N.oneSet);
   \definition swapped: P.swap B.Bool N.Nat reflected = P.pair N.Nat B.Bool N.oneSet B.Bool::true :=
     \refl(P.pair N.Nat B.Bool N.oneSet B.Bool::true);
-  \definition mapped: P.map B.Bool N.Nat B.Bool N.Nat B.negSet N.predSet reflected = P.pair B.Bool N.Nat B.Bool::false N.zeroSet :=
+  \definition mapped: P.map B.Bool N.Nat B.Bool N.Nat B.negSet N.predSet reflected =
+      P.pair B.Bool N.Nat B.Bool::false N.zeroSet :=
     \refl(P.pair B.Bool N.Nat B.Bool::false N.zeroSet);
-  \cdefinition project: (P.Times[B.Bool, N.Nat] ~> \F(N.Nat)) :=
-    (\cfun (p: P.Times[B.Bool, N.Nat]) => \match (p) \in P.Times \with { | pair b n => \return(n); });
-  \definition reflectedProjection: P.Times[B.Bool, N.Nat] -> N.Nat :=
-    \Force((P.Times[B.Bool, N.Nat] ~> \F(N.Nat)),
-      \box((P.Times[B.Bool, N.Nat] ~> \F(N.Nat)), project));
-  \definition projectionAgrees: \forall (p: P.Times[B.Bool, N.Nat]) -> reflectedProjection p = P.second B.Bool N.Nat p :=
-    \prec(\Prop, P.Times[B.Bool, N.Nat])
-      (\fun (p: P.Times[B.Bool, N.Nat]) => reflectedProjection p = P.second B.Bool N.Nat p)
+
+  /* Reflect complete operations, then prove agreement for arbitrary arguments. */
+  \definition makeSet: B.Bool -> N.Nat -> P.Times[B.Bool, N.Nat] :=
+    \Force(B.Bool ~> N.Nat ~> \F(P.Times[B.Bool, N.Nat]),
+      \box(B.Bool ~> N.Nat ~> \F(P.Times[B.Bool, N.Nat]), PP.make));
+  \definition firstSet: P.Times[B.Bool, N.Nat] -> B.Bool :=
+    \Force(P.Times[B.Bool, N.Nat] ~> \F(B.Bool),
+      \box(P.Times[B.Bool, N.Nat] ~> \F(B.Bool), PP.first));
+  \definition secondSet: P.Times[B.Bool, N.Nat] -> N.Nat :=
+    \Force(P.Times[B.Bool, N.Nat] ~> \F(N.Nat),
+      \box(P.Times[B.Bool, N.Nat] ~> \F(N.Nat), PP.second));
+  \definition swapSet: P.Times[B.Bool, N.Nat] -> P.Times[N.Nat, B.Bool] :=
+    \Force(P.Times[B.Bool, N.Nat] ~> \F(P.Times[N.Nat, B.Bool]),
+      \box(P.Times[B.Bool, N.Nat] ~> \F(P.Times[N.Nat, B.Bool]), PP.swap));
+  \definition makeAgrees: \forall (b: B.Bool) -> \forall (n: N.Nat) -> makeSet b n = P.pair B.Bool N.Nat b n :=
+    \fun (b: B.Bool) => \fun (n: N.Nat) => \refl(P.pair B.Bool N.Nat b n);
+  \definition firstAgrees: \forall (p: P.Times[B.Bool, N.Nat]) -> firstSet p = P.first B.Bool N.Nat p :=
+    PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => firstSet p = P.first B.Bool N.Nat p)
+      (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(b));
+  \definition secondAgrees: \forall (p: P.Times[B.Bool, N.Nat]) -> secondSet p = P.second B.Bool N.Nat p :=
+    PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => secondSet p = P.second B.Bool N.Nat p)
       (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(n));
+  \definition swapAgrees: \forall (p: P.Times[B.Bool, N.Nat]) -> swapSet p = P.swap B.Bool N.Nat p :=
+    PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => swapSet p = P.swap B.Bool N.Nat p)
+      (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(P.pair N.Nat B.Bool n b));
+
+  \definition mapSet: (B.Bool -> N.Nat) -> (N.Nat -> B.Bool) -> P.Times[B.Bool, N.Nat] -> P.Times[N.Nat, B.Bool] :=
+    \Force(\U(B.Bool ~> \F(N.Nat)) ~> \U(N.Nat ~> \F(B.Bool)) ~> P.Times[B.Bool, N.Nat] ~> \F(P.Times[N.Nat, B.Bool]),
+      \box(\U(B.Bool ~> \F(N.Nat)) ~> \U(N.Nat ~> \F(B.Bool)) ~> P.Times[B.Bool, N.Nat] ~> \F(P.Times[N.Nat, B.Bool]), PM.map));
+  \definition mapFirstSet: (B.Bool -> N.Nat) -> P.Times[B.Bool, N.Nat] -> P.Times[N.Nat, N.Nat] :=
+    \Force(\U(B.Bool ~> \F(N.Nat)) ~> P.Times[B.Bool, N.Nat] ~> \F(P.Times[N.Nat, N.Nat]),
+      \box(\U(B.Bool ~> \F(N.Nat)) ~> P.Times[B.Bool, N.Nat] ~> \F(P.Times[N.Nat, N.Nat]), PM.mapFirst));
+  \definition mapSecondSet: (N.Nat -> B.Bool) -> P.Times[B.Bool, N.Nat] -> P.Times[B.Bool, B.Bool] :=
+    \Force(\U(N.Nat ~> \F(B.Bool)) ~> P.Times[B.Bool, N.Nat] ~> \F(P.Times[B.Bool, B.Bool]),
+      \box(\U(N.Nat ~> \F(B.Bool)) ~> P.Times[B.Bool, N.Nat] ~> \F(P.Times[B.Bool, B.Bool]), PM.mapSecond));
+  \definition mapAgrees: \forall (f: B.Bool -> N.Nat) -> \forall (g: N.Nat -> B.Bool) ->
+    \forall (p: P.Times[B.Bool, N.Nat]) -> mapSet f g p = P.map B.Bool N.Nat N.Nat B.Bool f g p :=
+    \fun (f: B.Bool -> N.Nat) => \fun (g: N.Nat -> B.Bool) =>
+      PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => mapSet f g p = P.map B.Bool N.Nat N.Nat B.Bool f g p)
+        (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(P.pair N.Nat B.Bool (f b) (g n)));
+  \definition mapFirstAgrees: \forall (f: B.Bool -> N.Nat) -> \forall (p: P.Times[B.Bool, N.Nat]) ->
+    mapFirstSet f p = P.mapFirst B.Bool N.Nat N.Nat f p :=
+    \fun (f: B.Bool -> N.Nat) =>
+      PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => mapFirstSet f p = P.mapFirst B.Bool N.Nat N.Nat f p)
+        (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(P.pair N.Nat N.Nat (f b) n));
+  \definition mapSecondAgrees: \forall (g: N.Nat -> B.Bool) -> \forall (p: P.Times[B.Bool, N.Nat]) ->
+    mapSecondSet g p = P.mapSecond B.Bool N.Nat B.Bool g p :=
+    \fun (g: N.Nat -> B.Bool) =>
+      PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => mapSecondSet g p = P.mapSecond B.Bool N.Nat B.Bool g p)
+        (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(P.pair B.Bool B.Bool b (g n)));
+
+  \definition currySet: (P.Times[B.Bool, N.Nat] -> N.Nat) -> B.Bool -> N.Nat -> N.Nat :=
+    \Force(\U(P.Times[B.Bool, N.Nat] ~> \F(N.Nat)) ~> B.Bool ~> N.Nat ~> \F(N.Nat),
+      \box(\U(P.Times[B.Bool, N.Nat] ~> \F(N.Nat)) ~> B.Bool ~> N.Nat ~> \F(N.Nat), PF.curry));
+  \definition uncurrySet: (B.Bool -> N.Nat -> N.Nat) -> P.Times[B.Bool, N.Nat] -> N.Nat :=
+    \Force(\U(B.Bool ~> N.Nat ~> \F(N.Nat)) ~> P.Times[B.Bool, N.Nat] ~> \F(N.Nat),
+      \box(\U(B.Bool ~> N.Nat ~> \F(N.Nat)) ~> P.Times[B.Bool, N.Nat] ~> \F(N.Nat), PF.uncurry));
+  \definition curryAgrees: \forall (f: P.Times[B.Bool, N.Nat] -> N.Nat) -> \forall (b: B.Bool) -> \forall (n: N.Nat) ->
+    currySet f b n = P.curry B.Bool N.Nat N.Nat f b n :=
+    \fun (f: P.Times[B.Bool, N.Nat] -> N.Nat) => \fun (b: B.Bool) => \fun (n: N.Nat) =>
+      \refl(f (P.pair B.Bool N.Nat b n));
+  \definition uncurryAgrees: \forall (f: B.Bool -> N.Nat -> N.Nat) -> \forall (p: P.Times[B.Bool, N.Nat]) ->
+    uncurrySet f p = P.uncurry B.Bool N.Nat N.Nat f p :=
+    \fun (f: B.Bool -> N.Nat -> N.Nat) =>
+      PL.induction (\fun (p: P.Times[B.Bool, N.Nat]) => uncurrySet f p = P.uncurry B.Bool N.Nat N.Nat f p)
+        (\fun (b: B.Bool) => \fun (n: N.Nat) => \refl(f b n));
+
+  \definition assocSet: P.Times[P.Times[B.Bool, N.Nat], N.Nat] -> P.Times[B.Bool, P.Times[N.Nat, N.Nat]] :=
+    \Force(P.Times[P.Times[B.Bool, N.Nat], N.Nat] ~> \F(P.Times[B.Bool, P.Times[N.Nat, N.Nat]]),
+      \box(P.Times[P.Times[B.Bool, N.Nat], N.Nat] ~> \F(P.Times[B.Bool, P.Times[N.Nat, N.Nat]]), PF.assoc));
+  \definition unassocSet: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] -> P.Times[P.Times[B.Bool, N.Nat], N.Nat] :=
+    \Force(P.Times[B.Bool, P.Times[N.Nat, N.Nat]] ~> \F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]),
+      \box(P.Times[B.Bool, P.Times[N.Nat, N.Nat]] ~> \F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]), PF.unassoc));
+  \definition assocAgrees: \forall (p: P.Times[P.Times[B.Bool, N.Nat], N.Nat]) ->
+    assocSet p = P.assoc B.Bool N.Nat N.Nat p :=
+    \prec(\Prop, P.Times[P.Times[B.Bool, N.Nat], N.Nat])
+      (\fun (p: P.Times[P.Times[B.Bool, N.Nat], N.Nat]) => assocSet p = P.assoc B.Bool N.Nat N.Nat p)
+      (\fun (p: P.Times[B.Bool, N.Nat]) => \fun (n: N.Nat) =>
+        PL.induction
+          (\fun (p: P.Times[B.Bool, N.Nat]) => assocSet (P.pair _ _ p n) = P.assoc _ _ _ (P.pair _ _ p n))
+          (\fun (b: B.Bool) => \fun (m: N.Nat) => \refl(P.pair _ _ b (P.pair _ _ m n))) p);
+  \definition unassocAgrees: \forall (p: P.Times[B.Bool, P.Times[N.Nat, N.Nat]]) ->
+    unassocSet p = P.unassoc B.Bool N.Nat N.Nat p :=
+    \prec(\Prop, P.Times[B.Bool, P.Times[N.Nat, N.Nat]])
+      (\fun (p: P.Times[B.Bool, P.Times[N.Nat, N.Nat]]) => unassocSet p = P.unassoc B.Bool N.Nat N.Nat p)
+      (\fun (b: B.Bool) => \fun (p: P.Times[N.Nat, N.Nat]) =>
+        \prec(\Prop, P.Times[N.Nat, N.Nat])
+          (\fun (p: P.Times[N.Nat, N.Nat]) => unassocSet (P.pair _ _ b p) = P.unassoc _ _ _ (P.pair _ _ b p))
+          (\fun (m, n: N.Nat) => \refl(P.pair _ _ (P.pair _ _ b m) n)) p);
+
+  /* Direct Program use: type inference, type-changing maps, and thunked callbacks. */
+  \cdefinition boolToNat(b: B.Bool): \F(N.Nat) :=
+    \match b \in B.Bool \with {
+    | false => \return N.Nat::zero;
+    | true => \return N.Nat::succ N.Nat::zero;
+    };
+  \cdefinition natToBool(n: N.Nat): \F(B.Bool) :=
+    \match n \in N.Nat \with { | zero => \return B.Bool::true; | succ k => \return B.Bool::false; };
+  \cdefinition pipeline: \F(B.Bool) := \block {
+    \bind input: P.Times[B.Bool, N.Nat] <- P.Times::make B.Bool::true (N.Nat::succ N.Nat::zero);
+    \bind mapped: P.Times[N.Nat, B.Bool] <- PM.map (\thunk boolToNat) (\thunk natToBool) input;
+    \bind swapped: P.Times[B.Bool, N.Nat] <- P.Times::swap mapped;
+    \bind result: B.Bool <- P.Times::first swapped;
+    \return result;
+  };
+  \definition pipelineResult: \Force(\F(B.Bool), \box(\F(B.Bool), pipeline)) = B.Bool::false := \refl(B.Bool::false);
+  \cdefinition changeFirst: \F(P.Times[N.Nat, N.Nat]) := PM.mapFirst (\thunk boolToNat) value;
+  \cdefinition changeSecond: \F(P.Times[B.Bool, B.Bool]) := PM.mapSecond (\thunk natToBool) value;
+  \definition changedFirst: \Force(\F(P.Times[N.Nat, N.Nat]), \box(\F(P.Times[N.Nat, N.Nat]), changeFirst)) =
+    P.pair _ _ N.oneSet N.oneSet := \refl(P.pair _ _ N.oneSet N.oneSet);
+  \definition changedSecond: \Force(\F(P.Times[B.Bool, B.Bool]), \box(\F(P.Times[B.Bool, B.Bool]), changeSecond)) =
+    P.pair _ _ B.Bool::true B.Bool::false := \refl(P.pair _ _ B.Bool::true B.Bool::false);
+  \cdefinition curried: \F(N.Nat) := PF.curry (\thunk PP.second) B.Bool::false (N.Nat::succ N.Nat::zero);
+  \cdefinition choose(b: B.Bool, n: N.Nat): \F(N.Nat) :=
+    \match b \in B.Bool \with { | false => \return N.Nat::zero; | true => \return n; };
+  \cdefinition uncurried: \F(N.Nat) := PF.uncurry (\thunk choose) value;
+  \definition curriedResult: \Force(\F(N.Nat), \box(\F(N.Nat), curried)) = N.oneSet := \refl(N.oneSet);
+  \definition uncurriedResult: \Force(\F(N.Nat), \box(\F(N.Nat), uncurried)) = N.oneSet := \refl(N.oneSet);
+  \cdefinition nestedRoundTrip: \F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]) := \block {
+    \bind right: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] <- PF.assoc (P.Times[_, _]::pair value N.Nat::zero);
+    \bind left: P.Times[P.Times[B.Bool, N.Nat], N.Nat] <- PF.unassoc right;
+    \return left;
+  };
+  \definition nestedResult:
+    \Force(\F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]),
+      \box(\F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]), nestedRoundTrip)) = P.pair _ _ reflected N.zeroSet :=
+    \refl(P.pair _ _ reflected N.zeroSet);
 }
 
 /* The Set API also accepts carriers that have no Program representation. */
-\module AbstractPairExamples(A, B: \Set, a: A, b: B) {
+\module AbstractPairExamples(A, B, C, D: \Set, a: A, b: B) {
   \import \root.Pair() \as P;
+  \import P.Laws(A := A, B := B) \as PL;
+  \import P.MapLaws(A := A, B := B, C := C, D := D) \as ML;
+  \import P.FunctionLaws(A := A, B := B, C := C) \as FL;
   \definition value: P.Times[A, B] := P.pair A B a b;
   \definition first: P.first A B value = a := \refl(a);
   \definition second: P.second A B value = b := \refl(b);
   \definition uncurried: P.uncurry A B A (\fun (x: A) => \fun (y: B) => x) value = a := \refl(a);
+  \definition rebuild: \forall (p: P.Times[A, B]) -> P.pair _ _ (P.first _ _ p) (P.second _ _ p) = p := PL.eta;
+  \definition equalComponents: \forall (p, q: P.Times[A, B]) ->
+    P.first _ _ p = P.first _ _ q -> P.second _ _ p = P.second _ _ q -> p = q := PL.ext;
+  \definition injective: \forall (x: A) -> \forall (y: B) -> value = P.pair A B x y -> a = x :=
+    \fun (x: A) => \fun (y: B) => PL.pairInjectiveFirst a x b y;
+  \definition separateMaps: \forall (f: A -> C) -> \forall (g: B -> D) -> \forall (p: P.Times[A, B]) ->
+    P.mapSecond C B D g (P.mapFirst A B C f p) = P.map A B C D f g p := ML.mapSeparate;
+  \definition leftRoundTrip: \forall (p: P.Times[P.Times[A, B], C]) -> P.unassoc A B C (P.assoc A B C p) = p :=
+    FL.unassocAssoc;
+  \definition rightRoundTrip: \forall (p: P.Times[A, P.Times[B, C]]) -> P.assoc A B C (P.unassoc A B C p) = p :=
+    FL.assocUnassoc;
 }
 
 \module EqualityExamples(A, B: \Set, f: A -> B, a, b, c: A, ab: a = b, bc: b = c) {

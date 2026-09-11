@@ -760,6 +760,28 @@ fn expression_sort(a: &Arena, e: Expression) -> super::sort::Sort {
     }
 }
 
+// Recursion is a property of the declared field, before substituting datatype
+// parameters. Instantiating a parameter with the same datatype (e.g. Pair of
+// Pairs) must not introduce an induction hypothesis for that field.
+pub(crate) fn recursive_constructor_field(
+    env: &Environment,
+    inductive: InductiveId,
+    mut ty: Expression,
+) -> Result<bool, String> {
+    loop {
+        ty = whnf(env, ty)?;
+        let d = env.arena.data(ty);
+        if matches!(d.op, Op::ProdTerm { .. } | Op::ProdType { .. }) {
+            ty = d.child(1);
+        } else {
+            let (head, _) = decompose_application(&env.arena, ty);
+            return Ok(
+                matches!(env.arena.data(head).op, Op::IndType { inductive: actual } if actual == inductive),
+            );
+        }
+    }
+}
+
 fn recursive_case_argument(
     env: &Environment,
     elimination: Expression,
@@ -842,14 +864,11 @@ fn reduce_inductive(
         return Ok(None);
     }
     let spec = env.inductive(inductive).ok_or("unknown inductive")?;
-    let mut ty = instantiate_telescope(
-        a,
-        *spec
-            .constructors
-            .get(constructor)
-            .ok_or("unknown constructor")?,
-        &hd.children(0),
-    )?;
+    let mut declared_ty = *spec
+        .constructors
+        .get(constructor)
+        .ok_or("unknown constructor")?;
+    let mut ty = instantiate_telescope(a, declared_ty, &hd.children(0))?;
     let mut case_args = vec![];
     for arg in arguments {
         ty = normalize(env, ty)?;
@@ -858,9 +877,14 @@ fn reduce_inductive(
             return Err("constructor applied to excess arguments".into());
         }
         case_args.push(arg);
-        if let Some(ih) = recursive_case_argument(env, elimination, inductive, td.child(0), arg)? {
+        let declared = a.data(whnf(env, declared_ty)?);
+        if recursive_constructor_field(env, inductive, declared.child(0))?
+            && let Some(ih) =
+                recursive_case_argument(env, elimination, inductive, td.child(0), arg)?
+        {
             case_args.push(ih)
         }
+        declared_ty = declared.child(1);
         ty = substitute(a, td.child(1), arg)?;
     }
     if matches!(a.data(ty).op, Op::ProdTerm { .. } | Op::ProdType { .. }) {

@@ -1181,7 +1181,8 @@ impl<'a> Checker<'a> {
                             ],
                         },
                     );
-                    let expected = self.case_type(inductive, ctor_ty, ctor, &motive)?;
+                    let expected =
+                        self.case_type(inductive, spec.constructors[i], ctor_ty, ctor, &motive)?;
                     self.check(case, expected)?;
                 }
                 applied
@@ -1264,6 +1265,7 @@ impl<'a> Checker<'a> {
     fn case_type(
         &mut self,
         ind: InductiveId,
+        declared_ty: Expression,
         ty: Expression,
         ctor: Expression,
         motive: &Motive,
@@ -1271,14 +1273,17 @@ impl<'a> Checker<'a> {
         let ty = whnf(self.env, ty)?;
         let d = self.arena().data(ty);
         if matches!(d.op, Op::ProdTerm { .. } | Op::ProdType { .. }) {
+            let declared = self.arena().data(whnf(self.env, declared_ty)?);
+            let recursive =
+                super::calculus::recursive_constructor_field(self.env, ind, declared.child(0))?;
             let domain = d.child(0);
             return self.quantified(domain, |ch, x| {
                 let ctor = ch.lifted(ctor, 1)?;
                 let ctor = ch.application(ctor, x)?;
                 let motive = ch.lift_motive(motive)?;
-                let tail = ch.case_type(ind, d.child(1), ctor, &motive)?;
+                let tail = ch.case_type(ind, declared.child(1), d.child(1), ctor, &motive)?;
                 let dom = ch.lifted(domain, 1)?;
-                if let Some(ih) = ch.recursive_hypothesis(ind, dom, x, &motive)? {
+                if recursive && let Some(ih) = ch.recursive_hypothesis(ind, dom, x, &motive)? {
                     ch.arrow(ih, tail)
                 } else {
                     Ok(tail)

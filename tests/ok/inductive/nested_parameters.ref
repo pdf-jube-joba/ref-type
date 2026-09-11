@@ -1,0 +1,43 @@
+/* Instantiating a parameter with the same datatype does not make it recursive. */
+\module NestedParameters {
+  \inductive Unit: \VType := | unit: Unit; ;
+  \inductive Pair(A, B: \VType): \VType := | pair: A -> B -> Pair; ;
+  \definition first: \forall (A, B: \Set) -> Pair[A, B] -> A :=
+    \fun (A, B: \Set) => \prec(\Set, Pair[A, B])
+      (\fun (p: Pair[A, B]) => A) (\fun (a: A) => \fun (b: B) => a);
+  \definition inner: Pair[Unit, Unit] := Pair[Unit, Unit]::pair Unit::unit Unit::unit;
+  \definition outer: Pair[Pair[Unit, Unit], Unit] := Pair[Pair[Unit, Unit], Unit]::pair inner Unit::unit;
+  \definition nestedProjection: first Pair[Unit, Unit] Unit outer = inner := \refl(inner);
+  \definition directElimination:
+    \prec(\Set, Pair[Pair[Unit, Unit], Unit])
+      (\fun (p: Pair[Pair[Unit, Unit], Unit]) => Pair[Unit, Unit])
+      (\fun (p: Pair[Unit, Unit]) => \fun (u: Unit) => p) outer = inner := \refl(inner);
+  \definition callback: Unit -> Pair[Unit, Unit] := \fun (u: Unit) => inner;
+  \definition functionParameter:
+    first (Unit -> Pair[Unit, Unit]) Unit
+      (Pair[Unit -> Pair[Unit, Unit], Unit]::pair callback Unit::unit) Unit::unit = inner := \refl(inner);
+
+  \inductive Count: \Set := | zero: Count; | succ: Count -> Count; ;
+  \inductive List(A: \Set): \Set := | nil: List; | cons: A -> List -> List; ;
+  \definition length: \forall (A: \Set) -> List[A] -> Count :=
+    \fun (A: \Set) => \prec(\Set, List[A]) (\fun (xs: List[A]) => Count) Count::zero
+      (\fun (head: A) => \fun (tail: List[A]) => \fun (ih: Count) => Count::succ ih);
+  \definition singleton: List[Unit] := List[Unit]::cons Unit::unit List[Unit]::nil;
+  \definition nested: List[List[Unit]] := List[List[Unit]]::cons singleton List[List[Unit]]::nil;
+  \definition nestedLength: length List[Unit] nested = Count::succ Count::zero := \refl(Count::succ Count::zero);
+  \definition directLength:
+    \prec(\Set, List[List[Unit]]) (\fun (xs: List[List[Unit]]) => Count) Count::zero
+      (\fun (head: List[Unit]) => \fun (tail: List[List[Unit]]) => \fun (ih: Count) => Count::succ ih)
+      nested = Count::succ Count::zero := \refl(Count::succ Count::zero);
+
+  /* Genuine recursion under a function domain still receives its hypothesis. */
+  \inductive Tree(A: \Set): \Set := | leaf: A -> Tree; | node: (Unit -> Tree) -> Tree; ;
+  \definition depth: \forall (A: \Set) -> Tree[A] -> Count :=
+    \fun (A: \Set) => \prec(\Set, Tree[A]) (\fun (t: Tree[A]) => Count)
+      (\fun (a: A) => Count::zero)
+      (\fun (children: Unit -> Tree[A]) => \fun (ih: Unit -> Count) => Count::succ (ih Unit::unit));
+  \definition payload: Tree[Unit] := Tree[Unit]::leaf Unit::unit;
+  \definition nestedTree: Tree[Tree[Unit]] := Tree[Tree[Unit]]::node
+    (\fun (u: Unit) => Tree[Tree[Unit]]::leaf payload);
+  \definition nestedDepth: depth Tree[Unit] nestedTree = Count::succ Count::zero := \refl(Count::succ Count::zero);
+}

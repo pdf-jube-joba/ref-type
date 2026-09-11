@@ -1,8 +1,22 @@
-/* A proof-free Cartesian product and its basic equations. */
+/* One Cartesian product for Program values and arbitrary Set carriers. */
 \inductive Times(A, B: \VType): \VType :=
 | pair: A -> B -> Times;
 ;
 
+/* Associated computations infer their carrier arguments from the values. */
+\cdefinition Times(A, B: \VType)::make(a: A, b: B): \F(Times[A, B]) :=
+  \return Times[A, B]::pair a b;
+
+\cdefinition Times(A, B: \VType)::first(p: Times[A, B]): \F(A) :=
+  \match p \in Times \with { | pair a b => \return a; };
+
+\cdefinition Times(A, B: \VType)::second(p: Times[A, B]): \F(B) :=
+  \match p \in Times \with { | pair a b => \return b; };
+
+\cdefinition Times(A, B: \VType)::swap(p: Times[A, B]): \F(Times[B, A]) :=
+  \match p \in Times \with { | pair a b => \return Times[B, A]::pair b a; };
+
+/* The Set API also works when A and B have no Program representation. */
 \definition pair:
   \forall (A, B: \Set) -> A -> B -> Times[A, B] :=
   \fun (A, B: \Set) => \fun (a: A) => \fun (b: B) =>
@@ -32,6 +46,14 @@
   \fun (A, B, C, D: \Set) => \fun (f: A -> C) => \fun (g: B -> D) => \fun (p: Times[A, B]) =>
     pair C D (f (first A B p)) (g (second A B p));
 
+\definition mapFirst: \forall (A, B, C: \Set) -> (A -> C) -> Times[A, B] -> Times[C, B] :=
+  \fun (A, B, C: \Set) => \fun (f: A -> C) =>
+    map A B C B f (\fun (b: B) => b);
+
+\definition mapSecond: \forall (A, B, C: \Set) -> (B -> C) -> Times[A, B] -> Times[A, C] :=
+  \fun (A, B, C: \Set) => \fun (g: B -> C) =>
+    map A B A C (\fun (a: A) => a) g;
+
 \definition curry: \forall (A, B, C: \Set) -> (Times[A, B] -> C) -> A -> B -> C :=
   \fun (A, B, C: \Set) => \fun (f: Times[A, B] -> C) => \fun (a: A) => \fun (b: B) =>
     f (pair A B a b);
@@ -40,7 +62,21 @@
   \fun (A, B, C: \Set) => \fun (f: A -> B -> C) => \fun (p: Times[A, B]) =>
     f (first A B p) (second A B p);
 
+\definition assoc: \forall (A, B, C: \Set) -> Times[Times[A, B], C] -> Times[A, Times[B, C]] :=
+  \fun (A, B, C: \Set) => \fun (p: Times[Times[A, B], C]) =>
+    pair A Times[B, C] (first A B (first Times[A, B] C p))
+      (pair B C (second A B (first Times[A, B] C p)) (second Times[A, B] C p));
+
+\definition unassoc: \forall (A, B, C: \Set) -> Times[A, Times[B, C]] -> Times[Times[A, B], C] :=
+  \fun (A, B, C: \Set) => \fun (p: Times[A, Times[B, C]]) =>
+    pair Times[A, B] C
+      (pair A B (first A Times[B, C] p) (first B C (second A Times[B, C] p)))
+      (second B C (second A Times[B, C] p));
+
 /* Laws quantify over elements; their carrier universes are module parameters. */
 \module Laws(A, B: \Set);
 \module MapLaws(A, B, C, D: \Set);
 \module FunctionLaws(A, B, C: \Set);
+
+/* Open this child from an existing Pair instance to share its Times type. */
+\module Program(A, B: \VType);

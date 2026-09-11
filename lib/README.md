@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | 論理 | [Logic.ref](Logic.ref) | `False`、`Not`、`And`、`Or` と記法 |
 | 等式 | [Equality.ref](Equality.ref)、[Equality/Laws.ref](Equality/Laws.ref) | 対称律、推移律、transport、合同則 |
-| 直積 | [Pair.ref](Pair.ref) と `Pair/` 以下 | 構築・射影・交換・写像・カリー化とその法則 |
+| 直積 | [Pair.ref](Pair.ref) と `Pair/` 以下 | Program / Set の構築・射影・交換・写像・カリー化・結合の組み替えと法則 |
 | 有限部分集合 | [Finset.ref](Finset.ref) | 一点集合と二点集合 |
 | 商集合 | [Quotient.ref](Quotient.ref) | 同値類、商の台集合、演算の relational image |
 | 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref) と `Nat/` 以下、[Int.ref](Int.ref) と `Int/` 以下、[IntAlgebra.ref](IntAlgebra.ref) | Program 演算、Set への反映、仕様と法則、整数の代数構造 |
@@ -92,7 +92,54 @@ Set 側では次を使う。
 - `pair A B a b`、`first A B p`、`second A B p`
 - `swap A B p`
 - `map A B C D f g p`
+- `mapFirst A B C f p`、`mapSecond A B C g p`（片側だけを写す）
 - `curry A B C f`、`uncurry A B C f`
+- `assoc A B C p`（`((a,b),c)` から `(a,(b,c))`）、`unassoc A B C p`（逆方向）
+
+Set の carrier は Program 表現を持たなくてもよい。型引数を推論できる場合は `_` にできる。
+`P.Laws(A := A, B := B)` は `induction`、`eta`、`ext`、`pairCong`、射影の合同則、
+`pairInjectiveFirst` / `pairInjectiveSecond` を公開する。
+`P.MapLaws(A := A, B := B, C := C, D := D)` には写像の計算則・合成則・
+片側の写像と両側の写像の一致があり、`P.FunctionLaws(A := A, B := B, C := C)` には
+カリー化と結合の組み替えが互いに逆になる法則がある。
+
+Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[_, _]` と書いて推論させられる。
+`P.Times::make a b`、`P.Times::first p`、`P.Times::second p`、`P.Times::swap p` は計算であり、
+型引数を省略できる。型を固定して複数の操作を使う場合は、同じ Pair instance の子を開く。
+
+```text
+\import \root.Pair() \as P;
+\import P.Program(A := A, B := B) \as PP;
+\import PP.Mapping(C := C, D := D) \as PM;
+\import PP.Functions(C := C) \as PF;
+```
+
+ここで `A`、`B`、`C`、`D` は Program の値型である。
+
+| モジュール | 操作 | 引数と結果 |
+| --- | --- | --- |
+| `PP` | `make a b`、`first p`、`second p`、`swap p` | 型関連操作と同じ |
+| `PM` | `map f g p` | `f: \U(A ~> \F(C))`、`g: \U(B ~> \F(D))` で両成分を写す |
+| `PM` | `mapFirst f p`、`mapSecond g p` | 片側だけを写し、もう一方の値を保持する |
+| `PF` | `curry f a b` | `f: \U(P.Times[A, B] ~> \F(C))` を呼ぶ |
+| `PF` | `uncurry f p` | `f: \U(A ~> B ~> \F(C))` を呼ぶ |
+| `PF` | `assoc p`、`unassoc p` | 三成分の結合を組み替える |
+
+`map` は左、右の順に各関数を1回ずつ実行する。関数は `\thunk f` の形で渡し、
+計算結果は `\bind` で受け取る。複数引数の計算は `make a b` のように直接適用する。
+
+```text
+\cdefinition transform(p: P.Times[A, B]): \F(C) := \block {
+  \bind mapped: P.Times[C, D] <- PM.map (\thunk f) (\thunk g) p;
+  \bind result: C <- P.Times::first mapped;
+  \return result;
+};
+```
+
+`f: A ~> \F(C)`、`g: B ~> \F(D)` はあらかじめ定義した計算とする。
+停止性が確認できる計算は通常どおり `\box` / `\Force` で Set に反映できる。
+`tests.ref` の `PairExamples` は全操作の反映と Set の仕様の一致を証明し、
+Bool と Nat を使った直接の Program 呼び出しも検査する。
 
 `NatPair`、Int の `Difference`、Rat の `Integer` はすべてこの対型の alias であり、
 用途ごとに別の対データ型を宣言しない。
