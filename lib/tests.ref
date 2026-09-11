@@ -20,6 +20,8 @@
 \module IntAlgebra;
 \module ArithmeticExamples {
   \import \root.Nat() \as N;
+  \import N.Laws() \as NL;
+  \import NL.Division() \as ND;
   \definition z: N.Nat := N.Nat::zero;
   \definition one: N.Nat := N.Nat::succ z;
   \definition two: N.Nat := N.Nat::succ one;
@@ -39,7 +41,7 @@
   \definition maxRight: N.maxSet two three = three := \refl(three);
   \definition minSame: N.minSet two two = two := \refl(two);
   \definition maxSame: N.maxSet two two = two := \refl(two);
-  \definition less: N.Lt two three := \refl(N.ltbSet z one);
+  \definition less: NL.Lt two three := \refl(N.ltbSet z one);
   \definition notLess: N.ltbSet three two = N.ltbSet z z := \refl(N.ltbSet z z);
   \definition notLe: N.lebSet three two = N.lebSet one z := \refl(N.lebSet one z);
   \definition equal: N.eqbSet two two = N.eqbSet z z := \refl(N.eqbSet z z);
@@ -78,25 +80,26 @@
   \definition importedModSpecification: \forall (a, b: N.Nat) -> N.modSet a b = N.modPrec a b := N.modMatchesPrec;
   \definition importedGcdSpecification: \forall (a, b: N.Nat) -> N.gcdSet a b = N.gcdPrec a b := N.gcdMatchesPrec;
   \definition importedDivisionLaw: \forall (a, b: N.Nat) ->
-    N.addSet (N.mulSet b (N.divSet a b)) (N.modSet a b) = a := N.divModReconstructs;
+    N.addSet (N.mulSet b (N.divSet a b)) (N.modSet a b) = a := ND.divModReconstructs;
   \definition importedRemainderBound: \forall (a, d: N.Nat) ->
-    N.Lt (N.modSet a (N.Nat::succ d)) (N.Nat::succ d) := N.modLt;
-  \definition importedGcdDividesLeft: \forall (a, b: N.Nat) -> N.Divides (N.gcdSet a b) a := N.gcdDividesLeft;
-  \definition importedGcdDividesRight: \forall (a, b: N.Nat) -> N.Divides (N.gcdSet a b) b := N.gcdDividesRight;
+    NL.Lt (N.modSet a (N.Nat::succ d)) (N.Nat::succ d) := ND.modLt;
+  \definition importedGcdDividesLeft: \forall (a, b: N.Nat) -> ND.Divides (N.gcdSet a b) a := ND.gcdDividesLeft;
+  \definition importedGcdDividesRight: \forall (a, b: N.Nat) -> ND.Divides (N.gcdSet a b) b := ND.gcdDividesRight;
   \definition importedGcdGreatest: \forall (d, a, b: N.Nat) ->
-    N.Divides d a -> N.Divides d b -> N.Divides d (N.gcdSet a b) := N.gcdGreatest;
-  \definition importedAddLaw: \forall (a, b: N.Nat) -> N.addSet a b = N.addSet b a := N.addComm;
+    ND.Divides d a -> ND.Divides d b -> ND.Divides d (N.gcdSet a b) := ND.gcdGreatest;
+  \definition importedAddLaw: \forall (a, b: N.Nat) -> N.addSet a b = N.addSet b a := NL.addComm;
   \definition importedMulLaw: \forall (a, b, c: N.Nat) ->
-    N.mulSet (N.mulSet a b) c = N.mulSet a (N.mulSet b c) := N.mulAssoc;
+    N.mulSet (N.mulSet a b) c = N.mulSet a (N.mulSet b c) := NL.mulAssoc;
   \definition importedPositiveCancellation: \forall (k, a, b: N.Nat) ->
     N.mulSet a (N.Nat::succ k) = N.mulSet b (N.Nat::succ k) -> a = b :=
-    N.mulCancelRightSucc;
+    NL.mulCancelRightSucc;
   \definition importedSpecification: \forall (a, b: N.Nat) -> N.mulSet a b = N.mulPrec a b :=
     N.mulMatchesPrec;
 }
 
 \module AlgebraExamples {
   \import \root.Nat() \as N;
+  \import N.Laws() \as NL;
   \import \root.Monoid(Carrier := N.Nat) \as M;
   \import \root.Algebra(Carrier := N.Nat) \as A;
 
@@ -106,7 +109,7 @@
   };
   \definition additiveLaws: M.MonoidLaws[additiveRaw] :=
     M.monoidLawsIntro additiveRaw
-      N.addZeroLeft N.addZeroRight N.addAssoc;
+      NL.addZeroLeft NL.addZeroRight NL.addAssoc;
   \definition additiveMonoid: M.Monoid :=
     \subsetinto(M.RawMonoid, M.MonoidSet, additiveRaw, additiveLaws);
   \definition additiveIdentity: \forall (n: N.Nat) ->
@@ -121,10 +124,10 @@
   };
   \definition naturalSemiringLaws: A.SemiringLaws[naturalSemiringRaw] :=
     A.semiringLawsIntro naturalSemiringRaw
-      N.addZeroLeft N.addZeroRight N.addAssoc N.addComm
-      N.mulOneLeft N.mulOneRight N.mulAssoc
-      N.mulDistribLeft N.mulDistribRight
-      N.mulZeroLeft N.mulZeroRight;
+      NL.addZeroLeft NL.addZeroRight NL.addAssoc NL.addComm
+      NL.mulOneLeft NL.mulOneRight NL.mulAssoc
+      NL.mulDistribLeft NL.mulDistribRight
+      NL.mulZeroLeft NL.mulZeroRight;
   \definition naturalSemiring: A.Semiring :=
     \subsetinto(A.RawSemiring, A.SemiringSet,
       naturalSemiringRaw, naturalSemiringLaws);
@@ -140,6 +143,9 @@
 
 \module IntegerExamples {
   \import \root.Int() \as I;
+  \import I.Math() \as IM;
+  \import IM.Specification() \as IS;
+  \import IS.Laws() \as IL;
   \use I.natZero;
   \use I.natSucc;
   \use I.boolTrue;
@@ -188,24 +194,24 @@
   \definition negativeEven: I.evenSet m2 = boolTrue!{} := \refl(boolTrue!{});
   \definition negativeOdd: I.oddSet m3 = boolTrue!{} := \refl(boolTrue!{});
   \definition reducedDifference: I.diffSet three two = I.oneSet := \refl(I.oneSet);
-  \definition quotientCancellation: I.diffMath three two = I.diffMath one z :=
-    I.classOfEq (I.pair three two) (I.pair one z) (\refl(three));
+  \definition quotientCancellation: IS.diffMath three two = IS.diffMath one z :=
+    IM.classOfEq (I.pair three two) (I.pair one z) (\refl(three));
   \definition noncanonicalSum:
-    I.addMath (I.class (I.pair three two)) (I.class (I.pair two three)) =
-      I.class (I.addRep (I.pair three two) (I.pair two three)) :=
-    I.addMathClass (I.pair three two) (I.pair two three);
-  \definition roundTrip: \forall (x: I.Int) -> I.fromMath (I.toMath x) = x := I.fromTo;
-  \definition quotientRoundTrip: \forall (x: I.Grothendieck) -> I.toMath (I.fromMath x) = x := I.toFrom;
+    IM.addMath (IM.class (I.pair three two)) (IM.class (I.pair two three)) =
+      IM.class (IM.addRep (I.pair three two) (I.pair two three)) :=
+    IM.addMathClass (I.pair three two) (I.pair two three);
+  \definition roundTrip: \forall (x: I.Int) -> IM.fromMath (IM.toMath x) = x := IM.fromTo;
+  \definition quotientRoundTrip: \forall (x: IM.Grothendieck) -> IM.toMath (IM.fromMath x) = x := IM.toFrom;
   \definition additionAgreement: \forall (x, y: I.Int) ->
-    I.toMath (I.addSet x y) = I.addMath (I.toMath x) (I.toMath y) := I.addMatchesMath;
+    IM.toMath (I.addSet x y) = IM.addMath (IM.toMath x) (IM.toMath y) := IM.addMatchesMath;
   \definition multiplicationAgreement: \forall (x, y: I.Int) ->
-    I.toMath (I.mulSet x y) = I.mulMath (I.toMath x) (I.toMath y) := I.mulMatchesMath;
-  \definition inverseLaw: \forall (x: I.Int) -> I.addSet (I.negSet x) x = I.zeroSet := I.negInverse;
-  \definition rightInverseLaw: \forall (x: I.Int) -> I.addSet x (I.negSet x) = I.zeroSet := I.negInverseRight;
+    IM.toMath (I.mulSet x y) = IM.mulMath (IM.toMath x) (IM.toMath y) := IM.mulMatchesMath;
+  \definition inverseLaw: \forall (x: I.Int) -> I.addSet (I.negSet x) x = I.zeroSet := IL.negInverse;
+  \definition rightInverseLaw: \forall (x: I.Int) -> I.addSet x (I.negSet x) = I.zeroSet := IL.negInverseRight;
   \definition additionAssociative: \forall (x, y, z: I.Int) ->
-    I.addSet (I.addSet x y) z = I.addSet x (I.addSet y z) := I.addAssoc;
+    I.addSet (I.addSet x y) z = I.addSet x (I.addSet y z) := IL.addAssoc;
   \definition multiplicationCommutative: \forall (x, y: I.Int) ->
-    I.mulSet x y = I.mulSet y x := I.mulComm;
+    I.mulSet x y = I.mulSet y x := IL.mulComm;
 }
 
 \module IntegerAlgebraExamples {
@@ -220,6 +226,7 @@
   \import \root.Pair() \as P;
   \import \root.Bool() \as B;
   \import \root.Nat() \as N;
+  \import N.Laws() \as NL;
   \vdefinition value: P.Times[B.Bool, N.Nat] :=
     P.Times[B.Bool, N.Nat]::pair B.Bool::true (N.Nat::succ N.Nat::zero);
   \definition reflected: P.Times[B.Bool, N.Nat] :=
@@ -270,8 +277,12 @@
 }
 
 \module Rat;
+\module DedekindReal;
+\module CauchyReal;
 \module RationalExamples {
   \import \root.Rat() \as R;
+  \import R.Fractions() \as RF;
+  \import RF.Operations() \as RO;
   \definition two: R.Nat := R.natAdd R.oneNat R.oneNat;
   \definition multiply: R.natMul two R.oneNat = two := \refl(two);
   \definition indexOrder: R.NatLe two two := R.natLeRefl two;
@@ -290,15 +301,29 @@
       R.IntegerEq (R.mulInteger x u) (R.mulInteger y v) :=
     R.mulIntegerRespects;
   \definition fractionTransitivity:
-    \forall (x, y, z: R.Fraction) ->
-      R.FractionEq x y -> R.FractionEq y z -> R.FractionEq x z :=
-    R.fractionEqTrans;
-  \definition fractionSymmetry: \forall (x, y: R.Fraction) -> R.FractionEq x y -> R.FractionEq y x :=
-    R.fractionEqSym;
+    \forall (x, y, z: RF.Fraction) ->
+      RF.FractionEq x y -> RF.FractionEq y z -> RF.FractionEq x z :=
+    RF.fractionEqTrans;
+  \definition fractionSymmetry:
+    \forall (x, y: RF.Fraction) ->
+      RF.FractionEq x y -> RF.FractionEq y x :=
+    RF.fractionEqSym;
+  \definition fractionMultiplicationCompatibility:
+    \forall (x, y, u, v: RF.Fraction) ->
+      RF.FractionEq x y -> RF.FractionEq u v ->
+      RF.FractionEq (RO.mul x u) (RO.mul y v) :=
+    RO.fractionMulRespects;
+  \definition fractionAdditionZero:
+    \forall (x: RF.Fraction) ->
+      RF.FractionEq (RO.add x RF.zero) x :=
+    RO.fractionAddZeroRight;
 }
 
 \module RationalQuotientExamples {
-  \import \root.Rat().Quotient() \as R;
+  \import \root.Rat() \as RB;
+  \import RB.Fractions() \as RF;
+  \import RF.Operations() \as RO;
+  \import RO.Quotient() \as R;
   \definition quotientNegation: R.Rat -> R.Rat := R.neg;
   \definition quotientNegationInvolutive:
     \forall (x: R.Rat) -> R.neg (R.neg x) = x := R.negInvolutive;
@@ -307,6 +332,30 @@
     \forall (n: R.IntegerCarrier) ->
       R.neg (R.ofInteger n) = R.ofInteger (R.integerNeg n) :=
     R.negOfInteger;
+  \definition quotientMultiplication:
+    R.Rat -> R.Rat -> R.Rat := R.mulRat;
+  \definition quotientMultiplicationCommutative:
+    \forall (x, y: R.Rat) ->
+      R.mulRat x y = R.mulRat y x :=
+    R.mulRatComm;
+}
+
+\module DedekindRealExamples {
+  \import \root.DedekindReal() \as D;
+  \definition orderReflexive:
+    \forall (x: D.Real) -> D.Le x x := D.leRefl;
+}
+
+\module CauchyRealExamples {
+  \import \root.CauchyReal() \as C;
+  \definition closenessSymmetry:
+    \forall (x, y, eps: C.Rat) ->
+      C.Close x y eps -> C.Close y x eps :=
+    C.closeSym;
+  \definition sequenceEquivalenceSymmetry:
+    \forall (x, y: C.CauchySeq) ->
+      C.Equivalent x y -> C.Equivalent y x :=
+    C.equivalentSym;
 }
 
 \module QuotientExamples(A: \Set, x, y: A, xy: x = y) {

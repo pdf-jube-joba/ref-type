@@ -7,22 +7,24 @@
  */
 \import \root.Logic() \as Logic;
 \import \root.Rat() \as Rational;
+\import Rational.Fractions() \as RationalFractions;
+\import RationalFractions.Operations() \as RationalOperations;
 \use Logic.not;
 \use Logic.and;
 \use Logic.or;
 
-  \definition Rat: \Set := Rational.Fraction;
+  \definition Rat: \Set := RationalFractions.Fraction;
 
   \definition lt: Rat -> Rat -> \Prop :=
-    \fun (x, y: Rat) => Rational.lt x y;
+    \fun (x, y: Rat) => RationalFractions.lt x y;
 
   \definition addRat: Rat -> Rat -> Rat :=
-    \fun (x, y: Rat) => Rational.add x y;
+    \fun (x, y: Rat) => RationalOperations.add x y;
 
   \definition negRat: Rat -> Rat :=
-    \fun (x: Rat) => Rational.neg x;
+    \fun (x: Rat) => RationalOperations.neg x;
 
-  \definition zeroRat: Rat := Rational.zero;
+  \definition zeroRat: Rat := RationalFractions.zero;
 
   /* Membership in a rational lower set. */
   \definition In: \Power(Rat) -> Rat -> \Prop :=
@@ -55,7 +57,8 @@
   /* Membership must not depend on the chosen fraction representative. */
   \definition RespectsFractionEq: \Power(Rat) -> \Prop :=
     \fun (L: \Power(Rat)) =>
-      \forall (p, q: Rat) -> Rational.FractionEq p q -> In L p -> In L q;
+      \forall (p, q: Rat) ->
+        RationalFractions.FractionEq p q -> In L p -> In L q;
 
   \definition IsCut: \Power(Rat) -> \Prop :=
     \fun (L: \Power(Rat)) =>
@@ -106,6 +109,73 @@
     \fun (x, y: Real) =>
       \exists \Ty(Rat,
         \Subset(q, Rat, and!{{ not!{{ mem x q }} } { mem y q }}));
+
+  \definition ltIrrefl:
+    \forall (x: Real) -> not!{{ Lt x x }} :=
+    \fun (x: Real) => \fun (xx: Lt x x) =>
+      \take (q: \Ty(Rat,
+        \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem x r }}))) =>
+          (\fun (h: Logic.And[not!{{ mem x q }}, mem x q]) =>
+            (Logic.And::left h) (Logic.And::right h))
+          (\bysub(
+            Rat, \Subset(r, Rat,
+              and!{{ not!{{ mem x r }} } { mem x r }}), q))
+      \by (xx);
+
+  \definition ltNotLeReverse:
+    \forall (x, y: Real) -> Lt x y -> not!{{ Le y x }} :=
+    \fun (x, y: Real) => \fun (xy: Lt x y) => \fun (yx: Le y x) =>
+      \take (q: \Ty(Rat,
+        \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem y r }}))) =>
+          (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
+            (Logic.And::left h) (yx q (Logic.And::right h)))
+          (\bysub(
+            Rat, \Subset(r, Rat,
+              and!{{ not!{{ mem x r }} } { mem y r }}), q))
+      \by (xy);
+
+  \definition ltLeTrans:
+    \forall (x, y, z: Real) -> Lt x y -> Le y z -> Lt x z :=
+    \fun (x, y, z: Real) => \fun (xy: Lt x y) => \fun (yz: Le y z) =>
+      \take (q: \Ty(Rat,
+        \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem y r }}))) =>
+        \exact(
+          \subsetinto(
+            Rat, \Subset(r, Rat,
+              and!{{ not!{{ mem x r }} } { mem z r }}), q,
+            (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
+              \record Logic.And[not!{{ mem x q }}, mem z q] {
+                left := Logic.And::left h,
+                right := yz q (Logic.And::right h),
+              })
+            (\bysub(
+              Rat, \Subset(r, Rat,
+                and!{{ not!{{ mem x r }} } { mem y r }}), q))),
+          \Ty(Rat, \Subset(r, Rat,
+            and!{{ not!{{ mem x r }} } { mem z r }})))
+      \by (xy);
+
+  \definition leLtTrans:
+    \forall (x, y, z: Real) -> Le x y -> Lt y z -> Lt x z :=
+    \fun (x, y, z: Real) => \fun (xy: Le x y) => \fun (yz: Lt y z) =>
+      \take (q: \Ty(Rat,
+        \Subset(r, Rat, and!{{ not!{{ mem y r }} } { mem z r }}))) =>
+        \exact(
+          \subsetinto(
+            Rat, \Subset(r, Rat,
+              and!{{ not!{{ mem x r }} } { mem z r }}), q,
+            (\fun (h: Logic.And[not!{{ mem y q }}, mem z q]) =>
+              \record Logic.And[not!{{ mem x q }}, mem z q] {
+                left := \fun (qx: mem x q) =>
+                  (Logic.And::left h) (xy q qx),
+                right := Logic.And::right h,
+              })
+            (\bysub(
+              Rat, \Subset(r, Rat,
+                and!{{ not!{{ mem y r }} } { mem z r }}), q))),
+          \Ty(Rat, \Subset(r, Rat,
+            and!{{ not!{{ mem x r }} } { mem z r }})))
+      \by (yz);
 
   /*
    * Arithmetic lower sets.  The nested Closed module asks for exactly the

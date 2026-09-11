@@ -6,25 +6,27 @@
  * to one representative.  Kernel equality is therefore the right equality
  * for reals once extensionality of subsets of CauchySeq is supplied.
  */
-  \import \root.Logic() \as Logic;
-  \import \root.Rat() \as Rational;
-  \use Logic.and;
+\import \root.Logic() \as Logic;
+\import \root.Rat() \as Rational;
+\import Rational.Fractions() \as RationalFractions;
+\import RationalFractions.Operations() \as RationalOperations;
+\use Logic.and;
 
-  \definition Rat: \Set := Rational.Fraction;
+  \definition Rat: \Set := RationalFractions.Fraction;
 
-  \definition zeroRat: Rat := Rational.zero;
+  \definition zeroRat: Rat := RationalFractions.zero;
 
   \definition addRat: Rat -> Rat -> Rat :=
-    \fun (x, y: Rat) => Rational.add x y;
+    \fun (x, y: Rat) => RationalOperations.add x y;
 
   \definition negRat: Rat -> Rat :=
-    \fun (x: Rat) => Rational.neg x;
+    \fun (x: Rat) => RationalOperations.neg x;
 
   \definition subRat: Rat -> Rat -> Rat :=
-    \fun (x, y: Rat) => Rational.sub x y;
+    \fun (x, y: Rat) => RationalOperations.sub x y;
 
   \definition ltRat: Rat -> Rat -> \Prop :=
-    \fun (x, y: Rat) => Rational.lt x y;
+    \fun (x, y: Rat) => RationalFractions.lt x y;
 
   /* Sequence indices share the natural-number foundation from Rat.ref. */
   \definition Nat: \Set := Rational.Nat;
@@ -74,6 +76,42 @@
       \forall (eps: Rat) -> Positive eps ->
         \exists \Ty(Nat, \Subset(N, Nat, EquivalentAt x y eps N));
 
+  \definition closeSym:
+    \forall (x, y, eps: Rat) -> Close x y eps -> Close y x eps :=
+    \fun (x, y, eps: Rat) => \fun (xy: Close x y eps) =>
+      \record Logic.And[
+        ltRat (subRat y x) eps,
+        ltRat (subRat x y) eps
+      ] {
+        left :=
+          (\fun (h: Logic.And[
+            ltRat (subRat x y) eps,
+            ltRat (subRat y x) eps
+          ]) => Logic.And::right h) xy,
+        right :=
+          (\fun (h: Logic.And[
+            ltRat (subRat x y) eps,
+            ltRat (subRat y x) eps
+          ]) => Logic.And::left h) xy,
+      };
+
+  /* Symmetry needs no metric estimate: Close already records both directions. */
+  \definition equivalentSym:
+    \forall (x, y: CauchySeq) -> Equivalent x y -> Equivalent y x :=
+    \fun (x, y: CauchySeq) => \fun (xy: Equivalent x y) =>
+    \fun (eps: Rat) => \fun (positive: Positive eps) =>
+      \take (N: \Ty(Nat, \Subset(k, Nat, EquivalentAt x y eps k))) =>
+        \exact(
+          \subsetinto(
+            Nat, \Subset(k, Nat, EquivalentAt y x eps k), N,
+            (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+              closeSym (at x n) (at y n) eps
+                ((\bysub(
+                  Nat, \Subset(k, Nat, EquivalentAt x y eps k), N))
+                  n Nn))),
+          \Ty(Nat, \Subset(k, Nat, EquivalentAt y x eps k)))
+      \by (xy eps positive);
+
   /*
    * The metric laws must make Equivalent an equivalence relation.  Subset
    * extensionality is supplied by the kernel axiom; the metric laws do not
@@ -82,8 +120,6 @@
   \module Quotient(
     equivalentRefl:
       \forall (x: CauchySeq) -> Equivalent x x,
-    equivalentSym:
-      \forall (x, y: CauchySeq) -> Equivalent x y -> Equivalent y x,
     equivalentTrans:
       \forall (x, y, z: CauchySeq) ->
         Equivalent x y -> Equivalent y z -> Equivalent x z,

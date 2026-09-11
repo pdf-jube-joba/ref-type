@@ -91,6 +91,19 @@
 \definition NonZeroRat: \Set :=
   \Ty(Rat, NonZeroRatSet);
 
+\definition classIsNonZero:
+  \forall (x: Fraction) -> NumeratorNonZero x ->
+    IsNonZero (class x) :=
+  \fun (x: Fraction) => \fun (nonzero: NumeratorNonZero x) =>
+  \fun (a: Fraction) => \fun (xa: mem (class x) a) =>
+    numeratorNonZeroRespects x a
+      (Q.relatedOfClassMem x a xa) nonzero;
+
+\definition nonZeroProperty:
+  \forall (x: NonZeroRat) -> IsNonZero x :=
+  \fun (x: NonZeroRat) =>
+    \bysub(Rat, NonZeroRatSet, x);
+
 \definition AddClass: Rat -> Rat -> \Power(Fraction) :=
   \fun (x, y: Rat) =>
     \Subset(z, Fraction,
@@ -102,27 +115,104 @@
                 QuotientLogic.And[mem y b,
                   FractionEq z (add a b)]))])));
 
-\definition SubClass: Rat -> Rat -> \Power(Fraction) :=
-  \fun (x, y: Rat) =>
-    \Subset(z, Fraction,
-      \exists \Ty(Fraction,
-        \Subset(a, Fraction,
-          QuotientLogic.And[mem x a,
-            \exists \Ty(Fraction,
-              \Subset(b, Fraction,
-                QuotientLogic.And[mem y b,
-                  FractionEq z (sub a b)]))])));
+\definition mulFraction: Fraction -> Fraction -> Fraction := mul;
 
 \definition MulClass: Rat -> Rat -> \Power(Fraction) :=
+  \fun (x, y: Rat) => Q.BinaryImage mulFraction x y;
+
+\definition mulClassIsClass:
+  \forall (x, y: Rat) -> IsClass (MulClass x y) :=
+  Q.binaryImageClosed mulFraction fractionMulRespects;
+
+\definition mulRat: Rat -> Rat -> Rat :=
   \fun (x, y: Rat) =>
-    \Subset(z, Fraction,
-      \exists \Ty(Fraction,
-        \Subset(a, Fraction,
-          QuotientLogic.And[mem x a,
-            \exists \Ty(Fraction,
-              \Subset(b, Fraction,
-                QuotientLogic.And[mem y b,
-                  FractionEq z (mul a b)]))])));
+    \subsetinto(
+      \Power(Fraction), ClassSet,
+      MulClass x y, mulClassIsClass x y);
+
+\definition mulRatClass:
+  \forall (x, y: Fraction) ->
+    mulRat (class x) (class y) = class (mulFraction x y) :=
+  \fun (x, y: Fraction) =>
+    Q.binaryImageClass mulFraction fractionMulRespects
+      (class x) (class y) x y
+      (\refl(ClassOf x)) (\refl(ClassOf y));
+
+\definition mulRatZeroRight:
+  \forall (x: Rat) -> mulRat x zeroRat = zeroRat :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat x zeroRat = zeroRat)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat (class x) zeroRat)
+        (class (mulFraction x zero))
+        zeroRat
+        (mulRatClass x zero)
+        (classOfEq (mulFraction x zero) zero
+          (fractionMulZeroRight x)));
+
+\definition mulRatZeroLeft:
+  \forall (x: Rat) -> mulRat zeroRat x = zeroRat :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat zeroRat x = zeroRat)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat zeroRat (class x))
+        (class (mulFraction zero x))
+        zeroRat
+        (mulRatClass zero x)
+        (classOfEq (mulFraction zero x) zero
+          (fractionMulZeroLeft x)));
+
+\definition mulRatOneRight:
+  \forall (x: Rat) -> mulRat x oneRat = x :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat x oneRat = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat (class x) oneRat)
+        (class (mulFraction x one))
+        (class x)
+        (mulRatClass x one)
+        (classOfEq (mulFraction x one) x
+          (fractionMulOneRight x)));
+
+\definition mulRatOneLeft:
+  \forall (x: Rat) -> mulRat oneRat x = x :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat oneRat x = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat oneRat (class x))
+        (class (mulFraction one x))
+        (class x)
+        (mulRatClass one x)
+        (classOfEq (mulFraction one x) x
+          (fractionMulOneLeft x)));
+
+\definition mulRatComm:
+  \forall (x, y: Rat) -> mulRat x y = mulRat y x :=
+  quotientInduction
+    (\fun (x: Rat) =>
+      \forall (y: Rat) -> mulRat x y = mulRat y x)
+    (\fun (x: Fraction) =>
+      quotientInduction
+        (\fun (y: Rat) =>
+          mulRat (class x) y = mulRat y (class x))
+        (\fun (y: Fraction) =>
+          trans!{Rat}
+            (mulRat (class x) (class y))
+            (class (mulFraction x y))
+            (mulRat (class y) (class x))
+            (mulRatClass x y)
+            (trans!{Rat}
+              (class (mulFraction x y))
+              (class (mulFraction y x))
+              (mulRat (class y) (class x))
+              (classOfEq
+                (mulFraction x y) (mulFraction y x)
+                (fractionMulComm x y))
+              (sym!{Rat} _ _ (mulRatClass y x)))));
 
 /* z is x/y exactly when z*y=x; y is separately refined as nonzero. */
 \definition DivClass: Rat -> NonZeroRat -> \Power(Fraction) :=
@@ -139,8 +229,6 @@
 
 \module ClassClosed(
   addClassIsClass: \forall (x, y: Rat) -> IsClass (AddClass x y),
-  subClassIsClass: \forall (x, y: Rat) -> IsClass (SubClass x y),
-  mulClassIsClass: \forall (x, y: Rat) -> IsClass (MulClass x y),
   divClassIsClass: \forall (x: Rat) -> \forall (y: NonZeroRat) ->
     IsClass (DivClass x y),
 );

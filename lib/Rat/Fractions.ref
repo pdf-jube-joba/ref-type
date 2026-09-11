@@ -1,0 +1,331 @@
+/*
+ * A fraction stores a numerator and the predecessor of a positive natural
+ * denominator.  Thus every denominator is nonzero by construction and the
+ * arithmetic operations below need no multiplicative-closure parameter.
+ */
+\structure Fraction: \Set := {
+  numerator: Integer,
+  denominatorIndex: Nat,
+};
+
+\definition numerator: Fraction -> Integer :=
+  \fun (x: Fraction) => Fraction::numerator x;
+
+\definition denominatorIndex: Fraction -> Nat :=
+  \fun (x: Fraction) => Fraction::denominatorIndex x;
+
+\definition denominator: Fraction -> Integer :=
+  \fun (x: Fraction) =>
+    integer (natSucc (denominatorIndex x)) zeroNat;
+
+\definition mulIntegerDenominator:
+  \forall (x: Integer) -> \forall (d: Nat) ->
+    IntegerEq
+      (mulInteger x (integer (natSucc d) zeroNat))
+      (scaleInteger x (natSucc d)) :=
+  \fun (x: Integer) => \fun (d: Nat) =>
+    integerEqOfFields
+      (mulInteger x (integer (natSucc d) zeroNat))
+      (scaleInteger x (natSucc d))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAdd _ _ _ _
+          (\refl(natMul (positive x) (natSucc d)))
+          (natMulZeroRight (negative x)))
+        (natAddZeroRight (natMul (positive x) (natSucc d))))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAdd _ _ _ _
+          (natMulZeroRight (positive x))
+          (\refl(natMul (negative x) (natSucc d))))
+        (natAddZeroLeft (natMul (negative x) (natSucc d))));
+
+\definition fraction: Integer -> Nat -> Fraction :=
+  \fun (n: Integer) => \fun (d: Nat) =>
+    \record Fraction { numerator := n, denominatorIndex := d };
+
+/* (d + 1)(e + 1) = (de + d + e) + 1. */
+\definition denominatorProductIndex: Nat -> Nat -> Nat :=
+  \fun (d, e: Nat) => natAdd (natAdd (natMul d e) d) e;
+
+\definition denominatorProductIndexZeroRight:
+  \forall (d: Nat) -> denominatorProductIndex d zeroNat = d :=
+  \fun (d: Nat) =>
+    trans!{Nat} _ _ _
+      (congr!{Nat Nat}
+        (\fun (p: Nat) => natAdd (natAdd p d) zeroNat)
+        _ _ (natMulZeroRight d))
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat}
+          (\fun (s: Nat) => natAdd s zeroNat)
+          _ _ (natAddZeroLeft d))
+        (natAddZeroRight d));
+
+\definition denominatorProductIndexZeroLeft:
+  \forall (d: Nat) -> denominatorProductIndex zeroNat d = d :=
+  \fun (d: Nat) =>
+    trans!{Nat} _ _ _
+      (congr!{Nat Nat}
+        (\fun (p: Nat) => natAdd (natAdd p zeroNat) d)
+        _ _ (natMulZeroLeft d))
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat}
+          (\fun (s: Nat) => natAdd s d)
+          _ _ (natAddZeroRight zeroNat))
+        (natAddZeroLeft d));
+
+\definition denominatorProductIndexComm:
+  \forall (d, e: Nat) ->
+    denominatorProductIndex d e = denominatorProductIndex e d :=
+  \fun (d, e: Nat) =>
+    trans!{Nat} _ _ _
+      (congr!{Nat Nat}
+        (\fun (p: Nat) => natAdd (natAdd p d) e)
+        _ _ (natMulComm d e))
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat}
+          (\fun (tail: Nat) =>
+            natAdd (natAdd (natMul e d) d) tail)
+          _ _ (sym!{Nat} _ _ (natAddZeroLeft e)))
+        (trans!{Nat} _ _ _
+          (integerAddShuffle
+            (natMul e d) d zeroNat e)
+          (congr!{Nat Nat}
+            (\fun (tail: Nat) =>
+              natAdd (natAdd (natMul e d) e) tail)
+            _ _ (natAddZeroLeft d))));
+
+\definition denominatorProductIndexSucc:
+  \forall (d, e: Nat) ->
+    natSucc (denominatorProductIndex d e) =
+      natMul (natSucc d) (natSucc e) :=
+  \fun (d, e: Nat) =>
+    trans!{Nat} _ _ _
+      (congr!{Nat Nat} natSucc _ _
+        (trans!{Nat} _ _ _
+          (natAddComm
+            (natAdd (natMul d e) d) e)
+          (trans!{Nat} _ _ _
+            (congr!{Nat Nat}
+              (natAdd e) _ _ (natAddComm (natMul d e) d))
+            (congr!{Nat Nat}
+              (natAdd e) _ _
+              (sym!{Nat} _ _ (natMulSuccRight d e))))))
+      (sym!{Nat} _ _ (natMulSuccSucc d e));
+
+\definition zero: Fraction := fraction zeroInteger zeroNat;
+
+\definition one: Fraction := fraction oneInteger zeroNat;
+
+\definition lt: Fraction -> Fraction -> \Prop :=
+  \fun (x, y: Fraction) =>
+    IntegerLt
+      (mulInteger (numerator x) (denominator y))
+      (mulInteger (numerator y) (denominator x));
+
+/* Equality before quotienting is equality after cross multiplication. */
+\definition FractionEq: Fraction -> Fraction -> \Prop :=
+  \fun (x, y: Fraction) =>
+    IntegerEq
+      (mulInteger (numerator x) (denominator y))
+      (mulInteger (numerator y) (denominator x));
+
+\definition fractionEqRefl:
+  \forall (x: Fraction) -> FractionEq x x :=
+  \fun (x: Fraction) =>
+    integerEqRefl
+      (mulInteger (numerator x) (denominator x));
+
+\definition fractionEqSameIndex:
+  \forall (n, m: Integer) -> \forall (d: Nat) ->
+    IntegerEq n m ->
+    FractionEq (fraction n d) (fraction m d) :=
+  \fun (n, m: Integer) => \fun (d: Nat) =>
+  \fun (nm: IntegerEq n m) =>
+    mulIntegerRespects
+      n m
+      (integer (natSucc d) zeroNat)
+      (integer (natSucc d) zeroNat)
+      nm
+      (integerEqRefl (integer (natSucc d) zeroNat));
+
+\definition fractionEqOfParts:
+  \forall (n, m: Integer) -> \forall (d, e: Nat) ->
+    IntegerEq n m -> d = e ->
+    FractionEq (fraction n d) (fraction m e) :=
+  \fun (n, m: Integer) => \fun (d, e: Nat) =>
+  \fun (nm: IntegerEq n m) => \fun (de: d = e) =>
+    (\idelim(d = e
+      \with k: Nat =>
+        IntegerEq n m ->
+        FractionEq (fraction n d) (fraction m k))
+      \by (fractionEqSameIndex n m d, de)) nm;
+
+\definition fractionEqSym:
+  \forall (x, y: Fraction) -> FractionEq x y -> FractionEq y x :=
+  \fun (x, y: Fraction) => \fun (xy: FractionEq x y) =>
+    integerEqSym
+      (mulInteger (numerator x) (denominator y))
+      (mulInteger (numerator y) (denominator x))
+      xy;
+
+\definition fractionEqAsScales:
+  \forall (x, y: Fraction) -> FractionEq x y ->
+    IntegerEq
+      (scaleInteger (numerator x) (natSucc (denominatorIndex y)))
+      (scaleInteger (numerator y) (natSucc (denominatorIndex x))) :=
+  \fun (x, y: Fraction) => \fun (xy: FractionEq x y) =>
+    integerEqTrans
+      (scaleInteger (numerator x) (natSucc (denominatorIndex y)))
+      (mulInteger (numerator x) (denominator y))
+      (scaleInteger (numerator y) (natSucc (denominatorIndex x)))
+      (integerEqSym
+        (mulInteger (numerator x) (denominator y))
+        (scaleInteger (numerator x) (natSucc (denominatorIndex y)))
+        (mulIntegerDenominator (numerator x) (denominatorIndex y)))
+      (integerEqTrans
+        (mulInteger (numerator x) (denominator y))
+        (mulInteger (numerator y) (denominator x))
+        (scaleInteger (numerator y) (natSucc (denominatorIndex x)))
+        xy
+        (mulIntegerDenominator (numerator y) (denominatorIndex x)));
+
+\definition fractionEqTrans:
+  \forall (x, y, z: Fraction) ->
+    FractionEq x y -> FractionEq y z -> FractionEq x z :=
+  \fun (x, y, z: Fraction) =>
+  \fun (xy: FractionEq x y) =>
+  \fun (yz: FractionEq y z) =>
+    integerEqTrans
+      (mulInteger (numerator x) (denominator z))
+      (scaleInteger (numerator x) (natSucc (denominatorIndex z)))
+      (mulInteger (numerator z) (denominator x))
+      (mulIntegerDenominator (numerator x) (denominatorIndex z))
+      (integerEqTrans
+        (scaleInteger (numerator x) (natSucc (denominatorIndex z)))
+        (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+        (mulInteger (numerator z) (denominator x))
+        (scaleIntegerCancelPositive
+          (scaleInteger (numerator x) (natSucc (denominatorIndex z)))
+          (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+          (denominatorIndex y)
+          (integerEqTrans
+            (scaleInteger
+              (scaleInteger (numerator x) (natSucc (denominatorIndex z)))
+              (natSucc (denominatorIndex y)))
+            (scaleInteger
+              (scaleInteger (numerator x) (natSucc (denominatorIndex y)))
+              (natSucc (denominatorIndex z)))
+            (scaleInteger
+              (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+              (natSucc (denominatorIndex y)))
+            (scaleIntegerSwap (numerator x)
+              (natSucc (denominatorIndex z))
+              (natSucc (denominatorIndex y)))
+            (integerEqTrans
+              (scaleInteger
+                (scaleInteger (numerator x) (natSucc (denominatorIndex y)))
+                (natSucc (denominatorIndex z)))
+              (scaleInteger
+                (scaleInteger (numerator y) (natSucc (denominatorIndex x)))
+                (natSucc (denominatorIndex z)))
+              (scaleInteger
+                (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+                (natSucc (denominatorIndex y)))
+              (scaleIntegerRespects _ _ _ (fractionEqAsScales x y xy))
+              (integerEqTrans
+                (scaleInteger
+                  (scaleInteger (numerator y) (natSucc (denominatorIndex x)))
+                  (natSucc (denominatorIndex z)))
+                (scaleInteger
+                  (scaleInteger (numerator y) (natSucc (denominatorIndex z)))
+                  (natSucc (denominatorIndex x)))
+                (scaleInteger
+                  (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+                  (natSucc (denominatorIndex y)))
+                (scaleIntegerSwap (numerator y)
+                  (natSucc (denominatorIndex x))
+                  (natSucc (denominatorIndex z)))
+                (integerEqTrans
+                  (scaleInteger
+                    (scaleInteger (numerator y) (natSucc (denominatorIndex z)))
+                    (natSucc (denominatorIndex x)))
+                  (scaleInteger
+                    (scaleInteger (numerator z) (natSucc (denominatorIndex y)))
+                    (natSucc (denominatorIndex x)))
+                  (scaleInteger
+                    (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+                    (natSucc (denominatorIndex y)))
+                  (scaleIntegerRespects _ _ _ (fractionEqAsScales y z yz))
+                  (scaleIntegerSwap (numerator z)
+                    (natSucc (denominatorIndex y))
+                    (natSucc (denominatorIndex x))))))))
+        (integerEqSym
+          (mulInteger (numerator z) (denominator x))
+          (scaleInteger (numerator z) (natSucc (denominatorIndex x)))
+          (mulIntegerDenominator (numerator z) (denominatorIndex x))));
+
+\definition NumeratorNonZero: Fraction -> \Prop :=
+  \fun (x: Fraction) => IntegerNonZero (numerator x);
+
+\definition fractionEqZeroOfNumerator:
+  \forall (x: Fraction) ->
+    IntegerEq (numerator x) zeroInteger ->
+    FractionEq x zero :=
+  \fun (x: Fraction) =>
+  \fun (numeratorZero: IntegerEq (numerator x) zeroInteger) =>
+    integerEqTrans
+      (mulInteger (numerator x) (denominator zero))
+      (numerator x)
+      (mulInteger zeroInteger (denominator x))
+      (mulIntegerOneRight (numerator x))
+      (integerEqTrans
+        (numerator x)
+        zeroInteger
+        (mulInteger zeroInteger (denominator x))
+        numeratorZero
+        (integerEqSym
+          (mulInteger zeroInteger (denominator x))
+          zeroInteger
+          (mulIntegerZeroLeft (denominator x))));
+
+\definition numeratorNonZeroRespects:
+  \forall (x, y: Fraction) ->
+    FractionEq x y -> NumeratorNonZero x -> NumeratorNonZero y :=
+  \fun (x, y: Fraction) => \fun (xy: FractionEq x y) =>
+  \fun (xNonZero: NumeratorNonZero x) =>
+  \fun (yZero: IntegerEq (numerator y) zeroInteger) =>
+    xNonZero
+      (scaleIntegerCancelPositive
+        (numerator x) zeroInteger (denominatorIndex y)
+        (integerEqTrans
+          (scaleInteger
+            (numerator x) (natSucc (denominatorIndex y)))
+          (scaleInteger
+            (numerator y) (natSucc (denominatorIndex x)))
+          (scaleInteger
+            zeroInteger (natSucc (denominatorIndex y)))
+          (fractionEqAsScales x y xy)
+          (integerEqTrans
+            (scaleInteger
+              (numerator y) (natSucc (denominatorIndex x)))
+            zeroInteger
+            (scaleInteger
+              zeroInteger (natSucc (denominatorIndex y)))
+            (integerEqTrans
+              (scaleInteger
+                (numerator y) (natSucc (denominatorIndex x)))
+              (scaleInteger
+                zeroInteger (natSucc (denominatorIndex x)))
+              zeroInteger
+              (scaleIntegerRespects
+                (numerator y) zeroInteger
+                (natSucc (denominatorIndex x)) yZero)
+              (scaleIntegerZero
+                (natSucc (denominatorIndex x))))
+            (integerEqSym
+              (scaleInteger
+                zeroInteger (natSucc (denominatorIndex y)))
+              zeroInteger
+              (scaleIntegerZero
+                (natSucc (denominatorIndex y)))))));
+
+\module Operations;

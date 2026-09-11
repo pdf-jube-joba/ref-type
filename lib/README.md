@@ -14,15 +14,16 @@
 | 直積 | [Pair.ref](Pair.ref) と `Pair/` 以下 | 構築・射影・交換・写像・カリー化とその法則 |
 | 有限部分集合 | [Finset.ref](Finset.ref) | 一点集合と二点集合 |
 | 商集合 | [Quotient.ref](Quotient.ref) | 同値類、商の台集合、演算の relational image |
-| 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref)、[Int.ref](Int.ref)、[IntAlgebra.ref](IntAlgebra.ref) | Program 演算、Set への反映、仕様と法則、整数の代数構造 |
+| 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref) と `Nat/` 以下、[Int.ref](Int.ref) と `Int/` 以下、[IntAlgebra.ref](IntAlgebra.ref) | Program 演算、Set への反映、仕様と法則、整数の代数構造 |
 | 代数構造 | [Monoid.ref](Monoid.ref)、[Algebra.ref](Algebra.ref) | Monoid、Group、Semiring、Ring、Field |
 | 有理数 | [Rat.ref](Rat.ref) と `Rat/` 以下 | 分数代表、同値関係、商上の演算 |
 | Dedekind 実数 | [DedekindReal.ref](DedekindReal.ref) とその子モジュール | 切断、順序、lower set 上の演算 |
 | Cauchy 実数 | [CauchyReal.ref](CauchyReal.ref) とその子モジュール | Cauchy 列、商、点ごとの演算 |
 | 実数の仕様 | [AxiomaticReals.ref](AxiomaticReals.ref) | 公理的実数構造 |
 
-入れ子モジュールは論理上のパスと同じ場所に置く。例えば `Rat.ref` の
-`\module Quotient;` の本体は `Rat/Quotient.ref` にある。子ファイルは親のスコープを引き継ぐので、
+入れ子モジュールは論理上のパスと同じ場所に置く。例えば
+`Rat/Fractions/Operations.ref` の `\module Quotient;` の本体は
+`Rat/Fractions/Operations/Quotient.ref` にある。子ファイルは親のスコープを引き継ぐので、
 同じ依存を改めて import して型の instance を作り直さない。
 
 ## 等式と合同則
@@ -122,11 +123,35 @@ Nat は加減乗除、累乗、比較、有限反復、偶奇、GCD を持つ。
 `div a 0 = 0`、`mod a 0 = a` とし、`0^0 = 1` とする。自然数は単項表現なので、
 大きな具体値の評価には向かない。
 
+Program 演算とその直接の仕様は `Nat` 本体に置き、一般の算術法則は `Nat.Laws`、
+除算・剰余・GCD の再構成則・剰余の上界・最大公約数の法則は
+`Nat.Laws.Division` に分離している。親と同じ Nat instance を使うには、次のように
+import 済み instance から child を順に開く。
+
+```text
+\import \root.Nat() \as N;
+\import N.Laws() \as NL;
+\import NL.Division() \as ND;
+```
+
 Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持つ。
 数学側では自然数対 `(a,b)` を `a+d=c+b` で同一視した群完成 `Grothendieck` を構成し、
 `toMath` / `fromMath` と `*MatchesMath` が Program 演算との対応を与える。
 加法の結合則と乗法の可換律も、この対応を通して具体的な `Int` 上へ戻してある。
 整数の除算・剰余・GCD は未実装である。
+
+群完成とその上の演算は `Int.Math`、Program 仕様との対応は
+`Int.Math.Specification`、代数法則は `Int.Math.Specification.Laws` に分離している。
+
+```text
+\import \root.Int() \as I;
+\import I.Math() \as IM;
+\import IM.Specification() \as IS;
+\import IS.Laws() \as IL;
+```
+
+Program の逐次計算は `\block` 内の `\bind` 文で記述する。各 block は最後に
+`\return value;` を置き、旧来の深く入れ子になった `\bind ... \in ...` は使わない。
 
 別々に import した Nat / Bool の instance は混ぜられない。Int と組み合わせる場合は、
 Int が公開する `Nat` / `Bool` alias と `natZero!{}`、`natSucc!{n}`、
@@ -142,28 +167,42 @@ Rat の分子 `Integer` は自然数対による形式差である。`IntegerEq`
 零分母は構文的に作れない。`FractionEq` は交差積による同値関係である。
 推移律 `fractionEqTrans` では `Nat.mulCancelRightSucc` を使い、中央の正の分母を消去する。
 
-`Rat.Quotient` は証明済みの `FractionEq` を汎用 `Quotient` に渡すので、
+`Rat` は形式整数、`Rat.Fractions` は正分母の分数代表、
+`Rat.Fractions.Operations` は分数演算、
+`Rat.Fractions.Operations.Quotient` は商構成を担当する。
+
+```text
+\import \root.Rat() \as R;
+\import R.Fractions() \as RF;
+\import RF.Operations() \as RO;
+\import RO.Quotient() \as RQ;
+```
+
+`Rat.Fractions.Operations.Quotient` は証明済みの `FractionEq` を汎用 `Quotient` に渡すので、
 同値関係の証明を parameter として要求しない。商上の `add`、`sub`、`mul`、`div` は
-代表元を選ばない relational image として定義されている。現在は、それらの image が
-再び一つの同値類になる証明を `Rat.Quotient.ClassClosed` の parameter として要求する。
+代表元を選ばず構成する。`sub` は証明済みの反数と加法から定義するため、独立した
+閉包 parameter は不要になった。現在は加法・乗法・除法の image が再び一つの同値類に
+なる証明を `Rat.Fractions.Operations.Quotient.ClassClosed` の parameter として要求する。
 反数は `fractionNegRespects` と汎用の `UnaryImage` によって閉性まで証明済みであり、
-parameter なしの `Rat.Quotient.neg` として利用できる。商上の `zeroRat` / `oneRat`、
+parameter なしの quotient の `neg` として利用できる。商上の `zeroRat` / `oneRat`、
 `ofNat` / `ofInteger`、`negInvolutive`、`negZero` も証明済みである。
 
 ## 実数と未完了事項
 
 Dedekind 実数は inhabited・proper・lower・rounded・located な切断として定義される。
-包含順序の反射・推移・反対称性は証明済みであり、有理数埋め込み・加法・反数・減法の
-lower set も構成済みである。それらが切断になる証明は `Operations.Closed` の parameter に残る。
+包含順序の反射・推移・反対称性に加え、狭義順序の非反射性、逆向きの包含との矛盾、
+弱順序との左右合成は証明済みである。有理数埋め込み・加法・反数・減法の lower set も
+構成済みであり、それらが切断になる証明は `Operations.Closed` の parameter に残る。
 
 Cauchy 実数は有理数列を「差が零へ収束する」関係で割った商である。
-同値関係則、列演算の Cauchy 性、商上の閉性は parameter に残る。
+`Close` と列同値の対称律は証明済みである。反射律・推移律、列演算の Cauchy 性、
+商上の閉性は parameter に残る。
 
 今後の主な作業は次の通り。
 
-- Rat の商上の演算について `ClassClosed` の各 obligation を証明する
+- Rat の商上の加法・乗法・除法について `ClassClosed` の obligation を証明する
 - Dedekind の演算が切断を保つことを証明する
-- Cauchy の同値関係、列演算、商演算の閉性を証明する
+- Cauchy の同値関係の反射律・推移律、列演算、商演算の閉性を証明する
 - 実数の乗法・逆数・完備性を構成する
 - `AxiomaticRealStructure` の具体的な項を構成する
 
