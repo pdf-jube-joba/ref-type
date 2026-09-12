@@ -748,9 +748,7 @@ fn reduce_run_case(
         _ => None,
     })
 }
-fn reduce_set_run_case(
-    env: &Environment,
-    level: usize,
+struct SetRunCase {
     state_ty: SetType,
     result_ty: SetType,
     step: SetTerm,
@@ -758,7 +756,22 @@ fn reduce_set_run_case(
     transition: SetTerm,
     accessibility: PropTerm,
     transition_equality: PropTerm,
+}
+
+fn reduce_set_run_case(
+    env: &Environment,
+    level: usize,
+    case: SetRunCase,
 ) -> Result<Option<Expression>, String> {
+    let SetRunCase {
+        state_ty,
+        result_ty,
+        step,
+        initial,
+        transition,
+        accessibility,
+        transition_equality,
+    } = case;
     let a = &env.arena;
     Ok(match a.read(transition).form {
         SetTermForm::Finish { output, .. } => Some(output.into()),
@@ -879,10 +892,10 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
         Expression::ComputationType(h) => reduce_computation_type_root(env, h)?,
         Expression::ComputationKind(h) => reduce_computation_kind_root(env, h)?,
     };
-    if let Some(result) = root {
-        if result.family() != e.family() || env.arena.sort(result) != env.arena.sort(e) {
-            return Err("reduction changed syntax family or level".into());
-        }
+    if let Some(result) = root
+        && (result.family() != e.family() || env.arena.sort(result) != env.arena.sort(e))
+    {
+        return Err("reduction changed syntax family or level".into());
     }
     Ok(root)
 }
@@ -930,13 +943,15 @@ fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expressi
         } => reduce_set_run_case(
             env,
             level,
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
+            SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+            },
         )?,
         SetTermForm::Recursor {
             rule,

@@ -699,15 +699,9 @@ fn correspondence(env: &Environment, p: Expression, g: Expression) -> Result<(),
                 _ => Err("reflection certificate shape mismatch".into()),
             }
         }
-        Expression::ValueKind(h) => {
-            let node = a.get(h);
-            match node.form {
-                _ => {}
-            }
-            let g: SetKind = g.try_into()?;
-            match (node.form, a.get(g).form) {
-                _ => Err("reflection certificate shape mismatch".into()),
-            }
+        Expression::ValueKind(_) | Expression::ComputationKind(_) => {
+            let _: SetKind = g.try_into()?;
+            Err("reflection certificate shape mismatch".into())
         }
         Expression::ComputationTerm(h) => {
             let node = a.get(h);
@@ -1007,16 +1001,6 @@ fn correspondence(env: &Environment, p: Expression, g: Expression) -> Result<(),
                     correspondence(env, argument.into(), argument_guide.into())?;
                     Ok(())
                 }
-                _ => Err("reflection certificate shape mismatch".into()),
-            }
-        }
-        Expression::ComputationKind(h) => {
-            let node = a.get(h);
-            match node.form {
-                _ => {}
-            }
-            let g: SetKind = g.try_into()?;
-            match (node.form, a.get(g).form) {
                 _ => Err("reflection certificate shape mismatch".into()),
             }
         }

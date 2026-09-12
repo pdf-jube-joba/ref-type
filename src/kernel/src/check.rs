@@ -347,15 +347,15 @@ impl<'a> Checker<'a> {
                 transition,
                 accessibility,
                 transition_equality,
-            } => self.infer_set_run_case(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                initial.into(),
-                transition.into(),
-                accessibility.into(),
-                transition_equality.into(),
-            )?,
+            } => self.infer_set_run_case(SetRunCase {
+                state_ty: state_ty.into(),
+                result_ty: result_ty.into(),
+                step: step.into(),
+                initial: initial.into(),
+                transition: transition.into(),
+                accessibility: accessibility.into(),
+                transition_equality: transition_equality.into(),
+            })?,
             SetTermForm::Recursor {
                 rule,
                 var,
@@ -365,16 +365,16 @@ impl<'a> Checker<'a> {
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => self.infer_recursor(
+            } => self.infer_recursor(Recursor {
                 rule,
                 var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
+                state_ty: state_ty.into(),
+                result_ty: result_ty.into(),
+                motive: motive.into(),
+                on_continue: on_continue.into(),
+                on_finish: on_finish.into(),
+                scrutinee: scrutinee.into(),
+            })?,
             SetTermForm::BoxProgram {
                 program_ty,
                 program,
@@ -526,16 +526,16 @@ impl<'a> Checker<'a> {
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => self.infer_recursor(
+            } => self.infer_recursor(Recursor {
                 rule,
                 var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
+                state_ty: state_ty.into(),
+                result_ty: result_ty.into(),
+                motive: motive.into(),
+                on_continue: on_continue.into(),
+                on_finish: on_finish.into(),
+                scrutinee: scrutinee.into(),
+            })?,
             SetTypeForm::IndType {
                 inductive,
                 parameters,
@@ -627,16 +627,16 @@ impl<'a> Checker<'a> {
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => self.infer_recursor(
+            } => self.infer_recursor(Recursor {
                 rule,
                 var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
+                state_ty: state_ty.into(),
+                result_ty: result_ty.into(),
+                motive: motive.into(),
+                on_continue: on_continue.into(),
+                on_finish: on_finish.into(),
+                scrutinee: scrutinee.into(),
+            })?,
             PropTermForm::IdRefl { element } => self.infer_id_refl(element.into())?,
             PropTermForm::ExistsIntro { element, set } => {
                 self.infer_exists_intro(element.into(), set.into())?
@@ -654,15 +654,15 @@ impl<'a> Checker<'a> {
                 predicate,
                 base,
                 equality,
-            } => self.infer_id_elim(
+            } => self.infer_id_elim(IdElim {
                 var,
-                left.into(),
-                right.into(),
-                ty.into(),
-                predicate.into(),
-                base.into(),
-                equality.into(),
-            )?,
+                left: left.into(),
+                right: right.into(),
+                ty: ty.into(),
+                predicate: predicate.into(),
+                base: base.into(),
+                equality: equality.into(),
+            })?,
             PropTermForm::TakeProp {
                 domain,
                 proposition,
@@ -735,15 +735,15 @@ impl<'a> Checker<'a> {
                 to,
                 accessibility,
                 transition,
-            } => self.infer_acc_descent(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                from.into(),
-                to.into(),
-                accessibility.into(),
-                transition.into(),
-            )?,
+            } => self.infer_acc_descent(AccDescent {
+                state_ty: state_ty.into(),
+                result_ty: result_ty.into(),
+                step: step.into(),
+                from: from.into(),
+                to: to.into(),
+                accessibility: accessibility.into(),
+                transition: transition.into(),
+            })?,
             PropTermForm::IndCtor {
                 inductive,
                 constructor,
@@ -830,16 +830,16 @@ impl<'a> Checker<'a> {
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => self.infer_recursor(
+            } => self.infer_recursor(Recursor {
                 rule,
                 var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
+                state_ty: state_ty.into(),
+                result_ty: result_ty.into(),
+                motive: motive.into(),
+                on_continue: on_continue.into(),
+                on_finish: on_finish.into(),
+                scrutinee: scrutinee.into(),
+            })?,
             PropTypeForm::IndType {
                 inductive,
                 parameters,
@@ -1612,16 +1612,16 @@ impl<'a> Checker<'a> {
         self.check(element, self.type_lift(superset, subset)?)?;
         self.predicate(superset, subset, element)
     }
-    fn infer_id_elim(
-        &mut self,
-        var: SymbolId,
-        left: Expression,
-        right: Expression,
-        ty: Expression,
-        predicate: Expression,
-        base: Expression,
-        equality: Expression,
-    ) -> Result<Expression, String> {
+    fn infer_id_elim(&mut self, args: IdElim) -> Result<Expression, String> {
+        let IdElim {
+            var,
+            left,
+            right,
+            ty,
+            predicate,
+            base,
+            equality,
+        } = args;
         self.set_type(ty)?;
         self.check(left, ty)?;
         self.check(right, ty)?;
@@ -1713,16 +1713,16 @@ impl<'a> Checker<'a> {
         )?;
         Ok(result_ty)
     }
-    fn infer_set_run_case(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        initial: Expression,
-        transition: Expression,
-        accessibility: Expression,
-        transition_equality: Expression,
-    ) -> Result<Expression, String> {
+    fn infer_set_run_case(&mut self, args: SetRunCase) -> Result<Expression, String> {
+        let SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality,
+        } = args;
         let runstep = self.check_run(state_ty, result_ty, step, initial)?;
         self.check(
             accessibility,
@@ -1755,17 +1755,17 @@ impl<'a> Checker<'a> {
         self.check(transition, self.return_type(runstep)?)?;
         self.return_type(result_ty)
     }
-    fn infer_recursor(
-        &mut self,
-        rule: ProductRule,
-        var: SymbolId,
-        state_ty: Expression,
-        result_ty: Expression,
-        motive: Expression,
-        on_continue: Expression,
-        on_finish: Expression,
-        scrutinee: Expression,
-    ) -> Result<Expression, String> {
+    fn infer_recursor(&mut self, args: Recursor) -> Result<Expression, String> {
+        let Recursor {
+            rule,
+            var,
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } = args;
         let i = self.set_type(state_ty)?;
         if self.set_type(result_ty)? != i {
             return Err("RunStep types must share a level".into());
@@ -1899,16 +1899,16 @@ impl<'a> Checker<'a> {
         self.check(boxed, self.box_type(program_ty)?)?;
         super::reflection::reflect(self.env, program_ty)
     }
-    fn infer_box_application(
-        &mut self,
-        rule: ProductRule,
-        var: SymbolId,
-        domain: Expression,
-        codomain: Expression,
-        function: Expression,
-        argument: Expression,
-        type_application: bool,
-    ) -> Result<Expression, String> {
+    fn infer_box_application(&mut self, args: BoxApplication) -> Result<Expression, String> {
+        let BoxApplication {
+            rule,
+            var,
+            domain,
+            codomain,
+            function,
+            argument,
+            type_application,
+        } = args;
         self.formation(domain)?;
         let body = if type_application {
             codomain
@@ -1946,15 +1946,15 @@ impl<'a> Checker<'a> {
         function: Expression,
         argument: Expression,
     ) -> Result<Expression, String> {
-        self.infer_box_application(
+        self.infer_box_application(BoxApplication {
             rule,
-            SymbolId::ANONYMOUS,
+            var: SymbolId::ANONYMOUS,
             domain,
             codomain,
             function,
             argument,
-            false,
-        )
+            type_application: false,
+        })
     }
     fn infer_box_type_app(
         &mut self,
@@ -1965,7 +1965,15 @@ impl<'a> Checker<'a> {
         function: Expression,
         argument: Expression,
     ) -> Result<Expression, String> {
-        self.infer_box_application(rule, var, domain, codomain, function, argument, true)
+        self.infer_box_application(BoxApplication {
+            rule,
+            var,
+            domain,
+            codomain,
+            function,
+            argument,
+            type_application: true,
+        })
     }
     fn infer_take_set(
         &mut self,
@@ -2135,16 +2143,16 @@ impl<'a> Checker<'a> {
         self.check(predecessors, expected)?;
         Ok(acc)
     }
-    fn infer_acc_descent(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        from: Expression,
-        to: Expression,
-        accessibility: Expression,
-        transition: Expression,
-    ) -> Result<Expression, String> {
+    fn infer_acc_descent(&mut self, args: AccDescent) -> Result<Expression, String> {
+        let AccDescent {
+            state_ty,
+            result_ty,
+            step,
+            from,
+            to,
+            accessibility,
+            transition,
+        } = args;
         let acc = self.accessibility(state_ty, result_ty, step, from)?;
         self.proposition(acc)?;
         self.check(to, state_ty)?;
@@ -2489,4 +2497,55 @@ impl<'a> Checker<'a> {
 struct Motive {
     domains: Vec<Expression>,
     body: Expression,
+}
+
+struct IdElim {
+    var: SymbolId,
+    left: Expression,
+    right: Expression,
+    ty: Expression,
+    predicate: Expression,
+    base: Expression,
+    equality: Expression,
+}
+
+struct SetRunCase {
+    state_ty: Expression,
+    result_ty: Expression,
+    step: Expression,
+    initial: Expression,
+    transition: Expression,
+    accessibility: Expression,
+    transition_equality: Expression,
+}
+
+struct Recursor {
+    rule: ProductRule,
+    var: SymbolId,
+    state_ty: Expression,
+    result_ty: Expression,
+    motive: Expression,
+    on_continue: Expression,
+    on_finish: Expression,
+    scrutinee: Expression,
+}
+
+struct BoxApplication {
+    rule: ProductRule,
+    var: SymbolId,
+    domain: Expression,
+    codomain: Expression,
+    function: Expression,
+    argument: Expression,
+    type_application: bool,
+}
+
+struct AccDescent {
+    state_ty: Expression,
+    result_ty: Expression,
+    step: Expression,
+    from: Expression,
+    to: Expression,
+    accessibility: Expression,
+    transition: Expression,
 }

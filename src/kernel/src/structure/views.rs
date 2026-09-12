@@ -888,18 +888,7 @@ pub(crate) fn remap_references(
                 arena.alloc(node).into()
             }
         }
-        Expression::ValueKind(h) => {
-            let original = arena.read(h);
-            let mut node = (*original).clone();
-            match &mut node.form {
-                _ => {}
-            }
-            if *original == node {
-                e
-            } else {
-                arena.alloc(node).into()
-            }
-        }
+        Expression::ValueKind(_) | Expression::ComputationKind(_) => e,
         Expression::ComputationTerm(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
@@ -921,23 +910,8 @@ pub(crate) fn remap_references(
         Expression::ComputationType(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
-            match &mut node.form {
-                ComputationTypeForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
-                _ => {}
-            }
-            if *original == node {
-                e
-            } else {
-                arena.alloc(node).into()
-            }
-        }
-        Expression::ComputationKind(h) => {
-            let original = arena.read(h);
-            let mut node = (*original).clone();
-            match &mut node.form {
-                _ => {}
+            if let ComputationTypeForm::Constant { definition } = &mut node.form {
+                *definition = definitions.get(definition).copied().unwrap_or(*definition)
             }
             if *original == node {
                 e
