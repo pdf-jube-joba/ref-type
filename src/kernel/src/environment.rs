@@ -105,7 +105,7 @@ impl Environment {
                 return Err("only Program terms have reflection certificates".into());
             };
             let context = super::reflection::reflect_context(self, &definition.context)?;
-            let ty = super::reflection::reflect(self, ty)?;
+            let ty = super::reflection::reflect_program_expression(self, ty)?;
             super::check::Checker::new(self, context).check(certificate, ty)?;
             super::reflection::reflect_with_certificate(self, definition.body, certificate)?;
         }
@@ -135,7 +135,7 @@ impl Environment {
                 return Err("only Program terms have reflection certificates".into());
             };
             let context = super::reflection::reflect_context(self, &definition.context)?;
-            let ty = super::reflection::reflect(self, ty)?;
+            let ty = super::reflection::reflect_program_expression(self, ty)?;
             super::check::Checker::new(self, context).check(certificate, ty)?;
             super::reflection::reflect_with_certificate(self, definition.body, certificate)?;
         }
@@ -258,8 +258,8 @@ impl Environment {
                         return Err("datatype field level exceeds result level".into());
                     }
                     check_program_positive(self, (*ty).into(), id, true)?;
-                    let reflected = super::reflection::reflect(self, (*ty).into())?;
-                    check_positive(self, reflected, spec.reflected, true)?;
+                    let reflected = super::reflection::reflect_type(self, (*ty).into())?;
+                    check_positive(self, reflected.into(), spec.reflected, true)?;
                 }
             }
             Ok(())
@@ -384,7 +384,7 @@ impl Environment {
             )?;
             let mut body = shift(&self.arena, result, fields.len(), 0)?;
             for (i, (var, ty)) in fields.iter().enumerate().rev() {
-                let domain = super::reflection::reflect(self, (*ty).into())?;
+                let domain = super::reflection::reflect_type(self, (*ty).into())?;
                 let domain = shift(&self.arena, domain, i, 0)?;
                 let rule = ProductRule::new(Sort::Base(self.arena.sort(domain)), Sort::Base(sort))?;
                 body = build::product(&self.arena, rule, *var, domain, body)?;

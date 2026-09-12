@@ -608,7 +608,10 @@ fn reduce_box_application(
         return Ok(None);
     };
     let (argument, reflected_argument) = if type_application {
-        (argument, super::reflection::reflect(env, argument)?)
+        (
+            argument,
+            super::reflection::reflect_type(env, argument.try_into()?)?.into(),
+        )
     } else {
         let argument: SetTerm = argument.try_into()?;
         let SetTermForm::BoxProgram {

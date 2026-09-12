@@ -2,15 +2,24 @@
 use super::{calculus::*, construction as build, environment::*, sort::*, structure, syntax::*};
 
 pub fn reflect_kind(env: &Environment, k: ProgramKind) -> Result<SetKind, String> {
-    reflect(env, k.into())?.try_into()
+    match k {
+        ProgramKind::ValueKind(k) => reflect_value_kind(env, k),
+        ProgramKind::ComputationKind(k) => reflect_computation_kind(env, k),
+    }
 }
 
-pub fn reflect_type(env: &Environment, k: ProgramType) -> Result<SetType, String> {
-    reflect(env, k.into())?.try_into()
+pub fn reflect_type(env: &Environment, ty: ProgramType) -> Result<SetType, String> {
+    match ty {
+        ProgramType::ValueType(ty) => reflect_value_type(env, ty),
+        ProgramType::ComputationType(ty) => reflect_computation_type(env, ty),
+    }
 }
 
-pub fn reflect_term(env: &Environment, k: ProgramTerm) -> Result<SetTerm, String> {
-    reflect(env, k.into())?.try_into()
+pub fn reflect_term(env: &Environment, term: ProgramTerm) -> Result<SetTerm, String> {
+    match term {
+        ProgramTerm::ValueTerm(term) => reflect_value_term(env, term),
+        ProgramTerm::ComputationTerm(term) => reflect_computation_term(env, term),
+    }
 }
 
 pub fn reflect_context(env: &Environment, c: &Context) -> Result<Context, String> {
@@ -18,513 +27,491 @@ pub fn reflect_context(env: &Environment, c: &Context) -> Result<Context, String
         .map(|b| {
             Ok(Binding {
                 var: b.var,
-                classifier: reflect(env, b.classifier)?,
+                classifier: reflect_program_expression(env, b.classifier)?,
             })
         })
         .collect()
 }
 
-pub fn reflect(env: &Environment, e: Expression) -> Result<Expression, String> {
+pub(crate) fn reflect_program_expression(
+    env: &Environment,
+    e: Expression,
+) -> Result<Expression, String> {
+    match e {
+        Expression::ValueTerm(h) => Ok(reflect_value_term(env, h)?.into()),
+        Expression::ValueType(h) => Ok(reflect_value_type(env, h)?.into()),
+        Expression::ValueKind(h) => Ok(reflect_value_kind(env, h)?.into()),
+        Expression::ComputationTerm(h) => Ok(reflect_computation_term(env, h)?.into()),
+        Expression::ComputationType(h) => Ok(reflect_computation_type(env, h)?.into()),
+        Expression::ComputationKind(h) => Ok(reflect_computation_kind(env, h)?.into()),
+        _ => Err("reflection requires Program syntax".into()),
+    }
+}
+
+fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String> {
     let a = &env.arena;
-    Ok(match e {
-        Expression::ValueTerm(h) => {
-            let node = a.get(h);
-            let level = node.level;
-            match node.form {
-                ValueTermForm::Bound { index } => a
-                    .alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::Bound { index },
-                    })
-                    .into(),
-                ValueTermForm::ModuleParam { parameter } => a
-                    .alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::ReflectedProgramParam { parameter },
-                    })
-                    .into(),
-                ValueTermForm::Constant { definition } => {
-                    let definition = env
-                        .definition(definition)
-                        .ok_or("unknown Program definition")?;
-                    if let Some(certificate) = definition.certified_reflection {
-                        certificate.into()
-                    } else {
-                        reflect(env, definition.body)?
-                    }
-                }
-                ValueTermForm::ThunkValue { computation } => reflect(env, computation.into())?,
-                ValueTermForm::Continue {
-                    state_ty,
-                    result_ty,
-                    next,
-                } => a
-                    .alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::Continue {
-                            state_ty: reflect(env, state_ty.into())?.try_into()?,
-                            result_ty: reflect(env, result_ty.into())?.try_into()?,
-                            next: reflect(env, next.into())?.try_into()?,
-                        },
-                    })
-                    .into(),
-                ValueTermForm::Finish {
-                    state_ty,
-                    result_ty,
-                    output,
-                } => a
-                    .alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::Finish {
-                            state_ty: reflect(env, state_ty.into())?.try_into()?,
-                            result_ty: reflect(env, result_ty.into())?.try_into()?,
-                            output: reflect(env, output.into())?.try_into()?,
-                        },
-                    })
-                    .into(),
-                ValueTermForm::InductiveConstructor {
+    let node = a.get(h);
+    let level = node.level;
+    Ok(match node.form {
+        ValueTermForm::Bound { index } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::Bound { index },
+        }),
+        ValueTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::ReflectedProgramParam { parameter },
+        }),
+        ValueTermForm::Constant { definition } => {
+            let definition = env
+                .definition(definition)
+                .ok_or("unknown Program definition")?;
+            if let Some(certificate) = definition.certified_reflection {
+                certificate
+            } else {
+                reflect_term(env, definition.body.try_into()?)?
+            }
+        }
+        ValueTermForm::ThunkValue { computation } => reflect_computation_term(env, computation)?,
+        ValueTermForm::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::Continue {
+                state_ty: reflect_value_type(env, state_ty)?,
+                result_ty: reflect_value_type(env, result_ty)?,
+                next: reflect_value_term(env, next)?,
+            },
+        }),
+        ValueTermForm::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::Finish {
+                state_ty: reflect_value_type(env, state_ty)?,
+                result_ty: reflect_value_type(env, result_ty)?,
+                output: reflect_value_term(env, output)?,
+            },
+        }),
+        ValueTermForm::InductiveConstructor {
+            inductive,
+            constructor,
+            parameters,
+            fields,
+        } => {
+            let spec = env.datatype(inductive).ok_or("unknown datatype")?;
+            let parameters = parameters
+                .into_iter()
+                .map(|p| Ok(LogicalArgument::from(reflect_type(env, p)?)))
+                .collect::<Result<Vec<LogicalArgument>, String>>()?;
+            let mut result: SetTerm = build::inductive_constructor(
+                a,
+                BaseSort::Set(level),
+                Stage::Term,
+                spec.reflected,
+                constructor,
+                parameters,
+            )?
+            .try_into()?;
+            for field in fields {
+                let field = reflect_value_term(env, field)?;
+                let rule =
+                    ProductRule::new(Sort::Base(a.sort(field)), Sort::Base(BaseSort::Set(level)))?;
+                result = build::apply(a, rule, result.into(), field.into())?.try_into()?;
+            }
+            result
+        }
+    })
+}
+
+fn reflect_value_type(env: &Environment, h: ValueType) -> Result<SetType, String> {
+    let a = &env.arena;
+    let node = a.get(h);
+    let level = node.level;
+    Ok(match node.form {
+        ValueTypeForm::Bound { index } => a.alloc(SetTypeNode {
+            level,
+            form: SetTypeForm::Bound { index },
+        }),
+        ValueTypeForm::ModuleParam { parameter } => a.alloc(SetTypeNode {
+            level,
+            form: SetTypeForm::ReflectedProgramParam { parameter },
+        }),
+        ValueTypeForm::Constant { definition } => {
+            let definition = env
+                .definition(definition)
+                .ok_or("unknown Program definition")?;
+            if let Some(certificate) = definition.certified_reflection {
+                Expression::from(certificate).try_into()?
+            } else {
+                reflect_type(env, definition.body.try_into()?)?
+            }
+        }
+        ValueTypeForm::Thunk { computation_ty } => reflect_computation_type(env, computation_ty)?,
+        ValueTypeForm::RunStep {
+            state_ty,
+            result_ty,
+        } => a.alloc(SetTypeNode {
+            level,
+            form: SetTypeForm::RunStep {
+                state_ty: reflect_value_type(env, state_ty)?,
+                result_ty: reflect_value_type(env, result_ty)?,
+            },
+        }),
+        ValueTypeForm::Inductive {
+            inductive,
+            parameters,
+        } => {
+            let inductive = env.datatype(inductive).ok_or("unknown datatype")?.reflected;
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::IndType {
                     inductive,
-                    constructor,
-                    parameters,
-                    fields,
-                } => {
-                    let spec = env.datatype(inductive).ok_or("unknown datatype")?;
-                    let parameters = parameters
+                    parameters: parameters
                         .into_iter()
-                        .map(|p| reflect(env, p.into())?.try_into())
-                        .collect::<Result<Vec<LogicalArgument>, String>>()?;
-                    let mut result = build::inductive_constructor(
-                        a,
-                        BaseSort::Set(level),
-                        Stage::Term,
-                        spec.reflected,
-                        constructor,
-                        parameters,
-                    )?;
-                    for field in fields {
-                        let field = reflect(env, field.into())?;
-                        let rule = ProductRule::new(
-                            Sort::Base(a.sort(field)),
-                            Sort::Base(BaseSort::Set(level)),
-                        )?;
-                        result = build::apply(a, rule, result, field)?;
-                    }
-                    result
-                }
+                        .map(|child| Ok(LogicalArgument::from(reflect_type(env, child)?)))
+                        .collect::<Result<_, String>>()?,
+                },
+            })
+        }
+        ValueTypeForm::LambdaType {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::LambdaType {
+                    rule,
+                    var,
+                    domain: reflect_kind(env, domain)?,
+                    body: reflect_value_type(env, body)?,
+                },
+            })
+        }
+        ValueTypeForm::AppType {
+            rule,
+            function,
+            argument,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::AppType {
+                    rule,
+                    function: reflect_value_type(env, function)?,
+                    argument: reflect_type(env, argument)?,
+                },
+            })
+        }
+    })
+}
+
+fn reflect_value_kind(env: &Environment, h: ValueKind) -> Result<SetKind, String> {
+    let a = &env.arena;
+    let node = a.get(h);
+    let level = node.level;
+    Ok(match node.form {
+        ValueKindForm::Base => a.alloc(SetKindNode {
+            level,
+            form: SetKindForm::Base,
+        }),
+        ValueKindForm::ProdType {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetKindNode {
+                level,
+                form: SetKindForm::ProdType {
+                    rule,
+                    var,
+                    domain: reflect_kind(env, domain)?,
+                    body: reflect_value_kind(env, body)?,
+                },
+            })
+        }
+    })
+}
+
+fn reflect_computation_term(env: &Environment, h: ComputationTerm) -> Result<SetTerm, String> {
+    let a = &env.arena;
+    let node = a.get(h);
+    let level = node.level;
+    Ok(match node.form {
+        ComputationTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::ReflectedProgramParam { parameter },
+        }),
+        ComputationTermForm::Constant { definition } => {
+            let definition = env
+                .definition(definition)
+                .ok_or("unknown Program definition")?;
+            if let Some(certificate) = definition.certified_reflection {
+                certificate
+            } else {
+                reflect_term(env, definition.body.try_into()?)?
             }
         }
-        Expression::ValueType(h) => {
-            let node = a.get(h);
-            let level = node.level;
-            match node.form {
-                ValueTypeForm::Bound { index } => a
-                    .alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::Bound { index },
-                    })
-                    .into(),
-                ValueTypeForm::ModuleParam { parameter } => a
-                    .alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::ReflectedProgramParam { parameter },
-                    })
-                    .into(),
-                ValueTypeForm::Constant { definition } => {
-                    let definition = env
-                        .definition(definition)
-                        .ok_or("unknown Program definition")?;
-                    if let Some(certificate) = definition.certified_reflection {
-                        certificate.into()
-                    } else {
-                        reflect(env, definition.body)?
-                    }
-                }
-                ValueTypeForm::Thunk { computation_ty } => reflect(env, computation_ty.into())?,
-                ValueTypeForm::RunStep {
-                    state_ty,
-                    result_ty,
-                } => a
-                    .alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::RunStep {
-                            state_ty: reflect(env, state_ty.into())?.try_into()?,
-                            result_ty: reflect(env, result_ty.into())?.try_into()?,
-                        },
-                    })
-                    .into(),
-                ValueTypeForm::Inductive {
-                    inductive,
-                    parameters,
-                } => {
-                    let inductive = env.datatype(inductive).ok_or("unknown datatype")?.reflected;
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::IndType {
-                            inductive,
-                            parameters: parameters
-                                .into_iter()
-                                .map(|child| reflect(env, child.into())?.try_into())
-                                .collect::<Result<_, String>>()?,
-                        },
-                    })
-                    .into()
-                }
-                ValueTypeForm::LambdaType {
+        ComputationTermForm::Return { value } => reflect_value_term(env, value)?,
+        ComputationTermForm::Force { value } => reflect_value_term(env, value)?,
+        ComputationTermForm::LambdaTerm {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTermNode {
+                level,
+                form: SetTermForm::LambdaTerm {
                     rule,
                     var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::LambdaType {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ValueTypeForm::AppType {
+                    domain: reflect_value_type(env, domain)?,
+                    body: reflect_computation_term(env, body)?,
+                },
+            })
+        }
+        ComputationTermForm::LambdaType {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTermNode {
+                level,
+                form: SetTermForm::LambdaType {
                     rule,
-                    function,
-                    argument,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::AppType {
-                            rule,
-                            function: reflect(env, function.into())?.try_into()?,
-                            argument: reflect(env, argument.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
+                    var,
+                    domain: reflect_kind(env, domain)?,
+                    body: reflect_computation_term(env, body)?,
+                },
+            })
+        }
+        ComputationTermForm::AppTerm {
+            rule,
+            function,
+            argument,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTermNode {
+                level,
+                form: SetTermForm::AppTerm {
+                    rule,
+                    function: reflect_computation_term(env, function)?,
+                    argument: reflect_value_term(env, argument)?,
+                },
+            })
+        }
+        ComputationTermForm::AppType {
+            rule,
+            function,
+            argument,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTermNode {
+                level,
+                form: SetTermForm::AppType {
+                    rule,
+                    function: reflect_computation_term(env, function)?,
+                    argument: reflect_type(env, argument)?,
+                },
+            })
+        }
+        ComputationTermForm::Sequence {
+            var,
+            value_ty,
+            computation,
+            body,
+        } => {
+            let domain = reflect_value_type(env, value_ty)?;
+            let argument = reflect_computation_term(env, computation)?;
+            let body = reflect_computation_term(env, body)?;
+            let rule = ProductRule::new(Sort::Base(a.sort(domain)), Sort::Base(a.sort(body)))?;
+            let lambda = build::lambda(a, rule, var, domain.into(), body.into())?;
+            build::apply(a, rule, lambda, argument.into())?.try_into()?
+        }
+        ComputationTermForm::ValueLet {
+            var,
+            value_ty,
+            value,
+            body,
+        } => {
+            let domain = reflect_value_type(env, value_ty)?;
+            let argument = reflect_value_term(env, value)?;
+            let body = reflect_computation_term(env, body)?;
+            let rule = ProductRule::new(Sort::Base(a.sort(domain)), Sort::Base(a.sort(body)))?;
+            let lambda = build::lambda(a, rule, var, domain.into(), body.into())?;
+            build::apply(a, rule, lambda, argument.into())?.try_into()?
+        }
+        ComputationTermForm::Case {
+            inductive,
+            binders,
+            result_ty,
+            scrutinee,
+            branches,
+        } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::SetCase {
+                inductive,
+                binders,
+                result_ty: reflect_computation_type(env, result_ty)?,
+                scrutinee: reflect_value_term(env, scrutinee)?,
+                branches: branches
+                    .into_iter()
+                    .map(|child| reflect_computation_term(env, child))
+                    .collect::<Result<_, String>>()?,
+            },
+        }),
+        ComputationTermForm::Run {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+        } => {
+            let _ = (state_ty, result_ty, step, initial);
+            return Err("reflecting run requires an accessibility certificate".into());
+        }
+        ComputationTermForm::RunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+        } => {
+            let _ = (state_ty, result_ty, step, initial, transition);
+            return Err("reflecting run requires an accessibility certificate".into());
+        }
+    })
+}
+
+fn reflect_computation_type(env: &Environment, h: ComputationType) -> Result<SetType, String> {
+    let a = &env.arena;
+    let node = a.get(h);
+    let level = node.level;
+    Ok(match node.form {
+        ComputationTypeForm::Bound { index } => a.alloc(SetTypeNode {
+            level,
+            form: SetTypeForm::Bound { index },
+        }),
+        ComputationTypeForm::ModuleParam { parameter } => a.alloc(SetTypeNode {
+            level,
+            form: SetTypeForm::ReflectedProgramParam { parameter },
+        }),
+        ComputationTypeForm::Constant { definition } => {
+            let definition = env
+                .definition(definition)
+                .ok_or("unknown Program definition")?;
+            if let Some(certificate) = definition.certified_reflection {
+                Expression::from(certificate).try_into()?
+            } else {
+                reflect_type(env, definition.body.try_into()?)?
             }
         }
-        Expression::ValueKind(h) => {
-            let node = a.get(h);
-            let level = node.level;
-            match node.form {
-                ValueKindForm::Base => a
-                    .alloc(SetKindNode {
-                        level,
-                        form: SetKindForm::Base,
-                    })
-                    .into(),
-                ValueKindForm::ProdType {
+        ComputationTypeForm::ReturnType { value_ty } => reflect_value_type(env, value_ty)?,
+        ComputationTypeForm::ProdTerm {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::ProdTerm {
                     rule,
                     var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetKindNode {
-                        level,
-                        form: SetKindForm::ProdType {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-            }
+                    domain: reflect_value_type(env, domain)?,
+                    body: reflect_computation_type(env, body)?,
+                },
+            })
         }
-        Expression::ComputationTerm(h) => {
-            let node = a.get(h);
-            let level = node.level;
-            match node.form {
-                ComputationTermForm::ModuleParam { parameter } => a
-                    .alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::ReflectedProgramParam { parameter },
-                    })
-                    .into(),
-                ComputationTermForm::Constant { definition } => {
-                    let definition = env
-                        .definition(definition)
-                        .ok_or("unknown Program definition")?;
-                    if let Some(certificate) = definition.certified_reflection {
-                        certificate.into()
-                    } else {
-                        reflect(env, definition.body)?
-                    }
-                }
-                ComputationTermForm::Return { value } => reflect(env, value.into())?,
-                ComputationTermForm::Force { value } => reflect(env, value.into())?,
-                ComputationTermForm::LambdaTerm {
+        ComputationTypeForm::ProdType {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::ProdType {
                     rule,
                     var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::LambdaTerm {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTermForm::LambdaType {
-                    rule,
-                    var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::LambdaType {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTermForm::AppTerm {
-                    rule,
-                    function,
-                    argument,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::AppTerm {
-                            rule,
-                            function: reflect(env, function.into())?.try_into()?,
-                            argument: reflect(env, argument.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTermForm::AppType {
-                    rule,
-                    function,
-                    argument,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::AppType {
-                            rule,
-                            function: reflect(env, function.into())?.try_into()?,
-                            argument: reflect(env, argument.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTermForm::Sequence {
-                    var,
-                    value_ty,
-                    computation,
-                    body,
-                } => {
-                    let domain = reflect(env, value_ty.into())?;
-                    let argument = reflect(env, computation.into())?;
-                    let body = reflect(env, body.into())?;
-                    let rule =
-                        ProductRule::new(Sort::Base(a.sort(domain)), Sort::Base(a.sort(body)))?;
-                    let lambda = build::lambda(a, rule, var, domain, body)?;
-                    build::apply(a, rule, lambda, argument)?
-                }
-                ComputationTermForm::ValueLet {
-                    var,
-                    value_ty,
-                    value,
-                    body,
-                } => {
-                    let domain = reflect(env, value_ty.into())?;
-                    let argument = reflect(env, value.into())?;
-                    let body = reflect(env, body.into())?;
-                    let rule =
-                        ProductRule::new(Sort::Base(a.sort(domain)), Sort::Base(a.sort(body)))?;
-                    let lambda = build::lambda(a, rule, var, domain, body)?;
-                    build::apply(a, rule, lambda, argument)?
-                }
-                ComputationTermForm::Case {
-                    inductive,
-                    binders,
-                    result_ty,
-                    scrutinee,
-                    branches,
-                } => a
-                    .alloc(SetTermNode {
-                        level,
-                        form: SetTermForm::SetCase {
-                            inductive,
-                            binders,
-                            result_ty: reflect(env, result_ty.into())?.try_into()?,
-                            scrutinee: reflect(env, scrutinee.into())?.try_into()?,
-                            branches: branches
-                                .into_iter()
-                                .map(|child| reflect(env, child.into())?.try_into())
-                                .collect::<Result<_, String>>()?,
-                        },
-                    })
-                    .into(),
-                ComputationTermForm::Run {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial,
-                } => {
-                    let _ = (state_ty, result_ty, step, initial);
-                    return Err("reflecting run requires an accessibility certificate".into());
-                }
-                ComputationTermForm::RunCase {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial,
-                    transition,
-                } => {
-                    let _ = (state_ty, result_ty, step, initial, transition);
-                    return Err("reflecting run requires an accessibility certificate".into());
-                }
-            }
+                    domain: reflect_kind(env, domain)?,
+                    body: reflect_computation_type(env, body)?,
+                },
+            })
         }
-        Expression::ComputationType(h) => {
-            let node = a.get(h);
-            let level = node.level;
-            match node.form {
-                ComputationTypeForm::Bound { index } => a
-                    .alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::Bound { index },
-                    })
-                    .into(),
-                ComputationTypeForm::ModuleParam { parameter } => a
-                    .alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::ReflectedProgramParam { parameter },
-                    })
-                    .into(),
-                ComputationTypeForm::Constant { definition } => {
-                    let definition = env
-                        .definition(definition)
-                        .ok_or("unknown Program definition")?;
-                    if let Some(certificate) = definition.certified_reflection {
-                        certificate.into()
-                    } else {
-                        reflect(env, definition.body)?
-                    }
-                }
-                ComputationTypeForm::ReturnType { value_ty } => reflect(env, value_ty.into())?,
-                ComputationTypeForm::ProdTerm {
+        ComputationTypeForm::LambdaType {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::LambdaType {
                     rule,
                     var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::ProdTerm {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTypeForm::ProdType {
-                    rule,
-                    var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::ProdType {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTypeForm::LambdaType {
-                    rule,
-                    var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::LambdaType {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-                ComputationTypeForm::AppType {
-                    rule,
-                    function,
-                    argument,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetTypeNode {
-                        level,
-                        form: SetTypeForm::AppType {
-                            rule,
-                            function: reflect(env, function.into())?.try_into()?,
-                            argument: reflect(env, argument.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-            }
+                    domain: reflect_kind(env, domain)?,
+                    body: reflect_computation_type(env, body)?,
+                },
+            })
         }
-        Expression::ComputationKind(h) => {
-            let node = a.get(h);
-            let level = node.level;
-            match node.form {
-                ComputationKindForm::Base => a
-                    .alloc(SetKindNode {
-                        level,
-                        form: SetKindForm::Base,
-                    })
-                    .into(),
-                ComputationKindForm::ProdType {
+        ComputationTypeForm::AppType {
+            rule,
+            function,
+            argument,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetTypeNode {
+                level,
+                form: SetTypeForm::AppType {
+                    rule,
+                    function: reflect_computation_type(env, function)?,
+                    argument: reflect_type(env, argument)?,
+                },
+            })
+        }
+    })
+}
+
+fn reflect_computation_kind(env: &Environment, h: ComputationKind) -> Result<SetKind, String> {
+    let a = &env.arena;
+    let node = a.get(h);
+    let level = node.level;
+    Ok(match node.form {
+        ComputationKindForm::Base => a.alloc(SetKindNode {
+            level,
+            form: SetKindForm::Base,
+        }),
+        ComputationKindForm::ProdType {
+            rule,
+            var,
+            domain,
+            body,
+        } => {
+            let rule = rule.reflected();
+            a.alloc(SetKindNode {
+                level,
+                form: SetKindForm::ProdType {
                     rule,
                     var,
-                    domain,
-                    body,
-                } => {
-                    let rule = rule.reflected();
-                    a.alloc(SetKindNode {
-                        level,
-                        form: SetKindForm::ProdType {
-                            rule,
-                            var,
-                            domain: reflect(env, domain.into())?.try_into()?,
-                            body: reflect(env, body.into())?.try_into()?,
-                        },
-                    })
-                    .into()
-                }
-            }
+                    domain: reflect_kind(env, domain)?,
+                    body: reflect_computation_kind(env, body)?,
+                },
+            })
         }
-        _ => return Err("reflection requires Program syntax".into()),
     })
 }
 
@@ -540,7 +527,7 @@ pub fn reflect_with_certificate(
 }
 fn correspondence(env: &Environment, p: Expression, g: Expression) -> Result<(), String> {
     let a = &env.arena;
-    if let Ok(expected) = reflect(env, p)
+    if let Ok(expected) = reflect_program_expression(env, p)
         && convertible(env, expected, g)?
     {
         return Ok(());

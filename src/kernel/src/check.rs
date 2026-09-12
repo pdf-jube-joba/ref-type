@@ -1435,7 +1435,7 @@ impl<'a> Checker<'a> {
         &mut self,
         parameter: ModuleParamId,
     ) -> Result<Expression, String> {
-        super::reflection::reflect(
+        super::reflection::reflect_program_expression(
             self.env,
             self.env
                 .parameter(parameter)
@@ -1881,7 +1881,7 @@ impl<'a> Checker<'a> {
         closed.check(program, program_ty)?;
         closed.check(
             certified_reflection,
-            super::reflection::reflect(self.env, program_ty)?,
+            super::reflection::reflect_program_expression(self.env, program_ty)?,
         )?;
         super::reflection::reflect_with_certificate(
             self.env,
@@ -1897,7 +1897,7 @@ impl<'a> Checker<'a> {
     ) -> Result<Expression, String> {
         self.closed_program_type(program_ty)?;
         self.check(boxed, self.box_type(program_ty)?)?;
-        super::reflection::reflect(self.env, program_ty)
+        super::reflection::reflect_program_expression(self.env, program_ty)
     }
     fn infer_box_application(
         &mut self,
@@ -2323,7 +2323,7 @@ impl<'a> Checker<'a> {
             let mut branch = Checker::new(self.env, self.context.clone());
             for (j, (_, field)) in fields.iter().enumerate() {
                 let field = if reflected {
-                    super::reflection::reflect(self.env, (*field).into())?
+                    super::reflection::reflect_type(self.env, (*field).into())?.into()
                 } else {
                     (*field).into()
                 };
