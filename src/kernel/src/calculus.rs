@@ -748,7 +748,9 @@ fn reduce_run_case(
         _ => None,
     })
 }
-struct SetRunCase {
+fn reduce_set_run_case(
+    env: &Environment,
+    level: usize,
     state_ty: SetType,
     result_ty: SetType,
     step: SetTerm,
@@ -756,22 +758,7 @@ struct SetRunCase {
     transition: SetTerm,
     accessibility: PropTerm,
     transition_equality: PropTerm,
-}
-
-fn reduce_set_run_case(
-    env: &Environment,
-    level: usize,
-    case: SetRunCase,
 ) -> Result<Option<Expression>, String> {
-    let SetRunCase {
-        state_ty,
-        result_ty,
-        step,
-        initial,
-        transition,
-        accessibility,
-        transition_equality,
-    } = case;
     let a = &env.arena;
     Ok(match a.read(transition).form {
         SetTermForm::Finish { output, .. } => Some(output.into()),
@@ -943,15 +930,13 @@ fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expressi
         } => reduce_set_run_case(
             env,
             level,
-            SetRunCase {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                accessibility,
-                transition_equality,
-            },
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality,
         )?,
         SetTermForm::Recursor {
             rule,
