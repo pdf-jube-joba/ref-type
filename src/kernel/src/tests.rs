@@ -65,6 +65,161 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
 }
 
 #[test]
+fn typed_nodes_are_interned_and_read_snapshots_survive_transformations() {
+    let arena = Arena::new();
+    let domain = arena.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let rule =
+        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
+    let original = SetTypeNode {
+        level: 0,
+        form: SetTypeForm::ProdTerm {
+            rule,
+            var: SymbolId(4),
+            domain,
+            body: domain,
+        },
+    };
+    let handle = arena.alloc(original.clone());
+    assert_eq!(arena.alloc(original.clone()), handle);
+    let snapshot = arena.read(handle);
+    assert!(std::rc::Rc::ptr_eq(&snapshot, &arena.read(handle)));
+
+    // Allocating during recursion must not conflict with a retained read.
+    let changed: SetType = shift(&arena, handle, 1, 0).unwrap().try_into().unwrap();
+    assert_ne!(changed, handle);
+    assert_eq!(*snapshot, original);
+    assert_eq!(arena.get(handle), original);
+    let SetTypeForm::ProdTerm {
+        domain: shifted,
+        body,
+        ..
+    } = arena.get(changed).form
+    else {
+        panic!("expected a product");
+    };
+    assert_eq!(body, domain);
+    assert_eq!(arena.get(shifted).form, SetTypeForm::Bound { index: 1 });
+}
+
+#[test]
+fn substitution_tracks_each_inductive_motive_binder() {
+    let arena = Arena::new();
+    let ty = |index| {
+        arena.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::Bound { index },
+        })
+    };
+    let term = |index| {
+        arena.alloc(SetTermNode {
+            level: 0,
+            form: SetTermForm::Bound { index },
+        })
+    };
+    let argument = arena.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::ModuleParam {
+            parameter: ModuleParamId {
+                module: ModuleId(7),
+                position: 0,
+            },
+        },
+    });
+    let original = SetTypeNode {
+        level: 0,
+        form: SetTypeForm::IndElim {
+            inductive: InductiveId {
+                module: ModuleId(7),
+                index: 1,
+            },
+            motive_vars: vec![SymbolId(1), SymbolId(2)],
+            scrutinee: term(1).into(),
+            motive_domains: vec![ty(0).into(), ty(1).into()],
+            motive_body: ty(2).into(),
+            cases: vec![term(1).into()],
+        },
+    };
+    let elimination = arena.alloc(original.clone());
+    let result: SetType = substitute(&arena, elimination, argument)
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let SetTypeForm::IndElim {
+        scrutinee,
+        motive_domains,
+        motive_body,
+        cases,
+        ..
+    } = arena.get(result).form
+    else {
+        panic!("expected an eliminator");
+    };
+    assert_eq!(scrutinee, term(0).into());
+    assert_eq!(motive_domains, vec![argument.into(), argument.into()]);
+    assert_eq!(motive_body, argument.into());
+    assert_eq!(cases, vec![term(0).into()]);
+    assert_eq!(arena.get(elimination), original);
+}
+
+#[test]
+fn run_certificates_are_transformed_but_ignored_by_conversion() {
+    let env = Environment::new();
+    let arena = env.arena();
+    let ty = arena.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let term = |index| {
+        arena.alloc(SetTermNode {
+            level: 0,
+            form: SetTermForm::Bound { index },
+        })
+    };
+    let proof = |index| {
+        arena.alloc(PropTermNode {
+            form: PropTermForm::Bound { index },
+        })
+    };
+    let run = |initial, accessibility| {
+        arena.alloc(SetTermNode {
+            level: 0,
+            form: SetTermForm::SetRun {
+                state_ty: ty,
+                result_ty: ty,
+                step: term(1),
+                initial,
+                accessibility,
+            },
+        })
+    };
+    let first = run(term(0), proof(0));
+    let second = run(term(0), proof(1));
+    assert_ne!(first, second);
+    assert!(alpha_equal(arena, first.into(), second.into()));
+    assert!(convertible(&env, first.into(), second.into()).unwrap());
+    assert!(!alpha_equal(
+        arena,
+        first.into(),
+        run(term(2), proof(0)).into()
+    ));
+
+    let shifted: SetTerm = shift(arena, first, 1, 0).unwrap().try_into().unwrap();
+    let SetTermForm::SetRun {
+        accessibility,
+        initial,
+        ..
+    } = arena.get(shifted).form
+    else {
+        panic!("expected a run");
+    };
+    assert_eq!(accessibility, proof(1));
+    assert_eq!(initial, term(1));
+}
+
+#[test]
 fn checked_definition_templates_are_retained_without_becoming_constants() {
     let mut env = Environment::new();
     let kind = sk(env.arena(), 0);
@@ -180,7 +335,10 @@ fn polymorphic_program_identity_and_reflection() {
     let result_ty = checker.infer_computation_term(applied).unwrap();
     assert_eq!(a.sort(result_ty), BaseSort::Computation(0));
     let result = normalize(&env, applied).unwrap();
-    assert!(matches!(a.data(result).op, Op::Return));
+    assert!(matches!(
+        a.read(ComputationTerm::try_from(result).unwrap()).form,
+        ComputationTermForm::Return { .. }
+    ));
     let inferred = checker.inferred(result).unwrap();
     assert!(convertible(&env, inferred, result_ty.into()).unwrap());
 }
@@ -787,7 +945,10 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
         panic!()
     };
     c.check(result, result_ty).unwrap();
-    assert_eq!(a.data(result).op, Op::Return);
+    assert!(matches!(
+        a.read(ComputationTerm::try_from(result).unwrap()).form,
+        ComputationTermForm::Return { .. }
+    ));
     let certificate = reflect_term(&env, zero.into()).unwrap();
     let boxed = a.alloc(SetTermNode {
         level: 0,

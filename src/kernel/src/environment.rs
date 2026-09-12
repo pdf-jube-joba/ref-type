@@ -1,3 +1,4 @@
+use super::{construction as build, structure};
 use super::{sort::*, syntax::*};
 use crate::ids::*;
 use std::collections::HashMap;
@@ -197,19 +198,16 @@ impl Environment {
                 let mut tail = *ty;
                 loop {
                     let head = super::calculus::normalize(self, tail)?;
-                    let data = self.arena.data(head);
-                    if matches!(data.op, Op::ProdTerm { .. } | Op::ProdType { .. }) {
-                        check_positive(self, data.child(0), id, true)?;
-                        tail = data.child(1);
+                    if let Some(product) = structure::product(&self.arena, head) {
+                        check_positive(self, product.domain, id, true)?;
+                        tail = product.body;
                     } else {
                         let mut head = head;
-                        while matches!(
-                            self.arena.data(head).op,
-                            Op::AppTerm { .. } | Op::AppType { .. }
-                        ) {
-                            head = self.arena.data(head).child(0)
+                        while let Some(application) = structure::application(&self.arena, head) {
+                            head = application.function;
                         }
-                        if !matches!(self.arena.data(head).op,Op::IndType{inductive} if inductive==id)
+                        if !structure::inductive_type(&self.arena, head)
+                            .is_some_and(|(inductive, _)| inductive == id)
                         {
                             return Err("constructor does not return its declared inductive".into());
                         }
@@ -283,23 +281,25 @@ fn check_positive(
     positive: bool,
 ) -> Result<(), String> {
     let e = super::calculus::normalize(env, e)?;
-    let d = env.arena.data(e);
-    if matches!(d.op,Op::IndType{inductive} if inductive==id) && !positive {
+    let inductive = structure::inductive_type(&env.arena, e).map(|(id, _)| id);
+    if inductive == Some(id) && !positive {
         return Err("inductive occurs in a non-strictly-positive position".into());
     }
-    for (i, field) in d.fields.iter().enumerate() {
-        for c in field {
-            let unknown_variance = matches!(d.op,Op::IndType{inductive:other} if other!=id)
-                || matches!(d.op, Op::AppTerm { .. } | Op::AppType { .. });
-            let positive = positive
-                && !unknown_variance
-                && !(i == 0 && matches!(d.op, Op::ProdTerm { .. } | Op::ProdType { .. }));
-            check_positive(env, c.expression, id, positive)?;
-        }
+    if let Some(product) = structure::product(&env.arena, e) {
+        check_positive(env, product.domain, id, false)?;
+        return check_positive(env, product.body, id, positive);
     }
-    Ok(())
+    let positive = positive
+        && !inductive.is_some_and(|other| other != id)
+        && structure::application(&env.arena, e).is_none();
+    let mut result = Ok(());
+    structure::visit_children(&env.arena, e, |child, _| {
+        if result.is_ok() {
+            result = check_positive(env, child, id, positive);
+        }
+    });
+    result
 }
-
 fn check_program_positive(
     env: &Environment,
     e: Expression,
@@ -307,33 +307,31 @@ fn check_program_positive(
     positive: bool,
 ) -> Result<(), String> {
     let e = super::calculus::normalize(env, e)?;
-    let d = env.arena.data(e);
-    if matches!(d.op,Op::Inductive{inductive} if inductive==id) && !positive {
+    let inductive = structure::program_inductive(&env.arena, e).map(|(id, _)| id);
+    if inductive == Some(id) && !positive {
         return Err("Program datatype occurs in a non-strictly-positive position".into());
     }
-    for (i, field) in d.fields.iter().enumerate() {
-        for c in field {
-            check_program_positive(
-                env,
-                c.expression,
-                id,
-                positive
-                    && !matches!(d.op,Op::Inductive{inductive:other} if other!=id)
-                    && !matches!(d.op, Op::AppType { .. })
-                    && !(i == 0 && matches!(d.op, Op::ProdTerm { .. } | Op::ProdType { .. })),
-            )?
-        }
+    if let Some(product) = structure::product(&env.arena, e) {
+        check_program_positive(env, product.domain, id, false)?;
+        return check_program_positive(env, product.body, id, positive);
     }
-    Ok(())
+    let positive = positive
+        && !inductive.is_some_and(|other| other != id)
+        && structure::application(&env.arena, e).is_none();
+    let mut result = Ok(());
+    structure::visit_children(&env.arena, e, |child, _| {
+        if result.is_ok() {
+            result = check_program_positive(env, child, id, positive);
+        }
+    });
+    result
 }
-
 fn contains_inductive(env: &Environment, e: Expression, id: InductiveId) -> bool {
-    let d = env.arena.data(e);
-    matches!(d.op,Op::IndType{inductive}|Op::IndCtor{inductive,..}|Op::IndElim{inductive,..} if inductive==id)
-        || d.fields
-            .iter()
-            .flatten()
-            .any(|c| contains_inductive(env, c.expression, id))
+    let mut found = structure::inductive_id(&env.arena, e) == Some(id);
+    structure::visit_children(&env.arena, e, |child, _| {
+        found = found || contains_inductive(env, child, id);
+    });
+    found
 }
 
 impl Environment {
@@ -341,17 +339,16 @@ impl Environment {
         let Some(spec) = self.inductive(id) else {
             return false;
         };
-        if spec.constructors.len() != 1 || self.arena.data(spec.arity).op != Op::Base {
+        if spec.constructors.len() != 1 || !structure::is_base(&self.arena, spec.arity) {
             return false;
         }
         let mut ty = spec.constructors[0];
         loop {
-            let d = self.arena.data(ty);
-            if matches!(d.op, Op::ProdTerm { .. } | Op::ProdType { .. }) {
-                if contains_inductive(self, d.child(0), id) {
+            if let Some(product) = structure::product(&self.arena, ty) {
+                if contains_inductive(self, product.domain, id) {
                     return false;
                 }
-                ty = d.child(1)
+                ty = product.body
             } else {
                 return true;
             }
@@ -359,59 +356,40 @@ impl Environment {
     }
 
     fn install_datatype_mirror(&mut self, spec: &ProgramDatatype) -> Result<(), String> {
-        use super::calculus::{alpha_equal, node, shift};
+        use super::calculus::{alpha_equal, shift};
         let sort = BaseSort::Set(spec.level);
         let parameters = super::reflection::reflect_context(self, &spec.parameters)?;
-        let arity = node(&self.arena, Family::SetKind, sort, Op::Base, &[]);
-        let arguments: Vec<_> = parameters
+        let arity = build::base_kind(&self.arena, sort)?;
+        let arguments = parameters
             .iter()
             .enumerate()
             .map(|(i, p)| {
-                node(
+                build::bound(
                     &self.arena,
-                    Family::SetType,
                     self.arena.sort(p.classifier),
-                    Op::Bound {
-                        index: parameters.len() - i - 1,
-                    },
-                    &[],
-                )
+                    Stage::Type,
+                    parameters.len() - i - 1,
+                )?
+                .try_into()
             })
-            .collect();
+            .collect::<Result<Vec<LogicalArgument>, String>>()?;
         let mut constructors = vec![];
         for fields in &spec.constructors {
-            let result = self.arena.store(
-                Family::SetType,
-                Data {
-                    sort,
-                    op: Op::IndType {
-                        inductive: spec.reflected,
-                    },
-                    fields: vec![
-                        arguments
-                            .iter()
-                            .map(|&expression| Child {
-                                expression,
-                                depth: 0,
-                            })
-                            .collect(),
-                    ],
-                },
-            );
+            let result = build::inductive_type(
+                &self.arena,
+                sort,
+                Stage::Type,
+                spec.reflected,
+                arguments.clone(),
+            )?;
             let mut body = shift(&self.arena, result, fields.len(), 0)?;
             for (i, (var, ty)) in fields.iter().enumerate().rev() {
                 let domain = super::reflection::reflect(self, (*ty).into())?;
                 let domain = shift(&self.arena, domain, i, 0)?;
                 let rule = ProductRule::new(Sort::Base(self.arena.sort(domain)), Sort::Base(sort))?;
-                body = node(
-                    &self.arena,
-                    Family::SetType,
-                    sort,
-                    Op::ProdTerm { rule, var: *var },
-                    &[(domain, 0), (body, 1)],
-                );
+                body = build::product(&self.arena, rule, *var, domain, body)?;
             }
-            constructors.push(body)
+            constructors.push(body);
         }
         let mirror = InductiveSpec {
             parameters,

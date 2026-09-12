@@ -6,6 +6,19 @@ Set・Prop・Value・Computation のそれぞれに term/type/kind を持ち、�
 Prop の node は level を持たない。Set と Prop の区別は handle の型で固定する。
 handle は作成した `Environment::arena()` 内で使う。
 
+arena は各 family の型付き `*Node` を直接保持する。`Op` と汎用の子配列への
+変換層は持たず、型検査・簡約・reflection は `*Form` の名前付きフィールドを
+pattern match する。同一構造のノードは intern し、arena と interner は
+`Rc` でノード実体を共有する。`Arena::get` は所有するノードのコピー、
+`Arena::read` は再帰中にも保持できる共有参照を返す。
+
+共通の束縛走査は `src/structure/traversal.rs`、構文ごとの比較は
+`src/structure/comparison.rs` にある。束縛の深さは走査するフィールドごとに指定し、
+ノードには保存しない。型検査の入口と走査は family ごとの関数に分けている。
+複数の family に共通する product・application の規則は、名前付きの引数を
+取る補助関数で実装する。`src/construction.rs` は sort によって結果の family が
+決まる構文の構築を担当する。
+
 `syntax::Expression` は分類済み handle の直和で、共通の走査・診断に使う。
 未分類の式と metavariable は front 側の `raw` 構文に属する。
 Set/Prop の両方を量化・適用する箇所には `LogicalTerm` / `LogicalType` / `LogicalKind`、

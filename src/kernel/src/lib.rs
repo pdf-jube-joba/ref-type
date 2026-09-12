@@ -5,11 +5,13 @@
 #![doc = include_str!("../README.md")]
 pub mod calculus;
 pub mod check;
+mod construction;
 pub mod environment;
 pub mod ids;
 pub mod printing;
 pub mod reflection;
 pub mod sort;
+mod structure;
 pub mod syntax;
 
 #[cfg(test)]
