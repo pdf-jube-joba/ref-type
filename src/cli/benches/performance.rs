@@ -65,6 +65,41 @@ fn pipeline(path: &str) -> Duration {
     elapsed
 }
 
+fn instance_modules(definitions: usize, instances: usize, use_one: bool) -> Vec<Module> {
+    use std::fmt::Write;
+    let mut source = String::from("\\module Source(A: \\Set(0)) {\n");
+    for index in 0..definitions {
+        writeln!(source, "  \\definition item{index}: \\Set(0) := A;").unwrap();
+    }
+    source.push_str("}\n\\module Consumer(A: \\Set(0)) {\n");
+    for index in 0..instances {
+        writeln!(
+            source,
+            "  \\import \\root.Source(A := A) \\as instance{index};"
+        )
+        .unwrap();
+        if use_one {
+            writeln!(
+                source,
+                "  \\definition result{index}: \\Set(0) := instance{index}.item0;"
+            )
+            .unwrap();
+        }
+    }
+    source.push_str("}\n");
+    front::parse::str_parse_modules(&source).unwrap()
+}
+
+fn instantiate_modules(modules: &[Module], expected_materialized: usize) -> Duration {
+    let (elapsed, global) = timed(|| elaborate(black_box(modules)));
+    assert_eq!(
+        global.crate_env().materialization_stats().definitions,
+        expected_materialized
+    );
+    black_box(global);
+    elapsed
+}
+
 fn beta_chain(depth: usize) -> Duration {
     let mut env = CrateEnv::new();
     let var = env.intern("x");
@@ -146,6 +181,8 @@ fn main() -> anyhow::Result<()> {
     let library = std::cell::OnceCell::new();
     let small = std::cell::OnceCell::new();
     let large = std::cell::OnceCell::new();
+    let unused_instances = instance_modules(128, 16, false);
+    let used_instances = instance_modules(128, 16, true);
     let cases = vec![
         Case::new("parse/mccarthy91", parse_program),
         Case::new("load/library", load_library),
@@ -157,6 +194,12 @@ fn main() -> anyhow::Result<()> {
         Case::new("pipeline/library", || pipeline("lib/root.ref")),
         Case::new("pipeline/mccarthy91", || {
             pipeline("tests/ok/general-recursion/mccarthy-91.ref")
+        }),
+        Case::new("instantiate/128x16-unused", || {
+            instantiate_modules(&unused_instances, 0)
+        }),
+        Case::new("instantiate/128x16-one-each", || {
+            instantiate_modules(&used_instances, 16)
         }),
         Case::new("normalize/beta256", || beta_chain(256)),
         Case::new("evaluate/countdown32", || {

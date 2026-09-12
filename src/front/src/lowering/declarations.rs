@@ -6,7 +6,8 @@ impl Lowerer<'_> {
         let mut pending = vec![(id, false)];
         let mut active = HashSet::new();
         while let Some((id, ready)) = pending.pop() {
-            if self.kernel.definition(id).is_some() || self.checked_templates.contains(&id) {
+            if self.kernel.definition(id).is_some() || self.kernel.definition_template(id).is_some()
+            {
                 continue;
             }
             if ready {
@@ -33,7 +34,7 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
-        if self.kernel.definition(id).is_some() || self.checked_templates.contains(&id) {
+        if self.kernel.definition(id).is_some() || self.kernel.definition_template(id).is_some() {
             return Ok(());
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
@@ -94,21 +95,15 @@ impl Lowerer<'_> {
             }
         };
         if !parameters.is_empty() {
-            let mut checker = kernel::check::Checker::new(self.kernel, context.clone());
-            checker.check_context()?;
-            checker.check(body, classifier)?;
-            if let Some(certificate) = certified_reflection {
-                let ke::Classifier::Expression(ty) = classifier else {
-                    return Err("expected Program classifier".into());
-                };
-                let reflected_context = kernel::reflection::reflect_context(self.kernel, &context)?;
-                let reflected_ty = kernel::reflection::reflect(self.kernel, ty)?;
-                kernel::check::Checker::new(self.kernel, reflected_context)
-                    .check(certificate, reflected_ty)?;
-                kernel::reflection::reflect_with_certificate(self.kernel, body, certificate)?;
-            }
-            self.checked_templates.insert(id);
-            return Ok(());
+            return self.kernel.register_definition_template(
+                id,
+                ke::Definition {
+                    body,
+                    classifier,
+                    context,
+                    certified_reflection,
+                },
+            );
         }
         self.kernel
             .register_definition(

@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use std::{
+    cell::OnceCell,
     collections::{HashMap, HashSet},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -44,6 +45,34 @@ pub(crate) struct MacroInstantiation<'a> {
     pub definition_ids: &'a HashMap<DefId, DefId>,
     pub inductive_ids: &'a HashMap<InductiveId, InductiveId>,
     pub program_inductive_ids: &'a HashMap<ProgramInductiveId, ProgramInductiveId>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct OwnedMacroInstantiation {
+    module_ids: HashMap<ModuleId, ModuleId>,
+    substitutions: Vec<(ModuleParamId, Exp)>,
+    definition_ids: HashMap<DefId, DefId>,
+    inductive_ids: HashMap<InductiveId, InductiveId>,
+    program_inductive_ids: HashMap<ProgramInductiveId, ProgramInductiveId>,
+}
+
+impl From<&MacroInstantiation<'_>> for OwnedMacroInstantiation {
+    fn from(value: &MacroInstantiation<'_>) -> Self {
+        Self {
+            module_ids: value.module_ids.clone(),
+            substitutions: value.substitutions.to_vec(),
+            definition_ids: value.definition_ids.clone(),
+            inductive_ids: value.inductive_ids.clone(),
+            program_inductive_ids: value.program_inductive_ids.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct LazyModuleMacroScope {
+    source: ModuleId,
+    remapping: OwnedMacroInstantiation,
+    materialized: OnceCell<ModuleMacroScope>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1023,67 +1052,41 @@ fn prepare_template(
 }
 
 impl ModuleManager {
+    fn macro_scope<'a>(&'a self, env: &CrateEnv, module: ModuleId) -> Option<&'a ModuleMacroScope> {
+        if let Some(scope) = self.macro_scopes.get(&module) {
+            return Some(scope);
+        }
+        let lazy = self.lazy_macro_scopes.get(&module)?;
+        Some(lazy.materialized.get_or_init(|| {
+            let source = self
+                .macro_scope(env, lazy.source)
+                .cloned()
+                .unwrap_or_default();
+            self.materialized_macro_scopes
+                .set(self.materialized_macro_scopes.get() + 1);
+            remap_macro_scope(source, env, &lazy.remapping)
+        }))
+    }
+
     pub(crate) fn materialize_macros(
         &mut self,
-        env: &CrateEnv,
+        _env: &CrateEnv,
         source: ModuleId,
         materialized: ModuleId,
         remapping: &MacroInstantiation<'_>,
     ) {
-        let Some(source_scope) = self.macro_scopes.get(&source).cloned() else {
+        if !self.macro_scopes.contains_key(&source) && !self.lazy_macro_scopes.contains_key(&source)
+        {
             return;
-        };
-        let remap = |mut definition: MacroDefinition| {
-            walk_sexp_mut(&mut definition.template, &mut |node| match node {
-                SExp::AccessPath {
-                    access: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::IndElim {
-                    path: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::IndElimPrim {
-                    path: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::ProgramCase {
-                    path: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::RecordTypeCtor {
-                    access: LocalAccess::Resolved { module, .. },
-                    ..
-                } => {
-                    if let Some(remapped) = remapping.module_ids.get(module) {
-                        *module = *remapped;
-                    }
-                }
-                SExp::MathMacro { scope, .. } | SExp::NamedMacro { scope, .. } => {
-                    if let Some(module) = scope
-                        && let Some(remapped) = remapping.module_ids.get(module)
-                    {
-                        *module = *remapped;
-                    }
-                }
-                SExp::ResolvedExp(exp) => {
-                    let substituted = exp_subst_map(env.arena(), *exp, remapping.substitutions);
-                    *exp = remap_all_global_ids(
-                        env.arena(),
-                        substituted,
-                        remapping.definition_ids,
-                        remapping.inductive_ids,
-                        remapping.program_inductive_ids,
-                    );
-                }
-                _ => {}
-            });
-            definition
-        };
-        let declared = source_scope.declared.into_iter().map(&remap).collect();
-        let used = source_scope.used.into_iter().map(remap).collect();
-        self.macro_scopes
-            .insert(materialized, ModuleMacroScope { declared, used });
+        }
+        self.lazy_macro_scopes.insert(
+            materialized,
+            LazyModuleMacroScope {
+                source,
+                remapping: remapping.into(),
+                materialized: OnceCell::new(),
+            },
+        );
     }
 
     pub fn register_macro(
@@ -1172,8 +1175,7 @@ impl ModuleManager {
             .ok_or_else(|| format!("Module import '{}' was not found", import_name.as_str()))?;
         let materialized = env.instance(instance).materialized;
         let definition = self
-            .macro_scopes
-            .get(&materialized)
+            .macro_scope(env, materialized)
             .and_then(|macros| {
                 macros
                     .declared
@@ -1214,13 +1216,18 @@ impl ModuleManager {
         let mut output = Vec::new();
         let mut current = Some(module);
         while let Some(module) = current {
-            if let Some(macros) = self.macro_scopes.get(&module) {
+            if let Some(macros) = self.macro_scope(env, module) {
                 output.extend(&macros.declared);
                 output.extend(&macros.used);
             }
             current = env.module(module).parent();
         }
         output
+    }
+
+    #[cfg(test)]
+    pub(crate) fn materialized_macro_scope_count(&self) -> usize {
+        self.materialized_macro_scopes.get()
     }
 
     pub fn expand_math_macro(
@@ -1301,6 +1308,64 @@ impl ModuleManager {
             ));
         }
         instantiate_template(definition, &captures, depth)
+    }
+}
+
+fn remap_macro_scope(
+    source: ModuleMacroScope,
+    env: &CrateEnv,
+    remapping: &OwnedMacroInstantiation,
+) -> ModuleMacroScope {
+    let remap = |mut definition: MacroDefinition| {
+        walk_sexp_mut(&mut definition.template, &mut |node| match node {
+            SExp::AccessPath {
+                access: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::IndElim {
+                path: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::IndElimPrim {
+                path: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::ProgramCase {
+                path: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::RecordTypeCtor {
+                access: LocalAccess::Resolved { module, .. },
+                ..
+            } => {
+                if let Some(remapped) = remapping.module_ids.get(module) {
+                    *module = *remapped;
+                }
+            }
+            SExp::MathMacro { scope, .. } | SExp::NamedMacro { scope, .. } => {
+                if let Some(module) = scope
+                    && let Some(remapped) = remapping.module_ids.get(module)
+                {
+                    *module = *remapped;
+                }
+            }
+            SExp::ResolvedExp(exp) => {
+                let substituted = exp_subst_map(env.arena(), *exp, &remapping.substitutions);
+                *exp = remap_all_global_ids(
+                    env.arena(),
+                    substituted,
+                    &remapping.definition_ids,
+                    &remapping.inductive_ids,
+                    &remapping.program_inductive_ids,
+                );
+            }
+            _ => {}
+        });
+        definition
+    };
+    ModuleMacroScope {
+        declared: source.declared.into_iter().map(&remap).collect(),
+        used: source.used.into_iter().map(remap).collect(),
     }
 }
 

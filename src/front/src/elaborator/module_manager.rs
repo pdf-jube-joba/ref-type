@@ -1,4 +1,4 @@
-use crate::macros::{MacroInstantiation, ModuleMacroScope};
+use crate::macros::{LazyModuleMacroScope, MacroInstantiation, ModuleMacroScope};
 use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
 use crate::raw::derivation::CheckSession;
 #[cfg(test)]
@@ -17,7 +17,7 @@ use crate::syntax::{
     Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
     ModItemRecord,
 };
-use std::collections::HashMap;
+use std::{cell::Cell, collections::HashMap};
 
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
@@ -34,6 +34,8 @@ pub(crate) enum ItemAccessResult {
 pub(crate) struct ModuleManager {
     current: ModuleId,
     pub(crate) macro_scopes: HashMap<ModuleId, ModuleMacroScope>,
+    pub(crate) lazy_macro_scopes: HashMap<ModuleId, LazyModuleMacroScope>,
+    pub(crate) materialized_macro_scopes: Cell<usize>,
     pub(crate) next_macro_order: u64,
 }
 
@@ -48,6 +50,8 @@ impl ModuleManager {
         Self {
             current: ModuleId(0),
             macro_scopes: HashMap::new(),
+            lazy_macro_scopes: HashMap::new(),
+            materialized_macro_scopes: Cell::new(0),
             next_macro_order: 0,
         }
     }
@@ -930,6 +934,48 @@ mod tests {
         assert_eq!(env.materialization_stats().definitions, 1);
         let _ = env.resolve_definition(used).unwrap();
         assert_eq!(env.materialization_stats().definitions, 1);
+    }
+
+    #[test]
+    fn instance_macro_templates_are_remapped_only_when_expanded() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![])
+            .unwrap();
+        let proposition = env.arena().sort(Sort::Prop);
+        manager
+            .register_macro(
+                &env,
+                Identifier("answer".into()),
+                crate::macros::MacroKind::Named,
+                vec![],
+                crate::syntax::SExp::ResolvedExp(proposition),
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let instance = manager
+            .instantiate_module(
+                &mut env,
+                &mut Vec::new(),
+                None,
+                vec![(Identifier("Source".into()), vec![])],
+            )
+            .unwrap();
+        assert_eq!(manager.materialized_macro_scope_count(), 0);
+
+        manager
+            .expand_named_macro(
+                &env,
+                env.instance(instance).materialized,
+                &Identifier("answer".into()),
+                &[],
+                0,
+                None,
+            )
+            .unwrap();
+        assert_eq!(manager.materialized_macro_scope_count(), 1);
     }
 
     #[test]

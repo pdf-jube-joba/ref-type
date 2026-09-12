@@ -63,6 +63,35 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
     );
     assert_eq!(shift(&a, shared, 0, 0).unwrap(), shared.into());
 }
+
+#[test]
+fn checked_definition_templates_are_retained_without_becoming_constants() {
+    let mut env = Environment::new();
+    let kind = sk(env.arena(), 0);
+    let body = env.arena().alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let id = DefId {
+        module: ModuleId(0),
+        index: 7,
+    };
+    let template = Definition {
+        context: vec![Binding {
+            var: SymbolId(1),
+            classifier: kind.into(),
+        }],
+        body: body.into(),
+        classifier: kind.into(),
+        certified_reflection: None,
+    };
+    env.register_definition_template(id, template.clone())
+        .unwrap();
+    assert!(env.definition(id).is_none());
+    assert_eq!(env.definition_template(id).unwrap().context.len(), 1);
+    assert!(env.register_definition_template(id, template).is_err());
+}
+
 #[test]
 fn polymorphic_program_identity_and_reflection() {
     let env = Environment::new();

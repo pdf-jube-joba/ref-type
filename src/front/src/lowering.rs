@@ -11,7 +11,6 @@ pub(crate) struct Lowerer<'a> {
     raw: &'a raw::environment::CrateEnv,
     pub(crate) kernel: &'a mut ke::Environment,
     active: HashSet<InductiveId>,
-    checked_templates: HashSet<DefId>,
     active_program: HashSet<ProgramInductiveId>,
     cache: HashMap<(Exp, Vec<Exp>, ModuleId), s::Expression>,
 }
@@ -25,7 +24,6 @@ impl<'a> Lowerer<'a> {
             raw,
             kernel,
             active: HashSet::new(),
-            checked_templates: HashSet::new(),
             active_program: HashSet::new(),
             cache: HashMap::new(),
         }

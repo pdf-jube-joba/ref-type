@@ -23,6 +23,8 @@ cargo bench -p cli --bench performance -- --baseline before --save-baseline afte
 | `check/library` | ライブラリの elaboration・型検査・定義登録 | モジュール読み込み・構文解析 |
 | `pipeline/library` | ライブラリの読み込みから elaboration まで | なし |
 | `pipeline/mccarthy91` | McCarthy 91 の読み込み・elaboration・評価 | なし |
+| `instantiate/128x16-unused` | 128 定義の module を16回 import し、項を使わない elaboration | 入力の構文解析 |
+| `instantiate/128x16-one-each` | 各 instance から1定義だけ使う elaboration | 入力の構文解析 |
 | `normalize/beta256` | Set/Prop の恒等関数の 256 段の β 簡約 | arena と入力項の構築 |
 | `evaluate/countdown32` | Program の `Prun`、パターンマッチ、定義展開による 32 からのカウントダウン | 構文解析・elaboration・入力環境の構築 |
 | `evaluate/countdown128` | 同じ計算を 128 から実行 | 同上 |

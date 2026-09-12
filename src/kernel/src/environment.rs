@@ -49,6 +49,7 @@ pub struct Environment {
         std::cell::RefCell<HashMap<(Expression, Vec<Expression>), Classifier>>,
     pub(crate) head_cache: std::cell::RefCell<HashMap<Expression, Expression>>,
     pub(crate) definitions: HashMap<DefId, Definition>,
+    pub(crate) definition_templates: HashMap<DefId, Definition>,
     pub(crate) parameters: HashMap<ModuleParamId, Binding>,
     pub(crate) inductives: HashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: HashMap<ProgramInductiveId, ProgramDatatype>,
@@ -67,6 +68,10 @@ impl Environment {
         self.definitions.get(&id)
     }
 
+    pub fn definition_template(&self, id: DefId) -> Option<&Definition> {
+        self.definition_templates.get(&id)
+    }
+
     pub fn parameter(&self, id: ModuleParamId) -> Option<&Binding> {
         self.parameters.get(&id)
     }
@@ -80,7 +85,7 @@ impl Environment {
     }
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
     pub fn register_definition(&mut self, id: DefId, definition: Definition) -> Result<(), String> {
-        if self.definitions.contains_key(&id) {
+        if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
             return Err("duplicate definition".into());
         }
         if !super::calculus::locally_closed(&self.arena, definition.body)
@@ -108,6 +113,32 @@ impl Environment {
         // Inference also depends on those cached conversion results.
         self.head_cache.borrow_mut().clear();
         self.inference_cache.borrow_mut().clear();
+        Ok(())
+    }
+
+    /// Check and retain an open definition whose local context is supplied by
+    /// the caller. Templates are never exposed as closed named constants.
+    pub fn register_definition_template(
+        &mut self,
+        id: DefId,
+        definition: Definition,
+    ) -> Result<(), String> {
+        if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
+            return Err("duplicate definition template".into());
+        }
+        let mut checker = super::check::Checker::new(self, definition.context.clone());
+        checker.check_context()?;
+        checker.check(definition.body, definition.classifier)?;
+        if let Some(certificate) = definition.certified_reflection {
+            let Classifier::Expression(ty) = definition.classifier else {
+                return Err("only Program terms have reflection certificates".into());
+            };
+            let context = super::reflection::reflect_context(self, &definition.context)?;
+            let ty = super::reflection::reflect(self, ty)?;
+            super::check::Checker::new(self, context).check(certificate, ty)?;
+            super::reflection::reflect_with_certificate(self, definition.body, certificate)?;
+        }
+        self.definition_templates.insert(id, definition);
         Ok(())
     }
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
