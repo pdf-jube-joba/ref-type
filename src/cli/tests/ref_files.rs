@@ -8,8 +8,8 @@ use std::{
 };
 
 const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
-// These projects elaborate and independently check the entire library. Allow
-// for both debug-build processes running concurrently in the test harness.
+// This project elaborates and checks the entire library. Allow enough time for
+// the debug-build process when it runs concurrently with the other test cases.
 const LIBRARY_TIMEOUT: Duration = Duration::from_secs(90);
 
 fn workspace_root() -> PathBuf {
@@ -192,22 +192,7 @@ fn ng_ref_files_fail() {
 }
 
 #[test]
-fn library_root_succeeds() {
-    let workspace = workspace_root();
-    let path = workspace.join("lib/root.ref");
-    let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
-        .unwrap_or_else(|error| panic!("{error}"));
-
-    assert!(
-        output.status.success(),
-        "{} was expected to succeed\n{}",
-        path.display(),
-        output_details(&output),
-    );
-}
-
-#[test]
-fn library_arithmetic_examples_succeed() {
+fn library_examples_succeed() {
     let workspace = workspace_root();
     let path = workspace.join("lib/tests.ref");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
