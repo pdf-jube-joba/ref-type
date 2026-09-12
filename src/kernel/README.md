@@ -57,6 +57,13 @@ kind formation の右辺には `Classifier::Upper` を使う。
 `register_datatype` は parameter kind・field level・strict positivity を検査し、
 Set の鏡像を生成する。鏡像が既にある場合は宣言との一致を検査する。
 
+front の module instance は、生成時には仮想名前空間と安定した宣言 ID だけを確保する。
+定義・帰納型・datatype は参照時に module 引数の代入と global ID の付け替えを行い、
+成功した結果を instance ごとにキャッシュする。lowering の全件走査は実体化済みの
+instance 宣言だけを対象とするが、元 module の宣言は未使用でも従来どおり全件を検査する。
+実体化した宣言も kernel の通常の登録・検査 API を通り、instance が異なれば同じ引数でも
+帰納型 ID は共有しない。
+
 Program の型演算子と多相 computation は value/computation 両方の kind を量化できる。
 Program type/kind は value に依存できない。level は non-cumulative である。
 

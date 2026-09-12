@@ -8,7 +8,9 @@ use std::collections::HashSet;
 
 pub(crate) struct GlobalDependencies {
     pub definitions: Vec<DefId>,
+    #[allow(dead_code)]
     pub inductives: HashSet<InductiveId>,
+    #[allow(dead_code)]
     pub datatypes: HashSet<ProgramInductiveId>,
 }
 

@@ -311,6 +311,28 @@ fn child_can_be_instantiated_from_an_existing_generative_parent() {
 }
 
 #[test]
+fn final_lowering_does_not_force_unused_instance_items() {
+    let source = r#"
+        \module Source(A: \Set(0)) {
+            \definition first: \Set(0) := A;
+            \definition second: \Set(0) := A;
+        }
+        \module Consumer(A: \Set(0)) {
+            \import \root.Source(A := A) \as source;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    for module in &modules {
+        environment.add_new_module_to_root(module).unwrap();
+    }
+    assert_eq!(
+        environment.crate_env().materialization_stats().definitions,
+        0
+    );
+}
+
+#[test]
 fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
     let source = r#"
         \module Base(A: \Set(0), value: A) {

@@ -9,7 +9,10 @@ use crate::raw::{
     program::{ComputationTerm, ComputationType, ValueTerm, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
 };
-use std::collections::HashMap;
+use std::{
+    cell::{Cell, OnceCell, RefCell},
+    collections::{HashMap, HashSet},
+};
 
 #[derive(Debug, Clone)]
 pub enum DefinedConstant {
@@ -138,10 +141,39 @@ pub(crate) struct InstanceRemapping {
     pub program_inductive_ids: HashMap<ProgramInductiveId, ProgramInductiveId>,
 }
 
+#[derive(Debug, Clone)]
+struct LazyDefinition {
+    source: DefId,
+    substitutions: Vec<(ModuleParamId, ModuleArgument)>,
+    reflected_substitutions: Vec<(ModuleParamId, Exp)>,
+    remapping: InstanceRemapping,
+}
+
+#[derive(Debug, Clone)]
+struct LazyInductive {
+    source: InductiveId,
+    substitutions: Vec<(ModuleParamId, Exp)>,
+    remapping: InstanceRemapping,
+}
+
+#[derive(Debug, Clone)]
+struct LazyProgramInductive {
+    source: ProgramInductiveId,
+    substitutions: Vec<(ModuleParamId, ModuleArgument)>,
+    remapping: InstanceRemapping,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefinitionOrigin {
     pub instance: ModuleInstanceId,
     pub source: DefId,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MaterializationStats {
+    pub definitions: usize,
+    pub inductives: usize,
+    pub datatypes: usize,
 }
 
 #[derive(Debug)]
@@ -150,9 +182,9 @@ pub struct ModuleEnv {
     parent: Option<ModuleId>,
     children: Vec<ModuleId>,
     parameters: Vec<ModuleParameter>,
-    definitions: Vec<DefinedConstant>,
-    inductives: Vec<Option<InductiveTypeSpecs>>,
-    program_inductives: Vec<Option<ProgramInductiveTypeSpecs>>,
+    definitions: Vec<OnceCell<DefinedConstant>>,
+    inductives: Vec<OnceCell<InductiveTypeSpecs>>,
+    program_inductives: Vec<OnceCell<ProgramInductiveTypeSpecs>>,
     items: Vec<ModuleItem>,
     names: HashMap<String, usize>,
     instances: Vec<ModuleInstance>,
@@ -222,6 +254,14 @@ pub struct CrateEnv {
     materialized_instances: HashMap<ModuleId, ModuleInstanceId>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
+    lazy_definitions: HashMap<DefId, LazyDefinition>,
+    lazy_inductives: HashMap<InductiveId, LazyInductive>,
+    lazy_program_inductives: HashMap<ProgramInductiveId, LazyProgramInductive>,
+    materializing_definitions: RefCell<HashSet<DefId>>,
+    failed_definitions: RefCell<HashMap<DefId, String>>,
+    materialized_definitions: Cell<usize>,
+    materialized_inductives: Cell<usize>,
+    materialized_datatypes: Cell<usize>,
 }
 
 impl Default for CrateEnv {
@@ -247,6 +287,14 @@ impl CrateEnv {
             materialized_instances: HashMap::new(),
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
+            lazy_definitions: HashMap::new(),
+            lazy_inductives: HashMap::new(),
+            lazy_program_inductives: HashMap::new(),
+            materializing_definitions: RefCell::new(HashSet::new()),
+            failed_definitions: RefCell::new(HashMap::new()),
+            materialized_definitions: Cell::new(0),
+            materialized_inductives: Cell::new(0),
+            materialized_datatypes: Cell::new(0),
         }
     }
 
@@ -378,7 +426,7 @@ impl CrateEnv {
         let module_env = self.module_mut(module);
         let index = u32::try_from(module_env.definitions.len())
             .expect("module definition table exceeded u32::MAX");
-        module_env.definitions.push(definition);
+        module_env.definitions.push(OnceCell::from(definition));
         let id = DefId { module, index };
         self.definition_parameters.insert(id, parameters);
         tracing::debug!(target: "ref_type::environment", ?id, "checked definition registered");
@@ -493,7 +541,186 @@ impl CrateEnv {
     }
 
     pub fn definition(&self, id: DefId) -> &DefinedConstant {
-        &self.module(id.module).definitions[id.index as usize]
+        self.resolve_definition(id)
+            .unwrap_or_else(|error| panic!("failed to materialize definition {id:?}: {error}"))
+    }
+
+    pub fn resolve_definition(&self, id: DefId) -> Result<&DefinedConstant, String> {
+        let slot = &self.module(id.module).definitions[id.index as usize];
+        if let Some(definition) = slot.get() {
+            return Ok(definition);
+        }
+        if let Some(error) = self.failed_definitions.borrow().get(&id) {
+            return Err(error.clone());
+        }
+        let lazy = self
+            .lazy_definitions
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| format!("reserved definition {id:?} was used before definition"))?;
+        if !self.materializing_definitions.borrow_mut().insert(id) {
+            return Err(format!("cyclic lazy definition dependency at {id:?}"));
+        }
+        let result: Result<&DefinedConstant, String> = (|| {
+            let source = self.resolve_definition(lazy.source)?.clone();
+            let definition = match source {
+                DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
+                    ty: crate::raw::calculus::remap_all_global_ids(
+                        self.arena(),
+                        crate::raw::calculus::exp_subst_map(
+                            self.arena(),
+                            ty,
+                            &lazy.reflected_substitutions,
+                        ),
+                        &lazy.remapping.definition_ids,
+                        &lazy.remapping.inductive_ids,
+                        &lazy.remapping.program_inductive_ids,
+                    ),
+                    body: crate::raw::calculus::remap_all_global_ids(
+                        self.arena(),
+                        crate::raw::calculus::exp_subst_map(
+                            self.arena(),
+                            body,
+                            &lazy.reflected_substitutions,
+                        ),
+                        &lazy.remapping.definition_ids,
+                        &lazy.remapping.inductive_ids,
+                        &lazy.remapping.program_inductive_ids,
+                    ),
+                },
+                DefinedConstant::ProgramValue {
+                    ty,
+                    body,
+                    certified_reflection,
+                } => DefinedConstant::ProgramValue {
+                    ty: crate::raw::program_calculus::remap_value_type_global_ids(
+                        self.arena(),
+                        crate::raw::program_calculus::subst_value_type_module_params(
+                            self.arena(),
+                            ty,
+                            &lazy.substitutions,
+                        ),
+                        &lazy.remapping.definition_ids,
+                        &lazy.remapping.program_inductive_ids,
+                    ),
+                    body: crate::raw::program_calculus::remap_value_global_ids(
+                        self.arena(),
+                        crate::raw::program_calculus::subst_value_module_params(
+                            self.arena(),
+                            body,
+                            &lazy.substitutions,
+                        ),
+                        &lazy.remapping.definition_ids,
+                        &lazy.remapping.program_inductive_ids,
+                    ),
+                    certified_reflection: certified_reflection.map(|term| {
+                        crate::raw::calculus::remap_all_global_ids(
+                            self.arena(),
+                            crate::raw::calculus::exp_subst_map(
+                                self.arena(),
+                                term,
+                                &lazy.reflected_substitutions,
+                            ),
+                            &lazy.remapping.definition_ids,
+                            &lazy.remapping.inductive_ids,
+                            &lazy.remapping.program_inductive_ids,
+                        )
+                    }),
+                },
+                DefinedConstant::ProgramComputation {
+                    ty,
+                    body,
+                    certified_reflection,
+                } => DefinedConstant::ProgramComputation {
+                    ty: crate::raw::program_calculus::remap_computation_type_global_ids(
+                        self.arena(),
+                        crate::raw::program_calculus::subst_computation_type_module_params(
+                            self.arena(),
+                            ty,
+                            &lazy.substitutions,
+                        ),
+                        &lazy.remapping.definition_ids,
+                        &lazy.remapping.program_inductive_ids,
+                    ),
+                    body: crate::raw::program_calculus::remap_computation_global_ids(
+                        self.arena(),
+                        crate::raw::program_calculus::subst_computation_module_params(
+                            self.arena(),
+                            body,
+                            &lazy.substitutions,
+                        ),
+                        &lazy.remapping.definition_ids,
+                        &lazy.remapping.program_inductive_ids,
+                    ),
+                    certified_reflection: certified_reflection.map(|term| {
+                        crate::raw::calculus::remap_all_global_ids(
+                            self.arena(),
+                            crate::raw::calculus::exp_subst_map(
+                                self.arena(),
+                                term,
+                                &lazy.reflected_substitutions,
+                            ),
+                            &lazy.remapping.definition_ids,
+                            &lazy.remapping.inductive_ids,
+                            &lazy.remapping.program_inductive_ids,
+                        )
+                    }),
+                },
+            };
+            self.check_definition(id.module, &definition, self.definition_parameters(id))?;
+            slot.set(definition)
+                .map_err(|_| format!("definition {id:?} was materialized twice"))?;
+            Ok(slot.get().expect("definition was just initialized"))
+        })();
+        self.materializing_definitions.borrow_mut().remove(&id);
+        match &result {
+            Ok(_) => self
+                .materialized_definitions
+                .set(self.materialized_definitions.get() + 1),
+            Err(error) => {
+                self.failed_definitions
+                    .borrow_mut()
+                    .insert(id, error.clone());
+            }
+        }
+        result
+    }
+
+    pub(crate) fn reserve_lazy_definition(
+        &mut self,
+        module: ModuleId,
+        source: DefId,
+        substitutions: Vec<(ModuleParamId, ModuleArgument)>,
+        reflected_substitutions: Vec<(ModuleParamId, Exp)>,
+    ) -> DefId {
+        let parameters = self.definition_parameters(source).to_vec();
+        let index = self.module(module).definitions.len() as u32;
+        self.module_mut(module).definitions.push(OnceCell::new());
+        let id = DefId { module, index };
+        if !parameters.is_empty() {
+            self.definition_parameters.insert(id, parameters);
+        }
+        self.lazy_definitions.insert(
+            id,
+            LazyDefinition {
+                source,
+                substitutions,
+                reflected_substitutions,
+                remapping: InstanceRemapping::default(),
+            },
+        );
+        id
+    }
+
+    pub(crate) fn set_lazy_definition_remapping(
+        &mut self,
+        id: DefId,
+        remapping: InstanceRemapping,
+    ) {
+        self.lazy_definitions
+            .get_mut(&id)
+            .expect("lazy definition")
+            .remapping = remapping;
     }
 
     #[cfg(test)]
@@ -511,27 +738,75 @@ impl CrateEnv {
         let module_env = self.module_mut(module);
         let index = u32::try_from(module_env.inductives.len())
             .expect("module inductive table exceeded u32::MAX");
-        module_env.inductives.push(None);
+        module_env.inductives.push(OnceCell::new());
         InductiveId { module, index }
     }
 
     pub fn define_inductive(&mut self, id: InductiveId, inductive: InductiveTypeSpecs) {
-        let slot = &mut self.module_mut(id.module).inductives[id.index as usize];
-        assert!(slot.is_none(), "inductive ID was already defined");
-        *slot = Some(inductive);
+        let slot = &self.module(id.module).inductives[id.index as usize];
+        assert!(
+            slot.set(inductive).is_ok(),
+            "inductive ID was already defined"
+        );
     }
 
     pub fn inductive(&self, id: InductiveId) -> &InductiveTypeSpecs {
-        self.module(id.module).inductives[id.index as usize]
-            .as_ref()
-            .expect("reserved inductive ID was used before definition")
+        let slot = &self.module(id.module).inductives[id.index as usize];
+        if slot.get().is_none() {
+            let lazy = self
+                .lazy_inductives
+                .get(&id)
+                .unwrap_or_else(|| panic!("reserved inductive ID was used before definition"));
+            let spec = self
+                .inductive(lazy.source)
+                .clone()
+                .instantiate(self.arena(), &lazy.substitutions)
+                .remap_global_ids(
+                    self.arena(),
+                    &lazy.remapping.definition_ids,
+                    &lazy.remapping.inductive_ids,
+                );
+            let _ = slot.set(spec);
+            self.materialized_inductives
+                .set(self.materialized_inductives.get() + 1);
+        }
+        slot.get().expect("lazy inductive initialized")
+    }
+
+    pub(crate) fn reserve_lazy_inductive(
+        &mut self,
+        module: ModuleId,
+        source: InductiveId,
+        substitutions: Vec<(ModuleParamId, Exp)>,
+    ) -> InductiveId {
+        let id = self.reserve_inductive(module);
+        self.lazy_inductives.insert(
+            id,
+            LazyInductive {
+                source,
+                substitutions,
+                remapping: InstanceRemapping::default(),
+            },
+        );
+        id
+    }
+
+    pub(crate) fn set_lazy_inductive_remapping(
+        &mut self,
+        id: InductiveId,
+        remapping: InstanceRemapping,
+    ) {
+        self.lazy_inductives
+            .get_mut(&id)
+            .expect("lazy inductive")
+            .remapping = remapping;
     }
 
     pub fn reserve_program_inductive(&mut self, module: ModuleId) -> ProgramInductiveId {
         let module_env = self.module_mut(module);
         let index = u32::try_from(module_env.program_inductives.len())
             .expect("module Program inductive table exceeded u32::MAX");
-        module_env.program_inductives.push(None);
+        module_env.program_inductives.push(OnceCell::new());
         ProgramInductiveId { module, index }
     }
 
@@ -540,15 +815,63 @@ impl CrateEnv {
         id: ProgramInductiveId,
         inductive: ProgramInductiveTypeSpecs,
     ) {
-        let slot = &mut self.module_mut(id.module).program_inductives[id.index as usize];
-        assert!(slot.is_none(), "Program inductive ID was already defined");
-        *slot = Some(inductive);
+        let slot = &self.module(id.module).program_inductives[id.index as usize];
+        assert!(
+            slot.set(inductive).is_ok(),
+            "Program inductive ID was already defined"
+        );
     }
 
     pub fn program_inductive(&self, id: ProgramInductiveId) -> &ProgramInductiveTypeSpecs {
-        self.module(id.module).program_inductives[id.index as usize]
-            .as_ref()
-            .expect("reserved Program inductive ID was used before definition")
+        let slot = &self.module(id.module).program_inductives[id.index as usize];
+        if slot.get().is_none() {
+            let lazy = self.lazy_program_inductives.get(&id).unwrap_or_else(|| {
+                panic!("reserved Program inductive ID was used before definition")
+            });
+            let spec = self
+                .program_inductive(lazy.source)
+                .clone()
+                .instantiate(self.arena(), &lazy.substitutions)
+                .remap_global_ids(
+                    self.arena(),
+                    &lazy.remapping.definition_ids,
+                    &lazy.remapping.inductive_ids,
+                    &lazy.remapping.program_inductive_ids,
+                );
+            let _ = slot.set(spec);
+            self.materialized_datatypes
+                .set(self.materialized_datatypes.get() + 1);
+        }
+        slot.get().expect("lazy Program inductive initialized")
+    }
+
+    pub(crate) fn reserve_lazy_program_inductive(
+        &mut self,
+        module: ModuleId,
+        source: ProgramInductiveId,
+        substitutions: Vec<(ModuleParamId, ModuleArgument)>,
+    ) -> ProgramInductiveId {
+        let id = self.reserve_program_inductive(module);
+        self.lazy_program_inductives.insert(
+            id,
+            LazyProgramInductive {
+                source,
+                substitutions,
+                remapping: InstanceRemapping::default(),
+            },
+        );
+        id
+    }
+
+    pub(crate) fn set_lazy_program_inductive_remapping(
+        &mut self,
+        id: ProgramInductiveId,
+        remapping: InstanceRemapping,
+    ) {
+        self.lazy_program_inductives
+            .get_mut(&id)
+            .expect("lazy Program inductive")
+            .remapping = remapping;
     }
 
     pub fn add_instance(
@@ -689,6 +1012,32 @@ impl CrateEnv {
             matches!(item, ModuleItem::Record { inductive: candidate, .. } if *candidate == inductive)
         })
     }
+
+    pub fn materialization_stats(&self) -> MaterializationStats {
+        MaterializationStats {
+            definitions: self.materialized_definitions.get(),
+            inductives: self.materialized_inductives.get(),
+            datatypes: self.materialized_datatypes.get(),
+        }
+    }
+
+    pub fn is_definition_materialized(&self, id: DefId) -> bool {
+        self.module(id.module).definitions[id.index as usize]
+            .get()
+            .is_some()
+    }
+
+    pub fn is_inductive_materialized(&self, id: InductiveId) -> bool {
+        self.module(id.module).inductives[id.index as usize]
+            .get()
+            .is_some()
+    }
+
+    pub fn is_program_inductive_materialized(&self, id: ProgramInductiveId) -> bool {
+        self.module(id.module).program_inductives[id.index as usize]
+            .get()
+            .is_some()
+    }
 }
 
 impl CrateEnv {
@@ -786,10 +1135,16 @@ impl CrateEnv {
             .iter()
             .enumerate()
             .flat_map(|(m, module)| {
-                (0..module.definitions.len()).map(move |i| DefId {
-                    module: ModuleId(m as u32),
-                    index: i as u32,
-                })
+                module
+                    .definitions
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(i, slot)| {
+                        slot.get().map(|_| DefId {
+                            module: ModuleId(m as u32),
+                            index: i as u32,
+                        })
+                    })
             })
             .collect()
     }
@@ -804,7 +1159,7 @@ impl CrateEnv {
                     .iter()
                     .enumerate()
                     .filter_map(move |(i, x)| {
-                        x.as_ref().map(|_| InductiveId {
+                        x.get().map(|_| InductiveId {
                             module: ModuleId(m as u32),
                             index: i as u32,
                         })
@@ -823,7 +1178,7 @@ impl CrateEnv {
                     .iter()
                     .enumerate()
                     .filter_map(move |(i, x)| {
-                        x.as_ref().map(|_| ProgramInductiveId {
+                        x.get().map(|_| ProgramInductiveId {
                             module: ModuleId(m as u32),
                             index: i as u32,
                         })

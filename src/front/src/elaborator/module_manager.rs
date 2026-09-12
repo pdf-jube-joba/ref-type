@@ -10,9 +10,9 @@ use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
 use crate::raw::ids::{
     DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId,
 };
+#[cfg(test)]
 use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
-use crate::raw::program_inductive::ProgramInductiveTypeSpecs;
 use crate::syntax::{
     Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
     ModItemRecord,
@@ -28,203 +28,6 @@ pub(crate) enum ItemAccessResult {
     Expression(Exp),
     ProgramTypeParameter(ModuleParamId),
     ProgramValueParameter(ModuleParamId),
-}
-
-enum PendingItem {
-    Definition(String, DefId, DefId, DefinedConstant),
-    Inductive(
-        String,
-        Vec<String>,
-        InductiveId,
-        InductiveTypeSpecs,
-        Vec<PendingAssociatedDefinition>,
-    ),
-    Record(
-        String,
-        InductiveId,
-        InductiveTypeSpecs,
-        Vec<PendingAssociatedDefinition>,
-    ),
-    ProgramInductive(
-        Option<Vec<String>>,
-        String,
-        Vec<String>,
-        ProgramInductiveId,
-        InductiveId,
-        ProgramInductiveTypeSpecs,
-        InductiveTypeSpecs,
-        Vec<PendingAssociatedDefinition>,
-    ),
-}
-
-type PendingAssociatedDefinition = (String, DefId, DefId, DefinedConstant);
-
-fn instantiate_associated_definitions(
-    env: &CrateEnv,
-    definitions: Vec<(String, DefId)>,
-    substitutions: &[(ModuleParamId, ModuleArgument)],
-    reflected_substitutions: &[(ModuleParamId, Exp)],
-) -> Vec<PendingAssociatedDefinition> {
-    definitions
-        .into_iter()
-        .map(|(name, source_id)| {
-            let value = env.definition(source_id).clone();
-            let origin = env
-                .definition_origin(source_id)
-                .map_or(source_id, |origin| origin.source);
-            let value = match value {
-                DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                    ty: exp_subst_map(env.arena(), ty, reflected_substitutions),
-                    body: exp_subst_map(env.arena(), body, reflected_substitutions),
-                },
-                DefinedConstant::ProgramValue {
-                    ty,
-                    body,
-                    certified_reflection,
-                } => DefinedConstant::ProgramValue {
-                    ty: crate::raw::program_calculus::subst_value_type_module_params(
-                        env.arena(),
-                        ty,
-                        substitutions,
-                    ),
-                    body: crate::raw::program_calculus::subst_value_module_params(
-                        env.arena(),
-                        body,
-                        substitutions,
-                    ),
-                    certified_reflection: certified_reflection
-                        .map(|term| exp_subst_map(env.arena(), term, reflected_substitutions)),
-                },
-                DefinedConstant::ProgramComputation {
-                    ty,
-                    body,
-                    certified_reflection,
-                } => DefinedConstant::ProgramComputation {
-                    ty: crate::raw::program_calculus::subst_computation_type_module_params(
-                        env.arena(),
-                        ty,
-                        substitutions,
-                    ),
-                    body: crate::raw::program_calculus::subst_computation_module_params(
-                        env.arena(),
-                        body,
-                        substitutions,
-                    ),
-                    certified_reflection: certified_reflection
-                        .map(|term| exp_subst_map(env.arena(), term, reflected_substitutions)),
-                },
-            };
-            (name, source_id, origin, value)
-        })
-        .collect()
-}
-
-#[allow(clippy::too_many_arguments)]
-fn materialize_associated_definitions(
-    env: &mut CrateEnv,
-    module: ModuleId,
-    source: ModuleId,
-    pending: &mut Vec<(String, PendingAssociatedDefinition)>,
-    definition_ids: &mut HashMap<DefId, DefId>,
-    inductive_ids: &HashMap<InductiveId, InductiveId>,
-    program_inductive_ids: &HashMap<ProgramInductiveId, ProgramInductiveId>,
-    definition_origins: &mut HashMap<DefId, DefId>,
-) -> Result<(), String> {
-    while let Some(index) = pending.iter().position(|(_, (_, _, _, definition))| {
-        let dependencies = crate::raw::dependencies::definition_dependencies(env, definition);
-        dependencies
-            .definitions
-            .iter()
-            .all(|id| id.module != source || definition_ids.contains_key(id))
-            && dependencies
-                .inductives
-                .iter()
-                .all(|id| id.module != source || inductive_ids.contains_key(id))
-            && dependencies
-                .datatypes
-                .iter()
-                .all(|id| id.module != source || program_inductive_ids.contains_key(id))
-    }) {
-        let (owner, (name, source_id, origin, definition)) = pending.remove(index);
-        let definition = match definition {
-            DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                ty: remap_all_global_ids(
-                    env.arena(),
-                    ty,
-                    definition_ids,
-                    inductive_ids,
-                    program_inductive_ids,
-                ),
-                body: remap_all_global_ids(
-                    env.arena(),
-                    body,
-                    definition_ids,
-                    inductive_ids,
-                    program_inductive_ids,
-                ),
-            },
-            DefinedConstant::ProgramValue {
-                ty,
-                body,
-                certified_reflection,
-            } => DefinedConstant::ProgramValue {
-                ty: crate::raw::program_calculus::remap_value_type_global_ids(
-                    env.arena(),
-                    ty,
-                    definition_ids,
-                    program_inductive_ids,
-                ),
-                body: crate::raw::program_calculus::remap_value_global_ids(
-                    env.arena(),
-                    body,
-                    definition_ids,
-                    program_inductive_ids,
-                ),
-                certified_reflection: certified_reflection.map(|term| {
-                    remap_all_global_ids(
-                        env.arena(),
-                        term,
-                        definition_ids,
-                        inductive_ids,
-                        program_inductive_ids,
-                    )
-                }),
-            },
-            DefinedConstant::ProgramComputation {
-                ty,
-                body,
-                certified_reflection,
-            } => DefinedConstant::ProgramComputation {
-                ty: crate::raw::program_calculus::remap_computation_type_global_ids(
-                    env.arena(),
-                    ty,
-                    definition_ids,
-                    program_inductive_ids,
-                ),
-                body: crate::raw::program_calculus::remap_computation_global_ids(
-                    env.arena(),
-                    body,
-                    definition_ids,
-                    program_inductive_ids,
-                ),
-                certified_reflection: certified_reflection.map(|term| {
-                    remap_all_global_ids(
-                        env.arena(),
-                        term,
-                        definition_ids,
-                        inductive_ids,
-                        program_inductive_ids,
-                    )
-                }),
-            },
-        };
-        let parameters = env.definition_parameters(source_id).to_vec();
-        let materialized = env.add_parameterized_definition(module, definition, parameters)?;
-        definition_ids.insert(source_id, materialized);
-        definition_origins.insert(materialized, origin);
-        env.publish_associated_definition(module, &owner, name, materialized)?;
-    }
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -709,9 +512,8 @@ impl ModuleManager {
             return Err("Module instantiation path must contain at least one module".into());
         }
 
-        // Prepare every module on the path before allocating any instance IDs.
-        // Parent items may be referenced by a nested module and must therefore
-        // be materialized first, even though only the final module is named.
+        // Reserve stable IDs and publish only metadata. Declaration bodies are
+        // transformed by CrateEnv when one of these IDs is first requested.
         let mut materialization_sources = Vec::new();
         for source_module in route {
             materialization_sources.extend(
@@ -723,358 +525,175 @@ impl ModuleManager {
             materialization_sources.push((source_module, source_module, true));
         }
 
-        let mut pending_groups = Vec::with_capacity(materialization_sources.len());
-        for (instance_source, item_source, is_path_component) in materialization_sources {
-            let source_items = env.module(item_source).items().to_vec();
-            let mut pending = Vec::with_capacity(source_items.len());
-            for item in source_items {
-                pending.push(match item {
-                    ModuleItem::Definition { name, definition } => {
-                        let definition_value = env.definition(definition).clone();
-                        let origin = env
-                            .definition_origin(definition)
-                            .map_or(definition, |origin| origin.source);
-                        PendingItem::Definition(
-                            name,
-                            definition,
-                            origin,
-                            match definition_value {
-                                DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                                    ty: exp_subst_map(env.arena(), ty, &reflected_substitutions),
-                                    body: exp_subst_map(
-                                        env.arena(),
-                                        body,
-                                        &reflected_substitutions,
-                                    ),
-                                },
-                                DefinedConstant::ProgramValue { ty, body, certified_reflection } => {
-                                    DefinedConstant::ProgramValue {
-                                        ty: crate::raw::program_calculus::subst_value_type_module_params(
-                                            env.arena(), ty, &substitutions,
-                                        ),
-                                        body: crate::raw::program_calculus::subst_value_module_params(
-                                            env.arena(), body, &substitutions,
-                                        ),
-                                        certified_reflection: certified_reflection.map(|term| {
-                                            exp_subst_map(env.arena(), term, &reflected_substitutions)
-                                        }),
-                                    }
-                                }
-                                DefinedConstant::ProgramComputation { ty, body, certified_reflection } => {
-                                    DefinedConstant::ProgramComputation {
-                                        ty: crate::raw::program_calculus::subst_computation_type_module_params(
-                                            env.arena(), ty, &substitutions,
-                                        ),
-                                        body: crate::raw::program_calculus::subst_computation_module_params(
-                                            env.arena(), body, &substitutions,
-                                        ),
-                                        certified_reflection: certified_reflection.map(|term| {
-                                            exp_subst_map(env.arena(), term, &reflected_substitutions)
-                                        }),
-                                    }
-                                }
-                            },
-                        )
-                    }
+        struct ReservedGroup {
+            source: ModuleId,
+            item_source: ModuleId,
+            path_component: bool,
+            namespace: ModuleId,
+            items: Vec<ModuleItem>,
+            origins: HashMap<DefId, DefId>,
+        }
+        let mut groups = Vec::with_capacity(materialization_sources.len());
+        let mut lazy_definitions = Vec::new();
+        let mut lazy_inductives = Vec::new();
+        let mut lazy_datatypes = Vec::new();
+        for (source_module, item_source, path_component) in materialization_sources {
+            let materialized = env.add_module_in_scope(self.current, context.clone())?;
+            remapping.module_ids.insert(item_source, materialized);
+            let mut origins = HashMap::new();
+            let mut reserve_definition = |env: &mut CrateEnv, source_id: DefId| {
+                let id = env.reserve_lazy_definition(
+                    materialized,
+                    source_id,
+                    substitutions.clone(),
+                    reflected_substitutions.clone(),
+                );
+                remapping.definition_ids.insert(source_id, id);
+                origins.insert(
+                    id,
+                    env.definition_origin(source_id)
+                        .map_or(source_id, |origin| origin.source),
+                );
+                lazy_definitions.push(id);
+                id
+            };
+            let mut items = Vec::new();
+            for item in env.module(item_source).items().to_vec() {
+                let item = match item {
+                    ModuleItem::Definition { name, definition } => ModuleItem::Definition {
+                        name,
+                        definition: reserve_definition(env, definition),
+                    },
                     ModuleItem::Inductive {
                         name,
                         constructor_names,
                         associated_definitions,
                         inductive,
                     } => {
-                        let spec = env.inductive(inductive).clone();
-                        let instantiated =
-                            spec.instantiate(env.arena(), &reflected_substitutions);
-                        PendingItem::Inductive(
+                        let id = env.reserve_lazy_inductive(
+                            materialized,
+                            inductive,
+                            reflected_substitutions.clone(),
+                        );
+                        remapping.inductive_ids.insert(inductive, id);
+                        lazy_inductives.push(id);
+                        let associated_definitions = associated_definitions
+                            .into_iter()
+                            .map(|(name, id)| (name, reserve_definition(env, id)))
+                            .collect();
+                        ModuleItem::Inductive {
                             name,
                             constructor_names,
-                            inductive,
-                            instantiated,
-                            instantiate_associated_definitions(
-                                env,
-                                associated_definitions,
-                                &substitutions,
-                                &reflected_substitutions,
-                            ),
-                        )
+                            associated_definitions,
+                            inductive: id,
+                        }
                     }
                     ModuleItem::Record {
                         name,
                         associated_definitions,
                         inductive,
                     } => {
-                        let spec = env.inductive(inductive).clone();
-                        let instantiated =
-                            spec.instantiate(env.arena(), &reflected_substitutions);
-                        PendingItem::Record(
-                            name,
+                        let id = env.reserve_lazy_inductive(
+                            materialized,
                             inductive,
-                            instantiated,
-                            instantiate_associated_definitions(
-                                env,
-                                associated_definitions,
-                                &substitutions,
-                                &reflected_substitutions,
-                            ),
-                        )
+                            reflected_substitutions.clone(),
+                        );
+                        remapping.inductive_ids.insert(inductive, id);
+                        lazy_inductives.push(id);
+                        let associated_definitions = associated_definitions
+                            .into_iter()
+                            .map(|(name, id)| (name, reserve_definition(env, id)))
+                            .collect();
+                        ModuleItem::Record {
+                            name,
+                            associated_definitions,
+                            inductive: id,
+                        }
                     }
                     ModuleItem::ProgramInductive {
                         record_fields,
                         name,
                         constructor_names,
+                        associated_definitions,
                         inductive,
                         reflected,
-                        associated_definitions,
                     } => {
-                        let spec = env
-                            .program_inductive(inductive)
-                            .clone()
-                            .instantiate(env.arena(), &substitutions);
-                        let reflected_spec = env
-                            .inductive(reflected)
-                            .clone()
-                            .instantiate(env.arena(), &reflected_substitutions);
-                        PendingItem::ProgramInductive(
+                        let reflected_id = env.reserve_lazy_inductive(
+                            materialized,
+                            reflected,
+                            reflected_substitutions.clone(),
+                        );
+                        remapping.inductive_ids.insert(reflected, reflected_id);
+                        lazy_inductives.push(reflected_id);
+                        let id = env.reserve_lazy_program_inductive(
+                            materialized,
+                            inductive,
+                            substitutions.clone(),
+                        );
+                        remapping.program_inductive_ids.insert(inductive, id);
+                        lazy_datatypes.push(id);
+                        let associated_definitions = associated_definitions
+                            .into_iter()
+                            .map(|(name, id)| (name, reserve_definition(env, id)))
+                            .collect();
+                        ModuleItem::ProgramInductive {
                             record_fields,
                             name,
                             constructor_names,
-                            inductive,
-                            reflected,
-                            spec,
-                            reflected_spec,
-                            instantiate_associated_definitions(
-                                env,
-                                associated_definitions,
-                                &substitutions,
-                                &reflected_substitutions,
-                            ),
-                        )
+                            associated_definitions,
+                            inductive: id,
+                            reflected: reflected_id,
+                        }
                     }
-                });
+                };
+                items.push(item);
             }
-            pending_groups.push((instance_source, item_source, is_path_component, pending));
+            groups.push(ReservedGroup {
+                source: source_module,
+                item_source,
+                path_component,
+                namespace: materialized,
+                items,
+                origins,
+            });
         }
 
-        let InstanceRemapping {
-            ref mut module_ids,
-            ref mut definition_ids,
-            ref mut inductive_ids,
-            ref mut program_inductive_ids,
-        } = remapping;
+        for id in lazy_definitions {
+            env.set_lazy_definition_remapping(id, remapping.clone());
+        }
+        for id in lazy_inductives {
+            env.set_lazy_inductive_remapping(id, remapping.clone());
+        }
+        for id in lazy_datatypes {
+            env.set_lazy_program_inductive_remapping(id, remapping.clone());
+        }
+
         let mut last_instance = None;
-        for (source_module, item_source, is_path_component, pending) in pending_groups {
-            let materialized = env.add_module_in_scope(self.current, context.clone())?;
-            module_ids.insert(item_source, materialized);
-            let mut definition_origins = HashMap::new();
-            let mut pending_associated = Vec::new();
-            for item in pending {
-                match item {
-                    PendingItem::Definition(name, source_id, origin, definition) => {
-                        let definition = match definition {
-                            DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                                ty: remap_all_global_ids(
-                                    env.arena(),
-                                    ty,
-                                    &definition_ids,
-                                    &inductive_ids,
-                                    &program_inductive_ids,
-                                ),
-                                body: remap_all_global_ids(
-                                    env.arena(),
-                                    body,
-                                    &definition_ids,
-                                    &inductive_ids,
-                                    &program_inductive_ids,
-                                ),
-                            },
-                            DefinedConstant::ProgramValue {
-                                ty,
-                                body,
-                                certified_reflection,
-                            } => DefinedConstant::ProgramValue {
-                                ty: crate::raw::program_calculus::remap_value_type_global_ids(
-                                    env.arena(),
-                                    ty,
-                                    &definition_ids,
-                                    &program_inductive_ids,
-                                ),
-                                body: crate::raw::program_calculus::remap_value_global_ids(
-                                    env.arena(),
-                                    body,
-                                    &definition_ids,
-                                    &program_inductive_ids,
-                                ),
-                                certified_reflection: certified_reflection.map(|term| {
-                                    remap_all_global_ids(
-                                        env.arena(),
-                                        term,
-                                        &definition_ids,
-                                        &inductive_ids,
-                                        &program_inductive_ids,
-                                    )
-                                }),
-                            },
-                            DefinedConstant::ProgramComputation {
-                                ty,
-                                body,
-                                certified_reflection,
-                            } => DefinedConstant::ProgramComputation {
-                                ty: crate::raw::program_calculus::remap_computation_type_global_ids(
-                                    env.arena(),
-                                    ty,
-                                    &definition_ids,
-                                    &program_inductive_ids,
-                                ),
-                                body: crate::raw::program_calculus::remap_computation_global_ids(
-                                    env.arena(),
-                                    body,
-                                    &definition_ids,
-                                    &program_inductive_ids,
-                                ),
-                                certified_reflection: certified_reflection.map(|term| {
-                                    remap_all_global_ids(
-                                        env.arena(),
-                                        term,
-                                        &definition_ids,
-                                        &inductive_ids,
-                                        &program_inductive_ids,
-                                    )
-                                }),
-                            },
-                        };
-                        let definition = env.add_definition(materialized, definition)?;
-                        definition_ids.insert(source_id, definition);
-                        definition_origins.insert(definition, origin);
-                        env.publish_item(
-                            materialized,
-                            ModuleItem::Definition { name, definition },
-                        )?;
-                    }
-                    PendingItem::Inductive(
-                        name,
-                        constructor_names,
-                        source_id,
-                        spec,
-                        associated,
-                    ) => {
-                        let inductive = env.reserve_inductive(materialized);
-                        inductive_ids.insert(source_id, inductive);
-                        let spec =
-                            spec.remap_global_ids(env.arena(), &definition_ids, &inductive_ids);
-                        env.define_inductive(inductive, spec);
-                        env.publish_item(
-                            materialized,
-                            ModuleItem::Inductive {
-                                name: name.clone(),
-                                constructor_names,
-                                associated_definitions: Vec::new(),
-                                inductive,
-                            },
-                        )?;
-                        pending_associated
-                            .extend(associated.into_iter().map(|item| (name.clone(), item)));
-                    }
-                    PendingItem::Record(name, source_id, spec, associated) => {
-                        let inductive = env.reserve_inductive(materialized);
-                        inductive_ids.insert(source_id, inductive);
-                        let spec =
-                            spec.remap_global_ids(env.arena(), &definition_ids, &inductive_ids);
-                        env.define_inductive(inductive, spec);
-                        env.publish_item(
-                            materialized,
-                            ModuleItem::Record {
-                                name: name.clone(),
-                                associated_definitions: Vec::new(),
-                                inductive,
-                            },
-                        )?;
-                        pending_associated
-                            .extend(associated.into_iter().map(|item| (name.clone(), item)));
-                    }
-                    PendingItem::ProgramInductive(
-                        record_fields,
-                        name,
-                        constructor_names,
-                        source_id,
-                        reflected_source_id,
-                        spec,
-                        reflected_spec,
-                        associated,
-                    ) => {
-                        let reflected = env.reserve_inductive(materialized);
-                        inductive_ids.insert(reflected_source_id, reflected);
-                        let inductive = env.reserve_program_inductive(materialized);
-                        program_inductive_ids.insert(source_id, inductive);
-                        let reflected_spec = reflected_spec.remap_global_ids(
-                            env.arena(),
-                            &definition_ids,
-                            &inductive_ids,
-                        );
-                        let spec = spec.remap_global_ids(
-                            env.arena(),
-                            &definition_ids,
-                            &inductive_ids,
-                            &program_inductive_ids,
-                        );
-                        env.define_inductive(reflected, reflected_spec);
-                        env.define_program_inductive(inductive, spec);
-                        env.publish_item(
-                            materialized,
-                            ModuleItem::ProgramInductive {
-                                record_fields,
-                                name: name.clone(),
-                                constructor_names,
-                                associated_definitions: Vec::new(),
-                                inductive,
-                                reflected,
-                            },
-                        )?;
-                        pending_associated
-                            .extend(associated.into_iter().map(|item| (name.clone(), item)));
-                    }
-                }
-                materialize_associated_definitions(
-                    env,
-                    materialized,
-                    item_source,
-                    &mut pending_associated,
-                    definition_ids,
-                    &inductive_ids,
-                    &program_inductive_ids,
-                    &mut definition_origins,
-                )?;
-            }
-            if !pending_associated.is_empty() {
-                return Err(
-                    "unresolved associated item dependencies during module instantiation".into(),
-                );
+        for group in groups {
+            for item in group.items {
+                env.publish_item(group.namespace, item)?;
             }
             self.materialize_macros(
                 env,
-                item_source,
-                materialized,
+                group.item_source,
+                group.namespace,
                 &MacroInstantiation {
-                    module_ids: &module_ids,
+                    module_ids: &remapping.module_ids,
                     substitutions: &reflected_substitutions,
-                    definition_ids: &definition_ids,
-                    inductive_ids: &inductive_ids,
-                    program_inductive_ids: &program_inductive_ids,
+                    definition_ids: &remapping.definition_ids,
+                    inductive_ids: &remapping.inductive_ids,
+                    program_inductive_ids: &remapping.program_inductive_ids,
                 },
             );
             let instance = env.add_instance_with_remapping(
                 self.current,
-                source_module,
-                materialized,
+                group.source,
+                group.namespace,
                 substitutions.clone(),
-                definition_origins,
-                InstanceRemapping {
-                    module_ids: module_ids.clone(),
-                    definition_ids: definition_ids.clone(),
-                    inductive_ids: inductive_ids.clone(),
-                    program_inductive_ids: program_inductive_ids.clone(),
-                },
+                group.origins,
+                remapping.clone(),
             );
-            if is_path_component {
+            if group.path_component {
                 last_instance = Some(instance);
             }
         }
@@ -1260,6 +879,57 @@ mod tests {
         manager.publish_current_module(&mut env).unwrap();
         manager.moveto_parent(&env);
         assert_eq!(manager.current(), env.root_module());
+    }
+
+    #[test]
+    fn instance_declarations_materialize_only_when_requested() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![])
+            .unwrap();
+        let proposition = env.arena().sort(Sort::Prop);
+        let proposition_kind = env.arena().sort(Sort::PropKind);
+        for name in ["used", "unused"] {
+            manager
+                .add_def(
+                    &mut env,
+                    Identifier(name.into()),
+                    DefinedConstant::Pts {
+                        ty: proposition_kind,
+                        body: proposition,
+                    },
+                )
+                .unwrap();
+        }
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let instance = manager
+            .instantiate_module(
+                &mut env,
+                &mut Vec::new(),
+                None,
+                vec![(Identifier("Source".into()), vec![])],
+            )
+            .unwrap();
+        let namespace = env.instance(instance).materialized;
+        let id = |name| match env.module(namespace).item(name).unwrap() {
+            ModuleItem::Definition { definition, .. } => *definition,
+            _ => unreachable!(),
+        };
+        let used = id("used");
+        let unused = id("unused");
+        assert!(!env.is_definition_materialized(used));
+        assert!(!env.is_definition_materialized(unused));
+        assert_eq!(env.materialization_stats().definitions, 0);
+
+        let _ = env.resolve_definition(used).unwrap();
+        assert!(env.is_definition_materialized(used));
+        assert!(!env.is_definition_materialized(unused));
+        assert_eq!(env.materialization_stats().definitions, 1);
+        let _ = env.resolve_definition(used).unwrap();
+        assert_eq!(env.materialization_stats().definitions, 1);
     }
 
     #[test]
@@ -1469,6 +1139,8 @@ mod tests {
         let first = inductive(&env, first);
         let second = inductive(&env, second);
         assert_ne!(first, second);
+        assert!(!env.is_inductive_materialized(first));
+        assert!(!env.is_inductive_materialized(second));
 
         let first_constructor = env.arena().alloc(ExpNode::IndCtor {
             indspec: first,
@@ -1488,6 +1160,8 @@ mod tests {
                 .check_pts(first_constructor, first_type)
                 .is_ok()
         );
+        assert!(env.is_inductive_materialized(first));
+        assert!(!env.is_inductive_materialized(second));
         assert!(
             CheckSession::new(&env, env.root_module(), &mut Vec::new())
                 .check_pts(first_constructor, second_type)
