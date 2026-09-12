@@ -1,131 +1,84 @@
 # kernel のコピー・キャッシュ・評価走査を改善する
 
-## 目的と進め方
+## 対象
 
-`src/kernel` の型検査・変換可能性判定・正規化・Program 評価を高速化する。kernel を直接呼ぶベンチマークで基準を取り、残るノードコピー、型推論のキャッシュキー、比較の重複走査、評価位置の保持を調べる。
+`src/kernel` の型検査・変換可能性判定・正規化・Program 評価を計測し、寄与の大きい処理から改善する。性能改善率は計測して判断する。
 
-各候補の寄与率と改善率は未計測。先行して、可読性を目的に `Op` / `Data` を廃止し、型付き構文を直接保存・処理する形へ変更した。これは性能改善を計測して採用した変更ではない。今後はこの表現を基準に、段階ごとに変更前後を比較する。
-
-## 現状
-
-| 箇所 | 現在の処理 | 改善候補 |
+| 箇所 | 現在の処理 | 調べるコスト |
 | --- | --- | --- |
-| `Arena::read` / `get` / `alloc` | 型付きノードを直接 intern し、arena と interner は `Rc` で実体を共有する。`read` は共有参照、`get` はノードのコピーを返す | 可変長フィールドのコピーが残る読み取り・変換を計測する |
-| `Checker::infer` | 呼び出すたびに context 全体の classifier を `Vec` に集め、式と組にしてキャッシュを検索する | context を共有化し、小さな ID をキーに使う |
-| `convertible` / `alpha_equal` | ペアのキャッシュ参照より前に再帰的な α 同値比較を行う。α 同値比較自体にはペアのメモ化がない | キャッシュ参照の順序変更と共有部分の比較結果の再利用 |
-| `evaluate` / `reduce_once` | 一段簡約のたびに根から評価位置を探索し、構文ごとの走査で祖先ノードを再構築する | 評価位置をスタックに保持する |
+| `Arena::get` / `read`、`structure::map_children` | 型付きノードを intern し、arena と interner は `Rc` で共有する。`get` と変換時にはノードを clone する | 可変長フィールドのコピー、変更のない変換での確保 |
+| `Checker::infer` / `check_context` | context の classifier 列を `Vec` に集め、キャッシュの検索や検証済み context との照合に使う | 深い context の確保・走査・ハッシュ |
+| `convertible` / `alpha_equal` | 再帰的な α 同値比較の後に、比較中のペアキャッシュを参照する。α 同値比較自体にはメモ化がない | 共有部分の重複比較 |
+| `evaluate` / `reduce_once` | 一段簡約ごとに根から評価位置を探索し、祖先ノードを再構築する | 深い評価位置への再走査・再構築 |
 
-式の interning、WHNF・型推論のキャッシュ、`shift` / `substitute` のメモ化と `max_loose_bound` による走査省略は既に存在する。これらを前提に、残っているコストを計測する。
-
-参照コード:
-
-- [syntax.rs](../src/kernel/src/syntax.rs)
-- [check.rs](../src/kernel/src/check.rs)
-- [calculus.rs](../src/kernel/src/calculus.rs)
-- [environment.rs](../src/kernel/src/environment.rs)
-- [既存ベンチマーク](../src/cli/benches/performance.rs)・[計測手順](../src/cli/benches/README.md)
+参照: [syntax.rs](../src/kernel/src/syntax.rs)、[check.rs](../src/kernel/src/check.rs)、[calculus.rs](../src/kernel/src/calculus.rs)、[traversal.rs](../src/kernel/src/structure/traversal.rs)、[comparison.rs](../src/kernel/src/structure/comparison.rs)、[environment.rs](../src/kernel/src/environment.rs)。
 
 ## 1. kernel を直接測る基準を作る
 
-既存の `normalize/beta256` と `evaluate/countdown*` は `front::raw` の正規化・評価を呼んでいる。これらを kernel の単体性能の指標には使わず、既存の CLI ベンチハーネスに `kernel/` 接頭辞のケースを追加する。CLI は既に kernel に依存しているため、計測ハーネスを新設せずに始められる。
+[既存ハーネス](../src/cli/benches/performance.rs) に `kernel/` 接頭辞のケースを追加する。現在の `normalize/beta256` と `evaluate/countdown*` は `front::raw` を呼ぶため、kernel 単体の測定ケースを用意する。
 
 | ケース群 | 入力と計測対象 |
 | --- | --- |
-| `kernel/infer/*` | 浅い context と深い context、共有部分の多い型を用意し、`Checker` による推論・検査を測る |
-| `kernel/convertible/*` | 同一 handle、別 handle で α 同値、β 簡約後に同値、深い位置で不一致になる式を比較する |
-| `kernel/substitute/*` | 開いた引数・閉じた引数、束縛の深さ、部分式の共有率を変えて代入を測る |
-| `kernel/normalize/*` | β 簡約の列と、根から深い位置に簡約可能な式がある入力を正規化する |
-| `kernel/evaluate/*` | kernel 構文のカウントダウンと深い Sequence・関数適用を評価する |
+| `kernel/infer/*` | 浅い／深い context、共有部分の多い型の推論・検査 |
+| `kernel/convertible/*` | 同一 handle、別 handle で α 同値、β 簡約後に同値、深い位置で不一致になる式 |
+| `kernel/substitute/*` | 開いた／閉じた引数、異なる束縛の深さと部分式の共有率 |
+| `kernel/normalize/*` | β 簡約の列と、深い位置に簡約可能な式がある入力 |
+| `kernel/evaluate/*` | カウントダウン、深い Sequence・関数適用、certificate を持つ Box |
 
-- 各群で入力サイズを複数用意し、単一サイズの時間だけでなく増加傾向を見る。
-- 構文・環境の準備と結果の検証は原則として計測外に置く。lowering を使うケースも計測前に済ませる。
-- キャッシュが空の状態と同じ環境で再利用する状態を別ケースにする。検証やセットアップが計測前にキャッシュを温めないようにする。
-- 反復間は新しい環境を使う。キャッシュ再利用ケースだけ、その反復内で明示的に事前呼び出しを行う。
-- 中央値とばらつきに加え、別の診断実行で割り当て回数・バイト数、arena ノード数、キャッシュエントリ数を調べる。計測用カウンタの負荷を通常の時間計測と混ぜない。
-- `check/library` と `pipeline/library` は実利用全体への影響を見る補助指標として残す。front の処理も含むため、結果を kernel 単体の改善率とは解釈しない。
+- 入力サイズを複数用意し、増加傾向を見る。
+- 構文・環境の準備、lowering、結果検証を計測外に置く。
+- 各反復に新しい環境を使う。キャッシュが空のケースと、反復内で事前呼び出しを行う再利用ケースを分ける。準備や検証によるキャッシュの更新も管理する。
+- 時間の中央値とばらつきを測る。割り当て量、arena ノード数、キャッシュの保持量、訪問数は別の診断実行で調べる。
+- `check/library` と `pipeline/library` で実利用全体への影響も確認する。
 
-追加後の計測例:
+ケース追加後は[計測手順](../src/cli/benches/README.md)に従い、同じ入力・ビルド条件で基準を保存して比較する。
 
-```sh
-cargo bench -p cli --bench performance -- --filter kernel/ --save-baseline kernel-before
-cargo bench -p cli --bench performance -- --filter kernel/ --baseline kernel-before --save-baseline kernel-after
-```
+## 2. 残るノードコピーを減らす
 
-同じ入力・ビルド条件で比較する。ケースを変更したら基準を取り直す。
+`get` による読み取りと、`map_children` が変換前に行う clone を計測する。特に帰納型の引数・分岐を持つノードと、結果が変わらず元 handle を返す変換を調べる。
 
-## 2. 型付きノードの直接保存と残るコピー
+- 読み取り専用の処理では `read` の共有参照を使い、必要なフィールドだけを取得する。
+- 変更のない変換でコピーが支配的なら、子の変更を確認してからノードを構築する方式を比較する。
+- `shift` / `substitute` のメモ化と `max_loose_bound` による走査省略を維持する。
+- 共有元の不変性、構造による interning、束縛の深さと証明注釈の変換を保つ。
 
-可読性を優先し、`Op` と `Vec<Vec<Child>>` を持つ `Data` を廃止した。
-各 partition は対応する `*Node` を直接保存し、arena と interner は `Rc` で共有する。
-型検査・簡約・reflection は `*Form` を直接 pattern match する。固定個数の子は
-構文のフィールドで保持し、帰納型の引数や分岐などは引き続き `Vec` を使う。
-
-- 公開の family 別 handle、`alloc`、`get` を維持し、共有ノードを読む `read` を追加した。
-- interning は型付きノードの構造比較・ハッシュを用い、ポインタ比較には置き換えていない。
-- 束縛の深さ、評価位置、比較から除外する証明注釈は構文ごとの走査・比較に明記した。
-- `map_children` はコピーした型付きノードのフィールドを更新し、結果が変わらなければ元 handle を返す。変更前の `Vec` コピーはまだ残る。
-- `read` は arena の `RefCell` 借用を保持しない。ノードの共有参照を保持したまま再帰的な `alloc` ができる。
-- 大きな走査関数による debug ビルドのスタック溢れを避けるため、family ごとの関数に分割した。
-
-共有構文の束縛下の変換、interning と共有参照の不変性、motive telescope の代入、
-証明注釈の比較と変換をテストする。実行時間・割り当て量・保持メモリは未計測なので、
-追加のコピー削減は kernel 専用ベンチマークを用意してから判断する。
+採用条件は、対象ケースのコピー・確保量が減り、共有ノードや深い構文でも型・簡約結果を維持すること。
 
 ## 3. 型推論のキャッシュキーを ContextId にする
 
-context の classifier 列を、空 context と `(親ContextId, classifier)` の組で共有化する。推論キャッシュのキーを `(Expression, ContextId)` にし、同じ context での再帰的な推論のたびに列全体を確保・ハッシュする処理を減らす。
+classifier 列を空 context と `(親ContextId, classifier)` で共有し、推論キーを `(Expression, ContextId)` にする。共有表は `Environment` に保持し、別の `Checker` でも同じ列には同じ ID を使う。
 
-- context の共有表は `Environment` 内の推論キャッシュと寿命・ID の範囲をそろえる。別の `Checker` でも同じ classifier 列なら同じ ID を利用できるようにする。
-- `under` で束縛を追加・削除するときに現在の ID を更新・復元する。エラーで戻る経路も復元する。
-- 現在 `Checker::context` は公開されているため、外部からの変更を検出できる必要がある。まず公開の推論入口で classifier 列を照合して ID を同期し、内部の再帰では差分更新する方法を採る。
-- `check_context` が context を一時的に取り出して prefix ごとに検査する処理も ID と同期させる。キャッシュ利用前の well-formedness 検査を維持する。
-- binder 名は現在のキーと同様に含めず、classifier の順序・family・level は区別する。ハッシュ値だけを ID として扱わず、衝突時にも列の同一性を保証する。
-- 定義・パラメータ・帰納型の登録時など、既存の推論キャッシュ無効化を維持する。共有表を破棄する場合は、生存中の ID やキャッシュと不整合を起こさないようにする。
+- `under` の push/pop と、エラー時の復元に ID の更新を合わせる。
+- 公開されている `Checker::context` の変更は公開の推論入口で照合し、内部再帰は差分更新する。
+- `check_context` が prefix ごとに検査する間も ID を同期し、不正な context でキャッシュを利用しない。
+- binder 名をキーから除く規則を保ち、classifier の順序・family・level を区別する。ハッシュ衝突時も列の同一性を確認する。
+- 宣言登録時の推論・WHNF キャッシュ無効化と共有表の寿命を整合させる。
 
-完了条件は、深い context のケースでキー生成の確保・走査が減り、context の差し替え・push/pop・エラー後でも推論結果を誤って再利用しないこと。浅い context の管理コストと共有表の保持量も確認する。
+深い context でキー生成の確保・走査が減ることに加え、浅い context の管理費と共有表の保持量を確認する。
 
 ## 4. 変換可能性判定の重複走査を減らす
 
-まず小さい変更として、`convertible` 内で同一 handle の判定と必要な family・sort の判定を行った後、既存のペアキャッシュを再帰的な `alpha_equal` より先に参照する。
+同一 handle と family・sort を判定した後、既存のペアキャッシュを `alpha_equal` より先に参照する。共有部分の比較が残る主要コストなら、α 同値比較にも一回の比較全体で共有するメモ化を導入する。
 
-その後、共有部分の比較が支配的なら α 同値判定にも `(Expression, Expression)` のメモ化を入れる。比較全体で使う作業領域を共有し、再帰呼び出しごとに新しい表を作らない。小さな式ではメモ化の管理費が上回り得るため、導入前後を比較する。
+- binder 名を無視する規則、family・level、証明注釈の erasure を維持する。
+- 完了した比較結果だけを保存し、エラーを不一致としてキャッシュしない。
+- 共有の多い式と小さな式の両方で、訪問数とメモ化の管理費を比較する。
 
-- binder 名を無視する規則、束縛の深さ、family・level、構文ごとの比較で除外している証明注釈の扱いを維持する。
-- 未完了の比較を成功として登録しない。エラーを `false` としてキャッシュしない。
-- 初版の比較キャッシュは一回の比較の範囲とする。環境をまたぐ再利用や永続的な変換可能性キャッシュは別途計測して判断する。
-
-完了条件は、共有された部分式を繰り返し持つケースで走査回数が減り、α 同値・β 同値・不一致の判定結果が一致すること。
+α 同値・β 同値・不一致の結果を維持し、同じ部分式ペアの再走査を減らす。
 
 ## 5. 評価位置を保持する
 
-ここまでの変更後も `reduce_once` の再走査・祖先再構築が主要コストなら実施する。評価位置と周囲の構文をフレームのスタックに保持し、一段簡約ごとに根から探索し直す処理を減らす。
+再走査・祖先再構築が主要コストなら、評価位置と周囲の構文をフレームのスタックに保持する内部評価ループを実装する。
 
-- 現行 `reduce_once` を意味論の比較基準として使い、まずフレームを利用する内部の評価ループを実装する。
-- Program の評価位置、ValueTerm が step しない規則、Set/Prop と Program type/kind の走査順を維持する。
-- fuel は現行の一段簡約に対応させる。`fuel = 0`、ちょうど正規形に到達する境界、`OutOfFuel` が返す途中の式も一致させる。
-- Box 内の簡約と `advance_certificate` の更新タイミングを保存する。単なる評価位置の移動では fuel を消費しない。
-- β 簡約は既存の `substitute` を使うところから始める。closure による遅延代入や NbE の導入は、この変更とは分けて検討する。
+- 現行 `reduce_once` を比較基準にし、Program の評価位置、ValueTerm が step しない規則、各 family の走査順を維持する。
+- fuel を一段簡約に対応させる。`fuel = 0`、正規形に到達する境界、`OutOfFuel` の途中結果も比較する。評価位置の移動だけでは fuel を消費しない。
+- Box の簡約と `advance_certificate` の更新タイミングを保存する。
+- β 簡約には既存の `substitute` を使う。
 
-完了条件は、深い入力で再走査・再構築が減り、正規形だけでなく各 fuel 境界の途中結果と certificate の対応も維持されること。
+深い入力で再走査・再構築が減り、各 fuel 境界の式と certificate の対応を維持できることを採用条件にする。
 
-## 検証と採用基準
+## 検証と記録
 
-各実装段階で `cargo test --workspace` を実行し、kernel の正常系・拒否例と front からの利用を確認する。追加の回帰テストは変更する意味に絞る。
+各実装段階で `cargo clippy -p kernel --all-targets -- -D warnings` と `cargo test --workspace` を実行する。回帰テストは、共有ノード、context の変更・エラー後の復元、環境更新、証明注釈、評価途中の状態など変更が影響する境界に絞る。
 
-- 共有ノードの一部を変換しても元ノードが変わらず、family・sort・de Bruijn index が保存される。
-- context が異なる同じ式、外部から書き換えた context、不正な context でキャッシュが検査を省略しない。
-- 環境の登録・更新後に古い推論・WHNF 結果を再利用しない。
-- binder 名・証明注釈の違いと、実際の計算内容の違いを従来どおり比較する。注釈自体の型検査は省略しない。
-- 評価器を変更する段階では、旧評価器との比較を使い、複数の fuel について途中結果・終了状態・反映の検査結果を確認する。
-
-採用時は、対象ケースの変更前後の時間・ばらつき・割り当て量・保持量と、実利用ケースへの影響を記録する。改善率は事前に固定せず、測定のばらつきを超える効果を確認する。効果がない変更や管理コストが大きい変更は採用せず、残った主要コストに次の作業を向ける。
-
-## 実装チェックリスト
-
-- [ ] kernel 専用ケースを追加し、変更前の基準と主要コストを記録する。
-- [x] 可読性を目的に `Op` / `Data` を廃止し、型付きノードを直接保存・処理する。ノード実体を共有する。
-- [ ] 残るコピーを計測し、変更時だけのコピーが必要か判断する。
-- [ ] ContextId による推論キャッシュを実装・比較する。
-- [ ] 比較キャッシュの参照順を変更し、必要なら α 同値比較をメモ化する。
-- [ ] 残る評価コストを確認し、必要なら評価フレームを導入する。
-- [ ] 採用した変更、計測条件、結果、残った課題をこの文書とベンチマーク README に反映する。
+対象ケースと実利用ケースの時間・ばらつき・割り当て量・保持量を記録する。測定のばらつきを超える効果を確認し、次の作業は残った主要コストから選ぶ。
