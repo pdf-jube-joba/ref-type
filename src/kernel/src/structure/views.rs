@@ -770,11 +770,8 @@ pub(crate) fn remap_references(
         Expression::SetKind(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
-            match &mut node.form {
-                SetKindForm::IndType { inductive, .. } => {
-                    *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
-                }
-                _ => {}
+            if let SetKindForm::IndType { inductive, .. } = &mut node.form {
+                *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
             }
             if *original == node {
                 e
@@ -824,11 +821,8 @@ pub(crate) fn remap_references(
         Expression::PropKind(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
-            match &mut node.form {
-                PropKindForm::IndType { inductive, .. } => {
-                    *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
-                }
-                _ => {}
+            if let PropKindForm::IndType { inductive, .. } = &mut node.form {
+                *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
             }
             if *original == node {
                 e
@@ -839,11 +833,8 @@ pub(crate) fn remap_references(
         Expression::ValueTerm(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
-            match &mut node.form {
-                ValueTermForm::InductiveConstructor { inductive, .. } => {
-                    *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
-                }
-                _ => {}
+            if let ValueTermForm::InductiveConstructor { inductive, .. } = &mut node.form {
+                *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
             }
             if *original == node {
                 e
@@ -854,11 +845,8 @@ pub(crate) fn remap_references(
         Expression::ValueType(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
-            match &mut node.form {
-                ValueTypeForm::Inductive { inductive, .. } => {
-                    *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
-                }
-                _ => {}
+            if let ValueTypeForm::Inductive { inductive, .. } = &mut node.form {
+                *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
             }
             if *original == node {
                 e
@@ -870,11 +858,8 @@ pub(crate) fn remap_references(
         Expression::ComputationTerm(h) => {
             let original = arena.read(h);
             let mut node = (*original).clone();
-            match &mut node.form {
-                ComputationTermForm::Case { inductive, .. } => {
-                    *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
-                }
-                _ => {}
+            if let ComputationTermForm::Case { inductive, .. } = &mut node.form {
+                *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
             }
             if *original == node {
                 e

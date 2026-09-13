@@ -684,14 +684,14 @@ impl CrateEnv {
         {
             return (origin.source, false);
         }
-        if self.namespace_arguments_shareable(&arguments) {
-            if let Some((&id, _)) = self.nominal_definitions.iter().find(|(_, candidate)| {
+        if self.namespace_arguments_shareable(&arguments)
+            && let Some((&id, _)) = self.nominal_definitions.iter().find(|(_, candidate)| {
                 candidate.source == origin.source
                     && self.namespace_arguments_shareable(&arguments)
                     && self.namespace_arguments_equal(&arguments, &candidate.arguments)
-            }) {
-                return (id, false);
-            }
+            })
+        {
+            return (id, false);
         }
         let parameters = self.definition_parameters(source).to_vec();
         let index = self.module(module).definitions.len() as u32;
@@ -933,7 +933,7 @@ impl CrateEnv {
             id,
             LazyProgramInductive {
                 source,
-                substitutions: substitutions,
+                substitutions,
                 remapping: DeclarationRemapping::default(),
             },
         );
