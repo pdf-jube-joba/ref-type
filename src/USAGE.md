@@ -34,15 +34,22 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
-生成済み module instance を起点に、その child module だけを instance 化できる。
+module は front のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
+その alias を起点に child module も参照できる。
 
 ```text
 \import \root.Parent(A := Nat) \as P;
 \import P.Child(x := value) \as C;
 ```
 
-`C` は `P` の置換と型・定義の identity を引き継ぐ。一方、`P.Child(...)` を
-繰り返すたびに新しい child instance が生成されるため、module 全体は generative のままである。
+`C` は `P` の代入を引き継ぐ。同じ元宣言に convertible な引数を渡す import は、
+繰り返しても同じ定義・帰納型 ID を使う。外側の module の引数を代入した場合も、
+元宣言と合成した引数から ID を選び直す。異なる元宣言の帰納型や、convertible でない
+引数を持つ帰納型は別の型になる（使われない引数や証明引数も区別に含む）。
+
+通常の定義は kernel では本体と宣言した型を保持する `Annotated` ノードになる。
+注釈は型推論に使い、conversion では本体を比較する。module の代入は front で完了し、
+kernel の関数適用や product rule は追加しない。
 
 ## 公理
 

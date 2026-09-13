@@ -1,10 +1,8 @@
-//! Crate/module declarations and materialized-instance provenance.
+//! Crate/module declarations and materialized-binding provenance.
 
 use crate::raw::{
     exp::{Arena, Exp},
-    ids::{
-        DefId, InductiveId, ModuleId, ModuleInstanceId, ModuleParamId, ProgramInductiveId, SymbolId,
-    },
+    ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId, SymbolId},
     inductive::InductiveTypeSpecs,
     program::{ComputationTerm, ComputationType, ValueTerm, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
@@ -121,18 +119,17 @@ impl ModuleItem {
 }
 
 #[derive(Debug)]
-pub struct ModuleInstance {
-    pub id: ModuleInstanceId,
+pub struct NamespaceBinding {
     pub source: ModuleId,
     pub materialized: ModuleId,
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
-    pub(crate) remapping: InstanceRemapping,
+    pub(crate) remapping: DeclarationRemapping,
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct InstanceRemapping {
+pub(crate) struct DeclarationRemapping {
     pub module_ids: HashMap<ModuleId, ModuleId>,
     pub definition_ids: HashMap<DefId, DefId>,
     pub inductive_ids: HashMap<InductiveId, InductiveId>,
@@ -144,26 +141,26 @@ struct LazyDefinition {
     source: DefId,
     substitutions: Vec<(ModuleParamId, ModuleArgument)>,
     reflected_substitutions: Vec<(ModuleParamId, Exp)>,
-    remapping: InstanceRemapping,
+    remapping: DeclarationRemapping,
 }
 
 #[derive(Debug, Clone)]
 struct LazyInductive {
     source: InductiveId,
     substitutions: Vec<(ModuleParamId, Exp)>,
-    remapping: InstanceRemapping,
+    remapping: DeclarationRemapping,
 }
 
 #[derive(Debug, Clone)]
 struct LazyProgramInductive {
     source: ProgramInductiveId,
     substitutions: Vec<(ModuleParamId, ModuleArgument)>,
-    remapping: InstanceRemapping,
+    remapping: DeclarationRemapping,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefinitionOrigin {
-    pub instance: ModuleInstanceId,
+    pub binding: ModuleId,
     pub source: DefId,
 }
 
@@ -185,8 +182,8 @@ pub struct ModuleEnv {
     program_inductives: Vec<OnceCell<ProgramInductiveTypeSpecs>>,
     items: Vec<ModuleItem>,
     names: HashMap<String, usize>,
-    instances: Vec<ModuleInstance>,
-    imports: HashMap<String, ModuleInstanceId>,
+    bindings: Vec<ModuleId>,
+    imports: HashMap<String, ModuleId>,
 }
 
 impl ModuleEnv {
@@ -201,7 +198,7 @@ impl ModuleEnv {
             program_inductives: Vec::new(),
             items: Vec::new(),
             names: HashMap::new(),
-            instances: Vec::new(),
+            bindings: Vec::new(),
             imports: HashMap::new(),
         }
     }
@@ -230,11 +227,11 @@ impl ModuleEnv {
         self.names.get(name).map(|index| &self.items[*index])
     }
 
-    pub fn instances(&self) -> &[ModuleInstance] {
-        &self.instances
+    pub fn bindings(&self) -> &[ModuleId] {
+        &self.bindings
     }
 
-    pub fn import(&self, name: &str) -> Option<ModuleInstanceId> {
+    pub fn import(&self, name: &str) -> Option<ModuleId> {
         self.imports.get(name).copied()
     }
 }
@@ -249,11 +246,15 @@ pub struct CrateEnv {
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
-    materialized_instances: HashMap<ModuleId, ModuleInstanceId>,
+    namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
     lazy_definitions: HashMap<DefId, LazyDefinition>,
     lazy_inductives: HashMap<InductiveId, LazyInductive>,
+    nominal_definitions: HashMap<DefId, super::namespaces::Specialization<DefId>>,
+    nominal_inductives: HashMap<InductiveId, super::namespaces::Specialization<InductiveId>>,
+    nominal_datatypes:
+        HashMap<ProgramInductiveId, super::namespaces::Specialization<ProgramInductiveId>>,
     lazy_program_inductives: HashMap<ProgramInductiveId, LazyProgramInductive>,
     materializing_definitions: RefCell<HashSet<DefId>>,
     failed_definitions: RefCell<HashMap<DefId, String>>,
@@ -282,11 +283,14 @@ impl CrateEnv {
             symbols: vec![anonymous, root],
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
-            materialized_instances: HashMap::new(),
+            namespace_bindings: HashMap::new(),
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
             lazy_definitions: HashMap::new(),
             lazy_inductives: HashMap::new(),
+            nominal_definitions: HashMap::new(),
+            nominal_inductives: HashMap::new(),
+            nominal_datatypes: HashMap::new(),
             lazy_program_inductives: HashMap::new(),
             materializing_definitions: RefCell::new(HashSet::new()),
             failed_definitions: RefCell::new(HashMap::new()),
@@ -321,10 +325,10 @@ impl CrateEnv {
     }
 
     pub fn add_module(&mut self) -> ModuleId {
-        self.add_module_entry("<instance>".into(), None, vec![])
+        self.add_module_entry("<binding>".into(), None, vec![])
     }
 
-    /// An unpublished instance inherits the importing module's checking scope.
+    /// An unpublished binding inherits the importing module's checking scope.
     pub fn add_module_in_scope(
         &mut self,
         owner: ModuleId,
@@ -515,78 +519,121 @@ impl CrateEnv {
         }
         let result: Result<&DefinedConstant, String> = (|| {
             let source = self.resolve_definition(lazy.source)?.clone();
+            let count = self.definition_parameters(id).len();
+            let shifted_substitutions = lazy
+                .substitutions
+                .iter()
+                .map(|(p, a)| {
+                    use super::traversal::Term;
+                    let a = match *a {
+                        ModuleArgument::Pts(e) => {
+                            let Term::Logical(e) = Term::Logical(e).shift(self.arena(), count, 0)
+                            else {
+                                unreachable!()
+                            };
+                            ModuleArgument::Pts(e)
+                        }
+                        ModuleArgument::ProgramType(t) => {
+                            let Term::ValueType(t) =
+                                Term::ValueType(t).shift(self.arena(), count, 0)
+                            else {
+                                unreachable!()
+                            };
+                            ModuleArgument::ProgramType(t)
+                        }
+                        ModuleArgument::ProgramValue(v) => {
+                            let Term::Value(v) = Term::Value(v).shift(self.arena(), count, 0)
+                            else {
+                                unreachable!()
+                            };
+                            ModuleArgument::ProgramValue(v)
+                        }
+                    };
+                    (*p, a)
+                })
+                .collect::<Vec<_>>();
+            let reflected = lazy
+                .reflected_substitutions
+                .iter()
+                .map(|(p, e)| {
+                    (
+                        *p,
+                        super::calculus::shift_bound_indices(self.arena(), *e, count, 0),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let remap = &lazy.remapping;
+            let logical = |e| {
+                super::calculus::exp_subst_map(
+                    self.arena(),
+                    super::calculus::remap_all_global_ids(
+                        self.arena(),
+                        e,
+                        &remap.definition_ids,
+                        &remap.inductive_ids,
+                        &remap.program_inductive_ids,
+                    ),
+                    &reflected,
+                )
+            };
+            let value_ty = |t| {
+                super::program_calculus::subst_value_type_module_params(
+                    self.arena(),
+                    super::program_calculus::remap_value_type_global_ids(
+                        self.arena(),
+                        t,
+                        &remap.definition_ids,
+                        &remap.program_inductive_ids,
+                    ),
+                    &shifted_substitutions,
+                )
+            };
+            let comp_ty = |t| {
+                super::program_calculus::subst_computation_type_module_params(
+                    self.arena(),
+                    super::program_calculus::remap_computation_type_global_ids(
+                        self.arena(),
+                        t,
+                        &remap.definition_ids,
+                        &remap.program_inductive_ids,
+                    ),
+                    &shifted_substitutions,
+                )
+            };
             let definition = match source {
                 DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
-                    ty: crate::raw::calculus::remap_all_global_ids(
-                        self.arena(),
-                        crate::raw::calculus::exp_subst_map(
-                            self.arena(),
-                            ty,
-                            &lazy.reflected_substitutions,
-                        ),
-                        &lazy.remapping.definition_ids,
-                        &lazy.remapping.inductive_ids,
-                        &lazy.remapping.program_inductive_ids,
-                    ),
-                    body: crate::raw::calculus::remap_all_global_ids(
-                        self.arena(),
-                        crate::raw::calculus::exp_subst_map(
-                            self.arena(),
-                            body,
-                            &lazy.reflected_substitutions,
-                        ),
-                        &lazy.remapping.definition_ids,
-                        &lazy.remapping.inductive_ids,
-                        &lazy.remapping.program_inductive_ids,
-                    ),
+                    ty: logical(ty),
+                    body: logical(body),
                 },
                 DefinedConstant::ProgramValue { ty, body } => DefinedConstant::ProgramValue {
-                    ty: crate::raw::program_calculus::remap_value_type_global_ids(
+                    ty: value_ty(ty),
+                    body: super::program_calculus::subst_value_module_params(
                         self.arena(),
-                        crate::raw::program_calculus::subst_value_type_module_params(
-                            self.arena(),
-                            ty,
-                            &lazy.substitutions,
-                        ),
-                        &lazy.remapping.definition_ids,
-                        &lazy.remapping.program_inductive_ids,
-                    ),
-                    body: crate::raw::program_calculus::remap_value_global_ids(
-                        self.arena(),
-                        crate::raw::program_calculus::subst_value_module_params(
+                        super::program_calculus::remap_value_global_ids(
                             self.arena(),
                             body,
-                            &lazy.substitutions,
-                            &lazy.reflected_substitutions,
+                            &remap.definition_ids,
+                            &remap.program_inductive_ids,
+                            &remap.inductive_ids,
                         ),
-                        &lazy.remapping.definition_ids,
-                        &lazy.remapping.program_inductive_ids,
-                        &lazy.remapping.inductive_ids,
+                        &shifted_substitutions,
+                        &reflected,
                     ),
                 },
                 DefinedConstant::ProgramComputation { ty, body } => {
                     DefinedConstant::ProgramComputation {
-                        ty: crate::raw::program_calculus::remap_computation_type_global_ids(
+                        ty: comp_ty(ty),
+                        body: super::program_calculus::subst_computation_module_params(
                             self.arena(),
-                            crate::raw::program_calculus::subst_computation_type_module_params(
-                                self.arena(),
-                                ty,
-                                &lazy.substitutions,
-                            ),
-                            &lazy.remapping.definition_ids,
-                            &lazy.remapping.program_inductive_ids,
-                        ),
-                        body: crate::raw::program_calculus::remap_computation_global_ids(
-                            self.arena(),
-                            crate::raw::program_calculus::subst_computation_module_params(
+                            super::program_calculus::remap_computation_global_ids(
                                 self.arena(),
                                 body,
-                                &lazy.substitutions,
-                                &lazy.reflected_substitutions,
+                                &remap.definition_ids,
+                                &remap.program_inductive_ids,
+                                &remap.inductive_ids,
                             ),
-                            &lazy.remapping.definition_ids,
-                            &lazy.remapping.program_inductive_ids,
-                            &lazy.remapping.inductive_ids,
+                            &shifted_substitutions,
+                            &reflected,
                         ),
                     }
                 }
@@ -616,7 +663,36 @@ impl CrateEnv {
         source: DefId,
         substitutions: Vec<(ModuleParamId, ModuleArgument)>,
         reflected_substitutions: Vec<(ModuleParamId, Exp)>,
-    ) -> DefId {
+        remapping: &DeclarationRemapping,
+    ) -> (DefId, bool) {
+        let origin = self
+            .nominal_definitions
+            .get(&source)
+            .cloned()
+            .unwrap_or_else(|| super::namespaces::Specialization {
+                source,
+                arguments: self.namespace_arguments(source.module),
+            });
+        let arguments = self.substitute_namespace_arguments(
+            &origin.arguments,
+            &substitutions,
+            &reflected_substitutions,
+            remapping,
+        );
+        if self
+            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
+        {
+            return (origin.source, false);
+        }
+        if self.namespace_arguments_shareable(&arguments) {
+            if let Some((&id, _)) = self.nominal_definitions.iter().find(|(_, candidate)| {
+                candidate.source == origin.source
+                    && self.namespace_arguments_shareable(&arguments)
+                    && self.namespace_arguments_equal(&arguments, &candidate.arguments)
+            }) {
+                return (id, false);
+            }
+        }
         let parameters = self.definition_parameters(source).to_vec();
         let index = self.module(module).definitions.len() as u32;
         self.module_mut(module).definitions.push(OnceCell::new());
@@ -630,16 +706,23 @@ impl CrateEnv {
                 source,
                 substitutions,
                 reflected_substitutions,
-                remapping: InstanceRemapping::default(),
+                remapping: DeclarationRemapping::default(),
             },
         );
-        id
+        self.nominal_definitions.insert(
+            id,
+            super::namespaces::Specialization {
+                source: origin.source,
+                arguments,
+            },
+        );
+        (id, true)
     }
 
     pub(crate) fn set_lazy_definition_remapping(
         &mut self,
         id: DefId,
-        remapping: InstanceRemapping,
+        remapping: DeclarationRemapping,
     ) {
         self.lazy_definitions
             .get_mut(&id)
@@ -684,12 +767,12 @@ impl CrateEnv {
             let spec = self
                 .inductive(lazy.source)
                 .clone()
-                .instantiate(self.arena(), &lazy.substitutions)
                 .remap_global_ids(
                     self.arena(),
                     &lazy.remapping.definition_ids,
                     &lazy.remapping.inductive_ids,
-                );
+                )
+                .instantiate(self.arena(), &lazy.substitutions);
             let _ = slot.set(spec);
             self.materialized_inductives
                 .set(self.materialized_inductives.get() + 1);
@@ -701,24 +784,59 @@ impl CrateEnv {
         &mut self,
         module: ModuleId,
         source: InductiveId,
-        substitutions: Vec<(ModuleParamId, Exp)>,
-    ) -> InductiveId {
+        substitutions: Vec<(ModuleParamId, ModuleArgument)>,
+        reflected_substitutions: Vec<(ModuleParamId, Exp)>,
+        remapping: &DeclarationRemapping,
+    ) -> (InductiveId, bool) {
+        let origin = self
+            .nominal_inductives
+            .get(&source)
+            .cloned()
+            .unwrap_or_else(|| super::namespaces::Specialization {
+                source,
+                arguments: self.namespace_arguments(source.module),
+            });
+        let arguments = self.substitute_namespace_arguments(
+            &origin.arguments,
+            &substitutions,
+            &reflected_substitutions,
+            remapping,
+        );
+        if self
+            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
+        {
+            return (origin.source, false);
+        }
+        if let Some((&id, _)) = self.nominal_inductives.iter().find(|(_, candidate)| {
+            candidate.source == origin.source
+                && self.namespace_arguments_shareable(&arguments)
+                && self.namespace_arguments_equal(&arguments, &candidate.arguments)
+        }) {
+            return (id, false);
+        }
         let id = self.reserve_inductive(module);
+        self.nominal_inductives.insert(
+            id,
+            super::namespaces::Specialization {
+                source: origin.source,
+                arguments,
+            },
+        );
         self.lazy_inductives.insert(
             id,
             LazyInductive {
                 source,
-                substitutions,
-                remapping: InstanceRemapping::default(),
+                substitutions: reflected_substitutions,
+                remapping: DeclarationRemapping::default(),
             },
         );
-        id
+        (id, true)
     }
 
     pub(crate) fn set_lazy_inductive_remapping(
         &mut self,
         id: InductiveId,
-        remapping: InstanceRemapping,
+        remapping: DeclarationRemapping,
     ) {
         self.lazy_inductives
             .get_mut(&id)
@@ -755,13 +873,13 @@ impl CrateEnv {
             let spec = self
                 .program_inductive(lazy.source)
                 .clone()
-                .instantiate(self.arena(), &lazy.substitutions)
                 .remap_global_ids(
                     self.arena(),
                     &lazy.remapping.definition_ids,
                     &lazy.remapping.inductive_ids,
                     &lazy.remapping.program_inductive_ids,
-                );
+                )
+                .instantiate(self.arena(), &lazy.substitutions);
             let _ = slot.set(spec);
             self.materialized_datatypes
                 .set(self.materialized_datatypes.get() + 1);
@@ -774,23 +892,58 @@ impl CrateEnv {
         module: ModuleId,
         source: ProgramInductiveId,
         substitutions: Vec<(ModuleParamId, ModuleArgument)>,
-    ) -> ProgramInductiveId {
+        reflected_substitutions: Vec<(ModuleParamId, Exp)>,
+        remapping: &DeclarationRemapping,
+    ) -> (ProgramInductiveId, bool) {
+        let origin = self
+            .nominal_datatypes
+            .get(&source)
+            .cloned()
+            .unwrap_or_else(|| super::namespaces::Specialization {
+                source,
+                arguments: self.namespace_arguments(source.module),
+            });
+        let arguments = self.substitute_namespace_arguments(
+            &origin.arguments,
+            &substitutions,
+            &reflected_substitutions,
+            remapping,
+        );
+        if self
+            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
+        {
+            return (origin.source, false);
+        }
+        if let Some((&id, _)) = self.nominal_datatypes.iter().find(|(_, candidate)| {
+            candidate.source == origin.source
+                && self.namespace_arguments_shareable(&arguments)
+                && self.namespace_arguments_equal(&arguments, &candidate.arguments)
+        }) {
+            return (id, false);
+        }
         let id = self.reserve_program_inductive(module);
+        self.nominal_datatypes.insert(
+            id,
+            super::namespaces::Specialization {
+                source: origin.source,
+                arguments,
+            },
+        );
         self.lazy_program_inductives.insert(
             id,
             LazyProgramInductive {
                 source,
-                substitutions,
-                remapping: InstanceRemapping::default(),
+                substitutions: substitutions,
+                remapping: DeclarationRemapping::default(),
             },
         );
-        id
+        (id, true)
     }
 
     pub(crate) fn set_lazy_program_inductive_remapping(
         &mut self,
         id: ProgramInductiveId,
-        remapping: InstanceRemapping,
+        remapping: DeclarationRemapping,
     ) {
         self.lazy_program_inductives
             .get_mut(&id)
@@ -798,67 +951,62 @@ impl CrateEnv {
             .remapping = remapping;
     }
 
-    pub fn add_instance(
+    pub fn add_namespace_alias(
         &mut self,
         owner: ModuleId,
         source: ModuleId,
         materialized: ModuleId,
         arguments: Vec<(ModuleParamId, ModuleArgument)>,
         definition_origins: HashMap<DefId, DefId>,
-    ) -> ModuleInstanceId {
-        self.add_instance_with_remapping(
+    ) -> ModuleId {
+        self.add_namespace_binding(
             owner,
             source,
             materialized,
             arguments,
             definition_origins,
-            InstanceRemapping::default(),
+            DeclarationRemapping::default(),
         )
     }
 
-    pub(crate) fn add_instance_with_remapping(
+    pub(crate) fn add_namespace_binding(
         &mut self,
         owner: ModuleId,
         source: ModuleId,
         materialized: ModuleId,
         arguments: Vec<(ModuleParamId, ModuleArgument)>,
         definition_origins: HashMap<DefId, DefId>,
-        remapping: InstanceRemapping,
-    ) -> ModuleInstanceId {
-        let local = u32::try_from(self.module(owner).instances.len())
-            .expect("module instance table exceeded u32::MAX");
-        let id = ModuleInstanceId { owner, local };
-        let previous = self.materialized_instances.insert(materialized, id);
-        assert!(
-            previous.is_none(),
-            "materialized module already has an origin"
-        );
-        self.module_mut(owner).instances.push(ModuleInstance {
-            id,
-            source,
+        remapping: DeclarationRemapping,
+    ) -> ModuleId {
+        self.module_mut(owner).bindings.push(materialized);
+        let previous = self.namespace_bindings.insert(
             materialized,
-            arguments,
-            definition_origins,
-            remapping,
-        });
-        id
+            NamespaceBinding {
+                source,
+                materialized,
+                arguments,
+                definition_origins,
+                remapping,
+            },
+        );
+        assert!(previous.is_none(), "namespace alias already bound");
+        materialized
     }
 
-    pub fn instance(&self, id: ModuleInstanceId) -> &ModuleInstance {
-        &self.module(id.owner).instances[id.local as usize]
+    pub fn binding(&self, namespace: ModuleId) -> &NamespaceBinding {
+        &self.namespace_bindings[&namespace]
     }
 
-    pub fn materialized_instance(&self, module: ModuleId) -> Option<ModuleInstanceId> {
-        self.materialized_instances.get(&module).copied()
+    pub fn namespace_binding_id(&self, module: ModuleId) -> Option<ModuleId> {
+        self.namespace_bindings
+            .contains_key(&module)
+            .then_some(module)
     }
 
     pub fn definition_origin(&self, definition: DefId) -> Option<DefinitionOrigin> {
-        let instance = self.materialized_instance(definition.module)?;
-        let source = *self
-            .instance(instance)
-            .definition_origins
-            .get(&definition)?;
-        Some(DefinitionOrigin { instance, source })
+        let binding = self.namespace_binding_id(definition.module)?;
+        let source = *self.binding(binding).definition_origins.get(&definition)?;
+        Some(DefinitionOrigin { binding, source })
     }
 
     pub fn publish_item(&mut self, module: ModuleId, item: ModuleItem) -> Result<(), String> {
@@ -921,13 +1069,13 @@ impl CrateEnv {
         &mut self,
         module: ModuleId,
         name: String,
-        instance: ModuleInstanceId,
+        binding: ModuleId,
     ) -> Result<(), String> {
         let module = self.module_mut(module);
         if module.imports.contains_key(&name) {
             return Err(format!("Module import '{name}' is already defined"));
         }
-        module.imports.insert(name, instance);
+        module.imports.insert(name, binding);
         Ok(())
     }
 

@@ -70,16 +70,21 @@ kind formation の右辺には `Classifier::Upper` を使う。
 `register_datatype` は parameter kind・field level・strict positivity を検査し、
 Set の鏡像を生成する。鏡像が既にある場合は宣言との一致を検査する。
 
-front の module instance は、生成時には仮想名前空間と安定した宣言 ID だけを確保する。
-定義・帰納型・datatype は参照時に module 引数の代入と global ID の付け替えを行い、
-成功した結果を instance ごとにキャッシュする。lowering の全件走査は実体化済みの
-instance 宣言だけを対象とするが、元 module の宣言は未使用でも従来どおり全件を検査する。
-実体化した宣言も kernel の通常の登録・検査 API を通り、instance が異なれば同じ引数でも
-帰納型 ID は共有しない。
+front の module はパラメーター付き名前空間であり、import は front の名前空間への
+束縛になる。引数を宣言の型と本体へ同時・捕獲回避代入し、kernel へ適用ノードは渡さない。
+元宣言と convertible な引数が同じなら宣言 ID を再利用する。帰納型 ID の同一性は front
+で確定するため、kernel の conversion に module 専用の規則はない。
+未使用の元宣言も検査し、特殊化した宣言は必要になったときに代入・検査する。
 
-型引数を局所 context に持つ関連定義は、閉じた `Constant` としては登録せず、
-`register_definition_template` で body・classifier・context と、Program 定義では body から
-導出した Set 側の反映を検査する。
+式中には `DefId` 参照を持たず、`Arena::annotated(body, classifier)` で作る共有ノードを
+使う。`DefId` は名前や検査済み宣言の登録キーとしてのみ残る。`Annotated` の推論は
+本体を注釈に対して検査した上で宣言した classifier を返し、conversion は本体に透過的。
+型を弱めて宣言した定義でも、利用側でその注釈を失わない。
+代入・変数シフト・閉性判定は注釈も辿る。node の共有は arena の interning による。
+
+型引数を局所 context に持つ関連定義は `register_definition_template` で
+body・classifier・context と、Program 定義の Set 側への反映を検査する。
+利用時は front が明示的な型引数を本体と型へ代入し、通常の注釈付きノードにする。
 検査済みテンプレートは kernel 環境の寿命中保持され、front の lowering を作り直しても
 同じ ID を再検査しない。
 

@@ -299,54 +299,13 @@ impl Lowerer<'_> {
             }
             ExpNode::DefinedConstant(definition) => {
                 self.definition(definition)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::Constant { definition },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::Constant { definition },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::Constant { definition },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::Constant { definition },
-                        })
-                        .into(),
-                    s::Family::SetKind => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetKindNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetKindForm::Constant { definition },
-                        })
-                        .into(),
-                    s::Family::PropKind => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropKindNode {
-                            form: s::PropKindForm::Constant { definition },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                let definition = self
+                    .kernel
+                    .definition(definition)
+                    .ok_or("unknown definition")?;
+                self.kernel
+                    .arena()
+                    .annotated(definition.body, definition.classifier)?
             }
             ExpNode::SubSet {
                 var,

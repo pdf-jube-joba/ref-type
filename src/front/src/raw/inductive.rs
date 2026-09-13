@@ -317,20 +317,23 @@ impl InductiveTypeSpecs {
     }
 
     pub fn instantiate(&self, arena: &Arena, substitutions: &[(ModuleParamId, Exp)]) -> Self {
+        let subst = |e, depth| substitute_under(arena, e, substitutions, depth);
         let parameters = self
             .parameters
             .iter()
-            .map(|(var, ty)| (*var, exp_subst_map(arena, *ty, substitutions)))
+            .enumerate()
+            .map(|(i, (v, t))| (*v, subst(*t, i)))
             .collect();
         let indices = self
             .indices
             .iter()
-            .map(|(var, ty)| (*var, exp_subst_map(arena, *ty, substitutions)))
+            .enumerate()
+            .map(|(i, (v, t))| (*v, subst(*t, self.parameters.len() + i)))
             .collect();
         let constructors = self
             .constructors
             .iter()
-            .map(|constructor| constructor.subst_module_params(arena, substitutions))
+            .map(|ctor| ctor.subst_module_params(arena, substitutions, self.parameters.len()))
             .collect();
         Self::unchecked(parameters, indices, self.sort, constructors)
     }
@@ -485,34 +488,39 @@ impl CtorType {
         &self,
         arena: &Arena,
         substitutions: &[(ModuleParamId, Exp)],
+        parameter_count: usize,
     ) -> Self {
+        let subst = |e, depth| substitute_under(arena, e, substitutions, depth);
         Self {
             telescope: self
                 .telescope
                 .iter()
-                .map(|binder| match binder {
-                    CtorBinder::StrictPositive {
-                        binders,
-                        self_indices,
-                    } => CtorBinder::StrictPositive {
-                        binders: binders
-                            .iter()
-                            .map(|(var, ty)| (*var, exp_subst_map(arena, *ty, substitutions)))
-                            .collect(),
-                        self_indices: self_indices
-                            .iter()
-                            .map(|index| exp_subst_map(arena, *index, substitutions))
-                            .collect(),
-                    },
-                    CtorBinder::Simple((var, ty)) => {
-                        CtorBinder::Simple((*var, exp_subst_map(arena, *ty, substitutions)))
+                .enumerate()
+                .map(|(i, binder)| {
+                    let depth = parameter_count + i;
+                    match binder {
+                        CtorBinder::Simple((v, t)) => CtorBinder::Simple((*v, subst(*t, depth))),
+                        CtorBinder::StrictPositive {
+                            binders,
+                            self_indices,
+                        } => CtorBinder::StrictPositive {
+                            binders: binders
+                                .iter()
+                                .enumerate()
+                                .map(|(j, (v, t))| (*v, subst(*t, depth + j)))
+                                .collect(),
+                            self_indices: self_indices
+                                .iter()
+                                .map(|e| subst(*e, depth + binders.len()))
+                                .collect(),
+                        },
                     }
                 })
                 .collect(),
             indices: self
                 .indices
                 .iter()
-                .map(|index| exp_subst_map(arena, *index, substitutions))
+                .map(|e| subst(*e, parameter_count + self.telescope.len()))
                 .collect(),
         }
     }
@@ -903,4 +911,17 @@ pub fn inductive_type_elim_reduce(env: &CrateEnv, exp: Exp) -> Result<Exp, Strin
     let constructor = spec.constructors[index].instantiate_parameters(arena, &parameters);
     let recursive = recursor(arena, &constructor, motive, cases[index], this);
     Ok(utils::assoc_apply(arena, recursive, arguments))
+}
+
+fn substitute_under(
+    arena: &Arena,
+    e: Exp,
+    substitutions: &[(ModuleParamId, Exp)],
+    depth: usize,
+) -> Exp {
+    let substitutions = substitutions
+        .iter()
+        .map(|(p, a)| (*p, shift_bound_indices(arena, *a, depth, 0)))
+        .collect::<Vec<_>>();
+    exp_subst_map(arena, e, &substitutions)
 }

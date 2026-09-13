@@ -831,7 +831,7 @@ fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
     .unwrap();
 }
 #[test]
-fn boxed_constant_cannot_hide_an_open_module_parameter() {
+fn boxed_annotation_cannot_hide_an_open_module_parameter() {
     let mut env = Environment::new();
     let (_, ty, _zero) = natural(&mut env);
     let p = ModuleParamId {
@@ -866,7 +866,10 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
     .unwrap();
     let constant = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueTermForm::Constant { definition: id },
+        form: ValueTermForm::Annotated {
+            body,
+            classifier: ty.into(),
+        },
     });
     let boxed = env.arena.alloc(SetTermNode {
         level: 0,
@@ -1385,27 +1388,125 @@ fn reflected_module_parameters_are_not_closed() {
 }
 
 #[test]
-fn registering_definition_invalidates_cached_unknown_constant() {
-    let mut env = Environment::new();
+fn annotations_are_shared_transparent_and_checked_without_definition_names() {
+    let env = Environment::new();
     let kind = sk(&env.arena, 0);
-    let id = DefId {
-        module: ModuleId(0),
-        index: 0,
-    };
-    let constant = env.arena.alloc(SetKindNode {
+    let classifier = Classifier::Upper(BaseSort::Set(0));
+    let annotated = env.arena.annotated(kind.into(), classifier).unwrap();
+    assert_eq!(
+        annotated,
+        env.arena.annotated(kind.into(), classifier).unwrap()
+    );
+    assert_eq!(
+        Checker::new(&env, vec![]).infer(annotated).unwrap(),
+        classifier
+    );
+    assert_eq!(whnf(&env, annotated).unwrap(), kind.into());
+    assert!(convertible(&env, annotated, kind.into()).unwrap());
+    let forged = env
+        .arena
+        .annotated(kind.into(), Classifier::Upper(BaseSort::Set(1)))
+        .unwrap();
+    assert!(Checker::new(&env, vec![]).infer(forged).is_err());
+}
+
+#[test]
+fn annotations_preserve_the_declared_classifier_and_check_the_body() {
+    let mut env = Environment::new();
+    let (_, program_ty, _) = natural(&mut env);
+    let ty = reflect_type(&env, program_ty.into()).unwrap();
+    let power = env.arena.alloc(SetTypeNode {
         level: 0,
-        form: SetKindForm::Constant { definition: id },
+        form: SetTypeForm::PowerSet { set: ty },
     });
-    assert_eq!(whnf(&env, constant.into()).unwrap(), constant.into());
-    env.register_definition(
-        id,
-        Definition {
-            context: vec![],
-            body: kind.into(),
-            classifier: Classifier::Upper(BaseSort::Set(0)),
+    let subset = ModuleParamId {
+        module: ModuleId(0),
+        position: 0,
+    };
+    env.register_parameter(
+        subset,
+        Binding {
+            var: SymbolId(1),
+            classifier: power.into(),
         },
+        vec![],
     )
     .unwrap();
-    assert_eq!(whnf(&env, constant.into()).unwrap(), kind.into());
-    assert!(convertible(&env, constant.into(), kind.into()).unwrap());
+    let subset = env.arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::ModuleParam { parameter: subset },
+    });
+    let refined = env.arena.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::TypeLift {
+            superset: ty,
+            subset,
+        },
+    });
+    let x = ModuleParamId {
+        module: ModuleId(0),
+        position: 1,
+    };
+    env.register_parameter(
+        x,
+        Binding {
+            var: SymbolId(2),
+            classifier: refined.into(),
+        },
+        vec![],
+    )
+    .unwrap();
+    let body = env.arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::ModuleParam { parameter: x },
+    });
+    let annotated = env.arena.annotated(body.into(), ty.into()).unwrap();
+    let mut checker = Checker::new(&env, vec![]);
+    assert_eq!(checker.infer(body).unwrap(), refined.into());
+    assert_eq!(checker.infer(annotated).unwrap(), ty.into());
+    assert!(convertible(&env, annotated, body.into()).unwrap());
+    // The family and universe match, but the body does not inhabit Power(ty).
+    let forged = env.arena.annotated(body.into(), power.into()).unwrap();
+    assert!(checker.infer(forged).is_err());
+}
+
+#[test]
+fn substitution_visits_annotation_body_and_classifier() {
+    let mut env = Environment::new();
+    let (_, ty, zero) = natural(&mut env);
+    let a = &env.arena;
+    let type_parameter = a.alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Bound { index: 1 },
+    });
+    let body = a.alloc(ValueTermNode {
+        level: 0,
+        form: ValueTermForm::Bound { index: 0 },
+    });
+    let annotation = a.annotated(body.into(), type_parameter.into()).unwrap();
+    let shifted = shift(a, annotation, 1, 0).unwrap();
+    let Expression::ValueTerm(h) = shifted else {
+        panic!("value")
+    };
+    let ValueTermForm::Annotated {
+        body: shifted_body,
+        classifier: Classifier::Expression(shifted_type),
+    } = a.get(h).form
+    else {
+        panic!("annotation")
+    };
+    assert!(matches!(
+        a.get(shifted_body).form,
+        ValueTermForm::Bound { index: 1 }
+    ));
+    let Expression::ValueType(shifted_type) = shifted_type else {
+        panic!("type")
+    };
+    assert!(matches!(
+        a.get(shifted_type).form,
+        ValueTypeForm::Bound { index: 2 }
+    ));
+    let closed = instantiate_telescope(&env, annotation, &[ty.into(), zero.into()]).unwrap();
+    assert_eq!(Checker::new(&env, vec![]).infer(closed).unwrap(), ty.into());
+    assert!(convertible(&env, closed, zero.into()).unwrap());
 }

@@ -119,6 +119,23 @@ impl ProgramInductiveTypeSpecs {
         arena: &Arena,
         substitutions: &[(ModuleParamId, ModuleArgument)],
     ) -> Self {
+        let substitutions = substitutions
+            .iter()
+            .map(|(p, a)| {
+                let a = match *a {
+                    ModuleArgument::ProgramType(t) => ModuleArgument::ProgramType(
+                        super::program_calculus::shift_value_type_indices(
+                            arena,
+                            t,
+                            self.parameters.len(),
+                            0,
+                        ),
+                    ),
+                    other => other,
+                };
+                (*p, a)
+            })
+            .collect::<Vec<_>>();
         Self {
             parameters: self.parameters.clone(),
             constructors: self
@@ -132,7 +149,7 @@ impl ProgramInductiveTypeSpecs {
                             .map(|(name, ty)| {
                                 (
                                     *name,
-                                    subst_value_type_module_params(arena, *ty, substitutions),
+                                    subst_value_type_module_params(arena, *ty, &substitutions),
                                 )
                             })
                             .collect(),

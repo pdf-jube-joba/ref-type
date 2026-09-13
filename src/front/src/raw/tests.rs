@@ -18,6 +18,91 @@ use crate::raw::{
 };
 
 #[test]
+fn namespace_substitution_is_simultaneous_and_capture_avoiding() {
+    use crate::raw::calculus::exp_subst_map;
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let p = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let q = ModuleParamId {
+        module: env.root_module(),
+        position: 1,
+    };
+    let p_term = a.exp_module_param(p);
+    let q_term = a.exp_module_param(q);
+    let pair = a.alloc(ExpNode::App {
+        func: p_term,
+        arg: q_term,
+    });
+    let replacement = a.exp_bound(0);
+    let replaced = exp_subst_map(a, pair, &[(p, q_term), (q, replacement)]);
+    assert!(
+        matches!(a.get(replaced), ExpNode::App { func, arg } if func == q_term && arg == replacement)
+    );
+
+    let lambda = a.alloc(ComputationTermNode::Lambda {
+        var: SymbolId::ANONYMOUS,
+        value_ty: a.value_type_module_param(p),
+        body: a.alloc(ComputationTermNode::Return {
+            value: a.alloc(ValueTermNode::ModuleParam(q)),
+        }),
+    });
+    let substituted = subst_computation_module_params(
+        a,
+        lambda,
+        &[
+            (p, ModuleArgument::ProgramType(a.value_type_bound(0))),
+            (q, ModuleArgument::ProgramValue(a.value_bound(0))),
+        ],
+        &[],
+    );
+    let ComputationTermNode::Lambda { value_ty, body, .. } = a.get(substituted) else {
+        panic!("lambda")
+    };
+    assert!(matches!(a.get(value_ty), ValueTypeNode::Bound(0)));
+    let ComputationTermNode::Return { value } = a.get(body) else {
+        panic!("return")
+    };
+    assert!(matches!(a.get(value), ValueTermNode::Bound(1)));
+}
+
+#[test]
+fn namespace_substitution_respects_nominal_declaration_telescopes() {
+    use crate::raw::inductive::{CtorBinder, CtorType, InductiveTypeSpecs};
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let p = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let parameter = a.exp_module_param(p);
+    let spec = InductiveTypeSpecs::unchecked(
+        vec![(SymbolId::ANONYMOUS, a.sort(Sort::Set(0)))],
+        vec![],
+        Sort::Set(0),
+        vec![CtorType {
+            telescope: vec![
+                CtorBinder::Simple((SymbolId::ANONYMOUS, parameter)),
+                CtorBinder::Simple((SymbolId::ANONYMOUS, parameter)),
+            ],
+            indices: vec![],
+        }],
+    );
+    let substituted = spec.instantiate(a, &[(p, a.exp_bound(0))]);
+    let ctor = &substituted.constructors()[0];
+    let CtorBinder::Simple((_, first)) = ctor.telescope[0] else {
+        panic!("field")
+    };
+    let CtorBinder::Simple((_, second)) = ctor.telescope[1] else {
+        panic!("field")
+    };
+    assert!(matches!(a.get(first), ExpNode::Bound(1)));
+    assert!(matches!(a.get(second), ExpNode::Bound(2)));
+}
+
+#[test]
 fn conversion_does_not_reduce_alpha_equal_applications() {
     use crate::raw::calculus::{convertible, erased_convertible};
 

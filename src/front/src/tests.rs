@@ -252,7 +252,7 @@ fn child_modules_see_macros_already_declared_by_their_parent() {
 }
 
 #[test]
-fn child_can_be_instantiated_from_an_existing_generative_parent() {
+fn child_bindings_share_types_and_inherit_parent_substitutions() {
     let source = r#"
         \module Parent(A: \Set(0), X: \VType, x: X) {
             \inductive Token: \Set(0) := | token: Token; ;
@@ -292,22 +292,22 @@ fn child_can_be_instantiated_from_an_existing_generative_parent() {
 
     let env = environment.crate_env();
     let consumer = env.module(env.root_module()).children()[1];
-    let p = env.instance(env.module(consumer).import("P").unwrap());
-    let c1 = env.instance(env.module(consumer).import("C1").unwrap());
-    let c2 = env.instance(env.module(consumer).import("C2").unwrap());
+    let p = env.binding(env.module(consumer).import("P").unwrap());
+    let c1 = env.binding(env.module(consumer).import("C1").unwrap());
+    let c2 = env.binding(env.module(consumer).import("C2").unwrap());
     assert_eq!(
         c1.remapping.module_ids.get(&p.source),
         Some(&p.materialized)
     );
-    let local = |instance: &crate::raw::environment::ModuleInstance| {
+    let local = |binding: &crate::raw::environment::NamespaceBinding| {
         let ModuleItem::Inductive { inductive, .. } =
-            env.module(instance.materialized).item("Local").unwrap()
+            env.module(binding.materialized).item("Local").unwrap()
         else {
             unreachable!()
         };
         *inductive
     };
-    assert_ne!(local(c1), local(c2));
+    assert_eq!(local(c1), local(c2));
 }
 
 #[test]
@@ -1471,8 +1471,8 @@ fn program_associated_imports_remap_later_declarations() {
     }
     let env = global.crate_env();
     let consumer = env.module(env.root_module()).children()[1];
-    let instance = &env.module(consumer).instances()[0];
-    let module = instance.materialized;
+    let binding = env.binding(env.module(consumer).bindings()[0]);
+    let module = binding.materialized;
     let ModuleItem::ProgramInductive {
         associated_definitions,
         ..
@@ -1480,16 +1480,20 @@ fn program_associated_imports_remap_later_declarations() {
     else {
         panic!("owner");
     };
+    let ModuleItem::ProgramInductive { inductive, .. } = env.module(module).item("Second").unwrap()
+    else {
+        panic!("second owner")
+    };
     let DefinedConstant::ProgramValue { ty, body, .. } =
         env.definition(associated_definitions[0].1)
     else {
         panic!("associated value");
     };
     assert!(
-        matches!(env.arena().get(*ty), ValueTypeNode::Inductive { indspec, .. } if indspec.module == module)
+        matches!(env.arena().get(*ty), ValueTypeNode::Inductive { indspec, .. } if indspec == *inductive)
     );
     assert!(
-        matches!(env.arena().get(*body), ValueTermNode::DefinedConstant(id) if id.module == module)
+        matches!(env.arena().get(*body), ValueTermNode::DefinedConstant(id) if id.module == binding.source)
     );
 }
 

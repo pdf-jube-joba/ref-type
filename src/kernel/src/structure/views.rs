@@ -45,46 +45,49 @@ pub(crate) fn bound_index(arena: &Arena, e: Expression) -> Option<usize> {
         _ => None,
     }
 }
-pub(crate) fn constant(arena: &Arena, e: Expression) -> Option<DefId> {
+pub(crate) fn annotation(
+    arena: &Arena,
+    e: Expression,
+) -> Option<(Expression, super::super::environment::Classifier)> {
     match e {
         Expression::SetTerm(h) => match arena.read(h).form {
-            SetTermForm::Constant { definition } => Some(definition),
+            SetTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::SetType(h) => match arena.read(h).form {
-            SetTypeForm::Constant { definition } => Some(definition),
+            SetTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::SetKind(h) => match arena.read(h).form {
-            SetKindForm::Constant { definition } => Some(definition),
+            SetKindForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::PropTerm(h) => match arena.read(h).form {
-            PropTermForm::Constant { definition } => Some(definition),
+            PropTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::PropType(h) => match arena.read(h).form {
-            PropTypeForm::Constant { definition } => Some(definition),
+            PropTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::PropKind(h) => match arena.read(h).form {
-            PropKindForm::Constant { definition } => Some(definition),
+            PropKindForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ValueTerm(h) => match arena.read(h).form {
-            ValueTermForm::Constant { definition } => Some(definition),
+            ValueTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ValueType(h) => match arena.read(h).form {
-            ValueTypeForm::Constant { definition } => Some(definition),
+            ValueTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ComputationTerm(h) => match arena.read(h).form {
-            ComputationTermForm::Constant { definition } => Some(definition),
+            ComputationTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ComputationType(h) => match arena.read(h).form {
-            ComputationTypeForm::Constant { definition } => Some(definition),
+            ComputationTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
             _ => None,
         },
         _ => None,
@@ -718,7 +721,6 @@ pub(crate) fn is_base(arena: &Arena, e: Expression) -> bool {
 pub(crate) fn remap_references(
     arena: &Arena,
     e: Expression,
-    definitions: &std::collections::HashMap<DefId, DefId>,
     inductives: &std::collections::HashMap<InductiveId, InductiveId>,
     datatypes: &std::collections::HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Expression {
@@ -727,9 +729,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                SetTermForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 SetTermForm::IndCtor { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -751,9 +750,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                SetTypeForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 SetTypeForm::IndType { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -778,9 +774,6 @@ pub(crate) fn remap_references(
                 SetKindForm::IndType { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
-                SetKindForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 _ => {}
             }
             if *original == node {
@@ -793,9 +786,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                PropTermForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 PropTermForm::IndCtor { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -814,9 +804,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                PropTypeForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 PropTypeForm::IndType { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -841,9 +828,6 @@ pub(crate) fn remap_references(
                 PropKindForm::IndType { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
-                PropKindForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 _ => {}
             }
             if *original == node {
@@ -856,9 +840,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                ValueTermForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 ValueTermForm::InductiveConstructor { inductive, .. } => {
                     *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -874,9 +855,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                ValueTypeForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 ValueTypeForm::Inductive { inductive, .. } => {
                     *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -893,9 +871,6 @@ pub(crate) fn remap_references(
             let original = arena.read(h);
             let mut node = (*original).clone();
             match &mut node.form {
-                ComputationTermForm::Constant { definition } => {
-                    *definition = definitions.get(definition).copied().unwrap_or(*definition)
-                }
                 ComputationTermForm::Case { inductive, .. } => {
                     *inductive = datatypes.get(inductive).copied().unwrap_or(*inductive)
                 }
@@ -907,17 +882,6 @@ pub(crate) fn remap_references(
                 arena.alloc(node).into()
             }
         }
-        Expression::ComputationType(h) => {
-            let original = arena.read(h);
-            let mut node = (*original).clone();
-            if let ComputationTypeForm::Constant { definition } = &mut node.form {
-                *definition = definitions.get(definition).copied().unwrap_or(*definition)
-            }
-            if *original == node {
-                e
-            } else {
-                arena.alloc(node).into()
-            }
-        }
+        Expression::ComputationType(_) => e,
     }
 }

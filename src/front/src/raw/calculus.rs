@@ -248,80 +248,11 @@ fn transform<F>(arena: &Arena, exp: Exp, depth: usize, operation: &mut F) -> Exp
 where
     F: FnMut(&ExpNode, usize) -> Option<Exp>,
 {
-    let node = arena.get(exp);
-    if let Some(replacement) = operation(&node, depth) {
-        return replacement;
-    }
-    let mut changed = false;
-    let mut child = |value: Exp, child_depth: usize| {
-        let result = transform(arena, value, child_depth, operation);
-        changed |= result != value;
-        result
-    };
-    let transformed = match node {
-        ExpNode::Sort(_)
-        | ExpNode::Bound(_)
-        | ExpNode::ModuleParam(_)
-        | ExpNode::ReflectedProgramParam(_)
-        | ExpNode::DefinedConstant(_) => return exp,
-        ExpNode::Prod { var, ty, body } => ExpNode::Prod {
-            var,
-            ty: child(ty, depth),
-            body: child(body, depth + 1),
-        },
-        ExpNode::Lam { var, ty, body } => ExpNode::Lam {
-            var,
-            ty: child(ty, depth),
-            body: child(body, depth + 1),
-        },
-        ExpNode::SubSet {
-            var,
-            set,
-            predicate,
-        } => ExpNode::SubSet {
-            var,
-            set: child(set, depth),
-            predicate: child(predicate, depth + 1),
-        },
-        ExpNode::Prove(Prove::IdElim {
-            left,
-            right,
-            ty,
-            var,
-            predicate,
-            base,
-            equality,
-        }) => ExpNode::Prove(Prove::IdElim {
-            left: child(left, depth),
-            right: child(right, depth),
-            ty: child(ty, depth),
-            var,
-            predicate: child(predicate, depth + 1),
-            base: child(base, depth),
-            equality: child(equality, depth),
-        }),
-        ExpNode::ReflectedProgramCase {
-            indspec,
-            scrutinee,
-            branches,
-        } => ExpNode::ReflectedProgramCase {
-            indspec,
-            scrutinee: child(scrutinee, depth),
-            branches: branches
-                .into_iter()
-                .map(|branch| ReflectedProgramCaseBranch {
-                    body: child(branch.body, depth + branch.binders.len()),
-                    binders: branch.binders,
-                })
-                .collect(),
-        },
-        other => map_children(other, |value| child(value, depth)),
-    };
-    if changed {
-        arena.alloc(transformed)
-    } else {
-        exp
-    }
+    use super::traversal::{self, Term};
+    traversal::logical(arena, exp, depth, &mut |term, depth| match term {
+        Term::Logical(e) => operation(&arena.get(e), depth).map(Term::Logical),
+        _ => None,
+    })
 }
 
 fn direct_children(node: ExpNode) -> Vec<Exp> {
@@ -410,13 +341,12 @@ pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -
 }
 
 pub fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff: usize) -> Exp {
-    if amount == 0 {
-        return exp;
-    }
-    transform(arena, exp, 0, &mut |node, depth| match node {
-        ExpNode::Bound(index) if *index >= cutoff + depth => Some(arena.exp_bound(index + amount)),
-        _ => None,
-    })
+    let super::traversal::Term::Logical(e) =
+        super::traversal::Term::Logical(exp).shift(arena, amount, cutoff)
+    else {
+        unreachable!()
+    };
+    e
 }
 
 pub fn instantiate(arena: &Arena, body: Exp, argument: Exp) -> Exp {
@@ -502,11 +432,13 @@ pub fn exp_subst_module_param(
     })
 }
 
-pub fn exp_subst_map(arena: &Arena, mut exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
-    for (parameter, replacement) in substitutions {
-        exp = exp_subst_module_param(arena, exp, *parameter, *replacement);
-    }
-    exp
+pub fn exp_subst_map(arena: &Arena, exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
+    let super::traversal::Term::Logical(e) =
+        super::traversal::Term::Logical(exp).substitute(arena, &[], substitutions)
+    else {
+        unreachable!()
+    };
+    e
 }
 
 pub fn remap_global_ids(

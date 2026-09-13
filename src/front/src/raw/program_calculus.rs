@@ -447,53 +447,12 @@ pub fn shift_value_type_indices(
     amount: usize,
     cutoff: usize,
 ) -> ValueType {
-    if amount == 0 {
-        return ty;
-    }
-
-    fn go(arena: &Arena, ty: ValueType, amount: usize, cutoff: usize) -> ValueType {
-        match arena.get(ty) {
-            ValueTypeNode::Bound(index) if index >= cutoff => {
-                arena.reuse_value_type(ty, ValueTypeNode::Bound(index + amount))
-            }
-            ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
-                ty,
-                ValueTypeNode::Thunk {
-                    computation_ty: shift_computation_type_indices(
-                        arena,
-                        computation_ty,
-                        amount,
-                        cutoff,
-                    ),
-                },
-            ),
-            ValueTypeNode::RunStep {
-                state_ty,
-                result_ty,
-            } => arena.reuse_value_type(
-                ty,
-                ValueTypeNode::RunStep {
-                    state_ty: go(arena, state_ty, amount, cutoff),
-                    result_ty: go(arena, result_ty, amount, cutoff),
-                },
-            ),
-            ValueTypeNode::Inductive {
-                indspec,
-                parameters,
-            } => arena.reuse_value_type(
-                ty,
-                ValueTypeNode::Inductive {
-                    indspec,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|p| go(arena, p, amount, cutoff))
-                        .collect(),
-                },
-            ),
-            _ => ty,
-        }
-    }
-    go(arena, ty, amount, cutoff)
+    let super::traversal::Term::ValueType(result) =
+        super::traversal::Term::ValueType(ty).shift(arena, amount, cutoff)
+    else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn shift_computation_type_indices(
@@ -502,25 +461,12 @@ pub fn shift_computation_type_indices(
     amount: usize,
     cutoff: usize,
 ) -> ComputationType {
-    if amount == 0 {
-        return ty;
-    }
-    match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
-            ty,
-            ComputationTypeNode::Return {
-                value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-            },
-        ),
-        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
-            ty,
-            ComputationTypeNode::Function {
-                domain: shift_value_type_indices(arena, domain, amount, cutoff),
-                codomain: shift_computation_type_indices(arena, codomain, amount, cutoff),
-            },
-        ),
-        ComputationTypeNode::Meta { .. } => ty,
-    }
+    let super::traversal::Term::ComputationType(result) =
+        super::traversal::Term::ComputationType(ty).shift(arena, amount, cutoff)
+    else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn instantiate_value_type(
@@ -703,104 +649,12 @@ pub fn shift_value_indices(
     amount: usize,
     cutoff: usize,
 ) -> ValueTerm {
-    if amount == 0 {
-        return value;
-    }
-
-    fn go(arena: &Arena, value: ValueTerm, amount: usize, cutoff: usize) -> ValueTerm {
-        match arena.get(value) {
-            ValueTermNode::DefinitionInstance {
-                definition,
-                parameters,
-            } => arena.reuse_value(
-                value,
-                ValueTermNode::DefinitionInstance {
-                    definition,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
-                        .collect(),
-                },
-            ),
-            ValueTermNode::Bound(index) if index >= cutoff => {
-                arena.reuse_value(value, ValueTermNode::Bound(index + amount))
-            }
-            ValueTermNode::Meta {
-                metavariable,
-                spine,
-            } => arena.reuse_value(
-                value,
-                ValueTermNode::Meta {
-                    metavariable,
-                    spine: spine
-                        .into_iter()
-                        .map(|a| match a {
-                            ProgramArgument::ValueType(t) => ProgramArgument::ValueType(
-                                shift_value_type_indices(arena, t, amount, cutoff),
-                            ),
-                            ProgramArgument::ValueTerm(v) => {
-                                ProgramArgument::ValueTerm(go(arena, v, amount, cutoff))
-                            }
-                        })
-                        .collect(),
-                },
-            ),
-            ValueTermNode::Thunk { computation } => arena.reuse_value(
-                value,
-                ValueTermNode::Thunk {
-                    computation: shift_computation_indices(arena, computation, amount, cutoff),
-                },
-            ),
-            ValueTermNode::Continue {
-                state_ty,
-                result_ty,
-                next,
-            } => arena.reuse_value(
-                value,
-                ValueTermNode::Continue {
-                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                    next: go(arena, next, amount, cutoff),
-                },
-            ),
-            ValueTermNode::Finish {
-                state_ty,
-                result_ty,
-                output,
-            } => arena.reuse_value(
-                value,
-                ValueTermNode::Finish {
-                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                    output: go(arena, output, amount, cutoff),
-                },
-            ),
-            ValueTermNode::InductiveConstructor {
-                indspec,
-                parameters,
-                idx,
-                fields,
-            } => arena.reuse_value(
-                value,
-                ValueTermNode::InductiveConstructor {
-                    indspec,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
-                        .collect(),
-                    idx,
-                    fields: fields
-                        .into_iter()
-                        .map(|v| go(arena, v, amount, cutoff))
-                        .collect(),
-                },
-            ),
-            ValueTermNode::Bound(_)
-            | ValueTermNode::ModuleParam(_)
-            | ValueTermNode::DefinedConstant(_) => value,
-        }
-    }
-    go(arena, value, amount, cutoff)
+    let super::traversal::Term::Value(result) =
+        super::traversal::Term::Value(value).shift(arena, amount, cutoff)
+    else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn shift_computation_indices(
@@ -809,157 +663,12 @@ pub fn shift_computation_indices(
     amount: usize,
     cutoff: usize,
 ) -> ComputationTerm {
-    if amount == 0 {
-        return computation;
-    }
-
-    fn go(arena: &Arena, term: ComputationTerm, amount: usize, cutoff: usize) -> ComputationTerm {
-        match arena.get(term) {
-            ComputationTermNode::DefinitionInstance {
-                definition,
-                parameters,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::DefinitionInstance {
-                    definition,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|t| shift_value_type_indices(arena, t, amount, cutoff))
-                        .collect(),
-                },
-            ),
-            ComputationTermNode::Return { value } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Return {
-                    value: shift_value_indices(arena, value, amount, cutoff),
-                },
-            ),
-            ComputationTermNode::Force { value } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Force {
-                    value: shift_value_indices(arena, value, amount, cutoff),
-                },
-            ),
-            ComputationTermNode::Lambda {
-                var,
-                value_ty,
-                body,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Lambda {
-                    var,
-                    value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-                    body: go(arena, body, amount, cutoff + 1),
-                },
-            ),
-            ComputationTermNode::Application { computation, value } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Application {
-                    computation: go(arena, computation, amount, cutoff),
-                    value: shift_value_indices(arena, value, amount, cutoff),
-                },
-            ),
-            ComputationTermNode::Sequence {
-                computation,
-                var,
-                value_ty,
-                body,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Sequence {
-                    computation: go(arena, computation, amount, cutoff),
-                    var,
-                    value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-                    body: go(arena, body, amount, cutoff + 1),
-                },
-            ),
-            ComputationTermNode::ValueLet {
-                var,
-                value_ty,
-                value,
-                body,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::ValueLet {
-                    var,
-                    value_ty: shift_value_type_indices(arena, value_ty, amount, cutoff),
-                    value: shift_value_indices(arena, value, amount, cutoff),
-                    body: go(arena, body, amount, cutoff + 1),
-                },
-            ),
-            ComputationTermNode::Case {
-                indspec,
-                scrutinee,
-                branches,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Case {
-                    indspec,
-                    scrutinee: shift_value_indices(arena, scrutinee, amount, cutoff),
-                    branches: branches
-                        .into_iter()
-                        .map(|b| ProgramCaseBranch {
-                            body: go(arena, b.body, amount, cutoff + b.binders.len()),
-                            binders: b.binders,
-                        })
-                        .collect(),
-                },
-            ),
-            ComputationTermNode::Run {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                accessibility,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::Run {
-                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                    step: shift_value_indices(arena, step, amount, cutoff),
-                    initial: shift_value_indices(arena, initial, amount, cutoff),
-                    accessibility: crate::raw::calculus::shift_bound_indices(
-                        arena,
-                        accessibility,
-                        amount,
-                        cutoff,
-                    ),
-                },
-            ),
-            ComputationTermNode::RunCase {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                accessibility,
-                transition_equality,
-            } => arena.reuse_computation(
-                term,
-                ComputationTermNode::RunCase {
-                    state_ty: shift_value_type_indices(arena, state_ty, amount, cutoff),
-                    result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
-                    step: shift_value_indices(arena, step, amount, cutoff),
-                    initial: shift_value_indices(arena, initial, amount, cutoff),
-                    transition: go(arena, transition, amount, cutoff),
-                    accessibility: crate::raw::calculus::shift_bound_indices(
-                        arena,
-                        accessibility,
-                        amount,
-                        cutoff,
-                    ),
-                    transition_equality: crate::raw::calculus::shift_bound_indices(
-                        arena,
-                        transition_equality,
-                        amount,
-                        cutoff,
-                    ),
-                },
-            ),
-            ComputationTermNode::Meta { .. } | ComputationTermNode::DefinedConstant(_) => term,
-        }
-    }
-    go(arena, computation, amount, cutoff)
+    let super::traversal::Term::Computation(result) =
+        super::traversal::Term::Computation(computation).shift(arena, amount, cutoff)
+    else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn instantiate_value_in_computation(
@@ -1874,53 +1583,12 @@ pub fn subst_value_type_module_params(
     ty: ValueType,
     substitutions: &[(ModuleParamId, ModuleArgument)],
 ) -> ValueType {
-    if substitutions.is_empty() {
-        return ty;
-    }
-    match arena.get(ty) {
-        ValueTypeNode::ModuleParam(id) => substitutions
-            .iter()
-            .find_map(|(candidate, arg)| (*candidate == id).then_some(arg))
-            .and_then(|arg| match arg {
-                ModuleArgument::ProgramType(t) => Some(*t),
-                _ => None,
-            })
-            .unwrap_or(ty),
-        ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
-            ty,
-            ValueTypeNode::Thunk {
-                computation_ty: subst_computation_type_module_params(
-                    arena,
-                    computation_ty,
-                    substitutions,
-                ),
-            },
-        ),
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => arena.reuse_value_type(
-            ty,
-            ValueTypeNode::RunStep {
-                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-            },
-        ),
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => arena.reuse_value_type(
-            ty,
-            ValueTypeNode::Inductive {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|p| subst_value_type_module_params(arena, p, substitutions))
-                    .collect(),
-            },
-        ),
-        _ => ty,
-    }
+    let super::traversal::Term::ValueType(result) =
+        super::traversal::Term::ValueType(ty).substitute(arena, substitutions, &[])
+    else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn subst_computation_type_module_params(
@@ -1928,44 +1596,12 @@ pub fn subst_computation_type_module_params(
     ty: ComputationType,
     substitutions: &[(ModuleParamId, ModuleArgument)],
 ) -> ComputationType {
-    if substitutions.is_empty() {
-        return ty;
-    }
-    match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
-            ty,
-            ComputationTypeNode::Return {
-                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-            },
-        ),
-        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
-            ty,
-            ComputationTypeNode::Function {
-                domain: subst_value_type_module_params(arena, domain, substitutions),
-                codomain: subst_computation_type_module_params(arena, codomain, substitutions),
-            },
-        ),
-        ComputationTypeNode::Meta { .. } => ty,
-    }
-}
-
-fn subst_program_arguments(
-    arena: &Arena,
-    arguments: Vec<ProgramArgument>,
-    substitutions: &[(ModuleParamId, ModuleArgument)],
-    reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
-) -> Vec<ProgramArgument> {
-    arguments
-        .into_iter()
-        .map(|argument| match argument {
-            ProgramArgument::ValueType(ty) => {
-                ProgramArgument::ValueType(subst_value_type_module_params(arena, ty, substitutions))
-            }
-            ProgramArgument::ValueTerm(value) => ProgramArgument::ValueTerm(
-                subst_value_module_params(arena, value, substitutions, reflected_substitutions),
-            ),
-        })
-        .collect()
+    let super::traversal::Term::ComputationType(result) =
+        super::traversal::Term::ComputationType(ty).substitute(arena, substitutions, &[])
+    else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn subst_value_module_params(
@@ -1974,120 +1610,14 @@ pub fn subst_value_module_params(
     substitutions: &[(ModuleParamId, ModuleArgument)],
     reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
 ) -> ValueTerm {
-    if substitutions.is_empty() && reflected_substitutions.is_empty() {
-        return value;
-    }
-    match arena.get(value) {
-        ValueTermNode::DefinitionInstance {
-            definition,
-            parameters,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::DefinitionInstance {
-                definition,
-                parameters: parameters
-                    .into_iter()
-                    .map(|t| subst_value_type_module_params(arena, t, substitutions))
-                    .collect(),
-            },
-        ),
-        ValueTermNode::ModuleParam(id) => substitutions
-            .iter()
-            .find_map(|(candidate, argument)| (*candidate == id).then_some(argument))
-            .and_then(|argument| match argument {
-                ModuleArgument::ProgramValue(value) => Some(*value),
-                _ => None,
-            })
-            .unwrap_or(value),
-        ValueTermNode::Meta {
-            metavariable,
-            spine,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::Meta {
-                metavariable,
-                spine: subst_program_arguments(
-                    arena,
-                    spine,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ValueTermNode::Thunk { computation } => arena.reuse_value(
-            value,
-            ValueTermNode::Thunk {
-                computation: subst_computation_module_params(
-                    arena,
-                    computation,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ValueTermNode::Continue {
-            state_ty,
-            result_ty,
-            next,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::Continue {
-                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                next: subst_value_module_params(
-                    arena,
-                    next,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ValueTermNode::Finish {
-            state_ty,
-            result_ty,
-            output,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::Finish {
-                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                output: subst_value_module_params(
-                    arena,
-                    output,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ValueTermNode::InductiveConstructor {
-            indspec,
-            parameters,
-            idx,
-            fields,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::InductiveConstructor {
-                indspec,
-                parameters: parameters
-                    .into_iter()
-                    .map(|ty| subst_value_type_module_params(arena, ty, substitutions))
-                    .collect(),
-                idx,
-                fields: fields
-                    .into_iter()
-                    .map(|value| {
-                        subst_value_module_params(
-                            arena,
-                            value,
-                            substitutions,
-                            reflected_substitutions,
-                        )
-                    })
-                    .collect(),
-            },
-        ),
-        _ => value,
-    }
+    let super::traversal::Term::Value(result) = super::traversal::Term::Value(value).substitute(
+        arena,
+        substitutions,
+        reflected_substitutions,
+    ) else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn subst_computation_module_params(
@@ -2096,243 +1626,10 @@ pub fn subst_computation_module_params(
     substitutions: &[(ModuleParamId, ModuleArgument)],
     reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
 ) -> ComputationTerm {
-    if substitutions.is_empty() && reflected_substitutions.is_empty() {
-        return term;
-    }
-    match arena.get(term) {
-        ComputationTermNode::DefinitionInstance {
-            definition,
-            parameters,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::DefinitionInstance {
-                definition,
-                parameters: parameters
-                    .into_iter()
-                    .map(|t| subst_value_type_module_params(arena, t, substitutions))
-                    .collect(),
-            },
-        ),
-        ComputationTermNode::Meta {
-            metavariable,
-            spine,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Meta {
-                metavariable,
-                spine: subst_program_arguments(
-                    arena,
-                    spine,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::Return { value } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Return {
-                value: subst_value_module_params(
-                    arena,
-                    value,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::Force { value } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Force {
-                value: subst_value_module_params(
-                    arena,
-                    value,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::Lambda {
-            var,
-            value_ty,
-            body,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Lambda {
-                var,
-                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-                body: subst_computation_module_params(
-                    arena,
-                    body,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::Application { computation, value } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Application {
-                computation: subst_computation_module_params(
-                    arena,
-                    computation,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                value: subst_value_module_params(
-                    arena,
-                    value,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::Sequence {
-            computation,
-            var,
-            value_ty,
-            body,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Sequence {
-                computation: subst_computation_module_params(
-                    arena,
-                    computation,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                var,
-                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-                body: subst_computation_module_params(
-                    arena,
-                    body,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::ValueLet {
-            var,
-            value_ty,
-            value,
-            body,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::ValueLet {
-                var,
-                value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-                value: subst_value_module_params(
-                    arena,
-                    value,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                body: subst_computation_module_params(
-                    arena,
-                    body,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::Case {
-            indspec,
-            scrutinee,
-            branches,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Case {
-                indspec,
-                scrutinee: subst_value_module_params(
-                    arena,
-                    scrutinee,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                branches: branches
-                    .into_iter()
-                    .map(|branch| ProgramCaseBranch {
-                        binders: branch.binders,
-                        body: subst_computation_module_params(
-                            arena,
-                            branch.body,
-                            substitutions,
-                            reflected_substitutions,
-                        ),
-                    })
-                    .collect(),
-            },
-        ),
-        ComputationTermNode::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            accessibility,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::Run {
-                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                step: subst_value_module_params(
-                    arena,
-                    step,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                initial: subst_value_module_params(
-                    arena,
-                    initial,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                accessibility: crate::raw::calculus::exp_subst_map(
-                    arena,
-                    accessibility,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        ComputationTermNode::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
-        } => arena.reuse_computation(
-            term,
-            ComputationTermNode::RunCase {
-                state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
-                result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                step: subst_value_module_params(
-                    arena,
-                    step,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                initial: subst_value_module_params(
-                    arena,
-                    initial,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                transition: subst_computation_module_params(
-                    arena,
-                    transition,
-                    substitutions,
-                    reflected_substitutions,
-                ),
-                accessibility: crate::raw::calculus::exp_subst_map(
-                    arena,
-                    accessibility,
-                    reflected_substitutions,
-                ),
-                transition_equality: crate::raw::calculus::exp_subst_map(
-                    arena,
-                    transition_equality,
-                    reflected_substitutions,
-                ),
-            },
-        ),
-        _ => term,
-    }
+    let super::traversal::Term::Computation(result) = super::traversal::Term::Computation(term)
+        .substitute(arena, substitutions, reflected_substitutions)
+    else {
+        unreachable!()
+    };
+    result
 }

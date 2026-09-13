@@ -295,8 +295,9 @@ pub enum SetTermForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: SetTerm,
+        classifier: super::environment::Classifier,
     },
     ReflectedProgramParam {
         parameter: ModuleParamId,
@@ -435,8 +436,9 @@ pub enum SetTypeForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: SetType,
+        classifier: super::environment::Classifier,
     },
     ReflectedProgramParam {
         parameter: ModuleParamId,
@@ -545,8 +547,9 @@ pub enum SetKindForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: SetKind,
+        classifier: super::environment::Classifier,
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -563,8 +566,9 @@ pub enum PropTermForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: PropTerm,
+        classifier: super::environment::Classifier,
     },
     LambdaTerm {
         rule: ProductRule,
@@ -692,8 +696,9 @@ pub enum PropTypeForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: PropType,
+        classifier: super::environment::Classifier,
     },
     ProdTerm {
         rule: ProductRule,
@@ -802,8 +807,9 @@ pub enum PropKindForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: PropKind,
+        classifier: super::environment::Classifier,
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -819,8 +825,9 @@ pub enum ValueTermForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: ValueTerm,
+        classifier: super::environment::Classifier,
     },
     ThunkValue {
         computation: ComputationTerm,
@@ -856,8 +863,9 @@ pub enum ValueTypeForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: ValueType,
+        classifier: super::environment::Classifier,
     },
     Thunk {
         computation_ty: ComputationType,
@@ -909,8 +917,9 @@ pub enum ComputationTermForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: ComputationTerm,
+        classifier: super::environment::Classifier,
     },
     Return {
         value: ValueTerm,
@@ -990,8 +999,9 @@ pub enum ComputationTypeForm {
     ModuleParam {
         parameter: ModuleParamId,
     },
-    Constant {
-        definition: DefId,
+    Annotated {
+        body: ComputationType,
+        classifier: super::environment::Classifier,
     },
     ReturnType {
         value_ty: ValueType,
@@ -1130,6 +1140,107 @@ impl ValueKindNode {
 impl ComputationTermNode {
     pub fn sort(&self) -> BaseSort {
         BaseSort::Computation(self.level)
+    }
+}
+
+impl Arena {
+    /// A transparent body together with the classifier declared by its author.
+    /// Allocation interns the whole annotation; no definition identity is involved.
+    pub fn annotated(
+        &self,
+        body: Expression,
+        classifier: super::environment::Classifier,
+    ) -> Result<Expression, String> {
+        Ok(match body {
+            Expression::SetTerm(h) => self
+                .alloc(SetTermNode {
+                    level: self.read(h).level,
+                    form: SetTermForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::SetType(h) => self
+                .alloc(SetTypeNode {
+                    level: self.read(h).level,
+                    form: SetTypeForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::SetKind(h) => self
+                .alloc(SetKindNode {
+                    level: self.read(h).level,
+                    form: SetKindForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::PropTerm(h) => self
+                .alloc(PropTermNode {
+                    form: PropTermForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::PropType(h) => self
+                .alloc(PropTypeNode {
+                    form: PropTypeForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::PropKind(h) => self
+                .alloc(PropKindNode {
+                    form: PropKindForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::ValueTerm(h) => self
+                .alloc(ValueTermNode {
+                    level: self.read(h).level,
+                    form: ValueTermForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::ValueType(h) => self
+                .alloc(ValueTypeNode {
+                    level: self.read(h).level,
+                    form: ValueTypeForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::ComputationTerm(h) => self
+                .alloc(ComputationTermNode {
+                    level: self.read(h).level,
+                    form: ComputationTermForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            Expression::ComputationType(h) => self
+                .alloc(ComputationTypeNode {
+                    level: self.read(h).level,
+                    form: ComputationTypeForm::Annotated {
+                        body: h,
+                        classifier,
+                    },
+                })
+                .into(),
+            _ => return Err("Program kinds cannot be annotated".into()),
+        })
     }
 }
 impl ComputationTypeNode {

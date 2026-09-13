@@ -70,13 +70,28 @@ fn compare_set_term(
             },
         ) => parameter_l == parameter_r,
         (
-            SetTermForm::Constant {
-                definition: definition_l,
+            SetTermForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            SetTermForm::Constant {
-                definition: definition_r,
+            SetTermForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             SetTermForm::ReflectedProgramParam {
                 parameter: parameter_l,
@@ -512,13 +527,28 @@ fn compare_set_type(
             },
         ) => parameter_l == parameter_r,
         (
-            SetTypeForm::Constant {
-                definition: definition_l,
+            SetTypeForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            SetTypeForm::Constant {
-                definition: definition_r,
+            SetTypeForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             SetTypeForm::ReflectedProgramParam {
                 parameter: parameter_l,
@@ -860,13 +890,28 @@ fn compare_set_kind(
             },
         ) => parameter_l == parameter_r,
         (
-            SetKindForm::Constant {
-                definition: definition_l,
+            SetKindForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            SetKindForm::Constant {
-                definition: definition_r,
+            SetKindForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         _ => false,
     })
 }
@@ -891,13 +936,28 @@ fn compare_prop_term(
             },
         ) => parameter_l == parameter_r,
         (
-            PropTermForm::Constant {
-                definition: definition_l,
+            PropTermForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            PropTermForm::Constant {
-                definition: definition_r,
+            PropTermForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             PropTermForm::LambdaTerm {
                 rule: rule_l,
@@ -1289,13 +1349,28 @@ fn compare_prop_type(
             },
         ) => parameter_l == parameter_r,
         (
-            PropTypeForm::Constant {
-                definition: definition_l,
+            PropTypeForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            PropTypeForm::Constant {
-                definition: definition_r,
+            PropTypeForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             PropTypeForm::ProdTerm {
                 rule: rule_l,
@@ -1643,13 +1718,28 @@ fn compare_prop_kind(
             },
         ) => parameter_l == parameter_r,
         (
-            PropKindForm::Constant {
-                definition: definition_l,
+            PropKindForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            PropKindForm::Constant {
-                definition: definition_r,
+            PropKindForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         _ => false,
     })
 }
@@ -1674,13 +1764,28 @@ fn compare_value_term(
             },
         ) => parameter_l == parameter_r,
         (
-            ValueTermForm::Constant {
-                definition: definition_l,
+            ValueTermForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            ValueTermForm::Constant {
-                definition: definition_r,
+            ValueTermForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             ValueTermForm::ThunkValue {
                 computation: computation_l,
@@ -1778,13 +1883,28 @@ fn compare_value_type(
             },
         ) => parameter_l == parameter_r,
         (
-            ValueTypeForm::Constant {
-                definition: definition_l,
+            ValueTypeForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            ValueTypeForm::Constant {
-                definition: definition_r,
+            ValueTypeForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             ValueTypeForm::Thunk {
                 computation_ty: computation_ty_l,
@@ -1912,13 +2032,28 @@ fn compare_computation_term(
             },
         ) => parameter_l == parameter_r,
         (
-            ComputationTermForm::Constant {
-                definition: definition_l,
+            ComputationTermForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            ComputationTermForm::Constant {
-                definition: definition_r,
+            ComputationTermForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             ComputationTermForm::Return { value: value_l },
             ComputationTermForm::Return { value: value_r },
@@ -2137,13 +2272,28 @@ fn compare_computation_type(
             },
         ) => parameter_l == parameter_r,
         (
-            ComputationTypeForm::Constant {
-                definition: definition_l,
+            ComputationTypeForm::Annotated {
+                body: body_l,
+                classifier: classifier_l,
             },
-            ComputationTypeForm::Constant {
-                definition: definition_r,
+            ComputationTypeForm::Annotated {
+                body: body_r,
+                classifier: classifier_r,
             },
-        ) => definition_l == definition_r,
+        ) => {
+            compare((*body_l).into(), (*body_r).into())?
+                && match (classifier_l, classifier_r) {
+                    (
+                        super::super::environment::Classifier::Expression(l),
+                        super::super::environment::Classifier::Expression(r),
+                    ) => compare(*l, *r)?,
+                    (
+                        super::super::environment::Classifier::Upper(l),
+                        super::super::environment::Classifier::Upper(r),
+                    ) => l == r,
+                    _ => false,
+                }
+        }
         (
             ComputationTypeForm::ReturnType {
                 value_ty: value_ty_l,

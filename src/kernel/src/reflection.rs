@@ -61,11 +61,8 @@ fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String
             level,
             form: SetTermForm::ReflectedProgramParam { parameter },
         }),
-        ValueTermForm::Constant { definition } => {
-            let definition = env
-                .definition(definition)
-                .ok_or("unknown Program definition")?;
-            reflect_term(env, definition.body.try_into()?)?
+        ValueTermForm::Annotated { body, classifier } => {
+            reflect_annotation(env, body.into(), classifier)?.try_into()?
         }
         ValueTermForm::ThunkValue { computation } => reflect_computation_term(env, computation)?,
         ValueTermForm::Continue {
@@ -136,11 +133,8 @@ fn reflect_value_type(env: &Environment, h: ValueType) -> Result<SetType, String
             level,
             form: SetTypeForm::ReflectedProgramParam { parameter },
         }),
-        ValueTypeForm::Constant { definition } => {
-            let definition = env
-                .definition(definition)
-                .ok_or("unknown Program definition")?;
-            reflect_type(env, definition.body.try_into()?)?
+        ValueTypeForm::Annotated { body, classifier } => {
+            reflect_annotation(env, body.into(), classifier)?.try_into()?
         }
         ValueTypeForm::Thunk { computation_ty } => reflect_computation_type(env, computation_ty)?,
         ValueTypeForm::RunStep {
@@ -242,11 +236,8 @@ fn reflect_computation_term(env: &Environment, h: ComputationTerm) -> Result<Set
             level,
             form: SetTermForm::ReflectedProgramParam { parameter },
         }),
-        ComputationTermForm::Constant { definition } => {
-            let definition = env
-                .definition(definition)
-                .ok_or("unknown Program definition")?;
-            reflect_term(env, definition.body.try_into()?)?
+        ComputationTermForm::Annotated { body, classifier } => {
+            reflect_annotation(env, body.into(), classifier)?.try_into()?
         }
         ComputationTermForm::Return { value } => reflect_value_term(env, value)?,
         ComputationTermForm::Force { value } => reflect_value_term(env, value)?,
@@ -411,11 +402,8 @@ fn reflect_computation_type(env: &Environment, h: ComputationType) -> Result<Set
             level,
             form: SetTypeForm::ReflectedProgramParam { parameter },
         }),
-        ComputationTypeForm::Constant { definition } => {
-            let definition = env
-                .definition(definition)
-                .ok_or("unknown Program definition")?;
-            reflect_type(env, definition.body.try_into()?)?
+        ComputationTypeForm::Annotated { body, classifier } => {
+            reflect_annotation(env, body.into(), classifier)?.try_into()?
         }
         ComputationTypeForm::ReturnType { value_ty } => reflect_value_type(env, value_ty)?,
         ComputationTypeForm::ProdTerm {
@@ -485,6 +473,22 @@ fn reflect_computation_type(env: &Environment, h: ComputationType) -> Result<Set
             })
         }
     })
+}
+
+fn reflect_annotation(
+    env: &Environment,
+    body: Expression,
+    classifier: super::environment::Classifier,
+) -> Result<Expression, String> {
+    use super::environment::Classifier;
+    let body = reflect_program_expression(env, body)?;
+    let classifier = match classifier {
+        Classifier::Expression(ty) => Classifier::Expression(reflect_program_expression(env, ty)?),
+        Classifier::Upper(sort) => {
+            Classifier::Upper(BaseSort::Set(sort.level().ok_or("expected Program sort")?))
+        }
+    };
+    env.arena.annotated(body, classifier)
 }
 
 fn reflect_computation_kind(env: &Environment, h: ComputationKind) -> Result<SetKind, String> {

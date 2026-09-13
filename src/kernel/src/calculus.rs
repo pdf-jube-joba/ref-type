@@ -199,27 +199,34 @@ pub fn substitute_parameters(
 pub fn remap_ids(
     arena: &Arena,
     e: Expression,
-    definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<InductiveId, InductiveId>,
     datatypes: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Result<Expression, String> {
     let e = map_children(arena, e, |child, _| {
-        remap_ids(arena, child, definitions, inductives, datatypes)
+        remap_ids(arena, child, inductives, datatypes)
     })?;
-    Ok(structure::remap_references(
-        arena,
-        e,
-        definitions,
-        inductives,
-        datatypes,
-    ))
+    Ok(structure::remap_references(arena, e, inductives, datatypes))
 }
 pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
-    left == right
-        || structure::compare_children(arena, left, right, |left, right| {
-            Ok(alpha_equal(arena, left, right))
-        })
-        .expect("alpha comparison cannot fail")
+    fn go(
+        arena: &Arena,
+        left: Expression,
+        right: Expression,
+        cache: &mut HashMap<(Expression, Expression), bool>,
+    ) -> bool {
+        if left == right {
+            return true;
+        }
+        if let Some(&result) = cache.get(&(left, right)) {
+            return result;
+        }
+        let result =
+            structure::compare_children(arena, left, right, |l, r| Ok(go(arena, l, r, cache)))
+                .expect("alpha comparison cannot fail");
+        cache.insert((left, right), result);
+        result
+    }
+    go(arena, left, right, &mut HashMap::new())
 }
 pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bool, String> {
     fn go(
@@ -273,6 +280,10 @@ pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
     let original = e;
     let mut e = e;
     for _ in 0..100_000 {
+        if let Some((body, _)) = structure::annotation(&env.arena, e) {
+            e = body;
+            continue;
+        }
         if let Some(next) = reduce_root(env, e)? {
             e = next;
             continue;
@@ -430,15 +441,8 @@ fn reduce_inductive(
     Ok(Some(case))
 }
 fn unfold_value(env: &Environment, mut value: Expression) -> Result<Expression, String> {
-    let mut seen = std::collections::HashSet::new();
-    while let Some(definition) = structure::constant(&env.arena, value) {
-        if !seen.insert(definition) {
-            return Err("cyclic Program constant".into());
-        }
-        value = env
-            .definition(definition)
-            .ok_or("unknown Program constant")?
-            .body;
+    while let Some((body, _)) = structure::annotation(&env.arena, value) {
+        value = body;
     }
     Ok(value)
 }
@@ -447,7 +451,6 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
         env: &Environment,
         e: Expression,
         depth: usize,
-        seen: &mut std::collections::HashSet<DefId>,
         cache: &mut HashMap<(Expression, usize), bool>,
     ) -> bool {
         if let Some(&result) = cache.get(&(e, depth)) {
@@ -460,32 +463,17 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
             || structure::reflected_parameter(a, e).is_some()
         {
             false
-        } else if let Some(definition) = structure::constant(a, e) {
-            if !seen.insert(definition) {
-                return false;
-            }
-            let result = env
-                .definition(definition)
-                .is_some_and(|def| go(env, def.body, 0, seen, cache));
-            seen.remove(&definition);
-            result
         } else {
             let mut result = true;
             structure::visit_children(a, e, |child, n| {
-                result = result && go(env, child, depth + n, seen, cache);
+                result = result && go(env, child, depth + n, cache);
             });
             result
         };
         cache.insert((e, depth), result);
         result
     }
-    go(
-        env,
-        e,
-        0,
-        &mut std::collections::HashSet::new(),
-        &mut HashMap::new(),
-    )
+    go(env, e, 0, &mut HashMap::new())
 }
 /// Local binders must be abstracted before a named declaration is registered.
 pub fn locally_closed(arena: &Arena, e: Expression) -> bool {
@@ -924,7 +912,7 @@ fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expressi
     let level = node.level;
     let e = h.into();
     Ok(match node.form {
-        SetTermForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        SetTermForm::Annotated { body, .. } => Some(body.into()),
         SetTermForm::AppTerm {
             rule,
             function,
@@ -1015,7 +1003,7 @@ fn reduce_set_type_root(env: &Environment, h: SetType) -> Result<Option<Expressi
     let node = a.get(h);
     let e = h.into();
     Ok(match node.form {
-        SetTypeForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        SetTypeForm::Annotated { body, .. } => Some(body.into()),
         SetTypeForm::AppTerm {
             rule,
             function,
@@ -1046,7 +1034,7 @@ fn reduce_set_kind_root(env: &Environment, h: SetKind) -> Result<Option<Expressi
     let a = &env.arena;
     let node = a.get(h);
     Ok(match node.form {
-        SetKindForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        SetKindForm::Annotated { body, .. } => Some(body.into()),
         _ => None,
     })
 }
@@ -1055,7 +1043,7 @@ fn reduce_prop_term_root(env: &Environment, h: PropTerm) -> Result<Option<Expres
     let node = a.get(h);
     let e = h.into();
     Ok(match node.form {
-        PropTermForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        PropTermForm::Annotated { body, .. } => Some(body.into()),
         PropTermForm::AppTerm {
             rule,
             function,
@@ -1087,7 +1075,7 @@ fn reduce_prop_type_root(env: &Environment, h: PropType) -> Result<Option<Expres
     let node = a.get(h);
     let e = h.into();
     Ok(match node.form {
-        PropTypeForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        PropTypeForm::Annotated { body, .. } => Some(body.into()),
         PropTypeForm::AppTerm {
             rule,
             function,
@@ -1121,7 +1109,7 @@ fn reduce_prop_kind_root(env: &Environment, h: PropKind) -> Result<Option<Expres
     let a = &env.arena;
     let node = a.get(h);
     Ok(match node.form {
-        PropKindForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        PropKindForm::Annotated { body, .. } => Some(body.into()),
         _ => None,
     })
 }
@@ -1129,7 +1117,7 @@ fn reduce_value_type_root(env: &Environment, h: ValueType) -> Result<Option<Expr
     let a = &env.arena;
     let node = a.get(h);
     Ok(match node.form {
-        ValueTypeForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        ValueTypeForm::Annotated { body, .. } => Some(body.into()),
         ValueTypeForm::AppType {
             rule,
             function,
@@ -1149,7 +1137,7 @@ fn reduce_computation_term_root(
     let node = a.get(h);
     let level = node.level;
     Ok(match node.form {
-        ComputationTermForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        ComputationTermForm::Annotated { body, .. } => Some(body.into()),
         ComputationTermForm::Force { value } => reduce_force(env, value)?,
         ComputationTermForm::AppTerm {
             rule,
@@ -1216,7 +1204,7 @@ fn reduce_computation_type_root(
     let a = &env.arena;
     let node = a.get(h);
     Ok(match node.form {
-        ComputationTypeForm::Constant { definition } => env.definition(definition).map(|d| d.body),
+        ComputationTypeForm::Annotated { body, .. } => Some(body.into()),
         ComputationTypeForm::AppType {
             rule,
             function,

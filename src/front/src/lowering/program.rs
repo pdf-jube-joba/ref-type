@@ -157,18 +157,37 @@ impl Lowerer<'_> {
                 parameters,
             } => {
                 self.definition(definition)?;
-                let raw::environment::DefinedConstant::ProgramValue { body, .. } =
+                let raw::environment::DefinedConstant::ProgramValue { body, ty } =
                     self.raw.definition(definition)
                 else {
                     return Err("wrong Program definition category".into());
                 };
                 let body =
                     raw::program_definitions::instantiate_value(self.raw, *body, &parameters, 0);
-                return self.value_term(body, ctx);
+                let ty = raw::program_definitions::instantiate_value_type(
+                    self.raw.arena(),
+                    *ty,
+                    &parameters,
+                    0,
+                );
+                let body = self.value_term(body, ctx)?;
+                let ty = self.value_type(ty)?;
+                return self
+                    .kernel
+                    .arena()
+                    .annotated(body.into(), ty.into())?
+                    .try_into();
             }
             R::DefinedConstant(definition) => {
                 self.definition(definition)?;
-                F::Constant { definition }
+                let declaration = self
+                    .kernel
+                    .definition(definition)
+                    .ok_or("unknown definition")?;
+                F::Annotated {
+                    body: declaration.body.try_into()?,
+                    classifier: declaration.classifier,
+                }
             }
             R::Thunk { computation } => F::ThunkValue {
                 computation: self.computation_term(computation, ctx)?,
@@ -243,7 +262,7 @@ impl Lowerer<'_> {
                 parameters,
             } => {
                 self.definition(definition)?;
-                let raw::environment::DefinedConstant::ProgramComputation { body, .. } =
+                let raw::environment::DefinedConstant::ProgramComputation { body, ty } =
                     self.raw.definition(definition)
                 else {
                     return Err("wrong Program definition category".into());
@@ -254,11 +273,30 @@ impl Lowerer<'_> {
                     &parameters,
                     0,
                 );
-                return self.computation_term(body, ctx);
+                let ty = raw::program_definitions::instantiate_computation_type(
+                    self.raw.arena(),
+                    *ty,
+                    &parameters,
+                    0,
+                );
+                let body = self.computation_term(body, ctx)?;
+                let ty = self.computation_type(ty)?;
+                return self
+                    .kernel
+                    .arena()
+                    .annotated(body.into(), ty.into())?
+                    .try_into();
             }
             R::DefinedConstant(definition) => {
                 self.definition(definition)?;
-                F::Constant { definition }
+                let declaration = self
+                    .kernel
+                    .definition(definition)
+                    .ok_or("unknown definition")?;
+                F::Annotated {
+                    body: declaration.body.try_into()?,
+                    classifier: declaration.classifier,
+                }
             }
             R::Return { value } => F::Return {
                 value: self.value_term(value, ctx)?,

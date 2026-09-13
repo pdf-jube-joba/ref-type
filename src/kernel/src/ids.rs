@@ -27,12 +27,6 @@ pub struct ModuleParamId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ModuleInstanceId {
-    pub owner: ModuleId,
-    pub local: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DefId {
     pub module: ModuleId,
     pub index: u32,

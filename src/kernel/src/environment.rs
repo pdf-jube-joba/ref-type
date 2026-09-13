@@ -3,7 +3,7 @@ use super::{sort::*, syntax::*};
 use crate::ids::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Classifier {
     Expression(Expression),
     Upper(BaseSort),
@@ -105,10 +105,8 @@ impl Environment {
             super::check::Checker::new(self, context).check(body, ty)?;
         }
         self.definitions.insert(id, definition);
-        // Normalization can have visited this name before it was registered.
-        // Inference also depends on those cached conversion results.
-        self.head_cache.borrow_mut().clear();
-        self.inference_cache.borrow_mut().clear();
+        // Expressions contain annotations, not names. Adding metadata cannot
+        // change the meaning of any previously checked expression.
         Ok(())
     }
 

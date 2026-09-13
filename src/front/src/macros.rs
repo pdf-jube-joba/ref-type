@@ -818,11 +818,11 @@ fn resolve_access(
     match access {
         LocalAccess::Resolved { module, access } => Ok((*module, access.clone())),
         LocalAccess::Named { access, child } => {
-            let instance = env
+            let binding = env
                 .module(from)
                 .import(access.as_str())
                 .ok_or_else(|| format!("Module import '{}' was not found", access.as_str()))?;
-            let module = env.instance(instance).materialized;
+            let module = env.binding(binding).materialized;
             env.module(module).item(child.as_str()).ok_or_else(|| {
                 format!(
                     "Item '{}.{}' was not found",
@@ -1163,11 +1163,11 @@ impl ModuleManager {
         import_name: &Identifier,
         macro_name: &Identifier,
     ) -> Result<(), String> {
-        let instance = env
+        let binding = env
             .module(self.current())
             .import(import_name.as_str())
             .ok_or_else(|| format!("Module import '{}' was not found", import_name.as_str()))?;
-        let materialized = env.instance(instance).materialized;
+        let materialized = env.binding(binding).materialized;
         let definition = self
             .macro_scope(env, materialized)
             .and_then(|macros| {
@@ -1344,14 +1344,14 @@ fn remap_macro_scope(
                 }
             }
             SExp::ResolvedExp(exp) => {
-                let substituted = exp_subst_map(env.arena(), *exp, &remapping.substitutions);
-                *exp = remap_all_global_ids(
+                let renamed = remap_all_global_ids(
                     env.arena(),
-                    substituted,
+                    *exp,
                     &remapping.definition_ids,
                     &remapping.inductive_ids,
                     &remapping.program_inductive_ids,
                 );
+                *exp = exp_subst_map(env.arena(), renamed, &remapping.substitutions);
             }
             _ => {}
         });

@@ -29,9 +29,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             SetTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            SetTermForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            SetTermForm::Annotated { .. } => "annotated".into(),
             SetTermForm::ReflectedProgramParam { parameter } => {
                 format!("ReflectedProgramParam {{ parameter: {parameter:?} }}")
             }
@@ -78,9 +76,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             SetTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            SetTypeForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            SetTypeForm::Annotated { .. } => "annotated".into(),
             SetTypeForm::ReflectedProgramParam { parameter } => {
                 format!("ReflectedProgramParam {{ parameter: {parameter:?} }}")
             }
@@ -133,18 +129,14 @@ fn label(arena: &Arena, e: Expression) -> String {
             SetKindForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            SetKindForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            SetKindForm::Annotated { .. } => "annotated".into(),
         },
         Expression::PropTerm(h) => match &arena.read(h).form {
             PropTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             PropTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            PropTermForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            PropTermForm::Annotated { .. } => "annotated".into(),
             PropTermForm::LambdaTerm { rule, var, .. } => {
                 format!("LambdaTerm {{ rule: {rule:?}, var: {var:?} }}")
             }
@@ -183,9 +175,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             PropTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            PropTypeForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            PropTypeForm::Annotated { .. } => "annotated".into(),
             PropTypeForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")
             }
@@ -235,18 +225,14 @@ fn label(arena: &Arena, e: Expression) -> String {
             PropKindForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            PropKindForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            PropKindForm::Annotated { .. } => "annotated".into(),
         },
         Expression::ValueTerm(h) => match &arena.read(h).form {
             ValueTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             ValueTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            ValueTermForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            ValueTermForm::Annotated { .. } => "annotated".into(),
             ValueTermForm::ThunkValue { .. } => "ThunkValue".into(),
             ValueTermForm::Continue { .. } => "Continue".into(),
             ValueTermForm::Finish { .. } => "Finish".into(),
@@ -263,9 +249,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             ValueTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            ValueTypeForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            ValueTypeForm::Annotated { .. } => "annotated".into(),
             ValueTypeForm::Thunk { .. } => "Thunk".into(),
             ValueTypeForm::RunStep { .. } => "RunStep".into(),
             ValueTypeForm::Inductive { inductive, .. } => {
@@ -286,9 +270,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             ComputationTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            ComputationTermForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            ComputationTermForm::Annotated { .. } => "annotated".into(),
             ComputationTermForm::Return { .. } => "Return".into(),
             ComputationTermForm::Force { .. } => "Force".into(),
             ComputationTermForm::LambdaTerm { rule, var, .. } => {
@@ -312,9 +294,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             ComputationTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
-            ComputationTypeForm::Constant { definition } => {
-                format!("Constant {{ definition: {definition:?} }}")
-            }
+            ComputationTypeForm::Annotated { .. } => "annotated".into(),
             ComputationTypeForm::ReturnType { .. } => "ReturnType".into(),
             ComputationTypeForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")

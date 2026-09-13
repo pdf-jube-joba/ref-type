@@ -6,14 +6,14 @@ impl GlobalEnvironment {
         &mut self,
         context: &mut ExpContext,
         back_parent: Option<usize>,
-        base: Option<ModuleInstanceId>,
+        base: Option<ModuleId>,
         calls: &mut [(Identifier, Vec<(Identifier, ModuleArgument)>)],
     ) -> Result<(), ElaborationError> {
         if self.metavariables.is_empty() {
             return Ok(());
         }
         let mut source = if let Some(base) = base {
-            self.crate_env.instance(base).source
+            self.crate_env.binding(base).source
         } else if let Some(back_parent) = back_parent {
             let mut module = self.module_manager.current();
             for _ in 0..back_parent {
@@ -27,9 +27,9 @@ impl GlobalEnvironment {
             self.crate_env.root_module()
         };
         let inherited_arguments = base
-            .map(|base| self.crate_env.instance(base).arguments.clone())
+            .map(|base| self.crate_env.binding(base).arguments.clone())
             .unwrap_or_default();
-        let base_remapping = base.map(|base| self.crate_env.instance(base).remapping.clone());
+        let base_remapping = base.map(|base| self.crate_env.binding(base).remapping.clone());
         let mut substitutions = inherited_arguments
             .into_iter()
             .map(|(parameter, argument)| {
@@ -89,8 +89,7 @@ impl GlobalEnvironment {
                 }
                 match (parameter.kind, *argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(exp)) => {
-                        let mut expected =
-                            exp_subst_map(self.crate_env.arena(), ty, &substitutions);
+                        let mut expected = ty;
                         if let Some(remapping) = &base_remapping {
                             expected = remap_all_global_ids(
                                 self.crate_env.arena(),
@@ -100,6 +99,8 @@ impl GlobalEnvironment {
                                 &remapping.program_inductive_ids,
                             );
                         }
+                        let expected =
+                            exp_subst_map(self.crate_env.arena(), expected, &substitutions);
                         self.metavariables
                             .check_pts(
                                 &self.crate_env,
@@ -702,7 +703,7 @@ impl GlobalEnvironment {
                         }
                         ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
                         ModuleInstantiatePath::FromImport { import_name, calls } => {
-                            let instance = self
+                            let binding = self
                                 .crate_env
                                 .module(self.module_manager.current())
                                 .import(import_name.as_str())
@@ -712,12 +713,12 @@ impl GlobalEnvironment {
                                         import_name.as_str()
                                     )
                                 })?;
-                            (None, Some(instance), calls)
+                            (None, Some(binding), calls)
                         }
                     };
 
                     let mut source = if let Some(base) = base {
-                        self.crate_env.instance(base).source
+                        self.crate_env.binding(base).source
                     } else if let Some(back_parent) = from {
                         let mut module = self.module_manager.current();
                         for _ in 0..back_parent {
@@ -732,7 +733,7 @@ impl GlobalEnvironment {
                         self.crate_env.root_module()
                     };
                     let mut program_substitutions = base
-                        .map(|base| self.crate_env.instance(base).arguments.clone())
+                        .map(|base| self.crate_env.binding(base).arguments.clone())
                         .unwrap_or_default();
                     let mut program_scope = program_term_elaborator::ProgramScope::new();
                     let mut args = Vec::with_capacity(calls.len());
@@ -787,7 +788,7 @@ impl GlobalEnvironment {
                                             &program_substitutions,
                                         );
                                     if let Some(base) = base {
-                                        let remapping = &self.crate_env.instance(base).remapping;
+                                        let remapping = &self.crate_env.binding(base).remapping;
                                         expected = crate::raw::program_calculus::remap_value_type_global_ids(
                                             self.crate_env.arena(),
                                             expected,
@@ -840,14 +841,14 @@ impl GlobalEnvironment {
                     self.solve_module_arguments(&mut ctx, from, base, &mut args)?;
 
                     let access_result = if let Some(base) = base {
-                        self.module_manager.instantiate_module_from_instance(
+                        self.module_manager.bind_namespace_from_alias(
                             &mut self.crate_env,
                             &mut ctx,
                             base,
                             args,
                         )
                     } else {
-                        self.module_manager.instantiate_module(
+                        self.module_manager.bind_namespace(
                             &mut self.crate_env,
                             &mut ctx,
                             from,
