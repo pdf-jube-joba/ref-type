@@ -16,6 +16,55 @@ fn sk(a: &Arena, i: usize) -> SetKind {
 }
 
 #[test]
+fn local_closure_tracks_shared_binders_and_annotation_classifiers() {
+    let arena = Arena::new();
+    let bound = |index| {
+        arena.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::Bound { index },
+        })
+    };
+    let rule =
+        ProductRule::new(Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Set(0))).unwrap();
+    let lambda = |body| {
+        arena.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::LambdaType {
+                rule,
+                var: SymbolId::ANONYMOUS,
+                domain: sk(&arena, 0),
+                body,
+            },
+        })
+    };
+    let free = bound(0);
+    let closed = lambda(free);
+    let open = lambda(bound(1));
+    // The same node is open at the root and closed under one binder, including
+    // after warming the arena's cache with both kinds of queries.
+    for _ in 0..2 {
+        assert!(!locally_closed(&arena, free.into()));
+        assert!(locally_closed(&arena, closed.into()));
+        assert!(!locally_closed(&arena, open.into()));
+        assert!(locally_closed(&arena, lambda(open).into()));
+    }
+
+    let parameter = arena.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::ModuleParam {
+            parameter: ModuleParamId {
+                module: ModuleId(0),
+                position: 0,
+            },
+        },
+    });
+    assert!(locally_closed(&arena, parameter.into()));
+    let annotated = arena.annotated(parameter.into(), free.into()).unwrap();
+    // A closed body cannot hide an open type annotation.
+    assert!(!locally_closed(&arena, annotated));
+}
+
+#[test]
 fn shared_syntax_transformations_respect_each_binder_depth() {
     let a = Arena::new();
     let ty = |index| {

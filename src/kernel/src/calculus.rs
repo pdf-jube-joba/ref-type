@@ -477,25 +477,9 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
 }
 /// Local binders must be abstracted before a named declaration is registered.
 pub fn locally_closed(arena: &Arena, e: Expression) -> bool {
-    fn visit(
-        a: &Arena,
-        e: Expression,
-        depth: usize,
-        seen: &mut std::collections::HashSet<(Expression, usize)>,
-    ) -> bool {
-        if !seen.insert((e, depth)) {
-            return true;
-        }
-        if let Some(index) = structure::bound_index(a, e) {
-            return index < depth;
-        }
-        let mut closed = true;
-        structure::visit_children(a, e, |child, n| {
-            closed = closed && visit(a, child, depth + n, seen);
-        });
-        closed
-    }
-    visit(arena, e, 0, &mut std::collections::HashSet::new())
+    // Nodes are immutable. Reuse the same binder-aware summary as shifting and
+    // substitution instead of traversing a shared definition at every use site.
+    arena.max_loose_bound(e).is_none()
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Evaluation {

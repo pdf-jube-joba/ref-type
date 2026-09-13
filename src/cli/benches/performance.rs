@@ -122,6 +122,42 @@ fn beta_chain(depth: usize) -> Duration {
     elapsed
 }
 
+fn shared_closure(depth: usize, uses: usize) -> Duration {
+    use kernel::{calculus::locally_closed, ids::*, sort::*, syntax::*};
+    let arena = Arena::new();
+    // Module parameters are locally closed; no environment lookup is needed.
+    let mut ty = arena.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::ModuleParam {
+            parameter: ModuleParamId {
+                module: ModuleId(0),
+                position: 0,
+            },
+        },
+    });
+    let rule =
+        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
+    for _ in 0..depth {
+        ty = arena.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::ProdTerm {
+                rule,
+                var: SymbolId::ANONYMOUS,
+                domain: ty,
+                body: ty,
+            },
+        });
+    }
+    // Include the first cache fill, then repeated use of the same shared term.
+    let (elapsed, closed) = timed(|| {
+        (0..uses).fold(true, |closed, _| {
+            locally_closed(black_box(&arena), black_box(ty.into())) & closed
+        })
+    });
+    assert!(closed);
+    elapsed
+}
+
 fn countdown_modules(size: usize) -> Vec<Module> {
     let mut number_definitions = String::from("\\vdefinition n0: Nat := Nat::zero;\n");
     for index in 1..=size {
@@ -145,7 +181,12 @@ fn countdown_modules(size: usize) -> Vec<Module> {
       | succ rest => \return(\Pcontinue(Nat, Nat, rest));
       }}));
   {number_definitions}
-  \cdefinition main: \F(Nat) := \Prun(Nat, Nat, step, n{size});
+  \definition stepSet: Nat -> \RunStep(Nat, Nat) :=
+    \Force(\U((Nat ~> \F(\PRunStep(Nat, Nat)))),
+      \box(\U((Nat ~> \F(\PRunStep(Nat, Nat)))), step));
+  \module Certified(terminates: \Acc(Nat, Nat, stepSet, n{size})) {{
+    \cdefinition main: \F(Nat) := \Prun(Nat, Nat, step, n{size}) \by terminates;
+  }}
 }}"
     );
     front::parse::str_parse_modules(&source).unwrap()
@@ -156,6 +197,7 @@ fn countdown(modules: &[Module]) -> Duration {
     let global = elaborate(modules);
     let env = global.crate_env();
     let module = env.module(env.root_module()).children()[0];
+    let module = env.module(module).children()[0];
     let Some(ModuleItem::Definition { definition, .. }) = env.module(module).item("main") else {
         panic!("missing countdown main")
     };
@@ -199,9 +241,12 @@ fn main() -> anyhow::Result<()> {
             instantiate_modules(&unused_instances, 0)
         }),
         Case::new("instantiate/128x16-one-each", || {
-            instantiate_modules(&used_instances, 16)
+            // All imports have the same source and argument, so they share
+            // one canonical instance and materialize item0 only once.
+            instantiate_modules(&used_instances, 1)
         }),
         Case::new("normalize/beta256", || beta_chain(256)),
+        Case::new("kernel/closure64x128", || shared_closure(64, 128)),
         Case::new("evaluate/countdown32", || {
             countdown(small.get_or_init(|| countdown_modules(32)))
         }),

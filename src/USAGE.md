@@ -144,10 +144,19 @@ Program の inductive／structure には `\vdefinition Type(A: \VType)::item`
 
 ## 実行速度の計測
 
+変更前の Git revision と現在の作業ツリーを、同じ入力・toolchain・CPU で比較できます。
+Python 3.12 以上が必要です。
+
 ```sh
-cargo bench -p cli --bench performance -- --save-baseline before
+python3 scripts/bench_compare.py HEAD --offline
+```
+
+個別に基準を保存する場合は次を使います。
+
+```sh
+cargo bench --locked -p cli --bench performance -- --save-baseline before
 # 実装を変更した後
-cargo bench -p cli --bench performance -- --baseline before --save-baseline after
+cargo bench --locked -p cli --bench performance -- --baseline before --save-baseline after
 ```
 
 構文解析・型検査・正規化・Program 評価を計測します。

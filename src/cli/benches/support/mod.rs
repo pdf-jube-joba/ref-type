@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use clap::Parser;
 use std::{
     collections::BTreeMap,
@@ -89,8 +89,12 @@ fn median(values: &[f64]) -> f64 {
 fn read_baseline(path: &PathBuf) -> Result<BTreeMap<String, Vec<f64>>> {
     let contents = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     ensure!(
-        contents.lines().next() == Some("# ref-type-bench-v1"),
+        contents.lines().next() == Some("# ref-type-bench-v2"),
         "unsupported baseline format"
+    );
+    ensure!(
+        contents.lines().last() == Some("# complete"),
+        "baseline is incomplete (the benchmark did not finish)"
     );
     let mut values = BTreeMap::<String, Vec<f64>>::new();
     for line in contents.lines().filter(|line| !line.starts_with('#')) {
@@ -121,7 +125,7 @@ fn command_output(program: &str, args: &[&str]) -> String {
 }
 
 fn metadata(args: &Args) -> String {
-    let mut text = String::from("# ref-type-bench-v1\n");
+    let mut text = String::from("# ref-type-bench-v2\n");
     let cpu = fs::read_to_string("/proc/cpuinfo")
         .ok()
         .and_then(|info| {
@@ -144,6 +148,18 @@ fn metadata(args: &Args) -> String {
         ("rustc", command_output("rustc", &["-Vv"])),
         ("system", command_output("uname", &["-a"])),
         ("cpu", cpu),
+        (
+            "cpu_affinity",
+            fs::read_to_string("/proc/self/status")
+                .ok()
+                .and_then(|status| {
+                    status
+                        .lines()
+                        .find(|line| line.starts_with("Cpus_allowed_list:"))
+                        .map(str::to_owned)
+                })
+                .unwrap_or_else(|| "unavailable".to_owned()),
+        ),
         ("RUSTFLAGS", std::env::var("RUSTFLAGS").unwrap_or_default()),
         (
             "CARGO_ENCODED_RUSTFLAGS",
@@ -202,7 +218,21 @@ pub fn run(cases: Vec<Case<'_>>) -> Result<()> {
             path.display()
         );
     }
-    let mut report = metadata(&args);
+    // Persist every completed sample, even if a later fixture fails. Only a
+    // report with the final completion marker may be used as a baseline.
+    let mut report = destination
+        .as_ref()
+        .map(|path| -> Result<_> {
+            fs::create_dir_all(&args.output_dir)?;
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+                .with_context(|| format!("cannot save {}", path.display()))?;
+            file.write_all(metadata(&args).as_bytes())?;
+            Ok(file)
+        })
+        .transpose()?;
     println!(
         "{:28} {:>12} {:>10} {:>12}",
         "case", "median (ms)", "CV (%)", "change (%)"
@@ -235,12 +265,14 @@ pub fn run(cases: Vec<Case<'_>>) -> Result<()> {
                 case.name
             );
             values.push(per_iteration);
-            writeln!(
-                report,
-                "{}\t{sample}\t{iterations}\t{}\t{per_iteration:.6}",
-                case.name,
-                elapsed.as_nanos()
-            )?;
+            if let Some(report) = &mut report {
+                writeln!(
+                    report,
+                    "{}\t{sample}\t{iterations}\t{}\t{per_iteration:.6}",
+                    case.name,
+                    elapsed.as_nanos()
+                )?;
+            }
         }
         let middle = median(&values);
         let mean = values.iter().sum::<f64>() / values.len() as f64;
@@ -262,17 +294,11 @@ pub fn run(cases: Vec<Case<'_>>) -> Result<()> {
             change
         );
     }
+    if let Some(report) = &mut report {
+        writeln!(report, "# complete")?;
+        report.flush()?;
+    }
     if let Some(path) = destination {
-        fs::create_dir_all(&args.output_dir)?;
-        // create_new also protects an existing baseline if another process wrote it meanwhile.
-        match fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-        {
-            Ok(mut file) => file.write_all(report.as_bytes())?,
-            Err(error) => bail!("cannot save {}: {error}", path.display()),
-        }
         println!("Saved {}", path.display());
     }
     Ok(())
