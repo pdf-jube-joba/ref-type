@@ -220,12 +220,10 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         ExpNode::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
         } => format!(
-            "\\box({}, {}) \\by {}",
+            "\\box({}, {})",
             format_program_type(env, program_ty),
-            format_program(env, program),
-            child(certified_reflection)
+            format_program(env, program)
         ),
         ExpNode::ForceBox { program_ty, boxed } => {
             format!(

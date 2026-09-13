@@ -389,7 +389,6 @@ impl GlobalEnvironment {
                     let ty = scope.elaborate_value_type(ty, self)?;
                     let body = scope.elaborate_value(body, self)?;
                     let (body, ty) = scope.check_value_term_with_metas(self, body, ty)?;
-                    let certified_reflection = scope.certified_value(self, body);
                     let mut program_context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
                         .check_value_term(body, ty)
@@ -399,37 +398,11 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
-                    if let Some(certificate) = certified_reflection {
-                        let reflected_ty =
-                            crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
-                                .map_err(|error| error.to_string())?;
-                        let mut context = self.module_manager.current_context(&self.crate_env);
-                        context.extend(parameters.iter().map(|var| ExpContextEntry {
-                            var: *var,
-                            ty: self.crate_env.arena().sort(Sort::Set(0)),
-                        }));
-                        CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut context,
-                        )
-                        .check_pts(certificate, reflected_ty)
-                        .map_err(|error| {
-                            format!(
-                                "Program value definition {} has an invalid certificate: {error:?}",
-                                name.as_str()
-                            )
-                        })?;
-                    }
                     self.publish_program_definition(
                         owner.as_ref(),
                         name.clone(),
                         parameters,
-                        DefinedConstant::ProgramValue {
-                            ty,
-                            body,
-                            certified_reflection,
-                        },
+                        DefinedConstant::ProgramValue { ty, body },
                     )?;
                 }
                 ModuleItem::ComputationDefinition {
@@ -442,7 +415,6 @@ impl GlobalEnvironment {
                     let ty = scope.elaborate_computation_type(ty, self)?;
                     let body = scope.elaborate_computation(body, self)?;
                     let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
-                    let certified_reflection = scope.certified_computation(self, body);
                     let mut program_context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
                         .check_computation_term(body, ty)
@@ -452,37 +424,11 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
-                    if let Some(certificate) = certified_reflection {
-                        let reflected_ty =
-                            crate::raw::reflection::reflect_computation_type(&self.crate_env, ty)
-                                .map_err(|error| error.to_string())?;
-                        let mut context = self.module_manager.current_context(&self.crate_env);
-                        context.extend(parameters.iter().map(|var| ExpContextEntry {
-                            var: *var,
-                            ty: self.crate_env.arena().sort(Sort::Set(0)),
-                        }));
-                        CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut context,
-                        )
-                        .check_pts(certificate, reflected_ty)
-                        .map_err(|error| {
-                            format!(
-                                "Program computation definition {} has an invalid certificate: {error:?}",
-                                name.as_str()
-                            )
-                        })?;
-                    }
                     self.publish_program_definition(
                         owner.as_ref(),
                         name.clone(),
                         parameters,
-                        DefinedConstant::ProgramComputation {
-                            ty,
-                            body,
-                            certified_reflection,
-                        },
+                        DefinedConstant::ProgramComputation { ty, body },
                     )?;
                 }
                 ModuleItem::Inductive {

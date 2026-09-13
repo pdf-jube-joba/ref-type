@@ -26,7 +26,6 @@ pub struct Definition {
     pub context: Context,
     pub body: Expression,
     pub classifier: Classifier,
-    pub certified_reflection: Option<SetTerm>,
 }
 #[derive(Debug, Clone)]
 pub struct InductiveSpec {
@@ -91,23 +90,19 @@ impl Environment {
         }
         if !super::calculus::locally_closed(&self.arena, definition.body)
             || matches!(definition.classifier,Classifier::Expression(t) if !super::calculus::locally_closed(&self.arena,t))
-            || definition.certified_reflection.is_some_and(|certificate| {
-                !super::calculus::locally_closed(&self.arena, certificate.into())
-            })
         {
             return Err("a definition must abstract over its local bound variables".into());
         }
         let mut checker = super::check::Checker::new(self, definition.context.clone());
         checker.check_context()?;
         checker.check(definition.body, definition.classifier)?;
-        if let Some(certificate) = definition.certified_reflection {
-            let Classifier::Expression(ty) = definition.classifier else {
-                return Err("only Program terms have reflection certificates".into());
-            };
+        if let Classifier::Expression(ty) = definition.classifier
+            && self.arena.sort(ty).is_program()
+        {
             let context = super::reflection::reflect_context(self, &definition.context)?;
             let ty = super::reflection::reflect_program_expression(self, ty)?;
-            super::check::Checker::new(self, context).check(certificate, ty)?;
-            super::reflection::reflect_with_certificate(self, definition.body, certificate)?;
+            let body = super::reflection::reflect_program_expression(self, definition.body)?;
+            super::check::Checker::new(self, context).check(body, ty)?;
         }
         self.definitions.insert(id, definition);
         // Normalization can have visited this name before it was registered.
@@ -130,14 +125,13 @@ impl Environment {
         let mut checker = super::check::Checker::new(self, definition.context.clone());
         checker.check_context()?;
         checker.check(definition.body, definition.classifier)?;
-        if let Some(certificate) = definition.certified_reflection {
-            let Classifier::Expression(ty) = definition.classifier else {
-                return Err("only Program terms have reflection certificates".into());
-            };
+        if let Classifier::Expression(ty) = definition.classifier
+            && self.arena.sort(ty).is_program()
+        {
             let context = super::reflection::reflect_context(self, &definition.context)?;
             let ty = super::reflection::reflect_program_expression(self, ty)?;
-            super::check::Checker::new(self, context).check(certificate, ty)?;
-            super::reflection::reflect_with_certificate(self, definition.body, certificate)?;
+            let body = super::reflection::reflect_program_expression(self, definition.body)?;
+            super::check::Checker::new(self, context).check(body, ty)?;
         }
         self.definition_templates.insert(id, definition);
         Ok(())

@@ -583,14 +583,8 @@ fn infer_uncached(
         ExpNode::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
         } => {
-            check_closed_well_terminated_program(
-                session,
-                program_ty,
-                program,
-                certified_reflection,
-            )?;
+            check_closed_well_terminated_program(session, program_ty, program)?;
             Ok(arena.alloc(ExpNode::BoxType { program_ty }))
         }
         ExpNode::ForceBox { program_ty, boxed } => {
@@ -1018,7 +1012,6 @@ fn check_closed_well_terminated_program(
     session: &CheckSession<'_, '_>,
     program_ty: ProgramType,
     program: ProgramTerm,
-    certified_reflection: Exp,
 ) -> Result<(), Box<JudgementError>> {
     check_closed_program_type(session, program_ty)?;
     let mut empty_program = Vec::new();
@@ -1038,17 +1031,8 @@ fn check_closed_well_terminated_program(
             ));
         }
     }
-    if !crate::raw::reflection::certificate_matches_program(
-        session.env(),
-        program,
-        certified_reflection,
-    ) {
-        return Err(failure(
-            "Box",
-            "certification",
-            "certified reflection does not correspond to the boxed Program",
-        ));
-    }
+    let reflected = crate::raw::reflection::reflect_program(session.env(), program)
+        .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let reflected_ty = match program_ty {
         ProgramType::ValueType(ty) => reflect_value_type(session.env(), ty),
         ProgramType::ComputationType(ty) => reflect_computation_type(session.env(), ty),
@@ -1056,7 +1040,7 @@ fn check_closed_well_terminated_program(
     .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let mut reflected_context = Vec::new();
     CheckSession::new(session.env, session.current_module, &mut reflected_context)
-        .check_pts(certified_reflection, reflected_ty)
+        .check_pts(reflected, reflected_ty)
 }
 
 fn check_parameters(

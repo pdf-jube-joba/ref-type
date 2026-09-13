@@ -49,23 +49,11 @@ pub(crate) fn definition_dependencies(
     }
     let mut stack = match definition {
         raw::environment::DefinedConstant::Pts { ty, body } => vec![E::Set(*ty), E::Set(*body)],
-        raw::environment::DefinedConstant::ProgramValue {
-            ty,
-            body,
-            certified_reflection,
-        } => {
-            let mut s = vec![E::Vt(*ty), E::V(*body)];
-            s.extend(certified_reflection.map(E::Set));
-            s
+        raw::environment::DefinedConstant::ProgramValue { ty, body } => {
+            vec![E::Vt(*ty), E::V(*body)]
         }
-        raw::environment::DefinedConstant::ProgramComputation {
-            ty,
-            body,
-            certified_reflection,
-        } => {
-            let mut s = vec![E::Ct(*ty), E::C(*body)];
-            s.extend(certified_reflection.map(E::Set));
-            s
+        raw::environment::DefinedConstant::ProgramComputation { ty, body } => {
+            vec![E::Ct(*ty), E::C(*body)]
         }
     };
     let mut visited = HashSet::new();

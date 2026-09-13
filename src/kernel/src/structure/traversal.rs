@@ -131,11 +131,9 @@ fn visit_set_term(arena: &Arena, h: SetTerm, visit: &mut dyn FnMut(Expression, u
         SetTermForm::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
         } => {
             visit((*program_ty).into(), 0);
             visit((*program).into(), 0);
-            visit((*certified_reflection).into(), 0);
         }
         SetTermForm::ForceBox { program_ty, boxed } => {
             visit((*program_ty).into(), 0);
@@ -1027,11 +1025,9 @@ fn map_set_term(
         SetTermForm::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
         } => {
             field!(program_ty, 0, All | Evaluation);
             field!(program, 0, All | Evaluation);
-            field!(certified_reflection, 0, All);
         }
         SetTermForm::ForceBox { program_ty, boxed } => {
             field!(program_ty, 0, All | Evaluation);

@@ -23,12 +23,10 @@ pub enum DefinedConstant {
     ProgramValue {
         ty: ValueType,
         body: ValueTerm,
-        certified_reflection: Option<Exp>,
     },
     ProgramComputation {
         ty: ComputationType,
         body: ComputationTerm,
-        certified_reflection: Option<Exp>,
     },
 }
 
@@ -439,9 +437,7 @@ impl CrateEnv {
         definition: &DefinedConstant,
         type_parameters: &[SymbolId],
     ) -> Result<(), String> {
-        use crate::raw::{
-            derivation::CheckSession, program_derivation::ProgramCheckSession, reflection,
-        };
+        use crate::raw::{derivation::CheckSession, program_derivation::ProgramCheckSession};
         let mut ancestors = Vec::new();
         let mut current = Some(module);
         while let Some(id) = current {
@@ -474,68 +470,24 @@ impl CrateEnv {
             .iter()
             .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect();
-        let certificate = match *definition {
+        match *definition {
             DefinedConstant::Pts { ty, body } => {
                 CheckSession::new(self, module, &mut pts_context)
                     .check_pts(body, ty)
                     .map_err(|error| format!("definition check failed: {error:?}"))?;
-                None
             }
-            DefinedConstant::ProgramValue {
-                ty,
-                body,
-                certified_reflection,
-            } => {
+            DefinedConstant::ProgramValue { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
                     .check_value_term(body, ty)
                     .map_err(|error| format!("Program value definition check failed: {error:?}"))?;
-                certified_reflection
-                    .map(|term| reflection::reflect_value_type(self, ty).map(|ty| (term, ty)))
-                    .transpose()
-                    .map_err(|error| error.to_string())?
             }
-            DefinedConstant::ProgramComputation {
-                ty,
-                body,
-                certified_reflection,
-            } => {
+            DefinedConstant::ProgramComputation { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
                     .check_computation_term(body, ty)
                     .map_err(|error| {
                         format!("Program computation definition check failed: {error:?}")
                     })?;
-                certified_reflection
-                    .map(|term| reflection::reflect_computation_type(self, ty).map(|ty| (term, ty)))
-                    .transpose()
-                    .map_err(|error| error.to_string())?
             }
-        };
-        if let Some((term, ty)) = certificate {
-            for parameter in parameters {
-                let ty = match parameter.kind {
-                    ModuleParameterKind::Pts { .. } => continue,
-                    ModuleParameterKind::ProgramType => {
-                        self.arena().sort(crate::raw::sort::Sort::Set(0))
-                    }
-                    ModuleParameterKind::ProgramValue { ty } => {
-                        reflection::reflect_value_type(self, ty)
-                            .map_err(|error| error.to_string())?
-                    }
-                };
-                pts_context.push(crate::raw::exp::ExpContextEntry {
-                    var: parameter.name,
-                    ty,
-                });
-            }
-            pts_context.extend(type_parameters.iter().map(|var| {
-                crate::raw::exp::ExpContextEntry {
-                    var: *var,
-                    ty: self.arena().sort(crate::raw::sort::Sort::Set(0)),
-                }
-            }));
-            CheckSession::new(self, module, &mut pts_context)
-                .check_pts(term, ty)
-                .map_err(|error| format!("reflection certificate check failed: {error:?}"))?;
         }
         Ok(())
     }
@@ -588,11 +540,7 @@ impl CrateEnv {
                         &lazy.remapping.program_inductive_ids,
                     ),
                 },
-                DefinedConstant::ProgramValue {
-                    ty,
-                    body,
-                    certified_reflection,
-                } => DefinedConstant::ProgramValue {
+                DefinedConstant::ProgramValue { ty, body } => DefinedConstant::ProgramValue {
                     ty: crate::raw::program_calculus::remap_value_type_global_ids(
                         self.arena(),
                         crate::raw::program_calculus::subst_value_type_module_params(
@@ -615,61 +563,33 @@ impl CrateEnv {
                         &lazy.remapping.program_inductive_ids,
                         &lazy.remapping.inductive_ids,
                     ),
-                    certified_reflection: certified_reflection.map(|term| {
-                        crate::raw::calculus::remap_all_global_ids(
+                },
+                DefinedConstant::ProgramComputation { ty, body } => {
+                    DefinedConstant::ProgramComputation {
+                        ty: crate::raw::program_calculus::remap_computation_type_global_ids(
                             self.arena(),
-                            crate::raw::calculus::exp_subst_map(
+                            crate::raw::program_calculus::subst_computation_type_module_params(
                                 self.arena(),
-                                term,
+                                ty,
+                                &lazy.substitutions,
+                            ),
+                            &lazy.remapping.definition_ids,
+                            &lazy.remapping.program_inductive_ids,
+                        ),
+                        body: crate::raw::program_calculus::remap_computation_global_ids(
+                            self.arena(),
+                            crate::raw::program_calculus::subst_computation_module_params(
+                                self.arena(),
+                                body,
+                                &lazy.substitutions,
                                 &lazy.reflected_substitutions,
                             ),
                             &lazy.remapping.definition_ids,
-                            &lazy.remapping.inductive_ids,
                             &lazy.remapping.program_inductive_ids,
-                        )
-                    }),
-                },
-                DefinedConstant::ProgramComputation {
-                    ty,
-                    body,
-                    certified_reflection,
-                } => DefinedConstant::ProgramComputation {
-                    ty: crate::raw::program_calculus::remap_computation_type_global_ids(
-                        self.arena(),
-                        crate::raw::program_calculus::subst_computation_type_module_params(
-                            self.arena(),
-                            ty,
-                            &lazy.substitutions,
-                        ),
-                        &lazy.remapping.definition_ids,
-                        &lazy.remapping.program_inductive_ids,
-                    ),
-                    body: crate::raw::program_calculus::remap_computation_global_ids(
-                        self.arena(),
-                        crate::raw::program_calculus::subst_computation_module_params(
-                            self.arena(),
-                            body,
-                            &lazy.substitutions,
-                            &lazy.reflected_substitutions,
-                        ),
-                        &lazy.remapping.definition_ids,
-                        &lazy.remapping.program_inductive_ids,
-                        &lazy.remapping.inductive_ids,
-                    ),
-                    certified_reflection: certified_reflection.map(|term| {
-                        crate::raw::calculus::remap_all_global_ids(
-                            self.arena(),
-                            crate::raw::calculus::exp_subst_map(
-                                self.arena(),
-                                term,
-                                &lazy.reflected_substitutions,
-                            ),
-                            &lazy.remapping.definition_ids,
                             &lazy.remapping.inductive_ids,
-                            &lazy.remapping.program_inductive_ids,
-                        )
-                    }),
-                },
+                        ),
+                    }
+                }
             };
             self.check_definition(id.module, &definition, self.definition_parameters(id))?;
             slot.set(definition)
@@ -1045,47 +965,6 @@ impl CrateEnv {
 }
 
 impl CrateEnv {
-    /// Materialized modules retain the importing PTS context separately from
-    /// the named Program parameters needed to classify reflection certificates.
-    pub(crate) fn program_reflection_context(
-        &self,
-        module: ModuleId,
-    ) -> crate::raw::exp::ExpContext {
-        let mut context = self.definition_context(module);
-        if !self.checking_contexts.contains_key(&module) {
-            return context;
-        }
-        let mut ancestors = Vec::new();
-        let mut current = Some(module);
-        while let Some(id) = current {
-            ancestors.push(id);
-            current = self
-                .checking_scopes
-                .get(&id)
-                .copied()
-                .or(self.module(id).parent());
-        }
-        for id in ancestors.into_iter().rev() {
-            for parameter in self.module(id).parameters() {
-                let ty = match parameter.kind {
-                    ModuleParameterKind::Pts { .. } => continue,
-                    ModuleParameterKind::ProgramType => {
-                        self.arena.sort(crate::raw::sort::Sort::Set(0))
-                    }
-                    ModuleParameterKind::ProgramValue { ty } => {
-                        crate::raw::reflection::reflect_value_type(self, ty)
-                            .expect("checked Program parameter")
-                    }
-                };
-                context.push(crate::raw::exp::ExpContextEntry {
-                    var: parameter.name,
-                    ty,
-                });
-            }
-        }
-        context
-    }
-
     pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
         if let Some(context) = self.checking_contexts.get(&module) {
             return context.clone();

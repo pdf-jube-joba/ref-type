@@ -828,12 +828,7 @@ fn program_value_let_solves_and_zonks_type_annotations() {
     else {
         panic!()
     };
-    let DefinedConstant::ProgramComputation {
-        body,
-        certified_reflection,
-        ..
-    } = env.definition(*definition)
-    else {
+    let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
         panic!()
     };
     let ComputationTermNode::ValueLet { value_ty, .. } = env.arena().get(*body) else {
@@ -843,7 +838,6 @@ fn program_value_let_solves_and_zonks_type_annotations() {
         env.arena().get(value_ty),
         ValueTypeNode::ModuleParam(_)
     ));
-    assert!(certified_reflection.is_some());
 }
 
 #[test]
@@ -953,15 +947,9 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
     else {
         panic!()
     };
-    let DefinedConstant::ProgramComputation {
-        body,
-        certified_reflection,
-        ..
-    } = env.definition(*definition)
-    else {
+    let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
         panic!()
     };
-    assert!(certified_reflection.is_some());
     let ComputationTermNode::Lambda { body, .. } = env.arena().get(*body) else {
         panic!()
     };
@@ -1130,41 +1118,6 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     global.add_new_module_to_root(&modules[0]).unwrap();
     let raw = global.crate_env();
     let module = raw.module(raw.root_module()).children()[0];
-    let computation = |name| {
-        let crate::raw::environment::ModuleItem::Definition { definition, .. } =
-            raw.module(module).item(name).unwrap()
-        else {
-            panic!("computation definition")
-        };
-        let crate::raw::environment::DefinedConstant::ProgramComputation {
-            certified_reflection: Some(certificate),
-            ..
-        } = raw.definition(*definition)
-        else {
-            panic!("certified computation")
-        };
-        let term = raw
-            .arena()
-            .alloc(crate::raw::program::ComputationTermNode::DefinedConstant(
-                *definition,
-            ));
-        (
-            crate::raw::program::ProgramTerm::ComputationTerm(term),
-            *certificate,
-        )
-    };
-    let (result, certificate) = computation("result");
-    let (_, unrelated_certificate) = computation("otherResult");
-    assert!(crate::raw::reflection::certificate_matches_program(
-        raw,
-        result,
-        certificate
-    ));
-    assert!(!crate::raw::reflection::certificate_matches_program(
-        raw,
-        result,
-        unrelated_certificate,
-    ));
     let crate::raw::environment::ModuleItem::Definition { definition, .. } =
         raw.module(module).item("boxed").unwrap()
     else {
@@ -1277,15 +1230,9 @@ fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
     else {
         panic!("missing result definition");
     };
-    let DefinedConstant::ProgramComputation {
-        body,
-        certified_reflection,
-        ..
-    } = env.definition(*definition)
-    else {
+    let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
         panic!("result should be a computation");
     };
-    assert!(certified_reflection.is_some());
     let Evaluation::Normal(result) = evaluate_computation(env, *body) else {
         panic!("block did not finish");
     };
@@ -1413,19 +1360,13 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
         else {
             panic!("missing definition")
         };
-        let DefinedConstant::ProgramComputation {
-            ty,
-            body,
-            certified_reflection,
-        } = env.definition(*definition)
-        else {
+        let DefinedConstant::ProgramComputation { ty, body } = env.definition(*definition) else {
             panic!("expected computation")
         };
-        assert!(certified_reflection.is_some());
-        (*ty, *body, *certified_reflection)
+        (*ty, *body)
     };
-    let (ty, body, reflection) = checked_definition("f");
-    let (explicit_ty, explicit_body, explicit_reflection) = checked_definition("explicit");
+    let (ty, body) = checked_definition("f");
+    let (explicit_ty, explicit_body) = checked_definition("explicit");
     assert!(crate::raw::program_calculus::computation_type_is_alpha_eq(
         env.arena(),
         ty,
@@ -1436,10 +1377,13 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
         body,
         explicit_body
     ));
+    let reflection = crate::raw::reflection::reflect_computation(env, body).unwrap();
+    let explicit_reflection =
+        crate::raw::reflection::reflect_computation(env, explicit_body).unwrap();
     assert!(crate::raw::calculus::exp_is_alpha_eq(
         env,
-        reflection.unwrap(),
-        explicit_reflection.unwrap()
+        reflection,
+        explicit_reflection
     ));
     for declaration in [
         r"\vdefinition f(x: A): \U(A ~> \F(A)) := \thunk c;",

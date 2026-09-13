@@ -155,11 +155,7 @@ impl GlobalEnvironment {
             let name = self.crate_env.symbol(*field_name).to_owned();
             let definition = self.crate_env.add_parameterized_definition(
                 self.module_manager.current(),
-                DefinedConstant::ProgramComputation {
-                    ty,
-                    body,
-                    certified_reflection: None,
-                },
+                DefinedConstant::ProgramComputation { ty, body },
                 parameter_names.clone(),
             )?;
             self.crate_env.publish_associated_definition(

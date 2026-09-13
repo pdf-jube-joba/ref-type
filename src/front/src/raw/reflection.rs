@@ -134,12 +134,6 @@ pub fn reflect_program(env: &CrateEnv, program: ProgramTerm) -> Result<Exp, Refl
     }
 }
 
-/// Proof fields are irrelevant to structural correspondence.
-pub fn certificate_matches_program(env: &CrateEnv, program: ProgramTerm, certificate: Exp) -> bool {
-    reflect_program(env, program)
-        .is_ok_and(|term| crate::raw::calculus::exp_is_alpha_eq(env, term, certificate))
-}
-
 pub fn reflect_value(env: &CrateEnv, value: ValueTerm) -> Result<Exp, ReflectionError> {
     reflect_value_inner(env, value, &mut HashSet::new())
 }
@@ -162,30 +156,14 @@ fn reflect_value_inner(
                 return Err(ReflectionError::RecursiveDefinition(definition));
             }
             let result = match env.definition(definition) {
-                DefinedConstant::ProgramValue {
-                    body,
-                    certified_reflection,
-                    ..
-                } => {
-                    if let Some(certificate) = certified_reflection {
-                        let arguments = parameters
-                            .iter()
-                            .map(|ty| reflect_value_type(env, *ty))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        Ok(crate::raw::calculus::instantiate_telescope(
-                            arena,
-                            *certificate,
-                            &arguments,
-                        ))
-                    } else {
-                        let body = crate::raw::program_definitions::instantiate_value(
-                            env,
-                            *body,
-                            &parameters,
-                            0,
-                        );
-                        reflect_value_inner(env, body, visiting)
-                    }
+                DefinedConstant::ProgramValue { body, .. } => {
+                    let body = crate::raw::program_definitions::instantiate_value(
+                        env,
+                        *body,
+                        &parameters,
+                        0,
+                    );
+                    reflect_value_inner(env, body, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -197,10 +175,6 @@ fn reflect_value_inner(
                 return Err(ReflectionError::RecursiveDefinition(id));
             }
             let result = match env.definition(id) {
-                DefinedConstant::ProgramValue {
-                    certified_reflection: Some(term),
-                    ..
-                } => Ok(*term),
                 DefinedConstant::ProgramValue { body, .. } => {
                     reflect_value_inner(env, *body, visiting)
                 }
@@ -278,30 +252,14 @@ fn reflect_computation_inner(
                 return Err(ReflectionError::RecursiveDefinition(definition));
             }
             let result = match env.definition(definition) {
-                DefinedConstant::ProgramComputation {
-                    body,
-                    certified_reflection,
-                    ..
-                } => {
-                    if let Some(certificate) = certified_reflection {
-                        let arguments = parameters
-                            .iter()
-                            .map(|ty| reflect_value_type(env, *ty))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        Ok(crate::raw::calculus::instantiate_telescope(
-                            arena,
-                            *certificate,
-                            &arguments,
-                        ))
-                    } else {
-                        let body = crate::raw::program_definitions::instantiate_computation(
-                            env,
-                            *body,
-                            &parameters,
-                            0,
-                        );
-                        reflect_computation_inner(env, body, visiting)
-                    }
+                DefinedConstant::ProgramComputation { body, .. } => {
+                    let body = crate::raw::program_definitions::instantiate_computation(
+                        env,
+                        *body,
+                        &parameters,
+                        0,
+                    );
+                    reflect_computation_inner(env, body, visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -313,10 +271,6 @@ fn reflect_computation_inner(
                 return Err(ReflectionError::RecursiveDefinition(id));
             }
             let result = match env.definition(id) {
-                DefinedConstant::ProgramComputation {
-                    certified_reflection: Some(term),
-                    ..
-                } => Ok(*term),
                 DefinedConstant::ProgramComputation { body, .. } => {
                     reflect_computation_inner(env, *body, visiting)
                 }

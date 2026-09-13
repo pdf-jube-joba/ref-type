@@ -110,12 +110,9 @@ fn boxed_program_types_compare_structurally() {
         }),
         output,
     });
-    let certified_reflection = crate::raw::reflection::reflect_value(&env, program)
-        .expect("run-free Program values reflect without a certificate");
     let boxed = arena.alloc(ExpNode::BoxProgram {
         program_ty: ProgramType::ValueType(left_state),
         program: ProgramTerm::ValueTerm(program),
-        certified_reflection,
     });
     let forced = arena.alloc(ExpNode::ForceBox {
         program_ty: ProgramType::ValueType(right_state),
@@ -856,7 +853,7 @@ fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
 }
 
 #[test]
-fn program_registration_checks_body_and_reflection_certificate() {
+fn program_registration_checks_body() {
     use crate::raw::environment::{DefinedConstant, ModuleParameter, ModuleParameterKind};
     let mut env = CrateEnv::new();
     let module = env.root_module();
@@ -886,39 +883,11 @@ fn program_registration_checks_body_and_reflection_certificate() {
     }));
     let bad_body = env.arena().value_bound(0);
     assert!(
-        env.add_definition(
-            module,
-            DefinedConstant::ProgramValue {
-                ty,
-                body: bad_body,
-                certified_reflection: None,
-            }
-        )
-        .is_err()
+        env.add_definition(module, DefinedConstant::ProgramValue { ty, body: bad_body })
+            .is_err()
     );
-    let bad_certificate = env.arena().sort(Sort::Set(0));
-    assert!(
-        env.add_definition(
-            module,
-            DefinedConstant::ProgramValue {
-                ty,
-                body,
-                certified_reflection: Some(bad_certificate),
-            }
-        )
-        .unwrap_err()
-        .contains("certificate")
-    );
-    let certificate = crate::raw::reflection::reflect_value(&env, body).unwrap();
     let id = env
-        .add_definition(
-            module,
-            DefinedConstant::ProgramValue {
-                ty,
-                body,
-                certified_reflection: Some(certificate),
-            },
-        )
+        .add_definition(module, DefinedConstant::ProgramValue { ty, body })
         .unwrap();
     assert_eq!(id.index, 0);
     let computation_ty = env
@@ -933,7 +902,6 @@ fn program_registration_checks_body_and_reflection_certificate() {
             DefinedConstant::ProgramComputation {
                 ty: computation_ty,
                 body: computation,
-                certified_reflection: None,
             }
         )
         .is_ok()

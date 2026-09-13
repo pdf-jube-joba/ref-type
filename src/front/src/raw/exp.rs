@@ -198,7 +198,6 @@ pub enum ExpNode {
     BoxProgram {
         program_ty: ProgramType,
         program: ProgramTerm,
-        certified_reflection: Exp,
     },
     ForceBox {
         program_ty: ProgramType,

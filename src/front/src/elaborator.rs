@@ -219,25 +219,19 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         expression: &SExp,
         ty: crate::raw::program::ProgramType,
-    ) -> Result<(crate::raw::program::ProgramTerm, Option<Exp>), String> {
+    ) -> Result<crate::raw::program::ProgramTerm, String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         match ty {
             crate::raw::program::ProgramType::ValueType(_) => {
                 let value = ValueTermExp::try_from(expression.clone())?;
                 let value = scope.elaborate_value(&value, self)?;
-                let certificate = scope.certified_value(self, value);
-                Ok((
-                    crate::raw::program::ProgramTerm::ValueTerm(value),
-                    certificate,
-                ))
+                Ok(crate::raw::program::ProgramTerm::ValueTerm(value))
             }
             crate::raw::program::ProgramType::ComputationType(_) => {
                 let computation = ComputationTermExp::try_from(expression.clone())?;
                 let computation = scope.elaborate_computation(&computation, self)?;
-                let certificate = scope.certified_computation(self, computation);
-                Ok((
-                    crate::raw::program::ProgramTerm::ComputationTerm(computation),
-                    certificate,
+                Ok(crate::raw::program::ProgramTerm::ComputationTerm(
+                    computation,
                 ))
             }
         }

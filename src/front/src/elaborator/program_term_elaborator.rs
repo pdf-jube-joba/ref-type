@@ -2,7 +2,6 @@
 
 use crate::raw::{
     environment::DefinedConstant,
-    exp::Exp,
     ids::{MetaVarId, SymbolId},
     program::{
         ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
@@ -113,22 +112,6 @@ impl ProgramScope {
 
     pub(crate) fn query_requires_checking(&self) -> bool {
         self.has_runs || !self.metas.is_empty()
-    }
-
-    pub(crate) fn certified_computation(
-        &self,
-        environment: &GlobalEnvironment,
-        computation: ComputationTerm,
-    ) -> Option<Exp> {
-        crate::raw::reflection::reflect_computation(&environment.crate_env, computation).ok()
-    }
-
-    pub(crate) fn certified_value(
-        &self,
-        environment: &GlobalEnvironment,
-        value: ValueTerm,
-    ) -> Option<Exp> {
-        crate::raw::reflection::reflect_value(&environment.crate_env, value).ok()
     }
 
     pub(crate) fn finish_metas(&self) -> Result<(), String> {

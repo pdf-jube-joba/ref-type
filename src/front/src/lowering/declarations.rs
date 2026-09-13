@@ -39,37 +39,18 @@ impl Lowerer<'_> {
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
         let raw = self.raw.definition(id).clone();
-        let mut ctx = if matches!(raw, raw::environment::DefinedConstant::Pts { .. }) {
-            self.raw.definition_context(id.module)
-        } else {
-            self.raw.program_reflection_context(id.module)
-        };
         let parameters = self.raw.definition_parameters(id).to_vec();
-        ctx.extend(parameters.iter().map(|var| ExpContextEntry {
-            var: *var,
-            ty: self.raw.arena().sort(RawSort::Set(0)),
-        }));
         let mut program_context = parameters
             .iter()
             .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect::<Vec<_>>();
-        let certificate = match &raw {
-            raw::environment::DefinedConstant::ProgramValue {
-                certified_reflection,
-                ..
-            }
-            | raw::environment::DefinedConstant::ProgramComputation {
-                certified_reflection,
-                ..
-            } => *certified_reflection,
-            _ => None,
-        };
-        let certified_reflection = certificate
-            .map(|e| self.set(e, &mut ctx, id.module)?.try_into())
-            .transpose()?;
-
         let (body, classifier, context) = match raw {
             raw::environment::DefinedConstant::Pts { ty, body } => {
+                let mut ctx = self.raw.definition_context(id.module);
+                ctx.extend(parameters.iter().map(|var| ExpContextEntry {
+                    var: *var,
+                    ty: self.raw.arena().sort(raw::sort::Sort::Set(0)),
+                }));
                 let classifier = self.classifier(ty, &mut ctx, id.module)?;
                 let body = self.set(body, &mut ctx, id.module)?;
                 let context = self.context(&ctx, id.module)?;
@@ -101,7 +82,6 @@ impl Lowerer<'_> {
                     body,
                     classifier,
                     context,
-                    certified_reflection,
                 },
             );
         }
@@ -112,7 +92,6 @@ impl Lowerer<'_> {
                     body,
                     classifier,
                     context,
-                    certified_reflection,
                 },
             )
             .map_err(|e| format!("indexed definition {id:?}: {e}"))

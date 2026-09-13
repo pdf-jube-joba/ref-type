@@ -102,10 +102,7 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             accessibility,
             transition_equality
         ),
-        ExpNode::BoxProgram {
-            certified_reflection,
-            ..
-        } => one!(certified_reflection),
+        ExpNode::BoxProgram { .. } => {}
         ExpNode::ForceBox { boxed, .. } => one!(boxed),
         ExpNode::BoxApp { function, argument } => one!(function, argument),
         ExpNode::Prove(Prove::AccIntro {
@@ -239,11 +236,9 @@ fn map_computational_children(node: ExpNode, mut map: impl FnMut(Exp) -> Exp) ->
         ExpNode::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
         } => ExpNode::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
         },
         other => map_children(other, map),
     }
@@ -575,7 +570,6 @@ pub fn remap_all_global_ids(
         ExpNode::BoxProgram {
             program_ty,
             program,
-            certified_reflection: _,
         } => {
             remap_program_type(program_ty);
             *program = match *program {
@@ -927,20 +921,16 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
         ExpNode::BoxProgram {
             program_ty,
             program: ProgramTerm::ComputationTerm(term),
-            certified_reflection,
         } => crate::raw::program_calculus::reduce_computation_once(env, term).map(|next| {
             arena.alloc(ExpNode::BoxProgram {
                 program_ty,
                 program: ProgramTerm::ComputationTerm(next),
-                certified_reflection: exp_reduce_if_top(env, certified_reflection)
-                    .unwrap_or(certified_reflection),
             })
         }),
         ExpNode::ForceBox { program_ty, boxed } => match arena.get(whnf(env, boxed)) {
             ExpNode::BoxProgram {
                 program_ty: actual,
                 program,
-                certified_reflection,
             } if crate::raw::program_calculus::program_type_is_alpha_eq(
                 arena, actual, program_ty,
             ) && match program {
@@ -950,7 +940,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 ProgramTerm::ValueTerm(_) => true,
             } =>
             {
-                Some(certified_reflection)
+                crate::raw::reflection::reflect_program(env, program).ok()
             }
             _ => None,
         },
@@ -963,12 +953,10 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     ExpNode::BoxProgram {
                         program_ty: ProgramType::ComputationType(ft),
                         program: ProgramTerm::ComputationTerm(function),
-                        certified_reflection: function_reflection,
                     },
                     ExpNode::BoxProgram {
                         program_ty: ProgramType::ValueType(argument_ty),
                         program: ProgramTerm::ValueTerm(argument),
-                        certified_reflection: argument_reflection,
                     },
                 ) => match arena.get(ft) {
                     crate::raw::program::ComputationTypeNode::Function { domain, codomain }
@@ -986,10 +974,6 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                                     value: argument,
                                 },
                             )),
-                            certified_reflection: arena.alloc(ExpNode::App {
-                                func: function_reflection,
-                                arg: argument_reflection,
-                            }),
                         }))
                     }
                     _ => None,

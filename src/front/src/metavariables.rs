@@ -717,7 +717,6 @@ impl MetaStore {
             ExpNode::BoxProgram {
                 program_ty,
                 program,
-                certified_reflection,
             } => {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
@@ -738,7 +737,9 @@ impl MetaStore {
                 .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
                 let reflected_ty = crate::raw::reflection::reflect_program_type(env, program_ty)
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
-                self.check_pts(env, module, context, certified_reflection, reflected_ty)?;
+                let reflected = crate::raw::reflection::reflect_program(env, program)
+                    .map_err(|error| format!("cannot reflect boxed Program: {error}"))?;
+                self.check_pts(env, module, context, reflected, reflected_ty)?;
                 Ok(arena.alloc(ExpNode::BoxType { program_ty }))
             }
             ExpNode::ForceBox { program_ty, boxed } => {

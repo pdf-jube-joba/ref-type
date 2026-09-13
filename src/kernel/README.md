@@ -78,7 +78,8 @@ instance 宣言だけを対象とするが、元 module の宣言は未使用で
 帰納型 ID は共有しない。
 
 型引数を局所 context に持つ関連定義は、閉じた `Constant` としては登録せず、
-`register_definition_template` で body・classifier・context・certificate を検査する。
+`register_definition_template` で body・classifier・context と、Program 定義では body から
+導出した Set 側の反映を検査する。
 検査済みテンプレートは kernel 環境の寿命中保持され、front の lowering を作り直しても
 同じ ID を再検査しない。
 
@@ -90,9 +91,9 @@ Program type/kind は value に依存できない。level は non-cumulative で
 `reflection::reflect_kind`・`reflect_type`・`reflect_term` は同じ level の Set 側へ写す。
 Program の `run` は accessibility 証明を、`runCase` はさらに遷移の等式証明を
 項自身に保持する。型検査は反映した context で証明も検査し、reflection はその証明を引き継ぐ。
-`reflect_with_certificate` は渡された Set 項との構造的な対応を確認する。
-certificate の構造的な対応と Set typing は別々の検査で、定義登録と Box の入口では
-両方を要求する。閉性の検査は名前付き定義の本体も辿る。
+reflection は Program 項が保持する証明 premise を引き継いで Set 項を直接導出する。
+定義登録と Box の入口では、導出した反映項を反映後の型に対して検査する。
+閉性の検査は名前付き定義の本体も辿る。
 
 `calculus::substitute_with_reflection` は Program の引数を証明中では Set 側へ反映して代入する。
 環境を受け取らない `substitute` は反映が不要な構文用である。`shift`、module parameter 置換、ID の再割当ても

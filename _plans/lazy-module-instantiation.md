@@ -70,7 +70,7 @@
 - 失敗の再参照で同じ診断を返し、source 宣言と instance 作成位置を追える情報を保持する。
 - 宣言登録・失敗時のキャッシュ更新を整理し、検査途中の結果を再利用しない。
 
-`Lowerer::definition` の worklist は lowering の依存順を管理している。一方、raw resolver の source 解決と検査からの依存先要求は再帰を使うため、こちらも明示的な作業列に移して長い鎖を処理する。型注釈・certificate・Program 内部の Set 参照にある依存先も対象にする。
+`Lowerer::definition` の worklist は lowering の依存順を管理している。一方、raw resolver の source 解決と検査からの依存先要求は再帰を使うため、こちらも明示的な作業列に移して長い鎖を処理する。型注釈・Program 内部の proof premise と Set 参照にある依存先も対象にする。
 
 ## 検証と採用条件
 

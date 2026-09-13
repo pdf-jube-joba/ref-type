@@ -378,12 +378,7 @@ impl<'a> Checker<'a> {
             SetTermForm::BoxProgram {
                 program_ty,
                 program,
-                certified_reflection,
-            } => self.infer_box_program(
-                program_ty.into(),
-                program.into(),
-                certified_reflection.into(),
-            )?,
+            } => self.infer_box_program(program_ty.into(), program.into())?,
             SetTermForm::ForceBox { program_ty, boxed } => {
                 self.infer_force_box(program_ty.into(), boxed.into())?
             }
@@ -1034,7 +1029,7 @@ impl<'a> Checker<'a> {
                     step.into(),
                     initial.into(),
                 )?;
-                self.check_program_run_certificate(h)?;
+                self.check_reflected_program_run(h)?;
                 self.return_type(result_ty.into())?
             }
             ComputationTermForm::RunCase {
@@ -1052,7 +1047,7 @@ impl<'a> Checker<'a> {
                     initial.into(),
                 )?;
                 self.check(transition, self.return_type(runstep)?)?;
-                self.check_program_run_certificate(h)?;
+                self.check_reflected_program_run(h)?;
                 self.return_type(result_ty.into())?
             }
         };
@@ -1743,7 +1738,7 @@ impl<'a> Checker<'a> {
         self.check(transition_equality, self.equality(applied, transition)?)?;
         Ok(result_ty)
     }
-    fn check_program_run_certificate(&self, term: ComputationTerm) -> Result<(), String> {
+    fn check_reflected_program_run(&self, term: ComputationTerm) -> Result<(), String> {
         let context = super::reflection::reflect_context(self.env, &self.context)?;
         let reflected = super::reflection::reflect_term(self.env, term.into())?;
         Checker::new(self.env, context).infer_set_term(reflected)?;
@@ -1863,25 +1858,16 @@ impl<'a> Checker<'a> {
         &mut self,
         program_ty: Expression,
         program: Expression,
-        certified_reflection: Expression,
     ) -> Result<Expression, String> {
         self.closed_program_type(program_ty)?;
-        if !closed_in_environment(self.env, program)
-            || !closed_in_environment(self.env, certified_reflection)
-        {
+        if !closed_in_environment(self.env, program) {
             return Err("Box payload must be closed".into());
         }
         let mut closed = Checker::new(self.env, vec![]);
         closed.check(program, program_ty)?;
-        closed.check(
-            certified_reflection,
-            super::reflection::reflect_program_expression(self.env, program_ty)?,
-        )?;
-        super::reflection::reflect_with_certificate(
-            self.env,
-            program,
-            certified_reflection.try_into()?,
-        )?;
+        let reflected = super::reflection::reflect_program_expression(self.env, program)?;
+        let reflected_ty = super::reflection::reflect_program_expression(self.env, program_ty)?;
+        closed.check(reflected, reflected_ty)?;
         self.box_type(program_ty)
     }
     fn infer_force_box(

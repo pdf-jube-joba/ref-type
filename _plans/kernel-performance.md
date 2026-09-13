@@ -23,7 +23,7 @@
 | `kernel/convertible/*` | 同一 handle、別 handle で α 同値、β 簡約後に同値、深い位置で不一致になる式 |
 | `kernel/substitute/*` | 開いた／閉じた引数、異なる束縛の深さと部分式の共有率 |
 | `kernel/normalize/*` | β 簡約の列と、深い位置に簡約可能な式がある入力 |
-| `kernel/evaluate/*` | カウントダウン、深い Sequence・関数適用、certificate を持つ Box |
+| `kernel/evaluate/*` | カウントダウン、深い Sequence・関数適用、Program 項を持つ Box |
 
 - 入力サイズを複数用意し、増加傾向を見る。
 - 構文・環境の準備、lowering、結果検証を計測外に置く。
@@ -72,10 +72,10 @@ classifier 列を空 context と `(親ContextId, classifier)` で共有し、推
 
 - 現行 `reduce_once` を比較基準にし、Program の評価位置、ValueTerm が step しない規則、各 family の走査順を維持する。
 - fuel を一段簡約に対応させる。`fuel = 0`、正規形に到達する境界、`OutOfFuel` の途中結果も比較する。評価位置の移動だけでは fuel を消費しない。
-- Box の簡約と `advance_certificate` の更新タイミングを保存する。
+- Box の簡約と、force 時に残余 Program を反映するタイミングを保存する。
 - β 簡約には既存の `substitute` を使う。
 
-深い入力で再走査・再構築が減り、各 fuel 境界の式と certificate の対応を維持できることを採用条件にする。
+深い入力で再走査・再構築が減り、各 fuel 境界で残余 Program とその直接反映が対応することを採用条件にする。
 
 ## 検証と記録
 

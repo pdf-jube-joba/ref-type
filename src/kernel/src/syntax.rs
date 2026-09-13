@@ -373,7 +373,6 @@ pub enum SetTermForm {
     BoxProgram {
         program_ty: ProgramType,
         program: ProgramTerm,
-        certified_reflection: SetTerm,
     },
     ForceBox {
         program_ty: ProgramType,

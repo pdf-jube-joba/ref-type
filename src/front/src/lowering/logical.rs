@@ -731,11 +731,9 @@ impl Lowerer<'_> {
             ExpNode::BoxProgram {
                 program_ty,
                 program,
-                certified_reflection,
             } => {
                 let program_ty = self.program_type(program_ty)?;
                 let program = self.program_term(program)?;
-                let certified_reflection = self.set(certified_reflection, ctx, m)?;
                 match syntax_family {
                     s::Family::SetTerm => self
                         .kernel
@@ -745,9 +743,6 @@ impl Lowerer<'_> {
                             form: s::SetTermForm::BoxProgram {
                                 program_ty,
                                 program,
-                                certified_reflection: certified_reflection
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
                             },
                         })
                         .into(),

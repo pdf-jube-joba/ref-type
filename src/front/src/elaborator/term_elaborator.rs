@@ -21,7 +21,7 @@ pub(crate) trait Handler {
         &mut self,
         expression: &SExp,
         ty: ProgramType,
-    ) -> Result<(ProgramTerm, Option<Exp>), String>;
+    ) -> Result<ProgramTerm, String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(
@@ -995,18 +995,10 @@ impl LocalScope {
                 program,
             } => {
                 let program_ty = handler.elaborate_program_type(program_ty)?;
-                let (program, certified_reflection) =
-                    handler.elaborate_program(program, program_ty)?;
-                let certified_reflection = certified_reflection.ok_or_else(|| {
-                    format!(
-                        "cannot reflect Program syntax for boxing ({})",
-                        crate::raw::printing::format_program(handler.env(), program)
-                    )
-                })?;
+                let program = handler.elaborate_program(program, program_ty)?;
                 Ok(handler.arena().alloc(ExpNode::BoxProgram {
                     program_ty,
                     program,
-                    certified_reflection,
                 }))
             }
             SExp::ForceBox { program_ty, boxed } => {

@@ -541,24 +541,6 @@ pub fn normalize(env: &Environment, e: impl Into<Expression>) -> Result<Expressi
     }
 }
 
-// A Program step can correspond to zero or several Set steps (force/thunk is
-// erased). Keep a certificate that still structurally reflects the residual.
-fn advance_certificate(
-    env: &Environment,
-    program: Expression,
-    mut certificate: Expression,
-) -> Result<Expression, String> {
-    for _ in 0..10_000 {
-        if super::reflection::reflect_with_certificate(env, program, certificate.try_into()?)
-            .is_ok()
-        {
-            return Ok(certificate);
-        }
-        certificate = reduce_once(env, certificate)?
-            .ok_or("Program step has no corresponding certificate reduction")?;
-    }
-    Err("reflection correspondence fuel exhausted".into())
-}
 fn reduce_application(
     env: &Environment,
     rule: ProductRule,
@@ -599,12 +581,10 @@ fn reduce_box_program(
     level: usize,
     program_ty: ProgramType,
     program: ProgramTerm,
-    certified_reflection: SetTerm,
 ) -> Result<Option<Expression>, String> {
     if let ProgramTerm::ComputationTerm(computation) = program
         && let Some(next) = reduce_once(env, computation)?
     {
-        let certificate = advance_certificate(env, next, certified_reflection.into())?;
         return Ok(Some(
             env.arena
                 .alloc(SetTermNode {
@@ -612,7 +592,6 @@ fn reduce_box_program(
                     form: SetTermForm::BoxProgram {
                         program_ty,
                         program: next.try_into()?,
-                        certified_reflection: certificate.try_into()?,
                     },
                 })
                 .into(),
@@ -628,12 +607,11 @@ fn reduce_force_box(
     if let SetTermForm::BoxProgram {
         program_ty: actual,
         program,
-        certified_reflection,
     } = env.arena.read(boxed).form
         && convertible(env, program_ty.into(), actual.into())?
         && (matches!(program, ProgramTerm::ValueTerm(_)) || reduce_once(env, program)?.is_none())
     {
-        return Ok(Some(certified_reflection.into()));
+        return Ok(Some(super::reflection::reflect_term(env, program)?.into()));
     }
     Ok(None)
 }
@@ -647,29 +625,19 @@ fn reduce_box_application(
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
     let SetTermForm::BoxProgram {
-        program: function,
-        certified_reflection,
-        ..
+        program: function, ..
     } = a.read(function).form
     else {
         return Ok(None);
     };
-    let (argument, reflected_argument) = if type_application {
-        (
-            argument,
-            super::reflection::reflect_type(env, argument.try_into()?)?.into(),
-        )
+    let argument = if type_application {
+        argument
     } else {
         let argument: SetTerm = argument.try_into()?;
-        let SetTermForm::BoxProgram {
-            program,
-            certified_reflection,
-            ..
-        } = a.read(argument).form
-        else {
+        let SetTermForm::BoxProgram { program, .. } = a.read(argument).form else {
             return Ok(None);
         };
-        (program.into(), certified_reflection.into())
+        program.into()
     };
     let result_ty = if type_application {
         substitute_with_reflection(env, codomain, argument)?
@@ -677,19 +645,12 @@ fn reduce_box_application(
         codomain.into()
     };
     let program = build::apply(a, rule, function.into(), argument)?;
-    let certificate = build::apply(
-        a,
-        rule.reflected(),
-        certified_reflection.into(),
-        reflected_argument,
-    )?;
     Ok(Some(
         a.alloc(SetTermNode {
             level: a.sort(result_ty).level().ok_or("expected Program type")?,
             form: SetTermForm::BoxProgram {
                 program_ty: result_ty.try_into()?,
                 program: program.try_into()?,
-                certified_reflection: certificate.try_into()?,
             },
         })
         .into(),
@@ -1019,8 +980,7 @@ fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expressi
         SetTermForm::BoxProgram {
             program_ty,
             program,
-            certified_reflection,
-        } => reduce_box_program(env, level, program_ty, program, certified_reflection)?,
+        } => reduce_box_program(env, level, program_ty, program)?,
         SetTermForm::ForceBox { program_ty, boxed } => reduce_force_box(env, program_ty, boxed)?,
         SetTermForm::BoxApp {
             rule,

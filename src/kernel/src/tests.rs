@@ -238,7 +238,6 @@ fn checked_definition_templates_are_retained_without_becoming_constants() {
         }],
         body: body.into(),
         classifier: kind.into(),
-        certified_reflection: None,
     };
     env.register_definition_template(id, template.clone())
         .unwrap();
@@ -482,13 +481,11 @@ fn closed_polymorphic_box_type_application_then_value_application() {
     let mut c = Checker::new(&env, vec![]);
     let ty0 = c.infer_computation_term(id0).unwrap();
     let ty1 = c.infer_computation_term(id1).unwrap();
-    let cert1 = reflect_term(&env, id1.into()).unwrap();
     let boxed = a.alloc(SetTermNode {
         level: 2,
         form: SetTermForm::BoxProgram {
             program_ty: ty1.into(),
             program: id1.into(),
-            certified_reflection: cert1,
         },
     });
     let ComputationTypeForm::ProdType {
@@ -522,13 +519,11 @@ fn closed_polymorphic_box_type_application_then_value_application() {
         level: 1,
         form: ValueTermForm::ThunkValue { computation: id0 },
     });
-    let cert0 = reflect_term(&env, arg.into()).unwrap();
     let boxed_arg = a.alloc(SetTermNode {
         level: 1,
         form: SetTermForm::BoxProgram {
             program_ty: arg_ty.into(),
             program: arg.into(),
-            certified_reflection: cert0,
         },
     });
     let result_ty = a.alloc(ComputationTypeNode {
@@ -559,7 +554,8 @@ fn closed_polymorphic_box_type_application_then_value_application() {
         },
     });
     c.infer_set_term(forced).unwrap();
-    assert!(convertible(&env, forced.into(), cert0.into()).unwrap());
+    let reflected_arg = reflect_term(&env, arg.into()).unwrap();
+    assert!(convertible(&env, forced.into(), reflected_arg.into()).unwrap());
     let nf = normalize(&env, forced).unwrap();
     c.inferred(nf).unwrap();
     assert_eq!(a.sort(nf), BaseSort::Set(1));
@@ -636,7 +632,6 @@ fn invalid_declaration_is_not_inserted() {
             context: vec![],
             body: k.into(),
             classifier: Classifier::Upper(BaseSort::Set(1)),
-            certified_reflection: None,
         },
     );
     assert!(result.is_err());
@@ -838,7 +833,7 @@ fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
 #[test]
 fn boxed_constant_cannot_hide_an_open_module_parameter() {
     let mut env = Environment::new();
-    let (_, ty, zero) = natural(&mut env);
+    let (_, ty, _zero) = natural(&mut env);
     let p = ModuleParamId {
         module: ModuleId(0),
         position: 0,
@@ -866,7 +861,6 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
             context: vec![],
             body: body.into(),
             classifier: ty.into(),
-            certified_reflection: None,
         },
     )
     .unwrap();
@@ -874,13 +868,11 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
         level: 0,
         form: ValueTermForm::Constant { definition: id },
     });
-    let cert = reflect_term(&env, zero.into()).unwrap();
     let boxed = env.arena.alloc(SetTermNode {
         level: 0,
         form: SetTermForm::BoxProgram {
             program_ty: ty.into(),
             program: constant.into(),
-            certified_reflection: cert,
         },
     });
     assert!(
@@ -892,7 +884,7 @@ fn boxed_constant_cannot_hide_an_open_module_parameter() {
     assert_eq!(reduce_once(&env, constant).unwrap(), None);
 }
 #[test]
-fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
+fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
     let mut env = Environment::new();
     let (_, ty, zero) = natural(&mut env);
     let a = &env.arena;
@@ -994,16 +986,6 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
         a.read(ComputationTerm::try_from(result).unwrap()).form,
         ComputationTermForm::Return { .. }
     ));
-    let certificate = reflect_term(&env, zero.into()).unwrap();
-    let boxed = a.alloc(SetTermNode {
-        level: 0,
-        form: SetTermForm::BoxProgram {
-            program_ty: result_ty.into(),
-            program: run.into(),
-            certified_reflection: certificate,
-        },
-    });
-    assert!(c.infer_set_term(boxed).is_err());
 }
 
 #[test]
@@ -1213,8 +1195,7 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
             Definition {
                 context,
                 body: value.into(),
-                classifier: ty.into(),
-                certified_reflection: None
+                classifier: ty.into()
             }
         )
         .is_err()
@@ -1422,64 +1403,9 @@ fn registering_definition_invalidates_cached_unknown_constant() {
             context: vec![],
             body: kind.into(),
             classifier: Classifier::Upper(BaseSort::Set(0)),
-            certified_reflection: None,
         },
     )
     .unwrap();
     assert_eq!(whnf(&env, constant.into()).unwrap(), kind.into());
     assert!(convertible(&env, constant.into(), kind.into()).unwrap());
-}
-
-#[test]
-fn definition_reflection_certificate_cannot_capture_locals() {
-    let mut env = Environment::new();
-    let (_, ty, zero) = natural(&mut env);
-    let reflected_ty = reflect_type(&env, ty.into()).unwrap();
-    let reflected_zero = reflect_term(&env, zero.into()).unwrap();
-    let rule =
-        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
-    let lambda = env.arena.alloc(SetTermNode {
-        level: 0,
-        form: SetTermForm::LambdaTerm {
-            rule,
-            var: SymbolId::ANONYMOUS,
-            domain: reflected_ty,
-            body: reflected_zero,
-        },
-    });
-    let bound = env.arena.alloc(SetTermNode {
-        level: 0,
-        form: SetTermForm::Bound { index: 0 },
-    });
-    let certificate = env.arena.alloc(SetTermNode {
-        level: 0,
-        form: SetTermForm::AppTerm {
-            rule,
-            function: lambda,
-            argument: bound,
-        },
-    });
-    let id = DefId {
-        module: ModuleId(0),
-        index: 0,
-    };
-    let definition = Definition {
-        context: vec![Binding {
-            var: SymbolId(1),
-            classifier: ty.into(),
-        }],
-        body: zero.into(),
-        classifier: ty.into(),
-        certified_reflection: Some(certificate),
-    };
-    assert!(env.register_definition(id, definition.clone()).is_err());
-    assert!(env.definition(id).is_none());
-    env.register_definition(
-        id,
-        Definition {
-            certified_reflection: Some(reflected_zero),
-            ..definition
-        },
-    )
-    .unwrap();
 }
