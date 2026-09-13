@@ -798,11 +798,13 @@ fn visit_computation_term(
             result_ty,
             step,
             initial,
+            accessibility,
         } => {
             visit((*state_ty).into(), 0);
             visit((*result_ty).into(), 0);
             visit((*step).into(), 0);
             visit((*initial).into(), 0);
+            visit((*accessibility).into(), 0);
         }
         ComputationTermForm::RunCase {
             state_ty,
@@ -810,12 +812,16 @@ fn visit_computation_term(
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => {
             visit((*state_ty).into(), 0);
             visit((*result_ty).into(), 0);
             visit((*step).into(), 0);
             visit((*initial).into(), 0);
             visit((*transition).into(), 0);
+            visit((*accessibility).into(), 0);
+            visit((*transition_equality).into(), 0);
         }
     }
 }
@@ -1792,11 +1798,13 @@ fn map_computation_term(
             result_ty,
             step,
             initial,
+            accessibility,
         } => {
             field!(state_ty, 0, All);
             field!(result_ty, 0, All);
             field!(step, 0, All);
             field!(initial, 0, All);
+            field!(accessibility, 0, All);
         }
         ComputationTermForm::RunCase {
             state_ty,
@@ -1804,12 +1812,16 @@ fn map_computation_term(
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => {
             field!(state_ty, 0, All);
             field!(result_ty, 0, All);
             field!(step, 0, All);
             field!(initial, 0, All);
             field!(transition, 0, All | Head | Evaluation);
+            field!(accessibility, 0, All);
+            field!(transition_equality, 0, All);
         }
     }
     if *original == node {

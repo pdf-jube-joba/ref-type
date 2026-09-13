@@ -162,12 +162,8 @@ impl Lowerer<'_> {
                 else {
                     return Err("wrong Program definition category".into());
                 };
-                let body = raw::program_definitions::instantiate_value(
-                    self.raw.arena(),
-                    *body,
-                    &parameters,
-                    0,
-                );
+                let body =
+                    raw::program_definitions::instantiate_value(self.raw, *body, &parameters, 0);
                 return self.value_term(body, ctx);
             }
             R::DefinedConstant(definition) => {
@@ -222,6 +218,17 @@ impl Lowerer<'_> {
             .alloc(s::ValueTermNode { level: 0, form }))
     }
 
+    fn program_proof(
+        &mut self,
+        proof: Exp,
+        context: &raw::program::ProgramContext,
+    ) -> Result<s::PropTerm, String> {
+        let mut reflected =
+            raw::reflection::reflect_context(self.raw, context).map_err(|e| e.to_string())?;
+        self.set(proof, &mut reflected, self.raw.root_module())?
+            .try_into()
+    }
+
     pub(super) fn computation_term(
         &mut self,
         e: raw::program::ComputationTerm,
@@ -242,7 +249,7 @@ impl Lowerer<'_> {
                     return Err("wrong Program definition category".into());
                 };
                 let body = raw::program_definitions::instantiate_computation(
-                    self.raw.arena(),
+                    self.raw,
                     *body,
                     &parameters,
                     0,
@@ -325,24 +332,30 @@ impl Lowerer<'_> {
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => F::Run {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
                 step: self.value_term(step, ctx)?,
                 initial: self.value_term(initial, ctx)?,
+                accessibility: self.program_proof(accessibility, ctx)?,
             },
             R::RunCase {
                 state_ty,
                 result_ty,
                 step,
                 initial,
+                accessibility,
                 transition,
+                transition_equality,
             } => F::RunCase {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
                 step: self.value_term(step, ctx)?,
                 initial: self.value_term(initial, ctx)?,
+                accessibility: self.program_proof(accessibility, ctx)?,
                 transition: self.computation_term(transition, ctx)?,
+                transition_equality: self.program_proof(transition_equality, ctx)?,
             },
             R::Case {
                 indspec,

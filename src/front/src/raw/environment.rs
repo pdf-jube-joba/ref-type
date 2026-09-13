@@ -609,9 +609,11 @@ impl CrateEnv {
                             self.arena(),
                             body,
                             &lazy.substitutions,
+                            &lazy.reflected_substitutions,
                         ),
                         &lazy.remapping.definition_ids,
                         &lazy.remapping.program_inductive_ids,
+                        &lazy.remapping.inductive_ids,
                     ),
                     certified_reflection: certified_reflection.map(|term| {
                         crate::raw::calculus::remap_all_global_ids(
@@ -648,9 +650,11 @@ impl CrateEnv {
                             self.arena(),
                             body,
                             &lazy.substitutions,
+                            &lazy.reflected_substitutions,
                         ),
                         &lazy.remapping.definition_ids,
                         &lazy.remapping.program_inductive_ids,
+                        &lazy.remapping.inductive_ids,
                     ),
                     certified_reflection: certified_reflection.map(|term| {
                         crate::raw::calculus::remap_all_global_ids(

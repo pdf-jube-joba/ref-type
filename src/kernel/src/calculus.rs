@@ -63,10 +63,29 @@ pub fn substitute(
     body: impl Into<Expression>,
     argument: impl Into<Expression>,
 ) -> Result<Expression, String> {
+    substitute_inner(arena, body.into(), argument.into(), None)
+}
+
+/// Substitute a Program argument in runtime syntax and its Set/Prop proofs.
+pub fn substitute_with_reflection(
+    env: &Environment,
+    body: impl Into<Expression>,
+    argument: impl Into<Expression>,
+) -> Result<Expression, String> {
+    substitute_inner(&env.arena, body.into(), argument.into(), Some(env))
+}
+
+fn substitute_inner(
+    arena: &Arena,
+    body: Expression,
+    argument: Expression,
+    reflection_env: Option<&Environment>,
+) -> Result<Expression, String> {
     fn walk(
         a: &Arena,
         e: Expression,
         argument: Expression,
+        reflection_env: Option<&Environment>,
         depth: usize,
         cache: &mut HashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
@@ -78,6 +97,13 @@ pub fn substitute(
         }
         if let Some(index) = structure::bound_index(a, e) {
             if index == depth {
+                let argument = if !a.sort(e).is_program() && a.sort(argument).is_program() {
+                    let env = reflection_env
+                        .ok_or("Program proof substitution requires an environment")?;
+                    super::reflection::reflect_program_expression(env, argument)?
+                } else {
+                    argument
+                };
                 if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
                     return Err("substitution argument has the wrong family or level".into());
                 }
@@ -85,20 +111,30 @@ pub fn substitute(
             }
             return build::bound(a, a.sort(e), e.family().stage(), index - 1);
         }
-        let result = map_children(a, e, |child, n| walk(a, child, argument, depth + n, cache))?;
+        let result = map_children(a, e, |child, n| {
+            walk(a, child, argument, reflection_env, depth + n, cache)
+        })?;
         cache.insert((e, depth), result);
         Ok(result)
     }
-    walk(arena, body.into(), argument.into(), 0, &mut HashMap::new())
+    walk(
+        arena,
+        body,
+        argument,
+        reflection_env,
+        0,
+        &mut HashMap::new(),
+    )
 }
 pub fn instantiate_telescope(
-    arena: &Arena,
+    env: &Environment,
     e: Expression,
     arguments: &[Expression],
 ) -> Result<Expression, String> {
+    let arena = &env.arena;
     let mut result = e;
     for (i, &argument) in arguments.iter().enumerate().rev() {
-        result = substitute(arena, result, shift(arena, argument, i, 0)?)?;
+        result = substitute_with_reflection(env, result, shift(arena, argument, i, 0)?)?;
     }
     Ok(result)
 }
@@ -131,27 +167,34 @@ pub fn is_closed(arena: &Arena, e: Expression) -> bool {
     go(arena, e, 0)
 }
 pub fn substitute_parameters(
-    arena: &Arena,
+    env: &Environment,
     e: Expression,
     parameters: &HashMap<ModuleParamId, Expression>,
 ) -> Result<Expression, String> {
     fn go(
-        a: &Arena,
+        env: &Environment,
         e: Expression,
         p: &HashMap<ModuleParamId, Expression>,
         depth: usize,
     ) -> Result<Expression, String> {
-        if let Some(parameter) = structure::module_parameter(a, e)
+        let a = &env.arena;
+        let reflected = structure::reflected_parameter(a, e);
+        if let Some(parameter) = structure::module_parameter(a, e).or(reflected)
             && let Some(&argument) = p.get(&parameter)
         {
+            let argument = if reflected.is_some() {
+                super::reflection::reflect_program_expression(env, argument)?
+            } else {
+                argument
+            };
             if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
                 return Err("module argument classification mismatch".into());
             }
             return shift(a, argument, depth, 0);
         }
-        map_children(a, e, |child, n| go(a, child, p, depth + n))
+        map_children(a, e, |child, n| go(env, child, p, depth + n))
     }
-    go(arena, e, parameters, 0)
+    go(env, e, parameters, 0)
 }
 pub fn remap_ids(
     arena: &Arena,
@@ -351,7 +394,7 @@ fn reduce_inductive(
         .constructors
         .get(constructor)
         .ok_or("unknown constructor")?;
-    let mut ty = instantiate_telescope(a, declared_ty, &expressions(&parameters))?;
+    let mut ty = instantiate_telescope(env, declared_ty, &expressions(&parameters))?;
     let mut case_args = vec![];
     for argument in arguments {
         ty = normalize(env, ty)?;
@@ -366,7 +409,7 @@ fn reduce_inductive(
             case_args.push(ih);
         }
         declared_ty = declared.body;
-        ty = substitute(a, product.body, argument)?;
+        ty = substitute_with_reflection(env, product.body, argument)?;
     }
     if structure::product(a, ty).is_some() {
         return Ok(None);
@@ -524,9 +567,11 @@ fn reduce_application(
 ) -> Result<Option<Expression>, String> {
     rule.validate()?;
     match structure::lambda(&env.arena, function) {
-        Some(lambda) if lambda.rule == rule => {
-            Ok(Some(substitute(&env.arena, lambda.body, argument)?))
-        }
+        Some(lambda) if lambda.rule == rule => Ok(Some(substitute_with_reflection(
+            env,
+            lambda.body,
+            argument,
+        )?)),
         _ => Ok(None),
     }
 }
@@ -543,7 +588,9 @@ fn reduce_sequence(
     body: ComputationTerm,
 ) -> Result<Option<Expression>, String> {
     match env.arena.read(computation).form {
-        ComputationTermForm::Return { value } => Ok(Some(substitute(&env.arena, body, value)?)),
+        ComputationTermForm::Return { value } => {
+            Ok(Some(substitute_with_reflection(env, body, value)?))
+        }
         _ => Ok(None),
     }
 }
@@ -625,7 +672,7 @@ fn reduce_box_application(
         (program.into(), certified_reflection.into())
     };
     let result_ty = if type_application {
-        substitute(a, codomain, argument)?
+        substitute_with_reflection(env, codomain, argument)?
     } else {
         codomain.into()
     };
@@ -655,6 +702,7 @@ fn reduce_run(
     result_ty: ValueType,
     step: ValueTerm,
     initial: ValueTerm,
+    accessibility: PropTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
     let i = a.sort(state_ty).level().ok_or("run requires a level")?;
@@ -667,6 +715,14 @@ fn reduce_run(
         form: ComputationTermForm::Force { value: step },
     });
     let transition = build::apply(a, rule, force.into(), initial.into())?.try_into()?;
+    let transition_equality = a.alloc(PropTermNode {
+        form: PropTermForm::IdRefl {
+            element: super::reflection::reflect_term(
+                env,
+                ProgramTerm::ComputationTerm(transition),
+            )?,
+        },
+    });
     Ok(Some(
         a.alloc(ComputationTermNode {
             level,
@@ -676,6 +732,8 @@ fn reduce_run(
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             },
         })
         .into(),
@@ -721,7 +779,10 @@ fn reduce_run_case(
     state_ty: ValueType,
     result_ty: ValueType,
     step: ValueTerm,
+    initial: ValueTerm,
     transition: ComputationTerm,
+    accessibility: PropTerm,
+    transition_equality: PropTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
     let ComputationTermForm::Return { value } = a.read(transition).form else {
@@ -744,6 +805,17 @@ fn reduce_run_case(
                     result_ty,
                     step,
                     initial: next,
+                    accessibility: a.alloc(PropTermNode {
+                        form: PropTermForm::AccDescent {
+                            state_ty: super::reflection::reflect_type(env, state_ty.into())?,
+                            result_ty: super::reflection::reflect_type(env, result_ty.into())?,
+                            step: super::reflection::reflect_term(env, step.into())?,
+                            from: super::reflection::reflect_term(env, initial.into())?,
+                            to: super::reflection::reflect_term(env, next.into())?,
+                            accessibility,
+                            transition: transition_equality,
+                        },
+                    }),
                 },
             })
             .into(),
@@ -801,7 +873,7 @@ fn reduce_pred(
 ) -> Result<Option<Expression>, String> {
     match env.arena.read(subset).form {
         SetTermForm::Subset { predicate, .. } => {
-            Ok(Some(substitute(&env.arena, predicate, element)?))
+            Ok(Some(substitute_with_reflection(env, predicate, element)?))
         }
         _ => Ok(None),
     }
@@ -846,7 +918,7 @@ fn reduce_case(
     };
     let branch = *branches.get(*constructor).ok_or("case branch missing")?;
     Ok(Some(instantiate_telescope(
-        &env.arena,
+        env,
         branch.into(),
         &expressions(fields),
     )?))
@@ -861,11 +933,7 @@ fn reduce_set_case(
         return Ok(None);
     };
     let branch = *branches.get(constructor).ok_or("case branch missing")?;
-    Ok(Some(instantiate_telescope(
-        &env.arena,
-        branch.into(),
-        &arguments,
-    )?))
+    Ok(Some(instantiate_telescope(env, branch.into(), &arguments)?))
 }
 fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
     let root = match e {
@@ -1136,7 +1204,9 @@ fn reduce_computation_term_root(
         ComputationTermForm::Sequence {
             computation, body, ..
         } => reduce_sequence(env, computation, body)?,
-        ComputationTermForm::ValueLet { value, body, .. } => Some(substitute(a, body, value)?),
+        ComputationTermForm::ValueLet { value, body, .. } => {
+            Some(substitute_with_reflection(env, body, value)?)
+        }
         ComputationTermForm::Case {
             scrutinee,
             branches,
@@ -1147,14 +1217,35 @@ fn reduce_computation_term_root(
             result_ty,
             step,
             initial,
-        } => reduce_run(env, level, state_ty, result_ty, step, initial)?,
+            accessibility,
+        } => reduce_run(
+            env,
+            level,
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            accessibility,
+        )?,
         ComputationTermForm::RunCase {
             state_ty,
             result_ty,
             step,
+            initial,
             transition,
-            ..
-        } => reduce_run_case(env, level, state_ty, result_ty, step, transition)?,
+            accessibility,
+            transition_equality,
+        } => reduce_run_case(
+            env,
+            level,
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality,
+        )?,
         _ => None,
     })
 }

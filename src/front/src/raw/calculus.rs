@@ -585,6 +585,7 @@ pub fn remap_all_global_ids(
                         value,
                         definitions,
                         program_inductives,
+                        inductives,
                     ))
                 }
                 ProgramTerm::ComputationTerm(computation) => ProgramTerm::ComputationTerm(
@@ -593,6 +594,7 @@ pub fn remap_all_global_ids(
                         computation,
                         definitions,
                         program_inductives,
+                        inductives,
                     ),
                 ),
             };

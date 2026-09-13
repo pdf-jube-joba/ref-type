@@ -379,14 +379,8 @@ impl<'a> TermParser<'a> {
                 let initial = parser.parse_sexp()?;
                 Ok((state_ty, result_ty, step, initial))
             })?;
-            let accessibility = if program_form && !self.bump_if_keyword("\\by") {
-                None
-            } else {
-                if !program_form {
-                    self.expect_keyword("\\by")?;
-                }
-                Some(Box::new(self.parse_sexp()?))
-            };
+            self.expect_keyword("\\by")?;
+            let accessibility = Box::new(self.parse_sexp()?);
             return Ok(if program_form {
                 SExp::PRun {
                     state_ty: Box::new(state_ty),
@@ -401,7 +395,7 @@ impl<'a> TermParser<'a> {
                     result_ty: Box::new(result_ty),
                     step: Box::new(step),
                     initial: Box::new(initial),
-                    accessibility: accessibility.expect("required above"),
+                    accessibility,
                 }
             });
         }
@@ -420,23 +414,14 @@ impl<'a> TermParser<'a> {
                     let transition = parser.parse_sexp()?;
                     Ok((state_ty, result_ty, step, initial, transition))
                 })?;
-            let proofs = if program_form && !self.bump_if_keyword("\\by") {
-                None
-            } else {
-                if !program_form {
-                    self.expect_keyword("\\by")?;
-                }
-                Some(self.parse_parenthesized(|parser| {
-                    let accessibility = parser.parse_sexp()?;
-                    parser.expect_token(Token::Comma)?;
-                    let transition_equality = parser.parse_sexp()?;
-                    Ok((Box::new(accessibility), Box::new(transition_equality)))
-                })?)
-            };
+            self.expect_keyword("\\by")?;
+            let (accessibility, transition_equality) = self.parse_parenthesized(|parser| {
+                let accessibility = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let transition_equality = parser.parse_sexp()?;
+                Ok((Box::new(accessibility), Box::new(transition_equality)))
+            })?;
             return Ok(if program_form {
-                let (accessibility, transition_equality) = proofs
-                    .map(|(a, e)| (Some(a), Some(e)))
-                    .unwrap_or((None, None));
                 SExp::PRunCase {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
@@ -447,7 +432,6 @@ impl<'a> TermParser<'a> {
                     transition_equality,
                 }
             } else {
-                let (accessibility, transition_equality) = proofs.expect("required above");
                 SExp::RunCase {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),

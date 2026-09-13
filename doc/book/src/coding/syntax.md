@@ -182,6 +182,13 @@ module 引数、定義、型関連項、明示的な thunk に適用される。
 旧 `\capp`・`\do`・`\case` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は使わない。
 再帰・反映の `\Prun`・`\Pcontinue`・`\box` などは従来の専用構文を使う。
 
+`\Prun(A, B, step, initial) \by p` の停止性証明 `p` は必須である。
+`p` は Program の引数を Set 側へ反映した `\Acc(A, B, step, initial)` の証明として検査する。
+`\PrunCase(A, B, step, initial, transition) \by (p, edge)` では、さらに
+`edge` として反映後の `step initial = transition` の証明を渡す。
+証明中では Program の名前付き型・値・計算を Set 側へ反映して参照できる。
+証明は Program 項に保持され、代入・モジュール具体化・簡約に伴って更新されるが、計算上の比較には影響しない。
+
 ## レコード
 
 ```text

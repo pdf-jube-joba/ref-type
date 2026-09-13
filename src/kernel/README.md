@@ -88,11 +88,14 @@ Program type/kind は value に依存できない。level は non-cumulative で
 ## Reflection と評価
 
 `reflection::reflect_kind`・`reflect_type`・`reflect_term` は同じ level の Set 側へ写す。
-部分的な `run` を含む Program には `reflect_with_certificate` で証明引数を補う。
+Program の `run` は accessibility 証明を、`runCase` はさらに遷移の等式証明を
+項自身に保持する。型検査は反映した context で証明も検査し、reflection はその証明を引き継ぐ。
+`reflect_with_certificate` は渡された Set 項との構造的な対応を確認する。
 certificate の構造的な対応と Set typing は別々の検査で、定義登録と Box の入口では
 両方を要求する。閉性の検査は名前付き定義の本体も辿る。
 
-`calculus::substitute`、`shift`、module parameter 置換、ID の再割当ては
+`calculus::substitute_with_reflection` は Program の引数を証明中では Set 側へ反映して代入する。
+環境を受け取らない `substitute` は反映が不要な構文用である。`shift`、module parameter 置換、ID の再割当ても
 family と index を保つ。`convertible` は同一 family・level 内の比較であり、
 Program type/kind の型 beta も扱う。証明を記録する内部注釈は型検査したうえで
 計算上の比較から除外する。

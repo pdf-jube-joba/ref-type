@@ -616,12 +616,14 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             result_ty,
             step,
             initial,
+            accessibility,
         } => format!(
-            "\\Prun({}, {}, {}, {})",
+            "\\Prun({}, {}, {}, {}) \\by {}",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, step),
-            format_value(env, initial)
+            format_value(env, initial),
+            format_exp(env, accessibility)
         ),
         ComputationTermNode::RunCase {
             state_ty,
@@ -629,13 +631,17 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => format!(
-            "\\PrunCase({}, {}, {}, {}, {})",
+            "\\PrunCase({}, {}, {}, {}, {}) \\by ({}, {})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, step),
             format_value(env, initial),
-            format_computation(env, transition)
+            format_computation(env, transition),
+            format_exp(env, accessibility),
+            format_exp(env, transition_equality)
         ),
     }
 }

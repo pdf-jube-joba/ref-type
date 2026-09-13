@@ -23,13 +23,17 @@ impl GlobalEnvironment {
     ) -> Result<crate::raw::program::ComputationTerm, ElaborationError> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         let computation = scope.elaborate_computation(exp, self)?;
-        let computation = if scope.has_metas() {
-            scope
-                .infer_computation_term_with_metas(self, computation)?
-                .0
-        } else {
-            computation
-        };
+        // Raw evaluation still permits stuck non-recursive syntax. Explicit
+        // runs must have their proofs checked before any evaluation takes place.
+        if !scope.query_requires_checking() {
+            return Ok(computation);
+        }
+        let (computation, ty) = scope.infer_computation_term_with_metas(self, computation)?;
+        self.certify_program_query(
+            scope.context(),
+            crate::raw::program::ProgramTerm::ComputationTerm(computation),
+            crate::raw::program::ProgramType::ComputationType(ty),
+        )?;
         Ok(computation)
     }
 

@@ -1,5 +1,7 @@
 //! Simultaneous, capture-avoiding instantiation of Program definition parameters.
-use super::{exp::Arena, program::*, program_calculus::shift_value_type_indices};
+use super::{
+    environment::CrateEnv, exp::Arena, program::*, program_calculus::shift_value_type_indices,
+};
 
 pub fn instantiate_value_type(
     arena: &Arena,
@@ -82,7 +84,7 @@ pub fn instantiate_computation_type(
 }
 
 pub fn instantiate_value(
-    arena: &Arena,
+    env: &CrateEnv,
     value: ValueTerm,
     arguments: &[ValueType],
     cutoff: usize,
@@ -91,7 +93,8 @@ pub fn instantiate_value(
         return value;
     }
 
-    fn go(arena: &Arena, value: ValueTerm, arguments: &[ValueType], cutoff: usize) -> ValueTerm {
+    fn go(env: &CrateEnv, value: ValueTerm, arguments: &[ValueType], cutoff: usize) -> ValueTerm {
+        let arena = env.arena();
         match arena.get(value) {
             ValueTermNode::DefinitionInstance {
                 definition,
@@ -123,7 +126,7 @@ pub fn instantiate_value(
                                 instantiate_value_type(arena, t, arguments, cutoff),
                             ),
                             ProgramArgument::ValueTerm(v) => {
-                                ProgramArgument::ValueTerm(go(arena, v, arguments, cutoff))
+                                ProgramArgument::ValueTerm(go(env, v, arguments, cutoff))
                             }
                         })
                         .collect(),
@@ -132,7 +135,7 @@ pub fn instantiate_value(
             ValueTermNode::Thunk { computation } => arena.reuse_value(
                 value,
                 ValueTermNode::Thunk {
-                    computation: instantiate_computation(arena, computation, arguments, cutoff),
+                    computation: instantiate_computation(env, computation, arguments, cutoff),
                 },
             ),
             ValueTermNode::Continue {
@@ -144,7 +147,7 @@ pub fn instantiate_value(
                 ValueTermNode::Continue {
                     state_ty: instantiate_value_type(arena, state_ty, arguments, cutoff),
                     result_ty: instantiate_value_type(arena, result_ty, arguments, cutoff),
-                    next: go(arena, next, arguments, cutoff),
+                    next: go(env, next, arguments, cutoff),
                 },
             ),
             ValueTermNode::Finish {
@@ -156,7 +159,7 @@ pub fn instantiate_value(
                 ValueTermNode::Finish {
                     state_ty: instantiate_value_type(arena, state_ty, arguments, cutoff),
                     result_ty: instantiate_value_type(arena, result_ty, arguments, cutoff),
-                    output: go(arena, output, arguments, cutoff),
+                    output: go(env, output, arguments, cutoff),
                 },
             ),
             ValueTermNode::InductiveConstructor {
@@ -175,7 +178,7 @@ pub fn instantiate_value(
                     idx,
                     fields: fields
                         .into_iter()
-                        .map(|v| go(arena, v, arguments, cutoff))
+                        .map(|v| go(env, v, arguments, cutoff))
                         .collect(),
                 },
             ),
@@ -184,11 +187,11 @@ pub fn instantiate_value(
             | ValueTermNode::DefinedConstant(_) => value,
         }
     }
-    go(arena, value, arguments, cutoff)
+    go(env, value, arguments, cutoff)
 }
 
 pub fn instantiate_computation(
-    arena: &Arena,
+    env: &CrateEnv,
     computation: ComputationTerm,
     arguments: &[ValueType],
     cutoff: usize,
@@ -198,11 +201,12 @@ pub fn instantiate_computation(
     }
 
     fn go(
-        arena: &Arena,
+        env: &CrateEnv,
         term: ComputationTerm,
         arguments: &[ValueType],
         cutoff: usize,
     ) -> ComputationTerm {
+        let arena = env.arena();
         match arena.get(term) {
             ComputationTermNode::DefinitionInstance {
                 definition,
@@ -220,13 +224,13 @@ pub fn instantiate_computation(
             ComputationTermNode::Return { value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Return {
-                    value: instantiate_value(arena, value, arguments, cutoff),
+                    value: instantiate_value(env, value, arguments, cutoff),
                 },
             ),
             ComputationTermNode::Force { value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Force {
-                    value: instantiate_value(arena, value, arguments, cutoff),
+                    value: instantiate_value(env, value, arguments, cutoff),
                 },
             ),
             ComputationTermNode::Lambda {
@@ -238,14 +242,14 @@ pub fn instantiate_computation(
                 ComputationTermNode::Lambda {
                     var,
                     value_ty: instantiate_value_type(arena, value_ty, arguments, cutoff),
-                    body: go(arena, body, arguments, cutoff + 1),
+                    body: go(env, body, arguments, cutoff + 1),
                 },
             ),
             ComputationTermNode::Application { computation, value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Application {
-                    computation: go(arena, computation, arguments, cutoff),
-                    value: instantiate_value(arena, value, arguments, cutoff),
+                    computation: go(env, computation, arguments, cutoff),
+                    value: instantiate_value(env, value, arguments, cutoff),
                 },
             ),
             ComputationTermNode::Sequence {
@@ -256,10 +260,10 @@ pub fn instantiate_computation(
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Sequence {
-                    computation: go(arena, computation, arguments, cutoff),
+                    computation: go(env, computation, arguments, cutoff),
                     var,
                     value_ty: instantiate_value_type(arena, value_ty, arguments, cutoff),
-                    body: go(arena, body, arguments, cutoff + 1),
+                    body: go(env, body, arguments, cutoff + 1),
                 },
             ),
             ComputationTermNode::ValueLet {
@@ -272,8 +276,8 @@ pub fn instantiate_computation(
                 ComputationTermNode::ValueLet {
                     var,
                     value_ty: instantiate_value_type(arena, value_ty, arguments, cutoff),
-                    value: instantiate_value(arena, value, arguments, cutoff),
-                    body: go(arena, body, arguments, cutoff + 1),
+                    value: instantiate_value(env, value, arguments, cutoff),
+                    body: go(env, body, arguments, cutoff + 1),
                 },
             ),
             ComputationTermNode::Case {
@@ -284,11 +288,11 @@ pub fn instantiate_computation(
                 term,
                 ComputationTermNode::Case {
                     indspec,
-                    scrutinee: instantiate_value(arena, scrutinee, arguments, cutoff),
+                    scrutinee: instantiate_value(env, scrutinee, arguments, cutoff),
                     branches: branches
                         .into_iter()
                         .map(|b| ProgramCaseBranch {
-                            body: go(arena, b.body, arguments, cutoff + b.binders.len()),
+                            body: go(env, b.body, arguments, cutoff + b.binders.len()),
                             binders: b.binders,
                         })
                         .collect(),
@@ -299,13 +303,26 @@ pub fn instantiate_computation(
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Run {
                     state_ty: instantiate_value_type(arena, state_ty, arguments, cutoff),
                     result_ty: instantiate_value_type(arena, result_ty, arguments, cutoff),
-                    step: instantiate_value(arena, step, arguments, cutoff),
-                    initial: instantiate_value(arena, initial, arguments, cutoff),
+                    step: instantiate_value(env, step, arguments, cutoff),
+                    initial: instantiate_value(env, initial, arguments, cutoff),
+                    accessibility: crate::raw::calculus::instantiate_outer_telescope(
+                        arena,
+                        accessibility,
+                        &arguments
+                            .iter()
+                            .map(|ty| {
+                                crate::raw::reflection::reflect_value_type(env, *ty)
+                                    .expect("checked Program type reflects")
+                            })
+                            .collect::<Vec<_>>(),
+                        cutoff,
+                    ),
                 },
             ),
             ComputationTermNode::RunCase {
@@ -314,18 +331,44 @@ pub fn instantiate_computation(
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::RunCase {
                     state_ty: instantiate_value_type(arena, state_ty, arguments, cutoff),
                     result_ty: instantiate_value_type(arena, result_ty, arguments, cutoff),
-                    step: instantiate_value(arena, step, arguments, cutoff),
-                    initial: instantiate_value(arena, initial, arguments, cutoff),
-                    transition: go(arena, transition, arguments, cutoff),
+                    step: instantiate_value(env, step, arguments, cutoff),
+                    initial: instantiate_value(env, initial, arguments, cutoff),
+                    transition: go(env, transition, arguments, cutoff),
+                    accessibility: crate::raw::calculus::instantiate_outer_telescope(
+                        arena,
+                        accessibility,
+                        &arguments
+                            .iter()
+                            .map(|ty| {
+                                crate::raw::reflection::reflect_value_type(env, *ty)
+                                    .expect("checked Program type reflects")
+                            })
+                            .collect::<Vec<_>>(),
+                        cutoff,
+                    ),
+                    transition_equality: crate::raw::calculus::instantiate_outer_telescope(
+                        arena,
+                        transition_equality,
+                        &arguments
+                            .iter()
+                            .map(|ty| {
+                                crate::raw::reflection::reflect_value_type(env, *ty)
+                                    .expect("checked Program type reflects")
+                            })
+                            .collect::<Vec<_>>(),
+                        cutoff,
+                    ),
                 },
             ),
             ComputationTermNode::Meta { .. } | ComputationTermNode::DefinedConstant(_) => term,
         }
     }
-    go(arena, computation, arguments, cutoff)
+    go(env, computation, arguments, cutoff)
 }

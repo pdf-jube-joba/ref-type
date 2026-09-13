@@ -289,45 +289,23 @@ fn infer_uncached(
             .env()
             .module_parameter_opt(parameter)
             .and_then(|parameter| match parameter.kind {
-                ModuleParameterKind::Pts { ty }
-                    if session
-                        .context
-                        .iter()
-                        .any(|entry| entry.var == parameter.name) =>
-                {
-                    Some(ty)
-                }
-                ModuleParameterKind::ProgramType
-                | ModuleParameterKind::ProgramValue { .. }
-                | ModuleParameterKind::Pts { .. } => None,
+                // Named parameters have stable identities in the environment;
+                // they do not occupy slots in the local de Bruijn context.
+                ModuleParameterKind::Pts { ty } => Some(ty),
+                ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => None,
             })
             .ok_or_else(|| failure(rule, phase, "module parameter is not a PTS term")),
         ExpNode::ReflectedProgramParam(parameter) => session
             .env()
             .module_parameter_opt(parameter)
-            .and_then(|parameter| {
-                let visible = session
-                    .context
-                    .iter()
-                    .any(|entry| entry.var == parameter.name);
-                if !visible {
-                    return None;
+            .and_then(|parameter| match parameter.kind {
+                ModuleParameterKind::ProgramType => Some(arena.sort(Sort::Set(0))),
+                ModuleParameterKind::ProgramValue { ty } => {
+                    reflect_value_type(session.env(), ty).ok()
                 }
-                match parameter.kind {
-                    ModuleParameterKind::ProgramType => Some(arena.sort(Sort::Set(0))),
-                    ModuleParameterKind::ProgramValue { ty } => {
-                        reflect_value_type(session.env(), ty).ok()
-                    }
-                    ModuleParameterKind::Pts { .. } => None,
-                }
+                ModuleParameterKind::Pts { .. } => None,
             })
-            .ok_or_else(|| {
-                failure(
-                    rule,
-                    phase,
-                    "reflected Program parameter is not present in the reflected context",
-                )
-            }),
+            .ok_or_else(|| failure(rule, phase, "unknown reflected Program parameter")),
         ExpNode::Meta { .. } => Err(failure(
             rule,
             phase,

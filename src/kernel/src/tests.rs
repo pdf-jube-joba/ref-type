@@ -926,6 +926,33 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
         level: 0,
         form: ValueTermForm::ThunkValue { computation: lam },
     });
+    let termination_parameter = ModuleParamId {
+        module: ModuleId(0),
+        position: 0,
+    };
+    let accessibility_ty = a.alloc(PropTypeNode {
+        form: PropTypeForm::Acc {
+            state_ty: reflect_type(&env, ty.into()).unwrap(),
+            result_ty: reflect_type(&env, ty.into()).unwrap(),
+            step: reflect_term(&env, step.into()).unwrap(),
+            state: reflect_term(&env, zero.into()).unwrap(),
+        },
+    });
+    let accessibility = a.alloc(PropTermNode {
+        form: PropTermForm::ModuleParam {
+            parameter: termination_parameter,
+        },
+    });
+    env.register_parameter(
+        termination_parameter,
+        Binding {
+            var: SymbolId::ANONYMOUS,
+            classifier: accessibility_ty.into(),
+        },
+        vec![],
+    )
+    .unwrap();
+    let a = &env.arena;
     let run = a.alloc(ComputationTermNode {
         level: 0,
         form: ComputationTermForm::Run {
@@ -933,10 +960,28 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
             result_ty: ty,
             step,
             initial: zero,
+            accessibility,
         },
     });
     let mut c = Checker::new(&env, vec![]);
     let result_ty = c.infer_computation_term(run).unwrap();
+    let bad = a.alloc(ComputationTermNode {
+        level: 0,
+        form: ComputationTermForm::Run {
+            state_ty: ty,
+            result_ty: ty,
+            step,
+            initial: zero,
+            accessibility: a.alloc(PropTermNode {
+                form: PropTermForm::IdRefl {
+                    element: reflect_term(&env, zero.into()).unwrap(),
+                },
+            }),
+        },
+    });
+    assert!(c.infer_computation_term(bad).is_err());
+    // Equality ignores proof identity, while checking still rejects a wrong proof.
+    assert!(alpha_equal(a, run.into(), bad.into()));
     assert!(matches!(
         evaluate(&env, run, 0).unwrap(),
         Evaluation::OutOfFuel(_)
@@ -959,6 +1004,94 @@ fn program_run_evaluates_but_unrelated_box_certificate_is_rejected() {
         },
     });
     assert!(c.infer_set_term(boxed).is_err());
+}
+
+#[test]
+fn program_proof_substitution_uses_the_reflected_argument() {
+    let mut env = Environment::new();
+    let (_, ty, zero) = natural(&mut env);
+    let a = &env.arena;
+    let variable = a.alloc(ValueTermNode {
+        level: 0,
+        form: ValueTermForm::Bound { index: 0 },
+    });
+    let reflected_variable = a.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::Bound { index: 0 },
+    });
+    let proof = a.alloc(PropTermNode {
+        form: PropTermForm::IdRefl {
+            element: reflected_variable,
+        },
+    });
+    let run = a.alloc(ComputationTermNode {
+        level: 0,
+        form: ComputationTermForm::Run {
+            state_ty: ty,
+            result_ty: ty,
+            step: variable,
+            initial: variable,
+            accessibility: proof,
+        },
+    });
+    let instantiated: ComputationTerm = substitute_with_reflection(&env, run, zero)
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let ComputationTermForm::Run {
+        initial,
+        accessibility,
+        ..
+    } = a.read(instantiated).form
+    else {
+        panic!()
+    };
+    assert_eq!(initial, zero);
+    assert_eq!(
+        a.read(accessibility).form,
+        PropTermForm::IdRefl {
+            element: reflect_term(&env, zero.into()).unwrap()
+        }
+    );
+    let shifted: ComputationTerm = shift(a, run, 1, 0).unwrap().try_into().unwrap();
+    let ComputationTermForm::Run { accessibility, .. } = a.read(shifted).form else {
+        panic!()
+    };
+    let PropTermForm::IdRefl { element } = a.read(accessibility).form else {
+        panic!()
+    };
+    assert!(matches!(
+        a.read(element).form,
+        SetTermForm::Bound { index: 1 }
+    ));
+
+    let parameter = ModuleParamId {
+        module: ModuleId(0),
+        position: 0,
+    };
+    let reflected_parameter = a.alloc(SetTermNode {
+        level: 0,
+        form: SetTermForm::ReflectedProgramParam { parameter },
+    });
+    let proof = a.alloc(PropTermNode {
+        form: PropTermForm::IdRefl {
+            element: reflected_parameter,
+        },
+    });
+    let result: PropTerm = substitute_parameters(
+        &env,
+        proof.into(),
+        &std::collections::HashMap::from([(parameter, zero.into())]),
+    )
+    .unwrap()
+    .try_into()
+    .unwrap();
+    assert_eq!(
+        a.read(result).form,
+        PropTermForm::IdRefl {
+            element: reflect_term(&env, zero.into()).unwrap()
+        }
+    );
 }
 #[test]
 fn kind_valued_recursor_preserves_the_lower_result_level() {

@@ -738,10 +738,11 @@ fn general_recursion_surface_typechecks_and_normalizes() {
             A: \VType,
             B: \VType,
             f: \U((A ~> \F(\PRunStep(A, B)))),
-            a: A
+            a: A,
+            termination: \Acc(A, B, f, a)
         ) {
-            \cdefinition result: \F(B) := \Prun(A, B, f, a);
-            \cnormalize \Prun(A, B, f, a);
+            \cdefinition result: \F(B) := \Prun(A, B, f, a) \by termination;
+            \cnormalize \Prun(A, B, f, a) \by termination;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1185,6 +1186,80 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
 }
 
 #[test]
+fn program_run_proofs_remain_valid_after_every_reduction() {
+    use crate::raw::{
+        environment::{DefinedConstant, ModuleItem},
+        program_calculus::reduce_computation_once,
+        program_derivation::ProgramCheckSession,
+    };
+    for source in [
+        include_str!("../../../tests/ok/general-recursion/finish.ref"),
+        include_str!("../../../tests/ok/general-recursion/continue.ref"),
+        include_str!("../../../tests/ok/general-recursion/run-case.ref"),
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut global = GlobalEnvironment::default();
+        global.add_new_module_to_root(&modules[0]).unwrap();
+        let raw = global.crate_env();
+        let module = raw.module(raw.root_module()).children()[0];
+        let ModuleItem::Definition { definition, .. } = raw.module(module).item("result").unwrap()
+        else {
+            panic!()
+        };
+        let DefinedConstant::ProgramComputation { body, ty, .. } = raw.definition(*definition)
+        else {
+            panic!()
+        };
+        let mut term = *body;
+        let mut count = 0;
+        while let Some(next) = reduce_computation_once(raw, term) {
+            ProgramCheckSession::new(raw, &mut vec![])
+                .check_computation_term(next, *ty)
+                .unwrap();
+            term = next;
+            count += 1;
+            assert!(count < 30);
+        }
+        let env = global.kernel_env();
+        let def = env.definition(*definition).unwrap();
+        let mut term = def.body;
+        let mut count = 0;
+        while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
+            kernel::check::Checker::new(env, vec![])
+                .check(next, def.classifier)
+                .unwrap();
+            term = next;
+            count += 1;
+            assert!(count < 30);
+        }
+    }
+}
+
+#[test]
+fn program_proofs_follow_local_binders_and_module_instantiation() {
+    let source = r#"
+        \module Generic(A: \VType, step: \U((A ~> \F(\PRunStep(A, A)))),
+          total: \forall (s: A) -> \Acc(A, A, step, s)) {
+          \cdefinition run(x: A): \F(A) := \Prun(A, A, step, x) \by total x;
+          \cdefinition runCase(x: A): \F(A) :=
+            (\let y: A := x \in
+            \PrunCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step y)));
+        }
+        \module Consumer(A: \VType, f: \U((A ~> \F(\PRunStep(A, A)))),
+          p: \forall (s: A) -> \Acc(A, A, f, s), a: A) {
+          \import \root.Generic(A := A, step := f, total := p) \as G;
+          \cdefinition result: \F(A) := G.runCase a;
+          \cnormalize result;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut global = GlobalEnvironment::default();
+    for module in &modules {
+        global.add_new_module_to_root(module).unwrap();
+    }
+}
+
+#[test]
 fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
     use crate::raw::{
         program::{ComputationTermNode, ValueTermNode},
@@ -1495,7 +1570,7 @@ fn program_definition_parameters_are_substituted_simultaneously_under_binders() 
         }),
     });
     let instantiated = instantiate_computation(
-        arena,
+        &env,
         body,
         &[arena.value_type_bound(0), arena.value_type_bound(1)],
         0,

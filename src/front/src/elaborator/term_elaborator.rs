@@ -325,7 +325,24 @@ impl LocalScope {
                 match item {
                     ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
                         if parameters.is_empty() {
-                            Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
+                            match handler.env().definition(definition) {
+                                crate::raw::environment::DefinedConstant::ProgramValue {
+                                    body,
+                                    ..
+                                } => crate::raw::reflection::reflect_value(handler.env(), *body)
+                                    .map_err(|e| e.to_string()),
+                                crate::raw::environment::DefinedConstant::ProgramComputation {
+                                    body,
+                                    ..
+                                } => crate::raw::reflection::reflect_computation(
+                                    handler.env(),
+                                    *body,
+                                )
+                                .map_err(|e| e.to_string()),
+                                _ => {
+                                    Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
+                                }
+                            }
                         } else {
                             Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
@@ -376,9 +393,14 @@ impl LocalScope {
                             Err("Module parameter cannot be applied with parameters".to_string())
                         }
                     }
-                    ItemAccessResult::ProgramTypeParameter(_)
-                    | ItemAccessResult::ProgramValueParameter(_) => {
-                        Err("Program module parameter cannot be used as Set/Prop syntax".into())
+                    ItemAccessResult::ProgramTypeParameter(parameter)
+                    | ItemAccessResult::ProgramValueParameter(parameter) => {
+                        if !parameters.is_empty() {
+                            return Err("Module parameter cannot be applied with parameters".into());
+                        }
+                        Ok(handler
+                            .arena()
+                            .alloc(ExpNode::ReflectedProgramParam(parameter)))
                     }
                 }
             }
@@ -977,7 +999,7 @@ impl LocalScope {
                     handler.elaborate_program(program, program_ty)?;
                 let certified_reflection = certified_reflection.ok_or_else(|| {
                     format!(
-                        "cannot box a partial Program: a run is missing its `\\by` certificate ({})",
+                        "cannot reflect Program syntax for boxing ({})",
                         crate::raw::printing::format_program(handler.env(), program)
                     )
                 })?;

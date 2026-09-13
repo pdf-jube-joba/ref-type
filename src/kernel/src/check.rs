@@ -228,7 +228,7 @@ impl<'a> Checker<'a> {
             return Err("parameter count mismatch".into());
         }
         for (i, (arg, binder)) in args.iter().zip(telescope).enumerate() {
-            let ty = instantiate_telescope(self.arena(), binder.classifier, &args[..i])?;
+            let ty = instantiate_telescope(self.env, binder.classifier, &args[..i])?;
             self.check(*arg, ty)?;
         }
         Ok(())
@@ -238,9 +238,9 @@ impl<'a> Checker<'a> {
             return Err("motive argument count mismatch".into());
         }
         for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
-            self.check(arg, instantiate_telescope(self.arena(), ty, &args[..i])?)?;
+            self.check(arg, instantiate_telescope(self.env, ty, &args[..i])?)?;
         }
-        instantiate_telescope(self.arena(), motive.body, args)
+        instantiate_telescope(self.env, motive.body, args)
     }
     fn lift_motive(&self, m: &Motive) -> Result<Motive, String> {
         Ok(Motive {
@@ -1026,25 +1026,35 @@ impl<'a> Checker<'a> {
                 result_ty,
                 step,
                 initial,
-            } => self.infer_run(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                initial.into(),
-            )?,
+                ..
+            } => {
+                self.check_run(
+                    state_ty.into(),
+                    result_ty.into(),
+                    step.into(),
+                    initial.into(),
+                )?;
+                self.check_program_run_certificate(h)?;
+                self.return_type(result_ty.into())?
+            }
             ComputationTermForm::RunCase {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 transition,
-            } => self.infer_run_case(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                initial.into(),
-                transition.into(),
-            )?,
+                ..
+            } => {
+                let runstep = self.check_run(
+                    state_ty.into(),
+                    result_ty.into(),
+                    step.into(),
+                    initial.into(),
+                )?;
+                self.check(transition, self.return_type(runstep)?)?;
+                self.check_program_run_certificate(h)?;
+                self.return_type(result_ty.into())?
+            }
         };
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
@@ -1534,7 +1544,7 @@ impl<'a> Checker<'a> {
             return Err("application rule annotation mismatch".into());
         }
         self.check(argument, p.domain)?;
-        substitute(self.arena(), p.body, argument)
+        substitute_with_reflection(self.env, p.body, argument)
     }
     fn infer_power_set(&mut self, set: Expression) -> Result<Expression, String> {
         self.set_type(set)?;
@@ -1626,9 +1636,9 @@ impl<'a> Checker<'a> {
         self.check(left, ty)?;
         self.check(right, ty)?;
         self.under(var, ty, |ch| ch.proposition(predicate))?;
-        self.check(base, substitute(self.arena(), predicate, left)?)?;
+        self.check(base, substitute_with_reflection(self.env, predicate, left)?)?;
         self.check(equality, self.equality(left, right)?)?;
-        substitute(self.arena(), predicate, right)
+        substitute_with_reflection(self.env, predicate, right)
     }
     fn check_runstep(
         &mut self,
@@ -1733,27 +1743,11 @@ impl<'a> Checker<'a> {
         self.check(transition_equality, self.equality(applied, transition)?)?;
         Ok(result_ty)
     }
-    fn infer_run(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        initial: Expression,
-    ) -> Result<Expression, String> {
-        self.check_run(state_ty, result_ty, step, initial)?;
-        self.return_type(result_ty)
-    }
-    fn infer_run_case(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        initial: Expression,
-        transition: Expression,
-    ) -> Result<Expression, String> {
-        let runstep = self.check_run(state_ty, result_ty, step, initial)?;
-        self.check(transition, self.return_type(runstep)?)?;
-        self.return_type(result_ty)
+    fn check_program_run_certificate(&self, term: ComputationTerm) -> Result<(), String> {
+        let context = super::reflection::reflect_context(self.env, &self.context)?;
+        let reflected = super::reflection::reflect_term(self.env, term.into())?;
+        Checker::new(self.env, context).infer_set_term(reflected)?;
+        Ok(())
     }
     fn infer_recursor(
         &mut self,
@@ -1786,11 +1780,11 @@ impl<'a> Checker<'a> {
             (result_ty, on_finish, finish_value),
         ] {
             let motive = shift(self.arena(), motive, 1, 1)?;
-            let ty = substitute(self.arena(), motive, constructor)?;
+            let ty = substitute_with_reflection(self.env, motive, constructor)?;
             let expected = self.product(SymbolId::ANONYMOUS, domain, ty)?;
             self.check(branch, expected)?;
         }
-        substitute(self.arena(), motive, scrutinee)
+        substitute_with_reflection(self.env, motive, scrutinee)
     }
     fn infer_thunk(&mut self, computation_ty: Expression) -> Result<Expression, String> {
         match self.base_type(computation_ty)? {
@@ -1841,7 +1835,7 @@ impl<'a> Checker<'a> {
         if contains_bound(self.arena(), ty, 0) {
             return Err("Program result type depends on value".into());
         }
-        substitute(self.arena(), ty, argument)
+        substitute_with_reflection(self.env, ty, argument)
     }
     fn infer_sequence(
         &mut self,
@@ -1930,7 +1924,7 @@ impl<'a> Checker<'a> {
                 return Err("boxed type argument must be closed".into());
             }
             self.check(argument, domain)?;
-            substitute(self.arena(), codomain, argument)?
+            substitute_with_reflection(self.env, codomain, argument)?
         } else {
             self.closed_program_type(domain)?;
             self.check(argument, self.box_type(domain)?)?;
@@ -2173,7 +2167,7 @@ impl<'a> Checker<'a> {
             }
             return Ok(Classifier::Upper(self.arena().sort(e)));
         }
-        let ty = instantiate_telescope(self.arena(), spec.arity, &parameters)?;
+        let ty = instantiate_telescope(self.env, spec.arity, &parameters)?;
         self.validate_inferred(e, ty)?;
         Ok(Classifier::Expression(ty))
     }
@@ -2194,7 +2188,7 @@ impl<'a> Checker<'a> {
             .constructors
             .get(constructor)
             .ok_or("invalid constructor")?;
-        instantiate_telescope(self.arena(), classifier, &parameters)
+        instantiate_telescope(self.env, classifier, &parameters)
     }
     fn infer_inductive(
         &mut self,
@@ -2231,10 +2225,7 @@ impl<'a> Checker<'a> {
             return Err("constructor field count mismatch".into());
         }
         for (&field, (_, ty)) in fields.iter().zip(declared) {
-            self.check(
-                field,
-                instantiate_telescope(self.arena(), (*ty).into(), &args)?,
-            )?;
+            self.check(field, instantiate_telescope(self.env, (*ty).into(), &args)?)?;
         }
         Ok(self
             .arena()
@@ -2327,7 +2318,7 @@ impl<'a> Checker<'a> {
                 } else {
                     (*field).into()
                 };
-                let ty = instantiate_telescope(self.arena(), field, &parameters)?;
+                let ty = instantiate_telescope(self.env, field, &parameters)?;
                 branch.context.push(Binding {
                     var: binders[i][j],
                     classifier: shift(self.arena(), ty, j, 0)?,
@@ -2401,7 +2392,7 @@ impl<'a> Checker<'a> {
         applied_args.push(scrutinee);
         let applied = self.apply_motive(&motive, &applied_args)?;
         for (i, case) in cases.into_iter().enumerate() {
-            let ctor_ty = instantiate_telescope(self.arena(), spec.constructors[i], &params)?;
+            let ctor_ty = instantiate_telescope(self.env, spec.constructors[i], &params)?;
             let sigma = self.formation(ctor_ty)?;
             let ctor = build::inductive_constructor(
                 self.arena(),

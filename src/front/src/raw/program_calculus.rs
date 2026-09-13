@@ -380,12 +380,14 @@ pub fn computation_is_alpha_eq(
                 result_ty: lr,
                 step: lp,
                 initial: li,
+                accessibility: _,
             },
             ComputationTermNode::Run {
                 state_ty: rs,
                 result_ty: rr,
                 step: rp,
                 initial: ri,
+                accessibility: _,
             },
         ) => {
             value_type_is_alpha_eq(arena, ls, rs)
@@ -400,6 +402,8 @@ pub fn computation_is_alpha_eq(
                 step: lp,
                 initial: li,
                 transition: lt,
+                accessibility: _,
+                transition_equality: _,
             },
             ComputationTermNode::RunCase {
                 state_ty: rs,
@@ -407,6 +411,8 @@ pub fn computation_is_alpha_eq(
                 step: rp,
                 initial: ri,
                 transition: rt,
+                accessibility: _,
+                transition_equality: _,
             },
         ) => {
             value_type_is_alpha_eq(arena, ls, rs)
@@ -904,6 +910,7 @@ pub fn shift_computation_indices(
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Run {
@@ -911,6 +918,12 @@ pub fn shift_computation_indices(
                     result_ty: shift_value_type_indices(arena, result_ty, amount, cutoff),
                     step: shift_value_indices(arena, step, amount, cutoff),
                     initial: shift_value_indices(arena, initial, amount, cutoff),
+                    accessibility: crate::raw::calculus::shift_bound_indices(
+                        arena,
+                        accessibility,
+                        amount,
+                        cutoff,
+                    ),
                 },
             ),
             ComputationTermNode::RunCase {
@@ -919,6 +932,8 @@ pub fn shift_computation_indices(
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::RunCase {
@@ -927,6 +942,18 @@ pub fn shift_computation_indices(
                     step: shift_value_indices(arena, step, amount, cutoff),
                     initial: shift_value_indices(arena, initial, amount, cutoff),
                     transition: go(arena, transition, amount, cutoff),
+                    accessibility: crate::raw::calculus::shift_bound_indices(
+                        arena,
+                        accessibility,
+                        amount,
+                        cutoff,
+                    ),
+                    transition_equality: crate::raw::calculus::shift_bound_indices(
+                        arena,
+                        transition_equality,
+                        amount,
+                        cutoff,
+                    ),
                 },
             ),
             ComputationTermNode::Meta { .. } | ComputationTermNode::DefinedConstant(_) => term,
@@ -936,16 +963,17 @@ pub fn shift_computation_indices(
 }
 
 pub fn instantiate_value_in_computation(
-    arena: &Arena,
+    env: &CrateEnv,
     body: ComputationTerm,
     argument: ValueTerm,
 ) -> ComputationTerm {
     fn subst_value(
-        arena: &Arena,
+        env: &CrateEnv,
         value: ValueTerm,
         argument: ValueTerm,
         depth: usize,
     ) -> ValueTerm {
+        let arena = env.arena();
         match arena.get(value) {
             ValueTermNode::DefinitionInstance {
                 definition,
@@ -972,7 +1000,7 @@ pub fn instantiate_value_in_computation(
             ValueTermNode::Thunk { computation } => arena.reuse_value(
                 value,
                 ValueTermNode::Thunk {
-                    computation: subst_comp(arena, computation, argument, depth),
+                    computation: subst_comp(env, computation, argument, depth),
                 },
             ),
             ValueTermNode::Continue {
@@ -984,7 +1012,7 @@ pub fn instantiate_value_in_computation(
                 ValueTermNode::Continue {
                     state_ty,
                     result_ty,
-                    next: subst_value(arena, next, argument, depth),
+                    next: subst_value(env, next, argument, depth),
                 },
             ),
             ValueTermNode::Finish {
@@ -996,7 +1024,7 @@ pub fn instantiate_value_in_computation(
                 ValueTermNode::Finish {
                     state_ty,
                     result_ty,
-                    output: subst_value(arena, output, argument, depth),
+                    output: subst_value(env, output, argument, depth),
                 },
             ),
             ValueTermNode::InductiveConstructor {
@@ -1012,7 +1040,7 @@ pub fn instantiate_value_in_computation(
                     idx,
                     fields: fields
                         .into_iter()
-                        .map(|v| subst_value(arena, v, argument, depth))
+                        .map(|v| subst_value(env, v, argument, depth))
                         .collect(),
                 },
             ),
@@ -1021,11 +1049,12 @@ pub fn instantiate_value_in_computation(
     }
 
     fn subst_comp(
-        arena: &Arena,
+        env: &CrateEnv,
         term: ComputationTerm,
         argument: ValueTerm,
         depth: usize,
     ) -> ComputationTerm {
+        let arena = env.arena();
         match arena.get(term) {
             ComputationTermNode::DefinitionInstance {
                 definition,
@@ -1046,13 +1075,13 @@ pub fn instantiate_value_in_computation(
             ComputationTermNode::Return { value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Return {
-                    value: subst_value(arena, value, argument, depth),
+                    value: subst_value(env, value, argument, depth),
                 },
             ),
             ComputationTermNode::Force { value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Force {
-                    value: subst_value(arena, value, argument, depth),
+                    value: subst_value(env, value, argument, depth),
                 },
             ),
             ComputationTermNode::Lambda {
@@ -1064,14 +1093,14 @@ pub fn instantiate_value_in_computation(
                 ComputationTermNode::Lambda {
                     var,
                     value_ty,
-                    body: subst_comp(arena, body, argument, depth + 1),
+                    body: subst_comp(env, body, argument, depth + 1),
                 },
             ),
             ComputationTermNode::Application { computation, value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Application {
-                    computation: subst_comp(arena, computation, argument, depth),
-                    value: subst_value(arena, value, argument, depth),
+                    computation: subst_comp(env, computation, argument, depth),
+                    value: subst_value(env, value, argument, depth),
                 },
             ),
             ComputationTermNode::Sequence {
@@ -1082,10 +1111,10 @@ pub fn instantiate_value_in_computation(
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Sequence {
-                    computation: subst_comp(arena, computation, argument, depth),
+                    computation: subst_comp(env, computation, argument, depth),
                     var,
                     value_ty,
-                    body: subst_comp(arena, body, argument, depth + 1),
+                    body: subst_comp(env, body, argument, depth + 1),
                 },
             ),
             ComputationTermNode::ValueLet {
@@ -1099,8 +1128,8 @@ pub fn instantiate_value_in_computation(
                     var,
                     value_ty: strengthen_value_type(arena, value_ty, depth)
                         .expect("Program value types cannot depend on a value binder"),
-                    value: subst_value(arena, value, argument, depth),
-                    body: subst_comp(arena, body, argument, depth + 1),
+                    value: subst_value(env, value, argument, depth),
+                    body: subst_comp(env, body, argument, depth + 1),
                 },
             ),
             ComputationTermNode::Case {
@@ -1111,11 +1140,11 @@ pub fn instantiate_value_in_computation(
                 term,
                 ComputationTermNode::Case {
                     indspec,
-                    scrutinee: subst_value(arena, scrutinee, argument, depth),
+                    scrutinee: subst_value(env, scrutinee, argument, depth),
                     branches: branches
                         .into_iter()
                         .map(|b| ProgramCaseBranch {
-                            body: subst_comp(arena, b.body, argument, depth + b.binders.len()),
+                            body: subst_comp(env, b.body, argument, depth + b.binders.len()),
                             binders: b.binders,
                         })
                         .collect(),
@@ -1126,13 +1155,23 @@ pub fn instantiate_value_in_computation(
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Run {
-                    state_ty,
-                    result_ty,
-                    step: subst_value(arena, step, argument, depth),
-                    initial: subst_value(arena, initial, argument, depth),
+                    state_ty: strengthen_value_type(arena, state_ty, depth)
+                        .expect("value-independent state type"),
+                    result_ty: strengthen_value_type(arena, result_ty, depth)
+                        .expect("value-independent result type"),
+                    step: subst_value(env, step, argument, depth),
+                    initial: subst_value(env, initial, argument, depth),
+                    accessibility: crate::raw::calculus::instantiate_at(
+                        arena,
+                        accessibility,
+                        crate::raw::reflection::reflect_value(env, argument)
+                            .expect("checked Program value reflects"),
+                        depth,
+                    ),
                 },
             ),
             ComputationTermNode::RunCase {
@@ -1141,20 +1180,38 @@ pub fn instantiate_value_in_computation(
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::RunCase {
-                    state_ty,
-                    result_ty,
-                    step: subst_value(arena, step, argument, depth),
-                    initial: subst_value(arena, initial, argument, depth),
-                    transition: subst_comp(arena, transition, argument, depth),
+                    state_ty: strengthen_value_type(arena, state_ty, depth)
+                        .expect("value-independent state type"),
+                    result_ty: strengthen_value_type(arena, result_ty, depth)
+                        .expect("value-independent result type"),
+                    step: subst_value(env, step, argument, depth),
+                    initial: subst_value(env, initial, argument, depth),
+                    transition: subst_comp(env, transition, argument, depth),
+                    accessibility: crate::raw::calculus::instantiate_at(
+                        arena,
+                        accessibility,
+                        crate::raw::reflection::reflect_value(env, argument)
+                            .expect("checked Program value reflects"),
+                        depth,
+                    ),
+                    transition_equality: crate::raw::calculus::instantiate_at(
+                        arena,
+                        transition_equality,
+                        crate::raw::reflection::reflect_value(env, argument)
+                            .expect("checked Program value reflects"),
+                        depth,
+                    ),
                 },
             ),
             ComputationTermNode::Meta { .. } | ComputationTermNode::DefinedConstant(_) => term,
         }
     }
-    subst_comp(arena, body, argument, 0)
+    subst_comp(env, body, argument, 0)
 }
 
 fn unfold_value(env: &CrateEnv, mut value: ValueTerm) -> ValueTerm {
@@ -1173,12 +1230,8 @@ fn unfold_value(env: &CrateEnv, mut value: ValueTerm) -> ValueTerm {
                 let DefinedConstant::ProgramValue { body, .. } = env.definition(definition) else {
                     break;
                 };
-                value = crate::raw::program_definitions::instantiate_value(
-                    env.arena(),
-                    *body,
-                    &parameters,
-                    0,
-                );
+                value =
+                    crate::raw::program_definitions::instantiate_value(env, *body, &parameters, 0);
             }
             _ => break,
         }
@@ -1201,7 +1254,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             match env.definition(definition) {
                 DefinedConstant::ProgramComputation { body, .. } => {
                     Some(crate::raw::program_definitions::instantiate_computation(
-                        arena,
+                        env,
                         *body,
                         &parameters,
                         0,
@@ -1229,7 +1282,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
                     value,
                 }))
             } else if let ComputationTermNode::Lambda { body, .. } = arena.get(computation) {
-                Some(instantiate_value_in_computation(arena, body, value))
+                Some(instantiate_value_in_computation(env, body, value))
             } else {
                 None
             }
@@ -1249,20 +1302,21 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
                     body,
                 }))
             } else if let ComputationTermNode::Return { value } = arena.get(computation) {
-                Some(instantiate_value_in_computation(arena, body, value))
+                Some(instantiate_value_in_computation(env, body, value))
             } else {
                 None
             }
         }
         ComputationTermNode::ValueLet { value, body, .. } => {
             drop(node);
-            Some(instantiate_value_in_computation(arena, body, value))
+            Some(instantiate_value_in_computation(env, body, value))
         }
         ComputationTermNode::Run {
             state_ty,
             result_ty,
             step,
             initial,
+            accessibility,
         } => {
             drop(node);
             let force = arena.alloc(ComputationTermNode::Force { value: step });
@@ -1270,12 +1324,19 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
                 computation: force,
                 value: initial,
             });
+            let transition_equality = arena.alloc(crate::raw::exp::ExpNode::Prove(
+                crate::raw::exp::Prove::IdRefl {
+                    element: crate::raw::reflection::reflect_computation(env, transition).ok()?,
+                },
+            ));
             Some(arena.alloc(ComputationTermNode::RunCase {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             }))
         }
         ComputationTermNode::RunCase {
@@ -1284,6 +1345,8 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => {
             drop(node);
             if let Some(next) = reduce_computation_once(env, transition) {
@@ -1293,20 +1356,37 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
                     step,
                     initial,
                     transition: next,
+                    accessibility,
+                    transition_equality,
                 }));
             }
             let ComputationTermNode::Return { value } = arena.get(transition) else {
                 return None;
             };
             match arena.get(unfold_value(env, value)) {
-                ValueTermNode::Continue { next, .. } => {
-                    Some(arena.alloc(ComputationTermNode::Run {
+                ValueTermNode::Continue { next, .. } => Some(
+                    arena.alloc(ComputationTermNode::Run {
                         state_ty,
                         result_ty,
                         step,
                         initial: next,
-                    }))
-                }
+                        accessibility: arena.alloc(crate::raw::exp::ExpNode::Prove(
+                            crate::raw::exp::Prove::AccDescent {
+                                state_ty: crate::raw::reflection::reflect_value_type(env, state_ty)
+                                    .ok()?,
+                                result_ty: crate::raw::reflection::reflect_value_type(
+                                    env, result_ty,
+                                )
+                                .ok()?,
+                                step: crate::raw::reflection::reflect_value(env, step).ok()?,
+                                from: crate::raw::reflection::reflect_value(env, initial).ok()?,
+                                to: crate::raw::reflection::reflect_value(env, next).ok()?,
+                                accessibility,
+                                transition: transition_equality,
+                            },
+                        )),
+                    }),
+                ),
                 ValueTermNode::Finish { output, .. } => {
                     Some(arena.alloc(ComputationTermNode::Return { value: output }))
                 }
@@ -1337,7 +1417,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
                 branches.get(idx)?.body
             };
             for field in fields.iter().rev() {
-                body = instantiate_value_in_computation(arena, body, *field);
+                body = instantiate_value_in_computation(env, body, *field);
             }
             Some(body)
         }
@@ -1467,6 +1547,7 @@ fn remap_program_arguments(
     arguments: Vec<ProgramArgument>,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
 ) -> Vec<ProgramArgument> {
     arguments
         .into_iter()
@@ -1475,7 +1556,7 @@ fn remap_program_arguments(
                 remap_value_type_global_ids(arena, ty, definitions, inductives),
             ),
             ProgramArgument::ValueTerm(value) => ProgramArgument::ValueTerm(
-                remap_value_global_ids(arena, value, definitions, inductives),
+                remap_value_global_ids(arena, value, definitions, inductives, logical_inductives),
             ),
         })
         .collect()
@@ -1486,8 +1567,9 @@ pub fn remap_value_global_ids(
     value: ValueTerm,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
 ) -> ValueTerm {
-    if definitions.is_empty() && inductives.is_empty() {
+    if definitions.is_empty() && inductives.is_empty() && logical_inductives.is_empty() {
         return value;
     }
     match arena.get(value) {
@@ -1515,7 +1597,13 @@ pub fn remap_value_global_ids(
             value,
             ValueTermNode::Meta {
                 metavariable,
-                spine: remap_program_arguments(arena, spine, definitions, inductives),
+                spine: remap_program_arguments(
+                    arena,
+                    spine,
+                    definitions,
+                    inductives,
+                    logical_inductives,
+                ),
             },
         ),
         ValueTermNode::Thunk { computation } => arena.reuse_value(
@@ -1526,6 +1614,7 @@ pub fn remap_value_global_ids(
                     computation,
                     definitions,
                     inductives,
+                    logical_inductives,
                 ),
             },
         ),
@@ -1538,7 +1627,13 @@ pub fn remap_value_global_ids(
             ValueTermNode::Continue {
                 state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
                 result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
-                next: remap_value_global_ids(arena, next, definitions, inductives),
+                next: remap_value_global_ids(
+                    arena,
+                    next,
+                    definitions,
+                    inductives,
+                    logical_inductives,
+                ),
             },
         ),
         ValueTermNode::Finish {
@@ -1550,7 +1645,13 @@ pub fn remap_value_global_ids(
             ValueTermNode::Finish {
                 state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
                 result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
-                output: remap_value_global_ids(arena, output, definitions, inductives),
+                output: remap_value_global_ids(
+                    arena,
+                    output,
+                    definitions,
+                    inductives,
+                    logical_inductives,
+                ),
             },
         ),
         ValueTermNode::InductiveConstructor {
@@ -1569,7 +1670,15 @@ pub fn remap_value_global_ids(
                 idx,
                 fields: fields
                     .into_iter()
-                    .map(|value| remap_value_global_ids(arena, value, definitions, inductives))
+                    .map(|value| {
+                        remap_value_global_ids(
+                            arena,
+                            value,
+                            definitions,
+                            inductives,
+                            logical_inductives,
+                        )
+                    })
                     .collect(),
             },
         ),
@@ -1582,12 +1691,16 @@ pub fn remap_computation_global_ids(
     computation: ComputationTerm,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
 ) -> ComputationTerm {
-    if definitions.is_empty() && inductives.is_empty() {
+    if definitions.is_empty() && inductives.is_empty() && logical_inductives.is_empty() {
         return computation;
     }
-    let value = |value| remap_value_global_ids(arena, value, definitions, inductives);
-    let recur = |term| remap_computation_global_ids(arena, term, definitions, inductives);
+    let value =
+        |value| remap_value_global_ids(arena, value, definitions, inductives, logical_inductives);
+    let recur = |term| {
+        remap_computation_global_ids(arena, term, definitions, inductives, logical_inductives)
+    };
     let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
     match arena.get(computation) {
         ComputationTermNode::DefinitionInstance {
@@ -1614,7 +1727,13 @@ pub fn remap_computation_global_ids(
             computation,
             ComputationTermNode::Meta {
                 metavariable,
-                spine: remap_program_arguments(arena, spine, definitions, inductives),
+                spine: remap_program_arguments(
+                    arena,
+                    spine,
+                    definitions,
+                    inductives,
+                    logical_inductives,
+                ),
             },
         ),
         ComputationTermNode::Return { value: item } => arena.reuse_computation(
@@ -1698,6 +1817,7 @@ pub fn remap_computation_global_ids(
             result_ty,
             step,
             initial,
+            accessibility,
         } => arena.reuse_computation(
             computation,
             ComputationTermNode::Run {
@@ -1705,6 +1825,13 @@ pub fn remap_computation_global_ids(
                 result_ty: value_ty(result_ty),
                 step: value(step),
                 initial: value(initial),
+                accessibility: crate::raw::calculus::remap_all_global_ids(
+                    arena,
+                    accessibility,
+                    definitions,
+                    logical_inductives,
+                    inductives,
+                ),
             },
         ),
         ComputationTermNode::RunCase {
@@ -1713,6 +1840,8 @@ pub fn remap_computation_global_ids(
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => arena.reuse_computation(
             computation,
             ComputationTermNode::RunCase {
@@ -1721,6 +1850,20 @@ pub fn remap_computation_global_ids(
                 step: value(step),
                 initial: value(initial),
                 transition: recur(transition),
+                accessibility: crate::raw::calculus::remap_all_global_ids(
+                    arena,
+                    accessibility,
+                    definitions,
+                    logical_inductives,
+                    inductives,
+                ),
+                transition_equality: crate::raw::calculus::remap_all_global_ids(
+                    arena,
+                    transition_equality,
+                    definitions,
+                    logical_inductives,
+                    inductives,
+                ),
             },
         ),
     }
@@ -1810,6 +1953,7 @@ fn subst_program_arguments(
     arena: &Arena,
     arguments: Vec<ProgramArgument>,
     substitutions: &[(ModuleParamId, ModuleArgument)],
+    reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
 ) -> Vec<ProgramArgument> {
     arguments
         .into_iter()
@@ -1817,9 +1961,9 @@ fn subst_program_arguments(
             ProgramArgument::ValueType(ty) => {
                 ProgramArgument::ValueType(subst_value_type_module_params(arena, ty, substitutions))
             }
-            ProgramArgument::ValueTerm(value) => {
-                ProgramArgument::ValueTerm(subst_value_module_params(arena, value, substitutions))
-            }
+            ProgramArgument::ValueTerm(value) => ProgramArgument::ValueTerm(
+                subst_value_module_params(arena, value, substitutions, reflected_substitutions),
+            ),
         })
         .collect()
 }
@@ -1828,8 +1972,9 @@ pub fn subst_value_module_params(
     arena: &Arena,
     value: ValueTerm,
     substitutions: &[(ModuleParamId, ModuleArgument)],
+    reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
 ) -> ValueTerm {
-    if substitutions.is_empty() {
+    if substitutions.is_empty() && reflected_substitutions.is_empty() {
         return value;
     }
     match arena.get(value) {
@@ -1861,13 +2006,23 @@ pub fn subst_value_module_params(
             value,
             ValueTermNode::Meta {
                 metavariable,
-                spine: subst_program_arguments(arena, spine, substitutions),
+                spine: subst_program_arguments(
+                    arena,
+                    spine,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ValueTermNode::Thunk { computation } => arena.reuse_value(
             value,
             ValueTermNode::Thunk {
-                computation: subst_computation_module_params(arena, computation, substitutions),
+                computation: subst_computation_module_params(
+                    arena,
+                    computation,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ValueTermNode::Continue {
@@ -1879,7 +2034,12 @@ pub fn subst_value_module_params(
             ValueTermNode::Continue {
                 state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
                 result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                next: subst_value_module_params(arena, next, substitutions),
+                next: subst_value_module_params(
+                    arena,
+                    next,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ValueTermNode::Finish {
@@ -1891,7 +2051,12 @@ pub fn subst_value_module_params(
             ValueTermNode::Finish {
                 state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
                 result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                output: subst_value_module_params(arena, output, substitutions),
+                output: subst_value_module_params(
+                    arena,
+                    output,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ValueTermNode::InductiveConstructor {
@@ -1910,7 +2075,14 @@ pub fn subst_value_module_params(
                 idx,
                 fields: fields
                     .into_iter()
-                    .map(|value| subst_value_module_params(arena, value, substitutions))
+                    .map(|value| {
+                        subst_value_module_params(
+                            arena,
+                            value,
+                            substitutions,
+                            reflected_substitutions,
+                        )
+                    })
                     .collect(),
             },
         ),
@@ -1922,8 +2094,9 @@ pub fn subst_computation_module_params(
     arena: &Arena,
     term: ComputationTerm,
     substitutions: &[(ModuleParamId, ModuleArgument)],
+    reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
 ) -> ComputationTerm {
-    if substitutions.is_empty() {
+    if substitutions.is_empty() && reflected_substitutions.is_empty() {
         return term;
     }
     match arena.get(term) {
@@ -1947,19 +2120,34 @@ pub fn subst_computation_module_params(
             term,
             ComputationTermNode::Meta {
                 metavariable,
-                spine: subst_program_arguments(arena, spine, substitutions),
+                spine: subst_program_arguments(
+                    arena,
+                    spine,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::Return { value } => arena.reuse_computation(
             term,
             ComputationTermNode::Return {
-                value: subst_value_module_params(arena, value, substitutions),
+                value: subst_value_module_params(
+                    arena,
+                    value,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::Force { value } => arena.reuse_computation(
             term,
             ComputationTermNode::Force {
-                value: subst_value_module_params(arena, value, substitutions),
+                value: subst_value_module_params(
+                    arena,
+                    value,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::Lambda {
@@ -1971,14 +2159,29 @@ pub fn subst_computation_module_params(
             ComputationTermNode::Lambda {
                 var,
                 value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-                body: subst_computation_module_params(arena, body, substitutions),
+                body: subst_computation_module_params(
+                    arena,
+                    body,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::Application { computation, value } => arena.reuse_computation(
             term,
             ComputationTermNode::Application {
-                computation: subst_computation_module_params(arena, computation, substitutions),
-                value: subst_value_module_params(arena, value, substitutions),
+                computation: subst_computation_module_params(
+                    arena,
+                    computation,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                value: subst_value_module_params(
+                    arena,
+                    value,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::Sequence {
@@ -1989,10 +2192,20 @@ pub fn subst_computation_module_params(
         } => arena.reuse_computation(
             term,
             ComputationTermNode::Sequence {
-                computation: subst_computation_module_params(arena, computation, substitutions),
+                computation: subst_computation_module_params(
+                    arena,
+                    computation,
+                    substitutions,
+                    reflected_substitutions,
+                ),
                 var,
                 value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-                body: subst_computation_module_params(arena, body, substitutions),
+                body: subst_computation_module_params(
+                    arena,
+                    body,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::ValueLet {
@@ -2005,8 +2218,18 @@ pub fn subst_computation_module_params(
             ComputationTermNode::ValueLet {
                 var,
                 value_ty: subst_value_type_module_params(arena, value_ty, substitutions),
-                value: subst_value_module_params(arena, value, substitutions),
-                body: subst_computation_module_params(arena, body, substitutions),
+                value: subst_value_module_params(
+                    arena,
+                    value,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                body: subst_computation_module_params(
+                    arena,
+                    body,
+                    substitutions,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::Case {
@@ -2017,12 +2240,22 @@ pub fn subst_computation_module_params(
             term,
             ComputationTermNode::Case {
                 indspec,
-                scrutinee: subst_value_module_params(arena, scrutinee, substitutions),
+                scrutinee: subst_value_module_params(
+                    arena,
+                    scrutinee,
+                    substitutions,
+                    reflected_substitutions,
+                ),
                 branches: branches
                     .into_iter()
                     .map(|branch| ProgramCaseBranch {
                         binders: branch.binders,
-                        body: subst_computation_module_params(arena, branch.body, substitutions),
+                        body: subst_computation_module_params(
+                            arena,
+                            branch.body,
+                            substitutions,
+                            reflected_substitutions,
+                        ),
                     })
                     .collect(),
             },
@@ -2032,13 +2265,29 @@ pub fn subst_computation_module_params(
             result_ty,
             step,
             initial,
+            accessibility,
         } => arena.reuse_computation(
             term,
             ComputationTermNode::Run {
                 state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
                 result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                step: subst_value_module_params(arena, step, substitutions),
-                initial: subst_value_module_params(arena, initial, substitutions),
+                step: subst_value_module_params(
+                    arena,
+                    step,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                initial: subst_value_module_params(
+                    arena,
+                    initial,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                accessibility: crate::raw::calculus::exp_subst_map(
+                    arena,
+                    accessibility,
+                    reflected_substitutions,
+                ),
             },
         ),
         ComputationTermNode::RunCase {
@@ -2047,14 +2296,41 @@ pub fn subst_computation_module_params(
             step,
             initial,
             transition,
+            accessibility,
+            transition_equality,
         } => arena.reuse_computation(
             term,
             ComputationTermNode::RunCase {
                 state_ty: subst_value_type_module_params(arena, state_ty, substitutions),
                 result_ty: subst_value_type_module_params(arena, result_ty, substitutions),
-                step: subst_value_module_params(arena, step, substitutions),
-                initial: subst_value_module_params(arena, initial, substitutions),
-                transition: subst_computation_module_params(arena, transition, substitutions),
+                step: subst_value_module_params(
+                    arena,
+                    step,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                initial: subst_value_module_params(
+                    arena,
+                    initial,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                transition: subst_computation_module_params(
+                    arena,
+                    transition,
+                    substitutions,
+                    reflected_substitutions,
+                ),
+                accessibility: crate::raw::calculus::exp_subst_map(
+                    arena,
+                    accessibility,
+                    reflected_substitutions,
+                ),
+                transition_equality: crate::raw::calculus::exp_subst_map(
+                    arena,
+                    transition_equality,
+                    reflected_substitutions,
+                ),
             },
         ),
         _ => term,

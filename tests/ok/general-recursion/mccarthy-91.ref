@@ -142,12 +142,19 @@
           };
       }));
 
+  /* This execution fixture takes the termination theorem as an explicit premise. */
+  \definition stepSet: State -> \RunStep(State, Nat) :=
+    \Force(\U((State ~> \F(\PRunStep(State, Nat)))),
+      \box(\U((State ~> \F(\PRunStep(State, Nat)))), step));
+  \module Certified(terminates: \forall (n: Nat) ->
+    \Acc(State, Nat, stepSet, State::call n Continuation::done)) {
   \cdefinition mcCarthy91: (Nat ~> \F(Nat)) :=
     (\cfun (argument: Nat) => \Prun(
         State,
         Nat,
         step,
-        State::call argument Continuation::done));
+        State::call argument Continuation::done) \by terminates argument);
 
   \cnormalize (mcCarthy91 hundred);
+  }
 }

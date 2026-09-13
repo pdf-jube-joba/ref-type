@@ -693,9 +693,7 @@ fn alpha_rename(
             accessibility,
         } => {
             alpha_many([state_ty, result_ty, step, initial], order, counter, scopes);
-            if let Some(proof) = accessibility {
-                alpha_rename(proof, order, counter, scopes);
-            }
+            alpha_rename(accessibility, order, counter, scopes);
         }
         SExp::AccIntro {
             state_ty,
@@ -746,12 +744,8 @@ fn alpha_rename(
                 counter,
                 scopes,
             );
-            if let Some(proof) = accessibility {
-                alpha_rename(proof, order, counter, scopes);
-            }
-            if let Some(proof) = transition_equality {
-                alpha_rename(proof, order, counter, scopes);
-            }
+            alpha_rename(accessibility, order, counter, scopes);
+            alpha_rename(transition_equality, order, counter, scopes);
         }
         SExp::RunStepRec {
             state_ty,
@@ -1710,9 +1704,7 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             accessibility,
         } => {
             walk_many_mut([state_ty, result_ty, step, initial], action);
-            if let Some(proof) = accessibility {
-                walk_sexp_control(proof, action);
-            }
+            walk_sexp_control(accessibility, action);
         }
         SExp::RunCase {
             state_ty,
@@ -1744,12 +1736,8 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             transition_equality,
         } => {
             walk_many_mut([state_ty, result_ty, step, initial, transition], action);
-            if let Some(proof) = accessibility {
-                walk_sexp_control(proof, action);
-            }
-            if let Some(proof) = transition_equality {
-                walk_sexp_control(proof, action);
-            }
+            walk_sexp_control(accessibility, action);
+            walk_sexp_control(transition_equality, action);
         }
         SExp::RunStepRec {
             state_ty,

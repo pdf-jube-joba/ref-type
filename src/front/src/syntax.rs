@@ -357,7 +357,7 @@ pub enum ComputationTermExp {
         result_ty: Box<ValueTypeExp>,
         step: Box<ValueTermExp>,
         initial: Box<ValueTermExp>,
-        accessibility: Option<Box<SExp>>,
+        accessibility: Box<SExp>,
     },
     RunCase {
         state_ty: Box<ValueTypeExp>,
@@ -365,8 +365,8 @@ pub enum ComputationTermExp {
         step: Box<ValueTermExp>,
         initial: Box<ValueTermExp>,
         transition: Box<ComputationTermExp>,
-        accessibility: Option<Box<SExp>>,
-        transition_equality: Option<Box<SExp>>,
+        accessibility: Box<SExp>,
+        transition_equality: Box<SExp>,
     },
 }
 
@@ -617,7 +617,7 @@ pub enum SExp {
         result_ty: Box<SExp>,
         step: Box<SExp>,
         initial: Box<SExp>,
-        accessibility: Option<Box<SExp>>,
+        accessibility: Box<SExp>,
     },
     RunCase {
         state_ty: Box<SExp>,
@@ -634,8 +634,8 @@ pub enum SExp {
         step: Box<SExp>,
         initial: Box<SExp>,
         transition: Box<SExp>,
-        accessibility: Option<Box<SExp>>,
-        transition_equality: Option<Box<SExp>>,
+        accessibility: Box<SExp>,
+        transition_equality: Box<SExp>,
     },
     RunStepRec {
         state_ty: Box<SExp>,

@@ -286,7 +286,7 @@ fn program_case_preserves_field_order_and_fuel_boundary() {
 }
 
 #[test]
-fn program_run_has_no_set_exp_node() {
+fn program_run_stores_accessibility_proof() {
     let env = CrateEnv::new();
     let arena = env.arena();
     let state_ty = arena.alloc(ValueTypeNode::Bound(0));
@@ -297,8 +297,80 @@ fn program_run_has_no_set_exp_node() {
         result_ty: state_ty,
         step,
         initial,
+        accessibility: arena.exp_bound(2),
     });
-    assert!(matches!(arena.get(run), ComputationTermNode::Run { .. }));
+    let ComputationTermNode::Run { accessibility, .. } = arena.get(run) else {
+        panic!()
+    };
+    assert_eq!(arena.get(accessibility), ExpNode::Bound(2));
+}
+
+#[test]
+fn run_case_proofs_follow_type_and_value_substitution() {
+    use crate::raw::{
+        exp::Prove, program_calculus::instantiate_value_in_computation, program_definitions,
+    };
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    // The body is under A, x. Its proof mentions both binders.
+    let state_ty = arena.value_type_bound(1);
+    let initial = arena.value_bound(0);
+    let proof = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: arena.exp_bound(1),
+        body: arena.alloc(ExpNode::Prove(Prove::IdRefl {
+            element: arena.exp_bound(1),
+        })),
+    });
+    let body = arena.alloc(ComputationTermNode::RunCase {
+        state_ty,
+        result_ty: state_ty,
+        step: initial,
+        initial,
+        transition: arena.alloc(ComputationTermNode::Return { value: initial }),
+        accessibility: proof,
+        transition_equality: proof,
+    });
+    let instantiated =
+        program_definitions::instantiate_computation(&env, body, &[arena.value_type_bound(2)], 1);
+    let ComputationTermNode::RunCase {
+        accessibility,
+        transition_equality,
+        state_ty,
+        ..
+    } = arena.get(instantiated)
+    else {
+        panic!()
+    };
+    assert_eq!(arena.get(state_ty), ValueTypeNode::Bound(3));
+    assert!(exp_is_alpha_eq(&env, accessibility, transition_equality));
+    let ExpNode::Lam { ty, body, .. } = arena.get(accessibility) else {
+        panic!()
+    };
+    assert_eq!(arena.get(ty), ExpNode::Bound(3));
+    assert!(
+        matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element) == ExpNode::Bound(1))
+    );
+
+    let instantiated = instantiate_value_in_computation(&env, instantiated, arena.value_bound(4));
+    let ComputationTermNode::RunCase {
+        accessibility,
+        transition_equality,
+        state_ty,
+        ..
+    } = arena.get(instantiated)
+    else {
+        panic!()
+    };
+    assert_eq!(arena.get(state_ty), ValueTypeNode::Bound(2));
+    assert!(exp_is_alpha_eq(&env, accessibility, transition_equality));
+    let ExpNode::Lam { ty, body, .. } = arena.get(accessibility) else {
+        panic!()
+    };
+    assert_eq!(arena.get(ty), ExpNode::Bound(2));
+    assert!(
+        matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element) == ExpNode::Bound(5))
+    );
 }
 
 #[test]
@@ -366,11 +438,12 @@ fn unchanged_program_transforms_reuse_arena_handles() {
             computation,
             &definition_remapping,
             &inductive_remapping,
+            &Default::default()
         ),
         computation
     );
     assert_eq!(
-        subst_computation_module_params(arena, computation, &substitutions),
+        subst_computation_module_params(arena, computation, &substitutions, &[]),
         computation
     );
 }
@@ -490,7 +563,7 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(3));
     assert_eq!(arena.get(value), ValueTermNode::Bound(0));
 
-    let substituted = instantiate_value_in_computation(arena, inner, arena.value_bound(0));
+    let substituted = instantiate_value_in_computation(&env, inner, arena.value_bound(0));
     let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(substituted) else {
         panic!()
     };
@@ -552,6 +625,7 @@ fn value_let_annotations_follow_module_instantiation() {
         arena,
         term,
         &[(parameter, ModuleArgument::ProgramType(datatype))],
+        &[],
     );
     let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(instantiated) else {
         panic!()
@@ -562,6 +636,7 @@ fn value_let_annotations_follow_module_instantiation() {
         instantiated,
         &Default::default(),
         &std::collections::HashMap::from([(old, new)]),
+        &Default::default(),
     );
     let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(remapped) else {
         panic!()
@@ -579,17 +654,19 @@ fn value_let_annotations_follow_module_instantiation() {
 fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations() {
     use crate::raw::{
         ids::MetaVarId,
-        reflection::{ReflectionError, reflect_computation, reflect_computation_with_certificates},
+        reflection::{ReflectionError, reflect_computation},
     };
     let env = CrateEnv::new();
     let arena = env.arena();
     let ty = arena.value_type_bound(1);
     let value = arena.value_bound(0);
+    let accessibility = arena.exp_bound(0);
     let run = arena.alloc(ComputationTermNode::Run {
         state_ty: ty,
         result_ty: ty,
         step: value,
         initial: value,
+        accessibility,
     });
     let term = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(0),
@@ -597,21 +674,16 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
         value,
         body: run,
     });
-    assert_eq!(
-        reflect_computation(&env, term),
-        Err(ReflectionError::MissingRunCertificate)
-    );
-    let certificate = arena.exp_bound(0);
-    let reflected = reflect_computation_with_certificates(
-        &env,
-        term,
-        &std::collections::HashMap::from([(run, certificate)]),
-    )
-    .unwrap();
+    let reflected = reflect_computation(&env, term).unwrap();
     let ExpNode::App { func, .. } = arena.get(reflected) else {
         panic!()
     };
-    assert!(matches!(arena.get(func), ExpNode::Lam { body, .. } if body == certificate));
+    let ExpNode::Lam { body, .. } = arena.get(func) else {
+        panic!()
+    };
+    assert!(
+        matches!(arena.get(body), ExpNode::SetRun { accessibility: proof, .. } if proof == accessibility)
+    );
     let meta = arena.alloc(ValueTypeNode::Meta {
         metavariable: MetaVarId(0),
         spine: vec![],

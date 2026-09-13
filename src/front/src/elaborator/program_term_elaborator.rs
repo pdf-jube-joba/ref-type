@@ -2,7 +2,7 @@
 
 use crate::raw::{
     environment::DefinedConstant,
-    exp::{Exp, ExpNode},
+    exp::Exp,
     ids::{MetaVarId, SymbolId},
     program::{
         ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
@@ -53,7 +53,7 @@ pub(crate) struct ProgramScope {
     value_type_bindings: Vec<(SymbolId, ValueType)>,
     metas: Vec<ProgramMeta>,
     named_metas: HashMap<u32, MetaVarId>,
-    certificates: HashMap<ComputationTerm, Exp>,
+    has_runs: bool,
 }
 
 impl Default for ProgramScope {
@@ -103,7 +103,7 @@ impl ProgramScope {
             value_type_bindings: Vec::new(),
             metas: Vec::new(),
             named_metas: HashMap::new(),
-            certificates: HashMap::new(),
+            has_runs: false,
         }
     }
 
@@ -111,12 +111,8 @@ impl ProgramScope {
         &self.context
     }
 
-    pub(crate) fn has_metas(&self) -> bool {
-        !self.metas.is_empty()
-    }
-
-    pub(crate) fn has_certificates(&self) -> bool {
-        !self.certificates.is_empty()
+    pub(crate) fn query_requires_checking(&self) -> bool {
+        self.has_runs || !self.metas.is_empty()
     }
 
     pub(crate) fn certified_computation(
@@ -124,19 +120,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         computation: ComputationTerm,
     ) -> Option<Exp> {
-        let certificates = self
-            .certificates
-            .iter()
-            .map(|(program, certificate)| {
-                (self.zonk_computation(environment, *program), *certificate)
-            })
-            .collect::<HashMap<_, _>>();
-        crate::raw::reflection::reflect_computation_with_certificates(
-            &environment.crate_env,
-            computation,
-            &certificates,
-        )
-        .ok()
+        crate::raw::reflection::reflect_computation(&environment.crate_env, computation).ok()
     }
 
     pub(crate) fn certified_value(
@@ -144,19 +128,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         value: ValueTerm,
     ) -> Option<Exp> {
-        let certificates = self
-            .certificates
-            .iter()
-            .map(|(program, certificate)| {
-                (self.zonk_computation(environment, *program), *certificate)
-            })
-            .collect::<HashMap<_, _>>();
-        crate::raw::reflection::reflect_value_with_certificates(
-            &environment.crate_env,
-            value,
-            &certificates,
-        )
-        .ok()
+        crate::raw::reflection::reflect_value(&environment.crate_env, value).ok()
     }
 
     pub(crate) fn finish_metas(&self) -> Result<(), String> {
@@ -851,10 +823,16 @@ impl ProgramScope {
                 initial,
                 accessibility,
             } => {
+                self.has_runs = true;
                 let state_ty = self.elaborate_value_type(state_ty, environment)?;
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let step = self.elaborate_value(step, environment)?;
                 let initial = self.elaborate_value(initial, environment)?;
+                let reflected_context =
+                    crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
+                        .map_err(|error| error.to_string())?;
+                let accessibility = LocalScope::from_typing_context(reflected_context)
+                    .elab_exp(accessibility, environment)?;
                 let computation = environment
                     .crate_env
                     .arena()
@@ -863,43 +841,8 @@ impl ProgramScope {
                         result_ty,
                         step,
                         initial,
+                        accessibility,
                     });
-                if let Some(accessibility) = accessibility {
-                    let reflected_context = crate::raw::reflection::reflect_context(
-                        &environment.crate_env,
-                        &self.context,
-                    )
-                    .map_err(|error| error.to_string())?;
-                    let proof = LocalScope::from_typing_context(reflected_context)
-                        .elab_exp(accessibility, environment)?;
-                    let arena = environment.crate_env.arena();
-                    let certificate = arena.alloc(ExpNode::SetRun {
-                        state_ty: crate::raw::reflection::reflect_value_type(
-                            &environment.crate_env,
-                            state_ty,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        result_ty: crate::raw::reflection::reflect_value_type(
-                            &environment.crate_env,
-                            result_ty,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        step: crate::raw::reflection::reflect_value_with_certificates(
-                            &environment.crate_env,
-                            step,
-                            &self.certificates,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        initial: crate::raw::reflection::reflect_value_with_certificates(
-                            &environment.crate_env,
-                            initial,
-                            &self.certificates,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        accessibility: proof,
-                    });
-                    self.certificates.insert(computation, certificate);
-                }
                 Ok(computation)
             }
             ComputationTermExp::RunCase {
@@ -911,11 +854,18 @@ impl ProgramScope {
                 accessibility,
                 transition_equality,
             } => {
+                self.has_runs = true;
                 let state_ty = self.elaborate_value_type(state_ty, environment)?;
                 let result_ty = self.elaborate_value_type(result_ty, environment)?;
                 let step = self.elaborate_value(step, environment)?;
                 let initial = self.elaborate_value(initial, environment)?;
                 let transition = self.elaborate_computation(transition, environment)?;
+                let reflected_context =
+                    crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
+                        .map_err(|error| error.to_string())?;
+                let mut proof_scope = LocalScope::from_typing_context(reflected_context);
+                let accessibility = proof_scope.elab_exp(accessibility, environment)?;
+                let transition_equality = proof_scope.elab_exp(transition_equality, environment)?;
                 let computation =
                     environment
                         .crate_env
@@ -926,51 +876,9 @@ impl ProgramScope {
                             step,
                             initial,
                             transition,
+                            accessibility,
+                            transition_equality,
                         });
-                if let (Some(accessibility), Some(transition_equality)) =
-                    (accessibility, transition_equality)
-                {
-                    let reflected_context = crate::raw::reflection::reflect_context(
-                        &environment.crate_env,
-                        &self.context,
-                    )
-                    .map_err(|error| error.to_string())?;
-                    let mut proof_scope = LocalScope::from_typing_context(reflected_context);
-                    let accessibility = proof_scope.elab_exp(accessibility, environment)?;
-                    let transition_equality =
-                        proof_scope.elab_exp(transition_equality, environment)?;
-                    let arena = environment.crate_env.arena();
-                    let certificate = arena.alloc(ExpNode::SetRunCase {
-                        state_ty: crate::raw::reflection::reflect_value_type(
-                            &environment.crate_env,
-                            state_ty,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        result_ty: crate::raw::reflection::reflect_value_type(
-                            &environment.crate_env,
-                            result_ty,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        step: crate::raw::reflection::reflect_value_with_certificates(
-                            &environment.crate_env,
-                            step,
-                            &self.certificates,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        initial: crate::raw::reflection::reflect_value_with_certificates(
-                            &environment.crate_env,
-                            initial,
-                            &self.certificates,
-                        )
-                        .map_err(|error| error.to_string())?,
-                        transition: self
-                            .certified_computation(environment, transition)
-                            .ok_or("runCase transition is not certified")?,
-                        accessibility,
-                        transition_equality,
-                    });
-                    self.certificates.insert(computation, certificate);
-                }
                 Ok(computation)
             }
         }
@@ -1569,11 +1477,13 @@ impl ProgramScope {
                 result_ty,
                 step,
                 initial,
+                accessibility,
             } => arena.alloc(ComputationTermNode::Run {
                 state_ty: self.zonk_value_type(environment, state_ty),
                 result_ty: self.zonk_value_type(environment, result_ty),
                 step: self.zonk_value(environment, step),
                 initial: self.zonk_value(environment, initial),
+                accessibility,
             }),
             ComputationTermNode::RunCase {
                 state_ty,
@@ -1581,12 +1491,16 @@ impl ProgramScope {
                 step,
                 initial,
                 transition,
+                accessibility,
+                transition_equality,
             } => arena.alloc(ComputationTermNode::RunCase {
                 state_ty: self.zonk_value_type(environment, state_ty),
                 result_ty: self.zonk_value_type(environment, result_ty),
                 step: self.zonk_value(environment, step),
                 initial: self.zonk_value(environment, initial),
                 transition: self.zonk_computation(environment, transition),
+                accessibility,
+                transition_equality,
             }),
             _ => computation,
         }

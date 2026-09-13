@@ -196,6 +196,21 @@ impl GlobalEnvironment {
             for RightBind { vars, ty } in parameters.iter() {
                 let parameter_kind = if matches!(ty.as_ref(), SExp::ValueType) {
                     ModuleParameterKind::ProgramType
+                } else if !matches!(ty.as_ref(), SExp::Meta { .. })
+                    && let Ok(program_ty) = ValueTypeExp::try_from(ty.as_ref().clone())
+                    && let Ok(program_ty) = program_scope.elaborate_value_type(&program_ty, self)
+                {
+                    // Classify Program value parameters before reflecting their
+                    // names into the logical language for proof parameters.
+                    let mut program_context = program_scope.context().clone();
+                    ProgramCheckSession::new(&self.crate_env, &mut program_context)
+                        .check_value_type(program_ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program module parameter has an ill-formed value type: {error:?}"
+                            )
+                        })?;
+                    ModuleParameterKind::ProgramValue { ty: program_ty }
                 } else if let Ok(mut pts_ty) = local_scope.elab_exp(ty, self) {
                     if !self.metavariables.is_empty() {
                         self.metavariables
@@ -384,9 +399,7 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
-                    if scope.has_certificates()
-                        && let Some(certificate) = certified_reflection
-                    {
+                    if let Some(certificate) = certified_reflection {
                         let reflected_ty =
                             crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
                                 .map_err(|error| error.to_string())?;
@@ -439,9 +452,7 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
-                    if scope.has_certificates()
-                        && let Some(certificate) = certified_reflection
-                    {
+                    if let Some(certificate) = certified_reflection {
                         let reflected_ty =
                             crate::raw::reflection::reflect_computation_type(&self.crate_env, ty)
                                 .map_err(|error| error.to_string())?;

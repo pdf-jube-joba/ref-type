@@ -526,9 +526,11 @@ fn infer_computation_term_inner(
             result_ty,
             step,
             initial,
+            accessibility: _,
         } => {
             check_recursion_signature(session, state_ty, result_ty, step)?;
             check_value_term(session, initial, state_ty)?;
+            check_run_certificate(session, term)?;
             Ok(arena.alloc(ComputationTypeNode::Return {
                 value_ty: result_ty,
             }))
@@ -539,6 +541,8 @@ fn infer_computation_term_inner(
             step,
             initial,
             transition,
+            accessibility: _,
+            transition_equality: _,
         } => {
             check_recursion_signature(session, state_ty, result_ty, step)?;
             check_value_term(session, initial, state_ty)?;
@@ -548,6 +552,7 @@ fn infer_computation_term_inner(
             });
             let transition_ty = arena.alloc(ComputationTypeNode::Return { value_ty: step_ty });
             check_computation_term(session, transition, transition_ty)?;
+            check_run_certificate(session, term)?;
             Ok(arena.alloc(ComputationTypeNode::Return {
                 value_ty: result_ty,
             }))
@@ -671,4 +676,17 @@ fn check_recursion_signature(
         computation_ty: function,
     });
     check_value_term(session, step, expected)
+}
+
+fn check_run_certificate(
+    session: &ProgramCheckSession<'_, '_>,
+    term: ComputationTerm,
+) -> Result<(), Box<JudgementError>> {
+    let mut context = crate::raw::reflection::reflect_context(session.env, session.context)
+        .map_err(|e| failure("Program run", "reflection", &e.to_string()))?;
+    let reflected = crate::raw::reflection::reflect_computation(session.env, term)
+        .map_err(|e| failure("Program run", "reflection", &e.to_string()))?;
+    crate::raw::derivation::CheckSession::new(session.env, session.env.root_module(), &mut context)
+        .infer_pts(reflected)?;
+    Ok(())
 }

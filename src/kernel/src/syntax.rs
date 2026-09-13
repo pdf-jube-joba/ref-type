@@ -965,6 +965,7 @@ pub enum ComputationTermForm {
         result_ty: ValueType,
         step: ValueTerm,
         initial: ValueTerm,
+        accessibility: PropTerm,
     },
     RunCase {
         state_ty: ValueType,
@@ -972,6 +973,8 @@ pub enum ComputationTermForm {
         step: ValueTerm,
         initial: ValueTerm,
         transition: ComputationTerm,
+        accessibility: PropTerm,
+        transition_equality: PropTerm,
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

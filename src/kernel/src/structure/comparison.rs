@@ -2071,12 +2071,14 @@ fn compare_computation_term(
                 result_ty: result_ty_l,
                 step: step_l,
                 initial: initial_l,
+                accessibility: _,
             },
             ComputationTermForm::Run {
                 state_ty: state_ty_r,
                 result_ty: result_ty_r,
                 step: step_r,
                 initial: initial_r,
+                accessibility: _,
             },
         ) => {
             compare((*state_ty_l).into(), (*state_ty_r).into())?
@@ -2091,6 +2093,8 @@ fn compare_computation_term(
                 step: step_l,
                 initial: initial_l,
                 transition: transition_l,
+                accessibility: _,
+                transition_equality: _,
             },
             ComputationTermForm::RunCase {
                 state_ty: state_ty_r,
@@ -2098,6 +2102,8 @@ fn compare_computation_term(
                 step: step_r,
                 initial: initial_r,
                 transition: transition_r,
+                accessibility: _,
+                transition_equality: _,
             },
         ) => {
             compare((*state_ty_l).into(), (*state_ty_r).into())?

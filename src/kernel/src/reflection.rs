@@ -376,20 +376,37 @@ fn reflect_computation_term(env: &Environment, h: ComputationTerm) -> Result<Set
             result_ty,
             step,
             initial,
-        } => {
-            let _ = (state_ty, result_ty, step, initial);
-            return Err("reflecting run requires an accessibility certificate".into());
-        }
+            accessibility,
+        } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::SetRun {
+                state_ty: reflect_value_type(env, state_ty)?,
+                result_ty: reflect_value_type(env, result_ty)?,
+                step: reflect_value_term(env, step)?,
+                initial: reflect_value_term(env, initial)?,
+                accessibility,
+            },
+        }),
         ComputationTermForm::RunCase {
             state_ty,
             result_ty,
             step,
             initial,
             transition,
-        } => {
-            let _ = (state_ty, result_ty, step, initial, transition);
-            return Err("reflecting run requires an accessibility certificate".into());
-        }
+            accessibility,
+            transition_equality,
+        } => a.alloc(SetTermNode {
+            level,
+            form: SetTermForm::SetRunCase {
+                state_ty: reflect_value_type(env, state_ty)?,
+                result_ty: reflect_value_type(env, result_ty)?,
+                step: reflect_value_term(env, step)?,
+                initial: reflect_value_term(env, initial)?,
+                transition: reflect_computation_term(env, transition)?,
+                accessibility,
+                transition_equality,
+            },
+        }),
     })
 }
 
@@ -886,6 +903,7 @@ fn correspondence(env: &Environment, p: Expression, g: Expression) -> Result<(),
                         result_ty,
                         step,
                         initial,
+                        accessibility: _,
                     },
                     SetTermForm::SetRun {
                         state_ty: state_ty_guide,
@@ -908,6 +926,8 @@ fn correspondence(env: &Environment, p: Expression, g: Expression) -> Result<(),
                         step,
                         initial,
                         transition,
+                        accessibility: _,
+                        transition_equality: _,
                     },
                     SetTermForm::SetRunCase {
                         state_ty: state_ty_guide,

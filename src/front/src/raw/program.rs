@@ -165,6 +165,7 @@ pub enum ComputationTermNode {
         result_ty: ValueType,
         step: ValueTerm,
         initial: ValueTerm,
+        accessibility: crate::raw::exp::Exp,
     },
     RunCase {
         state_ty: ValueType,
@@ -172,6 +173,8 @@ pub enum ComputationTermNode {
         step: ValueTerm,
         initial: ValueTerm,
         transition: ComputationTerm,
+        accessibility: crate::raw::exp::Exp,
+        transition_equality: crate::raw::exp::Exp,
     },
 }
 
