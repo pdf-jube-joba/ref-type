@@ -707,19 +707,10 @@ impl LocalScope {
                     }
                 }
             }
-            SExp::App {
-                func,
-                arg,
-                piped: _,
-            } => {
+            SExp::App { func, arg } => {
                 let mut arguments = vec![arg.as_ref()];
                 let mut head = func.as_ref();
-                while let SExp::App {
-                    func,
-                    arg,
-                    piped: _,
-                } = head
-                {
+                while let SExp::App { func, arg } = head {
                     arguments.push(arg.as_ref());
                     head = func.as_ref();
                 }
@@ -1418,7 +1409,6 @@ impl LocalScope {
                                     body: Box::new(term),
                                 }),
                                 arg: Box::new(body.clone()),
-                                piped: false,
                             };
                         }
                         Statement::Bind { .. } => {
@@ -1449,7 +1439,6 @@ impl LocalScope {
                             term = SExp::App {
                                 func: Box::new(map.clone()),
                                 arg: Box::new(term),
-                                piped: false,
                             };
                         }
                     }

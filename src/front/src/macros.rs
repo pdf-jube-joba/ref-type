@@ -370,7 +370,7 @@ fn alpha_rename(
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::App { func, arg, .. }
+        SExp::App { func, arg }
         | SExp::ComputationFunction {
             domain: func,
             codomain: arg,
@@ -1559,7 +1559,7 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             }
         }
         SExp::Exists { bind } => walk_bind_mut(bind, action),
-        SExp::App { func, arg, .. }
+        SExp::App { func, arg }
         | SExp::ComputationFunction {
             domain: func,
             codomain: arg,

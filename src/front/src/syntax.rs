@@ -501,7 +501,6 @@ pub enum SExp {
     App {
         func: Box<SExp>,
         arg: Box<SExp>,
-        piped: bool, // (x | f) to indicate piped application
     },
     // subset introduction: `subset` is checked against `PowerSet(superset)`,
     // `element` against `superset`, and `proof` against their membership.

@@ -116,8 +116,9 @@ Program ブロックは `\let`・`\bind` の文を順に並べ、値を返す
 
 `\force suspended` は thunk を実行し、`\thunk (computation)` は計算を値に包む。
 `\force f x` は `(\force f) x`。`return`・`thunk`・`force` の自動挿入は行わない。
-場合分けは `\match value \in Datatype \with { | ctor x => computation; }`。
-型名と分岐末尾の `;` は必須。引数なしの分岐は `| ctor => computation;` とする。
+場合分けは `\match value \in Datatype \with { | ctor x => computation }`。
+型名は必須。分岐は次の `|` または `}` で区切り、末尾に `;` は付けない。
+引数なしの分岐は `| ctor => computation` とする。`\elim`・`\tmatch` の分岐も同様。
 旧 `\capp`・`\do`・`\case` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は受け付けない。
 
 論理側の束縛は `\fun (x: A) => body` と `\forall (x: A) -> B`。

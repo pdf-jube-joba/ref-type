@@ -92,7 +92,7 @@ fn deeply_nested_expressions_and_arrow_precedence() {
     assert!(matches!(*bind.ty, SExp::App { .. }));
     assert!(matches!(*body, SExp::Lam { .. }));
 
-    for invalid in ["(x: X)", "((x: X) | P)", "x ->", "x =>", "(x"] {
+    for invalid in ["(x: X)", "((x: X) | P)", "x | f", "x ->", "x =>", "(x"] {
         assert!(parse::str_parse_exp(invalid).is_err(), "accepted {invalid}");
     }
 }
@@ -933,7 +933,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
             ;
             \cdefinition first: (Pair[A] ~> \F(A)) :=
                 (\cfun (p: Pair[A]) => \match (p) \in Pair \with {
-                | pair left right => (\let x: A := left \in \return(x));
+                | pair left right => (\let x: A := left \in \return(x))
                 });
         }
     "#,
@@ -1580,27 +1580,27 @@ fn invalid_variadic_macro_templates_fail_at_declaration() {
         ),
         (r"\macro bad() := \tmatch missing {};", "undeclared capture"),
         (
-            r"\macro bad(tk) := \tmatch tk { | () => value; };",
+            r"\macro bad(tk) := \tmatch tk { | () => value };",
             "expected Sequence",
         ),
         (
-            r"\macro bad(..r) := \tmatch r { | \+ => value; };",
+            r"\macro bad(..r) := \tmatch r { | \+ => value };",
             "expected Token",
         ),
         (
-            r"\macro bad(..r) := \tmatch r { | ($x, $x) => $x; };",
+            r"\macro bad(..r) := \tmatch r { | ($x, $x) => $x };",
             "declared more than once",
         ),
         (
-            r"\macro bad($x, ..r) := \tmatch r { | ($x) => $x; };",
+            r"\macro bad($x, ..r) := \tmatch r { | ($x) => $x };",
             "declared more than once",
         ),
         (
-            r"\macro bad(..r) := \tmatch r { | ($x) => $x; | () => $x; };",
+            r"\macro bad(..r) := \tmatch r { | ($x) => $x | () => $x };",
             "undeclared capture",
         ),
         (
-            r"\macro bad(..r) := \tmatch r { | ($x) => $x; } $x;",
+            r"\macro bad(..r) := \tmatch r { | ($x) => $x } $x;",
             "undeclared capture",
         ),
         (
@@ -1639,12 +1639,12 @@ fn invalid_variadic_macro_templates_fail_at_declaration() {
 fn non_exhaustive_macro_matches_fail_only_when_selected() {
     for (declaration, call, expected) in [
         (
-            r#"\macro m(tk) := \tmatch tk { | "+" => value; };"#,
+            r#"\macro m(tk) := \tmatch tk { | "+" => value };"#,
             "m!{+}",
             "No token match branch",
         ),
         (
-            r#"\macro m(tk) := \tmatch tk { | \+ => value; };"#,
+            r#"\macro m(tk) := \tmatch tk { | \+ => value };"#,
             r#"m!{"+"}"#,
             "No token match branch",
         ),

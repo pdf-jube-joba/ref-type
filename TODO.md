@@ -2,7 +2,6 @@
 - [ ] パッケージの定義
 
 ## 
-- pipeline 演算子を捨てる（か `|>` にする）、 match の分岐終了を `;` にしない、文命令の終了を `;` で設定できるようにする。
 - block の take はその場で uniqueness を `\by` でとり、即座に入れ子の block 開始して最後に `dependenct` をとる
 - reflect した型名は `^s` とかにする（ Program 側で `Bool: \VType` にしたら `Bool^s: \Set` みたいな感じ。）
   - これは普通に `^` だけでもいい。

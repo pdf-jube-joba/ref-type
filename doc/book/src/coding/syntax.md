@@ -21,7 +21,6 @@
 | --- | --- |
 | `value::field` | 左 |
 | `f x y` | 左 |
-| `x \| f`（`f x` の意味） | 左 |
 | `x = y` | 連鎖不可 |
 | `A -> B`、`A ~> C` | 同順位、右 |
 
@@ -117,8 +116,8 @@ Program では通常の call-by-value 関数を `A -> B` とも書ける。値�
 \cdefinition and: Bool -> Bool -> Bool :=
   \fun (x, y: Bool) =>
     \match x \in Bool \with {
-    | false => \return(Bool::false);
-    | true => \return(y);
+    | false => \return(Bool::false)
+    | true => \return(y)
     };
 ```
 
@@ -149,7 +148,7 @@ module 引数、定義、型関連項、明示的な thunk に適用される。
 名前は本体でのみ有効。型注釈と右辺は外側のスコープで解釈する。本体は計算式。
 束縛は式の先頭で解析し、本体を右端まで読む。適用の引数として置く場合は括弧で囲む。
 例えば `f (\thunk (\let x: A := a \in \return x))`。
-束縛の区切りに `;` は使わず、宣言や分岐の末尾にだけ置く。
+この式形式の束縛の区切りには `\in` を使う。`;` は宣言・命令やブロック内の文の末尾に置く。
 
 連続する束縛は Program ブロックでも書ける。
 
@@ -167,16 +166,17 @@ module 引数、定義、型関連項、明示的な thunk に適用される。
 
 ```text
 \match value \in Datatype \with {
-  | empty => \return fallback;
+  | empty => \return fallback
   | pair left right =>
       \bind result: B <- f left \in
-      \return result;
+      \return result
 }
 ```
 
 対象の型名は必須。分岐にはコンストラクタ名とその直下の変数名を並べる。
-入れ子のパターンやガードは使わない。引数は値として束縛され、各分岐の末尾には `;` が必要。
-分岐内でも `x | f` のパイプ適用を使える。
+入れ子のパターンやガードは使わない。引数は値として束縛される。
+分岐本体は次の `|` または閉じ括弧 `}` までで、末尾に `;` は付けない。
+`\elim`・`\tmatch` の分岐も同じ区切りを使う。分岐内の `\block` の文末には `;` が必要。
 分岐は型のコンストラクタ宣言順に一つずつ書く。現在の型分類では対象の値の型が
 この時点で判明している必要があるため、直前の束縛で型が `_` のままなら型名を明示する。
 旧 `\capp`・`\do`・`\case` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は使わない。

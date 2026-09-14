@@ -144,29 +144,12 @@ impl<'a> TermParser<'a> {
                 return Err(self.error("token matching is only valid in named macro templates"));
             }
             let target = self.expect_ident()?;
-            self.expect_token(Token::LBrace)?;
-            let mut branches = Vec::new();
-            while !self.bump_if_token(Token::RBrace) {
-                self.expect_token(Token::Pipe)?;
-                let pattern = if self.bump_if_token(Token::Hole) {
-                    TokenMatchPattern::Default
-                } else {
-                    let mut parser = Parser::new(&self.tokens[self.pos..]);
-                    let atom = parser.parse_macro_pattern_atom()?;
-                    self.set_position(self.pos + parser.pos);
-                    match atom {
-                        MacroSeqAtom::Seq(items) => TokenMatchPattern::Sequence(items),
-                        atom @ (MacroSeqAtom::Tok(_) | MacroSeqAtom::Quoted(_)) => {
-                            TokenMatchPattern::Token(atom)
-                        }
-                        _ => return Err(self.error("expected fixed token, sequence pattern, or _")),
-                    }
-                };
-                self.expect_token(Token::DoubleArrow)?;
-                let body = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
-                branches.push((pattern, body));
-            }
+            let branches = self.parse_branches(|parser| {
+                let pattern = parser.parse_token_match_pattern()?;
+                parser.expect_token(Token::DoubleArrow)?;
+                let body = parser.parse_sexp()?;
+                Ok((pattern, body))
+            })?;
             return Ok(SExp::TokenMatch { target, branches });
         }
         if self.bump_if_keyword("\\VType") {
@@ -201,20 +184,16 @@ impl<'a> TermParser<'a> {
             self.expect_keyword(r"\in")?;
             let path = self.parse_access_path()?;
             self.expect_keyword(r"\with")?;
-            self.expect_token(Token::LBrace)?;
-            let mut branches = Vec::new();
-            while !self.bump_if_token(Token::RBrace) {
-                self.expect_token(Token::Pipe)?;
-                let constructor = self.expect_ident()?;
+            let branches = self.parse_branches(|parser| {
+                let constructor = parser.expect_ident()?;
                 let mut binders = Vec::new();
-                while matches!(self.peek(), Some(Token::Ident(_))) {
-                    binders.push(self.expect_ident()?);
+                while matches!(parser.peek(), Some(Token::Ident(_))) {
+                    binders.push(parser.expect_ident()?);
                 }
-                self.expect_token(Token::DoubleArrow)?;
-                let body = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
-                branches.push((constructor, binders, body));
-            }
+                parser.expect_token(Token::DoubleArrow)?;
+                let body = parser.parse_sexp()?;
+                Ok((constructor, binders, body))
+            })?;
             return Ok(SExp::ProgramCase {
                 path,
                 scrutinee: Box::new(scrutinee),
@@ -515,18 +494,12 @@ impl<'a> TermParser<'a> {
             self.expect_keyword("\\return")?; // expect '\\return'
             let return_type = self.parse_sexp()?;
 
-            // body of case branches
-            let mut cases = Vec::new();
-            self.expect_token(Token::LBrace)?; // expect '{'
-            // loop until '}'
-            while !self.bump_if_token(Token::RBrace) {
-                self.expect_token(Token::Pipe)?; // expect '|'
-                let case_name = self.expect_ident()?; // expect case name
-                self.expect_token(Token::DoubleArrow)?; // expect '=>'
-                let case_type = self.parse_sexp()?; // parse case type
-                self.expect_token(Token::Semicolon)?; // expect ';'
-                cases.push((case_name, case_type));
-            }
+            let cases = self.parse_branches(|parser| {
+                let case_name = parser.expect_ident()?;
+                parser.expect_token(Token::DoubleArrow)?;
+                let case_type = parser.parse_sexp()?;
+                Ok((case_name, case_type))
+            })?;
 
             return Ok(SExp::IndElim {
                 path,
@@ -558,7 +531,7 @@ impl<'a> TermParser<'a> {
             } else {
                 Bind::Named(RightBind {
                     vars: Vec::new(),
-                    ty: Box::new(self.parse_combined()?),
+                    ty: Box::new(self.parse_equality()?),
                 })
             };
             return Ok(SExp::Exists { bind });
@@ -699,13 +672,13 @@ impl<'a> TermParser<'a> {
         // \\idelim "(" <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
         if self.bump_if_keyword("\\idelim") {
             self.expect_token(Token::LParen)?; // expect '('
-            let left = self.parse_atom_sequence()?;
+            let left = self.parse_application()?;
             self.expect_token(Token::Equal)?; // expect '='
             let right = self.parse_sexp()?;
             self.expect_keyword("\\with")?; // expect '\with'
             let var = self.expect_ident()?;
             self.expect_token(Token::Colon)?; // expect ':'
-            let ty = self.parse_combined()?;
+            let ty = self.parse_equality()?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
@@ -805,6 +778,39 @@ impl<'a> TermParser<'a> {
             start: self.span_at(self.pos).start,
             end: self.span_at(self.pos).end,
         })
+    }
+
+    fn parse_token_match_pattern(&mut self) -> Result<TokenMatchPattern, ParseError> {
+        if self.bump_if_token(Token::Hole) {
+            return Ok(TokenMatchPattern::Default);
+        }
+        let mut parser = Parser::new(&self.tokens[self.pos..]);
+        let atom = parser.parse_macro_pattern_atom()?;
+        self.set_position(self.pos + parser.pos);
+        match atom {
+            MacroSeqAtom::Seq(items) => Ok(TokenMatchPattern::Sequence(items)),
+            atom @ (MacroSeqAtom::Tok(_) | MacroSeqAtom::Quoted(_)) => {
+                Ok(TokenMatchPattern::Token(atom))
+            }
+            _ => Err(self.error("expected fixed token, sequence pattern, or _")),
+        }
+    }
+
+    // { (| <branch>)* }: the next pipe or closing brace ends each branch body.
+    // Branch delimiters are shared by \match, \tmatch, and \elim.
+    // Each caller parses its own branch head and body, committing on errors.
+    fn parse_branches<T>(
+        &mut self,
+        mut parse_branch: impl FnMut(&mut Self) -> Result<T, ParseError>,
+    ) -> Result<Vec<T>, ParseError> {
+        self.expect_token(Token::LBrace)?;
+        let mut branches = Vec::new();
+        while !self.bump_if_token(Token::RBrace) {
+            self.expect_token(Token::Pipe)?;
+            let branch = parse_branch(self)?;
+            branches.push(branch);
+        }
+        Ok(branches)
     }
 
     fn parse_block(&mut self) -> Result<Block, ParseError> {
@@ -1091,10 +1097,8 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    // parse field access
-    // <atom>("::" Ident)?
-    // this includes atom parsing
-    fn field_access(&mut self) -> Result<SExp, ParseError> {
+    // <atom> ("::" Ident)*
+    fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
         while self.bump_if_token(Token::DoubleColon) {
             let field_name = self.expect_ident()?;
@@ -1106,59 +1110,33 @@ impl<'a> TermParser<'a> {
         Ok(expr)
     }
 
-    // parse a sequence of atoms (AtomLike)
-    // e.g. `x`, `(x)`, `x y`, `x (y z)`, `(x y) z`
-    fn parse_atom_sequence(&mut self) -> Result<SExp, ParseError> {
-        // 1. first atom
-        let mut expr = self.field_access()?;
+    // <postfix> <postfix>*; application associates to the left.
+    fn parse_application(&mut self) -> Result<SExp, ParseError> {
+        let mut expr = self.parse_postfix()?;
 
         while self.starts_atom() {
-            let try_exp = self.field_access()?;
+            let arg = self.parse_postfix()?;
             expr = SExp::App {
                 func: Box::new(expr),
-                arg: Box::new(try_exp),
-                piped: false,
+                arg: Box::new(arg),
             };
         }
 
         Ok(expr)
     }
 
-    // parse a expression with
-    // 1. record field access
-    // 2. piped application ... <e: AsExp> "|" <e: AsExp>
-    // 3. equal expression ... <e> "=" <e>
-    fn parse_combined(&mut self) -> Result<SExp, ParseError> {
-        fn piped(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            let mut expr = parser.parse_atom_sequence()?;
-
-            while parser.bump_if_token(Token::Pipe) {
-                let right = parser.parse_atom_sequence()?;
-                expr = SExp::App {
-                    arg: Box::new(expr),
-                    func: Box::new(right),
-                    piped: true,
-                };
-            }
-            Ok(expr)
+    // <application> ("=" <application>)?; equality does not chain.
+    fn parse_equality(&mut self) -> Result<SExp, ParseError> {
+        let left = self.parse_application()?;
+        if self.bump_if_token(Token::Equal) {
+            let right = self.parse_application()?;
+            Ok(SExp::Equal {
+                left: Box::new(left),
+                right: Box::new(right),
+            })
+        } else {
+            Ok(left)
         }
-        fn as_exp(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            piped(parser)
-        }
-        fn equal_exp(parser: &mut TermParser) -> Result<SExp, ParseError> {
-            let left_exp = as_exp(parser)?;
-            if parser.bump_if_token(Token::Equal) {
-                let right_exp = as_exp(parser)?;
-                Ok(SExp::Equal {
-                    left: Box::new(left_exp),
-                    right: Box::new(right_exp),
-                })
-            } else {
-                Ok(left_exp)
-            }
-        }
-
-        equal_exp(self)
     }
 
     // Parse an annotation
@@ -1284,10 +1262,10 @@ impl<'a> TermParser<'a> {
                 value: Box::new(self.parse_sexp()?),
             }),
             Token::KeyWord("\\thunk") => Ok(SExp::Thunk {
-                computation: Box::new(self.field_access()?),
+                computation: Box::new(self.parse_postfix()?),
             }),
             Token::KeyWord("\\force") => Ok(SExp::Force {
-                value: Box::new(self.field_access()?),
+                value: Box::new(self.parse_postfix()?),
             }),
             _ => unreachable!(),
         }
@@ -1385,11 +1363,13 @@ impl<'a> TermParser<'a> {
         Ok((binds, body, self.pos))
     }
 
+    // Precedence, weakest first: arrows, equality, application, postfix, atom.
+    // Both arrows associate to the right. Binding forms scope over a full expression.
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
         if matches!(self.peek(), Some(Token::KeyWord(r"\let" | r"\bind"))) {
             return self.parse_program_binding();
         }
-        let left = self.parse_combined()?;
+        let left = self.parse_equality()?;
         if self.bump_if_token(Token::Arrow) {
             Ok(SExp::Prod {
                 bind: Bind::Named(RightBind {
@@ -1509,13 +1489,20 @@ mod tests {
     use super::super::lex_all;
     use super::*;
 
-    fn complete(input: &str) -> SExp {
+    fn complete_with<T>(
+        input: &str,
+        parse: impl FnOnce(&mut TermParser<'_>) -> Result<T, ParseError>,
+    ) -> T {
         let tokens = lex_all(input).unwrap();
         let mut parser = TermParser::new(&tokens);
-        let exp = parser.parse_sexp().unwrap();
+        let result = parse(&mut parser).unwrap_or_else(|error| panic!("{input}: {error:?}"));
         assert_eq!(parser.pos, tokens.len(), "unconsumed input: {input}");
         assert_eq!(parser.consumed, tokens.len());
-        exp
+        result
+    }
+
+    fn complete(input: &str) -> SExp {
+        complete_with(input, |parser| parser.parse_sexp())
     }
 
     #[test]
@@ -1531,7 +1518,7 @@ mod tests {
             complete(&format!(
                 "{}c{}",
                 r"\match x \in T \with { | ctor => ".repeat(depth),
-                "; }".repeat(depth)
+                " }".repeat(depth)
             ));
         }
     }
@@ -1570,6 +1557,56 @@ mod tests {
         };
         assert!(matches!(*func, SExp::Force { .. }));
         complete(r"\cfun (x: A) (y: B) => \return y");
+    }
+
+    #[test]
+    fn postfix_application_and_equality_precedence() {
+        let SExp::Prod {
+            bind: Bind::Named(bind),
+            body,
+        } = complete(r"f::apply x::value y = g z -> R ~> S")
+        else {
+            panic!("expected an arrow outside the equality");
+        };
+        assert!(matches!(*body, SExp::ComputationFunction { .. }));
+        let SExp::Equal { left, right } = *bind.ty else {
+            panic!("expected equality between applications");
+        };
+        assert!(matches!(*right, SExp::App { .. }));
+        let SExp::App { func, .. } = *left else {
+            panic!("expected application to y");
+        };
+        let SExp::App { func, arg } = *func else {
+            panic!("application should associate to the left");
+        };
+        assert!(matches!(*func, SExp::AssociatedAccess { field, .. } if field.0 == "apply"));
+        assert!(matches!(*arg, SExp::AssociatedAccess { field, .. } if field.0 == "value"));
+
+        let SExp::AssociatedAccess { base, field } = complete(r"(f x)::first::second") else {
+            panic!("expected chained field access");
+        };
+        assert_eq!(field.0, "second");
+        let SExp::AssociatedAccess { base, field } = *base else {
+            panic!("field access should associate to the left");
+        };
+        assert_eq!(field.0, "first");
+        assert!(matches!(*base, SExp::App { .. }));
+
+        let SExp::Prod {
+            bind: Bind::Named(bind),
+            ..
+        } = complete(r"\exists f x = g y -> R")
+        else {
+            panic!("an unbraced existential should stop before the arrow");
+        };
+        assert!(matches!(*bind.ty, SExp::Exists { bind: Bind::Named(bind) }
+            if matches!(*bind.ty, SExp::Equal { .. })));
+
+        complete(r"(x = y) = z");
+        complete(r"x = (y = z)");
+        for invalid in [r"x = y = z", r"x | f", r"f (x | g)"] {
+            assert!(super::super::str_parse_exp(invalid).is_err(), "{invalid}");
+        }
     }
 
     #[test]
@@ -1617,16 +1654,80 @@ mod tests {
         };
         assert!(matches!(fields[0].1, SExp::Thunk { .. }));
         complete(r"\record Empty {}");
-        complete(r"\elim x \in T \return R { | ctor => branch; }");
+        complete(r"\elim x \in T \return R { | ctor => branch }");
         let SExp::ProgramCase { branches, .. } =
-            complete(r"\match x \in T \with { | ctor a b => \return a; }")
+            complete(r"\match x \in T \with { | ctor a b => \return a }")
         else {
             panic!()
         };
         assert_eq!(branches[0].1.len(), 2);
-        complete(
-            r"\match x \in T \with { | empty => x | f; | ctor a => \bind y: A <- f a \in g y; }",
-        );
+        complete(r"\match x \in T \with { | empty => x | ctor a => \bind y: A <- f a \in g y }");
+    }
+
+    #[test]
+    fn branch_forms_share_delimiters_and_preserve_nested_bodies() {
+        for (prefix, head, template) in [
+            (r"\match x \in T \with", "ctor a", false),
+            (r"\elim x \in T \return R", "ctor", false),
+            (r"\tmatch token", "_", true),
+        ] {
+            for branches in [
+                "{}".to_string(),
+                format!(
+                    "{{ | {head} => \\match y \\in T \\with {{ | ctor => c }} | {head} => f x = y }}"
+                ),
+            ] {
+                let input = format!("{prefix} {branches}");
+                let exp = complete_with(&input, |parser| {
+                    parser.allow_macro_parameters = template;
+                    parser.parse_sexp()
+                });
+                let bodies = match exp {
+                    SExp::ProgramCase { branches, .. } => branches
+                        .into_iter()
+                        .map(|(_, _, body)| body)
+                        .collect::<Vec<_>>(),
+                    SExp::IndElim { cases, .. } => {
+                        cases.into_iter().map(|(_, body)| body).collect()
+                    }
+                    SExp::TokenMatch { branches, .. } => {
+                        branches.into_iter().map(|(_, body)| body).collect()
+                    }
+                    _ => panic!("expected a branch expression: {input}"),
+                };
+                if branches == "{}" {
+                    assert!(bodies.is_empty());
+                } else {
+                    assert_eq!(bodies.len(), 2);
+                    assert!(matches!(bodies[0], SExp::ProgramCase { .. }));
+                    assert!(matches!(bodies[1], SExp::Equal { .. }));
+                }
+            }
+
+            for (branches, bad) in [
+                (
+                    format!("{{ {head} => x }}"),
+                    head.split_whitespace().next().unwrap(),
+                ),
+                (format!("{{ | {head} => ; }}"), ";"),
+                (format!("{{ | {head} => }}"), "}"),
+                (format!("{{ | {head} => | {head} => y }}"), "|"),
+                (format!("{{ | {head} => x; }}"), ";"),
+                (format!("{{ | {head} => x; | {head} => y }}"), ";"),
+                (format!("{{ | {head} => x"), ""),
+            ] {
+                let input = format!("{prefix} {branches}");
+                let tokens = lex_all(&input).unwrap();
+                let mut parser = if template {
+                    TermParser::new_macro_template(&tokens)
+                } else {
+                    TermParser::new(&tokens)
+                };
+                let error = parser.parse_sexp().unwrap_err();
+                assert_eq!(&input[error.start..error.end], bad, "{input}: {error:?}");
+                assert_eq!(parser.consumed, parser.pos);
+            }
+        }
     }
 
     #[test]
@@ -1646,8 +1747,8 @@ mod tests {
             (r"\fun (x: A \where P \as ) => x", ")"),
             (r"\record T { field := ; }", ";"),
             (r"\match x \in T \with { | ctor x => ; }", ";"),
-            (r"\match x \in T { | ctor => c; }", "{"),
-            (r"\match x \in T \with { | ctor => c }", "}"),
+            (r"\match x \in T { | ctor => c }", "{"),
+            (r"\match x \in T \with { | ctor => c; }", ";"),
             (r"m!{{ f (x ; }}", ";"),
             (r"\let x: A := a;", ";"),
             (r"\let x: A := a \in ;", ";"),
@@ -1664,113 +1765,49 @@ mod tests {
 
     #[test]
     fn parse_annotate_test() {
-        fn print_and_unwrap_annotate(input: &'static str) {
-            let lex = &lex_all(input).expect("lexing failed for annotate test");
-            let mut parser = TermParser::new(lex);
-            let result = parser.parse_annotate();
-            match result {
-                Ok((var, ty)) => {
-                    println!("Parsed SExp: {:?} => {:?}: {:?}", input, var, ty);
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
+        for input in [r"x: X", r"y: (A -> B)", r"x: h (X Y)", r"x, y, z: X -> Y"] {
+            complete_with(input, |parser| parser.parse_annotate());
         }
-        print_and_unwrap_annotate(r"x: X");
-        print_and_unwrap_annotate(r"y: (A -> B)");
-        print_and_unwrap_annotate(r"x: X Y | h");
-        print_and_unwrap_annotate(r"x, y, z: X -> Y");
     }
+
     #[test]
     fn parse_rightbinds_test() {
-        fn print_and_unwrap_rightbinds(input: &'static str) {
-            let lex = &lex_all(input).expect("lexing failed for rightbinds test");
-            let mut parser = TermParser::new(lex);
-            let binds = parser.parse_annotate_comma_separated();
-            println!("Parsed SExp: {:?} => {:?}", input, binds);
+        for input in [r"x: X", r"x: X, y: Y", r"x, y: X -> Y, z: Z"] {
+            complete_with(input, |parser| parser.parse_annotate_comma_separated());
         }
-        print_and_unwrap_rightbinds(r"x: X");
-        print_and_unwrap_rightbinds(r"x: X, y: Y");
-        print_and_unwrap_rightbinds(r"x, y: X -> Y, z: Z");
-
-        // use simple_binds_paren
-        fn print_and_unwrap_simplebinds_paren(input: &'static str) {
-            let lex = &lex_all(input).expect("lexing failed for simplebinds paren test");
-            let mut parser = TermParser::new(lex);
-            let result = parser.parse_simple_binds_paren();
-            match result {
-                Ok(binds) => {
-                    println!("Parsed SExp: {:?} => {:?}", input, binds);
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
+        for input in [r"(x: X)", r"(x: X, y: Y)", r"(x, y: X -> Y, z: Z)"] {
+            complete_with(input, |parser| parser.parse_simple_binds_paren());
         }
-        print_and_unwrap_simplebinds_paren(r"(x: X)");
-        print_and_unwrap_simplebinds_paren(r"(x: X, y: Y)");
-        print_and_unwrap_simplebinds_paren(r"(x, y: X -> Y, z: Z)");
     }
 
     #[test]
     fn parse_bind_test() {
-        fn print_and_unwrap_subsetbind(input: &'static str) {
-            let lex = &lex_all(input).expect("lexing failed for complex bind test");
-            let mut parser = TermParser::new(lex);
-            let result = parser.parse_binding(Token::LParen, Token::RParen);
-            match result {
-                Ok(bind) => {
-                    println!("Parsed SExp: {:?} => {:?}", input, bind);
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
+        for input in [
+            r"(x: X \where P)",
+            r"(x: X \where p1 p2)",
+            r"(x: X \where p1 p2 \as h)",
+        ] {
+            complete_with(input, |parser| {
+                parser.parse_binding(Token::LParen, Token::RParen)
+            });
         }
-        print_and_unwrap_subsetbind(r"(x: X \where P)");
-        print_and_unwrap_subsetbind(r"(x: X \where p1 p2)");
-        print_and_unwrap_subsetbind(r"(x: X \where p1 p2 \as h)");
     }
+
     #[test]
-    fn parse_combined_test() {
-        fn print_and_unwrap_combined(input: &'static str) {
-            let lex = &lex_all(input).expect("lexing failed for combined test");
-            let mut parser = TermParser::new(lex);
-            let result = parser.parse_combined();
-            match result {
-                Ok(atomlike) => {
-                    println!("Parsed SExp: {:?} => {:?}\n\n", input, atomlike);
-                }
-                Err(err) => {
-                    panic!(" {:?}", err);
-                }
-            }
+    fn parse_equality_test() {
+        for input in [r"x", r"x y", r"\subsetinto(A, X, x, p)", r"x = y"] {
+            complete_with(input, |parser| parser.parse_equality());
         }
-        print_and_unwrap_combined(r"x");
-        print_and_unwrap_combined(r"x y");
-        print_and_unwrap_combined(r"x | y");
-        print_and_unwrap_combined(r"\subsetinto(A, X, x, p)");
-        print_and_unwrap_combined(r"x = y");
-        print_and_unwrap_combined(r"\subsetinto(A, X, x, p) | z = h");
     }
+
     #[test]
     fn parse_nosubset_arrow_test() {
-        fn print_and_unwrap_nosubset(input: &'static str) {
-            let lex = &lex_all(input).expect("lexing failed for nosubset arrow test");
-            let mut parser = TermParser::new(lex);
-            let result = parser.parse_arrow_nosubset();
-            match result {
-                Ok((binds, body)) => {
-                    println!("Parsed SExp: {:?} => {:?} -> {:?}", input, binds, body);
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
+        for input in [
+            r"\forall (x: X) -> Y",
+            r"\forall (x: X) -> \forall (y: Y) -> Z",
+        ] {
+            complete_with(input, |parser| parser.parse_arrow_nosubset());
         }
-        print_and_unwrap_nosubset(r"\forall (x: X) -> Y");
-        print_and_unwrap_nosubset(r"\forall (x: X) -> \forall (y: Y) -> Z");
     }
     #[test]
     fn parse_atom_test() {
@@ -1796,7 +1833,7 @@ mod tests {
         print_and_unwrap(r"\record x { a := A, b := B }");
         print_and_unwrap(r"\record x.y { a := A, b := B }");
         print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");
-        print_and_unwrap(r"x::y"); // x::y::z is "combined expression" ... not tested here
+        print_and_unwrap(r"x::y"); // Repeated :: is handled by parse_postfix.
         print_and_unwrap(r"List[Nat]::Nil");
         print_and_unwrap(r"list.List[Nat]::Nil");
         print_and_unwrap(r"\record Group[Nat] { mul := x, e := y }");
@@ -1825,20 +1862,16 @@ mod tests {
         print_and_unwrap(r"x y");
         print_and_unwrap(r"x (y z)");
         print_and_unwrap(r"(x y) z");
-        print_and_unwrap(r"x | y");
-        print_and_unwrap(r"x | f");
-        print_and_unwrap(r"x x | y u | f g");
         print_and_unwrap(r"\forall (x: X) -> Y");
         print_and_unwrap(r"\fun (x: X) => y");
         print_and_unwrap(r"\forall (x: X) -> \fun (_: Y) => z");
         print_and_unwrap(r"X -> Z");
         print_and_unwrap(r"x y z -> Y");
         print_and_unwrap(r"(x y) -> Y");
-        print_and_unwrap(r"x y | z -> Y");
         print_and_unwrap(r"\forall (x: X) -> \forall (y: Y) -> Z");
         print_and_unwrap(r"\forall (x: X \where P) -> \forall (y: Y) -> Z");
         print_and_unwrap(r"\forall (x: X \where P \as h) -> \forall (y: Y) -> Z");
-        print_and_unwrap(r"\forall (x: P y | F \where (u | a) | b \as h) -> \forall (y: Y) -> Z");
+        print_and_unwrap(r"\forall (x: F (P y) \where b (a u) \as h) -> \forall (y: Y) -> Z");
         print_and_unwrap(r"(X -> Y) Z (\fun (t: T) => z)");
         print_and_unwrap(r"(\fun (x: X) => y)");
         print_and_unwrap(r"\fun (x: X \where P) => y");
@@ -1883,7 +1916,6 @@ mod tests {
         print_and_unwrap(r"\take (x: X) => f x \by (existsX, uniqueF)");
         print_and_unwrap(r"\take (x: X) => P \by (existsX)");
         print_and_unwrap(r"x = y");
-        print_and_unwrap(r"\subsetinto(A, X, x, p) | z = h");
     }
 
     #[test]
@@ -1895,33 +1927,18 @@ mod tests {
     }
     #[test]
     fn parse_sexp_has_remaining() {
-        // parse an expression with extra tokens remaining
-        fn parse_middle(input: &str) {
-            let tok = lex_all(input).unwrap();
-            let mut parser = TermParser::new(&tok);
-            let result = parser.parse_sexp();
-            match result {
-                Ok(exp) => {
-                    println!("Parsed SExp: {:?} => {:?}", input, exp);
-                    if parser.pos < parser.tokens.len() {
-                        let extra = &parser.tokens[parser.pos];
-                        println!(
-                            "  Extra tokens after expression starting at {}..{}: {:?}",
-                            extra.start, extra.end, extra.kind
-                        );
-                    } else {
-                        println!("  No extra tokens remaining.");
-                    }
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
+        // Delimiters belong to the enclosing production, including branch pipes.
+        for delimiter in [";", "|", "{", "}", ")", ",", r"\in", r"\with"] {
+            let input = format!("f x::value {delimiter}");
+            let tokens = lex_all(&input).unwrap();
+            let mut parser = TermParser::new(&tokens);
+            assert!(matches!(parser.parse_sexp().unwrap(), SExp::App { .. }));
+            assert_eq!(parser.pos, tokens.len() - 1, "{input}");
+            let remaining = &tokens[parser.pos];
+            assert_eq!(&input[remaining.start..remaining.end], delimiter);
+            assert_eq!(parser.consumed, parser.pos);
         }
-        parse_middle(r"x ;");
-        parse_middle(r"x {");
         let tokens = lex_all(r"x (( y: Y)").unwrap();
         assert!(TermParser::new(&tokens).parse_sexp().is_err());
-        parse_middle(r"x::y x::y;");
     }
 }
