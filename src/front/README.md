@@ -44,8 +44,4 @@ front は未分類の構文を解析・elaboration し、kernel に渡す分類�
 ```sh
 cargo test --workspace --locked --offline
 cargo clippy --workspace --all-targets --locked --offline -- -D warnings
-python3 scripts/bench_compare.py ab4a67c --offline --rounds 2 --samples 10 --warmup-ms 1000 --sample-ms 200
 ```
-
-ベンチマークの条件と保存形式は [計測手順](../cli/benches/README.md) を参照。
-[今回の整理の比較結果](../cli/benches/results/front-refactor-2026-09-14/README.md)も保存している。

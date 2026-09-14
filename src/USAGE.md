@@ -142,26 +142,6 @@ Program の inductive／structure には `\vdefinition Type(A: \VType)::item`
 マクロ内の `(...)` はマクロ列であり、通常式の埋め込みには `{ ... }` を使う。
 詳細は [構文](../doc/book/src/coding/syntax.md) を参照。
 
-## 実行速度の計測
-
-変更前の Git revision と現在の作業ツリーを、同じ入力・toolchain・CPU で比較できます。
-Python 3.12 以上が必要です。
-
-```sh
-python3 scripts/bench_compare.py HEAD --offline
-```
-
-個別に基準を保存する場合は次を使います。
-
-```sh
-cargo bench --locked -p cli --bench performance -- --save-baseline before
-# 実装を変更した後
-cargo bench --locked -p cli --bench performance -- --baseline before --save-baseline after
-```
-
-構文解析・型検査・正規化・Program 評価を計測します。
-対象の絞り込みや結果の見方は [ベンチマークの手順](cli/benches/README.md) を参照してください。
-
 ## 実行と診断
 
 ```sh
