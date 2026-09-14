@@ -734,7 +734,7 @@ impl ModuleManager {
                 loop {
                     let current = env.module(module);
                     if let Some(item) = current.item(access.as_str()) {
-                        return Some(convert_item(item));
+                        return Some(convert_item_for_access(item, access.as_str()));
                     }
                     if let Some(parameter) = current
                         .parameters()
@@ -760,12 +760,12 @@ impl ModuleManager {
                 let materialized = env.binding(binding).materialized;
                 env.module(materialized)
                     .item(child.as_str())
-                    .map(convert_item)
+                    .map(|item| convert_item_for_access(item, child.as_str()))
             }
             LocalAccess::Resolved { module, access } => env
                 .module(*module)
                 .item(access.as_str())
-                .map(convert_item)
+                .map(|item| convert_item_for_access(item, access.as_str()))
                 .or_else(|| {
                     env.module(*module)
                         .parameters()
@@ -784,6 +784,28 @@ impl ModuleManager {
                 }),
         }
     }
+}
+
+fn convert_item_for_access(item: &ModuleItem, access: &str) -> ItemAccessResult {
+    if access.ends_with('^')
+        && let ModuleItem::ProgramInductive {
+            name,
+            constructor_names,
+            reflected,
+            ..
+        } = item
+    {
+        return ItemAccessResult::Inductive(ModItemInductive {
+            type_name: Identifier(format!("{name}^")),
+            ctor_names: constructor_names
+                .iter()
+                .map(|name| Identifier(name.clone()))
+                .collect(),
+            inductive: *reflected,
+            associated_definitions: Vec::new(),
+        });
+    }
+    convert_item(item)
 }
 
 fn parameter_access(

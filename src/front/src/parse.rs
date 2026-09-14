@@ -15,7 +15,8 @@ enum Token<'a> {
     QuotedMacro(&'a str),
     #[regex(r"\\[^a-zA-Z0-9\s(){}$\[\]_,]+")]
     EscapedMacro(&'a str),
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_]*")]
+    // A trailing `^` denotes the Set reflection of a Program datatype.
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_]*\^?")]
     Ident(&'a str),
     #[regex(r"[0-9]+")]
     Number(&'a str),

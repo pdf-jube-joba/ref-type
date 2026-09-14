@@ -1830,6 +1830,9 @@ mod tests {
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x[ A, B, C ]");
         print_and_unwrap(r"x.y[ A, B ]");
+        print_and_unwrap(r"Bool^");
+        print_and_unwrap(r"types.Bool^[A]");
+        print_and_unwrap(r"Bool^::true");
         print_and_unwrap(r"\record x { a := A, b := B }");
         print_and_unwrap(r"\record x.y { a := A, b := B }");
         print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");

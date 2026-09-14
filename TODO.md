@@ -3,8 +3,6 @@
 
 ## 
 - block の take はその場で uniqueness を `\by` でとり、即座に入れ子の block 開始して最後に `dependenct` をとる
-- reflect した型名は `^s` とかにする（ Program 側で `Bool: \VType` にしたら `Bool^s: \Set` みたいな感じ。）
-  - これは普通に `^` だけでもいい。
 - `\inductive` は VType と Set が共通なので、 `\definition` も `\vdefinition` にしないでよさそうに思える。
 - `\prec` の方が生で書けて AI には使いやすいらしいが、人間には見づらい。 block 内 induction を入れてそれで書けるようにする。
 

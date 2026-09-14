@@ -1012,12 +1012,20 @@ impl CrateEnv {
     pub fn publish_item(&mut self, module: ModuleId, item: ModuleItem) -> Result<(), String> {
         let module = self.module_mut(module);
         let name = item.name().to_owned();
-        if module.names.contains_key(&name) {
-            return Err(format!("Module item '{name}' is already defined"));
+        let reflected_name =
+            matches!(&item, ModuleItem::ProgramInductive { .. }).then(|| format!("{name}^"));
+        if let Some(conflict) = std::iter::once(&name)
+            .chain(reflected_name.as_ref())
+            .find(|candidate| module.names.contains_key(*candidate))
+        {
+            return Err(format!("Module item '{conflict}' is already defined"));
         }
         let index = module.items.len();
         module.items.push(item);
         module.names.insert(name, index);
+        if let Some(reflected_name) = reflected_name {
+            module.names.insert(reflected_name, index);
+        }
         Ok(())
     }
 
