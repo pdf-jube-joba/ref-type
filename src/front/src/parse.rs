@@ -398,43 +398,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_program_definition(
-        &mut self,
-        computation: bool,
-    ) -> Result<(Option<AssociatedOwner>, Identifier, SExp, SExp), ParseError> {
-        let ModuleItem::Definition {
-            owner,
-            name,
-            binders,
-            mut ty,
-            mut body,
-        } = self.parse_definition()?
-        else {
-            unreachable!()
-        };
-        if !computation && !binders.is_empty() {
-            return Err(ParseError {
-                msg: "Program value definitions do not accept function binders".into(),
-                start: self.span_at(self.pos.saturating_sub(1)).start,
-                end: self.span_at(self.pos.saturating_sub(1)).end,
-            });
-        }
-        for bind in binders.into_iter().rev() {
-            for var in bind.vars.into_iter().rev() {
-                ty = SExp::ComputationFunction {
-                    domain: bind.ty.clone(),
-                    codomain: Box::new(ty),
-                };
-                body = SExp::ComputationLam {
-                    var,
-                    value_ty: bind.ty.clone(),
-                    body: Box::new(body),
-                };
-            }
-        }
-        Ok((owner, name, ty, body))
-    }
-
     fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
         let mut parameters = Vec::new();
@@ -722,44 +685,6 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\definition") {
             let def = self.parse_definition()?;
             return Ok(Some(def));
-        }
-        if self.bump_if_keyword("\\vdefinition") {
-            let (owner, name, ty, body) = self.parse_program_definition(false)?;
-            let ty = ty.try_into().map_err(|msg| ParseError {
-                msg,
-                start: self.span_at(start_pos).start,
-                end: self.span_at(self.pos).end,
-            })?;
-            let body = body.try_into().map_err(|msg| ParseError {
-                msg,
-                start: self.span_at(start_pos).start,
-                end: self.span_at(self.pos).end,
-            })?;
-            return Ok(Some(ModuleItem::ValueDefinition {
-                owner,
-                name,
-                ty,
-                body,
-            }));
-        }
-        if self.bump_if_keyword("\\cdefinition") {
-            let (owner, name, ty, body) = self.parse_program_definition(true)?;
-            let ty = ty.try_into().map_err(|msg| ParseError {
-                msg,
-                start: self.span_at(start_pos).start,
-                end: self.span_at(self.pos).end,
-            })?;
-            let body = body.try_into().map_err(|msg| ParseError {
-                msg,
-                start: self.span_at(start_pos).start,
-                end: self.span_at(self.pos).end,
-            })?;
-            return Ok(Some(ModuleItem::ComputationDefinition {
-                owner,
-                name,
-                ty,
-                body,
-            }));
         }
         if self.bump_if_keyword("\\import") {
             let imp = self.parse_import()?;

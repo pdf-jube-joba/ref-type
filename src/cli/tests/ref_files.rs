@@ -327,12 +327,12 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
     fixture.write(
         "Source.ref",
         r#"
-\vdefinition value: X := x;
-\cdefinition result: \F(X) := \return x;
+\definition value: X := x;
+\definition result: \F(X) := \return x;
 \module Child;
 "#,
     );
-    fixture.write("Source/Child.ref", "\\vdefinition value: X := x;\n");
+    fixture.write("Source/Child.ref", "\\definition value: X := x;\n");
 
     let output = run_ref_file(&fixture.0, &root).unwrap();
     assert!(output.status.success(), "{}", output_details(&output));

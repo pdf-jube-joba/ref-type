@@ -302,23 +302,57 @@ impl GlobalEnvironment {
                     ty,
                     body,
                 } => {
-                    if let Some(owner) = owner {
-                        let expected = self
-                            .module_manager
-                            .associated_parameter_count(&self.crate_env, &owner.type_name)
-                            .ok_or_else(|| {
-                                format!(
-                                    "Associated item owner '{}' is not a type in this module",
-                                    owner.type_name.as_str()
-                                )
-                            })?;
-                        let found = owner
-                            .parameters
-                            .iter()
-                            .map(|binder| binder.vars.len())
-                            .sum::<usize>();
-                        if expected != found {
-                            return Err(format!(
+                    let program_errors = match self.elaborate_program_definition_decl(
+                        owner.as_ref(),
+                        name,
+                        binders,
+                        ty,
+                        body,
+                    ) {
+                        Ok((parameters, definition)) => {
+                            self.publish_program_definition(
+                                owner.as_ref(),
+                                name.clone(),
+                                parameters,
+                                definition,
+                            )?;
+                            continue;
+                        }
+                        Err(errors) => errors,
+                    };
+                    let has_program_owner = owner.as_ref().is_some_and(|owner| {
+                        matches!(
+                            self.module_manager.get_item(
+                                &self.crate_env,
+                                &LocalAccess::Current {
+                                    access: owner.type_name.clone(),
+                                },
+                            ),
+                            Some(module_manager::ItemAccessResult::ProgramInductive(_))
+                        )
+                    });
+                    if has_program_owner && !program_errors.is_empty() {
+                        return Err(program_errors.join("\n").into());
+                    }
+                    self.metavariables.clear();
+                    let pts_result = (|| -> Result<(), ElaborationError> {
+                        if let Some(owner) = owner {
+                            let expected = self
+                                .module_manager
+                                .associated_parameter_count(&self.crate_env, &owner.type_name)
+                                .ok_or_else(|| {
+                                    format!(
+                                        "Associated item owner '{}' is not a type in this module",
+                                        owner.type_name.as_str()
+                                    )
+                                })?;
+                            let found = owner
+                                .parameters
+                                .iter()
+                                .map(|binder| binder.vars.len())
+                                .sum::<usize>();
+                            if expected != found {
+                                return Err(format!(
                                 "Associated definition {}::{} expects {} owner parameter(s), found {}",
                                 owner.type_name.as_str(),
                                 name.as_str(),
@@ -326,111 +360,67 @@ impl GlobalEnvironment {
                                 found,
                             )
                             .into());
+                            }
                         }
-                    }
-                    let mut all_binders = owner
-                        .as_ref()
-                        .map(|owner| owner.parameters.clone())
-                        .unwrap_or_default();
-                    all_binders.extend(binders.clone());
-                    let mut ty = ty.clone();
-                    let mut body = body.clone();
-                    for binder in all_binders.into_iter().rev() {
-                        ty = SExp::Prod {
-                            bind: Bind::Named(binder.clone()),
-                            body: Box::new(ty),
-                        };
-                        body = SExp::Lam {
-                            bind: Bind::Named(binder),
-                            body: Box::new(body),
-                        };
-                    }
-                    let ty_elab = local_scope.elab_exp(&ty, self)?;
-                    let body_elab = local_scope.elab_exp(&body, self)?;
-                    if !self.metavariables.is_empty() {
-                        self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
-                            .map_err(|message| self.metavariables.constraint_error(message))?;
-                        self.finish_metavariables()?;
-                    }
-                    let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
-                    let body_elab = self.metavariables.zonk(&self.crate_env, body_elab);
-                    self.validate_definition(&mut ctx, body_elab, ty_elab)
+                        let mut all_binders = owner
+                            .as_ref()
+                            .map(|owner| owner.parameters.clone())
+                            .unwrap_or_default();
+                        all_binders.extend(binders.clone());
+                        let mut ty = ty.clone();
+                        let mut body = body.clone();
+                        for binder in all_binders.into_iter().rev() {
+                            ty = SExp::Prod {
+                                bind: Bind::Named(binder.clone()),
+                                body: Box::new(ty),
+                            };
+                            body = SExp::Lam {
+                                bind: Bind::Named(binder),
+                                body: Box::new(body),
+                            };
+                        }
+                        let ty_elab = local_scope.elab_exp(&ty, self)?;
+                        let body_elab = local_scope.elab_exp(&body, self)?;
+                        if !self.metavariables.is_empty() {
+                            self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
+                                .map_err(|message| self.metavariables.constraint_error(message))?;
+                            self.finish_metavariables()?;
+                        }
+                        let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
+                        let body_elab = self.metavariables.zonk(&self.crate_env, body_elab);
+                        self.validate_definition(&mut ctx, body_elab, ty_elab)
                         .map_err(|message| {
                             format!(
                                 "Definition {} body does not check against declared type: {message}",
                                 name.as_str()
                             )
                         })?;
-                    let defined_constant = DefinedConstant::Pts {
-                        ty: ty_elab,
-                        body: body_elab,
-                    };
-                    if let Some(owner) = owner {
-                        self.module_manager.add_associated_def(
-                            &mut self.crate_env,
-                            &owner.type_name,
-                            name.clone(),
-                            defined_constant,
-                        )?;
-                    } else {
-                        self.module_manager.add_def(
-                            &mut self.crate_env,
-                            name.clone(),
-                            defined_constant,
-                        )?;
+                        let defined_constant = DefinedConstant::Pts {
+                            ty: ty_elab,
+                            body: body_elab,
+                        };
+                        if let Some(owner) = owner {
+                            self.module_manager.add_associated_def(
+                                &mut self.crate_env,
+                                &owner.type_name,
+                                name.clone(),
+                                defined_constant,
+                            )?;
+                        } else {
+                            self.module_manager.add_def(
+                                &mut self.crate_env,
+                                name.clone(),
+                                defined_constant,
+                            )?;
+                        }
+                        Ok(())
+                    })();
+                    if let Err(error) = pts_result {
+                        if program_errors.is_empty() {
+                            return Err(error);
+                        }
+                        return Err(format!("{}\n{error}", program_errors.join("\n")).into());
                     }
-                }
-                ModuleItem::ValueDefinition {
-                    owner,
-                    name,
-                    ty,
-                    body,
-                } => {
-                    let (mut scope, parameters) = self.program_associated_scope(owner.as_ref())?;
-                    let ty = scope.elaborate_value_type(ty, self)?;
-                    let body = scope.elaborate_value(body, self)?;
-                    let (body, ty) = scope.check_value_term_with_metas(self, body, ty)?;
-                    let mut program_context = scope.context().clone();
-                    ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                        .check_value_term(body, ty)
-                        .map_err(|error| {
-                            format!(
-                                "Program value definition {} is ill-typed: {error:?}",
-                                name.as_str()
-                            )
-                        })?;
-                    self.publish_program_definition(
-                        owner.as_ref(),
-                        name.clone(),
-                        parameters,
-                        DefinedConstant::ProgramValue { ty, body },
-                    )?;
-                }
-                ModuleItem::ComputationDefinition {
-                    owner,
-                    name,
-                    ty,
-                    body,
-                } => {
-                    let (mut scope, parameters) = self.program_associated_scope(owner.as_ref())?;
-                    let ty = scope.elaborate_computation_type(ty, self)?;
-                    let body = scope.elaborate_computation(body, self)?;
-                    let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
-                    let mut program_context = scope.context().clone();
-                    ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                        .check_computation_term(body, ty)
-                        .map_err(|error| {
-                            format!(
-                                "Program computation definition {} is ill-typed: {error:?}",
-                                name.as_str()
-                            )
-                        })?;
-                    self.publish_program_definition(
-                        owner.as_ref(),
-                        name.clone(),
-                        parameters,
-                        DefinedConstant::ProgramComputation { ty, body },
-                    )?;
                 }
                 ModuleItem::Inductive {
                     type_name,

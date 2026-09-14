@@ -2,6 +2,140 @@
 use super::*;
 
 impl GlobalEnvironment {
+    pub(super) fn elaborate_program_definition_decl(
+        &mut self,
+        owner: Option<&AssociatedOwner>,
+        name: &Identifier,
+        binders: &[RightBind],
+        surface_ty: &SExp,
+        surface_body: &SExp,
+    ) -> Result<(Vec<SymbolId>, DefinedConstant), Vec<String>> {
+        if self.definition_type_is_clearly_pts(owner, surface_ty) {
+            return Err(Vec::new());
+        }
+        let mut errors = Vec::new();
+
+        // Non-arrow value syntax is tried first. A bare CBV arrow in a
+        // definition is a computation type; function values use explicit \U.
+        if binders.is_empty()
+            && !matches!(surface_ty, SExp::Prod { .. })
+            && let Ok(ty) = ValueTypeExp::try_from(surface_ty.clone())
+        {
+            let body = match ValueTermExp::try_from(surface_body.clone()) {
+                Ok(body) => Some(body),
+                Err(error) => {
+                    errors.push(error);
+                    None
+                }
+            };
+            if let Some(body) = body {
+                self.metavariables.clear();
+                let attempt = (|| -> Result<_, String> {
+                    let (mut scope, parameters) = self.program_associated_scope(owner)?;
+                    let ty = scope.elaborate_value_type(&ty, self)?;
+                    let body = scope.elaborate_value(&body, self)?;
+                    let (body, ty) = scope.check_value_term_with_metas(self, body, ty)?;
+                    let mut context = scope.context().clone();
+                    ProgramCheckSession::new(&self.crate_env, &mut context)
+                        .check_value_term(body, ty)
+                        .map_err(|error| {
+                            format!(
+                                "Program value definition {} is ill-typed: {error:?}",
+                                name.as_str()
+                            )
+                        })?;
+                    Ok((parameters, DefinedConstant::ProgramValue { ty, body }))
+                })();
+                match attempt {
+                    Ok(definition) => return Ok(definition),
+                    Err(error) => errors.push(error),
+                }
+            }
+        }
+
+        let mut ty = surface_ty.clone();
+        let mut body = surface_body.clone();
+        for binder in binders.iter().rev() {
+            for var in binder.vars.iter().rev() {
+                ty = SExp::ComputationFunction {
+                    domain: binder.ty.clone(),
+                    codomain: Box::new(ty),
+                };
+                body = SExp::ComputationLam {
+                    var: var.clone(),
+                    value_ty: binder.ty.clone(),
+                    body: Box::new(body),
+                };
+            }
+        }
+        let computation_ty = ComputationTypeExp::try_from(ty);
+        let computation_body = ComputationTermExp::try_from(body);
+        if let (Ok(ty), Ok(body)) = (&computation_ty, &computation_body) {
+            let ty = ty.clone();
+            let body = body.clone();
+            self.metavariables.clear();
+            let attempt = (|| -> Result<_, String> {
+                let (mut scope, parameters) = self.program_associated_scope(owner)?;
+                let ty = scope.elaborate_computation_type(&ty, self)?;
+                let body = scope.elaborate_computation(&body, self)?;
+                let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
+                let mut context = scope.context().clone();
+                ProgramCheckSession::new(&self.crate_env, &mut context)
+                    .check_computation_term(body, ty)
+                    .map_err(|error| {
+                        format!(
+                            "Program computation definition {} is ill-typed: {error:?}",
+                            name.as_str()
+                        )
+                    })?;
+                Ok((parameters, DefinedConstant::ProgramComputation { ty, body }))
+            })();
+            match attempt {
+                Ok(definition) => return Ok(definition),
+                Err(error) => errors.push(error),
+            }
+        } else {
+            if let Err(error) = computation_ty {
+                errors.push(error);
+            }
+            if let Err(error) = computation_body {
+                errors.push(error);
+            }
+        }
+
+        Err(errors)
+    }
+
+    fn definition_type_is_clearly_pts(&self, owner: Option<&AssociatedOwner>, ty: &SExp) -> bool {
+        let access_is_pts =
+            |access: &LocalAccess| match self.module_manager.get_item(&self.crate_env, access) {
+                Some(
+                    module_manager::ItemAccessResult::Expression(_)
+                    | module_manager::ItemAccessResult::Inductive(_)
+                    | module_manager::ItemAccessResult::Record(_),
+                ) => true,
+                Some(module_manager::ItemAccessResult::Definition(item)) => matches!(
+                    self.crate_env.resolve_definition(item.definition),
+                    Ok(DefinedConstant::Pts { .. })
+                ),
+                _ => false,
+            };
+        if let Some(owner) = owner {
+            return access_is_pts(&LocalAccess::Current {
+                access: owner.type_name.clone(),
+            });
+        }
+        let mut ty = ty;
+        while let SExp::Prod { body, .. } = ty {
+            ty = body;
+        }
+        match ty {
+            SExp::Sort(_) => true,
+            SExp::AccessPath { access, .. } => access_is_pts(access),
+            _ => false,
+        }
+    }
+
     pub(super) fn program_associated_scope(
         &mut self,
         owner: Option<&AssociatedOwner>,

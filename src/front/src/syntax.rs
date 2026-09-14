@@ -121,18 +121,6 @@ pub enum ModuleItem {
         ty: SExp,
         body: SExp,
     },
-    ValueDefinition {
-        owner: Option<AssociatedOwner>,
-        name: Identifier,
-        ty: ValueTypeExp,
-        body: ValueTermExp,
-    },
-    ComputationDefinition {
-        owner: Option<AssociatedOwner>,
-        name: Identifier,
-        ty: ComputationTypeExp,
-        body: ComputationTermExp,
-    },
     Inductive {
         type_name: Identifier,
         parameters: Vec<RightBind>,

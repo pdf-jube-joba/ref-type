@@ -259,8 +259,8 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
             \inductive PToken: \VType := | ptoken: PToken; ;
             \module Child(y: Token, z: X) {
                 \definition inherited: Token := y;
-                \vdefinition program_inherited: PToken := PToken::ptoken;
-                \vdefinition inherited_x: X := z;
+                \definition program_inherited: PToken := PToken::ptoken;
+                \definition inherited_x: X := z;
                 \inductive Local: \Set(0) := | local: Local; ;
                 \module Grandchild {
                     \definition parent_value: Token := Token::token;
@@ -558,7 +558,7 @@ fn implicit_solution_may_depend_on_its_local_binder_context() {
 fn program_value_definition_uses_the_value_judgement() {
     let source = r#"
         \module ProgramMeta(A: \VType, x: A) {
-            \vdefinition finished: \PRunStep(A, A) := \Pfinish(A, A, x);
+            \definition finished: \PRunStep(A, A) := \Pfinish(A, A, x);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -570,8 +570,8 @@ fn program_value_definition_uses_the_value_judgement() {
 fn program_value_and_computation_commands_are_separate() {
     let source = r#"
             \module ProgramTypeMeta(A: \VType, x: A) {
-                \vdefinition value: A := x;
-                \cdefinition computation: \F(A) := \return(x);
+                \definition value: A := x;
+                \definition computation: \F(A) := \return(x);
                 \ceval computation;
             \vinfer value;
             \cinfer computation;
@@ -741,7 +741,7 @@ fn general_recursion_surface_typechecks_and_normalizes() {
             a: A,
             termination: \Acc(A, B, f, a)
         ) {
-            \cdefinition result: \F(B) := \Prun(A, B, f, a) \by termination;
+            \definition result: \F(B) := \Prun(A, B, f, a) \by termination;
             \cnormalize \Prun(A, B, f, a) \by termination;
         }
     "#;
@@ -813,8 +813,8 @@ fn program_value_let_solves_and_zonks_type_annotations() {
     let modules = parse::str_parse_modules(
         r#"
         \module AnnotatedLet(A: \VType, a: A) {
-            \cdefinition identity: \F(A) := (\let x: _ := a \in \return(x));
-            \cdefinition nested: \F(A) := (\let x: A := a \in (\let y: _ := x \in \return(y)));
+            \definition identity: \F(A) := (\let x: _ := a \in \return(x));
+            \definition nested: \F(A) := (\let x: A := a \in (\let y: _ := x \in \return(y)));
             \cinfer (\let x: _ := a \in \return(x));
         }
     "#,
@@ -848,7 +848,7 @@ fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
         r"(\let x: _ := ? \in \return(a))",
     ] {
         let source = format!(
-            r"\module InvalidLet(A: \VType, B: \VType, a: A) {{ \cdefinition result: \F(A) := {term}; }}"
+            r"\module InvalidLet(A: \VType, B: \VType, a: A) {{ \definition result: \F(A) := {term}; }}"
         );
         let modules = parse::str_parse_modules(&source).unwrap();
         let mut environment = GlobalEnvironment::default();
@@ -931,7 +931,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
             \inductive Pair(X: \VType): \VType :=
             | pair: X -> X -> Pair;
             ;
-            \cdefinition first: (Pair[A] ~> \F(A)) :=
+            \definition first: (Pair[A] ~> \F(A)) :=
                 (\cfun (p: Pair[A]) => \match (p) \in Pair \with {
                 | pair left right => (\let x: A := left \in \return(x))
                 });
@@ -1091,7 +1091,7 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
           \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
-          \vdefinition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
+          \definition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
             \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
           \definition stepSet: Unit -> \RunStep(Unit, Unit) :=
             \Force(\U((Unit ~> \F(\PRunStep(Unit, Unit)))),
@@ -1106,9 +1106,9 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
               \fun (next: Unit) => \fun (edge: stepSet s = \continue(Unit, Unit, next)) =>
                 \idelim(stepSet s = \continue(Unit, Unit, next)
                   \with r: \RunStep(Unit, Unit) => ready r) \by (\refl(Unit::unit), edge));
-          \cdefinition result: \F(Unit) :=
+          \definition result: \F(Unit) :=
             \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit::unit;
-          \cdefinition otherResult: \F(Unit) :=
+          \definition otherResult: \F(Unit) :=
             \Prun(Unit, Unit, step, Unit::other) \by terminates Unit::other;
           \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), result);
         }
@@ -1193,15 +1193,15 @@ fn program_proofs_follow_local_binders_and_module_instantiation() {
     let source = r#"
         \module Generic(A: \VType, step: \U((A ~> \F(\PRunStep(A, A)))),
           total: \forall (s: A) -> \Acc(A, A, step, s)) {
-          \cdefinition run(x: A): \F(A) := \Prun(A, A, step, x) \by total x;
-          \cdefinition runCase(x: A): \F(A) :=
+          \definition run(x: A): \F(A) := \Prun(A, A, step, x) \by total x;
+          \definition runCase(x: A): \F(A) :=
             (\let y: A := x \in
             \PrunCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step y)));
         }
         \module Consumer(A: \VType, f: \U((A ~> \F(\PRunStep(A, A)))),
           p: \forall (s: A) -> \Acc(A, A, f, s), a: A) {
           \import \root.Generic(A := A, step := f, total := p) \as G;
-          \cdefinition result: \F(A) := G.runCase a;
+          \definition result: \F(A) := G.runCase a;
           \cnormalize result;
         }
     "#;
@@ -1344,8 +1344,8 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     let modules = parse::str_parse_modules(
         r"
         \module Headers(A: \VType, B: \VType) {
-            \cdefinition f(x, y: A)(z: B): \F(A) := \return x;
-            \cdefinition explicit: A ~> A ~> B ~> \F(A) :=
+            \definition f(x, y: A)(z: B): \F(A) := \return x;
+            \definition explicit: A ~> A ~> B ~> \F(A) :=
                 \cfun (x, y: A) (z: B) => \return x;
         }
     ",
@@ -1386,9 +1386,10 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
         explicit_reflection
     ));
     for declaration in [
-        r"\vdefinition f(x: A): \U(A ~> \F(A)) := \thunk c;",
-        r"\cdefinition f(x): \F(A) := \return x;",
-        r"\cdefinition f(x: A \where P x): \F(A) := \return x;",
+        r"\vdefinition f: A := a;",
+        r"\cdefinition f: \F(A) := \return a;",
+        r"\definition f(x): \F(A) := \return x;",
+        r"\definition f(x: A \where P x): \F(A) := \return x;",
     ] {
         assert!(parse::str_parse_modules(&format!(r"\module Bad {{ {declaration} }}")).is_err());
     }

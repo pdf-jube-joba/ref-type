@@ -3,7 +3,6 @@
 
 ## 
 - block の take はその場で uniqueness を `\by` でとり、即座に入れ子の block 開始して最後に `dependenct` をとる
-- `\inductive` は VType と Set が共通なので、 `\definition` も `\vdefinition` にしないでよさそうに思える。
 - `\prec` の方が生で書けて AI には使いやすいらしいが、人間には見づらい。 block 内 induction を入れてそれで書けるようにする。
 
 ## 改良案

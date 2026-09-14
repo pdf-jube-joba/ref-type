@@ -74,8 +74,8 @@ Program の関数型は `A ~> C`、ラムダは `\cfun (x: A) => computation`。
 
 ```text
 \module Example(A: \VType, a: A) {
-  \cdefinition identity(x: A): \F(A) := \return x;
-  \cdefinition result: \F(A) :=
+  \definition identity(x: A): \F(A) := \return x;
+  \definition result: \F(A) :=
     \let x: A := a \in
     \bind y: A <- identity x \in
     \return y;
@@ -86,7 +86,7 @@ Program の値型と値は module parameter にできる。具体化するとき
 
 ```text
 \module Source(A: \VType, a: A) {
-  \vdefinition value: A := a;
+  \definition value: A := a;
 }
 \module Consumer {
   \inductive Unit: \VType := | unit: Unit; ;
@@ -102,7 +102,7 @@ Program の値型と値は module parameter にできる。具体化するとき
 同じ束縛を文として並べる Program ブロックも使える。
 
 ```text
-\cdefinition result: \F(A) := \block {
+\definition result: \F(A) := \block {
   \let x: A := a;
   \bind y: A <- identity x;
   \return y;
@@ -111,8 +111,9 @@ Program の値型と値は module parameter にできる。具体化するとき
 
 Program ブロックは `\let`・`\bind` の文を順に並べ、値を返す
 `\return value;` で終える。各束縛名は後続の文だけで有効になる。
-`\cdefinition f(x: A, y: B): C := body;` は、型 `A ~> B ~> C` と
-本体 `\cfun (x: A) (y: B) => body` に展開する。`\vdefinition` は関数引数を受け付けない。
+`\definition f(x: A, y: B): C := body;` は、型 `A ~> B ~> C` と
+本体 `\cfun (x: A) (y: B) => body` に展開する。
+`\definition` は宣言した型と本体から Set/Prop、Program value、Program computation を判定する。
 
 `\force suspended` は thunk を実行し、`\thunk (computation)` は計算を値に包む。
 `\force f x` は `(\force f) x`。`return`・`thunk`・`force` の自動挿入は行わない。
@@ -127,8 +128,8 @@ Program ブロックは `\let`・`\bind` の文を順に並べ、値を返す
 
 ```text
 \structure Pair(A: \VType): \VType := { first: A, second: A };
-\cdefinition Pair(A: \VType)::first_again: Pair[A] ~> \F(A) := Pair[A]::first;
-\vdefinition Pair(A: \VType)::get_first: \U(Pair[A] ~> \F(A)) :=
+\definition Pair(A: \VType)::first_again: Pair[A] ~> \F(A) := Pair[A]::first;
+\definition Pair(A: \VType)::get_first: \U(Pair[A] ~> \F(A)) :=
   \thunk (Pair[A]::first);
 ```
 
@@ -136,8 +137,8 @@ Program record の field は非依存・非再帰の値型とする。構築は
 `\record Pair[A] { first := a, second := b }`、field の取得は
 `Pair[A]::first pair` と書く。取得結果は `\F(A)` なので、
 後続の計算で使うには `\bind` で受け取る。
-Program の inductive／structure には `\vdefinition Type(A: \VType)::item`
-と `\cdefinition Type(A: \VType)::item` を定義できる。
+Program の inductive／structure には
+`\definition Type(A: \VType)::item` として型関連 item を定義できる。
 型引数は `Type[A]::item` で指定し、省略や `_` は文脈から推論する。
 
 マクロ内の `(...)` はマクロ列であり、通常式の埋め込みには `{ ... }` を使う。

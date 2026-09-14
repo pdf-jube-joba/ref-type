@@ -94,7 +94,8 @@ refinement 束縛では値の名前は一つ。証明名の利用可否や存在
 
 Program では通常の call-by-value 関数を `A -> B` とも書ける。値型として読む位置では
 `A -> B` を `\U(A ~> \F(B))`、計算型として読む位置では `A ~> \F(B)` に展開する。
-したがって `\vdefinition` の型と関数引数の型は前者、`\cdefinition` の型は後者になる。
+定義の型に裸で書いた `A -> B` は計算型として読む。関数値を定義するときは
+`\U(A -> B)` と明示する。
 `\Box`・`\box`・`\Force` の型指定にある裸の `->` も計算型として読み、関数値を
 指定するときは `\U(A -> B)` と明示する。矢印は右結合する。
 
@@ -103,9 +104,9 @@ Program では通常の call-by-value 関数を `A -> B` とも書ける。値�
 取り違えているためエラーになる。Program の `->` は依存型や refinement 束縛を導入しない。
 
 ```text
-\cdefinition identity(x: A): \F(A) := \return x;
-\vdefinition suspended: \U(A ~> \F(A)) := \thunk identity;
-\cdefinition result: \F(A) :=
+\definition identity(x: A): \F(A) := \return x;
+\definition suspended: \U(A ~> \F(A)) := \thunk identity;
+\definition result: \F(A) :=
   \let x: A := a \in
   \bind y: A <- \force suspended x \in
   \return y;
@@ -116,7 +117,7 @@ Program では通常の call-by-value 関数を `A -> B` とも書ける。値�
 `\return(\thunk(...))` が入る。最後の本体は計算なので、戻り値の `\return` は省略しない。
 
 ```text
-\cdefinition and: Bool -> Bool -> Bool :=
+\definition and: Bool -> Bool -> Bool :=
   \fun (x, y: Bool) =>
     \match x \in Bool \with {
     | false => \return(Bool::false)
@@ -138,9 +139,9 @@ module 引数、定義、型関連項、明示的な thunk に適用される。
 一般的な `bind` を自動挿入せず、`f (g x)` の `g x` が計算なら明示的な `\bind` が必要。
 これ以外の任意の値・計算に対する `return`・`thunk` の自動挿入は行わない。
 
-`\cdefinition f(x: A, y: B): C := body;` は型 `A ~> B ~> C` と本体
+`\definition f(x: A, y: B): C := body;` は型 `A ~> B ~> C` と本体
 `\cfun (x: A) (y: B) => body` に展開する。`f(x, y: A)` や `f(x: A)(y: B)` も使える。
-この省略記法は型関連の計算定義にも使える。`\vdefinition` は関数引数を受け付けない。
+この省略記法は型関連の計算定義にも使える。
 
 `\return` は後続の値式全体を引数とする。`\force`・`\thunk` は一つの atom と
 その関連アクセスを引数とし、複合式は括弧で囲む。
@@ -219,8 +220,9 @@ tagged!{{ f x } "keep"}
 
 ## 宣言とモジュール
 
-`\definition`・`\vdefinition`・`\cdefinition` は名前・型・`:=`・本体・`;` の順。
-論理側の定義と `\cdefinition` には名前の後に括弧付き引数を付けられる。
+`\definition` は名前・型・`:=`・本体・`;` の順で、宣言した型と本体から
+Set/Prop、Program value、Program computation のいずれかを判定する。
+名前の後には括弧付き引数を付けられる。
 `\module Name(parameters) { ... }` は入れ子のモジュール、`\module Name;` は外部ファイル。
 `\import M(argument := value) \as Alias;` でモジュールを実体化する。
 

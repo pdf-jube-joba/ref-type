@@ -129,7 +129,7 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 計算結果は `\bind` で受け取る。複数引数の計算は `make a b` のように直接適用する。
 
 ```text
-\cdefinition transform(p: P.Times[A, B]): \F(C) := \block {
+\definition transform(p: P.Times[A, B]): \F(C) := \block {
   \bind mapped: P.Times[C, D] <- PM.map (\thunk f) (\thunk g) p;
   \bind result: C <- P.Times::first mapped;
   \return result;
