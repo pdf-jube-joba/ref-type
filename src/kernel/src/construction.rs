@@ -1,6 +1,7 @@
 //! Construction of rules whose result family is determined by a sort annotation.
+//! These helpers allocate syntax; use `Checker` to validate its typing premises.
 use super::{ids::*, sort::*, syntax::*};
-pub(crate) fn base_kind(arena: &Arena, sort: BaseSort) -> Result<Expression, String> {
+pub fn base_kind(arena: &Arena, sort: BaseSort) -> Result<Expression, String> {
     let family = Family::at(sort, Stage::Kind);
     Ok(match family {
         Family::SetKind => arena
@@ -29,7 +30,7 @@ pub(crate) fn base_kind(arena: &Arena, sort: BaseSort) -> Result<Expression, Str
         _ => return Err("constructor has no syntax in this family".into()),
     })
 }
-pub(crate) fn bound(
+pub fn bound(
     arena: &Arena,
     sort: BaseSort,
     stage: Stage,
@@ -80,7 +81,7 @@ pub(crate) fn bound(
         _ => return Err("constructor has no syntax in this family".into()),
     })
 }
-pub(crate) fn product(
+pub fn product(
     arena: &Arena,
     rule: ProductRule,
     var: SymbolId,
@@ -228,7 +229,7 @@ pub(crate) fn product(
         _ => return Err("constructor has no syntax in this family".into()),
     })
 }
-pub(crate) fn lambda(
+pub fn lambda(
     arena: &Arena,
     rule: ProductRule,
     var: SymbolId,
@@ -376,7 +377,7 @@ pub(crate) fn lambda(
         _ => return Err("constructor has no syntax in this family".into()),
     })
 }
-pub(crate) fn apply(
+pub fn apply(
     arena: &Arena,
     rule: ProductRule,
     function: Expression,
@@ -511,7 +512,7 @@ pub(crate) fn apply(
         _ => return Err("constructor has no syntax in this family".into()),
     })
 }
-pub(crate) fn inductive_type(
+pub fn inductive_type(
     arena: &Arena,
     sort: BaseSort,
     stage: Stage,
@@ -557,7 +558,7 @@ pub(crate) fn inductive_type(
         _ => return Err("constructor has no syntax in this family".into()),
     })
 }
-pub(crate) fn inductive_constructor(
+pub fn inductive_constructor(
     arena: &Arena,
     sort: BaseSort,
     stage: Stage,

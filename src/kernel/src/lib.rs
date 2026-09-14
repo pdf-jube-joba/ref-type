@@ -5,7 +5,7 @@
 #![doc = include_str!("../README.md")]
 pub mod calculus;
 pub mod check;
-mod construction;
+pub mod construction;
 pub mod environment;
 pub mod ids;
 pub mod printing;

@@ -719,7 +719,11 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
         ExpNode::App { func, arg } => {
             let func_head = whnf(env, func);
             match arena.get(func_head) {
-                ExpNode::Lam { body, .. } => Some(instantiate(arena, body, arg)),
+                ExpNode::Lam { body, .. } => Some(match arena.get(body) {
+                    // The identity body needs neither a walk nor index adjustment.
+                    ExpNode::Bound(0) => arg,
+                    _ => instantiate(arena, body, arg),
+                }),
                 _ if func_head != func => Some(arena.alloc(ExpNode::App {
                     func: func_head,
                     arg,

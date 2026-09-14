@@ -18,6 +18,8 @@ pattern match する。同一構造のノードは intern し、arena と intern
 複数の family に共通する product・application の規則は、名前付きの引数を
 取る補助関数で実装する。`src/construction.rs` は sort によって結果の family が
 決まる構文の構築を担当する。
+`construction` の構築関数は front の lowering からも利用する。構築した構文の
+typing premise は、引き続き `Checker` と定義登録の入口で検査する。
 
 `syntax::Expression` は分類済み handle の直和で、共通の走査・診断に使う。
 未分類の式と metavariable は front 側の `raw` 構文に属する。

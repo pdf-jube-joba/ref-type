@@ -475,52 +475,7 @@ pub fn instantiate_value_type(
     argument: ValueType,
     target: usize,
 ) -> ValueType {
-    fn go(arena: &Arena, ty: ValueType, arg: ValueType, target: usize) -> ValueType {
-        match arena.get(ty) {
-            ValueTypeNode::Bound(index) if index == target => {
-                shift_value_type_indices(arena, arg, target, 0)
-            }
-            ValueTypeNode::Bound(index) if index > target => {
-                arena.reuse_value_type(ty, ValueTypeNode::Bound(index - 1))
-            }
-            ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
-                ty,
-                ValueTypeNode::Thunk {
-                    computation_ty: instantiate_computation_type(
-                        arena,
-                        computation_ty,
-                        arg,
-                        target,
-                    ),
-                },
-            ),
-            ValueTypeNode::RunStep {
-                state_ty,
-                result_ty,
-            } => arena.reuse_value_type(
-                ty,
-                ValueTypeNode::RunStep {
-                    state_ty: go(arena, state_ty, arg, target),
-                    result_ty: go(arena, result_ty, arg, target),
-                },
-            ),
-            ValueTypeNode::Inductive {
-                indspec,
-                parameters,
-            } => arena.reuse_value_type(
-                ty,
-                ValueTypeNode::Inductive {
-                    indspec,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|p| go(arena, p, arg, target))
-                        .collect(),
-                },
-            ),
-            _ => ty,
-        }
-    }
-    go(arena, body, argument, target)
+    super::program_definitions::instantiate_value_type(arena, body, &[argument], target)
 }
 
 pub fn instantiate_computation_type(
@@ -529,22 +484,7 @@ pub fn instantiate_computation_type(
     argument: ValueType,
     target: usize,
 ) -> ComputationType {
-    match arena.get(body) {
-        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
-            body,
-            ComputationTypeNode::Return {
-                value_ty: instantiate_value_type(arena, value_ty, argument, target),
-            },
-        ),
-        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
-            body,
-            ComputationTypeNode::Function {
-                domain: instantiate_value_type(arena, domain, argument, target),
-                codomain: instantiate_computation_type(arena, codomain, argument, target),
-            },
-        ),
-        ComputationTypeNode::Meta { .. } => body,
-    }
+    super::program_definitions::instantiate_computation_type(arena, body, &[argument], target)
 }
 
 pub fn instantiate_type_telescope(

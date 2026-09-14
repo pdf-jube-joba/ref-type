@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 mod declarations;
 mod logical;
+mod nodes;
 mod program;
 
 pub(crate) struct Lowerer<'a> {
@@ -39,24 +40,12 @@ impl<'a> Lowerer<'a> {
     }
 
     fn logical_base_kind(&self, sort: k::BaseSort) -> Result<s::Expression, String> {
-        Ok(match sort {
-            k::BaseSort::Set(level) => self
-                .kernel
-                .arena()
-                .alloc(s::SetKindNode {
-                    level,
-                    form: s::SetKindForm::Base,
-                })
-                .into(),
-            k::BaseSort::Prop => self
-                .kernel
-                .arena()
-                .alloc(s::PropKindNode {
-                    form: s::PropKindForm::Base,
-                })
-                .into(),
-            _ => return Err("expected Set/Prop sort".into()),
-        })
+        match sort {
+            k::BaseSort::Set(_) | k::BaseSort::Prop => {
+                kernel::construction::base_kind(self.kernel.arena(), sort)
+            }
+            _ => Err("expected Set/Prop sort".into()),
+        }
     }
 
     fn infer(&self, e: Exp, ctx: &mut ExpContext, m: ModuleId) -> Result<Exp, String> {

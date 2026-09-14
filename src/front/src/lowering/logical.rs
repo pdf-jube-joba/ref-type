@@ -1,5 +1,7 @@
 //! Classify Set/Prop expressions and attach kernel product rules.
+use super::nodes::logical_node;
 use super::*;
+use kernel::construction as build;
 
 impl Lowerer<'_> {
     // Reflected Program data can contain long constructor applications.
@@ -30,144 +32,18 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        let ty = self.infer(e, ctx, m)?;
-        let head = raw::calculus::whnf(self.raw, ty);
-        let (sort, stage) = if let ExpNode::Sort(raw) = self.raw.arena().get(head) {
-            let sort = Self::sort(raw);
-            (
-                sort.base(),
-                if sort.is_upper() {
-                    s::Stage::Kind
-                } else {
-                    s::Stage::Type
-                },
-            )
-        } else {
-            let sort = self.formation(ty, ctx, m)?;
-            (
-                sort.base(),
-                if sort.is_upper() {
-                    s::Stage::Type
-                } else {
-                    s::Stage::Term
-                },
-            )
-        };
-        let syntax_family = s::Family::at(sort, stage);
-        let result = {
-            let ty = self.infer(func, ctx, m)?;
-            let (_, domain, codomain) = raw::calculus::expose_product(self.raw, ty)
-                .ok_or("application does not have product type")?;
-            let s = self.formation(domain, ctx, m)?;
-            let t = self.under(ctx, SymbolId::ANONYMOUS, domain, |this, ctx| {
-                this.formation(codomain, ctx, m)
-            })?;
-            let rule = k::ProductRule::new(s, t)?;
-            let function = self.set(func, ctx, m)?;
-            let argument = self.set(arg, ctx, m)?;
-            if s.is_upper() {
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::AppType {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::AppType {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::AppType {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::AppType {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
-            } else {
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::AppTerm {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::AppTerm {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::AppTerm {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::AppTerm {
-                                rule,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
-            }
-        };
-        Ok(result)
+        self.infer(e, ctx, m)?;
+        let ty = self.infer(func, ctx, m)?;
+        let (_, domain, codomain) = raw::calculus::expose_product(self.raw, ty)
+            .ok_or("application does not have product type")?;
+        let domain_sort = self.formation(domain, ctx, m)?;
+        let body_sort = self.under(ctx, SymbolId::ANONYMOUS, domain, |this, ctx| {
+            this.formation(codomain, ctx, m)
+        })?;
+        let rule = k::ProductRule::new(domain_sort, body_sort)?;
+        let function = self.set(func, ctx, m)?;
+        let argument = self.set(arg, ctx, m)?;
+        build::apply(self.kernel.arena(), rule, function, argument)
     }
 
     fn set_non_application(
@@ -213,89 +89,10 @@ impl Lowerer<'_> {
         };
         let syntax_family = s::Family::at(sort, stage);
         let result = match node {
-            ExpNode::Bound(index) => match syntax_family {
-                s::Family::SetTerm => self
-                    .kernel
-                    .arena()
-                    .alloc(s::SetTermNode {
-                        level: sort.level().ok_or("expected Set level")?,
-                        form: s::SetTermForm::Bound { index },
-                    })
-                    .into(),
-                s::Family::PropTerm => self
-                    .kernel
-                    .arena()
-                    .alloc(s::PropTermNode {
-                        form: s::PropTermForm::Bound { index },
-                    })
-                    .into(),
-                s::Family::SetType => self
-                    .kernel
-                    .arena()
-                    .alloc(s::SetTypeNode {
-                        level: sort.level().ok_or("expected Set level")?,
-                        form: s::SetTypeForm::Bound { index },
-                    })
-                    .into(),
-                s::Family::PropType => self
-                    .kernel
-                    .arena()
-                    .alloc(s::PropTypeNode {
-                        form: s::PropTypeForm::Bound { index },
-                    })
-                    .into(),
-                _ => return Err("constructor cannot inhabit this syntax family".into()),
-            },
+            ExpNode::Bound(index) => build::bound(self.kernel.arena(), sort, stage, index)?,
             ExpNode::ModuleParam(parameter) => {
                 self.parameter(parameter)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::ModuleParam { parameter },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::ModuleParam { parameter },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::ModuleParam { parameter },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::ModuleParam { parameter },
-                        })
-                        .into(),
-                    s::Family::SetKind => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetKindNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetKindForm::ModuleParam { parameter },
-                        })
-                        .into(),
-                    s::Family::PropKind => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropKindNode {
-                            form: s::PropKindForm::ModuleParam { parameter },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType | SetKind | PropKind => ModuleParam { parameter })
             }
             ExpNode::DefinedConstant(definition) => {
                 self.definition(definition)?;
@@ -316,37 +113,17 @@ impl Lowerer<'_> {
                 let set = self.set(set, ctx, m)?;
                 let predicate =
                     self.under(ctx, var, raw_set, |this, ctx| this.set(predicate, ctx, m))?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::Subset {
-                                var,
-                                set: set.try_into().map_err(|e| format!("{e:?}"))?,
-                                predicate: predicate.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => Subset {
+                    var,
+                    set: set.try_into()?,
+                    predicate: predicate.try_into()?,
+                })
             }
             ExpNode::PowerSet { set } => {
                 let set = self.set(set, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::PowerSet {
-                                set: set.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetType => PowerSet {
+                    set: set.try_into()?,
+                })
             }
             ExpNode::SubsetIntro {
                 superset,
@@ -358,40 +135,20 @@ impl Lowerer<'_> {
                 let subset = self.set(subset, ctx, m)?;
                 let element = self.set(element, ctx, m)?;
                 let proof = self.set(proof, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::SubsetIntro {
-                                superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
-                                subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
-                                element: element.try_into().map_err(|e| format!("{e:?}"))?,
-                                proof: proof.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => SubsetIntro {
+                    superset: superset.try_into()?,
+                    subset: subset.try_into()?,
+                    element: element.try_into()?,
+                    proof: proof.try_into()?,
+                })
             }
             ExpNode::TypeLift { superset, subset } => {
                 let superset = self.set(superset, ctx, m)?;
                 let subset = self.set(subset, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::TypeLift {
-                                superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
-                                subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetType => TypeLift {
+                    superset: superset.try_into()?,
+                    subset: subset.try_into()?,
+                })
             }
             ExpNode::Pred {
                 superset,
@@ -401,52 +158,25 @@ impl Lowerer<'_> {
                 let superset = self.set(superset, ctx, m)?;
                 let subset = self.set(subset, ctx, m)?;
                 let element = self.set(element, ctx, m)?;
-                match syntax_family {
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::Pred {
-                                superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
-                                subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
-                                element: element.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; PropType => Pred {
+                    superset: superset.try_into()?,
+                    subset: subset.try_into()?,
+                    element: element.try_into()?,
+                })
             }
             ExpNode::Equal { left, right } => {
                 let left = self.set(left, ctx, m)?;
                 let right = self.set(right, ctx, m)?;
-                match syntax_family {
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::Equal {
-                                left: left.try_into().map_err(|e| format!("{e:?}"))?,
-                                right: right.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; PropType => Equal {
+                    left: left.try_into()?,
+                    right: right.try_into()?,
+                })
             }
             ExpNode::Exists { set } => {
                 let set = self.set(set, ctx, m)?;
-                match syntax_family {
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::Exists {
-                                set: set.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; PropType => Exists {
+                    set: set.try_into()?,
+                })
             }
             ExpNode::RunStep {
                 state_ty,
@@ -454,20 +184,10 @@ impl Lowerer<'_> {
             } => {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::RunStep {
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetType => RunStep {
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                })
             }
             ExpNode::Continue {
                 state_ty,
@@ -477,21 +197,11 @@ impl Lowerer<'_> {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let next = self.set(next, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::Continue {
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                next: next.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => Continue {
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                    next: next.try_into()?,
+                })
             }
             ExpNode::Finish {
                 state_ty,
@@ -501,21 +211,11 @@ impl Lowerer<'_> {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let output = self.set(output, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::Finish {
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                output: output.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => Finish {
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                    output: output.try_into()?,
+                })
             }
             ExpNode::Acc {
                 state_ty,
@@ -527,21 +227,12 @@ impl Lowerer<'_> {
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let step = self.set(step, ctx, m)?;
                 let state = self.set(state, ctx, m)?;
-                match syntax_family {
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::Acc {
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                step: step.try_into().map_err(|e| format!("{e:?}"))?,
-                                state: state.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; PropType => Acc {
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                    step: step.try_into()?,
+                    state: state.try_into()?,
+                })
             }
             ExpNode::SetRun {
                 state_ty,
@@ -555,25 +246,15 @@ impl Lowerer<'_> {
                 let step = self.set(step, ctx, m)?;
                 let initial = self.set(initial, ctx, m)?;
                 let accessibility = self.set(accessibility, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::SetRun {
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                step: step.try_into().map_err(|e| format!("{e:?}"))?,
-                                initial: initial.try_into().map_err(|e| format!("{e:?}"))?,
-                                accessibility: accessibility
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => SetRun {
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                    step: step.try_into()?,
+                    initial: initial.try_into()?,
+                    accessibility: accessibility
+                        .try_into()
+                        .map_err(|e| format!("{e:?}"))?,
+                })
             }
             ExpNode::SetRunCase {
                 state_ty,
@@ -591,29 +272,19 @@ impl Lowerer<'_> {
                 let transition = self.set(transition, ctx, m)?;
                 let accessibility = self.set(accessibility, ctx, m)?;
                 let transition_equality = self.set(transition_equality, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::SetRunCase {
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                step: step.try_into().map_err(|e| format!("{e:?}"))?,
-                                initial: initial.try_into().map_err(|e| format!("{e:?}"))?,
-                                transition: transition.try_into().map_err(|e| format!("{e:?}"))?,
-                                accessibility: accessibility
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                                transition_equality: transition_equality
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => SetRunCase {
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                    step: step.try_into()?,
+                    initial: initial.try_into()?,
+                    transition: transition.try_into()?,
+                    accessibility: accessibility
+                        .try_into()
+                        .map_err(|e| format!("{e:?}"))?,
+                    transition_equality: transition_equality
+                        .try_into()
+                        .map_err(|e| format!("{e:?}"))?,
+                })
             }
             ExpNode::TakeSet {
                 domain,
@@ -627,23 +298,13 @@ impl Lowerer<'_> {
                 let map = self.set(map, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
                 let uniqueness = self.set(uniqueness, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::TakeSet {
-                                domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                codomain: codomain.try_into().map_err(|e| format!("{e:?}"))?,
-                                map: map.try_into().map_err(|e| format!("{e:?}"))?,
-                                existence: existence.try_into().map_err(|e| format!("{e:?}"))?,
-                                uniqueness: uniqueness.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => TakeSet {
+                    domain: domain.try_into()?,
+                    codomain: codomain.try_into()?,
+                    map: map.try_into()?,
+                    existence: existence.try_into()?,
+                    uniqueness: uniqueness.try_into()?,
+                })
             }
             ExpNode::TakeProp {
                 domain,
@@ -655,37 +316,18 @@ impl Lowerer<'_> {
                 let proposition = self.set(proposition, ctx, m)?;
                 let map = self.set(map, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
-                match syntax_family {
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::TakeProp {
-                                domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                proposition: proposition
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                                map: map.try_into().map_err(|e| format!("{e:?}"))?,
-                                existence: existence.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; PropTerm => TakeProp {
+                    domain: domain.try_into()?,
+                    proposition: proposition
+                        .try_into()
+                        .map_err(|e| format!("{e:?}"))?,
+                    map: map.try_into()?,
+                    existence: existence.try_into()?,
+                })
             }
             ExpNode::BoxType { program_ty } => {
                 let program_ty = self.program_type(program_ty)?;
-                match syntax_family {
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::BoxType { program_ty },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetType => BoxType { program_ty })
             }
             ExpNode::BoxProgram {
                 program_ty,
@@ -693,38 +335,18 @@ impl Lowerer<'_> {
             } => {
                 let program_ty = self.program_type(program_ty)?;
                 let program = self.program_term(program)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::BoxProgram {
-                                program_ty,
-                                program,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => BoxProgram {
+                    program_ty,
+                    program,
+                })
             }
             ExpNode::ForceBox { program_ty, boxed } => {
                 let program_ty = self.program_type(program_ty)?;
                 let boxed = self.set(boxed, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::ForceBox {
-                                program_ty,
-                                boxed: boxed.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => ForceBox {
+                    program_ty,
+                    boxed: boxed.try_into()?,
+                })
             }
             ExpNode::IndType {
                 indspec,
@@ -736,63 +358,16 @@ impl Lowerer<'_> {
                     .into_iter()
                     .map(|x| self.set(x, ctx, m))
                     .collect::<Result<Vec<_>, _>>()?;
-                match syntax_family {
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::IndType {
-                                inductive,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::IndType {
-                                inductive,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    s::Family::SetKind => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetKindNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetKindForm::IndType {
-                                inductive,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropKind => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropKindNode {
-                            form: s::PropKindForm::IndType {
-                                inductive,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                build::inductive_type(
+                    self.kernel.arena(),
+                    sort,
+                    stage,
+                    inductive,
+                    parameters
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                )?
             }
             ExpNode::IndCtor {
                 indspec,
@@ -806,67 +381,17 @@ impl Lowerer<'_> {
                     .into_iter()
                     .map(|x| self.set(x, ctx, m))
                     .collect::<Result<Vec<_>, _>>()?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::IndCtor {
-                                inductive,
-                                constructor,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::IndCtor {
-                                inductive,
-                                constructor,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::IndCtor {
-                                inductive,
-                                constructor,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::IndCtor {
-                                inductive,
-                                constructor,
-                                parameters: parameters
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                build::inductive_constructor(
+                    self.kernel.arena(),
+                    sort,
+                    stage,
+                    inductive,
+                    constructor,
+                    parameters
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                )?
             }
             ExpNode::IndElim {
                 indspec,
@@ -912,67 +437,14 @@ impl Lowerer<'_> {
                     .into_iter()
                     .map(|e| self.set(e, ctx, m)?.try_into())
                     .collect::<Result<_, String>>()?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::IndElim {
+                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType => IndElim {
                                 inductive,
                                 motive_vars,
                                 scrutinee,
                                 motive_domains,
                                 motive_body,
                                 cases,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::IndElim {
-                                inductive,
-                                motive_vars,
-                                scrutinee,
-                                motive_domains,
-                                motive_body,
-                                cases,
-                            },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::IndElim {
-                                inductive,
-                                motive_vars,
-                                scrutinee,
-                                motive_domains,
-                                motive_body,
-                                cases,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::IndElim {
-                                inductive,
-                                motive_vars,
-                                scrutinee,
-                                motive_domains,
-                                motive_body,
-                                cases,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("eliminator cannot return a kind".into()),
-                }
+                            }; "eliminator cannot return a kind")
             }
             ExpNode::RunStepRec {
                 state_ty,
@@ -999,83 +471,18 @@ impl Lowerer<'_> {
                 let on_continue = self.set(on_continue, ctx, m)?;
                 let on_finish = self.set(on_finish, ctx, m)?;
                 let scrutinee = self.set(scrutinee, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::Recursor {
-                                rule,
-                                var,
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                motive: motive.try_into().map_err(|e| format!("{e:?}"))?,
-                                on_continue: on_continue
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                                on_finish: on_finish.try_into().map_err(|e| format!("{e:?}"))?,
-                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTermNode {
-                            form: s::PropTermForm::Recursor {
-                                rule,
-                                var,
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                motive: motive.try_into().map_err(|e| format!("{e:?}"))?,
-                                on_continue: on_continue
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                                on_finish: on_finish.try_into().map_err(|e| format!("{e:?}"))?,
-                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::SetType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTypeNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTypeForm::Recursor {
-                                rule,
-                                var,
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                motive: motive.try_into().map_err(|e| format!("{e:?}"))?,
-                                on_continue: on_continue
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                                on_finish: on_finish.try_into().map_err(|e| format!("{e:?}"))?,
-                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    s::Family::PropType => self
-                        .kernel
-                        .arena()
-                        .alloc(s::PropTypeNode {
-                            form: s::PropTypeForm::Recursor {
-                                rule,
-                                var,
-                                state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                motive: motive.try_into().map_err(|e| format!("{e:?}"))?,
-                                on_continue: on_continue
-                                    .try_into()
-                                    .map_err(|e| format!("{e:?}"))?,
-                                on_finish: on_finish.try_into().map_err(|e| format!("{e:?}"))?,
-                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType => Recursor {
+                    rule,
+                    var,
+                    state_ty: state_ty.try_into()?,
+                    result_ty: result_ty.try_into()?,
+                    motive: motive.try_into()?,
+                    on_continue: on_continue
+                        .try_into()
+                        .map_err(|e| format!("{e:?}"))?,
+                    on_finish: on_finish.try_into()?,
+                    scrutinee: scrutinee.try_into()?,
+                })
             }
             ExpNode::Prod { var, ty, body } | ExpNode::Lam { var, ty, body } => {
                 let domain_sort = self.formation(ty, ctx, m)?;
@@ -1090,254 +497,27 @@ impl Lowerer<'_> {
                 let rule = k::ProductRule::new(domain_sort, body_sort)?;
                 let domain = self.set(ty, ctx, m)?;
                 let body = self.under(ctx, var, ty, |this, ctx| this.set(body, ctx, m))?;
-                match (matches!(node, ExpNode::Prod { .. }), domain_sort.is_upper()) {
-                    (true, false) => match syntax_family {
-                        s::Family::SetType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetTypeNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetTypeForm::ProdTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTypeNode {
-                                form: s::PropTypeForm::ProdTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::SetKind => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetKindNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetKindForm::ProdTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropKind => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropKindNode {
-                                form: s::PropKindForm::ProdTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    },
-                    (true, true) => match syntax_family {
-                        s::Family::SetType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetTypeNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetTypeForm::ProdType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTypeNode {
-                                form: s::PropTypeForm::ProdType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::SetKind => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetKindNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetKindForm::ProdType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropKind => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropKindNode {
-                                form: s::PropKindForm::ProdType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    },
-                    (false, false) => match syntax_family {
-                        s::Family::SetTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetTermNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetTermForm::LambdaTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::LambdaTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::SetType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetTypeNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetTypeForm::LambdaTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTypeNode {
-                                form: s::PropTypeForm::LambdaTerm {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    },
-                    (false, true) => match syntax_family {
-                        s::Family::SetTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetTermNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetTermForm::LambdaType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::LambdaType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::SetType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::SetTypeNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form: s::SetTypeForm::LambdaType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        s::Family::PropType => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTypeNode {
-                                form: s::PropTypeForm::LambdaType {
-                                    rule,
-                                    var,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    body: body.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    },
+                if matches!(node, ExpNode::Prod { .. }) {
+                    build::product(self.kernel.arena(), rule, var, domain, body)?
+                } else {
+                    build::lambda(self.kernel.arena(), rule, var, domain, body)?
                 }
             }
             ExpNode::App { .. } => unreachable!("applications use the small-frame path"),
             ExpNode::Prove(prove) => match prove {
                 Prove::IdRefl { element } => {
                     let element = self.set(element, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::IdRefl {
-                                    element: element.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => IdRefl {
+                        element: element.try_into()?,
+                    })
                 }
                 Prove::ExistsIntro { element, set } => {
                     let element = self.set(element, ctx, m)?;
                     let set = self.set(set, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::ExistsIntro {
-                                    element: element.try_into().map_err(|e| format!("{e:?}"))?,
-                                    set: set.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => ExistsIntro {
+                        element: element.try_into()?,
+                        set: set.try_into()?,
+                    })
                 }
                 Prove::SubsetElim {
                     element,
@@ -1347,20 +527,11 @@ impl Lowerer<'_> {
                     let element = self.set(element, ctx, m)?;
                     let subset = self.set(subset, ctx, m)?;
                     let superset = self.set(superset, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::SubsetElim {
-                                    element: element.try_into().map_err(|e| format!("{e:?}"))?,
-                                    subset: subset.try_into().map_err(|e| format!("{e:?}"))?,
-                                    superset: superset.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => SubsetElim {
+                        element: element.try_into()?,
+                        subset: subset.try_into()?,
+                        superset: superset.try_into()?,
+                    })
                 }
                 Prove::IdElim {
                     var,
@@ -1379,26 +550,17 @@ impl Lowerer<'_> {
                         self.under(ctx, var, raw_ty, |this, ctx| this.set(predicate, ctx, m))?;
                     let base = self.set(base, ctx, m)?;
                     let equality = self.set(equality, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::IdElim {
-                                    var,
-                                    left: left.try_into().map_err(|e| format!("{e:?}"))?,
-                                    right: right.try_into().map_err(|e| format!("{e:?}"))?,
-                                    ty: ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                    predicate: predicate
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                    base: base.try_into().map_err(|e| format!("{e:?}"))?,
-                                    equality: equality.try_into().map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => IdElim {
+                        var,
+                        left: left.try_into()?,
+                        right: right.try_into()?,
+                        ty: ty.try_into()?,
+                        predicate: predicate
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                        base: base.try_into()?,
+                        equality: equality.try_into()?,
+                    })
                 }
                 Prove::TakeEq {
                     func,
@@ -1414,27 +576,18 @@ impl Lowerer<'_> {
                     let element = self.set(element, ctx, m)?;
                     let existence = self.set(existence, ctx, m)?;
                     let uniqueness = self.set(uniqueness, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::TakeEq {
-                                    func: func.try_into().map_err(|e| format!("{e:?}"))?,
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    codomain: codomain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    element: element.try_into().map_err(|e| format!("{e:?}"))?,
-                                    existence: existence
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                    uniqueness: uniqueness
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => TakeEq {
+                        func: func.try_into()?,
+                        domain: domain.try_into()?,
+                        codomain: codomain.try_into()?,
+                        element: element.try_into()?,
+                        existence: existence
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                        uniqueness: uniqueness
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                    })
                 }
                 Prove::Axiom(Axiom::SetExt {
                     left,
@@ -1446,25 +599,16 @@ impl Lowerer<'_> {
                     let right = self.set(right, ctx, m)?;
                     let left_to_right = self.set(left_to_right, ctx, m)?;
                     let right_to_left = self.set(right_to_left, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::SetExt {
-                                    left: left.try_into().map_err(|e| format!("{e:?}"))?,
-                                    right: right.try_into().map_err(|e| format!("{e:?}"))?,
-                                    left_to_right: left_to_right
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                    right_to_left: right_to_left
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => SetExt {
+                        left: left.try_into()?,
+                        right: right.try_into()?,
+                        left_to_right: left_to_right
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                        right_to_left: right_to_left
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                    })
                 }
                 Prove::Axiom(Axiom::FunExt {
                     left,
@@ -1474,22 +618,13 @@ impl Lowerer<'_> {
                     let left = self.set(left, ctx, m)?;
                     let right = self.set(right, ctx, m)?;
                     let pointwise = self.set(pointwise, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::FunExt {
-                                    left: left.try_into().map_err(|e| format!("{e:?}"))?,
-                                    right: right.try_into().map_err(|e| format!("{e:?}"))?,
-                                    pointwise: pointwise
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => FunExt {
+                        left: left.try_into()?,
+                        right: right.try_into()?,
+                        pointwise: pointwise
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                    })
                 }
                 Prove::Axiom(Axiom::ClassicalIndefiniteChoice {
                     domain,
@@ -1499,22 +634,13 @@ impl Lowerer<'_> {
                     let domain = self.set(domain, ctx, m)?;
                     let family = self.set(family, ctx, m)?;
                     let inhabited = self.set(inhabited, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::ClassicalIndefiniteChoice {
-                                    domain: domain.try_into().map_err(|e| format!("{e:?}"))?,
-                                    family: family.try_into().map_err(|e| format!("{e:?}"))?,
-                                    inhabited: inhabited
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => ClassicalIndefiniteChoice {
+                        domain: domain.try_into()?,
+                        family: family.try_into()?,
+                        inhabited: inhabited
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                    })
                 }
                 Prove::AccIntro {
                     state_ty,
@@ -1528,26 +654,17 @@ impl Lowerer<'_> {
                     let step = self.set(step, ctx, m)?;
                     let state = self.set(state, ctx, m)?;
                     let predecessors = self.set(predecessors, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::AccIntro {
-                                    state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                    result_ty: result_ty
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                    step: step.try_into().map_err(|e| format!("{e:?}"))?,
-                                    state: state.try_into().map_err(|e| format!("{e:?}"))?,
-                                    predecessors: predecessors
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => AccIntro {
+                        state_ty: state_ty.try_into()?,
+                        result_ty: result_ty
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                        step: step.try_into()?,
+                        state: state.try_into()?,
+                        predecessors: predecessors
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                    })
                 }
                 Prove::AccDescent {
                     state_ty,
@@ -1565,30 +682,21 @@ impl Lowerer<'_> {
                     let to = self.set(to, ctx, m)?;
                     let accessibility = self.set(accessibility, ctx, m)?;
                     let transition = self.set(transition, ctx, m)?;
-                    match syntax_family {
-                        s::Family::PropTerm => self
-                            .kernel
-                            .arena()
-                            .alloc(s::PropTermNode {
-                                form: s::PropTermForm::AccDescent {
-                                    state_ty: state_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                    result_ty: result_ty
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                    step: step.try_into().map_err(|e| format!("{e:?}"))?,
-                                    from: from.try_into().map_err(|e| format!("{e:?}"))?,
-                                    to: to.try_into().map_err(|e| format!("{e:?}"))?,
-                                    accessibility: accessibility
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                    transition: transition
-                                        .try_into()
-                                        .map_err(|e| format!("{e:?}"))?,
-                                },
-                            })
-                            .into(),
-                        _ => return Err("constructor cannot inhabit this syntax family".into()),
-                    }
+                    logical_node!(self, sort, syntax_family; PropTerm => AccDescent {
+                        state_ty: state_ty.try_into()?,
+                        result_ty: result_ty
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                        step: step.try_into()?,
+                        from: from.try_into()?,
+                        to: to.try_into()?,
+                        accessibility: accessibility
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                        transition: transition
+                            .try_into()
+                            .map_err(|e| format!("{e:?}"))?,
+                    })
                 }
             },
             ExpNode::BoxApp { function, argument } => {
@@ -1613,23 +721,13 @@ impl Lowerer<'_> {
                 )?;
                 let function = self.set(function, ctx, m)?;
                 let argument = self.set(argument, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::BoxApp {
-                                rule,
-                                domain,
-                                codomain,
-                                function: function.try_into().map_err(|e| format!("{e:?}"))?,
-                                argument: argument.try_into().map_err(|e| format!("{e:?}"))?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => BoxApp {
+                    rule,
+                    domain,
+                    codomain,
+                    function: function.try_into()?,
+                    argument: argument.try_into()?,
+                })
             }
             ExpNode::ReflectedProgramCase {
                 indspec,
@@ -1671,26 +769,16 @@ impl Lowerer<'_> {
                 }
                 let branches = bodies;
                 let scrutinee = self.set(scrutinee, ctx, m)?;
-                match syntax_family {
-                    s::Family::SetTerm => self
-                        .kernel
-                        .arena()
-                        .alloc(s::SetTermNode {
-                            level: sort.level().ok_or("expected Set level")?,
-                            form: s::SetTermForm::SetCase {
-                                inductive,
-                                binders,
-                                result_ty: result_ty.try_into().map_err(|e| format!("{e:?}"))?,
-                                scrutinee: scrutinee.try_into().map_err(|e| format!("{e:?}"))?,
-                                branches: branches
-                                    .into_iter()
-                                    .map(TryInto::try_into)
-                                    .collect::<Result<_, _>>()?,
-                            },
-                        })
-                        .into(),
-                    _ => return Err("constructor cannot inhabit this syntax family".into()),
-                }
+                logical_node!(self, sort, syntax_family; SetTerm => SetCase {
+                    inductive,
+                    binders,
+                    result_ty: result_ty.try_into()?,
+                    scrutinee: scrutinee.try_into()?,
+                    branches: branches
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                })
             }
             ExpNode::ReflectedProgramParam(parameter) => {
                 self.parameter(parameter)?;

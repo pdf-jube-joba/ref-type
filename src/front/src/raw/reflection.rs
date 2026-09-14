@@ -37,28 +37,18 @@ pub fn reflect_program_type(env: &CrateEnv, ty: ProgramType) -> Result<Exp, Refl
 }
 
 pub fn reflect_value_type(env: &CrateEnv, ty: ValueType) -> Result<Exp, ReflectionError> {
-    reflect_value_type_inner(env, ty, &mut HashSet::new())
-}
-
-fn reflect_value_type_inner(
-    env: &CrateEnv,
-    ty: ValueType,
-    visiting: &mut HashSet<DefId>,
-) -> Result<Exp, ReflectionError> {
     let arena = env.arena();
     Ok(match arena.get(ty) {
         ValueTypeNode::Bound(index) => arena.exp_bound(index),
         ValueTypeNode::ModuleParam(id) => arena.alloc(ExpNode::ReflectedProgramParam(id)),
         ValueTypeNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
-        ValueTypeNode::Thunk { computation_ty } => {
-            reflect_computation_type_inner(env, computation_ty, visiting)?
-        }
+        ValueTypeNode::Thunk { computation_ty } => reflect_computation_type(env, computation_ty)?,
         ValueTypeNode::RunStep {
             state_ty,
             result_ty,
         } => arena.alloc(ExpNode::RunStep {
-            state_ty: reflect_value_type_inner(env, state_ty, visiting)?,
-            result_ty: reflect_value_type_inner(env, result_ty, visiting)?,
+            state_ty: reflect_value_type(env, state_ty)?,
+            result_ty: reflect_value_type(env, result_ty)?,
         }),
         ValueTypeNode::Inductive {
             indspec,
@@ -69,7 +59,7 @@ fn reflect_value_type_inner(
                 indspec: reflected,
                 parameters: parameters
                     .into_iter()
-                    .map(|p| reflect_value_type_inner(env, p, visiting))
+                    .map(|p| reflect_value_type(env, p))
                     .collect::<Result<_, _>>()?,
             })
         }
@@ -80,23 +70,13 @@ pub fn reflect_computation_type(
     env: &CrateEnv,
     ty: ComputationType,
 ) -> Result<Exp, ReflectionError> {
-    reflect_computation_type_inner(env, ty, &mut HashSet::new())
-}
-
-fn reflect_computation_type_inner(
-    env: &CrateEnv,
-    ty: ComputationType,
-    visiting: &mut HashSet<DefId>,
-) -> Result<Exp, ReflectionError> {
     let arena = env.arena();
     Ok(match arena.get(ty) {
         ComputationTypeNode::Meta { .. } => return Err(ReflectionError::UnresolvedMetavariable),
-        ComputationTypeNode::Return { value_ty } => {
-            reflect_value_type_inner(env, value_ty, visiting)?
-        }
+        ComputationTypeNode::Return { value_ty } => reflect_value_type(env, value_ty)?,
         ComputationTypeNode::Function { domain, codomain } => {
-            let domain = reflect_value_type_inner(env, domain, visiting)?;
-            let codomain = reflect_computation_type_inner(env, codomain, visiting)?;
+            let domain = reflect_value_type(env, domain)?;
+            let codomain = reflect_computation_type(env, codomain)?;
             arena.alloc(ExpNode::Prod {
                 var: crate::raw::ids::SymbolId::ANONYMOUS,
                 ty: domain,
