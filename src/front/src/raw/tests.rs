@@ -229,6 +229,78 @@ fn beta_reduction_remains_set_only() {
 }
 
 #[test]
+fn repeated_weak_head_reduction_reuses_the_result() {
+    use crate::raw::calculus::whnf;
+
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let ty = arena.sort(Sort::Set(0));
+    // (lambda x. lambda y. x) a must substitute under y before it can
+    // return a lambda. Repeating it should not allocate another copy.
+    let inner = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty,
+        body: arena.exp_bound(1),
+    });
+    let function = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty,
+        body: inner,
+    });
+    let application = arena.alloc(ExpNode::App {
+        func: function,
+        arg: arena.exp_bound(2),
+    });
+    let reduced = whnf(&env, application);
+    let ExpNode::Lam { body, .. } = arena.get(reduced) else {
+        panic!("lambda")
+    };
+    assert_eq!(arena.get(body), ExpNode::Bound(3));
+    let before = arena.exp_bound(99).index();
+    assert_eq!(whnf(&env, application), reduced);
+    assert_eq!(arena.exp_bound(99).index(), before + 1);
+
+    // Reusing the function with a different argument must still substitute it.
+    let other = arena.alloc(ExpNode::App {
+        func: function,
+        arg: arena.exp_bound(4),
+    });
+    let ExpNode::Lam { body, .. } = arena.get(whnf(&env, other)) else {
+        panic!("lambda")
+    };
+    assert_eq!(arena.get(body), ExpNode::Bound(5));
+}
+
+#[test]
+fn weak_head_cache_keeps_erasure_separate_from_strict_reduction() {
+    use crate::raw::calculus::{convertible, erased_convertible, whnf};
+    use crate::raw::exp::Prove;
+
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let element = arena.exp_bound(0);
+    let refined = |proof| {
+        arena.alloc(ExpNode::SubsetIntro {
+            superset: set,
+            subset: set,
+            element,
+            proof,
+        })
+    };
+    let left = refined(arena.alloc(ExpNode::Prove(Prove::IdRefl { element })));
+    let right = refined(arena.exp_bound(1));
+
+    assert!(erased_convertible(&env, left, right));
+    assert!(erased_convertible(&env, left, element));
+    assert_eq!(whnf(&env, left), left);
+    assert_eq!(whnf(&env, right), right);
+    assert!(!convertible(&env, left, right));
+    assert!(!convertible(&env, left, element));
+    assert!(erased_convertible(&env, left, right));
+}
+
+#[test]
 fn substitution_preserves_free_variables_under_binders() {
     use crate::raw::calculus::shift_bound_indices;
 

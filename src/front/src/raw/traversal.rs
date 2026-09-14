@@ -19,8 +19,7 @@ pub(crate) fn logical(
     if let Some(Term::Logical(result)) = rewrite(Term::Logical(e), depth) {
         return result;
     }
-    let node = arena.get(e);
-    let result = match node.clone() {
+    let result = match arena.get(e) {
         ExpNode::Prod { var, ty, body } => ExpNode::Prod {
             var,
             ty: logical(arena, ty, depth, rewrite),
@@ -88,11 +87,7 @@ pub(crate) fn logical(
         },
         other => super::calculus::map_children(other, |e| logical(arena, e, depth, rewrite)),
     };
-    if node == result {
-        e
-    } else {
-        arena.alloc(result)
-    }
+    arena.reuse_exp(e, result)
 }
 
 fn program_argument(
@@ -412,6 +407,24 @@ fn program_term(
 }
 
 impl Term {
+    pub(crate) fn bound_index(self, arena: &Arena) -> Option<usize> {
+        match self {
+            Term::Logical(e) => match *arena.borrow_exp(e) {
+                ExpNode::Bound(index) => Some(index),
+                _ => None,
+            },
+            Term::ValueType(t) => match *arena.borrow_value_type(t) {
+                ValueTypeNode::Bound(index) => Some(index),
+                _ => None,
+            },
+            Term::Value(v) => match *arena.borrow_value(v) {
+                ValueTermNode::Bound(index) => Some(index),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     pub(crate) fn walk(
         self,
         arena: &Arena,
@@ -432,26 +445,17 @@ impl Term {
         if amount == 0 {
             return self;
         }
-        self.walk(arena, 0, &mut |term, depth| match term {
-            Term::Logical(e) => match arena.get(e) {
-                ExpNode::Bound(i) if i >= cutoff + depth => {
-                    Some(Term::Logical(arena.exp_bound(i + amount)))
-                }
-                _ => None,
-            },
-            Term::ValueType(t) => match arena.get(t) {
-                ValueTypeNode::Bound(i) if i >= cutoff + depth => {
-                    Some(Term::ValueType(arena.value_type_bound(i + amount)))
-                }
-                _ => None,
-            },
-            Term::Value(v) => match arena.get(v) {
-                ValueTermNode::Bound(i) if i >= cutoff + depth => {
-                    Some(Term::Value(arena.value_bound(i + amount)))
-                }
-                _ => None,
-            },
-            _ => None,
+        self.walk(arena, 0, &mut |term, depth| {
+            let index = term.bound_index(arena)?;
+            if index < cutoff + depth {
+                return Some(term);
+            }
+            Some(match term {
+                Term::Logical(_) => Term::Logical(arena.exp_bound(index + amount)),
+                Term::ValueType(_) => Term::ValueType(arena.value_type_bound(index + amount)),
+                Term::Value(_) => Term::Value(arena.value_bound(index + amount)),
+                _ => unreachable!(),
+            })
         })
     }
     pub(crate) fn substitute(

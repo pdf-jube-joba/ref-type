@@ -243,6 +243,9 @@ pub struct CrateEnv {
     definition_parameters: HashMap<DefId, Vec<SymbolId>>,
     arena: Arena,
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
+    // Raw nodes and registered declarations are immutable. Weak-head reduction
+    // depends only on those, not on the elaborator's context or meta assignments.
+    pub(crate) whnf_cache: RefCell<HashMap<Exp, Exp>>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
@@ -280,6 +283,7 @@ impl CrateEnv {
             definition_parameters: HashMap::new(),
             arena: Arena::new(),
             inference_cache: Default::default(),
+            whnf_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],

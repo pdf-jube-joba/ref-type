@@ -327,7 +327,23 @@ impl Arena {
         handle.get(self)
     }
 
+    pub(crate) fn reuse_exp(&self, original: Exp, node: ExpNode) -> Exp {
+        if self.exps.borrow()[original.index()] == node {
+            original
+        } else {
+            self.alloc(node)
+        }
+    }
+
     // Drop the guard before allocating in the same arena partition.
+    pub(crate) fn borrow_exp(&self, exp: Exp) -> Ref<'_, ExpNode> {
+        Ref::map(self.exps.borrow(), |nodes| &nodes[exp.index()])
+    }
+
+    pub(crate) fn borrow_value_type(&self, ty: ValueType) -> Ref<'_, ValueTypeNode> {
+        Ref::map(self.value_types.borrow(), |nodes| &nodes[ty.index()])
+    }
+
     pub(crate) fn borrow_value(&self, value: ValueTerm) -> Ref<'_, ValueTermNode> {
         Ref::map(self.values.borrow(), |nodes| &nodes[value.index()])
     }

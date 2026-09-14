@@ -23,6 +23,9 @@ front は未分類の構文を解析・elaboration し、kernel に渡す分類�
   単一の型引数を代入する入口もこの実装を使う。定義代入は評価時にも呼ばれるため、
   性能比較で遅くなった汎用走査への置き換えは採用せず、専用処理を保つ。
 - `raw/calculus.rs` と `raw/program_calculus.rs` は ID 置換、比較、簡約・評価を提供する。
+- 論理側の弱頭簡約は `CrateEnv` 内で結果を再利用する。raw ノードと登録済み宣言は
+  不変で、この簡約は局所文脈や metavariable の解決状態に依存しない。
+  refinement の消去はキャッシュした通常の簡約の後に行い、厳密な比較と区別する。
 - `raw/reflection.rs` は Program を論理構文へ反映する。型の反映は定義を展開しないため
   巡回検出の状態を持たず、定義を辿る値・計算の反映でのみ巡回を検出する。
 
@@ -44,4 +47,12 @@ front は未分類の構文を解析・elaboration し、kernel に渡す分類�
 ```sh
 cargo test --workspace --locked --offline
 cargo clippy --workspace --all-targets --locked --offline -- -D warnings
+```
+
+ライブラリ全体の処理時間と最大メモリ使用量は release ビルドで比較する。
+ビルド時間を除き、他のビルドやテストが動いていない状態で複数回測る。
+
+```sh
+cargo build --release --locked --offline
+env -u RUST_LOG /usr/bin/time -f 'elapsed=%e user=%U sys=%S maxrss_kb=%M' target/release/cli lib/root.ref
 ```

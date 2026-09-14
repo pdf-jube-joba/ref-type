@@ -246,11 +246,11 @@ fn map_computational_children(node: ExpNode, mut map: impl FnMut(Exp) -> Exp) ->
 
 fn transform<F>(arena: &Arena, exp: Exp, depth: usize, operation: &mut F) -> Exp
 where
-    F: FnMut(&ExpNode, usize) -> Option<Exp>,
+    F: FnMut(Exp, usize) -> Option<Exp>,
 {
     use super::traversal::{self, Term};
     traversal::logical(arena, exp, depth, &mut |term, depth| match term {
-        Term::Logical(e) => operation(&arena.get(e), depth).map(Term::Logical),
+        Term::Logical(e) => operation(e, depth).map(Term::Logical),
         _ => None,
     })
 }
@@ -374,32 +374,42 @@ fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: u
     if arguments.is_empty() {
         return exp;
     }
-    transform(arena, exp, 0, &mut |node, depth| match node {
-        ExpNode::Bound(index) if *index >= depth + inner => {
-            let telescope_index = *index - depth - inner;
-            if telescope_index < arguments.len() {
-                Some(shift_bound_indices(
-                    arena,
-                    arguments[arguments.len() - 1 - telescope_index],
-                    depth + inner,
-                    0,
-                ))
-            } else {
-                Some(arena.exp_bound(index - arguments.len()))
-            }
+    use super::traversal::{self, Term};
+    traversal::logical(arena, exp, 0, &mut |term, depth| {
+        let Term::Logical(_) = term else {
+            return None;
+        };
+        let index = term.bound_index(arena)?;
+        if index < depth + inner {
+            return Some(term);
         }
-        _ => None,
+        let telescope_index = index - depth - inner;
+        Some(Term::Logical(if telescope_index < arguments.len() {
+            shift_bound_indices(
+                arena,
+                arguments[arguments.len() - 1 - telescope_index],
+                depth + inner,
+                0,
+            )
+        } else {
+            arena.exp_bound(index - arguments.len())
+        }))
     })
 }
 
 pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp {
-    transform(arena, exp, 0, &mut |node, depth| match node {
-        ExpNode::Bound(index) if *index >= depth => mapping
-            .get(*index - depth)
-            .filter(|mapped| **mapped != *index - depth)
-            .map(|mapped| arena.exp_bound(depth + *mapped)),
-        _ => None,
-    })
+    transform(
+        arena,
+        exp,
+        0,
+        &mut |e, depth| match super::traversal::Term::Logical(e).bound_index(arena) {
+            Some(index) if index >= depth => mapping
+                .get(index - depth)
+                .filter(|mapped| **mapped != index - depth)
+                .map(|mapped| arena.exp_bound(depth + *mapped)),
+            _ => None,
+        },
+    )
 }
 
 pub fn remove_unused_ambient_binders(arena: &Arena, exp: Exp, count: usize) -> Option<Exp> {
@@ -407,14 +417,19 @@ pub fn remove_unused_ambient_binders(arena: &Arena, exp: Exp, count: usize) -> O
         return Some(exp);
     }
     let mut depends = false;
-    let result = transform(arena, exp, 0, &mut |node, depth| match node {
-        ExpNode::Bound(index) if *index >= depth && *index < depth + count => {
-            depends = true;
-            None
-        }
-        ExpNode::Bound(index) if *index >= depth + count => Some(arena.exp_bound(index - count)),
-        _ => None,
-    });
+    let result = transform(
+        arena,
+        exp,
+        0,
+        &mut |e, depth| match super::traversal::Term::Logical(e).bound_index(arena) {
+            Some(index) if index >= depth && index < depth + count => {
+                depends = true;
+                None
+            }
+            Some(index) if index >= depth + count => Some(arena.exp_bound(index - count)),
+            _ => None,
+        },
+    );
     (!depends).then_some(result)
 }
 
@@ -424,11 +439,10 @@ pub fn exp_subst_module_param(
     parameter: ModuleParamId,
     replacement: Exp,
 ) -> Exp {
-    transform(arena, exp, 0, &mut |node, depth| match node {
-        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) if *id == parameter => {
-            Some(shift_bound_indices(arena, replacement, depth, 0))
-        }
-        _ => None,
+    transform(arena, exp, 0, &mut |e, depth| {
+        let matches = matches!(*arena.borrow_exp(e),
+            ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) if id == parameter);
+        matches.then(|| shift_bound_indices(arena, replacement, depth, 0))
     })
 }
 
@@ -623,17 +637,12 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
 
 fn whnf_with_erasure(env: &CrateEnv, mut exp: Exp, erase_subset_intro: bool) -> Exp {
     loop {
+        exp = whnf(env, exp);
         if erase_subset_intro && let ExpNode::SubsetIntro { element, .. } = env.arena().get(exp) {
             exp = element;
             continue;
         }
-        let Some(next) = exp_reduce_if_top(env, exp) else {
-            return exp;
-        };
-        if next == exp {
-            return exp;
-        }
-        exp = next;
+        return exp;
     }
 }
 
@@ -922,6 +931,10 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 }
 
 pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
+    if let Some(result) = env.whnf_cache.borrow().get(&exp) {
+        return *result;
+    }
+    let original = exp;
     while let Some(next) = exp_reduce_if_top(env, exp) {
         tracing::trace!(target: "ref_type::reduction", before = %crate::raw::printing::format_exp(env, exp), after = %crate::raw::printing::format_exp(env, next), "weak-head reduction step");
         if next == exp {
@@ -929,6 +942,7 @@ pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
         }
         exp = next;
     }
+    env.whnf_cache.borrow_mut().insert(original, exp);
     exp
 }
 
