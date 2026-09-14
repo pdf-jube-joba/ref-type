@@ -141,8 +141,8 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 `tests.ref` の `PairExamples` は全操作の反映と Set の仕様の一致を証明し、
 Bool と Nat を使った直接の Program 呼び出しも検査する。
 
-`NatPair`、Int の `Difference`、Rat の `Integer` はすべてこの対型の alias であり、
-用途ごとに別の対データ型を宣言しない。
+`NatPair` と Int の `Difference` はこの対型の alias である。Rat の `Integer` は
+Int の正規形キャリアを使い、形式差との往復は `Int.Math` が担う。
 
 `Finset(A := A)` は `Power(A)` 上の `singleton` と `pair`、および各要素の所属証明を提供する。
 一般の有限性述語や濃度はまだ扱わない。
@@ -206,7 +206,8 @@ Int が公開する `Nat` / `Bool` alias と `natZero!{}`、`natSucc!{n}`、
 
 ## 有理数
 
-Rat の分子 `Integer` は自然数対による形式差である。`IntegerEq` は同値関係であり、
+Rat の分子 `Integer` は Int の `ofNat` / `negSucc` 正規形である。`IntegerEq` は
+正規形を `Int.Math` の形式差へ写して得る同値関係であり、
 `addIntegerRespects`、`negIntegerRespects`、`subIntegerRespects`、
 `mulIntegerRespects` が各演算の代表元独立性を与える。
 
@@ -214,7 +215,7 @@ Rat の分子 `Integer` は自然数対による形式差である。`IntegerEq`
 零分母は構文的に作れない。`FractionEq` は交差積による同値関係である。
 推移律 `fractionEqTrans` では `Nat.mulCancelRightSucc` を使い、中央の正の分母を消去する。
 
-`Rat` は形式整数、`Rat.Fractions` は正分母の分数代表、
+`Rat` は Int による整数演算、`Rat.Fractions` は正分母の分数代表、
 `Rat.Fractions.Operations` は分数演算、
 `Rat.Fractions.Operations.Quotient` は商構成を担当する。
 

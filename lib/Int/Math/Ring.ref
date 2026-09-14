@@ -1,0 +1,678 @@
+/* Ring laws for formal differences.  Rat uses these laws while its public
+ * numerator carrier is the canonical Int type. */
+\definition Integer: \Set := Difference;
+\definition positive: Integer -> Nat := pos;
+\definition negative: Integer -> Nat := negPart;
+\definition integer: Nat -> Nat -> Integer := pair;
+\definition zeroInteger: Integer := pair natZeroSet natZeroSet;
+\definition oneInteger: Integer := pair (natSuccSet natZeroSet) natZeroSet;
+\definition negInteger: Integer -> Integer := negRep;
+\definition addInteger: Integer -> Integer -> Integer := addRep;
+\definition mulInteger: Integer -> Integer -> Integer := mulRep;
+\definition subInteger: Integer -> Integer -> Integer := subRep;
+\definition IntegerEq: Integer -> Integer -> \Prop := Equivalent;
+
+\definition integerEqRefl:
+  \forall (x: Integer) -> IntegerEq x x :=
+  \fun (x: Integer) =>
+    \refl(natAddSet (positive x) (negative x));
+
+\definition integerEqSym:
+  \forall (x, y: Integer) -> IntegerEq x y -> IntegerEq y x :=
+  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+    sym!{Nat}
+      (natAddSet (positive x) (negative y))
+      (natAddSet (positive y) (negative x))
+      xy;
+
+/* Rearranging four summands is the normalization step used by transitivity. */
+\definition integerAddShuffle: \forall (a, b, c, d: Nat) ->
+  natAddSet (natAddSet a b) (natAddSet c d) =
+    natAddSet (natAddSet a d) (natAddSet c b) :=
+  \fun (a, b, c, d: Nat) =>
+    trans!{Nat} _ _ _ (natAddInterchange a b c d)
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat} (natAddSet (natAddSet a c)) _ _ (natAddComm b d))
+        (sym!{Nat} _ _ (natAddInterchange a d c b)));
+
+\definition integerEqTrans:
+  \forall (x, y, z: Integer) ->
+    IntegerEq x y -> IntegerEq y z -> IntegerEq x z :=
+  \fun (x, y, z: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (yz: IntegerEq y z) =>
+    natAddCancelRight
+      (natAddSet (positive y) (negative y))
+      (natAddSet (positive x) (negative z))
+      (natAddSet (positive z) (negative x))
+      (trans!{Nat} _ _ _
+        (integerAddShuffle
+          (positive x) (negative z) (positive y) (negative y))
+        (trans!{Nat} _ _ _
+          (congr2!{Nat Nat Nat} natAddSet
+            (natAddSet (positive x) (negative y))
+            (natAddSet (positive y) (negative x))
+            (natAddSet (positive y) (negative z))
+            (natAddSet (positive z) (negative y))
+            xy yz)
+          (trans!{Nat} _ _ _
+            (natAddInterchange
+              (positive y) (negative x) (positive z) (negative y))
+            (trans!{Nat} _ _ _
+              (congr!{Nat Nat}
+                (\fun (n: Nat) =>
+                  natAddSet n (natAddSet (negative x) (negative y)))
+                _ _ (natAddComm (positive y) (positive z)))
+              (sym!{Nat} _ _
+                (natAddInterchange
+                  (positive z) (negative x)
+                  (positive y) (negative y)))))));
+
+\definition integerEqOfFields:
+  \forall (x, y: Integer) ->
+    positive x = positive y -> negative x = negative y -> IntegerEq x y :=
+  \fun (x, y: Integer) =>
+  \fun (p: positive x = positive y) =>
+  \fun (n: negative x = negative y) =>
+    congr2!{Nat Nat Nat} natAddSet
+      _ _ _ _ p (sym!{Nat} _ _ n);
+
+\definition addIntegerRespects:
+  \forall (x, y, u, v: Integer) ->
+    IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (addInteger x u) (addInteger y v) :=
+  \fun (x, y, u, v: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (uv: IntegerEq u v) =>
+    trans!{Nat} _ _ _
+      (natAddInterchange
+        (positive x) (positive u) (negative y) (negative v))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet
+          (natAddSet (positive x) (negative y))
+          (natAddSet (positive y) (negative x))
+          (natAddSet (positive u) (negative v))
+          (natAddSet (positive v) (negative u))
+          xy uv)
+        (sym!{Nat} _ _
+          (natAddInterchange
+            (positive y) (positive v) (negative x) (negative u))));
+
+\definition negIntegerRespects:
+  \forall (x, y: Integer) ->
+    IntegerEq x y -> IntegerEq (negInteger x) (negInteger y) :=
+  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+    trans!{Nat} _ _ _ (natAddComm (negative x) (positive y))
+      (trans!{Nat}
+        (natAddSet (positive y) (negative x))
+        (natAddSet (positive x) (negative y))
+        (natAddSet (negative y) (positive x))
+        (sym!{Nat}
+          (natAddSet (positive x) (negative y))
+          (natAddSet (positive y) (negative x)) xy)
+        (natAddComm (positive x) (negative y)));
+
+\definition subIntegerRespects:
+  \forall (x, y, u, v: Integer) ->
+    IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (subInteger x u) (subInteger y v) :=
+  \fun (x, y, u, v: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (uv: IntegerEq u v) =>
+    addIntegerRespects x y (negInteger u) (negInteger v)
+      xy (negIntegerRespects u v uv);
+
+\definition scaleInteger: Integer -> Nat -> Integer :=
+  \fun (x: Integer) => \fun (n: Nat) =>
+    integer (natMulSet (positive x) n) (natMulSet (negative x) n);
+
+\definition scaleIntegerRespects:
+  \forall (x, y: Integer) -> \forall (n: Nat) ->
+    IntegerEq x y -> IntegerEq (scaleInteger x n) (scaleInteger y n) :=
+  \fun (x, y: Integer) => \fun (n: Nat) => \fun (xy: IntegerEq x y) =>
+    trans!{Nat}
+      (natAddSet (natMulSet (positive x) n) (natMulSet (negative y) n))
+      (natMulSet (natAddSet (positive x) (negative y)) n)
+      (natAddSet (natMulSet (positive y) n) (natMulSet (negative x) n))
+      (sym!{Nat}
+        (natMulSet (natAddSet (positive x) (negative y)) n)
+        (natAddSet (natMulSet (positive x) n) (natMulSet (negative y) n))
+        (natMulDistribRight (positive x) (negative y) n))
+      (trans!{Nat}
+        (natMulSet (natAddSet (positive x) (negative y)) n)
+        (natMulSet (natAddSet (positive y) (negative x)) n)
+        (natAddSet (natMulSet (positive y) n) (natMulSet (negative x) n))
+        (congr!{Nat Nat} (\fun (a: Nat) => natMulSet a n)
+          (natAddSet (positive x) (negative y))
+          (natAddSet (positive y) (negative x)) xy)
+        (natMulDistribRight (positive y) (negative x) n));
+
+\definition scaleIntegerZero:
+  \forall (n: Nat) ->
+    IntegerEq (scaleInteger zeroInteger n) zeroInteger :=
+  \fun (n: Nat) =>
+    integerEqOfFields (scaleInteger zeroInteger n) zeroInteger
+      (natMulZeroLeft n)
+      (natMulZeroLeft n);
+
+\definition scaleIntegerMul:
+  \forall (x, y: Integer) -> \forall (n: Nat) ->
+    IntegerEq
+      (scaleInteger (mulInteger x y) n)
+      (mulInteger x (scaleInteger y n)) :=
+  \fun (x, y: Integer) => \fun (n: Nat) =>
+    integerEqOfFields
+      (scaleInteger (mulInteger x y) n)
+      (mulInteger x (scaleInteger y n))
+      (trans!{Nat} _ _ _
+        (natMulDistribRight
+          (natMulSet (positive x) (positive y))
+          (natMulSet (negative x) (negative y))
+          n)
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulAssoc (positive x) (positive y) n)
+          (natMulAssoc (negative x) (negative y) n)))
+      (trans!{Nat} _ _ _
+        (natMulDistribRight
+          (natMulSet (positive x) (negative y))
+          (natMulSet (negative x) (positive y))
+          n)
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulAssoc (positive x) (negative y) n)
+          (natMulAssoc (negative x) (positive y) n)));
+
+\definition natMulSwapRight: \forall (x, a, b: Nat) ->
+  natMulSet (natMulSet x a) b = natMulSet (natMulSet x b) a :=
+  \fun (x, a, b: Nat) =>
+    trans!{Nat} _ _ _ (natMulAssoc x a b)
+      (trans!{Nat} _ _ _
+        (congr!{Nat Nat} (natMulSet x) _ _ (natMulComm a b))
+        (sym!{Nat} _ _ (natMulAssoc x b a)));
+
+\definition scaleIntegerSwap:
+  \forall (x: Integer) -> \forall (a, b: Nat) ->
+    IntegerEq (scaleInteger (scaleInteger x a) b)
+      (scaleInteger (scaleInteger x b) a) :=
+  \fun (x: Integer) => \fun (a, b: Nat) =>
+    integerEqOfFields
+      (scaleInteger (scaleInteger x a) b)
+      (scaleInteger (scaleInteger x b) a)
+      (natMulSwapRight (positive x) a b)
+      (natMulSwapRight (negative x) a b);
+
+\definition scaleIntegerCancelPositive:
+  \forall (x, y: Integer) -> \forall (k: Nat) ->
+    IntegerEq
+      (scaleInteger x (natSuccSet k))
+      (scaleInteger y (natSuccSet k)) ->
+    IntegerEq x y :=
+  \fun (x, y: Integer) => \fun (k: Nat) =>
+  \fun (xy:
+    IntegerEq
+      (scaleInteger x (natSuccSet k))
+      (scaleInteger y (natSuccSet k))) =>
+    natMulCancelRightSucc k
+      (natAddSet (positive x) (negative y))
+      (natAddSet (positive y) (negative x))
+      (trans!{Nat}
+        (natMulSet (natAddSet (positive x) (negative y)) (natSuccSet k))
+        (natAddSet
+          (natMulSet (positive x) (natSuccSet k))
+          (natMulSet (negative y) (natSuccSet k)))
+        (natMulSet (natAddSet (positive y) (negative x)) (natSuccSet k))
+        (natMulDistribRight (positive x) (negative y) (natSuccSet k))
+        (trans!{Nat}
+          (natAddSet
+            (natMulSet (positive x) (natSuccSet k))
+            (natMulSet (negative y) (natSuccSet k)))
+          (natAddSet
+            (natMulSet (positive y) (natSuccSet k))
+            (natMulSet (negative x) (natSuccSet k)))
+          (natMulSet (natAddSet (positive y) (negative x)) (natSuccSet k))
+          xy
+          (sym!{Nat}
+            (natMulSet (natAddSet (positive y) (negative x)) (natSuccSet k))
+            (natAddSet
+              (natMulSet (positive y) (natSuccSet k))
+              (natMulSet (negative x) (natSuccSet k)))
+            (natMulDistribRight
+              (positive y) (negative x) (natSuccSet k)))));
+
+\definition mulIntegerAsSum:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger x y)
+      (addInteger
+        (scaleInteger x (positive y))
+        (negInteger (scaleInteger x (negative y)))) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields (mulInteger x y)
+      (addInteger
+        (scaleInteger x (positive y))
+        (negInteger (scaleInteger x (negative y))))
+      (\refl(positive (mulInteger x y)))
+      (natAddComm
+        (natMulSet (positive x) (negative y))
+        (natMulSet (negative x) (positive y)));
+
+\definition mulIntegerComm:
+  \forall (x, y: Integer) -> IntegerEq (mulInteger x y) (mulInteger y x) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields (mulInteger x y) (mulInteger y x)
+      (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+        (natMulComm (positive x) (positive y))
+        (natMulComm (negative x) (negative y)))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulComm (positive x) (negative y))
+          (natMulComm (negative x) (positive y)))
+        (natAddComm
+          (natMulSet (negative y) (positive x))
+          (natMulSet (positive y) (negative x))));
+
+\definition mulIntegerNegLeft:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger (negInteger x) y)
+      (negInteger (mulInteger x y)) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields
+      (mulInteger (negInteger x) y)
+      (negInteger (mulInteger x y))
+      (natAddComm
+        (natMulSet (negative x) (positive y))
+        (natMulSet (positive x) (negative y)))
+      (natAddComm
+        (natMulSet (negative x) (negative y))
+        (natMulSet (positive x) (positive y)));
+
+\definition mulIntegerNegRight:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger x (negInteger y))
+      (negInteger (mulInteger x y)) :=
+  \fun (x, y: Integer) =>
+    integerEqTrans
+      (mulInteger x (negInteger y))
+      (mulInteger (negInteger y) x)
+      (negInteger (mulInteger x y))
+      (mulIntegerComm x (negInteger y))
+      (integerEqTrans
+        (mulInteger (negInteger y) x)
+        (negInteger (mulInteger y x))
+        (negInteger (mulInteger x y))
+        (mulIntegerNegLeft y x)
+        (negIntegerRespects
+          (mulInteger y x) (mulInteger x y)
+          (mulIntegerComm y x)));
+
+\definition mulIntegerRespectsLeft:
+  \forall (x, y, z: Integer) ->
+    IntegerEq x y -> IntegerEq (mulInteger x z) (mulInteger y z) :=
+  \fun (x, y, z: Integer) => \fun (xy: IntegerEq x y) =>
+    integerEqTrans (mulInteger x z)
+      (addInteger
+        (scaleInteger x (positive z))
+        (negInteger (scaleInteger x (negative z))))
+      (mulInteger y z)
+      (mulIntegerAsSum x z)
+      (integerEqTrans
+        (addInteger
+          (scaleInteger x (positive z))
+          (negInteger (scaleInteger x (negative z))))
+        (addInteger
+          (scaleInteger y (positive z))
+          (negInteger (scaleInteger y (negative z))))
+        (mulInteger y z)
+        (addIntegerRespects
+          (scaleInteger x (positive z)) (scaleInteger y (positive z))
+          (negInteger (scaleInteger x (negative z)))
+          (negInteger (scaleInteger y (negative z)))
+          (scaleIntegerRespects x y (positive z) xy)
+          (negIntegerRespects
+            (scaleInteger x (negative z))
+            (scaleInteger y (negative z))
+            (scaleIntegerRespects x y (negative z) xy)))
+        (integerEqSym (mulInteger y z)
+          (addInteger
+            (scaleInteger y (positive z))
+            (negInteger (scaleInteger y (negative z))))
+          (mulIntegerAsSum y z)));
+
+\definition mulIntegerRespects:
+  \forall (x, y, u, v: Integer) ->
+    IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (mulInteger x u) (mulInteger y v) :=
+  \fun (x, y, u, v: Integer) =>
+  \fun (xy: IntegerEq x y) =>
+  \fun (uv: IntegerEq u v) =>
+    integerEqTrans (mulInteger x u) (mulInteger y u) (mulInteger y v)
+      (mulIntegerRespectsLeft x y u xy)
+      (integerEqTrans (mulInteger y u) (mulInteger u y) (mulInteger y v)
+        (mulIntegerComm y u)
+        (integerEqTrans (mulInteger u y) (mulInteger v y) (mulInteger y v)
+          (mulIntegerRespectsLeft u v y uv)
+          (mulIntegerComm v y)));
+
+\definition addIntegerZeroLeft:
+  \forall (x: Integer) -> IntegerEq (addInteger zeroInteger x) x :=
+  \fun (x: Integer) =>
+    integerEqOfFields (addInteger zeroInteger x) x
+      (natAddZeroLeft (positive x))
+      (natAddZeroLeft (negative x));
+
+\definition addIntegerZeroRight:
+  \forall (x: Integer) -> IntegerEq (addInteger x zeroInteger) x :=
+  \fun (x: Integer) =>
+    integerEqOfFields (addInteger x zeroInteger) x
+      (natAddZeroRight (positive x))
+      (natAddZeroRight (negative x));
+
+\definition addIntegerComm:
+  \forall (x, y: Integer) ->
+    IntegerEq (addInteger x y) (addInteger y x) :=
+  \fun (x, y: Integer) =>
+    integerEqOfFields (addInteger x y) (addInteger y x)
+      (natAddComm (positive x) (positive y))
+      (natAddComm (negative x) (negative y));
+
+\definition addIntegerAssoc:
+  \forall (x, y, z: Integer) ->
+    IntegerEq (addInteger (addInteger x y) z)
+      (addInteger x (addInteger y z)) :=
+  \fun (x, y, z: Integer) =>
+    integerEqOfFields
+      (addInteger (addInteger x y) z)
+      (addInteger x (addInteger y z))
+      (natAddAssoc (positive x) (positive y) (positive z))
+      (natAddAssoc (negative x) (negative y) (negative z));
+
+\definition mulIntegerDistribLeft:
+  \forall (x, y, z: Integer) ->
+    IntegerEq
+      (mulInteger x (addInteger y z))
+      (addInteger (mulInteger x y) (mulInteger x z)) :=
+  \fun (x, y, z: Integer) =>
+    integerEqOfFields
+      (mulInteger x (addInteger y z))
+      (addInteger (mulInteger x y) (mulInteger x z))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulDistribLeft
+            (positive x) (positive y) (positive z))
+          (natMulDistribLeft
+            (negative x) (negative y) (negative z)))
+        (natAddInterchange
+          (natMulSet (positive x) (positive y))
+          (natMulSet (positive x) (positive z))
+          (natMulSet (negative x) (negative y))
+          (natMulSet (negative x) (negative z))))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulDistribLeft
+            (positive x) (negative y) (negative z))
+          (natMulDistribLeft
+            (negative x) (positive y) (positive z)))
+        (natAddInterchange
+          (natMulSet (positive x) (negative y))
+          (natMulSet (positive x) (negative z))
+          (natMulSet (negative x) (positive y))
+          (natMulSet (negative x) (positive z))));
+
+\definition mulIntegerDistribRight:
+  \forall (x, y, z: Integer) ->
+    IntegerEq
+      (mulInteger (addInteger x y) z)
+      (addInteger (mulInteger x z) (mulInteger y z)) :=
+  \fun (x, y, z: Integer) =>
+    integerEqTrans
+      (mulInteger (addInteger x y) z)
+      (mulInteger z (addInteger x y))
+      (addInteger (mulInteger x z) (mulInteger y z))
+      (mulIntegerComm (addInteger x y) z)
+      (integerEqTrans
+        (mulInteger z (addInteger x y))
+        (addInteger (mulInteger z x) (mulInteger z y))
+        (addInteger (mulInteger x z) (mulInteger y z))
+        (mulIntegerDistribLeft z x y)
+        (addIntegerRespects
+          (mulInteger z x) (mulInteger x z)
+          (mulInteger z y) (mulInteger y z)
+          (mulIntegerComm z x)
+          (mulIntegerComm z y)));
+
+\definition mulIntegerAssoc:
+  \forall (x, y, z: Integer) ->
+    IntegerEq
+      (mulInteger (mulInteger x y) z)
+      (mulInteger x (mulInteger y z)) :=
+  \fun (x, y, z: Integer) =>
+    integerEqTrans
+      (mulInteger (mulInteger x y) z)
+      (addInteger
+        (scaleInteger (mulInteger x y) (positive z))
+        (negInteger
+          (scaleInteger (mulInteger x y) (negative z))))
+      (mulInteger x (mulInteger y z))
+      (mulIntegerAsSum (mulInteger x y) z)
+      (integerEqTrans
+        (addInteger
+          (scaleInteger (mulInteger x y) (positive z))
+          (negInteger
+            (scaleInteger (mulInteger x y) (negative z))))
+        (addInteger
+          (mulInteger x (scaleInteger y (positive z)))
+          (negInteger
+            (mulInteger x (scaleInteger y (negative z)))))
+        (mulInteger x (mulInteger y z))
+        (addIntegerRespects
+          (scaleInteger (mulInteger x y) (positive z))
+          (mulInteger x (scaleInteger y (positive z)))
+          (negInteger
+            (scaleInteger (mulInteger x y) (negative z)))
+          (negInteger
+            (mulInteger x (scaleInteger y (negative z))))
+          (scaleIntegerMul x y (positive z))
+          (negIntegerRespects
+            (scaleInteger (mulInteger x y) (negative z))
+            (mulInteger x (scaleInteger y (negative z)))
+            (scaleIntegerMul x y (negative z))))
+        (integerEqTrans
+          (addInteger
+            (mulInteger x (scaleInteger y (positive z)))
+            (negInteger
+              (mulInteger x (scaleInteger y (negative z)))))
+          (addInteger
+            (mulInteger x (scaleInteger y (positive z)))
+            (mulInteger x
+              (negInteger (scaleInteger y (negative z)))))
+          (mulInteger x (mulInteger y z))
+          (addIntegerRespects
+            (mulInteger x (scaleInteger y (positive z)))
+            (mulInteger x (scaleInteger y (positive z)))
+            (negInteger
+              (mulInteger x (scaleInteger y (negative z))))
+            (mulInteger x
+              (negInteger (scaleInteger y (negative z))))
+            (integerEqRefl
+              (mulInteger x (scaleInteger y (positive z))))
+            (integerEqSym
+              (mulInteger x
+                (negInteger (scaleInteger y (negative z))))
+              (negInteger
+                (mulInteger x (scaleInteger y (negative z))))
+              (mulIntegerNegRight x
+                (scaleInteger y (negative z)))))
+          (integerEqTrans
+            (addInteger
+              (mulInteger x (scaleInteger y (positive z)))
+              (mulInteger x
+                (negInteger (scaleInteger y (negative z)))))
+            (mulInteger x
+              (addInteger
+                (scaleInteger y (positive z))
+                (negInteger (scaleInteger y (negative z)))))
+            (mulInteger x (mulInteger y z))
+            (integerEqSym
+              (mulInteger x
+                (addInteger
+                  (scaleInteger y (positive z))
+                  (negInteger (scaleInteger y (negative z)))))
+              (addInteger
+                (mulInteger x (scaleInteger y (positive z)))
+                (mulInteger x
+                  (negInteger (scaleInteger y (negative z)))))
+              (mulIntegerDistribLeft x
+                (scaleInteger y (positive z))
+                (negInteger (scaleInteger y (negative z)))))
+            (mulIntegerRespects
+              x x
+              (addInteger
+                (scaleInteger y (positive z))
+                (negInteger (scaleInteger y (negative z))))
+              (mulInteger y z)
+              (integerEqRefl x)
+              (integerEqSym
+                (mulInteger y z)
+                (addInteger
+                  (scaleInteger y (positive z))
+                  (negInteger (scaleInteger y (negative z))))
+                (mulIntegerAsSum y z))))));
+
+\definition mulIntegerCongRight:
+  \forall (x, y, z: Integer) ->
+    IntegerEq y z ->
+    IntegerEq (mulInteger x y) (mulInteger x z) :=
+  \fun (x, y, z: Integer) => \fun (yz: IntegerEq y z) =>
+    mulIntegerRespects
+      x x y z (integerEqRefl x) yz;
+
+\definition mulIntegerInterchange:
+  \forall (a, b, c, d: Integer) ->
+    IntegerEq
+      (mulInteger (mulInteger a b) (mulInteger c d))
+      (mulInteger (mulInteger a c) (mulInteger b d)) :=
+  \fun (a, b, c, d: Integer) =>
+    integerEqTrans
+      (mulInteger (mulInteger a b) (mulInteger c d))
+      (mulInteger a
+        (mulInteger b (mulInteger c d)))
+      (mulInteger (mulInteger a c) (mulInteger b d))
+      (mulIntegerAssoc a b (mulInteger c d))
+      (integerEqTrans
+        (mulInteger a
+          (mulInteger b (mulInteger c d)))
+        (mulInteger a
+          (mulInteger (mulInteger b c) d))
+        (mulInteger (mulInteger a c) (mulInteger b d))
+        (mulIntegerCongRight a
+          (mulInteger b (mulInteger c d))
+          (mulInteger (mulInteger b c) d)
+          (integerEqSym
+            (mulInteger (mulInteger b c) d)
+            (mulInteger b (mulInteger c d))
+            (mulIntegerAssoc b c d)))
+        (integerEqTrans
+          (mulInteger a
+            (mulInteger (mulInteger b c) d))
+          (mulInteger a
+            (mulInteger (mulInteger c b) d))
+          (mulInteger (mulInteger a c) (mulInteger b d))
+          (mulIntegerCongRight a
+            (mulInteger (mulInteger b c) d)
+            (mulInteger (mulInteger c b) d)
+            (mulIntegerRespects
+              (mulInteger b c) (mulInteger c b)
+              d d
+              (mulIntegerComm b c)
+              (integerEqRefl d)))
+          (integerEqTrans
+            (mulInteger a
+              (mulInteger (mulInteger c b) d))
+            (mulInteger a
+              (mulInteger c (mulInteger b d)))
+            (mulInteger (mulInteger a c) (mulInteger b d))
+            (mulIntegerCongRight a
+              (mulInteger (mulInteger c b) d)
+              (mulInteger c (mulInteger b d))
+              (mulIntegerAssoc c b d))
+            (integerEqSym
+              (mulInteger (mulInteger a c) (mulInteger b d))
+              (mulInteger a
+                (mulInteger c (mulInteger b d)))
+              (mulIntegerAssoc a c (mulInteger b d))))));
+
+\definition negIntegerInvolutive:
+  \forall (x: Integer) -> IntegerEq (negInteger (negInteger x)) x :=
+  \fun (x: Integer) => integerEqRefl x;
+
+\definition addIntegerNegRight:
+  \forall (x: Integer) ->
+    IntegerEq (addInteger x (negInteger x)) zeroInteger :=
+  \fun (x: Integer) =>
+    trans!{Nat} _ _ _
+      (natAddZeroRight
+        (natAddSet (positive x) (negative x)))
+      (trans!{Nat} _ _ _
+        (natAddComm (positive x) (negative x))
+        (sym!{Nat} _ _ (natAddZeroLeft
+          (natAddSet (negative x) (positive x)))));
+
+\definition addIntegerNegLeft:
+  \forall (x: Integer) ->
+    IntegerEq (addInteger (negInteger x) x) zeroInteger :=
+  \fun (x: Integer) =>
+    integerEqTrans
+      (addInteger (negInteger x) x)
+      (addInteger x (negInteger x))
+      zeroInteger
+      (addIntegerComm (negInteger x) x)
+      (addIntegerNegRight x);
+
+\definition mulIntegerZeroRight:
+  \forall (x: Integer) -> IntegerEq (mulInteger x zeroInteger) zeroInteger :=
+  \fun (x: Integer) =>
+    integerEqOfFields (mulInteger x zeroInteger) zeroInteger
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulZeroRight (positive x))
+          (natMulZeroRight (negative x)))
+        (natAddZeroLeft natZeroSet))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulZeroRight (positive x))
+          (natMulZeroRight (negative x)))
+        (natAddZeroLeft natZeroSet));
+
+\definition mulIntegerZeroLeft:
+  \forall (x: Integer) -> IntegerEq (mulInteger zeroInteger x) zeroInteger :=
+  \fun (x: Integer) =>
+    integerEqTrans
+      (mulInteger zeroInteger x)
+      (mulInteger x zeroInteger)
+      zeroInteger
+      (mulIntegerComm zeroInteger x)
+      (mulIntegerZeroRight x);
+
+\definition mulIntegerOneRight:
+  \forall (x: Integer) -> IntegerEq (mulInteger x oneInteger) x :=
+  \fun (x: Integer) =>
+    integerEqOfFields (mulInteger x oneInteger) x
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulOneRight (positive x))
+          (natMulZeroRight (negative x)))
+        (natAddZeroRight (positive x)))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} natAddSet _ _ _ _
+          (natMulZeroRight (positive x))
+          (natMulOneRight (negative x)))
+        (natAddZeroLeft (negative x)));
+
+\definition mulIntegerOneLeft:
+  \forall (x: Integer) -> IntegerEq (mulInteger oneInteger x) x :=
+  \fun (x: Integer) =>
+    integerEqTrans
+      (mulInteger oneInteger x)
+      (mulInteger x oneInteger)
+      x
+      (mulIntegerComm oneInteger x)
+      (mulIntegerOneRight x);
+

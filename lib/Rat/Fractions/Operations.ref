@@ -101,7 +101,12 @@
 
 \definition fractionNegInvolutive:
   \forall (x: Fraction) -> FractionEq (neg (neg x)) x :=
-  \fun (x: Fraction) => fractionEqRefl x;
+  \fun (x: Fraction) =>
+    fractionEqOfParts
+      (numerator (neg (neg x))) (numerator x)
+      (denominatorIndex (neg (neg x))) (denominatorIndex x)
+      (negIntegerInvolutive (numerator x))
+      (\refl(denominatorIndex x));
 
 \definition fractionNegZero: neg zero = zero :=
   \refl(zero);
@@ -178,31 +183,40 @@
       (denominator (mul x y))
       (mulInteger (denominator x) (denominator y)) :=
   \fun (x, y: Fraction) =>
-    integerEqOfFields
+    integerEqTrans
       (denominator (mul x y))
+      (integer
+        (natMul
+          (natSucc (denominatorIndex x))
+          (natSucc (denominatorIndex y)))
+        zeroNat)
       (mulInteger (denominator x) (denominator y))
-      (trans!{Nat} _ _ _
+      (integerEqOfParts
+        (natSucc (denominatorProductIndex
+          (denominatorIndex x) (denominatorIndex y)))
+        zeroNat
+        (natMul
+          (natSucc (denominatorIndex x))
+          (natSucc (denominatorIndex y)))
+        zeroNat
         (denominatorProductIndexSucc
           (denominatorIndex x) (denominatorIndex y))
-        (sym!{Nat} _ _
-          (trans!{Nat} _ _ _
-            (congr2!{Nat Nat Nat} natAdd _ _ _ _
-              (\refl(natMul
-                (natSucc (denominatorIndex x))
-                (natSucc (denominatorIndex y))))
-              (natMulZeroRight zeroNat))
-            (natAddZeroRight
-              (natMul
-                (natSucc (denominatorIndex x))
-                (natSucc (denominatorIndex y)))))))
-      (sym!{Nat} _ _
-        (trans!{Nat} _ _ _
-          (congr2!{Nat Nat Nat} natAdd _ _ _ _
-            (natMulZeroRight
-              (natSucc (denominatorIndex x)))
-            (natMulZeroLeft
-              (natSucc (denominatorIndex y))))
-          (natAddZeroLeft zeroNat)));
+        (\refl(zeroNat)))
+      (integerEqSym _ _
+        (integerEqTrans
+          (mulInteger (denominator x) (denominator y))
+          (scaleInteger
+            (denominator x) (natSucc (denominatorIndex y)))
+          (integer
+            (natMul
+              (natSucc (denominatorIndex x))
+              (natSucc (denominatorIndex y)))
+            zeroNat)
+          (mulIntegerNatural
+            (denominator x) (natSucc (denominatorIndex y)))
+          (scaleIntegerNatural
+            (natSucc (denominatorIndex x))
+            (natSucc (denominatorIndex y)))));
 
 \definition fractionMulRespects:
   \forall (x, y, u, v: Fraction) ->
