@@ -14,3 +14,4 @@ proof checker を作る。
 ## AI 向け
 このファイルには何も追記しないでください。
 数式を書くときは `\(\)` と `\[\]` で書いてください。
+perf は `/usr/lib/linux-tools/6.8.0-139-generic/perf` にあります。
