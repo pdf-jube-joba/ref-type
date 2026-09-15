@@ -1,8 +1,237 @@
 /*
  * Classical principles used by the real-number developments.
  *
- * The Diaconescu construction is intentionally kept here, next to the
- * primitive choice and set-extensionality axioms.  Its finite-set support is
- * provided by Bool and Finset; the final excluded-middle lemma will be added
- * once the dependent choice witness API is exposed by the elaborator.
+ * Excluded middle below is Diaconescu's construction from indefinite choice
+ * and subset extensionality. Bool supplies the finite decidable carrier.
  */
+\import \root.Equality() \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \root.Logic() \as Logic;
+\import \root.Bool() \as B;
+
+\definition orElim(P, Q, R: \Prop) (onLeft: P -> R) (onRight: Q -> R)
+    (value: Logic.Or[P, Q]): R :=
+  \elim value \in Logic.Or \return (\fun (_: Logic.Or[P, Q]) => R) {
+  | left => onLeft
+  | right => onRight
+  };
+
+\macro candidateElementEq($X) :=
+  (\fun (law:
+      \forall (x, y: \Ty(\Power(B.Bool^), $X)) ->
+        ((\fun (z: \Ty(\Power(B.Bool^), $X)) => z) x) =
+        ((\fun (z: \Ty(\Power(B.Bool^), $X)) => z) y) -> x = y) => law)
+  (\fun (x, y: \Ty(\Power(B.Bool^), $X)) =>
+    \fun (e:
+        ((\fun (z: \Ty(\Power(B.Bool^), $X)) => z) x) =
+        ((\fun (z: \Ty(\Power(B.Bool^), $X)) => z) y)) =>
+      (\idelim(
+        ((\fun (z: \Ty(\Power(B.Bool^), $X)) => z) x) =
+        ((\fun (z: \Ty(\Power(B.Bool^), $X)) => z) y)
+        \with z: \Power(B.Bool^) =>
+          \forall (h: \Pred(\Power(B.Bool^), $X, z)) ->
+            x = \subsetinto(\Power(B.Bool^), $X, z, h))
+        \by ((\fun (_: \Pred(\Power(B.Bool^), $X,
+            (\fun (z: \Ty(\Power(B.Bool^), $X)) => z) x)) =>
+          \refl(x)), e))
+        (\bysub(\Power(B.Bool^), $X, y)));
+
+\definition excludedMiddle: \forall (P: \Prop) ->
+    Logic.Or[P, Logic.Not P] :=
+  \block {
+    \fix (P: \Prop);
+    \let Left: \Power(B.Bool^) :=
+      \Subset(b, B.Bool^, Logic.Or[b = B.Bool^::false, P]);
+    \let Right: \Power(B.Bool^) :=
+      \Subset(b, B.Bool^, Logic.Or[b = B.Bool^::true, P]);
+    \let leftExists: \exists \Ty(B.Bool^, Left) :=
+      \exact(
+        \subsetinto(B.Bool^, Left, B.Bool^::false,
+          Logic.Or[B.Bool^::false = B.Bool^::false, P]::left
+            (\refl(B.Bool^::false))),
+        \Ty(B.Bool^, Left));
+    \let rightExists: \exists \Ty(B.Bool^, Right) :=
+      \exact(
+        \subsetinto(B.Bool^, Right, B.Bool^::true,
+          Logic.Or[B.Bool^::true = B.Bool^::true, P]::left
+            (\refl(B.Bool^::true))),
+        \Ty(B.Bool^, Right));
+    \let underlying:
+        \Ty(\Power(B.Bool^),
+          \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right])) ->
+          \Power(B.Bool^) :=
+      \fun (S: \Ty(\Power(B.Bool^),
+          \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) => S;
+    \let leftCandidate: \Ty(\Power(B.Bool^),
+        \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right])) :=
+      \subsetinto(\Power(B.Bool^),
+        \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]), Left,
+        Logic.Or[Left = Left, Left = Right]::left (\refl(Left)));
+    \let rightCandidate: \Ty(\Power(B.Bool^),
+        \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right])) :=
+      \subsetinto(\Power(B.Bool^),
+        \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]), Right,
+        Logic.Or[Right = Left, Right = Right]::right (\refl(Right)));
+    \let selectionsInhabited:
+        \forall (S: \Ty(\Power(B.Bool^),
+          \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) ->
+          \exists \Ty(B.Bool^, underlying S) :=
+      \fun (S: \Ty(\Power(B.Bool^),
+          \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) =>
+        orElim
+          (underlying S = Left) (underlying S = Right)
+          (\exists \Ty(B.Bool^, underlying S))
+          (\fun (e: underlying S = Left) =>
+            \idelim(Left = underlying S
+              \with T: \Power(B.Bool^) => \exists \Ty(B.Bool^, T))
+              \by (leftExists,
+                sym!{\Power(B.Bool^)} (underlying S) Left e))
+          (\fun (e: underlying S = Right) =>
+            \idelim(Right = underlying S
+              \with T: \Power(B.Bool^) => \exists \Ty(B.Bool^, T))
+              \by (rightExists,
+                sym!{\Power(B.Bool^)} (underlying S) Right e))
+          (\bysub(\Power(B.Bool^),
+            \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]), S));
+    \let selectionsExist:
+        \exists (\forall (S: \Ty(\Power(B.Bool^),
+          \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) ->
+          \Ty(B.Bool^, underlying S)) :=
+      \axiom:classicalIndefiniteChoice(
+        \Ty(\Power(B.Bool^),
+          \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right])),
+        (\fun (S: \Ty(\Power(B.Bool^),
+            \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) =>
+          \Ty(B.Bool^, underlying S)),
+        selectionsInhabited);
+    \return
+      \take (select:
+          \forall (S: \Ty(\Power(B.Bool^),
+            \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) ->
+            \Ty(B.Bool^, underlying S)) =>
+        \block {
+          \let chooseBool:
+              \Ty(\Power(B.Bool^),
+                \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right])) ->
+                B.Bool^ :=
+            \fun (S: \Ty(\Power(B.Bool^),
+                \Subset(T, \Power(B.Bool^), Logic.Or[T = Left, T = Right]))) =>
+              select S;
+          \let uMember: Logic.Or[
+              chooseBool leftCandidate = B.Bool^::false, P] :=
+            \bysub(B.Bool^, Left, select leftCandidate);
+          \let vMember: Logic.Or[
+              chooseBool rightCandidate = B.Bool^::true, P] :=
+            \bysub(B.Bool^, Right, select rightCandidate);
+          \let commonGivesP:
+              chooseBool leftCandidate = chooseBool rightCandidate -> P :=
+            \fun (uv:
+                chooseBool leftCandidate = chooseBool rightCandidate) =>
+              orElim
+                (chooseBool leftCandidate = B.Bool^::false) P P
+                (\fun (uf:
+                    chooseBool leftCandidate = B.Bool^::false) =>
+                  orElim
+                    (chooseBool rightCandidate = B.Bool^::true) P P
+                    (\fun (vt:
+                        chooseBool rightCandidate = B.Bool^::true) =>
+                      B.absurd P
+                        (trans!{B.Bool^}
+                          B.Bool^::false
+                          (chooseBool rightCandidate) B.Bool^::true
+                          (trans!{B.Bool^}
+                            B.Bool^::false
+                            (chooseBool leftCandidate)
+                            (chooseBool rightCandidate)
+                            (sym!{B.Bool^}
+                              (chooseBool leftCandidate)
+                              B.Bool^::false uf)
+                            uv)
+                          vt))
+                    (\fun (p: P) => p) vMember)
+                (\fun (p: P) => p) uMember;
+          \let equalOrNot: Logic.Or[
+              chooseBool leftCandidate = chooseBool rightCandidate,
+              Logic.Not (
+                chooseBool leftCandidate = chooseBool rightCandidate)] :=
+            \prec(\Prop, B.Bool^)
+              (\fun (x: B.Bool^) =>
+                \forall (y: B.Bool^) ->
+                  Logic.Or[x = y, Logic.Not (x = y)])
+              (\prec(\Prop, B.Bool^)
+                (\fun (y: B.Bool^) =>
+                  Logic.Or[B.Bool^::false = y,
+                    Logic.Not (B.Bool^::false = y)])
+                (Logic.Or[
+                  B.Bool^::false = B.Bool^::false,
+                  Logic.Not (B.Bool^::false = B.Bool^::false)
+                ]::left (\refl(B.Bool^::false)))
+                (Logic.Or[
+                  B.Bool^::false = B.Bool^::true,
+                  Logic.Not (B.Bool^::false = B.Bool^::true)
+                ]::right
+                  (\fun (e: B.Bool^::false = B.Bool^::true) =>
+                    B.absurd Logic.False e)))
+              (\prec(\Prop, B.Bool^)
+                (\fun (y: B.Bool^) =>
+                  Logic.Or[B.Bool^::true = y,
+                    Logic.Not (B.Bool^::true = y)])
+                (Logic.Or[
+                  B.Bool^::true = B.Bool^::false,
+                  Logic.Not (B.Bool^::true = B.Bool^::false)
+                ]::right
+                  (\fun (e: B.Bool^::true = B.Bool^::false) =>
+                    B.absurd Logic.False
+                      (sym!{B.Bool^}
+                        B.Bool^::true B.Bool^::false e)))
+                (Logic.Or[
+                  B.Bool^::true = B.Bool^::true,
+                  Logic.Not (B.Bool^::true = B.Bool^::true)
+                ]::left (\refl(B.Bool^::true))))
+              (chooseBool leftCandidate) (chooseBool rightCandidate);
+          \return orElim
+            (chooseBool leftCandidate = chooseBool rightCandidate)
+            (Logic.Not (
+              chooseBool leftCandidate = chooseBool rightCandidate))
+            (Logic.Or[P, Logic.Not P])
+            (\fun (uv:
+                chooseBool leftCandidate = chooseBool rightCandidate) =>
+              Logic.Or[P, Logic.Not P]::left (commonGivesP uv))
+            (\fun (unequal: Logic.Not (
+                chooseBool leftCandidate = chooseBool rightCandidate)) =>
+              Logic.Or[P, Logic.Not P]::right
+                (\fun (p: P) =>
+                  \block {
+                    \let leftEqualsRight: Left = Right :=
+                      \axiom:setext(Left, Right,
+                        (\fun (b: B.Bool^) =>
+                          \fun (_: Logic.Or[b = B.Bool^::false, P]) =>
+                            Logic.Or[b = B.Bool^::true, P]::right p),
+                        (\fun (b: B.Bool^) =>
+                          \fun (_: Logic.Or[b = B.Bool^::true, P]) =>
+                            Logic.Or[b = B.Bool^::false, P]::right p));
+                    \let candidatesEqual:
+                        leftCandidate = rightCandidate :=
+                      candidateElementEq!{
+                        { \Subset(X, \Power(B.Bool^),
+                          Logic.Or[X = Left, X = Right]) }
+                      }
+                        leftCandidate rightCandidate leftEqualsRight;
+                    \let selectedEqual:
+                        chooseBool leftCandidate =
+                          chooseBool rightCandidate :=
+                      \idelim(leftCandidate = rightCandidate
+                        \with S: \Ty(
+                          \Power(B.Bool^),
+                          \Subset(X, \Power(B.Bool^),
+                            Logic.Or[X = Left, X = Right])) =>
+                          chooseBool leftCandidate = chooseBool S)
+                        \by (\refl(chooseBool leftCandidate), candidatesEqual);
+                    \return unequal selectedEqual;
+                  }))
+            equalOrNot;
+        }
+      \by (selectionsExist);
+  };
