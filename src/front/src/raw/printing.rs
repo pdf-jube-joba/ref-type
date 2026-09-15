@@ -215,20 +215,20 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(transition_equality)
         ),
         ExpNode::BoxType { program_ty } => {
-            format!("\\Box({})", format_program_type(env, program_ty))
+            format!("\\Box({})", format_computation_type(env, program_ty))
         }
         ExpNode::BoxProgram {
             program_ty,
             program,
         } => format!(
             "\\box({}, {})",
-            format_program_type(env, program_ty),
-            format_program(env, program)
+            format_computation_type(env, program_ty),
+            format_computation(env, program)
         ),
         ExpNode::ForceBox { program_ty, boxed } => {
             format!(
                 "\\Force({}, {})",
-                format_program_type(env, program_ty),
+                format_computation_type(env, program_ty),
                 child(boxed)
             )
         }

@@ -227,7 +227,10 @@ fn reflect_value_kind(env: &Environment, h: ValueKind) -> Result<SetKind, String
     })
 }
 
-fn reflect_computation_term(env: &Environment, h: ComputationTerm) -> Result<SetTerm, String> {
+pub(crate) fn reflect_computation_term(
+    env: &Environment,
+    h: ComputationTerm,
+) -> Result<SetTerm, String> {
     let a = &env.arena;
     let node = a.get(h);
     let level = node.level;

@@ -533,8 +533,8 @@ fn closed_polymorphic_box_type_application_then_value_application() {
     let boxed = a.alloc(SetTermNode {
         level: 2,
         form: SetTermForm::BoxProgram {
-            program_ty: ty1.into(),
-            program: id1.into(),
+            program_ty: ty1,
+            program: id1,
         },
     });
     let ComputationTypeForm::ProdType {
@@ -568,16 +568,20 @@ fn closed_polymorphic_box_type_application_then_value_application() {
         level: 1,
         form: ValueTermForm::ThunkValue { computation: id0 },
     });
-    let boxed_arg = a.alloc(SetTermNode {
-        level: 1,
-        form: SetTermForm::BoxProgram {
-            program_ty: arg_ty.into(),
-            program: arg.into(),
-        },
-    });
     let result_ty = a.alloc(ComputationTypeNode {
         level: 1,
         form: ComputationTypeForm::ReturnType { value_ty: arg_ty },
+    });
+    let returned_arg = a.alloc(ComputationTermNode {
+        level: 1,
+        form: ComputationTermForm::Return { value: arg },
+    });
+    let boxed_arg = a.alloc(SetTermNode {
+        level: 1,
+        form: SetTermForm::BoxProgram {
+            program_ty: result_ty,
+            program: returned_arg,
+        },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(1)),
@@ -598,7 +602,7 @@ fn closed_polymorphic_box_type_application_then_value_application() {
     let forced = a.alloc(SetTermNode {
         level: 1,
         form: SetTermForm::ForceBox {
-            program_ty: result_ty.into(),
+            program_ty: result_ty,
             boxed: app,
         },
     });
@@ -920,11 +924,19 @@ fn boxed_annotation_cannot_hide_an_open_module_parameter() {
             classifier: ty.into(),
         },
     });
+    let computation_ty = env.arena.alloc(ComputationTypeNode {
+        level: 0,
+        form: ComputationTypeForm::ReturnType { value_ty: ty },
+    });
+    let computation = env.arena.alloc(ComputationTermNode {
+        level: 0,
+        form: ComputationTermForm::Return { value: constant },
+    });
     let boxed = env.arena.alloc(SetTermNode {
         level: 0,
         form: SetTermForm::BoxProgram {
-            program_ty: ty.into(),
-            program: constant.into(),
+            program_ty: computation_ty,
+            program: computation,
         },
     });
     assert!(

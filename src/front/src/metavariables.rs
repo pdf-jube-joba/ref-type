@@ -9,7 +9,7 @@ use crate::raw::{
     environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, Prove},
     ids::{MetaVarId, ModuleId, SymbolId},
-    program::{ComputationTypeNode, ProgramTerm, ProgramType},
+    program::ComputationTypeNode,
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
@@ -707,11 +707,9 @@ impl MetaStore {
             ExpNode::BoxType { program_ty } => {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
-                match program_ty {
-                    ProgramType::ValueType(ty) => session.check_value_type(ty),
-                    ProgramType::ComputationType(ty) => session.check_computation_type(ty),
-                }
-                .map_err(|error| format!("ill-formed boxed Program type: {error:?}"))?;
+                session
+                    .check_computation_type(program_ty)
+                    .map_err(|error| format!("ill-formed boxed Program type: {error:?}"))?;
                 Ok(arena.sort(Sort::Set(0)))
             }
             ExpNode::BoxProgram {
@@ -720,24 +718,13 @@ impl MetaStore {
             } => {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
-                match (program_ty, program) {
-                    (ProgramType::ValueType(ty), ProgramTerm::ValueTerm(value)) => {
-                        session.check_value_term(value, ty)
-                    }
-                    (ProgramType::ComputationType(ty), ProgramTerm::ComputationTerm(term)) => {
-                        session.check_computation_term(term, ty)
-                    }
-                    _ => {
-                        return Err(
-                            "boxed Program and its type belong to different syntactic categories"
-                                .into(),
-                        );
-                    }
-                }
-                .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
-                let reflected_ty = crate::raw::reflection::reflect_program_type(env, program_ty)
-                    .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
-                let reflected = crate::raw::reflection::reflect_program(env, program)
+                session
+                    .check_computation_term(program, program_ty)
+                    .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
+                let reflected_ty =
+                    crate::raw::reflection::reflect_computation_type(env, program_ty)
+                        .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
+                let reflected = crate::raw::reflection::reflect_computation(env, program)
                     .map_err(|error| format!("cannot reflect boxed Program: {error}"))?;
                 self.check_pts(env, module, context, reflected, reflected_ty)?;
                 Ok(arena.alloc(ExpNode::BoxType { program_ty }))
@@ -750,7 +737,7 @@ impl MetaStore {
                     boxed,
                     arena.alloc(ExpNode::BoxType { program_ty }),
                 )?;
-                crate::raw::reflection::reflect_program_type(env, program_ty)
+                crate::raw::reflection::reflect_computation_type(env, program_ty)
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))
             }
             ExpNode::BoxApp { function, argument } => {
@@ -758,9 +745,6 @@ impl MetaStore {
                 let function_ty = self.zonk(env, function_ty);
                 let ExpNode::BoxType { program_ty } = arena.get(function_ty) else {
                     return Err("boxed application head is not Box(P)".into());
-                };
-                let ProgramType::ComputationType(program_ty) = program_ty else {
-                    return Err("boxed application head is not a computation function".into());
                 };
                 let ComputationTypeNode::Function { domain, codomain } = arena.get(program_ty)
                 else {
@@ -772,11 +756,11 @@ impl MetaStore {
                     context,
                     argument,
                     arena.alloc(ExpNode::BoxType {
-                        program_ty: ProgramType::ValueType(domain),
+                        program_ty: arena.alloc(ComputationTypeNode::Return { value_ty: domain }),
                     }),
                 )?;
                 Ok(arena.alloc(ExpNode::BoxType {
-                    program_ty: ProgramType::ComputationType(codomain),
+                    program_ty: codomain,
                 }))
             }
             ExpNode::SubsetIntro {

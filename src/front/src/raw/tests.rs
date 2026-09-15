@@ -5,8 +5,7 @@ use crate::raw::{
     exp::{ExpContextEntry, ExpNode},
     ids::{DefId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
-        ComputationTermNode, ProgramContextEntry, ProgramTerm, ProgramType, ValueTermNode,
-        ValueTypeNode,
+        ComputationTermNode, ComputationTypeNode, ProgramContextEntry, ValueTermNode, ValueTypeNode,
     },
     program_calculus::{
         Evaluation, evaluate_computation, instantiate_value_type, remap_computation_global_ids,
@@ -175,11 +174,17 @@ fn boxed_program_types_compare_structurally() {
         }),
     });
     assert_ne!(left_state, right_state);
+    let left_return = arena.alloc(ComputationTypeNode::Return {
+        value_ty: left_state,
+    });
+    let right_return = arena.alloc(ComputationTypeNode::Return {
+        value_ty: right_state,
+    });
     let left = arena.alloc(ExpNode::BoxType {
-        program_ty: ProgramType::ValueType(left_state),
+        program_ty: left_return,
     });
     let right = arena.alloc(ExpNode::BoxType {
-        program_ty: ProgramType::ValueType(right_state),
+        program_ty: right_return,
     });
     assert!(exp_is_alpha_eq(&env, left, right));
 
@@ -195,12 +200,13 @@ fn boxed_program_types_compare_structurally() {
         }),
         output,
     });
+    let returned = arena.alloc(ComputationTermNode::Return { value: program });
     let boxed = arena.alloc(ExpNode::BoxProgram {
-        program_ty: ProgramType::ValueType(left_state),
-        program: ProgramTerm::ValueTerm(program),
+        program_ty: left_return,
+        program: returned,
     });
     let forced = arena.alloc(ExpNode::ForceBox {
-        program_ty: ProgramType::ValueType(right_state),
+        program_ty: right_return,
         boxed,
     });
     assert!(matches!(

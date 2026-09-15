@@ -319,8 +319,8 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
   \vcheck S.value: Unit;
   \ccheck S.result: \F(Unit);
   \vcheck C.value: Unit;
-  \definition package: \Box(Unit) := \box(Unit, C.value);
-  \normalize \Force(Unit, package);
+  \definition package: \Box(\F(Unit)) := \box(\F(Unit), \return(C.value));
+  \normalize \Force(\F(Unit), package);
 }
 "#,
     );

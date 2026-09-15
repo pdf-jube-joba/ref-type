@@ -372,11 +372,11 @@ pub enum SetTermForm {
         scrutinee: SetTerm,
     },
     BoxProgram {
-        program_ty: ProgramType,
-        program: ProgramTerm,
+        program_ty: ComputationType,
+        program: ComputationTerm,
     },
     ForceBox {
-        program_ty: ProgramType,
+        program_ty: ComputationType,
         boxed: SetTerm,
     },
     BoxApp {
@@ -489,7 +489,7 @@ pub enum SetTypeForm {
         result_ty: SetType,
     },
     BoxType {
-        program_ty: ProgramType,
+        program_ty: ComputationType,
     },
     Recursor {
         rule: ProductRule,

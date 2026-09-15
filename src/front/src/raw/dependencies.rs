@@ -34,19 +34,6 @@ pub(crate) fn definition_dependencies(
         C(raw::program::ComputationTerm),
     }
 
-    fn ty(t: raw::program::ProgramType) -> E {
-        match t {
-            raw::program::ProgramType::ValueType(x) => E::Vt(x),
-            raw::program::ProgramType::ComputationType(x) => E::Ct(x),
-        }
-    }
-
-    fn term(t: raw::program::ProgramTerm) -> E {
-        match t {
-            raw::program::ProgramTerm::ValueTerm(x) => E::V(x),
-            raw::program::ProgramTerm::ComputationTerm(x) => E::C(x),
-        }
-    }
     let mut stack = match definition {
         raw::environment::DefinedConstant::Pts { ty, body } => vec![E::Set(*ty), E::Set(*body)],
         raw::environment::DefinedConstant::ProgramValue { ty, body } => {
@@ -80,15 +67,15 @@ pub(crate) fn definition_dependencies(
                         definitions.insert(*id);
                     }
                     ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
-                        stack.push(ty(*program_ty))
+                        stack.push(E::Ct(*program_ty))
                     }
                     ExpNode::BoxProgram {
                         program_ty,
                         program,
                         ..
                     } => {
-                        stack.push(ty(*program_ty));
-                        stack.push(term(*program));
+                        stack.push(E::Ct(*program_ty));
+                        stack.push(E::C(*program));
                     }
                     _ => {}
                 }

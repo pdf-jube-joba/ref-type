@@ -551,12 +551,10 @@ fn reduce_sequence(
 fn reduce_box_program(
     env: &Environment,
     level: usize,
-    program_ty: ProgramType,
-    program: ProgramTerm,
+    program_ty: ComputationType,
+    program: ComputationTerm,
 ) -> Result<Option<Expression>, String> {
-    if let ProgramTerm::ComputationTerm(computation) = program
-        && let Some(next) = reduce_once(env, computation)?
-    {
+    if let Some(next) = reduce_once(env, program)? {
         return Ok(Some(
             env.arena
                 .alloc(SetTermNode {
@@ -573,7 +571,7 @@ fn reduce_box_program(
 }
 fn reduce_force_box(
     env: &Environment,
-    program_ty: ProgramType,
+    program_ty: ComputationType,
     boxed: SetTerm,
 ) -> Result<Option<Expression>, String> {
     if let SetTermForm::BoxProgram {
@@ -581,9 +579,11 @@ fn reduce_force_box(
         program,
     } = env.arena.read(boxed).form
         && convertible(env, program_ty.into(), actual.into())?
-        && (matches!(program, ProgramTerm::ValueTerm(_)) || reduce_once(env, program)?.is_none())
+        && reduce_once(env, program)?.is_none()
     {
-        return Ok(Some(super::reflection::reflect_term(env, program)?.into()));
+        return Ok(Some(
+            super::reflection::reflect_computation_term(env, program)?.into(),
+        ));
     }
     Ok(None)
 }
@@ -609,7 +609,10 @@ fn reduce_box_application(
         let SetTermForm::BoxProgram { program, .. } = a.read(argument).form else {
             return Ok(None);
         };
-        program.into()
+        let ComputationTermForm::Return { value } = a.read(program).form else {
+            return Ok(None);
+        };
+        value.into()
     };
     let result_ty = if type_application {
         substitute_with_reflection(env, codomain, argument)?

@@ -191,50 +191,22 @@ impl term_elaborator::Handler for GlobalEnvironment {
         result
     }
 
-    fn elaborate_program_type(
+    fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,
-    ) -> Result<crate::raw::program::ProgramType, String> {
+    ) -> Result<crate::raw::program::ComputationType, String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
-        // A bare CBV arrow in \Box/\box/\Force denotes its computation
-        // translation. Function values remain explicit through \U(...).
-        if matches!(expression, SExp::Prod { .. }) {
-            let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
-            return scope
-                .elaborate_computation_type(&computation_ty, self)
-                .map(crate::raw::program::ProgramType::ComputationType);
-        }
-        if let Ok(value_ty) = ValueTypeExp::try_from(expression.clone()) {
-            return scope
-                .elaborate_value_type(&value_ty, self)
-                .map(crate::raw::program::ProgramType::ValueType);
-        }
         let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
-        scope
-            .elaborate_computation_type(&computation_ty, self)
-            .map(crate::raw::program::ProgramType::ComputationType)
+        scope.elaborate_computation_type(&computation_ty, self)
     }
 
-    fn elaborate_program(
+    fn elaborate_boxed_computation(
         &mut self,
         expression: &SExp,
-        ty: crate::raw::program::ProgramType,
-    ) -> Result<crate::raw::program::ProgramTerm, String> {
+    ) -> Result<crate::raw::program::ComputationTerm, String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
-        match ty {
-            crate::raw::program::ProgramType::ValueType(_) => {
-                let value = ValueTermExp::try_from(expression.clone())?;
-                let value = scope.elaborate_value(&value, self)?;
-                Ok(crate::raw::program::ProgramTerm::ValueTerm(value))
-            }
-            crate::raw::program::ProgramType::ComputationType(_) => {
-                let computation = ComputationTermExp::try_from(expression.clone())?;
-                let computation = scope.elaborate_computation(&computation, self)?;
-                Ok(crate::raw::program::ProgramTerm::ComputationTerm(
-                    computation,
-                ))
-            }
-        }
+        let computation = ComputationTermExp::try_from(expression.clone())?;
+        scope.elaborate_computation(&computation, self)
     }
 }
 

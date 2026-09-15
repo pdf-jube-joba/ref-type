@@ -1128,8 +1128,8 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
           \definition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
             \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep(Unit^, Unit^) :=
-            \Force(\U((Unit ~> \F(\PRunStep(Unit, Unit)))),
-              \box(\U((Unit ~> \F(\PRunStep(Unit, Unit)))), step));
+            \Force(\F(\U((Unit ~> \F(\PRunStep(Unit, Unit))))),
+              \box(\F(\U((Unit ~> \F(\PRunStep(Unit, Unit))))), \return(step)));
           \definition ready: \RunStep(Unit^, Unit^) -> \Prop :=
             \fun (r: \RunStep(Unit^, Unit^)) => \Pred(Unit^,
               \runStepRec(Unit^, Unit^, \fun (r: \RunStep(Unit^, Unit^)) => \Power(Unit^),

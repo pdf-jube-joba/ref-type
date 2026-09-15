@@ -4,7 +4,7 @@ use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
 use crate::raw::inductive::InductiveTypeSpecs;
-use crate::raw::program::{ProgramTerm, ProgramType};
+use crate::raw::program::{ComputationTerm, ComputationType};
 use crate::syntax::*;
 
 pub(crate) trait Handler {
@@ -16,12 +16,12 @@ pub(crate) trait Handler {
     ) -> Result<ItemAccessResult, String>;
     fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String>;
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, String>;
-    fn elaborate_program_type(&mut self, expression: &SExp) -> Result<ProgramType, String>;
-    fn elaborate_program(
+    fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,
-        ty: ProgramType,
-    ) -> Result<ProgramTerm, String>;
+    ) -> Result<ComputationType, String>;
+    fn elaborate_boxed_computation(&mut self, expression: &SExp)
+    -> Result<ComputationTerm, String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(
@@ -930,22 +930,22 @@ impl LocalScope {
                 }))
             }
             SExp::BoxType { program_ty } => {
-                let program_ty = handler.elaborate_program_type(program_ty)?;
+                let program_ty = handler.elaborate_boxed_computation_type(program_ty)?;
                 Ok(handler.arena().alloc(ExpNode::BoxType { program_ty }))
             }
             SExp::BoxProgram {
                 program_ty,
                 program,
             } => {
-                let program_ty = handler.elaborate_program_type(program_ty)?;
-                let program = handler.elaborate_program(program, program_ty)?;
+                let program_ty = handler.elaborate_boxed_computation_type(program_ty)?;
+                let program = handler.elaborate_boxed_computation(program)?;
                 Ok(handler.arena().alloc(ExpNode::BoxProgram {
                     program_ty,
                     program,
                 }))
             }
             SExp::ForceBox { program_ty, boxed } => {
-                let program_ty = handler.elaborate_program_type(program_ty)?;
+                let program_ty = handler.elaborate_boxed_computation_type(program_ty)?;
                 let boxed = self.elab_exp_rec(boxed, handler)?;
                 Ok(handler
                     .arena()

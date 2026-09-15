@@ -100,6 +100,7 @@ Program の `run` は accessibility 証明を、`runCase` はさらに遷移の�
 項自身に保持する。型検査は反映した context で証明も検査し、reflection はその証明を引き継ぐ。
 reflection は Program 項が保持する証明 premise を引き継いで Set 項を直接導出する。
 定義登録と Box の入口では、導出した反映項を反映後の型に対して検査する。
+Box が保持する Program 構文は computation type と computation に限る。
 閉性の検査は名前付き定義の本体も辿る。
 
 `calculus::substitute_with_reflection` は Program の引数を証明中では Set 側へ反映して代入する。

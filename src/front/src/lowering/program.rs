@@ -90,13 +90,6 @@ impl Lowerer<'_> {
             .alloc(s::ComputationTypeNode { level: 0, form }))
     }
 
-    pub(super) fn program_term(
-        &mut self,
-        p: raw::program::ProgramTerm,
-    ) -> Result<s::ProgramTerm, String> {
-        self.program_in_context(p, &mut vec![])
-    }
-
     pub(crate) fn program_in_context(
         &mut self,
         p: raw::program::ProgramTerm,

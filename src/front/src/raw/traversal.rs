@@ -72,17 +72,17 @@ pub(crate) fn logical(
                 .collect(),
         },
         ExpNode::BoxType { program_ty } => ExpNode::BoxType {
-            program_ty: program_type(arena, program_ty, depth, rewrite),
+            program_ty: computation_type(arena, program_ty, depth, rewrite),
         },
         ExpNode::BoxProgram {
             program_ty,
             program,
         } => ExpNode::BoxProgram {
-            program_ty: program_type(arena, program_ty, depth, rewrite),
-            program: program_term(arena, program, depth, rewrite),
+            program_ty: computation_type(arena, program_ty, depth, rewrite),
+            program: computation(arena, program, depth, rewrite),
         },
         ExpNode::ForceBox { program_ty, boxed } => ExpNode::ForceBox {
-            program_ty: program_type(arena, program_ty, depth, rewrite),
+            program_ty: computation_type(arena, program_ty, depth, rewrite),
             boxed: logical(arena, boxed, depth, rewrite),
         },
         other => super::calculus::map_children(other, |e| logical(arena, e, depth, rewrite)),
@@ -377,33 +377,6 @@ pub(crate) fn computation(
         other => other,
     };
     arena.reuse_computation(c, result)
-}
-
-fn program_type(
-    arena: &Arena,
-    t: ProgramType,
-    depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
-) -> ProgramType {
-    match t {
-        ProgramType::ValueType(t) => ProgramType::ValueType(value_type(arena, t, depth, rewrite)),
-        ProgramType::ComputationType(t) => {
-            ProgramType::ComputationType(computation_type(arena, t, depth, rewrite))
-        }
-    }
-}
-fn program_term(
-    arena: &Arena,
-    t: ProgramTerm,
-    depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
-) -> ProgramTerm {
-    match t {
-        ProgramTerm::ValueTerm(v) => ProgramTerm::ValueTerm(value(arena, v, depth, rewrite)),
-        ProgramTerm::ComputationTerm(c) => {
-            ProgramTerm::ComputationTerm(computation(arena, c, depth, rewrite))
-        }
-    }
 }
 
 impl Term {

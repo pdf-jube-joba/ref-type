@@ -5,8 +5,8 @@ use std::cell::{Ref, RefCell};
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
-        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ProgramTerm,
-        ProgramType, ValueTerm, ValueTermNode, ValueType, ValueTypeNode,
+        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ValueTerm,
+        ValueTermNode, ValueType, ValueTypeNode,
     },
     sort::Sort,
 };
@@ -193,14 +193,14 @@ pub enum ExpNode {
         transition_equality: Exp,
     },
     BoxType {
-        program_ty: ProgramType,
+        program_ty: ComputationType,
     },
     BoxProgram {
-        program_ty: ProgramType,
-        program: ProgramTerm,
+        program_ty: ComputationType,
+        program: ComputationTerm,
     },
     ForceBox {
-        program_ty: ProgramType,
+        program_ty: ComputationType,
         boxed: Exp,
     },
     BoxApp {

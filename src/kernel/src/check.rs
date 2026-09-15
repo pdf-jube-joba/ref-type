@@ -221,8 +221,10 @@ impl<'a> Checker<'a> {
         Ok(())
     }
     fn closed_program_type(&self, p: Expression) -> Result<(), String> {
-        if !self.arena().sort(p).is_program() || !closed_in_environment(self.env, p) {
-            return Err("Box requires a closed Program type".into());
+        if !matches!(self.arena().sort(p), BaseSort::Computation(_))
+            || !closed_in_environment(self.env, p)
+        {
+            return Err("Box requires a closed computation type".into());
         }
         Checker::new(self.env, vec![]).base_type(p)?;
         Ok(())
@@ -1934,8 +1936,9 @@ impl<'a> Checker<'a> {
             self.check(argument, domain)?;
             substitute_with_reflection(self.env, codomain, argument)?
         } else {
-            self.closed_program_type(domain)?;
-            self.check(argument, self.box_type(domain)?)?;
+            let argument_ty = self.return_type(domain)?;
+            self.closed_program_type(argument_ty)?;
+            self.check(argument, self.box_type(argument_ty)?)?;
             codomain
         };
         self.box_type(result)

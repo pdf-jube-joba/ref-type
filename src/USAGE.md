@@ -197,7 +197,9 @@ level は non-cumulative です。たとえば `A: \Set(0)` を `\Set(1)` の要
 多相関数の型適用では適用結果の level が関数自身より小さくなる場合があります。
 RunStep recursor の branch と結果の level も、それぞれの product rule に従います。
 
-既存の Program 表面構文は level 0 に対応します。Program の型演算子、多相性、
-level 付き Box、boxed type application は kernel API から利用できます。
+既存の Program 表面構文は level 0 に対応します。`\Box`・`\box`・`\Force` が
+受け取る Program 構文は computation type / computation に限られます。value を
+Box に入れる場合は `\F(A)` と `\return(value)` を使います。Program の型演算子、
+多相性、level 付き Box、boxed type application は kernel API から利用できます。
 API の例は [kernel の説明](kernel/README.md) を参照してください。
 `\eval`・`\normalize` による未分類の式の簡約は front が引き続き処理します。

@@ -326,22 +326,22 @@ impl Lowerer<'_> {
                 })
             }
             ExpNode::BoxType { program_ty } => {
-                let program_ty = self.program_type(program_ty)?;
+                let program_ty = self.computation_type(program_ty)?;
                 logical_node!(self, sort, syntax_family; SetType => BoxType { program_ty })
             }
             ExpNode::BoxProgram {
                 program_ty,
                 program,
             } => {
-                let program_ty = self.program_type(program_ty)?;
-                let program = self.program_term(program)?;
+                let program_ty = self.computation_type(program_ty)?;
+                let program = self.computation_term(program, &mut vec![])?;
                 logical_node!(self, sort, syntax_family; SetTerm => BoxProgram {
                     program_ty,
                     program,
                 })
             }
             ExpNode::ForceBox { program_ty, boxed } => {
-                let program_ty = self.program_type(program_ty)?;
+                let program_ty = self.computation_type(program_ty)?;
                 let boxed = self.set(boxed, ctx, m)?;
                 logical_node!(self, sort, syntax_family; SetTerm => ForceBox {
                     program_ty,
@@ -702,10 +702,7 @@ impl Lowerer<'_> {
             ExpNode::BoxApp { function, argument } => {
                 let ty = self.infer(function, ctx, m)?;
                 let head = raw::calculus::whnf(self.raw, ty);
-                let ExpNode::BoxType {
-                    program_ty: raw::program::ProgramType::ComputationType(ty),
-                } = self.raw.arena().get(head)
-                else {
+                let ExpNode::BoxType { program_ty: ty } = self.raw.arena().get(head) else {
                     return Err("expected boxed function".into());
                 };
                 let raw::program::ComputationTypeNode::Function { domain, codomain } =

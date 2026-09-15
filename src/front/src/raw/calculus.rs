@@ -4,7 +4,7 @@ use crate::raw::{
     environment::{CrateEnv, DefinedConstant},
     exp::*,
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
-    program::{ComputationTermNode, ProgramTerm, ProgramType},
+    program::{ComputationTermNode, ComputationType},
 };
 use std::collections::HashMap;
 
@@ -478,25 +478,13 @@ pub fn remap_all_global_ids(
     let mut node = map_children(original.clone(), |child| {
         remap_all_global_ids(arena, child, definitions, inductives, program_inductives)
     });
-    let remap_program_type = |ty: &mut ProgramType| {
-        *ty = match *ty {
-            ProgramType::ValueType(value) => {
-                ProgramType::ValueType(crate::raw::program_calculus::remap_value_type_global_ids(
-                    arena,
-                    value,
-                    definitions,
-                    program_inductives,
-                ))
-            }
-            ProgramType::ComputationType(computation) => ProgramType::ComputationType(
-                crate::raw::program_calculus::remap_computation_type_global_ids(
-                    arena,
-                    computation,
-                    definitions,
-                    program_inductives,
-                ),
-            ),
-        };
+    let remap_computation_type = |ty: &mut ComputationType| {
+        *ty = crate::raw::program_calculus::remap_computation_type_global_ids(
+            arena,
+            *ty,
+            definitions,
+            program_inductives,
+        );
     };
     match &mut node {
         ExpNode::DefinedConstant(id) => {
@@ -511,33 +499,20 @@ pub fn remap_all_global_ids(
             *indspec = program_inductives.get(indspec).copied().unwrap_or(*indspec);
         }
         ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
-            remap_program_type(program_ty);
+            remap_computation_type(program_ty);
         }
         ExpNode::BoxProgram {
             program_ty,
             program,
         } => {
-            remap_program_type(program_ty);
-            *program = match *program {
-                ProgramTerm::ValueTerm(value) => {
-                    ProgramTerm::ValueTerm(crate::raw::program_calculus::remap_value_global_ids(
-                        arena,
-                        value,
-                        definitions,
-                        program_inductives,
-                        inductives,
-                    ))
-                }
-                ProgramTerm::ComputationTerm(computation) => ProgramTerm::ComputationTerm(
-                    crate::raw::program_calculus::remap_computation_global_ids(
-                        arena,
-                        computation,
-                        definitions,
-                        program_inductives,
-                        inductives,
-                    ),
-                ),
-            };
+            remap_computation_type(program_ty);
+            *program = crate::raw::program_calculus::remap_computation_global_ids(
+                arena,
+                *program,
+                definitions,
+                program_inductives,
+                inductives,
+            );
         }
         _ => {}
     }
@@ -602,7 +577,7 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                     .all(|(left, right)| left.binders.len() == right.binders.len())
         }
         (ExpNode::BoxType { program_ty: left }, ExpNode::BoxType { program_ty: right }) => {
-            crate::raw::program_calculus::program_type_is_alpha_eq(arena, *left, *right)
+            crate::raw::program_calculus::computation_type_is_alpha_eq(arena, *left, *right)
         }
         (
             ExpNode::BoxProgram {
@@ -616,8 +591,8 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                 ..
             },
         ) => {
-            crate::raw::program_calculus::program_type_is_alpha_eq(arena, *left_ty, *right_ty)
-                && crate::raw::program_calculus::program_is_alpha_eq(
+            crate::raw::program_calculus::computation_type_is_alpha_eq(arena, *left_ty, *right_ty)
+                && crate::raw::program_calculus::computation_is_alpha_eq(
                     arena,
                     *left_program,
                     *right_program,
@@ -630,7 +605,7 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
             ExpNode::ForceBox {
                 program_ty: right, ..
             },
-        ) => crate::raw::program_calculus::program_type_is_alpha_eq(arena, *left, *right),
+        ) => crate::raw::program_calculus::computation_type_is_alpha_eq(arena, *left, *right),
         _ => std::mem::discriminant(left) == std::mem::discriminant(right),
     }
 }
@@ -865,27 +840,23 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
         },
         ExpNode::BoxProgram {
             program_ty,
-            program: ProgramTerm::ComputationTerm(term),
+            program: term,
         } => crate::raw::program_calculus::reduce_computation_once(env, term).map(|next| {
             arena.alloc(ExpNode::BoxProgram {
                 program_ty,
-                program: ProgramTerm::ComputationTerm(next),
+                program: next,
             })
         }),
         ExpNode::ForceBox { program_ty, boxed } => match arena.get(whnf(env, boxed)) {
             ExpNode::BoxProgram {
                 program_ty: actual,
                 program,
-            } if crate::raw::program_calculus::program_type_is_alpha_eq(
+            } if crate::raw::program_calculus::computation_type_is_alpha_eq(
                 arena, actual, program_ty,
-            ) && match program {
-                ProgramTerm::ComputationTerm(c) => {
-                    crate::raw::program_calculus::reduce_computation_once(env, c).is_none()
-                }
-                ProgramTerm::ValueTerm(_) => true,
-            } =>
+            ) && crate::raw::program_calculus::reduce_computation_once(env, program)
+                .is_none() =>
             {
-                crate::raw::reflection::reflect_program(env, program).ok()
+                crate::raw::reflection::reflect_computation(env, program).ok()
             }
             _ => None,
         },
@@ -896,29 +867,28 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             ) {
                 (
                     ExpNode::BoxProgram {
-                        program_ty: ProgramType::ComputationType(ft),
-                        program: ProgramTerm::ComputationTerm(function),
+                        program_ty: ft,
+                        program: function,
                     },
                     ExpNode::BoxProgram {
-                        program_ty: ProgramType::ValueType(argument_ty),
-                        program: ProgramTerm::ValueTerm(argument),
+                        program_ty: argument_ty,
+                        program: argument,
                     },
-                ) => match arena.get(ft) {
-                    crate::raw::program::ComputationTypeNode::Function { domain, codomain }
-                        if crate::raw::program_calculus::value_type_is_alpha_eq(
-                            arena,
-                            domain,
-                            argument_ty,
-                        ) =>
+                ) => match (arena.get(ft), arena.get(argument_ty), arena.get(argument)) {
+                    (
+                        crate::raw::program::ComputationTypeNode::Function { domain, codomain },
+                        crate::raw::program::ComputationTypeNode::Return { value_ty },
+                        ComputationTermNode::Return { value: argument },
+                    ) if crate::raw::program_calculus::value_type_is_alpha_eq(
+                        arena, domain, value_ty,
+                    ) =>
                     {
                         Some(arena.alloc(ExpNode::BoxProgram {
-                            program_ty: ProgramType::ComputationType(codomain),
-                            program: ProgramTerm::ComputationTerm(arena.alloc(
-                                ComputationTermNode::Application {
-                                    computation: function,
-                                    value: argument,
-                                },
-                            )),
+                            program_ty: codomain,
+                            program: arena.alloc(ComputationTermNode::Application {
+                                computation: function,
+                                value: argument,
+                            }),
                         }))
                     }
                     _ => None,
