@@ -17,58 +17,44 @@
   \match p \in Times \with { | pair a b => \return Times[B, A]::pair b a };
 
 /* The Set API also works when A and B have no Program representation. */
-\definition pair:
-  \forall (A, B: \Set) -> A -> B -> Times^[A, B] :=
-  \fun (A, B: \Set) => \fun (a: A) => \fun (b: B) =>
+\definition pair (A, B: \Set) (a: A) (b: B): Times^[A, B] :=
     Times^[A, B]::pair a b;
 
-\definition first:
-  \forall (A, B: \Set) -> Times^[A, B] -> A :=
-  \fun (A, B: \Set) => \fun (p: Times^[A, B]) =>
+\definition first (A, B: \Set) (p: Times^[A, B]): A :=
     \prec(\Set, Times^[A, B])
       (\fun (p: Times^[A, B]) => A)
       (\fun (a: A) => \fun (b: B) => a)
       p;
 
-\definition second:
-  \forall (A, B: \Set) -> Times^[A, B] -> B :=
-  \fun (A, B: \Set) => \fun (p: Times^[A, B]) =>
+\definition second (A, B: \Set) (p: Times^[A, B]): B :=
     \prec(\Set, Times^[A, B])
       (\fun (p: Times^[A, B]) => B)
       (\fun (a: A) => \fun (b: B) => b)
       p;
 
-\definition swap: \forall (A, B: \Set) -> Times^[A, B] -> Times^[B, A] :=
-  \fun (A, B: \Set) => \fun (p: Times^[A, B]) =>
+\definition swap (A, B: \Set) (p: Times^[A, B]): Times^[B, A] :=
     pair B A (second A B p) (first A B p);
 
-\definition map: \forall (A, B, C, D: \Set) -> (A -> C) -> (B -> D) -> Times^[A, B] -> Times^[C, D] :=
-  \fun (A, B, C, D: \Set) => \fun (f: A -> C) => \fun (g: B -> D) => \fun (p: Times^[A, B]) =>
+\definition map (A, B, C, D: \Set) (f: A -> C) (g: B -> D) (p: Times^[A, B]): Times^[C, D] :=
     pair C D (f (first A B p)) (g (second A B p));
 
-\definition mapFirst: \forall (A, B, C: \Set) -> (A -> C) -> Times^[A, B] -> Times^[C, B] :=
-  \fun (A, B, C: \Set) => \fun (f: A -> C) =>
+\definition mapFirst (A, B, C: \Set) (f: A -> C): Times^[A, B] -> Times^[C, B] :=
     map A B C B f (\fun (b: B) => b);
 
-\definition mapSecond: \forall (A, B, C: \Set) -> (B -> C) -> Times^[A, B] -> Times^[A, C] :=
-  \fun (A, B, C: \Set) => \fun (g: B -> C) =>
+\definition mapSecond (A, B, C: \Set) (g: B -> C): Times^[A, B] -> Times^[A, C] :=
     map A B A C (\fun (a: A) => a) g;
 
-\definition curry: \forall (A, B, C: \Set) -> (Times^[A, B] -> C) -> A -> B -> C :=
-  \fun (A, B, C: \Set) => \fun (f: Times^[A, B] -> C) => \fun (a: A) => \fun (b: B) =>
+\definition curry (A, B, C: \Set) (f: Times^[A, B] -> C) (a: A) (b: B): C :=
     f (pair A B a b);
 
-\definition uncurry: \forall (A, B, C: \Set) -> (A -> B -> C) -> Times^[A, B] -> C :=
-  \fun (A, B, C: \Set) => \fun (f: A -> B -> C) => \fun (p: Times^[A, B]) =>
+\definition uncurry (A, B, C: \Set) (f: A -> B -> C) (p: Times^[A, B]): C :=
     f (first A B p) (second A B p);
 
-\definition assoc: \forall (A, B, C: \Set) -> Times^[Times^[A, B], C] -> Times^[A, Times^[B, C]] :=
-  \fun (A, B, C: \Set) => \fun (p: Times^[Times^[A, B], C]) =>
+\definition assoc (A, B, C: \Set) (p: Times^[Times^[A, B], C]): Times^[A, Times^[B, C]] :=
     pair A Times^[B, C] (first A B (first Times^[A, B] C p))
       (pair B C (second A B (first Times^[A, B] C p)) (second Times^[A, B] C p));
 
-\definition unassoc: \forall (A, B, C: \Set) -> Times^[A, Times^[B, C]] -> Times^[Times^[A, B], C] :=
-  \fun (A, B, C: \Set) => \fun (p: Times^[A, Times^[B, C]]) =>
+\definition unassoc (A, B, C: \Set) (p: Times^[A, Times^[B, C]]): Times^[Times^[A, B], C] :=
     pair Times^[A, B] C
       (pair A B (first A Times^[B, C] p) (first B C (second A Times^[B, C] p)))
       (second B C (second A Times^[B, C] p));

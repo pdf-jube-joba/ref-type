@@ -15,53 +15,42 @@
 
   \definition Rat: \Set := RationalFractions.Fraction;
 
-  \definition lt: Rat -> Rat -> \Prop :=
-    \fun (x, y: Rat) => RationalFractions.lt x y;
+  \definition lt (x, y: Rat): \Prop := RationalFractions.lt x y;
 
-  \definition addRat: Rat -> Rat -> Rat :=
-    \fun (x, y: Rat) => RationalOperations.add x y;
+  \definition addRat (x, y: Rat): Rat := RationalOperations.add x y;
 
-  \definition negRat: Rat -> Rat :=
-    \fun (x: Rat) => RationalOperations.neg x;
+  \definition negRat (x: Rat): Rat := RationalOperations.neg x;
 
   \definition zeroRat: Rat := RationalFractions.zero;
 
   /* Membership in a rational lower set. */
-  \definition In: \Power(Rat) -> Rat -> \Prop :=
-    \fun (L: \Power(Rat)) => \fun (q: Rat) => \Pred(Rat, L, q);
+  \definition In (L: \Power(Rat)) (q: Rat): \Prop := \Pred(Rat, L, q);
 
   /* A lower set is inhabited and proper. */
-  \definition Inhabited: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition Inhabited (L: \Power(Rat)): \Prop :=
       \exists \Ty(Rat, \Subset(q, Rat, In L q));
 
-  \definition Proper: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition Proper (L: \Power(Rat)): \Prop :=
       \exists \Ty(Rat, \Subset(q, Rat, not!{{ In L q }}));
 
   /* It is downward closed and has no greatest member. */
-  \definition Lower: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition Lower (L: \Power(Rat)): \Prop :=
       \forall (p, q: Rat) -> lt p q -> In L q -> In L p;
 
-  \definition Rounded: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition Rounded (L: \Power(Rat)): \Prop :=
       \forall (p: Rat) -> In L p ->
         \exists \Ty(Rat, \Subset(q, Rat, and!{{ In L q } { lt p q }}));
 
   /* Locatedness is the constructive replacement for deciding membership. */
-  \definition Located: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition Located (L: \Power(Rat)): \Prop :=
       \forall (p, q: Rat) -> lt p q -> or!{{ In L p } { not!{{ In L q }} }};
 
   /* Membership must not depend on the chosen fraction representative. */
-  \definition RespectsFractionEq: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition RespectsFractionEq (L: \Power(Rat)): \Prop :=
       \forall (p, q: Rat) ->
         RationalFractions.FractionEq p q -> In L p -> In L q;
 
-  \definition IsCut: \Power(Rat) -> \Prop :=
-    \fun (L: \Power(Rat)) =>
+  \definition IsCut (L: \Power(Rat)): \Prop :=
       and!{{ Inhabited L } { Proper L } { Lower L }
         { Rounded L } { Located L } { RespectsFractionEq L }};
 
@@ -73,46 +62,32 @@
     \Ty(\Power(Rat), CutSet);
 
   /* A real weakens to its underlying rational lower set. */
-  \definition mem: Real -> Rat -> \Prop :=
-    \fun (x: Real) => \fun (q: Rat) => In x q;
+  \definition mem (x: Real) (q: Rat): \Prop := In x q;
 
-  \definition underlying: Real -> \Power(Rat) :=
-    \fun (x: Real) => x;
+  \definition underlying (x: Real): \Power(Rat) := x;
 
   /* Inclusion is available without any extensionality principle. */
-  \definition Le: Real -> Real -> \Prop :=
-    \fun (x, y: Real) => \forall (q: Rat) -> mem x q -> mem y q;
+  \definition Le (x, y: Real): \Prop := \forall (q: Rat) -> mem x q -> mem y q;
 
-  \definition Eq: Real -> Real -> \Prop :=
-    \fun (x, y: Real) => x = y;
+  \definition Eq (x, y: Real): \Prop := x = y;
 
-  \definition leRefl: \forall (x: Real) -> Le x x :=
-    \fun (x: Real) => \fun (q: Rat) => \fun (qx: mem x q) => qx;
+  \definition leRefl (x: Real): Le x x := \fun (q: Rat) => \fun (qx: mem x q) => qx;
 
-  \definition leTrans:
-    \forall (x, y, z: Real) -> Le x y -> Le y z -> Le x z :=
-    \fun (x, y, z: Real) => \fun (xy: Le x y) => \fun (yz: Le y z) =>
+  \definition leTrans (x, y, z: Real) (xy: Le x y) (yz: Le y z): Le x z :=
       \fun (q: Rat) => \fun (qx: mem x q) => yz q (xy q qx);
 
   /* Kernel equality of cuts follows from the trusted subset extensionality. */
-  \definition eqByExt:
-    \forall (x, y: Real) -> Le x y -> Le y x -> Eq x y :=
-    \fun (x, y: Real) => \fun (xy: Le x y) => \fun (yx: Le y x) =>
+  \definition eqByExt (x, y: Real) (xy: Le x y) (yx: Le y x): Eq x y :=
       \axiom:setext(underlying x, underlying y, xy, yx);
 
-  \definition leAntisym:
-    \forall (x, y: Real) -> Le x y -> Le y x -> x = y :=
-    \fun (x, y: Real) => \fun (xy: Le x y) => \fun (yx: Le y x) =>
+  \definition leAntisym (x, y: Real) (xy: Le x y) (yx: Le y x): x = y :=
       eqByExt x y xy yx;
 
-  \definition Lt: Real -> Real -> \Prop :=
-    \fun (x, y: Real) =>
+  \definition Lt (x, y: Real): \Prop :=
       \exists \Ty(Rat,
         \Subset(q, Rat, and!{{ not!{{ mem x q }} } { mem y q }}));
 
-  \definition ltIrrefl:
-    \forall (x: Real) -> not!{{ Lt x x }} :=
-    \fun (x: Real) => \fun (xx: Lt x x) =>
+  \definition ltIrrefl (x: Real): not!{{ Lt x x }} := \fun (xx: Lt x x) =>
       \take (q: \Ty(Rat,
         \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem x r }}))) =>
           (\fun (h: Logic.And[not!{{ mem x q }}, mem x q]) =>
@@ -122,9 +97,7 @@
               and!{{ not!{{ mem x r }} } { mem x r }}), q))
       \by (xx);
 
-  \definition ltNotLeReverse:
-    \forall (x, y: Real) -> Lt x y -> not!{{ Le y x }} :=
-    \fun (x, y: Real) => \fun (xy: Lt x y) => \fun (yx: Le y x) =>
+  \definition ltNotLeReverse (x, y: Real) (xy: Lt x y): not!{{ Le y x }} := \fun (yx: Le y x) =>
       \take (q: \Ty(Rat,
         \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem y r }}))) =>
           (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
@@ -134,9 +107,7 @@
               and!{{ not!{{ mem x r }} } { mem y r }}), q))
       \by (xy);
 
-  \definition ltLeTrans:
-    \forall (x, y, z: Real) -> Lt x y -> Le y z -> Lt x z :=
-    \fun (x, y, z: Real) => \fun (xy: Lt x y) => \fun (yz: Le y z) =>
+  \definition ltLeTrans (x, y, z: Real) (xy: Lt x y) (yz: Le y z): Lt x z :=
       \take (q: \Ty(Rat,
         \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem y r }}))) =>
         \exact(
@@ -155,9 +126,7 @@
             and!{{ not!{{ mem x r }} } { mem z r }})))
       \by (xy);
 
-  \definition leLtTrans:
-    \forall (x, y, z: Real) -> Le x y -> Lt y z -> Lt x z :=
-    \fun (x, y, z: Real) => \fun (xy: Le x y) => \fun (yz: Lt y z) =>
+  \definition leLtTrans (x, y, z: Real) (xy: Le x y) (yz: Lt y z): Lt x z :=
       \take (q: \Ty(Rat,
         \Subset(r, Rat, and!{{ not!{{ mem y r }} } { mem z r }}))) =>
         \exact(

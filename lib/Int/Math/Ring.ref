@@ -12,35 +12,25 @@
 \definition subInteger: Integer -> Integer -> Integer := subRep;
 \definition IntegerEq: Integer -> Integer -> \Prop := Equivalent;
 
-\definition integerEqRefl:
-  \forall (x: Integer) -> IntegerEq x x :=
-  \fun (x: Integer) =>
+\definition integerEqRefl (x: Integer): IntegerEq x x :=
     \refl(natAddSet (positive x) (negative x));
 
-\definition integerEqSym:
-  \forall (x, y: Integer) -> IntegerEq x y -> IntegerEq y x :=
-  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+\definition integerEqSym (x, y: Integer) (xy: IntegerEq x y): IntegerEq y x :=
     sym!{Nat}
       (natAddSet (positive x) (negative y))
       (natAddSet (positive y) (negative x))
       xy;
 
 /* Rearranging four summands is the normalization step used by transitivity. */
-\definition integerAddShuffle: \forall (a, b, c, d: Nat) ->
+\definition integerAddShuffle (a, b, c, d: Nat):
   natAddSet (natAddSet a b) (natAddSet c d) =
     natAddSet (natAddSet a d) (natAddSet c b) :=
-  \fun (a, b, c, d: Nat) =>
     trans!{Nat} _ _ _ (natAddInterchange a b c d)
       (trans!{Nat} _ _ _
         (congr!{Nat Nat} (natAddSet (natAddSet a c)) _ _ (natAddComm b d))
         (sym!{Nat} _ _ (natAddInterchange a d c b)));
 
-\definition integerEqTrans:
-  \forall (x, y, z: Integer) ->
-    IntegerEq x y -> IntegerEq y z -> IntegerEq x z :=
-  \fun (x, y, z: Integer) =>
-  \fun (xy: IntegerEq x y) =>
-  \fun (yz: IntegerEq y z) =>
+\definition integerEqTrans (x, y, z: Integer) (xy: IntegerEq x y) (yz: IntegerEq y z): IntegerEq x z :=
     natAddCancelRight
       (natAddSet (positive y) (negative y))
       (natAddSet (positive x) (negative z))
@@ -68,22 +58,12 @@
                   (positive z) (negative x)
                   (positive y) (negative y)))))));
 
-\definition integerEqOfFields:
-  \forall (x, y: Integer) ->
-    positive x = positive y -> negative x = negative y -> IntegerEq x y :=
-  \fun (x, y: Integer) =>
-  \fun (p: positive x = positive y) =>
-  \fun (n: negative x = negative y) =>
+\definition integerEqOfFields (x, y: Integer) (p: positive x = positive y) (n: negative x = negative y): IntegerEq x y :=
     congr2!{Nat Nat Nat} natAddSet
       _ _ _ _ p (sym!{Nat} _ _ n);
 
-\definition addIntegerRespects:
-  \forall (x, y, u, v: Integer) ->
-    IntegerEq x y -> IntegerEq u v ->
+\definition addIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
     IntegerEq (addInteger x u) (addInteger y v) :=
-  \fun (x, y, u, v: Integer) =>
-  \fun (xy: IntegerEq x y) =>
-  \fun (uv: IntegerEq u v) =>
     trans!{Nat} _ _ _
       (natAddInterchange
         (positive x) (positive u) (negative y) (negative v))
@@ -98,10 +78,7 @@
           (natAddInterchange
             (positive y) (positive v) (negative x) (negative u))));
 
-\definition negIntegerRespects:
-  \forall (x, y: Integer) ->
-    IntegerEq x y -> IntegerEq (negInteger x) (negInteger y) :=
-  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+\definition negIntegerRespects (x, y: Integer) (xy: IntegerEq x y): IntegerEq (negInteger x) (negInteger y) :=
     trans!{Nat} _ _ _ (natAddComm (negative x) (positive y))
       (trans!{Nat}
         (natAddSet (positive y) (negative x))
@@ -112,24 +89,15 @@
           (natAddSet (positive y) (negative x)) xy)
         (natAddComm (positive x) (negative y)));
 
-\definition subIntegerRespects:
-  \forall (x, y, u, v: Integer) ->
-    IntegerEq x y -> IntegerEq u v ->
+\definition subIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
     IntegerEq (subInteger x u) (subInteger y v) :=
-  \fun (x, y, u, v: Integer) =>
-  \fun (xy: IntegerEq x y) =>
-  \fun (uv: IntegerEq u v) =>
     addIntegerRespects x y (negInteger u) (negInteger v)
       xy (negIntegerRespects u v uv);
 
-\definition scaleInteger: Integer -> Nat -> Integer :=
-  \fun (x: Integer) => \fun (n: Nat) =>
+\definition scaleInteger (x: Integer) (n: Nat): Integer :=
     integer (natMulSet (positive x) n) (natMulSet (negative x) n);
 
-\definition scaleIntegerRespects:
-  \forall (x, y: Integer) -> \forall (n: Nat) ->
-    IntegerEq x y -> IntegerEq (scaleInteger x n) (scaleInteger y n) :=
-  \fun (x, y: Integer) => \fun (n: Nat) => \fun (xy: IntegerEq x y) =>
+\definition scaleIntegerRespects (x, y: Integer) (n: Nat) (xy: IntegerEq x y): IntegerEq (scaleInteger x n) (scaleInteger y n) :=
     trans!{Nat}
       (natAddSet (natMulSet (positive x) n) (natMulSet (negative y) n))
       (natMulSet (natAddSet (positive x) (negative y)) n)
@@ -147,20 +115,16 @@
           (natAddSet (positive y) (negative x)) xy)
         (natMulDistribRight (positive y) (negative x) n));
 
-\definition scaleIntegerZero:
-  \forall (n: Nat) ->
+\definition scaleIntegerZero (n: Nat):
     IntegerEq (scaleInteger zeroInteger n) zeroInteger :=
-  \fun (n: Nat) =>
     integerEqOfFields (scaleInteger zeroInteger n) zeroInteger
       (natMulZeroLeft n)
       (natMulZeroLeft n);
 
-\definition scaleIntegerMul:
-  \forall (x, y: Integer) -> \forall (n: Nat) ->
+\definition scaleIntegerMul (x, y: Integer) (n: Nat):
     IntegerEq
       (scaleInteger (mulInteger x y) n)
       (mulInteger x (scaleInteger y n)) :=
-  \fun (x, y: Integer) => \fun (n: Nat) =>
     integerEqOfFields
       (scaleInteger (mulInteger x y) n)
       (mulInteger x (scaleInteger y n))
@@ -181,36 +145,27 @@
           (natMulAssoc (positive x) (negative y) n)
           (natMulAssoc (negative x) (positive y) n)));
 
-\definition natMulSwapRight: \forall (x, a, b: Nat) ->
+\definition natMulSwapRight (x, a, b: Nat):
   natMulSet (natMulSet x a) b = natMulSet (natMulSet x b) a :=
-  \fun (x, a, b: Nat) =>
     trans!{Nat} _ _ _ (natMulAssoc x a b)
       (trans!{Nat} _ _ _
         (congr!{Nat Nat} (natMulSet x) _ _ (natMulComm a b))
         (sym!{Nat} _ _ (natMulAssoc x b a)));
 
-\definition scaleIntegerSwap:
-  \forall (x: Integer) -> \forall (a, b: Nat) ->
+\definition scaleIntegerSwap (x: Integer) (a, b: Nat):
     IntegerEq (scaleInteger (scaleInteger x a) b)
       (scaleInteger (scaleInteger x b) a) :=
-  \fun (x: Integer) => \fun (a, b: Nat) =>
     integerEqOfFields
       (scaleInteger (scaleInteger x a) b)
       (scaleInteger (scaleInteger x b) a)
       (natMulSwapRight (positive x) a b)
       (natMulSwapRight (negative x) a b);
 
-\definition scaleIntegerCancelPositive:
-  \forall (x, y: Integer) -> \forall (k: Nat) ->
+\definition scaleIntegerCancelPositive (x, y: Integer) (k: Nat) (xy:
     IntegerEq
       (scaleInteger x (natSuccSet k))
-      (scaleInteger y (natSuccSet k)) ->
+      (scaleInteger y (natSuccSet k))):
     IntegerEq x y :=
-  \fun (x, y: Integer) => \fun (k: Nat) =>
-  \fun (xy:
-    IntegerEq
-      (scaleInteger x (natSuccSet k))
-      (scaleInteger y (natSuccSet k))) =>
     natMulCancelRightSucc k
       (natAddSet (positive x) (negative y))
       (natAddSet (positive y) (negative x))
@@ -238,13 +193,11 @@
             (natMulDistribRight
               (positive y) (negative x) (natSuccSet k)))));
 
-\definition mulIntegerAsSum:
-  \forall (x, y: Integer) ->
+\definition mulIntegerAsSum (x, y: Integer):
     IntegerEq (mulInteger x y)
       (addInteger
         (scaleInteger x (positive y))
         (negInteger (scaleInteger x (negative y)))) :=
-  \fun (x, y: Integer) =>
     integerEqOfFields (mulInteger x y)
       (addInteger
         (scaleInteger x (positive y))
@@ -254,9 +207,7 @@
         (natMulSet (positive x) (negative y))
         (natMulSet (negative x) (positive y)));
 
-\definition mulIntegerComm:
-  \forall (x, y: Integer) -> IntegerEq (mulInteger x y) (mulInteger y x) :=
-  \fun (x, y: Integer) =>
+\definition mulIntegerComm (x, y: Integer): IntegerEq (mulInteger x y) (mulInteger y x) :=
     integerEqOfFields (mulInteger x y) (mulInteger y x)
       (congr2!{Nat Nat Nat} natAddSet _ _ _ _
         (natMulComm (positive x) (positive y))
@@ -269,11 +220,9 @@
           (natMulSet (negative y) (positive x))
           (natMulSet (positive y) (negative x))));
 
-\definition mulIntegerNegLeft:
-  \forall (x, y: Integer) ->
+\definition mulIntegerNegLeft (x, y: Integer):
     IntegerEq (mulInteger (negInteger x) y)
       (negInteger (mulInteger x y)) :=
-  \fun (x, y: Integer) =>
     integerEqOfFields
       (mulInteger (negInteger x) y)
       (negInteger (mulInteger x y))
@@ -284,11 +233,9 @@
         (natMulSet (negative x) (negative y))
         (natMulSet (positive x) (positive y)));
 
-\definition mulIntegerNegRight:
-  \forall (x, y: Integer) ->
+\definition mulIntegerNegRight (x, y: Integer):
     IntegerEq (mulInteger x (negInteger y))
       (negInteger (mulInteger x y)) :=
-  \fun (x, y: Integer) =>
     integerEqTrans
       (mulInteger x (negInteger y))
       (mulInteger (negInteger y) x)
@@ -303,10 +250,7 @@
           (mulInteger y x) (mulInteger x y)
           (mulIntegerComm y x)));
 
-\definition mulIntegerRespectsLeft:
-  \forall (x, y, z: Integer) ->
-    IntegerEq x y -> IntegerEq (mulInteger x z) (mulInteger y z) :=
-  \fun (x, y, z: Integer) => \fun (xy: IntegerEq x y) =>
+\definition mulIntegerRespectsLeft (x, y, z: Integer) (xy: IntegerEq x y): IntegerEq (mulInteger x z) (mulInteger y z) :=
     integerEqTrans (mulInteger x z)
       (addInteger
         (scaleInteger x (positive z))
@@ -336,13 +280,8 @@
             (negInteger (scaleInteger y (negative z))))
           (mulIntegerAsSum y z)));
 
-\definition mulIntegerRespects:
-  \forall (x, y, u, v: Integer) ->
-    IntegerEq x y -> IntegerEq u v ->
+\definition mulIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
     IntegerEq (mulInteger x u) (mulInteger y v) :=
-  \fun (x, y, u, v: Integer) =>
-  \fun (xy: IntegerEq x y) =>
-  \fun (uv: IntegerEq u v) =>
     integerEqTrans (mulInteger x u) (mulInteger y u) (mulInteger y v)
       (mulIntegerRespectsLeft x y u xy)
       (integerEqTrans (mulInteger y u) (mulInteger u y) (mulInteger y v)
@@ -351,45 +290,35 @@
           (mulIntegerRespectsLeft u v y uv)
           (mulIntegerComm v y)));
 
-\definition addIntegerZeroLeft:
-  \forall (x: Integer) -> IntegerEq (addInteger zeroInteger x) x :=
-  \fun (x: Integer) =>
+\definition addIntegerZeroLeft (x: Integer): IntegerEq (addInteger zeroInteger x) x :=
     integerEqOfFields (addInteger zeroInteger x) x
       (natAddZeroLeft (positive x))
       (natAddZeroLeft (negative x));
 
-\definition addIntegerZeroRight:
-  \forall (x: Integer) -> IntegerEq (addInteger x zeroInteger) x :=
-  \fun (x: Integer) =>
+\definition addIntegerZeroRight (x: Integer): IntegerEq (addInteger x zeroInteger) x :=
     integerEqOfFields (addInteger x zeroInteger) x
       (natAddZeroRight (positive x))
       (natAddZeroRight (negative x));
 
-\definition addIntegerComm:
-  \forall (x, y: Integer) ->
+\definition addIntegerComm (x, y: Integer):
     IntegerEq (addInteger x y) (addInteger y x) :=
-  \fun (x, y: Integer) =>
     integerEqOfFields (addInteger x y) (addInteger y x)
       (natAddComm (positive x) (positive y))
       (natAddComm (negative x) (negative y));
 
-\definition addIntegerAssoc:
-  \forall (x, y, z: Integer) ->
+\definition addIntegerAssoc (x, y, z: Integer):
     IntegerEq (addInteger (addInteger x y) z)
       (addInteger x (addInteger y z)) :=
-  \fun (x, y, z: Integer) =>
     integerEqOfFields
       (addInteger (addInteger x y) z)
       (addInteger x (addInteger y z))
       (natAddAssoc (positive x) (positive y) (positive z))
       (natAddAssoc (negative x) (negative y) (negative z));
 
-\definition mulIntegerDistribLeft:
-  \forall (x, y, z: Integer) ->
+\definition mulIntegerDistribLeft (x, y, z: Integer):
     IntegerEq
       (mulInteger x (addInteger y z))
       (addInteger (mulInteger x y) (mulInteger x z)) :=
-  \fun (x, y, z: Integer) =>
     integerEqOfFields
       (mulInteger x (addInteger y z))
       (addInteger (mulInteger x y) (mulInteger x z))
@@ -416,12 +345,10 @@
           (natMulSet (negative x) (positive y))
           (natMulSet (negative x) (positive z))));
 
-\definition mulIntegerDistribRight:
-  \forall (x, y, z: Integer) ->
+\definition mulIntegerDistribRight (x, y, z: Integer):
     IntegerEq
       (mulInteger (addInteger x y) z)
       (addInteger (mulInteger x z) (mulInteger y z)) :=
-  \fun (x, y, z: Integer) =>
     integerEqTrans
       (mulInteger (addInteger x y) z)
       (mulInteger z (addInteger x y))
@@ -438,12 +365,10 @@
           (mulIntegerComm z x)
           (mulIntegerComm z y)));
 
-\definition mulIntegerAssoc:
-  \forall (x, y, z: Integer) ->
+\definition mulIntegerAssoc (x, y, z: Integer):
     IntegerEq
       (mulInteger (mulInteger x y) z)
       (mulInteger x (mulInteger y z)) :=
-  \fun (x, y, z: Integer) =>
     integerEqTrans
       (mulInteger (mulInteger x y) z)
       (addInteger
@@ -536,20 +461,15 @@
                   (negInteger (scaleInteger y (negative z))))
                 (mulIntegerAsSum y z))))));
 
-\definition mulIntegerCongRight:
-  \forall (x, y, z: Integer) ->
-    IntegerEq y z ->
+\definition mulIntegerCongRight (x, y, z: Integer) (yz: IntegerEq y z):
     IntegerEq (mulInteger x y) (mulInteger x z) :=
-  \fun (x, y, z: Integer) => \fun (yz: IntegerEq y z) =>
     mulIntegerRespects
       x x y z (integerEqRefl x) yz;
 
-\definition mulIntegerInterchange:
-  \forall (a, b, c, d: Integer) ->
+\definition mulIntegerInterchange (a, b, c, d: Integer):
     IntegerEq
       (mulInteger (mulInteger a b) (mulInteger c d))
       (mulInteger (mulInteger a c) (mulInteger b d)) :=
-  \fun (a, b, c, d: Integer) =>
     integerEqTrans
       (mulInteger (mulInteger a b) (mulInteger c d))
       (mulInteger a
@@ -599,14 +519,10 @@
                 (mulInteger c (mulInteger b d)))
               (mulIntegerAssoc a c (mulInteger b d))))));
 
-\definition negIntegerInvolutive:
-  \forall (x: Integer) -> IntegerEq (negInteger (negInteger x)) x :=
-  \fun (x: Integer) => integerEqRefl x;
+\definition negIntegerInvolutive (x: Integer): IntegerEq (negInteger (negInteger x)) x := integerEqRefl x;
 
-\definition addIntegerNegRight:
-  \forall (x: Integer) ->
+\definition addIntegerNegRight (x: Integer):
     IntegerEq (addInteger x (negInteger x)) zeroInteger :=
-  \fun (x: Integer) =>
     trans!{Nat} _ _ _
       (natAddZeroRight
         (natAddSet (positive x) (negative x)))
@@ -615,10 +531,8 @@
         (sym!{Nat} _ _ (natAddZeroLeft
           (natAddSet (negative x) (positive x)))));
 
-\definition addIntegerNegLeft:
-  \forall (x: Integer) ->
+\definition addIntegerNegLeft (x: Integer):
     IntegerEq (addInteger (negInteger x) x) zeroInteger :=
-  \fun (x: Integer) =>
     integerEqTrans
       (addInteger (negInteger x) x)
       (addInteger x (negInteger x))
@@ -626,9 +540,7 @@
       (addIntegerComm (negInteger x) x)
       (addIntegerNegRight x);
 
-\definition mulIntegerZeroRight:
-  \forall (x: Integer) -> IntegerEq (mulInteger x zeroInteger) zeroInteger :=
-  \fun (x: Integer) =>
+\definition mulIntegerZeroRight (x: Integer): IntegerEq (mulInteger x zeroInteger) zeroInteger :=
     integerEqOfFields (mulInteger x zeroInteger) zeroInteger
       (trans!{Nat} _ _ _
         (congr2!{Nat Nat Nat} natAddSet _ _ _ _
@@ -641,9 +553,7 @@
           (natMulZeroRight (negative x)))
         (natAddZeroLeft natZeroSet));
 
-\definition mulIntegerZeroLeft:
-  \forall (x: Integer) -> IntegerEq (mulInteger zeroInteger x) zeroInteger :=
-  \fun (x: Integer) =>
+\definition mulIntegerZeroLeft (x: Integer): IntegerEq (mulInteger zeroInteger x) zeroInteger :=
     integerEqTrans
       (mulInteger zeroInteger x)
       (mulInteger x zeroInteger)
@@ -651,9 +561,7 @@
       (mulIntegerComm zeroInteger x)
       (mulIntegerZeroRight x);
 
-\definition mulIntegerOneRight:
-  \forall (x: Integer) -> IntegerEq (mulInteger x oneInteger) x :=
-  \fun (x: Integer) =>
+\definition mulIntegerOneRight (x: Integer): IntegerEq (mulInteger x oneInteger) x :=
     integerEqOfFields (mulInteger x oneInteger) x
       (trans!{Nat} _ _ _
         (congr2!{Nat Nat Nat} natAddSet _ _ _ _
@@ -666,9 +574,7 @@
           (natMulOneRight (negative x)))
         (natAddZeroLeft (negative x)));
 
-\definition mulIntegerOneLeft:
-  \forall (x: Integer) -> IntegerEq (mulInteger oneInteger x) x :=
-  \fun (x: Integer) =>
+\definition mulIntegerOneLeft (x: Integer): IntegerEq (mulInteger oneInteger x) x :=
     integerEqTrans
       (mulInteger oneInteger x)
       (mulInteger x oneInteger)
