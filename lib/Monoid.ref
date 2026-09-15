@@ -16,16 +16,12 @@
     op s (op s x y) z = op s x (op s y z),
 };
 
-\definition monoidLawsIntro (s: RawMonoid):
-  (\forall (x: Carrier) -> op s (unit s) x = x) ->
-  (\forall (x: Carrier) -> op s x (unit s) = x) ->
-  (\forall (x, y, z: Carrier) ->
-    op s (op s x y) z = op s x (op s y z)) ->
+\definition monoidLawsIntro (s: RawMonoid)
+  (left: \forall (x: Carrier) -> op s (unit s) x = x)
+  (right: \forall (x: Carrier) -> op s x (unit s) = x)
+  (assoc: \forall (x, y, z: Carrier) ->
+    op s (op s x y) z = op s x (op s y z)):
   MonoidLaws[s] :=
-  \fun (left: \forall (x: Carrier) -> op s (unit s) x = x) =>
-  \fun (right: \forall (x: Carrier) -> op s x (unit s) = x) =>
-  \fun (assoc: \forall (x, y, z: Carrier) ->
-    op s (op s x y) z = op s x (op s y z)) =>
     \record MonoidLaws[s] {
       leftIdentity := left,
       rightIdentity := right,
@@ -42,27 +38,25 @@
 
 \definition laws (s: Monoid): MonoidLaws[s] := \bysub(RawMonoid, MonoidSet, s);
 
-\definition leftIdentity: \forall (s: Monoid) -> \forall (x: Carrier) ->
-  op s (unit s) x = x :=
-  \fun (s: Monoid) => MonoidLaws::leftIdentity (laws s);
+\definition leftIdentity (s: Monoid) (x: Carrier):
+  op s (unit s) x = x := MonoidLaws::leftIdentity (laws s) x;
 
-\definition rightIdentity: \forall (s: Monoid) -> \forall (x: Carrier) ->
-  op s x (unit s) = x :=
-  \fun (s: Monoid) => MonoidLaws::rightIdentity (laws s);
+\definition rightIdentity (s: Monoid) (x: Carrier):
+  op s x (unit s) = x := MonoidLaws::rightIdentity (laws s) x;
 
-\definition associative: \forall (s: Monoid) -> \forall (x, y, z: Carrier) ->
+\definition associative (s: Monoid) (x, y, z: Carrier):
   op s (op s x y) z = op s x (op s y z) :=
-  \fun (s: Monoid) => MonoidLaws::associative (laws s);
+  MonoidLaws::associative (laws s) x y z;
 
 \structure CommutativeMonoidLaws(s: RawMonoid): \Prop := {
   monoid: MonoidLaws[s],
   commutative: \forall (x, y: Carrier) -> op s x y = op s y x,
 };
 
-\definition commutativeMonoidLawsIntro (s: RawMonoid): MonoidLaws[s] ->
-  (\forall (x, y: Carrier) -> op s x y = op s y x) ->
-  CommutativeMonoidLaws[s] := \fun (base: MonoidLaws[s]) =>
-  \fun (comm: \forall (x, y: Carrier) -> op s x y = op s y x) =>
+\definition commutativeMonoidLawsIntro (s: RawMonoid)
+  (base: MonoidLaws[s])
+  (comm: \forall (x, y: Carrier) -> op s x y = op s y x):
+  CommutativeMonoidLaws[s] :=
     \record CommutativeMonoidLaws[s] {
       monoid := base,
       commutative := comm,
@@ -81,8 +75,6 @@
     \subsetinto(RawMonoid, MonoidSet, s,
       CommutativeMonoidLaws::monoid (commutativeLaws s));
 
-\definition commutative:
-  \forall (s: CommutativeMonoid) -> \forall (x, y: Carrier) ->
-    op s x y = op s y x :=
-  \fun (s: CommutativeMonoid) =>
-    CommutativeMonoidLaws::commutative (commutativeLaws s);
+\definition commutative (s: CommutativeMonoid) (x, y: Carrier):
+  op s x y = op s y x :=
+  CommutativeMonoidLaws::commutative (commutativeLaws s) x y;

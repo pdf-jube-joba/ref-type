@@ -25,22 +25,14 @@
     groupOp s x (groupInv s x) = groupUnit s,
 };
 
-\definition groupLawsIntro (s: RawGroup):
-  (\forall (x: Carrier) -> groupOp s (groupUnit s) x = x) ->
-  (\forall (x: Carrier) -> groupOp s x (groupUnit s) = x) ->
-  (\forall (x, y, z: Carrier) ->
-    groupOp s (groupOp s x y) z = groupOp s x (groupOp s y z)) ->
-  (\forall (x: Carrier) -> groupOp s (groupInv s x) x = groupUnit s) ->
-  (\forall (x: Carrier) -> groupOp s x (groupInv s x) = groupUnit s) ->
+\definition groupLawsIntro (s: RawGroup)
+  (left: \forall (x: Carrier) -> groupOp s (groupUnit s) x = x)
+  (right: \forall (x: Carrier) -> groupOp s x (groupUnit s) = x)
+  (assoc: \forall (x, y, z: Carrier) ->
+    groupOp s (groupOp s x y) z = groupOp s x (groupOp s y z))
+  (leftInv: \forall (x: Carrier) -> groupOp s (groupInv s x) x = groupUnit s)
+  (rightInv: \forall (x: Carrier) -> groupOp s x (groupInv s x) = groupUnit s):
   GroupLaws[s] :=
-  \fun (left: \forall (x: Carrier) -> groupOp s (groupUnit s) x = x) =>
-  \fun (right: \forall (x: Carrier) -> groupOp s x (groupUnit s) = x) =>
-  \fun (assoc: \forall (x, y, z: Carrier) ->
-    groupOp s (groupOp s x y) z = groupOp s x (groupOp s y z)) =>
-  \fun (leftInv: \forall (x: Carrier) ->
-    groupOp s (groupInv s x) x = groupUnit s) =>
-  \fun (rightInv: \forall (x: Carrier) ->
-    groupOp s x (groupInv s x) = groupUnit s) =>
     \record GroupLaws[s] {
       monoid := M.monoidLawsIntro (groupMonoid s) left right assoc,
       leftInverse := leftInv,
@@ -58,14 +50,15 @@
     groupOp s x y = groupOp s y x,
 };
 
-\definition commutativeGroupLawsIntro (s: RawGroup): GroupLaws[s] ->
-  (\forall (x, y: Carrier) -> groupOp s x y = groupOp s y x) ->
-  CommutativeGroupLaws[s] := \fun (base: GroupLaws[s]) =>
-  \fun (comm: \forall (x, y: Carrier) -> groupOp s x y = groupOp s y x) =>
-    \record CommutativeGroupLaws[s] {
-      group := base,
-      commutative := comm,
-    };
+\definition commutativeGroupLawsIntro
+  (s: RawGroup)
+  (base: GroupLaws[s])
+  (comm: \forall (x, y: Carrier) -> groupOp s x y = groupOp s y x):
+  CommutativeGroupLaws[s] :=
+  \record CommutativeGroupLaws[s] {
+    group := base,
+    commutative := comm,
+  };
 
 \definition CommutativeGroupSet: \Power(RawGroup) :=
   \Subset(s, RawGroup, CommutativeGroupLaws[s]);
@@ -109,37 +102,20 @@
   zeroAbsorbsRight: \forall (x: Carrier) -> mul s x (zero s) = zero s,
 };
 
-\definition semiringLawsIntro (s: RawSemiring):
-  (\forall (x: Carrier) -> add s (zero s) x = x) ->
-  (\forall (x: Carrier) -> add s x (zero s) = x) ->
-  (\forall (x, y, z: Carrier) -> add s (add s x y) z = add s x (add s y z)) ->
-  (\forall (x, y: Carrier) -> add s x y = add s y x) ->
-  (\forall (x: Carrier) -> mul s (one s) x = x) ->
-  (\forall (x: Carrier) -> mul s x (one s) = x) ->
-  (\forall (x, y, z: Carrier) -> mul s (mul s x y) z = mul s x (mul s y z)) ->
-  (\forall (x, y, z: Carrier) ->
-    mul s x (add s y z) = add s (mul s x y) (mul s x z)) ->
-  (\forall (x, y, z: Carrier) ->
-    mul s (add s x y) z = add s (mul s x z) (mul s y z)) ->
-  (\forall (x: Carrier) -> mul s (zero s) x = zero s) ->
-  (\forall (x: Carrier) -> mul s x (zero s) = zero s) ->
+\definition semiringLawsIntro (s: RawSemiring)
+  (addLeft: \forall (x: Carrier) -> add s (zero s) x = x)
+  (addRight: \forall (x: Carrier) -> add s x (zero s) = x)
+  (addAssoc: \forall (x, y, z: Carrier) -> add s (add s x y) z = add s x (add s y z))
+  (addComm: \forall (x, y: Carrier) -> add s x y = add s y x)
+  (mulLeft: \forall (x: Carrier) -> mul s (one s) x = x)
+  (mulRight: \forall (x: Carrier) -> mul s x (one s) = x)
+  (mulAssoc: \forall (x, y, z: Carrier) -> mul s (mul s x y) z = mul s x (mul s y z))
+  (distribLeft: \forall (x, y, z: Carrier) -> mul s x (add s y z) = add s (mul s x y) (mul s x z))
+  (distribRight: \forall (x, y, z: Carrier) -> mul s (add s x y) z = add s (mul s x z) (mul s y z))
+  (absorbLeft: \forall (x: Carrier) -> mul s (zero s) x = zero s)
+  (absorbRight: \forall (x: Carrier) -> mul s x (zero s) = zero s):
   SemiringLaws[s] :=
-  \fun (addLeft: \forall (x: Carrier) -> add s (zero s) x = x) =>
-  \fun (addRight: \forall (x: Carrier) -> add s x (zero s) = x) =>
-  \fun (addAssoc: \forall (x, y, z: Carrier) ->
-    add s (add s x y) z = add s x (add s y z)) =>
-  \fun (addComm: \forall (x, y: Carrier) -> add s x y = add s y x) =>
-  \fun (mulLeft: \forall (x: Carrier) -> mul s (one s) x = x) =>
-  \fun (mulRight: \forall (x: Carrier) -> mul s x (one s) = x) =>
-  \fun (mulAssoc: \forall (x, y, z: Carrier) ->
-    mul s (mul s x y) z = mul s x (mul s y z)) =>
-  \fun (distribLeft: \forall (x, y, z: Carrier) ->
-    mul s x (add s y z) = add s (mul s x y) (mul s x z)) =>
-  \fun (distribRight: \forall (x, y, z: Carrier) ->
-    mul s (add s x y) z = add s (mul s x z) (mul s y z)) =>
-  \fun (absorbLeft: \forall (x: Carrier) -> mul s (zero s) x = zero s) =>
-  \fun (absorbRight: \forall (x: Carrier) -> mul s x (zero s) = zero s) =>
-    \record SemiringLaws[s] {
+  \record SemiringLaws[s] {
       additive := M.commutativeMonoidLawsIntro (additiveMonoid s)
         (M.monoidLawsIntro (additiveMonoid s)
           addLeft addRight addAssoc) addComm,
@@ -182,11 +158,10 @@
     ringAdd s (ringNeg s x) x = ringZero s,
 };
 
-\definition ringLawsIntro (s: RawRing): SemiringLaws[ringSemiring s] ->
-  (\forall (x: Carrier) -> ringAdd s (ringNeg s x) x = ringZero s) ->
-  RingLaws[s] := \fun (base: SemiringLaws[ringSemiring s]) =>
-  \fun (inverse: \forall (x: Carrier) ->
-    ringAdd s (ringNeg s x) x = ringZero s) =>
+\definition ringLawsIntro (s: RawRing)
+  (base: SemiringLaws[ringSemiring s])
+  (inverse: \forall (x: Carrier) -> ringAdd s (ringNeg s x) x = ringZero s):
+  RingLaws[s] :=
     \record RingLaws[s] {
       semiring := base,
       additiveInverse := inverse,
@@ -206,10 +181,10 @@
     ringMul s x y = ringMul s y x,
 };
 
-\definition commutativeRingLawsIntro (s: RawRing): RingLaws[s] ->
-  (\forall (x, y: Carrier) -> ringMul s x y = ringMul s y x) ->
-  CommutativeRingLaws[s] := \fun (base: RingLaws[s]) =>
-  \fun (comm: \forall (x, y: Carrier) -> ringMul s x y = ringMul s y x) =>
+\definition commutativeRingLawsIntro (s: RawRing)
+  (base: RingLaws[s])
+  (comm: \forall (x, y: Carrier) -> ringMul s x y = ringMul s y x):
+  CommutativeRingLaws[s] :=
     \record CommutativeRingLaws[s] {
       ring := base,
       mulCommutative := comm,
