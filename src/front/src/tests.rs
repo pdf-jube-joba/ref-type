@@ -1283,7 +1283,7 @@ fn program_application_classification_preserves_cbpv_boundaries() {
 }
 
 #[test]
-fn program_cbv_sugar_elaborates_to_alpha_equivalent_cbpv() {
+fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
     use crate::raw::{
         environment::{DefinedConstant, ModuleItem},
         program_calculus::{computation_is_alpha_eq, computation_type_is_alpha_eq},

@@ -874,7 +874,7 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, String> {
         enum Head {
-            Value(ValueTerm, Option<ValueType>),
+            Value(Option<ValueType>),
             Computation(ComputationTerm, Option<ComputationType>),
         }
 
@@ -883,7 +883,7 @@ impl ProgramScope {
                 let value = self.elaborate_value(value, environment)?;
                 let mut context = self.context.clone();
                 let ty = self.infer_value_term(environment, &mut context, value).ok();
-                Head::Value(value, ty)
+                Head::Value(ty)
             }
             ProgramFunctionExp::Computation(computation) => {
                 let computation = self.elaborate_computation(computation, environment)?;
@@ -894,11 +894,11 @@ impl ProgramScope {
                 Head::Computation(computation, ty)
             }
             ProgramFunctionExp::Access(access) => {
-                if let Some((index, entry)) = self.local_index(environment, access) {
+                if let Some((_index, entry)) = self.local_index(environment, access) {
                     let ProgramContextEntry::ValueTerm { ty, .. } = entry else {
                         return Err("Program type variable used as an application head".into());
                     };
-                    Head::Value(environment.crate_env.arena().value_bound(index), Some(ty))
+                    Head::Value(Some(ty))
                 } else {
                     match self.item(environment, access)? {
                         ItemAccessResult::ProgramValueParameter(id) => {
@@ -906,23 +906,11 @@ impl ProgramScope {
                                 .crate_env
                                 .module_parameter_opt(id)
                                 .and_then(|parameter| parameter.value_ty());
-                            Head::Value(
-                                environment
-                                    .crate_env
-                                    .arena()
-                                    .alloc(ValueTermNode::ModuleParam(id)),
-                                ty,
-                            )
+                            Head::Value(ty)
                         }
                         ItemAccessResult::Definition(item) => {
                             match environment.crate_env.definition(item.definition) {
-                                DefinedConstant::ProgramValue { ty, .. } => Head::Value(
-                                    environment
-                                        .crate_env
-                                        .arena()
-                                        .alloc(ValueTermNode::DefinedConstant(item.definition)),
-                                    Some(*ty),
-                                ),
+                                DefinedConstant::ProgramValue { ty, .. } => Head::Value(Some(*ty)),
                                 DefinedConstant::ProgramComputation { ty, .. } => {
                                     Head::Computation(
                                         environment.crate_env.arena().alloc(
@@ -992,7 +980,7 @@ impl ProgramScope {
                             &parameters,
                             0,
                         );
-                        Head::Value(value, Some(ty))
+                        Head::Value(Some(ty))
                     }
                     Err(ty) => {
                         let computation = self.elaborate_computation(
@@ -1024,71 +1012,19 @@ impl ProgramScope {
             .iter()
             .map(|argument| self.elaborate_value(argument, environment))
             .collect::<Result<Vec<_>, _>>()?;
-        let head_is_computation = matches!(&head, Head::Computation(_, _));
         let (mut computation, mut computation_ty) = match head {
             Head::Computation(computation, ty) => (computation, ty),
-            Head::Value(value, Some(ty)) => {
+            Head::Value(Some(ty)) => {
                 let ty = self.resolve_value_type_head(environment, ty);
-                let computation_ty = match environment.crate_env.arena().get(ty) {
-                    ValueTypeNode::Thunk { computation_ty } => computation_ty,
-                    ValueTypeNode::Meta { .. } => {
-                        let (metavariable, spine) = self.fresh_meta(
-                            environment,
-                            SurfaceMeta::Implicit,
-                            SourceSpan { start: 0, end: 0 },
-                            MetaCategory::ComputationType,
-                        )?;
-                        let mut codomain =
-                            environment
-                                .crate_env
-                                .arena()
-                                .alloc(ComputationTypeNode::Meta {
-                                    metavariable,
-                                    spine,
-                                });
-                        let mut function_ty = None;
-                        for (index, argument) in arguments.iter().rev().enumerate() {
-                            let mut context = self.context.clone();
-                            let domain =
-                                self.infer_value_term(environment, &mut context, *argument)?;
-                            let current = environment
-                                .crate_env
-                                .arena()
-                                .alloc(ComputationTypeNode::Function { domain, codomain });
-                            function_ty = Some(current);
-                            if index + 1 < arguments.len() {
-                                let thunk =
-                                    environment.crate_env.arena().alloc(ValueTypeNode::Thunk {
-                                        computation_ty: current,
-                                    });
-                                codomain = environment
-                                    .crate_env
-                                    .arena()
-                                    .alloc(ComputationTypeNode::Return { value_ty: thunk });
-                            }
-                        }
-                        let function_ty = function_ty.ok_or_else(|| {
-                            "Program application requires at least one argument".to_string()
-                        })?;
-                        let expected = environment.crate_env.arena().alloc(ValueTypeNode::Thunk {
-                            computation_ty: function_ty,
-                        });
-                        self.unify_value_types(environment, ty, expected)?;
-                        function_ty
-                    }
-                    _ => {
-                        return Err("Program application head value is not a function thunk".into());
-                    }
+                return match environment.crate_env.arena().get(ty) {
+                    ValueTypeNode::Thunk { .. } | ValueTypeNode::Meta { .. } => Err(
+                        "Program function values require an explicit \\force before application"
+                            .into(),
+                    ),
+                    _ => Err("Program application head value is not a function thunk".into()),
                 };
-                (
-                    environment
-                        .crate_env
-                        .arena()
-                        .alloc(ComputationTermNode::Force { value }),
-                    Some(computation_ty),
-                )
             }
-            Head::Value(_, None) => {
+            Head::Value(None) => {
                 return Err(
                     "cannot determine the type of Program function value; add a type annotation"
                         .into(),
@@ -1123,70 +1059,37 @@ impl ProgramScope {
                 }
                 ComputationTypeNode::Return { value_ty } => {
                     let value_ty = self.resolve_value_type_head(environment, value_ty);
-                    let ValueTypeNode::Thunk {
-                        computation_ty: thunk_ty,
-                    } = environment.crate_env.arena().get(value_ty)
-                    else {
-                        if head_is_computation {
-                            computation = environment.crate_env.arena().alloc(
-                                ComputationTermNode::Application {
-                                    computation,
-                                    value: argument,
-                                },
-                            );
-                            computation_ty = None;
-                            continue;
-                        }
+                    if matches!(
+                        environment.crate_env.arena().get(value_ty),
+                        ValueTypeNode::Thunk { .. }
+                    ) {
                         return Err(
-                            "Program computation application head did not return a function value"
-                                .into(),
-                        );
-                    };
-                    let function_ty = self.resolve_computation_type_head(environment, thunk_ty);
-                    let ComputationTypeNode::Function { codomain, .. } =
-                        environment.crate_env.arena().get(function_ty)
-                    else {
-                        return Err(
-                            "Program computation application head did not return a function value"
-                                .into(),
-                        );
-                    };
-                    let var = environment.crate_env.intern("<cbv-function>");
-                    let arena = environment.crate_env.arena();
-                    let forced = arena.alloc(ComputationTermNode::Force {
-                        value: arena.value_bound(0),
-                    });
-                    let shifted_argument =
-                        crate::raw::program_calculus::shift_value_indices(arena, argument, 1, 0);
-                    let body = arena.alloc(ComputationTermNode::Application {
-                        computation: forced,
-                        value: shifted_argument,
-                    });
-                    computation = arena.alloc(ComputationTermNode::Sequence {
-                        computation,
-                        var,
-                        value_ty,
-                        body,
-                    });
-                    computation_ty = Some(codomain);
-                }
-                ComputationTypeNode::Meta { .. } => {
-                    if head_is_computation {
-                        computation =
-                            environment
-                                .crate_env
-                                .arena()
-                                .alloc(ComputationTermNode::Application {
-                                    computation,
-                                    value: argument,
-                                });
-                        computation_ty = None;
-                    } else {
-                        return Err(
-                            "cannot determine whether Program application head is a function; add a type annotation"
+                            "Program computation returned a function value; use explicit \\bind and \\force before applying another argument"
                                 .into(),
                         );
                     }
+                    // Preserve raw ill-typed applications for checking and evaluation
+                    // commands. This path inserts no sequencing construct.
+                    computation =
+                        environment
+                            .crate_env
+                            .arena()
+                            .alloc(ComputationTermNode::Application {
+                                computation,
+                                value: argument,
+                            });
+                    computation_ty = None;
+                }
+                ComputationTypeNode::Meta { .. } => {
+                    computation =
+                        environment
+                            .crate_env
+                            .arena()
+                            .alloc(ComputationTermNode::Application {
+                                computation,
+                                value: argument,
+                            });
+                    computation_ty = None;
                 }
             }
         }

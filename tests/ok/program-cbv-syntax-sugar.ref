@@ -28,23 +28,29 @@
   \definition mixedArrow: Bool ~> (Bool -> Bool) :=
     \cfun (x: Bool) => \fun (y: Bool) => \return(y);
 
-  /* A value-position lambda is thunked, and value application is forced. */
+  /* A value-position lambda is thunked; applying the resulting value requires force. */
   \definition identity: \U(Bool -> Bool) :=
     \thunk(\fun (x: Bool) => \return(x));
   \definition holder: Holder := Holder::hold (\fun (x: Bool) => \return(x));
-  \definition apply(f: Bool -> Bool, x: Bool): \F(Bool) := f x;
+  \definition apply(f: Bool -> Bool, x: Bool): \F(Bool) := (\force f) x;
   \definition applyExplicit(f: \U(Bool ~> \F(Bool)), x: Bool): \F(Bool) :=
     (\force f) x;
-  \definition shadow(and: Bool -> Bool, x: Bool): \F(Bool) := and x;
+  \definition shadow(and: Bool -> Bool, x: Bool): \F(Bool) := (\force and) x;
 
-  /* Curried application binds and forces intermediate function values. */
-  \definition falseAndTrue: \F(Bool) := and Bool::false Bool::true;
+  /* Curried CBV application spells out sequencing and forcing. */
+  \definition falseAndTrue: \F(Bool) :=
+    \bind next: Bool -> Bool <- and Bool::false \in
+    (\force next) Bool::true;
   \definition falseAndTrueExplicit: \F(Bool) :=
     \bind next: Bool -> Bool <- and Bool::false \in
     (\force next) Bool::true;
-  \definition trueAndFalse: \F(Bool) := andExplicit Bool::true Bool::false;
+  \definition trueAndFalse: \F(Bool) :=
+    \bind next: Bool -> Bool <- andExplicit Bool::true \in
+    (\force next) Bool::false;
   \definition partial: \F(Bool -> Bool) := and Bool::true;
-  \definition fromPartial: \F(Bool) := partial Bool::false;
+  \definition fromPartial: \F(Bool) :=
+    \bind next: Bool -> Bool <- partial \in
+    (\force next) Bool::false;
 
   \definition choose3: Bool -> Bool -> Bool -> Bool :=
     \fun (x: Bool) => \fun (y, z: Bool) =>
@@ -61,18 +67,22 @@
           | false => \return(y)
           | true => \return(z)
           }))));
-  \definition chosen: \F(Bool) := choose3 Bool::true Bool::false Bool::true;
+  \definition chosen: \F(Bool) :=
+    \bind second: Bool -> Bool -> Bool <- choose3 Bool::true \in
+    \bind third: Bool -> Bool <- (\force second) Bool::false \in
+    (\force third) Bool::true;
 
   \ccheck (\fun (x: Bool) => \return(x)): Bool -> Bool;
   \vcheck (\fun (x: Bool) => \return(x)): Bool -> Bool;
   \ccheck apply (\fun (x: Bool) => \return(x)) Bool::true: \F(Bool);
   \ccheck (\force identity) Bool::true: \F(Bool);
-  \ccheck and Bool::true Bool::false: _;
+  \ccheck (\bind next: Bool -> Bool <- and Bool::true \in
+    (\force next) Bool::false): _;
 
-  \cnormalize and Bool::false Bool::false;
-  \cnormalize and Bool::false Bool::true;
-  \cnormalize and Bool::true Bool::false;
-  \cnormalize and Bool::true Bool::true;
+  \cnormalize (\bind next: Bool -> Bool <- and Bool::false \in (\force next) Bool::false);
+  \cnormalize (\bind next: Bool -> Bool <- and Bool::false \in (\force next) Bool::true);
+  \cnormalize (\bind next: Bool -> Bool <- and Bool::true \in (\force next) Bool::false);
+  \cnormalize (\bind next: Bool -> Bool <- and Bool::true \in (\force next) Bool::true);
 
   /* Naked arrows in reflection forms denote computation types. */
   \definition andSet: \Force(Bool -> Bool -> Bool, \box(Bool -> Bool -> Bool, and)) =
@@ -87,5 +97,5 @@
 \module ProgramCbvSyntaxSugarGeneric(A: \VType, a: A) {
   \definition identity: A -> A := \fun (x: A) => \return(x);
   \definition inferred: \F(A) := identity a;
-  \definition inferFunctionType(f: _, x: A): \F(A) := f x;
+  \definition inferFunctionType(f: A -> A, x: A): \F(A) := (\force f) x;
 }
