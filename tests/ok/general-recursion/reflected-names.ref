@@ -1,0 +1,54 @@
+\module Source(X: \VType, x: X) {
+  \inductive Bool: \VType := | false: Bool; | true: Bool; ;
+  \inductive Wrap(A: \VType): \VType := | wrap: A -> Wrap; ;
+
+  \definition carrier: \Set := Bool^;
+  \definition value: Bool := Bool::true;
+  \definition valueSet: Bool^ := value^;
+  \definition identity(b: Bool): \F(Bool) := \return b;
+  \definition identitySet: Bool^ -> Bool^ := identity^;
+  \definition identityAgrees: identitySet valueSet = Bool^::true := \refl(Bool^::true);
+  \definition boxedAgrees:
+    value^ = \Force(Bool, \box(Bool, value)) := \refl(value^);
+
+  \definition parameterCarrier: \Set := X^;
+  \definition parameterValue: X^ := x^;
+  \definition wrapped: Wrap^[X^] := Wrap^::wrap x^;
+  \definition unwrap: Wrap^[X^] -> X^ :=
+    \prec(\Set, Wrap^[X^]) (\fun (w: Wrap^[X^]) => X^) (\fun (a: X^) => a);
+  \definition unwrapAgrees: unwrap wrapped = x^ := \refl(x^);
+  \definition eliminate: Bool^ :=
+    \elim valueSet \in Bool^ \return (\fun (b: Bool^) => Bool^) {
+      | false => Bool^::true
+      | true => Bool^::false
+    };
+  \definition eliminateAgrees: eliminate = Bool^::false := \refl(Bool^::false);
+
+  \macro truth() := Bool^::true;
+  \macro argument() := x^;
+  \module Child {
+    \definition inherited: Bool^ := value^;
+  }
+}
+
+\module Consumer {
+  \inductive Unit: \VType := | unit: Unit; ;
+  \import \root.Source(X := Unit, x := Unit::unit) \as S;
+  \import \root.Source(X := Unit, x := Unit::unit) \as Again;
+  \import S.Child() \as Child;
+  \use S.truth;
+  \use S.argument;
+
+  \inductive Bool: \Set := | other: Bool; ;
+  \definition programValue: S.Bool := S.value;
+  \definition reflectedValue: S.Bool^ := S.value^;
+  \definition sharedCarrier: Again.Bool^ := reflectedValue;
+  \definition childValue: S.Bool^ := Child.inherited;
+  \definition fromMacro: S.Bool^ := truth!{};
+  \definition fromParameterMacro: Unit^ := argument!{};
+  \definition specialized: S.Wrap^[Unit^] := S.wrapped;
+  \definition specializationAgrees: S.unwrap specialized = Unit^::unit := \refl(Unit^::unit);
+
+  \definition powerset: \Power(Unit^) := \Subset(u, Unit^, u = u);
+  \definition logicalArgument: S.Wrap^[\Power(Unit^)] := S.Wrap^::wrap powerset;
+}

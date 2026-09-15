@@ -21,6 +21,7 @@ use std::{cell::Cell, collections::HashMap};
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
     Definition(ModItemDefinition),
+    ReflectedDefinition(ModItemDefinition),
     Inductive(ModItemInductive),
     Record(ModItemRecord),
     ProgramInductive(ModItemProgramInductive),
@@ -728,84 +729,79 @@ impl ModuleManager {
         env: &CrateEnv,
         access: &LocalAccess,
     ) -> Option<ItemAccessResult> {
-        match access {
-            LocalAccess::Current { access } => {
-                let mut module = self.current;
-                loop {
-                    let current = env.module(module);
-                    if let Some(item) = current.item(access.as_str()) {
-                        return Some(convert_item_for_access(item, access.as_str()));
-                    }
-                    if let Some(parameter) = current
-                        .parameters()
-                        .iter()
-                        .find(|parameter| env.symbol(parameter.name) == access.as_str())
-                    {
-                        let position = current
-                            .parameters()
-                            .iter()
-                            .position(|p| p.name == parameter.name)
-                            .unwrap() as u32;
-                        return Some(parameter_access(
-                            env,
-                            ModuleParamId { module, position },
-                            parameter.kind,
-                        ));
-                    }
-                    module = current.parent()?;
-                }
-            }
-            LocalAccess::Named { access, child } => {
-                let binding = env.module(self.current).import(access.as_str())?;
-                let materialized = env.binding(binding).materialized;
-                env.module(materialized)
-                    .item(child.as_str())
-                    .map(|item| convert_item_for_access(item, child.as_str()))
-            }
-            LocalAccess::Resolved { module, access } => env
-                .module(*module)
-                .item(access.as_str())
-                .map(|item| convert_item_for_access(item, access.as_str()))
-                .or_else(|| {
-                    env.module(*module)
-                        .parameters()
-                        .iter()
-                        .position(|parameter| env.symbol(parameter.name) == access.as_str())
-                        .map(|position| {
-                            parameter_access(
-                                env,
-                                ModuleParamId {
-                                    module: *module,
-                                    position: position as u32,
-                                },
-                                env.module(*module).parameters()[position].kind,
-                            )
-                        })
-                }),
-        }
+        resolve_access(env, self.current, access).map(|(_, item)| item)
     }
 }
 
-fn convert_item_for_access(item: &ModuleItem, access: &str) -> ItemAccessResult {
-    if access.ends_with('^')
-        && let ModuleItem::ProgramInductive {
-            name,
-            constructor_names,
-            reflected,
-            ..
-        } = item
-    {
-        return ItemAccessResult::Inductive(ModItemInductive {
-            type_name: Identifier(format!("{name}^")),
-            ctor_names: constructor_names
-                .iter()
-                .map(|name| Identifier(name.clone()))
-                .collect(),
-            inductive: *reflected,
-            associated_definitions: Vec::new(),
-        });
-    }
-    convert_item(item)
+pub(crate) fn resolve_access(
+    env: &CrateEnv,
+    from: ModuleId,
+    access: &LocalAccess,
+) -> Option<(ModuleId, ItemAccessResult)> {
+    let (mut module, reference, inherit) = match access {
+        LocalAccess::Current { access } => (from, access.as_str(), true),
+        LocalAccess::Named { access, child } => {
+            let binding = env.module(from).import(access.as_str())?;
+            (env.binding(binding).materialized, child.as_str(), false)
+        }
+        LocalAccess::Resolved { module, access } => (*module, access.as_str(), false),
+    };
+    let (name, reflected) = reference
+        .strip_suffix('^')
+        .map_or((reference, false), |name| (name, true));
+    let item = loop {
+        if let Some(item) = lookup_name(env, module, name) {
+            break item;
+        }
+        if !inherit {
+            return None;
+        }
+        module = env.module(module).parent()?;
+    };
+    let item = if reflected {
+        match item {
+            ItemAccessResult::ProgramInductive(item) => {
+                ItemAccessResult::Inductive(ModItemInductive {
+                    type_name: Identifier(reference.to_owned()),
+                    ctor_names: item.ctor_names,
+                    inductive: item.reflected,
+                    associated_definitions: Vec::new(),
+                })
+            }
+            ItemAccessResult::Definition(item) => ItemAccessResult::ReflectedDefinition(item),
+            ItemAccessResult::ProgramTypeParameter(parameter)
+            | ItemAccessResult::ProgramValueParameter(parameter) => ItemAccessResult::Expression(
+                env.arena()
+                    .alloc(crate::raw::exp::ExpNode::ReflectedProgramParam(parameter)),
+            ),
+            _ => return None,
+        }
+    } else {
+        item
+    };
+    Some((module, item))
+}
+
+fn lookup_name(env: &CrateEnv, module: ModuleId, name: &str) -> Option<ItemAccessResult> {
+    let current = env.module(module);
+    let item = if let Some(item) = current.item(name) {
+        convert_item(item)
+    } else {
+        let (position, parameter) = current
+            .parameters()
+            .iter()
+            .enumerate()
+            .find(|(_, parameter)| env.symbol(parameter.name) == name)?;
+        parameter_access(
+            env,
+            ModuleParamId {
+                module,
+                position: position as u32,
+            },
+            parameter.kind,
+        )
+    };
+    Some(item)
 }
 
 fn parameter_access(

@@ -5,7 +5,7 @@ use crate::raw::{
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
 };
 use crate::{
-    elaborator::module_manager::ModuleManager,
+    elaborator::module_manager::{ItemAccessResult, ModuleManager},
     syntax::{
         Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, Statement, TokenMatchPattern,
     },
@@ -138,6 +138,7 @@ fn pattern_captures(
                         | "="
                         | "!"
                         | "::"
+                        | "^"
                 ) {
                     return Err(format!(
                         "Macro token '{}' conflicts with reserved syntax",
@@ -814,45 +815,24 @@ fn resolve_access(
     env: &CrateEnv,
     from: ModuleId,
     access: &LocalAccess,
-) -> Result<(ModuleId, Identifier), String> {
-    match access {
-        LocalAccess::Resolved { module, access } => Ok((*module, access.clone())),
-        LocalAccess::Named { access, child } => {
-            let binding = env
-                .module(from)
-                .import(access.as_str())
-                .ok_or_else(|| format!("Module import '{}' was not found", access.as_str()))?;
-            let module = env.binding(binding).materialized;
-            env.module(module).item(child.as_str()).ok_or_else(|| {
-                format!(
-                    "Item '{}.{}' was not found",
-                    access.as_str(),
-                    child.as_str()
-                )
-            })?;
-            Ok((module, child.clone()))
-        }
-        LocalAccess::Current { access } => {
-            let mut module = from;
-            loop {
-                if env.module(module).item(access.as_str()).is_some()
-                    || env
-                        .module(module)
-                        .parameters()
-                        .iter()
-                        .any(|parameter| env.symbol(parameter.name) == access.as_str())
-                {
-                    return Ok((module, access.clone()));
-                }
-                module = env.module(module).parent().ok_or_else(|| {
-                    format!(
-                        "Free name '{}' in macro template was not found in its definition environment",
-                        access.as_str()
-                    )
-                })?;
-            }
-        }
-    }
+) -> Result<(LocalAccess, ItemAccessResult), String> {
+    let (module, item) = crate::elaborator::module_manager::resolve_access(env, from, access)
+        .ok_or_else(|| {
+            format!(
+                "Free name {access:?} in macro template was not found in its definition environment"
+            )
+        })?;
+    let name = match access {
+        LocalAccess::Current { access } | LocalAccess::Resolved { access, .. } => access,
+        LocalAccess::Named { child, .. } => child,
+    };
+    Ok((
+        LocalAccess::Resolved {
+            module,
+            access: name.clone(),
+        },
+        item,
+    ))
 }
 
 fn require_capture(
@@ -979,49 +959,19 @@ fn prepare_template(
                 *max_order = Some(declaration_order);
             }
             SExp::AccessPath { access, parameters } => {
-                let LocalAccess::Current { access: name } = access else {
-                    match resolve_access(env, module, access) {
-                        Ok((resolved, name)) => {
-                            *access = LocalAccess::Resolved {
-                                module: resolved,
-                                access: name,
-                            };
-                        }
-                        Err(message) => error = Some(message),
-                    }
-                    return;
-                };
-                if name.as_str().starts_with("<macro:") {
+                if matches!(access, LocalAccess::Current { access: name } if name.as_str().starts_with("<macro:"))
+                {
                     return;
                 }
                 match resolve_access(env, module, access) {
-                    Ok((resolved, name)) => {
-                        if let Some((position, _)) = env
-                            .module(resolved)
-                            .parameters()
-                            .iter()
-                            .enumerate()
-                            .find(|(_, parameter)| env.symbol(parameter.name) == name.as_str())
-                        {
-                            if !parameters.is_empty() {
-                                error = Some(format!(
-                                    "Module parameter '{}' cannot take module arguments",
-                                    name.as_str()
-                                ));
-                                return;
-                            }
-                            *node =
-                                SExp::ResolvedExp(env.arena().exp_module_param(ModuleParamId {
-                                    module: resolved,
-                                    position: position as u32,
-                                }));
-                        } else {
-                            *access = LocalAccess::Resolved {
-                                module: resolved,
-                                access: name,
-                            };
+                    Ok((_, ItemAccessResult::Expression(exp))) => {
+                        if !parameters.is_empty() {
+                            error = Some("Module parameter cannot take module arguments".into());
+                            return;
                         }
+                        *node = SExp::ResolvedExp(exp);
                     }
+                    Ok((resolved, _)) => *access = resolved,
                     Err(message) => error = Some(message),
                 }
             }
@@ -1030,12 +980,7 @@ fn prepare_template(
             | SExp::ProgramCase { path, .. }
             | SExp::RecordTypeCtor { access: path, .. } => {
                 match resolve_access(env, module, path) {
-                    Ok((resolved, name)) => {
-                        *path = LocalAccess::Resolved {
-                            module: resolved,
-                            access: name,
-                        };
-                    }
+                    Ok((resolved, _)) => *path = resolved,
                     Err(message) => error = Some(message),
                 }
             }

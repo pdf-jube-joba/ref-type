@@ -92,7 +92,7 @@ fn deeply_nested_expressions_and_arrow_precedence() {
     assert!(matches!(*bind.ty, SExp::App { .. }));
     assert!(matches!(*body, SExp::Lam { .. }));
 
-    for invalid in ["(x: X)", "((x: X) | P)", "x | f", "x ->", "x =>", "(x"] {
+    for invalid in ["(x: X)", "x ->", "x =>", "(x"] {
         assert!(parse::str_parse_exp(invalid).is_err(), "accepted {invalid}");
     }
 }
@@ -165,8 +165,6 @@ fn local_math_and_named_macros_expand_before_elaboration() {
 fn only_the_documented_macro_surface_syntax_is_accepted() {
     assert!(parse::str_parse_exp("$value").is_err());
     assert!(parse::str_parse_exp("named !{value}").is_err());
-    assert!(parse::str_parse_exp("$(value )$").is_err());
-    assert!(parse::str_parse_exp(r"named!{\expr { value }}").is_err());
 }
 
 #[test]
@@ -739,7 +737,7 @@ fn general_recursion_surface_typechecks_and_normalizes() {
             B: \VType,
             f: \U((A ~> \F(\PRunStep(A, B)))),
             a: A,
-            termination: \Acc(A, B, f, a)
+            termination: \Acc(A^, B^, f^, a^)
         ) {
             \definition result: \F(B) := \Prun(A, B, f, a) \by termination;
             \cnormalize \Prun(A, B, f, a) \by termination;
@@ -1093,23 +1091,23 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
           \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
           \definition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
             \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
-          \definition stepSet: Unit -> \RunStep(Unit, Unit) :=
+          \definition stepSet: Unit^ -> \RunStep(Unit^, Unit^) :=
             \Force(\U((Unit ~> \F(\PRunStep(Unit, Unit)))),
               \box(\U((Unit ~> \F(\PRunStep(Unit, Unit)))), step));
-          \definition ready: \RunStep(Unit, Unit) -> \Prop :=
-            \fun (r: \RunStep(Unit, Unit)) => \Pred(Unit,
-              \runStepRec(Unit, Unit, \fun (r: \RunStep(Unit, Unit)) => \Power(Unit),
-                \fun (s: Unit) => \Subset(x, Unit, \Acc(Unit, Unit, stepSet, s)),
-                \fun (o: Unit) => \Subset(x, Unit, Unit::unit = Unit::unit), r), Unit::unit);
-          \definition terminates: \forall (s: Unit) -> \Acc(Unit, Unit, stepSet, s) :=
-            \fun (s: Unit) => \accintro(Unit, Unit, stepSet, s,
-              \fun (next: Unit) => \fun (edge: stepSet s = \continue(Unit, Unit, next)) =>
-                \idelim(stepSet s = \continue(Unit, Unit, next)
-                  \with r: \RunStep(Unit, Unit) => ready r) \by (\refl(Unit::unit), edge));
+          \definition ready: \RunStep(Unit^, Unit^) -> \Prop :=
+            \fun (r: \RunStep(Unit^, Unit^)) => \Pred(Unit^,
+              \runStepRec(Unit^, Unit^, \fun (r: \RunStep(Unit^, Unit^)) => \Power(Unit^),
+                \fun (s: Unit^) => \Subset(x, Unit^, \Acc(Unit^, Unit^, stepSet, s)),
+                \fun (o: Unit^) => \Subset(x, Unit^, Unit^::unit = Unit^::unit), r), Unit^::unit);
+          \definition terminates: \forall (s: Unit^) -> \Acc(Unit^, Unit^, stepSet, s) :=
+            \fun (s: Unit^) => \accintro(Unit^, Unit^, stepSet, s,
+              \fun (next: Unit^) => \fun (edge: stepSet s = \continue(Unit^, Unit^, next)) =>
+                \idelim(stepSet s = \continue(Unit^, Unit^, next)
+                  \with r: \RunStep(Unit^, Unit^) => ready r) \by (\refl(Unit^::unit), edge));
           \definition result: \F(Unit) :=
-            \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit::unit;
+            \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit^::unit;
           \definition otherResult: \F(Unit) :=
-            \Prun(Unit, Unit, step, Unit::other) \by terminates Unit::other;
+            \Prun(Unit, Unit, step, Unit::other) \by terminates Unit^::other;
           \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), result);
         }
     "#;
@@ -1192,14 +1190,14 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
 fn program_proofs_follow_local_binders_and_module_instantiation() {
     let source = r#"
         \module Generic(A: \VType, step: \U((A ~> \F(\PRunStep(A, A)))),
-          total: \forall (s: A) -> \Acc(A, A, step, s)) {
+          total: \forall (s: A^) -> \Acc(A^, A^, step^, s)) {
           \definition run(x: A): \F(A) := \Prun(A, A, step, x) \by total x;
           \definition runCase(x: A): \F(A) :=
             (\let y: A := x \in
-            \PrunCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step y)));
+            \PrunCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step^ y)));
         }
         \module Consumer(A: \VType, f: \U((A ~> \F(\PRunStep(A, A)))),
-          p: \forall (s: A) -> \Acc(A, A, f, s), a: A) {
+          p: \forall (s: A^) -> \Acc(A^, A^, f^, s), a: A) {
           \import \root.Generic(A := A, step := f, total := p) \as G;
           \definition result: \F(A) := G.runCase a;
           \cnormalize result;

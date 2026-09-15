@@ -5,16 +5,16 @@
     (\fun (k: Nat) => \forall (a, b: Nat) -> diffPrec (natAddSet a k) (natAddSet b k) = diffPrec a b)
     (\fun (a, b: Nat) => \refl(diffPrec a b))
     (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> diffPrec (natAddSet a k) (natAddSet b k) = diffPrec a b) =>
-      \fun (a, b: Nat) => trans!{Int} _ _ _
-        (congr!{Nat Int} (\fun (x: Nat) => diffPrec x (natAddSet b (natSuccSet k))) _ _ (natAddSuccRight a k))
-        (trans!{Int} _ _ _
-          (congr!{Nat Int} (diffPrec (natSuccSet (natAddSet a k))) _ _ (natAddSuccRight b k)) (ih a b)));
+      \fun (a, b: Nat) => trans!{Int^} _ _ _
+        (congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (natAddSet b (natSuccSet k))) _ _ (natAddSuccRight a k))
+        (trans!{Int^} _ _ _
+          (congr!{Nat Int^} (diffPrec (natSuccSet (natAddSet a k))) _ _ (natAddSuccRight b k)) (ih a b)));
 \definition diffRespects: \forall (a, b, c, d: Nat) ->
   natAddSet a d = natAddSet c b -> diffPrec a b = diffPrec c d :=
   \fun (a, b, c, d: Nat) => \fun (e: natAddSet a d = natAddSet c b) =>
-    trans!{Int} _ _ _ (sym!{Int} _ _ (diffAddCommon d a b))
-      (trans!{Int} _ _ _ (congr!{Nat Int} (\fun (x: Nat) => diffPrec x (natAddSet b d)) _ _ e)
-        (trans!{Int} _ _ _ (congr!{Nat Int} (diffPrec (natAddSet c b)) _ _ (natAddComm b d)) (diffAddCommon b c d)));
+    trans!{Int^} _ _ _ (sym!{Int^} _ _ (diffAddCommon d a b))
+      (trans!{Int^} _ _ _ (congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (natAddSet b d)) _ _ e)
+        (trans!{Int^} _ _ _ (congr!{Nat Int^} (diffPrec (natAddSet c b)) _ _ (natAddComm b d)) (diffAddCommon b c d)));
 
 /* The normal form represents the original formal difference. */
 \definition diffBalance: \forall (b, a: Nat) ->
@@ -60,8 +60,8 @@
               (congr!{Nat Nat} (\fun (n: Nat) => natAddSet n (natAddSet (negPart x) (negPart y))) _ _
                 (natAddComm (pos y) (pos z)))
               (sym!{Nat} _ _ (natAddInterchange (pos z) (negPart x) (pos y) (negPart y)))))));
-\definition normalize: Difference -> Int := \fun (x: Difference) => diffPrec (pos x) (negPart x);
-\definition representative: Int -> Difference := \fun (z: Int) => pair (positivePrec z) (negativePrec z);
+\definition normalize: Difference -> Int^ := \fun (x: Difference) => diffPrec (pos x) (negPart x);
+\definition representative: Int^ -> Difference := \fun (z: Int^) => pair (positivePrec z) (negativePrec z);
 \definition normalizeRespects: \forall (x, y: Difference) -> Equivalent x y -> normalize x = normalize y :=
   \fun (x, y: Difference) => diffRespects (pos x) (negPart x) (pos y) (negPart y);
 \definition representativeNormalize: \forall (x: Difference) -> Equivalent x (representative (normalize x)) :=
@@ -69,8 +69,8 @@
 \definition equivalentOfNormalize: \forall (x, y: Difference) -> normalize x = normalize y -> Equivalent x y :=
   \fun (x, y: Difference) => \fun (e: normalize x = normalize y) =>
     equivalentTrans x (representative (normalize x)) y (representativeNormalize x)
-      (\idelim(normalize y = normalize x \with z: Int => Equivalent (representative z) y)
-        \by (equivalentSym y (representative (normalize y)) (representativeNormalize y), sym!{Int} _ _ e));
+      (\idelim(normalize y = normalize x \with z: Int^ => Equivalent (representative z) y)
+        \by (equivalentSym y (representative (normalize y)) (representativeNormalize y), sym!{Int^} _ _ e));
 
 /* Actual equivalence classes, not merely a setoid of representatives. */
 \definition ClassOf: Difference -> \Power(Difference) :=
@@ -95,7 +95,7 @@
 \definition class: Difference -> Grothendieck := \fun (x: Difference) =>
   \subsetinto(\Power(Difference), ClassSet, ClassOf x,
     (\fun (P: \Prop) => \fun (step: \forall (y: Difference) -> ClassOf x = ClassOf y -> P) => step x (\refl(ClassOf x))));
-\definition toMath: Int -> Grothendieck := \fun (z: Int) => class (representative z);
+\definition toMath: Int^ -> Grothendieck := \fun (z: Int^) => class (representative z);
 \definition classProperty: \forall (C: Grothendieck) -> IsClass C :=
   \fun (C: Grothendieck) => \bysub(\Power(Difference), ClassSet, C);
 \definition representativesExist: \forall (C: Grothendieck) -> \exists \Ty(Difference, Representatives C) :=
@@ -114,17 +114,17 @@
   \fun (C: Grothendieck) => \fun (x: \Ty(Difference, Representatives C)) => \fun (y: \Ty(Difference, Representatives C)) =>
     sameClassNormal C x y (\bysub(Difference, Representatives C, x)) (\bysub(Difference, Representatives C,
     y));
-\definition fromMath: Grothendieck -> Int := \fun (C: Grothendieck) =>
+\definition fromMath: Grothendieck -> Int^ := \fun (C: Grothendieck) =>
   \take (x: \Ty(Difference, Representatives C)) => normalize x
     \by (representativesExist C, normalFormsUnique C);
 \definition fromClass: \forall (x: Difference) -> fromMath (class x) = normalize x :=
   \fun (x: Difference) =>
     \takeelim(\fun (y: \Ty(Difference, Representatives (class x))) => normalize y,
       \subsetinto(Difference, Representatives (class x), x, \refl(ClassOf x)),
-      \Ty(Difference, Representatives (class x)), Int)
+      \Ty(Difference, Representatives (class x)), Int^)
     \by (representativesExist (class x), normalFormsUnique (class x));
-\definition fromTo: \forall (z: Int) -> fromMath (toMath z) = z :=
-  \fun (z: Int) => trans!{Int} _ _ _ (fromClass (representative z)) (diffCanonical z);
+\definition fromTo: \forall (z: Int^) -> fromMath (toMath z) = z :=
+  \fun (z: Int^) => trans!{Int^} _ _ _ (fromClass (representative z)) (diffCanonical z);
 \definition toFromClass: \forall (x: Difference) -> toMath (normalize x) = class x :=
   \fun (x: Difference) => classOfEq (representative (normalize x)) x
     (equivalentSym x (representative (normalize x)) (representativeNormalize x));
@@ -133,10 +133,10 @@
     \take (x: \Ty(Difference, Representatives C)) =>
       \idelim(ClassOf x = C \with D: \Power(Difference) => toMath (fromMath C) = D)
       \by (
-        \idelim(normalize x = fromMath C \with z: Int => toMath z = ClassOf x)
+        \idelim(normalize x = fromMath C \with z: Int^ => toMath z = ClassOf x)
           \by (toFromClass x,
-            sym!{Int} _ _ (\takeelim(\fun (y: \Ty(Difference, Representatives C)) => normalize y,
-              x, \Ty(Difference, Representatives C), Int)
+            sym!{Int^} _ _ (\takeelim(\fun (y: \Ty(Difference, Representatives C)) => normalize y,
+              x, \Ty(Difference, Representatives C), Int^)
               \by (representativesExist C, normalFormsUnique C))),
         \idelim(C = ClassOf x \with D: \Power(Difference) => D = C)
           \by (\refl(C), \bysub(Difference, Representatives C, x)))
@@ -216,9 +216,9 @@
         (equivalentTrans (mulRep u y) (mulRep v y) (mulRep y v)
           (mulRepRespectsLeft u v y uv) (mulRepComm v y)));
 
-\definition toMathCong: \forall (x, y: Int) -> x = y -> toMath x = toMath y :=
-  \fun (x, y: Int) => \fun (e: x = y) =>
-    \idelim(x = y \with z: Int => toMath x = toMath z) \by (\refl(toMath x), e);
+\definition toMathCong: \forall (x, y: Int^) -> x = y -> toMath x = toMath y :=
+  \fun (x, y: Int^) => \fun (e: x = y) =>
+    \idelim(x = y \with z: Int^ => toMath x = toMath z) \by (\refl(toMath x), e);
 
 /* Relational images define operations without choosing representatives. */
 \definition UnaryRespects: (Difference -> Difference) -> \Prop := \fun (f: Difference -> Difference) =>
@@ -312,35 +312,35 @@
     (subRep x y))
     (addMathCongRight (class x) (negMath (class y)) (class (negRep y)) (negMathClass y))
     (addMathClass x (negRep y));
-\definition addMatchesMath: \forall (x, y: Int) -> toMath (addSet x y) = addMath (toMath x) (toMath y) :=
-  \fun (x, y: Int) => trans!{\Power(Difference)} (toMath (addSet x y)) (toMath (addPrec x y)) (addMath (toMath x) (toMath y))
+\definition addMatchesMath: \forall (x, y: Int^) -> toMath (addSet x y) = addMath (toMath x) (toMath y) :=
+  \fun (x, y: Int^) => trans!{\Power(Difference)} (toMath (addSet x y)) (toMath (addPrec x y)) (addMath (toMath x) (toMath y))
     (toMathCong (addSet x y) (addPrec x y) (addMatchesPrec x y))
     (trans!{\Power(Difference)} (toMath (addPrec x y)) (class (addRep (representative x) (representative y))) (addMath (toMath
     x) (toMath y))
       (toFromClass (addRep (representative x) (representative y)))
       (sym!{\Power(Difference)} (addMath (toMath x) (toMath y)) (class (addRep (representative x) (representative y)))
     (addMathClass (representative x) (representative y))));
-\definition negMatchesMath: \forall (x: Int) -> toMath (negSet x) = negMath (toMath x) :=
-  \fun (x: Int) => trans!{\Power(Difference)} (toMath (negSet x)) (toMath (negPrec x)) (negMath (toMath x))
+\definition negMatchesMath: \forall (x: Int^) -> toMath (negSet x) = negMath (toMath x) :=
+  \fun (x: Int^) => trans!{\Power(Difference)} (toMath (negSet x)) (toMath (negPrec x)) (negMath (toMath x))
     (toMathCong (negSet x) (negPrec x) (negMatchesPrec x))
     (trans!{\Power(Difference)} (toMath (negPrec x)) (class (negRep (representative x))) (negMath (toMath x))
       (toFromClass (negRep (representative x)))
       (sym!{\Power(Difference)} (negMath (toMath x)) (class (negRep (representative x))) (negMathClass (representative x))));
-\definition mulMatchesMath: \forall (x, y: Int) -> toMath (mulSet x y) = mulMath (toMath x) (toMath y) :=
-  \fun (x, y: Int) => trans!{\Power(Difference)} (toMath (mulSet x y)) (toMath (mulPrec x y)) (mulMath (toMath x) (toMath y))
+\definition mulMatchesMath: \forall (x, y: Int^) -> toMath (mulSet x y) = mulMath (toMath x) (toMath y) :=
+  \fun (x, y: Int^) => trans!{\Power(Difference)} (toMath (mulSet x y)) (toMath (mulPrec x y)) (mulMath (toMath x) (toMath y))
     (toMathCong (mulSet x y) (mulPrec x y) (mulMatchesPrec x y))
     (trans!{\Power(Difference)} (toMath (mulPrec x y)) (class (mulRep (representative x) (representative y))) (mulMath (toMath
     x) (toMath y))
       (toFromClass (mulRep (representative x) (representative y)))
       (sym!{\Power(Difference)} (mulMath (toMath x) (toMath y)) (class (mulRep (representative x) (representative y)))
     (mulMathClass (representative x) (representative y))));
-\definition subMatchesMath: \forall (x, y: Int) -> toMath (subSet x y) = subMath (toMath x) (toMath y) :=
-  \fun (x, y: Int) => trans!{\Power(Difference)} (toMath (subSet x y)) (addMath (toMath x) (toMath (negSet y))) (subMath (toMath x)
+\definition subMatchesMath: \forall (x, y: Int^) -> toMath (subSet x y) = subMath (toMath x) (toMath y) :=
+  \fun (x, y: Int^) => trans!{\Power(Difference)} (toMath (subSet x y)) (addMath (toMath x) (toMath (negSet y))) (subMath (toMath x)
     (toMath y)) (addMatchesMath x (negSet y))
     (addMathCongRight (toMath x) (toMath (negSet y)) (negMath (toMath y)) (negMatchesMath y));
 
-\definition roundTripArg: \forall (x: Int) -> x = fromMath (toMath x) :=
-  \fun (x: Int) => sym!{Int} (fromMath (toMath x)) x (fromTo x);
+\definition roundTripArg: \forall (x: Int^) -> x = fromMath (toMath x) :=
+  \fun (x: Int^) => sym!{Int^} (fromMath (toMath x)) x (fromTo x);
 
 \module Specification;
 \module Ring;

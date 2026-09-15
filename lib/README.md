@@ -46,7 +46,7 @@ congr2!{A B C} f a b c d ab cd
 期待型から引数が分かる場合は値を `_` にできる。
 
 ```text
-congr2!{Nat Nat Nat} natAdd _ _ _ _ leftEq rightEq
+congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 ```
 
 したがって、単に二引数関数へ等式を写すだけのローカル補題は通常不要である。
@@ -86,8 +86,8 @@ refinement `Monoid` として表す。`CommutativeMonoid` も同じ raw data を
 
 ## 直積と有限部分集合
 
-`Pair.Times(A, B: \VType): \VType` が Program の対を定義し、その Set 表現も自動生成する。
-Set 側では次を使う。
+`Pair.Times(A, B: \VType): \VType` が Program の対を定義し、その Set 表現
+`Pair.Times^[A, B]` も生成する。Set 側では次を使う。
 
 - `pair A B a b`、`first A B p`、`second A B p`
 - `swap A B p`
@@ -157,7 +157,9 @@ image が再び商の要素になることを示す。演算ごとに同じ外�
 
 ## Program 演算と仕様
 
-Bool・Nat・Int は `\VType` の Program データである。各演算には原則として次の層がある。
+Bool・Nat・Int は `\VType` の Program データであり、Set 側の型は `Bool^`・`Nat^`・`Int^`。
+反映後の constructor は `Bool^::true`、`Nat^::succ` のように参照する。
+各演算には原則として次の層がある。
 
 - `add`: Program 演算
 - `addSet`: `\box` / `\Force` による Set への反映

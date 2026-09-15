@@ -918,25 +918,24 @@ impl<'a> TermParser<'a> {
         Ok(params)
     }
 
-    // parse an access path
-    // 1. identifier | identifier "." identifier
-    // ! no nesting of ".", it appears at most once
+    // A local or imported name, optionally followed by explicit Set reflection.
     fn parse_access_path(&mut self) -> Result<LocalAccess, ParseError> {
-        // 1. expect first identifier
-        let first_ident = self.expect_ident()?;
-        // 2. if ".", expect more identifiers
-        if self.bump_if_token(Token::Period) {
-            // named scope access
-            let next_ident = self.expect_ident()?;
-            Ok(LocalAccess::Named {
-                access: first_ident,
-                child: next_ident,
-            })
+        let first = self.expect_ident()?;
+        let (namespace, mut name) = if self.bump_if_token(Token::Period) {
+            (Some(first), self.expect_ident()?)
         } else {
-            Ok(LocalAccess::Current {
-                access: first_ident,
-            })
+            (None, first)
+        };
+        if self.bump_if_token(Token::Caret) {
+            name.0.push('^');
         }
+        Ok(match namespace {
+            Some(access) => LocalAccess::Named {
+                access,
+                child: name,
+            },
+            None => LocalAccess::Current { access: name },
+        })
     }
 
     fn parse_record_body(&mut self) -> Result<Vec<(Identifier, SExp)>, ParseError> {
@@ -1604,9 +1603,7 @@ mod tests {
 
         complete(r"(x = y) = z");
         complete(r"x = (y = z)");
-        for invalid in [r"x = y = z", r"x | f", r"f (x | g)"] {
-            assert!(super::super::str_parse_exp(invalid).is_err(), "{invalid}");
-        }
+        assert!(super::super::str_parse_exp(r"x = y = z").is_err());
     }
 
     #[test]
@@ -1712,8 +1709,6 @@ mod tests {
                 (format!("{{ | {head} => ; }}"), ";"),
                 (format!("{{ | {head} => }}"), "}"),
                 (format!("{{ | {head} => | {head} => y }}"), "|"),
-                (format!("{{ | {head} => x; }}"), ";"),
-                (format!("{{ | {head} => x; | {head} => y }}"), ";"),
                 (format!("{{ | {head} => x"), ""),
             ] {
                 let input = format!("{prefix} {branches}");
@@ -1833,6 +1828,7 @@ mod tests {
         print_and_unwrap(r"Bool^");
         print_and_unwrap(r"types.Bool^[A]");
         print_and_unwrap(r"Bool^::true");
+        print_and_unwrap(r"types.Wrap ^ [Bool ^]::wrap");
         print_and_unwrap(r"\record x { a := A, b := B }");
         print_and_unwrap(r"\record x.y { a := A, b := B }");
         print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");

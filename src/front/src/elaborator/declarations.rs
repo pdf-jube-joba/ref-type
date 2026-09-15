@@ -112,7 +112,8 @@ impl GlobalEnvironment {
                 Some(
                     module_manager::ItemAccessResult::Expression(_)
                     | module_manager::ItemAccessResult::Inductive(_)
-                    | module_manager::ItemAccessResult::Record(_),
+                    | module_manager::ItemAccessResult::Record(_)
+                    | module_manager::ItemAccessResult::ReflectedDefinition(_),
                 ) => true,
                 Some(module_manager::ItemAccessResult::Definition(item)) => matches!(
                     self.crate_env.resolve_definition(item.definition),

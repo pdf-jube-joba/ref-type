@@ -15,9 +15,10 @@ enum Token<'a> {
     QuotedMacro(&'a str),
     #[regex(r"\\[^a-zA-Z0-9\s(){}$\[\]_,]+")]
     EscapedMacro(&'a str),
-    // A trailing `^` denotes the Set reflection of a Program datatype.
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_]*\^?")]
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_]*")]
     Ident(&'a str),
+    #[token("^")]
+    Caret,
     #[regex(r"[0-9]+")]
     Number(&'a str),
     #[regex(r"\?[a-zA-Z0-9_]*")]
@@ -27,7 +28,7 @@ enum Token<'a> {
     // Commas delimit patterns even when adjacent to a rest capture (`$x,..r`).
     // Other non-space symbol sequences are classified in lex_all.
     #[token("/\\")]
-    #[regex(r#"[^\s\\A-Za-z0-9?(){}$\[\]_\",]+"#)]
+    #[regex(r#"[^\s\\A-Za-z0-9?(){}$\[\]_\",^]+"#)]
     Macro(&'a str),
     // special symbol tokens (which have their own meaning in parsing)
     #[token("(")]

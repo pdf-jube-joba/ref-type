@@ -6,9 +6,13 @@
 ## 字句と式
 
 キーワードは `\definition` のようにバックスラッシュで始まる。
-識別子は英字で始まり、英数字と `_` を使える。Program datatype の Set reflection は
-型名の末尾に `^` を付けて参照する（例: `Bool: \VType` に対する `Bool^: \Set`）。
-反映後の constructor も `Bool^::true` のように同じ型名から参照する。
+識別子は英字で始まり、英数字と `_` を使える。Program の名前の参照に `^` を付けると
+Set reflection を表す（例: `Bool: \VType` に対する `Bool^: \Set`）。
+反映後の constructor は `Bool^::true`、パラメータ付きの型は `Wrap^[Bool^]` と書く。
+`Wrap^` の引数は Set の型なので、`Wrap^[\Power(Bool^)]` のようにも使える。
+Program の定義や module parameter にも同じ記法を使い、`value: Bool` に対して
+`value^: Bool^`、`identity: Bool ~> \F(Bool)` に対して `identity^: Bool^ -> Bool^` となる。
+import した名前も `M.Bool^`・`M.value^` と書く。`^` は参照に付く独立したトークンである。
 `/* ... */` は入れ子可能なコメント。
 記号列はまとめて字句解析されるので、隣り合う別々の記号トークンは空白で区切る。
 `->`・`~>`・`<-`・`=>`・`:=` などの予約記号はマクロの演算子に使えない。

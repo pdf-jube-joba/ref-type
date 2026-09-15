@@ -95,6 +95,11 @@ Program の値型と値は module parameter にできる。具体化するとき
 }
 ```
 
+Set 側では名前に `^` を付けて反映を明示する。`Unit^: \Set`、
+`Unit^::unit: Unit^`、`S.value^: Unit^` となる。Program の module parameter
+`A: \VType, a: A` の反映も `A^: \Set, a^: A^` と書く。
+型のパラメータも Set 側で指定し、例えば `Pair^[Unit^]` とする。
+
 `\let` は値、`\bind` は計算結果を束縛する。型注釈は必須で、`_` を使うと
 制約から補完する。解決できなければエラーになる。名前は後続部分だけで有効であり、
 型注釈と右辺は外側のスコープで解釈する。`\in` の後には計算式が必要で、

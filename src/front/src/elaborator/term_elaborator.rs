@@ -1,6 +1,6 @@
 use crate::elaborator::ItemAccessResult;
 use crate::raw::calculus::{exp_contains_bound, instantiate};
-use crate::raw::environment::CrateEnv;
+use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
 use crate::raw::inductive::InductiveTypeSpecs;
@@ -324,65 +324,50 @@ impl LocalScope {
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
                     ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
-                        if parameters.is_empty() {
-                            match handler.env().definition(definition) {
-                                crate::raw::environment::DefinedConstant::ProgramValue {
-                                    body,
-                                    ..
-                                } => crate::raw::reflection::reflect_value(handler.env(), *body)
-                                    .map_err(|e| e.to_string()),
-                                crate::raw::environment::DefinedConstant::ProgramComputation {
-                                    body,
-                                    ..
-                                } => crate::raw::reflection::reflect_computation(
-                                    handler.env(),
-                                    *body,
-                                )
-                                .map_err(|e| e.to_string()),
-                                _ => {
-                                    Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
-                                }
-                            }
-                        } else {
-                            Err(format!(
+                        if !parameters.is_empty() {
+                            return Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
                                 access
-                            ))
+                            ));
+                        }
+                        if !matches!(
+                            handler.env().definition(definition),
+                            DefinedConstant::Pts { .. }
+                        ) {
+                            return Err(
+                                "Program definitions require explicit Set reflection (^)".into()
+                            );
+                        }
+                        Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
+                    }
+                    ItemAccessResult::ReflectedDefinition(ModItemDefinition {
+                        definition, ..
+                    }) => {
+                        if !parameters.is_empty() {
+                            return Err(
+                                "Reflected definition cannot be applied with parameters".into()
+                            );
+                        }
+                        match handler.env().definition(definition) {
+                            DefinedConstant::ProgramValue { body, .. } => {
+                                crate::raw::reflection::reflect_value(handler.env(), *body)
+                                    .map_err(|e| e.to_string())
+                            }
+                            DefinedConstant::ProgramComputation { body, .. } => {
+                                crate::raw::reflection::reflect_computation(handler.env(), *body)
+                                    .map_err(|e| e.to_string())
+                            }
+                            _ => Err("Set reflection requires a Program definition".into()),
                         }
                     }
-                    ItemAccessResult::Inductive(ModItemInductive { inductive, .. }) => {
-                        let parameters: Vec<Exp> = parameters
-                            .iter()
-                            .map(|e| self.elab_exp_rec(e, handler))
-                            .collect::<Result<_, _>>()?;
-
-                        Ok(handler.arena().alloc(ExpNode::IndType {
-                            indspec: inductive,
-                            parameters,
-                        }))
-                    }
-                    ItemAccessResult::Record(ModItemRecord {
-                        type_name: _,
-                        inductive,
-                        ..
-                    }) => {
+                    ItemAccessResult::Inductive(ModItemInductive { inductive, .. })
+                    | ItemAccessResult::Record(ModItemRecord { inductive, .. }) => {
                         let parameters: Vec<Exp> = parameters
                             .iter()
                             .map(|e| self.elab_exp_rec(e, handler))
                             .collect::<Result<_, _>>()?;
                         Ok(handler.arena().alloc(ExpNode::IndType {
                             indspec: inductive,
-                            parameters,
-                        }))
-                    }
-                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
-                        reflected,
-                        ..
-                    }) => {
-                        let count = handler.env().inductive(reflected).parameters().len();
-                        let parameters = self.associated_parameters(parameters, count, handler)?;
-                        Ok(handler.arena().alloc(ExpNode::IndType {
-                            indspec: reflected,
                             parameters,
                         }))
                     }
@@ -393,14 +378,10 @@ impl LocalScope {
                             Err("Module parameter cannot be applied with parameters".to_string())
                         }
                     }
-                    ItemAccessResult::ProgramTypeParameter(parameter)
-                    | ItemAccessResult::ProgramValueParameter(parameter) => {
-                        if !parameters.is_empty() {
-                            return Err("Module parameter cannot be applied with parameters".into());
-                        }
-                        Ok(handler
-                            .arena()
-                            .alloc(ExpNode::ReflectedProgramParam(parameter)))
+                    ItemAccessResult::ProgramInductive(_)
+                    | ItemAccessResult::ProgramTypeParameter(_)
+                    | ItemAccessResult::ProgramValueParameter(_) => {
+                        Err("Program names require explicit Set reflection (^)".into())
                     }
                 }
             }
@@ -451,26 +432,6 @@ impl LocalScope {
                                 field.as_str(),
                                 type_name.as_str()
                             ))
-                        }
-                        ItemAccessResult::ProgramInductive(ModItemProgramInductive {
-                            reflected,
-                            ctor_names,
-                            ..
-                        }) => {
-                            let idx = ctor_names
-                                .iter()
-                                .position(|name| name.as_str() == field.as_str())
-                                .ok_or_else(|| {
-                                    format!("Unknown Program constructor {}", field.as_str())
-                                })?;
-                            let count = handler.env().inductive(reflected).parameters().len();
-                            let parameters =
-                                self.associated_parameters(parameters, count, handler)?;
-                            Ok(handler.arena().alloc(ExpNode::IndCtor {
-                                indspec: reflected,
-                                idx,
-                                parameters,
-                            }))
                         }
                         ItemAccessResult::Record(record) => {
                             if let Some((_, definition)) = record
@@ -786,11 +747,6 @@ impl LocalScope {
                         inductive,
                         ..
                     }) => (ctor_names, inductive),
-                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
-                        ctor_names,
-                        reflected,
-                        ..
-                    }) => (ctor_names, reflected),
                     _ => {
                         return Err(format!(
                             "Expected inductive type in ind elim access path {:?}",
@@ -828,10 +784,6 @@ impl LocalScope {
             } => {
                 let inductive = match handler.get_item_from_access_path(path)? {
                     ItemAccessResult::Inductive(ModItemInductive { inductive, .. }) => inductive,
-                    ItemAccessResult::ProgramInductive(ModItemProgramInductive {
-                        reflected,
-                        ..
-                    }) => reflected,
                     _ => {
                         return Err(format!(
                             "Expected inductive type in ind elim prim access path {:?}",
