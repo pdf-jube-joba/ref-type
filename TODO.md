@@ -4,14 +4,8 @@
 ## 
 - block の take はその場で uniqueness を `\by` でとり、即座に入れ子の block 開始して最後に `dependenct` をとる
 - `\prec` の方が生で書けて AI には使いやすいらしいが、人間には見づらい。 block 内 induction を入れてそれで書けるようにする。
-
-## 改良案
-- 代入を環境との組にして高速化できるか
-  - すごい lazy だが、結局 convertible を判定するには厳しそう。
-- Arena って使われなくなった項が回収されないのでは？
-- de Bruijn 使ってるけど、 FVar と BVar を分けて各 BVar はどのラムダで束縛されているかを直接 Id で持っておいた方がいい気がする。
-  - よく考えるとコピーされるときに Id を分けてコピーしないといけないので微妙かも。
-  - あと、FVar はなくて ModuleId のようにして束縛されるケースしかない。
-- convertibility の判定って weakかheadかのnormalization してる？もっと楽な方法がありそう。
-- module の定義を全部インスタンス化しない。
-- module のインスタンス化を別の module で再利用できるようにする。 export の仕組み？
+- front をマジで見てなかったが、 hole の関係で front 側でも conversion をやっているらしくて、かなり無駄。
+  - kernel に hole を入れるのはバグになりやすくて微妙なので入れたくない。
+  - そもそも conversion をしないと確定しないような hole をなくす、 conversion を行わないで比較する
+    - 単に確定しなかった場合は警告を出せばいい。
+- front の ExpNode がかなり無駄っぽいので、パーサーの時点で rule 上どの Family 化を確定したい。
