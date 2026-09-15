@@ -12,7 +12,10 @@
 | 論理 | [Logic.ref](Logic.ref) | `False`、`Not`、`And`、`Or` と記法 |
 | 等式 | [Equality.ref](Equality.ref)、[Equality/Laws.ref](Equality/Laws.ref) | 対称律、推移律、transport、合同則 |
 | 直積 | [Pair.ref](Pair.ref) と `Pair/` 以下 | Program / Set の構築・射影・交換・写像・カリー化・結合の組み替えと法則 |
-| 有限部分集合 | [Finset.ref](Finset.ref) | 一点集合と二点集合 |
+| 直和 | [Sum.ref](Sum.ref) | 任意の Set carrier の直和と `inl`・`inr` |
+| 有限部分集合 | [FiniteSubset.ref](FiniteSubset.ref) | 空集合と有限回の挿入で生成される部分集合 |
+| 有限型 | [FinSet.ref](FinSet.ref) | `n` 未満の自然数からなる n 点集合 `Fin n` |
+| 関係と演算法則 | [Rel.ref](Rel.ref)、[Law.ref](Law.ref) | 二項関係の性質と閉包、二項演算の単位元・逆元・分配則など |
 | 商集合 | [Quotient.ref](Quotient.ref) | 同値類、商の台集合、演算の relational image |
 | 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref) と `Nat/` 以下、[Int.ref](Int.ref) と `Int/` 以下、[IntAlgebra.ref](IntAlgebra.ref) | Program 演算、Set への反映、仕様と法則、整数の代数構造 |
 | 代数構造 | [Monoid.ref](Monoid.ref)、[Algebra.ref](Algebra.ref) | Monoid、Group、Semiring、Ring、Field |
@@ -144,8 +147,12 @@ Bool と Nat を使った直接の Program 呼び出しも検査する。
 `NatPair` と Int の `Difference` はこの対型の alias である。Rat の `Integer` は
 Int の正規形キャリアを使い、形式差との往復は `Int.Math` が担う。
 
-`Finset(A := A)` は `Power(A)` 上の `singleton` と `pair`、および各要素の所属証明を提供する。
-一般の有限性述語や濃度はまだ扱わない。
+`FiniteSubset(A := A)` は、空集合と有限回の `insert` で生成される `Power(A)` の
+subtype を提供する。`empty`、`insert`、`singleton`、`unorderedPair` で有限部分集合を
+構築し、`Member` で所属、`induction` で有限集合についての帰納法を表す。大文字の
+`Empty`、`Insert`、`Singleton`、`UnorderedPair` は対応する生の `Power(A)` である。
+`unorderedPair a b` は `{a, b}` であり、`a = b` の場合は一点集合になるため、濃度が
+常に2であることは主張しない。
 
 ## 商への演算の持ち上げ
 

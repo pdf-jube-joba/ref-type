@@ -12,9 +12,14 @@
 
 \module Pair;
 \module Bool;
-\module Finset(A: \Set);
+\module FiniteSubset(A: \Set);
+
+\module Sum;
 \module Classical;
 \module Nat;
+\module FinSet;
+\module Rel(Carrier: \Set);
+\module Law(Carrier: \Set);
 \module Int;
 
 \module Monoid(Carrier: \Set);
@@ -400,11 +405,70 @@
   \definition mapped: f a = f c := congr!{A B} f _ _ (Laws.trans a b c ab bc);
 }
 
-\module FinsetExamples(A: \Set, a, b: A) {
-  \import \root.Finset(A := A) \as F;
-  \definition singletonMember: \Pred(A, F.singleton a, a) := F.inSingleton a;
-  \definition leftMember: \Pred(A, F.pair a b, a) := F.inPairLeft a b;
-  \definition rightMember: \Pred(A, F.pair a b, b) := F.inPairRight a b;
+\module FiniteSubsetExamples(A: \Set, a, b: A) {
+  \import \root.FiniteSubset(A := A) \as F;
+  \definition empty: F.FiniteSubset := F.empty;
+  \definition singleton: F.FiniteSubset := F.singleton a;
+  \definition pair: F.FiniteSubset := F.unorderedPair a b;
+  \definition singletonMember: \Pred(A, F.Singleton a, a) := F.inSingleton a;
+  \definition leftMember: \Pred(A, F.UnorderedPair a b, a) :=
+    F.inUnorderedPairLeft a b;
+  \definition rightMember: \Pred(A, F.UnorderedPair a b, b) :=
+    F.inUnorderedPairRight a b;
+}
+
+\module SumExamples(A, B: \Set, a: A, b: B) {
+  \import \root.Sum() \as S;
+  \definition left: S.Sum[A, B] := S.Sum[A, B]::inl a;
+  \definition right: S.Sum[A, B] := S.Sum[A, B]::inr b;
+}
+
+\module FinSetExamples {
+  \import \root.Nat() \as N;
+  \import \root.FinSet() \as F;
+  \definition one: F.Fin (N.Nat^::succ N.Nat^::zero) :=
+    F.zero N.Nat^::zero;
+  \definition two: F.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) :=
+    F.succ (N.Nat^::succ N.Nat^::zero) one;
+}
+
+\module RelationExamples(A: \Set, R: A -> A -> \Prop) {
+  \import \root.Rel(Carrier := A) \as Rel;
+  \definition intoReflexiveClosure:
+    \forall (x, y: A) -> R x y -> Rel.ReflexiveClosure R x y :=
+    Rel.reflexiveClosureOf R;
+  \definition closureReflexive:
+    \forall (x: A) -> Rel.ReflexiveClosure R x x :=
+    Rel.reflexiveClosureRefl R;
+}
+
+\module LawExamples(
+  A: \Set,
+  op, other: A -> A -> A,
+  unit: A,
+  inverse: A -> A,
+  leftUnit: \forall (x: A) -> op unit x = x,
+  rightUnit: \forall (x: A) -> op x unit = x,
+  leftInverse: \forall (x: A) -> op (inverse x) x = unit,
+  rightInverse: \forall (x: A) -> op x (inverse x) = unit,
+  leftDistrib: \forall (x, y, z: A) ->
+    op x (other y z) = other (op x y) (op x z),
+  rightDistrib: \forall (x, y, z: A) ->
+    op (other x y) z = other (op x z) (op y z),
+) {
+  \import \root.Law(Carrier := A) \as Law;
+  \definition unital: Law.Unital[op, unit] :=
+    \record Law.Unital[op, unit] { left := leftUnit, right := rightUnit };
+  \definition invertible: Law.Invertible[op, unit, inverse] :=
+    \record Law.Invertible[op, unit, inverse] {
+      left := leftInverse,
+      right := rightInverse,
+    };
+  \definition distributive: Law.Distributive[op, other] :=
+    \record Law.Distributive[op, other] {
+      left := leftDistrib,
+      right := rightDistrib,
+    };
 }
 
 \module RationalExamples {

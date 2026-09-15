@@ -1,0 +1,100 @@
+/* Properties and closures of homogeneous binary relations. */
+\import \root.Logic() \as Logic;
+
+\definition Relation: \PropKind := Carrier -> Carrier -> \Prop;
+
+\definition Reflexive(R: Relation): \Prop :=
+  \forall (x: Carrier) -> R x x;
+
+\definition Irreflexive(R: Relation): \Prop :=
+  \forall (x: Carrier) -> R x x -> Logic.False;
+
+\definition Symmetric(R: Relation): \Prop :=
+  \forall (x, y: Carrier) -> R x y -> R y x;
+
+\definition Antisymmetric(R: Relation): \Prop :=
+  \forall (x, y: Carrier) -> R x y -> R y x -> x = y;
+
+\definition Asymmetric(R: Relation): \Prop :=
+  \forall (x, y: Carrier) -> R x y -> R y x -> Logic.False;
+
+\definition Transitive(R: Relation): \Prop :=
+  \forall (x, y, z: Carrier) -> R x y -> R y z -> R x z;
+
+\definition Total(R: Relation): \Prop :=
+  \forall (x, y: Carrier) -> Logic.Or[R x y, R y x];
+
+\definition Subrelation(R, S: Relation): \Prop :=
+  \forall (x, y: Carrier) -> R x y -> S x y;
+
+/* A closure is the intersection of all extensions having the requested law. */
+\definition ReflexiveClosure(R: Relation) (x, y: Carrier): \Prop :=
+  \forall (S: Relation) -> Subrelation R S -> Reflexive S -> S x y;
+
+\definition SymmetricClosure(R: Relation) (x, y: Carrier): \Prop :=
+  \forall (S: Relation) -> Subrelation R S -> Symmetric S -> S x y;
+
+\definition TransitiveClosure(R: Relation) (x, y: Carrier): \Prop :=
+  \forall (S: Relation) -> Subrelation R S -> Transitive S -> S x y;
+
+\definition ReflexiveTransitiveClosure(R: Relation) (x, y: Carrier): \Prop :=
+  \forall (S: Relation) -> Subrelation R S -> Reflexive S -> Transitive S -> S x y;
+
+\definition EquivalenceClosure(R: Relation) (x, y: Carrier): \Prop :=
+  \forall (S: Relation) -> Subrelation R S -> Reflexive S -> Symmetric S ->
+    Transitive S -> S x y;
+
+\definition reflexiveClosureOf(R: Relation) (x, y: Carrier) (edge: R x y):
+  ReflexiveClosure R x y :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (reflexive: Reflexive S) => included x y edge;
+
+\definition reflexiveClosureRefl(R: Relation) (x: Carrier):
+  ReflexiveClosure R x x :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (reflexive: Reflexive S) => reflexive x;
+
+\definition symmetricClosureOf(R: Relation) (x, y: Carrier) (edge: R x y):
+  SymmetricClosure R x y :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (symmetric: Symmetric S) => included x y edge;
+
+\definition symmetricClosureSym(R: Relation) (x, y: Carrier)
+  (edge: SymmetricClosure R x y): SymmetricClosure R y x :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (symmetric: Symmetric S) =>
+    symmetric x y (edge S included symmetric);
+
+\definition transitiveClosureOf(R: Relation) (x, y: Carrier) (edge: R x y):
+  TransitiveClosure R x y :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (transitive: Transitive S) => included x y edge;
+
+\definition transitiveClosureTrans(R: Relation) (x, y, z: Carrier)
+  (left: TransitiveClosure R x y) (right: TransitiveClosure R y z):
+  TransitiveClosure R x z :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (transitive: Transitive S) =>
+    transitive x y z (left S included transitive) (right S included transitive);
+
+\definition reflexiveTransitiveClosureOf(R: Relation) (x, y: Carrier)
+  (edge: R x y): ReflexiveTransitiveClosure R x y :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (reflexive: Reflexive S) => \fun (transitive: Transitive S) =>
+    included x y edge;
+
+\definition reflexiveTransitiveClosureRefl(R: Relation) (x: Carrier):
+  ReflexiveTransitiveClosure R x x :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (reflexive: Reflexive S) => \fun (transitive: Transitive S) =>
+    reflexive x;
+
+\definition reflexiveTransitiveClosureTrans(R: Relation) (x, y, z: Carrier)
+  (left: ReflexiveTransitiveClosure R x y)
+  (right: ReflexiveTransitiveClosure R y z):
+  ReflexiveTransitiveClosure R x z :=
+  \fun (S: Relation) => \fun (included: Subrelation R S) =>
+  \fun (reflexive: Reflexive S) => \fun (transitive: Transitive S) =>
+    transitive x y z
+      (left S included reflexive transitive)
+      (right S included reflexive transitive);
