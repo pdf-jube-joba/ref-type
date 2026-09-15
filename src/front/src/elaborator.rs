@@ -173,7 +173,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let mut ctx = self.module_manager.current_context(&self.crate_env);
         let module_context_len = ctx.len();
         ctx.append(local_ctx);
-        let result = if self.metavariables.contains_unsolved(&self.crate_env, e) {
+        let result = if !self.metavariables.is_empty() {
+            // Earlier local definitions may already have solved their holes,
+            // but their shared syntax still contains the metavariable nodes.
+            for entry in &mut ctx {
+                entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty);
+            }
             self.metavariables.infer_pts(
                 &self.crate_env,
                 self.module_manager.current(),

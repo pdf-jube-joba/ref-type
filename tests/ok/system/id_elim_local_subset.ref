@@ -1,0 +1,33 @@
+/* Local subset parameters cross the IdElim motive and its proof binder. */
+\module LocalSubset(A: \Set) {
+    \definition transport(Left: \Power(A)) (Right: \Power(A))
+        (x: \Ty(\Power(A), \Subset(T, \Power(A), T = Left -> T = Right)))
+        (y: \Ty(\Power(A), \Subset(T, \Power(A), T = Left -> T = Right)))
+        (e: x = y):
+        \forall (h: \Pred(\Power(A),
+            \Subset(T, \Power(A), T = Left -> T = Right), y)) ->
+            x = \subsetinto(\Power(A),
+                \Subset(T, \Power(A), T = Left -> T = Right), y, h) :=
+        \idelim(x = y \with z: \Power(A) =>
+            \forall (h: \Pred(\Power(A),
+                \Subset(T, \Power(A), T = Left -> T = Right), z)) ->
+                x = \subsetinto(\Power(A),
+                    \Subset(T, \Power(A), T = Left -> T = Right), z, h))
+        \by ((\fun (h: \Pred(\Power(A),
+            \Subset(T, \Power(A), T = Left -> T = Right), x)) => \refl(x)), e);
+
+    \macro subsetEquality($X) :=
+        (\fun (law: \forall (x, y: \Ty(\Power(A), $X)) -> x = y -> y = x) => law)
+        (\fun (x, y: \Ty(\Power(A), $X)) => \fun (e: x = y) =>
+            (\idelim(x = y \with z: \Power(A) =>
+                \forall (h: \Pred(\Power(A), $X, z)) ->
+                    \subsetinto(\Power(A), $X, z, h) = x)
+            \by ((\fun (h: \Pred(\Power(A), $X, x)) => \refl(x)), e))
+            (\bysub(\Power(A), $X, y)));
+
+    /* The macro repeats a type containing local binders in grouped annotations. */
+    \definition reverse(Left, Right: \Power(A))
+        (x, y: \Ty(\Power(A), \Subset(T, \Power(A), T = Left -> T = Right)))
+        (e: x = y): y = x :=
+        subsetEquality!{ { \Subset(T, \Power(A), T = Left -> T = Right) } } x y e;
+}

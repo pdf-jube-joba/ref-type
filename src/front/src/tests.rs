@@ -391,6 +391,152 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
 }
 
 #[test]
+fn logical_let_definitions_are_transparent_and_capture_avoiding() {
+    let source = r#"
+        \module LocalDefinitions(A: \Set, a: A) {
+            \macro equality($x, $y) := $x = $y;
+            \definition simple: a = a := \block {
+                \let x: A := a;
+                \let h: x = a := \refl(a);
+                \return h;
+            };
+            \definition nested: \forall (x: A) -> \forall (y: A) -> x = x :=
+                \fun (x: A) => \block {
+                    \let saved: A := x;
+                    \let alias: A := saved;
+                    \fix (x: A);
+                    \let x: A := alias;
+                    \let h: equality!{x saved} := \refl(saved);
+                    \return h;
+                };
+            \definition shadowed: \forall (x: A) -> x = x := \block {
+                \let x: A := a;
+                \return \fun (x: A) => \refl(x);
+            };
+            \definition restored: a = a := \block {
+                \let x: A := a;
+                \let f: A -> A := \fun (x: A) => \block {
+                    \let x: A := x;
+                    \return x;
+                };
+                \return \refl(f x);
+            };
+            \definition inferred: a = a := \block {
+                \let x: _ := a;
+                \let h: x = a := \refl(x);
+                \return h;
+            };
+            \definition inferred_later: a = a := \block {
+                \let x: A := _;
+                \let h: x = a := \refl(a);
+                \return h;
+            };
+            \definition type_alias: a = a := \block {
+                \let T: \Set := A;
+                \let x: T := a;
+                \let P: \Prop := x = a;
+                \let h: P := \refl(a);
+                \return h;
+            };
+            \definition unused_proof: A := \block {
+                \let h: a = a := \refl(a);
+                \return a;
+            };
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn logical_let_preserves_the_declared_type() {
+    let source = r#"
+        \module LocalAnnotation(A: \Set, S: \Power(A), s: \Ty(A, S)) {
+            \definition invalid: \Ty(A, S) := \block {
+                \let x: A := s;
+                \return x;
+            };
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("ty, inferred_ty not convertible")
+    );
+}
+
+#[test]
+fn logical_let_checks_unused_definitions() {
+    for statement in [
+        r"\let unused: A := p;",
+        r"\let unused: P := a;",
+        r"\let unused: _ := _;",
+        r"\let unused: A := unused;",
+    ] {
+        let source = format!(
+            r"\module Invalid(A: \Set, a: A, P: \Prop, p: P) {{
+                \definition example: a = a := \block {{
+                    {statement}
+                    \return \refl(a);
+                }};
+            }}"
+        );
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        assert!(
+            environment.add_new_module_to_root(&modules[0]).is_err(),
+            "accepted {statement}"
+        );
+    }
+}
+
+#[test]
+fn grouped_product_binders_keep_the_outer_type() {
+    let source = r#"
+        \module Grouped {
+            \definition last: \forall (P: \Prop) -> \forall (p, q, r: P) -> P :=
+                \fun (P: \Prop) => \fun (p: P) => \fun (q: P) => \fun (r: P) => r;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn grouped_lambda_binders_keep_the_outer_type() {
+    let source = r#"
+        \module Grouped {
+            \definition last: \forall (P: \Prop) -> P -> P -> P -> P :=
+                \fun (P: \Prop) => \fun (p, q, r: P) => r;
+            \definition shadowed: \forall (P: \Prop) -> P -> P -> P :=
+                \fun (P: \Prop) => \fun (P, p: P) => p;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn grouped_declaration_binders_keep_the_outer_type() {
+    let source = r#"
+        \module Grouped {
+            \inductive Witness(A: \Set, x, y, z: A): \Prop :=
+                | intro: Witness;
+                ;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
 fn macro_binders_do_not_capture_call_site_expressions() {
     let source = r#"
         \module Hygiene(A: \Set(0)) {

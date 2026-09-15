@@ -232,7 +232,10 @@ fn check(
         debug!(target: "ref_type::typing", "subset weakening accepted");
         return Ok(());
     }
-    error!(target: "ref_type::typing", inferred = %crate::raw::printing::format_exp(session.env(), inferred_ty),
+    error!(target: "ref_type::typing",
+        context = %crate::raw::printing::format_ctx(session.env(), session.context()),
+        term = %crate::raw::printing::format_exp(session.env(), term),
+        inferred = %crate::raw::printing::format_exp(session.env(), inferred_ty),
         expected = %crate::raw::printing::format_exp(session.env(), ty), "type mismatch");
     Err(failure(rule, phase, "ty, inferred_ty not convertible"))
 }
@@ -724,6 +727,13 @@ fn infer_uncached(
             let left_ty = add_infer!(session, rule, phase, left, "infer left type")?;
             let right_ty = add_infer!(session, rule, phase, right, "infer right type")?;
             let Some(carrier) = common_ambient_carrier(session.env(), left_ty, right_ty) else {
+                error!(target: "ref_type::typing",
+                    context = %crate::raw::printing::format_ctx(session.env(), session.context()),
+                    left = %crate::raw::printing::format_exp(session.env(), left),
+                    right = %crate::raw::printing::format_exp(session.env(), right),
+                    left_type = %crate::raw::printing::format_exp(session.env(), left_ty),
+                    right_type = %crate::raw::printing::format_exp(session.env(), right_ty),
+                    "different equality carriers");
                 return Err(failure(rule, phase, "different equality carriers"));
             };
             if !matches!(

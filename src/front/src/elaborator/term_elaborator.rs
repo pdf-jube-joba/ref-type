@@ -1,5 +1,5 @@
 use crate::elaborator::ItemAccessResult;
-use crate::raw::calculus::{exp_contains_bound, instantiate};
+use crate::raw::calculus::{exp_contains_bound, instantiate, shift_bound_indices};
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
@@ -86,15 +86,20 @@ fn expand_macros(exp: &SExp, handler: &mut impl Handler) -> Result<SExp, String>
     result.map(|()| expanded)
 }
 
+#[derive(Debug, Clone)]
+struct LocalBinding {
+    var: SymbolId,
+    // The typing context before this binding was introduced. Definitions do
+    // not extend it; their free variables are shifted when the name is used.
+    depth: usize,
+    value: Option<Exp>,
+}
+
 // local scope during elaboration
 #[derive(Debug, Clone)]
 pub(crate) struct LocalScope {
-    // for find binded variables inside term
-    // lambda abstraction variables, product, subset,
-    // after any call of elab_exp outside the elab_exp, this should be cleared
-    binded_vars: Vec<SymbolId>,
-    // for find decl levels
-    decl_binds: Vec<(SymbolId, Option<Exp>)>,
+    // Variables and local definitions share lexical shadowing order.
+    bindings: Vec<LocalBinding>,
     // Types of local variables known to the elaborator. Module variables are
     // supplied by the handler and therefore do not appear here.
     typing_binds: ExpContext,
@@ -109,35 +114,44 @@ impl Default for LocalScope {
 impl LocalScope {
     pub(crate) fn new() -> Self {
         LocalScope {
-            binded_vars: vec![],
-            decl_binds: vec![],
+            bindings: vec![],
             typing_binds: vec![],
         }
     }
 
     pub(crate) fn from_typing_context(context: ExpContext) -> Self {
         Self {
-            binded_vars: Vec::new(),
-            decl_binds: context.iter().map(|entry| (entry.var, None)).collect(),
+            bindings: context
+                .iter()
+                .enumerate()
+                .map(|(depth, entry)| LocalBinding {
+                    var: entry.var,
+                    depth,
+                    value: None,
+                })
+                .collect(),
             typing_binds: context,
         }
     }
 
     pub(crate) fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
-        self.decl_binds.push((var, Some(exp)));
+        self.bindings.push(LocalBinding {
+            var,
+            depth: self.typing_binds.len(),
+            value: Some(exp),
+        });
     }
 
     pub(crate) fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
-        self.decl_binds.push((var, None));
-        self.typing_binds.push(ExpContextEntry { var, ty });
+        self.push_binded_var(var, ty);
     }
 
     pub(crate) fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
-        self.decl_binds.push((var, Some(exp)));
+        self.push_decl_var_exp(var, exp);
         self.typing_binds.push(ExpContextEntry { var, ty });
     }
 
-    // does not pop decl_binds
+    // Keeps the telescope in the local scope.
     pub(crate) fn elab_telescope_bind_in_decl(
         &mut self,
         binds: &[RightBind],
@@ -147,10 +161,12 @@ impl LocalScope {
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
             handler.infer(&mut self.typing_binds, ty_elab)?;
-            for var in vars {
+            for (depth, var) in vars.iter().enumerate() {
                 let var = handler.intern(var.as_str());
-                result.push((var, ty_elab));
-                self.push_typed_decl_var(var, ty_elab);
+                // The shared annotation was elaborated before this binder group.
+                let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
+                result.push((var, ty));
+                self.push_typed_decl_var(var, ty);
             }
         }
         Ok(result)
@@ -165,23 +181,24 @@ impl LocalScope {
     }
 
     fn get_var(&self, arena: &Arena, name: &Identifier, handler: &impl Handler) -> Option<Exp> {
-        for (index, v) in self.binded_vars.iter().rev().enumerate() {
-            if handler.symbol(*v) == name.as_str() {
-                return Some(arena.exp_bound(index));
-            }
-        }
-        for (index, (v, exp)) in self.decl_binds.iter().rev().enumerate() {
-            if handler.symbol(*v) == name.as_str() {
-                return Some(
-                    exp.unwrap_or_else(|| arena.exp_bound(self.binded_vars.len() + index)),
-                );
-            }
-        }
-        None
+        let binding = self
+            .bindings
+            .iter()
+            .rev()
+            .find(|binding| handler.symbol(binding.var) == name.as_str())?;
+        let depth = self.typing_binds.len() - binding.depth;
+        Some(match binding.value {
+            Some(value) => shift_bound_indices(arena, value, depth, 0),
+            None => arena.exp_bound(depth - 1),
+        })
     }
 
     fn push_binded_var(&mut self, var: SymbolId, ty: Exp) {
-        self.binded_vars.push(var);
+        self.bindings.push(LocalBinding {
+            var,
+            depth: self.typing_binds.len(),
+            value: None,
+        });
         self.typing_binds.push(ExpContextEntry { var, ty });
     }
 
@@ -219,7 +236,7 @@ impl LocalScope {
     }
 
     fn pop_binded_var(&mut self) {
-        self.binded_vars.pop();
+        self.bindings.pop();
         self.typing_binds.pop();
     }
 
@@ -228,9 +245,16 @@ impl LocalScope {
         exp: &SExp,
         handler: &mut impl Handler,
     ) -> Result<Exp, String> {
-        assert!(self.binded_vars.is_empty());
+        let bindings = self.bindings.len();
+        let depth = self.typing_binds.len();
         let e = self.elab_exp_rec(exp, handler);
-        assert!(e.is_err() || self.binded_vars.is_empty());
+        if e.is_err() {
+            self.bindings.truncate(bindings);
+            self.typing_binds.truncate(depth);
+        } else {
+            assert_eq!(self.bindings.len(), bindings);
+            assert_eq!(self.typing_binds.len(), depth);
+        }
         e
     }
 
@@ -512,27 +536,37 @@ impl LocalScope {
             )),
             SExp::ResolvedExp(exp) => Ok(*exp),
             SExp::Where { exp, clauses } => {
-                let declaration_mark = self.decl_binds.len();
+                let declaration_mark = self.bindings.len();
+                let depth = self.typing_binds.len();
                 let result = (|| {
                     for (name, ty, body) in clauses {
                         let ty = self.elab_exp_rec(ty, handler)?;
                         let body = self.elab_exp_rec(body, handler)?;
-                        let inferred = handler.infer(&mut self.typing_binds, body)?;
-                        if !crate::raw::calculus::convertible(handler.env(), inferred, ty) {
-                            return Err(format!(
-                                "where definition '{}' does not match its declared type",
-                                name.as_str(),
-                            ));
-                        }
+                        // A typed identity application keeps the declared type
+                        // (including subset weakening) while reducing to the value.
+                        let identity = handler.arena().alloc(ExpNode::Lam {
+                            var: SymbolId::ANONYMOUS,
+                            ty,
+                            body: handler.arena().exp_bound(0),
+                        });
+                        let value = handler.arena().alloc(ExpNode::App {
+                            func: identity,
+                            arg: body,
+                        });
+                        // Check even unused definitions, before publishing their
+                        // names. This also records constraints for implicit types.
+                        handler
+                            .infer(&mut self.typing_binds, value)
+                            .map_err(|error| {
+                                format!("Local definition '{}': {error}", name.as_str())
+                            })?;
                         let name = handler.intern(name.as_str());
-                        // `where` is non-recursive and definitions are processed in order.
-                        // Store the elaborated body as the declaration's referent, so later
-                        // clauses and the result expression inline it directly.
-                        self.push_decl_var_exp(name, body);
+                        self.push_decl_var_exp(name, value);
                     }
                     self.elab_exp_rec(exp, handler)
                 })();
-                self.decl_binds.truncate(declaration_mark);
+                self.bindings.truncate(declaration_mark);
+                self.typing_binds.truncate(depth);
                 result
             }
             SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
@@ -566,10 +600,12 @@ impl LocalScope {
                         let ty_elab = self.elab_exp_rec(&right_bind.ty, handler)?;
 
                         let mut telescope: Vec<(SymbolId, Exp)> = vec![];
-                        for var in &right_bind.vars {
+                        for (depth, var) in right_bind.vars.iter().enumerate() {
                             let var = handler.intern(var.as_str());
-                            telescope.push((var, ty_elab));
-                            self.push_named_binder(var, ty_elab, handler);
+                            // Each preceding variable adds a binder around the annotation.
+                            let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
+                            telescope.push((var, ty));
+                            self.push_named_binder(var, ty, handler);
                         }
 
                         let body_elab = self.elab_exp_rec(body, handler)?;
@@ -1352,15 +1388,9 @@ impl LocalScope {
                             }
                         }
                         Statement::Let { var, ty, body } => {
-                            term = SExp::App {
-                                func: Box::new(SExp::Lam {
-                                    bind: Bind::Named(RightBind {
-                                        vars: vec![var.clone()],
-                                        ty: Box::new(ty.clone()),
-                                    }),
-                                    body: Box::new(term),
-                                }),
-                                arg: Box::new(body.clone()),
+                            term = SExp::Where {
+                                exp: Box::new(term),
+                                clauses: vec![(var.clone(), ty.clone(), body.clone())],
                             };
                         }
                         Statement::Bind { .. } => {

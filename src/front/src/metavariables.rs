@@ -956,6 +956,10 @@ impl MetaStore {
         if left == right || erased_convertible(env, left, right) {
             return Ok(true);
         }
+        // Expand local definitions before rigid comparison. Keep named heads
+        // so structural matching can still infer their implicit arguments.
+        let left = beta_head(env.arena(), left);
+        let right = beta_head(env.arena(), right);
         if !visiting.insert((left, right)) {
             return Ok(true);
         }
@@ -1258,6 +1262,22 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
     let mut result = HashSet::new();
     collect(env, exp, &mut result, &mut HashSet::new());
     result
+}
+
+fn beta_head(arena: &crate::raw::exp::Arena, exp: Exp) -> Exp {
+    let ExpNode::App { func, arg } = arena.get(exp) else {
+        return exp;
+    };
+    let head = beta_head(arena, func);
+    if let ExpNode::Lam { body, .. } = arena.get(head) {
+        let body = match arena.get(body) {
+            ExpNode::Bound(0) => arg,
+            _ => crate::raw::calculus::instantiate(arena, body, arg),
+        };
+        beta_head(arena, body)
+    } else {
+        arena.reuse_exp(exp, ExpNode::App { func: head, arg })
+    }
 }
 
 fn node_children(node: ExpNode) -> Vec<Exp> {
