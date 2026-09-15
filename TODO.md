@@ -11,3 +11,4 @@
 - front の ExpNode がかなり無駄っぽいので、パーサーの時点で rule 上どの Family 化を確定したい。
 - force と bind は自動挿入しない。
 - reexport とか子 module 用の export の仕組みがないとだめそう。
+- `lib/` では、できるかぎり `\definition f (x: A): B := t` のように、最初の引数部分を定義のところに入れる。
