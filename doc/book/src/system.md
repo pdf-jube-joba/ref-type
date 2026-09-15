@@ -92,7 +92,7 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | lambda abstraction | \(\lambda_r z^{\sigma_1}:A.e\) | \(\mathsf E_{\sigma_3}\) | \(A\in\mathsf C_{\sigma_1}\), \(e\in\mathsf E_{\sigma_2}\) |
 | application | \(f@_r a\) | \(\mathsf E_{\sigma_2}\) | \(f\in\mathsf E_{\sigma_3}\), \(a\in\mathsf E_{\sigma_1}\) |
 
-構文上、Program の type constructor と kind は次の自由変数条件を満たすものに限る。
+構文上、Value/Computation の type constructor と kind は次の自由変数条件を満たすものに限る。
 
 - \(P\in\mathsf{Ty}_{*^q_i}\cup\mathsf{Kd}_{*^q_i} \Longrightarrow\operatorname{FV}(P)\subseteq\{X_{*^{q'}_j}\mid q'\in\{v,c\},\ j\in\mathbb N\}\)
 
@@ -130,8 +130,6 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | computation type constructor | \(\underline B\) | \(\mathsf{Ty}_{*^c_j}\) |
 | value | \(V,W\) | \(\mathsf{Tm}_{*^v_i}\) |
 | computation | \(M,N\) | \(\mathsf{Tm}_{*^c_j}\) |
-| program type constructor | \(P\) | \(\mathsf{Ty}_{*^q_i}\) |
-| program | \(p\) | \(\mathsf{Tm}_{*^q_i}\) |
 
 - \(A,B\in\mathsf{Ty}_{*^v_i}\)
 - \(\underline C\in\mathsf{Ty}_{*^c_i}\)
@@ -154,22 +152,23 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | run | \(\operatorname{run}_{A,B}(V,W)\) | \(\mathsf{Tm}_{*^c_i}\) |
 | run case | \(\operatorname{runCase}_{A,B}(V,W,M)\) | \(\mathsf{Tm}_{*^c_i}\) |
 
-#### Boxed Program
+#### Boxed Computation
 
-- \(P\in\mathsf{Ty}_{*^q_i}\)
-- \(p\in\mathsf{Tm}_{*^q_i}\)
+- \(\underline B\in\mathsf{Ty}_{*^c_i}\)
+- \(M\in\mathsf{Tm}_{*^c_i}\)
 - \(t\in\mathsf{Tm}_{*^s_i}\)
 - \(A\in\mathsf{Ty}_{*^v_i}\)
-- \(\underline B\in\mathsf{Ty}_{*^c_j}\)
+- \(\underline C\in\mathsf{Ty}_{*^c_j}\)
+- \(P\in\mathsf{Ty}_{*^q_i}\)
 - \(K\in\mathsf{Kd}_{*^q_i}\)
 
 | category | definition | family | other |
 | --- | --- | --- | --- |
-| boxed Program type | \(\operatorname{Box}(P)\) | \(\mathsf{Ty}_{*^s_i}\) | |
-| boxed Program | \(\operatorname{box}_P(p)\) | \(\mathsf{Tm}_{*^s_i}\) | |
-| force boxed Program | \(\operatorname{Force}_P(t)\) | \(\mathsf{Tm}_{*^s_i}\) | |
-| boxed value application | \(\operatorname{bapp}_{A,\underline B}(f,a)\) | \(\mathsf{Tm}_{*^s_j}\) | \(f\in\mathsf{Tm}_{*^s_{\max(i,j)}}\), \(a\in\mathsf{Tm}_{*^s_i}\) |
-| boxed type application | \(\operatorname{btapp}_{X_{*^q_i}:K,\underline B}(f,P)\) | \(\mathsf{Tm}_{*^s_j}\) | \(f\in\mathsf{Tm}_{*^s_{\max(i+1,j)}}\) |
+| boxed computation type | \(\operatorname{Box}(\underline B)\) | \(\mathsf{Ty}_{*^s_i}\) | |
+| boxed computation | \(\operatorname{box}_{\underline B}(M)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| force boxed computation | \(\operatorname{Force}_{\underline B}(t)\) | \(\mathsf{Tm}_{*^s_i}\) | |
+| boxed application | \(\operatorname{bapp}_{A,\underline C}(f,a)\) | \(\mathsf{Tm}_{*^s_j}\) | \(f\in\mathsf{Tm}_{*^s_{\max(i,j)}}\), \(a\in\mathsf{Tm}_{*^s_i}\) |
+| boxed type application | \(\operatorname{btapp}_{X_{*^q_i}:K,\underline C}(f,P)\) | \(\mathsf{Tm}_{*^s_j}\) | \(f\in\mathsf{Tm}_{*^s_{\max(i+1,j)}}\) |
 
 #### Binder と substitution
 
@@ -208,7 +207,6 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | type constructor typing | \(H\vdash A:K\) | \(A\in\mathsf{Ty}_b\), \(K\in\mathsf{Kd}_b\) |
 | term typing | \(H\vdash t:A\) | \(t\in\mathsf{Tm}_b\), \(A\in\mathsf{Ty}_b\) |
 | provable | \(\Gamma\vDash P\) | \(P\in\mathsf{Ty}_{*^p}\) |
-| well-terminated Program | \(\Delta\Vdash p:P\) | \(p\in\mathsf{Tm}_{*^q_i}\), \(P\in\mathsf{Ty}_{*^q_i}\) |
 
 - \(\Delta\vdash e:A\;:\Longleftrightarrow\; \operatorname{TyCtx}(\Delta)\vdash e:A \quad(e\in\mathsf{Ty}_{*^q_i}\cup\mathsf{Kd}_{*^q_i})\)
 
@@ -221,30 +219,38 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 
 \(\Rightarrow_{\mathsf F}\) は以下の root・閉包規則と帰納型の case 規則で生成される最小の関係族とする。
 \(C:\mathsf F\rightsquigarrow\mathsf G\) は、次の位置に穴を持つ一穴構文文脈とする。
+以下の reduction の表では、before と after が属する構文 family を \(\mathsf F\) として、各行は \(\mathrm{before}\Rightarrow_{\mathsf F}\mathrm{after}\) を表す。
 
 | output | compatible position |
 | --- | --- |
 | \(\mathsf{Tm}_b,\mathsf{Ty}_b,\mathsf{Kd}_b\), \(b\in\mathcal B_{sp}\) | 全 Set/Prop 引数（binder 注釈・body を含む） |
-| \(\mathsf{Ty}_b,\mathsf{Kd}_b\), \(b\in\mathcal B_{pr}\) | 全 Program type/kind 引数（binder 注釈・body を含む） |
+| \(\mathsf{Ty}_b,\mathsf{Kd}_b\), \(b\in\mathcal B_{pr}\) | 全 Value/Computation type/kind 引数（binder 注釈・body を含む） |
 
-- \(C[e]\Rightarrow_{\mathsf G}C[e']\)
-  - premises: \(e\Rightarrow_{\mathsf F}e'\), \(C:\mathsf F\rightsquigarrow\mathsf G\)
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| compatible closure | \(C[e]\) | \(C[e']\) | \(e\Rightarrow_{\mathsf F}e'\)<br>\(C:\mathsf F\rightsquigarrow\mathsf G\) |
 
 ### Basic beta
 
-- \((\lambda_r z:A.e)@_r a\Rightarrow_{\mathsf E_{\sigma_2}}e[z:=a]\)
-  - premises: \(r=(\sigma_1,\sigma_2,\sigma_3)\in\mathcal R\), \(r\in\mathcal R_{sp}\ \lor\ \sigma_2\in\kappa(\mathcal B_{pr})\)
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| beta | \((\lambda_r z:A.e)@_r a\) | \(e[z:=a]\) | \(r=(\sigma_1,\sigma_2,\sigma_3)\in\mathcal R\)<br>\(r\in\mathcal R_{sp}\ \lor\ \sigma_2\in\kappa(\mathcal B_{pr})\) |
 
 ### Set/Prop
 
-- \(\Pred(A,\{x:B\mid P\},t) \Rightarrow_{\mathsf{Ty}_{*^p}}(\lambda_{p_i}x:B.P)@_{p_i}t\)
-- \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{continue}_{A,B}(a)) \Rightarrow_{\mathsf E_\sigma}c@_{h_{i,\sigma}}a\)
-- \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{finish}_{A,B}(b)) \Rightarrow_{\mathsf E_\sigma}d@_{h_{i,\sigma}}b\)
-- \(\operatorname{run}_{A,B}(f,a) \Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{runCase}_{A,B}(f,a,f@_{s^{i,i}}a)\)
-- \(\operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{A,B}(a')) \Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{run}_{A,B}(f,a')\)
-- \(\operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{A,B}(b)) \Rightarrow_{\mathsf{Tm}_{*^s_i}}b\)
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| predicate | \(\Pred(A,\{x:B\mid P\},t)\) | \((\lambda_{p_i}x:B.P)@_{p_i}t\) | |
+| prec continue | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{continue}_{A,B}(a))\) | \(c@_{h_{i,\sigma}}a\) | |
+| prec finish | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{finish}_{A,B}(b))\) | \(d@_{h_{i,\sigma}}b\) | |
+| run | \(\operatorname{run}_{A,B}(f,a)\) | \(\operatorname{runCase}_{A,B}(f,a,f@_{s^{i,i}}a)\) | |
+| run continue | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{A,B}(a'))\) | \(\operatorname{run}_{A,B}(f,a')\) | |
+| run finish | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{A,B}(b))\) | \(b\) | |
 
 ### Program
+
+- \(\Rightarrow_{\mathsf{Tm}_{*^v_i}}:=\varnothing\)
+- \(\Rightarrow_{\mathsf{Tm}_{*^c_i}}\) は以下の evaluation context と computation root で生成する。
 
 #### Evaluation context
 
@@ -258,29 +264,32 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
   - premises: \(E\in E_h^i\), \(A\in\mathsf{Ty}_{*^v_i}\), \(N\in\mathsf{Tm}_{*^c_j}\)
 - \(\operatorname{runCase}_{A,B}(V,W,E)\in E_h^i\)
   - premises: \(E\in E_h^i\), \(A,B\in\mathsf{Ty}_{*^v_i}\), \(V,W\in\mathsf{Tm}_{*^v_i}\)
-- \(E[M]\Rightarrow_{\mathsf{Tm}_{*^c_j}}E[M']\)
-  - premises: \(M\Rightarrow_{\mathsf{Tm}_{*^c_h}}M'\), \(E\in E_h^j\)
+
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| evaluation context | \(E[M]\) | \(E[M']\) | \(M\Rightarrow_{\mathsf{Tm}_{*^c_h}}M'\)<br>\(E\in E_h^j\) |
 
 #### Computation root
 
-- \(\operatorname{force}(\operatorname{thunk}(M))\Rightarrow_{\mathsf{Tm}_{*^c_i}}M\)
-- \((\lambda_{r^{i,j}_{vc}}x:A.M)@_{r^{i,j}_{vc}}V\Rightarrow_{\mathsf{Tm}_{*^c_j}}M[x:=V]\)
-- \((\lambda_{r^{q;i,j}_{tc}}X:K.M)@_{r^{q;i,j}_{tc}}P\Rightarrow_{\mathsf{Tm}_{*^c_j}}M[X:=P]\)
-- \(\operatorname{return}(V)\ \operatorname{to}\ x:A\ \operatorname{in}\ N \Rightarrow_{\mathsf{Tm}_{*^c_j}}N[x:=V]\)
-- \(\operatorname{let}^v x:A=V\ \operatorname{in}\ N \Rightarrow_{\mathsf{Tm}_{*^c_j}}N[x:=V]\)
-- \(\operatorname{run}_{A,B}(f,a) \Rightarrow_{\mathsf{Tm}_{*^c_i}}\operatorname{runCase}_{A,B}(f,a,\operatorname{force}(f)@_{r^{i,i}_{vc}}a)\)
-- \(\operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{continue}_{A,B}(a'))) \Rightarrow_{\mathsf{Tm}_{*^c_i}}\operatorname{run}_{A,B}(f,a')\)
-- \(\operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{finish}_{A,B}(b))) \Rightarrow_{\mathsf{Tm}_{*^c_i}}\operatorname{return}(b)\)
-- \(\Rightarrow_{\mathsf{Tm}_{*^v_i}}:=\varnothing\)
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| force thunk | \(\operatorname{force}(\operatorname{thunk}(M))\) | \(M\) | |
+| value beta | \((\lambda_{r^{i,j}_{vc}}x:A.M)@_{r^{i,j}_{vc}}V\) | \(M[x:=V]\) | |
+| type beta | \((\lambda_{r^{q;i,j}_{tc}}X:K.M)@_{r^{q;i,j}_{tc}}P\) | \(M[X:=P]\) | |
+| sequence | \(\operatorname{return}(V)\ \operatorname{to}\ x:A\ \operatorname{in}\ N\) | \(N[x:=V]\) | |
+| value let | \(\operatorname{let}^v x:A=V\ \operatorname{in}\ N\) | \(N[x:=V]\) | |
+| run | \(\operatorname{run}_{A,B}(f,a)\) | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{force}(f)@_{r^{i,i}_{vc}}a)\) | |
+| run continue | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{continue}_{A,B}(a')))\) | \(\operatorname{run}_{A,B}(f,a')\) | |
+| run finish | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{finish}_{A,B}(b)))\) | \(\operatorname{return}(b)\) | |
 
-### Boxed Program
+### Boxed Computation
 
-| category | reduction | other |
-| --- | --- | --- |
-| box step | \(\operatorname{box}_{\underline B}(M)\Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{box}_{\underline B}(M')\) | \(M\Rightarrow_{\mathsf{Tm}_{*^c_i}}M'\) |
-| force box | \(\operatorname{Force}_P(\operatorname{box}_P(p))\Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{RfTerm}(p)\) | \(\varnothing\vdash P:*^q_i\)<br>\(\varnothing\vdash p:P\)<br>\(\nexists p'.\ p\Rightarrow_{\mathsf{Tm}_{*^q_i}}p'\) |
-| boxed value application | \(\operatorname{bapp}_{A,\underline B}(\operatorname{box}_{A\to_{r^{i,j}_{vc}}\underline B}(M),\operatorname{box}_A(V))\Rightarrow_{\mathsf{Tm}_{*^s_j}}\operatorname{box}_{\underline B}(M@_{r^{i,j}_{vc}}V)\) | |
-| boxed type application | \(\operatorname{btapp}_{X:K,\underline B}(\operatorname{box}_{\Pi_{r^{q;i,j}_{tc}}X:K.\underline B}(M),P)\Rightarrow_{\mathsf{Tm}_{*^s_j}}\operatorname{box}_{\underline B[X:=P]}(M@_{r^{q;i,j}_{tc}}P)\) | |
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| box step | \(\operatorname{box}_{\underline B}(M)\) | \(\operatorname{box}_{\underline B}(M')\) | \(M\Rightarrow_{\mathsf{Tm}_{*^c_i}}M'\) |
+| force box | \(\operatorname{Force}_{\underline B}(\operatorname{box}_{\underline B}(M))\) | \(\operatorname{RfTerm}(M)\) | \(\varnothing\vdash\underline B:*^c_i\)<br>\(\varnothing\vdash M:\underline B\)<br>\(\nexists M'.\ M\Rightarrow_{\mathsf{Tm}_{*^c_i}}M'\) |
+| boxed application | \(\operatorname{bapp}_{A,\underline B}(\operatorname{box}_{A\to_{r^{i,j}_{vc}}\underline B}(M),\operatorname{box}_{F A}(\operatorname{return}(V)))\) | \(\operatorname{box}_{\underline B}(M@_{r^{i,j}_{vc}}V)\) | |
+| boxed type application | \(\operatorname{btapp}_{X:K,\underline B}(\operatorname{box}_{\Pi_{r^{q;i,j}_{tc}}X:K.\underline B}(M),P)\) | \(\operatorname{box}_{\underline B[X:=P]}(M@_{r^{q;i,j}_{tc}}P)\) | |
 
 ### definitional equality
 
@@ -476,19 +485,14 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 - \(\operatorname{RfTerm}(M\ \operatorname{to}\ x:A\ \operatorname{in}\ N):=(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N)) @_{s^{i,j}}\operatorname{RfTerm}(M)\)
 - \(\operatorname{RfTerm}(\operatorname{let}^v x:A=V\ \operatorname{in}\ N):=(\lambda_{s^{i,j}}\bar x:\operatorname{RfType}(A).\operatorname{RfTerm}(N)) @_{s^{i,j}}\operatorname{RfTerm}(V)\)
 
-#### Well-termination
-
-- \(\Theta\vdash P:*^q_i\)
-- \(\Delta\Vdash p:P\quad:\Longleftrightarrow\quad \Delta\vdash p:P\ \land\ \operatorname{RfCtx}(\Delta)\vdash\operatorname{RfTerm}(p):\operatorname{RfType}(P)\)
-
-### Boxed Program
+### Boxed Computation
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| box type | \(\Gamma\vdash\operatorname{Box}(P):*^s_i\) | \(\operatorname{WF}(\Gamma)\)<br>\(\varnothing\vdash P:*^q_i\) | |
-| box intro | \(\Gamma\vdash\operatorname{box}_P(p):\operatorname{Box}(P)\) | \(\operatorname{WF}(\Gamma)\)<br>\(\varnothing\vdash P:*^q_i\)<br>\(\varnothing\Vdash p:P\) | |
-| force box | \(\Gamma\vdash\operatorname{Force}_P(b):\operatorname{RfType}(P)\) | \(\varnothing\vdash P:*^q_i\)<br>\(\Gamma\vdash b:\operatorname{Box}(P)\) | |
-| boxed value application | \(\Gamma\vdash\operatorname{bapp}_{A,\underline B}(f,a):\operatorname{Box}(\underline B)\) | \(\varnothing\vdash A:*^v_i\)<br>\(\varnothing\vdash\underline B:*^c_j\)<br>\(\Gamma\vdash f:\operatorname{Box}(A\to_{r^{i,j}_{vc}}\underline B)\)<br>\(\Gamma\vdash a:\operatorname{Box}(A)\) | |
+| box type | \(\Gamma\vdash\operatorname{Box}(\underline B):*^s_i\) | \(\operatorname{WF}(\Gamma)\)<br>\(\varnothing\vdash\underline B:*^c_i\) | |
+| box intro | \(\Gamma\vdash\operatorname{box}_{\underline B}(M):\operatorname{Box}(\underline B)\) | \(\operatorname{WF}(\Gamma)\)<br>\(\varnothing\vdash\underline B:*^c_i\)<br>\(\varnothing\vdash M:\underline B\)<br>\(\varnothing\vdash\operatorname{RfTerm}(M):\operatorname{RfType}(\underline B)\) | |
+| force box | \(\Gamma\vdash\operatorname{Force}_{\underline B}(b):\operatorname{RfType}(\underline B)\) | \(\varnothing\vdash\underline B:*^c_i\)<br>\(\Gamma\vdash b:\operatorname{Box}(\underline B)\) | |
+| boxed application | \(\Gamma\vdash\operatorname{bapp}_{A,\underline B}(f,a):\operatorname{Box}(\underline B)\) | \(\varnothing\vdash A:*^v_i\)<br>\(\varnothing\vdash\underline B:*^c_j\)<br>\(\Gamma\vdash f:\operatorname{Box}(A\to_{r^{i,j}_{vc}}\underline B)\)<br>\(\Gamma\vdash a:\operatorname{Box}(F A)\) | |
 | boxed type application | \(\Gamma\vdash\operatorname{btapp}_{X:K,\underline B}(f,P):\operatorname{Box}(\underline B[X:=P])\) | \(\varnothing\vdash K:\square^q_i\)<br>\(X:K\vdash\underline B:*^c_j\)<br>\(\varnothing\vdash P:K\)<br>\(\Gamma\vdash f:\operatorname{Box}(\Pi_{r^{q;i,j}_{tc}}X:K.\underline B)\) | |
 
 ## 帰納型と CBPV
@@ -577,8 +581,10 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 ### reduction
 
-- \(\operatorname{case}^v_{\underline B} (C_h^v[\vec P](\vec V);(C_l^v(\vec x_l)\mapsto M_l)_{l=1}^{m}) \Rightarrow_{\mathsf{Tm}_{*^c_j}}M_h[\vec x_h:=\vec V]\)
-- \(\operatorname{case}^s_B (C_h^s[\vec S](\vec t);(C_l^s(\vec x_l)\mapsto u_l)_{l=1}^{m}) \Rightarrow_{\mathsf{Tm}_{*^s_j}}u_h[\vec x_h:=\vec t]\)
+| category | before | after | premise |
+| --- | --- | --- | --- |
+| Program case | \(\operatorname{case}^v_{\underline B} (C_h^v[\vec P](\vec V);(C_l^v(\vec x_l)\mapsto M_l)_{l=1}^{m})\) | \(M_h[\vec x_h:=\vec V]\) | |
+| Set case | \(\operatorname{case}^s_B (C_h^s[\vec S](\vec t);(C_l^s(\vec x_l)\mapsto u_l)_{l=1}^{m})\) | \(u_h[\vec x_h:=\vec t]\) | |
 
 ### Reflection
 
