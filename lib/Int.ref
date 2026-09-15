@@ -12,6 +12,7 @@
 \import N.Laws() \as NL;
 \import \root.Bool() \as B;
 \import \root.Logic() \as L;
+\use L.not;
 \import \root.Pair() \as P;
 
 /* Expose the imported instances, including Program constructor notation. */
@@ -806,3 +807,550 @@
     (\fun (a, n: N.Nat) => powerSignTestMatches n (N.powSet (N.Nat::succ a) n));
 
 \module Math;
+
+/* Integer laws used by constructions such as the rationals. */
+\import Math() \as IM;
+\import IM.Ring() \as IR;
+\import IM.Specification() \as IS;
+
+\definition natAdd: Nat -> Nat -> Nat := natAddSet;
+\definition natMul: Nat -> Nat -> Nat := natMulSet;
+\definition zeroNat: Nat := natZeroSet;
+\definition oneNat: Nat := natSuccSet natZeroSet;
+/* Integer operations on the canonical ofNat/negSucc carrier. */
+\definition Integer: \Set := Int;
+\definition integer: Nat -> Nat -> Integer :=
+  \fun (a, b: Nat) => IM.normalize (pair a b);
+\definition zeroInteger: Integer := integer zeroNat zeroNat;
+\definition oneInteger: Integer := integer oneNat zeroNat;
+\definition negInteger: Integer -> Integer :=
+  \fun (x: Integer) => IM.normalize (IM.negRep (IM.representative x));
+\definition addInteger: Integer -> Integer -> Integer :=
+  \fun (x, y: Integer) => IM.normalize (IM.addRep (IM.representative x) (IM.representative y));
+\definition mulInteger: Integer -> Integer -> Integer :=
+  \fun (x, y: Integer) => IM.normalize (IM.mulRep (IM.representative x) (IM.representative y));
+\definition subInteger: Integer -> Integer -> Integer :=
+  \fun (x, y: Integer) => addInteger x (negInteger y);
+\definition scaleInteger: Integer -> Nat -> Integer :=
+  \fun (x: Integer) => \fun (n: Nat) =>
+    IM.normalize (IM.scaleRep (IM.representative x) n);
+
+/* Equality is the formal-difference relation on canonical representatives.
+ * IM.equivalentOfNormalize shows that this coincides with Int equality. */
+\definition IntegerEq: Integer -> Integer -> \Prop :=
+  \fun (x, y: Integer) => IM.Equivalent (IM.representative x) (IM.representative y);
+\definition normalizedRepresentative:
+  \forall (x: Difference) ->
+    IM.Equivalent (IM.representative (IM.normalize x)) x :=
+  \fun (x: Difference) =>
+    IR.integerEqSym x (IM.representative (IM.normalize x))
+      (IM.representativeNormalize x);
+\definition integerEqRefl: \forall (x: Integer) -> IntegerEq x x :=
+  \fun (x: Integer) => IM.equivalentRefl (IM.representative x);
+\definition integerEqSym:
+  \forall (x, y: Integer) -> IntegerEq x y -> IntegerEq y x :=
+  \fun (x, y: Integer) => IM.equivalentSym (IM.representative x) (IM.representative y);
+\definition integerEqTrans:
+  \forall (x, y, z: Integer) -> IntegerEq x y -> IntegerEq y z -> IntegerEq x z :=
+  \fun (x, y, z: Integer) =>
+    IM.equivalentTrans (IM.representative x) (IM.representative y) (IM.representative z);
+\definition integerEqToEquality:
+  \forall (x, y: Integer) -> IntegerEq x y -> x = y :=
+  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+    trans!{Integer} x (IM.normalize (IM.representative x)) y
+      (sym!{Integer} _ _ (diffCanonical x))
+      (trans!{Integer}
+        (IM.normalize (IM.representative x))
+        (IM.normalize (IM.representative y))
+        y
+        (IM.normalizeRespects (IM.representative x) (IM.representative y) xy)
+        (diffCanonical y));
+\definition integerEqOfEquality:
+  \forall (x, y: Integer) -> x = y -> IntegerEq x y :=
+  \fun (x, y: Integer) => \fun (xy: x = y) =>
+    \idelim(x = y \with z: Integer => IntegerEq x z)
+      \by (integerEqRefl x, xy);
+\definition integerEqOfFields:
+  \forall (x, y: Integer) ->
+    positivePrec x = positivePrec y -> negativePrec x = negativePrec y -> IntegerEq x y :=
+  \fun (x, y: Integer) => IM.equivalentOfFields (IM.representative x) (IM.representative y);
+\definition integerEqOfParts:
+  \forall (a, b, c, d: Nat) -> a = c -> b = d ->
+    IntegerEq (integer a b) (integer c d) :=
+  \fun (a, b, c, d: Nat) => \fun (ac: a = c) => \fun (bd: b = d) =>
+    IM.equivalentTrans
+      (IM.representative (integer a b)) (pair a b)
+      (IM.representative (integer c d))
+      (normalizedRepresentative (pair a b))
+      (IM.equivalentTrans
+        (pair a b) (pair c d) (IM.representative (integer c d))
+        (IM.equivalentOfFields (pair a b) (pair c d) ac bd)
+        (IM.representativeNormalize (pair c d)));
+
+\definition addIntegerRep: \forall (x, y: Integer) ->
+  IM.Equivalent (IM.representative (addInteger x y))
+    (IM.addRep (IM.representative x) (IM.representative y)) :=
+  \fun (x, y: Integer) =>
+    normalizedRepresentative (IM.addRep (IM.representative x) (IM.representative y));
+\definition negIntegerRep: \forall (x: Integer) ->
+  IM.Equivalent (IM.representative (negInteger x)) (IM.negRep (IM.representative x)) :=
+  \fun (x: Integer) => normalizedRepresentative (IM.negRep (IM.representative x));
+\definition mulIntegerRep: \forall (x, y: Integer) ->
+  IM.Equivalent (IM.representative (mulInteger x y))
+    (IM.mulRep (IM.representative x) (IM.representative y)) :=
+  \fun (x, y: Integer) =>
+    normalizedRepresentative (IM.mulRep (IM.representative x) (IM.representative y));
+\definition scaleIntegerRep: \forall (x: Integer) -> \forall (n: Nat) ->
+  IM.Equivalent (IM.representative (scaleInteger x n))
+    (IM.scaleRep (IM.representative x) n) :=
+  \fun (x: Integer) => \fun (n: Nat) =>
+    normalizedRepresentative (IM.scaleRep (IM.representative x) n);
+
+\definition addIntegerRespects:
+  \forall (x, y, u, v: Integer) -> IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (addInteger x u) (addInteger y v) :=
+  \fun (x, y, u, v: Integer) => \fun (xy: IntegerEq x y) => \fun (uv: IntegerEq u v) =>
+    IM.equivalentTrans
+      (IM.representative (addInteger x u))
+      (IM.addRep (IM.representative x) (IM.representative u))
+      (IM.representative (addInteger y v))
+      (addIntegerRep x u)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative u))
+        (IM.addRep (IM.representative y) (IM.representative v))
+        (IM.representative (addInteger y v))
+        (IM.addRepRespects
+          (IM.representative x) (IM.representative y)
+          (IM.representative u) (IM.representative v) xy uv)
+        (IM.representativeNormalize (IM.addRep (IM.representative y) (IM.representative v))));
+\definition negIntegerRespects:
+  \forall (x, y: Integer) -> IntegerEq x y -> IntegerEq (negInteger x) (negInteger y) :=
+  \fun (x, y: Integer) => \fun (xy: IntegerEq x y) =>
+    IM.equivalentTrans
+      (IM.representative (negInteger x))
+      (IM.negRep (IM.representative x))
+      (IM.representative (negInteger y))
+      (negIntegerRep x)
+      (IM.equivalentTrans
+        (IM.negRep (IM.representative x))
+        (IM.negRep (IM.representative y))
+        (IM.representative (negInteger y))
+        (IM.negRepRespects (IM.representative x) (IM.representative y) xy)
+        (IM.representativeNormalize (IM.negRep (IM.representative y))));
+\definition subIntegerRespects:
+  \forall (x, y, u, v: Integer) -> IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (subInteger x u) (subInteger y v) :=
+  \fun (x, y, u, v: Integer) => \fun (xy: IntegerEq x y) => \fun (uv: IntegerEq u v) =>
+    addIntegerRespects x y (negInteger u) (negInteger v) xy (negIntegerRespects u v uv);
+\definition mulIntegerRespects:
+  \forall (x, y, u, v: Integer) -> IntegerEq x y -> IntegerEq u v ->
+    IntegerEq (mulInteger x u) (mulInteger y v) :=
+  \fun (x, y, u, v: Integer) => \fun (xy: IntegerEq x y) => \fun (uv: IntegerEq u v) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger x u))
+      (IM.mulRep (IM.representative x) (IM.representative u))
+      (IM.representative (mulInteger y v))
+      (mulIntegerRep x u)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative u))
+        (IM.mulRep (IM.representative y) (IM.representative v))
+        (IM.representative (mulInteger y v))
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative y)
+          (IM.representative u) (IM.representative v) xy uv)
+        (IM.representativeNormalize (IM.mulRep (IM.representative y) (IM.representative v))));
+\definition scaleIntegerRespects:
+  \forall (x, y: Integer) -> \forall (n: Nat) ->
+    IntegerEq x y -> IntegerEq (scaleInteger x n) (scaleInteger y n) :=
+  \fun (x, y: Integer) => \fun (n: Nat) => \fun (xy: IntegerEq x y) =>
+    IM.equivalentTrans
+      (IM.representative (scaleInteger x n))
+      (IM.scaleRep (IM.representative x) n)
+      (IM.representative (scaleInteger y n))
+      (scaleIntegerRep x n)
+      (IM.equivalentTrans
+        (IM.scaleRep (IM.representative x) n)
+        (IM.scaleRep (IM.representative y) n)
+        (IM.representative (scaleInteger y n))
+        (IM.scaleRepRespects (IM.representative x) (IM.representative y) n xy)
+        (IM.representativeNormalize (IM.scaleRep (IM.representative y) n)));
+
+\definition addIntegerZeroLeft: \forall (x: Integer) -> IntegerEq (addInteger zeroInteger x) x :=
+  \fun (x: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (addInteger zeroInteger x))
+      (IM.addRep (IM.representative zeroInteger) (IM.representative x))
+      (IM.representative x)
+      (addIntegerRep zeroInteger x)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative zeroInteger) (IM.representative x))
+        (IM.addRep IR.zeroInteger (IM.representative x))
+        (IM.representative x)
+        (IM.addRepRespects
+          (IM.representative zeroInteger) IR.zeroInteger
+          (IM.representative x) (IM.representative x)
+          (normalizedRepresentative IR.zeroInteger) (integerEqRefl x))
+        (IR.addIntegerZeroLeft (IM.representative x)));
+\definition addIntegerZeroRight: \forall (x: Integer) -> IntegerEq (addInteger x zeroInteger) x :=
+  \fun (x: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (addInteger x zeroInteger))
+      (IM.addRep (IM.representative x) (IM.representative zeroInteger))
+      (IM.representative x)
+      (addIntegerRep x zeroInteger)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative zeroInteger))
+        (IM.addRep (IM.representative x) IR.zeroInteger)
+        (IM.representative x)
+        (IM.addRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative zeroInteger) IR.zeroInteger
+          (integerEqRefl x) (normalizedRepresentative IR.zeroInteger))
+        (IR.addIntegerZeroRight (IM.representative x)));
+\definition addIntegerComm:
+  \forall (x, y: Integer) -> IntegerEq (addInteger x y) (addInteger y x) :=
+  \fun (x, y: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (addInteger x y))
+      (IM.addRep (IM.representative x) (IM.representative y))
+      (IM.representative (addInteger y x))
+      (addIntegerRep x y)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative y))
+        (IM.addRep (IM.representative y) (IM.representative x))
+        (IM.representative (addInteger y x))
+        (IR.addIntegerComm (IM.representative x) (IM.representative y))
+        (IM.representativeNormalize (IM.addRep (IM.representative y) (IM.representative x))));
+\definition mulIntegerComm:
+  \forall (x, y: Integer) -> IntegerEq (mulInteger x y) (mulInteger y x) :=
+  \fun (x, y: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger x y))
+      (IM.mulRep (IM.representative x) (IM.representative y))
+      (IM.representative (mulInteger y x))
+      (mulIntegerRep x y)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative y))
+        (IM.mulRep (IM.representative y) (IM.representative x))
+        (IM.representative (mulInteger y x))
+        (IR.mulIntegerComm (IM.representative x) (IM.representative y))
+        (IM.representativeNormalize (IM.mulRep (IM.representative y) (IM.representative x))));
+
+\definition scaleIntegerZero: \forall (n: Nat) -> IntegerEq (scaleInteger zeroInteger n) zeroInteger :=
+  \fun (n: Nat) =>
+    IM.equivalentTrans _ _ _ (scaleIntegerRep zeroInteger n)
+      (IM.equivalentTrans _ _ _
+        (IM.scaleRepRespects _ _ n (normalizedRepresentative IR.zeroInteger))
+        (IM.equivalentTrans _ _ _ (IR.scaleIntegerZero n)
+          (IM.representativeNormalize IR.zeroInteger)));
+\definition scaleIntegerSwap:
+  \forall (x: Integer) -> \forall (a, b: Nat) ->
+    IntegerEq (scaleInteger (scaleInteger x a) b) (scaleInteger (scaleInteger x b) a) :=
+  \fun (x: Integer) => \fun (a, b: Nat) =>
+    IM.equivalentTrans _ _ _ (scaleIntegerRep (scaleInteger x a) b)
+      (IM.equivalentTrans _ _ _
+        (IM.scaleRepRespects _ _ b (scaleIntegerRep x a))
+        (IM.equivalentTrans _ _ _ (IR.scaleIntegerSwap (IM.representative x) a b)
+          (IM.equivalentTrans _ _ _
+            (IM.scaleRepRespects _ _ a
+              (IM.equivalentSym _ _ (scaleIntegerRep x b)))
+            (IM.representativeNormalize
+              (IM.scaleRep (IM.representative (scaleInteger x b)) a)))));
+\definition scaleIntegerCancelPositive:
+  \forall (x, y: Integer) -> \forall (k: Nat) ->
+    IntegerEq (scaleInteger x (natSuccSet k)) (scaleInteger y (natSuccSet k)) ->
+    IntegerEq x y :=
+  \fun (x, y: Integer) => \fun (k: Nat) => \fun (xy:
+    IntegerEq (scaleInteger x (natSuccSet k)) (scaleInteger y (natSuccSet k))) =>
+    IR.scaleIntegerCancelPositive (IM.representative x) (IM.representative y) k
+      (IM.equivalentTrans
+        (IM.scaleRep (IM.representative x) (natSuccSet k))
+        (IM.representative (scaleInteger x (natSuccSet k)))
+        (IM.scaleRep (IM.representative y) (natSuccSet k))
+        (IM.representativeNormalize (IM.scaleRep (IM.representative x) (natSuccSet k)))
+        (IM.equivalentTrans
+          (IM.representative (scaleInteger x (natSuccSet k)))
+          (IM.representative (scaleInteger y (natSuccSet k)))
+          (IM.scaleRep (IM.representative y) (natSuccSet k))
+          xy
+          (normalizedRepresentative (IM.scaleRep (IM.representative y) (natSuccSet k)))));
+
+\definition scaleIntegerNatural:
+  \forall (a, n: Nat) ->
+    IntegerEq (scaleInteger (integer a zeroNat) n)
+      (integer (natMul a n) zeroNat) :=
+  \fun (a, n: Nat) =>
+    IM.equivalentTrans
+      (IM.representative (scaleInteger (integer a zeroNat) n))
+      (IM.scaleRep (IM.representative (integer a zeroNat)) n)
+      (IM.representative (integer (natMul a n) zeroNat))
+      (scaleIntegerRep (integer a zeroNat) n)
+      (IM.equivalentTrans
+        (IM.scaleRep (IM.representative (integer a zeroNat)) n)
+        (IM.scaleRep (pair a zeroNat) n)
+        (IM.representative (integer (natMul a n) zeroNat))
+        (IM.scaleRepRespects
+          (IM.representative (integer a zeroNat)) (pair a zeroNat) n
+          (normalizedRepresentative (pair a zeroNat)))
+        (IM.equivalentTrans
+          (IM.scaleRep (pair a zeroNat) n)
+          (pair (natMul a n) zeroNat)
+          (IM.representative (integer (natMul a n) zeroNat))
+          (IM.equivalentOfFields
+            (IM.scaleRep (pair a zeroNat) n)
+            (pair (natMul a n) zeroNat)
+            (\refl(natMul a n))
+            (natMulZeroLeft n))
+          (IM.representativeNormalize (pair (natMul a n) zeroNat))));
+
+\definition mulIntegerAssoc:
+  \forall (x, y, z: Integer) ->
+    IntegerEq (mulInteger (mulInteger x y) z) (mulInteger x (mulInteger y z)) :=
+  \fun (x, y, z: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger (mulInteger x y) z))
+      (IM.mulRep (IM.representative (mulInteger x y)) (IM.representative z))
+      (IM.representative (mulInteger x (mulInteger y z)))
+      (mulIntegerRep (mulInteger x y) z)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative (mulInteger x y)) (IM.representative z))
+        (IM.mulRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.representative z))
+        (IM.representative (mulInteger x (mulInteger y z)))
+        (IM.mulRepRespects
+          (IM.representative (mulInteger x y))
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.representative z) (IM.representative z)
+          (mulIntegerRep x y) (integerEqRefl z))
+        (IM.equivalentTrans
+          (IM.mulRep
+            (IM.mulRep (IM.representative x) (IM.representative y))
+            (IM.representative z))
+          (IM.mulRep
+            (IM.representative x)
+            (IM.mulRep (IM.representative y) (IM.representative z)))
+          (IM.representative (mulInteger x (mulInteger y z)))
+          (IR.mulIntegerAssoc (IM.representative x) (IM.representative y) (IM.representative z))
+          (IM.equivalentTrans
+            (IM.mulRep
+              (IM.representative x)
+              (IM.mulRep (IM.representative y) (IM.representative z)))
+            (IM.mulRep
+              (IM.representative x)
+              (IM.representative (mulInteger y z)))
+            (IM.representative (mulInteger x (mulInteger y z)))
+            (IM.mulRepRespects
+              (IM.representative x) (IM.representative x)
+              (IM.mulRep (IM.representative y) (IM.representative z))
+              (IM.representative (mulInteger y z))
+              (integerEqRefl x)
+              (IM.equivalentSym
+                (IM.representative (mulInteger y z))
+                (IM.mulRep (IM.representative y) (IM.representative z))
+                (mulIntegerRep y z)))
+            (IM.representativeNormalize
+              (IM.mulRep (IM.representative x) (IM.representative (mulInteger y z)))))));
+\definition mulIntegerCongRight:
+  \forall (x, y, z: Integer) -> IntegerEq y z ->
+    IntegerEq (mulInteger x y) (mulInteger x z) :=
+  \fun (x, y, z: Integer) => \fun (yz: IntegerEq y z) =>
+    mulIntegerRespects x x y z (integerEqRefl x) yz;
+\definition mulIntegerInterchange:
+  \forall (a, b, c, d: Integer) ->
+    IntegerEq (mulInteger (mulInteger a b) (mulInteger c d))
+      (mulInteger (mulInteger a c) (mulInteger b d)) :=
+  \fun (a, b, c, d: Integer) =>
+    integerEqTrans _ _ _
+      (mulIntegerAssoc a b (mulInteger c d))
+      (integerEqTrans _ _ _
+        (mulIntegerCongRight a _ _
+          (integerEqSym _ _ (mulIntegerAssoc b c d)))
+        (integerEqTrans _ _ _
+          (mulIntegerCongRight a _ _
+            (mulIntegerRespects _ _ d d (mulIntegerComm b c) (integerEqRefl d)))
+          (integerEqTrans _ _ _
+            (mulIntegerCongRight a _ _ (mulIntegerAssoc c b d))
+            (integerEqSym _ _ (mulIntegerAssoc a c (mulInteger b d))))));
+
+\definition negIntegerInvolutive:
+  \forall (x: Integer) -> IntegerEq (negInteger (negInteger x)) x :=
+  \fun (x: Integer) =>
+    IM.equivalentTrans _ _ _ (negIntegerRep (negInteger x))
+      (IM.equivalentTrans _ _ _
+        (IM.negRepRespects _ _ (negIntegerRep x))
+        (IR.negIntegerInvolutive (IM.representative x)));
+\definition addIntegerNegRight:
+  \forall (x: Integer) -> IntegerEq (addInteger x (negInteger x)) zeroInteger :=
+  \fun (x: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (addInteger x (negInteger x)))
+      (IM.addRep (IM.representative x) (IM.representative (negInteger x)))
+      (IM.representative zeroInteger)
+      (addIntegerRep x (negInteger x))
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative (negInteger x)))
+        (IM.addRep (IM.representative x) (IM.negRep (IM.representative x)))
+        (IM.representative zeroInteger)
+        (IM.addRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative (negInteger x)) (IM.negRep (IM.representative x))
+          (integerEqRefl x) (negIntegerRep x))
+        (IM.equivalentTrans
+          (IM.addRep (IM.representative x) (IM.negRep (IM.representative x)))
+          IR.zeroInteger
+          (IM.representative zeroInteger)
+          (IR.addIntegerNegRight (IM.representative x))
+          (IM.representativeNormalize IR.zeroInteger)));
+\definition addIntegerNegLeft:
+  \forall (x: Integer) -> IntegerEq (addInteger (negInteger x) x) zeroInteger :=
+  \fun (x: Integer) =>
+    integerEqTrans _ _ _ (addIntegerComm (negInteger x) x) (addIntegerNegRight x);
+
+\definition mulIntegerZeroRight:
+  \forall (x: Integer) -> IntegerEq (mulInteger x zeroInteger) zeroInteger :=
+  \fun (x: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger x zeroInteger))
+      (IM.mulRep (IM.representative x) (IM.representative zeroInteger))
+      (IM.representative zeroInteger)
+      (mulIntegerRep x zeroInteger)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative zeroInteger))
+        (IM.mulRep (IM.representative x) IR.zeroInteger)
+        (IM.representative zeroInteger)
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative zeroInteger) IR.zeroInteger
+          (integerEqRefl x) (normalizedRepresentative IR.zeroInteger))
+        (IM.equivalentTrans
+          (IM.mulRep (IM.representative x) IR.zeroInteger)
+          IR.zeroInteger
+          (IM.representative zeroInteger)
+          (IR.mulIntegerZeroRight (IM.representative x))
+          (IM.representativeNormalize IR.zeroInteger)));
+\definition mulIntegerZeroLeft:
+  \forall (x: Integer) -> IntegerEq (mulInteger zeroInteger x) zeroInteger :=
+  \fun (x: Integer) =>
+    integerEqTrans _ _ _ (mulIntegerComm zeroInteger x) (mulIntegerZeroRight x);
+\definition mulIntegerOneRight:
+  \forall (x: Integer) -> IntegerEq (mulInteger x oneInteger) x :=
+  \fun (x: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger x oneInteger))
+      (IM.mulRep (IM.representative x) (IM.representative oneInteger))
+      (IM.representative x)
+      (mulIntegerRep x oneInteger)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative oneInteger))
+        (IM.mulRep (IM.representative x) IR.oneInteger)
+        (IM.representative x)
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative oneInteger) IR.oneInteger
+          (integerEqRefl x) (normalizedRepresentative IR.oneInteger))
+        (IR.mulIntegerOneRight (IM.representative x)));
+\definition mulIntegerOneLeft:
+  \forall (x: Integer) -> IntegerEq (mulInteger oneInteger x) x :=
+  \fun (x: Integer) =>
+    integerEqTrans _ _ _ (mulIntegerComm oneInteger x) (mulIntegerOneRight x);
+
+\definition mulIntegerNegLeft:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger (negInteger x) y) (negInteger (mulInteger x y)) :=
+  \fun (x, y: Integer) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger (negInteger x) y))
+      (IM.mulRep (IM.representative (negInteger x)) (IM.representative y))
+      (IM.representative (negInteger (mulInteger x y)))
+      (mulIntegerRep (negInteger x) y)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative (negInteger x)) (IM.representative y))
+        (IM.mulRep (IM.negRep (IM.representative x)) (IM.representative y))
+        (IM.representative (negInteger (mulInteger x y)))
+        (IM.mulRepRespects
+          (IM.representative (negInteger x)) (IM.negRep (IM.representative x))
+          (IM.representative y) (IM.representative y)
+          (negIntegerRep x) (integerEqRefl y))
+        (IM.equivalentTrans
+          (IM.mulRep (IM.negRep (IM.representative x)) (IM.representative y))
+          (IM.negRep (IM.mulRep (IM.representative x) (IM.representative y)))
+          (IM.representative (negInteger (mulInteger x y)))
+          (IR.mulIntegerNegLeft (IM.representative x) (IM.representative y))
+          (IM.equivalentTrans
+            (IM.negRep (IM.mulRep (IM.representative x) (IM.representative y)))
+            (IM.negRep (IM.representative (mulInteger x y)))
+            (IM.representative (negInteger (mulInteger x y)))
+            (IM.negRepRespects
+              (IM.mulRep (IM.representative x) (IM.representative y))
+              (IM.representative (mulInteger x y))
+              (IM.equivalentSym
+                (IM.representative (mulInteger x y))
+                (IM.mulRep (IM.representative x) (IM.representative y))
+                (mulIntegerRep x y)))
+            (IM.representativeNormalize (IM.negRep (IM.representative (mulInteger x y)))))));
+\definition mulIntegerNegRight:
+  \forall (x, y: Integer) ->
+    IntegerEq (mulInteger x (negInteger y)) (negInteger (mulInteger x y)) :=
+  \fun (x, y: Integer) =>
+    integerEqTrans _ _ _
+      (mulIntegerComm x (negInteger y))
+      (integerEqTrans _ _ _ (mulIntegerNegLeft y x)
+        (negIntegerRespects _ _ (mulIntegerComm y x)));
+
+\definition mulIntegerNatural:
+  \forall (x: Integer) -> \forall (n: Nat) ->
+    IntegerEq (mulInteger x (integer n zeroNat)) (scaleInteger x n) :=
+  \fun (x: Integer) => \fun (n: Nat) =>
+    IM.equivalentTrans
+      (IM.representative (mulInteger x (integer n zeroNat)))
+      (IM.mulRep (IM.representative x) (IM.representative (integer n zeroNat)))
+      (IM.representative (scaleInteger x n))
+      (mulIntegerRep x (integer n zeroNat))
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative (integer n zeroNat)))
+        (IM.mulRep (IM.representative x) (pair n zeroNat))
+        (IM.representative (scaleInteger x n))
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative (integer n zeroNat)) (pair n zeroNat)
+          (integerEqRefl x) (normalizedRepresentative (pair n zeroNat)))
+        (IM.equivalentTrans
+          (IM.mulRep (IM.representative x) (pair n zeroNat))
+          (IM.scaleRep (IM.representative x) n)
+          (IM.representative (scaleInteger x n))
+          (IR.integerEqOfFields
+            (IM.mulRep (IM.representative x) (pair n zeroNat))
+            (IM.scaleRep (IM.representative x) n)
+            (trans!{Nat} _ _ _
+              (congr2!{Nat Nat Nat} natAdd _ _ _ _
+                (\refl(natMul (positivePrec x) n))
+                (natMulZeroRight (negativePrec x)))
+              (natAddZeroRight (natMul (positivePrec x) n)))
+            (trans!{Nat} _ _ _
+              (congr2!{Nat Nat Nat} natAdd _ _ _ _
+                (natMulZeroRight (positivePrec x))
+                (\refl(natMul (negativePrec x) n)))
+              (natAddZeroLeft (natMul (negativePrec x) n))))
+          (IM.representativeNormalize (IM.scaleRep (IM.representative x) n))));
+
+\definition IntegerLt: Integer -> Integer -> \Prop := IS.Lt;
+\definition IntegerNonZero: Integer -> \Prop :=
+  \fun (x: Integer) => not!{{ IntegerEq x zeroInteger }};
+\definition integerNonZeroNeg:
+  \forall (x: Integer) -> IntegerNonZero x -> IntegerNonZero (negInteger x) :=
+  \fun (x: Integer) => \fun (nonzero: IntegerNonZero x) =>
+  \fun (negZero: IntegerEq (negInteger x) zeroInteger) =>
+    nonzero
+      (integerEqTrans x (negInteger (negInteger x)) zeroInteger
+        (integerEqSym _ _ (negIntegerInvolutive x))
+        (integerEqTrans _ _ _
+          (negIntegerRespects _ _ negZero)
+          (integerEqRefl zeroInteger)));
+
+\definition integerAddShuffle: \forall (a, b, c, d: Nat) ->
+  natAdd (natAdd a b) (natAdd c d) =
+    natAdd (natAdd a d) (natAdd c b) :=
+  IM.addShuffle;
+
+\definition natSucc: Nat -> Nat := natSuccSet;
