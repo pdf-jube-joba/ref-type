@@ -23,45 +23,6 @@
 \macro boolTrue() := B.Bool^::true;
 \macro boolFalse() := B.Bool^::false;
 
-/* The Math child inherits local definitions but not the aliases used to
- * import Nat.  These names preserve the exact Nat instance for that child. */
-\definition natAddSet: Nat -> Nat -> Nat := N.addSet;
-\definition natMulSet: Nat -> Nat -> Nat := N.mulSet;
-\definition natZeroSet: Nat := N.Nat^::zero;
-\definition natSuccSet (n: Nat): Nat := N.Nat^::succ n;
-\definition natSuccCong: \forall (a, b: Nat) -> a = b -> natSuccSet a = natSuccSet b := N.succCong;
-\definition natElimProp (Q: Nat -> \Prop): Q natZeroSet ->
-  (\forall (n: Nat) -> Q n -> Q (natSuccSet n)) -> \forall (n: Nat) -> Q n := \prec(\Prop, N.Nat^) Q;
-\definition natAddCong: \forall (a, b, c, d: Nat) -> a = b -> c = d -> natAddSet a c = natAddSet b d := NL.addCong;
-\definition natAddInterchange: \forall (a, b, c, d: Nat) ->
-  natAddSet (natAddSet a b) (natAddSet c d) = natAddSet (natAddSet a c) (natAddSet b d) := NL.addInterchange;
-\definition natAddComm: \forall (a, b: Nat) -> natAddSet a b = natAddSet b a := NL.addComm;
-\definition natAddAssoc: \forall (a, b, c: Nat) -> natAddSet (natAddSet a b) c = natAddSet a (natAddSet b c) := NL.addAssoc;
-\definition natAddCancelRight: \forall (c, a, b: Nat) -> natAddSet a c = natAddSet b c -> a = b := NL.addCancelRight;
-\definition natAddZeroLeft: \forall (a: Nat) -> natAddSet natZero!{} a = a := NL.addZeroLeft;
-\definition natAddZeroRight: \forall (a: Nat) -> natAddSet a natZero!{} = a := NL.addZeroRight;
-\definition natAddSuccRight: \forall (a, b: Nat) -> natAddSet a (natSuccSet b) = natSuccSet (natAddSet a b) := NL.addSuccRight;
-\definition natAddSuccLeft: \forall (a, b: Nat) -> natAddSet (natSuccSet a) b = natSuccSet (natAddSet a b) := NL.addSuccLeft;
-\definition natMulComm: \forall (a, b: Nat) -> natMulSet a b = natMulSet b a := NL.mulComm;
-\definition natMulAssoc: \forall (a, b, c: Nat) -> natMulSet (natMulSet a b) c = natMulSet a (natMulSet b c) := NL.mulAssoc;
-\definition natMulZeroLeft: \forall (a: Nat) -> natMulSet natZero!{} a = natZero!{} := NL.mulZeroLeft;
-\definition natMulZeroRight: \forall (a: Nat) -> natMulSet a natZero!{} = natZero!{} := NL.mulZeroRight;
-\definition natMulOneRight: \forall (a: Nat) -> natMulSet a (natSuccSet natZero!{}) = a := NL.mulOneRight;
-\definition natMulSuccRight: \forall (a, b: Nat) ->
-  natMulSet a (natSuccSet b) = natAddSet a (natMulSet a b) := NL.mulSuccRight;
-\definition natMulSuccSucc: \forall (a, b: Nat) ->
-  natMulSet (natSuccSet a) (natSuccSet b) =
-    natSuccSet (natAddSet b (natMulSet a (natSuccSet b))) := NL.mulSuccSucc;
-\definition natMulDistribLeft: \forall (a, b, c: Nat) ->
-  natMulSet a (natAddSet b c) = natAddSet (natMulSet a b) (natMulSet a c) := NL.mulDistribLeft;
-\definition natMulDistribRight: \forall (a, b, c: Nat) ->
-  natMulSet (natAddSet a b) c = natAddSet (natMulSet a c) (natMulSet b c) := NL.mulDistribRight;
-\definition natMulCancelRightSucc: \forall (k, a, b: Nat) ->
-  natMulSet a (natSuccSet k) = natMulSet b (natSuccSet k) -> a = b := NL.mulCancelRightSucc;
-\definition NatLt: Nat -> Nat -> \Prop := NL.Lt;
-\definition NatLe: Nat -> Nat -> \Prop := NL.Le;
-\definition natLeRefl: \forall (n: Nat) -> NatLe n n := NL.leRefl;
-\definition natLeTrans: \forall (a, b, c: Nat) -> NatLe a b -> NatLe b c -> NatLe a c := NL.leTrans;
 
 \inductive Int: \VType :=
 | ofNat: N.Nat -> Int;
@@ -795,10 +756,10 @@
 \import IM.Ring() \as IR;
 \import IM.Specification() \as IS;
 
-\definition natAdd: Nat -> Nat -> Nat := natAddSet;
-\definition natMul: Nat -> Nat -> Nat := natMulSet;
-\definition zeroNat: Nat := natZeroSet;
-\definition oneNat: Nat := natSuccSet natZeroSet;
+\definition natAdd: Nat -> Nat -> Nat := N.addSet;
+\definition natMul: Nat -> Nat -> Nat := N.mulSet;
+\definition zeroNat: Nat := N.Nat^::zero;
+\definition oneNat: Nat := N.Nat^::succ N.Nat^::zero;
 /* Integer operations on the canonical ofNat/negSucc carrier. */
 \definition Integer: \Set := Int^;
 \definition integer (a, b: Nat): Integer := IM.normalize (pair a b);
@@ -993,20 +954,20 @@
             (IM.representativeNormalize
               (IM.scaleRep (IM.representative (scaleInteger x b)) a)))));
 \definition scaleIntegerCancelPositive (x, y: Integer) (k: Nat) (xy:
-    IntegerEq (scaleInteger x (natSuccSet k)) (scaleInteger y (natSuccSet k))):
+    IntegerEq (scaleInteger x (N.Nat^::succ k)) (scaleInteger y (N.Nat^::succ k))):
     IntegerEq x y :=
     IR.scaleIntegerCancelPositive (IM.representative x) (IM.representative y) k
       (IM.equivalentTrans
-        (IM.scaleRep (IM.representative x) (natSuccSet k))
-        (IM.representative (scaleInteger x (natSuccSet k)))
-        (IM.scaleRep (IM.representative y) (natSuccSet k))
-        (IM.representativeNormalize (IM.scaleRep (IM.representative x) (natSuccSet k)))
+        (IM.scaleRep (IM.representative x) (N.Nat^::succ k))
+        (IM.representative (scaleInteger x (N.Nat^::succ k)))
+        (IM.scaleRep (IM.representative y) (N.Nat^::succ k))
+        (IM.representativeNormalize (IM.scaleRep (IM.representative x) (N.Nat^::succ k)))
         (IM.equivalentTrans
-          (IM.representative (scaleInteger x (natSuccSet k)))
-          (IM.representative (scaleInteger y (natSuccSet k)))
-          (IM.scaleRep (IM.representative y) (natSuccSet k))
+          (IM.representative (scaleInteger x (N.Nat^::succ k)))
+          (IM.representative (scaleInteger y (N.Nat^::succ k)))
+          (IM.scaleRep (IM.representative y) (N.Nat^::succ k))
           xy
-          (normalizedRepresentative (IM.scaleRep (IM.representative y) (natSuccSet k)))));
+          (normalizedRepresentative (IM.scaleRep (IM.representative y) (N.Nat^::succ k)))));
 
 \definition scaleIntegerNatural (a, n: Nat):
     IntegerEq (scaleInteger (integer a zeroNat) n)
@@ -1031,7 +992,7 @@
             (IM.scaleRep (pair a zeroNat) n)
             (pair (natMul a n) zeroNat)
             (\refl(natMul a n))
-            (natMulZeroLeft n))
+            (NL.mulZeroLeft n))
           (IM.representativeNormalize (pair (natMul a n) zeroNat))));
 
 \definition mulIntegerAssoc (x, y, z: Integer):
@@ -1230,13 +1191,13 @@
             (trans!{Nat} _ _ _
               (congr2!{Nat Nat Nat} natAdd _ _ _ _
                 (\refl(natMul (positivePrec x) n))
-                (natMulZeroRight (negativePrec x)))
-              (natAddZeroRight (natMul (positivePrec x) n)))
+                (NL.mulZeroRight (negativePrec x)))
+              (NL.addZeroRight (natMul (positivePrec x) n)))
             (trans!{Nat} _ _ _
               (congr2!{Nat Nat Nat} natAdd _ _ _ _
-                (natMulZeroRight (positivePrec x))
+                (NL.mulZeroRight (positivePrec x))
                 (\refl(natMul (negativePrec x) n)))
-              (natAddZeroLeft (natMul (negativePrec x) n))))
+              (NL.addZeroLeft (natMul (negativePrec x) n))))
           (IM.representativeNormalize (IM.scaleRep (IM.representative x) n))));
 
 \definition IntegerLt: Integer -> Integer -> \Prop := IS.Lt;
@@ -1255,4 +1216,4 @@
     natAdd (natAdd a d) (natAdd c b) :=
   IM.addShuffle;
 
-\definition natSucc: Nat -> Nat := natSuccSet;
+\definition natSucc: Nat -> Nat := N.Nat^::succ;

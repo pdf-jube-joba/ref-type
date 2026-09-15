@@ -1109,8 +1109,7 @@ impl ModuleManager {
         macro_name: &Identifier,
     ) -> Result<(), String> {
         let binding = env
-            .module(self.current())
-            .import(import_name.as_str())
+            .resolve_import(self.current(), import_name.as_str())
             .ok_or_else(|| format!("Module import '{}' was not found", import_name.as_str()))?;
         let materialized = env.binding(binding).materialized;
         let definition = self

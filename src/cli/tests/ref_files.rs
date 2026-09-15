@@ -339,6 +339,36 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
 }
 
 #[test]
+fn external_child_module_inherits_parent_import_aliases() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r#"
+\module Source {
+  \definition value: \Prop := \forall (P: \Prop) -> P -> P;
+}
+\module Parent;
+"#,
+    );
+    fixture.write(
+        "Parent.ref",
+        r#"
+\import \root.Source() \as Shared;
+\module Child;
+"#,
+    );
+    fixture.write(
+        "Parent/Child.ref",
+        r#"
+\definition inherited: \Prop := Shared.value;
+"#,
+    );
+
+    let output = run_ref_file(&fixture.0, &root).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
 fn trace_is_on_stderr_and_preserves_command_output() {
     let workspace = workspace_root();
     let path = workspace.join("tests/ok/general-recursion/finish.ref");

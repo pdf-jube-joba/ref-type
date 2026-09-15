@@ -309,6 +309,42 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
 }
 
 #[test]
+fn child_modules_inherit_parent_import_aliases() {
+    let source = r#"
+        \module Source(A: \Set(0), value: A) {
+            \definition get: A := value;
+            \macro get_macro() := value;
+            \module Nested {
+                \definition get: A := value;
+            }
+        }
+        \module Parent(A: \Set(0), value: A) {
+            \import \root.Source(A := A, value := value) \as Shared;
+            \module Child {
+                \definition direct: A := Shared.get;
+                \import Shared.Nested() \as Nested;
+                \use Shared.get_macro;
+                \definition nested: A := Nested.get;
+                \definition from_macro: A := get_macro!{};
+            }
+        }
+        \module Consumer {
+            \inductive Unit: \Set(0) := | unit: Unit; ;
+            \import \root.Parent(A := Unit, value := Unit::unit) \as Parent;
+            \import Parent.Child() \as Child;
+            \definition direct: Unit := Child.direct;
+            \definition nested: Unit := Child.nested;
+            \definition from_macro: Unit := Child.from_macro;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    for module in &modules {
+        environment.add_new_module_to_root(module).unwrap();
+    }
+}
+
+#[test]
 fn final_lowering_does_not_force_unused_instance_items() {
     let source = r#"
         \module Source(A: \Set(0)) {

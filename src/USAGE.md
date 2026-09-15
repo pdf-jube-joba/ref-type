@@ -35,7 +35,8 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
 module は front のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
-その alias を起点に child module も参照できる。
+その alias を起点に child module も参照できる。module 内で宣言した import alias は
+その子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
 
 ```text
 \import \root.Parent(A := Nat) \as P;

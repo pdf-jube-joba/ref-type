@@ -393,6 +393,19 @@ impl CrateEnv {
         &mut self.modules[id.index()]
     }
 
+    /// Resolve an import alias in the module's lexical scope.
+    ///
+    /// Child modules inherit aliases from their parents.  An alias declared in
+    /// the child shadows an alias with the same name in an enclosing module.
+    pub fn resolve_import(&self, mut module: ModuleId, name: &str) -> Option<ModuleId> {
+        loop {
+            if let Some(binding) = self.module(module).import(name) {
+                return Some(binding);
+            }
+            module = self.module(module).parent()?;
+        }
+    }
+
     pub fn module_parameter_opt(&self, id: ModuleParamId) -> Option<&ModuleParameter> {
         self.module(id.module).parameters.get(id.position as usize)
     }

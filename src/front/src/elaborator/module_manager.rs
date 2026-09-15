@@ -741,7 +741,7 @@ pub(crate) fn resolve_access(
     let (mut module, reference, inherit) = match access {
         LocalAccess::Current { access } => (from, access.as_str(), true),
         LocalAccess::Named { access, child } => {
-            let binding = env.module(from).import(access.as_str())?;
+            let binding = env.resolve_import(from, access.as_str())?;
             (env.binding(binding).materialized, child.as_str(), false)
         }
         LocalAccess::Resolved { module, access } => (*module, access.as_str(), false),

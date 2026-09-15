@@ -695,8 +695,7 @@ impl GlobalEnvironment {
                         ModuleInstantiatePath::FromImport { import_name, calls } => {
                             let binding = self
                                 .crate_env
-                                .module(self.module_manager.current())
-                                .import(import_name.as_str())
+                                .resolve_import(self.module_manager.current(), import_name.as_str())
                                 .ok_or_else(|| {
                                     format!(
                                         "Module import '{}' was not found",
