@@ -116,7 +116,9 @@ Program ブロックは `\let`・`\bind` の文を順に並べ、値を返す
 `\definition` は宣言した型と本体から Set/Prop、Program value、Program computation を判定する。
 
 `\force suspended` は thunk を実行し、`\thunk (computation)` は計算を値に包む。
-`\force f x` は `(\force f) x`。`return`・`thunk`・`force` の自動挿入は行わない。
+`\force f x` は `(\force f) x`。thunk の関数値を適用するときは `\force` を明示する。
+カリー化された計算の途中結果も `\bind` で明示的に受け取る。
+`return`・`thunk`・`force`・`bind` の自動挿入は行わない。
 場合分けは `\match value \in Datatype \with { | ctor x => computation }`。
 型名は必須。分岐は次の `|` または `}` で区切り、末尾に `;` は付けない。
 引数なしの分岐は `| ctor => computation` とする。`\elim`・`\tmatch` の分岐も同様。

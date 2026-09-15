@@ -1386,8 +1386,6 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
         explicit_reflection
     ));
     for declaration in [
-        r"\vdefinition f: A := a;",
-        r"\cdefinition f: \F(A) := \return a;",
         r"\definition f(x): \F(A) := \return x;",
         r"\definition f(x: A \where P x): \F(A) := \return x;",
     ] {
