@@ -1,4 +1,5 @@
 /* Cancelling a common summand is the key to representative independence. */
+\import \root.Rel(Carrier := Difference) \as Rel;
 \definition diffAddCommon: \forall (k, a, b: Nat) ->
   diffPrec (N.addSet a k) (N.addSet b k) = diffPrec a b :=
   \prec(\Prop, N.Nat^)
@@ -35,14 +36,17 @@
 
 \definition Equivalent (x, y: Difference): \Prop :=
   N.addSet (pos x) (negPart y) = N.addSet (pos y) (negPart x);
-\definition equivalentRefl (x: Difference): Equivalent x x := \refl(N.addSet (pos x) (negPart x));
-\definition equivalentSym (x, y: Difference) (e: Equivalent x y): Equivalent y x := sym!{Nat} (N.addSet (pos x) (negPart y)) (N.addSet (pos y)
-    (negPart x)) e;
+\definition equivalentRefl: Rel.Reflexive Equivalent :=
+  \fun (x: Difference) => \refl(N.addSet (pos x) (negPart x));
+\definition equivalentSym: Rel.Symmetric Equivalent :=
+  \fun (x, y: Difference) (e: Equivalent x y) =>
+    sym!{Nat} (N.addSet (pos x) (negPart y)) (N.addSet (pos y) (negPart x)) e;
 \definition addShuffle (a, b, c, d: Nat):
   N.addSet (N.addSet a b) (N.addSet c d) = N.addSet (N.addSet a d) (N.addSet c b) := trans!{Nat} _ _ _ (NL.addInterchange a b c d)
     (trans!{Nat} _ _ _ (congr!{Nat Nat} (N.addSet (N.addSet a c)) _ _ (NL.addComm b d))
       (sym!{Nat} _ _ (NL.addInterchange a d c b)));
-\definition equivalentTrans (x, y, z: Difference) (xy: Equivalent x y) (yz: Equivalent y z): Equivalent x z :=
+\definition equivalentTrans: Rel.Transitive Equivalent :=
+  \fun (x, y, z: Difference) (xy: Equivalent x y) (yz: Equivalent y z) =>
     NL.addCancelRight (N.addSet (pos y) (negPart y)) (N.addSet (pos x) (negPart z)) (N.addSet (pos z) (negPart
     x))
       (trans!{Nat} _ _ _ (addShuffle (pos x) (negPart z) (pos y) (negPart y))

@@ -1,4 +1,6 @@
 /* Arithmetic laws on the reflected operations. */
+\import \root.Rel(Carrier := Nat^) \as Rel;
+\import \root.Law(Carrier := Nat^) \as Law;
 \definition succInjective (a, b: Nat^) (e: Nat^::succ a = Nat^::succ b): a = b := congr!{Nat^ Nat^} predSet (Nat^::succ a) (Nat^::succ b) e;
 \definition predZero: predSet Nat^::zero = Nat^::zero := \refl(Nat^::zero);
 \definition predSucc (n: Nat^): predSet (Nat^::succ n) = n := \refl(n);
@@ -106,13 +108,13 @@
     \idelim(a = b \with x: Nat^ => eqbSet a x = B.Bool^::true) \by (eqbRefl a, e);
 \definition Le (a, b: Nat^): \Prop := lebSet a b = B.Bool^::true;
 \definition Lt (a, b: Nat^): \Prop := ltbSet a b = B.Bool^::true;
-\definition leRefl: \forall (n: Nat^) -> Le n n :=
+\definition leRefl: Rel.Reflexive Le :=
   \prec(\Prop, Nat^) (\fun (n: Nat^) => Le n n)
     (\refl(B.Bool^::true)) (\fun (n: Nat^) => \fun (ih: Le n n) => ih);
 \definition zeroLe: \forall (n: Nat^) -> Le Nat^::zero n :=
   \prec(\Prop, Nat^) (\fun (n: Nat^) => Le Nat^::zero n)
     (\refl(B.Bool^::true)) (\fun (n: Nat^) => \fun (ih: Le Nat^::zero n) => \refl(B.Bool^::true));
-\definition ltIrrefl: \forall (n: Nat^) -> Lt n n -> B.False :=
+\definition ltIrrefl: Rel.Irreflexive Lt :=
   \prec(\Prop, Nat^) (\fun (n: Nat^) => Lt n n -> B.False)
     B.falseNeTrue (\fun (n: Nat^) => \fun (ih: Lt n n -> B.False) => ih);
 \definition leSuccSucc (a, b: Nat^) (e: Le a b): Le (Nat^::succ a) (Nat^::succ b) := e;
@@ -123,7 +125,7 @@
     (\fun (e: Le Nat^::zero Nat^::zero) => \refl(Nat^::zero))
     (\fun (a: Nat^) => \fun (ih: Le a Nat^::zero -> a = Nat^::zero) => \fun (e: Le (Nat^::succ a) Nat^::zero) =>
       B.absurd (Nat^::succ a = Nat^::zero) e);
-\definition leAntisym: \forall (a, b: Nat^) -> Le a b -> Le b a -> a = b :=
+\definition leAntisym: Rel.Antisymmetric Le :=
   \prec(\Prop, Nat^) (\fun (a: Nat^) => \forall (b: Nat^) -> Le a b -> Le b a -> a = b)
     (\fun (b: Nat^) => \fun (ab: Le Nat^::zero b) => \fun (ba: Le b Nat^::zero) => sym!{Nat^} b Nat^::zero (leZeroEq b ba))
     (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Le a b -> Le b a -> a = b) =>
@@ -132,7 +134,7 @@
         (\fun (b: Nat^) => \fun (unused: Le (Nat^::succ a) b -> Le b (Nat^::succ a) -> Nat^::succ a = b) =>
           \fun (ab: Le (Nat^::succ a) (Nat^::succ b)) => \fun (ba: Le (Nat^::succ b) (Nat^::succ a)) =>
             succCong a b (ih b ab ba)));
-\definition leTrans: \forall (a, b, c: Nat^) -> Le a b -> Le b c -> Le a c :=
+\definition leTrans: Rel.Transitive Le :=
   \prec(\Prop, Nat^) (\fun (a: Nat^) => \forall (b, c: Nat^) -> Le a b -> Le b c -> Le a c)
     (\fun (b, c: Nat^) => \fun (ab: Le Nat^::zero b) => \fun (bc: Le b c) => zeroLe c)
     (\fun (a: Nat^) => \fun (ih: \forall (b, c: Nat^) -> Le a b -> Le b c -> Le a c) =>
@@ -338,5 +340,19 @@
                     (trans!{Nat^} _ _ _
                       (sym!{Nat^} _ _ (mulSuccSucc a k))
                       (trans!{Nat^} _ _ _ e (mulSuccSucc b k))))))));
+
+/* General Law views of the arithmetic theorems above. */
+\definition addCommutative: Law.Commutative addSet :=
+  \fun (a, b: Nat^) => addComm a b;
+\definition addAssociative: Law.Associative addSet :=
+  \fun (a, b, c: Nat^) => addAssoc a b c;
+\definition mulCommutative: Law.Commutative mulSet :=
+  \fun (a, b: Nat^) => mulComm a b;
+\definition mulAssociative: Law.Associative mulSet :=
+  \fun (a, b, c: Nat^) => mulAssoc a b c;
+\definition mulLeftDistributive: Law.LeftDistributive mulSet addSet :=
+  mulDistribLeft;
+\definition mulRightDistributive: Law.RightDistributive mulSet addSet :=
+  \fun (a, b, c: Nat^) => mulDistribRight a b c;
 
 \module Division;
