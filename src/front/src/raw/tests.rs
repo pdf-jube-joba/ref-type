@@ -3,7 +3,7 @@ use crate::raw::{
     derivation::CheckSession,
     environment::{CrateEnv, ModuleArgument},
     exp::{ExpContextEntry, ExpNode},
-    ids::{DefId, ModuleParamId, ProgramInductiveId, SymbolId},
+    ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
         ComputationTermNode, ComputationTypeNode, ProgramContextEntry, ValueTermNode, ValueTypeNode,
     },
@@ -15,6 +15,34 @@ use crate::raw::{
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
+
+#[test]
+fn logical_arena_interns_nodes() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let set = arena.sort(Sort::Set(0));
+    assert_eq!(arena.sort(Sort::Set(0)), set);
+
+    let bound = arena.exp_bound(0);
+    assert_eq!(arena.exp_bound(0), bound);
+    let application = arena.alloc(ExpNode::App {
+        func: bound,
+        arg: set,
+    });
+    assert_eq!(
+        arena.alloc(ExpNode::App {
+            func: bound,
+            arg: set,
+        }),
+        application
+    );
+
+    let meta = ExpNode::Meta {
+        metavariable: MetaVarId(0),
+        spine: vec![application],
+    };
+    assert_eq!(arena.alloc(meta.clone()), arena.alloc(meta));
+}
 
 #[test]
 fn namespace_substitution_is_simultaneous_and_capture_avoiding() {
@@ -107,10 +135,10 @@ fn conversion_does_not_reduce_alpha_equal_applications() {
 
     let env = CrateEnv::new();
     let arena = env.arena();
-    // Independently allocated copies of (lambda x. f x x) a. Reducing this
-    // application allocates substituted application nodes; alpha comparison
-    // should recognize the copies without constructing either reduct.
-    let application = |argument| {
+    // Alpha-equivalent copies of (lambda x. f x x) ?a with distinct binder
+    // names. The names keep the hash-consed handles distinct while conversion
+    // must still recognize the terms without constructing either reduct.
+    let application = |argument, binder| {
         let first = arena.alloc(ExpNode::App {
             func: arena.exp_bound(1),
             arg: arena.exp_bound(0),
@@ -120,33 +148,32 @@ fn conversion_does_not_reduce_alpha_equal_applications() {
             arg: arena.exp_bound(0),
         });
         let lambda = arena.alloc(ExpNode::Lam {
-            var: SymbolId::ANONYMOUS,
+            var: SymbolId(binder),
             ty: arena.sort(Sort::Set(0)),
             body,
         });
         arena.alloc(ExpNode::App {
             func: lambda,
-            arg: arena.exp_bound(argument),
+            arg: arena.alloc(ExpNode::Meta {
+                metavariable: MetaVarId(argument),
+                spine: Vec::new(),
+            }),
         })
     };
-    let left = application(2);
-    let right = application(2);
+    let left = application(2, 10);
+    let right = application(2, 11);
     assert_ne!(left, right);
-    let before = arena.exp_bound(99).index();
+    let before = arena.exp_len();
     assert!(convertible(&env, left, right));
     assert!(erased_convertible(&env, left, right));
-    let after = arena.exp_bound(99).index();
-    assert_eq!(
-        after,
-        before + 1,
-        "conversion unnecessarily reduced the terms"
-    );
+    let after = arena.exp_len();
+    assert_eq!(after, before, "conversion unnecessarily reduced the terms");
 
     let reduced = normalize(&env, left);
     assert!(convertible(&env, left, reduced));
     assert!(erased_convertible(&env, right, reduced));
-    assert!(!convertible(&env, left, application(3)));
-    assert!(!erased_convertible(&env, right, application(3)));
+    assert!(!convertible(&env, left, application(3, 12)));
+    assert!(!erased_convertible(&env, right, application(3, 13)));
 }
 
 #[test]
@@ -262,9 +289,9 @@ fn repeated_weak_head_reduction_reuses_the_result() {
         panic!("lambda")
     };
     assert_eq!(arena.get(body), ExpNode::Bound(3));
-    let before = arena.exp_bound(99).index();
+    let before = arena.exp_len();
     assert_eq!(whnf(&env, application), reduced);
-    assert_eq!(arena.exp_bound(99).index(), before + 1);
+    assert_eq!(arena.exp_len(), before);
 
     // Reusing the function with a different argument must still substitute it.
     let other = arena.alloc(ExpNode::App {

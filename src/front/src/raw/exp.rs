@@ -1,6 +1,10 @@
 //! Unclassified Set/Prop syntax and the front-end arena used during elaboration.
 
-use std::cell::{Ref, RefCell};
+use std::{
+    cell::{Ref, RefCell},
+    collections::{HashMap, hash_map::DefaultHasher},
+    hash::{Hash, Hasher},
+};
 
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -24,13 +28,13 @@ impl Exp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ReflectedProgramCaseBranch {
     pub binders: Vec<SymbolId>,
     pub body: Exp,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Axiom {
     SetExt {
         left: Exp,
@@ -51,7 +55,7 @@ pub enum Axiom {
 }
 
 /// A derivation whose conclusion is the judgement `Γ |= P`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Prove {
     AccIntro {
         state_ty: Exp,
@@ -101,7 +105,7 @@ pub enum Prove {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExpNode {
     Sort(Sort),
     Bound(usize),
@@ -302,13 +306,49 @@ macro_rules! arena_partition {
 #[derive(Debug, Default)]
 pub struct Arena {
     exps: RefCell<Vec<ExpNode>>,
+    interned_exps: RefCell<HashMap<u64, Exp>>,
     value_types: RefCell<Vec<ValueTypeNode>>,
     computation_types: RefCell<Vec<ComputationTypeNode>>,
     values: RefCell<Vec<ValueTermNode>>,
     computations: RefCell<Vec<ComputationTermNode>>,
 }
 
-arena_partition!(ExpNode, Exp, exps);
+impl ArenaNode for ExpNode {
+    type Handle = Exp;
+
+    fn allocate(self, arena: &Arena) -> Self::Handle {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        let fingerprint = hasher.finish();
+        if let Some(existing) = arena.interned_exps.borrow().get(&fingerprint).copied()
+            && arena.exps.borrow()[existing.index()] == self
+        {
+            return existing;
+        }
+        let mut nodes = arena.exps.borrow_mut();
+        let index = u32::try_from(nodes.len()).expect("kernel arena partition exceeded u32::MAX");
+        nodes.push(self);
+        drop(nodes);
+        let result = Exp::from_index(index);
+        // A hash collision only misses a sharing opportunity; equality above
+        // prevents distinct expressions from ever receiving the same handle.
+        arena
+            .interned_exps
+            .borrow_mut()
+            .entry(fingerprint)
+            .or_insert(result);
+        result
+    }
+}
+
+impl ArenaHandle for Exp {
+    type Node = ExpNode;
+
+    fn get(self, arena: &Arena) -> Self::Node {
+        arena.exps.borrow()[self.index()].clone()
+    }
+}
+
 arena_partition!(ValueTypeNode, ValueType, value_types);
 arena_partition!(ComputationTypeNode, ComputationType, computation_types);
 arena_partition!(ValueTermNode, ValueTerm, values);
@@ -317,6 +357,11 @@ arena_partition!(ComputationTermNode, ComputationTerm, computations);
 impl Arena {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn exp_len(&self) -> usize {
+        self.exps.borrow().len()
     }
 
     pub fn alloc<N: ArenaNode>(&self, node: N) -> N::Handle {

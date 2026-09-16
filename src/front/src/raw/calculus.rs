@@ -670,6 +670,147 @@ fn alpha_rec(
     if !same_node_shape(arena, &left_node, &right_node) {
         return false;
     }
+    macro_rules! equal {
+        ($left:expr, $right:expr) => {
+            alpha_rec(env, $left, $right, reduce, erase_subset_intro, cache)
+        };
+    }
+    // Most expressions consist of these fixed-arity nodes. Comparing their
+    // children directly avoids allocating two temporary Vecs at every node.
+    match (&left_node, &right_node) {
+        (ExpNode::Sort(_), ExpNode::Sort(_))
+        | (ExpNode::Bound(_), ExpNode::Bound(_))
+        | (ExpNode::ModuleParam(_), ExpNode::ModuleParam(_))
+        | (ExpNode::ReflectedProgramParam(_), ExpNode::ReflectedProgramParam(_))
+        | (ExpNode::DefinedConstant(_), ExpNode::DefinedConstant(_))
+        | (ExpNode::BoxType { .. }, ExpNode::BoxType { .. })
+        | (ExpNode::BoxProgram { .. }, ExpNode::BoxProgram { .. }) => return true,
+        (
+            ExpNode::Prod {
+                ty: left_ty,
+                body: left_body,
+                ..
+            }
+            | ExpNode::Lam {
+                ty: left_ty,
+                body: left_body,
+                ..
+            },
+            ExpNode::Prod {
+                ty: right_ty,
+                body: right_body,
+                ..
+            }
+            | ExpNode::Lam {
+                ty: right_ty,
+                body: right_body,
+                ..
+            },
+        ) => return equal!(*left_ty, *right_ty) && equal!(*left_body, *right_body),
+        (
+            ExpNode::App {
+                func: left_func,
+                arg: left_arg,
+            },
+            ExpNode::App {
+                func: right_func,
+                arg: right_arg,
+            },
+        ) => return equal!(*left_func, *right_func) && equal!(*left_arg, *right_arg),
+        (
+            ExpNode::SubSet {
+                set: left_set,
+                predicate: left_predicate,
+                ..
+            },
+            ExpNode::SubSet {
+                set: right_set,
+                predicate: right_predicate,
+                ..
+            },
+        ) => return equal!(*left_set, *right_set) && equal!(*left_predicate, *right_predicate),
+        (
+            ExpNode::RunStep {
+                state_ty: left_state,
+                result_ty: left_result,
+            },
+            ExpNode::RunStep {
+                state_ty: right_state,
+                result_ty: right_result,
+            },
+        ) => return equal!(*left_state, *right_state) && equal!(*left_result, *right_result),
+        (
+            ExpNode::Continue {
+                state_ty: left_state,
+                result_ty: left_result,
+                next: left_next,
+            },
+            ExpNode::Continue {
+                state_ty: right_state,
+                result_ty: right_result,
+                next: right_next,
+            },
+        ) => {
+            return equal!(*left_state, *right_state)
+                && equal!(*left_result, *right_result)
+                && equal!(*left_next, *right_next);
+        }
+        (
+            ExpNode::Finish {
+                state_ty: left_state,
+                result_ty: left_result,
+                output: left_output,
+            },
+            ExpNode::Finish {
+                state_ty: right_state,
+                result_ty: right_result,
+                output: right_output,
+            },
+        ) => {
+            return equal!(*left_state, *right_state)
+                && equal!(*left_result, *right_result)
+                && equal!(*left_output, *right_output);
+        }
+        (
+            ExpNode::PowerSet { set: left } | ExpNode::Exists { set: left },
+            ExpNode::PowerSet { set: right } | ExpNode::Exists { set: right },
+        ) => return equal!(*left, *right),
+        (
+            ExpNode::Equal {
+                left: left_a,
+                right: left_b,
+            }
+            | ExpNode::TypeLift {
+                superset: left_a,
+                subset: left_b,
+            }
+            | ExpNode::BoxApp {
+                function: left_a,
+                argument: left_b,
+            },
+            ExpNode::Equal {
+                left: right_a,
+                right: right_b,
+            }
+            | ExpNode::TypeLift {
+                superset: right_a,
+                subset: right_b,
+            }
+            | ExpNode::BoxApp {
+                function: right_a,
+                argument: right_b,
+            },
+        ) => return equal!(*left_a, *right_a) && equal!(*left_b, *right_b),
+        (
+            ExpNode::ForceBox {
+                boxed: left_boxed, ..
+            },
+            ExpNode::ForceBox {
+                boxed: right_boxed, ..
+            },
+        ) => return equal!(*left_boxed, *right_boxed),
+        _ => {}
+    }
     let children = |node| {
         let mut result = Vec::new();
         let _ = if reduce {
