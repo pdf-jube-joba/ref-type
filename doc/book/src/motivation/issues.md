@@ -89,7 +89,7 @@ extensionality は項の (propositional な) uniqueness が、外部との関連
 Coq の Prop ext （\(*^p\) にも \(=\) があって \((p \leftrightarrow q) \to (p = q)\)） を仮定すれば、 set ext は fun ext になる。
 （ fun ext でいう \(Y\) を \(*^p\) にして、 \(\Pred(X, Y_i, z)\) は \(Y_i z\) になっている。）
 ちゃんと \(\leftrightarrow\) を考えると、
-\[p \leftrightarrow q = (p \to q) \wedge (q \to p) = (c: *^p) \to ((p \to q) \to c) \to ((q \to p) \to c) \to c\]
+\[p \leftrightarrow q = (p \to q) \wedge (q \to p) = (c: *^p) \to ((p \to q) \to (q \to p) \to c) \to c\]
 というふるまいだが、問題はなさそう。
 
 逆はできなさそう。
@@ -165,6 +165,9 @@ indexed type family の index が term であること気をつければいい�
 \((\exists X) \to (\exists Y)\) から \(\exists (X \to Y)\) を取り出すのはやばい気がする。
 
 今気が付いたが、 \(\exists (P a \to P a)\) から \(\exists (P a \to P b)\) が取り出せるから、 id を適用して大丈夫だ。
+
+- \(n = m -> \exists (P n -> P m)\) は構成できそう。
+- 出てきたものが Id とは限らない。
 
 ## 導出木と \(\vDash\) について
 type level の話を書いていて、（当然だけど）
