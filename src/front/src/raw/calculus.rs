@@ -701,7 +701,10 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     let arena = env.arena();
     match arena.get(exp) {
         ExpNode::App { func, arg } => {
-            let func_head = whnf(env, func);
+            // Refinement introduction is computationally transparent.  In
+            // function position, peel it after exposing the function head so
+            // that an enclosed lambda can beta-reduce.
+            let func_head = whnf_with_erasure(env, func, true);
             match arena.get(func_head) {
                 ExpNode::Lam { body, .. } => Some(match arena.get(body) {
                     // The identity body needs neither a walk nor index adjustment.

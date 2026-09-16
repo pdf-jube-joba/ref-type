@@ -408,7 +408,10 @@ fn reduce_inductive(
     let mut ty = instantiate_telescope(env, declared_ty, &expressions(&parameters))?;
     let mut case_args = vec![];
     for argument in arguments {
-        ty = normalize(env, ty)?;
+        // We only need to expose the next constructor field.  Fully
+        // normalizing it also normalizes the field's domain, which can
+        // contain a large type parameter that is irrelevant to this step.
+        ty = whnf(env, ty)?;
         let product = structure::product(a, ty).ok_or("constructor applied to excess arguments")?;
         case_args.push(argument);
         let declared = structure::product(a, whnf(env, declared_ty)?)
@@ -422,7 +425,7 @@ fn reduce_inductive(
         declared_ty = declared.body;
         ty = substitute_with_reflection(env, product.body, argument)?;
     }
-    if structure::product(a, ty).is_some() {
+    if structure::product(a, whnf(env, ty)?).is_some() {
         return Ok(None);
     }
     let mut sigma = expression_sort(a, elimination);
