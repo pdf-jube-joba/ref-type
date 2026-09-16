@@ -17,21 +17,43 @@
         \Subset(r, Rat,
                 Logic.And[Logic.Not (mem x r), lt q (negRat r)])));
 
-/* Multiplication and inversion are exposed with explicit closure
- * obligations.  Their lower-set formulas are intentionally parameters: the
- * sign cases are substantial, while the resulting Real-level API is uniform.
- */
-\definition MulLower (x, y: Real): \Power(Rat) :=
-    \Subset(q, Rat,
-      \exists \Ty(Rat,
-        \Subset(a, Rat,
-          Logic.And[mem x a,
-            \exists \Ty(Rat,
-              \Subset(b, Rat,
-                Logic.And[mem y b, lt q (mulRat a b)]))])));
+/* Use both endpoints of rational intervals. Multiplying arbitrary lower
+ * bounds alone gives an unbounded set even for zero times zero. */
+\definition ProductBelow (x, y: Real) (q: Rat): \Prop :=
+  \forall (P: \Prop) ->
+    (\forall (a, b, c, d: Rat) ->
+      mem x a -> Logic.Not (mem x b) ->
+      mem y c -> Logic.Not (mem y d) ->
+      lt q (mulRat a c) -> lt q (mulRat a d) ->
+      lt q (mulRat b c) -> lt q (mulRat b d) -> P) -> P;
 
+\definition MulLower (x, y: Real): \Power(Rat) :=
+  \Subset(q, Rat, ProductBelow x y q);
+
+\definition productBelowIntro (x, y: Real) (q, a, b, c, d: Rat)
+  (xa: mem x a) (xb: Logic.Not (mem x b))
+  (yc: mem y c) (yd: Logic.Not (mem y d))
+  (ac: lt q (mulRat a c)) (ad: lt q (mulRat a d))
+  (bc: lt q (mulRat b c)) (bd: lt q (mulRat b d))
+  (P: \Prop)
+  (use: \forall (a, b, c, d: Rat) ->
+    mem x a -> Logic.Not (mem x b) -> mem y c -> Logic.Not (mem y d) ->
+    lt q (mulRat a c) -> lt q (mulRat a d) ->
+    lt q (mulRat b c) -> lt q (mulRat b d) -> P): P :=
+  use a b c d xa xb yc yd ac ad bc bd;
+
+/* Away from zero, reciprocal reverses each interval whose endpoints have
+ * the same sign. A rational reciprocal is specified by b*r = 1.
+ * The first disjunct fixes the convention inv 0 = 0. */
+\definition ReciprocalBelow (x: Real) (q: Rat): \Prop :=
+  \forall (P: \Prop) ->
+    (\forall (a, b, r: Rat) -> mem x a -> Logic.Not (mem x b) ->
+      lt zeroRat (mulRat a b) ->
+      RationalFractions.FractionEq (mulRat b r) oneRat -> lt q r -> P) -> P;
 \definition InvLower (x: Real): \Power(Rat) :=
-    \Subset(q, Rat, Logic.False);
+  \Subset(q, Rat, Logic.Or[
+    Logic.And[underlying x = RatLower zeroRat, lt q zeroRat],
+    ReciprocalBelow x q]);
 
 \module Closed(
   ratCut: \forall (a: Rat) ->

@@ -13,6 +13,8 @@
 \import Rational.Fractions() \as RationalFractions;
 \import RationalFractions.Operations() \as RationalOperations;
 \use Logic.and;
+\import \root.Equality() \as Equality;
+\use Equality.sym;
 
   \definition Rat: \Set := RationalFractions.Fraction;
 
@@ -71,6 +73,20 @@
       \forall (eps: Rat) -> Positive eps ->
         \exists \Ty(Nat, \Subset(N, Nat, EquivalentAt x y eps N));
 
+  \definition cauchyProperty (x: CauchySeq): IsCauchy x :=
+    \bysub(Sequence, CauchySet, x);
+
+  /* The diagonal of the Cauchy estimate already proves reflexivity. */
+  \definition equivalentRefl (x: CauchySeq) (eps: Rat) (positive: Positive eps):
+    \exists \Ty(Nat, \Subset(k, Nat, EquivalentAt x x eps k)) :=
+    \take (k: \Ty(Nat, \Subset(k, Nat, CauchyAt x eps k))) =>
+      \exact(
+        \subsetinto(Nat, \Subset(j, Nat, EquivalentAt x x eps j), k,
+          \fun (n: Nat) => \fun (kn: NatLe k n) =>
+            (\bysub(Nat, \Subset(j, Nat, CauchyAt x eps j), k)) n n kn kn),
+        \Ty(Nat, \Subset(j, Nat, EquivalentAt x x eps j)))
+    \by (cauchyProperty x eps positive);
+
   \definition closeSym (x, y, eps: Rat) (xy: Close x y eps): Close y x eps :=
       \record Logic.And[
         ltRat (subRat y x) eps,
@@ -103,12 +119,13 @@
           \Ty(Nat, \Subset(k, Nat, EquivalentAt y x eps k)))
       \by (xy eps positive);
 
+  \module Sequences;
+
   /*
    * The metric laws must make Equivalent an equivalence relation.  Subset
    * extensionality is supplied by the kernel axiom; the metric laws do not
    * follow merely from the names of the rational operations.
    */
   \module Quotient(
-    equivalentRefl: Rel.Reflexive Equivalent,
     equivalentTrans: Rel.Transitive Equivalent,
   );

@@ -121,3 +121,49 @@
 
 \definition AxiomaticRealStructure: \Set :=
   \Ty(RawRealStructure[Carrier], AxiomaticRealStructureSet);
+
+\definition laws (s: AxiomaticRealStructure): IsAxiomaticRealStructure s :=
+  \bysub(RawRealStructure[Carrier], AxiomaticRealStructureSet, s);
+
+\definition realLawsIntro (s: RawRealStructure[Carrier])
+  (field: FieldLaws s) (order: LinearOrderLaws s)
+  (compatible: OrderedFieldLaws s) (complete: Completeness s): IsAxiomaticRealStructure s :=
+  \record Logic.And[FieldLaws s,
+    Logic.And[LinearOrderLaws s, Logic.And[OrderedFieldLaws s, Completeness s]]] {
+    left := field,
+    right := \record Logic.And[LinearOrderLaws s, Logic.And[OrderedFieldLaws s, Completeness s]] {
+      left := order,
+      right := \record Logic.And[OrderedFieldLaws s, Completeness s] {
+        left := compatible, right := complete,
+      },
+    },
+  };
+
+\definition linearOrderIntro (s: RawRealStructure[Carrier])
+  (reflexive: Rel.Reflexive (Le s)) (transitive: Rel.Transitive (Le s))
+  (antisymmetric: Rel.Antisymmetric (Le s)) (total: Rel.Total (Le s)): LinearOrderLaws s :=
+  \record Logic.And[Rel.Reflexive (Le s),
+    Logic.And[Rel.Transitive (Le s), Logic.And[Rel.Antisymmetric (Le s), Rel.Total (Le s)]]] {
+    left := reflexive,
+    right := \record Logic.And[Rel.Transitive (Le s), Logic.And[Rel.Antisymmetric (Le s), Rel.Total (Le s)]] {
+      left := transitive,
+      right := \record Logic.And[Rel.Antisymmetric (Le s), Rel.Total (Le s)] {
+        left := antisymmetric, right := total,
+      },
+    },
+  };
+
+\definition leastUpperBoundIntro (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier)
+  (upper: IsUpperBound s A u)
+  (least: \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v): IsLeastUpperBound s A u :=
+  \record Logic.And[IsUpperBound s A u, \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v] {
+    left := upper, right := least,
+  };
+\definition lubUpper (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier)
+  (h: IsLeastUpperBound s A u): IsUpperBound s A u :=
+  Logic.andLeft (IsUpperBound s A u) (\forall (v: Carrier) -> IsUpperBound s A v -> Le s u v) h;
+\definition lubLeast (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier)
+  (h: IsLeastUpperBound s A u): \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v :=
+  Logic.andRight (IsUpperBound s A u) (\forall (v: Carrier) -> IsUpperBound s A v -> Le s u v) h;
+
+\module Laws;

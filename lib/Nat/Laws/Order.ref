@@ -1,0 +1,58 @@
+/* Order lemmas used for rational comparisons and common sequence bounds. */
+\import \root.Logic() \as Logic;
+\definition Comparison (a, b: Nat^): \Prop :=
+  Logic.Or[Lt a b, Logic.Or[a = b, Lt b a]];
+\definition comparisonSucc (a, b: Nat^) (h: Comparison a b):
+  Comparison (Nat^::succ a) (Nat^::succ b) :=
+  \elim h \in Logic.Or \return (\fun (_: Comparison a b) =>
+    Comparison (Nat^::succ a) (Nat^::succ b)) {
+  | left => \fun (ab: Lt a b) =>
+      Logic.Or[Lt (Nat^::succ a) (Nat^::succ b),
+        Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]]::left ab
+  | right => \fun (rest: Logic.Or[a = b, Lt b a]) =>
+      Logic.Or[Lt (Nat^::succ a) (Nat^::succ b),
+        Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]]::right
+        (\elim rest \in Logic.Or \return (\fun (_: Logic.Or[a = b, Lt b a]) =>
+          Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]) {
+        | left => \fun (ab: a = b) =>
+            Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]::left
+              (succCong a b ab)
+        | right => \fun (ba: Lt b a) =>
+            Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]::right ba
+        })
+  };
+\definition trichotomy: \forall (a, b: Nat^) -> Comparison a b :=
+  \prec(\Prop, Nat^) (\fun (a: Nat^) => \forall (b: Nat^) -> Comparison a b)
+    (\prec(\Prop, Nat^) (\fun (b: Nat^) => Comparison Nat^::zero b)
+      (Logic.Or[Lt Nat^::zero Nat^::zero, Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]]::right
+        (Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]::left (\refl(Nat^::zero))))
+      (\fun (b: Nat^) => \fun (_: Comparison Nat^::zero b) =>
+        Logic.Or[Lt Nat^::zero (Nat^::succ b), Logic.Or[Nat^::zero = Nat^::succ b, Lt (Nat^::succ b) Nat^::zero]]::left
+          (\refl(B.Bool^::true))))
+    (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Comparison a b) =>
+      \prec(\Prop, Nat^) (\fun (b: Nat^) => Comparison (Nat^::succ a) b)
+        (Logic.Or[Lt (Nat^::succ a) Nat^::zero, Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]]::right
+          (Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]::right (\refl(B.Bool^::true))))
+        (\fun (b: Nat^) => \fun (_: Comparison (Nat^::succ a) b) => comparisonSucc a b (ih b)));
+
+\definition leStep: \forall (b, a: Nat^) -> Le a b -> Le a (Nat^::succ b) :=
+  \prec(\Prop, Nat^) (\fun (b: Nat^) => \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b))
+    (\prec(\Prop, Nat^) (\fun (a: Nat^) => Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero))
+      (\fun (_: Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
+      (\fun (a: Nat^) => \fun (_: Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero)) =>
+        \fun (bad: Le (Nat^::succ a) Nat^::zero) => B.absurd (Le (Nat^::succ a) (Nat^::succ Nat^::zero)) bad))
+    (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b)) =>
+      \prec(\Prop, Nat^) (\fun (a: Nat^) => Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b)))
+        (\fun (_: Le Nat^::zero (Nat^::succ b)) => \refl(B.Bool^::true))
+        (\fun (a: Nat^) => \fun (_: Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b))) =>
+          \fun (h: Le (Nat^::succ a) (Nat^::succ b)) => ih a h));
+\definition leAddRight (a: Nat^): \forall (b: Nat^) -> Le a (addSet a b) :=
+  \prec(\Prop, Nat^) (\fun (b: Nat^) => Le a (addSet a b))
+    (leRefl a)
+    (\fun (b: Nat^) => \fun (ih: Le a (addSet a b)) =>
+      \idelim(Nat^::succ (addSet a b) = addSet a (Nat^::succ b)
+        \with c: Nat^ => Le a c)
+        \by (leStep (addSet a b) a ih, sym!{Nat^} _ _ (addSuccRight a b)));
+\definition leAddLeft (a, b: Nat^): Le b (addSet a b) :=
+  \idelim(addSet b a = addSet a b \with c: Nat^ => Le b c)
+    \by (leAddRight b a, addComm b a);

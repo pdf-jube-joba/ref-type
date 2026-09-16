@@ -1,0 +1,155 @@
+/* A nonempty, bounded family of cuts has its union as least upper bound.
+ * Classical.excludedMiddle uses the existing choice and setext axioms. */
+\import \root.Classical() \as Classical;
+\import \root.AxiomaticReals(Carrier := Real) \as AR;
+
+\definition Member (S: \Power(Real)) (x: Real): \Prop := \Pred(Real, S, x);
+\definition Nonempty (S: \Power(Real)): \Prop :=
+  \exists \Ty(Real, \Subset(x, Real, Member S x));
+\definition UpperBound (S: \Power(Real)) (u: Real): \Prop :=
+  \forall (x: Real) -> Member S x -> Le x u;
+\definition Bounded (S: \Power(Real)): \Prop :=
+  \exists \Ty(Real, \Subset(u, Real, UpperBound S u));
+\definition LeastUpperBound (S: \Power(Real)) (u: Real): \Prop :=
+  Logic.And[UpperBound S u, \forall (v: Real) -> UpperBound S v -> Le u v];
+
+/* Church existential: there is x in S containing q. */
+\definition UnionMember (S: \Power(Real)) (q: Rat): \Prop :=
+  \forall (P: \Prop) -> (\forall (x: Real) -> Member S x -> mem x q -> P) -> P;
+\definition Union (S: \Power(Real)): \Power(Rat) :=
+  \Subset(q, Rat, UnionMember S q);
+\definition unionIntro (S: \Power(Real)) (x: Real) (sx: Member S x)
+  (q: Rat) (xq: mem x q) (P: \Prop)
+  (use: \forall (y: Real) -> Member S y -> mem y q -> P): P := use x sx xq;
+
+\definition unionInhabited (S: \Power(Real)) (nonempty: Nonempty S): Inhabited (Union S) :=
+  \take (x: \Ty(Real, \Subset(x, Real, Member S x))) =>
+    \take (q: \Ty(Rat, \Subset(q, Rat, mem x q))) =>
+      \exact(
+        \subsetinto(Rat, Union S, q,
+          unionIntro S x (\bysub(Real, \Subset(x, Real, Member S x), x)) q
+            (\bysub(Rat, \Subset(q, Rat, mem x q), q))),
+        \Ty(Rat, \Subset(q, Rat, In (Union S) q)))
+    \by (cutInhabited x)
+  \by (nonempty);
+
+\definition unionProper (S: \Power(Real)) (bounded: Bounded S): Proper (Union S) :=
+  \take (u: \Ty(Real, \Subset(u, Real, UpperBound S u))) =>
+    \take (q: \Ty(Rat, \Subset(q, Rat, Logic.Not (mem u q)))) =>
+      \exact(
+        \subsetinto(Rat, \Subset(q, Rat, Logic.Not (In (Union S) q)), q,
+          \fun (sq: UnionMember S q) =>
+            sq Logic.False
+              (\fun (x: Real) => \fun (sx: Member S x) => \fun (xq: mem x q) =>
+                (\bysub(Rat, \Subset(q, Rat, Logic.Not (mem u q)), q))
+                  ((\bysub(Real, \Subset(u, Real, UpperBound S u), u)) x sx q xq))),
+        \Ty(Rat, \Subset(q, Rat, Logic.Not (In (Union S) q))))
+    \by (cutProper u)
+  \by (bounded);
+
+\definition unionLower (S: \Power(Real)) (p, q: Rat) (pq: lt p q)
+  (sq: UnionMember S q): UnionMember S p :=
+  sq (UnionMember S p)
+    (\fun (x: Real) => \fun (sx: Member S x) => \fun (xq: mem x q) =>
+      unionIntro S x sx p (cutLower x p q pq xq));
+
+\definition unionRounded (S: \Power(Real)) (p: Rat) (sp: UnionMember S p):
+  \exists \Ty(Rat, \Subset(q, Rat, Logic.And[In (Union S) q, lt p q])) :=
+  sp (\exists \Ty(Rat, \Subset(q, Rat, Logic.And[In (Union S) q, lt p q])))
+    (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
+      \take (q: \Ty(Rat, \Subset(q, Rat, Logic.And[mem x q, lt p q]))) =>
+        \exact(
+          \subsetinto(Rat, \Subset(q, Rat, Logic.And[In (Union S) q, lt p q]), q,
+            \record Logic.And[In (Union S) q, lt p q] {
+              left := unionIntro S x sx q
+                (Logic.And[mem x q, lt p q]::left (\bysub(Rat, \Subset(q, Rat, Logic.And[mem x q, lt p q]), q))),
+              right := Logic.And[mem x q, lt p q]::right (\bysub(Rat, \Subset(q, Rat, Logic.And[mem x q, lt p q]), q)),
+            }),
+          \Ty(Rat, \Subset(q, Rat, Logic.And[In (Union S) q, lt p q])))
+      \by (cutRounded x p xp));
+
+\definition unionLocated (S: \Power(Real)) (p, q: Rat) (pq: lt p q):
+  Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)] :=
+  Classical.orElim (UnionMember S q) (Logic.Not (UnionMember S q))
+    (Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)])
+    (\fun (sq: UnionMember S q) =>
+      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::left (unionLower S p q pq sq))
+    (\fun (nq: Logic.Not (UnionMember S q)) =>
+      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::right nq)
+    (Classical.excludedMiddle (UnionMember S q));
+
+\definition unionRespects (S: \Power(Real)) (p, q: Rat)
+  (pq: RationalFractions.FractionEq p q) (sp: UnionMember S p): UnionMember S q :=
+  sp (UnionMember S q)
+    (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
+      unionIntro S x sx q (cutRespects x p q pq xp));
+
+\definition unionCut (S: \Power(Real)) (nonempty: Nonempty S) (bounded: Bounded S):
+  IsCut (Union S) :=
+  \record Logic.And[Inhabited (Union S),
+    and!{{ Proper (Union S) } { Lower (Union S) } { Rounded (Union S) }
+      { Located (Union S) } { RespectsFractionEq (Union S) }}] {
+    left := unionInhabited S nonempty,
+    right := \record Logic.And[Proper (Union S),
+      and!{{ Lower (Union S) } { Rounded (Union S) }
+        { Located (Union S) } { RespectsFractionEq (Union S) }}] {
+      left := unionProper S bounded,
+      right := \record Logic.And[Lower (Union S),
+        and!{{ Rounded (Union S) } { Located (Union S) } { RespectsFractionEq (Union S) }}] {
+        left := unionLower S,
+        right := \record Logic.And[Rounded (Union S),
+          Logic.And[Located (Union S), RespectsFractionEq (Union S)]] {
+          left := unionRounded S,
+          right := \record Logic.And[Located (Union S), RespectsFractionEq (Union S)] {
+            left := unionLocated S,
+            right := unionRespects S,
+          },
+        },
+      },
+    },
+  };
+
+/* Proofs constrain the input through a refinement, rather than a Prop -> Set product. */
+\definition FamilySet: \Power(\Power(Real)) :=
+  \Subset(S, \Power(Real), Logic.And[Nonempty S, Bounded S]);
+\definition Family: \Set := \Ty(\Power(Real), FamilySet);
+\definition familyNonempty (S: Family): Nonempty S :=
+  Logic.And[Nonempty S, Bounded S]::left (\bysub(\Power(Real), FamilySet, S));
+\definition familyBounded (S: Family): Bounded S :=
+  Logic.And[Nonempty S, Bounded S]::right (\bysub(\Power(Real), FamilySet, S));
+\definition supremum (S: Family): Real :=
+  \subsetinto(\Power(Rat), CutSet, Union S,
+    unionCut S (familyNonempty S) (familyBounded S));
+\definition supremumUpper (S: Family) (x: Real) (sx: Member S x)
+  (q: Rat) (xq: mem x q): mem (supremum S) q :=
+  \idelim(Union S = underlying (supremum S)
+    \with T: \Power(Rat) => \Pred(Rat, T, q))
+    \by (unionIntro S x sx q xq, \refl(Union S));
+\definition supremumLeast (S: Family)
+  (u: Real) (ub: UpperBound S u) (q: Rat) (sq: mem (supremum S) q): mem u q :=
+  (\idelim(underlying (supremum S) = Union S
+    \with T: \Power(Rat) => \Pred(Rat, T, q))
+    \by (sq, \refl(Union S)))
+    (mem u q) (\fun (x: Real) => \fun (sx: Member S x) => ub x sx q);
+\definition supremumLaw (S: Family): LeastUpperBound S (supremum S) :=
+  \record Logic.And[UpperBound S (supremum S),
+    \forall (v: Real) -> UpperBound S v -> Le (supremum S) v] {
+    left := supremumUpper S,
+    right := supremumLeast S,
+  };
+\definition complete (S: \Power(Real)) (ne: Nonempty S) (bd: Bounded S):
+  \exists \Ty(Real, \Subset(u, Real, LeastUpperBound S u)) :=
+  \block {
+    \let family: Family := \subsetinto(\Power(Real), FamilySet, S,
+      \record Logic.And[Nonempty S, Bounded S] { left := ne, right := bd });
+    \return \exact(\subsetinto(Real, \Subset(u, Real, LeastUpperBound S u),
+      supremum family, supremumLaw family),
+      \Ty(Real, \Subset(u, Real, LeastUpperBound S u)));
+  };
+\definition leastUpperBoundUnique (S: \Power(Real)) (u, v: Real)
+  (hu: LeastUpperBound S u) (hv: LeastUpperBound S v): u = v :=
+  leAntisym u v
+    ((Logic.andRight (UpperBound S u) (\forall (w: Real) -> UpperBound S w -> Le u w) hu)
+      v (Logic.andLeft (UpperBound S v) (\forall (w: Real) -> UpperBound S w -> Le v w) hv))
+    ((Logic.andRight (UpperBound S v) (\forall (w: Real) -> UpperBound S w -> Le v w) hv)
+      u (Logic.andLeft (UpperBound S u) (\forall (w: Real) -> UpperBound S w -> Le u w) hu));

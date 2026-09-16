@@ -1,0 +1,106 @@
+/* Concrete sequence constructions with no additional analytic assumptions. */
+\definition pointwiseEquivalent (x, y: CauchySeq)
+  (same: \forall (n: Nat) -> at x n = at y n)
+  (eps: Rat) (positive: Positive eps):
+  \exists \Ty(Nat, \Subset(k, Nat, EquivalentAt x y eps k)) :=
+  \take (k: \Ty(Nat, \Subset(k, Nat, CauchyAt x eps k))) =>
+    \exact(
+      \subsetinto(Nat, \Subset(j, Nat, EquivalentAt x y eps j), k,
+        \fun (n: Nat) => \fun (kn: NatLe k n) =>
+          \idelim(at x n = at y n \with a: Rat => Close (at x n) a eps)
+            \by ((\bysub(Nat, \Subset(j, Nat, CauchyAt x eps j), k)) n n kn kn, same n)),
+      \Ty(Nat, \Subset(j, Nat, EquivalentAt x y eps j)))
+  \by (cauchyProperty x eps positive);
+
+\definition ConstSeq (a: Rat) (n: Nat): Rat := a;
+\definition constCauchyOf (a: Rat)
+  (selfClose: \forall (eps: Rat) -> Positive eps -> Close a a eps)
+  (eps: Rat) (positive: Positive eps):
+  \exists \Ty(Nat, \Subset(k, Nat, CauchyAt (ConstSeq a) eps k)) :=
+  \exact(
+    \subsetinto(Nat, \Subset(k, Nat, CauchyAt (ConstSeq a) eps k), N.Nat^::zero,
+      \fun (m, n: Nat) => \fun (_: NatLe N.Nat^::zero m) =>
+      \fun (_: NatLe N.Nat^::zero n) => selfClose eps positive),
+    \Ty(Nat, \Subset(k, Nat, CauchyAt (ConstSeq a) eps k)));
+\definition zeroClose (eps: Rat) (positive: Positive eps): Close zeroRat zeroRat eps :=
+  \record Logic.And[ltRat (subRat zeroRat zeroRat) eps, ltRat (subRat zeroRat zeroRat) eps] {
+    left := positive, right := positive,
+  };
+\definition oneClose (eps: Rat) (positive: Positive eps): Close oneRat oneRat eps :=
+  \record Logic.And[ltRat (subRat oneRat oneRat) eps, ltRat (subRat oneRat oneRat) eps] {
+    left := positive, right := positive,
+  };
+\definition zeroCauchy: IsCauchy (ConstSeq zeroRat) := constCauchyOf zeroRat zeroClose;
+\definition oneCauchy: IsCauchy (ConstSeq oneRat) := constCauchyOf oneRat oneClose;
+\definition zero: CauchySeq :=
+  \subsetinto(Sequence, CauchySet, ConstSeq zeroRat, zeroCauchy);
+\definition one: CauchySeq :=
+  \subsetinto(Sequence, CauchySet, ConstSeq oneRat, oneCauchy);
+
+\definition closeNeg (x, y, eps: Rat) (h: Close x y eps): Close (negRat x) (negRat y) eps :=
+  \record Logic.And[ltRat (subRat (negRat x) (negRat y)) eps,
+    ltRat (subRat (negRat y) (negRat x)) eps] {
+    left :=
+      \idelim(subRat y x = subRat (negRat x) (negRat y) \with a: Rat => ltRat a eps)
+        \by (Logic.andRight (ltRat (subRat x y) eps) (ltRat (subRat y x) eps) h,
+          sym!{Rat} _ _ (RationalOperations.subNegEquality x y)),
+    right :=
+      \idelim(subRat x y = subRat (negRat y) (negRat x) \with a: Rat => ltRat a eps)
+        \by (Logic.andLeft (ltRat (subRat x y) eps) (ltRat (subRat y x) eps) h,
+          sym!{Rat} _ _ (RationalOperations.subNegEquality y x)),
+  };
+\definition NegSeq (x: CauchySeq) (n: Nat): Rat := negRat (at x n);
+\definition negCauchy (x: CauchySeq) (eps: Rat) (positive: Positive eps):
+  \exists \Ty(Nat, \Subset(k, Nat, CauchyAt (NegSeq x) eps k)) :=
+  \take (k: \Ty(Nat, \Subset(k, Nat, CauchyAt x eps k))) =>
+    \exact(
+      \subsetinto(Nat, \Subset(j, Nat, CauchyAt (NegSeq x) eps j), k,
+        \fun (m, n: Nat) => \fun (km: NatLe k m) => \fun (kn: NatLe k n) =>
+          closeNeg (at x m) (at x n) eps
+            ((\bysub(Nat, \Subset(j, Nat, CauchyAt x eps j), k)) m n km kn)),
+      \Ty(Nat, \Subset(j, Nat, CauchyAt (NegSeq x) eps j)))
+  \by (cauchyProperty x eps positive);
+\definition neg (x: CauchySeq): CauchySeq :=
+  \subsetinto(Sequence, CauchySet, NegSeq x, negCauchy x);
+\definition negRespects (x, y: CauchySeq) (xy: Equivalent x y) (eps: Rat) (positive: Positive eps):
+  \exists \Ty(Nat, \Subset(k, Nat, EquivalentAt (neg x) (neg y) eps k)) :=
+  \take (k: \Ty(Nat, \Subset(k, Nat, EquivalentAt x y eps k))) =>
+    \exact(
+      \subsetinto(Nat, \Subset(j, Nat, EquivalentAt (neg x) (neg y) eps j), k,
+        \fun (n: Nat) => \fun (kn: NatLe k n) =>
+          closeNeg (at x n) (at y n) eps
+            ((\bysub(Nat, \Subset(j, Nat, EquivalentAt x y eps j), k)) n kn)),
+      \Ty(Nat, \Subset(j, Nat, EquivalentAt (neg x) (neg y) eps j)))
+  \by (xy eps positive);
+\definition negInvolutive (x: CauchySeq): Equivalent (neg (neg x)) x :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \take (k: \Ty(Nat, \Subset(k, Nat, EquivalentAt x x eps k))) =>
+      \exact(
+        \subsetinto(Nat, \Subset(j, Nat, EquivalentAt (neg (neg x)) x eps j), k,
+          \fun (n: Nat) => \fun (kn: NatLe k n) =>
+            \record Logic.And[
+              ltRat (subRat (at (neg (neg x)) n) (at x n)) eps,
+              ltRat (subRat (at x n) (at (neg (neg x)) n)) eps] {
+              left := \idelim(subRat (at x n) (at x n) = subRat (at (neg (neg x)) n) (at x n)
+                \with q: Rat => ltRat q eps)
+                \by (Logic.andLeft (ltRat (subRat (at x n) (at x n)) eps)
+                    (ltRat (subRat (at x n) (at x n)) eps)
+                    ((\bysub(Nat, \Subset(j, Nat, EquivalentAt x x eps j), k)) n kn),
+                  sym!{Rat} _ _ (RationalOperations.subFieldsLeft
+                    (at (neg (neg x)) n) (at x n) (at x n)
+                    (RationalOperations.negInvolutiveNumerator (at x n))
+                    (\refl(RationalFractions.denominatorIndex (at x n))))),
+              right := \idelim(subRat (at x n) (at x n) = subRat (at x n) (at (neg (neg x)) n)
+                \with q: Rat => ltRat q eps)
+                \by (Logic.andRight (ltRat (subRat (at x n) (at x n)) eps)
+                    (ltRat (subRat (at x n) (at x n)) eps)
+                    ((\bysub(Nat, \Subset(j, Nat, EquivalentAt x x eps j), k)) n kn),
+                  sym!{Rat} _ _ (RationalOperations.subFieldsRight
+                    (at x n) (at (neg (neg x)) n) (at x n)
+                    (RationalOperations.negInvolutiveNumerator (at x n))
+                    (\refl(RationalFractions.denominatorIndex (at x n))))),
+            }),
+        \Ty(Nat, \Subset(j, Nat, EquivalentAt (neg (neg x)) x eps j)))
+    \by (equivalentRefl x eps positive);
+\definition negZero: Equivalent (neg zero) zero :=
+  pointwiseEquivalent (neg zero) zero (\fun (n: Nat) => RationalOperations.fractionNegZero);

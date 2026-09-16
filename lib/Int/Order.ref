@@ -1,0 +1,42 @@
+\import N.Laws().Order() \as NO;
+\definition crossLeft (x, y: Integer): Nat := N.addSet (positivePrec x) (negativePrec y);
+\definition natLtbAgrees (a, b: Nat): natLtbPrec a b = N.ltbSet a b :=
+  \prec(\Prop, B.Bool^)
+    (\fun (flag: B.Bool^) =>
+      natIsZeroPrec (N.chooseSet flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag)
+    (\refl(B.Bool^::false)) (\refl(B.Bool^::true)) (N.ltbSet a b);
+\definition ltbAsCross (x, y: Integer):
+  ltbSet x y = N.ltbSet (crossLeft x y) (crossLeft y x) :=
+  trans!{B.Bool^} _ _ _ (ltbMatchesPrec x y)
+    (natLtbAgrees (crossLeft x y) (crossLeft y x));
+\definition ltOfCross (x, y: Integer)
+  (h: NL.Lt (crossLeft x y) (crossLeft y x)): IntegerLt x y :=
+  \idelim(ltbPrec x y = ltbSet x y \with flag: B.Bool^ => flag = B.Bool^::true)
+    \by (congr!{B.Bool^ B.Bool^}
+      (\fun (flag: B.Bool^) => natIsZeroPrec (N.chooseSet flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
+      (N.ltbSet (crossLeft x y) (crossLeft y x)) B.Bool^::true h,
+      sym!{B.Bool^} _ _ (ltbMatchesPrec x y));
+\definition crossOfLt (x, y: Integer) (h: IntegerLt x y):
+  NL.Lt (crossLeft x y) (crossLeft y x) :=
+  \idelim(ltbSet x y = N.ltbSet (crossLeft x y) (crossLeft y x)
+    \with flag: B.Bool^ => flag = B.Bool^::true)
+    \by (h, ltbAsCross x y);
+\definition Comparison (x, y: Integer): \Prop :=
+  L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]];
+\definition trichotomy (x, y: Integer): Comparison x y :=
+  \elim (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in L.Or
+    \return (\fun (_: NO.Comparison (crossLeft x y) (crossLeft y x)) => Comparison x y) {
+  | left => \fun (h: NL.Lt (crossLeft x y) (crossLeft y x)) =>
+      L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]]::left (ltOfCross x y h)
+  | right => \fun (rest: L.Or[crossLeft x y = crossLeft y x, NL.Lt (crossLeft y x) (crossLeft x y)]) =>
+      L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]]::right
+        (\elim rest \in L.Or
+          \return (\fun (_: L.Or[crossLeft x y = crossLeft y x, NL.Lt (crossLeft y x) (crossLeft x y)]) =>
+            L.Or[IntegerEq x y, IntegerLt y x]) {
+        | left => \fun (e: crossLeft x y = crossLeft y x) => L.Or[IntegerEq x y, IntegerLt y x]::left e
+        | right => \fun (h: NL.Lt (crossLeft y x) (crossLeft x y)) =>
+            L.Or[IntegerEq x y, IntegerLt y x]::right (ltOfCross y x h)
+        })
+  };
+\definition ltIrrefl (x: Integer) (h: IntegerLt x x): L.False :=
+  NL.ltIrrefl (crossLeft x x) (crossOfLt x x h);
