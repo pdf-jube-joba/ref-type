@@ -344,7 +344,7 @@ fn recursive_case_argument(
     value: Expression,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let ty = normalize(env, ty)?;
+    let ty = whnf(env, ty)?;
     if let Some(product) = structure::product(a, ty) {
         let rule = product.rule;
         let value = shift(a, value, 1, 0)?;

@@ -189,7 +189,12 @@ impl Environment {
                 }
                 let mut tail = *ty;
                 loop {
-                    let head = super::calculus::normalize(self, tail)?;
+                    // Positivity only needs to expose the constructor telescope
+                    // and the head of its result.  Normalizing the entire tail
+                    // also reduces parameters embedded in field and result types;
+                    // those parameters can be arbitrarily large and are irrelevant
+                    // to this check.
+                    let head = super::calculus::whnf(self, tail)?;
                     if let Some(product) = structure::product(&self.arena, head) {
                         check_positive(self, product.domain, id, true)?;
                         tail = product.body;
@@ -272,25 +277,13 @@ fn check_positive(
     id: InductiveId,
     positive: bool,
 ) -> Result<(), String> {
-    let e = super::calculus::normalize(env, e)?;
-    let inductive = structure::inductive_type(&env.arena, e).map(|(id, _)| id);
-    if inductive == Some(id) && !positive {
-        return Err("inductive occurs in a non-strictly-positive position".into());
-    }
-    if let Some(product) = structure::product(&env.arena, e) {
-        check_positive(env, product.domain, id, false)?;
-        return check_positive(env, product.body, id, positive);
-    }
-    let positive = positive
-        && !inductive.is_some_and(|other| other != id)
-        && structure::application(&env.arena, e).is_none();
-    let mut result = Ok(());
-    structure::visit_children(&env.arena, e, |child, _| {
-        if result.is_ok() {
-            result = check_positive(env, child, id, positive);
-        }
-    });
-    result
+    check_strictly_positive(
+        env,
+        e,
+        RecursiveType::Logical(id),
+        positive,
+        &mut HashMap::new(),
+    )
 }
 fn check_program_positive(
     env: &Environment,
@@ -298,31 +291,88 @@ fn check_program_positive(
     id: ProgramInductiveId,
     positive: bool,
 ) -> Result<(), String> {
-    let e = super::calculus::normalize(env, e)?;
-    let inductive = structure::program_inductive(&env.arena, e).map(|(id, _)| id);
-    if inductive == Some(id) && !positive {
-        return Err("Program datatype occurs in a non-strictly-positive position".into());
+    check_strictly_positive(
+        env,
+        e,
+        RecursiveType::Program(id),
+        positive,
+        &mut HashMap::new(),
+    )
+}
+
+#[derive(Clone, Copy)]
+enum RecursiveType {
+    Logical(InductiveId),
+    Program(ProgramInductiveId),
+}
+
+fn check_strictly_positive(
+    env: &Environment,
+    e: Expression,
+    target: RecursiveType,
+    positive: bool,
+    occurrences: &mut HashMap<Expression, bool>,
+) -> Result<(), String> {
+    if !contains_recursive_type(env, e, target, occurrences) {
+        return Ok(());
+    }
+    // Head-normalize one node at a time. The recursive walk below visits every
+    // relevant child itself and skips subtrees that cannot contain `target`.
+    let e = super::calculus::whnf(env, e)?;
+    let inductive = match target {
+        RecursiveType::Logical(id) => {
+            structure::inductive_type(&env.arena, e).map(|(actual, _)| actual == id)
+        }
+        RecursiveType::Program(id) => {
+            structure::program_inductive(&env.arena, e).map(|(actual, _)| actual == id)
+        }
+    };
+    if inductive == Some(true) && !positive {
+        return Err(match target {
+            RecursiveType::Logical(_) => {
+                "inductive occurs in a non-strictly-positive position".into()
+            }
+            RecursiveType::Program(_) => {
+                "Program datatype occurs in a non-strictly-positive position".into()
+            }
+        });
     }
     if let Some(product) = structure::product(&env.arena, e) {
-        check_program_positive(env, product.domain, id, false)?;
-        return check_program_positive(env, product.body, id, positive);
+        check_strictly_positive(env, product.domain, target, false, occurrences)?;
+        return check_strictly_positive(env, product.body, target, positive, occurrences);
     }
-    let positive = positive
-        && !inductive.is_some_and(|other| other != id)
-        && structure::application(&env.arena, e).is_none();
+    let positive =
+        positive && inductive != Some(false) && structure::application(&env.arena, e).is_none();
     let mut result = Ok(());
     structure::visit_children(&env.arena, e, |child, _| {
         if result.is_ok() {
-            result = check_program_positive(env, child, id, positive);
+            result = check_strictly_positive(env, child, target, positive, occurrences);
         }
     });
     result
 }
 fn contains_inductive(env: &Environment, e: Expression, id: InductiveId) -> bool {
-    let mut found = structure::inductive_id(&env.arena, e) == Some(id);
+    contains_recursive_type(env, e, RecursiveType::Logical(id), &mut HashMap::new())
+}
+fn contains_recursive_type(
+    env: &Environment,
+    e: Expression,
+    target: RecursiveType,
+    cache: &mut HashMap<Expression, bool>,
+) -> bool {
+    if let Some(&found) = cache.get(&e) {
+        return found;
+    }
+    let mut found = match target {
+        RecursiveType::Logical(id) => structure::inductive_id(&env.arena, e) == Some(id),
+        RecursiveType::Program(id) => {
+            structure::program_inductive(&env.arena, e).map(|(actual, _)| actual) == Some(id)
+        }
+    };
     structure::visit_children(&env.arena, e, |child, _| {
-        found = found || contains_inductive(env, child, id);
+        found = found || contains_recursive_type(env, child, target, cache);
     });
+    cache.insert(e, found);
     found
 }
 
