@@ -502,3 +502,57 @@
           L.falseElim (PositiveMultipleAbove x (Int^::negSucc a))
             (ltAsym zeroInteger (Int^::negSucc a) positive
               (negativeLtZero a)));
+
+\definition ltMulPositiveRight (x, y: Integer):
+  \forall (e: Integer) -> IntegerLt zeroInteger e -> IntegerLt x y ->
+    IntegerLt (mulInteger x e) (mulInteger y e) :=
+  \prec(\Prop, Int^)
+    (\fun (e: Int^) => IntegerLt zeroInteger e -> IntegerLt x y ->
+      IntegerLt (mulInteger x e) (mulInteger y e))
+    (\fun (n: Nat) =>
+      \prec(\Prop, N.Nat^)
+        (\fun (n: Nat) =>
+          IntegerLt zeroInteger (Int^::ofNat n) -> IntegerLt x y ->
+            IntegerLt (mulInteger x (Int^::ofNat n))
+              (mulInteger y (Int^::ofNat n)))
+        (\fun (positive: IntegerLt zeroInteger zeroInteger) =>
+          \fun (xy: IntegerLt x y) =>
+            L.falseElim
+              (IntegerLt (mulInteger x zeroInteger)
+                (mulInteger y zeroInteger))
+              (ltIrrefl zeroInteger positive))
+        (\fun (k: Nat) =>
+          \fun (_: IntegerLt zeroInteger (Int^::ofNat k) ->
+            IntegerLt x y ->
+              IntegerLt (mulInteger x (Int^::ofNat k))
+                (mulInteger y (Int^::ofNat k))) =>
+          \fun (positive: IntegerLt zeroInteger
+            (Int^::ofNat (N.Nat^::succ k))) =>
+          \fun (xy: IntegerLt x y) =>
+            ltRespects
+              (scaleInteger x (N.Nat^::succ k))
+              (mulInteger x (Int^::ofNat (N.Nat^::succ k)))
+              (scaleInteger y (N.Nat^::succ k))
+              (mulInteger y (Int^::ofNat (N.Nat^::succ k)))
+              (integerEqSym _ _
+                (mulIntegerNatural x (N.Nat^::succ k)))
+              (integerEqSym _ _
+                (mulIntegerNatural y (N.Nat^::succ k)))
+              (ltScaleSucc x y k xy))
+        n)
+    (\fun (a: Nat) =>
+      \fun (positive: IntegerLt zeroInteger (Int^::negSucc a)) =>
+      \fun (xy: IntegerLt x y) =>
+        L.falseElim
+          (IntegerLt (mulInteger x (Int^::negSucc a))
+            (mulInteger y (Int^::negSucc a)))
+          (ltAsym zeroInteger (Int^::negSucc a) positive
+            (negativeLtZero a)));
+
+\definition ltMulPositiveLeft (e, x, y: Integer)
+  (positive: IntegerLt zeroInteger e) (xy: IntegerLt x y):
+  IntegerLt (mulInteger e x) (mulInteger e y) :=
+  ltRespects (mulInteger x e) (mulInteger e x)
+    (mulInteger y e) (mulInteger e y)
+    (mulIntegerComm x e) (mulIntegerComm y e)
+    (ltMulPositiveRight x y e positive xy);

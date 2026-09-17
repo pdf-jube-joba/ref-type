@@ -153,3 +153,114 @@
       v (Logic.andLeft (UpperBound S v) (\forall (w: Real) -> UpperBound S w -> Le v w) hv))
     ((Logic.andRight (UpperBound S v) (\forall (w: Real) -> UpperBound S w -> Le v w) hv)
       u (Logic.andLeft (UpperBound S u) (\forall (w: Real) -> UpperBound S w -> Le u w) hu));
+
+\definition LowerBound (S: \Power(Real)) (l: Real): \Prop :=
+  \forall (x: Real) -> Member S x -> Le l x;
+
+\definition BoundedBelow (S: \Power(Real)): \Prop :=
+  \exists \Ty(Real, \Subset(l, Real, LowerBound S l));
+
+\definition GreatestLowerBound (S: \Power(Real)) (l: Real): \Prop :=
+  Logic.And[LowerBound S l,
+    \forall (v: Real) -> LowerBound S v -> Le v l];
+
+\definition LowerBounds (S: \Power(Real)): \Power(Real) :=
+  \Subset(l, Real, LowerBound S l);
+
+\definition lowerBoundsNonempty (S: \Power(Real)) (bounded: BoundedBelow S):
+  Nonempty (LowerBounds S) := bounded;
+
+\definition lowerBoundsBounded (S: \Power(Real)) (nonempty: Nonempty S):
+  Bounded (LowerBounds S) :=
+  \take (x: \Ty(Real, \Subset(x, Real, Member S x))) =>
+    \exact(
+      \subsetinto(Real,
+        \Subset(u, Real, UpperBound (LowerBounds S) u), x,
+        \fun (l: Real) => \fun (lower: Member (LowerBounds S) l) =>
+          lower x (\bysub(Real, \Subset(x, Real, Member S x), x))),
+      \Ty(Real, \Subset(u, Real, UpperBound (LowerBounds S) u)))
+  \by (nonempty);
+
+\definition InfimumDomainSet: \Power(\Power(Real)) :=
+  \Subset(S, \Power(Real),
+    Logic.And[Nonempty S, BoundedBelow S]);
+
+\definition InfimumDomain: \Set :=
+  \Ty(\Power(Real), InfimumDomainSet);
+
+\definition infimumDomainNonempty (S: InfimumDomain): Nonempty S :=
+  Logic.And[Nonempty S, BoundedBelow S]::left
+    (\bysub(\Power(Real), InfimumDomainSet, S));
+
+\definition infimumDomainBounded (S: InfimumDomain): BoundedBelow S :=
+  Logic.And[Nonempty S, BoundedBelow S]::right
+    (\bysub(\Power(Real), InfimumDomainSet, S));
+
+\definition lowerFamily (S: InfimumDomain): Family :=
+  \subsetinto(\Power(Real), FamilySet, LowerBounds S,
+    \record Logic.And[Nonempty (LowerBounds S), Bounded (LowerBounds S)] {
+      left := lowerBoundsNonempty S (infimumDomainBounded S),
+      right := lowerBoundsBounded S (infimumDomainNonempty S),
+    });
+
+\definition infimum (S: InfimumDomain): Real :=
+  supremum (lowerFamily S);
+
+\definition lowerFamilyMemberLower (S: InfimumDomain) (l: Real)
+  (member: Member (lowerFamily S) l): LowerBound S l :=
+  \idelim((lowerFamily S) = LowerBounds S
+    \with T: \Power(Real) => Member T l)
+    \by (member, \refl(LowerBounds S));
+
+\definition infimumLower (S: InfimumDomain):
+  LowerBound S (infimum S) :=
+  \fun (x: Real) => \fun (sx: Member S x) =>
+    \fun (q: Rat) => \fun (iq: mem (infimum S) q) =>
+      supremumLeast (lowerFamily S) x
+        (\fun (l: Real) => \fun (lower: Member (lowerFamily S) l) =>
+          \fun (r: Rat) => \fun (lr: mem l r) =>
+            (lowerFamilyMemberLower S l lower) x sx r lr) q iq;
+
+\definition infimumGreatest (S: InfimumDomain)
+  (l: Real) (lower: LowerBound S l): Le l (infimum S) :=
+  \fun (q: Rat) => \fun (lq: mem l q) =>
+    supremumUpper (lowerFamily S) l
+      (\idelim(LowerBounds S = (lowerFamily S)
+        \with T: \Power(Real) => Member T l)
+        \by (lower, \refl(LowerBounds S))) q lq;
+
+\definition infimumLaw (S: InfimumDomain):
+  GreatestLowerBound S (infimum S) :=
+  \record Logic.And[LowerBound S (infimum S),
+    \forall (v: Real) -> LowerBound S v ->
+      Le v (infimum S)] {
+    left := infimumLower S,
+    right := infimumGreatest S,
+  };
+
+\definition completeBelow (S: \Power(Real))
+  (nonempty: Nonempty S) (bounded: BoundedBelow S):
+  \exists \Ty(Real, \Subset(l, Real, GreatestLowerBound S l)) :=
+  \block {
+    \let domain: InfimumDomain :=
+      \subsetinto(\Power(Real), InfimumDomainSet, S,
+        \record Logic.And[Nonempty S, BoundedBelow S] {
+          left := nonempty, right := bounded,
+        });
+    \return \exact(
+      \subsetinto(Real, \Subset(l, Real, GreatestLowerBound S l),
+        infimum domain, infimumLaw domain),
+      \Ty(Real, \Subset(l, Real, GreatestLowerBound S l)));
+  };
+
+\definition greatestLowerBoundUnique (S: \Power(Real)) (l, m: Real)
+  (hl: GreatestLowerBound S l) (hm: GreatestLowerBound S m): l = m :=
+  leAntisym l m
+    ((Logic.andRight (LowerBound S m)
+      (\forall (v: Real) -> LowerBound S v -> Le v m) hm)
+      l (Logic.andLeft (LowerBound S l)
+        (\forall (v: Real) -> LowerBound S v -> Le v l) hl))
+    ((Logic.andRight (LowerBound S l)
+      (\forall (v: Real) -> LowerBound S v -> Le v l) hl)
+      m (Logic.andLeft (LowerBound S m)
+        (\forall (v: Real) -> LowerBound S v -> Le v m) hm));

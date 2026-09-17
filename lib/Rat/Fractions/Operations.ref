@@ -1,4 +1,6 @@
 /* Arithmetic on positive-denominator rational representatives. */
+\import \root.Classical() \as Classical;
+
 \definition add (x, y: Fraction): Fraction :=
     fraction
       (I.addInteger
@@ -393,6 +395,11 @@
       (denominatorProductIndex
         (denominatorIndex x) (denominatorIndex y));
 
+\definition numeratorMul (x, y: Fraction):
+    I.IntegerEq (numerator (mul x y))
+      (I.mulInteger (numerator x) (numerator y)) :=
+  I.integerEqRefl (numerator (mul x y));
+
 \definition denominatorMul (x, y: Fraction):
     I.IntegerEq
       (denominator (mul x y))
@@ -550,6 +557,141 @@
       (I.mulIntegerComm (numerator x) (numerator y))
       (denominatorProductIndexComm
         (denominatorIndex x) (denominatorIndex y));
+
+\definition fractionEqOneOfEqualNumeratorDenominator (x: Fraction)
+  (same: I.IntegerEq (numerator x) (denominator x)):
+  FractionEq x one :=
+  I.integerEqTrans _ _ _
+    (I.mulIntegerOneRight (numerator x))
+    (I.integerEqTrans _ _ _ same
+      (I.integerEqSym _ _ (I.mulIntegerOneLeft (denominator x))));
+
+/* The reciprocal is total, with reciprocal zero = zero.  For a nonzero
+ * canonical numerator, swapping its magnitude with the denominator keeps
+ * the denominator positive. */
+\definition reciprocal (x: Fraction): Fraction :=
+  \prec(\Set, I.Int^) (\fun (_: I.Int^) => Fraction)
+    (\fun (n: I.Nat) =>
+      \prec(\Set, N.Nat^) (\fun (_: I.Nat) => Fraction)
+        zero
+        (\fun (k: I.Nat) => \fun (_: Fraction) =>
+          fraction (denominator x) k)
+        n)
+    (\fun (k: I.Nat) =>
+      fraction (I.negInteger (denominator x)) k)
+    (numerator x);
+
+\definition positiveReciprocalLaw (d, k: I.Nat):
+  FractionEq
+    (mul
+      (fraction (I.Int^::ofNat (I.natSucc k)) d)
+      (fraction
+        (denominator (fraction (I.Int^::ofNat (I.natSucc k)) d)) k))
+    one :=
+  \block {
+    \let x: Fraction := fraction (I.Int^::ofNat (I.natSucc k)) d;
+    \let r: Fraction := fraction (denominator x) k;
+    \return fractionEqOneOfEqualNumeratorDenominator (mul x r)
+      (I.integerEqTrans
+        (numerator (mul x r))
+        (I.mulInteger (numerator x) (numerator r))
+        (denominator (mul x r))
+        (numeratorMul x r)
+        (I.integerEqTrans
+          (I.mulInteger (numerator x) (numerator r))
+          (I.mulInteger (numerator r) (numerator x))
+          (denominator (mul x r))
+          (I.mulIntegerComm (numerator x) (numerator r))
+          (I.integerEqTrans
+            (I.mulInteger (numerator r) (numerator x))
+            (I.mulInteger (denominator x) (denominator r))
+            (denominator (mul x r))
+            (I.mulIntegerRespects _ _ _ _
+              (I.integerEqRefl (denominator x))
+              (I.ofNatAsInteger (I.natSucc k)))
+            (I.integerEqSym _ _ (denominatorMul x r)))));
+  };
+
+\definition negativeReciprocalLaw (d, k: I.Nat):
+  FractionEq
+    (mul
+      (fraction (I.Int^::negSucc k) d)
+      (fraction
+        (I.negInteger (denominator (fraction (I.Int^::negSucc k) d))) k))
+    one :=
+  \block {
+    \let x: Fraction := fraction (I.Int^::negSucc k) d;
+    \let r: Fraction := fraction (I.negInteger (denominator x)) k;
+    \let n: I.Integer := I.integer (I.natSucc k) I.zeroNat;
+    \let dn: I.IntegerEq (numerator x) (I.negInteger n) :=
+      I.negSuccAsNegNatural k;
+    \let dr: I.IntegerEq (numerator r) (I.negInteger (denominator x)) :=
+      I.integerEqRefl (numerator r);
+    \return fractionEqOneOfEqualNumeratorDenominator (mul x r)
+      (I.integerEqTrans
+        (numerator (mul x r))
+        (I.mulInteger (numerator x) (numerator r))
+        (denominator (mul x r))
+        (numeratorMul x r)
+        (I.integerEqTrans
+          (I.mulInteger (numerator x) (numerator r))
+          (I.mulInteger (I.negInteger n)
+            (I.negInteger (denominator x)))
+          (denominator (mul x r))
+          (I.mulIntegerRespects _ _ _ _ dn dr)
+          (I.integerEqTrans
+            (I.mulInteger (I.negInteger n)
+              (I.negInteger (denominator x)))
+            (I.negInteger
+              (I.mulInteger n (I.negInteger (denominator x))))
+            (denominator (mul x r))
+            (I.mulIntegerNegLeft n (I.negInteger (denominator x)))
+            (I.integerEqTrans
+              (I.negInteger
+                (I.mulInteger n (I.negInteger (denominator x))))
+              (I.negInteger (I.negInteger
+                (I.mulInteger n (denominator x))))
+              (denominator (mul x r))
+              (I.negIntegerRespects _ _
+                (I.mulIntegerNegRight n (denominator x)))
+              (I.integerEqTrans
+                (I.negInteger (I.negInteger
+                  (I.mulInteger n (denominator x))))
+                (I.mulInteger (denominator x) n)
+                (denominator (mul x r))
+                (I.integerEqTrans _ _ _
+                  (I.negIntegerInvolutive
+                    (I.mulInteger n (denominator x)))
+                  (I.mulIntegerComm n (denominator x)))
+                (I.integerEqSym _ _ (denominatorMul x r)))))));
+  };
+
+\definition fractionMulReciprocal (x: Fraction)
+  (nonzero: NumeratorNonZero x): FractionEq (mul x (reciprocal x)) one :=
+  \prec(\Prop, I.Int^)
+    (\fun (n: I.Int^) =>
+      \forall (d: I.Nat) -> I.IntegerNonZero n ->
+        FractionEq
+          (mul (fraction n d) (reciprocal (fraction n d))) one)
+    (\fun (n: I.Nat) =>
+      \prec(\Prop, N.Nat^)
+        (\fun (n: I.Nat) =>
+          \forall (d: I.Nat) ->
+            I.IntegerNonZero (I.Int^::ofNat n) ->
+            FractionEq
+              (mul (fraction (I.Int^::ofNat n) d)
+                (reciprocal (fraction (I.Int^::ofNat n) d))) one)
+        (\fun (d: I.Nat) =>
+          \fun (impossible: I.IntegerNonZero I.zeroInteger) =>
+            Logic.falseElim _ (impossible (I.integerEqRefl I.zeroInteger)))
+        (\fun (k: I.Nat) => \fun (_: _) => \fun (d: I.Nat) =>
+          \fun (_: I.IntegerNonZero (I.Int^::ofNat (I.natSucc k))) =>
+            positiveReciprocalLaw d k)
+        n)
+    (\fun (k: I.Nat) => \fun (d: I.Nat) =>
+      \fun (_: I.IntegerNonZero (I.Int^::negSucc k)) =>
+        negativeReciprocalLaw d k)
+    (numerator x) (denominatorIndex x) nonzero;
 
 \definition mulAssocDenominator (x, y, z: Fraction):
     I.IntegerEq (denominator (mul (mul x y) z))
@@ -1303,5 +1445,811 @@
       (I.negInteger (I.negInteger (numerator y))) (numerator y)
       (negInvolutiveNumerator y))
     (addCommEquality (neg x) y);
+
+/* Cancellation and reassociation lemmas used by dense cut arithmetic. */
+\definition fractionAddCancelRightEq (x, y, z: Fraction)
+  (same: FractionEq (add x z) (add y z)): FractionEq x y :=
+  fractionEqTrans _ _ _
+    (fractionEqSym _ _ (fractionAddZeroRight x))
+    (fractionEqTrans _ _ _
+      (fractionAddRespects x x zero (add z (neg z))
+        (fractionEqRefl x)
+        (fractionEqSym _ _ (fractionAddNegRight z)))
+      (fractionEqTrans _ _ _
+        (fractionEqSym _ _ (fractionAddAssoc x z (neg z)))
+        (fractionEqTrans _ _ _
+          (fractionAddRespects (add x z) (add y z)
+            (neg z) (neg z) same (fractionEqRefl (neg z)))
+          (fractionEqTrans _ _ _
+            (fractionAddAssoc y z (neg z))
+            (fractionEqTrans _ _ _
+              (fractionAddRespects y y (add z (neg z)) zero
+                (fractionEqRefl y) (fractionAddNegRight z))
+              (fractionAddZeroRight y))))));
+
+\definition fractionAddRotate (a, b, c: Fraction):
+  FractionEq (add (add a b) c) (add (add a c) b) :=
+  fractionEqTrans _ _ _
+    (fractionAddAssoc a b c)
+    (fractionEqTrans _ _ _
+      (fractionAddRespects a a (add b c) (add c b)
+        (fractionEqRefl a) (fractionAddComm b c))
+      (fractionEqSym _ _ (fractionAddAssoc a c b)));
+
+\definition fractionNegAddLeft (x, y: Fraction):
+  FractionEq (add (neg (add x y)) x) (neg y) :=
+  fractionAddCancelRightEq (add (neg (add x y)) x) (neg y) y
+    (fractionEqTrans _ _ _
+      (fractionAddAssoc (neg (add x y)) x y)
+      (fractionEqTrans _ _ _
+        (fractionAddNegLeft (add x y))
+        (fractionEqSym _ _ (fractionAddNegLeft y))));
+
+\definition perturbLeft (q, a, b: Fraction): Fraction :=
+  add a (adjustment q (add a b));
+
+\definition perturbLeftLt (q, a, b: Fraction) (qab: lt q (add a b)):
+  lt (perturbLeft q a b) a :=
+  FractionOrder.ltReplaceRight
+    (perturbLeft q a b) (add a zero) a
+    (fractionAddZeroRight a)
+    (ltAddLeft a (adjustment q (add a b)) zero
+      (adjustmentLtZero q (add a b) qab));
+
+\definition ltPerturbedSum (q, a, b: Fraction) (qab: lt q (add a b)):
+  lt q (add (perturbLeft q a b) b) :=
+  FractionOrder.ltReplaceRight q
+    (add (add a b) (adjustment q (add a b)))
+    (add (perturbLeft q a b) b)
+    (fractionAddRotate a b (adjustment q (add a b)))
+    (ltAddAdjustment q (add a b) qab);
+
+\definition mulOrderLeftAlignment (x, y, z: Fraction):
+  I.IntegerEq
+    (I.mulInteger
+      (I.mulInteger
+        (I.mulInteger (numerator x) (denominator y)) (numerator z))
+      (denominator z))
+    (I.mulInteger (numerator (mul x z)) (denominator (mul y z))) :=
+  I.integerEqTrans _ _ _
+    (I.mulIntegerAssoc
+      (I.mulInteger (numerator x) (denominator y))
+      (numerator z) (denominator z))
+    (I.integerEqTrans _ _ _
+      (I.mulIntegerInterchange (numerator x) (denominator y)
+        (numerator z) (denominator z))
+      (I.mulIntegerRespects _ _ _ _
+        (I.integerEqRefl (numerator (mul x z)))
+        (I.integerEqSym _ _ (denominatorMul y z))));
+
+\definition mulOrderRightAlignment (x, y, z: Fraction):
+  I.IntegerEq
+    (I.mulInteger
+      (I.mulInteger
+        (I.mulInteger (numerator y) (denominator x)) (numerator z))
+      (denominator z))
+    (I.mulInteger (numerator (mul y z)) (denominator (mul x z))) :=
+  I.integerEqTrans _ _ _
+    (I.mulIntegerAssoc
+      (I.mulInteger (numerator y) (denominator x))
+      (numerator z) (denominator z))
+    (I.integerEqTrans _ _ _
+      (I.mulIntegerInterchange (numerator y) (denominator x)
+        (numerator z) (denominator z))
+      (I.mulIntegerRespects _ _ _ _
+        (I.integerEqRefl (numerator (mul y z)))
+        (I.integerEqSym _ _ (denominatorMul x z))));
+
+\definition ltMulPositiveRight (x, y, z: Fraction)
+  (positive: lt zero z) (xy: lt x y): lt (mul x z) (mul y z) :=
+  IntegerOrder.ltRespects _ _ _ _
+    (mulOrderLeftAlignment x y z)
+    (mulOrderRightAlignment x y z)
+    (IntegerOrder.ltMulPositiveRight
+      (I.mulInteger
+        (I.mulInteger (numerator x) (denominator y)) (numerator z))
+      (I.mulInteger
+        (I.mulInteger (numerator y) (denominator x)) (numerator z))
+      (denominator z) (denominatorPositive z)
+      (IntegerOrder.ltMulPositiveRight
+        (I.mulInteger (numerator x) (denominator y))
+        (I.mulInteger (numerator y) (denominator x))
+        (numerator z) (zeroLtNumerator z positive) xy));
+
+\definition ltMulPositiveLeft (z, x, y: Fraction)
+  (positive: lt zero z) (xy: lt x y): lt (mul z x) (mul z y) :=
+  FractionOrder.ltRespects
+    (mul x z) (mul z x) (mul y z) (mul z y)
+    (fractionMulComm x z) (fractionMulComm y z)
+    (ltMulPositiveRight x y z positive xy);
+
+\definition negMulNegAlignment (x, z: Fraction):
+  FractionEq (neg (mul x (neg z))) (mul x z) :=
+  fractionEqTrans _ _ _
+    (fractionNegRespects (mul x (neg z)) (neg (mul x z))
+      (fractionMulNegRight x z))
+    (fractionNegInvolutive (mul x z));
+
+\definition ltMulNegativeRight (x, y, z: Fraction)
+  (negative: lt z zero) (xy: lt x y): lt (mul y z) (mul x z) :=
+  \block {
+    \let positiveNeg: lt zero (neg z) :=
+      FractionOrder.ltReplaceLeft (neg zero) zero (neg z)
+        (fractionEqRefl zero)
+        (ltNegReverse z zero negative);
+    \let scaled: lt (mul x (neg z)) (mul y (neg z)) :=
+      ltMulPositiveRight x y (neg z) positiveNeg xy;
+    \let reversed:
+        lt (neg (mul y (neg z))) (neg (mul x (neg z))) :=
+      ltNegReverse (mul x (neg z)) (mul y (neg z)) scaled;
+    \return FractionOrder.ltRespects
+      (neg (mul y (neg z))) (mul y z)
+      (neg (mul x (neg z))) (mul x z)
+      (negMulNegAlignment y z) (negMulNegAlignment x z) reversed;
+  };
+
+\definition ltMulNegativeLeft (z, x, y: Fraction)
+  (negative: lt z zero) (xy: lt x y): lt (mul z y) (mul z x) :=
+  FractionOrder.ltRespects
+    (mul y z) (mul z y) (mul x z) (mul z x)
+    (fractionMulComm y z) (fractionMulComm x z)
+    (ltMulNegativeRight x y z negative xy);
+
+\definition Le (x, y: Fraction): \Prop :=
+  Logic.Or[FractionEq x y, lt x y];
+
+\definition leRefl (x: Fraction): Le x x :=
+  Logic.Or[FractionEq x x, lt x x]::left (fractionEqRefl x);
+
+\definition leOfEq (x, y: Fraction) (same: FractionEq x y): Le x y :=
+  Logic.Or[FractionEq x y, lt x y]::left same;
+
+\definition leOfLt (x, y: Fraction) (xy: lt x y): Le x y :=
+  Logic.Or[FractionEq x y, lt x y]::right xy;
+
+\definition leTrans (x, y, z: Fraction) (xy: Le x y) (yz: Le y z): Le x z :=
+  Classical.orElim (FractionEq x y) (lt x y) (Le x z)
+    (\fun (sameXY: FractionEq x y) =>
+      Classical.orElim (FractionEq y z) (lt y z) (Le x z)
+        (\fun (sameYZ: FractionEq y z) =>
+          leOfEq x z (fractionEqTrans x y z sameXY sameYZ))
+        (\fun (lessYZ: lt y z) =>
+          leOfLt x z
+            (FractionOrder.ltReplaceLeft y x z
+              (fractionEqSym x y sameXY) lessYZ))
+        yz)
+    (\fun (lessXY: lt x y) =>
+      Classical.orElim (FractionEq y z) (lt y z) (Le x z)
+        (\fun (sameYZ: FractionEq y z) =>
+          leOfLt x z
+            (FractionOrder.ltReplaceRight x y z sameYZ lessXY))
+        (\fun (lessYZ: lt y z) =>
+          leOfLt x z (FractionOrder.ltTrans x y z lessXY lessYZ))
+        yz)
+    xy;
+
+\definition ltLeTrans (x, y, z: Fraction) (xy: lt x y) (yz: Le y z):
+  lt x z :=
+  Classical.orElim (FractionEq y z) (lt y z) (lt x z)
+    (\fun (same: FractionEq y z) =>
+      FractionOrder.ltReplaceRight x y z same xy)
+    (\fun (less: lt y z) => FractionOrder.ltTrans x y z xy less)
+    yz;
+
+\definition leLtTrans (x, y, z: Fraction) (xy: Le x y) (yz: lt y z):
+  lt x z :=
+  Classical.orElim (FractionEq x y) (lt x y) (lt x z)
+    (\fun (same: FractionEq x y) =>
+      FractionOrder.ltReplaceLeft y x z (fractionEqSym x y same) yz)
+    (\fun (less: lt x y) => FractionOrder.ltTrans x y z less yz)
+    xy;
+
+\definition leMulPositiveRight (x, y, z: Fraction)
+  (positive: lt zero z) (xy: Le x y): Le (mul x z) (mul y z) :=
+  Classical.orElim (FractionEq x y) (lt x y)
+    (Le (mul x z) (mul y z))
+    (\fun (same: FractionEq x y) =>
+      leOfEq (mul x z) (mul y z)
+        (fractionMulRespects x y z z same (fractionEqRefl z)))
+    (\fun (less: lt x y) =>
+      leOfLt (mul x z) (mul y z)
+        (ltMulPositiveRight x y z positive less))
+    xy;
+
+\definition leMulPositiveLeft (z, x, y: Fraction)
+  (positive: lt zero z) (xy: Le x y): Le (mul z x) (mul z y) :=
+  Classical.orElim (FractionEq x y) (lt x y)
+    (Le (mul z x) (mul z y))
+    (\fun (same: FractionEq x y) =>
+      leOfEq (mul z x) (mul z y)
+        (fractionMulRespects z z x y (fractionEqRefl z) same))
+    (\fun (less: lt x y) =>
+      leOfLt (mul z x) (mul z y)
+        (ltMulPositiveLeft z x y positive less))
+    xy;
+
+\definition leMulNegativeRight (x, y, z: Fraction)
+  (negative: lt z zero) (xy: Le x y): Le (mul y z) (mul x z) :=
+  Classical.orElim (FractionEq x y) (lt x y)
+    (Le (mul y z) (mul x z))
+    (\fun (same: FractionEq x y) =>
+      leOfEq (mul y z) (mul x z)
+        (fractionMulRespects y x z z
+          (fractionEqSym x y same) (fractionEqRefl z)))
+    (\fun (less: lt x y) =>
+      leOfLt (mul y z) (mul x z)
+        (ltMulNegativeRight x y z negative less))
+    xy;
+
+\definition leMulNegativeLeft (z, x, y: Fraction)
+  (negative: lt z zero) (xy: Le x y): Le (mul z y) (mul z x) :=
+  Classical.orElim (FractionEq x y) (lt x y)
+    (Le (mul z y) (mul z x))
+    (\fun (same: FractionEq x y) =>
+      leOfEq (mul z y) (mul z x)
+        (fractionMulRespects z z y x
+          (fractionEqRefl z) (fractionEqSym x y same)))
+    (\fun (less: lt x y) =>
+      leOfLt (mul z y) (mul z x)
+        (ltMulNegativeLeft z x y negative less))
+    xy;
+
+\definition leMulNonnegativeLeft (z, x, y: Fraction)
+  (nonnegative: Le zero z) (xy: Le x y): Le (mul z x) (mul z y) :=
+  Classical.orElim (FractionEq zero z) (lt zero z)
+    (Le (mul z x) (mul z y))
+    (\fun (zeroZ: FractionEq zero z) =>
+      leOfEq (mul z x) (mul z y)
+        (fractionEqTrans (mul z x) zero (mul z y)
+          (fractionEqTrans (mul z x) (mul zero x) zero
+            (fractionMulRespects z zero x x
+              (fractionEqSym _ _ zeroZ) (fractionEqRefl x))
+            (fractionMulZeroLeft x))
+          (fractionEqSym _ _
+            (fractionEqTrans (mul z y) (mul zero y) zero
+              (fractionMulRespects z zero y y
+                (fractionEqSym _ _ zeroZ) (fractionEqRefl y))
+              (fractionMulZeroLeft y)))))
+    (\fun (positive: lt zero z) =>
+      leMulPositiveLeft z x y positive xy)
+    nonnegative;
+
+\definition leMulNonnegativeRight (x, y, z: Fraction)
+  (nonnegative: Le zero z) (xy: Le x y): Le (mul x z) (mul y z) :=
+  Classical.orElim (FractionEq zero z) (lt zero z)
+    (Le (mul x z) (mul y z))
+    (\fun (zeroZ: FractionEq zero z) =>
+      leOfEq (mul x z) (mul y z)
+        (fractionEqTrans (mul x z) zero (mul y z)
+          (fractionEqTrans (mul x z) (mul x zero) zero
+            (fractionMulRespects x x z zero
+              (fractionEqRefl x) (fractionEqSym _ _ zeroZ))
+            (fractionMulZeroRight x))
+          (fractionEqSym _ _
+            (fractionEqTrans (mul y z) (mul y zero) zero
+              (fractionMulRespects y y z zero
+                (fractionEqRefl y) (fractionEqSym _ _ zeroZ))
+              (fractionMulZeroRight y)))))
+    (\fun (positive: lt zero z) =>
+      leMulPositiveRight x y z positive xy)
+    nonnegative;
+
+\definition leMulNonpositiveLeft (z, x, y: Fraction)
+  (nonpositive: Le z zero) (xy: Le x y): Le (mul z y) (mul z x) :=
+  Classical.orElim (FractionEq z zero) (lt z zero)
+    (Le (mul z y) (mul z x))
+    (\fun (zZero: FractionEq z zero) =>
+      leOfEq (mul z y) (mul z x)
+        (fractionEqTrans (mul z y) zero (mul z x)
+          (fractionEqTrans (mul z y) (mul zero y) zero
+            (fractionMulRespects z zero y y zZero (fractionEqRefl y))
+            (fractionMulZeroLeft y))
+          (fractionEqSym _ _
+            (fractionEqTrans (mul z x) (mul zero x) zero
+              (fractionMulRespects z zero x x zZero (fractionEqRefl x))
+              (fractionMulZeroLeft x)))))
+    (\fun (negative: lt z zero) =>
+      leMulNegativeLeft z x y negative xy)
+    nonpositive;
+
+\definition leMulNonpositiveRight (x, y, z: Fraction)
+  (nonpositive: Le z zero) (xy: Le x y): Le (mul y z) (mul x z) :=
+  Classical.orElim (FractionEq z zero) (lt z zero)
+    (Le (mul y z) (mul x z))
+    (\fun (zZero: FractionEq z zero) =>
+      leOfEq (mul y z) (mul x z)
+        (fractionEqTrans (mul y z) zero (mul x z)
+          (fractionEqTrans (mul y z) (mul y zero) zero
+            (fractionMulRespects y y z zero
+              (fractionEqRefl y) zZero)
+            (fractionMulZeroRight y))
+          (fractionEqSym _ _
+            (fractionEqTrans (mul x z) (mul x zero) zero
+              (fractionMulRespects x x z zero
+                (fractionEqRefl x) zZero)
+              (fractionMulZeroRight x)))))
+    (\fun (negative: lt z zero) =>
+      leMulNegativeRight x y z negative xy)
+    nonpositive;
+
+\definition nonnegativeOrNegative (x: Fraction):
+  Logic.Or[Le zero x, lt x zero] :=
+  Classical.orElim (lt zero x)
+    (Logic.Or[FractionEq zero x, lt x zero])
+    (Logic.Or[Le zero x, lt x zero])
+    (\fun (positive: lt zero x) =>
+      Logic.Or[Le zero x, lt x zero]::left (leOfLt zero x positive))
+    (\fun (rest: Logic.Or[FractionEq zero x, lt x zero]) =>
+      Classical.orElim (FractionEq zero x) (lt x zero)
+        (Logic.Or[Le zero x, lt x zero])
+        (\fun (same: FractionEq zero x) =>
+          Logic.Or[Le zero x, lt x zero]::left (leOfEq zero x same))
+        (\fun (negative: lt x zero) =>
+          Logic.Or[Le zero x, lt x zero]::right negative)
+        rest)
+    (FractionOrder.trichotomy zero x);
+
+\definition leOfNotLtReverse (x, y: Fraction)
+  (notReverse: Logic.Not (lt y x)): Le x y :=
+  Classical.orElim (lt x y)
+    (Logic.Or[FractionEq x y, lt y x]) (Le x y)
+    (\fun (less: lt x y) => leOfLt x y less)
+    (\fun (rest: Logic.Or[FractionEq x y, lt y x]) =>
+      Classical.orElim (FractionEq x y) (lt y x) (Le x y)
+        (\fun (same: FractionEq x y) => leOfEq x y same)
+        (\fun (reverse: lt y x) =>
+          Logic.falseElim (Le x y) (notReverse reverse))
+        rest)
+    (FractionOrder.trichotomy x y);
+
+\definition productInteriorAbove
+  (q, l, u, c, v, x, y: Fraction)
+  (lx: Le l x) (xu: Le x u) (cy: Le c y) (yv: Le y v)
+  (qlc: lt q (mul l c)) (qlv: lt q (mul l v))
+  (quc: lt q (mul u c)) (quv: lt q (mul u v)):
+  lt q (mul x y) :=
+  Classical.orElim (Le zero y) (lt y zero) (lt q (mul x y))
+    (\fun (yNonnegative: Le zero y) =>
+      \block {
+        \let lyxy: Le (mul l y) (mul x y) :=
+          leMulNonnegativeRight l x y yNonnegative lx;
+        \return Classical.orElim (Le zero l) (lt l zero)
+          (lt q (mul x y))
+          (\fun (lNonnegative: Le zero l) =>
+            ltLeTrans q (mul l c) (mul x y) qlc
+              (leTrans (mul l c) (mul l y) (mul x y)
+                (leMulNonnegativeLeft l c y lNonnegative cy) lyxy))
+          (\fun (lNegative: lt l zero) =>
+            ltLeTrans q (mul l v) (mul x y) qlv
+              (leTrans (mul l v) (mul l y) (mul x y)
+                (leMulNegativeLeft l y v lNegative yv) lyxy))
+          (nonnegativeOrNegative l);
+      })
+    (\fun (yNegative: lt y zero) =>
+      \block {
+        \let uyxy: Le (mul u y) (mul x y) :=
+          leMulNegativeRight x u y yNegative xu;
+        \return Classical.orElim (Le zero u) (lt u zero)
+          (lt q (mul x y))
+          (\fun (uNonnegative: Le zero u) =>
+            ltLeTrans q (mul u c) (mul x y) quc
+              (leTrans (mul u c) (mul u y) (mul x y)
+                (leMulNonnegativeLeft u c y uNonnegative cy) uyxy))
+          (\fun (uNegative: lt u zero) =>
+            ltLeTrans q (mul u v) (mul x y) quv
+              (leTrans (mul u v) (mul u y) (mul x y)
+                (leMulNegativeLeft u y v uNegative yv) uyxy))
+          (nonnegativeOrNegative u);
+      })
+    (nonnegativeOrNegative y);
+
+\definition zeroLtMulPositive (x, y: Fraction)
+  (xPositive: lt zero x) (yPositive: lt zero y): lt zero (mul x y) :=
+  FractionOrder.ltReplaceLeft (mul zero y) zero (mul x y)
+    (fractionMulZeroLeft y)
+    (ltMulPositiveRight zero x y yPositive xPositive);
+
+\definition zeroLtMulNegative (x, y: Fraction)
+  (xNegative: lt x zero) (yNegative: lt y zero): lt zero (mul x y) :=
+  FractionOrder.ltReplaceLeft (mul zero y) zero (mul x y)
+    (fractionMulZeroLeft y)
+    (ltMulNegativeRight x zero y yNegative xNegative);
+
+\definition mulLtZeroPositiveNegative (x, y: Fraction)
+  (xPositive: lt zero x) (yNegative: lt y zero): lt (mul x y) zero :=
+  FractionOrder.ltReplaceRight (mul x y) (mul x zero) zero
+    (fractionMulZeroRight x)
+    (ltMulPositiveLeft x y zero xPositive yNegative);
+
+\definition mulLtZeroNegativePositive (x, y: Fraction)
+  (xNegative: lt x zero) (yPositive: lt zero y): lt (mul x y) zero :=
+  FractionOrder.ltReplaceRight (mul x y) (mul zero y) zero
+    (fractionMulZeroLeft y)
+    (ltMulPositiveRight x zero y yPositive xNegative);
+
+\definition numeratorNonZeroOfZeroLt (x: Fraction)
+  (positive: lt zero x): NumeratorNonZero x :=
+  \fun (numeratorZero: I.IntegerEq (numerator x) I.zeroInteger) =>
+    FractionOrder.ltIrrefl zero
+      (FractionOrder.ltReplaceRight zero x zero
+        (fractionEqZeroOfNumerator x numeratorZero) positive);
+
+\definition numeratorNonZeroOfLtZero (x: Fraction)
+  (negative: lt x zero): NumeratorNonZero x :=
+  \fun (numeratorZero: I.IntegerEq (numerator x) I.zeroInteger) =>
+    FractionOrder.ltIrrefl zero
+      (FractionOrder.ltReplaceLeft x zero zero
+        (fractionEqZeroOfNumerator x numeratorZero) negative);
+
+\definition ltMulPositiveCancelLeft (z, x, y: Fraction)
+  (positive: lt zero z) (scaled: lt (mul z x) (mul z y)): lt x y :=
+  Classical.orElim (lt x y)
+    (Logic.Or[FractionEq x y, lt y x]) (lt x y)
+    (\fun (xy: lt x y) => xy)
+    (\fun (rest: Logic.Or[FractionEq x y, lt y x]) =>
+      Classical.orElim (FractionEq x y) (lt y x) (lt x y)
+        (\fun (same: FractionEq x y) =>
+          Logic.falseElim (lt x y)
+            (FractionOrder.ltIrrefl (mul z x)
+              (FractionOrder.ltReplaceRight
+                (mul z x) (mul z y) (mul z x)
+                (fractionEqSym _ _
+                  (fractionMulRespects z z x y
+                    (fractionEqRefl z) same)) scaled)))
+        (\fun (yx: lt y x) =>
+          Logic.falseElim (lt x y)
+            (FractionOrder.ltIrrefl (mul z x)
+              (FractionOrder.ltTrans (mul z x) (mul z y) (mul z x)
+                scaled (ltMulPositiveLeft z y x positive yx))))
+        rest)
+    (FractionOrder.trichotomy x y);
+
+\definition positiveOfPositiveProductOne (b, r: Fraction)
+  (positive: lt zero b) (law: FractionEq (mul b r) one): lt zero r :=
+  Classical.orElim (lt zero r)
+    (Logic.Or[FractionEq zero r, lt r zero]) (lt zero r)
+    (\fun (result: lt zero r) => result)
+    (\fun (rest: Logic.Or[FractionEq zero r, lt r zero]) =>
+      Classical.orElim (FractionEq zero r) (lt r zero) (lt zero r)
+        (\fun (zeroR: FractionEq zero r) =>
+          Logic.falseElim (lt zero r)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltReplaceRight zero one zero
+                (fractionEqTrans one (mul b r) zero
+                  (fractionEqSym _ _ law)
+                  (fractionEqTrans (mul b r) (mul b zero) zero
+                    (fractionMulRespects b b r zero
+                      (fractionEqRefl b) (fractionEqSym _ _ zeroR))
+                    (fractionMulZeroRight b)))
+                FractionOrder.zeroLtOne)))
+        (\fun (negative: lt r zero) =>
+          Logic.falseElim (lt zero r)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltTrans zero one zero FractionOrder.zeroLtOne
+                (FractionOrder.ltReplaceLeft (mul b r) one zero law
+                  (mulLtZeroPositiveNegative b r positive negative)))))
+        rest)
+    (FractionOrder.trichotomy zero r);
+
+\definition negativeOfNegativeProductOne (b, r: Fraction)
+  (negative: lt b zero) (law: FractionEq (mul b r) one): lt r zero :=
+  Classical.orElim (lt r zero)
+    (Logic.Or[FractionEq r zero, lt zero r]) (lt r zero)
+    (\fun (result: lt r zero) => result)
+    (\fun (rest: Logic.Or[FractionEq r zero, lt zero r]) =>
+      Classical.orElim (FractionEq r zero) (lt zero r) (lt r zero)
+        (\fun (rZero: FractionEq r zero) =>
+          Logic.falseElim (lt r zero)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltReplaceRight zero one zero
+                (fractionEqTrans one (mul b r) zero
+                  (fractionEqSym _ _ law)
+                  (fractionEqTrans (mul b r) (mul b zero) zero
+                    (fractionMulRespects b b r zero
+                      (fractionEqRefl b) rZero)
+                    (fractionMulZeroRight b)))
+                FractionOrder.zeroLtOne)))
+        (\fun (positive: lt zero r) =>
+          Logic.falseElim (lt r zero)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltTrans zero one zero FractionOrder.zeroLtOne
+                (FractionOrder.ltReplaceLeft (mul b r) one zero law
+                  (mulLtZeroNegativePositive b r negative positive)))))
+        rest)
+    (FractionOrder.trichotomy r zero);
+
+\definition positiveRightOfPositiveProduct (a, b: Fraction)
+  (aPositive: lt zero a) (productPositive: lt zero (mul a b)):
+  lt zero b :=
+  Classical.orElim (lt zero b)
+    (Logic.Or[FractionEq zero b, lt b zero]) (lt zero b)
+    (\fun (positive: lt zero b) => positive)
+    (\fun (rest: Logic.Or[FractionEq zero b, lt b zero]) =>
+      Classical.orElim (FractionEq zero b) (lt b zero) (lt zero b)
+        (\fun (zeroB: FractionEq zero b) =>
+          Logic.falseElim (lt zero b)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltReplaceRight zero (mul a b) zero
+                (fractionEqTrans (mul a b) (mul a zero) zero
+                  (fractionMulRespects a a b zero
+                    (fractionEqRefl a) (fractionEqSym _ _ zeroB))
+                  (fractionMulZeroRight a)) productPositive)))
+        (\fun (negative: lt b zero) =>
+          Logic.falseElim (lt zero b)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltTrans zero (mul a b) zero productPositive
+                (mulLtZeroPositiveNegative a b aPositive negative))))
+        rest)
+    (FractionOrder.trichotomy zero b);
+
+\definition negativeRightOfPositiveProduct (a, b: Fraction)
+  (aNegative: lt a zero) (productPositive: lt zero (mul a b)):
+  lt b zero :=
+  Classical.orElim (lt b zero)
+    (Logic.Or[FractionEq b zero, lt zero b]) (lt b zero)
+    (\fun (negative: lt b zero) => negative)
+    (\fun (rest: Logic.Or[FractionEq b zero, lt zero b]) =>
+      Classical.orElim (FractionEq b zero) (lt zero b) (lt b zero)
+        (\fun (bZero: FractionEq b zero) =>
+          Logic.falseElim (lt b zero)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltReplaceRight zero (mul a b) zero
+                (fractionEqTrans (mul a b) (mul a zero) zero
+                  (fractionMulRespects a a b zero
+                    (fractionEqRefl a) bZero)
+                  (fractionMulZeroRight a)) productPositive)))
+        (\fun (positive: lt zero b) =>
+          Logic.falseElim (lt b zero)
+            (FractionOrder.ltIrrefl zero
+              (FractionOrder.ltTrans zero (mul a b) zero productPositive
+                (mulLtZeroNegativePositive a b aNegative positive))))
+        rest)
+    (FractionOrder.trichotomy b zero);
+
+\definition reciprocalOrderPositive (a, b, r, s: Fraction)
+  (aPositive: lt zero a) (ab: lt a b)
+  (br: FractionEq (mul b r) one)
+  (as: FractionEq (mul a s) one): lt r s :=
+  \block {
+    \let rPositive: lt zero r :=
+      positiveOfPositiveProductOne b r
+        (FractionOrder.ltTrans zero a b aPositive ab) br;
+    \let arbr: lt (mul a r) (mul b r) :=
+      ltMulPositiveRight a b r rPositive ab;
+    \let arOne: lt (mul a r) one :=
+      FractionOrder.ltReplaceRight (mul a r) (mul b r) one br arbr;
+    \let ars: lt (mul a r) (mul a s) :=
+      FractionOrder.ltReplaceRight (mul a r) one (mul a s)
+        (fractionEqSym _ _ as) arOne;
+    \return ltMulPositiveCancelLeft a r s aPositive ars;
+  };
+
+\definition ContractingFactor (q, c: Fraction): \Prop :=
+  \exists \Ty(Fraction, \Subset(a, Fraction,
+    Logic.And[lt zero a,
+      Logic.And[lt a one, lt q (mul a c)]]));
+
+\definition contractingFactor (q, c: Fraction) (qc: lt q c):
+  ContractingFactor q c :=
+  \block {
+    \let half: Fraction := midpoint zero one;
+    \let halfPositive: lt zero half := ltMidpoint zero one FractionOrder.zeroLtOne;
+    \let halfBelowOne: lt half one := midpointLt zero one FractionOrder.zeroLtOne;
+    \return Classical.orElim (lt zero c)
+      (Logic.Or[FractionEq zero c, lt c zero]) (ContractingFactor q c)
+      (\fun (cPositive: lt zero c) =>
+        Classical.orElim (lt zero q)
+          (Logic.Or[FractionEq zero q, lt q zero])
+          (ContractingFactor q c)
+          (\fun (qPositive: lt zero q) =>
+            \block {
+              \let r: Fraction := reciprocal c;
+              \let law: FractionEq (mul c r) one :=
+                fractionMulReciprocal c
+                  (numeratorNonZeroOfZeroLt c cPositive);
+              \let rPositive: lt zero r :=
+                positiveOfPositiveProductOne c r cPositive law;
+              \let qrOne: lt (mul q r) one :=
+                FractionOrder.ltReplaceRight (mul q r) (mul c r) one law
+                  (ltMulPositiveRight q c r rPositive qc);
+              \let a: Fraction := midpoint (mul q r) one;
+              \let qra: lt (mul q r) a :=
+                ltMidpoint (mul q r) one qrOne;
+              \let aOne: lt a one := midpointLt (mul q r) one qrOne;
+              \let qrPositive: lt zero (mul q r) :=
+                zeroLtMulPositive q r qPositive rPositive;
+              \let aPositive: lt zero a :=
+                FractionOrder.ltTrans zero (mul q r) a qrPositive qra;
+              \let leftEq: FractionEq (mul (mul q r) c) q :=
+                fractionEqTrans (mul (mul q r) c)
+                  (mul q (mul r c)) q
+                  (fractionMulAssoc q r c)
+                  (fractionEqTrans (mul q (mul r c)) (mul q one) q
+                    (fractionMulRespects q q (mul r c) one
+                      (fractionEqRefl q)
+                      (fractionEqTrans (mul r c) (mul c r) one
+                        (fractionMulComm r c) law))
+                    (fractionMulOneRight q));
+              \let qac: lt q (mul a c) :=
+                FractionOrder.ltReplaceLeft (mul (mul q r) c) q
+                  (mul a c) leftEq
+                  (ltMulPositiveRight (mul q r) a c cPositive qra);
+              \return \exact(
+                \subsetinto(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]]), a,
+                  \record Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] {
+                      left := aPositive,
+                      right := \record Logic.And[
+                        lt a one, lt q (mul a c)] {
+                          left := aOne, right := qac,
+                      },
+                  }),
+                \Ty(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]])));
+            })
+          (\fun (restQ: Logic.Or[FractionEq zero q, lt q zero]) =>
+            \block {
+              \let productPositive: lt zero (mul half c) :=
+                zeroLtMulPositive half c halfPositive cPositive;
+              \let qProduct: lt q (mul half c) :=
+                Classical.orElim (FractionEq zero q) (lt q zero)
+                  (lt q (mul half c))
+                  (\fun (zeroQ: FractionEq zero q) =>
+                    FractionOrder.ltReplaceLeft zero q (mul half c)
+                      zeroQ productPositive)
+                  (\fun (qNegative: lt q zero) =>
+                    FractionOrder.ltTrans q zero (mul half c)
+                      qNegative productPositive)
+                  restQ;
+              \return \exact(
+                \subsetinto(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]]), half,
+                  \record Logic.And[lt zero half,
+                    Logic.And[lt half one, lt q (mul half c)]] {
+                      left := halfPositive,
+                      right := \record Logic.And[
+                        lt half one, lt q (mul half c)] {
+                          left := halfBelowOne, right := qProduct,
+                      },
+                  }),
+                \Ty(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]])));
+            })
+          (FractionOrder.trichotomy zero q))
+      (\fun (restC: Logic.Or[FractionEq zero c, lt c zero]) =>
+        Classical.orElim (FractionEq zero c) (lt c zero)
+          (ContractingFactor q c)
+          (\fun (zeroC: FractionEq zero c) =>
+            \block {
+              \let qZero: lt q zero :=
+                FractionOrder.ltReplaceRight q c zero
+                  (fractionEqSym _ _ zeroC) qc;
+              \let halfCZero: FractionEq (mul half c) zero :=
+                fractionEqTrans (mul half c) (mul half zero) zero
+                  (fractionMulRespects half half c zero
+                    (fractionEqRefl half)
+                    (fractionEqSym _ _ zeroC))
+                  (fractionMulZeroRight half);
+              \let qProduct: lt q (mul half c) :=
+                FractionOrder.ltReplaceRight q zero (mul half c)
+                  (fractionEqSym _ _ halfCZero) qZero;
+              \return \exact(
+                \subsetinto(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]]), half,
+                  \record Logic.And[lt zero half,
+                    Logic.And[lt half one, lt q (mul half c)]] {
+                      left := halfPositive,
+                      right := \record Logic.And[
+                        lt half one, lt q (mul half c)] {
+                          left := halfBelowOne, right := qProduct,
+                      },
+                  }),
+                \Ty(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]])));
+            })
+          (\fun (cNegative: lt c zero) =>
+            \block {
+              \let cHalf: lt c (mul half c) :=
+                FractionOrder.ltRespects
+                  (mul c one) c (mul c half) (mul half c)
+                  (fractionMulOneRight c) (fractionMulComm c half)
+                  (ltMulNegativeLeft c half one cNegative halfBelowOne);
+              \let qProduct: lt q (mul half c) :=
+                FractionOrder.ltTrans q c (mul half c) qc cHalf;
+              \return \exact(
+                \subsetinto(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]]), half,
+                  \record Logic.And[lt zero half,
+                    Logic.And[lt half one, lt q (mul half c)]] {
+                      left := halfPositive,
+                      right := \record Logic.And[
+                        lt half one, lt q (mul half c)] {
+                          left := halfBelowOne, right := qProduct,
+                      },
+                  }),
+                \Ty(Fraction, \Subset(a, Fraction,
+                  Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]])));
+            })
+          restC)
+      (FractionOrder.trichotomy zero c);
+  };
+
+\definition SmallNegativeProduct (q, u: Fraction): \Prop :=
+  \exists \Ty(Fraction, \Subset(e, Fraction,
+    Logic.And[lt zero e, lt q (mul (neg e) u)]));
+
+\definition smallNegativeProduct (q, u: Fraction)
+  (qNegative: lt q zero) (uPositive: lt zero u):
+  SmallNegativeProduct q u :=
+  \block {
+    \let half: Fraction := midpoint zero one;
+    \let halfPositive: lt zero half :=
+      ltMidpoint zero one FractionOrder.zeroLtOne;
+    \let halfBelowOne: lt half one :=
+      midpointLt zero one FractionOrder.zeroLtOne;
+    \let t: Fraction := neg q;
+    \let tPositive: lt zero t := ltNegReverse q zero qNegative;
+    \let r: Fraction := reciprocal u;
+    \let law: FractionEq (mul u r) one :=
+      fractionMulReciprocal u (numeratorNonZeroOfZeroLt u uPositive);
+    \let rPositive: lt zero r :=
+      positiveOfPositiveProductOne u r uPositive law;
+    \let halfT: Fraction := mul half t;
+    \let halfTPositive: lt zero halfT :=
+      zeroLtMulPositive half t halfPositive tPositive;
+    \let e: Fraction := mul halfT r;
+    \let ePositive: lt zero e :=
+      zeroLtMulPositive halfT r halfTPositive rPositive;
+    \let euEq: FractionEq (mul e u) halfT :=
+      fractionEqTrans (mul (mul halfT r) u)
+        (mul halfT (mul r u)) halfT
+        (fractionMulAssoc halfT r u)
+        (fractionEqTrans (mul halfT (mul r u)) (mul halfT one) halfT
+          (fractionMulRespects halfT halfT (mul r u) one
+            (fractionEqRefl halfT)
+            (fractionEqTrans (mul r u) (mul u r) one
+              (fractionMulComm r u) law))
+          (fractionMulOneRight halfT));
+    \let halfTLtT: lt halfT t :=
+      FractionOrder.ltReplaceRight (mul half t) (mul one t) t
+        (fractionMulOneLeft t)
+        (ltMulPositiveRight half one t tPositive halfBelowOne);
+    \let euLtT: lt (mul e u) t :=
+      FractionOrder.ltReplaceLeft halfT (mul e u) t
+        (fractionEqSym _ _ euEq) halfTLtT;
+    \let negated: lt (neg t) (neg (mul e u)) :=
+      ltNegReverse (mul e u) t euLtT;
+    \let result: lt q (mul (neg e) u) :=
+      FractionOrder.ltRespects
+        (neg t) q (neg (mul e u)) (mul (neg e) u)
+        (fractionNegInvolutive q)
+        (fractionEqSym _ _ (fractionMulNegLeft e u)) negated;
+    \return \exact(
+      \subsetinto(Fraction, \Subset(e, Fraction,
+        Logic.And[lt zero e, lt q (mul (neg e) u)]), e,
+        \record Logic.And[lt zero e, lt q (mul (neg e) u)] {
+          left := ePositive, right := result,
+        }),
+      \Ty(Fraction, \Subset(e, Fraction,
+        Logic.And[lt zero e, lt q (mul (neg e) u)])));
+  };
+
+\definition fractionMulNegBoth (x, y: Fraction):
+  FractionEq (mul (neg x) (neg y)) (mul x y) :=
+  fractionEqTrans _ _ _
+    (fractionMulNegLeft x (neg y))
+    (fractionEqTrans _ _ _
+      (fractionNegRespects (mul x (neg y)) (neg (mul x y))
+        (fractionMulNegRight x y))
+      (fractionNegInvolutive (mul x y)));
 
 \module Quotient;

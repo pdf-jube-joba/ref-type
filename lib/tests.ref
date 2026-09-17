@@ -492,6 +492,10 @@
       RF.FractionEq x y -> RF.FractionEq u v ->
       RF.FractionEq (RO.mul x u) (RO.mul y v) :=
     RO.fractionMulRespects;
+  \definition reciprocalLaw:
+    \forall (x: RF.Fraction) -> RF.NumeratorNonZero x ->
+      RF.FractionEq (RO.mul x (RO.reciprocal x)) RF.one :=
+    RO.fractionMulReciprocal;
   \definition fractionAdditionZero:
     \forall (x: RF.Fraction) ->
       RF.FractionEq (RO.add x RF.zero) x :=
@@ -522,8 +526,46 @@
 
 \module DedekindRealExamples {
   \import \root.DedekindReal() \as D;
+  \import D.Operations() \as DO;
+  \import DO.Closed() \as DC;
+  \import DC.Laws() \as DL;
+  \import DC.Field() \as DF;
+  \import DO.CutLaws() \as DCL;
+  \import D.Completeness() \as DComplete;
   \definition orderReflexive:
     \forall (x: D.Real) -> D.Le x x := D.leRefl;
+  \definition additionAssociative:
+    \forall (x, y, z: D.Real) ->
+      DC.add (DC.add x y) z = DC.add x (DC.add y z) := DL.addAssoc;
+  \definition additionInverse:
+    \forall (x: D.Real) -> DC.add (DC.neg x) x = DC.zero := DL.addNegLeft;
+  \definition rationalAddition:
+    \forall (a, b: D.Rat) ->
+      DC.add (DC.ofRat a) (DC.ofRat b) = DC.ofRat (D.addRat a b) :=
+    DL.ofRatAdd;
+  \definition rationalStrictOrder:
+    \forall (a, b: D.Rat) -> D.lt a b -> D.Lt (DC.ofRat a) (DC.ofRat b) :=
+    DL.ltOfRat;
+  \definition additiveGroup: DL.CommutativeGroup :=
+    DL.additiveCommutativeGroup;
+  \definition multiplicationCommutative:
+    \forall (x, y: D.Real) -> DC.mul x y = DC.mul y x := DL.mulComm;
+  \definition multiplicationIdentity:
+    \forall (x: D.Real) -> DC.mul DC.one x = x := DL.mulOneLeft;
+  \definition multiplicationZero:
+    \forall (x: D.Real) -> DC.mul DC.zero x = DC.zero := DL.mulZeroLeft;
+  \definition inverse: D.Real -> D.Real := DC.inv;
+  \definition inverseClosure:
+    \forall (x: D.Real) ->
+      \Pred(\Power(D.Rat), D.CutSet, DO.InvLower x) :=
+    DCL.invCut;
+  \definition inverseZero: DC.inv DC.zero = DC.zero := DL.invZero;
+  \definition lowerCompleteness:
+    \forall (S: \Power(D.Real)) -> DComplete.Nonempty S ->
+      DComplete.BoundedBelow S ->
+      \exists \Ty(D.Real,
+        \Subset(l, D.Real, DComplete.GreatestLowerBound S l)) :=
+    DComplete.completeBelow;
 }
 
 \module CauchyRealExamples {

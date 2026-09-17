@@ -1,5 +1,7 @@
 \import RationalFractions.Order() \as RationalOrder;
 \import \root.Classical() \as Classical;
+\import \root.Equality() \as Equality;
+\use Equality.sym;
 \import \root.Pair() \as Pair;
 \import \root.AxiomaticReals(Carrier := Real) \as AR;
 \import \parent.Completeness() \as Complete;
@@ -45,6 +47,69 @@
   \by (xy);
 \definition ltTrans (x, y, z: Real) (xy: Lt x y) (yz: Lt y z): Lt x z :=
   ltLeTrans x y z xy (leOfLt y z yz);
+
+\definition notLtReverseOfLe (x, y: Real) (xy: Le x y): Logic.Not (Lt y x) :=
+  \fun (yx: Lt y x) => (ltNotLeReverse y x yx) xy;
+
+\definition leOfNotLtReverse (x, y: Real) (notReverse: Logic.Not (Lt y x)):
+  Le x y :=
+  \fun (q: Rat) => \fun (xq: mem x q) =>
+    byContradiction (mem y q)
+      (\fun (nyq: Logic.Not (mem y q)) =>
+        notReverse
+          (\exact(
+            \subsetinto(Rat,
+              \Subset(r, Rat,
+                Logic.And[Logic.Not (mem y r), mem x r]), q,
+              \record Logic.And[Logic.Not (mem y q), mem x q] {
+                left := nyq, right := xq,
+              }),
+            \Ty(Rat, \Subset(r, Rat,
+              Logic.And[Logic.Not (mem y r), mem x r])))));
+
+\definition ltOfLeNotEq (x, y: Real) (xy: Le x y)
+  (different: Logic.Not (x = y)): Lt x y :=
+  byContradiction (Lt x y)
+    (\fun (notLt: Logic.Not (Lt x y)) =>
+      different (leAntisym x y xy (leOfNotLtReverse y x notLt)));
+
+\definition ltAsym (x, y: Real) (xy: Lt x y): Logic.Not (Lt y x) :=
+  notLtReverseOfLe x y (leOfLt x y xy);
+
+\definition ltNotEq (x, y: Real) (xy: Lt x y): Logic.Not (x = y) :=
+  \fun (same: x = y) =>
+    ltIrrefl x
+      (\idelim(y = x \with z: Real => Lt x z)
+        \by (xy, sym!{Real} x y same));
+
+\definition ltTrichotomy (x, y: Real):
+  Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]] :=
+  Classical.orElim (Le x y) (Le y x)
+    (Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]])
+    (\fun (xy: Le x y) =>
+      Classical.orElim (x = y) (Logic.Not (x = y))
+        (Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]])
+        (\fun (same: x = y) =>
+          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::right
+            (Logic.Or[x = y, Lt y x]::left same))
+        (\fun (different: Logic.Not (x = y)) =>
+          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::left
+            (ltOfLeNotEq x y xy different))
+        (Classical.excludedMiddle (x = y)))
+    (\fun (yx: Le y x) =>
+      Classical.orElim (x = y) (Logic.Not (x = y))
+        (Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]])
+        (\fun (same: x = y) =>
+          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::right
+            (Logic.Or[x = y, Lt y x]::left same))
+        (\fun (different: Logic.Not (x = y)) =>
+          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::right
+            (Logic.Or[x = y, Lt y x]::right
+              (ltOfLeNotEq y x yx
+                (\fun (same: y = x) =>
+                  different (sym!{Real} y x same)))))
+        (Classical.excludedMiddle (x = y)))
+    (leTotal x y);
 
 /* This relation is used by every arithmetic structure on the cut carrier. */
 \definition leRelation: \Power(Pair.Times^[Real, Real]) :=
