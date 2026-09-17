@@ -3,8 +3,11 @@
 - [ ] パッケージの定義
 
 ## 構文の改良
-- block の take はその場で uniqueness を `\by` でとり、即座に入れ子の block 開始して最後に `dependenct` をとる
-- `\prec` の方が生で書けて AI には使いやすいらしいが、人間には見づらい。 block 内 induction を入れてそれで書けるようにする。
+- take は結局見にくそうなので、別のやり方にする
+  - goal に対する reverse っぽいものを作る。`?: B` に対して `\enough A \by t` で、 `t: A -> B` によって `A` の構成に帰着する。
+  - `\take` は `\exact` で書かせる。
+- `\prec` の方が生で書けて AI には使いやすいらしいが、人間には見づらい。 block 内 `\induction` を入れてそれで書けるようにする。
+- `\Subset` や `\Pred` とかかなり生っぽいので、ここら辺も構文をいい感じにする。
 
 ## 
 - front をマジで見てなかったが、 hole の関係で front 側でも conversion をやっているらしくて、かなり無駄。
