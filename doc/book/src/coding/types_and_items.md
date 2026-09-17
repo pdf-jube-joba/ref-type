@@ -5,7 +5,6 @@
 ## 名前へのアクセス
 
 名前へのアクセスには `::` を使う。
-値に対する `.` projection や method call は用意しない。
 
 ```text
 List[Nat]::nil

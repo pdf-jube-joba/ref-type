@@ -12,8 +12,6 @@
   - [types](./coding/types_and_items.md)
   - [type class](./coding/type_class.md)
   - [macro](./coding/macro.md)
-  - [module](./coding/module.md)
-  - [implementation](./coding/implementation.md)
 - [props](./props/props.md)
   - [相対無矛盾性](./props/proof.md)
   - [core metatheory](./props/metatheory.md)
