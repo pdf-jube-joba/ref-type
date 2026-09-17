@@ -60,10 +60,10 @@
   \definition hundredOne: Nat := Nat::succ hundred;
 
   \definition step:
-    \U((State ~> \F(\PRunStep(State, Nat)))) :=
+    \U((State ~> \F(\RunStep(State, Nat)))) :=
     \thunk((\cfun (state: State) => \match (state) \in State \with {
       | call argument continuation =>
-          \return(\Pcontinue(
+          \return(\continue(
             State,
             Nat,
             State::inspect
@@ -75,7 +75,7 @@
           \match (threshold) \in Nat \with {
           | zero =>
               /* original >= 101, and remaining + 91 = original - 10. */
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 Nat,
                 State::raise remaining ninetyOne continuation))
@@ -85,7 +85,7 @@
                   /* original <= 100: first evaluate M(original + 11),
                    * then the pending continuation evaluates M once more.
                    */
-                  \return(\Pcontinue(
+                  \return(\continue(
                     State,
                     Nat,
                     State::raiseAndCall
@@ -93,7 +93,7 @@
                       eleven
                       (Continuation::pending continuation)))
               | succ smallerRemaining =>
-                  \return(\Pcontinue(
+                  \return(\continue(
                     State,
                     Nat,
                     State::inspect
@@ -108,15 +108,15 @@
           | zero =>
               \match (continuation) \in Continuation \with {
               | done =>
-                  \return(\Pfinish(State, Nat, result))
+                  \return(\finish(State, Nat, result))
               | pending rest =>
-                  \return(\Pcontinue(
+                  \return(\continue(
                     State,
                     Nat,
                     State::call result rest))
               }
           | succ smallerAdditions =>
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 Nat,
                 State::raise
@@ -127,12 +127,12 @@
       | raiseAndCall argument additions continuation =>
           \match (additions) \in Nat \with {
           | zero =>
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 Nat,
                 State::call argument continuation))
           | succ smallerAdditions =>
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 Nat,
                 State::raiseAndCall
@@ -144,12 +144,12 @@
 
   /* This execution fixture takes the termination theorem as an explicit premise. */
   \definition stepSet: State^ -> \RunStep(State^, Nat^) :=
-    \Force(\F(\U((State ~> \F(\PRunStep(State, Nat))))),
-      \box(\F(\U((State ~> \F(\PRunStep(State, Nat))))), \return(step)));
+    \Force(\F(\U((State ~> \F(\RunStep(State, Nat))))),
+      \box(\F(\U((State ~> \F(\RunStep(State, Nat))))), \return(step)));
   \module Certified(terminates: \forall (n: Nat^) ->
     \Acc(State^, Nat^, stepSet, State^::call n Continuation^::done)) {
   \definition mcCarthy91: (Nat ~> \F(Nat)) :=
-    (\cfun (argument: Nat) => \Prun(
+    (\cfun (argument: Nat) => \run(
         State,
         Nat,
         step,

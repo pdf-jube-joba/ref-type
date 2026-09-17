@@ -562,26 +562,12 @@ pub enum SExp {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
     },
-    PRunStep {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-    },
     Continue {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         next: Box<SExp>,
     },
-    PContinue {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        next: Box<SExp>,
-    },
     Finish {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        output: Box<SExp>,
-    },
-    PFinish {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         output: Box<SExp>,
@@ -599,23 +585,7 @@ pub enum SExp {
         initial: Box<SExp>,
         accessibility: Box<SExp>,
     },
-    PRun {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        step: Box<SExp>,
-        initial: Box<SExp>,
-        accessibility: Box<SExp>,
-    },
     RunCase {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        step: Box<SExp>,
-        initial: Box<SExp>,
-        transition: Box<SExp>,
-        accessibility: Box<SExp>,
-        transition_equality: Box<SExp>,
-    },
-    PRunCase {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         step: Box<SExp>,
@@ -765,6 +735,7 @@ pub enum SExp {
     },
     // --- block of statements
     Block(Block),
+    Program(Block),
 }
 
 impl TryFrom<SExp> for ValueTypeExp {
@@ -788,7 +759,7 @@ impl TryFrom<SExp> for ValueTypeExp {
             } if vars.is_empty() => Ok(Self::Thunk(Box::new(cbv_arrow_as_computation_type(
                 *ty, *body,
             )?))),
-            SExp::PRunStep {
+            SExp::RunStep {
                 state_ty,
                 result_ty,
             } => Ok(Self::RunStep {
@@ -873,7 +844,7 @@ impl TryFrom<SExp> for ValueTermExp {
             expression @ SExp::Lam { .. } if arguments.is_empty() => Ok(Self::Thunk(Box::new(
                 cbv_lambda_as_computation(expression)?,
             ))),
-            SExp::PContinue {
+            SExp::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -882,7 +853,7 @@ impl TryFrom<SExp> for ValueTermExp {
                 result_ty: Box::new((*result_ty).try_into()?),
                 next: Box::new((*next).try_into()?),
             }),
-            SExp::PFinish {
+            SExp::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -985,7 +956,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                 value: Box::new((*value).try_into()?),
                 body: Box::new((*body).try_into()?),
             }),
-            SExp::Block(Block { statements, result }) => {
+            SExp::Program(Block { statements, result }) => {
                 let mut body = Self::Return(Box::new((*result).try_into()?));
                 for statement in statements.into_iter().rev() {
                     body = match statement {
@@ -1032,7 +1003,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                     })
                     .collect::<Result<_, String>>()?,
             }),
-            SExp::PRun {
+            SExp::Run {
                 state_ty,
                 result_ty,
                 step,
@@ -1045,7 +1016,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                 initial: Box::new((*initial).try_into()?),
                 accessibility,
             }),
-            SExp::PRunCase {
+            SExp::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -1140,19 +1111,10 @@ pub enum Statement {
         ty: SExp,
         computation: SExp,
     }, // bind x: A <- computation;
-    TakeSet {
-        bind: Bind,
-        existence: SExp,
-        uniqueness: SExp,
-    },
-    TakeProp {
-        bind: Bind,
-        existence: SExp,
-    },
     Sufficient {
         map: SExp,
         map_ty: SExp,
-    }, // suffices A by (h: A -> B);
+    }, // enough A by t;
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,24 @@
 //! Elaborate module parameters, imports, and declaration order.
 use super::*;
 
+fn require_explicit_module_argument(expression: &SExp) -> Result<(), ElaborationError> {
+    let mut expression = expression.clone();
+    let mut has_meta = false;
+    crate::macros::walk_sexp_control(&mut expression, &mut |node| {
+        if matches!(node, SExp::Meta { .. }) {
+            has_meta = true;
+            false
+        } else {
+            true
+        }
+    });
+    if has_meta {
+        Err("module arguments do not allow inference holes (`_` or `?`)".into())
+    } else {
+        Ok(())
+    }
+}
+
 impl GlobalEnvironment {
     fn solve_module_arguments(
         &mut self,
@@ -758,6 +776,7 @@ impl GlobalEnvironment {
                                 )
                                 .into());
                             }
+                            require_explicit_module_argument(expression)?;
                             let argument = match parameter.kind {
                                 ModuleParameterKind::Pts { .. } => {
                                     ModuleArgument::Pts(local_scope.elab_exp(expression, self)?)

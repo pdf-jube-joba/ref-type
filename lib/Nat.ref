@@ -1,12 +1,12 @@
-\import \root.Equality() \as Equality;
+\import \root.Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
 \use Equality.congr2;
 \use Equality.transport;
 
-\import \root.Bool() \as B;
-\import \root.Pair() \as P;
+\import \root.Bool[] \as B;
+\import \root.Pair[] \as P;
 
 /*
  * Natural numbers in the Program universe.
@@ -28,14 +28,14 @@
 ;
 
 \definition addStep:
-  \U((AddState -> \PRunStep(AddState, Nat))) :=
+  \U((AddState -> \RunStep(AddState, Nat))) :=
   \thunk((\cfun (state: AddState) => \match (state) \in AddState \with {
     | running accumulator remaining =>
         \match (remaining) \in Nat \with {
         | zero =>
-            \return(\Pfinish(AddState, Nat, accumulator))
+            \return(\finish(AddState, Nat, accumulator))
         | succ smaller =>
-            \return(\Pcontinue(
+            \return(\continue(
               AddState,
               Nat,
               AddState::running (Nat::succ accumulator) smaller))
@@ -46,8 +46,8 @@
  * that are evaluated without crossing into Set through a box. */
 /* Set specifications and the termination certificate for the Program above. */
 \definition addStepSet: AddState^ -> \RunStep(AddState^, Nat^) :=
-  \Force(\F(\U((AddState -> \PRunStep(AddState, Nat)))),
-    \box(\F(\U((AddState -> \PRunStep(AddState, Nat)))), \return(addStep)));
+  \Force(\F(\U((AddState -> \RunStep(AddState, Nat)))),
+    \box(\F(\U((AddState -> \RunStep(AddState, Nat)))), \return(addStep)));
 
 \definition addReady (t: \RunStep(AddState^, Nat^)): \Prop :=
     \Pred(Nat^, \runStepRec(AddState^, Nat^,
@@ -73,7 +73,7 @@
 
 \definition add:
   (Nat -> (Nat -> Nat)) :=
-  (\cfun (left: Nat) => \return(\thunk((\cfun (right: Nat) => \Prun(AddState, Nat, addStep, AddState::running left right)
+  (\cfun (left: Nat) => \return(\thunk((\cfun (right: Nat) => \run(AddState, Nat, addStep, AddState::running left right)
         \by addTerminates right left))));
 
 \definition addSet: Nat^ -> Nat^ -> Nat^ :=
@@ -121,17 +121,17 @@
 
 /* sub: both operands decrease on every continuing transition. */
 \inductive SubState: \VType := | running: Nat -> Nat -> SubState; ;
-\definition subStep: \U((SubState -> \PRunStep(SubState, Nat))) := \thunk((\cfun (state: SubState) => \match (state) \in SubState \with { | running a b =>
+\definition subStep: \U((SubState -> \RunStep(SubState, Nat))) := \thunk((\cfun (state: SubState) => \match (state) \in SubState \with { | running a b =>
     \match (b) \in Nat \with {
-    | zero => \return(\Pfinish(SubState, Nat, a))
+    | zero => \return(\finish(SubState, Nat, a))
     | succ k => \match (a) \in Nat \with {
-      | zero => \return(\Pfinish(SubState, Nat, Nat::zero))
-      | succ j => \return(\Pcontinue(SubState, Nat, SubState::running j k))
+      | zero => \return(\finish(SubState, Nat, Nat::zero))
+      | succ j => \return(\continue(SubState, Nat, SubState::running j k))
       }
     }
   }));
-\definition subStepSet: SubState^ -> \RunStep(SubState^, Nat^) := \Force(\F(\U((SubState -> \PRunStep(SubState,
-  Nat)))), \box(\F(\U((SubState -> \PRunStep(SubState, Nat)))), \return(subStep)));
+\definition subStepSet: SubState^ -> \RunStep(SubState^, Nat^) := \Force(\F(\U((SubState -> \RunStep(SubState,
+  Nat)))), \box(\F(\U((SubState -> \RunStep(SubState, Nat)))), \return(subStep)));
 \definition subReady (t: \RunStep(SubState^, Nat^)): \Prop := \Pred(Nat^,
     \runStepRec(SubState^, Nat^, (\fun (t: \RunStep(SubState^, Nat^)) => \Power(Nat^)),
       (\fun (s: SubState^) => \Subset(n, Nat^, \Acc(SubState^, Nat^, subStepSet, s))),
@@ -153,7 +153,7 @@
         (subAccIntro (SubState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
         (\fun (j: Nat^) => \fun (unused: \Acc(SubState^, Nat^, subStepSet, SubState^::running (j) (Nat^::succ k))) =>
           subAccIntro (SubState^::running (Nat^::succ j) (Nat^::succ k)) (ih j)));
-\definition sub: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \Prun(SubState, Nat, subStep, SubState::running a b) \by subTerminates b a))));
+\definition sub: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run(SubState, Nat, subStep, SubState::running a b) \by subTerminates b a))));
 \definition subSet: Nat^ -> Nat^ -> Nat^ := \Force((Nat -> (Nat -> Nat)), \box((Nat -> (Nat -> Nat)), sub));
 \definition subPrec (a, b: Nat^): Nat^ :=
   \prec(\Set, Nat^) (\fun (b: Nat^) => Nat^ -> Nat^)
@@ -174,17 +174,17 @@
 
 /* eqb: both operands decrease on every continuing transition. */
 \inductive EqbState: \VType := | running: Nat -> Nat -> EqbState; ;
-\definition eqbStep: \U((EqbState -> \PRunStep(EqbState, B.Bool))) := \thunk((\cfun (state: EqbState) => \match (state) \in EqbState \with { | running a b =>
+\definition eqbStep: \U((EqbState -> \RunStep(EqbState, B.Bool))) := \thunk((\cfun (state: EqbState) => \match (state) \in EqbState \with { | running a b =>
     \match (b) \in Nat \with {
-    | zero => \match (a) \in Nat \with { | zero => \return(\Pfinish(EqbState, B.Bool, B.Bool::true)) | succ k =>
-      \return(\Pfinish(EqbState, B.Bool, B.Bool::false)) }
+    | zero => \match (a) \in Nat \with { | zero => \return(\finish(EqbState, B.Bool, B.Bool::true)) | succ k =>
+      \return(\finish(EqbState, B.Bool, B.Bool::false)) }
     | succ k => \match (a) \in Nat \with {
-      | zero => \return(\Pfinish(EqbState, B.Bool, B.Bool::false))
-      | succ j => \return(\Pcontinue(EqbState, B.Bool, EqbState::running j k))
+      | zero => \return(\finish(EqbState, B.Bool, B.Bool::false))
+      | succ j => \return(\continue(EqbState, B.Bool, EqbState::running j k))
       }
     }
   }));
-\definition eqbStepSet: EqbState^ -> \RunStep(EqbState^, B.Bool^) := \Force(\F(\U((EqbState -> \PRunStep(EqbState, B.Bool)))), \box(\F(\U((EqbState -> \PRunStep(EqbState, B.Bool)))), \return(eqbStep)));
+\definition eqbStepSet: EqbState^ -> \RunStep(EqbState^, B.Bool^) := \Force(\F(\U((EqbState -> \RunStep(EqbState, B.Bool)))), \box(\F(\U((EqbState -> \RunStep(EqbState, B.Bool)))), \return(eqbStep)));
 \definition eqbReady (t: \RunStep(EqbState^, B.Bool^)): \Prop := \Pred(Nat^,
     \runStepRec(EqbState^, B.Bool^, (\fun (t: \RunStep(EqbState^, B.Bool^)) => \Power(Nat^)),
       (\fun (s: EqbState^) => \Subset(n, Nat^, \Acc(EqbState^, B.Bool^, eqbStepSet, s))),
@@ -206,7 +206,7 @@
         (eqbAccIntro (EqbState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
         (\fun (j: Nat^) => \fun (unused: \Acc(EqbState^, B.Bool^, eqbStepSet, EqbState^::running (j) (Nat^::succ k))) =>
           eqbAccIntro (EqbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j)));
-\definition eqb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \Prun(EqbState, B.Bool, eqbStep, EqbState::running a b) \by eqbTerminates b a))));
+\definition eqb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run(EqbState, B.Bool, eqbStep, EqbState::running a b) \by eqbTerminates b a))));
 \definition eqbSet: Nat^ -> Nat^ -> B.Bool^ := \Force((Nat -> (Nat -> B.Bool)), \box((Nat -> (Nat -> B.Bool)), eqb));
 \definition eqbPrec (a, b: Nat^): B.Bool^ :=
   \prec(\Set, Nat^) (\fun (b: Nat^) => Nat^ -> B.Bool^)
@@ -227,17 +227,17 @@
 
 /* leb: both operands decrease on every continuing transition. */
 \inductive LebState: \VType := | running: Nat -> Nat -> LebState; ;
-\definition lebStep: \U((LebState -> \PRunStep(LebState, B.Bool))) := \thunk((\cfun (state: LebState) => \match (state) \in LebState \with { | running a b =>
+\definition lebStep: \U((LebState -> \RunStep(LebState, B.Bool))) := \thunk((\cfun (state: LebState) => \match (state) \in LebState \with { | running a b =>
     \match (b) \in Nat \with {
-    | zero => \match (a) \in Nat \with { | zero => \return(\Pfinish(LebState, B.Bool, B.Bool::true)) | succ k =>
-      \return(\Pfinish(LebState, B.Bool, B.Bool::false)) }
+    | zero => \match (a) \in Nat \with { | zero => \return(\finish(LebState, B.Bool, B.Bool::true)) | succ k =>
+      \return(\finish(LebState, B.Bool, B.Bool::false)) }
     | succ k => \match (a) \in Nat \with {
-      | zero => \return(\Pfinish(LebState, B.Bool, B.Bool::true))
-      | succ j => \return(\Pcontinue(LebState, B.Bool, LebState::running j k))
+      | zero => \return(\finish(LebState, B.Bool, B.Bool::true))
+      | succ j => \return(\continue(LebState, B.Bool, LebState::running j k))
       }
     }
   }));
-\definition lebStepSet: LebState^ -> \RunStep(LebState^, B.Bool^) := \Force(\F(\U((LebState -> \PRunStep(LebState, B.Bool)))), \box(\F(\U((LebState -> \PRunStep(LebState, B.Bool)))), \return(lebStep)));
+\definition lebStepSet: LebState^ -> \RunStep(LebState^, B.Bool^) := \Force(\F(\U((LebState -> \RunStep(LebState, B.Bool)))), \box(\F(\U((LebState -> \RunStep(LebState, B.Bool)))), \return(lebStep)));
 \definition lebReady (t: \RunStep(LebState^, B.Bool^)): \Prop := \Pred(Nat^,
     \runStepRec(LebState^, B.Bool^, (\fun (t: \RunStep(LebState^, B.Bool^)) => \Power(Nat^)),
       (\fun (s: LebState^) => \Subset(n, Nat^, \Acc(LebState^, B.Bool^, lebStepSet, s))),
@@ -259,7 +259,7 @@
         (lebAccIntro (LebState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
         (\fun (j: Nat^) => \fun (unused: \Acc(LebState^, B.Bool^, lebStepSet, LebState^::running (j) (Nat^::succ k))) =>
           lebAccIntro (LebState^::running (Nat^::succ j) (Nat^::succ k)) (ih j)));
-\definition leb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \Prun(LebState, B.Bool, lebStep, LebState::running a b) \by lebTerminates b a))));
+\definition leb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run(LebState, B.Bool, lebStep, LebState::running a b) \by lebTerminates b a))));
 \definition lebSet: Nat^ -> Nat^ -> B.Bool^ := \Force((Nat -> (Nat -> B.Bool)), \box((Nat -> (Nat -> B.Bool)), leb));
 \definition lebPrec (a, b: Nat^): B.Bool^ :=
   \prec(\Set, Nat^) (\fun (b: Nat^) => Nat^ -> B.Bool^)
@@ -280,16 +280,16 @@
 
 /* ltb: both operands decrease on every continuing transition. */
 \inductive LtbState: \VType := | running: Nat -> Nat -> LtbState; ;
-\definition ltbStep: \U((LtbState -> \PRunStep(LtbState, B.Bool))) := \thunk((\cfun (state: LtbState) => \match (state) \in LtbState \with { | running a b =>
+\definition ltbStep: \U((LtbState -> \RunStep(LtbState, B.Bool))) := \thunk((\cfun (state: LtbState) => \match (state) \in LtbState \with { | running a b =>
     \match (b) \in Nat \with {
-    | zero => \return(\Pfinish(LtbState, B.Bool, B.Bool::false))
+    | zero => \return(\finish(LtbState, B.Bool, B.Bool::false))
     | succ k => \match (a) \in Nat \with {
-      | zero => \return(\Pfinish(LtbState, B.Bool, B.Bool::true))
-      | succ j => \return(\Pcontinue(LtbState, B.Bool, LtbState::running j k))
+      | zero => \return(\finish(LtbState, B.Bool, B.Bool::true))
+      | succ j => \return(\continue(LtbState, B.Bool, LtbState::running j k))
       }
     }
   }));
-\definition ltbStepSet: LtbState^ -> \RunStep(LtbState^, B.Bool^) := \Force(\F(\U((LtbState -> \PRunStep(LtbState, B.Bool)))), \box(\F(\U((LtbState -> \PRunStep(LtbState, B.Bool)))), \return(ltbStep)));
+\definition ltbStepSet: LtbState^ -> \RunStep(LtbState^, B.Bool^) := \Force(\F(\U((LtbState -> \RunStep(LtbState, B.Bool)))), \box(\F(\U((LtbState -> \RunStep(LtbState, B.Bool)))), \return(ltbStep)));
 \definition ltbReady (t: \RunStep(LtbState^, B.Bool^)): \Prop := \Pred(Nat^,
     \runStepRec(LtbState^, B.Bool^, (\fun (t: \RunStep(LtbState^, B.Bool^)) => \Power(Nat^)),
       (\fun (s: LtbState^) => \Subset(n, Nat^, \Acc(LtbState^, B.Bool^, ltbStepSet, s))),
@@ -311,7 +311,7 @@
         (ltbAccIntro (LtbState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
         (\fun (j: Nat^) => \fun (unused: \Acc(LtbState^, B.Bool^, ltbStepSet, LtbState^::running (j) (Nat^::succ k))) =>
           ltbAccIntro (LtbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j)));
-\definition ltb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \Prun(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a))));
+\definition ltb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a))));
 \definition ltbSet: Nat^ -> Nat^ -> B.Bool^ := \Force((Nat -> (Nat -> B.Bool)), \box((Nat -> (Nat -> B.Bool)), ltb));
 \definition ltbPrec (a, b: Nat^): B.Bool^ :=
   \prec(\Set, Nat^) (\fun (b: Nat^) => Nat^ -> B.Bool^)
@@ -334,19 +334,19 @@
 \inductive IterState: \VType :=
 | running: \U((Nat -> Nat)) -> Nat -> Nat -> IterState;
 ;
-\definition iterStep: \U((IterState -> \PRunStep(IterState, Nat))) :=
+\definition iterStep: \U((IterState -> \RunStep(IterState, Nat))) :=
   \thunk((\cfun (state: IterState) => \match (state) \in IterState \with {
   | running f value count => \match (count) \in Nat \with {
-    | zero => \return(\Pfinish(IterState, Nat, value))
-    | succ k => \block {
+    | zero => \return(\finish(IterState, Nat, value))
+    | succ k => \program {
   \bind next: Nat <- ((\force(f)) value);
-  \return \Pcontinue(IterState, Nat, IterState::running f next k);
+  \return \continue(IterState, Nat, IterState::running f next k);
 }
     }
   }));
 \definition iterStepSet: IterState^ -> \RunStep(IterState^, Nat^) :=
-  \Force(\F(\U((IterState -> \PRunStep(IterState, Nat)))),
-    \box(\F(\U((IterState -> \PRunStep(IterState, Nat)))), \return(iterStep)));
+  \Force(\F(\U((IterState -> \RunStep(IterState, Nat)))),
+    \box(\F(\U((IterState -> \RunStep(IterState, Nat)))), \return(iterStep)));
 \definition iterReady (t: \RunStep(IterState^, Nat^)): \Prop := \Pred(Nat^,
     \runStepRec(IterState^, Nat^, (\fun (t: \RunStep(IterState^, Nat^)) => \Power(Nat^)),
       (\fun (s: IterState^) => \Subset(n, Nat^, \Acc(IterState^, Nat^, iterStepSet, s))),
@@ -369,7 +369,7 @@
         iterAccIntro (IterState^::running f value (Nat^::succ k)) (ih f (f value)));
 \definition iter:
   (\U((Nat -> Nat)) -> (Nat -> (Nat -> Nat))) :=
-  (\cfun (f: \U((Nat -> Nat))) => \return(\thunk((\cfun (value: Nat) => \return(\thunk((\cfun (count: Nat) => \Prun(IterState, Nat, iterStep, IterState::running f value count)
+  (\cfun (f: \U((Nat -> Nat))) => \return(\thunk((\cfun (value: Nat) => \return(\thunk((\cfun (count: Nat) => \run(IterState, Nat, iterStep, IterState::running f value count)
         \by iterTerminates count f value)))))));
 \definition iterSet: (Nat^ -> Nat^) -> Nat^ -> Nat^ -> Nat^ :=
   \Force((\U((Nat -> Nat)) -> (Nat -> (Nat -> Nat))),
@@ -398,8 +398,8 @@
         \by (ih (f value), iterPrecStep f k value));
 
 \definition mul: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \Prun(IterState, Nat, iterStep, IterState::running
-      \thunk((\cfun (current: Nat) => \Prun(AddState, Nat, addStep, AddState::running a current)
+  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run(IterState, Nat, iterStep, IterState::running
+      \thunk((\cfun (current: Nat) => \run(AddState, Nat, addStep, AddState::running a current)
         \by addTerminates current a))
       Nat::zero b) \by iterTerminates b (addSet a) Nat^::zero))));
 \definition mulSet: Nat^ -> Nat^ -> Nat^ :=
@@ -409,9 +409,9 @@
 \definition mulMatchesPrec (a, b: Nat^): mulSet a b = mulPrec a b := iterMatchesPrec (addSet a) b Nat^::zero;
 
 \definition pow: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \Prun(IterState, Nat, iterStep, IterState::running
-      \thunk((\cfun (current: Nat) => \Prun(IterState, Nat, iterStep, IterState::running
-          \thunk((\cfun (next: Nat) => \Prun(AddState, Nat, addStep, AddState::running a next)
+  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run(IterState, Nat, iterStep, IterState::running
+      \thunk((\cfun (current: Nat) => \run(IterState, Nat, iterStep, IterState::running
+          \thunk((\cfun (next: Nat) => \run(AddState, Nat, addStep, AddState::running a next)
             \by addTerminates next a))
           Nat::zero current) \by iterTerminates current (addSet a) Nat^::zero))
       one b) \by iterTerminates b (mulSet a) (Nat^::succ Nat^::zero)))));
@@ -433,8 +433,8 @@
   \prec(\Prop, B.Bool^) (\fun (test: B.Bool^) => \forall (yes, no: Nat^) -> chooseSet test yes no = choosePrec test yes no)
     (\fun (yes, no: Nat^) => \refl(no)) (\fun (yes, no: Nat^) => \refl(yes));
 
-\definition min: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \block {
-  \bind test: B.Bool <- \Prun(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a;
+\definition min: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \bind test: B.Bool <- \run(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a;
   \bind selected: Nat <- \match (test) \in B.Bool \with { | false => \return(b) | true => \return(a) };
   \return selected;
 }))));
@@ -450,8 +450,8 @@
     \by (chooseMatchesPrec (ltbSet a b) a b, testMatches);
   };
 
-\definition max: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \block {
-  \bind test: B.Bool <- \Prun(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a;
+\definition max: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \bind test: B.Bool <- \run(LtbState, B.Bool, ltbStep, LtbState::running a b) \by ltbTerminates b a;
   \bind selected: Nat <- \match (test) \in B.Bool \with { | false => \return(a) | true => \return(b) };
   \return selected;
 }))));
@@ -475,8 +475,8 @@
   \prec(\Prop, Nat^) (\fun (n: Nat^) => toggleSet n = togglePrec n)
     (\refl(Nat^::succ Nat^::zero)) (\fun (k: Nat^) => \fun (ih: toggleSet k = togglePrec k) => \refl(Nat^::zero));
 
-\definition even: (Nat -> B.Bool) := (\cfun (n: Nat) => \block {
-  \bind parity: Nat <- \Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n)
+\definition even: (Nat -> B.Bool) := (\cfun (n: Nat) => \program {
+  \bind parity: Nat <- \run(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n)
     \by iterTerminates n toggleSet Nat^::zero;
   \bind result: B.Bool <- \match (parity) \in Nat \with { | zero => \return(B.Bool::true) | succ k => \return(B.Bool::false) };
   \return result;
@@ -502,8 +502,8 @@
       \by (evenTestMatches (iterPrec toggleSet Nat^::zero n), iterationMatches);
   };
 
-\definition odd: (Nat -> B.Bool) := (\cfun (n: Nat) => \block {
-  \bind parity: Nat <- \Prun(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n)
+\definition odd: (Nat -> B.Bool) := (\cfun (n: Nat) => \program {
+  \bind parity: Nat <- \run(IterState, Nat, iterStep, IterState::running \thunk(toggle) Nat::zero n)
     \by iterTerminates n toggleSet Nat^::zero;
   \bind result: B.Bool <- \match (parity) \in Nat \with { | zero => \return(B.Bool::false) | succ k => \return(B.Bool::true) };
   \return result;
@@ -553,19 +553,19 @@
 \inductive PairIterState: \VType :=
 | running: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) -> P.Times[Nat, Nat] -> Nat -> PairIterState;
 ;
-\definition pairIterStep: \U((PairIterState -> \PRunStep(PairIterState, P.Times[Nat, Nat]))) :=
+\definition pairIterStep: \U((PairIterState -> \RunStep(PairIterState, P.Times[Nat, Nat]))) :=
   \thunk((\cfun (state: PairIterState) => \match (state) \in PairIterState \with {
   | running f value count => \match (count) \in Nat \with {
-    | zero => \return(\Pfinish(PairIterState, P.Times[Nat, Nat], value))
-    | succ k => \block {
+    | zero => \return(\finish(PairIterState, P.Times[Nat, Nat], value))
+    | succ k => \program {
   \bind next: P.Times[Nat, Nat] <- ((\force(f)) value);
-  \return \Pcontinue(PairIterState, P.Times[Nat, Nat], PairIterState::running f next k);
+  \return \continue(PairIterState, P.Times[Nat, Nat], PairIterState::running f next k);
 }
     }
   }));
 \definition pairIterStepSet: PairIterState^ -> \RunStep(PairIterState^, P.Times^[Nat^, Nat^]) :=
-  \Force(\F(\U((PairIterState -> \PRunStep(PairIterState, P.Times[Nat, Nat])))),
-    \box(\F(\U((PairIterState -> \PRunStep(PairIterState, P.Times[Nat, Nat])))), \return(pairIterStep)));
+  \Force(\F(\U((PairIterState -> \RunStep(PairIterState, P.Times[Nat, Nat])))),
+    \box(\F(\U((PairIterState -> \RunStep(PairIterState, P.Times[Nat, Nat])))), \return(pairIterStep)));
 \definition pairIterReady (t: \RunStep(PairIterState^, NatPair)): \Prop := \Pred(Nat^,
     \runStepRec(PairIterState^, NatPair, (\fun (t: \RunStep(PairIterState^, NatPair)) => \Power(Nat^)),
       (\fun (s: PairIterState^) => \Subset(n, Nat^, \Acc(PairIterState^, NatPair, pairIterStepSet, s))),
@@ -589,7 +589,7 @@
         pairIterAccIntro (PairIterState^::running f value (Nat^::succ k)) (ih f (f value)));
 \definition pairIter:
   (\U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) -> (P.Times[Nat, Nat] -> (Nat -> P.Times[Nat, Nat]))) :=
-  (\cfun (f: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat]))) => \return(\thunk((\cfun (value: P.Times[Nat, Nat]) => \return(\thunk((\cfun (count: Nat) => \Prun(PairIterState, P.Times[Nat, Nat], pairIterStep, PairIterState::running f value count)
+  (\cfun (f: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat]))) => \return(\thunk((\cfun (value: P.Times[Nat, Nat]) => \return(\thunk((\cfun (count: Nat) => \run(PairIterState, P.Times[Nat, Nat], pairIterStep, PairIterState::running f value count)
         \by pairIterTerminates count f value)))))));
 \definition pairIterSet: (P.Times^[Nat^, Nat^] -> P.Times^[Nat^, Nat^]) -> P.Times^[Nat^, Nat^] -> Nat^ -> P.Times^[Nat^, Nat^] :=
   \Force((\U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) -> (P.Times[Nat, Nat] -> (Nat -> P.Times[Nat, Nat]))),
@@ -635,8 +635,8 @@
   | pair q r => \match (b) \in Nat \with {
     | zero => \return(P.Times[Nat, Nat]::pair q (Nat::succ r))
     | succ d =>
-      \block {
-  \bind hit: B.Bool <- \Prun(EqbState, B.Bool, eqbStep, EqbState::running r d)
+      \program {
+  \bind hit: B.Bool <- \run(EqbState, B.Bool, eqbStep, EqbState::running r d)
         \by eqbTerminates d r;
   \bind pick: \U((P.Times[Nat, Nat] -> (P.Times[Nat, Nat] -> P.Times[Nat, Nat]))) <- (pairChoose hit);
   \bind pickYes: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) <- ((\force(pick)) (P.Times[Nat, Nat]::pair (Nat::succ q) Nat::zero));
@@ -663,9 +663,9 @@
       (\fun (d: Nat^) => \fun (ih: divModNextSet d (natPair q r) = divModNextPrec d (natPair q r)) =>
         pairChooseMatchesPrec (eqbSet r d) (natPair (Nat^::succ q) Nat^::zero) (natPair q (Nat^::succ r))) b);
 \definition divMod: (Nat -> (Nat -> P.Times[Nat, Nat])) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \block {
+  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
   \bind advance: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) <- (divModNext b);
-  \bind result: P.Times[Nat, Nat] <- \Prun(PairIterState, P.Times[Nat, Nat], pairIterStep,
+  \bind result: P.Times[Nat, Nat] <- \run(PairIterState, P.Times[Nat, Nat], pairIterStep,
         PairIterState::running advance (P.Times[Nat, Nat]::pair Nat::zero Nat::zero) a)
         \by pairIterTerminates a advance (P.Times^[Nat^, Nat^]::pair Nat^::zero Nat^::zero);
   \return result;
@@ -695,14 +695,14 @@
     \return trans!{NatPair} _ _ _ iterationMatches stepMatches;
   };
 \definition div: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \block {
+  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
   \bind partial: \U((Nat -> P.Times[Nat, Nat])) <- (divMod a);
   \bind result: P.Times[Nat, Nat] <- ((\force(partial)) b);
   \bind quotient: Nat <- (first result);
   \return quotient;
 }))));
 \definition mod: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \block {
+  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
   \bind partial: \U((Nat -> P.Times[Nat, Nat])) <- (divMod a);
   \bind result: P.Times[Nat, Nat] <- ((\force(partial)) b);
   \bind remainder: Nat <- (second result);
@@ -725,7 +725,7 @@
   \thunk((\cfun (p: P.Times[Nat, Nat]) => \match (p) \in P.Times \with {
   | pair a b => \match (b) \in Nat \with {
     | zero => \return(P.Times[Nat, Nat]::pair a Nat::zero)
-    | succ d => \block {
+    | succ d => \program {
   \bind partial: \U((Nat -> Nat)) <- (mod a);
   \bind r: Nat <- ((\force(partial)) (Nat::succ d));
   \return P.Times[Nat, Nat]::pair (Nat::succ d) r;
@@ -748,8 +748,8 @@
           \with r: Nat^ => natPair (Nat^::succ d) (modSet a (Nat^::succ d)) = natPair (Nat^::succ d) r)
           \by (\refl(natPair (Nat^::succ d) (modSet a (Nat^::succ d))), modMatchesPrec a (Nat^::succ d))) b);
 \definition gcd: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \block {
-  \bind result: P.Times[Nat, Nat] <- \Prun(PairIterState, P.Times[Nat, Nat], pairIterStep, PairIterState::running gcdNext (P.Times[Nat, Nat]::pair a b) b)
+  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \bind result: P.Times[Nat, Nat] <- \run(PairIterState, P.Times[Nat, Nat], pairIterStep, PairIterState::running gcdNext (P.Times[Nat, Nat]::pair a b) b)
       \by pairIterTerminates b gcdNextSet (P.Times^[Nat^, Nat^]::pair a b);
   \bind divisor: Nat <- (first result);
   \return divisor;

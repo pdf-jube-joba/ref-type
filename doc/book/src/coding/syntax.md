@@ -19,7 +19,7 @@
 - `?` は出現ごとに fresh な goal、`?2` などの番号付き goal は一つの宣言内で共有する。
 - 束縛名の `_` は匿名束縛であり、式位置の implicit hole とは異なる。
 - sort は `\Prop`・`\PropKind`・`\Set`・`\SetKind`。Set 系は `\Set(2)` のように level を指定でき、省略時は 0。
-- `[]` はパラメータ指定用 ... `T[A, B]` は型・定義の明示的パラメータ指定
+- `[]` はパラメータ指定用。`T[A, B]` は型・定義へのパラメータ指定。
 - `.` は `scope.name` は import したスコープへのアクセス。
 - `::` は `T[A]::ctor x y` とかでコンストラクタへの適用とか field projection
 
@@ -38,12 +38,15 @@ module path 全体を一度に instance 化するほか、import 済みの gener
 起点に child module を instance 化できる。
 
 ```text
-\import \root.Parent(A := Nat) \as P;
-\import P.Child(x := value) \as C;
+\import \root.Parent[A := Nat] \as P;
+\import P.Child[x := value] \as C;
 ```
 
 このとき `C` 内から参照される親の型と定義は、同じ引数から再生成された別の親ではなく
-`P` のものになる。別途 `P.Child(...)` を実行すれば、child 自体は新しい instance になる。
+`P` のものになる。別途 `P.Child[...]` を実行すれば、child 自体は新しい instance になる。
+module path の各要素には `[]` が必須で、宣言された parameter は名前と宣言順を
+一致させてすべて指定する。parameter のない module も `Module[]` と書く。
+module argument では `_`・`?`・番号付き goal を使った推論も行わない。
 
 ## 論理側の束縛
 
@@ -62,8 +65,8 @@ refinement を持つ束縛は次のように書く。`\where` は条件、`\as` 
 \fun (x: A \where P x \as h) => body
 \exists A
 \exists {x: A \where P x}
-\take (x: A) => body \by (existence, uniqueness)
-\take (x: A) => body \by (existence)
+\take (x: A) => body \by { existence: existence, uniqueness: uniqueness }
+\take (x: A) => body \by { existence: existence }
 ```
 
 集合・証明の専用演算は従来の関数形式を使う。
@@ -82,7 +85,9 @@ refinement を持つ束縛は次のように書く。`\where` は条件、`\as` 
 ### ブロック記法
 
 `\block { ... }` の中で文を並べて項を構成できる。
-`\fix`・`\let`・`\take` の文に続き `\return expression;` で終える。
+`\fix`・`\let`・`\enough` の文に続き `\return expression;` で終える。
+最終的な型が `B` のとき、`\enough A \by t;` は `t: A -> B` を適用し、
+後続ブロックが作る項の型を `A` にする。
 
 > [!note]
 > 論理側の `\let x: A := value;` は局所定義で、
@@ -146,7 +151,7 @@ call by push value でやっているので値と計算が分かれている。
 連続する束縛は Program ブロックでも書ける。
 
 ```text
-\block {
+\program {
   \let x: A := value;
   \bind y: B <- computation;
   \return result;
@@ -170,11 +175,11 @@ call by push value でやっているので値と計算が分かれている。
 現在の型分類では対象の値の型がこの時点で判明している必要があるため、
 直前の束縛で型が `_` のままなら型名を明示する。
 
-再帰・反映の `\Prun`・`\Pcontinue`・`\box` などは従来の専用構文を使う。
+再帰・反映の `\run`・`\continue`・`\box` などは専用構文を使う。
 
-- `\Prun(A, B, step, initial) \by p` の停止性証明 `p` は必須である。
+- `\run(A, B, step, initial) \by p` の停止性証明 `p` は必須である。
   - `p` は Program の引数を Set 側へ反映した `\Acc(A, B, step, initial)` の証明として検査する。
-- `\PrunCase(A, B, step, initial, transition) \by (p, edge)` では、 `edge` として反映後の `step initial = transition` の証明を渡す。
+- `\runCase(A, B, step, initial, transition) \by (p, edge)` では、 `edge` として反映後の `step initial = transition` の証明を渡す。
 
 ## レコード
 
@@ -190,12 +195,12 @@ call by push value でやっているので値と計算が分かれている。
 
 ## マクロ
 
-`$( ... $)` は数式マクロ、`name!{ ... }` は名前付きマクロ。
+`\( ... \)` は数式マクロ、`name!{ ... }` は名前付きマクロ。
 マクロ内の `(...)` は常にマクロ列とする。通常の複合式は `{ ... }` で渡す。
 その内部では括弧を通常の式として使える。識別子などの atom は直接渡せる。
 
 ```text
-$( (x + y) + { f (g z) } $)
+\( (x + y) + { f (g z) } \)
 tagged!{{ f x } "keep"}
 ```
 
@@ -207,7 +212,7 @@ tagged!{{ f x } "keep"}
 Set/Prop、Program value、Program computation のいずれかを判定する。
 名前の後には括弧付き引数を付けられる。
 `\module Name(parameters) { ... }` は入れ子のモジュール、`\module Name;` は外部ファイル。
-`\import M(argument := value) \as Alias;` でモジュールを実体化する。
+`\import M[argument := value] \as Alias;` でモジュールを実体化する。
 
 実行方法と診断は [利用方法](../../../../src/USAGE.md)、
 型関連のアクセスは [型関連 item](types_and_items.md) を参照。

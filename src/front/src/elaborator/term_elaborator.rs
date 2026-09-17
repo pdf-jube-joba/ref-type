@@ -1363,12 +1363,7 @@ impl LocalScope {
             | SExp::ComputationLam { .. }
             | SExp::Sequence { .. }
             | SExp::ValueLet { .. }
-            | SExp::ProgramCase { .. }
-            | SExp::PRunStep { .. }
-            | SExp::PContinue { .. }
-            | SExp::PFinish { .. }
-            | SExp::PRun { .. }
-            | SExp::PRunCase { .. } => {
+            | SExp::ProgramCase { .. } => {
                 Err("Program syntax cannot be elaborated as a Set/Prop expression".into())
             }
             SExp::Block(block) => {
@@ -1398,34 +1393,27 @@ impl LocalScope {
                                 "\\bind statements are only available in Program blocks".into()
                             );
                         }
-                        Statement::TakeSet {
-                            bind,
-                            existence,
-                            uniqueness,
-                        } => {
-                            term = SExp::TakeSet {
-                                bind: bind.clone(),
-                                body: Box::new(term),
-                                existence: Box::new(existence.clone()),
-                                uniqueness: Box::new(uniqueness.clone()),
-                            };
-                        }
-                        Statement::TakeProp { bind, existence } => {
-                            term = SExp::TakeProp {
-                                bind: bind.clone(),
-                                body: Box::new(term),
-                                existence: Box::new(existence.clone()),
-                            };
-                        }
-                        Statement::Sufficient { map, map_ty: _ } => {
+                        Statement::Sufficient { map, map_ty } => {
+                            let argument = Identifier("enoughArgument".into());
                             term = SExp::App {
                                 func: Box::new(map.clone()),
-                                arg: Box::new(term),
+                                arg: Box::new(SExp::Where {
+                                    exp: Box::new(SExp::AccessPath {
+                                        access: LocalAccess::Current {
+                                            access: argument.clone(),
+                                        },
+                                        parameters: Vec::new(),
+                                    }),
+                                    clauses: vec![(argument, map_ty.clone(), term)],
+                                }),
                             };
                         }
                     }
                 }
                 self.elab_exp_rec(&term, handler)
+            }
+            SExp::Program(_) => {
+                Err("Program block syntax cannot be elaborated as a Set/Prop expression".into())
             }
         }
     }

@@ -312,7 +312,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             existence,
             uniqueness,
         } => format!(
-            "\\Take({}, {}, {}) by ({}, {})",
+            "\\Take({}, {}, {}) by {{ existence: {}, uniqueness: {} }}",
             child(domain),
             child(codomain),
             child(map),
@@ -325,7 +325,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             map,
             existence,
         } => format!(
-            "\\TakeProp({}, {}, {}) by ({})",
+            "\\TakeProp({}, {}, {}) by {{ existence: {} }}",
             child(domain),
             child(proposition),
             child(map),
@@ -441,7 +441,7 @@ pub fn format_value_type(env: &CrateEnv, ty: ValueType) -> String {
             state_ty,
             result_ty,
         } => format!(
-            "\\PRunStep({}, {})",
+            "\\RunStep({}, {})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty)
         ),
@@ -509,7 +509,7 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
             result_ty,
             next,
         } => format!(
-            "\\Pcontinue({}, {}, {})",
+            "\\continue({}, {}, {})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, next)
@@ -519,7 +519,7 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
             result_ty,
             output,
         } => format!(
-            "\\Pfinish({}, {}, {})",
+            "\\finish({}, {}, {})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, output)
@@ -616,7 +616,7 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             initial,
             accessibility,
         } => format!(
-            "\\Prun({}, {}, {}, {}) \\by {}",
+            "\\run({}, {}, {}, {}) \\by {}",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, step),
@@ -632,7 +632,7 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             accessibility,
             transition_equality,
         } => format!(
-            "\\PrunCase({}, {}, {}, {}, {}) \\by ({}, {})",
+            "\\runCase({}, {}, {}, {}, {}) \\by ({}, {})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, step),

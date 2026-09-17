@@ -34,19 +34,19 @@
   ;
 
   \definition step:
-    \U((State ~> \F(\PRunStep(State, OutputRose)))) :=
+    \U((State ~> \F(\RunStep(State, OutputRose)))) :=
     \thunk((\cfun (state: State) => \match (state) \in State \with {
       | visit input continuation =>
           \match (input) \in InputRose \with {
           | empty =>
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 OutputRose,
                 State::resume
                   continuation
                   OutputRose::empty))
           | node label children siblings =>
-              (\bind mappedLabel: B <- ((\force(function)) label) \in \return(\Pcontinue(
+              (\bind mappedLabel: B <- ((\force(function)) label) \in \return(\continue(
                   State,
                   OutputRose,
                   State::visit
@@ -59,9 +59,9 @@
       | resume continuation mapped =>
           \match (continuation) \in Continuation \with {
           | done =>
-              \return(\Pfinish(State, OutputRose, mapped))
+              \return(\finish(State, OutputRose, mapped))
           | afterChildren mappedLabel siblings rest =>
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 OutputRose,
                 State::visit
@@ -71,7 +71,7 @@
                     mapped
                     rest)))
           | afterSiblings mappedLabel mappedChildren rest =>
-              \return(\Pcontinue(
+              \return(\continue(
                 State,
                 OutputRose,
                 State::resume
@@ -86,7 +86,7 @@
   \module Certified(terminates: \forall (input: InputRose^) ->
     \Acc(State^, OutputRose^, stepSet, State^::visit input Continuation^::done)) {
   \definition map: (InputRose ~> \F(OutputRose)) :=
-    (\cfun (input: InputRose) => \Prun(
+    (\cfun (input: InputRose) => \run(
         State,
         OutputRose,
         step,

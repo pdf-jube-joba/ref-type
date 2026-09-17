@@ -2,11 +2,11 @@
         \module CertifiedSteps {
           \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
           \structure Owner(A: \VType): \VType := {};
-          \definition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
-            \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
+          \definition step: \U((Unit ~> \F(\RunStep(Unit, Unit)))) :=
+            \thunk((\cfun (s: Unit) => \return(\finish(Unit, Unit, Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep(Unit^, Unit^) :=
-            \Force(\F(\U((Unit ~> \F(\PRunStep(Unit, Unit))))),
-              \box(\F(\U((Unit ~> \F(\PRunStep(Unit, Unit))))), \return(step)));
+            \Force(\F(\U((Unit ~> \F(\RunStep(Unit, Unit))))),
+              \box(\F(\U((Unit ~> \F(\RunStep(Unit, Unit))))), \return(step)));
           \definition ready: \RunStep(Unit^, Unit^) -> \Prop :=
             \fun (r: \RunStep(Unit^, Unit^)) => \Pred(Unit^,
               \runStepRec(Unit^, Unit^, \fun (r: \RunStep(Unit^, Unit^)) => \Power(Unit^),
@@ -18,14 +18,14 @@
                 \idelim(stepSet s = \continue(Unit^, Unit^, next)
                   \with r: \RunStep(Unit^, Unit^) => ready r) \by (\refl(Unit^::unit), edge));
           \definition Owner(A: \VType)::result: \F(Unit) :=
-            \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit^::unit;
+            \run(Unit, Unit, step, Unit::unit) \by terminates Unit^::unit;
           \definition Owner(A: \VType)::otherResult: \F(Unit) :=
-            \Prun(Unit, Unit, step, Unit::other) \by terminates Unit^::other;
+            \run(Unit, Unit, step, Unit::other) \by terminates Unit^::other;
           \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), Owner[Unit]::result);
         }
     
 \module CertifiedConsumer {
-  \import \root.CertifiedSteps() \as S;
+  \import \root.CertifiedSteps[] \as S;
   \definition boxed: \Box(\F(S.Unit)) := \box(\F(S.Unit), S.Owner[S.Unit]::result);
   \normalize \Force(\F(S.Unit), boxed);
   \cnormalize S.Owner[S.Unit]::result;

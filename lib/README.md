@@ -34,7 +34,7 @@
 等式の基本操作は carrier をマクロ引数にして使用する。
 
 ```text
-\import \root.Equality() \as Equality;
+\import \root.Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
@@ -59,7 +59,7 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 固定した carrier の名前付き API が必要なら、次の形も使える。
 
 ```text
-\import \root.Equality().Laws(A := X) \as E;
+\import \root.Equality[].Laws[A := X] \as E;
 ```
 
 現在の PTS では命題内で `Set` 自体を量化しないため、carrier はマクロ展開時に指定する。
@@ -111,10 +111,10 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 型引数を省略できる。型を固定して複数の操作を使う場合は、同じ Pair instance の子を開く。
 
 ```text
-\import \root.Pair() \as P;
-\import P.Program(A := A, B := B) \as PP;
-\import PP.Mapping(C := C, D := D) \as PM;
-\import PP.Functions(C := C) \as PF;
+\import \root.Pair[] \as P;
+\import P.Program[A := A, B := B] \as PP;
+\import PP.Mapping[C := C, D := D] \as PM;
+\import PP.Functions[C := C] \as PF;
 ```
 
 ここで `A`、`B`、`C`、`D` は Program の値型である。
@@ -132,7 +132,7 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 計算結果は `\bind` で受け取る。複数引数の計算は `make a b` のように直接適用する。
 
 ```text
-\definition transform(p: P.Times[A, B]): \F(C) := \block {
+\definition transform(p: P.Times[A, B]): \F(C) := \program {
   \bind mapped: P.Times[C, D] <- PM.map (\thunk f) (\thunk g) p;
   \bind result: C <- P.Times::first mapped;
   \return result;
@@ -173,7 +173,7 @@ Bool・Nat・Int は `\VType` の Program データであり、Set 側の型は 
 - `addPrec`: primitive recursor による仕様
 - `addMatchesPrec`: 反映した演算と仕様の一致
 
-`\Prun` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
+`\run` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
 
 Nat は加減乗除、累乗、比較、有限反復、偶奇、GCD を持つ。除数が零なら
 `div a 0 = 0`、`mod a 0 = a` とし、`0^0 = 1` とする。自然数は単項表現なので、
@@ -185,9 +185,9 @@ Program 演算とその直接の仕様は `Nat` 本体に置き、一般の算�
 import 済み instance から child を順に開く。
 
 ```text
-\import \root.Nat() \as N;
-\import N.Laws() \as NL;
-\import NL.Division() \as ND;
+\import \root.Nat[] \as N;
+\import N.Laws[] \as NL;
+\import NL.Division[] \as ND;
 ```
 
 Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持つ。
@@ -200,13 +200,13 @@ Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持�
 `Int.Math.Specification`、代数法則は `Int.Math.Specification.Laws` に分離している。
 
 ```text
-\import \root.Int() \as I;
-\import I.Math() \as IM;
-\import IM.Specification() \as IS;
-\import IS.Laws() \as IL;
+\import \root.Int[] \as I;
+\import I.Math[] \as IM;
+\import IM.Specification[] \as IS;
+\import IS.Laws[] \as IL;
 ```
 
-Program の逐次計算は `\block` 内の `\bind` 文で記述する。各 block は最後に
+Program の逐次計算は `\program` 内の `\bind` 文で記述する。各 block は最後に
 `\return value;` を置き、旧来の深く入れ子になった `\bind ... \in ...` は使わない。
 
 別々に import した Nat / Bool の instance は混ぜられない。Int と組み合わせる場合は、
@@ -229,10 +229,10 @@ Rat の分子 `Integer` は Int の `ofNat` / `negSucc` 正規形である。`In
 `Rat.Fractions.Operations.Quotient` は商構成を担当する。
 
 ```text
-\import \root.Rat() \as R;
-\import R.Fractions() \as RF;
-\import RF.Operations() \as RO;
-\import RO.Quotient() \as RQ;
+\import \root.Rat[] \as R;
+\import R.Fractions[] \as RF;
+\import RF.Operations[] \as RO;
+\import RO.Quotient[] \as RQ;
 ```
 
 `Rat.Fractions.Operations.Quotient` は証明済みの `FractionEq` を汎用 `Quotient` に渡すので、

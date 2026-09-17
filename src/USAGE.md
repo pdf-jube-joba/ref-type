@@ -37,10 +37,12 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 module は front のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
 その alias を起点に child module も参照できる。module 内で宣言した import alias は
 その子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
+各 module path には `[]` が必要で、parameter は名前と宣言順を一致させてすべて指定する。
+module argument 内では `_`・`?` による推論を行わない。
 
 ```text
-\import \root.Parent(A := Nat) \as P;
-\import P.Child(x := value) \as C;
+\import \root.Parent[A := Nat] \as P;
+\import P.Child[x := value] \as C;
 ```
 
 `C` は `P` の代入を引き継ぐ。同じ元宣言に convertible な引数を渡す import は、
@@ -91,7 +93,7 @@ Program の値型と値は module parameter にできる。具体化するとき
 }
 \module Consumer {
   \inductive Unit: \VType := | unit: Unit; ;
-  \import \root.Source(A := Unit, a := Unit::unit) \as S;
+  \import \root.Source[A := Unit, a := Unit::unit] \as S;
   \vcheck S.value: Unit;
 }
 ```
@@ -108,14 +110,14 @@ Set 側では名前に `^` を付けて反映を明示する。`Unit^: \Set`、
 同じ束縛を文として並べる Program ブロックも使える。
 
 ```text
-\definition result: \F(A) := \block {
+\definition result: \F(A) := \program {
   \let x: A := a;
   \bind y: A <- identity x;
   \return y;
 };
 ```
 
-Program ブロックは `\let`・`\bind` の文を順に並べ、値を返す
+Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を順に並べ、値を返す
 `\return value;` で終える。各束縛名は後続の文だけで有効になる。
 `\definition f(x: A, y: B): C := body;` は、型 `A ~> B ~> C` と
 本体 `\cfun (x: A) (y: B) => body` に展開する。

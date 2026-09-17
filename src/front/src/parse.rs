@@ -35,9 +35,9 @@ enum Token<'a> {
     LParen,
     #[token(")")]
     RParen,
-    #[token("$(")]
+    #[token("\\(")]
     MathLParen,
-    #[token("$)")]
+    #[token("\\)")]
     MathRParen,
     // comment tokens (will be ignored before lex_all output)
     #[token("/*")]
@@ -94,24 +94,20 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\return",
     "\\force",
     "\\RunStep",
-    "\\PRunStep",
     "\\continue",
-    "\\Pcontinue",
     "\\finish",
-    "\\Pfinish",
     "\\Acc",
     "\\run",
-    "\\Prun",
     "\\runCase",
-    "\\PrunCase",
     "\\runStepRec",
     "\\Box",
     "\\box",
     "\\Force",
     "\\boxapp",
-    "\\exists", // \exists <Bind>
-    "\\take",   // \take <Bind> => <body>
-    "\\block",  // block expression
+    "\\exists",  // \exists <Bind>
+    "\\take",    // \take <Bind> => <body>
+    "\\block",   // block expression
+    "\\program", // Program block expression
 ];
 
 static PROOF_TERM_KEYWORDS: &[&str] = &[
@@ -502,22 +498,22 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Import { path, import_name })
     }
 
-    // <specified_module> = <mod_name> "(" (<param: Ident> ":=" <arg: SExp> ",")* ")"
+    // <specified_module> = <mod_name> "[" (<param: Ident> ":=" <arg: SExp> ",")* "]"
     fn parse_module_access_path(
         &mut self,
     ) -> Result<(Identifier, Vec<(Identifier, SExp)>), ParseError> {
         let module_name = self.expect_ident()?;
-        self.expect_token(Token::LParen)?;
+        self.expect_token(Token::LBracket)?;
 
         let mut assign_pairs = Vec::new();
-        if !self.bump_if_token(Token::RParen) {
+        if !self.bump_if_token(Token::RBracket) {
             loop {
                 let param = self.expect_ident()?;
                 self.expect_token(Token::Assign)?; // expect ':='
                 let arg = self.parse_sexp()?;
                 assign_pairs.push((param, arg));
 
-                if self.bump_if_token(Token::RParen) {
+                if self.bump_if_token(Token::RBracket) {
                     break; // end of parameter list
                 }
                 self.expect_token(Token::Comma)?; // expect ','
@@ -1019,7 +1015,7 @@ mod tests {
         }
         tok_all_ok(r"\forall (x: X) -> Y => z");
         tok_all_ok(r"(x @ z # a");
-        tok_all_ok(r"x $( y += z $)");
+        tok_all_ok(r"x \( y += z \)");
     }
     #[test]
     fn lexer_test() {
@@ -1031,12 +1027,12 @@ mod tests {
             }
         }
         print_and_unwrap(r"\forall (x: X) -> Y => z");
-        print_and_unwrap(r"x $( y + z $) l");
+        print_and_unwrap(r"x \( y + z \) l");
         print_and_unwrap(r"x mymacro!{ a + b c } l");
         print_and_unwrap(r"x /* this is a comment */ (y z)");
         print_and_unwrap(r"x :: y ++ := z");
         print_and_unwrap(r"\Prop \Set (0)");
-        print_and_unwrap(r"(( $( $) ))");
+        print_and_unwrap(r"(( \( \) ))");
         print_and_unwrap(r"x.y # name { hello: ");
     }
 
@@ -1046,8 +1042,8 @@ mod tests {
             r"\definition f(x: A, y): A := x;",
             r"\module M(x: A, y) {}",
             r"\inductive T: \Set := | ctor: ; ;",
-            r"\import M(x := ) \as Alias;",
-            r"\import M(). \as Alias;",
+            r"\import M[x := ] \as Alias;",
+            r"\import M[]. \as Alias;",
         ] {
             let tokens = lex_all(input).unwrap();
             let mut parser = Parser::new(&tokens);
@@ -1109,8 +1105,8 @@ mod tests {
             r"\definition l: \forall (X, Y: \Set) -> \SetKind := \fun (_: \Set) => a;",
         );
         print_and_unwrap(r"\definition one: Nat := Nat::succ Nat::zero;");
-        print_and_unwrap(r"\import MyModule () \as ImportedModule ;");
-        print_and_unwrap(r"\import MyModule ( A := B, C := \fun (x: X) => y) \as T;");
+        print_and_unwrap(r"\import MyModule [] \as ImportedModule ;");
+        print_and_unwrap(r"\import MyModule [ A := B, C := \fun (x: X) => y] \as T;");
         print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
         print_and_unwrap(r"\inductive Nat : \Set := | zero : Nat ; | succ : Nat -> Nat ; ;");
     }

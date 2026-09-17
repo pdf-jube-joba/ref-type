@@ -145,14 +145,14 @@ fn local_math_and_named_macros_expand_before_elaboration() {
             \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
             \math-macro plus($left, \+, $right) := first $left $right;
             \math-macro meet($left, \/\, $right) := first $left $right;
-            \macro via_math($left, $right) := $($left + $right $);
+            \macro via_math($left, $right) := \($left + $right \);
             \macro tagged($term, "ok") := $term;
-            \definition from_math: A := $(x + y $);
-            \definition from_nested_math: A := $((x + y) + x $);
-            \definition from_separate_operators: A := $((x + y) + (x /\ y) $);
+            \definition from_math: A := \(x + y \);
+            \definition from_nested_math: A := \((x + y) + x \);
+            \definition from_separate_operators: A := \((x + y) + (x /\ y) \);
             \definition from_named: A := tagged!{y "ok"};
             \definition from_braced_named: A := tagged!{{ first x y } "ok"};
-            \definition from_braced_math: A := $({ first x y } + y $);
+            \definition from_braced_math: A := \({ first x y } + y \);
             \definition from_nested_macro: A := via_math!{x y};
         }
     "#;
@@ -173,7 +173,7 @@ fn math_macro_requires_the_complete_sequence() {
         \module Macros(A: \Set(0), x: A, y: A) {
             \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
             \math-macro plus($left, \+, $right) := first $left $right;
-            \definition chained: A := $(x + y + x $);
+            \definition chained: A := \(x + y + x \);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -189,7 +189,7 @@ fn earlier_math_macro_wins_when_patterns_are_equally_applicable() {
             \definition keep_b: A -> A -> B := \fun (left: A) => \fun (right: A) => b;
             \math-macro earlier($left, \+, $right) := keep_a $left $right;
             \math-macro later($left, \+, $right) := keep_b $left $right;
-            \definition selected: A := $(a + a $);
+            \definition selected: A := \(a + a \);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -202,7 +202,7 @@ fn macro_templates_cannot_see_later_macro_declarations() {
     let source = r#"
         \module Ordered(A: \Set(0), x: A, y: A) {
             \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
-            \macro too_early($left, $right) := $($left + $right $);
+            \macro too_early($left, $right) := \($left + $right \);
             \math-macro plus($left, \+, $right) := first $left $right;
             \definition result: A := too_early!{x y};
         }
@@ -221,11 +221,11 @@ fn imported_macro_uses_the_materialized_module_arguments() {
             \math-macro imported_plus($left, \+, $right) := stored;
         }
         \module Consumer(A: \Set(0), value: A) {
-            \import \root.Provider(A := A, value := value) \as provider;
+            \import \root.Provider[A := A, value := value] \as provider;
             \use provider.supplied;
             \use provider.imported_plus;
             \definition result: A := supplied!{};
-            \definition math_result: A := $(value + value $);
+            \definition math_result: A := \(value + value \);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -268,10 +268,10 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
         }
         \module Consumer(A: \Set(0)) {
             \inductive Unit: \VType := | unit: Unit; ;
-            \import \root.Parent(A := A, X := Unit, x := Unit::unit) \as P;
-            \import P.Child(y := P.Token::token, z := Unit::unit) \as C1;
-            \import P.Child(y := P.Token::token, z := Unit::unit) \as C2;
-            \import C1.Grandchild() \as G;
+            \import \root.Parent[A := A, X := Unit, x := Unit::unit] \as P;
+            \import P.Child[y := P.Token::token, z := Unit::unit] \as C1;
+            \import P.Child[y := P.Token::token, z := Unit::unit] \as C2;
+            \import C1.Grandchild[] \as G;
             \definition inherited1: P.Token := C1.inherited;
             \definition inherited2: P.Token := C2.inherited;
             \vcheck C1.program_inherited: P.PToken;
@@ -319,10 +319,10 @@ fn child_modules_inherit_parent_import_aliases() {
             }
         }
         \module Parent(A: \Set(0), value: A) {
-            \import \root.Source(A := A, value := value) \as Shared;
+            \import \root.Source[A := A, value := value] \as Shared;
             \module Child {
                 \definition direct: A := Shared.get;
-                \import Shared.Nested() \as Nested;
+                \import Shared.Nested[] \as Nested;
                 \use Shared.get_macro;
                 \definition nested: A := Nested.get;
                 \definition from_macro: A := get_macro!{};
@@ -330,8 +330,8 @@ fn child_modules_inherit_parent_import_aliases() {
         }
         \module Consumer {
             \inductive Unit: \Set(0) := | unit: Unit; ;
-            \import \root.Parent(A := Unit, value := Unit::unit) \as Parent;
-            \import Parent.Child() \as Child;
+            \import \root.Parent[A := Unit, value := Unit::unit] \as Parent;
+            \import Parent.Child[] \as Child;
             \definition direct: Unit := Child.direct;
             \definition nested: Unit := Child.nested;
             \definition from_macro: Unit := Child.from_macro;
@@ -352,7 +352,7 @@ fn final_lowering_does_not_force_unused_instance_items() {
             \definition second: \Set(0) := A;
         }
         \module Consumer(A: \Set(0)) {
-            \import \root.Source(A := A) \as source;
+            \import \root.Source[A := A] \as source;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -373,12 +373,12 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
             \macro base_value() := value;
         }
         \module Wrapper(A: \Set(0), value: A) {
-            \import \root.Base(A := A, value := value) \as base;
+            \import \root.Base[A := A, value := value] \as base;
             \use base.base_value;
             \macro wrapped() := base_value!{};
         }
         \module Consumer(A: \Set(0), value: A) {
-            \import \root.Wrapper(A := A, value := value) \as wrapper;
+            \import \root.Wrapper[A := A, value := value] \as wrapper;
             \use wrapper.wrapped;
             \definition result: A := wrapped!{};
         }
@@ -441,6 +441,21 @@ fn logical_let_definitions_are_transparent_and_capture_avoiding() {
             \definition unused_proof: A := \block {
                 \let h: a = a := \refl(a);
                 \return a;
+            };
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn logical_enough_changes_the_remaining_goal() {
+    let source = r#"
+        \module Enough(P, Q: \Prop, p: P, implication: P -> Q) {
+            \definition result: Q := \block {
+                \enough P \by implication;
+                \return p;
             };
         }
     "#;
@@ -570,7 +585,7 @@ fn imported_macro_resolves_free_names_at_its_definition_site() {
             \macro supplied() := provided;
         }
         \module Consumer(A: \Set(0), B: \Set(0), a: A, provided: B) {
-            \import \root.Provider(A := A, provided := a) \as provider;
+            \import \root.Provider[A := A, provided := a] \as provider;
             \use provider.supplied;
             \definition result: A := supplied!{};
         }
@@ -738,7 +753,7 @@ fn implicit_solution_may_depend_on_its_local_binder_context() {
 fn program_value_definition_uses_the_value_judgement() {
     let source = r#"
         \module ProgramMeta(A: \VType, x: A) {
-            \definition finished: \PRunStep(A, A) := \Pfinish(A, A, x);
+            \definition finished: \RunStep(A, A) := \finish(A, A, x);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -762,20 +777,6 @@ fn program_value_and_computation_commands_are_separate() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     environment.add_new_module_to_root(&modules[0]).unwrap();
-}
-
-#[test]
-fn dependent_module_argument_solves_an_earlier_implicit() {
-    let source = r#"
-        \module Parameterized(X: \Set(0), x: X) {}
-        \module Use(A: \Set(0), a: A) {
-            \import \root.Parameterized(X := _, x := a) \as Instance;
-        }
-    "#;
-    let modules = parse::str_parse_modules(source).unwrap();
-    let mut environment = GlobalEnvironment::default();
-    environment.add_new_module_to_root(&modules[0]).unwrap();
-    environment.add_new_module_to_root(&modules[1]).unwrap();
 }
 
 #[test]
@@ -917,12 +918,12 @@ fn general_recursion_surface_typechecks_and_normalizes() {
         \module GeneralRecursion(
             A: \VType,
             B: \VType,
-            f: \U((A ~> \F(\PRunStep(A, B)))),
+            f: \U((A ~> \F(\RunStep(A, B)))),
             a: A,
             termination: \Acc(A^, B^, f^, a^)
         ) {
-            \definition result: \F(B) := \Prun(A, B, f, a) \by termination;
-            \cnormalize \Prun(A, B, f, a) \by termination;
+            \definition result: \F(B) := \run(A, B, f, a) \by termination;
+            \cnormalize \run(A, B, f, a) \by termination;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1271,11 +1272,11 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
           \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
-          \definition step: \U((Unit ~> \F(\PRunStep(Unit, Unit)))) :=
-            \thunk((\cfun (s: Unit) => \return(\Pfinish(Unit, Unit, Unit::unit))));
+          \definition step: \U((Unit ~> \F(\RunStep(Unit, Unit)))) :=
+            \thunk((\cfun (s: Unit) => \return(\finish(Unit, Unit, Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep(Unit^, Unit^) :=
-            \Force(\F(\U((Unit ~> \F(\PRunStep(Unit, Unit))))),
-              \box(\F(\U((Unit ~> \F(\PRunStep(Unit, Unit))))), \return(step)));
+            \Force(\F(\U((Unit ~> \F(\RunStep(Unit, Unit))))),
+              \box(\F(\U((Unit ~> \F(\RunStep(Unit, Unit))))), \return(step)));
           \definition ready: \RunStep(Unit^, Unit^) -> \Prop :=
             \fun (r: \RunStep(Unit^, Unit^)) => \Pred(Unit^,
               \runStepRec(Unit^, Unit^, \fun (r: \RunStep(Unit^, Unit^)) => \Power(Unit^),
@@ -1287,9 +1288,9 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
                 \idelim(stepSet s = \continue(Unit^, Unit^, next)
                   \with r: \RunStep(Unit^, Unit^) => ready r) \by (\refl(Unit^::unit), edge));
           \definition result: \F(Unit) :=
-            \Prun(Unit, Unit, step, Unit::unit) \by terminates Unit^::unit;
+            \run(Unit, Unit, step, Unit::unit) \by terminates Unit^::unit;
           \definition otherResult: \F(Unit) :=
-            \Prun(Unit, Unit, step, Unit::other) \by terminates Unit^::other;
+            \run(Unit, Unit, step, Unit::other) \by terminates Unit^::other;
           \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), result);
         }
     "#;
@@ -1371,16 +1372,16 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
 #[test]
 fn program_proofs_follow_local_binders_and_module_instantiation() {
     let source = r#"
-        \module Generic(A: \VType, step: \U((A ~> \F(\PRunStep(A, A)))),
+        \module Generic(A: \VType, step: \U((A ~> \F(\RunStep(A, A)))),
           total: \forall (s: A^) -> \Acc(A^, A^, step^, s)) {
-          \definition run(x: A): \F(A) := \Prun(A, A, step, x) \by total x;
+          \definition run(x: A): \F(A) := \run(A, A, step, x) \by total x;
           \definition runCase(x: A): \F(A) :=
             (\let y: A := x \in
-            \PrunCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step^ y)));
+            \runCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step^ y)));
         }
-        \module Consumer(A: \VType, f: \U((A ~> \F(\PRunStep(A, A)))),
+        \module Consumer(A: \VType, f: \U((A ~> \F(\RunStep(A, A)))),
           p: \forall (s: A^) -> \Acc(A^, A^, f^, s), a: A) {
-          \import \root.Generic(A := A, step := f, total := p) \as G;
+          \import \root.Generic[A := A, step := f, total := p] \as G;
           \definition result: \F(A) := G.runCase a;
           \cnormalize result;
         }
@@ -1453,8 +1454,8 @@ fn program_application_classification_preserves_cbpv_boundaries() {
     for term in [
         r"f x",
         r"(\thunk c) x",
-        r"\Pcontinue(A, B, x) y",
-        r"\Pfinish(A, B, x) y",
+        r"\continue(A, B, x) y",
+        r"\finish(A, B, x) y",
     ] {
         assert!(
             V::try_from(parse::str_parse_exp(term).unwrap()).is_err(),

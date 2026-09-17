@@ -314,8 +314,8 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
 \module Source(X: \VType, x: X);
 \module Consumer {
   \inductive Unit: \VType := | unit: Unit; ;
-  \import \root.Source(X := Unit, x := Unit::unit) \as S;
-  \import \root.Source(X := Unit, x := Unit::unit).Child() \as C;
+  \import \root.Source[X := Unit, x := Unit::unit] \as S;
+  \import \root.Source[X := Unit, x := Unit::unit].Child[] \as C;
   \vcheck S.value: Unit;
   \ccheck S.result: \F(Unit);
   \vcheck C.value: Unit;
@@ -353,7 +353,7 @@ fn external_child_module_inherits_parent_import_aliases() {
     fixture.write(
         "Parent.ref",
         r#"
-\import \root.Source() \as Shared;
+\import \root.Source[] \as Shared;
 \module Child;
 "#,
     );

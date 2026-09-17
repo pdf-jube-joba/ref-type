@@ -547,7 +547,7 @@ fn alpha_rename(
                 alpha_rename(field, order, counter, scopes);
             }
         }
-        SExp::Block(block) => {
+        SExp::Block(block) | SExp::Program(block) => {
             let mut pushed = 0;
             for statement in &mut block.statements {
                 match statement {
@@ -579,25 +579,6 @@ fn alpha_rename(
                         scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
                         pushed += 1;
                     }
-                    Statement::TakeSet {
-                        bind,
-                        existence,
-                        uniqueness,
-                    } => {
-                        let local = alpha_bind_type(bind, order, counter, scopes);
-                        alpha_rename(existence, order, counter, scopes);
-                        alpha_rename(uniqueness, order, counter, scopes);
-                        scopes.push(local);
-                        pushed += 1;
-                    }
-                    Statement::TakeProp {
-                        bind, existence, ..
-                    } => {
-                        let local = alpha_bind_type(bind, order, counter, scopes);
-                        alpha_rename(existence, order, counter, scopes);
-                        scopes.push(local);
-                        pushed += 1;
-                    }
                     Statement::Sufficient { map, map_ty } => {
                         alpha_rename(map, order, counter, scopes);
                         alpha_rename(map_ty, order, counter, scopes);
@@ -610,10 +591,6 @@ fn alpha_rename(
             }
         }
         SExp::RunStep {
-            state_ty,
-            result_ty,
-        }
-        | SExp::PRunStep {
             state_ty,
             result_ty,
         }
@@ -637,17 +614,7 @@ fn alpha_rename(
             result_ty,
             next,
         }
-        | SExp::PContinue {
-            state_ty,
-            result_ty,
-            next,
-        }
         | SExp::Finish {
-            state_ty,
-            result_ty,
-            output: next,
-        }
-        | SExp::PFinish {
             state_ty,
             result_ty,
             output: next,
@@ -686,16 +653,6 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::PRun {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            accessibility,
-        } => {
-            alpha_many([state_ty, result_ty, step, initial], order, counter, scopes);
-            alpha_rename(accessibility, order, counter, scopes);
-        }
         SExp::AccIntro {
             state_ty,
             result_ty,
@@ -730,24 +687,6 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::PRunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
-        } => {
-            alpha_many(
-                [state_ty, result_ty, step, initial, transition],
-                order,
-                counter,
-                scopes,
-            );
-            alpha_rename(accessibility, order, counter, scopes);
-            alpha_rename(transition_equality, order, counter, scopes);
-        }
         SExp::RunStepRec {
             state_ty,
             result_ty,
@@ -1581,10 +1520,6 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             state_ty,
             result_ty,
         }
-        | SExp::PRunStep {
-            state_ty,
-            result_ty,
-        }
         | SExp::Pred {
             superset: state_ty,
             subset: result_ty,
@@ -1612,21 +1547,11 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             result_ty,
             next,
         }
-        | SExp::PContinue {
-            state_ty,
-            result_ty,
-            next,
-        }
         | SExp::Finish {
             state_ty,
             result_ty,
             output: next,
         } => walk_many_mut([state_ty, result_ty, next], action),
-        SExp::PFinish {
-            state_ty,
-            result_ty,
-            output,
-        } => walk_many_mut([state_ty, result_ty, output], action),
         SExp::Acc {
             state_ty,
             result_ty,
@@ -1640,16 +1565,6 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             initial,
             accessibility,
         } => walk_many_mut([state_ty, result_ty, step, initial, accessibility], action),
-        SExp::PRun {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            accessibility,
-        } => {
-            walk_many_mut([state_ty, result_ty, step, initial], action);
-            walk_sexp_control(accessibility, action);
-        }
         SExp::RunCase {
             state_ty,
             result_ty,
@@ -1670,19 +1585,6 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             ],
             action,
         ),
-        SExp::PRunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
-        } => {
-            walk_many_mut([state_ty, result_ty, step, initial, transition], action);
-            walk_sexp_control(accessibility, action);
-            walk_sexp_control(transition_equality, action);
-        }
         SExp::RunStepRec {
             state_ty,
             result_ty,
@@ -1787,7 +1689,7 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             [func, domain, codomain, element, existence, uniqueness],
             action,
         ),
-        SExp::Block(block) => {
+        SExp::Block(block) | SExp::Program(block) => {
             for statement in &mut block.statements {
                 walk_statement_mut(statement, action);
             }
@@ -1845,21 +1747,6 @@ fn walk_statement_mut(statement: &mut Statement, action: &mut impl FnMut(&mut SE
         } => {
             walk_sexp_control(ty, action);
             walk_sexp_control(computation, action);
-        }
-        Statement::TakeSet {
-            bind,
-            existence,
-            uniqueness,
-        } => {
-            walk_bind_mut(bind, action);
-            walk_sexp_control(existence, action);
-            walk_sexp_control(uniqueness, action);
-        }
-        Statement::TakeProp {
-            bind, existence, ..
-        } => {
-            walk_bind_mut(bind, action);
-            walk_sexp_control(existence, action);
         }
         Statement::Sufficient { map, map_ty } => {
             walk_sexp_control(map, action);
