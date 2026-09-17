@@ -1,0 +1,59 @@
+/* Elementary topology on a carrier set. */
+\import \root.Logic() \as Logic;
+
+\definition Member (S: \Power(Carrier)) (x: Carrier): \Prop :=
+  \Pred(Carrier, S, x);
+
+\definition FamilyMember (family: \Power(\Power(Carrier)))
+  (S: \Power(Carrier)): \Prop :=
+  \Pred(\Power(Carrier), family, S);
+
+\definition Empty: \Power(Carrier) :=
+  \Subset(x, Carrier, Logic.False);
+
+\definition Whole: \Power(Carrier) :=
+  \Subset(x, Carrier, x = x);
+
+\definition UnionMember (family: \Power(\Power(Carrier))) (x: Carrier): \Prop :=
+  \exists \Ty(\Power(Carrier),
+    \Subset(U, \Power(Carrier), Logic.And[FamilyMember family U, Member U x]));
+
+\definition Union (family: \Power(\Power(Carrier))): \Power(Carrier) :=
+  \Subset(x, Carrier, UnionMember family x);
+
+\definition Intersection (S, T: \Power(Carrier)): \Power(Carrier) :=
+  \Subset(x, Carrier, Logic.And[Member S x, Member T x]);
+
+\structure RawTopology(Carrier: \Set): \Set := {
+  openSets: \Power(\Power(Carrier)),
+};
+
+\definition IsOpen (topology: RawTopology[Carrier]) (S: \Power(Carrier)): \Prop :=
+  \Pred(\Power(Carrier), RawTopology[Carrier]::openSets topology, S);
+
+/* The last two fields express closure under arbitrary unions and finite
+ * intersections; binary intersections together with Whole suffice here. */
+\structure TopologyLaws(topology: RawTopology[Carrier]): \Prop := {
+  emptyOpen: IsOpen topology Empty,
+  wholeOpen: IsOpen topology Whole,
+  unionOpen: \forall (family: \Power(\Power(Carrier))) ->
+    (\forall (S: \Power(Carrier)) -> FamilyMember family S -> IsOpen topology S) ->
+    IsOpen topology (Union family),
+  intersectionOpen: \forall (S, T: \Power(Carrier)) ->
+    IsOpen topology S -> IsOpen topology T ->
+    IsOpen topology (Intersection S T),
+};
+
+\definition TopologySet: \Power(RawTopology[Carrier]) :=
+  \Subset(topology, RawTopology[Carrier], TopologyLaws[topology]);
+
+\definition Topology: \Set :=
+  \Ty(RawTopology[Carrier], TopologySet);
+
+\definition raw (topology: Topology): RawTopology[Carrier] := topology;
+
+\definition laws (topology: Topology): TopologyLaws[raw topology] :=
+  \bysub(RawTopology[Carrier], TopologySet, topology);
+
+\definition IsOpenIn (topology: Topology) (S: \Power(Carrier)): \Prop :=
+  IsOpen (raw topology) S;
