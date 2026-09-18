@@ -410,6 +410,20 @@ fn infer_uncached(
             return_type,
             cases,
         } => infer_ind_elim(session, rule, phase, indspec, elim, return_type, &cases),
+        ExpNode::IndCase {
+            indspec,
+            scrutinee,
+            return_type,
+            branches,
+        } => infer_ind_case(
+            session,
+            rule,
+            phase,
+            indspec,
+            scrutinee,
+            return_type,
+            &branches,
+        ),
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,
@@ -1095,6 +1109,29 @@ fn infer_ind_elim(
     return_type: Exp,
     cases: &[Exp],
 ) -> Result<Exp, Box<JudgementError>> {
+    infer_inductive_elimination(
+        session,
+        rule,
+        phase,
+        indspec,
+        elim,
+        return_type,
+        cases,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn infer_inductive_elimination(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    indspec: InductiveId,
+    elim: Exp,
+    return_type: Exp,
+    cases: &[Exp],
+    recursive: bool,
+) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
     let inferred = add_infer!(session, rule, phase, elim, "infer eliminator type")?;
     let inferred = base_carrier(session.env(), inferred);
@@ -1146,7 +1183,11 @@ fn infer_ind_elim(
             parameters: parameters.clone(),
             idx: index,
         });
-        let case_ty = eliminator_type(arena, &constructor_ty, return_type, constructor, this);
+        let case_ty = if recursive {
+            eliminator_type(arena, &constructor_ty, return_type, constructor, this)
+        } else {
+            crate::raw::inductive::case_type(arena, &constructor_ty, return_type, constructor, this)
+        };
         add_check!(session, rule, phase, *case, case_ty, "check case type")?;
     }
     let motive = utils::assoc_apply(arena, return_type, indices);
@@ -1155,6 +1196,28 @@ fn infer_ind_elim(
         arg: elim,
     });
     Ok(crate::raw::calculus::whnf(session.env(), result))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn infer_ind_case(
+    session: &mut CheckSession<'_, '_>,
+    rule: &str,
+    phase: &str,
+    indspec: InductiveId,
+    scrutinee: Exp,
+    return_type: Exp,
+    branches: &[Exp],
+) -> Result<Exp, Box<JudgementError>> {
+    infer_inductive_elimination(
+        session,
+        rule,
+        phase,
+        indspec,
+        scrutinee,
+        return_type,
+        branches,
+        false,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1272,6 +1335,7 @@ fn exp_rule(arena: &Arena, term: Exp) -> &'static str {
         ExpNode::IndType { .. } => "IndType",
         ExpNode::IndCtor { .. } => "IndCtor",
         ExpNode::IndElim { .. } => "IndTypeElim",
+        ExpNode::IndCase { .. } => "IndCase",
         ExpNode::ReflectedProgramCase { .. } => "ReflectedProgramCase",
         ExpNode::RunStep { .. } => "RunStep",
         ExpNode::Continue { .. } => "Continue",

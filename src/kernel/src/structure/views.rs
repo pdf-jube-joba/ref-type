@@ -155,13 +155,17 @@ pub(crate) fn inductive_id(arena: &Arena, e: Expression) -> Option<InductiveId> 
     match e {
         Expression::SetTerm(h) => match arena.read(h).form {
             SetTermForm::IndCtor { inductive, .. } => Some(inductive),
-            SetTermForm::IndElim { inductive, .. } => Some(inductive),
+            SetTermForm::IndElim { inductive, .. } | SetTermForm::Case { inductive, .. } => {
+                Some(inductive)
+            }
             _ => None,
         },
         Expression::SetType(h) => match arena.read(h).form {
             SetTypeForm::IndType { inductive, .. } => Some(inductive),
             SetTypeForm::IndCtor { inductive, .. } => Some(inductive),
-            SetTypeForm::IndElim { inductive, .. } => Some(inductive),
+            SetTypeForm::IndElim { inductive, .. } | SetTypeForm::Case { inductive, .. } => {
+                Some(inductive)
+            }
             _ => None,
         },
         Expression::SetKind(h) => match arena.read(h).form {
@@ -170,13 +174,17 @@ pub(crate) fn inductive_id(arena: &Arena, e: Expression) -> Option<InductiveId> 
         },
         Expression::PropTerm(h) => match arena.read(h).form {
             PropTermForm::IndCtor { inductive, .. } => Some(inductive),
-            PropTermForm::IndElim { inductive, .. } => Some(inductive),
+            PropTermForm::IndElim { inductive, .. } | PropTermForm::Case { inductive, .. } => {
+                Some(inductive)
+            }
             _ => None,
         },
         Expression::PropType(h) => match arena.read(h).form {
             PropTypeForm::IndType { inductive, .. } => Some(inductive),
             PropTypeForm::IndCtor { inductive, .. } => Some(inductive),
-            PropTypeForm::IndElim { inductive, .. } => Some(inductive),
+            PropTypeForm::IndElim { inductive, .. } | PropTypeForm::Case { inductive, .. } => {
+                Some(inductive)
+            }
             _ => None,
         },
         Expression::PropKind(h) => match arena.read(h).form {
@@ -732,7 +740,7 @@ pub(crate) fn remap_references(
                 SetTermForm::IndCtor { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
-                SetTermForm::IndElim { inductive, .. } => {
+                SetTermForm::IndElim { inductive, .. } | SetTermForm::Case { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
                 SetTermForm::SetCase { inductive, .. } => {
@@ -756,7 +764,7 @@ pub(crate) fn remap_references(
                 SetTypeForm::IndCtor { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
-                SetTypeForm::IndElim { inductive, .. } => {
+                SetTypeForm::IndElim { inductive, .. } | SetTypeForm::Case { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
                 _ => {}
@@ -786,7 +794,7 @@ pub(crate) fn remap_references(
                 PropTermForm::IndCtor { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
-                PropTermForm::IndElim { inductive, .. } => {
+                PropTermForm::IndElim { inductive, .. } | PropTermForm::Case { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
                 _ => {}
@@ -807,7 +815,7 @@ pub(crate) fn remap_references(
                 PropTypeForm::IndCtor { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
-                PropTypeForm::IndElim { inductive, .. } => {
+                PropTypeForm::IndElim { inductive, .. } | PropTypeForm::Case { inductive, .. } => {
                     *inductive = inductives.get(inductive).copied().unwrap_or(*inductive)
                 }
                 _ => {}

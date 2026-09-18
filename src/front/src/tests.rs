@@ -63,6 +63,40 @@ fn record_fields_are_generated_as_eliminator_definitions() {
 }
 
 #[test]
+fn logical_case_is_distinct_from_inductive_elimination() {
+    let source = r#"
+        \module Cases {
+            \inductive Nat: \Set :=
+            | zero: Nat;
+            | succ: Nat -> Nat;
+            ;
+            \definition predecessor(n: Nat): Nat :=
+                \case n \in Nat \return (\fun (_: Nat) => Nat) {
+                | zero => Nat::zero
+                | succ => \fun (smaller: Nat) => smaller
+                };
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::Definition { definition, .. } = env.module(module).item("predecessor").unwrap()
+    else {
+        panic!("missing predecessor definition");
+    };
+    let DefinedConstant::Pts { body, .. } = env.definition(*definition) else {
+        panic!("predecessor should be a logical definition");
+    };
+    assert!(matches!(
+        env.arena().get(*body),
+        ExpNode::Lam { body, .. } if matches!(env.arena().get(body), ExpNode::IndCase { .. })
+    ));
+}
+
+#[test]
 fn deeply_nested_expressions_and_arrow_precedence() {
     // Re-parsing a non-arrow expression at every level makes these inputs
     // exponential, although their syntax trees are small.

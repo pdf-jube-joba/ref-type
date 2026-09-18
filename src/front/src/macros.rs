@@ -402,17 +402,17 @@ fn alpha_rename(
             element,
             proof,
         } => alpha_many([superset, subset, element, proof], order, counter, scopes),
-        SExp::IndElim {
+        SExp::IndCase {
             path,
-            elim,
+            scrutinee,
             return_type,
-            cases,
+            branches,
         } => {
             rename_access(path, scopes);
-            alpha_rename(elim, order, counter, scopes);
+            alpha_rename(scrutinee, order, counter, scopes);
             alpha_rename(return_type, order, counter, scopes);
-            for (_, case) in cases {
-                alpha_rename(case, order, counter, scopes);
+            for (_, branch) in branches {
+                alpha_rename(branch, order, counter, scopes);
             }
         }
         SExp::Induction {
@@ -935,7 +935,7 @@ fn prepare_template(
                     Err(message) => error = Some(message),
                 }
             }
-            SExp::IndElim { path, .. }
+            SExp::IndCase { path, .. }
             | SExp::IndElimPrim { path, .. }
             | SExp::ProgramCase { path, .. }
             | SExp::RecordTypeCtor { access: path, .. } => {
@@ -1220,7 +1220,7 @@ fn remap_macro_scope(
                 access: LocalAccess::Resolved { module, .. },
                 ..
             }
-            | SExp::IndElim {
+            | SExp::IndCase {
                 path: LocalAccess::Resolved { module, .. },
                 ..
             }
@@ -1505,16 +1505,16 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             element,
             proof,
         } => walk_many_mut([superset, subset, element, proof], action),
-        SExp::IndElim {
-            elim,
+        SExp::IndCase {
+            scrutinee,
             return_type,
-            cases,
+            branches,
             ..
         } => {
-            walk_sexp_control(elim, action);
+            walk_sexp_control(scrutinee, action);
             walk_sexp_control(return_type, action);
-            for (_, case) in cases {
-                walk_sexp_control(case, action);
+            for (_, branch) in branches {
+                walk_sexp_control(branch, action);
             }
         }
         SExp::Induction {

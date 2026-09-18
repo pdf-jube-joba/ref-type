@@ -147,6 +147,12 @@ pub enum ExpNode {
         return_type: Exp,
         cases: Vec<Exp>,
     },
+    IndCase {
+        indspec: InductiveId,
+        scrutinee: Exp,
+        return_type: Exp,
+        branches: Vec<Exp>,
+    },
     ReflectedProgramCase {
         indspec: ProgramInductiveId,
         scrutinee: Exp,

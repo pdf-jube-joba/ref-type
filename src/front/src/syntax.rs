@@ -500,12 +500,11 @@ pub enum SExp {
     },
 
     // --- inductive type
-    // Elim(ind_type_name, eliminated_exp, return_type){cases[0], ..., cases[m]}
-    IndElim {
+    IndCase {
         path: LocalAccess,
-        elim: Box<SExp>,
+        scrutinee: Box<SExp>,
         return_type: Box<SExp>,
-        cases: Vec<(Identifier, SExp)>,
+        branches: Vec<(Identifier, SExp)>,
     },
     Induction {
         binder: RightBind,

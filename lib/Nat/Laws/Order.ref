@@ -4,7 +4,7 @@
   Logic.Or[Lt a b, Logic.Or[a = b, Lt b a]];
 \definition comparisonSucc (a, b: Nat^) (h: Comparison a b):
   Comparison (Nat^::succ a) (Nat^::succ b) :=
-  \elim h \in Logic.Or \return (\fun (_: Comparison a b) =>
+  \case h \in Logic.Or \return (\fun (_: Comparison a b) =>
     Comparison (Nat^::succ a) (Nat^::succ b)) {
   | left => \fun (ab: Lt a b) =>
       Logic.Or[Lt (Nat^::succ a) (Nat^::succ b),
@@ -12,7 +12,7 @@
   | right => \fun (rest: Logic.Or[a = b, Lt b a]) =>
       Logic.Or[Lt (Nat^::succ a) (Nat^::succ b),
         Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]]::right
-        (\elim rest \in Logic.Or \return (\fun (_: Logic.Or[a = b, Lt b a]) =>
+        (\case rest \in Logic.Or \return (\fun (_: Logic.Or[a = b, Lt b a]) =>
           Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]) {
         | left => \fun (ab: a = b) =>
             Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]::left
@@ -22,46 +22,54 @@
         })
   };
 \definition trichotomy: \forall (a, b: Nat^) -> Comparison a b :=
-  \prec[Nat^, \fun (a: Nat^) => \forall (b: Nat^) -> Comparison a b]
-    (\prec[Nat^, \fun (b: Nat^) => Comparison Nat^::zero b]
-      (Logic.Or[Lt Nat^::zero Nat^::zero, Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]]::right
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Comparison a b \with {
+    | zero => (\induction (b: Nat^) \return Comparison Nat^::zero b \with {
+      | zero => (Logic.Or[Lt Nat^::zero Nat^::zero, Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]]::right
         (Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]::left (\refl(Nat^::zero))))
-      (\fun (b: Nat^) => \fun (_: Comparison Nat^::zero b) =>
+      | succ => (\fun (b: Nat^) => \fun (_: Comparison Nat^::zero b) =>
         Logic.Or[Lt Nat^::zero (Nat^::succ b), Logic.Or[Nat^::zero = Nat^::succ b, Lt (Nat^::succ b) Nat^::zero]]::left
-          (\refl(B.Bool^::true))))
-    (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Comparison a b) =>
-      \prec[Nat^, \fun (b: Nat^) => Comparison (Nat^::succ a) b]
-        (Logic.Or[Lt (Nat^::succ a) Nat^::zero, Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]]::right
+          (\refl(B.Bool^::true)))
+      })
+    | succ => (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Comparison a b) =>
+      \induction (b: Nat^) \return Comparison (Nat^::succ a) b \with {
+      | zero => (Logic.Or[Lt (Nat^::succ a) Nat^::zero, Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]]::right
           (Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]::right (\refl(B.Bool^::true))))
-        (\fun (b: Nat^) => \fun (_: Comparison (Nat^::succ a) b) => comparisonSucc a b (ih b)));
+      | succ => (\fun (b: Nat^) => \fun (_: Comparison (Nat^::succ a) b) => comparisonSucc a b (ih b))
+      })
+    };
 
 \definition leStep: \forall (b, a: Nat^) -> Le a b -> Le a (Nat^::succ b) :=
-  \prec[Nat^, \fun (b: Nat^) => \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b)]
-    (\prec[Nat^, \fun (a: Nat^) => Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero)]
-      (\fun (_: Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
-      (\fun (a: Nat^) => \fun (_: Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero)) =>
-        \fun (bad: Le (Nat^::succ a) Nat^::zero) => B.absurd (Le (Nat^::succ a) (Nat^::succ Nat^::zero)) bad))
-    (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b)) =>
-      \prec[Nat^, \fun (a: Nat^) => Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b))]
-        (\fun (_: Le Nat^::zero (Nat^::succ b)) => \refl(B.Bool^::true))
-        (\fun (a: Nat^) => \fun (_: Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b))) =>
-          \fun (h: Le (Nat^::succ a) (Nat^::succ b)) => ih a h));
+  \induction (b: Nat^) \return \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b) \with {
+    | zero => (\induction (a: Nat^) \return Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero) \with {
+      | zero => (\fun (_: Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
+      | succ => (\fun (a: Nat^) => \fun (_: Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero)) =>
+        \fun (bad: Le (Nat^::succ a) Nat^::zero) => B.absurd (Le (Nat^::succ a) (Nat^::succ Nat^::zero)) bad)
+      })
+    | succ => (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b)) =>
+      \induction (a: Nat^) \return Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b)) \with {
+      | zero => (\fun (_: Le Nat^::zero (Nat^::succ b)) => \refl(B.Bool^::true))
+      | succ => (\fun (a: Nat^) => \fun (_: Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b))) =>
+          \fun (h: Le (Nat^::succ a) (Nat^::succ b)) => ih a h)
+      })
+    };
 \definition leAddRight (a: Nat^): \forall (b: Nat^) -> Le a (addSet a b) :=
-  \prec[Nat^, \fun (b: Nat^) => Le a (addSet a b)]
-    (leRefl a)
-    (\fun (b: Nat^) => \fun (ih: Le a (addSet a b)) =>
+  \induction (b: Nat^) \return Le a (addSet a b) \with {
+    | zero => (leRefl a)
+    | succ => (\fun (b: Nat^) => \fun (ih: Le a (addSet a b)) =>
       \idelim(Nat^::succ (addSet a b) = addSet a (Nat^::succ b)
         \with c: Nat^ => Le a c)
-        \by { base: leStep (addSet a b) a ih, equality: sym!{Nat^} _ _ (addSuccRight a b) });
+        \by { base: leStep (addSet a b) a ih, equality: sym!{Nat^} _ _ (addSuccRight a b) })
+    };
 \definition leAddLeft (a, b: Nat^): Le b (addSet a b) :=
   \idelim(addSet b a = addSet a b \with c: Nat^ => Le b c)
     \by { base: leAddRight b a, equality: addComm b a };
 
 \definition ltZero: \forall (a: Nat^) -> Lt a Nat^::zero -> Logic.False :=
-  \prec[Nat^, \fun (a: Nat^) => Lt a Nat^::zero -> Logic.False]
-    B.falseNeTrue
-    (\fun (a: Nat^) => \fun (_: Lt a Nat^::zero -> Logic.False) =>
-      B.falseNeTrue);
+  \induction (a: Nat^) \return Lt a Nat^::zero -> Logic.False \with {
+    | zero => B.falseNeTrue
+    | succ => (\fun (a: Nat^) => \fun (_: Lt a Nat^::zero -> Logic.False) =>
+      B.falseNeTrue)
+    };
 
 \definition zeroLtSucc (a: Nat^): Lt Nat^::zero (Nat^::succ a) :=
   \refl(B.Bool^::true);
@@ -70,63 +78,66 @@
   (h: Lt (Nat^::succ a) (Nat^::succ b)): Lt a b := h;
 
 \definition ltStep: \forall (a, b: Nat^) -> Lt a b -> Lt a (Nat^::succ b) :=
-  \prec[Nat^, \fun (a: Nat^) => \forall (b: Nat^) -> Lt a b -> Lt a (Nat^::succ b)]
-    (\fun (b: Nat^) => \fun (_: Lt Nat^::zero b) => zeroLtSucc b)
-    (\fun (a: Nat^) =>
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Lt a b -> Lt a (Nat^::succ b) \with {
+    | zero => (\fun (b: Nat^) => \fun (_: Lt Nat^::zero b) => zeroLtSucc b)
+    | succ => (\fun (a: Nat^) =>
       \fun (ih: \forall (b: Nat^) -> Lt a b -> Lt a (Nat^::succ b)) =>
-        \prec[Nat^, \fun (b: Nat^) => Lt (Nat^::succ a) b -> Lt (Nat^::succ a) (Nat^::succ b)]
-          (\fun (bad: Lt (Nat^::succ a) Nat^::zero) =>
+        \induction (b: Nat^) \return Lt (Nat^::succ a) b -> Lt (Nat^::succ a) (Nat^::succ b) \with {
+      | zero => (\fun (bad: Lt (Nat^::succ a) Nat^::zero) =>
             Logic.falseElim (Lt (Nat^::succ a) (Nat^::succ Nat^::zero))
               (ltZero (Nat^::succ a) bad))
-          (\fun (b: Nat^) =>
+      | succ => (\fun (b: Nat^) =>
             \fun (_: Lt (Nat^::succ a) b -> Lt (Nat^::succ a) (Nat^::succ b)) =>
               \fun (ab: Lt (Nat^::succ a) (Nat^::succ b)) =>
-                ltSuccSucc a (Nat^::succ b) (ih b ab)));
+                ltSuccSucc a (Nat^::succ b) (ih b ab))
+      })
+    };
 
 \definition zeroLtOfLt (b: Nat^): \forall (c: Nat^) ->
   Lt b c -> Lt Nat^::zero c :=
-  \prec[Nat^, \fun (c: Nat^) => Lt b c -> Lt Nat^::zero c]
-    (\fun (bad: Lt b Nat^::zero) =>
+  \induction (c: Nat^) \return Lt b c -> Lt Nat^::zero c \with {
+    | zero => (\fun (bad: Lt b Nat^::zero) =>
       Logic.falseElim (Lt Nat^::zero Nat^::zero) (ltZero b bad))
-    (\fun (c: Nat^) => \fun (_: Lt b c -> Lt Nat^::zero c) =>
-      \fun (_: Lt b (Nat^::succ c)) => zeroLtSucc c);
+    | succ => (\fun (c: Nat^) => \fun (_: Lt b c -> Lt Nat^::zero c) =>
+      \fun (_: Lt b (Nat^::succ c)) => zeroLtSucc c)
+    };
 
 \definition ltTrans: \forall (a, b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c :=
-  \prec[Nat^, \fun (a: Nat^) =>
-    \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c]
-    (\fun (b, c: Nat^) => \fun (_: Lt Nat^::zero b) =>
+  \induction (a: Nat^) \return \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c \with {
+    | zero => (\fun (b, c: Nat^) => \fun (_: Lt Nat^::zero b) =>
       \fun (bc: Lt b c) => zeroLtOfLt b c bc)
-    (\fun (a: Nat^) =>
+    | succ => (\fun (a: Nat^) =>
       \fun (ih: \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c) =>
-        \prec[Nat^, \fun (b: Nat^) => \forall (c: Nat^) ->
-          Lt (Nat^::succ a) b -> Lt b c -> Lt (Nat^::succ a) c]
-          (\fun (c: Nat^) => \fun (bad: Lt (Nat^::succ a) Nat^::zero) =>
+        \induction (b: Nat^) \return \forall (c: Nat^) ->
+          Lt (Nat^::succ a) b -> Lt b c -> Lt (Nat^::succ a) c \with {
+      | zero => (\fun (c: Nat^) => \fun (bad: Lt (Nat^::succ a) Nat^::zero) =>
             \fun (_: Lt Nat^::zero c) =>
               Logic.falseElim (Lt (Nat^::succ a) c)
                 (ltZero (Nat^::succ a) bad))
-          (\fun (b: Nat^) =>
+      | succ => (\fun (b: Nat^) =>
             \fun (_: \forall (c: Nat^) -> Lt (Nat^::succ a) b ->
               Lt b c -> Lt (Nat^::succ a) c) =>
-              \prec[Nat^, \fun (c: Nat^) =>
-                Lt (Nat^::succ a) (Nat^::succ b) ->
-                Lt (Nat^::succ b) c -> Lt (Nat^::succ a) c]
-                (\fun (_: Lt (Nat^::succ a) (Nat^::succ b)) =>
+              \induction (c: Nat^) \return Lt (Nat^::succ a) (Nat^::succ b) ->
+                Lt (Nat^::succ b) c -> Lt (Nat^::succ a) c \with {
+        | zero => (\fun (_: Lt (Nat^::succ a) (Nat^::succ b)) =>
                   \fun (bad: Lt (Nat^::succ b) Nat^::zero) =>
                     Logic.falseElim (Lt (Nat^::succ a) Nat^::zero)
                       (ltZero (Nat^::succ b) bad))
-                (\fun (c: Nat^) =>
+        | succ => (\fun (c: Nat^) =>
                   \fun (_: Lt (Nat^::succ a) (Nat^::succ b) ->
                     Lt (Nat^::succ b) c -> Lt (Nat^::succ a) c) =>
                       \fun (ab: Lt (Nat^::succ a) (Nat^::succ b)) =>
                         \fun (bc: Lt (Nat^::succ b) (Nat^::succ c)) =>
-                          ih b c ab bc)));
+                          ih b c ab bc)
+        })
+      })
+    };
 
 \definition ltAddRight (a, b: Nat^): \forall (c: Nat^) ->
   Lt a b -> Lt (addSet a c) (addSet b c) :=
-  \prec[Nat^, \fun (c: Nat^) =>
-    Lt a b -> Lt (addSet a c) (addSet b c)]
-    (\fun (ab: Lt a b) => ab)
-    (\fun (c: Nat^) =>
+  \induction (c: Nat^) \return Lt a b -> Lt (addSet a c) (addSet b c) \with {
+    | zero => (\fun (ab: Lt a b) => ab)
+    | succ => (\fun (c: Nat^) =>
       \fun (ih: Lt a b -> Lt (addSet a c) (addSet b c)) =>
         \fun (ab: Lt a b) =>
           \idelim(Nat^::succ (addSet a c) = addSet a (Nat^::succ c)
@@ -136,7 +147,8 @@
                 \with right: Nat^ => Lt (Nat^::succ (addSet a c)) right)
                 \by { base: ltSuccSucc (addSet a c) (addSet b c) (ih ab), equality:
                   sym!{Nat^} _ _ (addSuccRight b c) }, equality:
-              sym!{Nat^} _ _ (addSuccRight a c) });
+              sym!{Nat^} _ _ (addSuccRight a c) })
+    };
 
 \definition ltAddLeft (c, a, b: Nat^) (ab: Lt a b):
   Lt (addSet c a) (addSet c b) :=
@@ -158,10 +170,9 @@
 
 \definition ltCancelRight (a, b: Nat^): \forall (c: Nat^) ->
   Lt (addSet a c) (addSet b c) -> Lt a b :=
-  \prec[Nat^, \fun (c: Nat^) =>
-    Lt (addSet a c) (addSet b c) -> Lt a b]
-    (\fun (ab: Lt a b) => ab)
-    (\fun (c: Nat^) =>
+  \induction (c: Nat^) \return Lt (addSet a c) (addSet b c) -> Lt a b \with {
+    | zero => (\fun (ab: Lt a b) => ab)
+    | succ => (\fun (c: Nat^) =>
       \fun (ih: Lt (addSet a c) (addSet b c) -> Lt a b) =>
         \fun (ab: Lt (addSet a (Nat^::succ c))
           (addSet b (Nat^::succ c))) =>
@@ -169,7 +180,8 @@
               (ltRespects
                 (addSet a (Nat^::succ c)) (addSet b (Nat^::succ c))
                 (Nat^::succ (addSet a c)) (Nat^::succ (addSet b c))
-                (addSuccRight a c) (addSuccRight b c) ab)));
+                (addSuccRight a c) (addSuccRight b c) ab)))
+    };
 
 \definition ltCancelLeft (c, a, b: Nat^)
   (ab: Lt (addSet c a) (addSet c b)): Lt a b :=
@@ -198,14 +210,14 @@
 
 \definition ltMulSuccRight (a, b: Nat^): \forall (k: Nat^) ->
   Lt a b -> Lt (mulSet a (Nat^::succ k)) (mulSet b (Nat^::succ k)) :=
-  \prec[Nat^, \fun (k: Nat^) => Lt a b ->
-    Lt (mulSet a (Nat^::succ k)) (mulSet b (Nat^::succ k))]
-    (\fun (ab: Lt a b) =>
+  \induction (k: Nat^) \return Lt a b ->
+    Lt (mulSet a (Nat^::succ k)) (mulSet b (Nat^::succ k)) \with {
+    | zero => (\fun (ab: Lt a b) =>
       ltRespects a b (mulSet a (Nat^::succ Nat^::zero))
         (mulSet b (Nat^::succ Nat^::zero))
         (sym!{Nat^} _ _ (mulOneRight a))
         (sym!{Nat^} _ _ (mulOneRight b)) ab)
-    (\fun (k: Nat^) =>
+    | succ => (\fun (k: Nat^) =>
       \fun (ih: Lt a b ->
         Lt (mulSet a (Nat^::succ k)) (mulSet b (Nat^::succ k))) =>
         \fun (ab: Lt a b) =>
@@ -217,16 +229,17 @@
             (sym!{Nat^} _ _ (mulSuccRight a (Nat^::succ k)))
             (sym!{Nat^} _ _ (mulSuccRight b (Nat^::succ k)))
             (ltAdd a b (mulSet a (Nat^::succ k))
-              (mulSet b (Nat^::succ k)) ab (ih ab)));
+              (mulSet b (Nat^::succ k)) ab (ih ab)))
+    };
 
 \definition ltCancelMulSuccRight (a, b, k: Nat^)
   (scaled: Lt (mulSet a (Nat^::succ k))
     (mulSet b (Nat^::succ k))): Lt a b :=
-  \elim (trichotomy a b) \in Logic.Or
+  \case (trichotomy a b) \in Logic.Or
     \return (\fun (_: Comparison a b) => Lt a b) {
   | left => \fun (ab: Lt a b) => ab
   | right => \fun (rest: Logic.Or[a = b, Lt b a]) =>
-      \elim rest \in Logic.Or
+      \case rest \in Logic.Or
         \return (\fun (_: Logic.Or[a = b, Lt b a]) => Lt a b) {
       | left => \fun (ab: a = b) =>
           Logic.falseElim (Lt a b)
@@ -243,20 +256,22 @@
   };
 
 \definition ltSelfSucc: \forall (a: Nat^) -> Lt a (Nat^::succ a) :=
-  \prec[Nat^, \fun (a: Nat^) => Lt a (Nat^::succ a)]
-    (zeroLtSucc Nat^::zero)
-    (\fun (a: Nat^) => \fun (ih: Lt a (Nat^::succ a)) => ih);
+  \induction (a: Nat^) \return Lt a (Nat^::succ a) \with {
+    | zero => (zeroLtSucc Nat^::zero)
+    | succ => (\fun (a: Nat^) => \fun (ih: Lt a (Nat^::succ a)) => ih)
+    };
 
 \definition ltSuccPlus (a: Nat^): \forall (c: Nat^) ->
   Lt a (addSet (Nat^::succ a) c) :=
-  \prec[Nat^, \fun (c: Nat^) => Lt a (addSet (Nat^::succ a) c)]
-    (ltSelfSucc a)
-    (\fun (c: Nat^) =>
+  \induction (c: Nat^) \return Lt a (addSet (Nat^::succ a) c) \with {
+    | zero => (ltSelfSucc a)
+    | succ => (\fun (c: Nat^) =>
       \fun (ih: Lt a (addSet (Nat^::succ a) c)) =>
         ltRespects a (Nat^::succ (addSet (Nat^::succ a) c))
           a (addSet (Nat^::succ a) (Nat^::succ c))
           (\refl(a)) (sym!{Nat^} _ _ (addSuccRight (Nat^::succ a) c))
-          (ltStep a (addSet (Nat^::succ a) c) ih));
+          (ltStep a (addSet (Nat^::succ a) c) ih))
+    };
 
 \definition ltPositiveProduct (a, k: Nat^):
   Lt a (mulSet (Nat^::succ k) (Nat^::succ a)) :=

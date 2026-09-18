@@ -129,8 +129,9 @@ Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を�
 `return`・`thunk`・`force`・`bind` の自動挿入は行わない。
 場合分けは `\match value \in Datatype \with { | ctor x => computation }`。
 型名は必須。分岐は次の `|` または `}` で区切り、末尾に `;` は付けない。
-引数なしの分岐は `| ctor => computation` とする。`\elim`・`\tmatch` の分岐も同様。
-旧 `\capp`・`\do`・`\case` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は受け付けない。
+引数なしの分岐は `| ctor => computation` とする。`\case`・`\tmatch` の分岐も同様。
+論理側の場合分けは `\case value \in Datatype \return motive { | ctor => branch }` とする。
+旧 `\capp`・`\do` および `\CFun`・`\clam`・`\sequence`・`\vlet`・`\vcase` は受け付けない。
 
 論理側の束縛は `\fun (x: A) => body` と `\forall (x: A) -> B`。
 束縛のない `A -> B` はそのまま使える。レコード生成は

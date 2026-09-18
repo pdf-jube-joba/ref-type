@@ -454,6 +454,21 @@ impl<'a> Checker<'a> {
                 motive_body.into(),
                 cases,
             )?,
+            SetTermForm::Case {
+                inductive,
+                motive_vars,
+                scrutinee,
+                motive_domains,
+                motive_body,
+                branches,
+            } => self.infer_inductive_case(
+                inductive,
+                motive_vars,
+                scrutinee.into(),
+                motive_domains,
+                motive_body.into(),
+                branches,
+            )?,
             SetTermForm::SetCase {
                 inductive,
                 binders,
@@ -567,6 +582,21 @@ impl<'a> Checker<'a> {
                 motive_domains,
                 motive_body.into(),
                 cases,
+            )?,
+            SetTypeForm::Case {
+                inductive,
+                motive_vars,
+                scrutinee,
+                motive_domains,
+                motive_body,
+                branches,
+            } => self.infer_inductive_case(
+                inductive,
+                motive_vars,
+                scrutinee.into(),
+                motive_domains,
+                motive_body.into(),
+                branches,
             )?,
         };
         self.validate_inferred(e, inferred)?;
@@ -776,6 +806,21 @@ impl<'a> Checker<'a> {
                 motive_body.into(),
                 cases,
             )?,
+            PropTermForm::Case {
+                inductive,
+                motive_vars,
+                scrutinee,
+                motive_domains,
+                motive_body,
+                branches,
+            } => self.infer_inductive_case(
+                inductive,
+                motive_vars,
+                scrutinee.into(),
+                motive_domains,
+                motive_body.into(),
+                branches,
+            )?,
         };
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
@@ -877,6 +922,21 @@ impl<'a> Checker<'a> {
                 motive_domains,
                 motive_body.into(),
                 cases,
+            )?,
+            PropTypeForm::Case {
+                inductive,
+                motive_vars,
+                scrutinee,
+                motive_domains,
+                motive_body,
+                branches,
+            } => self.infer_inductive_case(
+                inductive,
+                motive_vars,
+                scrutinee.into(),
+                motive_domains,
+                motive_body.into(),
+                branches,
             )?,
         };
         self.validate_inferred(e, inferred)?;
@@ -2351,6 +2411,27 @@ impl<'a> Checker<'a> {
         motive_body: Expression,
         cases: Vec<LogicalArgument>,
     ) -> Result<Expression, String> {
+        self.infer_inductive_elimination(
+            inductive,
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            cases,
+            true,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn infer_inductive_elimination(
+        &mut self,
+        inductive: InductiveId,
+        motive_vars: Vec<SymbolId>,
+        scrutinee: Expression,
+        motive_domains: Vec<LogicalExpression>,
+        motive_body: Expression,
+        cases: Vec<LogicalArgument>,
+        recursive: bool,
+    ) -> Result<Expression, String> {
         let spec = self
             .env
             .inductive(inductive)
@@ -2417,11 +2498,51 @@ impl<'a> Checker<'a> {
                 i,
                 parameters.clone(),
             )?;
-            let expected =
-                self.case_type(inductive, spec.constructors[i], ctor_ty, ctor, &motive)?;
+            let expected = if recursive {
+                self.case_type(inductive, spec.constructors[i], ctor_ty, ctor, &motive)?
+            } else {
+                self.case_match_type(ctor_ty, ctor, &motive)?
+            };
             self.check(case, expected)?;
         }
         Ok(applied)
+    }
+    fn infer_inductive_case(
+        &mut self,
+        inductive: InductiveId,
+        motive_vars: Vec<SymbolId>,
+        scrutinee: Expression,
+        motive_domains: Vec<LogicalExpression>,
+        motive_body: Expression,
+        branches: Vec<LogicalArgument>,
+    ) -> Result<Expression, String> {
+        self.infer_inductive_elimination(
+            inductive,
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            false,
+        )
+    }
+    fn case_match_type(
+        &mut self,
+        constructor_ty: Expression,
+        constructor: Expression,
+        motive: &Motive,
+    ) -> Result<Expression, String> {
+        let constructor_ty = whnf(self.env, constructor_ty)?;
+        if let Some(product) = structure::product(self.arena(), constructor_ty) {
+            return self.quantified(product.domain, |ch, field| {
+                let constructor = ch.application(ch.lifted(constructor, 1)?, field)?;
+                let motive = ch.lift_motive(motive)?;
+                ch.case_match_type(product.body, constructor, &motive)
+            });
+        }
+        let (_, mut args) = self.decompose_app(constructor_ty);
+        args.push(constructor);
+        self.apply_motive(motive, &args)
     }
     fn decompose_app(&self, e: Expression) -> (Expression, Vec<Expression>) {
         decompose_application(self.arena(), e)

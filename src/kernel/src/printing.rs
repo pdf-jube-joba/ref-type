@@ -67,6 +67,9 @@ fn label(arena: &Arena, e: Expression) -> String {
                 motive_vars,
                 ..
             } => format!("IndElim {{ inductive: {inductive:?}, motive_vars: {motive_vars:?} }}"),
+            SetTermForm::Case { inductive, .. } => {
+                format!("Case {{ inductive: {inductive:?} }}")
+            }
             SetTermForm::SetCase {
                 inductive, binders, ..
             } => format!("SetCase {{ inductive: {inductive:?}, binders: {binders:?} }}"),
@@ -114,6 +117,9 @@ fn label(arena: &Arena, e: Expression) -> String {
                 motive_vars,
                 ..
             } => format!("IndElim {{ inductive: {inductive:?}, motive_vars: {motive_vars:?} }}"),
+            SetTypeForm::Case { inductive, .. } => {
+                format!("Case {{ inductive: {inductive:?} }}")
+            }
         },
         Expression::SetKind(h) => match &arena.read(h).form {
             SetKindForm::Base => "Base".into(),
@@ -169,6 +175,9 @@ fn label(arena: &Arena, e: Expression) -> String {
                 motive_vars,
                 ..
             } => format!("IndElim {{ inductive: {inductive:?}, motive_vars: {motive_vars:?} }}"),
+            PropTermForm::Case { inductive, .. } => {
+                format!("Case {{ inductive: {inductive:?} }}")
+            }
         },
         Expression::PropType(h) => match &arena.read(h).form {
             PropTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
@@ -210,6 +219,9 @@ fn label(arena: &Arena, e: Expression) -> String {
                 motive_vars,
                 ..
             } => format!("IndElim {{ inductive: {inductive:?}, motive_vars: {motive_vars:?} }}"),
+            PropTypeForm::Case { inductive, .. } => {
+                format!("Case {{ inductive: {inductive:?} }}")
+            }
         },
         Expression::PropKind(h) => match &arena.read(h).form {
             PropKindForm::Base => "Base".into(),

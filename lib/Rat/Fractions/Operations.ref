@@ -570,16 +570,15 @@
  * canonical numerator, swapping its magnitude with the denominator keeps
  * the denominator positive. */
 \definition reciprocal (x: Fraction): Fraction :=
-  \prec[I.Int^, \fun (_: I.Int^) => Fraction]
-    (\fun (n: I.Nat) =>
-      \prec[N.Nat^, \fun (_: I.Nat) => Fraction]
-        zero
-        (\fun (k: I.Nat) => \fun (_: Fraction) =>
-          fraction (denominator x) k)
-        n)
-    (\fun (k: I.Nat) =>
+  \induction (_: I.Int^) \return Fraction \with {
+    | ofNat => (\fun (n: I.Nat) =>
+      \induction (_: N.Nat^) \return Fraction \with {
+        | zero => zero
+        | succ => (\fun (k: I.Nat) => \fun (_: _) => fraction (denominator x) k)
+        } n)
+    | negSucc => (\fun (k: I.Nat) =>
       fraction (I.negInteger (denominator x)) k)
-    (numerator x);
+    } (numerator x);
 
 \definition positiveReciprocalLaw (d, k: I.Nat):
   FractionEq
@@ -668,28 +667,26 @@
 
 \definition fractionMulReciprocal (x: Fraction)
   (nonzero: NumeratorNonZero x): FractionEq (mul x (reciprocal x)) one :=
-  \prec[I.Int^, \fun (n: I.Int^) =>
-      \forall (d: I.Nat) -> I.IntegerNonZero n ->
+  \induction (n: I.Int^) \return \forall (d: I.Nat) -> I.IntegerNonZero n ->
         FractionEq
-          (mul (fraction n d) (reciprocal (fraction n d))) one]
-    (\fun (n: I.Nat) =>
-      \prec[N.Nat^, \fun (n: I.Nat) =>
-          \forall (d: I.Nat) ->
+          (mul (fraction n d) (reciprocal (fraction n d))) one \with {
+    | ofNat => (\fun (n: I.Nat) =>
+      \induction (n: N.Nat^) \return \forall (d: I.Nat) ->
             I.IntegerNonZero (I.Int^::ofNat n) ->
             FractionEq
               (mul (fraction (I.Int^::ofNat n) d)
-                (reciprocal (fraction (I.Int^::ofNat n) d))) one]
-        (\fun (d: I.Nat) =>
+                (reciprocal (fraction (I.Int^::ofNat n) d))) one \with {
+                  | zero => (\fun (d: I.Nat) =>
           \fun (impossible: I.IntegerNonZero I.zeroInteger) =>
             Logic.falseElim _ (impossible (I.integerEqRefl I.zeroInteger)))
-        (\fun (k: I.Nat) => \fun (_: _) => \fun (d: I.Nat) =>
+                  | succ => (\fun (k: I.Nat) => \fun (_: _) => \fun (d: I.Nat) =>
           \fun (_: I.IntegerNonZero (I.Int^::ofNat (I.natSucc k))) =>
             positiveReciprocalLaw d k)
-        n)
-    (\fun (k: I.Nat) => \fun (d: I.Nat) =>
+                  } n)
+    | negSucc => (\fun (k: I.Nat) => \fun (d: I.Nat) =>
       \fun (_: I.IntegerNonZero (I.Int^::negSucc k)) =>
         negativeReciprocalLaw d k)
-    (numerator x) (denominatorIndex x) nonzero;
+    } (numerator x) (denominatorIndex x) nonzero;
 
 \definition mulAssocDenominator (x, y, z: Fraction):
     I.IntegerEq (denominator (mul (mul x y) z))

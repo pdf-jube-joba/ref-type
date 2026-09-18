@@ -2,13 +2,14 @@
 \import \root.Rel[Carrier := Difference] \as Rel;
 \definition diffAddCommon: \forall (k, a, b: Nat) ->
   diffPrec (N.addSet a k) (N.addSet b k) = diffPrec a b :=
-  \prec[N.Nat^, \fun (k: Nat) => \forall (a, b: Nat) -> diffPrec (N.addSet a k) (N.addSet b k) = diffPrec a b]
-    (\fun (a, b: Nat) => \refl(diffPrec a b))
-    (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> diffPrec (N.addSet a k) (N.addSet b k) = diffPrec a b) =>
+  \induction (k: N.Nat^) \return \forall (a, b: Nat) -> diffPrec (N.addSet a k) (N.addSet b k) = diffPrec a b \with {
+    | zero => (\fun (a, b: Nat) => \refl(diffPrec a b))
+    | succ => (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> diffPrec (N.addSet a k) (N.addSet b k) = diffPrec a b) =>
       \fun (a, b: Nat) => trans!{Int^} _ _ _
         (congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.addSet b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k))
         (trans!{Int^} _ _ _
-          (congr!{Nat Int^} (diffPrec (N.Nat^::succ (N.addSet a k))) _ _ (NL.addSuccRight b k)) (ih a b)));
+          (congr!{Nat Int^} (diffPrec (N.Nat^::succ (N.addSet a k))) _ _ (NL.addSuccRight b k)) (ih a b)))
+    };
 \definition diffRespects (a, b, c, d: Nat) (e: N.addSet a d = N.addSet c b): diffPrec a b = diffPrec c d :=
     trans!{Int^} _ _ _ (sym!{Int^} _ _ (diffAddCommon d a b))
       (trans!{Int^} _ _ _ (congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.addSet b d)) _ _ e)
@@ -17,19 +18,21 @@
 /* The normal form represents the original formal difference. */
 \definition diffBalance: \forall (b, a: Nat) ->
   N.addSet a (negativePrec (diffPrec a b)) = N.addSet (positivePrec (diffPrec a b)) b :=
-  \prec[N.Nat^, \fun (b: Nat) => \forall (a: Nat) ->
-      N.addSet a (negativePrec (diffPrec a b)) = N.addSet (positivePrec (diffPrec a b)) b]
-    (\fun (a: Nat) => \refl(a))
-    (\fun (b: Nat) => \fun (ih: \forall (a: Nat) ->
+  \induction (b: N.Nat^) \return \forall (a: Nat) ->
+      N.addSet a (negativePrec (diffPrec a b)) = N.addSet (positivePrec (diffPrec a b)) b \with {
+    | zero => (\fun (a: Nat) => \refl(a))
+    | succ => (\fun (b: Nat) => \fun (ih: \forall (a: Nat) ->
       N.addSet a (negativePrec (diffPrec a b)) = N.addSet (positivePrec (diffPrec a b)) b) =>
-      \prec[N.Nat^, \fun (a: Nat) => N.addSet a (negativePrec (diffPrec a (N.Nat^::succ b))) =
-          N.addSet (positivePrec (diffPrec a (N.Nat^::succ b))) (N.Nat^::succ b)]
-        (\refl(N.addSet N.Nat^::zero (N.Nat^::succ b)))
-        (\fun (a: Nat) => \fun (unused: N.addSet a (negativePrec (diffPrec a (N.Nat^::succ b))) =
+      \induction (a: N.Nat^) \return N.addSet a (negativePrec (diffPrec a (N.Nat^::succ b))) =
+          N.addSet (positivePrec (diffPrec a (N.Nat^::succ b))) (N.Nat^::succ b) \with {
+      | zero => (\refl(N.addSet N.Nat^::zero (N.Nat^::succ b)))
+      | succ => (\fun (a: Nat) => \fun (unused: N.addSet a (negativePrec (diffPrec a (N.Nat^::succ b))) =
           N.addSet (positivePrec (diffPrec a (N.Nat^::succ b))) (N.Nat^::succ b)) =>
           trans!{Nat} _ _ _ (NL.addSuccLeft a (negativePrec (diffPrec a b)))
             (trans!{Nat} _ _ _ (N.succCong _ _ (ih a))
-              (sym!{Nat} _ _ (NL.addSuccRight (positivePrec (diffPrec a b)) b)))));
+              (sym!{Nat} _ _ (NL.addSuccRight (positivePrec (diffPrec a b)) b))))
+      })
+    };
 
 \definition Equivalent (x, y: Difference): \Prop :=
   N.addSet (pos x) (negPart y) = N.addSet (pos y) (negPart x);

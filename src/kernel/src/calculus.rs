@@ -443,6 +443,45 @@ fn reduce_inductive(
     }
     Ok(Some(case))
 }
+fn reduce_inductive_case(
+    env: &Environment,
+    inductive: InductiveId,
+    scrutinee: Expression,
+    branches: &[LogicalArgument],
+) -> Result<Option<Expression>, String> {
+    let a = &env.arena;
+    let (head, arguments) = decompose_application(a, scrutinee);
+    let Some((actual, constructor, parameters)) = structure::inductive_constructor(a, head) else {
+        return Ok(None);
+    };
+    if actual != inductive {
+        return Ok(None);
+    }
+    let spec = env.inductive(inductive).ok_or("unknown inductive")?;
+    let mut ty = instantiate_telescope(
+        env,
+        *spec
+            .constructors
+            .get(constructor)
+            .ok_or("unknown constructor")?,
+        &expressions(&parameters),
+    )?;
+    let mut rules = Vec::with_capacity(arguments.len());
+    for &argument in &arguments {
+        ty = whnf(env, ty)?;
+        let product = structure::product(a, ty).ok_or("constructor applied to excess arguments")?;
+        rules.push(product.rule);
+        ty = substitute_with_reflection(env, product.body, argument)?;
+    }
+    if structure::product(a, whnf(env, ty)?).is_some() {
+        return Ok(None);
+    }
+    let mut branch: Expression = (*branches.get(constructor).ok_or("missing case branch")?).into();
+    for (argument, rule) in arguments.into_iter().zip(rules) {
+        branch = build::apply(a, rule, branch, argument)?;
+    }
+    Ok(Some(branch))
+}
 fn unfold_value(env: &Environment, mut value: Expression) -> Result<Expression, String> {
     while let Some((body, _)) = structure::annotation(&env.arena, value) {
         value = body;
@@ -980,6 +1019,12 @@ fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expressi
             cases,
             ..
         } => reduce_inductive(env, e, inductive, scrutinee.into(), &cases)?,
+        SetTermForm::Case {
+            inductive,
+            scrutinee,
+            branches,
+            ..
+        } => reduce_inductive_case(env, inductive, scrutinee.into(), &branches)?,
         SetTermForm::SetCase {
             scrutinee,
             branches,
@@ -1017,6 +1062,12 @@ fn reduce_set_type_root(env: &Environment, h: SetType) -> Result<Option<Expressi
             cases,
             ..
         } => reduce_inductive(env, e, inductive, scrutinee.into(), &cases)?,
+        SetTypeForm::Case {
+            inductive,
+            scrutinee,
+            branches,
+            ..
+        } => reduce_inductive_case(env, inductive, scrutinee.into(), &branches)?,
         _ => None,
     })
 }
@@ -1057,6 +1108,12 @@ fn reduce_prop_term_root(env: &Environment, h: PropTerm) -> Result<Option<Expres
             cases,
             ..
         } => reduce_inductive(env, e, inductive, scrutinee.into(), &cases)?,
+        PropTermForm::Case {
+            inductive,
+            scrutinee,
+            branches,
+            ..
+        } => reduce_inductive_case(env, inductive, scrutinee.into(), &branches)?,
         _ => None,
     })
 }
@@ -1092,6 +1149,12 @@ fn reduce_prop_type_root(env: &Environment, h: PropType) -> Result<Option<Expres
             cases,
             ..
         } => reduce_inductive(env, e, inductive, scrutinee.into(), &cases)?,
+        PropTypeForm::Case {
+            inductive,
+            scrutinee,
+            branches,
+            ..
+        } => reduce_inductive_case(env, inductive, scrutinee.into(), &branches)?,
         _ => None,
     })
 }

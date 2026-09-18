@@ -587,6 +587,27 @@ pub fn eliminator_type(
     constructor_term: Exp,
     this: Exp,
 ) -> Exp {
+    branch_type(arena, constructor, q, constructor_term, this, true)
+}
+
+pub fn case_type(
+    arena: &Arena,
+    constructor: &CtorType,
+    q: Exp,
+    constructor_term: Exp,
+    this: Exp,
+) -> Exp {
+    branch_type(arena, constructor, q, constructor_term, this, false)
+}
+
+fn branch_type(
+    arena: &Arena,
+    constructor: &CtorType,
+    q: Exp,
+    constructor_term: Exp,
+    this: Exp,
+    recursive_hypotheses: bool,
+) -> Exp {
     let mut telescope = vec![];
     let mut applied_constructor = constructor_term;
     let mut constructor_positions = Vec::new();
@@ -646,18 +667,25 @@ pub fn eliminator_type(
                 telescope.push((SymbolId::ANONYMOUS, recursive_ty));
                 constructor_positions.push(telescope.len() - 1);
 
-                let recursive_arguments = bound_arguments(arena, binders.len());
-                let recursive_call =
-                    utils::assoc_apply(arena, arena.exp_bound(binders.len()), recursive_arguments);
-                let shifted_q = shift_bound_indices(arena, q, telescope.len() + binders.len(), 0);
-                let motive = utils::assoc_apply(arena, shifted_q, recursive_indices);
-                let hypothesis_result = arena.alloc(ExpNode::App {
-                    func: motive,
-                    arg: recursive_call,
-                });
-                let hypothesis_ty = utils::assoc_prod(arena, recursive_binders, hypothesis_result);
-                telescope.push((SymbolId::ANONYMOUS, hypothesis_ty));
-                applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
+                if recursive_hypotheses {
+                    let recursive_arguments = bound_arguments(arena, binders.len());
+                    let recursive_call = utils::assoc_apply(
+                        arena,
+                        arena.exp_bound(binders.len()),
+                        recursive_arguments,
+                    );
+                    let shifted_q =
+                        shift_bound_indices(arena, q, telescope.len() + binders.len(), 0);
+                    let motive = utils::assoc_apply(arena, shifted_q, recursive_indices);
+                    let hypothesis_result = arena.alloc(ExpNode::App {
+                        func: motive,
+                        arg: recursive_call,
+                    });
+                    let hypothesis_ty =
+                        utils::assoc_prod(arena, recursive_binders, hypothesis_result);
+                    telescope.push((SymbolId::ANONYMOUS, hypothesis_ty));
+                    applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
+                }
             }
         }
     }

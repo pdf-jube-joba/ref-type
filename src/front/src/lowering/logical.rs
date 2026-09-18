@@ -446,6 +446,59 @@ impl Lowerer<'_> {
                                 cases,
                             }; "eliminator cannot return a kind")
             }
+            ExpNode::IndCase {
+                indspec,
+                scrutinee,
+                return_type,
+                branches,
+            } => {
+                self.inductive(indspec, m, ctx)?;
+                let inductive = indspec;
+                let kind = raw::derivation::infer_motive_kind(
+                    &mut raw::derivation::CheckSession::new(self.raw, m, ctx),
+                    "Lower",
+                    "case motive",
+                    return_type,
+                )
+                .map_err(|e| format!("case motive: {e:?}"))?;
+                let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
+                let mut local = ctx.clone();
+                let mut motive_domains = vec![];
+                let mut motive_vars = vec![];
+                for (var, ty) in &binders {
+                    motive_domains.push(self.set(*ty, &mut local, m)?.try_into()?);
+                    motive_vars.push(*var);
+                    local.push(ExpContextEntry { var: *var, ty: *ty });
+                }
+                let shifted = raw::calculus::shift_bound_indices(
+                    self.raw.arena(),
+                    return_type,
+                    binders.len(),
+                    0,
+                );
+                let arguments = (0..binders.len())
+                    .rev()
+                    .map(|i| self.raw.arena().exp_bound(i))
+                    .collect();
+                let body = raw::calculus::whnf(
+                    self.raw,
+                    raw::utils::assoc_apply(self.raw.arena(), shifted, arguments),
+                );
+                let motive_body = self.set(body, &mut local, m)?.try_into()?;
+                let scrutinee = self.set(scrutinee, ctx, m)?.try_into()?;
+                let branches = branches
+                    .into_iter()
+                    .map(|branch| self.set(branch, ctx, m)?.try_into())
+                    .collect::<Result<_, String>>()?;
+                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType => Case {
+                    inductive,
+                    motive_vars,
+                    scrutinee,
+                    motive_domains,
+                    motive_body,
+                    branches,
+                }; "case match cannot return a kind")
+            }
             ExpNode::RunStepRec {
                 state_ty,
                 result_ty,

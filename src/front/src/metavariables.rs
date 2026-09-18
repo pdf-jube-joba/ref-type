@@ -1300,7 +1300,8 @@ fn rigid_heads_compatible(left: &ExpNode, right: &ExpNode) -> bool {
         (ExpNode::ModuleParam(left), ExpNode::ModuleParam(right)) => left == right,
         (ExpNode::DefinedConstant(left), ExpNode::DefinedConstant(right)) => left == right,
         (ExpNode::IndType { indspec: left, .. }, ExpNode::IndType { indspec: right, .. })
-        | (ExpNode::IndElim { indspec: left, .. }, ExpNode::IndElim { indspec: right, .. }) => {
+        | (ExpNode::IndElim { indspec: left, .. }, ExpNode::IndElim { indspec: right, .. })
+        | (ExpNode::IndCase { indspec: left, .. }, ExpNode::IndCase { indspec: right, .. }) => {
             left == right
         }
         (

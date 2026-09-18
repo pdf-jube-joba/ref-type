@@ -1,5 +1,42 @@
 //! Alpha/conversion comparison over each family's computational syntax.
 use super::*;
+#[allow(clippy::too_many_arguments)]
+fn compare_case(
+    left_inductive: InductiveId,
+    left_vars: &[SymbolId],
+    left_scrutinee: LogicalArgument,
+    left_domains: &[LogicalExpression],
+    left_body: LogicalExpression,
+    left_branches: &[LogicalArgument],
+    right_inductive: InductiveId,
+    right_vars: &[SymbolId],
+    right_scrutinee: LogicalArgument,
+    right_domains: &[LogicalExpression],
+    right_body: LogicalExpression,
+    right_branches: &[LogicalArgument],
+    compare: &mut dyn FnMut(Expression, Expression) -> Result<bool, String>,
+) -> Result<bool, String> {
+    if left_inductive != right_inductive
+        || left_vars.len() != right_vars.len()
+        || left_domains.len() != right_domains.len()
+        || left_branches.len() != right_branches.len()
+        || !compare(left_scrutinee.into(), right_scrutinee.into())?
+        || !compare(left_body.into(), right_body.into())?
+    {
+        return Ok(false);
+    }
+    for (left, right) in left_domains.iter().zip(right_domains) {
+        if !compare((*left).into(), (*right).into())? {
+            return Ok(false);
+        }
+    }
+    for (left, right) in left_branches.iter().zip(right_branches) {
+        if !compare((*left).into(), (*right).into())? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
 pub(crate) fn compare_children(
     arena: &Arena,
     left: Expression,
@@ -470,6 +507,38 @@ fn compare_set_term(
             true
         }
         (
+            SetTermForm::Case {
+                inductive: inductive_l,
+                motive_vars: vars_l,
+                scrutinee: scrutinee_l,
+                motive_domains: domains_l,
+                motive_body: body_l,
+                branches: branches_l,
+            },
+            SetTermForm::Case {
+                inductive: inductive_r,
+                motive_vars: vars_r,
+                scrutinee: scrutinee_r,
+                motive_domains: domains_r,
+                motive_body: body_r,
+                branches: branches_r,
+            },
+        ) => compare_case(
+            *inductive_l,
+            vars_l,
+            *scrutinee_l,
+            domains_l,
+            *body_l,
+            branches_l,
+            *inductive_r,
+            vars_r,
+            *scrutinee_r,
+            domains_r,
+            *body_r,
+            branches_r,
+            compare,
+        )?,
+        (
             SetTermForm::SetCase {
                 inductive: inductive_l,
                 binders: binders_l,
@@ -812,6 +881,26 @@ fn compare_set_type(
             }
             true
         }
+        (
+            SetTypeForm::Case {
+                inductive: il,
+                motive_vars: vl,
+                scrutinee: sl,
+                motive_domains: dl,
+                motive_body: ml,
+                branches: bl,
+            },
+            SetTypeForm::Case {
+                inductive: ir,
+                motive_vars: vr,
+                scrutinee: sr,
+                motive_domains: dr,
+                motive_body: mr,
+                branches: br,
+            },
+        ) => compare_case(
+            *il, vl, *sl, dl, *ml, bl, *ir, vr, *sr, dr, *mr, br, compare,
+        )?,
         _ => false,
     })
 }
@@ -1325,6 +1414,26 @@ fn compare_prop_term(
             }
             true
         }
+        (
+            PropTermForm::Case {
+                inductive: il,
+                motive_vars: vl,
+                scrutinee: sl,
+                motive_domains: dl,
+                motive_body: ml,
+                branches: bl,
+            },
+            PropTermForm::Case {
+                inductive: ir,
+                motive_vars: vr,
+                scrutinee: sr,
+                motive_domains: dr,
+                motive_body: mr,
+                branches: br,
+            },
+        ) => compare_case(
+            *il, vl, *sl, dl, *ml, bl, *ir, vr, *sr, dr, *mr, br, compare,
+        )?,
         _ => false,
     })
 }
@@ -1640,6 +1749,26 @@ fn compare_prop_type(
             }
             true
         }
+        (
+            PropTypeForm::Case {
+                inductive: il,
+                motive_vars: vl,
+                scrutinee: sl,
+                motive_domains: dl,
+                motive_body: ml,
+                branches: bl,
+            },
+            PropTypeForm::Case {
+                inductive: ir,
+                motive_vars: vr,
+                scrutinee: sr,
+                motive_domains: dr,
+                motive_body: mr,
+                branches: br,
+            },
+        ) => compare_case(
+            *il, vl, *sl, dl, *ml, bl, *ir, vr, *sr, dr, *mr, br, compare,
+        )?,
         _ => false,
     })
 }

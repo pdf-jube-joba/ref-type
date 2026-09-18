@@ -33,6 +33,15 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             one!(elim, return_type);
             vecs!(cases);
         }
+        ExpNode::IndCase {
+            scrutinee,
+            return_type,
+            branches,
+            ..
+        } => {
+            one!(scrutinee, return_type);
+            vecs!(branches);
+        }
         ExpNode::ReflectedProgramCase {
             scrutinee,
             branches,
@@ -334,6 +343,18 @@ pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -
                     .chain(cases)
                     .any(|e| exp_contains_inductive(arena, e, inductive))
         }
+        ExpNode::IndCase {
+            indspec,
+            scrutinee,
+            return_type,
+            branches,
+        } => {
+            indspec == inductive
+                || [scrutinee, return_type]
+                    .into_iter()
+                    .chain(branches)
+                    .any(|e| exp_contains_inductive(arena, e, inductive))
+        }
         node => direct_children(node)
             .into_iter()
             .any(|e| exp_contains_inductive(arena, e, inductive)),
@@ -492,7 +513,8 @@ pub fn remap_all_global_ids(
         }
         ExpNode::IndType { indspec, .. }
         | ExpNode::IndCtor { indspec, .. }
-        | ExpNode::IndElim { indspec, .. } => {
+        | ExpNode::IndElim { indspec, .. }
+        | ExpNode::IndCase { indspec, .. } => {
             *indspec = inductives.get(indspec).copied().unwrap_or(*indspec);
         }
         ExpNode::ReflectedProgramCase { indspec, .. } => {
@@ -542,7 +564,8 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
         ) => left == right,
         (ExpNode::DefinedConstant(left), ExpNode::DefinedConstant(right)) => left == right,
         (ExpNode::IndType { indspec: left, .. }, ExpNode::IndType { indspec: right, .. })
-        | (ExpNode::IndElim { indspec: left, .. }, ExpNode::IndElim { indspec: right, .. }) => {
+        | (ExpNode::IndElim { indspec: left, .. }, ExpNode::IndElim { indspec: right, .. })
+        | (ExpNode::IndCase { indspec: left, .. }, ExpNode::IndCase { indspec: right, .. }) => {
             left == right
         }
         (
@@ -889,6 +912,32 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             crate::raw::inductive::inductive_type_elim_reduce(env, candidate)
                 .ok()
                 .or((candidate != exp).then_some(candidate))
+        }
+        ExpNode::IndCase {
+            indspec,
+            scrutinee,
+            return_type,
+            branches,
+        } => {
+            let reduced = whnf(env, scrutinee);
+            let (head, fields) = crate::raw::utils::decompose_app(arena, reduced);
+            match arena.get(head) {
+                ExpNode::IndCtor {
+                    indspec: actual,
+                    idx,
+                    ..
+                } if actual == indspec => branches
+                    .get(idx)
+                    .copied()
+                    .map(|branch| crate::raw::utils::assoc_apply(arena, branch, fields)),
+                _ if reduced != scrutinee => Some(arena.alloc(ExpNode::IndCase {
+                    indspec,
+                    scrutinee: reduced,
+                    return_type,
+                    branches,
+                })),
+                _ => None,
+            }
         }
         ExpNode::ReflectedProgramCase {
             indspec,

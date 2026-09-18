@@ -814,11 +814,11 @@ impl LocalScope {
                     proof: proof_elab,
                 }))
             }
-            SExp::IndElim {
+            SExp::IndCase {
                 path,
-                elim,
+                scrutinee,
                 return_type,
-                cases,
+                branches,
             } => {
                 let (ctor_names, inductive) = match handler.get_item_from_access_path(path)? {
                     ItemAccessResult::Inductive(ModItemInductive {
@@ -828,21 +828,21 @@ impl LocalScope {
                     }) => (ctor_names, inductive),
                     _ => {
                         return Err(format!(
-                            "Expected inductive type in ind elim access path {:?}",
+                            "Expected inductive type in case access path {:?}",
                             path
                         ));
                     }
                 };
 
-                let elim_elab = self.elab_exp_rec(elim, handler)?;
+                let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
                 let return_type_elab = self.elab_exp_rec(return_type, handler)?;
-                let cases_elab = self.elab_inductive_cases(&ctor_names, cases, handler)?;
+                let branches = self.elab_inductive_cases(&ctor_names, branches, handler)?;
 
-                Ok(handler.arena().alloc(ExpNode::IndElim {
+                Ok(handler.arena().alloc(ExpNode::IndCase {
                     indspec: inductive,
-                    elim: elim_elab,
+                    scrutinee,
                     return_type: return_type_elab,
-                    cases: cases_elab,
+                    branches,
                 }))
             }
             SExp::Induction {

@@ -443,27 +443,25 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        // elimination of inductive type
-        if self.bump_if_keyword("\\elim") {
-            // r"\elim" <elim: SExp> r"\in" <path: Path> "\\return" <return_type: SExp>
-            let elim = self.parse_sexp()?;
+        if self.bump_if_keyword("\\case") {
+            let scrutinee = self.parse_sexp()?;
             self.expect_keyword("\\in")?; // expect '\in'
             let path = self.parse_access_path()?;
             self.expect_keyword("\\return")?; // expect '\\return'
             let return_type = self.parse_sexp()?;
 
-            let cases = self.parse_branches(|parser| {
+            let branches = self.parse_branches(|parser| {
                 let case_name = parser.expect_ident()?;
                 parser.expect_token(Token::DoubleArrow)?;
-                let case_type = parser.parse_sexp()?;
-                Ok((case_name, case_type))
+                let branch = parser.parse_sexp()?;
+                Ok((case_name, branch))
             })?;
 
-            return Ok(SExp::IndElim {
+            return Ok(SExp::IndCase {
                 path,
-                elim: Box::new(elim),
+                scrutinee: Box::new(scrutinee),
                 return_type: Box::new(return_type),
-                cases,
+                branches,
             });
         }
         if self.bump_if_keyword("\\induction") {
@@ -780,7 +778,7 @@ impl<'a> TermParser<'a> {
     }
 
     // { (| <branch>)* }: the next pipe or closing brace ends each branch body.
-    // Branch delimiters are shared by \match, \tmatch, \elim, and \induction.
+    // Branch delimiters are shared by \match, \tmatch, \case, and \induction.
     // Each caller parses its own branch head and body, committing on errors.
     fn parse_branches<T>(
         &mut self,
@@ -1641,7 +1639,7 @@ mod tests {
         };
         assert!(matches!(fields[0].1, SExp::Thunk { .. }));
         complete(r"\record Empty {}");
-        complete(r"\elim x \in T \return R { | ctor => branch }");
+        complete(r"\case x \in T \return R { | ctor => branch }");
         let SExp::ProgramCase { branches, .. } =
             complete(r"\match x \in T \with { | ctor a b => \return a }")
         else {
@@ -1655,7 +1653,7 @@ mod tests {
     fn branch_forms_share_delimiters_and_preserve_nested_bodies() {
         for (prefix, head, template) in [
             (r"\match x \in T \with", "ctor a", false),
-            (r"\elim x \in T \return R", "ctor", false),
+            (r"\case x \in T \return R", "ctor", false),
             (r"\tmatch token", "_", true),
         ] {
             for branches in [
@@ -1674,8 +1672,8 @@ mod tests {
                         .into_iter()
                         .map(|(_, _, body)| body)
                         .collect::<Vec<_>>(),
-                    SExp::IndElim { cases, .. } => {
-                        cases.into_iter().map(|(_, body)| body).collect()
+                    SExp::IndCase { branches, .. } => {
+                        branches.into_iter().map(|(_, body)| body).collect()
                     }
                     SExp::TokenMatch { branches, .. } => {
                         branches.into_iter().map(|(_, body)| body).collect()

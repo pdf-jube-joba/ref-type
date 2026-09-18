@@ -309,17 +309,20 @@
     \force[P.Times[B.Bool, P.Times[N.Nat, N.Nat]] -> P.Times[P.Times[B.Bool, N.Nat], N.Nat]](\box[P.Times[B.Bool, P.Times[N.Nat, N.Nat]] -> P.Times[P.Times[B.Bool, N.Nat], N.Nat]](PF.unassoc));
   \definition assocAgrees: \forall (p: P.Times^[P.Times^[B.Bool^, N.Nat^], N.Nat^]) ->
     assocSet p = P.assoc B.Bool^ N.Nat^ N.Nat^ p :=
-    \prec[P.Times^[P.Times^[B.Bool^, N.Nat^], N.Nat^], \fun (p: P.Times^[P.Times^[B.Bool^, N.Nat^], N.Nat^]) => assocSet p = P.assoc B.Bool^ N.Nat^ N.Nat^ p]
-      (\fun (p: P.Times^[B.Bool^, N.Nat^]) => \fun (n: N.Nat^) =>
+    \induction (p: P.Times^[P.Times^[B.Bool^, N.Nat^], N.Nat^]) \return assocSet p = P.assoc B.Bool^ N.Nat^ N.Nat^ p \with {
+      | pair => (\fun (p: P.Times^[B.Bool^, N.Nat^]) => \fun (n: N.Nat^) =>
         PL.induction
           (\fun (p: P.Times^[B.Bool^, N.Nat^]) => assocSet (P.pair _ _ p n) = P.assoc _ _ _ (P.pair _ _ p n))
-          (\fun (b: B.Bool^) => \fun (m: N.Nat^) => \refl(P.pair _ _ b (P.pair _ _ m n))) p);
+          (\fun (b: B.Bool^) => \fun (m: N.Nat^) => \refl(P.pair _ _ b (P.pair _ _ m n))) p)
+      };
   \definition unassocAgrees: \forall (p: P.Times^[B.Bool^, P.Times^[N.Nat^, N.Nat^]]) ->
     unassocSet p = P.unassoc B.Bool^ N.Nat^ N.Nat^ p :=
-    \prec[P.Times^[B.Bool^, P.Times^[N.Nat^, N.Nat^]], \fun (p: P.Times^[B.Bool^, P.Times^[N.Nat^, N.Nat^]]) => unassocSet p = P.unassoc B.Bool^ N.Nat^ N.Nat^ p]
-      (\fun (b: B.Bool^) => \fun (p: P.Times^[N.Nat^, N.Nat^]) =>
-        \prec[P.Times^[N.Nat^, N.Nat^], \fun (p: P.Times^[N.Nat^, N.Nat^]) => unassocSet (P.pair _ _ b p) = P.unassoc _ _ _ (P.pair _ _ b p)]
-          (\fun (m, n: N.Nat^) => \refl(P.pair _ _ (P.pair _ _ b m) n)) p);
+    \induction (p: P.Times^[B.Bool^, P.Times^[N.Nat^, N.Nat^]]) \return unassocSet p = P.unassoc B.Bool^ N.Nat^ N.Nat^ p \with {
+      | pair => (\fun (b: B.Bool^) => \fun (p: P.Times^[N.Nat^, N.Nat^]) =>
+        \induction (p: P.Times^[N.Nat^, N.Nat^]) \return unassocSet (P.pair _ _ b p) = P.unassoc _ _ _ (P.pair _ _ b p) \with {
+        | pair => (\fun (m, n: N.Nat^) => \refl(P.pair _ _ (P.pair _ _ b m) n))
+        } p)
+      };
 
   /* Direct Program use: type inference, type-changing maps, and thunked callbacks. */
   \definition boolToNat(b: B.Bool): \F(N.Nat) :=

@@ -7,33 +7,38 @@
   natPairElim (\fun (p: NatPair) => secondSet p = secondPrec p) (\fun (a, b: Nat^) => \refl(b));
 \definition pairIterInvariant (f: NatPair -> NatPair) (P: NatPair -> \Prop):
   (\forall (p: NatPair) -> P p -> P (f p)) -> \forall (n: Nat^) -> \forall (p: NatPair) -> P p -> P (pairIterPrec f p n) := \fun (step: \forall (p: NatPair) -> P p -> P (f p)) =>
-    \prec[Nat^, \fun (n: Nat^) => \forall (p: NatPair) -> P p -> P (pairIterPrec f p n)]
-      (\fun (p: NatPair) => \fun (h: P p) => h)
-      (\fun (n: Nat^) => \fun (ih: \forall (p: NatPair) -> P p -> P (pairIterPrec f p n)) =>
-        \fun (p: NatPair) => \fun (h: P p) => step (pairIterPrec f p n) (ih p h));
+    \induction (n: Nat^) \return \forall (p: NatPair) -> P p -> P (pairIterPrec f p n) \with {
+      | zero => (\fun (p: NatPair) => \fun (h: P p) => h)
+      | succ => (\fun (n: Nat^) => \fun (ih: \forall (p: NatPair) -> P p -> P (pairIterPrec f p n)) =>
+        \fun (p: NatPair) => \fun (h: P p) => step (pairIterPrec f p n) (ih p h))
+      };
 \definition leSuccOfEqbFalse: \forall (d, r: Nat^) -> Le r d -> eqbSet r d = B.Bool^::false -> Le (Nat^::succ r) d :=
-  \prec[Nat^, \fun (d: Nat^) => \forall (r: Nat^) -> Le r d -> eqbSet r d = B.Bool^::false -> Le (Nat^::succ r) d]
-    (\prec[Nat^, \fun (r: Nat^) => Le r Nat^::zero -> eqbSet r Nat^::zero = B.Bool^::false -> Le (Nat^::succ r) Nat^::zero]
-      (\fun (h: Le Nat^::zero Nat^::zero) => \fun (e: B.Bool^::true = B.Bool^::false) =>
+  \induction (d: Nat^) \return \forall (r: Nat^) -> Le r d -> eqbSet r d = B.Bool^::false -> Le (Nat^::succ r) d \with {
+    | zero => (\induction (r: Nat^) \return Le r Nat^::zero -> eqbSet r Nat^::zero = B.Bool^::false -> Le (Nat^::succ r) Nat^::zero \with {
+      | zero => (\fun (h: Le Nat^::zero Nat^::zero) => \fun (e: B.Bool^::true = B.Bool^::false) =>
         B.absurd (Le (Nat^::succ Nat^::zero) Nat^::zero)
           (\idelim(B.Bool^::true = B.Bool^::false \with t: B.Bool^ => t = B.Bool^::true) \by { base: \refl(B.Bool^::true), equality: e }))
-      (\fun (r: Nat^) => \fun (ih: Le r Nat^::zero -> eqbSet r Nat^::zero = B.Bool^::false -> Le (Nat^::succ r) Nat^::zero) =>
+      | succ => (\fun (r: Nat^) => \fun (ih: Le r Nat^::zero -> eqbSet r Nat^::zero = B.Bool^::false -> Le (Nat^::succ r) Nat^::zero) =>
         \fun (h: Le (Nat^::succ r) Nat^::zero) => \fun (e: eqbSet (Nat^::succ r) Nat^::zero = B.Bool^::false) =>
-          B.absurd (Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h))
-    (\fun (d: Nat^) => \fun (ih: \forall (r: Nat^) -> Le r d -> eqbSet r d = B.Bool^::false -> Le (Nat^::succ r) d) =>
-      \prec[Nat^, \fun (r: Nat^) => Le r (Nat^::succ d) -> eqbSet r (Nat^::succ d) = B.Bool^::false -> Le (Nat^::succ r) (Nat^::succ d)]
-        (\fun (h: Le Nat^::zero (Nat^::succ d)) => \fun (e: eqbSet Nat^::zero (Nat^::succ d) = B.Bool^::false) => zeroLe d)
-        (\fun (r: Nat^) => \fun (unused: Le r (Nat^::succ d) -> eqbSet r (Nat^::succ d) = B.Bool^::false -> Le (Nat^::succ r) (Nat^::succ d)) =>
-          \fun (h: Le (Nat^::succ r) (Nat^::succ d)) => \fun (e: eqbSet (Nat^::succ r) (Nat^::succ d) = B.Bool^::false) => ih r h e));
+          B.absurd (Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h)
+      })
+    | succ => (\fun (d: Nat^) => \fun (ih: \forall (r: Nat^) -> Le r d -> eqbSet r d = B.Bool^::false -> Le (Nat^::succ r) d) =>
+      \induction (r: Nat^) \return Le r (Nat^::succ d) -> eqbSet r (Nat^::succ d) = B.Bool^::false -> Le (Nat^::succ r) (Nat^::succ d) \with {
+      | zero => (\fun (h: Le Nat^::zero (Nat^::succ d)) => \fun (e: eqbSet Nat^::zero (Nat^::succ d) = B.Bool^::false) => zeroLe d)
+      | succ => (\fun (r: Nat^) => \fun (unused: Le r (Nat^::succ d) -> eqbSet r (Nat^::succ d) = B.Bool^::false -> Le (Nat^::succ r) (Nat^::succ d)) =>
+          \fun (h: Le (Nat^::succ r) (Nat^::succ d)) => \fun (e: eqbSet (Nat^::succ r) (Nat^::succ d) = B.Bool^::false) => ih r h e)
+      })
+    };
 \definition divModNextBound: \forall (d: Nat^) -> \forall (p: NatPair) -> Le (secondSet p) d ->
   Le (secondSet (divModNextPrec (Nat^::succ d) p)) d :=
   \fun (d: Nat^) => natPairElim
     (\fun (p: NatPair) => Le (secondSet p) d -> Le (secondSet (divModNextPrec (Nat^::succ d) p)) d)
     (\fun (q, r: Nat^) => \fun (h: Le r d) =>
-      (\prec[B.Bool^, \fun (hit: B.Bool^) => eqbSet r d = hit ->
-          Le (secondSet (pairChoosePrec hit (natPair (Nat^::succ q) Nat^::zero) (natPair q (Nat^::succ r)))) d]
-        (\fun (e: eqbSet r d = B.Bool^::false) => leSuccOfEqbFalse d r h e)
-        (\fun (e: eqbSet r d = B.Bool^::true) => zeroLe d) (eqbSet r d)) (\refl(eqbSet r d)));
+      (\case (eqbSet r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => eqbSet r d = hit ->
+          Le (secondSet (pairChoosePrec hit (natPair (Nat^::succ q) Nat^::zero) (natPair q (Nat^::succ r)))) d) {
+        | false => (\fun (e: eqbSet r d = B.Bool^::false) => leSuccOfEqbFalse d r h e)
+        | true => (\fun (e: eqbSet r d = B.Bool^::true) => zeroLe d)
+        }) (\refl(eqbSet r d)));
 \definition modPrecBound (a, d: Nat^): Le (modPrec a (Nat^::succ d)) d := pairIterInvariant (divModNextPrec (Nat^::succ d))
     (\fun (p: NatPair) => Le (secondSet p) d) (divModNextBound d) a
     (natPair Nat^::zero Nat^::zero) (zeroLe d);
@@ -64,23 +69,25 @@
   divModValue b (divModNextPrec b p) = Nat^::succ (divModValue b p) :=
   \fun (b: Nat^) => natPairElim
     (\fun (p: NatPair) => divModValue b (divModNextPrec b p) = Nat^::succ (divModValue b p))
-    (\fun (q, r: Nat^) => \prec[Nat^, \fun (b: Nat^) => divModValue b (divModNextPrec b (natPair q r)) = Nat^::succ (divModValue b (natPair q r))]
-      (addSuccRight (mulSet Nat^::zero q) r)
-      (\fun (d: Nat^) => \fun (ih: divModValue d (divModNextPrec d (natPair q r)) = Nat^::succ (divModValue d (natPair q r))) =>
-        (\prec[B.Bool^, \fun (hit: B.Bool^) => eqbSet r d = hit ->
+    (\fun (q, r: Nat^) => \induction (b: Nat^) \return divModValue b (divModNextPrec b (natPair q r)) = Nat^::succ (divModValue b (natPair q r)) \with {
+      | zero => (addSuccRight (mulSet Nat^::zero q) r)
+      | succ => (\fun (d: Nat^) => \fun (_: _) => (\case (eqbSet r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => eqbSet r d = hit ->
             divModValue (Nat^::succ d) (pairChoosePrec hit (natPair (Nat^::succ q) Nat^::zero) (natPair q (Nat^::succ r))) =
-              Nat^::succ (divModValue (Nat^::succ d) (natPair q r))]
-          (\fun (e: eqbSet r d = B.Bool^::false) => addSuccRight (mulSet (Nat^::succ d) q) r)
-          (\fun (e: eqbSet r d = B.Bool^::true) =>
+              Nat^::succ (divModValue (Nat^::succ d) (natPair q r))) {
+        | false => (\fun (e: eqbSet r d = B.Bool^::false) => addSuccRight (mulSet (Nat^::succ d) q) r)
+        | true => (\fun (e: eqbSet r d = B.Bool^::true) =>
             \idelim(d = r \with x: Nat^ =>
               divModValue (Nat^::succ d) (natPair (Nat^::succ q) Nat^::zero) =
                 Nat^::succ (divModValue (Nat^::succ d) (natPair q x)))
-              \by { base: divisionCarryValue d q, equality: sym!{Nat^} r d (eqOfEqbTrue d r e) }) (eqbSet r d)) (\refl(eqbSet r d))) b);
+              \by { base: divisionCarryValue d q, equality: sym!{Nat^} r d (eqOfEqbTrue d r e) })
+        }) (\refl(eqbSet r d)))
+      } b);
 \definition divModPrecReconstructs: \forall (a, b: Nat^) -> divModValue b (divModPrec a b) = a :=
-  \prec[Nat^, \fun (a: Nat^) => \forall (b: Nat^) -> divModValue b (divModPrec a b) = a]
-    (\fun (b: Nat^) => \refl(Nat^::zero))
-    (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> divModValue b (divModPrec a b) = a) => \fun (b: Nat^) =>
-      trans!{Nat^} _ _ _ (divModNextValue b (divModPrec a b)) (succCong _ _ (ih b)));
+  \induction (a: Nat^) \return \forall (b: Nat^) -> divModValue b (divModPrec a b) = a \with {
+    | zero => (\fun (b: Nat^) => \refl(Nat^::zero))
+    | succ => (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> divModValue b (divModPrec a b) = a) => \fun (b: Nat^) =>
+      trans!{Nat^} _ _ _ (divModNextValue b (divModPrec a b)) (succCong _ _ (ih b)))
+    };
 \definition divModReconstructs: \forall (a, b: Nat^) -> addSet (mulSet b (divSet a b)) (modSet a b) = a :=
   \block {
     \fix (a, b: Nat^);
@@ -93,25 +100,28 @@
 /* The Euclidean loop's bound is proved, rather than assumed as fuel. */
 \definition gcdIterZero: \forall (n, a: Nat^) ->
   pairIterPrec gcdNextSet (natPair a Nat^::zero) n = natPair a Nat^::zero :=
-  \prec[Nat^, \fun (n: Nat^) => \forall (a: Nat^) -> pairIterPrec gcdNextSet (natPair a Nat^::zero) n = natPair a Nat^::zero]
-    (\fun (a: Nat^) => \refl(natPair a Nat^::zero))
-    (\fun (n: Nat^) => \fun (ih: \forall (a: Nat^) -> pairIterPrec gcdNextSet (natPair a Nat^::zero) n = natPair a Nat^::zero) =>
-      \fun (a: Nat^) => congr!{NatPair NatPair} gcdNextSet _ _ (ih a));
+  \induction (n: Nat^) \return \forall (a: Nat^) -> pairIterPrec gcdNextSet (natPair a Nat^::zero) n = natPair a Nat^::zero \with {
+    | zero => (\fun (a: Nat^) => \refl(natPair a Nat^::zero))
+    | succ => (\fun (n: Nat^) => \fun (ih: \forall (a: Nat^) -> pairIterPrec gcdNextSet (natPair a Nat^::zero) n = natPair a Nat^::zero) =>
+      \fun (a: Nat^) => congr!{NatPair NatPair} gcdNextSet _ _ (ih a))
+    };
 \definition gcdIterSettles: \forall (n, a, b: Nat^) -> Le b n ->
   secondSet (pairIterPrec gcdNextSet (natPair a b) n) = Nat^::zero :=
-  \prec[Nat^, \fun (n: Nat^) => \forall (a, b: Nat^) -> Le b n -> secondSet (pairIterPrec gcdNextSet (natPair a b) n) = Nat^::zero]
-    (\fun (a, b: Nat^) => \fun (h: Le b Nat^::zero) => leZeroEq b h)
-    (\fun (n: Nat^) => \fun (ih: \forall (a, b: Nat^) -> Le b n -> secondSet (pairIterPrec gcdNextSet (natPair a b) n) = Nat^::zero) =>
-      \fun (a: Nat^) => \prec[Nat^, \fun (b: Nat^) => Le b (Nat^::succ n) -> secondSet (pairIterPrec gcdNextSet (natPair a b) (Nat^::succ n)) = Nat^::zero]
-        (\fun (h: Le Nat^::zero (Nat^::succ n)) => congr!{NatPair Nat^} secondSet _ _ (gcdIterZero (Nat^::succ n) a))
-        (\fun (d: Nat^) => \fun (unused: Le d (Nat^::succ n) -> secondSet (pairIterPrec gcdNextSet (natPair a d) (Nat^::succ n)) = Nat^::zero) =>
+  \induction (n: Nat^) \return \forall (a, b: Nat^) -> Le b n -> secondSet (pairIterPrec gcdNextSet (natPair a b) n) = Nat^::zero \with {
+    | zero => (\fun (a, b: Nat^) => \fun (h: Le b Nat^::zero) => leZeroEq b h)
+    | succ => (\fun (n: Nat^) => \fun (ih: \forall (a, b: Nat^) -> Le b n -> secondSet (pairIterPrec gcdNextSet (natPair a b) n) = Nat^::zero) =>
+      \fun (a: Nat^) => \induction (b: Nat^) \return Le b (Nat^::succ n) -> secondSet (pairIterPrec gcdNextSet (natPair a b) (Nat^::succ n)) = Nat^::zero \with {
+      | zero => (\fun (h: Le Nat^::zero (Nat^::succ n)) => congr!{NatPair Nat^} secondSet _ _ (gcdIterZero (Nat^::succ n) a))
+      | succ => (\fun (d: Nat^) => \fun (unused: Le d (Nat^::succ n) -> secondSet (pairIterPrec gcdNextSet (natPair a d) (Nat^::succ n)) = Nat^::zero) =>
           \fun (h: Le (Nat^::succ d) (Nat^::succ n)) =>
             \idelim(pairIterPrec gcdNextSet (gcdNextSet (natPair a (Nat^::succ d))) n =
                 gcdNextSet (pairIterPrec gcdNextSet (natPair a (Nat^::succ d)) n)
               \with p: NatPair => secondSet p = Nat^::zero)
               \by { base: ih (Nat^::succ d) (modSet a (Nat^::succ d))
                 (leTrans (modSet a (Nat^::succ d)) d n (modBound a d) h), equality:
-                pairIterPrecStep gcdNextSet n (natPair a (Nat^::succ d)) }));
+                pairIterPrecStep gcdNextSet n (natPair a (Nat^::succ d)) })
+      })
+    };
 \definition gcdRemainderZero: \forall (a, b: Nat^) ->
   secondSet (pairIterSet gcdNextSet (natPair a b) b) = Nat^::zero :=
   \block {
@@ -127,20 +137,23 @@
 
 /* Zero conventions and division of zero are universal equations. */
 \definition divModZeroDivisor: \forall (a: Nat^) -> divModPrec a Nat^::zero = natPair Nat^::zero a :=
-  \prec[Nat^, \fun (a: Nat^) => divModPrec a Nat^::zero = natPair Nat^::zero a]
-    (\refl(natPair Nat^::zero Nat^::zero))
-    (\fun (a: Nat^) => \fun (ih: divModPrec a Nat^::zero = natPair Nat^::zero a) =>
-      congr!{NatPair NatPair} (divModNextPrec Nat^::zero) (divModPrec a Nat^::zero) (natPair Nat^::zero a) ih);
+  \induction (a: Nat^) \return divModPrec a Nat^::zero = natPair Nat^::zero a \with {
+    | zero => (\refl(natPair Nat^::zero Nat^::zero))
+    | succ => (\fun (a: Nat^) => \fun (ih: divModPrec a Nat^::zero = natPair Nat^::zero a) =>
+      congr!{NatPair NatPair} (divModNextPrec Nat^::zero) (divModPrec a Nat^::zero) (natPair Nat^::zero a) ih)
+    };
 \definition divZeroRight (a: Nat^): divSet a Nat^::zero = Nat^::zero := trans!{Nat^} _ _ _ (divMatchesPrec a Nat^::zero) (congr!{NatPair Nat^} firstSet _ _ (divModZeroDivisor a));
 \definition modZeroRight (a: Nat^): modSet a Nat^::zero = a := trans!{Nat^} _ _ _ (modMatchesPrec a Nat^::zero) (congr!{NatPair Nat^} secondSet _ _ (divModZeroDivisor a));
 \definition divZeroLeft (b: Nat^): divSet Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
 \definition modZeroLeft (b: Nat^): modSet Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
 \definition gcdZeroRight (a: Nat^): gcdSet a Nat^::zero = a := \refl(a);
 \definition gcdZeroLeft: \forall (b: Nat^) -> gcdSet Nat^::zero b = b :=
-  \prec[Nat^, \fun (b: Nat^) => gcdSet Nat^::zero b = b] (\refl(Nat^::zero))
-    (\fun (d: Nat^) => \fun (ih: gcdSet Nat^::zero d = d) => trans!{Nat^} _ _ _
+  \induction (b: Nat^) \return gcdSet Nat^::zero b = b \with {
+    | zero => (\refl(Nat^::zero))
+    | succ => (\fun (d: Nat^) => \fun (ih: gcdSet Nat^::zero d = d) => trans!{Nat^} _ _ _
       (congr!{NatPair Nat^} firstSet _ _ (pairIterMatchesPrec gcdNextSet d (natPair (Nat^::succ d) Nat^::zero)))
-      (congr!{NatPair Nat^} firstSet _ _ (gcdIterZero d (Nat^::succ d))));
+      (congr!{NatPair Nat^} firstSet _ _ (gcdIterZero d (Nat^::succ d))))
+    };
 
 /* Divisibility is constructive: a proof supplies a natural-number factor to
  * any propositional consumer (the usual existential encoding). */
@@ -163,22 +176,25 @@
 \definition subCong: \forall (a, b, c, d: Nat^) -> a = b -> c = d -> subSet a c = subSet b d :=
   congr2!{Nat^ Nat^ Nat^} subSet;
 \definition subAddBoth: \forall (c, a, b: Nat^) -> subSet (addSet a c) (addSet b c) = subSet a b :=
-  \prec[Nat^, \fun (c: Nat^) => \forall (a, b: Nat^) -> subSet (addSet a c) (addSet b c) = subSet a b]
-    (\fun (a, b: Nat^) => \refl(subSet a b))
-    (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> subSet (addSet a c) (addSet b c) = subSet a b) =>
+  \induction (c: Nat^) \return \forall (a, b: Nat^) -> subSet (addSet a c) (addSet b c) = subSet a b \with {
+    | zero => (\fun (a, b: Nat^) => \refl(subSet a b))
+    | succ => (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> subSet (addSet a c) (addSet b c) = subSet a b) =>
       \fun (a, b: Nat^) => trans!{Nat^} _ _ _
-        (subCong _ _ _ _ (addSuccRight a c) (addSuccRight b c)) (ih a b));
+        (subCong _ _ _ _ (addSuccRight a c) (addSuccRight b c)) (ih a b))
+    };
 \definition mulSub (d: Nat^): \forall (b, a: Nat^) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b) :=
-  \prec[Nat^, \fun (b: Nat^) => \forall (a: Nat^) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b)]
-    (\fun (a: Nat^) => \refl(mulSet d a))
-    (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b)) =>
-      \prec[Nat^, \fun (a: Nat^) => subSet (mulSet d a) (mulSet d (Nat^::succ b)) = mulSet d (subSet a (Nat^::succ b))]
-        (trans!{Nat^} _ _ _ (subZeroLeft (mulSet d (Nat^::succ b)))
+  \induction (b: Nat^) \return \forall (a: Nat^) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b) \with {
+    | zero => (\fun (a: Nat^) => \refl(mulSet d a))
+    | succ => (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> subSet (mulSet d a) (mulSet d b) = mulSet d (subSet a b)) =>
+      \induction (a: Nat^) \return subSet (mulSet d a) (mulSet d (Nat^::succ b)) = mulSet d (subSet a (Nat^::succ b)) \with {
+      | zero => (trans!{Nat^} _ _ _ (subZeroLeft (mulSet d (Nat^::succ b)))
           (sym!{Nat^} _ _ (congr!{Nat^ Nat^} (mulSet d) _ _ (subZeroLeft (Nat^::succ b)))))
-        (\fun (a: Nat^) => \fun (unused: subSet (mulSet d a) (mulSet d (Nat^::succ b)) = mulSet d (subSet a (Nat^::succ b))) =>
+      | succ => (\fun (a: Nat^) => \fun (unused: subSet (mulSet d a) (mulSet d (Nat^::succ b)) = mulSet d (subSet a (Nat^::succ b))) =>
           trans!{Nat^} _ _ _ (subCong _ _ _ _ (mulSuccRight d a) (mulSuccRight d b))
             (trans!{Nat^} _ _ _ (subCong _ _ _ _ (addComm d (mulSet d a)) (addComm d (mulSet d b)))
-              (trans!{Nat^} _ _ _ (subAddBoth d (mulSet d a) (mulSet d b)) (ih a)))));
+              (trans!{Nat^} _ _ _ (subAddBoth d (mulSet d a) (mulSet d b)) (ih a))))
+      })
+    };
 \definition dividesSub (d, a, b: Nat^) (ha: Divides d a) (hb: Divides d b): Divides d (subSet a b) :=
     ha (Divides d (subSet a b)) (\fun (x: Nat^) => \fun (ex: a = mulSet d x) =>
       hb (Divides d (subSet a b)) (\fun (y: Nat^) => \fun (ey: b = mulSet d y) =>
@@ -234,39 +250,39 @@
   \fun (d: Nat^) => natPairElim
     (\fun (p: NatPair) => CommonDivisor d (firstSet p) (secondSet p) ->
       CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)))
-    (\fun (a, b: Nat^) => \prec[Nat^, \fun (b: Nat^) => CommonDivisor d a b ->
-        CommonDivisor d (firstSet (gcdNextSet (natPair a b))) (secondSet (gcdNextSet (natPair a b)))]
-      (\fun (h: CommonDivisor d a Nat^::zero) => h)
-      (\fun (k: Nat^) => \fun (ih: CommonDivisor d a k ->
-        CommonDivisor d (firstSet (gcdNextSet (natPair a k))) (secondSet (gcdNextSet (natPair a k)))) =>
-        \fun (h: CommonDivisor d a (Nat^::succ k)) => h (CommonDivisor d (Nat^::succ k) (modSet a (Nat^::succ k)))
+    (\fun (a, b: Nat^) => \induction (b: Nat^) \return CommonDivisor d a b ->
+        CommonDivisor d (firstSet (gcdNextSet (natPair a b))) (secondSet (gcdNextSet (natPair a b))) \with {
+          | zero => (\fun (h: CommonDivisor d a Nat^::zero) => h)
+          | succ => (\fun (k: Nat^) => \fun (_: _) => \fun (h: CommonDivisor d a (Nat^::succ k)) => h (CommonDivisor d (Nat^::succ k) (modSet a (Nat^::succ k)))
           (\fun (ha: Divides d a) => \fun (hb: Divides d (Nat^::succ k)) =>
-            commonDivisorIntro d (Nat^::succ k) (modSet a (Nat^::succ k)) hb (dividesMod d a (Nat^::succ k) ha hb))) b);
+            commonDivisorIntro d (Nat^::succ k) (modSet a (Nat^::succ k)) hb (dividesMod d a (Nat^::succ k) ha hb)))
+          } b);
 \definition gcdNextReflects: \forall (d: Nat^) -> \forall (p: NatPair) ->
   CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)) -> CommonDivisor d (firstSet p) (secondSet p) :=
   \fun (d: Nat^) => natPairElim
     (\fun (p: NatPair) => CommonDivisor d (firstSet (gcdNextSet p)) (secondSet (gcdNextSet p)) ->
       CommonDivisor d (firstSet p) (secondSet p))
-    (\fun (a, b: Nat^) => \prec[Nat^, \fun (b: Nat^) => CommonDivisor d (firstSet (gcdNextSet (natPair a b))) (secondSet (gcdNextSet (natPair a b))) ->
-        CommonDivisor d a b]
-      (\fun (h: CommonDivisor d a Nat^::zero) => h)
-      (\fun (k: Nat^) => \fun (ih: CommonDivisor d (firstSet (gcdNextSet (natPair a k))) (secondSet (gcdNextSet (natPair a k))) -> CommonDivisor d a k) =>
-        \fun (h: CommonDivisor d (Nat^::succ k) (modSet a (Nat^::succ k))) => h (CommonDivisor d a (Nat^::succ k))
+    (\fun (a, b: Nat^) => \induction (b: Nat^) \return CommonDivisor d (firstSet (gcdNextSet (natPair a b))) (secondSet (gcdNextSet (natPair a b))) ->
+        CommonDivisor d a b \with {
+          | zero => (\fun (h: CommonDivisor d a Nat^::zero) => h)
+          | succ => (\fun (k: Nat^) => \fun (_: _) => \fun (h: CommonDivisor d (Nat^::succ k) (modSet a (Nat^::succ k))) => h (CommonDivisor d a (Nat^::succ k))
           (\fun (hb: Divides d (Nat^::succ k)) => \fun (hr: Divides d (modSet a (Nat^::succ k))) =>
-            commonDivisorIntro d a (Nat^::succ k) (dividesOfMod d a (Nat^::succ k) hb hr) hb)) b);
+            commonDivisorIntro d a (Nat^::succ k) (dividesOfMod d a (Nat^::succ k) hb hr) hb))
+          } b);
 \definition gcdIterReflects: \forall (d, n: Nat^) -> \forall (p: NatPair) ->
   CommonDivisor d (firstSet (pairIterPrec gcdNextSet p n)) (secondSet (pairIterPrec gcdNextSet p n)) ->
     CommonDivisor d (firstSet p) (secondSet p) :=
-  \fun (d: Nat^) => \prec[Nat^, \fun (n: Nat^) => \forall (p: NatPair) ->
+  \fun (d: Nat^) => \induction (n: Nat^) \return \forall (p: NatPair) ->
       CommonDivisor d (firstSet (pairIterPrec gcdNextSet p n)) (secondSet (pairIterPrec gcdNextSet p n)) ->
-        CommonDivisor d (firstSet p) (secondSet p)]
-    (\fun (p: NatPair) => \fun (h: CommonDivisor d (firstSet p) (secondSet p)) => h)
-    (\fun (n: Nat^) => \fun (ih: \forall (p: NatPair) ->
+        CommonDivisor d (firstSet p) (secondSet p) \with {
+    | zero => (\fun (p: NatPair) => \fun (h: CommonDivisor d (firstSet p) (secondSet p)) => h)
+    | succ => (\fun (n: Nat^) => \fun (ih: \forall (p: NatPair) ->
       CommonDivisor d (firstSet (pairIterPrec gcdNextSet p n)) (secondSet (pairIterPrec gcdNextSet p n)) ->
         CommonDivisor d (firstSet p) (secondSet p)) =>
       \fun (p: NatPair) => \fun (h: CommonDivisor d (firstSet (pairIterPrec gcdNextSet p (Nat^::succ n)))
         (secondSet (pairIterPrec gcdNextSet p (Nat^::succ n)))) =>
-          ih p (gcdNextReflects d (pairIterPrec gcdNextSet p n) h));
+          ih p (gcdNextReflects d (pairIterPrec gcdNextSet p n) h))
+    };
 \definition gcdFinal (a, b: Nat^): NatPair := pairIterPrec gcdNextSet (natPair a b) b;
 \definition gcdFinalFirst (a, b: Nat^): firstSet (gcdFinal a b) = gcdSet a b := sym!{Nat^} _ _ (congr!{NatPair Nat^} firstSet _ _ (pairIterMatchesPrec gcdNextSet b (natPair a b)));
 \definition gcdFinalSecond (a, b: Nat^): secondSet (gcdFinal a b) = Nat^::zero := gcdIterSettles b a b (leRefl b);
@@ -306,22 +322,26 @@
   };
 
 \definition leToLtSucc: \forall (d, r: Nat^) -> Le r d -> Lt r (Nat^::succ d) :=
-  \prec[Nat^, \fun (d: Nat^) => \forall (r: Nat^) -> Le r d -> Lt r (Nat^::succ d)]
-    (\prec[Nat^, \fun (r: Nat^) => Le r Nat^::zero -> Lt r (Nat^::succ Nat^::zero)]
-      (\fun (h: Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
-      (\fun (r: Nat^) => \fun (ih: Le r Nat^::zero -> Lt r (Nat^::succ Nat^::zero)) =>
-        \fun (h: Le (Nat^::succ r) Nat^::zero) => B.absurd (Lt (Nat^::succ r) (Nat^::succ Nat^::zero)) h))
-    (\fun (d: Nat^) => \fun (ih: \forall (r: Nat^) -> Le r d -> Lt r (Nat^::succ d)) =>
-      \prec[Nat^, \fun (r: Nat^) => Le r (Nat^::succ d) -> Lt r (Nat^::succ (Nat^::succ d))]
-        (\fun (h: Le Nat^::zero (Nat^::succ d)) => \refl(B.Bool^::true))
-        (\fun (r: Nat^) => \fun (unused: Le r (Nat^::succ d) -> Lt r (Nat^::succ (Nat^::succ d))) =>
-          \fun (h: Le (Nat^::succ r) (Nat^::succ d)) => ih r h));
+  \induction (d: Nat^) \return \forall (r: Nat^) -> Le r d -> Lt r (Nat^::succ d) \with {
+    | zero => (\induction (r: Nat^) \return Le r Nat^::zero -> Lt r (Nat^::succ Nat^::zero) \with {
+      | zero => (\fun (h: Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
+      | succ => (\fun (r: Nat^) => \fun (ih: Le r Nat^::zero -> Lt r (Nat^::succ Nat^::zero)) =>
+        \fun (h: Le (Nat^::succ r) Nat^::zero) => B.absurd (Lt (Nat^::succ r) (Nat^::succ Nat^::zero)) h)
+      })
+    | succ => (\fun (d: Nat^) => \fun (ih: \forall (r: Nat^) -> Le r d -> Lt r (Nat^::succ d)) =>
+      \induction (r: Nat^) \return Le r (Nat^::succ d) -> Lt r (Nat^::succ (Nat^::succ d)) \with {
+      | zero => (\fun (h: Le Nat^::zero (Nat^::succ d)) => \refl(B.Bool^::true))
+      | succ => (\fun (r: Nat^) => \fun (unused: Le r (Nat^::succ d) -> Lt r (Nat^::succ (Nat^::succ d))) =>
+          \fun (h: Le (Nat^::succ r) (Nat^::succ d)) => ih r h)
+      })
+    };
 \definition modLt (a, d: Nat^): Lt (modSet a (Nat^::succ d)) (Nat^::succ d) := leToLtSucc d (modSet a (Nat^::succ d)) (modBound a d);
 \definition divModOne: \forall (a: Nat^) -> divModPrec a (Nat^::succ Nat^::zero) = natPair a Nat^::zero :=
-  \prec[Nat^, \fun (a: Nat^) => divModPrec a (Nat^::succ Nat^::zero) = natPair a Nat^::zero]
-    (\refl(natPair Nat^::zero Nat^::zero))
-    (\fun (a: Nat^) => \fun (ih: divModPrec a (Nat^::succ Nat^::zero) = natPair a Nat^::zero) =>
+  \induction (a: Nat^) \return divModPrec a (Nat^::succ Nat^::zero) = natPair a Nat^::zero \with {
+    | zero => (\refl(natPair Nat^::zero Nat^::zero))
+    | succ => (\fun (a: Nat^) => \fun (ih: divModPrec a (Nat^::succ Nat^::zero) = natPair a Nat^::zero) =>
       congr!{NatPair NatPair} (divModNextPrec (Nat^::succ Nat^::zero))
-        (divModPrec a (Nat^::succ Nat^::zero)) (natPair a Nat^::zero) ih);
+        (divModPrec a (Nat^::succ Nat^::zero)) (natPair a Nat^::zero) ih)
+    };
 \definition divOne (a: Nat^): divSet a (Nat^::succ Nat^::zero) = a := trans!{Nat^} _ _ _ (divMatchesPrec a (Nat^::succ Nat^::zero)) (congr!{NatPair Nat^} firstSet _ _ (divModOne a));
 \definition modOne (a: Nat^): modSet a (Nat^::succ Nat^::zero) = Nat^::zero := trans!{Nat^} _ _ _ (modMatchesPrec a (Nat^::succ Nat^::zero)) (congr!{NatPair Nat^} secondSet _ _ (divModOne a));

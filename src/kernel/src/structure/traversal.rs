@@ -203,6 +203,23 @@ fn visit_set_term(arena: &Arena, h: SetTerm, visit: &mut dyn FnMut(Expression, u
                 visit((*child).into(), 0);
             }
         }
+        SetTermForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            visit((*scrutinee).into(), 0);
+            for (i, child) in motive_domains.iter().enumerate() {
+                visit((*child).into(), i);
+            }
+            visit((*motive_body).into(), motive_vars.len());
+            for child in branches {
+                visit((*child).into(), 0);
+            }
+        }
         SetTermForm::SetCase {
             binders,
             result_ty,
@@ -315,6 +332,23 @@ fn visit_set_type(arena: &Arena, h: SetType, visit: &mut dyn FnMut(Expression, u
             }
             visit((*motive_body).into(), motive_vars.len());
             for child in cases {
+                visit((*child).into(), 0);
+            }
+        }
+        SetTypeForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            visit((*scrutinee).into(), 0);
+            for (i, child) in motive_domains.iter().enumerate() {
+                visit((*child).into(), i);
+            }
+            visit((*motive_body).into(), motive_vars.len());
+            for child in branches {
                 visit((*child).into(), 0);
             }
         }
@@ -532,6 +566,23 @@ fn visit_prop_term(arena: &Arena, h: PropTerm, visit: &mut dyn FnMut(Expression,
                 visit((*child).into(), 0);
             }
         }
+        PropTermForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            visit((*scrutinee).into(), 0);
+            for (i, child) in motive_domains.iter().enumerate() {
+                visit((*child).into(), i);
+            }
+            visit((*motive_body).into(), motive_vars.len());
+            for child in branches {
+                visit((*child).into(), 0);
+            }
+        }
     }
 }
 fn visit_prop_type(arena: &Arena, h: PropType, visit: &mut dyn FnMut(Expression, usize)) {
@@ -640,6 +691,23 @@ fn visit_prop_type(arena: &Arena, h: PropType, visit: &mut dyn FnMut(Expression,
             }
             visit((*motive_body).into(), motive_vars.len());
             for child in cases {
+                visit((*child).into(), 0);
+            }
+        }
+        PropTypeForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            visit((*scrutinee).into(), 0);
+            for (i, child) in motive_domains.iter().enumerate() {
+                visit((*child).into(), i);
+            }
+            visit((*motive_body).into(), motive_vars.len());
+            for child in branches {
                 visit((*child).into(), 0);
             }
         }
@@ -1147,6 +1215,23 @@ fn map_set_term(
                 field!(child, 0, All | Evaluation);
             }
         }
+        SetTermForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            field!(scrutinee, 0, All | Head | Evaluation);
+            for (i, child) in motive_domains.iter_mut().enumerate() {
+                field!(child, i, All | Evaluation);
+            }
+            field!(motive_body, motive_vars.len(), All | Evaluation);
+            for child in branches {
+                field!(child, 0, All | Evaluation);
+            }
+        }
         SetTermForm::SetCase {
             binders,
             result_ty,
@@ -1271,6 +1356,23 @@ fn map_set_type(
             }
             field!(motive_body, motive_vars.len(), All | Evaluation);
             for child in cases {
+                field!(child, 0, All | Evaluation);
+            }
+        }
+        SetTypeForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            field!(scrutinee, 0, All | Head | Evaluation);
+            for (i, child) in motive_domains.iter_mut().enumerate() {
+                field!(child, i, All | Evaluation);
+            }
+            field!(motive_body, motive_vars.len(), All | Evaluation);
+            for child in branches {
                 field!(child, 0, All | Evaluation);
             }
         }
@@ -1512,6 +1614,23 @@ fn map_prop_term(
                 field!(child, 0, All | Evaluation);
             }
         }
+        PropTermForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            field!(scrutinee, 0, All | Head | Evaluation);
+            for (i, child) in motive_domains.iter_mut().enumerate() {
+                field!(child, i, All | Evaluation);
+            }
+            field!(motive_body, motive_vars.len(), All | Evaluation);
+            for child in branches {
+                field!(child, 0, All | Evaluation);
+            }
+        }
     }
     if *original == node {
         Ok(h.into())
@@ -1632,6 +1751,23 @@ fn map_prop_type(
             }
             field!(motive_body, motive_vars.len(), All | Evaluation);
             for child in cases {
+                field!(child, 0, All | Evaluation);
+            }
+        }
+        PropTypeForm::Case {
+            motive_vars,
+            scrutinee,
+            motive_domains,
+            motive_body,
+            branches,
+            ..
+        } => {
+            field!(scrutinee, 0, All | Head | Evaluation);
+            for (i, child) in motive_domains.iter_mut().enumerate() {
+                field!(child, i, All | Evaluation);
+            }
+            field!(motive_body, motive_vars.len(), All | Evaluation);
+            for child in branches {
                 field!(child, 0, All | Evaluation);
             }
         }

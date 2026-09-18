@@ -57,7 +57,8 @@ pub(crate) fn definition_dependencies(
                 match &node {
                     ExpNode::IndType { indspec, .. }
                     | ExpNode::IndCtor { indspec, .. }
-                    | ExpNode::IndElim { indspec, .. } => {
+                    | ExpNode::IndElim { indspec, .. }
+                    | ExpNode::IndCase { indspec, .. } => {
                         inductives.insert(*indspec);
                     }
                     ExpNode::ReflectedProgramCase { indspec, .. } => {

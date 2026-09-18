@@ -414,6 +414,14 @@ pub enum SetTermForm {
         motive_body: LogicalExpression,
         cases: Vec<LogicalArgument>,
     },
+    Case {
+        inductive: InductiveId,
+        motive_vars: Vec<SymbolId>,
+        scrutinee: LogicalArgument,
+        motive_domains: Vec<LogicalExpression>,
+        motive_body: LogicalExpression,
+        branches: Vec<LogicalArgument>,
+    },
     SetCase {
         inductive: ProgramInductiveId,
         binders: Vec<Vec<SymbolId>>,
@@ -517,6 +525,14 @@ pub enum SetTypeForm {
         motive_domains: Vec<LogicalExpression>,
         motive_body: LogicalExpression,
         cases: Vec<LogicalArgument>,
+    },
+    Case {
+        inductive: InductiveId,
+        motive_vars: Vec<SymbolId>,
+        scrutinee: LogicalArgument,
+        motive_domains: Vec<LogicalExpression>,
+        motive_body: LogicalExpression,
+        branches: Vec<LogicalArgument>,
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -682,6 +698,14 @@ pub enum PropTermForm {
         motive_body: LogicalExpression,
         cases: Vec<LogicalArgument>,
     },
+    Case {
+        inductive: InductiveId,
+        motive_vars: Vec<SymbolId>,
+        scrutinee: LogicalArgument,
+        motive_domains: Vec<LogicalExpression>,
+        motive_body: LogicalExpression,
+        branches: Vec<LogicalArgument>,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PropTermNode {
@@ -778,6 +802,14 @@ pub enum PropTypeForm {
         motive_domains: Vec<LogicalExpression>,
         motive_body: LogicalExpression,
         cases: Vec<LogicalArgument>,
+    },
+    Case {
+        inductive: InductiveId,
+        motive_vars: Vec<SymbolId>,
+        scrutinee: LogicalArgument,
+        motive_domains: Vec<LogicalExpression>,
+        motive_body: LogicalExpression,
+        branches: Vec<LogicalArgument>,
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

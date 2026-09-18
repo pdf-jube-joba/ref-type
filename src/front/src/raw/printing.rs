@@ -114,6 +114,23 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(return_type),
             cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
         ),
+        ExpNode::IndCase {
+            indspec,
+            scrutinee,
+            return_type,
+            branches,
+        } => format!(
+            "case {} \\in ind({}:{}) \\return {} with {{{}}}",
+            child(scrutinee),
+            indspec.module.0,
+            indspec.index,
+            child(return_type),
+            branches
+                .into_iter()
+                .map(child)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         ExpNode::ReflectedProgramCase {
             indspec,
             scrutinee,

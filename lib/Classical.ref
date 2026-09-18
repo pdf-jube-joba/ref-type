@@ -12,7 +12,7 @@
 
 \definition orElim(P, Q, R: \Prop) (onLeft: P -> R) (onRight: Q -> R)
     (value: Logic.Or[P, Q]): R :=
-  \elim value \in Logic.Or \return (\fun (_: Logic.Or[P, Q]) => R) {
+  \case value \in Logic.Or \return (\fun (_: Logic.Or[P, Q]) => R) {
   | left => onLeft
   | right => onRight
   };
@@ -112,45 +112,44 @@
 
 \definition falseEqDecidable(y: B.Bool^):
     Logic.Or[B.Bool^::false = y, Logic.Not (B.Bool^::false = y)] :=
-  \prec[B.Bool^, \fun (y: B.Bool^) => Logic.Or[
-      B.Bool^::false = y, Logic.Not (B.Bool^::false = y)]]
-    (Logic.Or[
+  \case y \in B.Bool^ \return (\fun (y: B.Bool^) => Logic.Or[
+      B.Bool^::false = y, Logic.Not (B.Bool^::false = y)]) {
+    | false => (Logic.Or[
       B.Bool^::false = B.Bool^::false,
       Logic.Not (B.Bool^::false = B.Bool^::false)
     ]::left (\refl(B.Bool^::false)))
-    (Logic.Or[
+    | true => (Logic.Or[
       B.Bool^::false = B.Bool^::true,
       Logic.Not (B.Bool^::false = B.Bool^::true)
     ]::right
       (\fun (e: B.Bool^::false = B.Bool^::true) =>
         B.absurd Logic.False e))
-    y;
+    };
 
 \definition trueEqDecidable(y: B.Bool^):
     Logic.Or[B.Bool^::true = y, Logic.Not (B.Bool^::true = y)] :=
-  \prec[B.Bool^, \fun (y: B.Bool^) => Logic.Or[
-      B.Bool^::true = y, Logic.Not (B.Bool^::true = y)]]
-    (Logic.Or[
+  \case y \in B.Bool^ \return (\fun (y: B.Bool^) => Logic.Or[
+      B.Bool^::true = y, Logic.Not (B.Bool^::true = y)]) {
+    | false => (Logic.Or[
       B.Bool^::true = B.Bool^::false,
       Logic.Not (B.Bool^::true = B.Bool^::false)
     ]::right
       (\fun (e: B.Bool^::true = B.Bool^::false) =>
         B.absurd Logic.False
           (sym!{B.Bool^} B.Bool^::true B.Bool^::false e)))
-    (Logic.Or[
+    | true => (Logic.Or[
       B.Bool^::true = B.Bool^::true,
       Logic.Not (B.Bool^::true = B.Bool^::true)
     ]::left (\refl(B.Bool^::true)))
-    y;
+    };
 
 \definition boolEqDecidable:
     \forall (x, y: B.Bool^) -> Logic.Or[x = y, Logic.Not (x = y)] :=
   \fun (x, y: B.Bool^) =>
-    \prec[B.Bool^, \fun (x: B.Bool^) =>
-        \forall (y: B.Bool^) -> Logic.Or[x = y, Logic.Not (x = y)]]
-      falseEqDecidable
-      trueEqDecidable
-      x y;
+    \case x \in B.Bool^ \return (\fun (x: B.Bool^) => \forall (y: B.Bool^) -> Logic.Or[x = y, Logic.Not (x = y)]) {
+      | false => falseEqDecidable
+      | true => trueEqDecidable
+      } y;
 
 \definition equalChoicesGiveP(P: \Prop) (u, v: B.Bool^)
     (uMember: Logic.Or[u = B.Bool^::false, P])
