@@ -1,25 +1,39 @@
 # 表面構文
 
-この文書は、現在の front のパーサーが受理する `.ref` の表面構文をまとめたリファレンスである。
-コード例中の `expression`、`type`、`value`、`computation` などは、それぞれ該当する式で置き換える。
+現在の .ref ファイルで使われている表面構文を、目的別にまとめる。
+例中の <...> は実際の名前や式に置き換えるメタ記号である。
 
-## 字句
+目的別の入口:
 
-空白、タブ、改行、フォームフィードはトークンの間で無視される。
-コメントは `/* ... */` で、入れ子にできる。
+- [字句と共通記法](#1-字句と共通記法)
+- [module](#2-module) / [宣言](#3-宣言)
+- [式の共通構文](#4-式の共通構文)
+- [Set/Prop](#5-setprop) / [Program](#6-program-cbpv)
+- [一般再帰・Run・Box](#7-一般再帰runbox) / [マクロ](#8-マクロ)
 
-```text
-/* outer /* nested */ outer */
-```
+目的別の入口:
 
-識別子は英字で始まり、続きに英数字と `_` を使える。大文字と小文字は区別される。
-キーワードは `\definition` のように `\` と英字で始まり、その後に英数字と `-` を使える。
+- [字句・名前・metavariable](#1-字句と共通記法)
+- [module と import](#2-module)
+- [宣言](#3-宣言)
+- [式の優先順位](#4-式の共通構文)
+- [Set/Prop](#5-setprop)
+- [Program](#6-program-cbpv)
+- [再帰・Box](#7-一般再帰runbox)
+- [マクロ](#8-マクロ)
 
-数値は十進の非負整数で、現在は sort level と番号付き metavariable に使う。
-文字列状のマクロトークンは改行を含まない `"..."` である。エスケープシーケンスはない。
+## 1. 字句と共通記法
 
-記号列は可能な限り一つのトークンになる。隣接する二つの記号トークンを意図する場合は空白で
-区切る。次の記号には構文上の意味がある。
+### 字句
+
+- 空白、タブ、改行、フォームフィードは区切りとして無視する。
+- /* ... */ は入れ子可能なコメントである。
+- 識別子は英字で始まり、英数字と _ が続く。
+- キーワードは \name の形式で、名前には英数字と - が使える。
+- 数値は十進の非負整数である。
+- "..." は改行を含まない引用マクロトークンである。エスケープはない。
+
+次の記号は構文トークンである。
 
 ```text
 ( ) \( \) { } [ ]
@@ -27,81 +41,107 @@
 -> ~> <- => :=
 ```
 
-## ファイルと module
+その他の記号列は一つのマクロトークンになる。別々の記号トークンを隣接させる場合は空白で
+区切る。
 
-通常のルートファイルには一つ以上の module を置く。
+### parameter と名前
+
+型、constructor、型関連 item、module の引数は角括弧で指定する。空の [] も指定できる。
+
+```text
+Type[A, B]
+Type[A, B]::item argument
+\import \root.M[A := T, x := value] \as Alias;
+\import \root.M[] \as Alias;
+```
+
+名前へのアクセスは . と :: を使う。
+
+```text
+name
+Import.name
+Type[A]::item
+Import.Type[A]::item
+```
+
+Program の名前の末尾に ^ を付けると Set 側への reflection になる。
+
+```text
+Bool^
+Bool^::true
+Wrap^[Bool^]
+value^
+identity^
+Import.Bool^
+Import.value^
+```
+
+Program の datatype、constructor、record literal、型関連 item の parameter は、文脈から
+決まる場合に省略または _ で指定できる。
+
+### metavariable
+
+| 表記 | 意味 |
+| --- | --- |
+| _ | 制約から補完する implicit hole |
+| ? | 出現ごとに新しい goal |
+| ?N | 同じ番号を同じ elaboration 単位で共有する goal |
+
+束縛名の _ は匿名名であり、式位置の _ とは別である。
+
+## 2. module
+
+ルートファイルには module を一つ以上置く。module は入れ子にでき、item は宣言順に処理する。
 
 ```text
 \module Name(parameters) {
-  module-items
+  <module-item>*
 }
 
-\module Empty {}
+\module Name(parameters);
 ```
 
-`parameters` は後述する通常の注釈束縛をコンマで並べる。括弧そのものと末尾のコンマは省略できる。
-
-```text
-\module Example(A, B: \Set, x: A, P: A -> \Prop) { ... }
-```
-
-本体を別ファイルに置く module は `;` で宣言する。
-
-```text
-\module Algebra(A: \Set);
-```
-
-ルートファイルと同じディレクトリの `Algebra.ref` には、外側の `\module Algebra { ... }` を
-書かず module item を直接置く。外部 child module のパスも module の入れ子に対応する。
-
-module は入れ子にできる。module item は宣言順に処理される。
+; で終わる宣言は外部 module である。対応する Name.ref には外側の module 宣言を書かず、
+module item だけを置く。子 module のファイルパスは module の入れ子に対応する。
 
 ### import
 
-module の instance 化と alias の導入には `\import` を使う。
-
 ```text
-\import CurrentChild[A := T, x := value] \as C;
+\import Child[A := T] \as C;
 \import \parent.Sibling[] \as S;
 \import \parent.\parent.Outer[] \as O;
-\import \root.Top[A := T] \as T0;
+\import \root.Top[A := T] \as T;
 \import \root.Top[A := T].Nested[] \as N;
 \import ExistingAlias.Child[x := value] \as Child;
 ```
 
-module path の各要素は `Name[name := expression, ...]` と書く。parameter のない module にも
-`[]` が要る。引数名、個数、順序は宣言と一致させる。`\root.` はルートから、`\parent.` は
-一つ外側の module から探索する。先頭が既存の import alias と `.` の組なら、その instance を
-親として child module を instance 化する。
+各 path 要素は Name[arg := expression, ...] で書き、parameter の個数・名前・順序を宣言と
+一致させる。\root. はルートから、\parent. は一つ上の module から探索する。
+既存 alias から child module を instance 化するときは Alias.Child[...] と書く。
+module argument では metavariable の推論を行わない。
 
-module argument は通常の式構文を使うが、metavariable の推論は行われない。
+## 3. 宣言
 
-## 宣言
-
-### 定義
+### definition
 
 ```text
 \definition name: type := expression;
 \definition name(x, y: A)(z: B): type := expression;
-```
-
-名前の後の束縛は複数グループ書ける。Set/Prop の定義では通常の関数束縛、Program の
-computation 定義では `~>` と `\cfun` に相当する糖衣になる。型と本体から Set/Prop、Program
-value、Program computation のどの定義かを判定する。
-
-型関連 item は owner を `::` の前に書く。
-
-```text
 \definition Type(parameters)::item(arguments): type := expression;
 ```
 
-例は `\definition List(A: \VType)::head(xs: List[A]): \F(A) := ...;` である。
-owner parameter は owner の型 parameter に対応する。
-引数付きの Program computation 定義は、たとえば
-`\definition f(x: A, y: B): C := body;` なら型 `A ~> B ~> C` と本体
-`\cfun (x: A) (y: B) => body` に展開される。
+括弧付き binder は複数 group 書ける。型と本体から Set/Prop、Program value、Program
+computation のいずれかに分類される。Type::item は型関連 item で、owner の parameter を
+先頭に束縛した定義になる。
 
-### 帰納型
+Program computation 定義の引数は CBV の糖衣である。
+
+```text
+\definition f(x: A, y: B): C := body;
+/* A ~> B ~> C と \cfun (x: A) (y: B) => body に相当 */
+```
+
+### inductive
 
 ```text
 \inductive Type(parameters): result-kind :=
@@ -110,8 +150,9 @@ owner parameter は owner の型 parameter に対応する。
 ;
 ```
 
-`result-kind` は `\Prop`、`\PropKind`、`\Set`、`\SetKind` または `\VType` である。
-constructor がなくても、宣言全体を閉じる最後の `;` は要る。
+result-kind は \Prop、\PropKind、\Set、\SetKind、\VType のいずれかである。
+constructor type は ->、\forall、通常の式を組み合わせる。Program inductive の parameter は
+\VType、field は value type である。
 
 ```text
 \inductive Nat: \Set :=
@@ -125,35 +166,32 @@ constructor がなくても、宣言全体を閉じる最後の `;` は要る。
 ;
 ```
 
-constructor は `Type[parameters]::constructor arguments` で参照する。Program constructor の
-field type は value type であり、`->` は constructor field を区切る構文としても使われる。
+constructor は Type[parameters]::constructor arguments で参照する。
 
-### structure
+### structure と record
 
 ```text
 \structure Type(parameters): result-kind := {
   field1: type1,
   field2: type2,
 };
+
+\record Type[parameters] {
+  field1 := value1,
+  field2 := value2
+}
 ```
 
-field の末尾のコンマは任意で、空の `{}` も使える。Set/Prop structure の field は前の field に
-依存できる。Program structure の kind は `\VType` で、field は非依存の value type である。
+structure の field は宣言順に書き、末尾のコンマと空の {} を許す。Set/Prop structure の
+field type は先行 field に依存できる。Program structure は \VType で、field は非依存の
+value type である。
 
-値の構築には `\record` を使う。
+record literal の field 順は任意だが、宣言された全 field を一度ずつ指定する。projection は
+Type[parameters]::field record である。Program projection の結果は computation になる。
 
-```text
-\record Type[parameters] { field1 := value1, field2 := value2 }
-\record Empty {}
-```
+### check と評価
 
-record literal の末尾のコンマは任意である。projection は `Type[parameters]::field record` と書く。
-Program projection は computation で、結果を値として使うには `\bind` する。
-record literal の field 順は任意だが、宣言された全 field を一度ずつ指定する。
-
-### 検査・実行 item
-
-Set/Prop 式に対する item は次のとおり。
+Set/Prop:
 
 ```text
 \check expression: type;
@@ -162,7 +200,7 @@ Set/Prop 式に対する item は次のとおり。
 \normalize expression;
 ```
 
-Program は judgement ごとに item が分かれる。
+Program:
 
 ```text
 \vcheck value: value-type;
@@ -173,64 +211,32 @@ Program は judgement ごとに item が分かれる。
 \cnormalize computation;
 ```
 
-`eval` 系は評価、`normalize` 系は正規化を表示する。
+## 4. 式の共通構文
 
-## 束縛、名前、metavariable
-
-通常の注釈束縛は次の形である。同じ型の名前をコンマでまとめられ、束縛リストの末尾のコンマも
-許される。束縛位置の `_` は匿名名である。
+### binder
 
 ```text
 (x: A)
 (x, y: A, z: B)
 (_: A)
+(x: A \where predicate)
+(x: A \where predicate \as proof)
 ```
 
-式位置では `_`、`?`、`?N` が metavariable になる。
+\where 付き binder は値の名前を一つだけ取り、条件と任意の証明名を導入する。
+\forall と \fun で使える。
 
-- `_` は制約から一意に補完する implicit hole。
-- `?` は出現ごとに新しい goal。
-- `?0`、`?12` などは同じ elaboration 単位の同じ番号どうしで共有する goal。
+### 優先順位
 
-匿名名 `_` は注釈束縛、式形式の `\let` と `\bind`、block の `\bind` で使える。
-block の `\let` と `\match` branch の field 名には通常の識別子を書く。
+すべての式は括弧で囲める。強い順の優先順位は次のとおり。
 
-名前の参照は次の形を持つ。
-
-```text
-name
-Import.name
-Type[A, B]::item
-Import.Type[A, B]::item
-```
-
-`[...]` は型や定義の位置 parameter で、空にもできる。`Import.name` のような local access は
-一段の import alias を持つ。`::` は constructor、projection、型関連定義に共通であり、式に対して
-左結合で繰り返すこともできる。
-
-Program の datatype、constructor、record literal、型関連 item では、型 parameter をすべて省略した
-形や `_` で指定した形を周囲の型から推論できる。決まらない parameter は goal または ambiguity に
-なる。
-
-Program の名前に `^` を付けると Set 側への reflection を明示する。
-
-```text
-Bool^                  /* reflected datatype */
-Bool^::true            /* reflected constructor */
-Wrap^[Bool^]           /* reflected parameterized datatype */
-value^                 /* reflected Program value */
-identity^              /* reflected Program definition */
-M.Bool^
-M.value^
-```
-
-`^` は access path の末尾に付く独立したトークンである。Program module parameter も同様に
-`A^`、`a^` として参照できる。
-
-## 式の共通構造と優先順位
-
-任意の式は `(expression)` で囲める。通常の関数適用は空白で並べ、左結合する。
-等号は一度だけ書ける。矢印は右結合する。
+| 構文 | 結合 |
+| --- | --- |
+| atom、括弧 | — |
+| expression::item | 左 |
+| function argument | 左 |
+| left = right | 一度だけ |
+| A -> B、A ~> C | 右 |
 
 ```text
 f x y
@@ -239,33 +245,12 @@ A -> B -> C
 A ~> B ~> C
 ```
 
-強い順の優先順位は次のとおり。
+\let と \bind は \in の後を右端まで読む。 \return も後続の value 式全体を読む。
+\thunk と \force は直後の postfix atom だけを取るため、複合式を引数にするときは括弧で囲む。
 
-| 構文 | 結合 |
-| --- | --- |
-| atom と `(expression)` | — |
-| `expression::item` | 左 |
-| `function argument` | 左 |
-| `left = right` | 連鎖不可 |
-| `A -> B`、`A ~> C` | 右、同順位 |
+## 5. Set/Prop
 
-`\let` と `\bind` は最も外側の binding form として、`\in` の後を式の右端まで読む。
-`\return` も後続の value 式全体を読む。一方 `\thunk` と `\force` は直後の postfix atom
-だけを取るため、複合 computation/value を包むときは括弧を使う。
-binding form を関数の引数に置く場合にも括弧を使う。
-
-```text
-\return f x
-\thunk (f x)
-\force suspended
-(\force suspended) x
-```
-
-## Set/Prop の式
-
-### sort と関数
-
-sort は次の四系列である。Set 系は level を省略すると 0 になる。
+### sort
 
 ```text
 \Prop
@@ -276,7 +261,9 @@ sort は次の四系列である。Set 系は level を省略すると 0 にな�
 \SetKind(2)
 ```
 
-非依存関数、依存積、lambda は次のように書く。
+\Set と \SetKind の level は省略時 0 である。
+
+### product と lambda
 
 ```text
 A -> B
@@ -286,15 +273,7 @@ A -> B
 \fun (x, y: A) (z: B) => body
 ```
 
-refinement binder は `\where` で条件を、任意の `\as` でその証明の束縛名を与える。
-`\where` を使う場合は値の束縛名を一つだけ書く。
-
-```text
-\forall (x: A \where P x) -> B
-\fun (x: A \where P x \as proof) => body
-```
-
-### powerset、subset、存在
+### set operator
 
 ```text
 \Power(A)
@@ -302,17 +281,16 @@ refinement binder は `\where` で条件を、任意の `\as` でその証明の
 \Ty(A, subset)
 \Pred(A, subset, element)
 \subsetinto(A, subset, element, membership-proof)
-```
-
-`\Subset` は `A` 上の subset、`\Ty` はその refinement type、`\Pred` は membership、
-`\subsetinto` は membership proof を伴う refinement value を作る。
-
-存在と choice は次の形である。
-
-```text
 \exists A
 \exists {x: A \where P x}
+```
 
+\Power は powerset、\Subset は subset、\Ty は refinement type、\Pred は membership
+predicate、\subsetinto は membership proof 付きの要素を表す。
+
+### choice
+
+```text
 \take (x: A) => body
 \by { existence: existence-proof }
 
@@ -320,34 +298,20 @@ refinement binder は `\where` で条件を、任意の `\as` でその証明の
 \by { existence: existence-proof, uniqueness: uniqueness-proof }
 ```
 
-`uniqueness` がない形は proposition-valued choice、ある形は set-valued choiceになる。
-field 名と順序は固定である。
+uniqueness のない form は proposition-valued、ある form は set-valued choice である。
 
-### 等号と証明項
+### equality と proof term
 
 ```text
 left = right
 \refl(element)
 \exact(element, set)
 \bysub(superset, subset, element)
+\idelim(left = right \with x: A => predicate) \by (base, equality)
+\takeelim(function, element, domain, codomain) \by (existence, uniqueness)
 ```
 
-`\exact` は存在の導入、`\bysub` は refinement value から membership proof を取り出す。
-等号消去は次の形である。
-
-```text
-\idelim(left = right \with x: A => predicate)
-\by (base, equality)
-```
-
-choice の結果に関する等号は次で作る。
-
-```text
-\takeelim(function, element, domain, codomain)
-\by (existence, uniqueness)
-```
-
-組み込み公理は三つある。
+組み込み公理:
 
 ```text
 \axiom:setext(left, right, left-to-right, right-to-left)
@@ -355,30 +319,21 @@ choice の結果に関する等号は次で作る。
 \axiom:classicalIndefiniteChoice(domain, family, inhabited)
 ```
 
-### 帰納型の消去
-
-通常の eliminator は branch 名と branch 項を並べる。
+### inductive elimination
 
 ```text
 \elim scrutinee \in Type \return motive {
 | constructor1 => branch1
 | constructor2 => branch2
 }
-```
 
-import や reflection を使う型なら `\in M.Type`、`\in Type^` と書ける。branch の末尾に
-`;` は付けない。
-
-primitive recursor は次の atom を作り、その後ろに motive と constructor ごとの branch を
-通常の関数適用として渡す。
-
-```text
 \prec(sort, Type[parameters]) motive branch1 branch2
 ```
 
-`sort` は四つの PTS sort のいずれかである。
+\elim の branch は | または } で終わる。\prec は primitive recursor の atom で、後ろに
+motive と branch を通常の application として渡す。
 
-### 論理ブロック
+### logical block
 
 ```text
 \block {
@@ -389,39 +344,32 @@ primitive recursor は次の atom を作り、その後ろに motive と constru
 }
 ```
 
-ブロックは 0 個以上の `\fix`、`\let`、`\enough` 文と、必須の最後の `\return` からなる。
-`\fix` は現在の目標の前方から引数を固定する。異なる型の binder group は `,` でつなぐ。
-論理側の `\let` は局所定義で、後続の項と型では定義内容まで展開できる。
+\fix、\let、\enough を 0 個以上並べ、必須の \return で終える。\fix は目標の前方に binder
+を追加する。\let は後続の項と型から展開できる局所定義である。
+\enough A \by map; は map: A -> B を使って残りの目標を A にする。
 
-最終目標が `B` のとき、`\enough A \by map;` は `map: A -> B` を使い、残りのブロックの
-目標を `A` に変える。各文が導入した名前は後続だけで有効で、注釈と右辺は導入前の scope で
-解釈する。
+## 6. Program (CBPV)
 
-## Program
+value type、computation type、value、computation を区別する。
 
-Program は CBPV に従い、value type、computation type、value、computation を区別する。
-
-### 型
+### type
 
 ```text
-\VType             /* value type の sort */
-\F(A)              /* A を返す computation type */
-\U(C)              /* C の thunk である value type */
-A ~> C             /* value A を受け取る computation function type */
-\RunStep(A, B)     /* run の一ステップを表す value type */
+\VType
+\F(A)
+\U(C)
+A ~> C
+\RunStep(A, B)
 ```
 
-`\F` の引数は value type、`\U` の引数は computation type、`~>` の左辺は value type、右辺は
-computation type として分類する。
+\F は value を返す computation type、\U は thunk の value type、~> は computation function
+type、\RunStep は run の一ステップを表す value type である。
 
-`A -> B` は call-by-value の糖衣でもある。computation type の位置では `A ~> \F(B)`、value
-type の位置では `\U(A ~> \F(B))` として読む。定義の型に裸で書いた `A -> B` は computation
-type を優先するため、関数 value の型は `\U(A -> B)` と明示する。この矢印に依存束縛や
-refinement は書けない。
+A -> B は CBV の糖衣である。computation type の位置では A ~> \F(B)、value type の位置では
+\U(A ~> \F(B)) と読む。定義の型で裸の A -> B は computation type として扱われる。
+関数 value の型は \U(A -> B) と書く。
 
 ### value と computation
-
-基本形は次のとおり。
 
 ```text
 \return value
@@ -431,35 +379,16 @@ refinement は書けない。
 function value
 ```
 
-computation application の引数は value である。computation の結果を引数に渡す場合は先に
-`\bind` する。`\thunk` と `\force` の複合引数には括弧を付ける。
+computation application の引数は value である。computation の結果を渡すときは \bind で受け取る。
+\fun と -> も Program の文脈では CBV の糖衣である。\fun は computation 位置では \cfun、value
+位置では thunk された computation になる。複数引数では中間の関数を \return(\thunk(...)) で返す。
 
-Program の文脈では `\fun` と `->` も CBV の糖衣として使える。`\fun` は computation 位置で
-`\cfun`、value 位置ではさらに `\thunk` で包まれる。複数引数の `\fun` は後続の関数を
-`\return (\thunk ...)` で返す。最後の本体は computation なので `\return` は明示する。
-
-```text
-\definition identity(x: A): \F(A) := \return x;
-\definition suspended: \U(A ~> \F(A)) := \thunk identity;
-\definition curried: A -> B -> C :=
-  \fun (x: A) (y: B) => \return result;
-```
-
-### 局所束縛と Program ブロック
-
-式としての束縛は次の形で、型注釈は必須である。
+### local binding と Program block
 
 ```text
 \let x: A := value \in computation
 \bind y: B <- computation1 \in computation2
-```
 
-`\let` は value、`\bind` は computation の結果を束縛する。`_` を束縛名として結果を捨てられる。
-名前は `\in` より後だけで有効であり、型注釈と右辺は外側の scope で解釈する。
-
-同じ構造を文として並べられる。
-
-```text
 \program {
   \let x: A := value;
   \bind y: B <- computation;
@@ -467,10 +396,11 @@ Program の文脈では `\fun` と `->` も CBV の糖衣として使える。`\
 }
 ```
 
-Program block で使える中間文は `\let` と `\bind` だけで、最後の `\return value;` は value を
-返す computation に展開される。
+\let は value、\bind は computation の結果を束縛する。型注釈は必須で、名前は \in より後だけで
+有効である。Program block の中間文は \let と \bind、終端は \return value; である。
+block の \let 名は通常の識別子、\bind 名は _ も使える。
 
-### Program の場合分け
+### case
 
 ```text
 \match scrutinee \in Datatype \with {
@@ -479,52 +409,37 @@ Program block で使える中間文は `\let` と `\bind` だけで、最後の 
 }
 ```
 
-scrutinee は value、branch の field は value として束縛され、branch body は computation である。
-datatype 名は必須で、parameter はここでは書かない。branch は次の `|` または `}` で終わり、
-末尾に `;` は付けない。これは完全な非再帰 case analysis である。
+scrutinee と branch field は value、branch body は computation である。datatype 名は必須。
+branch の末尾に ; は付けない。
 
-## 一般再帰と reflection
+## 7. 一般再帰、Run、Box
 
 ### RunStep と accessibility
-
-一ステップの値は次で作る。
 
 ```text
 \continue(state-type, result-type, next-state)
 \finish(state-type, result-type, output)
-```
-
-Set 側には同じ形の reflected `\RunStep` と、停止性を表す次の項がある。
-
-```text
 \Acc(state-type, result-type, step, state)
 \accintro(state-type, result-type, step, state, predecessors)
 \accdescent(state-type, result-type, step, from, to, accessibility, transition)
-```
-
-`RunStep` の recursor は次の六引数である。
-
-```text
 \runStepRec(state-type, result-type, motive, on-continue, on-finish, scrutinee)
 ```
+
+\continue と \finish は Program の一ステップ値、\Acc 以下は Set 側の accessibility とその
+導入・降下、\runStepRec はその recursor である。
 
 ### run
 
 ```text
 \run(state-type, result-type, step, initial) \by accessibility
-```
-
-`step` は thunk された Program step function、`accessibility` は Set reflection 上の停止性証明で
-ある。既に一回分の transition computation を持つ形もある。
-
-```text
 \runCase(state-type, result-type, step, initial, transition)
 \by (accessibility, transition-equality)
 ```
 
-### Box
+step は thunk された step function、accessibility は停止性証明である。\runCase は一回分の
+transition computation と反映上の等号証明を受け取る。
 
-Program computation と Set 項の間の reflection には次を使う。
+### Box
 
 ```text
 \Box(program-computation-type)
@@ -533,117 +448,74 @@ Program computation と Set 項の間の reflection には次を使う。
 \boxapp(boxed-function, boxed-argument)
 ```
 
-value を box に入れる場合は `\F(A)` と `\return value` を使う。`\boxapp` は box の中の
-Program function application を表す。
+Box の対象は computation type である。value を入れるときは \F(A) と \return value を使う。
 
-## マクロ
+## 8. マクロ
 
-マクロには数式マクロと名前付きマクロがあり、どちらも module item として宣言する。
+### 定義と可視性
 
 ```text
 \math-macro name(pattern) := template;
 \macro name(pattern) := template;
-```
-
-同じ module または親 module の可視なマクロは直接使える。import したマクロは明示的に導入する。
-
-```text
 \use ImportAlias.macroName;
 ```
 
+同じ module と親 module の可視な macro は直接使える。import した macro は \use で導入する。
+同名 macro を同時に可視にはできない。
+
 ### pattern
 
-pattern atom はコンマで区切る。
+pattern の要素はコンマで区切る。
 
-| pattern | 意味 |
+| pattern | 捕捉するもの |
 | --- | --- |
-| `$name` | 通常の式を一つ捕捉する |
-| `name` | 記号または引用トークンを一つ捕捉する |
-| `..name` | 残りの列を 0 個以上捕捉する |
-| `\+` など | `\` を除いた固定の記号トークンに一致する |
-| `"tag"` | 固定の引用トークンに一致する |
-| `(pattern, ...)` | 入れ子の列に一致する |
+| $name | 通常の式一つ |
+| name | 記号または引用トークン一つ（名前付き macro） |
+| ..name | 残りの列 0 個以上（名前付き macro） |
+| \+ | 固定記号トークン |
+| "tag" | 固定引用トークン |
+| (pattern, ...) | 入れ子の列 |
 
-`..name` は各 pattern 列の末尾に一つだけ置ける。構文予約された記号は固定マクロトークンには
-使えない。数式マクロで使える capture は `$name` だけで、bare `name` と `..name` は名前付き
-マクロ専用である。
+..name は各列の末尾に一つだけ置く。->、~>、<-、=>、:=、|、:、;、.、,、=、!、::、^ は固定
+macro token にできない。数式 macro は $name capture だけを使う。
 
-template では `$name` で式 capture、bare `name` で token capture、`..name` で残りの列を
-展開する。template 中の自由な通常名はマクロ定義側、capture した式は呼出側の scope で解決する。
-
-### 呼び出し
-
-数式マクロは `\( ... \)`、名前付きマクロは `name!{ ... }` で呼ぶ。名前と `!` は隣接させる。
-呼出側の列はコンマではなく、空白またはトークン境界で atom を並べる。
+### 呼び出しと template
 
 ```text
 \(x + y \)
-choose!{x "+" y}
+name!{x "+" y}
+name!{{ f x } "keep"}
 ```
 
-マクロ列内の `( ... )` は通常式の括弧ではなく、常に入れ子のマクロ列になる。複合した通常式を
-一つの式 capture に渡すには `{ expression }` と書く。その内側では通常の式構文に戻る。
+数式 macro は \( ... \)、名前付き macro は name!{ ... } で呼ぶ。名前と ! の間に空白を
+入れない。呼出列の要素はコンマでなく空白または token 境界で並べる。
+
+macro 列内の ( ... ) は常に入れ子の macro 列である。通常の複合式を一つ渡すときは
+{ expression } と書く。その内部では通常の式構文を使う。
+
+template では $name が式 capture、bare name が token capture、..name が列の splice になる。
+template の自由な名前は定義側、capture した式は呼出側の scope で解決する。macro の branch
+が導入する binder は call-site の名前を捕捉しない。
+
+### token match
+
+名前付き macro の template 内だけで \tmatch を使える。
 
 ```text
-\((x + y) + { f (g z) } \)
-tagged!{{ f x } "keep"}
-```
-
-数式マクロは各括弧階層の列全体に一致する。内側の列を先に展開し、候補が複数なら最も左に
-固定トークンを持つもの、その中では宣言順が早いものを選ぶ。
-
-### template 内の token match
-
-名前付きマクロの template では token capture または rest capture を分岐できる。
-
-```text
-\tmatch capturedName {
+\tmatch token {
 | \+ => expression
 | "+" => expression
 | ($head, ..tail) => expression
 | () => expression
-| _ => default-expression
+| _ => default
 }
 ```
 
-pattern は固定記号、固定引用トークン、入れ子の pattern 列、または `_` である。branch は上から
-最初に一致したものを使う。空の branch 集合も書け、網羅性は静的には要求されない。
-branch 内の capture はその branch body だけで有効である。
+pattern は固定記号、固定引用 token、入れ子の列、_ のいずれかである。branch は上から最初に
+一致したものを使う。空の branch 集合も書け、網羅性は要求されない。branch 内の capture はその
+branch 本体だけで有効である。
 
-名前付きマクロは自分自身を呼べる。それ以外の template 内呼び出しから見えるのは、それ以前に
-宣言されていたマクロである。展開深さの上限は 128 である。
+名前付き macro は自分自身を呼べる。それ以外の nested macro は宣言時点で可視だったものだけを
+呼べる。macro 展開深さの上限は 128 である。
 
-## 構文一覧
-
-式を導入する現在のキーワードは次のとおりである。
-
-```text
-\Prop \PropKind \Set \SetKind
-\VType \U \F
-\fun \forall \cfun
-\return \thunk \force \let \bind
-\Power \Subset \Pred \Ty \subsetinto
-\exists \take
-\exact \bysub \refl \idelim \takeelim \axiom
-\elim \prec
-\record \match
-\block \program
-\RunStep \continue \finish \Acc \accintro \accdescent
-\run \runCase \runStepRec
-\Box \box \Force \boxapp
-\tmatch
-```
-
-module item を導入する現在のキーワードは次のとおりである。
-
-```text
-\module \import \definition \inductive \structure
-\math-macro \macro \use
-\check \infer \eval \normalize
-\vcheck \vinfer \ccheck \cinfer \ceval \cnormalize
-```
-
-`\as`、`\by`、`\in`、`\with`、`\where`、`\root`、`\parent`、block 内の `\fix` と
-`\enough` は、それぞれ上記の複合構文内で使う。
-
-実行方法と診断については [利用方法](../../../../src/USAGE.md) を参照する。
+実行方法と診断は [利用方法](../../../../src/USAGE.md) を参照する。
