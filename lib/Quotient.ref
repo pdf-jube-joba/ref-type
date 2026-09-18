@@ -5,8 +5,8 @@
 \use QuotientEquality.trans;
 
 /* The equivalence class represented by x. */
-\definition ClassOf (x: A): \Power(A) :=
-    \Subset(y, A, Equivalent x y);
+\definition ClassOf (x: A): \Pow (A) :=
+    { y : A \where Equivalent x y };
 
 /* Equivalent representatives determine the same subset. */
 \definition classOfEq (x, y: A) (xy: Equivalent x y): ClassOf x = ClassOf y :=
@@ -21,21 +21,21 @@
  *   exists x: A, C = ClassOf x.
  * Thus ClassSet is precisely the image of ClassOf.
  */
-\definition IsClass (C: \Power(A)): \Prop :=
+\definition IsClass (C: \Pow (A)): \Prop :=
     \forall (P: \Prop) ->
       (\forall (x: A) -> C = ClassOf x -> P) -> P;
 
-\definition ClassSet: \Power(\Power(A)) :=
-  \Subset(C, \Power(A), IsClass C);
+\definition ClassSet: \Pow (\Pow (A)) :=
+  { C : \Pow (A) \where IsClass C };
 
 /* The quotient A / Equivalent. */
 \definition Carrier: \Set :=
-  \Ty(\Power(A), ClassSet);
+  \Cast[\Pow (A)] (ClassSet);
 
 \definition mem (x: Carrier) (seq: A): \Prop :=
-    \Pred(A, x, seq);
+    \In[A] (x) (seq);
 
-\definition underlying (x: Carrier): \Power(A) := x;
+\definition underlying (x: Carrier): \Pow (A) := x;
 
 /* Equality of reals is kernel equality of their equivalence classes. */
 \definition Eq (x, y: Carrier): \Prop := x = y;
@@ -51,59 +51,59 @@
     P := intro x (\refl(ClassOf x));
 
 \definition class (x: A): Carrier :=
-    \subsetinto(\Power(A), ClassSet, ClassOf x, classIsClass x);
+    \into[\Pow (A)](ClassOf x, ClassSet) \by { classIsClass x };
 
 \definition classMem (x, y: A) (xy: Equivalent x y): mem (class x) y :=
     \idelim(
       ClassOf x = underlying (class x)
-      \with C: \Power(A) => \Pred(A, C, y))
-    \by (xy, \refl(ClassOf x));
+      \with C: \Pow (A) => \In[A] (C) (y))
+    \by { base: xy, equality: \refl(ClassOf x) };
 
 \definition relatedOfClassMem (x, y: A) (xy: mem (class x) y): Equivalent x y :=
     \idelim(
       underlying (class x) = ClassOf x
-      \with C: \Power(A) => \Pred(A, C, y))
-    \by (xy, \refl(ClassOf x));
+      \with C: \Pow (A) => \In[A] (C) (y))
+    \by { base: xy, equality: \refl(ClassOf x) };
 
-\definition classProperty (C: Carrier): IsClass C := \bysub(\Power(A), ClassSet, C);
+\definition classProperty (C: Carrier): IsClass C := \bysub(\Pow (A), ClassSet, C);
 
 /* Propositions on the quotient are proved on representatives. */
 \definition induction (P: Carrier -> \Prop)
   (step: \forall (x: A) -> P (class x)) (C: Carrier): P C :=
     classProperty C (P C)
       (\fun (x: A) => \fun (cx: C = ClassOf x) =>
-        (\idelim(class x = C \with D: \Power(A) =>
+        (\idelim(class x = C \with D: \Pow (A) =>
           \forall (hd: IsClass D) ->
-            P (\subsetinto(\Power(A), ClassSet, D, hd)))
-          \by ((\fun (hd: IsClass (class x)) => step x),
-            \idelim(C = ClassOf x \with D: \Power(A) => D = C)
-              \by (\refl(C), cx)))
+            P (\into[\Pow (A)](D, ClassSet) \by { hd }))
+          \by { base: (\fun (hd: IsClass (class x)) => step x), equality:
+            \idelim(C = ClassOf x \with D: \Pow (A) => D = C)
+              \by { base: \refl(C), equality: cx } })
           (classProperty C));
 
 \definition equivalentOfClassEq (x, y: A) (e: ClassOf x = ClassOf y): Equivalent x y :=
-    \idelim(ClassOf y = ClassOf x \with C: \Power(A) => \Pred(A, C, y))
-      \by (equivalentRefl y,
-        \idelim(ClassOf x = ClassOf y \with C: \Power(A) => C = ClassOf x)
-          \by (\refl(ClassOf x), e));
+    \idelim(ClassOf y = ClassOf x \with C: \Pow (A) => \In[A] (C) (y))
+      \by { base: equivalentRefl y, equality:
+        \idelim(ClassOf x = ClassOf y \with C: \Pow (A) => C = ClassOf x)
+          \by { base: \refl(ClassOf x), equality: e } };
 
-\definition sameClassRelated (C: \Power(A)) (x, y: A) (cx: C = ClassOf x) (cy: C = ClassOf y): Equivalent x y :=
+\definition sameClassRelated (C: \Pow (A)) (x, y: A) (cx: C = ClassOf x) (cy: C = ClassOf y): Equivalent x y :=
     equivalentOfClassEq x y
-      (trans!{\Power(A)} (ClassOf x) C (ClassOf y)
-        (sym!{\Power(A)} C (ClassOf x) cx) cy);
+      (trans!{\Pow (A)} (ClassOf x) C (ClassOf y)
+        (sym!{\Pow (A)} C (ClassOf x) cx) cy);
 
 /* Relational images lift representative-independent operations to the quotient. */
 \definition UnaryRespects (f: A -> A): \Prop :=
     \forall (x, y: A) -> Equivalent x y -> Equivalent (f x) (f y);
 
-\definition UnaryImage (f: A -> A) (C: \Power(A)): \Power(A) :=
-    \Subset(z, A, \forall (P: \Prop) ->
-      (\forall (x: A) -> C = ClassOf x -> Equivalent (f x) z -> P) -> P);
+\definition UnaryImage (f: A -> A) (C: \Pow (A)): \Pow (A) :=
+    { z : A \where \forall (P: \Prop) ->
+      (\forall (x: A) -> C = ClassOf x -> Equivalent (f x) z -> P) -> P };
 
 \definition unaryImageClass (f: A -> A) (respects: UnaryRespects f)
-  (C: \Power(A)) (x: A) (cx: C = ClassOf x):
+  (C: \Pow (A)) (x: A) (cx: C = ClassOf x):
     UnaryImage f C = ClassOf (f x) :=
     \axiom:setext(UnaryImage f C, ClassOf (f x),
-      (\fun (z: A) => \fun (hz: \Pred(A, UnaryImage f C, z)) =>
+      (\fun (z: A) => \fun (hz: \In[A] (UnaryImage f C) (z)) =>
         hz (Equivalent (f x) z)
           (\fun (y: A) => \fun (cy: C = ClassOf y) =>
           \fun (yz: Equivalent (f y) z) =>
@@ -127,17 +127,17 @@
     \forall (x, y, u, v: A) ->
       Equivalent x y -> Equivalent u v -> Equivalent (f x u) (f y v);
 
-\definition BinaryImage (f: A -> A -> A) (C, D: \Power(A)): \Power(A) :=
-    \Subset(z, A, \forall (P: \Prop) ->
+\definition BinaryImage (f: A -> A -> A) (C, D: \Pow (A)): \Pow (A) :=
+    { z : A \where \forall (P: \Prop) ->
       (\forall (x, y: A) -> C = ClassOf x -> D = ClassOf y ->
-        Equivalent (f x y) z -> P) -> P);
+        Equivalent (f x y) z -> P) -> P };
 
 \definition binaryImageClass (f: A -> A -> A) (respects: BinaryRespects f)
-  (C, D: \Power(A)) (x, y: A)
+  (C, D: \Pow (A)) (x, y: A)
   (cx: C = ClassOf x) (dy: D = ClassOf y):
     BinaryImage f C D = ClassOf (f x y) :=
     \axiom:setext(BinaryImage f C D, ClassOf (f x y),
-      (\fun (z: A) => \fun (hz: \Pred(A, BinaryImage f C D, z)) =>
+      (\fun (z: A) => \fun (hz: \In[A] (BinaryImage f C D) (z)) =>
         hz (Equivalent (f x y) z)
           (\fun (u, v: A) => \fun (cu: C = ClassOf u) =>
           \fun (dv: D = ClassOf v) => \fun (uvz: Equivalent (f u v) z) =>

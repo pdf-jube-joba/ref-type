@@ -5,32 +5,27 @@
   | last: State;
   ;
 
-  \definition step: \U((State ~> \F(\RunStep(State, State)))) :=
+  \definition step: \U((State ~> \F(\RunStep[State, State]))) :=
     \thunk((\cfun (state: State) => \match (state) \in State \with {
-      | first => \return(\continue(State, State, State::last))
-      | last => \return(\finish(State, State, State::last))
+      | first => \return(\continue[State, State](State::last))
+      | last => \return(\finish[State, State](State::last))
       }));
 
-  \definition stepSet: State^ -> \RunStep(State^, State^) :=
-    \Force(\F(\U((State ~> \F(\RunStep(State, State))))),
-      \box(\F(\U((State ~> \F(\RunStep(State, State))))), \return(step)));
-  \definition ready: \RunStep(State^, State^) -> \Prop :=
-    \fun (r: \RunStep(State^, State^)) => \Pred(State^,
-      \runStepRec(State^, State^, \fun (r: \RunStep(State^, State^)) => \Power(State^),
-        \fun (s: State^) => \Subset(x, State^, \Acc(State^, State^, stepSet, s)),
-        \fun (o: State^) => \Subset(x, State^, State^::last = State^::last), r), State^::last);
-  \definition accIntro: \forall (s: State^) -> ready (stepSet s) -> \Acc(State^, State^, stepSet, s) :=
+  \definition stepSet: State^ -> \RunStep[State^, State^] :=
+    \force[\F(\U((State ~> \F(\RunStep[State, State]))))](\box[\F(\U((State ~> \F(\RunStep[State, State]))))](\return(step)));
+  \definition ready: \RunStep[State^, State^] -> \Prop :=
+    \fun (r: \RunStep[State^, State^]) => \In[State^] (\runStepRec[State^, State^](\fun (r: \RunStep[State^, State^]) => \Pow (State^), \fun (s: State^) => { x : State^ \where \Acc[State^, State^](stepSet, s) }, \fun (o: State^) => { x : State^ \where State^::last = State^::last }, r)) (State^::last);
+  \definition accIntro: \forall (s: State^) -> ready (stepSet s) -> \Acc[State^, State^](stepSet, s) :=
     \fun (s: State^) => \fun (proof: ready (stepSet s)) =>
-      \accintro(State^, State^, stepSet, s,
-        \fun (next: State^) => \fun (edge: stepSet s = \continue(State^, State^, next)) =>
-          \idelim(stepSet s = \continue(State^, State^, next)
-            \with r: \RunStep(State^, State^) => ready r) \by (proof, edge));
-  \definition lastTerminates: \Acc(State^, State^, stepSet, State^::last) :=
+      \accintro[State^, State^](stepSet, s, \fun (next: State^) => \fun (edge: stepSet s = \continue[State^, State^](next)) =>
+          \idelim(stepSet s = \continue[State^, State^](next)
+            \with r: \RunStep[State^, State^] => ready r) \by { base: proof, equality: edge });
+  \definition lastTerminates: \Acc[State^, State^](stepSet, State^::last) :=
     accIntro State^::last (\refl(State^::last));
-  \definition firstTerminates: \Acc(State^, State^, stepSet, State^::first) :=
+  \definition firstTerminates: \Acc[State^, State^](stepSet, State^::first) :=
     accIntro State^::first lastTerminates;
 
   \definition result: \F(State) :=
-    \run(State, State, step, State::first) \by firstTerminates;
-  \cnormalize \run(State, State, step, State::first) \by firstTerminates;
+    \run[State, State](step, State::first) \by { firstTerminates };
+  \cnormalize \run[State, State](step, State::first) \by { firstTerminates };
 }

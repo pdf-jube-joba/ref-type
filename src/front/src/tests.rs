@@ -454,7 +454,7 @@ fn logical_enough_changes_the_remaining_goal() {
     let source = r#"
         \module Enough(P, Q: \Prop, p: P, implication: P -> Q) {
             \definition result: Q := \block {
-                \enough P \by implication;
+                \enough P \by { implication };
                 \return p;
             };
         }
@@ -467,8 +467,8 @@ fn logical_enough_changes_the_remaining_goal() {
 #[test]
 fn logical_let_preserves_the_declared_type() {
     let source = r#"
-        \module LocalAnnotation(A: \Set, S: \Power(A), s: \Ty(A, S)) {
-            \definition invalid: \Ty(A, S) := \block {
+        \module LocalAnnotation(A: \Set, S: \Pow (A), s: \Cast[A] (S)) {
+            \definition invalid: \Cast[A] (S) := \block {
                 \let x: A := s;
                 \return x;
             };
@@ -753,7 +753,7 @@ fn implicit_solution_may_depend_on_its_local_binder_context() {
 fn program_value_definition_uses_the_value_judgement() {
     let source = r#"
         \module ProgramMeta(A: \VType, x: A) {
-            \definition finished: \RunStep(A, A) := \finish(A, A, x);
+            \definition finished: \RunStep[A, A] := \finish[A, A](x);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -870,11 +870,26 @@ fn named_goals_share_but_bare_goals_are_fresh() {
 fn subset_intro_construction_and_reuse() {
     let source = r#"
         \module NamedSubset(A: \Set(0)) {
-            \definition XSet: \Power(A) := \Subset(x, A, x = x);
-            \definition X: \Set(0) := \Ty(A, XSet);
+            \definition XSet: \Pow (A) := { x : A \where x = x };
+            \definition X: \Set(0) := \Cast[A] (XSet);
             \definition make: \forall (x: A) -> X :=
-                \fun (x: A) => \subsetinto(A, XSet, x, \refl(x));
+                \fun (x: A) => \into[A](x, XSet) \by { \refl(x) };
             \definition reuse: \forall (x: X) -> X := \fun (x: X) => x;
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn membership_and_cast_are_first_class_functions() {
+    let source = r#"
+        \module SetOperators(A: \Set, subset: \Pow A) {
+            \definition membership: \Pow A -> A -> \Prop := \In[A];
+            \definition cast: \Pow A -> \Set := \Cast[A];
+            \definition Specialized: \Set := cast subset;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -887,10 +902,10 @@ fn subset_intro_construction_and_reuse() {
 fn subset_intro_rejects_wrong_membership_proof() {
     let source = r#"
         \module NamedSubset(A: \Set(0)) {
-            \definition XSet: \Power(A) := \Subset(x, A, x = x);
-            \definition X: \Set(0) := \Ty(A, XSet);
+            \definition XSet: \Pow (A) := { x : A \where x = x };
+            \definition X: \Set(0) := \Cast[A] (XSet);
             \definition bad: \forall (x: A) -> X :=
-                \fun (x: A) => \subsetinto(A, XSet, x, x);
+                \fun (x: A) => \into[A](x, XSet) \by { x };
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -903,10 +918,10 @@ fn subset_intro_rejects_wrong_membership_proof() {
 fn subset_intro_syntax_requires_an_explicit_proof() {
     let source = r#"
         \module NamedSubset(A: \Set(0)) {
-            \definition XSet: \Power(A) := \Subset(x, A, x = x);
-            \definition X: \Set(0) := \Ty(A, XSet);
+            \definition XSet: \Pow (A) := { x : A \where x = x };
+            \definition X: \Set(0) := \Cast[A] (XSet);
             \definition bad: \forall (x: A) -> X :=
-                \fun (x: A) => \subsetinto(A, XSet, x);
+                \fun (x: A) => \into[A](x, XSet);
         }
     "#;
     assert!(parse::str_parse_modules(source).is_err());
@@ -918,12 +933,12 @@ fn general_recursion_surface_typechecks_and_normalizes() {
         \module GeneralRecursion(
             A: \VType,
             B: \VType,
-            f: \U((A ~> \F(\RunStep(A, B)))),
+            f: \U((A ~> \F(\RunStep[A, B]))),
             a: A,
-            termination: \Acc(A^, B^, f^, a^)
+            termination: \Acc[A^, B^](f^, a^)
         ) {
-            \definition result: \F(B) := \run(A, B, f, a) \by termination;
-            \cnormalize \run(A, B, f, a) \by termination;
+            \definition result: \F(B) := \run[A, B](f, a) \by { termination };
+            \cnormalize \run[A, B](f, a) \by { termination };
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -938,15 +953,15 @@ fn accessibility_proof_constructor_syntax_is_reserved_and_parsed() {
         \module AccSyntax(
             A: \Set(0),
             B: \Set(0),
-            f: A -> \RunStep(A, B),
+            f: A -> \RunStep[A, B],
             a: A,
             b: A,
             p: \Prop,
             q: \Prop,
             e: \Prop
         ) {
-            \infer \accintro(A, B, f, a, q);
-            \infer \accdescent(A, B, f, a, b, p, e);
+            \infer \accintro[A, B](f, a, q);
+            \infer \accdescent[A, B](f, a, b, p, e);
         }
     "#;
 
@@ -959,20 +974,20 @@ fn accessibility_intro_and_descent_follow_the_system_premises() {
         \module AccProofs(
             A: \Set(0),
             B: \Set(0),
-            f: A -> \RunStep(A, B),
+            f: A -> \RunStep[A, B],
             a: A,
             b: A,
             predecessors:
                 \forall (next: A) ->
-                (f a = \continue(A, B, next)) ->
-                \Acc(A, B, f, next),
-            p: \Acc(A, B, f, a),
-            edge: f a = \continue(A, B, b)
+                (f a = \continue[A, B](next)) ->
+                \Acc[A, B](f, next),
+            p: \Acc[A, B](f, a),
+            edge: f a = \continue[A, B](b)
         ) {
-            \definition introduced: \Acc(A, B, f, a) :=
-                \accintro(A, B, f, a, predecessors);
-            \definition descended: \Acc(A, B, f, b) :=
-                \accdescent(A, B, f, a, b, p, edge);
+            \definition introduced: \Acc[A, B](f, a) :=
+                \accintro[A, B](f, a, predecessors);
+            \definition descended: \Acc[A, B](f, b) :=
+                \accdescent[A, B](f, a, b, p, edge);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1158,30 +1173,28 @@ fn set_recursion_preserves_a_shared_universe() {
         let source = r#"
             \module SharedUniverse(
                 A: \Set(LEVEL), B: \Set(LEVEL), a: A, b: B,
-                f: A -> \RunStep(A, B),
-                p: \Acc(A, B, f, a),
+                f: A -> \RunStep[A, B],
+                p: \Acc[A, B](f, a),
                 predecessors: \forall (next: A) ->
-                    (f a = \continue(A, B, next)) -> \Acc(A, B, f, next),
-                edge: f a = \continue(A, B, a),
+                    (f a = \continue[A, B](next)) -> \Acc[A, B](f, next),
+                edge: f a = \continue[A, B](a),
                 P: \Prop, proof: P
             ) {
-                \definition step_type: \Set(LEVEL) := \RunStep(A, B);
-                \definition continued: step_type := \continue(A, B, a);
-                \definition finished: step_type := \finish(A, B, b);
-                \definition inferred_continue: step_type := \continue(_, B, a);
-                \definition inferred_finish: step_type := \finish(A, _, b);
-                \definition inferred_run: B := \run(_, B, f, a) \by p;
-                \definition introduced: \Acc(A, B, f, a) :=
-                    \accintro(A, B, f, a, predecessors);
-                \definition descended: \Acc(A, B, f, a) :=
-                    \accdescent(A, B, f, a, a, p, edge);
-                \definition result: B := \run(A, B, f, a) \by p;
+                \definition step_type: \Set(LEVEL) := \RunStep[A, B];
+                \definition continued: step_type := \continue[A, B](a);
+                \definition finished: step_type := \finish[A, B](b);
+                \definition inferred_continue: step_type := \continue[_, B](a);
+                \definition inferred_finish: step_type := \finish[A, _](b);
+                \definition inferred_run: B := \run[_, B](f, a) \by { p };
+                \definition introduced: \Acc[A, B](f, a) :=
+                    \accintro[A, B](f, a, predecessors);
+                \definition descended: \Acc[A, B](f, a) :=
+                    \accdescent[A, B](f, a, a, p, edge);
+                \definition result: B := \run[A, B](f, a) \by { p };
                 \definition case_result: B :=
-                    \runCase(A, B, f, a, \continue(A, B, a)) \by (p, edge);
-                \definition recursed: B := \runStepRec(A, B,
-                    \fun (r: step_type) => B, \fun (x: A) => b, \fun (y: B) => y, finished);
-                \definition recursed_proof: P := \runStepRec(A, B,
-                    \fun (r: step_type) => P, \fun (x: A) => proof, \fun (y: B) => proof, continued);
+                    \runCase[A, B](f, a, \continue[A, B](a)) \by { accessibility: p, equality: edge };
+                \definition recursed: B := \runStepRec[A, B](\fun (r: step_type) => B, \fun (x: A) => b, \fun (y: B) => y, finished);
+                \definition recursed_proof: P := \runStepRec[A, B](\fun (r: step_type) => P, \fun (x: A) => proof, \fun (y: B) => proof, continued);
             }
         "#
         .replace("LEVEL", &level.to_string());
@@ -1195,9 +1208,7 @@ fn set_recursion_preserves_a_shared_universe() {
 fn run_step_recursor_distinguishes_branch_and_result_sorts() {
     let source = r#"
         \module InvalidMotive(A: \Set(2), a: A, B: \Set(0), b: B) {
-            \definition bad: B := \runStepRec(A, A,
-                \fun (r: \RunStep(A, A)) => B,
-                \fun (x: A) => b, \fun (x: A) => b, \finish(A, A, a));
+            \definition bad: B := \runStepRec[A, A](\fun (r: \RunStep[A, A]) => B, \fun (x: A) => b, \fun (x: A) => b, \finish[A, A](a));
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1251,7 +1262,7 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
 
 #[test]
 fn inferred_recursion_annotations_still_reject_mixed_universes() {
-    for term in [r"\continue(_, B, a)", r"\finish(A, _, b)"] {
+    for term in [r"\continue[_, B](a)", r"\finish[A, _](b)"] {
         let source = format!(
             r"\module Mixed(A: \Set(0), B: \Set(2), a: A, b: B) {{
             \definition bad: _ := {term};
@@ -1272,26 +1283,21 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
           \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
-          \definition step: \U((Unit ~> \F(\RunStep(Unit, Unit)))) :=
-            \thunk((\cfun (s: Unit) => \return(\finish(Unit, Unit, Unit::unit))));
-          \definition stepSet: Unit^ -> \RunStep(Unit^, Unit^) :=
-            \Force(\F(\U((Unit ~> \F(\RunStep(Unit, Unit))))),
-              \box(\F(\U((Unit ~> \F(\RunStep(Unit, Unit))))), \return(step)));
-          \definition ready: \RunStep(Unit^, Unit^) -> \Prop :=
-            \fun (r: \RunStep(Unit^, Unit^)) => \Pred(Unit^,
-              \runStepRec(Unit^, Unit^, \fun (r: \RunStep(Unit^, Unit^)) => \Power(Unit^),
-                \fun (s: Unit^) => \Subset(x, Unit^, \Acc(Unit^, Unit^, stepSet, s)),
-                \fun (o: Unit^) => \Subset(x, Unit^, Unit^::unit = Unit^::unit), r), Unit^::unit);
-          \definition terminates: \forall (s: Unit^) -> \Acc(Unit^, Unit^, stepSet, s) :=
-            \fun (s: Unit^) => \accintro(Unit^, Unit^, stepSet, s,
-              \fun (next: Unit^) => \fun (edge: stepSet s = \continue(Unit^, Unit^, next)) =>
-                \idelim(stepSet s = \continue(Unit^, Unit^, next)
-                  \with r: \RunStep(Unit^, Unit^) => ready r) \by (\refl(Unit^::unit), edge));
+          \definition step: \U((Unit ~> \F(\RunStep[Unit, Unit]))) :=
+            \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
+          \definition stepSet: Unit^ -> \RunStep[Unit^, Unit^] :=
+            \force[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\box[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\return(step)));
+          \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
+            \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] (\runStepRec[Unit^, Unit^](\fun (r: \RunStep[Unit^, Unit^]) => \Pow (Unit^), \fun (s: Unit^) => { x : Unit^ \where \Acc[Unit^, Unit^](stepSet, s) }, \fun (o: Unit^) => { x : Unit^ \where Unit^::unit = Unit^::unit }, r)) (Unit^::unit);
+          \definition terminates: \forall (s: Unit^) -> \Acc[Unit^, Unit^](stepSet, s) :=
+            \fun (s: Unit^) => \accintro[Unit^, Unit^](stepSet, s, \fun (next: Unit^) => \fun (edge: stepSet s = \continue[Unit^, Unit^](next)) =>
+                \idelim(stepSet s = \continue[Unit^, Unit^](next)
+                  \with r: \RunStep[Unit^, Unit^] => ready r) \by { base: \refl(Unit^::unit), equality: edge });
           \definition result: \F(Unit) :=
-            \run(Unit, Unit, step, Unit::unit) \by terminates Unit^::unit;
+            \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
           \definition otherResult: \F(Unit) :=
-            \run(Unit, Unit, step, Unit::other) \by terminates Unit^::other;
-          \definition boxed: \Box(\F(Unit)) := \box(\F(Unit), result);
+            \run[Unit, Unit](step, Unit::other) \by { terminates Unit^::other };
+          \definition boxed: \Box[\F(Unit)] := \box[\F(Unit)](result);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1372,15 +1378,15 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
 #[test]
 fn program_proofs_follow_local_binders_and_module_instantiation() {
     let source = r#"
-        \module Generic(A: \VType, step: \U((A ~> \F(\RunStep(A, A)))),
-          total: \forall (s: A^) -> \Acc(A^, A^, step^, s)) {
-          \definition run(x: A): \F(A) := \run(A, A, step, x) \by total x;
+        \module Generic(A: \VType, step: \U((A ~> \F(\RunStep[A, A]))),
+          total: \forall (s: A^) -> \Acc[A^, A^](step^, s)) {
+          \definition run(x: A): \F(A) := \run[A, A](step, x) \by { total x };
           \definition runCase(x: A): \F(A) :=
             (\let y: A := x \in
-            \runCase(A, A, step, y, (\force(step)) y) \by (total y, \refl(step^ y)));
+            \runCase[A, A](step, y, (\force(step)) y) \by { accessibility: total y, equality: \refl(step^ y) });
         }
-        \module Consumer(A: \VType, f: \U((A ~> \F(\RunStep(A, A)))),
-          p: \forall (s: A^) -> \Acc(A^, A^, f^, s), a: A) {
+        \module Consumer(A: \VType, f: \U((A ~> \F(\RunStep[A, A]))),
+          p: \forall (s: A^) -> \Acc[A^, A^](f^, s), a: A) {
           \import \root.Generic[A := A, step := f, total := p] \as G;
           \definition result: \F(A) := G.runCase a;
           \cnormalize result;
@@ -1454,8 +1460,8 @@ fn program_application_classification_preserves_cbpv_boundaries() {
     for term in [
         r"f x",
         r"(\thunk c) x",
-        r"\continue(A, B, x) y",
-        r"\finish(A, B, x) y",
+        r"\continue[A, B](x) y",
+        r"\finish[A, B](x) y",
     ] {
         assert!(
             V::try_from(parse::str_parse_exp(term).unwrap()).is_err(),

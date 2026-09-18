@@ -22,7 +22,7 @@
   neg: Carrier -> Carrier,
   mul: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
-  leRelation: \Power(Pair.Times^[Carrier, Carrier]),
+  leRelation: \Pow (Pair.Times^[Carrier, Carrier]),
 };
 
 \definition zero (s: RawRealStructure[Carrier]): Carrier :=
@@ -44,14 +44,11 @@
     RawRealStructure::inv s;
 
 \definition leRelation (s: RawRealStructure[Carrier]):
-    \Power(Pair.Times^[Carrier, Carrier]) :=
+    \Pow (Pair.Times^[Carrier, Carrier]) :=
     RawRealStructure::leRelation s;
 
 \definition Le (s: RawRealStructure[Carrier]) (x, y: Carrier): \Prop :=
-    \Pred(
-      Pair.Times^[Carrier, Carrier],
-      leRelation s,
-      Pair.pair _ _ x y);
+    \In[Pair.Times^[Carrier, Carrier]] (leRelation s) (Pair.pair _ _ x y);
 
 \definition NonZero (s: RawRealStructure[Carrier]) (x: Carrier): \Prop :=
     not!{{ x = zero s }};
@@ -84,28 +81,26 @@
       Le s (zero s) (mul s x y),
 };
 
-\definition In (A: \Power(Carrier)) (x: Carrier): \Prop := \Pred(Carrier, A, x);
+\definition In (A: \Pow (Carrier)) (x: Carrier): \Prop := \In[Carrier] (A) (x);
 
-\definition Inhabited (A: \Power(Carrier)): \Prop :=
-    \exists \Ty(Carrier, \Subset(x, Carrier, In A x));
+\definition Inhabited (A: \Pow (Carrier)): \Prop :=
+    \exists \Cast[Carrier] ({ x : Carrier \where In A x });
 
-\definition IsUpperBound (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier): \Prop :=
+\definition IsUpperBound (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier): \Prop :=
     \forall (x: Carrier) -> In A x -> Le s x u;
 
-\definition BoundedAbove (s: RawRealStructure[Carrier]) (A: \Power(Carrier)): \Prop :=
-    \exists \Ty(Carrier,
-      \Subset(u, Carrier, IsUpperBound s A u));
+\definition BoundedAbove (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)): \Prop :=
+    \exists \Cast[Carrier] ({ u : Carrier \where IsUpperBound s A u });
 
-\definition IsLeastUpperBound (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier): \Prop :=
+\definition IsLeastUpperBound (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier): \Prop :=
     and!{{ IsUpperBound s A u }
       { \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v }};
 
-\definition HasLeastUpperBound (s: RawRealStructure[Carrier]) (A: \Power(Carrier)): \Prop :=
-    \exists \Ty(Carrier,
-      \Subset(u, Carrier, IsLeastUpperBound s A u));
+\definition HasLeastUpperBound (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)): \Prop :=
+    \exists \Cast[Carrier] ({ u : Carrier \where IsLeastUpperBound s A u });
 
 \definition Completeness (s: RawRealStructure[Carrier]): \Prop :=
-    \forall (A: \Power(Carrier)) -> Inhabited A -> BoundedAbove s A ->
+    \forall (A: \Pow (Carrier)) -> Inhabited A -> BoundedAbove s A ->
       HasLeastUpperBound s A;
 
 \definition IsAxiomaticRealStructure (s: RawRealStructure[Carrier]): \Prop :=
@@ -113,11 +108,11 @@
     { OrderedFieldLaws[s] } { Completeness s }};
 
 \definition AxiomaticRealStructureSet:
-  \Power(RawRealStructure[Carrier]) :=
-  \Subset(s, RawRealStructure[Carrier], IsAxiomaticRealStructure s);
+  \Pow (RawRealStructure[Carrier]) :=
+  { s : RawRealStructure[Carrier] \where IsAxiomaticRealStructure s };
 
 \definition AxiomaticRealStructure: \Set :=
-  \Ty(RawRealStructure[Carrier], AxiomaticRealStructureSet);
+  \Cast[RawRealStructure[Carrier]] (AxiomaticRealStructureSet);
 
 \definition laws (s: AxiomaticRealStructure): IsAxiomaticRealStructure s :=
   \bysub(RawRealStructure[Carrier], AxiomaticRealStructureSet, s);
@@ -146,16 +141,16 @@
     total := total,
   };
 
-\definition leastUpperBoundIntro (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier)
+\definition leastUpperBoundIntro (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier)
   (upper: IsUpperBound s A u)
   (least: \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v): IsLeastUpperBound s A u :=
   \record Logic.And[IsUpperBound s A u, \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v] {
     left := upper, right := least,
   };
-\definition lubUpper (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier)
+\definition lubUpper (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier)
   (h: IsLeastUpperBound s A u): IsUpperBound s A u :=
   Logic.andLeft (IsUpperBound s A u) (\forall (v: Carrier) -> IsUpperBound s A v -> Le s u v) h;
-\definition lubLeast (s: RawRealStructure[Carrier]) (A: \Power(Carrier)) (u: Carrier)
+\definition lubLeast (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier)
   (h: IsLeastUpperBound s A u): \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v :=
   Logic.andRight (IsUpperBound s A u) (\forall (v: Carrier) -> IsUpperBound s A v -> Le s u v) h;
 

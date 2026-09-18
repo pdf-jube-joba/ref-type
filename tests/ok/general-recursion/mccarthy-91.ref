@@ -60,13 +60,10 @@
   \definition hundredOne: Nat := Nat::succ hundred;
 
   \definition step:
-    \U((State ~> \F(\RunStep(State, Nat)))) :=
+    \U((State ~> \F(\RunStep[State, Nat]))) :=
     \thunk((\cfun (state: State) => \match (state) \in State \with {
       | call argument continuation =>
-          \return(\continue(
-            State,
-            Nat,
-            State::inspect
+          \return(\continue[State, Nat](State::inspect
               argument
               argument
               hundredOne
@@ -75,28 +72,19 @@
           \match (threshold) \in Nat \with {
           | zero =>
               /* original >= 101, and remaining + 91 = original - 10. */
-              \return(\continue(
-                State,
-                Nat,
-                State::raise remaining ninetyOne continuation))
+              \return(\continue[State, Nat](State::raise remaining ninetyOne continuation))
           | succ smallerThreshold =>
               \match (remaining) \in Nat \with {
               | zero =>
                   /* original <= 100: first evaluate M(original + 11),
                    * then the pending continuation evaluates M once more.
                    */
-                  \return(\continue(
-                    State,
-                    Nat,
-                    State::raiseAndCall
+                  \return(\continue[State, Nat](State::raiseAndCall
                       original
                       eleven
                       (Continuation::pending continuation)))
               | succ smallerRemaining =>
-                  \return(\continue(
-                    State,
-                    Nat,
-                    State::inspect
+                  \return(\continue[State, Nat](State::inspect
                       original
                       smallerRemaining
                       smallerThreshold
@@ -108,18 +96,12 @@
           | zero =>
               \match (continuation) \in Continuation \with {
               | done =>
-                  \return(\finish(State, Nat, result))
+                  \return(\finish[State, Nat](result))
               | pending rest =>
-                  \return(\continue(
-                    State,
-                    Nat,
-                    State::call result rest))
+                  \return(\continue[State, Nat](State::call result rest))
               }
           | succ smallerAdditions =>
-              \return(\continue(
-                State,
-                Nat,
-                State::raise
+              \return(\continue[State, Nat](State::raise
                   (Nat::succ result)
                   smallerAdditions
                   continuation))
@@ -127,15 +109,9 @@
       | raiseAndCall argument additions continuation =>
           \match (additions) \in Nat \with {
           | zero =>
-              \return(\continue(
-                State,
-                Nat,
-                State::call argument continuation))
+              \return(\continue[State, Nat](State::call argument continuation))
           | succ smallerAdditions =>
-              \return(\continue(
-                State,
-                Nat,
-                State::raiseAndCall
+              \return(\continue[State, Nat](State::raiseAndCall
                   (Nat::succ argument)
                   smallerAdditions
                   continuation))
@@ -143,17 +119,12 @@
       }));
 
   /* This execution fixture takes the termination theorem as an explicit premise. */
-  \definition stepSet: State^ -> \RunStep(State^, Nat^) :=
-    \Force(\F(\U((State ~> \F(\RunStep(State, Nat))))),
-      \box(\F(\U((State ~> \F(\RunStep(State, Nat))))), \return(step)));
+  \definition stepSet: State^ -> \RunStep[State^, Nat^] :=
+    \force[\F(\U((State ~> \F(\RunStep[State, Nat]))))](\box[\F(\U((State ~> \F(\RunStep[State, Nat]))))](\return(step)));
   \module Certified(terminates: \forall (n: Nat^) ->
-    \Acc(State^, Nat^, stepSet, State^::call n Continuation^::done)) {
+    \Acc[State^, Nat^](stepSet, State^::call n Continuation^::done)) {
   \definition mcCarthy91: (Nat ~> \F(Nat)) :=
-    (\cfun (argument: Nat) => \run(
-        State,
-        Nat,
-        step,
-        State::call argument Continuation::done) \by terminates argument);
+    (\cfun (argument: Nat) => \run[State, Nat](step, State::call argument Continuation::done) \by { terminates argument });
 
   \cnormalize (mcCarthy91 hundred);
   }

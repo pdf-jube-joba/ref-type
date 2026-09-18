@@ -415,13 +415,34 @@ fn alpha_rename(
                 alpha_rename(case, order, counter, scopes);
             }
         }
+        SExp::Induction {
+            binder,
+            return_type,
+            cases,
+        } => {
+            alpha_rename(&mut binder.ty, order, counter, scopes);
+            let local = binder
+                .vars
+                .iter_mut()
+                .map(|var| fresh_binder(var, order, counter))
+                .collect();
+            scopes.push(local);
+            alpha_rename(return_type, order, counter, scopes);
+            scopes.pop();
+            for (_, case) in cases {
+                alpha_rename(case, order, counter, scopes);
+            }
+        }
         SExp::IndElimPrim {
-            path, parameters, ..
+            path,
+            parameters,
+            motive,
         } => {
             rename_access(path, scopes);
             for parameter in parameters {
                 alpha_rename(parameter, order, counter, scopes);
             }
+            alpha_rename(motive, order, counter, scopes);
         }
         SExp::ComputationLam {
             var,
@@ -1397,10 +1418,18 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
         | SExp::ValueType
         | SExp::MacroParameter(_)
         | SExp::ResolvedExp(_) => {}
-        SExp::AccessPath { parameters, .. } | SExp::IndElimPrim { parameters, .. } => {
+        SExp::AccessPath { parameters, .. } => {
             for parameter in parameters {
                 walk_sexp_control(parameter, action);
             }
+        }
+        SExp::IndElimPrim {
+            parameters, motive, ..
+        } => {
+            for parameter in parameters {
+                walk_sexp_control(parameter, action);
+            }
+            walk_sexp_control(motive, action);
         }
         SExp::AssociatedAccess { base, .. }
         | SExp::ThunkType {
@@ -1483,6 +1512,17 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             ..
         } => {
             walk_sexp_control(elim, action);
+            walk_sexp_control(return_type, action);
+            for (_, case) in cases {
+                walk_sexp_control(case, action);
+            }
+        }
+        SExp::Induction {
+            binder,
+            return_type,
+            cases,
+        } => {
+            walk_sexp_control(&mut binder.ty, action);
             walk_sexp_control(return_type, action);
             for (_, case) in cases {
                 walk_sexp_control(case, action);

@@ -34,22 +34,16 @@
   ;
 
   \definition step:
-    \U((State ~> \F(\RunStep(State, OutputRose)))) :=
+    \U((State ~> \F(\RunStep[State, OutputRose]))) :=
     \thunk((\cfun (state: State) => \match (state) \in State \with {
       | visit input continuation =>
           \match (input) \in InputRose \with {
           | empty =>
-              \return(\continue(
-                State,
-                OutputRose,
-                State::resume
+              \return(\continue[State, OutputRose](State::resume
                   continuation
                   OutputRose::empty))
           | node label children siblings =>
-              (\bind mappedLabel: B <- ((\force(function)) label) \in \return(\continue(
-                  State,
-                  OutputRose,
-                  State::visit
+              (\bind mappedLabel: B <- ((\force(function)) label) \in \return(\continue[State, OutputRose](State::visit
                     children
                     (Continuation::afterChildren
                       mappedLabel
@@ -59,39 +53,29 @@
       | resume continuation mapped =>
           \match (continuation) \in Continuation \with {
           | done =>
-              \return(\finish(State, OutputRose, mapped))
+              \return(\finish[State, OutputRose](mapped))
           | afterChildren mappedLabel siblings rest =>
-              \return(\continue(
-                State,
-                OutputRose,
-                State::visit
+              \return(\continue[State, OutputRose](State::visit
                   siblings
                   (Continuation::afterSiblings
                     mappedLabel
                     mapped
                     rest)))
           | afterSiblings mappedLabel mappedChildren rest =>
-              \return(\continue(
-                State,
-                OutputRose,
-                State::resume
+              \return(\continue[State, OutputRose](State::resume
                   rest
                   (OutputRose::node mappedLabel mappedChildren mapped)))
           }
       }));
 
   /* The state-machine fixture receives its termination theorem at this boundary. */
-  \definition stepSet: State^ -> \RunStep(State^, OutputRose^) :=
+  \definition stepSet: State^ -> \RunStep[State^, OutputRose^] :=
     step^;
   \module Certified(terminates: \forall (input: InputRose^) ->
-    \Acc(State^, OutputRose^, stepSet, State^::visit input Continuation^::done)) {
+    \Acc[State^, OutputRose^](stepSet, State^::visit input Continuation^::done)) {
   \definition map: (InputRose ~> \F(OutputRose)) :=
-    (\cfun (input: InputRose) => \run(
-        State,
-        OutputRose,
-        step,
-        State::visit
+    (\cfun (input: InputRose) => \run[State, OutputRose](step, State::visit
           input
-          Continuation::done) \by terminates input);
+          Continuation::done) \by { terminates input });
   }
 }

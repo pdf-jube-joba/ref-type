@@ -28,45 +28,45 @@
   \definition mulRat (x, y: Rat): Rat := RationalOperations.mul x y;
 
   /* Membership in a rational lower set. */
-  \definition In (L: \Power(Rat)) (q: Rat): \Prop := \Pred(Rat, L, q);
+  \definition In (L: \Pow (Rat)) (q: Rat): \Prop := \In[Rat] (L) (q);
 
   /* A lower set is inhabited and proper. */
-  \definition Inhabited (L: \Power(Rat)): \Prop :=
-      \exists \Ty(Rat, \Subset(q, Rat, In L q));
+  \definition Inhabited (L: \Pow (Rat)): \Prop :=
+      \exists \Cast[Rat] ({ q : Rat \where In L q });
 
-  \definition Proper (L: \Power(Rat)): \Prop :=
-      \exists \Ty(Rat, \Subset(q, Rat, not!{{ In L q }}));
+  \definition Proper (L: \Pow (Rat)): \Prop :=
+      \exists \Cast[Rat] ({ q : Rat \where not!{{ In L q }} });
 
   /* It is downward closed and has no greatest member. */
-  \definition Lower (L: \Power(Rat)): \Prop :=
+  \definition Lower (L: \Pow (Rat)): \Prop :=
       \forall (p, q: Rat) -> lt p q -> In L q -> In L p;
 
-  \definition Rounded (L: \Power(Rat)): \Prop :=
+  \definition Rounded (L: \Pow (Rat)): \Prop :=
       \forall (p: Rat) -> In L p ->
-        \exists \Ty(Rat, \Subset(q, Rat, and!{{ In L q } { lt p q }}));
+        \exists \Cast[Rat] ({ q : Rat \where and!{{ In L q } { lt p q }} });
 
   /* Locatedness is the constructive replacement for deciding membership. */
-  \definition Located (L: \Power(Rat)): \Prop :=
+  \definition Located (L: \Pow (Rat)): \Prop :=
       \forall (p, q: Rat) -> lt p q -> or!{{ In L p } { not!{{ In L q }} }};
 
   /* Membership must not depend on the chosen fraction representative. */
-  \definition RespectsFractionEq (L: \Power(Rat)): \Prop :=
+  \definition RespectsFractionEq (L: \Pow (Rat)): \Prop :=
       \forall (p, q: Rat) ->
         RationalFractions.FractionEq p q -> In L p -> In L q;
 
-  \definition IsCut (L: \Power(Rat)): \Prop :=
+  \definition IsCut (L: \Pow (Rat)): \Prop :=
       and!{{ Inhabited L } { Proper L } { Lower L }
         { Rounded L } { Located L } { RespectsFractionEq L }};
 
   /* Real is the refinement of rational lower sets by the cut laws. */
-  \definition CutSet: \Power(\Power(Rat)) :=
-    \Subset(L, \Power(Rat), IsCut L);
+  \definition CutSet: \Pow (\Pow (Rat)) :=
+    { L : \Pow (Rat) \where IsCut L };
 
   \definition Real: \Set :=
-    \Ty(\Power(Rat), CutSet);
+    \Cast[\Pow (Rat)] (CutSet);
 
   \definition cutProperty (x: Real): IsCut x :=
-    \bysub(\Power(Rat), CutSet, x);
+    \bysub(\Pow (Rat), CutSet, x);
 
   \definition cutInhabited (x: Real): Inhabited x :=
     Logic.And[Inhabited x, Logic.And[Proper x, Logic.And[Lower x, Logic.And[Rounded x, Logic.And[Located x, RespectsFractionEq x]]]]]::left (cutProperty x);
@@ -85,7 +85,7 @@
   /* A real weakens to its underlying rational lower set. */
   \definition mem (x: Real) (q: Rat): \Prop := In x q;
 
-  \definition underlying (x: Real): \Power(Rat) := x;
+  \definition underlying (x: Real): \Pow (Rat) := x;
 
   /* Inclusion is available without any extensionality principle. */
   \definition Le (x, y: Real): \Prop := \forall (q: Rat) -> mem x q -> mem y q;
@@ -99,11 +99,11 @@
 
   \definition leReplaceLeft (x, x2, y: Real) (same: x = x2)
     (xy: Le x y): Le x2 y :=
-    \idelim(x = x2 \with z: Real => Le z y) \by (xy, same);
+    \idelim(x = x2 \with z: Real => Le z y) \by { base: xy, equality: same };
 
   \definition leReplaceRight (x, y, y2: Real) (same: y = y2)
     (xy: Le x y): Le x y2 :=
-    \idelim(y = y2 \with z: Real => Le x z) \by (xy, same);
+    \idelim(y = y2 \with z: Real => Le x z) \by { base: xy, equality: same };
 
   \definition leReplace (x, x2, y, y2: Real)
     (left: x = x2) (right: y = y2) (xy: Le x y): Le x2 y2 :=
@@ -118,75 +118,58 @@
 
 
   \definition Lt (x, y: Real): \Prop :=
-      \exists \Ty(Rat,
-        \Subset(q, Rat, and!{{ not!{{ mem x q }} } { mem y q }}));
+      \exists \Cast[Rat] ({ q : Rat \where and!{{ not!{{ mem x q }} } { mem y q }} });
 
   \definition ltReplaceLeft (x, x2, y: Real) (same: x = x2)
     (xy: Lt x y): Lt x2 y :=
-    \idelim(x = x2 \with z: Real => Lt z y) \by (xy, same);
+    \idelim(x = x2 \with z: Real => Lt z y) \by { base: xy, equality: same };
 
   \definition ltReplaceRight (x, y, y2: Real) (same: y = y2)
     (xy: Lt x y): Lt x y2 :=
-    \idelim(y = y2 \with z: Real => Lt x z) \by (xy, same);
+    \idelim(y = y2 \with z: Real => Lt x z) \by { base: xy, equality: same };
 
   \definition ltIrrefl (x: Real): not!{{ Lt x x }} := \fun (xx: Lt x x) =>
-      \take (q: \Ty(Rat,
-        \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem x r }}))) =>
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem x r }} })) =>
           (\fun (h: Logic.And[not!{{ mem x q }}, mem x q]) =>
             (Logic.And::left h) (Logic.And::right h))
           (\bysub(
-            Rat, \Subset(r, Rat,
-              and!{{ not!{{ mem x r }} } { mem x r }}), q))
-      \by { existence: xx };
+            Rat, { r : Rat \where and!{{ not!{{ mem x r }} } { mem x r }} }, q))
+      \by { xx };
 
   \definition ltNotLeReverse (x, y: Real) (xy: Lt x y): not!{{ Le y x }} := \fun (yx: Le y x) =>
-      \take (q: \Ty(Rat,
-        \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem y r }}))) =>
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} })) =>
           (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
             (Logic.And::left h) (yx q (Logic.And::right h)))
           (\bysub(
-            Rat, \Subset(r, Rat,
-              and!{{ not!{{ mem x r }} } { mem y r }}), q))
-      \by { existence: xy };
+            Rat, { r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} }, q))
+      \by { xy };
 
   \definition ltLeTrans (x, y, z: Real) (xy: Lt x y) (yz: Le y z): Lt x z :=
-      \take (q: \Ty(Rat,
-        \Subset(r, Rat, and!{{ not!{{ mem x r }} } { mem y r }}))) =>
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} })) =>
         \exact(
-          \subsetinto(
-            Rat, \Subset(r, Rat,
-              and!{{ not!{{ mem x r }} } { mem z r }}), q,
-            (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
+          \into[Rat](q, { r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }) \by { (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
               \record Logic.And[not!{{ mem x q }}, mem z q] {
                 left := Logic.And::left h,
                 right := yz q (Logic.And::right h),
               })
             (\bysub(
-              Rat, \Subset(r, Rat,
-                and!{{ not!{{ mem x r }} } { mem y r }}), q))),
-          \Ty(Rat, \Subset(r, Rat,
-            and!{{ not!{{ mem x r }} } { mem z r }})))
-      \by { existence: xy };
+              Rat, { r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} }, q)) },
+          \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }))
+      \by { xy };
 
   \definition leLtTrans (x, y, z: Real) (xy: Le x y) (yz: Lt y z): Lt x z :=
-      \take (q: \Ty(Rat,
-        \Subset(r, Rat, and!{{ not!{{ mem y r }} } { mem z r }}))) =>
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem y r }} } { mem z r }} })) =>
         \exact(
-          \subsetinto(
-            Rat, \Subset(r, Rat,
-              and!{{ not!{{ mem x r }} } { mem z r }}), q,
-            (\fun (h: Logic.And[not!{{ mem y q }}, mem z q]) =>
+          \into[Rat](q, { r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }) \by { (\fun (h: Logic.And[not!{{ mem y q }}, mem z q]) =>
               \record Logic.And[not!{{ mem x q }}, mem z q] {
                 left := \fun (qx: mem x q) =>
                   (Logic.And::left h) (xy q qx),
                 right := Logic.And::right h,
               })
             (\bysub(
-              Rat, \Subset(r, Rat,
-                and!{{ not!{{ mem y r }} } { mem z r }}), q))),
-          \Ty(Rat, \Subset(r, Rat,
-            and!{{ not!{{ mem x r }} } { mem z r }})))
-      \by { existence: yz };
+              Rat, { r : Rat \where and!{{ not!{{ mem y r }} } { mem z r }} }, q)) },
+          \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }))
+      \by { yz };
 
   /*
    * Arithmetic lower sets.  The nested Closed module asks for exactly the

@@ -74,13 +74,13 @@ enum Token<'a> {
 static SORT_KEYWORDS: &[&str] = &["\\Prop", "\\PropKind", "\\Set", "\\SetKind"];
 
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
-    "\\elim", // inductive eliminator
-    "\\prec", // eliminator as primitive recursive form
-    "\\Power",
-    "\\Subset",
-    "\\Pred",
-    "\\Ty",
-    "\\subsetinto", // usuals
+    "\\elim",      // inductive eliminator
+    "\\induction", // function-valued inductive eliminator
+    "\\prec",      // eliminator as primitive recursive form
+    "\\Pow",
+    "\\In",
+    "\\Cast",
+    "\\into",
     "\\fun",
     "\\forall",
     "\\cfun",
@@ -102,7 +102,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\runStepRec",
     "\\Box",
     "\\box",
-    "\\Force",
     "\\boxapp",
     "\\exists",  // \exists <Bind>
     "\\take",    // \take <Bind> => <body>

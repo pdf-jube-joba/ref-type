@@ -570,9 +570,9 @@
  * canonical numerator, swapping its magnitude with the denominator keeps
  * the denominator positive. */
 \definition reciprocal (x: Fraction): Fraction :=
-  \prec(\Set, I.Int^) (\fun (_: I.Int^) => Fraction)
+  \prec[I.Int^, \fun (_: I.Int^) => Fraction]
     (\fun (n: I.Nat) =>
-      \prec(\Set, N.Nat^) (\fun (_: I.Nat) => Fraction)
+      \prec[N.Nat^, \fun (_: I.Nat) => Fraction]
         zero
         (\fun (k: I.Nat) => \fun (_: Fraction) =>
           fraction (denominator x) k)
@@ -668,19 +668,17 @@
 
 \definition fractionMulReciprocal (x: Fraction)
   (nonzero: NumeratorNonZero x): FractionEq (mul x (reciprocal x)) one :=
-  \prec(\Prop, I.Int^)
-    (\fun (n: I.Int^) =>
+  \prec[I.Int^, \fun (n: I.Int^) =>
       \forall (d: I.Nat) -> I.IntegerNonZero n ->
         FractionEq
-          (mul (fraction n d) (reciprocal (fraction n d))) one)
+          (mul (fraction n d) (reciprocal (fraction n d))) one]
     (\fun (n: I.Nat) =>
-      \prec(\Prop, N.Nat^)
-        (\fun (n: I.Nat) =>
+      \prec[N.Nat^, \fun (n: I.Nat) =>
           \forall (d: I.Nat) ->
             I.IntegerNonZero (I.Int^::ofNat n) ->
             FractionEq
               (mul (fraction (I.Int^::ofNat n) d)
-                (reciprocal (fraction (I.Int^::ofNat n) d))) one)
+                (reciprocal (fraction (I.Int^::ofNat n) d))) one]
         (\fun (d: I.Nat) =>
           \fun (impossible: I.IntegerNonZero I.zeroInteger) =>
             Logic.falseElim _ (impossible (I.integerEqRefl I.zeroInteger)))
@@ -1325,8 +1323,7 @@
   naturalTranslateAsAdd a e n;
 
 \definition NaturalTranslateAbove (a, e, b: Fraction): \Prop :=
-  \exists \Ty(I.Nat,
-    \Subset(n, I.Nat, lt b (naturalTranslate a e n)));
+  \exists \Cast[I.Nat] ({ n : I.Nat \where lt b (naturalTranslate a e n) });
 
 \definition naturalTranslateAbove (a, e, b: Fraction)
   (positive: lt zero e): NaturalTranslateAbove a e b :=
@@ -1352,18 +1349,15 @@
       zeroLtTimesDenominator increment (denominatorIndex b)
         incrementPositive;
     \return
-      \take (n: \Ty(I.Nat,
-        \Subset(n, I.Nat,
-          I.IntegerLt difference
-            (I.scaleInteger scaledIncrement n)))) =>
+      \take (n: \Cast[I.Nat] ({ n : I.Nat \where I.IntegerLt difference
+            (I.scaleInteger scaledIncrement n) })) =>
         \block {
           \let archBound:
               I.IntegerLt difference
                 (I.scaleInteger scaledIncrement n) :=
             \bysub(I.Nat,
-              \Subset(n, I.Nat,
-                I.IntegerLt difference
-                  (I.scaleInteger scaledIncrement n)), n);
+              { n : I.Nat \where I.IntegerLt difference
+                  (I.scaleInteger scaledIncrement n) }, n);
           \let withBase:
               I.IntegerLt (I.addInteger difference baseCross)
                 (I.addInteger
@@ -1406,13 +1400,10 @@
                 (denominator b))
               lowerAlignment upperAlignment withBase;
           \return \exact(
-            \subsetinto(I.Nat,
-              \Subset(n, I.Nat, lt b (naturalTranslate a e n)),
-              n, rationalBound),
-            \Ty(I.Nat,
-              \Subset(n, I.Nat, lt b (naturalTranslate a e n))));
+            \into[I.Nat](n, { n : I.Nat \where lt b (naturalTranslate a e n) }) \by { rationalBound },
+            \Cast[I.Nat] ({ n : I.Nat \where lt b (naturalTranslate a e n) }));
         }
-      \by { existence: IntegerOrder.positiveMultipleAbove scaledIncrement
+      \by { IntegerOrder.positiveMultipleAbove scaledIncrement
         scaledIncrementPositive difference };
   };
 
@@ -2025,9 +2016,8 @@
   };
 
 \definition ContractingFactor (q, c: Fraction): \Prop :=
-  \exists \Ty(Fraction, \Subset(a, Fraction,
-    Logic.And[lt zero a,
-      Logic.And[lt a one, lt q (mul a c)]]));
+  \exists \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
+      Logic.And[lt a one, lt q (mul a c)]] });
 
 \definition contractingFactor (q, c: Fraction) (qc: lt q c):
   ContractingFactor q c :=
@@ -2075,20 +2065,17 @@
                   (mul a c) leftEq
                   (ltMulPositiveRight (mul q r) a c cPositive qra);
               \return \exact(
-                \subsetinto(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]]), a,
-                  \record Logic.And[lt zero a,
+                \into[Fraction](a, { a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }) \by { \record Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] {
                       left := aPositive,
                       right := \record Logic.And[
                         lt a one, lt q (mul a c)] {
                           left := aOne, right := qac,
                       },
-                  }),
-                \Ty(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]])));
+                  } },
+                \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }));
             })
           (\fun (restQ: Logic.Or[FractionEq zero q, lt q zero]) =>
             \block {
@@ -2105,20 +2092,17 @@
                       qNegative productPositive)
                   restQ;
               \return \exact(
-                \subsetinto(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]]), half,
-                  \record Logic.And[lt zero half,
+                \into[Fraction](half, { a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }) \by { \record Logic.And[lt zero half,
                     Logic.And[lt half one, lt q (mul half c)]] {
                       left := halfPositive,
                       right := \record Logic.And[
                         lt half one, lt q (mul half c)] {
                           left := halfBelowOne, right := qProduct,
                       },
-                  }),
-                \Ty(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]])));
+                  } },
+                \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }));
             })
           (FractionOrder.trichotomy zero q))
       (\fun (restC: Logic.Or[FractionEq zero c, lt c zero]) =>
@@ -2139,20 +2123,17 @@
                 FractionOrder.ltReplaceRight q zero (mul half c)
                   (fractionEqSym _ _ halfCZero) qZero;
               \return \exact(
-                \subsetinto(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]]), half,
-                  \record Logic.And[lt zero half,
+                \into[Fraction](half, { a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }) \by { \record Logic.And[lt zero half,
                     Logic.And[lt half one, lt q (mul half c)]] {
                       left := halfPositive,
                       right := \record Logic.And[
                         lt half one, lt q (mul half c)] {
                           left := halfBelowOne, right := qProduct,
                       },
-                  }),
-                \Ty(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]])));
+                  } },
+                \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }));
             })
           (\fun (cNegative: lt c zero) =>
             \block {
@@ -2164,28 +2145,24 @@
               \let qProduct: lt q (mul half c) :=
                 FractionOrder.ltTrans q c (mul half c) qc cHalf;
               \return \exact(
-                \subsetinto(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]]), half,
-                  \record Logic.And[lt zero half,
+                \into[Fraction](half, { a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }) \by { \record Logic.And[lt zero half,
                     Logic.And[lt half one, lt q (mul half c)]] {
                       left := halfPositive,
                       right := \record Logic.And[
                         lt half one, lt q (mul half c)] {
                           left := halfBelowOne, right := qProduct,
                       },
-                  }),
-                \Ty(Fraction, \Subset(a, Fraction,
-                  Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]])));
+                  } },
+                \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
+                    Logic.And[lt a one, lt q (mul a c)]] }));
             })
           restC)
       (FractionOrder.trichotomy zero c);
   };
 
 \definition SmallNegativeProduct (q, u: Fraction): \Prop :=
-  \exists \Ty(Fraction, \Subset(e, Fraction,
-    Logic.And[lt zero e, lt q (mul (neg e) u)]));
+  \exists \Cast[Fraction] ({ e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] });
 
 \definition smallNegativeProduct (q, u: Fraction)
   (qNegative: lt q zero) (uPositive: lt zero u):
@@ -2234,13 +2211,10 @@
         (fractionNegInvolutive q)
         (fractionEqSym _ _ (fractionMulNegLeft e u)) negated;
     \return \exact(
-      \subsetinto(Fraction, \Subset(e, Fraction,
-        Logic.And[lt zero e, lt q (mul (neg e) u)]), e,
-        \record Logic.And[lt zero e, lt q (mul (neg e) u)] {
+      \into[Fraction](e, { e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] }) \by { \record Logic.And[lt zero e, lt q (mul (neg e) u)] {
           left := ePositive, right := result,
-        }),
-      \Ty(Fraction, \Subset(e, Fraction,
-        Logic.And[lt zero e, lt q (mul (neg e) u)])));
+        } },
+      \Cast[Fraction] ({ e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] }));
   };
 
 \definition fractionMulNegBoth (x, y: Fraction):

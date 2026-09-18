@@ -507,11 +507,16 @@ pub enum SExp {
         return_type: Box<SExp>,
         cases: Vec<(Identifier, SExp)>,
     },
+    Induction {
+        binder: RightBind,
+        return_type: Box<SExp>,
+        cases: Vec<(Identifier, SExp)>,
+    },
     // primitive elimination for inductive type
     IndElimPrim {
         path: LocalAccess,
         parameters: Vec<SExp>,
-        sort: Sort,
+        motive: Box<SExp>,
     },
 
     // --- CBPV Program ------------------------------------------------------
@@ -644,7 +649,7 @@ pub enum SExp {
     },
 
     // --- set theory
-    // \Power(power)
+    // \Pow power
     PowerSet {
         set: Box<SExp>,
     },
@@ -654,7 +659,7 @@ pub enum SExp {
         set: Box<SExp>,
         predicate: Box<SExp>,
     },
-    // \Pred (superset, subset, elem)
+    // \In[superset] subset elem
     Pred {
         superset: Box<SExp>,
         subset: Box<SExp>,

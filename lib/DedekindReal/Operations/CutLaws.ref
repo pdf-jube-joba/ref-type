@@ -6,16 +6,13 @@
 \import \parent.\parent.Order[] \as CutOrder;
 
 \definition AdjacentBoundary (P: Natural.Nat^ -> \Prop): \Prop :=
-  \exists \Ty(Natural.Nat^,
-    \Subset(k, Natural.Nat^,
-      Logic.And[P k, Logic.Not (P (Natural.Nat^::succ k))]));
+  \exists \Cast[Natural.Nat^] ({ k : Natural.Nat^ \where Logic.And[P k, Logic.Not (P (Natural.Nat^::succ k))] });
 
 \definition finiteBoundary (P: Natural.Nat^ -> \Prop):
   \forall (n: Natural.Nat^) -> P Natural.Nat^::zero ->
     Logic.Not (P n) -> AdjacentBoundary P :=
-  \prec(\Prop, Natural.Nat^)
-    (\fun (n: Natural.Nat^) => P Natural.Nat^::zero ->
-      Logic.Not (P n) -> AdjacentBoundary P)
+  \prec[Natural.Nat^, \fun (n: Natural.Nat^) => P Natural.Nat^::zero ->
+      Logic.Not (P n) -> AdjacentBoundary P]
     (\fun (atZero: P Natural.Nat^::zero) =>
       \fun (notAtZero: Logic.Not (P Natural.Nat^::zero)) =>
         Logic.falseElim (AdjacentBoundary P) (notAtZero atZero))
@@ -27,23 +24,17 @@
           Classical.orElim (P n) (Logic.Not (P n)) (AdjacentBoundary P)
             (\fun (atN: P n) =>
               \exact(
-                \subsetinto(Natural.Nat^,
-                  \Subset(k, Natural.Nat^,
-                    Logic.And[P k,
-                      Logic.Not (P (Natural.Nat^::succ k))]),
-                  n,
-                  \record Logic.And[P n,
+                \into[Natural.Nat^](n, { k : Natural.Nat^ \where Logic.And[P k,
+                      Logic.Not (P (Natural.Nat^::succ k))] }) \by { \record Logic.And[P n,
                     Logic.Not (P (Natural.Nat^::succ n))] {
                     left := atN, right := notAtSucc,
-                  }),
-                \Ty(Natural.Nat^,
-                  \Subset(k, Natural.Nat^,
-                    Logic.And[P k,
-                      Logic.Not (P (Natural.Nat^::succ k))]))))
+                  } },
+                \Cast[Natural.Nat^] ({ k : Natural.Nat^ \where Logic.And[P k,
+                      Logic.Not (P (Natural.Nat^::succ k))] })))
             (\fun (notAtN: Logic.Not (P n)) => ih atZero notAtN)
             (Classical.excludedMiddle (P n)));
 
-\definition lowerLocated (L: \Power(Rat)) (lower: Lower L): Located L :=
+\definition lowerLocated (L: \Pow (Rat)) (lower: Lower L): Located L :=
   \fun (p, q: Rat) => \fun (pq: lt p q) =>
     Classical.orElim (In L p) (Logic.Not (In L p))
       (Logic.Or[In L p, Logic.Not (In L q)])
@@ -56,15 +47,13 @@
 
 \definition ratLowerInhabited (a: Rat): Inhabited (RatLower a) :=
   \exact(
-    \subsetinto(Rat, \Subset(q, Rat, In (RatLower a) q),
-      RationalOperations.below a, RationalOperations.belowLt a),
-    \Ty(Rat, \Subset(q, Rat, In (RatLower a) q)));
+    \into[Rat](RationalOperations.below a, { q : Rat \where In (RatLower a) q }) \by { RationalOperations.belowLt a },
+    \Cast[Rat] ({ q : Rat \where In (RatLower a) q }));
 
 \definition ratLowerProper (a: Rat): Proper (RatLower a) :=
   \exact(
-    \subsetinto(Rat, \Subset(q, Rat, Logic.Not (In (RatLower a) q)), a,
-      RationalOrder.ltIrrefl a),
-    \Ty(Rat, \Subset(q, Rat, Logic.Not (In (RatLower a) q))));
+    \into[Rat](a, { q : Rat \where Logic.Not (In (RatLower a) q) }) \by { RationalOrder.ltIrrefl a },
+    \Cast[Rat] ({ q : Rat \where Logic.Not (In (RatLower a) q) }));
 
 \definition ratLowerLower (a: Rat): Lower (RatLower a) :=
   \fun (p, q: Rat) => \fun (pq: lt p q) => \fun (qa: lt q a) =>
@@ -73,17 +62,13 @@
 \definition ratLowerRounded (a: Rat): Rounded (RatLower a) :=
   \fun (p: Rat) => \fun (pa: lt p a) =>
     \exact(
-      \subsetinto(Rat,
-        \Subset(q, Rat, Logic.And[In (RatLower a) q, lt p q]),
-        RationalOperations.midpoint p a,
-        \record Logic.And[
+      \into[Rat](RationalOperations.midpoint p a, { q : Rat \where Logic.And[In (RatLower a) q, lt p q] }) \by { \record Logic.And[
           In (RatLower a) (RationalOperations.midpoint p a),
           lt p (RationalOperations.midpoint p a)] {
           left := RationalOperations.midpointLt p a pa,
           right := RationalOperations.ltMidpoint p a pa,
-        }),
-      \Ty(Rat, \Subset(q, Rat,
-        Logic.And[In (RatLower a) q, lt p q])));
+        } },
+      \Cast[Rat] ({ q : Rat \where Logic.And[In (RatLower a) q, lt p q] }));
 
 \definition ratLowerRespects (a: Rat): RespectsFractionEq (RatLower a) :=
   \fun (p, q: Rat) =>
@@ -92,7 +77,7 @@
         RationalOrder.ltReplaceLeft p q a pq pa;
 
 \definition ratCut (a: Rat):
-  \Pred(\Power(Rat), CutSet, RatLower a) :=
+  \In[\Pow (Rat)] (CutSet) (RatLower a) :=
   \record Logic.And[Inhabited (RatLower a),
     Logic.And[Proper (RatLower a),
       Logic.And[Lower (RatLower a),
@@ -145,30 +130,27 @@
 \definition GridBoundaryAt (x: Real) (a, e: Rat): \Prop :=
   AdjacentBoundary (GridPredicate x a e);
 
-\definition GridBoundaryWitnesses (x: Real) (e: Rat): \Power(Rat) :=
-  \Subset(a, Rat, GridBoundaryAt x a e);
+\definition GridBoundaryWitnesses (x: Real) (e: Rat): \Pow (Rat) :=
+  { a : Rat \where GridBoundaryAt x a e };
 
 \definition GridBoundary (x: Real) (e: Rat): \Prop :=
-  \exists \Ty(Rat, GridBoundaryWitnesses x e);
+  \exists \Cast[Rat] (GridBoundaryWitnesses x e);
 
 \definition gridBoundary (x: Real) (e: Rat) (positive: lt zeroRat e):
   GridBoundary x e :=
-  \take (a: \Ty(Rat, \Subset(a, Rat, mem x a))) =>
-    \take (b: \Ty(Rat, \Subset(b, Rat, Logic.Not (mem x b)))) =>
-      \take (n: \Ty(Natural.Nat^,
-        \Subset(n, Natural.Nat^,
-          lt b (RationalOperations.naturalTranslate a e n)))) =>
+  \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
+    \take (b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) })) =>
+      \take (n: \Cast[Natural.Nat^] ({ n : Natural.Nat^ \where lt b (RationalOperations.naturalTranslate a e n) })) =>
         \block {
           \let P: Natural.Nat^ -> \Prop := GridPredicate x a e;
           \let xa: mem x a :=
-            \bysub(Rat, \Subset(a, Rat, mem x a), a);
+            \bysub(Rat, { a : Rat \where mem x a }, a);
           \let xb: Logic.Not (mem x b) :=
-            \bysub(Rat, \Subset(b, Rat, Logic.Not (mem x b)), b);
+            \bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b);
           \let farReduced:
               lt b (RationalOperations.naturalTranslate a e n) :=
             \bysub(Natural.Nat^,
-              \Subset(n, Natural.Nat^,
-                lt b (RationalOperations.naturalTranslate a e n)), n);
+              { n : Natural.Nat^ \where lt b (RationalOperations.naturalTranslate a e n) }, n);
           \let far: lt b (RationalOperations.grid a e n) :=
             RationalOrder.ltReplaceRight b
               (RationalOperations.naturalTranslate a e n)
@@ -186,25 +168,21 @@
           \let boundary: AdjacentBoundary P :=
             finiteBoundary P n atZero notAtN;
           \return \exact(
-            \subsetinto(Rat, GridBoundaryWitnesses x e, a, boundary),
-            \Ty(Rat, GridBoundaryWitnesses x e));
+            \into[Rat](a, GridBoundaryWitnesses x e) \by { boundary },
+            \Cast[Rat] (GridBoundaryWitnesses x e));
         }
-      \by { existence: RationalOperations.naturalTranslateAbove a e b positive }
-    \by { existence: cutProper x }
-  \by { existence: cutInhabited x };
+      \by { RationalOperations.naturalTranslateAbove a e b positive }
+    \by { cutProper x }
+  \by { cutInhabited x };
 
 \definition Bracketed (x: Real) (e: Rat): \Prop :=
-  \exists \Ty(Rat,
-    \Subset(a, Rat,
-      Logic.And[mem x a, Logic.Not (mem x (addRat a e))]));
+  \exists \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, Logic.Not (mem x (addRat a e))] });
 
 \definition bracket (x: Real) (e: Rat) (positive: lt zeroRat e):
   Bracketed x e :=
-  \take (base: \Ty(Rat, GridBoundaryWitnesses x e)) =>
-    \take (k: \Ty(Natural.Nat^,
-      \Subset(k, Natural.Nat^,
-        Logic.And[GridPredicate x base e k,
-          Logic.Not (GridPredicate x base e (Natural.Nat^::succ k))]))) =>
+  \take (base: \Cast[Rat] (GridBoundaryWitnesses x e)) =>
+    \take (k: \Cast[Natural.Nat^] ({ k : Natural.Nat^ \where Logic.And[GridPredicate x base e k,
+          Logic.Not (GridPredicate x base e (Natural.Nat^::succ k))] })) =>
       \block {
         \let a: Rat := RationalOperations.grid base e k;
         \let next: Rat :=
@@ -213,18 +191,16 @@
           Logic.And[GridPredicate x base e k,
             Logic.Not (GridPredicate x base e (Natural.Nat^::succ k))]::left
             (\bysub(Natural.Nat^,
-              \Subset(k, Natural.Nat^,
-                Logic.And[GridPredicate x base e k,
+              { k : Natural.Nat^ \where Logic.And[GridPredicate x base e k,
                   Logic.Not (GridPredicate x base e
-                    (Natural.Nat^::succ k))]), k));
+                    (Natural.Nat^::succ k))] }, k));
         \let outsideNext: Logic.Not (mem x next) :=
           Logic.And[GridPredicate x base e k,
             Logic.Not (GridPredicate x base e (Natural.Nat^::succ k))]::right
             (\bysub(Natural.Nat^,
-              \Subset(k, Natural.Nat^,
-                Logic.And[GridPredicate x base e k,
+              { k : Natural.Nat^ \where Logic.And[GridPredicate x base e k,
                   Logic.Not (GridPredicate x base e
-                    (Natural.Nat^::succ k))]), k));
+                    (Natural.Nat^::succ k))] }, k));
         \let outside: Logic.Not (mem x (addRat a e)) :=
           \fun (inside: mem x (addRat a e)) =>
             outsideNext
@@ -232,174 +208,118 @@
                 (RationalFractions.fractionEqSym _ _
                   (RationalOperations.gridSucc base e k)) inside);
         \return \exact(
-          \subsetinto(Rat,
-            \Subset(a, Rat,
-              Logic.And[mem x a, Logic.Not (mem x (addRat a e))]),
-            a,
-            \record Logic.And[mem x a,
+          \into[Rat](a, { a : Rat \where Logic.And[mem x a, Logic.Not (mem x (addRat a e))] }) \by { \record Logic.And[mem x a,
               Logic.Not (mem x (addRat a e))] {
               left := xa, right := outside,
-            }),
-          \Ty(Rat, \Subset(a, Rat,
-            Logic.And[mem x a, Logic.Not (mem x (addRat a e))])));
+            } },
+          \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, Logic.Not (mem x (addRat a e))] }));
       }
-    \by { existence: \bysub(Rat, GridBoundaryWitnesses x e, base) }
-  \by { existence: gridBoundary x e positive };
+    \by { \bysub(Rat, GridBoundaryWitnesses x e, base) }
+  \by { gridBoundary x e positive };
 
 \definition sumIntro (x, y: Real) (q, a, b: Rat)
   (xa: mem x a) (yb: mem y b) (qab: lt q (addRat a b)):
   In (SumLower x y) q :=
   \exact(
-    \subsetinto(Rat,
-      \Subset(a, Rat,
-        Logic.And[mem x a,
-          \exists \Ty(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]))]),
-      a,
-      \record Logic.And[mem x a,
-        \exists \Ty(Rat,
-          \Subset(b, Rat,
-            Logic.And[mem y b, lt q (addRat a b)]))] {
+    \into[Rat](a, { a : Rat \where Logic.And[mem x a,
+          \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }) \by { \record Logic.And[mem x a,
+        \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] {
         left := xa,
         right := \exact(
-          \subsetinto(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]),
-            b,
-            \record Logic.And[mem y b, lt q (addRat a b)] {
+          \into[Rat](b, { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }) \by { \record Logic.And[mem y b, lt q (addRat a b)] {
               left := yb, right := qab,
-            }),
-          \Ty(Rat, \Subset(b, Rat,
-            Logic.And[mem y b, lt q (addRat a b)]))),
-      }),
-    \Ty(Rat, \Subset(a, Rat,
-      Logic.And[mem x a,
-        \exists \Ty(Rat,
-          \Subset(b, Rat,
-            Logic.And[mem y b, lt q (addRat a b)]))])));
+            } },
+          \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })),
+      } },
+    \Cast[Rat] ({ a : Rat \where Logic.And[mem x a,
+        \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }));
 
 \definition sumElim (x, y: Real) (q: Rat) (member: In (SumLower x y) q)
   (P: \Prop)
   (use: \forall (a, b: Rat) ->
     mem x a -> mem y b -> lt q (addRat a b) -> P): P :=
-  \take (a: \Ty(Rat,
-    \Subset(a, Rat,
-      Logic.And[mem x a,
-        \exists \Ty(Rat,
-          \Subset(b, Rat,
-            Logic.And[mem y b, lt q (addRat a b)]))]))) =>
-    \take (b: \Ty(Rat,
-      \Subset(b, Rat,
-        Logic.And[mem y b, lt q (addRat a b)]))) =>
+  \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a,
+        \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] })) =>
+    \take (b: \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })) =>
       use a b
         (Logic.And[mem x a,
-          \exists \Ty(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]))]::left
+          \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })]::left
           (\bysub(Rat,
-            \Subset(a, Rat,
-              Logic.And[mem x a,
-                \exists \Ty(Rat,
-                  \Subset(b, Rat,
-                    Logic.And[mem y b, lt q (addRat a b)]))]), a)))
+            { a : Rat \where Logic.And[mem x a,
+                \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }, a)))
         (Logic.And[mem y b, lt q (addRat a b)]::left
           (\bysub(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]), b)))
+            { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }, b)))
         (Logic.And[mem y b, lt q (addRat a b)]::right
           (\bysub(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]), b)))
-    \by { existence: Logic.And[mem x a,
-      \exists \Ty(Rat,
-        \Subset(b, Rat,
-          Logic.And[mem y b, lt q (addRat a b)]))]::right
+            { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }, b)))
+    \by { Logic.And[mem x a,
+      \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })]::right
       (\bysub(Rat,
-        \Subset(a, Rat,
-          Logic.And[mem x a,
-            \exists \Ty(Rat,
-              \Subset(b, Rat,
-                Logic.And[mem y b, lt q (addRat a b)]))]), a)) }
-  \by { existence: member };
+        { a : Rat \where Logic.And[mem x a,
+            \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }, a)) }
+  \by { member };
 
 \definition sumContainsAdd (x, y: Real) (a, b: Rat)
   (xa: mem x a) (yb: mem y b): In (SumLower x y) (addRat a b) :=
-  \take (a2: \Ty(Rat,
-    \Subset(a2, Rat, Logic.And[mem x a2, lt a a2]))) =>
-    \take (b2: \Ty(Rat,
-      \Subset(b2, Rat, Logic.And[mem y b2, lt b b2]))) =>
+  \take (a2: \Cast[Rat] ({ a2 : Rat \where Logic.And[mem x a2, lt a a2] })) =>
+    \take (b2: \Cast[Rat] ({ b2 : Rat \where Logic.And[mem y b2, lt b b2] })) =>
       sumIntro x y (addRat a b) a2 b2
         (Logic.And[mem x a2, lt a a2]::left
           (\bysub(Rat,
-            \Subset(a2, Rat, Logic.And[mem x a2, lt a a2]), a2)))
+            { a2 : Rat \where Logic.And[mem x a2, lt a a2] }, a2)))
         (Logic.And[mem y b2, lt b b2]::left
           (\bysub(Rat,
-            \Subset(b2, Rat, Logic.And[mem y b2, lt b b2]), b2)))
+            { b2 : Rat \where Logic.And[mem y b2, lt b b2] }, b2)))
         (RationalOperations.ltAdd a a2 b b2
           (Logic.And[mem x a2, lt a a2]::right
             (\bysub(Rat,
-              \Subset(a2, Rat, Logic.And[mem x a2, lt a a2]), a2)))
+              { a2 : Rat \where Logic.And[mem x a2, lt a a2] }, a2)))
           (Logic.And[mem y b2, lt b b2]::right
             (\bysub(Rat,
-              \Subset(b2, Rat, Logic.And[mem y b2, lt b b2]), b2))))
-    \by { existence: cutRounded y b yb }
-  \by { existence: cutRounded x a xa };
+              { b2 : Rat \where Logic.And[mem y b2, lt b b2] }, b2))))
+    \by { cutRounded y b yb }
+  \by { cutRounded x a xa };
 
 \definition sumInhabited (x, y: Real): Inhabited (SumLower x y) :=
-  \take (a: \Ty(Rat, \Subset(a, Rat, mem x a))) =>
-    \take (b: \Ty(Rat, \Subset(b, Rat, mem y b))) =>
+  \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
+    \take (b: \Cast[Rat] ({ b : Rat \where mem y b })) =>
       \exact(
-        \subsetinto(Rat, \Subset(q, Rat, In (SumLower x y) q),
-          RationalOperations.below (addRat a b),
-          sumIntro x y (RationalOperations.below (addRat a b)) a b
-            (\bysub(Rat, \Subset(a, Rat, mem x a), a))
-            (\bysub(Rat, \Subset(b, Rat, mem y b), b))
-            (RationalOperations.belowLt (addRat a b))),
-        \Ty(Rat, \Subset(q, Rat, In (SumLower x y) q)))
-    \by { existence: cutInhabited y }
-  \by { existence: cutInhabited x };
+        \into[Rat](RationalOperations.below (addRat a b), { q : Rat \where In (SumLower x y) q }) \by { sumIntro x y (RationalOperations.below (addRat a b)) a b
+            (\bysub(Rat, { a : Rat \where mem x a }, a))
+            (\bysub(Rat, { b : Rat \where mem y b }, b))
+            (RationalOperations.belowLt (addRat a b)) },
+        \Cast[Rat] ({ q : Rat \where In (SumLower x y) q }))
+    \by { cutInhabited y }
+  \by { cutInhabited x };
 
 \definition sumProperAt (x, y: Real) (u, v: Rat)
   (xu: Logic.Not (mem x u)) (yv: Logic.Not (mem y v)):
   Logic.Not (In (SumLower x y) (addRat u v)) :=
   \fun (member: In (SumLower x y) (addRat u v)) =>
-    \take (a: \Ty(Rat,
-      \Subset(a, Rat,
-        Logic.And[mem x a,
-          \exists \Ty(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b,
-                lt (addRat u v) (addRat a b)]))]))) =>
-      \take (b: \Ty(Rat,
-        \Subset(b, Rat,
-          Logic.And[mem y b, lt (addRat u v) (addRat a b)]))) =>
+    \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a,
+          \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b,
+                lt (addRat u v) (addRat a b)] })] })) =>
+      \take (b: \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt (addRat u v) (addRat a b)] })) =>
         (\block {
           \let xa: mem x a :=
             Logic.And[mem x a,
-              \exists \Ty(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b,
-                    lt (addRat u v) (addRat a b)]))]::left
+              \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b,
+                    lt (addRat u v) (addRat a b)] })]::left
               (\bysub(Rat,
-                \Subset(a, Rat,
-                  Logic.And[mem x a,
-                    \exists \Ty(Rat,
-                      \Subset(b, Rat,
-                        Logic.And[mem y b,
-                          lt (addRat u v) (addRat a b)]))]), a));
+                { a : Rat \where Logic.And[mem x a,
+                    \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b,
+                          lt (addRat u v) (addRat a b)] })] }, a));
           \let yb: mem y b :=
             Logic.And[mem y b, lt (addRat u v) (addRat a b)]::left
               (\bysub(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b,
-                    lt (addRat u v) (addRat a b)]), b));
+                { b : Rat \where Logic.And[mem y b,
+                    lt (addRat u v) (addRat a b)] }, b));
           \let boundLt: lt (addRat u v) (addRat a b) :=
             Logic.And[mem y b, lt (addRat u v) (addRat a b)]::right
               (\bysub(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b,
-                    lt (addRat u v) (addRat a b)]), b));
+                { b : Rat \where Logic.And[mem y b,
+                    lt (addRat u v) (addRat a b)] }, b));
           \return RationalOrder.ltIrrefl (addRat u v)
             (RationalOrder.ltTrans
               (addRat u v) (addRat a b) (addRat u v) boundLt
@@ -407,185 +327,117 @@
                 (memberLtOutside x a u xa xu)
                 (memberLtOutside y b v yb yv)));
         })
-      \by { existence: Logic.And[mem x a,
-        \exists \Ty(Rat,
-          \Subset(b, Rat,
-            Logic.And[mem y b,
-              lt (addRat u v) (addRat a b)]))]::right
+      \by { Logic.And[mem x a,
+        \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b,
+              lt (addRat u v) (addRat a b)] })]::right
         (\bysub(Rat,
-          \Subset(a, Rat,
-            Logic.And[mem x a,
-              \exists \Ty(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b,
-                    lt (addRat u v) (addRat a b)]))]), a)) }
-    \by { existence: member };
+          { a : Rat \where Logic.And[mem x a,
+              \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b,
+                    lt (addRat u v) (addRat a b)] })] }, a)) }
+    \by { member };
 
 \definition sumProper (x, y: Real): Proper (SumLower x y) :=
-  \take (u: \Ty(Rat, \Subset(u, Rat, Logic.Not (mem x u)))) =>
-    \take (v: \Ty(Rat, \Subset(v, Rat, Logic.Not (mem y v)))) =>
+  \take (u: \Cast[Rat] ({ u : Rat \where Logic.Not (mem x u) })) =>
+    \take (v: \Cast[Rat] ({ v : Rat \where Logic.Not (mem y v) })) =>
       \exact(
-        \subsetinto(Rat,
-          \Subset(q, Rat, Logic.Not (In (SumLower x y) q)),
-          addRat u v,
-          sumProperAt x y u v
-            (\bysub(Rat, \Subset(u, Rat, Logic.Not (mem x u)), u))
-            (\bysub(Rat, \Subset(v, Rat, Logic.Not (mem y v)), v))),
-        \Ty(Rat,
-          \Subset(q, Rat, Logic.Not (In (SumLower x y) q))))
-    \by { existence: cutProper y }
-  \by { existence: cutProper x };
+        \into[Rat](addRat u v, { q : Rat \where Logic.Not (In (SumLower x y) q) }) \by { sumProperAt x y u v
+            (\bysub(Rat, { u : Rat \where Logic.Not (mem x u) }, u))
+            (\bysub(Rat, { v : Rat \where Logic.Not (mem y v) }, v)) },
+        \Cast[Rat] ({ q : Rat \where Logic.Not (In (SumLower x y) q) }))
+    \by { cutProper y }
+  \by { cutProper x };
 
 \definition sumLower (x, y: Real): Lower (SumLower x y) :=
   \fun (p, q: Rat) => \fun (pq: lt p q) =>
     \fun (member: In (SumLower x y) q) =>
-      \take (a: \Ty(Rat,
-        \Subset(a, Rat,
-          Logic.And[mem x a,
-            \exists \Ty(Rat,
-              \Subset(b, Rat,
-                Logic.And[mem y b, lt q (addRat a b)]))]))) =>
-        \take (b: \Ty(Rat,
-          \Subset(b, Rat,
-            Logic.And[mem y b, lt q (addRat a b)]))) =>
+      \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a,
+            \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] })) =>
+        \take (b: \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })) =>
           sumIntro x y p a b
             (Logic.And[mem x a,
-              \exists \Ty(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt q (addRat a b)]))]::left
+              \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })]::left
               (\bysub(Rat,
-                \Subset(a, Rat,
-                  Logic.And[mem x a,
-                    \exists \Ty(Rat,
-                      \Subset(b, Rat,
-                        Logic.And[mem y b, lt q (addRat a b)]))]), a)))
+                { a : Rat \where Logic.And[mem x a,
+                    \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }, a)))
             (Logic.And[mem y b, lt q (addRat a b)]::left
               (\bysub(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt q (addRat a b)]), b)))
+                { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }, b)))
             (RationalOrder.ltTrans p q (addRat a b) pq
               (Logic.And[mem y b, lt q (addRat a b)]::right
                 (\bysub(Rat,
-                  \Subset(b, Rat,
-                    Logic.And[mem y b, lt q (addRat a b)]), b))))
-        \by { existence: Logic.And[mem x a,
-          \exists \Ty(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]))]::right
+                  { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }, b))))
+        \by { Logic.And[mem x a,
+          \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })]::right
           (\bysub(Rat,
-            \Subset(a, Rat,
-              Logic.And[mem x a,
-                \exists \Ty(Rat,
-                  \Subset(b, Rat,
-                    Logic.And[mem y b, lt q (addRat a b)]))]), a)) }
-      \by { existence: member };
+            { a : Rat \where Logic.And[mem x a,
+                \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }, a)) }
+      \by { member };
 
 \definition sumRounded (x, y: Real): Rounded (SumLower x y) :=
   \fun (q: Rat) => \fun (member: In (SumLower x y) q) =>
-    \take (a: \Ty(Rat,
-      \Subset(a, Rat,
-        Logic.And[mem x a,
-          \exists \Ty(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt q (addRat a b)]))]))) =>
-      \take (b: \Ty(Rat,
-        \Subset(b, Rat,
-          Logic.And[mem y b, lt q (addRat a b)]))) =>
+    \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a,
+          \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] })) =>
+      \take (b: \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })) =>
         (\block {
           \let xa: mem x a :=
             Logic.And[mem x a,
-              \exists \Ty(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt q (addRat a b)]))]::left
+              \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })]::left
               (\bysub(Rat,
-                \Subset(a, Rat,
-                  Logic.And[mem x a,
-                    \exists \Ty(Rat,
-                      \Subset(b, Rat,
-                        Logic.And[mem y b, lt q (addRat a b)]))]), a));
+                { a : Rat \where Logic.And[mem x a,
+                    \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }, a));
           \let yb: mem y b :=
             Logic.And[mem y b, lt q (addRat a b)]::left
               (\bysub(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt q (addRat a b)]), b));
+                { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }, b));
           \let qab: lt q (addRat a b) :=
             Logic.And[mem y b, lt q (addRat a b)]::right
               (\bysub(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt q (addRat a b)]), b));
+                { b : Rat \where Logic.And[mem y b, lt q (addRat a b)] }, b));
           \let r: Rat := RationalOperations.midpoint q (addRat a b);
           \return \exact(
-            \subsetinto(Rat,
-              \Subset(r, Rat,
-                Logic.And[In (SumLower x y) r, lt q r]),
-              r,
-              \record Logic.And[In (SumLower x y) r, lt q r] {
+            \into[Rat](r, { r : Rat \where Logic.And[In (SumLower x y) r, lt q r] }) \by { \record Logic.And[In (SumLower x y) r, lt q r] {
                 left := sumIntro x y r a b xa yb
                   (RationalOperations.midpointLt q (addRat a b) qab),
                 right := RationalOperations.ltMidpoint q (addRat a b) qab,
-              }),
-            \Ty(Rat, \Subset(r, Rat,
-              Logic.And[In (SumLower x y) r, lt q r])));
+              } },
+            \Cast[Rat] ({ r : Rat \where Logic.And[In (SumLower x y) r, lt q r] }));
         })
-      \by { existence: Logic.And[mem x a,
-        \exists \Ty(Rat,
-          \Subset(b, Rat,
-            Logic.And[mem y b, lt q (addRat a b)]))]::right
+      \by { Logic.And[mem x a,
+        \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })]::right
         (\bysub(Rat,
-          \Subset(a, Rat,
-            Logic.And[mem x a,
-              \exists \Ty(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt q (addRat a b)]))]), a)) }
-    \by { existence: member };
+          { a : Rat \where Logic.And[mem x a,
+              \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt q (addRat a b)] })] }, a)) }
+    \by { member };
 
 \definition sumRespects (x, y: Real): RespectsFractionEq (SumLower x y) :=
   \fun (p, q: Rat) =>
     \fun (pq: RationalFractions.FractionEq p q) =>
       \fun (member: In (SumLower x y) p) =>
-        \take (a: \Ty(Rat,
-          \Subset(a, Rat,
-            Logic.And[mem x a,
-              \exists \Ty(Rat,
-                \Subset(b, Rat,
-                  Logic.And[mem y b, lt p (addRat a b)]))]))) =>
-          \take (b: \Ty(Rat,
-            \Subset(b, Rat,
-              Logic.And[mem y b, lt p (addRat a b)]))) =>
+        \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a,
+              \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt p (addRat a b)] })] })) =>
+          \take (b: \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt p (addRat a b)] })) =>
             sumIntro x y q a b
               (Logic.And[mem x a,
-                \exists \Ty(Rat,
-                  \Subset(b, Rat,
-                    Logic.And[mem y b, lt p (addRat a b)]))]::left
+                \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt p (addRat a b)] })]::left
                 (\bysub(Rat,
-                  \Subset(a, Rat,
-                    Logic.And[mem x a,
-                      \exists \Ty(Rat,
-                        \Subset(b, Rat,
-                          Logic.And[mem y b, lt p (addRat a b)]))]), a)))
+                  { a : Rat \where Logic.And[mem x a,
+                      \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt p (addRat a b)] })] }, a)))
               (Logic.And[mem y b, lt p (addRat a b)]::left
                 (\bysub(Rat,
-                  \Subset(b, Rat,
-                    Logic.And[mem y b, lt p (addRat a b)]), b)))
+                  { b : Rat \where Logic.And[mem y b, lt p (addRat a b)] }, b)))
               (RationalOrder.ltReplaceLeft p q (addRat a b) pq
                 (Logic.And[mem y b, lt p (addRat a b)]::right
                   (\bysub(Rat,
-                    \Subset(b, Rat,
-                      Logic.And[mem y b, lt p (addRat a b)]), b))))
-          \by { existence: Logic.And[mem x a,
-            \exists \Ty(Rat,
-              \Subset(b, Rat,
-                Logic.And[mem y b, lt p (addRat a b)]))]::right
+                    { b : Rat \where Logic.And[mem y b, lt p (addRat a b)] }, b))))
+          \by { Logic.And[mem x a,
+            \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt p (addRat a b)] })]::right
             (\bysub(Rat,
-              \Subset(a, Rat,
-                Logic.And[mem x a,
-                  \exists \Ty(Rat,
-                    \Subset(b, Rat,
-                      Logic.And[mem y b, lt p (addRat a b)]))]), a)) }
-        \by { existence: member };
+              { a : Rat \where Logic.And[mem x a,
+                  \exists \Cast[Rat] ({ b : Rat \where Logic.And[mem y b, lt p (addRat a b)] })] }, a)) }
+        \by { member };
 
 \definition sumCut (x, y: Real):
-  \Pred(\Power(Rat), CutSet, SumLower x y) :=
+  \In[\Pow (Rat)] (CutSet) (SumLower x y) :=
   \record Logic.And[Inhabited (SumLower x y),
     Logic.And[Proper (SumLower x y),
       Logic.And[Lower (SumLower x y),
@@ -622,150 +474,116 @@
   (xr: Logic.Not (mem x r)) (qr: lt q (negRat r)):
   In (NegLower x) q :=
   \exact(
-    \subsetinto(Rat,
-      \Subset(r, Rat,
-        Logic.And[Logic.Not (mem x r), lt q (negRat r)]),
-      r,
-      \record Logic.And[Logic.Not (mem x r), lt q (negRat r)] {
+    \into[Rat](r, { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }) \by { \record Logic.And[Logic.Not (mem x r), lt q (negRat r)] {
         left := xr, right := qr,
-      }),
-    \Ty(Rat, \Subset(r, Rat,
-      Logic.And[Logic.Not (mem x r), lt q (negRat r)])));
+      } },
+    \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }));
 
 \definition negElim (x: Real) (q: Rat) (member: In (NegLower x) q)
   (P: \Prop)
   (use: \forall (r: Rat) ->
     Logic.Not (mem x r) -> lt q (negRat r) -> P): P :=
-  \take (r: \Ty(Rat,
-    \Subset(r, Rat,
-      Logic.And[Logic.Not (mem x r), lt q (negRat r)]))) =>
+  \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] })) =>
     \block {
       \let xr: Logic.Not (mem x r) :=
         Logic.And[Logic.Not (mem x r), lt q (negRat r)]::left
           (\bysub(Rat,
-            \Subset(r, Rat,
-              Logic.And[Logic.Not (mem x r), lt q (negRat r)]), r));
+            { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }, r));
       \let qr: lt q (negRat r) :=
         Logic.And[Logic.Not (mem x r), lt q (negRat r)]::right
           (\bysub(Rat,
-            \Subset(r, Rat,
-              Logic.And[Logic.Not (mem x r), lt q (negRat r)]), r));
+            { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }, r));
       \return use r xr qr;
     }
-  \by { existence: member };
+  \by { member };
 
 \definition negInhabited (x: Real): Inhabited (NegLower x) :=
-  \take (r: \Ty(Rat, \Subset(r, Rat, Logic.Not (mem x r)))) =>
+  \take (r: \Cast[Rat] ({ r : Rat \where Logic.Not (mem x r) })) =>
     \exact(
-      \subsetinto(Rat, \Subset(q, Rat, In (NegLower x) q),
-        RationalOperations.below (negRat r),
-        negIntro x (RationalOperations.below (negRat r)) r
-          (\bysub(Rat, \Subset(r, Rat, Logic.Not (mem x r)), r))
-          (RationalOperations.belowLt (negRat r))),
-      \Ty(Rat, \Subset(q, Rat, In (NegLower x) q)))
-  \by { existence: cutProper x };
+      \into[Rat](RationalOperations.below (negRat r), { q : Rat \where In (NegLower x) q }) \by { negIntro x (RationalOperations.below (negRat r)) r
+          (\bysub(Rat, { r : Rat \where Logic.Not (mem x r) }, r))
+          (RationalOperations.belowLt (negRat r)) },
+      \Cast[Rat] ({ q : Rat \where In (NegLower x) q }))
+  \by { cutProper x };
 
 \definition negProperAt (x: Real) (a: Rat) (xa: mem x a):
   Logic.Not (In (NegLower x) (negRat a)) :=
   \fun (member: In (NegLower x) (negRat a)) =>
-    \take (r: \Ty(Rat,
-      \Subset(r, Rat,
-        Logic.And[Logic.Not (mem x r), lt (negRat a) (negRat r)]))) =>
+    \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem x r), lt (negRat a) (negRat r)] })) =>
       (Logic.And[Logic.Not (mem x r), lt (negRat a) (negRat r)]::left
         (\bysub(Rat,
-          \Subset(r, Rat,
-            Logic.And[Logic.Not (mem x r),
-              lt (negRat a) (negRat r)]), r)))
+          { r : Rat \where Logic.And[Logic.Not (mem x r),
+              lt (negRat a) (negRat r)] }, r)))
         (cutLower x r a
           (RationalOperations.ltOfNegLtNeg a r
             (Logic.And[Logic.Not (mem x r),
               lt (negRat a) (negRat r)]::right
               (\bysub(Rat,
-                \Subset(r, Rat,
-                  Logic.And[Logic.Not (mem x r),
-                    lt (negRat a) (negRat r)]), r)))) xa)
-    \by { existence: member };
+                { r : Rat \where Logic.And[Logic.Not (mem x r),
+                    lt (negRat a) (negRat r)] }, r)))) xa)
+    \by { member };
 
 \definition negProper (x: Real): Proper (NegLower x) :=
-  \take (a: \Ty(Rat, \Subset(a, Rat, mem x a))) =>
+  \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
     \exact(
-      \subsetinto(Rat,
-        \Subset(q, Rat, Logic.Not (In (NegLower x) q)),
-        negRat a,
-        negProperAt x a (\bysub(Rat, \Subset(a, Rat, mem x a), a))),
-      \Ty(Rat, \Subset(q, Rat, Logic.Not (In (NegLower x) q))))
-  \by { existence: cutInhabited x };
+      \into[Rat](negRat a, { q : Rat \where Logic.Not (In (NegLower x) q) }) \by { negProperAt x a (\bysub(Rat, { a : Rat \where mem x a }, a)) },
+      \Cast[Rat] ({ q : Rat \where Logic.Not (In (NegLower x) q) }))
+  \by { cutInhabited x };
 
 \definition negLower (x: Real): Lower (NegLower x) :=
   \fun (p, q: Rat) => \fun (pq: lt p q) =>
     \fun (member: In (NegLower x) q) =>
-      \take (r: \Ty(Rat,
-        \Subset(r, Rat,
-          Logic.And[Logic.Not (mem x r), lt q (negRat r)]))) =>
+      \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] })) =>
         negIntro x p r
           (Logic.And[Logic.Not (mem x r), lt q (negRat r)]::left
             (\bysub(Rat,
-              \Subset(r, Rat,
-                Logic.And[Logic.Not (mem x r), lt q (negRat r)]), r)))
+              { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }, r)))
           (RationalOrder.ltTrans p q (negRat r) pq
             (Logic.And[Logic.Not (mem x r), lt q (negRat r)]::right
               (\bysub(Rat,
-                \Subset(r, Rat,
-                  Logic.And[Logic.Not (mem x r), lt q (negRat r)]), r))))
-      \by { existence: member };
+                { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }, r))))
+      \by { member };
 
 \definition negRounded (x: Real): Rounded (NegLower x) :=
   \fun (q: Rat) => \fun (member: In (NegLower x) q) =>
-    \take (r: \Ty(Rat,
-      \Subset(r, Rat,
-        Logic.And[Logic.Not (mem x r), lt q (negRat r)]))) =>
+    \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] })) =>
       \block {
         \let xr: Logic.Not (mem x r) :=
           Logic.And[Logic.Not (mem x r), lt q (negRat r)]::left
             (\bysub(Rat,
-              \Subset(r, Rat,
-                Logic.And[Logic.Not (mem x r), lt q (negRat r)]), r));
+              { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }, r));
         \let qr: lt q (negRat r) :=
           Logic.And[Logic.Not (mem x r), lt q (negRat r)]::right
             (\bysub(Rat,
-              \Subset(r, Rat,
-                Logic.And[Logic.Not (mem x r), lt q (negRat r)]), r));
+              { r : Rat \where Logic.And[Logic.Not (mem x r), lt q (negRat r)] }, r));
         \let p: Rat := RationalOperations.midpoint q (negRat r);
         \return \exact(
-          \subsetinto(Rat,
-            \Subset(p, Rat, Logic.And[In (NegLower x) p, lt q p]),
-            p,
-            \record Logic.And[In (NegLower x) p, lt q p] {
+          \into[Rat](p, { p : Rat \where Logic.And[In (NegLower x) p, lt q p] }) \by { \record Logic.And[In (NegLower x) p, lt q p] {
               left := negIntro x p r xr
                 (RationalOperations.midpointLt q (negRat r) qr),
               right := RationalOperations.ltMidpoint q (negRat r) qr,
-            }),
-          \Ty(Rat,
-            \Subset(p, Rat, Logic.And[In (NegLower x) p, lt q p])));
+            } },
+          \Cast[Rat] ({ p : Rat \where Logic.And[In (NegLower x) p, lt q p] }));
       }
-    \by { existence: member };
+    \by { member };
 
 \definition negRespects (x: Real): RespectsFractionEq (NegLower x) :=
   \fun (p, q: Rat) =>
     \fun (pq: RationalFractions.FractionEq p q) =>
       \fun (member: In (NegLower x) p) =>
-        \take (r: \Ty(Rat,
-          \Subset(r, Rat,
-            Logic.And[Logic.Not (mem x r), lt p (negRat r)]))) =>
+        \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem x r), lt p (negRat r)] })) =>
           negIntro x q r
             (Logic.And[Logic.Not (mem x r), lt p (negRat r)]::left
               (\bysub(Rat,
-                \Subset(r, Rat,
-                  Logic.And[Logic.Not (mem x r), lt p (negRat r)]), r)))
+                { r : Rat \where Logic.And[Logic.Not (mem x r), lt p (negRat r)] }, r)))
             (RationalOrder.ltReplaceLeft p q (negRat r) pq
               (Logic.And[Logic.Not (mem x r), lt p (negRat r)]::right
                 (\bysub(Rat,
-                  \Subset(r, Rat,
-                    Logic.And[Logic.Not (mem x r), lt p (negRat r)]), r))))
-        \by { existence: member };
+                  { r : Rat \where Logic.And[Logic.Not (mem x r), lt p (negRat r)] }, r))))
+        \by { member };
 
 \definition negCut (x: Real):
-  \Pred(\Power(Rat), CutSet, NegLower x) :=
+  \In[\Pow (Rat)] (CutSet) (NegLower x) :=
   \record Logic.And[Inhabited (NegLower x),
     Logic.And[Proper (NegLower x),
       Logic.And[Lower (NegLower x),
@@ -800,88 +618,73 @@
 
 /* Rational density packaged for the finite endpoint arguments used below. */
 \definition BelowBoth (a, b: Rat): \Prop :=
-  \exists \Ty(Rat,
-    \Subset(q, Rat, Logic.And[lt q a, lt q b]));
+  \exists \Cast[Rat] ({ q : Rat \where Logic.And[lt q a, lt q b] });
 
 \definition belowBoth (a, b: Rat): BelowBoth a b :=
   Classical.orElim (lt a b)
     (Logic.Or[RationalFractions.FractionEq a b, lt b a]) (BelowBoth a b)
     (\fun (ab: lt a b) =>
       \exact(
-        \subsetinto(Rat,
-          \Subset(q, Rat, Logic.And[lt q a, lt q b]),
-          RationalOperations.below a,
-          \record Logic.And[
+        \into[Rat](RationalOperations.below a, { q : Rat \where Logic.And[lt q a, lt q b] }) \by { \record Logic.And[
             lt (RationalOperations.below a) a,
             lt (RationalOperations.below a) b] {
             left := RationalOperations.belowLt a,
             right := RationalOrder.ltTrans
               (RationalOperations.below a) a b
               (RationalOperations.belowLt a) ab,
-          }),
-        \Ty(Rat, \Subset(q, Rat, Logic.And[lt q a, lt q b]))))
+          } },
+        \Cast[Rat] ({ q : Rat \where Logic.And[lt q a, lt q b] })))
     (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
       Classical.orElim (RationalFractions.FractionEq a b) (lt b a)
         (BelowBoth a b)
         (\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
-            \subsetinto(Rat,
-              \Subset(q, Rat, Logic.And[lt q a, lt q b]),
-              RationalOperations.below a,
-              \record Logic.And[
+            \into[Rat](RationalOperations.below a, { q : Rat \where Logic.And[lt q a, lt q b] }) \by { \record Logic.And[
                 lt (RationalOperations.below a) a,
                 lt (RationalOperations.below a) b] {
                 left := RationalOperations.belowLt a,
                 right := RationalOrder.ltReplaceRight
                   (RationalOperations.below a) a b ab
                   (RationalOperations.belowLt a),
-              }),
-            \Ty(Rat, \Subset(q, Rat, Logic.And[lt q a, lt q b]))))
+              } },
+            \Cast[Rat] ({ q : Rat \where Logic.And[lt q a, lt q b] })))
         (\fun (ba: lt b a) =>
           \exact(
-            \subsetinto(Rat,
-              \Subset(q, Rat, Logic.And[lt q a, lt q b]),
-              RationalOperations.below b,
-              \record Logic.And[
+            \into[Rat](RationalOperations.below b, { q : Rat \where Logic.And[lt q a, lt q b] }) \by { \record Logic.And[
                 lt (RationalOperations.below b) a,
                 lt (RationalOperations.below b) b] {
                 left := RationalOrder.ltTrans
                   (RationalOperations.below b) b a
                   (RationalOperations.belowLt b) ba,
                 right := RationalOperations.belowLt b,
-              }),
-            \Ty(Rat, \Subset(q, Rat, Logic.And[lt q a, lt q b]))))
+              } },
+            \Cast[Rat] ({ q : Rat \where Logic.And[lt q a, lt q b] })))
         rest)
     (RationalOrder.trichotomy a b);
 
 \definition AboveBoth (a, b: Rat): \Prop :=
-  \exists \Ty(Rat,
-    \Subset(q, Rat, Logic.And[lt a q, lt b q]));
+  \exists \Cast[Rat] ({ q : Rat \where Logic.And[lt a q, lt b q] });
 
 \definition aboveBoth (a, b: Rat): AboveBoth a b :=
   Classical.orElim (lt a b)
     (Logic.Or[RationalFractions.FractionEq a b, lt b a]) (AboveBoth a b)
     (\fun (ab: lt a b) =>
       \exact(
-        \subsetinto(Rat, \Subset(q, Rat, Logic.And[lt a q, lt b q]),
-          RationalOperations.above b,
-          \record Logic.And[
+        \into[Rat](RationalOperations.above b, { q : Rat \where Logic.And[lt a q, lt b q] }) \by { \record Logic.And[
             lt a (RationalOperations.above b),
             lt b (RationalOperations.above b)] {
             left := RationalOrder.ltTrans a b
               (RationalOperations.above b) ab
               (RationalOperations.ltAbove b),
             right := RationalOperations.ltAbove b,
-          }),
-        \Ty(Rat, \Subset(q, Rat, Logic.And[lt a q, lt b q]))))
+          } },
+        \Cast[Rat] ({ q : Rat \where Logic.And[lt a q, lt b q] })))
     (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
       Classical.orElim (RationalFractions.FractionEq a b) (lt b a)
         (AboveBoth a b)
         (\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
-            \subsetinto(Rat, \Subset(q, Rat, Logic.And[lt a q, lt b q]),
-              RationalOperations.above b,
-              \record Logic.And[
+            \into[Rat](RationalOperations.above b, { q : Rat \where Logic.And[lt a q, lt b q] }) \by { \record Logic.And[
                 lt a (RationalOperations.above b),
                 lt b (RationalOperations.above b)] {
                 left := RationalOrder.ltReplaceLeft b a
@@ -889,28 +692,24 @@
                   (RationalFractions.fractionEqSym _ _ ab)
                   (RationalOperations.ltAbove b),
                 right := RationalOperations.ltAbove b,
-              }),
-            \Ty(Rat, \Subset(q, Rat, Logic.And[lt a q, lt b q]))))
+              } },
+            \Cast[Rat] ({ q : Rat \where Logic.And[lt a q, lt b q] })))
         (\fun (ba: lt b a) =>
           \exact(
-            \subsetinto(Rat, \Subset(q, Rat, Logic.And[lt a q, lt b q]),
-              RationalOperations.above a,
-              \record Logic.And[
+            \into[Rat](RationalOperations.above a, { q : Rat \where Logic.And[lt a q, lt b q] }) \by { \record Logic.And[
                 lt a (RationalOperations.above a),
                 lt b (RationalOperations.above a)] {
                 left := RationalOperations.ltAbove a,
                 right := RationalOrder.ltTrans b a
                   (RationalOperations.above a) ba
                   (RationalOperations.ltAbove a),
-              }),
-            \Ty(Rat, \Subset(q, Rat, Logic.And[lt a q, lt b q]))))
+              } },
+            \Cast[Rat] ({ q : Rat \where Logic.And[lt a q, lt b q] })))
         rest)
     (RationalOrder.trichotomy a b);
 
 \definition BetweenBoth (q, a, b: Rat): \Prop :=
-  \exists \Ty(Rat,
-    \Subset(r, Rat,
-      Logic.And[lt q r, Logic.And[lt r a, lt r b]]));
+  \exists \Cast[Rat] ({ r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] });
 
 \definition betweenBoth (q, a, b: Rat) (qa: lt q a) (qb: lt q b):
   BetweenBoth q a b :=
@@ -919,11 +718,7 @@
     (BetweenBoth q a b)
     (\fun (ab: lt a b) =>
       \exact(
-        \subsetinto(Rat,
-          \Subset(r, Rat,
-            Logic.And[lt q r, Logic.And[lt r a, lt r b]]),
-          RationalOperations.midpoint q a,
-          \record Logic.And[
+        \into[Rat](RationalOperations.midpoint q a, { r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] }) \by { \record Logic.And[
             lt q (RationalOperations.midpoint q a),
             Logic.And[
               lt (RationalOperations.midpoint q a) a,
@@ -937,19 +732,14 @@
                 (RationalOperations.midpoint q a) a b
                 (RationalOperations.midpointLt q a qa) ab,
             },
-          }),
-        \Ty(Rat, \Subset(r, Rat,
-          Logic.And[lt q r, Logic.And[lt r a, lt r b]]))))
+          } },
+        \Cast[Rat] ({ r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] })))
     (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
       Classical.orElim (RationalFractions.FractionEq a b) (lt b a)
         (BetweenBoth q a b)
         (\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
-            \subsetinto(Rat,
-              \Subset(r, Rat,
-                Logic.And[lt q r, Logic.And[lt r a, lt r b]]),
-              RationalOperations.midpoint q a,
-              \record Logic.And[
+            \into[Rat](RationalOperations.midpoint q a, { r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] }) \by { \record Logic.And[
                 lt q (RationalOperations.midpoint q a),
                 Logic.And[
                   lt (RationalOperations.midpoint q a) a,
@@ -963,16 +753,11 @@
                     (RationalOperations.midpoint q a) a b ab
                     (RationalOperations.midpointLt q a qa),
                 },
-              }),
-            \Ty(Rat, \Subset(r, Rat,
-              Logic.And[lt q r, Logic.And[lt r a, lt r b]]))))
+              } },
+            \Cast[Rat] ({ r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] })))
         (\fun (ba: lt b a) =>
           \exact(
-            \subsetinto(Rat,
-              \Subset(r, Rat,
-                Logic.And[lt q r, Logic.And[lt r a, lt r b]]),
-              RationalOperations.midpoint q b,
-              \record Logic.And[
+            \into[Rat](RationalOperations.midpoint q b, { r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] }) \by { \record Logic.And[
                 lt q (RationalOperations.midpoint q b),
                 Logic.And[
                   lt (RationalOperations.midpoint q b) a,
@@ -986,34 +771,27 @@
                     (RationalOperations.midpointLt q b qb) ba,
                   right := RationalOperations.midpointLt q b qb,
                 },
-              }),
-            \Ty(Rat, \Subset(r, Rat,
-              Logic.And[lt q r, Logic.And[lt r a, lt r b]]))))
+              } },
+            \Cast[Rat] ({ r : Rat \where Logic.And[lt q r, Logic.And[lt r a, lt r b]] })))
         rest)
     (RationalOrder.trichotomy a b);
 
 \definition SymmetricBound (x: Real): \Prop :=
-  \exists \Ty(Rat,
-    \Subset(u, Rat,
-      Logic.And[lt zeroRat u,
-        Logic.And[mem x (negRat u), Logic.Not (mem x u)]]));
+  \exists \Cast[Rat] ({ u : Rat \where Logic.And[lt zeroRat u,
+        Logic.And[mem x (negRat u), Logic.Not (mem x u)]] });
 
 \definition symmetricBound (x: Real): SymmetricBound x :=
-  \take (a: \Ty(Rat, \Subset(a, Rat, mem x a))) =>
-    \take (b: \Ty(Rat, \Subset(b, Rat, Logic.Not (mem x b)))) =>
-      \take (u: \Ty(Rat, \Subset(u, Rat,
-        Logic.And[lt (negRat a) u, lt b u]))) =>
-        \take (v: \Ty(Rat, \Subset(v, Rat,
-          Logic.And[lt u v, lt zeroRat v]))) =>
+  \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
+    \take (b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) })) =>
+      \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[lt (negRat a) u, lt b u] })) =>
+        \take (v: \Cast[Rat] ({ v : Rat \where Logic.And[lt u v, lt zeroRat v] })) =>
           \block {
             \let nua: lt (negRat a) v :=
               RationalOrder.ltTrans (negRat a) u v
                 (Logic.And[lt (negRat a) u, lt b u]::left
-                  (\bysub(Rat, \Subset(u, Rat,
-                    Logic.And[lt (negRat a) u, lt b u]), u)))
+                  (\bysub(Rat, { u : Rat \where Logic.And[lt (negRat a) u, lt b u] }, u)))
                 (Logic.And[lt u v, lt zeroRat v]::left
-                  (\bysub(Rat, \Subset(v, Rat,
-                    Logic.And[lt u v, lt zeroRat v]), v)));
+                  (\bysub(Rat, { v : Rat \where Logic.And[lt u v, lt zeroRat v] }, v)));
             \let nva: lt (negRat v) a :=
               RationalOrder.ltReplaceRight (negRat v)
                 (negRat (negRat a)) a
@@ -1022,40 +800,34 @@
             \let bv: lt b v :=
               RationalOrder.ltTrans b u v
                 (Logic.And[lt (negRat a) u, lt b u]::right
-                  (\bysub(Rat, \Subset(u, Rat,
-                    Logic.And[lt (negRat a) u, lt b u]), u)))
+                  (\bysub(Rat, { u : Rat \where Logic.And[lt (negRat a) u, lt b u] }, u)))
                 (Logic.And[lt u v, lt zeroRat v]::left
-                  (\bysub(Rat, \Subset(v, Rat,
-                    Logic.And[lt u v, lt zeroRat v]), v)));
+                  (\bysub(Rat, { v : Rat \where Logic.And[lt u v, lt zeroRat v] }, v)));
             \let inside: mem x (negRat v) :=
               cutLower x (negRat v) a nva
-                (\bysub(Rat, \Subset(a, Rat, mem x a), a));
+                (\bysub(Rat, { a : Rat \where mem x a }, a));
             \let outside: Logic.Not (mem x v) :=
               \fun (xv: mem x v) =>
-                (\bysub(Rat, \Subset(b, Rat, Logic.Not (mem x b)), b))
+                (\bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b))
                   (cutLower x b v bv xv);
             \return \exact(
-              \subsetinto(Rat, \Subset(v, Rat,
-                Logic.And[lt zeroRat v,
-                  Logic.And[mem x (negRat v), Logic.Not (mem x v)]]), v,
-                \record Logic.And[lt zeroRat v,
+              \into[Rat](v, { v : Rat \where Logic.And[lt zeroRat v,
+                  Logic.And[mem x (negRat v), Logic.Not (mem x v)]] }) \by { \record Logic.And[lt zeroRat v,
                   Logic.And[mem x (negRat v), Logic.Not (mem x v)]] {
                   left := Logic.And[lt u v, lt zeroRat v]::right
-                    (\bysub(Rat, \Subset(v, Rat,
-                      Logic.And[lt u v, lt zeroRat v]), v)),
+                    (\bysub(Rat, { v : Rat \where Logic.And[lt u v, lt zeroRat v] }, v)),
                   right := \record Logic.And[
                     mem x (negRat v), Logic.Not (mem x v)] {
                     left := inside, right := outside,
                   },
-                }),
-              \Ty(Rat, \Subset(v, Rat,
-                Logic.And[lt zeroRat v,
-                  Logic.And[mem x (negRat v), Logic.Not (mem x v)]])));
+                } },
+              \Cast[Rat] ({ v : Rat \where Logic.And[lt zeroRat v,
+                  Logic.And[mem x (negRat v), Logic.Not (mem x v)]] }));
           }
-        \by { existence: aboveBoth u zeroRat }
-      \by { existence: aboveBoth (negRat a) b }
-    \by { existence: cutProper x }
-  \by { existence: cutInhabited x };
+        \by { aboveBoth u zeroRat }
+      \by { aboveBoth (negRat a) b }
+    \by { cutProper x }
+  \by { cutInhabited x };
 
 \definition productBelowElim (x, y: Real) (q: Rat)
   (member: ProductBelow x y q) (P: \Prop)
@@ -1267,86 +1039,68 @@
   };
 
 \definition productInhabited (x, y: Real): Inhabited (MulLower x y) :=
-  \take (a: \Ty(Rat, \Subset(a, Rat, mem x a))) =>
-    \take (b: \Ty(Rat, \Subset(b, Rat, Logic.Not (mem x b)))) =>
-      \take (c: \Ty(Rat, \Subset(c, Rat, mem y c))) =>
-        \take (d: \Ty(Rat, \Subset(d, Rat, Logic.Not (mem y d)))) =>
-          \take (u: \Ty(Rat, \Subset(u, Rat,
-            Logic.And[lt u (mulRat a c), lt u (mulRat a d)]))) =>
-            \take (v: \Ty(Rat, \Subset(v, Rat,
-              Logic.And[lt v (mulRat b c), lt v (mulRat b d)]))) =>
-              \take (q: \Ty(Rat, \Subset(q, Rat,
-                Logic.And[lt q u, lt q v]))) =>
+  \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
+    \take (b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) })) =>
+      \take (c: \Cast[Rat] ({ c : Rat \where mem y c })) =>
+        \take (d: \Cast[Rat] ({ d : Rat \where Logic.Not (mem y d) })) =>
+          \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[lt u (mulRat a c), lt u (mulRat a d)] })) =>
+            \take (v: \Cast[Rat] ({ v : Rat \where Logic.And[lt v (mulRat b c), lt v (mulRat b d)] })) =>
+              \take (q: \Cast[Rat] ({ q : Rat \where Logic.And[lt q u, lt q v] })) =>
                 \block {
                   \let qu: lt q u := Logic.And[lt q u, lt q v]::left
-                    (\bysub(Rat, \Subset(q, Rat,
-                      Logic.And[lt q u, lt q v]), q));
+                    (\bysub(Rat, { q : Rat \where Logic.And[lt q u, lt q v] }, q));
                   \let qv: lt q v := Logic.And[lt q u, lt q v]::right
-                    (\bysub(Rat, \Subset(q, Rat,
-                      Logic.And[lt q u, lt q v]), q));
+                    (\bysub(Rat, { q : Rat \where Logic.And[lt q u, lt q v] }, q));
                   \let ac: lt q (mulRat a c) :=
                     RationalOrder.ltTrans q u (mulRat a c) qu
                       (Logic.And[lt u (mulRat a c), lt u (mulRat a d)]::left
-                        (\bysub(Rat, \Subset(u, Rat,
-                          Logic.And[lt u (mulRat a c), lt u (mulRat a d)]), u)));
+                        (\bysub(Rat, { u : Rat \where Logic.And[lt u (mulRat a c), lt u (mulRat a d)] }, u)));
                   \let ad: lt q (mulRat a d) :=
                     RationalOrder.ltTrans q u (mulRat a d) qu
                       (Logic.And[lt u (mulRat a c), lt u (mulRat a d)]::right
-                        (\bysub(Rat, \Subset(u, Rat,
-                          Logic.And[lt u (mulRat a c), lt u (mulRat a d)]), u)));
+                        (\bysub(Rat, { u : Rat \where Logic.And[lt u (mulRat a c), lt u (mulRat a d)] }, u)));
                   \let bc: lt q (mulRat b c) :=
                     RationalOrder.ltTrans q v (mulRat b c) qv
                       (Logic.And[lt v (mulRat b c), lt v (mulRat b d)]::left
-                        (\bysub(Rat, \Subset(v, Rat,
-                          Logic.And[lt v (mulRat b c), lt v (mulRat b d)]), v)));
+                        (\bysub(Rat, { v : Rat \where Logic.And[lt v (mulRat b c), lt v (mulRat b d)] }, v)));
                   \let bd: lt q (mulRat b d) :=
                     RationalOrder.ltTrans q v (mulRat b d) qv
                       (Logic.And[lt v (mulRat b c), lt v (mulRat b d)]::right
-                        (\bysub(Rat, \Subset(v, Rat,
-                          Logic.And[lt v (mulRat b c), lt v (mulRat b d)]), v)));
+                        (\bysub(Rat, { v : Rat \where Logic.And[lt v (mulRat b c), lt v (mulRat b d)] }, v)));
                   \return \exact(
-                    \subsetinto(Rat,
-                      \Subset(q, Rat, In (MulLower x y) q), q,
-                      productBelowIntro x y q a b c d
-                        (\bysub(Rat, \Subset(a, Rat, mem x a), a))
-                        (\bysub(Rat, \Subset(b, Rat, Logic.Not (mem x b)), b))
-                        (\bysub(Rat, \Subset(c, Rat, mem y c), c))
-                        (\bysub(Rat, \Subset(d, Rat, Logic.Not (mem y d)), d))
-                        ac ad bc bd),
-                    \Ty(Rat, \Subset(q, Rat, In (MulLower x y) q)));
+                    \into[Rat](q, { q : Rat \where In (MulLower x y) q }) \by { productBelowIntro x y q a b c d
+                        (\bysub(Rat, { a : Rat \where mem x a }, a))
+                        (\bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b))
+                        (\bysub(Rat, { c : Rat \where mem y c }, c))
+                        (\bysub(Rat, { d : Rat \where Logic.Not (mem y d) }, d))
+                        ac ad bc bd },
+                    \Cast[Rat] ({ q : Rat \where In (MulLower x y) q }));
                 }
-              \by { existence: belowBoth u v }
-            \by { existence: belowBoth (mulRat b c) (mulRat b d) }
-          \by { existence: belowBoth (mulRat a c) (mulRat a d) }
-        \by { existence: cutProper y }
-      \by { existence: cutInhabited y }
-    \by { existence: cutProper x }
-  \by { existence: cutInhabited x };
+              \by { belowBoth u v }
+            \by { belowBoth (mulRat b c) (mulRat b d) }
+          \by { belowBoth (mulRat a c) (mulRat a d) }
+        \by { cutProper y }
+      \by { cutInhabited y }
+    \by { cutProper x }
+  \by { cutInhabited x };
 
 
 \definition productProper (x, y: Real): Proper (MulLower x y) :=
-  \take (u: \Ty(Rat, \Subset(u, Rat,
-    Logic.And[lt zeroRat u,
-      Logic.And[mem x (negRat u), Logic.Not (mem x u)]]))) =>
-    \take (v: \Ty(Rat, \Subset(v, Rat,
-      Logic.And[lt zeroRat v,
-        Logic.And[mem y (negRat v), Logic.Not (mem y v)]]))) =>
+  \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[lt zeroRat u,
+      Logic.And[mem x (negRat u), Logic.Not (mem x u)]] })) =>
+    \take (v: \Cast[Rat] ({ v : Rat \where Logic.And[lt zeroRat v,
+        Logic.And[mem y (negRat v), Logic.Not (mem y v)]] })) =>
       \block {
         \let uLaw: Logic.And[lt zeroRat u,
             Logic.And[mem x (negRat u), Logic.Not (mem x u)]] :=
-          \bysub(Rat, \Subset(u, Rat,
-            Logic.And[lt zeroRat u,
-              Logic.And[mem x (negRat u), Logic.Not (mem x u)]]), u);
+          \bysub(Rat, { u : Rat \where Logic.And[lt zeroRat u,
+              Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }, u);
         \let vLaw: Logic.And[lt zeroRat v,
             Logic.And[mem y (negRat v), Logic.Not (mem y v)]] :=
-          \bysub(Rat, \Subset(v, Rat,
-            Logic.And[lt zeroRat v,
-              Logic.And[mem y (negRat v), Logic.Not (mem y v)]]), v);
+          \bysub(Rat, { v : Rat \where Logic.And[lt zeroRat v,
+              Logic.And[mem y (negRat v), Logic.Not (mem y v)]] }, v);
         \return \exact(
-          \subsetinto(Rat,
-            \Subset(q, Rat, Logic.Not (In (MulLower x y) q)),
-            mulRat u v,
-            \fun (member: ProductBelow x y (mulRat u v)) =>
+          \into[Rat](mulRat u v, { q : Rat \where Logic.Not (In (MulLower x y) q) }) \by { \fun (member: ProductBelow x y (mulRat u v)) =>
               productBelowElim x y (mulRat u v) member Logic.False
                 (\fun (a, b, c, d: Rat) =>
                   \fun (xa: mem x a) =>
@@ -1392,11 +1146,11 @@
                           Logic.And[mem y (negRat v),
                             Logic.Not (mem y v)]]::left vLaw)
                         au nub cv nvd ac ad bc bd;
-                    })),
-          \Ty(Rat, \Subset(q, Rat, Logic.Not (In (MulLower x y) q))));
+                    }) },
+          \Cast[Rat] ({ q : Rat \where Logic.Not (In (MulLower x y) q) }));
       }
-    \by { existence: symmetricBound y }
-  \by { existence: symmetricBound x };
+    \by { symmetricBound y }
+  \by { symmetricBound x };
 
 \definition productLower (x, y: Real): Lower (MulLower x y) :=
   \fun (p, q: Rat) => \fun (pq: lt p q) =>
@@ -1418,8 +1172,7 @@
 \definition productRounded (x, y: Real): Rounded (MulLower x y) :=
   \fun (q: Rat) => \fun (member: ProductBelow x y q) =>
     productBelowElim x y q member
-      (\exists \Ty(Rat,
-        \Subset(r, Rat, Logic.And[In (MulLower x y) r, lt q r])))
+      (\exists \Cast[Rat] ({ r : Rat \where Logic.And[In (MulLower x y) r, lt q r] }))
       (\fun (a, b, c, d: Rat) =>
         \fun (xa: mem x a) => \fun (xb: Logic.Not (mem x b)) =>
         \fun (yc: mem y c) => \fun (yd: Logic.Not (mem y d)) =>
@@ -1427,57 +1180,47 @@
         \fun (ad: lt q (mulRat a d)) =>
         \fun (bc: lt q (mulRat b c)) =>
         \fun (bd: lt q (mulRat b d)) =>
-          \take (u: \Ty(Rat, \Subset(u, Rat,
-            Logic.And[lt q u,
-              Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]))) =>
-            \take (v: \Ty(Rat, \Subset(v, Rat,
-              Logic.And[lt q v,
-                Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]))) =>
-              \take (r: \Ty(Rat, \Subset(r, Rat,
-                Logic.And[lt q r, Logic.And[lt r u, lt r v]]))) =>
+          \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[lt q u,
+              Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] })) =>
+            \take (v: \Cast[Rat] ({ v : Rat \where Logic.And[lt q v,
+                Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] })) =>
+              \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] })) =>
                 \block {
                   \let qr: lt q r :=
                     Logic.And[lt q r, Logic.And[lt r u, lt r v]]::left
-                      (\bysub(Rat, \Subset(r, Rat,
-                        Logic.And[lt q r, Logic.And[lt r u, lt r v]]), r));
+                      (\bysub(Rat, { r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }, r));
                   \let ru: lt r u :=
                     Logic.And[lt r u, lt r v]::left
                       (Logic.And[lt q r, Logic.And[lt r u, lt r v]]::right
-                        (\bysub(Rat, \Subset(r, Rat,
-                          Logic.And[lt q r, Logic.And[lt r u, lt r v]]), r)));
+                        (\bysub(Rat, { r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }, r)));
                   \let rv: lt r v :=
                     Logic.And[lt r u, lt r v]::right
                       (Logic.And[lt q r, Logic.And[lt r u, lt r v]]::right
-                        (\bysub(Rat, \Subset(r, Rat,
-                          Logic.And[lt q r, Logic.And[lt r u, lt r v]]), r)));
+                        (\bysub(Rat, { r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }, r)));
                   \let uac: lt u (mulRat a c) :=
                     Logic.And[lt u (mulRat a c), lt u (mulRat a d)]::left
                       (Logic.And[lt q u,
                         Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]::right
-                        (\bysub(Rat, \Subset(u, Rat,
-                          Logic.And[lt q u,
-                            Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]), u)));
+                        (\bysub(Rat, { u : Rat \where Logic.And[lt q u,
+                            Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }, u)));
                   \let uad: lt u (mulRat a d) :=
                     Logic.And[lt u (mulRat a c), lt u (mulRat a d)]::right
                       (Logic.And[lt q u,
                         Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]::right
-                        (\bysub(Rat, \Subset(u, Rat,
-                          Logic.And[lt q u,
-                            Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]), u)));
+                        (\bysub(Rat, { u : Rat \where Logic.And[lt q u,
+                            Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }, u)));
                   \let vbc: lt v (mulRat b c) :=
                     Logic.And[lt v (mulRat b c), lt v (mulRat b d)]::left
                       (Logic.And[lt q v,
                         Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]::right
-                        (\bysub(Rat, \Subset(v, Rat,
-                          Logic.And[lt q v,
-                            Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]), v)));
+                        (\bysub(Rat, { v : Rat \where Logic.And[lt q v,
+                            Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }, v)));
                   \let vbd: lt v (mulRat b d) :=
                     Logic.And[lt v (mulRat b c), lt v (mulRat b d)]::right
                       (Logic.And[lt q v,
                         Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]::right
-                        (\bysub(Rat, \Subset(v, Rat,
-                          Logic.And[lt q v,
-                            Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]), v)));
+                        (\bysub(Rat, { v : Rat \where Logic.And[lt q v,
+                            Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }, v)));
                   \let rac: lt r (mulRat a c) :=
                     RationalOrder.ltTrans r u (mulRat a c) ru uac;
                   \let rad: lt r (mulRat a d) :=
@@ -1487,30 +1230,24 @@
                   \let rbd: lt r (mulRat b d) :=
                     RationalOrder.ltTrans r v (mulRat b d) rv vbd;
                   \return \exact(
-                    \subsetinto(Rat,
-                      \Subset(r, Rat,
-                        Logic.And[In (MulLower x y) r, lt q r]), r,
-                      \record Logic.And[In (MulLower x y) r, lt q r] {
+                    \into[Rat](r, { r : Rat \where Logic.And[In (MulLower x y) r, lt q r] }) \by { \record Logic.And[In (MulLower x y) r, lt q r] {
                         left := productBelowIntro x y r a b c d
                           xa xb yc yd rac rad rbc rbd,
                         right := qr,
-                      }),
-                    \Ty(Rat, \Subset(r, Rat,
-                      Logic.And[In (MulLower x y) r, lt q r])));
+                      } },
+                    \Cast[Rat] ({ r : Rat \where Logic.And[In (MulLower x y) r, lt q r] }));
                 }
-              \by { existence: betweenBoth q u v
+              \by { betweenBoth q u v
                 (Logic.And[lt q u,
                   Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]::left
-                  (\bysub(Rat, \Subset(u, Rat,
-                    Logic.And[lt q u,
-                      Logic.And[lt u (mulRat a c), lt u (mulRat a d)]]), u)))
+                  (\bysub(Rat, { u : Rat \where Logic.And[lt q u,
+                      Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }, u)))
                 (Logic.And[lt q v,
                   Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]::left
-                  (\bysub(Rat, \Subset(v, Rat,
-                    Logic.And[lt q v,
-                      Logic.And[lt v (mulRat b c), lt v (mulRat b d)]]), v))) }
-            \by { existence: betweenBoth q (mulRat b c) (mulRat b d) bc bd }
-          \by { existence: betweenBoth q (mulRat a c) (mulRat a d) ac ad });
+                  (\bysub(Rat, { v : Rat \where Logic.And[lt q v,
+                      Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }, v))) }
+            \by { betweenBoth q (mulRat b c) (mulRat b d) bc bd }
+          \by { betweenBoth q (mulRat a c) (mulRat a d) ac ad });
 
 \definition productRespects (x, y: Real): RespectsFractionEq (MulLower x y) :=
   \fun (p, q: Rat) =>
@@ -1531,7 +1268,7 @@
                 (RationalOrder.ltReplaceLeft p q (mulRat b d) pq bd));
 
 \definition mulCut (x, y: Real):
-  \Pred(\Power(Rat), CutSet, MulLower x y) :=
+  \In[\Pow (Rat)] (CutSet) (MulLower x y) :=
   \record Logic.And[Inhabited (MulLower x y),
     Logic.And[Proper (MulLower x y),
       Logic.And[Lower (MulLower x y),
@@ -1585,19 +1322,19 @@
   member P use;
 
 \definition zeroReal: Real :=
-  \subsetinto(\Power(Rat), CutSet, RatLower zeroRat, ratCut zeroRat);
+  \into[\Pow (Rat)](RatLower zeroRat, CutSet) \by { ratCut zeroRat };
 
 \definition zeroRealMem (q: Rat) (negative: lt q zeroRat):
   mem zeroReal q :=
   \idelim(RatLower zeroRat = underlying zeroReal
-    \with T: \Power(Rat) => \Pred(Rat, T, q))
-    \by (negative, \refl(RatLower zeroRat));
+    \with T: \Pow (Rat) => \In[Rat] (T) (q))
+    \by { base: negative, equality: \refl(RatLower zeroRat) };
 
 \definition zeroRealMemLt (q: Rat) (member: mem zeroReal q):
   lt q zeroRat :=
   \idelim(underlying zeroReal = RatLower zeroRat
-    \with T: \Power(Rat) => \Pred(Rat, T, q))
-    \by (member, \refl(RatLower zeroRat));
+    \with T: \Pow (Rat) => \In[Rat] (T) (q))
+    \by { base: member, equality: \refl(RatLower zeroRat) };
 
 \definition zeroLtOfNotNegativeLt (t, a: Rat)
   (notNegative: Logic.Not (lt t zeroRat)) (ta: lt t a):
@@ -1622,23 +1359,19 @@
 \definition invInhabitedAboveZero (x: Real)
   (nonzero: Logic.Not (underlying x = RatLower zeroRat))
   (positive: Lt zeroReal x): Inhabited (InvLower x) :=
-  \take (t: \Ty(Rat, \Subset(t, Rat,
-    Logic.And[Logic.Not (mem zeroReal t), mem x t]))) =>
-    \take (a: \Ty(Rat, \Subset(a, Rat,
-      Logic.And[mem x a, lt t a]))) =>
-      \take (b: \Ty(Rat, \Subset(b, Rat, Logic.Not (mem x b)))) =>
+  \take (t: \Cast[Rat] ({ t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] })) =>
+    \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, lt t a] })) =>
+      \take (b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) })) =>
         \block {
           \let separation: Logic.And[
               Logic.Not (mem zeroReal t), mem x t] :=
-            \bysub(Rat, \Subset(t, Rat,
-              Logic.And[Logic.Not (mem zeroReal t), mem x t]), t);
+            \bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t);
           \let rounded: Logic.And[mem x a, lt t a] :=
-            \bysub(Rat, \Subset(a, Rat,
-              Logic.And[mem x a, lt t a]), a);
+            \bysub(Rat, { a : Rat \where Logic.And[mem x a, lt t a] }, a);
           \let xa: mem x a :=
             Logic.And[mem x a, lt t a]::left rounded;
           \let xb: Logic.Not (mem x b) :=
-            \bysub(Rat, \Subset(b, Rat, Logic.Not (mem x b)), b);
+            \bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b);
           \let notNegative: Logic.Not (lt t zeroRat) :=
             \fun (negative: lt t zeroRat) =>
               Logic.And[Logic.Not (mem zeroReal t), mem x t]::left
@@ -1655,8 +1388,7 @@
               (RationalOperations.numeratorNonZeroOfZeroLt b bPositive);
           \let q: Rat := RationalOperations.below r;
           \return \exact(
-            \subsetinto(Rat, \Subset(q, Rat, In (InvLower x) q), q,
-              Logic.Or[
+            \into[Rat](q, { q : Rat \where In (InvLower x) q }) \by { Logic.Or[
                 Logic.And[underlying x = RatLower zeroRat,
                   lt q zeroRat],
                 Logic.And[Logic.Not (underlying x = RatLower zeroRat),
@@ -1669,29 +1401,26 @@
                       (RationalOperations.zeroLtMulPositive a b
                         aPositive bPositive)
                       law (RationalOperations.belowLt r),
-                })),
-            \Ty(Rat, \Subset(q, Rat, In (InvLower x) q)));
+                }) },
+            \Cast[Rat] ({ q : Rat \where In (InvLower x) q }));
         }
-      \by { existence: cutProper x }
-    \by { existence: cutRounded x t
+      \by { cutProper x }
+    \by { cutRounded x t
       (Logic.And[Logic.Not (mem zeroReal t), mem x t]::right
-        (\bysub(Rat, \Subset(t, Rat,
-          Logic.And[Logic.Not (mem zeroReal t), mem x t]), t))) }
-  \by { existence: positive };
+        (\bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t))) }
+  \by { positive };
 
 \definition invInhabitedBelowZero (x: Real)
   (nonzero: Logic.Not (underlying x = RatLower zeroRat))
   (negative: Lt x zeroReal): Inhabited (InvLower x) :=
-  \take (b: \Ty(Rat, \Subset(b, Rat,
-    Logic.And[Logic.Not (mem x b), mem zeroReal b]))) =>
-    \take (a: \Ty(Rat, \Subset(a, Rat, mem x a))) =>
+  \take (b: \Cast[Rat] ({ b : Rat \where Logic.And[Logic.Not (mem x b), mem zeroReal b] })) =>
+    \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
       \block {
         \let separation: Logic.And[
             Logic.Not (mem x b), mem zeroReal b] :=
-          \bysub(Rat, \Subset(b, Rat,
-            Logic.And[Logic.Not (mem x b), mem zeroReal b]), b);
+          \bysub(Rat, { b : Rat \where Logic.And[Logic.Not (mem x b), mem zeroReal b] }, b);
         \let xa: mem x a :=
-          \bysub(Rat, \Subset(a, Rat, mem x a), a);
+          \bysub(Rat, { a : Rat \where mem x a }, a);
         \let xb: Logic.Not (mem x b) :=
           Logic.And[Logic.Not (mem x b), mem zeroReal b]::left separation;
         \let bNegative: lt b zeroRat := zeroRealMemLt b
@@ -1705,8 +1434,7 @@
             (RationalOperations.numeratorNonZeroOfLtZero b bNegative);
         \let q: Rat := RationalOperations.below r;
         \return \exact(
-          \subsetinto(Rat, \Subset(q, Rat, In (InvLower x) q), q,
-            Logic.Or[
+          \into[Rat](q, { q : Rat \where In (InvLower x) q }) \by { Logic.Or[
               Logic.And[underlying x = RatLower zeroRat, lt q zeroRat],
               Logic.And[Logic.Not (underlying x = RatLower zeroRat),
                 ReciprocalBelow x q]]::right
@@ -1718,11 +1446,11 @@
                     (RationalOperations.zeroLtMulNegative a b
                       aNegative bNegative)
                     law (RationalOperations.belowLt r),
-              })),
-          \Ty(Rat, \Subset(q, Rat, In (InvLower x) q)));
+              }) },
+          \Cast[Rat] ({ q : Rat \where In (InvLower x) q }));
       }
-    \by { existence: cutInhabited x }
-  \by { existence: negative };
+    \by { cutInhabited x }
+  \by { negative };
 
 \definition invInhabited (x: Real): Inhabited (InvLower x) :=
   Classical.orElim (underlying x = RatLower zeroRat)
@@ -1730,9 +1458,7 @@
     (Inhabited (InvLower x))
     (\fun (zero: underlying x = RatLower zeroRat) =>
       \exact(
-        \subsetinto(Rat, \Subset(q, Rat, In (InvLower x) q),
-          RationalOperations.below zeroRat,
-          Logic.Or[
+        \into[Rat](RationalOperations.below zeroRat, { q : Rat \where In (InvLower x) q }) \by { Logic.Or[
             Logic.And[underlying x = RatLower zeroRat,
               lt (RationalOperations.below zeroRat) zeroRat],
             Logic.And[Logic.Not (underlying x = RatLower zeroRat),
@@ -1741,8 +1467,8 @@
               lt (RationalOperations.below zeroRat) zeroRat] {
                 left := zero,
                 right := RationalOperations.belowLt zeroRat,
-            })),
-        \Ty(Rat, \Subset(q, Rat, In (InvLower x) q))))
+            }) },
+        \Cast[Rat] ({ q : Rat \where In (InvLower x) q })))
     (\fun (nonzero: Logic.Not (underlying x = RatLower zeroRat)) =>
       Classical.orElim (Lt x zeroReal)
         (Logic.Or[x = zeroReal, Lt zeroReal x])
@@ -1757,8 +1483,8 @@
                 (nonzero
                   (\idelim(zeroReal = x
                     \with z: Real => underlying z = RatLower zeroRat)
-                    \by (\refl(RatLower zeroRat),
-                      sym!{Real} x zeroReal same))))
+                    \by { base: \refl(RatLower zeroRat), equality:
+                      sym!{Real} x zeroReal same })))
             (\fun (positive: Lt zeroReal x) =>
               invInhabitedAboveZero x nonzero positive)
             rest)
@@ -1823,16 +1549,13 @@
       (Logic.And[underlying x = RatLower zeroRat, lt q zeroRat])
       (Logic.And[Logic.Not (underlying x = RatLower zeroRat),
         ReciprocalBelow x q])
-      (\exists \Ty(Rat, \Subset(r, Rat,
-        Logic.And[In (InvLower x) r, lt q r])))
+      (\exists \Cast[Rat] ({ r : Rat \where Logic.And[In (InvLower x) r, lt q r] }))
       (\fun (atZero: Logic.And[
         underlying x = RatLower zeroRat, lt q zeroRat]) =>
         \block {
           \let r: Rat := RationalOperations.midpoint q zeroRat;
           \return \exact(
-            \subsetinto(Rat, \Subset(r, Rat,
-              Logic.And[In (InvLower x) r, lt q r]), r,
-              \record Logic.And[In (InvLower x) r, lt q r] {
+            \into[Rat](r, { r : Rat \where Logic.And[In (InvLower x) r, lt q r] }) \by { \record Logic.And[In (InvLower x) r, lt q r] {
                 left := Logic.Or[
                   Logic.And[underlying x = RatLower zeroRat,
                     lt r zeroRat],
@@ -1852,9 +1575,8 @@
                   (Logic.And[
                     underlying x = RatLower zeroRat,
                     lt q zeroRat]::right atZero),
-              }),
-            \Ty(Rat, \Subset(r, Rat,
-              Logic.And[In (InvLower x) r, lt q r])));
+              } },
+            \Cast[Rat] ({ r : Rat \where Logic.And[In (InvLower x) r, lt q r] }));
         })
       (\fun (away: Logic.And[
         Logic.Not (underlying x = RatLower zeroRat),
@@ -1863,8 +1585,7 @@
           (Logic.And[
             Logic.Not (underlying x = RatLower zeroRat),
             ReciprocalBelow x q]::right away)
-          (\exists \Ty(Rat, \Subset(s, Rat,
-            Logic.And[In (InvLower x) s, lt q s])))
+          (\exists \Cast[Rat] ({ s : Rat \where Logic.And[In (InvLower x) s, lt q s] }))
           (\fun (a, b, r: Rat) => \fun (xa: mem x a) =>
             \fun (xb: Logic.Not (mem x b)) =>
             \fun (positive: lt zeroRat (mulRat a b)) =>
@@ -1874,9 +1595,7 @@
               \block {
                 \let s: Rat := RationalOperations.midpoint q r;
                 \return \exact(
-                  \subsetinto(Rat, \Subset(s, Rat,
-                    Logic.And[In (InvLower x) s, lt q s]), s,
-                    \record Logic.And[In (InvLower x) s, lt q s] {
+                  \into[Rat](s, { s : Rat \where Logic.And[In (InvLower x) s, lt q s] }) \by { \record Logic.And[In (InvLower x) s, lt q s] {
                       left := Logic.Or[
                         Logic.And[underlying x = RatLower zeroRat,
                           lt s zeroRat],
@@ -1895,9 +1614,8 @@
                               (RationalOperations.midpointLt q r qr),
                         }),
                       right := RationalOperations.ltMidpoint q r qr,
-                    }),
-                  \Ty(Rat, \Subset(s, Rat,
-                    Logic.And[In (InvLower x) s, lt q s])));
+                    } },
+                  \Cast[Rat] ({ s : Rat \where Logic.And[In (InvLower x) s, lt q s] }));
               }))
       member;
 
@@ -1958,9 +1676,7 @@
 \definition invProperAtZero (x: Real)
   (zero: underlying x = RatLower zeroRat): Proper (InvLower x) :=
   \exact(
-    \subsetinto(Rat, \Subset(q, Rat, Logic.Not (In (InvLower x) q)),
-      zeroRat,
-      \fun (member: In (InvLower x) zeroRat) =>
+    \into[Rat](zeroRat, { q : Rat \where Logic.Not (In (InvLower x) q) }) \by { \fun (member: In (InvLower x) zeroRat) =>
         Classical.orElim
           (Logic.And[underlying x = RatLower zeroRat,
             lt zeroRat zeroRat])
@@ -1979,27 +1695,23 @@
             Logic.And[
               Logic.Not (underlying x = RatLower zeroRat),
               ReciprocalBelow x zeroRat]::left away zero)
-          member),
-    \Ty(Rat, \Subset(q, Rat, Logic.Not (In (InvLower x) q))));
+          member },
+    \Cast[Rat] ({ q : Rat \where Logic.Not (In (InvLower x) q) }));
 
 \definition invProperBelowZero (x: Real)
   (nonzero: Logic.Not (underlying x = RatLower zeroRat))
   (negative: Lt x zeroReal): Proper (InvLower x) :=
-  \take (u: \Ty(Rat, \Subset(u, Rat,
-    Logic.And[Logic.Not (mem x u), mem zeroReal u]))) =>
+  \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[Logic.Not (mem x u), mem zeroReal u] })) =>
     \block {
       \let separation: Logic.And[
           Logic.Not (mem x u), mem zeroReal u] :=
-        \bysub(Rat, \Subset(u, Rat,
-          Logic.And[Logic.Not (mem x u), mem zeroReal u]), u);
+        \bysub(Rat, { u : Rat \where Logic.And[Logic.Not (mem x u), mem zeroReal u] }, u);
       \let xu: Logic.Not (mem x u) :=
         Logic.And[Logic.Not (mem x u), mem zeroReal u]::left separation;
       \let uNegative: lt u zeroRat := zeroRealMemLt u
         (Logic.And[Logic.Not (mem x u), mem zeroReal u]::right separation);
       \return \exact(
-        \subsetinto(Rat,
-          \Subset(q, Rat, Logic.Not (In (InvLower x) q)), zeroRat,
-          \fun (member: In (InvLower x) zeroRat) =>
+        \into[Rat](zeroRat, { q : Rat \where Logic.Not (In (InvLower x) q) }) \by { \fun (member: In (InvLower x) zeroRat) =>
             Classical.orElim
               (Logic.And[underlying x = RatLower zeroRat,
                 lt zeroRat zeroRat])
@@ -2039,27 +1751,22 @@
                           (RationalOrder.ltTrans zeroRat r zeroRat
                             zeroR rNegative);
                       }))
-              member),
-          \Ty(Rat, \Subset(q, Rat,
-            Logic.Not (In (InvLower x) q))));
+              member },
+          \Cast[Rat] ({ q : Rat \where Logic.Not (In (InvLower x) q) }));
     }
-  \by { existence: negative };
+  \by { negative };
 
 \definition invProperAboveZero (x: Real)
   (nonzero: Logic.Not (underlying x = RatLower zeroRat))
   (positive: Lt zeroReal x): Proper (InvLower x) :=
-  \take (t: \Ty(Rat, \Subset(t, Rat,
-    Logic.And[Logic.Not (mem zeroReal t), mem x t]))) =>
-    \take (a0: \Ty(Rat, \Subset(a0, Rat,
-      Logic.And[mem x a0, lt t a0]))) =>
+  \take (t: \Cast[Rat] ({ t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] })) =>
+    \take (a0: \Cast[Rat] ({ a0 : Rat \where Logic.And[mem x a0, lt t a0] })) =>
       \block {
         \let separation: Logic.And[
             Logic.Not (mem zeroReal t), mem x t] :=
-          \bysub(Rat, \Subset(t, Rat,
-            Logic.And[Logic.Not (mem zeroReal t), mem x t]), t);
+          \bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t);
         \let rounded: Logic.And[mem x a0, lt t a0] :=
-          \bysub(Rat, \Subset(a0, Rat,
-            Logic.And[mem x a0, lt t a0]), a0);
+          \bysub(Rat, { a0 : Rat \where Logic.And[mem x a0, lt t a0] }, a0);
         \let xa0: mem x a0 :=
           Logic.And[mem x a0, lt t a0]::left rounded;
         \let notNegative: Logic.Not (lt t zeroRat) :=
@@ -2075,9 +1782,7 @@
           RationalOperations.fractionMulReciprocal a0
             (RationalOperations.numeratorNonZeroOfZeroLt a0 a0Positive);
         \return \exact(
-          \subsetinto(Rat,
-            \Subset(q, Rat, Logic.Not (In (InvLower x) q)), s,
-            \fun (member: In (InvLower x) s) =>
+          \into[Rat](s, { q : Rat \where Logic.Not (In (InvLower x) q) }) \by { \fun (member: In (InvLower x) s) =>
               Classical.orElim
                 (Logic.And[underlying x = RatLower zeroRat,
                   lt s zeroRat])
@@ -2114,15 +1819,13 @@
                           \return RationalOrder.ltIrrefl s
                             (RationalOrder.ltTrans s r s sr rs);
                         }))
-                member),
-            \Ty(Rat, \Subset(q, Rat,
-              Logic.Not (In (InvLower x) q))));
+                member },
+            \Cast[Rat] ({ q : Rat \where Logic.Not (In (InvLower x) q) }));
       }
-    \by { existence: cutRounded x t
+    \by { cutRounded x t
       (Logic.And[Logic.Not (mem zeroReal t), mem x t]::right
-        (\bysub(Rat, \Subset(t, Rat,
-          Logic.And[Logic.Not (mem zeroReal t), mem x t]), t))) }
-  \by { existence: positive };
+        (\bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t))) }
+  \by { positive };
 
 \definition invProper (x: Real): Proper (InvLower x) :=
   Classical.orElim (underlying x = RatLower zeroRat)
@@ -2144,8 +1847,8 @@
                 (nonzero
                   (\idelim(zeroReal = x
                     \with z: Real => underlying z = RatLower zeroRat)
-                    \by (\refl(RatLower zeroRat),
-                      sym!{Real} x zeroReal same))))
+                    \by { base: \refl(RatLower zeroRat), equality:
+                      sym!{Real} x zeroReal same })))
             (\fun (positive: Lt zeroReal x) =>
               invProperAboveZero x nonzero positive)
             rest)
@@ -2153,7 +1856,7 @@
     (Classical.excludedMiddle (underlying x = RatLower zeroRat));
 
 \definition invCut (x: Real):
-  \Pred(\Power(Rat), CutSet, InvLower x) :=
+  \In[\Pow (Rat)] (CutSet) (InvLower x) :=
   \record Logic.And[Inhabited (InvLower x),
     Logic.And[Proper (InvLower x),
       Logic.And[Lower (InvLower x),

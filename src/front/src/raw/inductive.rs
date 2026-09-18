@@ -343,7 +343,7 @@ impl InductiveTypeSpecs {
         inductive: InductiveId,
         indspec: &Self,
         parameters: &[Exp],
-        sort: Sort,
+        motive_kind: Exp,
     ) -> Exp {
         let this = arena.alloc(ExpNode::IndType {
             indspec: inductive,
@@ -351,8 +351,7 @@ impl InductiveTypeSpecs {
         });
         let mut telescope = vec![];
         let q = SymbolId::ANONYMOUS;
-        let q_ty = Self::return_type_kind(arena, inductive, indspec, parameters, sort);
-        telescope.push((q, q_ty));
+        telescope.push((q, motive_kind));
 
         let mut cases = vec![];
         for index in 0..indspec.constructor_len() {

@@ -52,13 +52,13 @@
 
   \definition IsCauchy (seq: Sequence): \Prop :=
       \forall (eps: Rat) -> Positive eps ->
-        \exists \Ty(Nat, \Subset(N, Nat, CauchyAt seq eps N));
+        \exists \Cast[Nat] ({ N : Nat \where CauchyAt seq eps N });
 
-  \definition CauchySet: \Power(Sequence) :=
-    \Subset(seq, Sequence, IsCauchy seq);
+  \definition CauchySet: \Pow (Sequence) :=
+    { seq : Sequence \where IsCauchy seq };
 
   \definition CauchySeq: \Set :=
-    \Ty(Sequence, CauchySet);
+    \Cast[Sequence] (CauchySet);
 
   \import \root.Rel[Carrier := CauchySeq] \as Rel;
 
@@ -71,21 +71,20 @@
 
   \definition Equivalent (x, y: CauchySeq): \Prop :=
       \forall (eps: Rat) -> Positive eps ->
-        \exists \Ty(Nat, \Subset(N, Nat, EquivalentAt x y eps N));
+        \exists \Cast[Nat] ({ N : Nat \where EquivalentAt x y eps N });
 
   \definition cauchyProperty (x: CauchySeq): IsCauchy x :=
     \bysub(Sequence, CauchySet, x);
 
   /* The diagonal of the Cauchy estimate already proves reflexivity. */
   \definition equivalentRefl (x: CauchySeq) (eps: Rat) (positive: Positive eps):
-    \exists \Ty(Nat, \Subset(k, Nat, EquivalentAt x x eps k)) :=
-    \take (k: \Ty(Nat, \Subset(k, Nat, CauchyAt x eps k))) =>
+    \exists \Cast[Nat] ({ k : Nat \where EquivalentAt x x eps k }) :=
+    \take (k: \Cast[Nat] ({ k : Nat \where CauchyAt x eps k })) =>
       \exact(
-        \subsetinto(Nat, \Subset(j, Nat, EquivalentAt x x eps j), k,
-          \fun (n: Nat) => \fun (kn: NatLe k n) =>
-            (\bysub(Nat, \Subset(j, Nat, CauchyAt x eps j), k)) n n kn kn),
-        \Ty(Nat, \Subset(j, Nat, EquivalentAt x x eps j)))
-    \by { existence: cauchyProperty x eps positive };
+        \into[Nat](k, { j : Nat \where EquivalentAt x x eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
+            (\bysub(Nat, { j : Nat \where CauchyAt x eps j }, k)) n n kn kn },
+        \Cast[Nat] ({ j : Nat \where EquivalentAt x x eps j }))
+    \by { cauchyProperty x eps positive };
 
   \definition closeSym (x, y, eps: Rat) (xy: Close x y eps): Close y x eps :=
       \record Logic.And[
@@ -107,17 +106,15 @@
   /* Symmetry needs no metric estimate: Close already records both directions. */
   \definition equivalentSym (x, y: CauchySeq) (xy: Equivalent x y): Equivalent y x :=
     \fun (eps: Rat) => \fun (positive: Positive eps) =>
-      \take (N: \Ty(Nat, \Subset(k, Nat, EquivalentAt x y eps k))) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k })) =>
         \exact(
-          \subsetinto(
-            Nat, \Subset(k, Nat, EquivalentAt y x eps k), N,
-            (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+          \into[Nat](N, { k : Nat \where EquivalentAt y x eps k }) \by { (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
               closeSym (at x n) (at y n) eps
                 ((\bysub(
-                  Nat, \Subset(k, Nat, EquivalentAt x y eps k), N))
-                  n Nn))),
-          \Ty(Nat, \Subset(k, Nat, EquivalentAt y x eps k)))
-      \by { existence: xy eps positive };
+                  Nat, { k : Nat \where EquivalentAt x y eps k }, N))
+                  n Nn)) },
+          \Cast[Nat] ({ k : Nat \where EquivalentAt y x eps k }))
+      \by { xy eps positive };
 
   \module Sequences;
 

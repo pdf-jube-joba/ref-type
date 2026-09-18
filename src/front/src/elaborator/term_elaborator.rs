@@ -235,6 +235,49 @@ impl LocalScope {
             .collect()
     }
 
+    fn elab_inductive_cases(
+        &mut self,
+        constructors: &[Identifier],
+        cases: &[(Identifier, SExp)],
+        handler: &mut impl Handler,
+    ) -> Result<Vec<Exp>, String> {
+        if cases.len() != constructors.len() {
+            return Err(format!(
+                "Expected {} inductive branches, found {}",
+                constructors.len(),
+                cases.len()
+            ));
+        }
+        let mut ordered = vec![None; constructors.len()];
+        for (name, case) in cases {
+            let Some(index) = constructors
+                .iter()
+                .position(|constructor| constructor.as_str() == name.as_str())
+            else {
+                return Err(format!("Unknown inductive constructor {}", name.as_str()));
+            };
+            if ordered[index].replace(case).is_some() {
+                return Err(format!(
+                    "Duplicate inductive branch for constructor {}",
+                    name.as_str()
+                ));
+            }
+        }
+        ordered
+            .into_iter()
+            .zip(constructors)
+            .map(|(case, constructor)| {
+                let case = case.ok_or_else(|| {
+                    format!(
+                        "Missing inductive branch for constructor {}",
+                        constructor.as_str()
+                    )
+                })?;
+                self.elab_exp_rec(case, handler)
+            })
+            .collect()
+    }
+
     fn pop_binded_var(&mut self) {
         self.bindings.pop();
         self.typing_binds.pop();
@@ -793,18 +836,7 @@ impl LocalScope {
 
                 let elim_elab = self.elab_exp_rec(elim, handler)?;
                 let return_type_elab = self.elab_exp_rec(return_type, handler)?;
-                let mut cases_elab: Vec<Exp> = vec![];
-                for (idx, (ctor_name, case)) in cases.iter().enumerate() {
-                    let case_elab = self.elab_exp_rec(case, handler)?;
-                    if ctor_names[idx].as_str() != ctor_name.as_str() {
-                        return Err(format!(
-                            "Constructor name mismatch in ind elim: expected {}, found {}",
-                            ctor_names[idx].as_str(),
-                            ctor_name.as_str()
-                        ));
-                    }
-                    cases_elab.push(case_elab);
-                }
+                let cases_elab = self.elab_inductive_cases(&ctor_names, cases, handler)?;
 
                 Ok(handler.arena().alloc(ExpNode::IndElim {
                     indspec: inductive,
@@ -813,10 +845,67 @@ impl LocalScope {
                     cases: cases_elab,
                 }))
             }
+            SExp::Induction {
+                binder,
+                return_type,
+                cases,
+            } => {
+                let SExp::AccessPath {
+                    access: path,
+                    parameters,
+                } = binder.ty.as_ref()
+                else {
+                    return Err("Induction binder type must name an inductive type".into());
+                };
+                let (ctor_names, inductive) = match handler.get_item_from_access_path(path)? {
+                    ItemAccessResult::Inductive(ModItemInductive {
+                        ctor_names,
+                        inductive,
+                        ..
+                    }) => (ctor_names, inductive),
+                    _ => return Err("Induction binder type must name an inductive type".into()),
+                };
+                let parameters = parameters
+                    .iter()
+                    .map(|parameter| self.elab_exp_rec(parameter, handler))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let domain = handler.arena().alloc(ExpNode::IndType {
+                    indspec: inductive,
+                    parameters: parameters.clone(),
+                });
+                let var = handler.intern(binder.vars[0].as_str());
+                self.push_binded_var(var, domain);
+                let motive_body = self.elab_exp_rec(return_type, handler);
+                self.pop_binded_var();
+                let motive = handler.arena().alloc(ExpNode::Lam {
+                    var,
+                    ty: domain,
+                    body: motive_body?,
+                });
+                let motive_kind = handler.infer(&mut self.typing_binds, motive)?;
+                let mut induction = InductiveTypeSpecs::primitive_recursion(
+                    handler.arena(),
+                    inductive,
+                    handler.env().inductive(inductive),
+                    &parameters,
+                    motive_kind,
+                );
+                induction = handler.arena().alloc(ExpNode::App {
+                    func: induction,
+                    arg: motive,
+                });
+                for case in self.elab_inductive_cases(&ctor_names, cases, handler)? {
+                    induction = handler.arena().alloc(ExpNode::App {
+                        func: induction,
+                        arg: case,
+                    });
+                }
+                Ok(induction)
+            }
             SExp::IndElimPrim {
                 path,
                 parameters,
-                sort,
+                motive,
             } => {
                 let inductive = match handler.get_item_from_access_path(path)? {
                     ItemAccessResult::Inductive(ModItemInductive { inductive, .. }) => inductive,
@@ -832,13 +921,19 @@ impl LocalScope {
                     .iter()
                     .map(|e| self.elab_exp_rec(e, handler))
                     .collect::<Result<_, _>>()?;
-                Ok(InductiveTypeSpecs::primitive_recursion(
+                let motive = self.elab_exp_rec(motive, handler)?;
+                let motive_kind = handler.infer(&mut self.typing_binds, motive)?;
+                let recursion = InductiveTypeSpecs::primitive_recursion(
                     handler.arena(),
                     inductive,
                     handler.env().inductive(inductive),
                     &parameters,
-                    *sort,
-                ))
+                    motive_kind,
+                );
+                Ok(handler.arena().alloc(ExpNode::App {
+                    func: recursion,
+                    arg: motive,
+                }))
             }
             SExp::RunStep {
                 state_ty,

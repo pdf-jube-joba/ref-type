@@ -5,22 +5,18 @@
   a: A,
   b: B
 ) {
-  \definition step: \U((A ~> \F(\RunStep(A, B)))) :=
-    \thunk((\cfun (x: A) => \return(\finish(A, B, b))));
-  \definition stepSet: A^ -> \RunStep(A^, B^) :=
+  \definition step: \U((A ~> \F(\RunStep[A, B]))) :=
+    \thunk((\cfun (x: A) => \return(\finish[A, B](b))));
+  \definition stepSet: A^ -> \RunStep[A^, B^] :=
     step^;
-  \definition ready: \RunStep(A^, B^) -> \Prop :=
-    \fun (r: \RunStep(A^, B^)) => \Pred(A^,
-      \runStepRec(A^, B^, \fun (r: \RunStep(A^, B^)) => \Power(A^),
-        \fun (s: A^) => \Subset(x, A^, \Acc(A^, B^, stepSet, s)),
-        \fun (o: B^) => \Subset(x, A^, a^ = a^), r), a^);
-  \definition terminates: \forall (s: A^) -> \Acc(A^, B^, stepSet, s) :=
-    \fun (s: A^) => \accintro(A^, B^, stepSet, s,
-      \fun (next: A^) => \fun (edge: stepSet s = \continue(A^, B^, next)) =>
-        \idelim(stepSet s = \continue(A^, B^, next)
-          \with r: \RunStep(A^, B^) => ready r) \by (\refl(a^), edge));
-  \definition result: \F(B) := \run(A, B, step, a) \by terminates a^;
+  \definition ready: \RunStep[A^, B^] -> \Prop :=
+    \fun (r: \RunStep[A^, B^]) => \In[A^] (\runStepRec[A^, B^](\fun (r: \RunStep[A^, B^]) => \Pow (A^), \fun (s: A^) => { x : A^ \where \Acc[A^, B^](stepSet, s) }, \fun (o: B^) => { x : A^ \where a^ = a^ }, r)) (a^);
+  \definition terminates: \forall (s: A^) -> \Acc[A^, B^](stepSet, s) :=
+    \fun (s: A^) => \accintro[A^, B^](stepSet, s, \fun (next: A^) => \fun (edge: stepSet s = \continue[A^, B^](next)) =>
+        \idelim(stepSet s = \continue[A^, B^](next)
+          \with r: \RunStep[A^, B^] => ready r) \by { base: \refl(a^), equality: edge });
+  \definition result: \F(B) := \run[A, B](step, a) \by { terminates a^ };
 
-  \ceval \run(A, B, step, a) \by terminates a^;
-  \cnormalize \run(A, B, step, a) \by terminates a^;
+  \ceval \run[A, B](step, a) \by { terminates a^ };
+  \cnormalize \run[A, B](step, a) \by { terminates a^ };
 }

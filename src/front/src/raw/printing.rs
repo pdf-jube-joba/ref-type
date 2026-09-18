@@ -133,13 +133,13 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         ExpNode::RunStep {
             state_ty,
             result_ty,
-        } => format!("\\RunStep({}, {})", child(state_ty), child(result_ty)),
+        } => format!("\\RunStep[{}, {}]", child(state_ty), child(result_ty)),
         ExpNode::Continue {
             state_ty,
             result_ty,
             next,
         } => format!(
-            "\\continue({}, {}, {})",
+            "\\continue[{}, {}]({})",
             child(state_ty),
             child(result_ty),
             child(next)
@@ -149,7 +149,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             result_ty,
             output,
         } => format!(
-            "\\finish({}, {}, {})",
+            "\\finish[{}, {}]({})",
             child(state_ty),
             child(result_ty),
             child(output)
@@ -160,7 +160,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             step,
             state,
         } => format!(
-            "\\Acc({}, {}, {}, {})",
+            "\\Acc[{}, {}]({}, {})",
             child(state_ty),
             child(result_ty),
             child(step),
@@ -174,7 +174,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             on_finish,
             scrutinee,
         } => format!(
-            "\\runStepRec({}, {}, {}, {}, {}, {})",
+            "\\runStepRec[{}, {}]({}, {}, {}, {})",
             child(state_ty),
             child(result_ty),
             child(motive),
@@ -189,7 +189,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             initial,
             accessibility,
         } => format!(
-            "\\run({}, {}, {}, {}) \\by {}",
+            "\\run[{}, {}]({}, {}) \\by {{ {} }}",
             child(state_ty),
             child(result_ty),
             child(step),
@@ -205,7 +205,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             accessibility,
             transition_equality,
         } => format!(
-            "\\runCase({}, {}, {}, {}, {}) \\by ({}, {})",
+            "\\runCase[{}, {}]({}, {}, {}) \\by {{ accessibility: {}, equality: {} }}",
             child(state_ty),
             child(result_ty),
             child(step),
@@ -215,19 +215,19 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             child(transition_equality)
         ),
         ExpNode::BoxType { program_ty } => {
-            format!("\\Box({})", format_computation_type(env, program_ty))
+            format!("\\Box[{}]", format_computation_type(env, program_ty))
         }
         ExpNode::BoxProgram {
             program_ty,
             program,
         } => format!(
-            "\\box({}, {})",
+            "\\box[{}]({})",
             format_computation_type(env, program_ty),
             format_computation(env, program)
         ),
         ExpNode::ForceBox { program_ty, boxed } => {
             format!(
-                "\\Force({}, {})",
+                "\\force[{}]({})",
                 format_computation_type(env, program_ty),
                 child(boxed)
             )
@@ -242,7 +242,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             state,
             predecessors,
         }) => format!(
-            "\\accintro({}, {}, {}, {}, {})",
+            "\\accintro[{}, {}]({}, {}, {})",
             child(state_ty),
             child(result_ty),
             child(step),
@@ -258,7 +258,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             accessibility,
             transition,
         }) => format!(
-            "\\accdescent({}, {}, {}, {}, {}, {}, {})",
+            "\\accdescent[{}, {}]({}, {}, {}, {}, {})",
             child(state_ty),
             child(result_ty),
             child(step),
@@ -273,19 +273,19 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             element,
             proof,
         } => format!(
-            "subset_intro({}, {}, {}, {})",
+            "\\into[{}]({}, {}) \\by {{ {} }}",
             child(superset),
-            child(subset),
             child(element),
+            child(subset),
             child(proof)
         ),
-        ExpNode::PowerSet { set } => format!("Pow({})", child(set)),
+        ExpNode::PowerSet { set } => format!("\\Pow {}", child(set)),
         ExpNode::SubSet {
             var,
             set,
             predicate,
         } => format!(
-            "{{ {}: {} | {} }}",
+            "{{ {} : {} \\where {} }}",
             format_named_var(env, var),
             child(set),
             child(predicate)
@@ -295,13 +295,13 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             subset,
             element,
         } => format!(
-            "{} ∈ {} ⊆ {}",
-            child(element),
+            "\\In[{}] ({}) ({})",
+            child(superset),
             child(subset),
-            child(superset)
+            child(element)
         ),
         ExpNode::TypeLift { superset, subset } => {
-            format!("TypeLift({}, {})", child(superset), child(subset))
+            format!("\\Cast[{}] ({})", child(superset), child(subset))
         }
         ExpNode::Equal { left, right } => format!("{} = {}", child(left), child(right)),
         ExpNode::Exists { set } => format!("\\exists {}", child(set)),
@@ -312,7 +312,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             existence,
             uniqueness,
         } => format!(
-            "\\Take({}, {}, {}) by {{ existence: {}, uniqueness: {} }}",
+            "\\Take({}, {}, {}) \\by {{ existence: {}, uniqueness: {} }}",
             child(domain),
             child(codomain),
             child(map),
@@ -325,7 +325,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             map,
             existence,
         } => format!(
-            "\\TakeProp({}, {}, {}) by {{ existence: {} }}",
+            "\\TakeProp({}, {}, {}) \\by {{ {} }}",
             child(domain),
             child(proposition),
             child(map),
@@ -354,7 +354,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             base,
             equality,
         }) => format!(
-            "\\idelim({} = {} \\with {}: {} => {}) \\by ({}, {})",
+            "\\idelim({} = {} \\with {}: {} => {}) \\by {{ base: {}, equality: {} }}",
             child(left),
             child(right),
             format_named_var(env, var),
@@ -403,7 +403,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             existence,
             uniqueness,
         }) => format!(
-            "\\takeelim({}, {}, {}, {}) \\by ({}, {})",
+            "\\takeelim({}, {}, {}, {}) \\by {{ existence: {}, uniqueness: {} }}",
             child(func),
             child(element),
             child(domain),
@@ -441,7 +441,7 @@ pub fn format_value_type(env: &CrateEnv, ty: ValueType) -> String {
             state_ty,
             result_ty,
         } => format!(
-            "\\RunStep({}, {})",
+            "\\RunStep[{}, {}]",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty)
         ),
@@ -509,7 +509,7 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
             result_ty,
             next,
         } => format!(
-            "\\continue({}, {}, {})",
+            "\\continue[{}, {}]({})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, next)
@@ -519,7 +519,7 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
             result_ty,
             output,
         } => format!(
-            "\\finish({}, {}, {})",
+            "\\finish[{}, {}]({})",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, output)
@@ -616,7 +616,7 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             initial,
             accessibility,
         } => format!(
-            "\\run({}, {}, {}, {}) \\by {}",
+            "\\run[{}, {}]({}, {}) \\by {{ {} }}",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, step),
@@ -632,7 +632,7 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             accessibility,
             transition_equality,
         } => format!(
-            "\\runCase({}, {}, {}, {}, {}) \\by ({}, {})",
+            "\\runCase[{}, {}]({}, {}, {}) \\by {{ accessibility: {}, equality: {} }}",
             format_value_type(env, state_ty),
             format_value_type(env, result_ty),
             format_value(env, step),

@@ -88,6 +88,45 @@ impl<'a> TermParser<'a> {
         Ok(result)
     }
 
+    fn parse_bracketed<F, T>(&mut self, parse_inner: F) -> Result<T, ParseError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, ParseError>,
+    {
+        self.expect_token(Token::LBracket)?;
+        let result = parse_inner(self)?;
+        self.expect_token(Token::RBracket)?;
+        Ok(result)
+    }
+
+    fn parse_by<F, T>(&mut self, parse_inner: F) -> Result<T, ParseError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, ParseError>,
+    {
+        self.expect_keyword("\\by")?;
+        self.expect_token(Token::LBrace)?;
+        let result = parse_inner(self)?;
+        self.expect_token(Token::RBrace)?;
+        Ok(result)
+    }
+
+    fn parse_named_by_term(&mut self, expected: &str) -> Result<SExp, ParseError> {
+        let field = self.expect_ident()?;
+        if field.as_str() != expected {
+            return Err(self.error(&format!("expected `{expected}` proof field")));
+        }
+        self.expect_token(Token::Colon)?;
+        self.parse_sexp()
+    }
+
+    fn parse_recursion_types(&mut self) -> Result<(SExp, SExp), ParseError> {
+        self.parse_bracketed(|parser| {
+            let state_ty = parser.parse_sexp()?;
+            parser.expect_token(Token::Comma)?;
+            let result_ty = parser.parse_sexp()?;
+            Ok((state_ty, result_ty))
+        })
+    }
+
     // Parse a parenthesized number (e.g., "(0)").
     fn parse_number_paren(&mut self) -> Result<usize, ParseError> {
         self.expect_token(Token::LParen)?;
@@ -200,87 +239,87 @@ impl<'a> TermParser<'a> {
                 branches,
             });
         }
-        // simple cases (<keyword> "(" expressions with comma separated ")")
-        if self.bump_if_keyword("\\Power") {
-            return self.parse_parenthesized(|parser| {
-                parser
-                    .parse_sexp()
-                    .map(|set| SExp::PowerSet { set: Box::new(set) })
+        if self.bump_if_keyword("\\Pow") {
+            let set = self.parse_postfix()?;
+            return Ok(SExp::PowerSet { set: Box::new(set) });
+        }
+        if self.bump_if_keyword("\\In") {
+            let superset = self.parse_bracketed(Self::parse_sexp)?;
+            let subset_name = Identifier("<membership-subset>".into());
+            let element_name = Identifier("<membership-element>".into());
+            let access = |name: &Identifier| SExp::AccessPath {
+                access: LocalAccess::Current {
+                    access: name.clone(),
+                },
+                parameters: Vec::new(),
+            };
+            return Ok(SExp::Lam {
+                bind: Bind::Named(RightBind {
+                    vars: vec![subset_name.clone()],
+                    ty: Box::new(SExp::PowerSet {
+                        set: Box::new(superset.clone()),
+                    }),
+                }),
+                body: Box::new(SExp::Lam {
+                    bind: Bind::Named(RightBind {
+                        vars: vec![element_name.clone()],
+                        ty: Box::new(superset.clone()),
+                    }),
+                    body: Box::new(SExp::Pred {
+                        superset: Box::new(superset),
+                        subset: Box::new(access(&subset_name)),
+                        element: Box::new(access(&element_name)),
+                    }),
+                }),
             });
         }
-        if self.bump_if_keyword("\\Subset") {
-            return self.parse_parenthesized(|parser| {
-                let var = parser.expect_ident()?;
-                parser.expect_token(Token::Comma)?;
-                let set = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let predicate = parser.parse_sexp()?;
-                Ok(SExp::SubSet {
-                    var,
-                    set: Box::new(set),
-                    predicate: Box::new(predicate),
-                })
+        if self.bump_if_keyword("\\Cast") {
+            let superset = self.parse_bracketed(Self::parse_sexp)?;
+            let subset_name = Identifier("<cast-subset>".into());
+            return Ok(SExp::Lam {
+                bind: Bind::Named(RightBind {
+                    vars: vec![subset_name.clone()],
+                    ty: Box::new(SExp::PowerSet {
+                        set: Box::new(superset.clone()),
+                    }),
+                }),
+                body: Box::new(SExp::TypeLift {
+                    superset: Box::new(superset),
+                    subset: Box::new(SExp::AccessPath {
+                        access: LocalAccess::Current {
+                            access: subset_name,
+                        },
+                        parameters: Vec::new(),
+                    }),
+                }),
             });
         }
-        if self.bump_if_keyword("\\Pred") {
-            return self.parse_parenthesized(|parser| {
-                let superset = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let subset = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
+        if self.bump_if_keyword("\\into") {
+            let superset = self.parse_bracketed(Self::parse_sexp)?;
+            let (element, subset) = self.parse_parenthesized(|parser| {
                 let element = parser.parse_sexp()?;
-                Ok(SExp::Pred {
-                    superset: Box::new(superset),
-                    subset: Box::new(subset),
-                    element: Box::new(element),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\Ty") {
-            return self.parse_parenthesized(|parser| {
-                let superset = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let subset = parser.parse_sexp()?;
-                Ok(SExp::TypeLift {
-                    superset: Box::new(superset),
-                    subset: Box::new(subset),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\subsetinto") {
-            return self.parse_parenthesized(|parser| {
-                let superset = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let subset = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let element = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let proof = parser.parse_sexp()?;
-                Ok(SExp::SubsetIntro {
-                    superset: Box::new(superset),
-                    subset: Box::new(subset),
-                    element: Box::new(element),
-                    proof: Box::new(proof),
-                })
+                Ok((element, subset))
+            })?;
+            let proof = self.parse_by(Self::parse_sexp)?;
+            return Ok(SExp::SubsetIntro {
+                superset: Box::new(superset),
+                subset: Box::new(subset),
+                element: Box::new(element),
+                proof: Box::new(proof),
             });
         }
         if self.bump_if_keyword("\\RunStep") {
-            return self.parse_parenthesized(|parser| {
-                let state_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let result_ty = parser.parse_sexp()?;
-                Ok(SExp::RunStep {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                })
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
+            return Ok(SExp::RunStep {
+                state_ty: Box::new(state_ty),
+                result_ty: Box::new(result_ty),
             });
         }
         if self.bump_if_keyword("\\continue") {
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
             return self.parse_parenthesized(|parser| {
-                let state_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let result_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
                 let next = parser.parse_sexp()?;
                 Ok(SExp::Continue {
                     state_ty: Box::new(state_ty),
@@ -290,11 +329,8 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\finish") {
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
             return self.parse_parenthesized(|parser| {
-                let state_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let result_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
                 let output = parser.parse_sexp()?;
                 Ok(SExp::Finish {
                     state_ty: Box::new(state_ty),
@@ -304,11 +340,8 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\Acc") {
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
             return self.parse_parenthesized(|parser| {
-                let state_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let result_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
                 let step = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let state = parser.parse_sexp()?;
@@ -321,18 +354,14 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\run") {
-            let (state_ty, result_ty, step, initial) = self.parse_parenthesized(|parser| {
-                let state_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let result_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
+            let (step, initial) = self.parse_parenthesized(|parser| {
                 let step = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let initial = parser.parse_sexp()?;
-                Ok((state_ty, result_ty, step, initial))
+                Ok((step, initial))
             })?;
-            self.expect_keyword("\\by")?;
-            let accessibility = Box::new(self.parse_sexp()?);
+            let accessibility = Box::new(self.parse_by(Self::parse_sexp)?);
             return Ok(SExp::Run {
                 state_ty: Box::new(state_ty),
                 result_ty: Box::new(result_ty),
@@ -342,24 +371,19 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\runCase") {
-            let (state_ty, result_ty, step, initial, transition) =
-                self.parse_parenthesized(|parser| {
-                    let state_ty = parser.parse_sexp()?;
-                    parser.expect_token(Token::Comma)?;
-                    let result_ty = parser.parse_sexp()?;
-                    parser.expect_token(Token::Comma)?;
-                    let step = parser.parse_sexp()?;
-                    parser.expect_token(Token::Comma)?;
-                    let initial = parser.parse_sexp()?;
-                    parser.expect_token(Token::Comma)?;
-                    let transition = parser.parse_sexp()?;
-                    Ok((state_ty, result_ty, step, initial, transition))
-                })?;
-            self.expect_keyword("\\by")?;
-            let (accessibility, transition_equality) = self.parse_parenthesized(|parser| {
-                let accessibility = parser.parse_sexp()?;
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
+            let (step, initial, transition) = self.parse_parenthesized(|parser| {
+                let step = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
-                let transition_equality = parser.parse_sexp()?;
+                let initial = parser.parse_sexp()?;
+                parser.expect_token(Token::Comma)?;
+                let transition = parser.parse_sexp()?;
+                Ok((step, initial, transition))
+            })?;
+            let (accessibility, transition_equality) = self.parse_by(|parser| {
+                let accessibility = parser.parse_named_by_term("accessibility")?;
+                parser.expect_token(Token::Comma)?;
+                let transition_equality = parser.parse_named_by_term("equality")?;
                 Ok((Box::new(accessibility), Box::new(transition_equality)))
             })?;
             return Ok(SExp::RunCase {
@@ -373,11 +397,8 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\runStepRec") {
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
             return self.parse_parenthesized(|parser| {
-                let state_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let result_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
                 let motive = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let on_continue = parser.parse_sexp()?;
@@ -396,31 +417,18 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\Box") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|program_ty| SExp::BoxType {
-                    program_ty: Box::new(program_ty),
-                })
+            let program_ty = self.parse_bracketed(Self::parse_sexp)?;
+            return Ok(SExp::BoxType {
+                program_ty: Box::new(program_ty),
             });
         }
         if self.bump_if_keyword("\\box") {
+            let program_ty = self.parse_bracketed(Self::parse_sexp)?;
             return self.parse_parenthesized(|parser| {
-                let program_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
                 let program = parser.parse_sexp()?;
                 Ok(SExp::BoxProgram {
                     program_ty: Box::new(program_ty),
                     program: Box::new(program),
-                })
-            });
-        }
-        if self.bump_if_keyword("\\Force") {
-            return self.parse_parenthesized(|parser| {
-                let program_ty = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let boxed = parser.parse_sexp()?;
-                Ok(SExp::ForceBox {
-                    program_ty: Box::new(program_ty),
-                    boxed: Box::new(boxed),
                 })
             });
         }
@@ -458,20 +466,40 @@ impl<'a> TermParser<'a> {
                 cases,
             });
         }
+        if self.bump_if_keyword("\\induction") {
+            let mut binds = self.parse_simple_binds_paren()?;
+            if binds.len() != 1 || binds[0].vars.len() != 1 {
+                return Err(self.error("expected exactly one induction binder"));
+            }
+            let binder = binds.pop().unwrap();
+            self.expect_keyword("\\return")?;
+            let return_type = self.parse_sexp()?;
+            self.expect_keyword("\\with")?;
+            let cases = self.parse_branches(|parser| {
+                let case_name = parser.expect_ident()?;
+                parser.expect_token(Token::DoubleArrow)?;
+                let case = parser.parse_sexp()?;
+                Ok((case_name, case))
+            })?;
+            return Ok(SExp::Induction {
+                binder,
+                return_type: Box::new(return_type),
+                cases,
+            });
+        }
         if self.bump_if_keyword("\\prec") {
-            // r"\prec" "(" <sort: Sort> "," <path: AccessPath> <parameter>? ")"
-            self.expect_token(Token::LParen)?;
-            let sort = self.parse_sort()?;
-            self.expect_token(Token::Comma)?;
+            // r"\prec" "[" <path: AccessPath> <parameter>? "," <motive: SExp> "]"
+            self.expect_token(Token::LBracket)?;
             let path = self.parse_access_path()?;
             let parameters = self.parse_optional_parameters()?;
-
-            self.expect_token(Token::RParen)?;
+            self.expect_token(Token::Comma)?;
+            let motive = self.parse_sexp()?;
+            self.expect_token(Token::RBracket)?;
 
             return Ok(SExp::IndElimPrim {
                 path,
                 parameters,
-                sort,
+                motive: Box::new(motive),
             });
         }
         // r"\exists" <binding>
@@ -491,25 +519,19 @@ impl<'a> TermParser<'a> {
             let bind = self.parse_binding(Token::LParen, Token::RParen)?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let body = self.parse_sexp()?;
-            self.expect_keyword("\\by")?;
-            self.expect_token(Token::LBrace)?;
-            let field = self.expect_ident()?;
-            if field.as_str() != "existence" {
-                return Err(self.error("expected `existence` proof field"));
-            }
-            self.expect_token(Token::Colon)?;
-            let existence = self.parse_sexp()?;
-            let uniqueness = if self.bump_if_token(Token::Comma) {
-                let field = self.expect_ident()?;
-                if field.as_str() != "uniqueness" {
-                    return Err(self.error("expected `uniqueness` proof field"));
+            let (existence, uniqueness) = self.parse_by(|parser| {
+                if matches!(parser.peek(), Some(Token::Ident("existence")))
+                    && parser.tokens.get(parser.pos + 1).map(|token| token.kind)
+                        == Some(Token::Colon)
+                {
+                    let existence = parser.parse_named_by_term("existence")?;
+                    parser.expect_token(Token::Comma)?;
+                    let uniqueness = parser.parse_named_by_term("uniqueness")?;
+                    Ok((existence, Some(uniqueness)))
+                } else {
+                    Ok((parser.parse_sexp()?, None))
                 }
-                self.expect_token(Token::Colon)?;
-                Some(self.parse_sexp()?)
-            } else {
-                None
-            };
-            self.expect_token(Token::RBrace)?;
+            })?;
             return Ok(match uniqueness {
                 Some(uniqueness) => SExp::TakeSet {
                     bind,
@@ -649,12 +671,12 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            self.expect_keyword("\\by")?;
-            self.expect_token(Token::LParen)?;
-            let base = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let equality = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?;
+            let (base, equality) = self.parse_by(|parser| {
+                let base = parser.parse_named_by_term("base")?;
+                parser.expect_token(Token::Comma)?;
+                let equality = parser.parse_named_by_term("equality")?;
+                Ok((base, equality))
+            })?;
             return Ok(SExp::IdElim {
                 left: Box::new(left),
                 right: Box::new(right),
@@ -676,12 +698,12 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Comma)?;
             let codomain = self.parse_sexp()?;
             self.expect_token(Token::RParen)?;
-            self.expect_keyword("\\by")?;
-            self.expect_token(Token::LParen)?;
-            let existence = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let uniqueness = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?;
+            let (existence, uniqueness) = self.parse_by(|parser| {
+                let existence = parser.parse_named_by_term("existence")?;
+                parser.expect_token(Token::Comma)?;
+                let uniqueness = parser.parse_named_by_term("uniqueness")?;
+                Ok((existence, uniqueness))
+            })?;
             return Ok(SExp::TakeEq {
                 func: Box::new(func),
                 domain: Box::new(domain),
@@ -693,11 +715,8 @@ impl<'a> TermParser<'a> {
         }
 
         if self.bump_if_keyword("\\accintro") {
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
             self.expect_token(Token::LParen)?;
-            let state_ty = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let result_ty = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
             let step = self.parse_sexp()?;
             self.expect_token(Token::Comma)?;
             let state = self.parse_sexp()?;
@@ -714,11 +733,8 @@ impl<'a> TermParser<'a> {
         }
 
         if self.bump_if_keyword("\\accdescent") {
+            let (state_ty, result_ty) = self.parse_recursion_types()?;
             self.expect_token(Token::LParen)?;
-            let state_ty = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let result_ty = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
             let step = self.parse_sexp()?;
             self.expect_token(Token::Comma)?;
             let from = self.parse_sexp()?;
@@ -764,7 +780,7 @@ impl<'a> TermParser<'a> {
     }
 
     // { (| <branch>)* }: the next pipe or closing brace ends each branch body.
-    // Branch delimiters are shared by \match, \tmatch, and \elim.
+    // Branch delimiters are shared by \match, \tmatch, \elim, and \induction.
     // Each caller parses its own branch head and body, committing on errors.
     fn parse_branches<T>(
         &mut self,
@@ -829,8 +845,7 @@ impl<'a> TermParser<'a> {
 
             if self.bump_if_keyword("\\enough") {
                 let map_ty = self.parse_sexp()?;
-                self.expect_keyword("\\by")?;
-                let map = self.parse_sexp()?;
+                let map = self.parse_by(Self::parse_sexp)?;
                 self.expect_token(Token::Semicolon)?;
                 statements.push(Statement::Sufficient { map, map_ty });
                 continue;
@@ -1006,6 +1021,17 @@ impl<'a> TermParser<'a> {
                 }
 
                 Ok(SExp::AccessPath { access, parameters })
+            }
+            Some(Token::LBrace) => {
+                let bind = self.parse_binding(Token::LBrace, Token::RBrace)?;
+                let Bind::Subset { var, ty, predicate } = bind else {
+                    return Err(self.error("expected subset type `{ x : A \\where P }`"));
+                };
+                Ok(SExp::SubSet {
+                    var,
+                    set: ty,
+                    predicate,
+                })
             }
             Some(Token::LParen) => {
                 self.next(); // consume '('
@@ -1216,9 +1242,20 @@ impl<'a> TermParser<'a> {
             Token::KeyWord("\\thunk") => Ok(SExp::Thunk {
                 computation: Box::new(self.parse_postfix()?),
             }),
-            Token::KeyWord("\\force") => Ok(SExp::Force {
-                value: Box::new(self.parse_postfix()?),
-            }),
+            Token::KeyWord("\\force") => {
+                if self.peek() == Some(&Token::LBracket) {
+                    let program_ty = self.parse_bracketed(Self::parse_sexp)?;
+                    let boxed = self.parse_parenthesized(Self::parse_sexp)?;
+                    Ok(SExp::ForceBox {
+                        program_ty: Box::new(program_ty),
+                        boxed: Box::new(boxed),
+                    })
+                } else {
+                    Ok(SExp::Force {
+                        value: Box::new(self.parse_postfix()?),
+                    })
+                }
+            }
             _ => unreachable!(),
         }
     }
@@ -1743,7 +1780,7 @@ mod tests {
 
     #[test]
     fn parse_equality_test() {
-        for input in [r"x", r"x y", r"\subsetinto(A, X, x, p)", r"x = y"] {
+        for input in [r"x", r"x y", r"\into[A](x, X) \by { p }", r"x = y"] {
             complete_with(input, |parser| parser.parse_equality());
         }
     }
@@ -1858,15 +1895,15 @@ mod tests {
         print_and_unwrap(r"x \( y + z \) l");
         print_and_unwrap(r"x mymacro!{ a + b c } l");
         print_and_unwrap(r"x::y::z");
-        print_and_unwrap(r"\subsetinto(A, X, x, p)");
+        print_and_unwrap(r"\into[A](x, X) \by { p }");
         print_and_unwrap(r"\exact(x, X)");
         print_and_unwrap(r"\refl(x)");
-        print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by (pa, eq)");
+        print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by { base: pa, equality: eq }");
         print_and_unwrap(r"\axiom:setext(A, B, ab, ba)");
         print_and_unwrap(r"\axiom:funext(f, g, pointwise)");
         print_and_unwrap(r"\axiom:classicalIndefiniteChoice(X, Y, inhabited)");
         print_and_unwrap(r"\take (x: X) => f x \by { existence: existsX, uniqueness: uniqueF }");
-        print_and_unwrap(r"\take (x: X) => P \by { existence: existsX }");
+        print_and_unwrap(r"\take (x: X) => P \by { existsX }");
         print_and_unwrap(r"x = y");
     }
 

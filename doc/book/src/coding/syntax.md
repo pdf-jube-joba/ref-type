@@ -270,22 +270,22 @@ A -> B
 ### set operator
 
 ```text
-\Power(A)
-\Subset(x, A, predicate)
-\Ty(A, subset)
-\Pred(A, subset, element)
-\subsetinto(A, subset, element, membership-proof)
+\Pow A
+{ x : A \where predicate }
+\Cast[A] subset
+\In[A] subset element
+\into[A](element, subset) \by { membership-proof }
 \exists A
 \exists {x: A \where P x}
 ```
 
-`\Power` は powerset、`\Subset` は subset、`\Ty` は refinement type、`\Pred` は membership predicate、`\subsetinto` は membership proof 付きの要素を表す。
+`\Pow` は powerset、`\Cast` は refinement type、`\In` は membership predicate、`\into` は membership proof 付きの要素を表す。
 
 ### choice
 
 ```text
 \take (x: A) => body
-\by { existence: existence-proof }
+\by { existence-proof }
 
 \take (x: A) => body
 \by { existence: existence-proof, uniqueness: uniqueness-proof }
@@ -300,8 +300,8 @@ left = right
 \refl(element)
 \exact(element, set)
 \bysub(superset, subset, element)
-\idelim(left = right \with x: A => predicate) \by (base, equality)
-\takeelim(function, element, domain, codomain) \by (existence, uniqueness)
+\idelim(left = right \with x: A => predicate) \by { base: base-proof, equality: equality-proof }
+\takeelim(function, element, domain, codomain) \by { existence: existence-proof, uniqueness: uniqueness-proof }
 ```
 
 組み込み公理:
@@ -320,10 +320,17 @@ left = right
 | constructor2 => branch2
 }
 
-\prec(sort, Type[parameters]) motive branch1 branch2
+\induction (x: Type[parameters]) \return result-type \with {
+| constructor1 => branch1
+| constructor2 => branch2
+}
+
+\prec[Type[parameters], motive] branch1 branch2
 ```
 
-`\elim` の branch は `|` または `}` で終わる。`\prec` は primitive recursor の atom で、後ろに motive と branch を通常の application として渡す。
+`\elim` と `\induction` の branch は `|` または `}` で終わる。
+`\induction` は `x` を result type 内で束縛し、帰納型上の関数を構成する。
+`\prec` は primitive recursor の atom で、後ろに branch を通常の application として渡す。
 
 ### logical block
 
@@ -331,13 +338,13 @@ left = right
 \block {
   \fix (x, y: A), (h: P x);
   \let z: B := term;
-  \enough C \by map;
+  \enough C \by { map };
   \return result;
 }
 ```
 
 `\fix`、`\let`、`\enough` を 0 個以上並べ、必須の `\return` で終える。`\fix` は目標の前方に binder を追加する。`\let` は後続の項と型から展開できる局所定義である。
-`\enough A \by map;` は `map: A -> B` を使って残りの目標を `A` にする。
+`\enough A \by { map };` は `map: A -> B` を使って残りの目標を `A` にする。
 
 ## 6. Program (CBPV)
 
@@ -350,7 +357,7 @@ value type、computation type、value、computation を区別する。
 \F(A)
 \U(C)
 A ~> C
-\RunStep(A, B)
+\RunStep[A, B]
 ```
 
 `\F` は value を返す computation type、`\U` は thunk の value type、`~>` は computation function type、`\RunStep` は run の一ステップを表す value type である。
@@ -404,12 +411,12 @@ branch の末尾に `;` は付けない。
 ### RunStep と accessibility
 
 ```text
-\continue(state-type, result-type, next-state)
-\finish(state-type, result-type, output)
-\Acc(state-type, result-type, step, state)
-\accintro(state-type, result-type, step, state, predecessors)
-\accdescent(state-type, result-type, step, from, to, accessibility, transition)
-\runStepRec(state-type, result-type, motive, on-continue, on-finish, scrutinee)
+\continue[state-type, result-type](next-state)
+\finish[state-type, result-type](output)
+\Acc[state-type, result-type](step, state)
+\accintro[state-type, result-type](step, state, predecessors)
+\accdescent[state-type, result-type](step, from, to, accessibility, transition)
+\runStepRec[state-type, result-type](motive, on-continue, on-finish, scrutinee)
 ```
 
 `\continue` と `\finish` は Program の一ステップ値、`\Acc` 以下は Set 側の accessibility とその導入・降下、`\runStepRec` はその recursor である。
@@ -417,8 +424,8 @@ branch の末尾に `;` は付けない。
 ### run
 
 ```text
-\run(state-type, result-type, step, initial) \by accessibility
-\runCase(state-type, result-type, step, initial, transition) \by (accessibility, transition-equality)
+\run[state-type, result-type](step, initial) \by { accessibility }
+\runCase[state-type, result-type](step, initial, transition) \by { accessibility: accessibility-proof, equality: transition-equality }
 ```
 
 step は thunk された step function、accessibility は停止性証明である。`\runCase` は一回分の transition computation と反映上の等号証明を受け取る。
@@ -426,9 +433,9 @@ step は thunk された step function、accessibility は停止性証明であ�
 ### Box
 
 ```text
-\Box(program-computation-type)
-\box(program-computation-type, computation)
-\Force(program-computation-type, boxed)
+\Box[program-computation-type]
+\box[program-computation-type](computation)
+\force[program-computation-type](boxed)
 \boxapp(boxed-function, boxed-argument)
 ```
 
