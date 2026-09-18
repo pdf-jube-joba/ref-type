@@ -432,8 +432,7 @@ branch の末尾に ; は付けない。
 
 ```text
 \run(state-type, result-type, step, initial) \by accessibility
-\runCase(state-type, result-type, step, initial, transition)
-\by (accessibility, transition-equality)
+\runCase(state-type, result-type, step, initial, transition) \by (accessibility, transition-equality)
 ```
 
 step は thunk された step function、accessibility は停止性証明である。\runCase は一回分の
