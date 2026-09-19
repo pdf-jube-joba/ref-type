@@ -1,0 +1,128 @@
+/*
+ * Cauchy reals over the concrete rational representatives from Arithmetic/Rat.ref.
+ *
+ * A real is not a chosen Cauchy sequence.  It is an actual equivalence
+ * class: a subset of CauchySeq containing exactly the sequences equivalent
+ * to one representative.  Kernel equality is therefore the right equality
+ * for reals once extensionality of subsets of CauchySeq is supplied.
+ */
+\import \root.Logic[].Proposition[] \as Logic;
+\import \root.Nat[] \as N;
+\import N.Laws[] \as NL;
+\import \root.Arithmetic[].Rat[] \as Rational;
+\import Rational.Fractions[] \as RationalFractions;
+\import RationalFractions.Operations[] \as RationalOperations;
+\use Logic.and;
+\import \root.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+  \definition Rat: \Set := RationalFractions.Fraction;
+
+  \definition zeroRat: Rat := RationalFractions.zero;
+
+  \definition oneRat: Rat := RationalFractions.one;
+
+  \definition addRat (x, y: Rat): Rat := RationalOperations.add x y;
+
+  \definition mulRat (x, y: Rat): Rat := RationalOperations.mul x y;
+
+  \definition negRat (x: Rat): Rat := RationalOperations.neg x;
+
+  \definition subRat (x, y: Rat): Rat := RationalOperations.sub x y;
+
+  \definition ltRat (x, y: Rat): \Prop := RationalFractions.lt x y;
+
+  /* Sequence indices share the natural-number foundation. */
+  \definition Nat: \Set := N.Nat^;
+
+  \definition NatLe (lower, upper: Nat): \Prop := NL.Le lower upper;
+
+  \definition Positive (eps: Rat): \Prop := ltRat zeroRat eps;
+
+  /* |x-y| < eps, stated without a separate absolute-value operation. */
+  \definition Close (x, y: Rat) (eps: Rat): \Prop :=
+      and!{{ ltRat (subRat x y) eps } { ltRat (subRat y x) eps }};
+
+  \definition Sequence: \Set := Nat -> Rat;
+
+  /* N witnesses that all entries after N are eps-close. */
+  \definition CauchyAt (seq: Sequence) (eps: Rat) (N: Nat): \Prop :=
+      \forall (m, n: Nat) -> NatLe N m -> NatLe N n ->
+        Close (seq m) (seq n) eps;
+
+  \definition IsCauchy (seq: Sequence): \Prop :=
+      \forall (eps: Rat) -> Positive eps ->
+        \exists \Cast[Nat] ({ N : Nat \where CauchyAt seq eps N });
+
+  \definition CauchySet: \Pow (Sequence) :=
+    { seq : Sequence \where IsCauchy seq };
+
+  \definition CauchySeq: \Set :=
+    \Cast[Sequence] (CauchySet);
+
+  \import \root.Logic[].Rel[Carrier := CauchySeq] \as Rel;
+
+  \definition at (x: CauchySeq) (n: Nat): Rat := x n;
+
+  /* The difference of two representatives tends to zero. */
+  \definition EquivalentAt (x, y: CauchySeq) (eps: Rat) (N: Nat): \Prop :=
+      \forall (n: Nat) -> NatLe N n ->
+        Close (at x n) (at y n) eps;
+
+  \definition Equivalent (x, y: CauchySeq): \Prop :=
+      \forall (eps: Rat) -> Positive eps ->
+        \exists \Cast[Nat] ({ N : Nat \where EquivalentAt x y eps N });
+
+  \definition cauchyProperty (x: CauchySeq): IsCauchy x :=
+    \bysub(Sequence, CauchySet, x);
+
+  /* The diagonal of the Cauchy estimate already proves reflexivity. */
+  \definition equivalentRefl (x: CauchySeq) (eps: Rat) (positive: Positive eps):
+    \exists \Cast[Nat] ({ k : Nat \where EquivalentAt x x eps k }) :=
+    \take (k: \Cast[Nat] ({ k : Nat \where CauchyAt x eps k })) =>
+      \exact(
+        \into[Nat](k, { j : Nat \where EquivalentAt x x eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
+            (\bysub(Nat, { j : Nat \where CauchyAt x eps j }, k)) n n kn kn },
+        \Cast[Nat] ({ j : Nat \where EquivalentAt x x eps j }))
+    \by { cauchyProperty x eps positive };
+
+  \definition closeSym (x, y, eps: Rat) (xy: Close x y eps): Close y x eps :=
+      \record Logic.And[
+        ltRat (subRat y x) eps,
+        ltRat (subRat x y) eps
+      ] {
+        left :=
+          (\fun (h: Logic.And[
+            ltRat (subRat x y) eps,
+            ltRat (subRat y x) eps
+          ]) => Logic.And::right h) xy,
+        right :=
+          (\fun (h: Logic.And[
+            ltRat (subRat x y) eps,
+            ltRat (subRat y x) eps
+          ]) => Logic.And::left h) xy,
+      };
+
+  /* Symmetry needs no metric estimate: Close already records both directions. */
+  \definition equivalentSym (x, y: CauchySeq) (xy: Equivalent x y): Equivalent y x :=
+    \fun (eps: Rat) => \fun (positive: Positive eps) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k })) =>
+        \exact(
+          \into[Nat](N, { k : Nat \where EquivalentAt y x eps k }) \by { (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+              closeSym (at x n) (at y n) eps
+                ((\bysub(
+                  Nat, { k : Nat \where EquivalentAt x y eps k }, N))
+                  n Nn)) },
+          \Cast[Nat] ({ k : Nat \where EquivalentAt y x eps k }))
+      \by { xy eps positive };
+
+  \module Sequences;
+
+  /*
+   * The metric laws must make Equivalent an equivalence relation.  Subset
+   * extensionality is supplied by the kernel axiom; the metric laws do not
+   * follow merely from the names of the rational operations.
+   */
+  \module Quotient(
+    equivalentTrans: Rel.Transitive Equivalent,
+  );

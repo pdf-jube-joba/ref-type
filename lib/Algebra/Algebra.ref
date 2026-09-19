@@ -1,0 +1,265 @@
+/* Groups, semirings, rings and fields over one fixed carrier. */
+\import \root.Logic[].Proposition[] \as Logic;
+\import \root.Algebra[].Monoid[Carrier := Carrier] \as M;
+\import \root.Logic[].Law[Carrier := Carrier] \as Law;
+\use Logic.not;
+
+\structure RawGroup: \Set := {
+  unit: Carrier,
+  op: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+};
+
+\definition groupUnit (s: RawGroup): Carrier := RawGroup::unit s;
+\definition groupOp (s: RawGroup): Carrier -> Carrier -> Carrier := RawGroup::op s;
+\definition groupInv (s: RawGroup): Carrier -> Carrier := RawGroup::inv s;
+\definition groupMonoid (s: RawGroup): M.RawMonoid := \record M.RawMonoid {
+    unit := groupUnit s,
+    op := groupOp s,
+  };
+
+\structure GroupLaws(s: RawGroup): \Prop := {
+  monoid: M.MonoidLaws[groupMonoid s],
+  leftInverse: Law.LeftInvertible (groupOp s) (groupUnit s) (groupInv s),
+  rightInverse: Law.RightInvertible (groupOp s) (groupUnit s) (groupInv s),
+};
+
+\definition groupLawsIntro (s: RawGroup)
+  (left: \forall (x: Carrier) -> groupOp s (groupUnit s) x = x)
+  (right: \forall (x: Carrier) -> groupOp s x (groupUnit s) = x)
+  (assoc: \forall (x, y, z: Carrier) ->
+    groupOp s (groupOp s x y) z = groupOp s x (groupOp s y z))
+  (leftInv: \forall (x: Carrier) -> groupOp s (groupInv s x) x = groupUnit s)
+  (rightInv: \forall (x: Carrier) -> groupOp s x (groupInv s x) = groupUnit s):
+  GroupLaws[s] :=
+    \record GroupLaws[s] {
+      monoid := M.monoidLawsIntro (groupMonoid s) left right assoc,
+      leftInverse := leftInv,
+      rightInverse := rightInv,
+    };
+
+\definition GroupSet: \Pow (RawGroup) :=
+  { s : RawGroup \where GroupLaws[s] };
+\definition Group: \Set := \Cast[RawGroup] (GroupSet);
+\definition groupLaws (s: Group): GroupLaws[s] := \bysub(RawGroup, GroupSet, s);
+
+\structure CommutativeGroupLaws(s: RawGroup): \Prop := {
+  group: GroupLaws[s],
+  commutative: Law.Commutative (groupOp s),
+};
+
+\definition commutativeGroupLawsIntro
+  (s: RawGroup)
+  (base: GroupLaws[s])
+  (comm: \forall (x, y: Carrier) -> groupOp s x y = groupOp s y x):
+  CommutativeGroupLaws[s] :=
+  \record CommutativeGroupLaws[s] {
+    group := base,
+    commutative := comm,
+  };
+
+\definition CommutativeGroupSet: \Pow (RawGroup) :=
+  { s : RawGroup \where CommutativeGroupLaws[s] };
+\definition CommutativeGroup: \Set :=
+  \Cast[RawGroup] (CommutativeGroupSet);
+\definition commutativeGroupLaws (s: CommutativeGroup): CommutativeGroupLaws[s] :=
+    \bysub(RawGroup, CommutativeGroupSet, s);
+\definition asGroup (s: CommutativeGroup): Group :=
+    \into[RawGroup](s, GroupSet) \by { CommutativeGroupLaws::group (commutativeGroupLaws s) };
+
+\structure RawSemiring: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+};
+
+\definition zero (s: RawSemiring): Carrier := RawSemiring::zero s;
+\definition one (s: RawSemiring): Carrier := RawSemiring::one s;
+\definition add (s: RawSemiring): Carrier -> Carrier -> Carrier := RawSemiring::add s;
+\definition mul (s: RawSemiring): Carrier -> Carrier -> Carrier := RawSemiring::mul s;
+
+\definition additiveMonoid (s: RawSemiring): M.RawMonoid := \record M.RawMonoid {
+    unit := zero s,
+    op := add s,
+  };
+\definition multiplicativeMonoid (s: RawSemiring): M.RawMonoid := \record M.RawMonoid {
+    unit := one s,
+    op := mul s,
+  };
+
+\structure SemiringLaws(s: RawSemiring): \Prop := {
+  additive: M.CommutativeMonoidLaws[additiveMonoid s],
+  multiplicative: M.MonoidLaws[multiplicativeMonoid s],
+  leftDistributive: Law.LeftDistributive (mul s) (add s),
+  rightDistributive: Law.RightDistributive (mul s) (add s),
+  zeroAbsorbsLeft: \forall (x: Carrier) -> mul s (zero s) x = zero s,
+  zeroAbsorbsRight: \forall (x: Carrier) -> mul s x (zero s) = zero s,
+};
+
+\definition semiringLawsIntro (s: RawSemiring)
+  (addLeft: \forall (x: Carrier) -> add s (zero s) x = x)
+  (addRight: \forall (x: Carrier) -> add s x (zero s) = x)
+  (addAssoc: \forall (x, y, z: Carrier) -> add s (add s x y) z = add s x (add s y z))
+  (addComm: \forall (x, y: Carrier) -> add s x y = add s y x)
+  (mulLeft: \forall (x: Carrier) -> mul s (one s) x = x)
+  (mulRight: \forall (x: Carrier) -> mul s x (one s) = x)
+  (mulAssoc: \forall (x, y, z: Carrier) -> mul s (mul s x y) z = mul s x (mul s y z))
+  (distribLeft: \forall (x, y, z: Carrier) -> mul s x (add s y z) = add s (mul s x y) (mul s x z))
+  (distribRight: \forall (x, y, z: Carrier) -> mul s (add s x y) z = add s (mul s x z) (mul s y z))
+  (absorbLeft: \forall (x: Carrier) -> mul s (zero s) x = zero s)
+  (absorbRight: \forall (x: Carrier) -> mul s x (zero s) = zero s):
+  SemiringLaws[s] :=
+  \record SemiringLaws[s] {
+      additive := M.commutativeMonoidLawsIntro (additiveMonoid s)
+        (M.monoidLawsIntro (additiveMonoid s)
+          addLeft addRight addAssoc) addComm,
+      multiplicative := M.monoidLawsIntro (multiplicativeMonoid s)
+        mulLeft mulRight mulAssoc,
+      leftDistributive := distribLeft,
+      rightDistributive := distribRight,
+      zeroAbsorbsLeft := absorbLeft,
+      zeroAbsorbsRight := absorbRight,
+    };
+
+\definition SemiringSet: \Pow (RawSemiring) :=
+  { s : RawSemiring \where SemiringLaws[s] };
+\definition Semiring: \Set := \Cast[RawSemiring] (SemiringSet);
+\definition semiringLaws (s: Semiring): SemiringLaws[s] := \bysub(RawSemiring, SemiringSet, s);
+
+\structure RawRing: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+};
+
+\definition ringZero (s: RawRing): Carrier := RawRing::zero s;
+\definition ringOne (s: RawRing): Carrier := RawRing::one s;
+\definition ringAdd (s: RawRing): Carrier -> Carrier -> Carrier := RawRing::add s;
+\definition ringNeg (s: RawRing): Carrier -> Carrier := RawRing::neg s;
+\definition ringMul (s: RawRing): Carrier -> Carrier -> Carrier := RawRing::mul s;
+\definition ringSemiring (s: RawRing): RawSemiring := \record RawSemiring {
+    zero := ringZero s,
+    one := ringOne s,
+    add := ringAdd s,
+    mul := ringMul s,
+  };
+
+\structure RingLaws(s: RawRing): \Prop := {
+  semiring: SemiringLaws[ringSemiring s],
+  additiveInverse: \forall (x: Carrier) ->
+    ringAdd s (ringNeg s x) x = ringZero s,
+};
+
+\definition ringLawsIntro (s: RawRing)
+  (base: SemiringLaws[ringSemiring s])
+  (inverse: \forall (x: Carrier) -> ringAdd s (ringNeg s x) x = ringZero s):
+  RingLaws[s] :=
+    \record RingLaws[s] {
+      semiring := base,
+      additiveInverse := inverse,
+    };
+
+\definition RingSet: \Pow (RawRing) :=
+  { s : RawRing \where RingLaws[s] };
+\definition Ring: \Set := \Cast[RawRing] (RingSet);
+\definition ringLaws (s: Ring): RingLaws[s] := \bysub(RawRing, RingSet, s);
+\definition ringAsSemiring (s: Ring): Semiring :=
+    \into[RawSemiring](ringSemiring s, SemiringSet) \by { RingLaws::semiring (ringLaws s) };
+
+\structure CommutativeRingLaws(s: RawRing): \Prop := {
+  ring: RingLaws[s],
+  mulCommutative: \forall (x, y: Carrier) ->
+    ringMul s x y = ringMul s y x,
+};
+
+\definition commutativeRingLawsIntro (s: RawRing)
+  (base: RingLaws[s])
+  (comm: \forall (x, y: Carrier) -> ringMul s x y = ringMul s y x):
+  CommutativeRingLaws[s] :=
+    \record CommutativeRingLaws[s] {
+      ring := base,
+      mulCommutative := comm,
+    };
+
+\definition CommutativeRingSet: \Pow (RawRing) :=
+  { s : RawRing \where CommutativeRingLaws[s] };
+\definition CommutativeRing: \Set :=
+  \Cast[RawRing] (CommutativeRingSet);
+\definition commutativeRingLaws (s: CommutativeRing): CommutativeRingLaws[s] :=
+    \bysub(RawRing, CommutativeRingSet, s);
+\definition commutativeRingAsRing (s: CommutativeRing): Ring :=
+    \into[RawRing](s, RingSet) \by { CommutativeRingLaws::ring (commutativeRingLaws s) };
+
+\structure RawField: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+};
+
+\definition fieldZero (s: RawField): Carrier := RawField::zero s;
+\definition fieldOne (s: RawField): Carrier := RawField::one s;
+\definition fieldAdd (s: RawField): Carrier -> Carrier -> Carrier := RawField::add s;
+\definition fieldNeg (s: RawField): Carrier -> Carrier := RawField::neg s;
+\definition fieldMul (s: RawField): Carrier -> Carrier -> Carrier := RawField::mul s;
+\definition fieldInv (s: RawField): Carrier -> Carrier := RawField::inv s;
+\definition fieldRing (s: RawField): RawRing := \record RawRing {
+    zero := fieldZero s,
+    one := fieldOne s,
+    add := fieldAdd s,
+    neg := fieldNeg s,
+    mul := fieldMul s,
+  };
+\definition FieldNonZero (s: RawField) (x: Carrier): \Prop :=
+    not!{{ x = fieldZero s }};
+\definition FieldNontrivial (s: RawField): \Prop := not!{{ fieldZero s = fieldOne s }};
+\definition FieldInverseLaws (s: RawField): \Prop :=
+    \forall (x: Carrier) -> FieldNonZero s x ->
+      fieldMul s (fieldInv s x) x = fieldOne s;
+
+\definition FieldLaws (s: RawField): \Prop :=
+    Logic.And[CommutativeRingLaws[fieldRing s],
+      Logic.And[FieldNontrivial s, FieldInverseLaws s]];
+
+\definition fieldLawsIntro (s: RawField) (ring: CommutativeRingLaws[fieldRing s]) (nontrivial: FieldNontrivial s) (inverse: FieldInverseLaws s): FieldLaws s :=
+    \record Logic.And[
+      CommutativeRingLaws[fieldRing s],
+      Logic.And[FieldNontrivial s, FieldInverseLaws s]
+    ] {
+      left := ring,
+      right := \record Logic.And[FieldNontrivial s, FieldInverseLaws s] {
+        left := nontrivial,
+        right := inverse,
+      },
+    };
+
+\definition FieldSet: \Pow (RawField) :=
+  { s : RawField \where FieldLaws s };
+\definition Field: \Set := \Cast[RawField] (FieldSet);
+\definition fieldLaws (s: Field): FieldLaws s := \bysub(RawField, FieldSet, s);
+\definition fieldCommutativeRingLaws (s: Field): CommutativeRingLaws[fieldRing s] :=
+    (\fun (h: Logic.And[
+      CommutativeRingLaws[fieldRing s],
+      Logic.And[FieldNontrivial s, FieldInverseLaws s]
+    ]) => Logic.And::left h) (fieldLaws s);
+\definition fieldNontrivial (s: Field): FieldNontrivial s :=
+    (\fun (h: Logic.And[FieldNontrivial s, FieldInverseLaws s]) =>
+      Logic.And::left h)
+      ((\fun (h: Logic.And[
+        CommutativeRingLaws[fieldRing s],
+        Logic.And[FieldNontrivial s, FieldInverseLaws s]
+      ]) => Logic.And::right h) (fieldLaws s));
+\definition fieldInverse (s: Field): FieldInverseLaws s :=
+    (\fun (h: Logic.And[FieldNontrivial s, FieldInverseLaws s]) =>
+      Logic.And::right h)
+      ((\fun (h: Logic.And[
+        CommutativeRingLaws[fieldRing s],
+        Logic.And[FieldNontrivial s, FieldInverseLaws s]
+      ]) => Logic.And::right h) (fieldLaws s));
+\definition fieldAsCommutativeRing (s: Field): CommutativeRing :=
+    \into[RawRing](fieldRing s, CommutativeRingSet) \by { fieldCommutativeRingLaws s };

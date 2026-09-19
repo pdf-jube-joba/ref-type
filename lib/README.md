@@ -9,24 +9,18 @@
 
 | 分野 | ファイル | 内容 |
 | --- | --- | --- |
-| 論理 | [Logic.ref](Logic.ref) | `False`、`Not`、`And`、`Or` と記法 |
-| 等式 | [Equality.ref](Equality.ref)、[Equality/Laws.ref](Equality/Laws.ref) | 対称律、推移律、transport、合同則 |
-| 直積 | [Pair.ref](Pair.ref) と `Pair/` 以下 | Program / Set の構築・射影・交換・写像・カリー化・結合の組み替えと法則 |
-| 直和 | [Sum.ref](Sum.ref) | 任意の Set carrier の直和と `inl`・`inr` |
-| 有限部分集合 | [FiniteSubset.ref](FiniteSubset.ref) | 空集合と有限回の挿入で生成される部分集合 |
-| 有限型 | [FinSet.ref](FinSet.ref) | `n` 未満の自然数からなる n 点集合 `Fin n` |
-| 関係と演算法則 | [Rel.ref](Rel.ref)、[Law.ref](Law.ref) | 二項関係の性質と閉包、二項演算の単位元・逆元・分配則など |
-| 商集合 | [Quotient.ref](Quotient.ref) | 同値類、商の台集合、演算の relational image |
-| 基本データ | [Bool.ref](Bool.ref)、[Nat.ref](Nat.ref) と `Nat/` 以下、[Int.ref](Int.ref) と `Int/` 以下、[IntAlgebra.ref](IntAlgebra.ref) | Program 演算、Set への反映、仕様と法則、整数の代数構造 |
-| 代数構造 | [Monoid.ref](Monoid.ref)、[Algebra.ref](Algebra.ref) | Monoid、Group、Semiring、Ring、Field |
-| 有理数 | [Rat.ref](Rat.ref) と `Rat/` 以下 | 分数代表、同値関係、商上の演算 |
-| Dedekind 実数 | [DedekindReal.ref](DedekindReal.ref) とその子モジュール | 切断、順序、lower set 上の演算 |
-| Cauchy 実数 | [CauchyReal.ref](CauchyReal.ref) とその子モジュール | Cauchy 列、商、点ごとの演算 |
-| 実数の仕様 | [AxiomaticReals.ref](AxiomaticReals.ref) | 公理的実数構造 |
+| 論理 | `Logic/Proposition.ref`、`Logic/Law.ref`、`Logic/Rel.ref`、`Logic/Classical.ref`、`Logic/Equality.ref` | 命題、関係、法則、古典論理、等式 |
+| データ | `Data/Bool.ref`、`Data/Pair.ref`、`Data/Sum.ref`、`Data/FinSet.ref`、`Data/FiniteSubset.ref` | 基本データ、直積、直和、有限集合 |
+| 自然数 | `Nat.ref` と `Nat/` 以下 | 自然数の演算、仕様、法則 |
+| 集合 | `Set/Quotient.ref` | 同値類、商の台集合、演算の relational image |
+| 代数 | `Algebra/Monoid.ref`、`Algebra/Algebra.ref` | Monoid、Group、Semiring、Ring、Field |
+| 算術 | `Arithmetic/Int.ref`、`Arithmetic/Rat.ref`、`Arithmetic/IntAlgebra.ref` と各子モジュール | 整数、有理数、整数の代数構造 |
+| 実数 | `Reals/AxiomaticReals.ref`、`Reals/DedekindReal.ref`、`Reals/CauchyReal.ref` と各子モジュール | 公理的実数、Dedekind 実数、Cauchy 実数 |
+| 幾何 | `Geometry/Topology.ref` | 位相空間 |
 
 入れ子モジュールは論理上のパスと同じ場所に置く。例えば
-`Rat/Fractions/Operations.ref` の `\module Quotient;` の本体は
-`Rat/Fractions/Operations/Quotient.ref` にある。子ファイルは親のスコープを引き継ぐので、
+`Arithmetic/Rat/Fractions/Operations.ref` の `\module Quotient;` の本体は
+`Arithmetic/Rat/Fractions/Operations/Quotient.ref` にある。子ファイルは親のスコープを引き継ぐので、
 同じ依存を改めて import して型の instance を作り直さない。
 
 ## 等式と合同則
@@ -34,7 +28,7 @@
 等式の基本操作は carrier をマクロ引数にして使用する。
 
 ```text
-\import \root.Equality[] \as Equality;
+\import \root.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
@@ -59,7 +53,7 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 固定した carrier の名前付き API が必要なら、次の形も使える。
 
 ```text
-\import \root.Equality[].Laws[A := X] \as E;
+\import \root.Logic[].Equality[].Laws[A := X] \as E;
 ```
 
 現在の PTS では命題内で `Set` 自体を量化しないため、carrier はマクロ展開時に指定する。
@@ -111,7 +105,7 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 型引数を省略できる。型を固定して複数の操作を使う場合は、同じ Pair instance の子を開く。
 
 ```text
-\import \root.Pair[] \as P;
+\import \root.Data[].Pair[] \as P;
 \import P.Program[A := A, B := B] \as PP;
 \import PP.Mapping[C := C, D := D] \as PM;
 \import PP.Functions[C := C] \as PF;
@@ -200,7 +194,7 @@ Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持�
 `Int.Math.Specification`、代数法則は `Int.Math.Specification.Laws` に分離している。
 
 ```text
-\import \root.Int[] \as I;
+\import \root.Arithmetic[].Int[] \as I;
 \import I.Math[] \as IM;
 \import IM.Specification[] \as IS;
 \import IS.Laws[] \as IL;
@@ -229,7 +223,7 @@ Rat の分子 `Integer` は Int の `ofNat` / `negSucc` 正規形である。`In
 `Rat.Fractions.Operations.Quotient` は商構成を担当する。
 
 ```text
-\import \root.Rat[] \as R;
+\import \root.Arithmetic[].Rat[] \as R;
 \import R.Fractions[] \as RF;
 \import RF.Operations[] \as RO;
 \import RO.Quotient[] \as RQ;

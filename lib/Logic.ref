@@ -1,81 +1,9 @@
-/* Shared propositional vocabulary for the real-number constructions. */
-\inductive False: \Prop :=
-;
+\module Proposition;
 
-\definition Not (P: \Prop): \Prop := P -> False;
+\module Law(Carrier: \Set);
 
-\definition falseElim (P: \Prop) (impossible: False): P :=
-  \case impossible \in False \return (\fun (_: False) => P) {};
+\module Rel(Carrier: \Set);
 
-\structure And(P, Q: \Prop): \Prop := {
-  left: P,
-  right: Q,
-};
+\module Classical;
 
-\inductive Or(P, Q: \Prop): \Prop :=
-| left: P -> Or;
-| right: Q -> Or;
-;
-
-/* Reusable surface notation for the propositional vocabulary above. */
-\macro not($proposition) := Not $proposition;
-\macro and($first, ..rest) := \tmatch rest {
-  | ($last) => And[$first, $last]
-  | ($next, ..tail) => And[$first, and!{$next ..tail}]
-};
-\macro or($first, ..rest) := \tmatch rest {
-  | ($last) => Or[$first, $last]
-  | ($next, ..tail) => Or[$first, or!{$next ..tail}]
-};
-
-/* Basic structural laws for conjunction. */
-\definition andLeft: \forall (P, Q: \Prop) -> And[P, Q] -> P :=
-  \fun (P, Q: \Prop) => \fun (h: And[P, Q]) => And::left h;
-
-\definition andRight: \forall (P, Q: \Prop) -> And[P, Q] -> Q :=
-  \fun (P, Q: \Prop) => \fun (h: And[P, Q]) => And::right h;
-
-\definition andComm:
-  \forall (P, Q: \Prop) -> And[P, Q] -> And[Q, P] :=
-  \fun (P, Q: \Prop) => \fun (h: And[P, Q]) =>
-    \record And[Q, P] {
-      left := And::right h,
-      right := And::left h,
-    };
-
-\definition andAssoc:
-  \forall (P, Q, R: \Prop) -> And[And[P, Q], R] -> And[P, And[Q, R]] :=
-  \fun (P, Q, R: \Prop) => \fun (h: And[And[P, Q], R]) =>
-    \record And[P, And[Q, R]] {
-      left := And::left (And::left h),
-      right := \record And[Q, R] {
-        left := And::right (And::left h),
-        right := And::right h,
-      },
-    };
-
-\definition orLeft: \forall (P, Q: \Prop) -> P -> Or[P, Q] :=
-  \fun (P, Q: \Prop) => \fun (p: P) => Or[P, Q]::left p;
-
-\definition orRight: \forall (P, Q: \Prop) -> Q -> Or[P, Q] :=
-  \fun (P, Q: \Prop) => \fun (q: Q) => Or[P, Q]::right q;
-
-\definition orComm:
-  \forall (P, Q: \Prop) -> Or[P, Q] -> Or[Q, P] :=
-  \fun (P, Q: \Prop) => \fun (h: Or[P, Q]) =>
-    \case h \in Or \return (\fun (_: Or[P, Q]) => Or[Q, P]) {
-    | left => \fun (p: P) => Or[Q, P]::right p
-    | right => \fun (q: Q) => Or[Q, P]::left q
-    };
-
-\definition orAssoc:
-  \forall (P, Q, R: \Prop) -> Or[Or[P, Q], R] -> Or[P, Or[Q, R]] :=
-  \fun (P, Q, R: \Prop) => \fun (h: Or[Or[P, Q], R]) =>
-    \case h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) {
-    | left => \fun (inner: Or[P, Q]) =>
-        \case inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) {
-        | left => \fun (p: P) => Or[P, Or[Q, R]]::left p
-        | right => \fun (q: Q) => Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
-        }
-    | right => \fun (r: R) => Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
-    };
+\module Equality;

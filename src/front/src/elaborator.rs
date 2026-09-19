@@ -21,6 +21,7 @@ use crate::{
     output::Output,
     syntax::*,
 };
+use std::collections::{HashMap, HashSet};
 
 mod declarations;
 pub(crate) mod module_manager;
@@ -66,6 +67,9 @@ pub struct GlobalEnvironment {
     diagnostic_location: Option<SourceLocation>,
     module_manager: module_manager::ModuleManager,
     metavariables: MetaStore,
+    defer_child_modules: bool,
+    predeclared_modules: bool,
+    processed_modules: HashSet<ModuleId>,
 }
 
 impl term_elaborator::Handler for GlobalEnvironment {
@@ -273,6 +277,217 @@ impl GlobalEnvironment {
 }
 
 impl GlobalEnvironment {
+    fn predeclare_module_tree(
+        &mut self,
+        parent: ModuleId,
+        module: &Module,
+    ) -> Result<(), ElaborationError> {
+        let child = self
+            .crate_env
+            .reserve_child_module(parent, module.name.0.clone());
+        self.crate_env.publish_child_module(child)?;
+        let ModuleBody::Inline(items) = &module.body else {
+            return Err(format!(
+                "External module '{}' was not resolved",
+                module.name.as_str()
+            )
+            .into());
+        };
+        for item in items {
+            if let ModuleItem::ChildModule { module } = item {
+                self.predeclare_module_tree(child, module)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn collect_module_tree<'a>(
+        module: &'a Module,
+        path: &mut Vec<String>,
+        modules: &mut Vec<(Vec<String>, &'a Module)>,
+    ) {
+        path.push(module.name.0.clone());
+        modules.push((path.clone(), module));
+        if let ModuleBody::Inline(items) = &module.body {
+            for item in items {
+                if let ModuleItem::ChildModule { module } = item {
+                    Self::collect_module_tree(module, path, modules);
+                }
+            }
+        }
+        path.pop();
+    }
+
+    fn import_target(path: &ModuleInstantiatePath, module_path: &[String]) -> Option<Vec<String>> {
+        let (mut base, calls) = match path {
+            ModuleInstantiatePath::FromRoot { calls } => (Vec::new(), calls),
+            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                let mut base = module_path.to_vec();
+                for _ in 0..*back_parent {
+                    base.pop()?;
+                }
+                (base, calls)
+            }
+            ModuleInstantiatePath::FromImport { .. } => return None,
+        };
+        base.extend(calls.iter().map(|(name, _)| name.0.clone()));
+        Some(base)
+    }
+
+    fn module_order(modules: &[(Vec<String>, &Module)]) -> Result<Vec<usize>, ElaborationError> {
+        let indices = modules
+            .iter()
+            .enumerate()
+            .map(|(index, (path, _))| (path.clone(), index))
+            .collect::<HashMap<_, _>>();
+        let mut dependencies = vec![HashSet::new(); modules.len()];
+
+        for (index, (path, module)) in modules.iter().enumerate() {
+            if path.len() > 1 {
+                dependencies[index].insert(
+                    *indices
+                        .get(&path[..path.len() - 1])
+                        .ok_or("module parent was not predeclared")?,
+                );
+            }
+            let ModuleBody::Inline(items) = &module.body else {
+                continue;
+            };
+            let mut aliases = HashMap::new();
+            for item in items {
+                let ModuleItem::Import {
+                    path: import,
+                    import_name,
+                } = item
+                else {
+                    continue;
+                };
+                let target = match import {
+                    ModuleInstantiatePath::FromImport {
+                        import_name: base,
+                        calls,
+                    } => aliases.get(base.as_str()).map(|base_path: &Vec<String>| {
+                        let mut target = base_path.clone();
+                        target.extend(calls.iter().map(|(name, _)| name.0.clone()));
+                        target
+                    }),
+                    _ => Self::import_target(import, path),
+                };
+                if let Some(target) = target {
+                    if let Some(target_index) = indices.get(&target)
+                        && !target.starts_with(path)
+                    {
+                        dependencies[index].insert(*target_index);
+                    }
+                    aliases.insert(import_name.as_str().to_string(), target);
+                }
+            }
+        }
+
+        fn visit(
+            index: usize,
+            dependencies: &[HashSet<usize>],
+            states: &mut [u8],
+            order: &mut Vec<usize>,
+        ) -> Result<(), ElaborationError> {
+            match states[index] {
+                2 => return Ok(()),
+                1 => return Err("cyclic module import dependency".into()),
+                _ => {}
+            }
+            states[index] = 1;
+            for dependency in &dependencies[index] {
+                visit(*dependency, dependencies, states, order)?;
+            }
+            states[index] = 2;
+            order.push(index);
+            Ok(())
+        }
+
+        let mut states = vec![0; modules.len()];
+        let mut order = Vec::with_capacity(modules.len());
+        for index in 0..modules.len() {
+            visit(index, &dependencies, &mut states, &mut order)?;
+        }
+        Ok(order)
+    }
+
+    pub fn add_modules_to_root(&mut self, modules: &[Module]) -> Result<(), ElaborationError> {
+        self.diagnostic_location = None;
+        let mut scheduled = Vec::new();
+        for module in modules {
+            Self::collect_module_tree(module, &mut Vec::new(), &mut scheduled);
+        }
+        let order = Self::module_order(&scheduled)?;
+        if order.iter().copied().eq(0..scheduled.len()) {
+            for module in modules {
+                self.add_new_module_to_root(module)?;
+            }
+            return Ok(());
+        }
+
+        self.predeclared_modules = true;
+        self.processed_modules.clear();
+        for module in modules {
+            self.predeclare_module_tree(self.crate_env.root_module(), module)?;
+        }
+
+        let result = (|| {
+            for index in order {
+                let (path, module) = &scheduled[index];
+                let module_id = self
+                    .module_id_for_path(path)
+                    .ok_or("module was not predeclared")?;
+                if self.processed_modules.contains(&module_id) {
+                    continue;
+                }
+                self.defer_child_modules = path.len() == 1 && Self::is_namespace_module(module);
+                self.module_manager.moveto_root();
+                for component in &path[..path.len() - 1] {
+                    self.module_manager
+                        .enter_existing_child(&self.crate_env, component)
+                        .ok_or_else(|| {
+                            ElaborationError::Message(format!(
+                                "module parent '{}' was not predeclared",
+                                component
+                            ))
+                        })?;
+                }
+                self.module_add_rec(module)?;
+            }
+            crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+                .lower_all()
+                .map_err(ElaborationError::from)
+        })();
+        self.defer_child_modules = false;
+        self.predeclared_modules = false;
+        result
+    }
+
+    fn module_id_for_path(&self, path: &[String]) -> Option<ModuleId> {
+        let mut module = self.crate_env.root_module();
+        for component in path {
+            module = self
+                .crate_env
+                .module(module)
+                .children()
+                .iter()
+                .copied()
+                .find(|child| self.crate_env.module(*child).name() == component)?;
+        }
+        Some(module)
+    }
+
+    fn is_namespace_module(module: &Module) -> bool {
+        let ModuleBody::Inline(items) = &module.body else {
+            return false;
+        };
+        !items.is_empty()
+            && items
+                .iter()
+                .all(|item| matches!(item, ModuleItem::ChildModule { .. }))
+    }
+
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         self.module_manager.moveto_root();

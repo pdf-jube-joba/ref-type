@@ -47,16 +47,10 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
 fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<String>, Option<String>) {
     let mut global = front::elaborator::GlobalEnvironment::default();
     let mut output_lines = Vec::new();
-    for module in modules {
-        match global.add_new_module_to_root(&module) {
-            Ok(()) => {}
-            Err(err) => {
-                let detail =
-                    front::metavariables::format_elaboration_error(global.crate_env(), &err);
-                push_outputs(&global, &mut output_lines);
-                return (output_lines, Some(format!("Elaboration Error: {detail}")));
-            }
-        }
+    if let Err(err) = global.add_modules_to_root(&modules) {
+        let detail = front::metavariables::format_elaboration_error(global.crate_env(), &err);
+        push_outputs(&global, &mut output_lines);
+        return (output_lines, Some(format!("Elaboration Error: {detail}")));
     }
 
     push_outputs(&global, &mut output_lines);

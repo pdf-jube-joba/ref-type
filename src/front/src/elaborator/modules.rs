@@ -199,12 +199,29 @@ impl GlobalEnvironment {
             .into());
         };
 
+        let predeclared = self.predeclared_modules
+            && self
+                .module_manager
+                .enter_existing_child(&self.crate_env, name.as_str())
+                .is_some();
+        if predeclared
+            && self
+                .processed_modules
+                .contains(&self.module_manager.current())
+        {
+            self.module_manager.moveto_parent(&self.crate_env);
+            return Ok(());
+        }
+
         // 1. before adding child, check well-typedness ness of parameters
         {
             self.metavariables.clear();
-            let reserved_module = self
-                .module_manager
-                .reserve_child_and_moveto(&mut self.crate_env, name.0.clone());
+            let reserved_module = if predeclared {
+                self.module_manager.current()
+            } else {
+                self.module_manager
+                    .reserve_child_and_moveto(&mut self.crate_env, name.0.clone())
+            };
             let mut ctx = self.module_manager.current_context(&self.crate_env);
 
             let mut parameter_position = 0_u32;
@@ -690,7 +707,9 @@ impl GlobalEnvironment {
                     )?;
                 }
                 ModuleItem::ChildModule { module } => {
-                    self.module_add_rec(module)?;
+                    if !self.defer_child_modules {
+                        self.module_add_rec(module)?;
+                    }
                 }
                 ModuleItem::Import { path, import_name } => {
                     if self
@@ -921,8 +940,12 @@ impl GlobalEnvironment {
             source: source.clone(),
             span: module.span,
         });
-        self.module_manager
-            .publish_current_module(&mut self.crate_env)?;
+        if !predeclared {
+            self.module_manager
+                .publish_current_module(&mut self.crate_env)?;
+        } else {
+            self.processed_modules.insert(self.module_manager.current());
+        }
         self.module_manager.moveto_parent(&self.crate_env);
         Ok(())
     }

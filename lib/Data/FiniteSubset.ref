@@ -1,0 +1,94 @@
+/* Finite subsets are subsets generated from empty by finitely many inserts. */
+\import \root.Logic[].Proposition[] \as Logic;
+
+\definition Empty: \Pow (A) :=
+  { x : A \where Logic.False };
+
+\definition Insert(a: A) (X: \Pow (A)): \Pow (A) :=
+  { x : A \where Logic.Or[x = a, \In[A] (X) (x)] };
+
+\definition Singleton(a: A): \Pow (A) :=
+  Insert a Empty;
+
+/* This is {a, b}; it has at most two elements and collapses when a = b. */
+\definition UnorderedPair(a, b: A): \Pow (A) :=
+  Insert a (Singleton b);
+
+/* Church induction characterizes the least class containing Empty and closed
+ * under Insert, without requiring a recursive indexed datatype. */
+\definition Finite(X: \Pow (A)): \Prop :=
+  \forall (P: \Pow (\Pow (A))) ->
+    \In[\Pow (A)] (P) (Empty) ->
+    (\forall (Y: \Pow (A)) -> \In[\Pow (A)] (P) (Y) ->
+      \forall (a: A) -> \In[\Pow (A)] (P) (Insert a Y)) ->
+    \In[\Pow (A)] (P) (X);
+
+\definition finiteEmpty: Finite Empty :=
+  \fun (P: \Pow (\Pow (A))) =>
+  \fun (empty: \In[\Pow (A)] (P) (Empty)) =>
+  \fun (insert: \forall (Y: \Pow (A)) -> \In[\Pow (A)] (P) (Y) ->
+    \forall (a: A) -> \In[\Pow (A)] (P) (Insert a Y)) => empty;
+
+\definition finiteInsert(a: A) (X: \Pow (A)) (finite: Finite X):
+  Finite (Insert a X) :=
+  \fun (P: \Pow (\Pow (A))) =>
+  \fun (empty: \In[\Pow (A)] (P) (Empty)) =>
+  \fun (insert: \forall (Y: \Pow (A)) -> \In[\Pow (A)] (P) (Y) ->
+    \forall (b: A) -> \In[\Pow (A)] (P) (Insert b Y)) =>
+    insert X (finite P empty insert) a;
+
+\definition FiniteSubsetSet: \Pow (\Pow (A)) :=
+  { X : \Pow (A) \where Finite X };
+
+\definition FiniteSubset: \Set :=
+  \Cast[\Pow (A)] (FiniteSubsetSet);
+
+\definition underlying(X: FiniteSubset): \Pow (A) := X;
+
+\definition finite(X: FiniteSubset): Finite (underlying X) :=
+  \bysub(\Pow (A), FiniteSubsetSet, X);
+
+\definition induction:
+  \forall (P: \Pow (\Pow (A))) ->
+    \In[\Pow (A)] (P) (Empty) ->
+    (\forall (Y: \Pow (A)) -> \In[\Pow (A)] (P) (Y) ->
+      \forall (a: A) -> \In[\Pow (A)] (P) (Insert a Y)) ->
+    \forall (X: FiniteSubset) -> \In[\Pow (A)] (P) (underlying X) :=
+  \fun (P: \Pow (\Pow (A))) =>
+  \fun (empty: \In[\Pow (A)] (P) (Empty)) =>
+  \fun (insert: \forall (Y: \Pow (A)) -> \In[\Pow (A)] (P) (Y) ->
+    \forall (a: A) -> \In[\Pow (A)] (P) (Insert a Y)) =>
+  \fun (X: FiniteSubset) => finite X P empty insert;
+
+\definition empty: FiniteSubset :=
+  \into[\Pow (A)](Empty, FiniteSubsetSet) \by { finiteEmpty };
+
+\definition insert(a: A) (X: FiniteSubset): FiniteSubset :=
+  \into[\Pow (A)](Insert a X, FiniteSubsetSet) \by { finiteInsert a X (finite X) };
+
+\definition singleton(a: A): FiniteSubset :=
+  \into[\Pow (A)](Singleton a, FiniteSubsetSet) \by { finiteInsert a Empty finiteEmpty };
+
+/* This is {a, b}; it has at most two elements and collapses when a = b. */
+\definition unorderedPair(a, b: A): FiniteSubset :=
+  \into[\Pow (A)](UnorderedPair a b, FiniteSubsetSet) \by { finiteInsert a (Singleton b) (finiteInsert b Empty finiteEmpty) };
+
+\definition Member(X: FiniteSubset) (x: A): \Prop :=
+  \In[A] (underlying X) (x);
+
+\definition inInsertNew(a: A) (X: \Pow (A)):
+  \In[A] (Insert a X) (a) :=
+  Logic.Or[a = a, \In[A] (X) (a)]::left (\refl(a));
+
+\definition inInsertOld(a: A) (X: \Pow (A)) (x: A)
+  (member: \In[A] (X) (x)): \In[A] (Insert a X) (x) :=
+  Logic.Or[x = a, \In[A] (X) (x)]::right member;
+
+\definition inSingleton(a: A): \In[A] (Singleton a) (a) :=
+  inInsertNew a Empty;
+
+\definition inUnorderedPairLeft(a, b: A): \In[A] (UnorderedPair a b) (a) :=
+  inInsertNew a (Singleton b);
+
+\definition inUnorderedPairRight(a, b: A): \In[A] (UnorderedPair a b) (b) :=
+  inInsertOld a (Singleton b) b (inSingleton b);

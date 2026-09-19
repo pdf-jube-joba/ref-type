@@ -81,6 +81,21 @@ impl ModuleManager {
         id
     }
 
+    pub(crate) fn enter_existing_child(
+        &mut self,
+        env: &CrateEnv,
+        module_name: &str,
+    ) -> Option<ModuleId> {
+        let child = env
+            .module(self.current)
+            .children()
+            .iter()
+            .copied()
+            .find(|child| env.module(*child).name() == module_name)?;
+        self.current = child;
+        Some(child)
+    }
+
     pub(crate) fn moveto_parent(&mut self, env: &CrateEnv) {
         if let Some(parent) = env.module(self.current).parent() {
             self.current = parent;
