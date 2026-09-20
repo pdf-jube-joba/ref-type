@@ -915,6 +915,35 @@ fn rich_goal_format_contains_context_and_constraints() {
 }
 
 #[test]
+fn dependency_ordered_module_errors_include_source_location() {
+    let source = std::sync::Arc::new(crate::syntax::SourceFile {
+        id: crate::syntax::SourceId("dependency-error.ref".into()),
+        text: r#"\module Consumer {
+  \import \root.Provider[] \as P;
+  \definition bad: P.Bit := P.one^;
+}
+\module Provider {
+  \inductive Bit: \VType := | bit: Bit; ;
+  \definition one: Bit := Bit::bit;
+}"#
+        .into(),
+    });
+    let mut modules = parse::parse_modules_from_source(&source).unwrap();
+    for module in &mut modules {
+        module.source = Some(source.clone());
+        module.header_source = Some(source.clone());
+    }
+    let mut environment = GlobalEnvironment::default();
+    let error = environment.add_modules_to_root(&modules).unwrap_err();
+    let rendered = crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+    assert!(rendered.contains("name does not denote a Program value: 'P.one^'"));
+    assert!(
+        rendered.contains("dependency-error.ref:3:"),
+        "{rendered}"
+    );
+}
+
+#[test]
 fn goal_keeps_consumed_and_residual_related_constraints() {
     let source = r#"
         \module GoalHistory(A: \Set(0), a: A) {

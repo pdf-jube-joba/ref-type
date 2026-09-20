@@ -413,6 +413,19 @@ pub enum LocalAccess {
     },
 }
 
+impl std::fmt::Display for LocalAccess {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Current { access } | Self::Resolved { access, .. } => {
+                formatter.write_str(access.as_str())
+            }
+            Self::Named { access, child } => {
+                write!(formatter, "{}.{}", access.as_str(), child.as_str())
+            }
+        }
+    }
+}
+
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {

@@ -475,7 +475,13 @@ impl GlobalEnvironment {
         })();
         self.defer_child_modules = false;
         self.predeclared_modules = false;
-        result
+        match (result, self.diagnostic_location.take()) {
+            (Err(error), Some(location)) => Err(ElaborationError::Located {
+                location,
+                error: Box::new(error),
+            }),
+            (result, _) => result,
+        }
     }
 
     fn module_id_for_path(&self, path: &[String]) -> Option<ModuleId> {

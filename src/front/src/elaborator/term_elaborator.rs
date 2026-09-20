@@ -412,9 +412,9 @@ impl LocalScope {
                             handler.env().definition(definition),
                             DefinedConstant::Pts { .. }
                         ) {
-                            return Err(
-                                "Program definitions require explicit Set reflection (^)".into()
-                            );
+                            return Err(format!(
+                                "Program definitions require explicit Set reflection (^): '{access}'"
+                            ));
                         }
                         Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
                     }
@@ -458,9 +458,9 @@ impl LocalScope {
                     }
                     ItemAccessResult::ProgramInductive(_)
                     | ItemAccessResult::ProgramTypeParameter(_)
-                    | ItemAccessResult::ProgramValueParameter(_) => {
-                        Err("Program names require explicit Set reflection (^)".into())
-                    }
+                    | ItemAccessResult::ProgramValueParameter(_) => Err(format!(
+                        "Program names require explicit Set reflection (^): '{access}'"
+                    )),
                 }
             }
             // this includes accessing constructor of the inductive type, accessing field of record type

@@ -302,7 +302,9 @@ impl ProgramScope {
                             parameters,
                         }))
                     }
-                    _ => Err("name does not denote a Program value type".into()),
+                    _ => Err(format!(
+                        "name does not denote a Program value type: '{access}'"
+                    )),
                 }
             }
             ValueTypeExp::Thunk(computation_ty) => {
@@ -450,7 +452,7 @@ impl ProgramScope {
                             _ => Err("definition is not a Program value".into()),
                         }
                     }
-                    _ => Err("name does not denote a Program value".into()),
+                    _ => Err(format!("name does not denote a Program value: '{access}'")),
                 }
             }
             ValueTermExp::Constructor {
