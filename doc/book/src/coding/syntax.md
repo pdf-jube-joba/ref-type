@@ -289,6 +289,11 @@ A -> B
 
 \take (x: A) => body
 \by { existence: existence-proof, uniqueness: uniqueness-proof }
+
+\block {
+  \takefrom x: A \by existence-proof;
+  \return body;
+}
 ```
 
 `uniqueness` のない form は proposition-valued、ある form は set-valued choice である。

@@ -605,6 +605,12 @@ fn alpha_rename(
                         alpha_rename(map, order, counter, scopes);
                         alpha_rename(map_ty, order, counter, scopes);
                     }
+                    Statement::TakeFrom { var, ty, existence } => {
+                        alpha_rename(ty, order, counter, scopes);
+                        alpha_rename(existence, order, counter, scopes);
+                        scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
+                        pushed += 1;
+                    }
                 }
             }
             alpha_rename(&mut block.result, order, counter, scopes);
@@ -1793,6 +1799,10 @@ fn walk_statement_mut(statement: &mut Statement, action: &mut impl FnMut(&mut SE
         Statement::Sufficient { map, map_ty } => {
             walk_sexp_control(map, action);
             walk_sexp_control(map_ty, action);
+        }
+        Statement::TakeFrom { ty, existence, .. } => {
+            walk_sexp_control(ty, action);
+            walk_sexp_control(existence, action);
         }
     }
 }

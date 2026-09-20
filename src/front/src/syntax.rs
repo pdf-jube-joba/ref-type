@@ -1131,6 +1131,11 @@ pub enum Statement {
         map: SExp,
         map_ty: SExp,
     }, // enough A by t;
+    TakeFrom {
+        var: Identifier,
+        ty: SExp,
+        existence: SExp,
+    }, // takefrom x: A by existence;
 }
 
 #[derive(Debug, Clone)]

@@ -857,6 +857,17 @@ impl<'a> TermParser<'a> {
                 continue;
             }
 
+            if self.bump_if_keyword("\\takefrom") {
+                let var = self.expect_binder_ident()?;
+                self.expect_token(Token::Colon)?;
+                let ty = self.parse_sexp()?;
+                self.expect_keyword("\\by")?;
+                let existence = self.parse_sexp()?;
+                self.expect_token(Token::Semicolon)?;
+                statements.push(Statement::TakeFrom { var, ty, existence });
+                continue;
+            }
+
             if self.bump_if_keyword("\\return") {
                 // r"\return" <exp: SExp> ";"
                 let result = self.parse_sexp()?;

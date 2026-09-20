@@ -1534,6 +1534,16 @@ impl LocalScope {
                                 "\\bind statements are only available in Program blocks".into()
                             );
                         }
+                        Statement::TakeFrom { var, ty, existence } => {
+                            term = SExp::TakeProp {
+                                bind: Bind::Named(RightBind {
+                                    vars: vec![var.clone()],
+                                    ty: Box::new(ty.clone()),
+                                }),
+                                body: Box::new(term),
+                                existence: Box::new(existence.clone()),
+                            };
+                        }
                         Statement::Sufficient { map, map_ty } => {
                             let argument = Identifier("enoughArgument".into());
                             term = SExp::App {
