@@ -63,11 +63,12 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 
 ## 代数構造
 
-`Monoid(Carrier := A)` は `RawMonoid` と `MonoidLaws` を分離し、両者を満たす値を
-refinement `Monoid` として表す。`CommutativeMonoid` も同じ raw data を使う。
+`Monoid[]` は carrier を module parameter に持たず、`RawMonoid[A]` と
+`MonoidLaws[A, s]` を分離し、両者を満たす値を `Monoid A` として表す。
+`CommutativeMonoid` も同じ raw data を使う。
 `monoidLawsIntro` と `commutativeMonoidLawsIntro` は法則レコードの構築を補助する。
 
-`Algebra(Carrier := A)` は次の構造を提供する。
+`Algebra[]` は carrier を各 record の parameter として受け取り、次の構造を提供する。
 
 - `Group` / `CommutativeGroup`
 - `Semiring`
