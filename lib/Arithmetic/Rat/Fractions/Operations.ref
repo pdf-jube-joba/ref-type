@@ -233,6 +233,72 @@
       (I.mulIntegerComm c d))
     (I.mulIntegerInterchange a b d c);
 
+\definition mulIntegerSwapNested (a, b, r: I.Integer):
+  I.IntegerEq (I.mulInteger a (I.mulInteger b r))
+    (I.mulInteger b (I.mulInteger a r)) :=
+  I.integerEqTrans _ _ _
+    (I.integerEqSym _ _ (I.mulIntegerAssoc a b r))
+    (I.integerEqTrans _ _ _
+      (I.mulIntegerRespects (I.mulInteger a b) (I.mulInteger b a) r r
+        (I.mulIntegerComm a b) (I.integerEqRefl r))
+      (I.mulIntegerAssoc b a r));
+
+\definition mulIntegerDistributiveTerm
+  (a, b, d, e, f, h: I.Integer):
+  I.IntegerEq
+    (I.mulInteger (I.mulInteger a (I.mulInteger b h))
+      (I.mulInteger (I.mulInteger d e) (I.mulInteger d f)))
+    (I.mulInteger
+      (I.mulInteger (I.mulInteger a b) (I.mulInteger d h))
+      (I.mulInteger d (I.mulInteger e f))) :=
+  \block {
+    \let sourceCanonical: I.IntegerEq
+        (I.mulInteger (I.mulInteger a (I.mulInteger b h))
+          (I.mulInteger (I.mulInteger d e) (I.mulInteger d f)))
+        (I.mulInteger a (I.mulInteger b (I.mulInteger h
+          (I.mulInteger d (I.mulInteger e (I.mulInteger d f)))))) :=
+      I.integerEqTrans _ _ _
+        (I.mulIntegerAssoc a (I.mulInteger b h)
+          (I.mulInteger (I.mulInteger d e) (I.mulInteger d f)))
+        (I.integerEqTrans _ _ _
+          (I.mulIntegerRespects a a _ _ (I.integerEqRefl a)
+            (I.mulIntegerAssoc b h
+              (I.mulInteger (I.mulInteger d e) (I.mulInteger d f))))
+          (I.mulIntegerRespects a a _ _ (I.integerEqRefl a)
+            (I.mulIntegerRespects b b _ _ (I.integerEqRefl b)
+              (I.mulIntegerRespects h h _ _ (I.integerEqRefl h)
+                (I.mulIntegerAssoc d e (I.mulInteger d f))))));
+    \let targetCanonical: I.IntegerEq
+        (I.mulInteger
+          (I.mulInteger (I.mulInteger a b) (I.mulInteger d h))
+          (I.mulInteger d (I.mulInteger e f)))
+        (I.mulInteger a (I.mulInteger b (I.mulInteger h
+          (I.mulInteger d (I.mulInteger e (I.mulInteger d f)))))) :=
+      I.integerEqTrans _ _ _
+        (I.mulIntegerAssoc (I.mulInteger a b) (I.mulInteger d h)
+          (I.mulInteger d (I.mulInteger e f)))
+        (I.integerEqTrans _ _ _
+          (I.mulIntegerRespects (I.mulInteger a b) (I.mulInteger a b) _ _
+            (I.integerEqRefl (I.mulInteger a b))
+            (I.mulIntegerAssoc d h (I.mulInteger d (I.mulInteger e f))))
+          (I.integerEqTrans _ _ _
+            (I.mulIntegerAssoc a b
+              (I.mulInteger d (I.mulInteger h
+                (I.mulInteger d (I.mulInteger e f)))))
+            (I.integerEqTrans _ _ _
+              (I.mulIntegerRespects a a _ _ (I.integerEqRefl a)
+                (I.mulIntegerRespects b b _ _ (I.integerEqRefl b)
+                  (mulIntegerSwapNested d h
+                    (I.mulInteger d (I.mulInteger e f)))))
+              (I.mulIntegerRespects a a _ _ (I.integerEqRefl a)
+                (I.mulIntegerRespects b b _ _ (I.integerEqRefl b)
+                  (I.mulIntegerRespects h h _ _ (I.integerEqRefl h)
+                    (I.mulIntegerRespects d d _ _ (I.integerEqRefl d)
+                      (mulIntegerSwapNested d e f))))))));
+    \return I.integerEqTrans _ _ _ sourceCanonical
+      (I.integerEqSym _ _ targetCanonical);
+  };
+
 \definition addAssocNumerator (x, y, z: Fraction):
   I.IntegerEq (#numerator{(add (add x y) z)})
     (#numerator{(add x (add y z))}) :=
@@ -702,6 +768,113 @@
   fractionEqOfNumeratorDenominator (mul (mul x y) z) (mul x (mul y z))
     (I.mulIntegerAssoc (#numerator{x}) (#numerator{y}) (#numerator{z}))
     (mulAssocDenominator x y z);
+
+\definition fractionMulAddLeft (x, y, z: Fraction):
+  FractionEq (mul x (add y z)) (add (mul x y) (mul x z)) :=
+  \block {
+    \let leftDenominator: I.IntegerEq
+        (denominator (add (mul x y) (mul x z)))
+        (I.mulInteger
+          (I.mulInteger (denominator x) (denominator y))
+          (I.mulInteger (denominator x) (denominator z))) :=
+      I.integerEqTrans _ _ _
+        (denominatorAdd (mul x y) (mul x z))
+        (I.mulIntegerRespects _ _ _ _
+          (denominatorMul x y) (denominatorMul x z));
+    \let rightNumerator: I.IntegerEq
+        (#numerator{(add (mul x y) (mul x z))})
+        (I.addInteger
+          (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{y}))
+            (I.mulInteger (denominator x) (denominator z)))
+          (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{z}))
+            (I.mulInteger (denominator x) (denominator y)))) :=
+      I.addIntegerRespects _ _ _ _
+        (I.mulIntegerRespects _ _ _ _ (numeratorMul x y)
+          (denominatorMul x z))
+        (I.mulIntegerRespects _ _ _ _ (numeratorMul x z)
+          (denominatorMul x y));
+    \let rightDenominator: I.IntegerEq
+        (denominator (mul x (add y z)))
+        (I.mulInteger (denominator x)
+          (I.mulInteger (denominator y) (denominator z))) :=
+      I.integerEqTrans _ _ _ (denominatorMul x (add y z))
+        (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
+          (denominatorAdd y z));
+    \let leftNormalized: I.IntegerEq
+        (I.mulInteger (#numerator{(mul x (add y z))})
+          (denominator (add (mul x y) (mul x z))))
+        (I.mulInteger
+          (I.mulInteger (#numerator{x})
+            (I.addInteger
+              (I.mulInteger (#numerator{y}) (denominator z))
+              (I.mulInteger (#numerator{z}) (denominator y))))
+          (I.mulInteger
+            (I.mulInteger (denominator x) (denominator y))
+            (I.mulInteger (denominator x) (denominator z)))) :=
+      I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _) leftDenominator;
+    \let rightNormalized: I.IntegerEq
+        (I.mulInteger (#numerator{(add (mul x y) (mul x z))})
+          (denominator (mul x (add y z))))
+        (I.mulInteger
+          (I.addInteger
+            (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{y}))
+              (I.mulInteger (denominator x) (denominator z)))
+            (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{z}))
+              (I.mulInteger (denominator x) (denominator y))))
+          (I.mulInteger (denominator x)
+            (I.mulInteger (denominator y) (denominator z)))) :=
+      I.mulIntegerRespects _ _ _ _ rightNumerator rightDenominator;
+    \let common: I.Integer :=
+      I.mulInteger (denominator x)
+        (I.mulInteger (denominator y) (denominator z));
+    \let expanded: I.IntegerEq
+        (I.mulInteger
+          (I.mulInteger (#numerator{x})
+            (I.addInteger
+              (I.mulInteger (#numerator{y}) (denominator z))
+              (I.mulInteger (#numerator{z}) (denominator y))))
+          (I.mulInteger
+            (I.mulInteger (denominator x) (denominator y))
+            (I.mulInteger (denominator x) (denominator z))))
+        (I.mulInteger
+          (I.addInteger
+            (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{y}))
+              (I.mulInteger (denominator x) (denominator z)))
+            (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{z}))
+              (I.mulInteger (denominator x) (denominator y)))) common) :=
+      I.integerEqTrans _ _ _
+        (I.mulIntegerRespects _ _ _ _
+          (I.mulIntegerDistribLeft (#numerator{x})
+            (I.mulInteger (#numerator{y}) (denominator z))
+            (I.mulInteger (#numerator{z}) (denominator y)))
+          (I.integerEqRefl _))
+        (I.integerEqTrans _ _ _
+          (I.mulIntegerDistribRight
+            (I.mulInteger (#numerator{x})
+              (I.mulInteger (#numerator{y}) (denominator z)))
+            (I.mulInteger (#numerator{x})
+              (I.mulInteger (#numerator{z}) (denominator y)))
+            (I.mulInteger
+              (I.mulInteger (denominator x) (denominator y))
+              (I.mulInteger (denominator x) (denominator z))))
+          (I.integerEqTrans _ _ _
+            (I.addIntegerRespects _ _ _ _
+              (mulIntegerDistributiveTerm (#numerator{x}) (#numerator{y})
+                (denominator x) (denominator y) (denominator z)
+                (denominator z))
+              (mulIntegerDistributiveTerm (#numerator{x}) (#numerator{z})
+                (denominator x) (denominator y) (denominator z)
+                (denominator y)))
+            (I.integerEqSym _ _
+              (I.mulIntegerDistribRight
+                (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{y}))
+                  (I.mulInteger (denominator x) (denominator z)))
+                (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{z}))
+                  (I.mulInteger (denominator x) (denominator y))) common))));
+    \return I.integerEqTrans _ _ _ leftNormalized
+      (I.integerEqTrans _ _ _ expanded
+        (I.integerEqSym _ _ rightNormalized));
+  };
 
 \definition fractionMulNegLeft (x, y: Fraction):
     FractionEq (mul (neg x) y) (neg (mul x y)) :=
