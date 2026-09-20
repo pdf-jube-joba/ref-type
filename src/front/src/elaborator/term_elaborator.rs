@@ -501,6 +501,17 @@ impl LocalScope {
                             ))
                         }
                         ItemAccessResult::Record(record) => {
+                            if field.as_str() == "#" {
+                                let count =
+                                    handler.env().inductive(record.inductive).parameters().len();
+                                let parameters =
+                                    self.associated_parameters(parameters, count, handler)?;
+                                return Ok(handler.arena().alloc(ExpNode::IndCtor {
+                                    indspec: record.inductive,
+                                    idx: 0,
+                                    parameters,
+                                }));
+                            }
                             if let Some((_, definition)) = record
                                 .associated_definitions
                                 .iter()
@@ -567,6 +578,10 @@ impl LocalScope {
                     let base_elab = self.elab_exp_rec(base, handler)?;
                     handler.field_projection(base_elab, field)
                 }
+            }
+            SExp::InferredProjection { value, field } => {
+                let value = self.elab_exp_rec(value, handler)?;
+                handler.field_projection(value, field)
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
                 let expanded = expand_macros(exp, handler)?;

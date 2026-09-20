@@ -327,6 +327,18 @@ impl ModuleManager {
         })
     }
 
+    pub(crate) fn get_moditem_program_record(
+        &self,
+        env: &CrateEnv,
+        inductive: ProgramInductiveId,
+    ) -> Option<ModItemProgramInductive> {
+        let item = env.program_record_for_inductive(inductive)?;
+        let ItemAccessResult::ProgramInductive(record) = convert_item(item) else {
+            return None;
+        };
+        Some(record)
+    }
+
     fn resolve_start(
         &self,
         env: &CrateEnv,

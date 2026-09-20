@@ -333,6 +333,7 @@ fn alpha_rename(
             }
         }
         SExp::AssociatedAccess { base, .. }
+        | SExp::InferredProjection { value: base, .. }
         | SExp::ThunkType {
             computation_ty: base,
         }
@@ -1432,6 +1433,7 @@ pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SEx
             walk_sexp_control(motive, action);
         }
         SExp::AssociatedAccess { base, .. }
+        | SExp::InferredProjection { value: base, .. }
         | SExp::ThunkType {
             computation_ty: base,
         }

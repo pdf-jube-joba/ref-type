@@ -63,6 +63,39 @@ fn record_fields_are_generated_as_eliminator_definitions() {
 }
 
 #[test]
+fn records_have_type_directed_projection_and_generic_construction_syntax() {
+    let source = r#"
+        \module Records {
+            \inductive Bit: \Set :=
+            | zero: Bit;
+            | one: Bit;
+            ;
+            \record Pair(A: \Set): \Set := {
+                first: A,
+                second: A,
+            };
+            \definition pair: Pair[Bit] := Pair::# Bit::zero Bit::one;
+            \definition first: Bit := #first{pair};
+
+            \inductive VBit: \VType :=
+            | zero: VBit;
+            | one: VBit;
+            ;
+            \record VPair(A: \VType): \VType := {
+                first: A,
+                second: A,
+            };
+            \definition vpair: VPair[VBit] :=
+                VPair::# VBit::zero VBit::one;
+            \definition vfirst: \F(VBit) := #first{vpair};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
 fn logical_case_is_distinct_from_inductive_elimination() {
     let source = r#"
         \module Cases {

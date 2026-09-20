@@ -1009,9 +1009,15 @@ impl<'a> TermParser<'a> {
                 let parameters = self.parse_optional_parameters()?;
 
                 // field access case or record construction case
+                if self.bump_if_token(Token::RecordConstructor) {
+                    return Ok(SExp::AssociatedAccess {
+                        base: Box::new(SExp::AccessPath { access, parameters }),
+                        field: Identifier("#".into()),
+                    });
+                }
                 if self.bump_if_token(Token::DoubleColon) {
                     // field access case
-                    let field_name = self.expect_ident()?;
+                    let field_name = self.expect_associated_name()?;
                     return Ok(SExp::AssociatedAccess {
                         base: Box::new(SExp::AccessPath { access, parameters }),
                         field: field_name,
@@ -1019,6 +1025,17 @@ impl<'a> TermParser<'a> {
                 }
 
                 Ok(SExp::AccessPath { access, parameters })
+            }
+            Some(Token::Macro("#")) => {
+                self.next();
+                let field = self.expect_ident()?;
+                self.expect_token(Token::LBrace)?;
+                let value = self.parse_sexp()?;
+                self.expect_token(Token::RBrace)?;
+                Ok(SExp::InferredProjection {
+                    value: Box::new(value),
+                    field,
+                })
             }
             Some(Token::LBrace) => {
                 let bind = self.parse_binding(Token::LBrace, Token::RBrace)?;
@@ -1073,11 +1090,17 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    // <atom> ("::" Ident)*
+    // <atom> (("::" Ident) | "::#")*
     fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
-        while self.bump_if_token(Token::DoubleColon) {
-            let field_name = self.expect_ident()?;
+        loop {
+            let field_name = if self.bump_if_token(Token::RecordConstructor) {
+                Identifier("#".into())
+            } else if self.bump_if_token(Token::DoubleColon) {
+                self.expect_associated_name()?
+            } else {
+                break;
+            };
             expr = SExp::AssociatedAccess {
                 base: Box::new(expr),
                 field: field_name,
@@ -1191,12 +1214,21 @@ impl<'a> TermParser<'a> {
                 | Token::LParen
                 | Token::MathLParen,
             ) => true,
+            Some(Token::Macro("#")) => true,
             Some(Token::KeyWord(k)) => {
                 SORT_KEYWORDS.contains(k)
                     || EXPRESSION_ATOM_KEYWORDS.contains(k)
                     || PROOF_TERM_KEYWORDS.contains(k)
             }
             _ => false,
+        }
+    }
+
+    fn expect_associated_name(&mut self) -> Result<Identifier, ParseError> {
+        if self.bump_if_token(Token::Macro("#")) {
+            Ok(Identifier("#".into()))
+        } else {
+            self.expect_ident()
         }
     }
 

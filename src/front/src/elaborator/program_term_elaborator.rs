@@ -493,9 +493,30 @@ impl ProgramScope {
                     ));
                 }
                 if item.record_fields.is_some() {
-                    return Err(format!(
-                        "Program associated item {} was not found",
-                        constructor.as_str()
+                    if constructor.as_str() != "#" {
+                        return Err(format!(
+                            "Program associated item {} was not found",
+                            constructor.as_str()
+                        ));
+                    }
+                    let parameter_count = environment
+                        .crate_env
+                        .program_inductive(item.inductive)
+                        .parameters()
+                        .len();
+                    let parameters =
+                        self.associated_arguments(environment, parameters, parameter_count)?;
+                    let fields = fields
+                        .iter()
+                        .map(|field| self.elaborate_value(field, environment))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    return Ok(environment.crate_env.arena().alloc(
+                        ValueTermNode::InductiveConstructor {
+                            indspec: item.inductive,
+                            parameters,
+                            idx: 0,
+                            fields,
+                        },
                     ));
                 }
                 let parameters = parameters
@@ -569,6 +590,55 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, String> {
         match expression {
+            ComputationTermExp::InferredProjection { value, field } => {
+                let value = self.elaborate_value(value, environment)?;
+                let mut context = self.context.clone();
+                let value_ty = self.infer_kernel_value(environment, &mut context, value)?;
+                let value_ty = self.resolve_value_type_head(environment, value_ty);
+                let ValueTypeNode::Inductive {
+                    indspec,
+                    parameters,
+                } = environment.crate_env.arena().get(value_ty)
+                else {
+                    return Err("Program field projection expects a record value".into());
+                };
+                let record = environment
+                    .module_manager
+                    .get_moditem_program_record(&environment.crate_env, indspec)
+                    .ok_or("Program field projection expects a record value")?;
+                let (_, definition) = record
+                    .associated_definitions
+                    .iter()
+                    .find(|(candidate, _)| candidate == field)
+                    .ok_or_else(|| {
+                        format!(
+                            "Field {} not found in Program record {}",
+                            field.as_str(),
+                            record.type_name.as_str()
+                        )
+                    })?;
+                if !matches!(
+                    environment.crate_env.definition(*definition),
+                    DefinedConstant::ProgramComputation { .. }
+                ) {
+                    return Err("Program record projection is not a computation".into());
+                }
+                let projection =
+                    environment
+                        .crate_env
+                        .arena()
+                        .alloc(ComputationTermNode::DefinitionInstance {
+                            definition: *definition,
+                            parameters,
+                        });
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::Application {
+                        computation: projection,
+                        value,
+                    }))
+            }
             ComputationTermExp::Associated {
                 datatype,
                 item: name,

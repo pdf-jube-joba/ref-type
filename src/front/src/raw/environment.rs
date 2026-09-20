@@ -1102,6 +1102,22 @@ impl CrateEnv {
         })
     }
 
+    pub fn program_record_for_inductive(
+        &self,
+        inductive: ProgramInductiveId,
+    ) -> Option<&ModuleItem> {
+        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
+            matches!(
+                item,
+                ModuleItem::ProgramInductive {
+                    record_fields: Some(_),
+                    inductive: candidate,
+                    ..
+                } if *candidate == inductive
+            )
+        })
+    }
+
     pub fn materialization_stats(&self) -> MaterializationStats {
         MaterializationStats {
             definitions: self.materialized_definitions.get(),

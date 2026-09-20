@@ -69,6 +69,7 @@ enum Token<'a> {
     Equal,     // "="
     Exclamation, // "!"
     DoubleColon, // "::"
+    RecordConstructor, // "::#"
 }
 
 static SORT_KEYWORDS: &[&str] = &["\\Prop", "\\PropKind", "\\Set", "\\SetKind"];
@@ -159,6 +160,7 @@ fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, String> {
                     "=" => Token::Equal,
                     "!" => Token::Exclamation,
                     "::" => Token::DoubleColon,
+                    "::#" => Token::RecordConstructor,
                     _ => Token::Macro(s),
                 };
 

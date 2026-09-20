@@ -312,6 +312,10 @@ pub enum ComputationTermExp {
         item: Identifier,
         parameters: Vec<ValueTypeExp>,
     },
+    InferredProjection {
+        value: Box<ValueTermExp>,
+        field: Identifier,
+    },
     Return(Box<ValueTermExp>),
     Force(Box<ValueTermExp>),
     Lambda {
@@ -425,6 +429,10 @@ pub enum SExp {
     // accessing constructor of the inductive type, accessing field of record type
     AssociatedAccess {
         base: Box<SExp>,
+        field: Identifier,
+    },
+    InferredProjection {
+        value: Box<SExp>,
         field: Identifier,
     },
 
@@ -875,6 +883,10 @@ impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::InferredProjection { value, field } => Ok(Self::InferredProjection {
+                value: Box::new((*value).try_into()?),
+                field,
+            }),
             SExp::AssociatedAccess { base, field } => {
                 let SExp::AccessPath { access, parameters } = *base else {
                     return Err("expected a Program datatype before associated access".into());
