@@ -2362,4 +2362,68 @@
         (fractionMulNegRight x y))
       (fractionNegInvolutive (mul x y)));
 
+\definition fractionAddSubRight (x, y: Fraction):
+  FractionEq (add x (sub y x)) y :=
+  fractionEqTrans _ _ _
+    (fractionEqSym _ _ (fractionAddAssoc x y (neg x)))
+    (fractionEqTrans _ _ _
+      (fractionAddRespects (add x y) (add y x) (neg x) (neg x)
+        (fractionAddComm x y) (fractionEqRefl (neg x)))
+      (fractionEqTrans _ _ _
+        (fractionAddAssoc y x (neg x))
+        (fractionEqTrans _ _ _
+          (fractionAddRespects y y (add x (neg x)) zero
+            (fractionEqRefl y) (fractionAddNegRight x))
+          (fractionAddZeroRight y))));
+
+\definition subPositive (x, y: Fraction) (xy: lt x y):
+  lt zero (sub y x) :=
+  FractionOrder.ltReplaceLeft (add x (neg x)) zero (sub y x)
+    (fractionAddNegRight x)
+    (ltAddRight x y (neg x) xy);
+
+\definition ltAddCancelRightOrder (x, y, z: Fraction)
+  (same: lt (add x z) (add y z)): lt x y :=
+  FractionOrder.ltRespects
+    (add (add x z) (neg z)) x
+    (add (add y z) (neg z)) y
+    (fractionAddCancelRightSimplify x z)
+    (fractionAddCancelRightSimplify y z)
+    (ltAddRight (add x z) (add y z) (neg z) same);
+
+\definition scaledBracketInterior (t, a, c, e: Fraction)
+  (tOne: lt t one) (aOutside: lt a (add c e))
+  (base: lt (add (mul t a) e) a):
+  lt (mul t (add c e)) c :=
+  \block {
+    \let d: Fraction := add c e;
+    \let h: Fraction := sub d a;
+    \let hPositive: lt zero h := subPositive a d aOutside;
+    \let ahd: FractionEq (add a h) d := fractionAddSubRight a d;
+    \let thh: lt (mul t h) h :=
+      FractionOrder.ltReplaceRight (mul t h) (mul one h) h
+        (fractionMulOneLeft h)
+        (ltMulPositiveRight t one h hPositive tOne);
+    \let left: FractionEq (add (mul t d) e)
+        (add (add (mul t a) e) (mul t h)) :=
+      fractionEqTrans _ _ _
+        (fractionAddRespects (mul t d) (mul t (add a h)) e e
+          (fractionMulRespects t t d (add a h)
+            (fractionEqRefl t) (fractionEqSym _ _ ahd))
+          (fractionEqRefl e))
+        (fractionEqTrans _ _ _
+          (fractionAddRespects (mul t (add a h))
+            (add (mul t a) (mul t h)) e e
+            (fractionMulAddLeft t a h) (fractionEqRefl e))
+          (fractionAddRotate (mul t a) (mul t h) e));
+    \let withE: lt (add (mul t d) e) d :=
+      FractionOrder.ltReplaceRight (add (mul t d) e) (add a h) d ahd
+        (FractionOrder.ltReplaceLeft
+          (add (add (mul t a) e) (mul t h))
+          (add (mul t d) e) (add a h)
+          (fractionEqSym _ _ left)
+          (ltAdd (add (mul t a) e) a (mul t h) h base thh));
+    \return ltAddCancelRightOrder (mul t d) c e withE;
+  };
+
 \module Quotient;
