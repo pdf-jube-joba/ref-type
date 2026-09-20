@@ -11,7 +11,22 @@
       \Cast[Nat] ({ j : Nat \where EquivalentAt x y eps j }))
   \by { cauchyProperty x eps positive };
 
+\definition pointwiseFractionEquivalent (x, y: CauchySeq)
+  (same: \forall (n: Nat) -> RationalFractions.FractionEq (at x n) (at y n)):
+  Equivalent x y :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \exact(
+      \into[Nat](N.Nat^::zero,
+        { k : Nat \where EquivalentAt x y eps k }) \by {
+          \fun (n: Nat) => \fun (_: NatLe N.Nat^::zero n) =>
+            closeOfFractionEq (at x n) (at y n) eps (same n) positive },
+      \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }));
+
 \definition ConstSeq (a: Rat) (n: Nat): Rat := a;
+\definition AddSeq (x, y: CauchySeq) (n: Nat): Rat :=
+  addRat (at x n) (at y n);
+\definition MulSeq (x, y: CauchySeq) (n: Nat): Rat :=
+  mulRat (at x n) (at y n);
 \definition constCauchyOf (a: Rat)
   (selfClose: \forall (eps: Rat) -> Positive eps -> Close a a eps)
   (eps: Rat) (positive: Positive eps):
@@ -20,6 +35,10 @@
     \into[Nat](N.Nat^::zero, { k : Nat \where CauchyAt (ConstSeq a) eps k }) \by { \fun (m, n: Nat) => \fun (_: NatLe N.Nat^::zero m) =>
       \fun (_: NatLe N.Nat^::zero n) => selfClose eps positive },
     \Cast[Nat] ({ k : Nat \where CauchyAt (ConstSeq a) eps k }));
+\definition constCauchy (a: Rat): IsCauchy (ConstSeq a) :=
+  constCauchyOf a (closeRefl a);
+\definition ConstCauchy (a: Rat): CauchySeq :=
+  \into[Sequence](ConstSeq a, CauchySet) \by { constCauchy a };
 \definition zeroClose (eps: Rat) (positive: Positive eps): Close zeroRat zeroRat eps :=
   Logic.And[ltRat (subRat zeroRat zeroRat) eps, ltRat (subRat zeroRat zeroRat) eps]::# (positive) (positive);
 \definition oneClose (eps: Rat) (positive: Positive eps): Close oneRat oneRat eps :=
@@ -30,6 +49,827 @@
   \into[Sequence](ConstSeq zeroRat, CauchySet) \by { zeroCauchy };
 \definition one: CauchySeq :=
   \into[Sequence](ConstSeq oneRat, CauchySet) \by { oneCauchy };
+
+\definition BoundedAt (x: CauchySeq) (B: Rat) (N: Nat): \Prop :=
+  Logic.And[Positive B,
+    \forall (n: Nat) -> NatLe N n -> Close (at x n) zeroRat B];
+
+\definition EventuallyBounded (x: CauchySeq): \Prop :=
+  \exists \Cast[Rat] ({ B : Rat \where
+    \exists \Cast[Nat] ({ N : Nat \where BoundedAt x B N }) });
+
+\definition boundWidth (x: CauchySeq) (N: Nat): Rat :=
+  addRat oneRat (bound (at x N));
+
+\definition boundWidthPositive (x: CauchySeq) (N: Nat):
+    Positive (boundWidth x N) :=
+  RationalOrder.ltReplaceLeft (addRat zeroRat zeroRat) zeroRat
+    (boundWidth x N)
+    (RationalOperations.fractionAddZeroRight zeroRat)
+    (RationalOperations.ltAdd zeroRat oneRat zeroRat (bound (at x N))
+      RationalOrder.zeroLtOne (boundPositive (at x N)));
+
+\definition eventuallyBounded (x: CauchySeq): EventuallyBounded x :=
+  \take (N: \Cast[Nat] ({ k : Nat \where CauchyAt x oneRat k })) =>
+    \exact(
+      \into[Rat](boundWidth x N,
+        { B : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where BoundedAt x B k }) }) \by {
+          \exact(
+            \into[Nat](N, { k : Nat \where BoundedAt x (boundWidth x N) k }) \by {
+              Logic.And[Positive (boundWidth x N),
+                \forall (n: Nat) -> NatLe N n ->
+                  Close (at x n) zeroRat (boundWidth x N)]::#
+                (boundWidthPositive x N)
+                (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+                  closeTransAdd (at x n) (at x N) zeroRat
+                    oneRat (bound (at x N))
+                    ((\bysub(Nat,
+                      { k : Nat \where CauchyAt x oneRat k }, N))
+                      n N Nn (NL.leRefl N))
+                    (closeZeroOfBound (at x N))) },
+            \Cast[Nat] ({ k : Nat \where BoundedAt x (boundWidth x N) k })) },
+      \Cast[Rat] ({ B : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where BoundedAt x B k }) }))
+  \by { cauchyProperty x oneRat RationalOrder.zeroLtOne };
+
+\definition NonzeroFailure (x: CauchySeq): \Prop :=
+  \exists \Cast[Rat] ({ eps : Rat \where
+    Logic.And[Positive eps,
+      Logic.Not (\exists \Cast[Nat] ({ k : Nat \where
+        EquivalentAt x zero eps k }))] });
+
+\definition nonEquivalentFailure (x: CauchySeq)
+    (nonzero: Logic.Not (Equivalent x zero)): NonzeroFailure x :=
+  byContradiction (NonzeroFailure x)
+    (\fun (noFailure: Logic.Not (NonzeroFailure x)) =>
+      nonzero
+        (\fun (eps: Rat) => \fun (positive: Positive eps) =>
+          byContradiction
+            (\exists \Cast[Nat] ({ k : Nat \where
+              EquivalentAt x zero eps k }))
+            (\fun (noWitness: Logic.Not
+                (\exists \Cast[Nat] ({ k : Nat \where
+                  EquivalentAt x zero eps k }))) =>
+              noFailure
+                (\exact(
+                  \into[Rat](eps, { e : Rat \where
+                    Logic.And[Positive e,
+                      Logic.Not (\exists \Cast[Nat]
+                        ({ k : Nat \where EquivalentAt x zero e k }))] })
+                    \by { Logic.And[Positive eps,
+                      Logic.Not (\exists \Cast[Nat]
+                        ({ k : Nat \where EquivalentAt x zero eps k }))]::#
+                      (positive) (noWitness) },
+                  \Cast[Rat] ({ e : Rat \where
+                    Logic.And[Positive e,
+                      Logic.Not (\exists \Cast[Nat]
+                        ({ k : Nat \where EquivalentAt x zero e k }))] }))))));
+
+\definition EventuallyPositive (x: CauchySeq): \Prop :=
+  \exists \Cast[Rat] ({ r : Rat \where
+    \exists \Cast[Nat] ({ k : Nat \where
+      Logic.And[Positive r,
+        \forall (n: Nat) -> NatLe k n ->
+          RationalOperations.Le r (at x n)] }) });
+
+\definition EventuallyNegative (x: CauchySeq): \Prop :=
+  \exists \Cast[Rat] ({ r : Rat \where
+    \exists \Cast[Nat] ({ k : Nat \where
+      Logic.And[Positive r,
+        \forall (n: Nat) -> NatLe k n ->
+          RationalOperations.Le (at x n) (negRat r)] }) });
+
+\definition EventuallyApart (x: CauchySeq): \Prop :=
+  Logic.Or[EventuallyPositive x, EventuallyNegative x];
+
+\definition nonEquivalentApart (x: CauchySeq)
+    (nonzero: Logic.Not (Equivalent x zero)): EventuallyApart x :=
+  \take (eps: \Cast[Rat] ({ e : Rat \where
+      Logic.And[Positive e,
+        Logic.Not (\exists \Cast[Nat] ({ k : Nat \where
+          EquivalentAt x zero e k }))] })) =>
+    \take (M: \Cast[Nat] ({ k : Nat \where
+        CauchyAt x (half eps) k })) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where
+          CauchyAt x (half (half eps)) k })) =>
+        \block {
+          \let K: Nat := commonBound M N;
+          \let notClose: Logic.Not (Close (at x K) zeroRat (half eps)) :=
+            \fun (anchorClose: Close (at x K) zeroRat (half eps)) =>
+              #right{(\bysub(Rat, { e : Rat \where
+                Logic.And[Positive e,
+                  Logic.Not (\exists \Cast[Nat] ({ k : Nat \where
+                    EquivalentAt x zero e k }))] }, eps))}
+                (\exact(
+                  \into[Nat](K, { k : Nat \where
+                    EquivalentAt x zero eps k }) \by {
+                      \fun (n: Nat) => \fun (Kn: NatLe K n) =>
+                        closeTransHalf (at x n) (at x K) zeroRat eps
+                          ((\bysub(Nat, { k : Nat \where
+                            CauchyAt x (half eps) k }, M))
+                            n K
+                            (NL.leTrans M K n
+                              (leftLeCommonBound M N) Kn)
+                            (leftLeCommonBound M N))
+                          anchorClose },
+                  \Cast[Nat] ({ k : Nat \where
+                    EquivalentAt x zero eps k })));
+          \return Classical.orElim
+            (RationalOperations.Le (half eps) (at x K))
+            (RationalOperations.Le (at x K) (negRat (half eps)))
+            (EventuallyApart x)
+            (\fun (positiveAnchor:
+                RationalOperations.Le (half eps) (at x K)) =>
+              Logic.Or[EventuallyPositive x, EventuallyNegative x]::left
+                (\exact(
+                  \into[Rat](half (half eps), { r : Rat \where
+                    \exists \Cast[Nat] ({ k : Nat \where
+                      Logic.And[Positive r,
+                        \forall (n: Nat) -> NatLe k n ->
+                          RationalOperations.Le r (at x n)] }) }) \by {
+                    \exact(
+                      \into[Nat](K, { k : Nat \where
+                        Logic.And[Positive (half (half eps)),
+                          \forall (n: Nat) -> NatLe k n ->
+                            RationalOperations.Le (half (half eps))
+                              (at x n)] }) \by {
+                        Logic.And[Positive (half (half eps)),
+                          \forall (n: Nat) -> NatLe K n ->
+                            RationalOperations.Le (half (half eps))
+                              (at x n)]::#
+                          (halfPositiveOf (half eps)
+                            (halfPositiveOf eps
+                              #left{(\bysub(Rat, { e : Rat \where
+                                Logic.And[Positive e,
+                                  Logic.Not (\exists \Cast[Nat]
+                                    ({ k : Nat \where EquivalentAt x zero e k }))] }, eps))}))
+                          (\fun (n: Nat) => \fun (Kn: NatLe K n) =>
+                            RationalOperations.leOfLt (half (half eps))
+                              (at x n)
+                              (lowerOfClose (at x K) (at x n) (half eps)
+                                positiveAnchor
+                                ((\bysub(Nat, { k : Nat \where
+                                  CauchyAt x (half (half eps)) k }, N))
+                                  n K
+                                  (NL.leTrans N K n
+                                    (rightLeCommonBound M N) Kn)
+                                  (rightLeCommonBound M N)))) },
+                      \Cast[Nat] ({ k : Nat \where
+                        Logic.And[Positive (half (half eps)),
+                          \forall (n: Nat) -> NatLe k n ->
+                            RationalOperations.Le (half (half eps))
+                              (at x n)] })) },
+                  \Cast[Rat] ({ r : Rat \where
+                    \exists \Cast[Nat] ({ k : Nat \where
+                      Logic.And[Positive r,
+                        \forall (n: Nat) -> NatLe k n ->
+                          RationalOperations.Le r (at x n)] }) }))))
+            (\fun (negativeAnchor:
+                RationalOperations.Le (at x K) (negRat (half eps))) =>
+              Logic.Or[EventuallyPositive x, EventuallyNegative x]::right
+                (\exact(
+                  \into[Rat](half (half eps), { r : Rat \where
+                    \exists \Cast[Nat] ({ k : Nat \where
+                      Logic.And[Positive r,
+                        \forall (n: Nat) -> NatLe k n ->
+                          RationalOperations.Le (at x n) (negRat r)] }) }) \by {
+                    \exact(
+                      \into[Nat](K, { k : Nat \where
+                        Logic.And[Positive (half (half eps)),
+                          \forall (n: Nat) -> NatLe k n ->
+                            RationalOperations.Le (at x n)
+                              (negRat (half (half eps)))] }) \by {
+                        Logic.And[Positive (half (half eps)),
+                          \forall (n: Nat) -> NatLe K n ->
+                            RationalOperations.Le (at x n)
+                              (negRat (half (half eps)))]::#
+                          (halfPositiveOf (half eps)
+                            (halfPositiveOf eps
+                              #left{(\bysub(Rat, { e : Rat \where
+                                Logic.And[Positive e,
+                                  Logic.Not (\exists \Cast[Nat]
+                                    ({ k : Nat \where EquivalentAt x zero e k }))] }, eps))}))
+                          (\fun (n: Nat) => \fun (Kn: NatLe K n) =>
+                            RationalOperations.leOfLt (at x n)
+                              (negRat (half (half eps)))
+                              (upperOfClose (at x K) (at x n) (half eps)
+                                negativeAnchor
+                                ((\bysub(Nat, { k : Nat \where
+                                  CauchyAt x (half (half eps)) k }, N))
+                                  n K
+                                  (NL.leTrans N K n
+                                    (rightLeCommonBound M N) Kn)
+                                  (rightLeCommonBound M N)))) },
+                      \Cast[Nat] ({ k : Nat \where
+                        Logic.And[Positive (half (half eps)),
+                          \forall (n: Nat) -> NatLe k n ->
+                            RationalOperations.Le (at x n)
+                              (negRat (half (half eps)))] })) },
+                  \Cast[Rat] ({ r : Rat \where
+                    \exists \Cast[Nat] ({ k : Nat \where
+                      Logic.And[Positive r,
+                        \forall (n: Nat) -> NatLe k n ->
+                          RationalOperations.Le (at x n) (negRat r)] }) }))))
+            (notCloseDirection (at x K) (half eps) notClose);
+        }
+      \by { cauchyProperty x (half (half eps))
+        (halfPositiveOf (half eps)
+          (halfPositiveOf eps
+            #left{(\bysub(Rat, { e : Rat \where
+              Logic.And[Positive e,
+                Logic.Not (\exists \Cast[Nat]
+                  ({ k : Nat \where EquivalentAt x zero e k }))] }, eps))})) }
+    \by { cauchyProperty x (half eps)
+      (halfPositiveOf eps
+        #left{(\bysub(Rat, { e : Rat \where
+          Logic.And[Positive e,
+            Logic.Not (\exists \Cast[Nat]
+              ({ k : Nat \where EquivalentAt x zero e k }))] }, eps))}) }
+  \by { nonEquivalentFailure x nonzero };
+
+\definition fourBound (a, b, c, d: Nat): Nat :=
+  commonBound (commonBound a b) (commonBound c d);
+
+\definition firstLeFourBound (a, b, c, d: Nat):
+    NatLe a (fourBound a b c d) :=
+  NL.leTrans a (commonBound a b) (fourBound a b c d)
+    (leftLeCommonBound a b)
+    (leftLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition secondLeFourBound (a, b, c, d: Nat):
+    NatLe b (fourBound a b c d) :=
+  NL.leTrans b (commonBound a b) (fourBound a b c d)
+    (rightLeCommonBound a b)
+    (leftLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition thirdLeFourBound (a, b, c, d: Nat):
+    NatLe c (fourBound a b c d) :=
+  NL.leTrans c (commonBound c d) (fourBound a b c d)
+    (leftLeCommonBound c d)
+    (rightLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition fourthLeFourBound (a, b, c, d: Nat):
+    NatLe d (fourBound a b c d) :=
+  NL.leTrans d (commonBound c d) (fourBound a b c d)
+    (rightLeCommonBound c d)
+    (rightLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition mulCauchy (x, y: CauchySeq) (eps: Rat)
+    (positive: Positive eps):
+    \exists \Cast[Nat] ({ k : Nat \where CauchyAt (MulSeq x y) eps k }) :=
+  \take (A: \Cast[Rat] ({ A : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where BoundedAt x A k }) })) =>
+    \take (NA: \Cast[Nat] ({ k : Nat \where BoundedAt x A k })) =>
+      \take (D: \Cast[Rat] ({ D : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where BoundedAt y D k }) })) =>
+        \take (ND: \Cast[Nat] ({ k : Nat \where BoundedAt y D k })) =>
+          \take (MX: \Cast[Nat] ({ k : Nat \where
+              CauchyAt x (productRadius A D eps) k })) =>
+            \take (MY: \Cast[Nat] ({ k : Nat \where
+                CauchyAt y (productRadius A D eps) k })) =>
+              \exact(
+                \into[Nat](fourBound NA ND MX MY,
+                  { k : Nat \where CauchyAt (MulSeq x y) eps k }) \by {
+                    \fun (m, n: Nat) =>
+                      \fun (km: NatLe (fourBound NA ND MX MY) m) =>
+                        \fun (kn: NatLe (fourBound NA ND MX MY) n) =>
+                          closeMulScaled
+                            (at x m) (at y m) (at x n) (at y n)
+                            A D eps
+                            #left{(\bysub(Nat,
+                              { k : Nat \where BoundedAt x A k }, NA))}
+                            #left{(\bysub(Nat,
+                              { k : Nat \where BoundedAt y D k }, ND))}
+                            positive
+                            (#right{(\bysub(Nat,
+                              { k : Nat \where BoundedAt x A k }, NA))}
+                              m (NL.leTrans NA (fourBound NA ND MX MY) m
+                                (firstLeFourBound NA ND MX MY) km))
+                            (#right{(\bysub(Nat,
+                              { k : Nat \where BoundedAt y D k }, ND))}
+                              n (NL.leTrans ND (fourBound NA ND MX MY) n
+                                (secondLeFourBound NA ND MX MY) kn))
+                            ((\bysub(Nat,
+                              { k : Nat \where CauchyAt x
+                                (productRadius A D eps) k }, MX))
+                              m n
+                              (NL.leTrans MX (fourBound NA ND MX MY) m
+                                (thirdLeFourBound NA ND MX MY) km)
+                              (NL.leTrans MX (fourBound NA ND MX MY) n
+                                (thirdLeFourBound NA ND MX MY) kn))
+                            ((\bysub(Nat,
+                              { k : Nat \where CauchyAt y
+                                (productRadius A D eps) k }, MY))
+                              m n
+                              (NL.leTrans MY (fourBound NA ND MX MY) m
+                                (fourthLeFourBound NA ND MX MY) km)
+                              (NL.leTrans MY (fourBound NA ND MX MY) n
+                                (fourthLeFourBound NA ND MX MY) kn)) },
+                \Cast[Nat] ({ k : Nat \where CauchyAt (MulSeq x y) eps k }))
+            \by { cauchyProperty y (productRadius A D eps)
+              (productRadiusPositive A D eps
+                #left{(\bysub(Nat,
+                  { k : Nat \where BoundedAt x A k }, NA))}
+                #left{(\bysub(Nat,
+                  { k : Nat \where BoundedAt y D k }, ND))}
+                positive) }
+          \by { cauchyProperty x (productRadius A D eps)
+            (productRadiusPositive A D eps
+              #left{(\bysub(Nat,
+                { k : Nat \where BoundedAt x A k }, NA))}
+              #left{(\bysub(Nat,
+                { k : Nat \where BoundedAt y D k }, ND))}
+              positive) }
+        \by { \bysub(Rat,
+          { D : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where BoundedAt y D k }) }, D) }
+      \by { eventuallyBounded y }
+    \by { \bysub(Rat,
+      { A : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where BoundedAt x A k }) }, A) }
+  \by { eventuallyBounded x };
+
+\definition mul (x, y: CauchySeq): CauchySeq :=
+  \into[Sequence](MulSeq x y, CauchySet) \by { mulCauchy x y };
+
+\definition mulRespects (x, x2, y, y2: CauchySeq)
+    (xx: Equivalent x x2) (yy: Equivalent y y2):
+    Equivalent (mul x y) (mul x2 y2) :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \take (A: \Cast[Rat] ({ A : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where BoundedAt x A k }) })) =>
+      \take (NA: \Cast[Nat] ({ k : Nat \where BoundedAt x A k })) =>
+        \take (D: \Cast[Rat] ({ D : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where BoundedAt y2 D k }) })) =>
+          \take (ND: \Cast[Nat] ({ k : Nat \where BoundedAt y2 D k })) =>
+            \take (MX: \Cast[Nat] ({ k : Nat \where
+                EquivalentAt x x2 (productRadius A D eps) k })) =>
+              \take (MY: \Cast[Nat] ({ k : Nat \where
+                  EquivalentAt y y2 (productRadius A D eps) k })) =>
+                \exact(
+                  \into[Nat](fourBound NA ND MX MY,
+                    { k : Nat \where
+                      EquivalentAt (mul x y) (mul x2 y2) eps k }) \by {
+                      \fun (n: Nat) =>
+                        \fun (kn: NatLe (fourBound NA ND MX MY) n) =>
+                          closeMulScaled
+                            (at x n) (at y n) (at x2 n) (at y2 n)
+                            A D eps
+                            #left{(\bysub(Nat,
+                              { k : Nat \where BoundedAt x A k }, NA))}
+                            #left{(\bysub(Nat,
+                              { k : Nat \where BoundedAt y2 D k }, ND))}
+                            positive
+                            (#right{(\bysub(Nat,
+                              { k : Nat \where BoundedAt x A k }, NA))}
+                              n (NL.leTrans NA (fourBound NA ND MX MY) n
+                                (firstLeFourBound NA ND MX MY) kn))
+                            (#right{(\bysub(Nat,
+                              { k : Nat \where BoundedAt y2 D k }, ND))}
+                              n (NL.leTrans ND (fourBound NA ND MX MY) n
+                                (secondLeFourBound NA ND MX MY) kn))
+                            ((\bysub(Nat,
+                              { k : Nat \where EquivalentAt x x2
+                                (productRadius A D eps) k }, MX))
+                              n (NL.leTrans MX (fourBound NA ND MX MY) n
+                                (thirdLeFourBound NA ND MX MY) kn))
+                            ((\bysub(Nat,
+                              { k : Nat \where EquivalentAt y y2
+                                (productRadius A D eps) k }, MY))
+                              n (NL.leTrans MY (fourBound NA ND MX MY) n
+                                (fourthLeFourBound NA ND MX MY) kn)) },
+                  \Cast[Nat] ({ k : Nat \where
+                    EquivalentAt (mul x y) (mul x2 y2) eps k }))
+              \by { yy (productRadius A D eps)
+                (productRadiusPositive A D eps
+                  #left{(\bysub(Nat,
+                    { k : Nat \where BoundedAt x A k }, NA))}
+                  #left{(\bysub(Nat,
+                    { k : Nat \where BoundedAt y2 D k }, ND))}
+                  positive) }
+            \by { xx (productRadius A D eps)
+              (productRadiusPositive A D eps
+                #left{(\bysub(Nat,
+                  { k : Nat \where BoundedAt x A k }, NA))}
+                #left{(\bysub(Nat,
+                  { k : Nat \where BoundedAt y2 D k }, ND))}
+                positive) }
+          \by { \bysub(Rat,
+            { D : Rat \where
+              \exists \Cast[Nat] ({ k : Nat \where BoundedAt y2 D k }) }, D) }
+        \by { eventuallyBounded y2 }
+      \by { \bysub(Rat,
+        { A : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where BoundedAt x A k }) }, A) }
+    \by { eventuallyBounded x };
+
+\definition ReciprocalSeq (x: CauchySeq) (n: Nat): Rat :=
+  RationalOperations.reciprocal (at x n);
+
+\definition positiveReciprocalCauchy (x: CauchySeq)
+    (apart: EventuallyPositive x): IsCauchy (ReciprocalSeq x) :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \take (r: \Cast[Rat] ({ r : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] }) })) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] })) =>
+        \take (M: \Cast[Nat] ({ k : Nat \where
+            CauchyAt x (reciprocalRadius r eps) k })) =>
+          \exact(
+            \into[Nat](commonBound N M,
+              { k : Nat \where CauchyAt (ReciprocalSeq x) eps k }) \by {
+                \fun (m, n: Nat) =>
+                  \fun (km: NatLe (commonBound N M) m) =>
+                    \fun (kn: NatLe (commonBound N M) n) =>
+                      \block {
+                        \let rm: RationalOperations.Le r (at x m) :=
+                          #right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le r (at x j)] }, N))}
+                            m (NL.leTrans N (commonBound N M) m
+                              (leftLeCommonBound N M) km);
+                        \let rn: RationalOperations.Le r (at x n) :=
+                          #right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le r (at x j)] }, N))}
+                            n (NL.leTrans N (commonBound N M) n
+                              (leftLeCommonBound N M) kn);
+                        \let product: Logic.And[
+                            Positive (mulRat (at x m) (at x n)),
+                            RationalOperations.Le (mulRat r r)
+                              (mulRat (at x m) (at x n))] :=
+                          positiveProductLower r
+                          (at x m) (at x n)
+                          #left{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le r (at x j)] }, N))}
+                          rm rn;
+                        \return closeReciprocalWithProductLower
+                          (at x m) (at x n) r eps positive
+                          #left{product} #right{product}
+                          (RationalOperations.numeratorNonZeroOfZeroLt
+                            (at x m)
+                            (RationalOperations.ltLeTrans zeroRat r (at x m)
+                              #left{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le r (at x j)] }, N))}
+                              rm))
+                          (RationalOperations.numeratorNonZeroOfZeroLt
+                            (at x n)
+                            (RationalOperations.ltLeTrans zeroRat r (at x n)
+                              #left{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le r (at x j)] }, N))}
+                              rn))
+                          ((\bysub(Nat, { k : Nat \where
+                            CauchyAt x (reciprocalRadius r eps) k }, M))
+                            m n
+                            (NL.leTrans M (commonBound N M) m
+                              (rightLeCommonBound N M) km)
+                            (NL.leTrans M (commonBound N M) n
+                              (rightLeCommonBound N M) kn));
+                      } },
+            \Cast[Nat] ({ k : Nat \where
+              CauchyAt (ReciprocalSeq x) eps k }))
+        \by { cauchyProperty x (reciprocalRadius r eps)
+          (reciprocalRadiusPositive r eps
+            #left{(\bysub(Nat, { k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at x n)] }, N))}
+            positive) }
+      \by { \bysub(Rat, { r : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] }) }, r) }
+    \by { apart };
+
+\definition negativeReciprocalCauchy (x: CauchySeq)
+    (apart: EventuallyNegative x): IsCauchy (ReciprocalSeq x) :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \take (r: \Cast[Rat] ({ r : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le (at x n) (negRat r)] }) })) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le (at x n) (negRat r)] })) =>
+        \take (M: \Cast[Nat] ({ k : Nat \where
+            CauchyAt x (reciprocalRadius r eps) k })) =>
+          \exact(
+            \into[Nat](commonBound N M,
+              { k : Nat \where CauchyAt (ReciprocalSeq x) eps k }) \by {
+                \fun (m, n: Nat) =>
+                  \fun (km: NatLe (commonBound N M) m) =>
+                    \fun (kn: NatLe (commonBound N M) n) =>
+                      \block {
+                        \let mr: RationalOperations.Le (at x m) (negRat r) :=
+                          #right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le (at x j) (negRat r)] }, N))}
+                            m (NL.leTrans N (commonBound N M) m
+                              (leftLeCommonBound N M) km);
+                        \let nr: RationalOperations.Le (at x n) (negRat r) :=
+                          #right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le (at x j) (negRat r)] }, N))}
+                            n (NL.leTrans N (commonBound N M) n
+                              (leftLeCommonBound N M) kn);
+                        \let product: Logic.And[
+                            Positive (mulRat (at x m) (at x n)),
+                            RationalOperations.Le (mulRat r r)
+                              (mulRat (at x m) (at x n))] :=
+                          negativeProductLower r
+                          (at x m) (at x n)
+                          #left{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le (at x j) (negRat r)] }, N))}
+                          mr nr;
+                        \return closeReciprocalWithProductLower
+                          (at x m) (at x n) r eps positive
+                          #left{product} #right{product}
+                          (RationalOperations.numeratorNonZeroOfLtZero
+                            (at x m)
+                            (RationalOperations.leLtTrans (at x m) (negRat r)
+                              zeroRat mr
+                              (RationalOperations.ltNegReverse zeroRat r
+                                #left{(\bysub(Nat, { k : Nat \where
+                                  Logic.And[Positive r,
+                                    \forall (j: Nat) -> NatLe k j ->
+                                      RationalOperations.Le (at x j)
+                                        (negRat r)] }, N))})))
+                          (RationalOperations.numeratorNonZeroOfLtZero
+                            (at x n)
+                            (RationalOperations.leLtTrans (at x n) (negRat r)
+                              zeroRat nr
+                              (RationalOperations.ltNegReverse zeroRat r
+                                #left{(\bysub(Nat, { k : Nat \where
+                                  Logic.And[Positive r,
+                                    \forall (j: Nat) -> NatLe k j ->
+                                      RationalOperations.Le (at x j)
+                                        (negRat r)] }, N))})))
+                          ((\bysub(Nat, { k : Nat \where
+                            CauchyAt x (reciprocalRadius r eps) k }, M))
+                            m n
+                            (NL.leTrans M (commonBound N M) m
+                              (rightLeCommonBound N M) km)
+                            (NL.leTrans M (commonBound N M) n
+                              (rightLeCommonBound N M) kn));
+                      } },
+            \Cast[Nat] ({ k : Nat \where
+              CauchyAt (ReciprocalSeq x) eps k }))
+        \by { cauchyProperty x (reciprocalRadius r eps)
+          (reciprocalRadiusPositive r eps
+            #left{(\bysub(Nat, { k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le (at x n) (negRat r)] }, N))}
+            positive) }
+      \by { \bysub(Rat, { r : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le (at x n) (negRat r)] }) }, r) }
+    \by { apart };
+
+\definition reciprocalCauchy (x: CauchySeq)
+    (apart: EventuallyApart x): IsCauchy (ReciprocalSeq x) :=
+  Classical.orElim (EventuallyPositive x) (EventuallyNegative x)
+    (IsCauchy (ReciprocalSeq x))
+    (positiveReciprocalCauchy x) (negativeReciprocalCauchy x) apart;
+
+\definition ReciprocalGraph (x, y: CauchySeq): \Prop :=
+  \forall (n: Nat) ->
+    at y n = RationalOperations.reciprocal (at x n);
+
+\definition reciprocalGraph (x: CauchySeq)
+    (cauchy: IsCauchy (ReciprocalSeq x)):
+    ReciprocalGraph x
+      (\into[Sequence](ReciprocalSeq x, CauchySet) \by { cauchy }) :=
+  \fun (n: Nat) => \refl(RationalOperations.reciprocal (at x n));
+
+\definition reciprocalGraphFractionEq (x, y: CauchySeq)
+    (graph: ReciprocalGraph x y) (n: Nat):
+    RationalFractions.FractionEq
+      (at y n) (RationalOperations.reciprocal (at x n)) :=
+  \idelim(at y n = RationalOperations.reciprocal (at x n)
+    \with q: Rat => RationalFractions.FractionEq (at y n) q)
+    \by { base: RationalFractions.fractionEqRefl (at y n),
+      equality: graph n };
+
+\definition reciprocalMulEquivalent (x, y: CauchySeq)
+    (apart: EventuallyApart x) (graph: ReciprocalGraph x y):
+    Equivalent (mul y x) one :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    Classical.orElim (EventuallyPositive x) (EventuallyNegative x)
+      (\exists \Cast[Nat] ({ k : Nat \where
+        EquivalentAt (mul y x) one eps k }))
+      (\fun (positiveApart: EventuallyPositive x) =>
+        \take (r: \Cast[Rat] ({ r : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at x n)] }) })) =>
+          \take (N: \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at x n)] })) =>
+            \exact(
+              \into[Nat](N, { k : Nat \where
+                EquivalentAt (mul y x) one eps k }) \by {
+                  \fun (n: Nat) => \fun (Nn: NatLe N n) =>
+                    closeOfFractionEq (mulRat (at y n) (at x n))
+                      oneRat eps
+                      (RationalFractions.fractionEqTrans _ _ _
+                        (RationalOperations.fractionMulRespects
+                          (at y n) (RationalOperations.reciprocal (at x n))
+                          (at x n) (at x n)
+                          (reciprocalGraphFractionEq x y graph n)
+                          (RationalFractions.fractionEqRefl _))
+                        (reciprocalLeftLaw (at x n)
+                          (RationalOperations.numeratorNonZeroOfZeroLt
+                            (at x n)
+                            (RationalOperations.ltLeTrans zeroRat r (at x n)
+                              #left{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le r (at x j)] }, N))}
+                              (#right{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le r (at x j)] }, N))}
+                                n Nn)))))
+                      positive },
+              \Cast[Nat] ({ k : Nat \where
+                EquivalentAt (mul y x) one eps k }))
+          \by { \bysub(Rat, { r : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at x n)] }) }, r) }
+        \by { positiveApart })
+      (\fun (negativeApart: EventuallyNegative x) =>
+        \take (r: \Cast[Rat] ({ r : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le (at x n) (negRat r)] }) })) =>
+          \take (N: \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le (at x n) (negRat r)] })) =>
+            \exact(
+              \into[Nat](N, { k : Nat \where
+                EquivalentAt (mul y x) one eps k }) \by {
+                  \fun (n: Nat) => \fun (Nn: NatLe N n) =>
+                    closeOfFractionEq (mulRat (at y n) (at x n))
+                      oneRat eps
+                      (RationalFractions.fractionEqTrans _ _ _
+                        (RationalOperations.fractionMulRespects
+                          (at y n) (RationalOperations.reciprocal (at x n))
+                          (at x n) (at x n)
+                          (reciprocalGraphFractionEq x y graph n)
+                          (RationalFractions.fractionEqRefl _))
+                        (reciprocalLeftLaw (at x n)
+                          (RationalOperations.numeratorNonZeroOfLtZero
+                            (at x n)
+                            (RationalOperations.leLtTrans (at x n) (negRat r)
+                              zeroRat
+                              (#right{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le (at x j)
+                                      (negRat r)] }, N))}
+                                n Nn)
+                              (RationalOperations.ltNegReverse zeroRat r
+                                #left{(\bysub(Nat, { k : Nat \where
+                                  Logic.And[Positive r,
+                                    \forall (j: Nat) -> NatLe k j ->
+                                      RationalOperations.Le (at x j)
+                                        (negRat r)] }, N))})))))
+                      positive },
+              \Cast[Nat] ({ k : Nat \where
+                EquivalentAt (mul y x) one eps k }))
+          \by { \bysub(Rat, { r : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le (at x n) (negRat r)] }) }, r) }
+        \by { negativeApart })
+      apart;
+
+\definition addCauchy (x, y: CauchySeq) (eps: Rat) (positive: Positive eps):
+  \exists \Cast[Nat] ({ k : Nat \where CauchyAt (AddSeq x y) eps k }) :=
+  \take (M: \Cast[Nat] ({ k : Nat \where CauchyAt x (half eps) k })) =>
+    \take (N: \Cast[Nat] ({ k : Nat \where CauchyAt y (half eps) k })) =>
+      \exact(
+        \into[Nat](commonBound M N,
+          { k : Nat \where CauchyAt (AddSeq x y) eps k }) \by {
+            \fun (m, n: Nat) =>
+              \fun (boundM: NatLe (commonBound M N) m) =>
+                \fun (boundN: NatLe (commonBound M N) n) =>
+                  closeAddHalf (at x m) (at x n) (at y m) (at y n) eps
+                    ((\bysub(Nat,
+                      { k : Nat \where CauchyAt x (half eps) k }, M))
+                      m n
+                      (NL.leTrans M (commonBound M N) m (leftLeCommonBound M N) boundM)
+                      (NL.leTrans M (commonBound M N) n (leftLeCommonBound M N) boundN))
+                    ((\bysub(Nat,
+                      { k : Nat \where CauchyAt y (half eps) k }, N))
+                      m n
+                      (NL.leTrans N (commonBound M N) m (rightLeCommonBound M N) boundM)
+                      (NL.leTrans N (commonBound M N) n (rightLeCommonBound M N) boundN)) },
+        \Cast[Nat] ({ k : Nat \where CauchyAt (AddSeq x y) eps k }))
+    \by { cauchyProperty y (half eps) (halfPositiveOf eps positive) }
+  \by { cauchyProperty x (half eps) (halfPositiveOf eps positive) };
+\definition add (x, y: CauchySeq): CauchySeq :=
+  \into[Sequence](AddSeq x y, CauchySet) \by { addCauchy x y };
+\definition addRespects (x, x2, y, y2: CauchySeq)
+    (xx: Equivalent x x2) (yy: Equivalent y y2):
+    Equivalent (add x y) (add x2 y2) :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \take (M: \Cast[Nat] ({ k : Nat \where EquivalentAt x x2 (half eps) k })) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where EquivalentAt y y2 (half eps) k })) =>
+        \exact(
+          \into[Nat](commonBound M N,
+            { k : Nat \where EquivalentAt (add x y) (add x2 y2) eps k }) \by {
+              \fun (n: Nat) => \fun (bound: NatLe (commonBound M N) n) =>
+                closeAddHalf (at x n) (at x2 n) (at y n) (at y2 n) eps
+                  ((\bysub(Nat,
+                    { k : Nat \where EquivalentAt x x2 (half eps) k }, M))
+                    n (NL.leTrans M (commonBound M N) n (leftLeCommonBound M N) bound))
+                  ((\bysub(Nat,
+                    { k : Nat \where EquivalentAt y y2 (half eps) k }, N))
+                    n (NL.leTrans N (commonBound M N) n (rightLeCommonBound M N) bound)) },
+          \Cast[Nat] ({ k : Nat \where EquivalentAt (add x y) (add x2 y2) eps k }))
+      \by { yy (half eps) (halfPositiveOf eps positive) }
+    \by { xx (half eps) (halfPositiveOf eps positive) };
+
+\definition addZeroLeft (x: CauchySeq): Equivalent (add zero x) x :=
+  pointwiseFractionEquivalent (add zero x) x
+    (\fun (n: Nat) => RationalOperations.fractionAddZeroLeft (at x n));
+\definition addComm (x, y: CauchySeq): Equivalent (add x y) (add y x) :=
+  pointwiseFractionEquivalent (add x y) (add y x)
+    (\fun (n: Nat) => RationalOperations.fractionAddComm (at x n) (at y n));
+\definition addAssoc (x, y, z: CauchySeq):
+    Equivalent (add (add x y) z) (add x (add y z)) :=
+  pointwiseFractionEquivalent (add (add x y) z) (add x (add y z))
+    (\fun (n: Nat) => RationalOperations.fractionAddAssoc
+      (at x n) (at y n) (at z n));
+
+\definition mulZeroLeft (x: CauchySeq): Equivalent (mul zero x) zero :=
+  pointwiseFractionEquivalent (mul zero x) zero
+    (\fun (n: Nat) => RationalOperations.fractionMulZeroLeft (at x n));
+\definition mulOneLeft (x: CauchySeq): Equivalent (mul one x) x :=
+  pointwiseFractionEquivalent (mul one x) x
+    (\fun (n: Nat) => RationalOperations.fractionMulOneLeft (at x n));
+\definition mulComm (x, y: CauchySeq): Equivalent (mul x y) (mul y x) :=
+  pointwiseFractionEquivalent (mul x y) (mul y x)
+    (\fun (n: Nat) => RationalOperations.fractionMulComm
+      (at x n) (at y n));
+\definition mulAssoc (x, y, z: CauchySeq):
+    Equivalent (mul (mul x y) z) (mul x (mul y z)) :=
+  pointwiseFractionEquivalent (mul (mul x y) z) (mul x (mul y z))
+    (\fun (n: Nat) => RationalOperations.fractionMulAssoc
+      (at x n) (at y n) (at z n));
+\definition mulAddLeft (x, y, z: CauchySeq):
+    Equivalent (mul x (add y z)) (add (mul x y) (mul x z)) :=
+  pointwiseFractionEquivalent
+    (mul x (add y z)) (add (mul x y) (mul x z))
+    (\fun (n: Nat) => RationalOperations.fractionMulAddLeft
+      (at x n) (at y n) (at z n));
+
+\definition zeroNotEquivalentOne: Logic.Not (Equivalent zero one) :=
+  \fun (same: Equivalent zero one) =>
+    \take (N: \Cast[Nat] ({ k : Nat \where
+        EquivalentAt zero one (half oneRat) k })) =>
+      RationalOrder.ltIrrefl oneRat
+        (RationalOrder.ltTrans oneRat (half oneRat) oneRat
+          (RationalOrder.ltReplaceLeft
+            (subRat oneRat zeroRat) oneRat (half oneRat)
+            (RationalOperations.fractionSubZeroRight oneRat)
+            #right{((\bysub(Nat,
+              { k : Nat \where EquivalentAt zero one (half oneRat) k }, N))
+              N (NL.leRefl N))})
+          (halfLt oneRat RationalOrder.zeroLtOne))
+  \by { same (half oneRat) (halfPositiveOf oneRat RationalOrder.zeroLtOne) };
 
 \definition closeNeg (x, y, eps: Rat) (h: Close x y eps): Close (negRat x) (negRat y) eps :=
   Logic.And[ltRat (subRat (negRat x) (negRat y)) eps,
@@ -83,3 +923,644 @@
     \by { equivalentRefl x eps positive };
 \definition negZero: Equivalent (neg zero) zero :=
   pointwiseEquivalent (neg zero) zero (\fun (n: Nat) => RationalOperations.fractionNegZero);
+\definition addNegLeft (x: CauchySeq): Equivalent (add (neg x) x) zero :=
+  pointwiseFractionEquivalent (add (neg x) x) zero
+    (\fun (n: Nat) => RationalOperations.fractionAddNegLeft (at x n));
+
+\definition sub (x, y: CauchySeq): CauchySeq := add x (neg y);
+
+\definition subAsRat (x, y: CauchySeq) (n: Nat):
+    RationalFractions.FractionEq (at (sub x y) n)
+      (subRat (at x n) (at y n)) :=
+  RationalFractions.fractionEqRefl _;
+
+\definition equivalentOfSubZero (x, y: CauchySeq)
+    (differenceZero: Equivalent (sub x y) zero): Equivalent x y :=
+  \fun (eps: Rat) => \fun (positive: Positive eps) =>
+    \take (N: \Cast[Nat] ({ k : Nat \where
+        EquivalentAt (sub x y) zero eps k })) =>
+      \exact(
+        \into[Nat](N, { k : Nat \where EquivalentAt x y eps k }) \by {
+          \fun (n: Nat) => \fun (Nn: NatLe N n) =>
+            closeOfDifferenceZero (at x n) (at y n) eps
+              (closeRespects (at (sub x y) n)
+                (subRat (at x n) (at y n)) zeroRat zeroRat eps
+                (subAsRat x y n)
+                (RationalFractions.fractionEqRefl _)
+                ((\bysub(Nat, { k : Nat \where
+                  EquivalentAt (sub x y) zero eps k }, N)) n Nn)) },
+        \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }))
+    \by { differenceZero eps positive };
+
+\definition eventuallyPositiveStable (x, y: CauchySeq)
+    (same: Equivalent x y) (positiveX: EventuallyPositive x):
+    EventuallyPositive y :=
+  \take (r: \Cast[Rat] ({ r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) })) =>
+    \take (N: \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] })) =>
+      \take (M: \Cast[Nat] ({ k : Nat \where
+          EquivalentAt x y (half r) k })) =>
+        \exact(
+          \into[Rat](half r, { s : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive s,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le s (at y n)] }) }) \by {
+            \exact(
+              \into[Nat](commonBound N M, { k : Nat \where
+                Logic.And[Positive (half r),
+                  \forall (n: Nat) -> NatLe k n ->
+                    RationalOperations.Le (half r) (at y n)] }) \by {
+                Logic.And[Positive (half r),
+                  \forall (n: Nat) -> NatLe (commonBound N M) n ->
+                    RationalOperations.Le (half r) (at y n)]::#
+                  (halfPositiveOf r
+                    #left{(\bysub(Nat, { k : Nat \where
+                      Logic.And[Positive r,
+                        \forall (j: Nat) -> NatLe k j ->
+                          RationalOperations.Le r (at x j)] }, N))})
+                  (\fun (n: Nat) =>
+                    \fun (Kn: NatLe (commonBound N M) n) =>
+                      RationalOperations.leOfLt (half r) (at y n)
+                        (lowerOfClose (at x n) (at y n) r
+                          (#right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le r (at x j)] }, N))}
+                            n (NL.leTrans N (commonBound N M) n
+                              (leftLeCommonBound N M) Kn))
+                          (closeSym (at x n) (at y n) (half r)
+                            ((\bysub(Nat, { k : Nat \where
+                              EquivalentAt x y (half r) k }, M))
+                              n (NL.leTrans M (commonBound N M) n
+                                (rightLeCommonBound N M) Kn))))) },
+              \Cast[Nat] ({ k : Nat \where
+                Logic.And[Positive (half r),
+                  \forall (n: Nat) -> NatLe k n ->
+                    RationalOperations.Le (half r) (at y n)] })) },
+          \Cast[Rat] ({ s : Rat \where
+            \exists \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive s,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le s (at y n)] }) }))
+      \by { same (half r)
+        (halfPositiveOf r
+          #left{(\bysub(Nat, { k : Nat \where
+            Logic.And[Positive r,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le r (at x n)] }, N))}) }
+    \by { \bysub(Rat, { r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) }, r) }
+  \by { positiveX };
+
+\definition eventuallyPositiveAdd (x, y: CauchySeq)
+    (positiveX: EventuallyPositive x)
+    (positiveY: EventuallyPositive y): EventuallyPositive (add x y) :=
+  \take (r: \Cast[Rat] ({ r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) })) =>
+    \take (M: \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] })) =>
+      \take (s: \Cast[Rat] ({ s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at y n)] }) })) =>
+        \take (N: \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at y n)] })) =>
+          \exact(
+            \into[Rat](addRat r s, { t : Rat \where
+              \exists \Cast[Nat] ({ k : Nat \where
+                Logic.And[Positive t,
+                  \forall (n: Nat) -> NatLe k n ->
+                    RationalOperations.Le t (at (add x y) n)] }) }) \by {
+              \exact(
+                \into[Nat](commonBound M N, { k : Nat \where
+                  Logic.And[Positive (addRat r s),
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le (addRat r s)
+                        (at (add x y) n)] }) \by {
+                  Logic.And[Positive (addRat r s),
+                    \forall (n: Nat) -> NatLe (commonBound M N) n ->
+                      RationalOperations.Le (addRat r s)
+                        (at (add x y) n)]::#
+                    (positiveAdd r s
+                      #left{(\bysub(Nat, { k : Nat \where
+                        Logic.And[Positive r,
+                          \forall (j: Nat) -> NatLe k j ->
+                            RationalOperations.Le r (at x j)] }, M))}
+                      #left{(\bysub(Nat, { k : Nat \where
+                        Logic.And[Positive s,
+                          \forall (j: Nat) -> NatLe k j ->
+                            RationalOperations.Le s (at y j)] }, N))})
+                    (\fun (n: Nat) =>
+                      \fun (Kn: NatLe (commonBound M N) n) =>
+                        leAdd r (at x n) s (at y n)
+                          (#right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive r,
+                              \forall (j: Nat) -> NatLe k j ->
+                                RationalOperations.Le r (at x j)] }, M))}
+                            n (NL.leTrans M (commonBound M N) n
+                              (leftLeCommonBound M N) Kn))
+                          (#right{(\bysub(Nat, { k : Nat \where
+                            Logic.And[Positive s,
+                              \forall (j: Nat) -> NatLe k j ->
+                            RationalOperations.Le s (at y j)] }, N))}
+                            n (NL.leTrans N (commonBound M N) n
+                              (rightLeCommonBound M N) Kn))) },
+                \Cast[Nat] ({ k : Nat \where
+                  Logic.And[Positive (addRat r s),
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le (addRat r s)
+                        (at (add x y) n)] })) },
+            \Cast[Rat] ({ t : Rat \where
+              \exists \Cast[Nat] ({ k : Nat \where
+                Logic.And[Positive t,
+                  \forall (n: Nat) -> NatLe k n ->
+                    RationalOperations.Le t (at (add x y) n)] }) }))
+        \by { \bysub(Rat, { s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at y n)] }) }, s) }
+      \by { positiveY }
+    \by { \bysub(Rat, { r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) }, r) }
+  \by { positiveX };
+
+\definition eventuallyPositiveNegOfNegative (x: CauchySeq)
+    (negative: EventuallyNegative x): EventuallyPositive (neg x) :=
+  \take (r: \Cast[Rat] ({ r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le (at x n) (negRat r)] }) })) =>
+    \take (N: \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le (at x n) (negRat r)] })) =>
+      \exact(
+        \into[Rat](r, { s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at (neg x) n)] }) }) \by {
+          \exact(
+            \into[Nat](N, { k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at (neg x) n)] }) \by {
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe N n ->
+                  RationalOperations.Le r (at (neg x) n)]::#
+                (#left{(\bysub(Nat, { k : Nat \where
+                  Logic.And[Positive r,
+                    \forall (j: Nat) -> NatLe k j ->
+                      RationalOperations.Le (at x j) (negRat r)] }, N))})
+                (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+                  RationalOperations.leTrans r (negRat (negRat r))
+                    (negRat (at x n))
+                    (RationalOperations.leOfEq r (negRat (negRat r))
+                      (RationalFractions.fractionEqSym _ _
+                        (RationalOperations.fractionNegInvolutive r)))
+                    (leNegReverse (at x n) (negRat r)
+                      (#right{(\bysub(Nat, { k : Nat \where
+                        Logic.And[Positive r,
+                          \forall (j: Nat) -> NatLe k j ->
+                            RationalOperations.Le (at x j) (negRat r)] }, N))}
+                        n Nn))) },
+            \Cast[Nat] ({ k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at (neg x) n)] })) },
+        \Cast[Rat] ({ s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at (neg x) n)] }) }))
+    \by { \bysub(Rat, { r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le (at x n) (negRat r)] }) }, r) }
+  \by { negative };
+
+\definition eventuallyPositiveNotZero (x: CauchySeq)
+    (positiveX: EventuallyPositive x): Logic.Not (Equivalent x zero) :=
+  \fun (zeroX: Equivalent x zero) =>
+    \take (r: \Cast[Rat] ({ r : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] }) })) =>
+      \take (N: \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] })) =>
+        \take (M: \Cast[Nat] ({ k : Nat \where
+            EquivalentAt x zero (half r) k })) =>
+          \block {
+            \let K: Nat := commonBound N M;
+            \let rHalf: ltRat r (half r) :=
+              RationalOperations.leLtTrans r (at x K) (half r)
+                (#right{(\bysub(Nat, { k : Nat \where
+                  Logic.And[Positive r,
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le r (at x n)] }, N))}
+                  K (leftLeCommonBound N M))
+                (RationalOrder.ltReplaceLeft (subRat (at x K) zeroRat)
+                  (at x K) (half r)
+                  (RationalOperations.fractionSubZeroRight (at x K))
+                  #left{(\bysub(Nat, { k : Nat \where
+                    EquivalentAt x zero (half r) k }, M))
+                    K (rightLeCommonBound N M)});
+            \return RationalOrder.ltIrrefl r
+              (RationalOrder.ltTrans r (half r) r rHalf
+                (halfLt r
+                  #left{(\bysub(Nat, { k : Nat \where
+                    Logic.And[Positive r,
+                      \forall (n: Nat) -> NatLe k n ->
+                        RationalOperations.Le r (at x n)] }, N))}));
+          }
+        \by { zeroX (half r)
+          (halfPositiveOf r
+            #left{(\bysub(Nat, { k : Nat \where
+              Logic.And[Positive r,
+                \forall (n: Nat) -> NatLe k n ->
+                  RationalOperations.Le r (at x n)] }, N))}) }
+      \by { \bysub(Rat, { r : Rat \where
+        \exists \Cast[Nat] ({ k : Nat \where
+          Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] }) }, r) }
+    \by { positiveX };
+
+\definition eventuallyPositiveOppositeImpossible (x: CauchySeq)
+    (positiveX: EventuallyPositive x)
+    (positiveNegX: EventuallyPositive (neg x)): Logic.False :=
+  \take (r: \Cast[Rat] ({ r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) })) =>
+    \take (N: \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] })) =>
+      \take (s: \Cast[Rat] ({ s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at (neg x) n)] }) })) =>
+        \take (M: \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at (neg x) n)] })) =>
+          \block {
+            \let K: Nat := commonBound N M;
+            \let lower: RationalOperations.Le (addRat r s)
+                (addRat (at x K) (negRat (at x K))) :=
+              leAdd r (at x K) s (negRat (at x K))
+                (#right{(\bysub(Nat, { k : Nat \where
+                  Logic.And[Positive r,
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le r (at x n)] }, N))}
+                  K (leftLeCommonBound N M))
+                (#right{(\bysub(Nat, { k : Nat \where
+                  Logic.And[Positive s,
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le s (at (neg x) n)] }, M))}
+                  K (rightLeCommonBound N M));
+            \let belowZero: ltRat zeroRat zeroRat :=
+              RationalOperations.ltLeTrans zeroRat (addRat r s) zeroRat
+                (positiveAdd r s
+                  #left{(\bysub(Nat, { k : Nat \where
+                    Logic.And[Positive r,
+                      \forall (n: Nat) -> NatLe k n ->
+                        RationalOperations.Le r (at x n)] }, N))}
+                  #left{(\bysub(Nat, { k : Nat \where
+                    Logic.And[Positive s,
+                      \forall (n: Nat) -> NatLe k n ->
+                        RationalOperations.Le s (at (neg x) n)] }, M))})
+                (RationalOperations.leTrans (addRat r s)
+                  (addRat (at x K) (negRat (at x K))) zeroRat lower
+                  (RationalOperations.leOfEq _ _
+                    (RationalOperations.fractionAddNegRight (at x K))));
+            \return RationalOrder.ltIrrefl zeroRat belowZero;
+          }
+        \by { \bysub(Rat, { s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at (neg x) n)] }) }, s) }
+      \by { positiveNegX }
+    \by { \bysub(Rat, { r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) }, r) }
+  \by { positiveX };
+
+\definition subRespects (x, x2, y, y2: CauchySeq)
+    (xx: Equivalent x x2) (yy: Equivalent y y2):
+    Equivalent (sub x y) (sub x2 y2) :=
+  addRespects x x2 (neg y) (neg y2) xx (negRespects y y2 yy);
+
+\definition subNeg (x, y: CauchySeq):
+    Equivalent (neg (sub x y)) (sub y x) :=
+  pointwiseFractionEquivalent (neg (sub x y)) (sub y x)
+    (\fun (n: Nat) => negSub (at x n) (at y n));
+
+\definition subComposition (x, y, z: CauchySeq):
+    Equivalent (add (sub y x) (sub z y)) (sub z x) :=
+  pointwiseFractionEquivalent (add (sub y x) (sub z y)) (sub z x)
+    (\fun (n: Nat) => RationalFractions.fractionEqTrans _ _ _
+      (RationalOperations.fractionAddComm
+        (subRat (at y n) (at x n)) (subRat (at z n) (at y n)))
+      (RationalFractions.fractionEqSym _ _
+        (subTriangle (at z n) (at y n) (at x n))));
+
+\definition SeqLe (x, y: CauchySeq): \Prop :=
+  Logic.Or[Equivalent x y, EventuallyPositive (sub y x)];
+
+\definition seqLeRefl (x: CauchySeq): SeqLe x x :=
+  Logic.Or[Equivalent x x, EventuallyPositive (sub x x)]::left
+    (equivalentRefl x);
+
+\definition seqLeRespects (x, x2, y, y2: CauchySeq)
+    (xx: Equivalent x x2) (yy: Equivalent y y2)
+    (xy: SeqLe x y): SeqLe x2 y2 :=
+  Classical.orElim (Equivalent x y) (EventuallyPositive (sub y x))
+    (SeqLe x2 y2)
+    (\fun (same: Equivalent x y) =>
+      Logic.Or[Equivalent x2 y2, EventuallyPositive (sub y2 x2)]::left
+        (equivalentTrans x2 x y2 (equivalentSym x x2 xx)
+          (equivalentTrans x y y2 same yy)))
+    (\fun (positiveDifference: EventuallyPositive (sub y x)) =>
+      Logic.Or[Equivalent x2 y2, EventuallyPositive (sub y2 x2)]::right
+        (eventuallyPositiveStable (sub y x) (sub y2 x2)
+          (subRespects y y2 x x2 yy xx) positiveDifference))
+    xy;
+
+\definition seqLeTrans (x, y, z: CauchySeq)
+    (xy: SeqLe x y) (yz: SeqLe y z): SeqLe x z :=
+  Classical.orElim (Equivalent x y) (EventuallyPositive (sub y x))
+    (SeqLe x z)
+    (\fun (sameXY: Equivalent x y) =>
+      seqLeRespects y x z z (equivalentSym x y sameXY)
+        (equivalentRefl z) yz)
+    (\fun (positiveXY: EventuallyPositive (sub y x)) =>
+      Classical.orElim (Equivalent y z) (EventuallyPositive (sub z y))
+        (SeqLe x z)
+        (\fun (sameYZ: Equivalent y z) =>
+          seqLeRespects x x y z (equivalentRefl x) sameYZ xy)
+        (\fun (positiveYZ: EventuallyPositive (sub z y)) =>
+          Logic.Or[Equivalent x z, EventuallyPositive (sub z x)]::right
+            (eventuallyPositiveStable
+              (add (sub y x) (sub z y)) (sub z x)
+              (subComposition x y z)
+              (eventuallyPositiveAdd (sub y x) (sub z y)
+                positiveXY positiveYZ))) yz)
+    xy;
+
+\definition seqLeAntisym (x, y: CauchySeq)
+    (xy: SeqLe x y) (yx: SeqLe y x): Equivalent x y :=
+  Classical.orElim (Equivalent x y) (EventuallyPositive (sub y x))
+    (Equivalent x y)
+    (\fun (same: Equivalent x y) => same)
+    (\fun (positiveXY: EventuallyPositive (sub y x)) =>
+      Classical.orElim (Equivalent y x) (EventuallyPositive (sub x y))
+        (Equivalent x y)
+        (\fun (same: Equivalent y x) => equivalentSym y x same)
+        (\fun (positiveYX: EventuallyPositive (sub x y)) =>
+          Logic.falseElim (Equivalent x y)
+            (eventuallyPositiveOppositeImpossible (sub y x)
+              positiveXY
+              (eventuallyPositiveStable (sub x y) (neg (sub y x))
+                (equivalentSym (neg (sub y x)) (sub x y)
+                  (subNeg y x)) positiveYX))) yx)
+    xy;
+
+\definition seqLeTotal (x, y: CauchySeq):
+    Logic.Or[SeqLe x y, SeqLe y x] :=
+  Classical.orElim (Equivalent (sub y x) zero)
+    (Logic.Not (Equivalent (sub y x) zero))
+    (Logic.Or[SeqLe x y, SeqLe y x])
+    (\fun (differenceZero: Equivalent (sub y x) zero) =>
+      Logic.Or[SeqLe x y, SeqLe y x]::left
+        (Logic.Or[Equivalent x y, EventuallyPositive (sub y x)]::left
+          (equivalentSym y x
+            (equivalentOfSubZero y x differenceZero))))
+    (\fun (differenceNonzero: Logic.Not (Equivalent (sub y x) zero)) =>
+      Classical.orElim (EventuallyPositive (sub y x))
+        (EventuallyNegative (sub y x))
+        (Logic.Or[SeqLe x y, SeqLe y x])
+        (\fun (positiveDifference: EventuallyPositive (sub y x)) =>
+          Logic.Or[SeqLe x y, SeqLe y x]::left
+            (Logic.Or[Equivalent x y,
+              EventuallyPositive (sub y x)]::right positiveDifference))
+        (\fun (negativeDifference: EventuallyNegative (sub y x)) =>
+          Logic.Or[SeqLe x y, SeqLe y x]::right
+            (Logic.Or[Equivalent y x,
+              EventuallyPositive (sub x y)]::right
+              (eventuallyPositiveStable (neg (sub y x)) (sub x y)
+                (subNeg y x)
+                (eventuallyPositiveNegOfNegative (sub y x)
+                  negativeDifference))))
+        (nonEquivalentApart (sub y x) differenceNonzero))
+    (Classical.excludedMiddle (Equivalent (sub y x) zero));
+
+\definition subAddSameLeft (z, x, y: CauchySeq):
+    Equivalent (sub (add z y) (add z x)) (sub y x) :=
+  pointwiseFractionEquivalent
+    (sub (add z y) (add z x)) (sub y x)
+    (\fun (n: Nat) => RationalFractions.fractionEqTrans _ _ _
+      (subAdd (at z n) (at z n) (at y n) (at x n))
+      (RationalFractions.fractionEqTrans _ _ _
+        (RationalOperations.fractionAddRespects
+          (subRat (at z n) (at z n)) zeroRat
+          (subRat (at y n) (at x n)) (subRat (at y n) (at x n))
+          (RationalOperations.fractionSubSelf (at z n))
+          (RationalFractions.fractionEqRefl _))
+        (RationalOperations.fractionAddZeroLeft
+          (subRat (at y n) (at x n)))));
+
+\definition seqLeAddLeft (z, x, y: CauchySeq)
+    (xy: SeqLe x y): SeqLe (add z x) (add z y) :=
+  Classical.orElim (Equivalent x y) (EventuallyPositive (sub y x))
+    (SeqLe (add z x) (add z y))
+    (\fun (same: Equivalent x y) =>
+      Logic.Or[Equivalent (add z x) (add z y),
+        EventuallyPositive (sub (add z y) (add z x))]::left
+        (addRespects z z x y (equivalentRefl z) same))
+    (\fun (positiveDifference: EventuallyPositive (sub y x)) =>
+      Logic.Or[Equivalent (add z x) (add z y),
+        EventuallyPositive (sub (add z y) (add z x))]::right
+        (eventuallyPositiveStable (sub y x)
+          (sub (add z y) (add z x))
+          (equivalentSym (sub (add z y) (add z x)) (sub y x)
+            (subAddSameLeft z x y)) positiveDifference))
+    xy;
+
+\definition subZeroEquivalent (x: CauchySeq): Equivalent (sub x zero) x :=
+  pointwiseFractionEquivalent (sub x zero) x
+    (\fun (n: Nat) => RationalOperations.fractionSubZeroRight (at x n));
+
+\definition eventuallyPositiveMul (x, y: CauchySeq)
+    (positiveX: EventuallyPositive x)
+    (positiveY: EventuallyPositive y): EventuallyPositive (mul x y) :=
+  \take (r: \Cast[Rat] ({ r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) })) =>
+    \take (M: \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] })) =>
+      \take (s: \Cast[Rat] ({ s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at y n)] }) })) =>
+        \take (N: \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at y n)] })) =>
+          \exact(
+            \into[Rat](mulRat r s, { t : Rat \where
+              \exists \Cast[Nat] ({ k : Nat \where
+                Logic.And[Positive t,
+                  \forall (n: Nat) -> NatLe k n ->
+                    RationalOperations.Le t (at (mul x y) n)] }) }) \by {
+              \exact(
+                \into[Nat](commonBound M N, { k : Nat \where
+                  Logic.And[Positive (mulRat r s),
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le (mulRat r s)
+                        (at (mul x y) n)] }) \by {
+                  Logic.And[Positive (mulRat r s),
+                    \forall (n: Nat) -> NatLe (commonBound M N) n ->
+                      RationalOperations.Le (mulRat r s)
+                        (at (mul x y) n)]::#
+                    (RationalOperations.zeroLtMulPositive r s
+                      #left{(\bysub(Nat, { k : Nat \where
+                        Logic.And[Positive r,
+                          \forall (j: Nat) -> NatLe k j ->
+                            RationalOperations.Le r (at x j)] }, M))}
+                      #left{(\bysub(Nat, { k : Nat \where
+                        Logic.And[Positive s,
+                          \forall (j: Nat) -> NatLe k j ->
+                            RationalOperations.Le s (at y j)] }, N))})
+                    (\fun (n: Nat) =>
+                      \fun (Kn: NatLe (commonBound M N) n) =>
+                        \block {
+                          \let product: Logic.And[
+                              Positive (mulRat (at x n) (at y n)),
+                              RationalOperations.Le (mulRat r s)
+                                (mulRat (at x n) (at y n))] :=
+                            positiveProductLowerTwo r s (at x n) (at y n)
+                              #left{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le r (at x j)] }, M))}
+                              #left{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive s,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le s (at y j)] }, N))}
+                              (#right{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive r,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le r (at x j)] }, M))}
+                                n (NL.leTrans M (commonBound M N) n
+                                  (leftLeCommonBound M N) Kn))
+                              (#right{(\bysub(Nat, { k : Nat \where
+                                Logic.And[Positive s,
+                                  \forall (j: Nat) -> NatLe k j ->
+                                    RationalOperations.Le s (at y j)] }, N))}
+                                n (NL.leTrans N (commonBound M N) n
+                                  (rightLeCommonBound M N) Kn));
+                          \return #right{product};
+                        }) },
+                \Cast[Nat] ({ k : Nat \where
+                  Logic.And[Positive (mulRat r s),
+                    \forall (n: Nat) -> NatLe k n ->
+                      RationalOperations.Le (mulRat r s)
+                        (at (mul x y) n)] })) },
+            \Cast[Rat] ({ t : Rat \where
+              \exists \Cast[Nat] ({ k : Nat \where
+                Logic.And[Positive t,
+                  \forall (n: Nat) -> NatLe k n ->
+                    RationalOperations.Le t (at (mul x y) n)] }) }))
+        \by { \bysub(Rat, { s : Rat \where
+          \exists \Cast[Nat] ({ k : Nat \where
+            Logic.And[Positive s,
+              \forall (n: Nat) -> NatLe k n ->
+                RationalOperations.Le s (at y n)] }) }, s) }
+      \by { positiveY }
+    \by { \bysub(Rat, { r : Rat \where
+      \exists \Cast[Nat] ({ k : Nat \where
+        Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) }, r) }
+  \by { positiveX };
+
+\definition seqLeZeroPositive (x: CauchySeq)
+    (positiveX: EventuallyPositive x): SeqLe zero x :=
+  Logic.Or[Equivalent zero x, EventuallyPositive (sub x zero)]::right
+    (eventuallyPositiveStable x (sub x zero)
+      (equivalentSym (sub x zero) x (subZeroEquivalent x)) positiveX);
+
+\definition seqLeMulNonnegative (x, y: CauchySeq)
+    (zeroX: SeqLe zero x) (zeroY: SeqLe zero y):
+    SeqLe zero (mul x y) :=
+  Classical.orElim (Equivalent zero x) (EventuallyPositive (sub x zero))
+    (SeqLe zero (mul x y))
+    (\fun (xZero: Equivalent zero x) =>
+      Logic.Or[Equivalent zero (mul x y),
+        EventuallyPositive (sub (mul x y) zero)]::left
+        (equivalentSym (mul x y) zero
+          (equivalentTrans (mul x y) (mul zero y) zero
+            (mulRespects x zero y y (equivalentSym zero x xZero)
+              (equivalentRefl y))
+            (mulZeroLeft y))))
+    (\fun (xPositiveDifference: EventuallyPositive (sub x zero)) =>
+      Classical.orElim (Equivalent zero y)
+        (EventuallyPositive (sub y zero))
+        (SeqLe zero (mul x y))
+        (\fun (yZero: Equivalent zero y) =>
+          Logic.Or[Equivalent zero (mul x y),
+            EventuallyPositive (sub (mul x y) zero)]::left
+            (equivalentSym (mul x y) zero
+              (equivalentTrans (mul x y) (mul x zero) zero
+                (mulRespects x x y zero (equivalentRefl x)
+                  (equivalentSym zero y yZero))
+                (equivalentTrans (mul x zero) (mul zero x) zero
+                  (mulComm x zero) (mulZeroLeft x)))))
+        (\fun (yPositiveDifference: EventuallyPositive (sub y zero)) =>
+          seqLeZeroPositive (mul x y)
+            (eventuallyPositiveMul x y
+              (eventuallyPositiveStable (sub x zero) x
+                (subZeroEquivalent x) xPositiveDifference)
+              (eventuallyPositiveStable (sub y zero) y
+                (subZeroEquivalent y) yPositiveDifference)))
+        zeroY)
+    zeroX;
