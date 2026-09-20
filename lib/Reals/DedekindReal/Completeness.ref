@@ -57,11 +57,8 @@
     (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
       \take (q: \Cast[Rat] ({ q : Rat \where Logic.And[mem x q, lt p q] })) =>
         \exact(
-          \into[Rat](q, { q : Rat \where Logic.And[In (Union S) q, lt p q] }) \by { \record Logic.And[In (Union S) q, lt p q] {
-              left := unionIntro S x sx q
-                (Logic.And[mem x q, lt p q]::left (\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))),
-              right := Logic.And[mem x q, lt p q]::right (\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q)),
-            } },
+          \into[Rat](q, { q : Rat \where Logic.And[In (Union S) q, lt p q] }) \by { Logic.And[In (Union S) q, lt p q]::# (unionIntro S x sx q
+                (#left{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))})) (#right{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))}) },
           \Cast[Rat] ({ q : Rat \where Logic.And[In (Union S) q, lt p q] }))
       \by { cutRounded x p xp });
 
@@ -83,37 +80,22 @@
 
 \definition unionCut (S: \Pow (Real)) (nonempty: Nonempty S) (bounded: Bounded S):
   IsCut (Union S) :=
-  \record Logic.And[Inhabited (Union S),
+  Logic.And[Inhabited (Union S),
     and!{{ Proper (Union S) } { Lower (Union S) } { Rounded (Union S) }
-      { Located (Union S) } { RespectsFractionEq (Union S) }}] {
-    left := unionInhabited S nonempty,
-    right := \record Logic.And[Proper (Union S),
+      { Located (Union S) } { RespectsFractionEq (Union S) }}]::# (unionInhabited S nonempty) (Logic.And[Proper (Union S),
       and!{{ Lower (Union S) } { Rounded (Union S) }
-        { Located (Union S) } { RespectsFractionEq (Union S) }}] {
-      left := unionProper S bounded,
-      right := \record Logic.And[Lower (Union S),
-        and!{{ Rounded (Union S) } { Located (Union S) } { RespectsFractionEq (Union S) }}] {
-        left := unionLower S,
-        right := \record Logic.And[Rounded (Union S),
-          Logic.And[Located (Union S), RespectsFractionEq (Union S)]] {
-          left := unionRounded S,
-          right := \record Logic.And[Located (Union S), RespectsFractionEq (Union S)] {
-            left := unionLocated S,
-            right := unionRespects S,
-          },
-        },
-      },
-    },
-  };
+        { Located (Union S) } { RespectsFractionEq (Union S) }}]::# (unionProper S bounded) (Logic.And[Lower (Union S),
+        and!{{ Rounded (Union S) } { Located (Union S) } { RespectsFractionEq (Union S) }}]::# (unionLower S) (Logic.And[Rounded (Union S),
+          Logic.And[Located (Union S), RespectsFractionEq (Union S)]]::# (unionRounded S) (Logic.And[Located (Union S), RespectsFractionEq (Union S)]::# (unionLocated S) (unionRespects S)))));
 
 /* Proofs constrain the input through a refinement, rather than a Prop -> Set product. */
 \definition FamilySet: \Pow (\Pow (Real)) :=
   { S : \Pow (Real) \where Logic.And[Nonempty S, Bounded S] };
 \definition Family: \Set := \Cast[\Pow (Real)] (FamilySet);
 \definition familyNonempty (S: Family): Nonempty S :=
-  Logic.And[Nonempty S, Bounded S]::left (\bysub(\Pow (Real), FamilySet, S));
+  #left{(\bysub(\Pow (Real), FamilySet, S))};
 \definition familyBounded (S: Family): Bounded S :=
-  Logic.And[Nonempty S, Bounded S]::right (\bysub(\Pow (Real), FamilySet, S));
+  #right{(\bysub(\Pow (Real), FamilySet, S))};
 \definition supremum (S: Family): Real :=
   \into[\Pow (Rat)](Union S, CutSet) \by { unionCut S (familyNonempty S) (familyBounded S) };
 \definition supremumUpper (S: Family) (x: Real) (sx: Member S x)
@@ -128,25 +110,20 @@
     \by { base: sq, equality: \refl(Union S) })
     (mem u q) (\fun (x: Real) => \fun (sx: Member S x) => ub x sx q);
 \definition supremumLaw (S: Family): LeastUpperBound S (supremum S) :=
-  \record Logic.And[UpperBound S (supremum S),
-    \forall (v: Real) -> UpperBound S v -> Le (supremum S) v] {
-    left := supremumUpper S,
-    right := supremumLeast S,
-  };
+  Logic.And[UpperBound S (supremum S),
+    \forall (v: Real) -> UpperBound S v -> Le (supremum S) v]::# (supremumUpper S) (supremumLeast S);
 \definition complete (S: \Pow (Real)) (ne: Nonempty S) (bd: Bounded S):
   \exists \Cast[Real] ({ u : Real \where LeastUpperBound S u }) :=
   \block {
-    \let family: Family := \into[\Pow (Real)](S, FamilySet) \by { \record Logic.And[Nonempty S, Bounded S] { left := ne, right := bd } };
+    \let family: Family := \into[\Pow (Real)](S, FamilySet) \by { Logic.And[Nonempty S, Bounded S]::# (ne) (bd) };
     \return \exact(\into[Real](supremum family, { u : Real \where LeastUpperBound S u }) \by { supremumLaw family },
       \Cast[Real] ({ u : Real \where LeastUpperBound S u }));
   };
 \definition leastUpperBoundUnique (S: \Pow (Real)) (u, v: Real)
   (hu: LeastUpperBound S u) (hv: LeastUpperBound S v): u = v :=
   leAntisym u v
-    ((Logic.andRight (UpperBound S u) (\forall (w: Real) -> UpperBound S w -> Le u w) hu)
-      v (Logic.andLeft (UpperBound S v) (\forall (w: Real) -> UpperBound S w -> Le v w) hv))
-    ((Logic.andRight (UpperBound S v) (\forall (w: Real) -> UpperBound S w -> Le v w) hv)
-      u (Logic.andLeft (UpperBound S u) (\forall (w: Real) -> UpperBound S w -> Le u w) hu));
+    (#right{hu} v #left{hv})
+    (#right{hv} u #left{hu});
 
 \definition LowerBound (S: \Pow (Real)) (l: Real): \Prop :=
   \forall (x: Real) -> Member S x -> Le l x;
@@ -180,18 +157,13 @@
   \Cast[\Pow (Real)] (InfimumDomainSet);
 
 \definition infimumDomainNonempty (S: InfimumDomain): Nonempty S :=
-  Logic.And[Nonempty S, BoundedBelow S]::left
-    (\bysub(\Pow (Real), InfimumDomainSet, S));
+  #left{(\bysub(\Pow (Real), InfimumDomainSet, S))};
 
 \definition infimumDomainBounded (S: InfimumDomain): BoundedBelow S :=
-  Logic.And[Nonempty S, BoundedBelow S]::right
-    (\bysub(\Pow (Real), InfimumDomainSet, S));
+  #right{(\bysub(\Pow (Real), InfimumDomainSet, S))};
 
 \definition lowerFamily (S: InfimumDomain): Family :=
-  \into[\Pow (Real)](LowerBounds S, FamilySet) \by { \record Logic.And[Nonempty (LowerBounds S), Bounded (LowerBounds S)] {
-      left := lowerBoundsNonempty S (infimumDomainBounded S),
-      right := lowerBoundsBounded S (infimumDomainNonempty S),
-    } };
+  \into[\Pow (Real)](LowerBounds S, FamilySet) \by { Logic.And[Nonempty (LowerBounds S), Bounded (LowerBounds S)]::# (lowerBoundsNonempty S (infimumDomainBounded S)) (lowerBoundsBounded S (infimumDomainNonempty S)) };
 
 \definition infimum (S: InfimumDomain): Real :=
   supremum (lowerFamily S);
@@ -221,21 +193,16 @@
 
 \definition infimumLaw (S: InfimumDomain):
   GreatestLowerBound S (infimum S) :=
-  \record Logic.And[LowerBound S (infimum S),
+  Logic.And[LowerBound S (infimum S),
     \forall (v: Real) -> LowerBound S v ->
-      Le v (infimum S)] {
-    left := infimumLower S,
-    right := infimumGreatest S,
-  };
+      Le v (infimum S)]::# (infimumLower S) (infimumGreatest S);
 
 \definition completeBelow (S: \Pow (Real))
   (nonempty: Nonempty S) (bounded: BoundedBelow S):
   \exists \Cast[Real] ({ l : Real \where GreatestLowerBound S l }) :=
   \block {
     \let domain: InfimumDomain :=
-      \into[\Pow (Real)](S, InfimumDomainSet) \by { \record Logic.And[Nonempty S, BoundedBelow S] {
-          left := nonempty, right := bounded,
-        } };
+      \into[\Pow (Real)](S, InfimumDomainSet) \by { Logic.And[Nonempty S, BoundedBelow S]::# (nonempty) (bounded) };
     \return \exact(
       \into[Real](infimum domain, { l : Real \where GreatestLowerBound S l }) \by { infimumLaw domain },
       \Cast[Real] ({ l : Real \where GreatestLowerBound S l }));
@@ -244,11 +211,5 @@
 \definition greatestLowerBoundUnique (S: \Pow (Real)) (l, m: Real)
   (hl: GreatestLowerBound S l) (hm: GreatestLowerBound S m): l = m :=
   leAntisym l m
-    ((Logic.andRight (LowerBound S m)
-      (\forall (v: Real) -> LowerBound S v -> Le v m) hm)
-      l (Logic.andLeft (LowerBound S l)
-        (\forall (v: Real) -> LowerBound S v -> Le v l) hl))
-    ((Logic.andRight (LowerBound S l)
-      (\forall (v: Real) -> LowerBound S v -> Le v l) hl)
-      m (Logic.andLeft (LowerBound S m)
-        (\forall (v: Real) -> LowerBound S v -> Le v m) hm));
+    (#right{hm} l #left{hl})
+    (#right{hl} m #left{hm});

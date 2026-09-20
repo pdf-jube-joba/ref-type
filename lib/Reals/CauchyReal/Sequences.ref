@@ -21,13 +21,9 @@
       \fun (_: NatLe N.Nat^::zero n) => selfClose eps positive },
     \Cast[Nat] ({ k : Nat \where CauchyAt (ConstSeq a) eps k }));
 \definition zeroClose (eps: Rat) (positive: Positive eps): Close zeroRat zeroRat eps :=
-  \record Logic.And[ltRat (subRat zeroRat zeroRat) eps, ltRat (subRat zeroRat zeroRat) eps] {
-    left := positive, right := positive,
-  };
+  Logic.And[ltRat (subRat zeroRat zeroRat) eps, ltRat (subRat zeroRat zeroRat) eps]::# (positive) (positive);
 \definition oneClose (eps: Rat) (positive: Positive eps): Close oneRat oneRat eps :=
-  \record Logic.And[ltRat (subRat oneRat oneRat) eps, ltRat (subRat oneRat oneRat) eps] {
-    left := positive, right := positive,
-  };
+  Logic.And[ltRat (subRat oneRat oneRat) eps, ltRat (subRat oneRat oneRat) eps]::# (positive) (positive);
 \definition zeroCauchy: IsCauchy (ConstSeq zeroRat) := constCauchyOf zeroRat zeroClose;
 \definition oneCauchy: IsCauchy (ConstSeq oneRat) := constCauchyOf oneRat oneClose;
 \definition zero: CauchySeq :=
@@ -36,17 +32,12 @@
   \into[Sequence](ConstSeq oneRat, CauchySet) \by { oneCauchy };
 
 \definition closeNeg (x, y, eps: Rat) (h: Close x y eps): Close (negRat x) (negRat y) eps :=
-  \record Logic.And[ltRat (subRat (negRat x) (negRat y)) eps,
-    ltRat (subRat (negRat y) (negRat x)) eps] {
-    left :=
-      \idelim(subRat y x = subRat (negRat x) (negRat y) \with a: Rat => ltRat a eps)
-        \by { base: Logic.andRight (ltRat (subRat x y) eps) (ltRat (subRat y x) eps) h, equality:
-          sym!{Rat} _ _ (RationalOperations.subNegEquality x y) },
-    right :=
-      \idelim(subRat x y = subRat (negRat y) (negRat x) \with a: Rat => ltRat a eps)
-        \by { base: Logic.andLeft (ltRat (subRat x y) eps) (ltRat (subRat y x) eps) h, equality:
-          sym!{Rat} _ _ (RationalOperations.subNegEquality y x) },
-  };
+  Logic.And[ltRat (subRat (negRat x) (negRat y)) eps,
+    ltRat (subRat (negRat y) (negRat x)) eps]::# (\idelim(subRat y x = subRat (negRat x) (negRat y) \with a: Rat => ltRat a eps)
+        \by { base: #right{h}, equality:
+          sym!{Rat} _ _ (RationalOperations.subNegEquality x y) }) (\idelim(subRat x y = subRat (negRat y) (negRat x) \with a: Rat => ltRat a eps)
+        \by { base: #left{h}, equality:
+          sym!{Rat} _ _ (RationalOperations.subNegEquality y x) });
 \definition NegSeq (x: CauchySeq) (n: Nat): Rat := negRat (at x n);
 \definition negCauchy (x: CauchySeq) (eps: Rat) (positive: Positive eps):
   \exists \Cast[Nat] ({ k : Nat \where CauchyAt (NegSeq x) eps k }) :=
@@ -73,28 +64,21 @@
     \take (k: \Cast[Nat] ({ k : Nat \where EquivalentAt x x eps k })) =>
       \exact(
         \into[Nat](k, { j : Nat \where EquivalentAt (neg (neg x)) x eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
-            \record Logic.And[
+            Logic.And[
               ltRat (subRat (at (neg (neg x)) n) (at x n)) eps,
-              ltRat (subRat (at x n) (at (neg (neg x)) n)) eps] {
-              left := \idelim(subRat (at x n) (at x n) = subRat (at (neg (neg x)) n) (at x n)
+              ltRat (subRat (at x n) (at (neg (neg x)) n)) eps]::# (\idelim(subRat (at x n) (at x n) = subRat (at (neg (neg x)) n) (at x n)
                 \with q: Rat => ltRat q eps)
-                \by { base: Logic.andLeft (ltRat (subRat (at x n) (at x n)) eps)
-                    (ltRat (subRat (at x n) (at x n)) eps)
-                    ((\bysub(Nat, { j : Nat \where EquivalentAt x x eps j }, k)) n kn), equality:
+                \by { base: #left{((\bysub(Nat, { j : Nat \where EquivalentAt x x eps j }, k)) n kn)}, equality:
                   sym!{Rat} _ _ (RationalOperations.subFieldsLeft
                     (at (neg (neg x)) n) (at x n) (at x n)
                     (RationalOperations.negInvolutiveNumerator (at x n))
-                    (\refl(RationalFractions.denominatorIndex (at x n)))) },
-              right := \idelim(subRat (at x n) (at x n) = subRat (at x n) (at (neg (neg x)) n)
+                    (\refl(#denominatorIndex{(at x n)}))) }) (\idelim(subRat (at x n) (at x n) = subRat (at x n) (at (neg (neg x)) n)
                 \with q: Rat => ltRat q eps)
-                \by { base: Logic.andRight (ltRat (subRat (at x n) (at x n)) eps)
-                    (ltRat (subRat (at x n) (at x n)) eps)
-                    ((\bysub(Nat, { j : Nat \where EquivalentAt x x eps j }, k)) n kn), equality:
+                \by { base: #right{((\bysub(Nat, { j : Nat \where EquivalentAt x x eps j }, k)) n kn)}, equality:
                   sym!{Rat} _ _ (RationalOperations.subFieldsRight
                     (at x n) (at (neg (neg x)) n) (at x n)
                     (RationalOperations.negInvolutiveNumerator (at x n))
-                    (\refl(RationalFractions.denominatorIndex (at x n)))) },
-            } },
+                    (\refl(#denominatorIndex{(at x n)}))) }) },
         \Cast[Nat] ({ j : Nat \where EquivalentAt (neg (neg x)) x eps j }))
     \by { equivalentRefl x eps positive };
 \definition negZero: Equivalent (neg zero) zero :=

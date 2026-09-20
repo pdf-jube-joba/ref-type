@@ -25,45 +25,23 @@
   leRelation: \Pow (Pair.Times^[Carrier, Carrier]),
 };
 
-\definition zero (s: RawRealStructure[Carrier]): Carrier :=
-    RawRealStructure::zero s;
-
-\definition one (s: RawRealStructure[Carrier]): Carrier :=
-    RawRealStructure::one s;
-
-\definition add (s: RawRealStructure[Carrier]): Carrier -> Carrier -> Carrier :=
-    RawRealStructure::add s;
-
-\definition neg (s: RawRealStructure[Carrier]): Carrier -> Carrier :=
-    RawRealStructure::neg s;
-
-\definition mul (s: RawRealStructure[Carrier]): Carrier -> Carrier -> Carrier :=
-    RawRealStructure::mul s;
-
-\definition inv (s: RawRealStructure[Carrier]): Carrier -> Carrier :=
-    RawRealStructure::inv s;
-
-\definition leRelation (s: RawRealStructure[Carrier]):
-    \Pow (Pair.Times^[Carrier, Carrier]) :=
-    RawRealStructure::leRelation s;
-
 \definition Le (s: RawRealStructure[Carrier]) (x, y: Carrier): \Prop :=
-    \In[Pair.Times^[Carrier, Carrier]] (leRelation s) (Pair.pair _ _ x y);
+    \In[Pair.Times^[Carrier, Carrier]] (#leRelation{s}) (Pair.pair _ _ x y);
 
 \definition NonZero (s: RawRealStructure[Carrier]) (x: Carrier): \Prop :=
-    not!{{ x = zero s }};
+    not!{{ x = #zero{s} }};
 
 \record FieldLaws (s: RawRealStructure[Carrier]): \Prop := {
-  zeroNeOne: not!{{ zero s = one s }},
-  addLeftIdentity: Law.LeftUnital (add s) (zero s),
-  addLeftInverse: Law.LeftInvertible (add s) (zero s) (neg s),
-  addCommutative: Law.Commutative (add s),
-  addAssociative: Law.Associative (add s),
-  mulLeftIdentity: Law.LeftUnital (mul s) (one s),
-  mulCommutative: Law.Commutative (mul s),
-  mulAssociative: Law.Associative (mul s),
-  leftDistributive: Law.LeftDistributive (mul s) (add s),
-  inverse: \forall (x: Carrier) -> NonZero s x -> mul s (inv s x) x = one s,
+  zeroNeOne: not!{{ #zero{s} = #one{s} }},
+  addLeftIdentity: Law.LeftUnital (#add{s}) (#zero{s}),
+  addLeftInverse: Law.LeftInvertible (#add{s}) (#zero{s}) (#neg{s}),
+  addCommutative: Law.Commutative (#add{s}),
+  addAssociative: Law.Associative (#add{s}),
+  mulLeftIdentity: Law.LeftUnital (#mul{s}) (#one{s}),
+  mulCommutative: Law.Commutative (#mul{s}),
+  mulAssociative: Law.Associative (#mul{s}),
+  leftDistributive: Law.LeftDistributive (#mul{s}) (#add{s}),
+  inverse: \forall (x: Carrier) -> NonZero s x -> #mul{s} (#inv{s} x) x = #one{s},
 };
 
 \record LinearOrderLaws (s: RawRealStructure[Carrier]): \Prop := {
@@ -75,10 +53,10 @@
 
 \record OrderedFieldLaws (s: RawRealStructure[Carrier]): \Prop := {
   addMonotone: \forall (x, y, z: Carrier) -> Le s x y ->
-    Le s (add s z x) (add s z y),
+    Le s (#add{s} z x) (#add{s} z y),
   nonnegativeMul: \forall (x, y: Carrier) ->
-    Le s (zero s) x -> Le s (zero s) y ->
-      Le s (zero s) (mul s x y),
+    Le s (#zero{s}) x -> Le s (#zero{s}) y ->
+      Le s (#zero{s}) (#mul{s} x y),
 };
 
 \definition In (A: \Pow (Carrier)) (x: Carrier): \Prop := \In[Carrier] (A) (x);
@@ -120,38 +98,23 @@
 \definition realLawsIntro (s: RawRealStructure[Carrier])
   (field: FieldLaws[s]) (order: LinearOrderLaws[s])
   (compatible: OrderedFieldLaws[s]) (complete: Completeness s): IsAxiomaticRealStructure s :=
-  \record Logic.And[FieldLaws[s],
-    Logic.And[LinearOrderLaws[s], Logic.And[OrderedFieldLaws[s], Completeness s]]] {
-    left := field,
-    right := \record Logic.And[LinearOrderLaws[s], Logic.And[OrderedFieldLaws[s], Completeness s]] {
-      left := order,
-      right := \record Logic.And[OrderedFieldLaws[s], Completeness s] {
-        left := compatible, right := complete,
-      },
-    },
-  };
+  Logic.And[FieldLaws[s],
+    Logic.And[LinearOrderLaws[s], Logic.And[OrderedFieldLaws[s], Completeness s]]]::# (field) (Logic.And[LinearOrderLaws[s], Logic.And[OrderedFieldLaws[s], Completeness s]]::# (order) (Logic.And[OrderedFieldLaws[s], Completeness s]::# (compatible) (complete)));
 
 \definition linearOrderIntro (s: RawRealStructure[Carrier])
   (reflexive: Rel.Reflexive (Le s)) (transitive: Rel.Transitive (Le s))
   (antisymmetric: Rel.Antisymmetric (Le s)) (total: Rel.Total (Le s)): LinearOrderLaws[s] :=
-  \record LinearOrderLaws[s] {
-    reflexive := reflexive,
-    transitive := transitive,
-    antisymmetric := antisymmetric,
-    total := total,
-  };
+  LinearOrderLaws[s]::# (reflexive) (transitive) (antisymmetric) (total);
 
 \definition leastUpperBoundIntro (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier)
   (upper: IsUpperBound s A u)
   (least: \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v): IsLeastUpperBound s A u :=
-  \record Logic.And[IsUpperBound s A u, \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v] {
-    left := upper, right := least,
-  };
+  Logic.And[IsUpperBound s A u, \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v]::# (upper) (least);
 \definition lubUpper (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier)
   (h: IsLeastUpperBound s A u): IsUpperBound s A u :=
-  Logic.andLeft (IsUpperBound s A u) (\forall (v: Carrier) -> IsUpperBound s A v -> Le s u v) h;
+  #left{h};
 \definition lubLeast (s: RawRealStructure[Carrier]) (A: \Pow (Carrier)) (u: Carrier)
   (h: IsLeastUpperBound s A u): \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v :=
-  Logic.andRight (IsUpperBound s A u) (\forall (v: Carrier) -> IsUpperBound s A v -> Le s u v) h;
+  #right{h};
 
 \module Laws;
