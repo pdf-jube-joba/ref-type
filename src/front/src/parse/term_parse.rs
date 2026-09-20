@@ -432,6 +432,14 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
+        if self.bump_if_keyword("\\squash") {
+            let program_ty = self.parse_bracketed(Self::parse_sexp)?;
+            let boxed = self.parse_parenthesized(Self::parse_sexp)?;
+            return Ok(SExp::ForceBox {
+                program_ty: Box::new(program_ty),
+                boxed: Box::new(boxed),
+            });
+        }
         if self.bump_if_keyword("\\boxapp") {
             return self.parse_parenthesized(|parser| {
                 let function = parser.parse_sexp()?;
@@ -1289,20 +1297,9 @@ impl<'a> TermParser<'a> {
             Token::KeyWord("\\thunk") => Ok(SExp::Thunk {
                 computation: Box::new(self.parse_postfix()?),
             }),
-            Token::KeyWord("\\force") => {
-                if self.peek() == Some(&Token::LBracket) {
-                    let program_ty = self.parse_bracketed(Self::parse_sexp)?;
-                    let boxed = self.parse_parenthesized(Self::parse_sexp)?;
-                    Ok(SExp::ForceBox {
-                        program_ty: Box::new(program_ty),
-                        boxed: Box::new(boxed),
-                    })
-                } else {
-                    Ok(SExp::Force {
-                        value: Box::new(self.parse_postfix()?),
-                    })
-                }
-            }
+            Token::KeyWord("\\force") => Ok(SExp::Force {
+                value: Box::new(self.parse_postfix()?),
+            }),
             _ => unreachable!(),
         }
     }

@@ -435,7 +435,7 @@ step は thunk された step function、accessibility は停止性証明であ�
 ```text
 \Box[program-computation-type]
 \box[program-computation-type](computation)
-\force[program-computation-type](boxed)
+\squash[program-computation-type](boxed)
 \boxapp(boxed-function, boxed-argument)
 ```
 

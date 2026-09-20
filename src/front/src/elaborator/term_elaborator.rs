@@ -28,8 +28,11 @@ pub(crate) trait Handler {
         &mut self,
         expression: &SExp,
     ) -> Result<ComputationType, String>;
-    fn elaborate_boxed_computation(&mut self, expression: &SExp)
-    -> Result<ComputationTerm, String>;
+    fn elaborate_boxed_program(
+        &mut self,
+        ty: &SExp,
+        computation: &SExp,
+    ) -> Result<(ComputationType, ComputationTerm), String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(
@@ -1095,8 +1098,7 @@ impl LocalScope {
                 program_ty,
                 program,
             } => {
-                let program_ty = handler.elaborate_boxed_computation_type(program_ty)?;
-                let program = handler.elaborate_boxed_computation(program)?;
+                let (program_ty, program) = handler.elaborate_boxed_program(program_ty, program)?;
                 Ok(handler.arena().alloc(ExpNode::BoxProgram {
                     program_ty,
                     program,
@@ -1115,7 +1117,7 @@ impl LocalScope {
                     let boxed_ty = type_head_normal(handler.env(), boxed_ty);
                     let ExpNode::BoxType { program_ty } = handler.arena().get(boxed_ty) else {
                         return Err(
-                            "cannot infer \\force type: argument is not boxed Program code".into(),
+                            "cannot infer \\squash type: argument is not boxed Program code".into(),
                         );
                     };
                     program_ty

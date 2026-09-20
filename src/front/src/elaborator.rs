@@ -212,13 +212,24 @@ impl term_elaborator::Handler for GlobalEnvironment {
         scope.elaborate_computation_type(&computation_ty, self)
     }
 
-    fn elaborate_boxed_computation(
+    fn elaborate_boxed_program(
         &mut self,
-        expression: &SExp,
-    ) -> Result<crate::raw::program::ComputationTerm, String> {
+        ty: &SExp,
+        computation: &SExp,
+    ) -> Result<
+        (
+            crate::raw::program::ComputationType,
+            crate::raw::program::ComputationTerm,
+        ),
+        String,
+    > {
         let mut scope = program_term_elaborator::ProgramScope::new();
-        let computation = ComputationTermExp::try_from(expression.clone())?;
-        scope.elaborate_computation(&computation, self)
+        let ty = ComputationTypeExp::try_from(ty.clone())?;
+        let computation = ComputationTermExp::try_from(computation.clone())?;
+        let ty = scope.elaborate_computation_type(&ty, self)?;
+        let computation = scope.elaborate_computation(&computation, self)?;
+        let (computation, ty) = scope.check_computation_term_with_metas(self, computation, ty)?;
+        Ok((ty, computation))
     }
 }
 

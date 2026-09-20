@@ -840,12 +840,14 @@ fn program_value_definition_uses_the_value_judgement() {
 }
 
 #[test]
-fn force_infers_implicit_program_type_from_boxed_argument() {
+fn squash_and_box_infer_implicit_program_types() {
     let source = r#"
-        \module ForceMeta {
+        \module SquashMeta {
             \inductive Unit: \VType := | unit: Unit; ;
+            \definition boxed: \Box[\F(Unit)] :=
+                \box[_](\return Unit::unit);
             \definition reflected: Unit^ :=
-                \force[_](\box[\F(Unit)](\return Unit::unit));
+                \squash[_](boxed);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1378,7 +1380,7 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
           \definition step: \U((Unit ~> \F(\RunStep[Unit, Unit]))) :=
             \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep[Unit^, Unit^] :=
-            \force[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\box[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\return(step)));
+            \squash[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\box[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\return(step)));
           \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
             \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] (\runStepRec[Unit^, Unit^](\fun (r: \RunStep[Unit^, Unit^]) => \Pow (Unit^), \fun (s: Unit^) => { x : Unit^ \where \Acc[Unit^, Unit^](stepSet, s) }, \fun (o: Unit^) => { x : Unit^ \where Unit^::unit = Unit^::unit }, r)) (Unit^::unit);
           \definition terminates: \forall (s: Unit^) -> \Acc[Unit^, Unit^](stepSet, s) :=

@@ -360,7 +360,7 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
   \ccheck S.result: \F(Unit);
   \vcheck C.value: Unit;
   \definition package: \Box[\F(Unit)] := \box[\F(Unit)](\return(C.value));
-  \normalize \force[\F(Unit)](package);
+  \normalize \squash[\F(Unit)](package);
 }
 "#,
     );

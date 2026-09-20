@@ -14,7 +14,7 @@
 
 \definition neg: Bool -> Bool := (\cfun (x: Bool) => \match x \in Bool \with { | false => \return Bool::true |
   true => \return Bool::false });
-\definition negSet: Bool^ -> Bool^ := \force[Bool -> Bool](\box[Bool -> Bool](neg));
+\definition negSet: Bool^ -> Bool^ := \squash[Bool -> Bool](\box[Bool -> Bool](neg));
 \definition negPrec (x: Bool^): Bool^ := \case x \in Bool^ \return (\fun (b: Bool^) => Bool^) {
   | false => Bool^::true
   | true => Bool^::false
@@ -29,7 +29,7 @@
   };
 
 \definition and: Bool -> Bool -> Bool := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match x \in Bool \with { | false => \return Bool::false | true => \return y }))));
-\definition andSet: Bool^ -> Bool^ -> Bool^ := \force[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](and));
+\definition andSet: Bool^ -> Bool^ -> Bool^ := \squash[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](and));
 \definition andPrec (x, y: Bool^): Bool^ := \case x \in Bool^ \return (\fun (b: Bool^) => Bool^) {
   | false => Bool^::false
   | true => y
@@ -54,7 +54,7 @@
   };
 
 \definition or: Bool -> Bool -> Bool := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match x \in Bool \with { | false => \return y | true => \return Bool::true }))));
-\definition orSet: Bool^ -> Bool^ -> Bool^ := \force[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](or));
+\definition orSet: Bool^ -> Bool^ -> Bool^ := \squash[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](or));
 \definition orPrec (x, y: Bool^): Bool^ := \case x \in Bool^ \return (\fun (b: Bool^) => Bool^) {
   | false => y
   | true => Bool^::true
@@ -79,7 +79,7 @@
   };
 
 \definition xor: Bool -> Bool -> Bool := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match x \in Bool \with { | false => \return y | true => (neg y) }))));
-\definition xorSet: Bool^ -> Bool^ -> Bool^ := \force[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](xor));
+\definition xorSet: Bool^ -> Bool^ -> Bool^ := \squash[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](xor));
 \definition xorPrec (x, y: Bool^): Bool^ := \case x \in Bool^ \return (\fun (b: Bool^) => Bool^) {
   | false => y
   | true => (negPrec
@@ -105,7 +105,7 @@
   };
 
 \definition implies: Bool -> Bool -> Bool := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match x \in Bool \with { | false => \return Bool::true | true => \return y }))));
-\definition impliesSet: Bool^ -> Bool^ -> Bool^ := \force[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](implies));
+\definition impliesSet: Bool^ -> Bool^ -> Bool^ := \squash[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](implies));
 \definition impliesPrec (x, y: Bool^): Bool^ := \case x \in Bool^ \return (\fun (b: Bool^) => Bool^) {
   | false => Bool^::true
   | true => y
@@ -130,7 +130,7 @@
   };
 
 \definition eqb: Bool -> Bool -> Bool := (\cfun (x: Bool) => \return(\thunk((\cfun (y: Bool) => \match x \in Bool \with { | false => (neg y) | true => \return y }))));
-\definition eqbSet: Bool^ -> Bool^ -> Bool^ := \force[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](eqb));
+\definition eqbSet: Bool^ -> Bool^ -> Bool^ := \squash[Bool -> Bool -> Bool](\box[Bool -> Bool -> Bool](eqb));
 \definition eqbPrec (x, y: Bool^): Bool^ := \case x \in Bool^ \return (\fun (b: Bool^) => Bool^) {
   | false => (negPrec y)
   | true => y
@@ -522,22 +522,16 @@
     \by { base: \refl(Bool^::false), equality: e };
   };
 \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
-  \block {
-    \fix (a, b: Bool^);
-    \fix (e: IsTrue (eqbSet a b));
-    \let byCases: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
-      \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (eqbSet a b) -> a = b \with {
-        | false => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::false b) -> Bool^::false = b \with {
-          | false => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::false))
-          | true => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::false = Bool^::true) e)
-          })
-        | true => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::true b) -> Bool^::true = b \with {
-          | false => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::true = Bool^::false) e)
-          | true => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::true))
-          })
-        };
-    \return byCases a b e;
-  };
+  \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (eqbSet a b) -> a = b \with {
+    | false => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::false b) -> Bool^::false = b \with {
+      | false => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::false))
+      | true => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::false = Bool^::true) e)
+      })
+    | true => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::true b) -> Bool^::true = b \with {
+      | false => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::true = Bool^::false) e)
+      | true => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::true))
+      })
+    };
 \definition eqbTrueOfEq: \forall (a, b: Bool^) -> a = b -> IsTrue (eqbSet a b) :=
   \block {
     \fix (a, b: Bool^);

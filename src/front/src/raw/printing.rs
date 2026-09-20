@@ -263,7 +263,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
         ),
         ExpNode::ForceBox { program_ty, boxed } => {
             format!(
-                "\\force[{}]({})",
+                "\\squash[{}]({})",
                 format_computation_type(env, program_ty),
                 child(boxed)
             )

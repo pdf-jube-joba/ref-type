@@ -94,6 +94,7 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\thunk",
     "\\return",
     "\\force",
+    "\\squash",
     "\\RunStep",
     "\\continue",
     "\\finish",
