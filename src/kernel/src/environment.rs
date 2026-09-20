@@ -1,6 +1,7 @@
 use super::{construction as build, structure};
 use super::{sort::*, syntax::*};
 use crate::ids::*;
+use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -46,8 +47,8 @@ pub struct ProgramDatatype {
 pub struct Environment {
     pub(crate) arena: Arena,
     pub(crate) inference_cache:
-        std::cell::RefCell<HashMap<(Expression, Vec<Expression>), Classifier>>,
-    pub(crate) head_cache: std::cell::RefCell<HashMap<Expression, Expression>>,
+        std::cell::RefCell<FxHashMap<(Expression, Vec<Expression>), Classifier>>,
+    pub(crate) head_cache: std::cell::RefCell<FxHashMap<Expression, Expression>>,
     pub(crate) definitions: HashMap<DefId, Definition>,
     pub(crate) definition_templates: HashMap<DefId, Definition>,
     pub(crate) parameters: HashMap<ModuleParamId, Binding>,
@@ -282,7 +283,7 @@ fn check_positive(
         e,
         RecursiveType::Logical(id),
         positive,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
     )
 }
 fn check_program_positive(
@@ -296,7 +297,7 @@ fn check_program_positive(
         e,
         RecursiveType::Program(id),
         positive,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
     )
 }
 
@@ -311,7 +312,7 @@ fn check_strictly_positive(
     e: Expression,
     target: RecursiveType,
     positive: bool,
-    occurrences: &mut HashMap<Expression, bool>,
+    occurrences: &mut FxHashMap<Expression, bool>,
 ) -> Result<(), String> {
     if !contains_recursive_type(env, e, target, occurrences) {
         return Ok(());
@@ -352,13 +353,18 @@ fn check_strictly_positive(
     result
 }
 fn contains_inductive(env: &Environment, e: Expression, id: InductiveId) -> bool {
-    contains_recursive_type(env, e, RecursiveType::Logical(id), &mut HashMap::new())
+    contains_recursive_type(
+        env,
+        e,
+        RecursiveType::Logical(id),
+        &mut FxHashMap::default(),
+    )
 }
 fn contains_recursive_type(
     env: &Environment,
     e: Expression,
     target: RecursiveType,
-    cache: &mut HashMap<Expression, bool>,
+    cache: &mut FxHashMap<Expression, bool>,
 ) -> bool {
     if let Some(&found) = cache.get(&e) {
         return found;

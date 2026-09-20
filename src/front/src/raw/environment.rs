@@ -7,6 +7,7 @@ use crate::raw::{
     program::{ComputationTerm, ComputationType, ValueTerm, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
 };
+use rustc_hash::FxHashMap;
 use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
@@ -236,7 +237,7 @@ impl ModuleEnv {
     }
 }
 
-type InferenceCache = HashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>;
+type InferenceCache = FxHashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>;
 
 #[derive(Debug)]
 pub struct CrateEnv {
@@ -245,7 +246,7 @@ pub struct CrateEnv {
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
     // Raw nodes and registered declarations are immutable. Weak-head reduction
     // depends only on those, not on the elaborator's context or meta assignments.
-    pub(crate) whnf_cache: RefCell<HashMap<Exp, Exp>>,
+    pub(crate) whnf_cache: RefCell<FxHashMap<Exp, Exp>>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,

@@ -7,6 +7,7 @@ use super::{
     syntax::*,
 };
 use crate::ids::*;
+use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
 pub(crate) fn expressions<T: Copy + Into<Expression>>(values: &[T]) -> Vec<Expression> {
@@ -30,7 +31,7 @@ pub fn shift(
         e: Expression,
         n: usize,
         cutoff: usize,
-        cache: &mut HashMap<(Expression, usize), Expression>,
+        cache: &mut FxHashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
         if a.max_loose_bound(e).is_none_or(|index| index < cutoff) {
             return Ok(e);
@@ -56,7 +57,7 @@ pub fn shift(
     if amount == 0 {
         return Ok(e);
     }
-    walk(arena, e, amount, cutoff, &mut HashMap::new())
+    walk(arena, e, amount, cutoff, &mut FxHashMap::default())
 }
 pub fn substitute(
     arena: &Arena,
@@ -87,7 +88,7 @@ fn substitute_inner(
         argument: Expression,
         reflection_env: Option<&Environment>,
         depth: usize,
-        cache: &mut HashMap<(Expression, usize), Expression>,
+        cache: &mut FxHashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
         if a.max_loose_bound(e).is_none_or(|index| index < depth) {
             return Ok(e);
@@ -123,7 +124,7 @@ fn substitute_inner(
         argument,
         reflection_env,
         0,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
     )
 }
 pub fn instantiate_telescope(
@@ -212,7 +213,7 @@ pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
         arena: &Arena,
         left: Expression,
         right: Expression,
-        cache: &mut HashMap<(Expression, Expression), bool>,
+        cache: &mut FxHashMap<(Expression, Expression), bool>,
     ) -> bool {
         if left == right {
             return true;
@@ -226,14 +227,14 @@ pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
         cache.insert((left, right), result);
         result
     }
-    go(arena, left, right, &mut HashMap::new())
+    go(arena, left, right, &mut FxHashMap::default())
 }
 pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bool, String> {
     fn go(
         env: &Environment,
         a: Expression,
         b: Expression,
-        seen: &mut HashMap<(Expression, Expression), bool>,
+        seen: &mut FxHashMap<(Expression, Expression), bool>,
     ) -> Result<bool, String> {
         if a.family() != b.family() || env.arena.sort(a) != env.arena.sort(b) {
             return Ok(false);
@@ -253,7 +254,7 @@ pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bo
         seen.insert((a, b), result);
         Ok(result)
     }
-    go(env, a, b, &mut HashMap::new())
+    go(env, a, b, &mut FxHashMap::default())
 }
 pub fn reduce_once(
     env: &Environment,
@@ -493,7 +494,7 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
         env: &Environment,
         e: Expression,
         depth: usize,
-        cache: &mut HashMap<(Expression, usize), bool>,
+        cache: &mut FxHashMap<(Expression, usize), bool>,
     ) -> bool {
         if let Some(&result) = cache.get(&(e, depth)) {
             return result;
@@ -515,7 +516,7 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
         cache.insert((e, depth), result);
         result
     }
-    go(env, e, 0, &mut HashMap::new())
+    go(env, e, 0, &mut FxHashMap::default())
 }
 /// Local binders must be abstracted before a named declaration is registered.
 pub fn locally_closed(arena: &Arena, e: Expression) -> bool {

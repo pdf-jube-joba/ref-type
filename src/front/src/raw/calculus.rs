@@ -6,6 +6,7 @@ use crate::raw::{
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{ComputationTermNode, ComputationType},
 };
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use std::collections::HashMap;
 
@@ -894,8 +895,8 @@ fn cached_whnf(env: &CrateEnv, exp: Exp, erase_subset_intro: bool, cache: &mut A
 
 #[derive(Default)]
 struct AlphaCache {
-    whnf: HashMap<Exp, Exp>,
-    comparisons: HashMap<(Exp, Exp, bool, bool), bool>,
+    whnf: FxHashMap<Exp, Exp>,
+    comparisons: FxHashMap<(Exp, Exp, bool, bool), bool>,
 }
 
 fn alpha_rec(
@@ -1241,12 +1242,12 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
     let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::raw::printing::format_exp(env, exp));
     let _entered = span.enter();
-    let result = normalize_with_cache(env, exp, &mut HashMap::new());
+    let result = normalize_with_cache(env, exp, &mut FxHashMap::default());
     tracing::debug!(target: "ref_type::reduction", result = %crate::raw::printing::format_exp(env, result), "normalization finished");
     result
 }
 
-fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>) -> Exp {
+fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut FxHashMap<Exp, Exp>) -> Exp {
     if let Some(normal) = cache.get(&exp) {
         return *normal;
     }

@@ -1,8 +1,8 @@
 //! Unclassified Set/Prop syntax and the front-end arena used during elaboration.
 
+use rustc_hash::{FxHashMap, FxHasher};
 use std::{
     cell::{Ref, RefCell},
-    collections::{HashMap, hash_map::DefaultHasher},
     hash::{Hash, Hasher},
 };
 
@@ -312,7 +312,7 @@ macro_rules! arena_partition {
 #[derive(Debug, Default)]
 pub struct Arena {
     exps: RefCell<Vec<ExpNode>>,
-    interned_exps: RefCell<HashMap<u64, Exp>>,
+    interned_exps: RefCell<FxHashMap<u64, Exp>>,
     value_types: RefCell<Vec<ValueTypeNode>>,
     computation_types: RefCell<Vec<ComputationTypeNode>>,
     values: RefCell<Vec<ValueTermNode>>,
@@ -323,7 +323,7 @@ impl ArenaNode for ExpNode {
     type Handle = Exp;
 
     fn allocate(self, arena: &Arena) -> Self::Handle {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         self.hash(&mut hasher);
         let fingerprint = hasher.finish();
         if let Some(existing) = arena.interned_exps.borrow().get(&fingerprint).copied()

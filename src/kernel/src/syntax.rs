@@ -14,31 +14,55 @@
 //! ```
 use super::sort::*;
 use crate::ids::*;
-use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
+use rustc_hash::FxHashMap;
+use std::{
+    cell::{Cell, RefCell},
+    hash::{Hash, Hasher},
+    rc::Rc,
+};
 
-/// Immutable, structurally interned nodes. Arena and interner share each allocation.
+const NO_NODE: u32 = u32::MAX;
+
+/// Immutable, structurally interned nodes.
 #[derive(Debug)]
 struct Partition<N> {
     nodes: Vec<Rc<N>>,
-    interner: HashMap<Rc<N>, u32>,
+    interner: FxHashMap<u64, u32>,
+    hash_links: Vec<u32>,
+    max_loose_bounds: Vec<Cell<Option<Option<usize>>>>,
 }
 impl<N> Default for Partition<N> {
     fn default() -> Self {
         Self {
             nodes: Vec::new(),
-            interner: HashMap::new(),
+            interner: FxHashMap::default(),
+            hash_links: Vec::new(),
+            max_loose_bounds: Vec::new(),
         }
     }
 }
 impl<N: Eq + Hash> Partition<N> {
     fn insert(&mut self, node: N) -> u32 {
-        if let Some(&id) = self.interner.get(&node) {
-            return id;
+        let mut hasher = rustc_hash::FxHasher::default();
+        node.hash(&mut hasher);
+        let fingerprint = hasher.finish();
+        let first = self.interner.get(&fingerprint).copied().unwrap_or(NO_NODE);
+        let mut candidate = first;
+        while candidate != NO_NODE {
+            let id = candidate;
+            if *self.nodes[id as usize] == node {
+                return id;
+            }
+            candidate = self.hash_links[id as usize];
         }
-        let id = u32::try_from(self.nodes.len()).expect("arena exhausted");
-        let node = Rc::new(node);
-        self.nodes.push(node.clone());
-        self.interner.insert(node, id);
+        let id = u32::try_from(self.nodes.len())
+            .ok()
+            .filter(|&id| id != NO_NODE)
+            .expect("arena exhausted");
+        self.nodes.push(Rc::new(node));
+        self.hash_links.push(first);
+        self.max_loose_bounds.push(Cell::new(None));
+        self.interner.insert(fingerprint, id);
         id
     }
 }
@@ -84,12 +108,21 @@ macro_rules! syntax_families {
         }
         #[derive(Debug, Default)]
         pub struct Arena {
-            loose_bound_cache: RefCell<HashMap<Expression, Option<usize>>>,
             $($storage: RefCell<Partition<$node>>,)+
         }
         impl Arena {
             pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
                 match e.into() { $(Expression::$handle(h) => self.$storage.borrow().nodes[h.index()].sort(),)+ }
+            }
+            fn cached_max_loose_bound(&self, e: Expression) -> Option<Option<usize>> {
+                match e {
+                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].get(),)+
+                }
+            }
+            fn cache_max_loose_bound(&self, e: Expression, value: Option<usize>) {
+                match e {
+                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].set(Some(value)),)+
+                }
             }
         }
         $(impl ArenaNode for $node {
@@ -1108,7 +1141,7 @@ impl Arena {
         handle.read(self)
     }
     pub(crate) fn max_loose_bound(&self, e: Expression) -> Option<usize> {
-        if let Some(&cached) = self.loose_bound_cache.borrow().get(&e) {
+        if let Some(cached) = self.cached_max_loose_bound(e) {
             return cached;
         }
         let mut result = super::structure::bound_index(self, e);
@@ -1120,7 +1153,7 @@ impl Arena {
                 result = Some(result.map_or(index, |old| old.max(index)));
             }
         });
-        self.loose_bound_cache.borrow_mut().insert(e, result);
+        self.cache_max_loose_bound(e, result);
         result
     }
 }
