@@ -70,12 +70,21 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             | zero: Bit;
             | one: Bit;
             ;
-            \record Pair(A: \Set): \Set := {
+            \record Pair(A: \Set, B: \Set): \Set := {
                 first: A,
-                second: A,
+                second: B,
             };
-            \definition pair: Pair[Bit] := Pair::# Bit::zero Bit::one;
+            \definition pair: Pair[Bit, Bit] := Pair::# Bit::zero Bit::one;
             \definition first: Bit := #first{pair};
+            \definition swap: \forall (A, B: \Set) -> Pair[A, B] -> Pair[B, A] :=
+                \fun (A, B: \Set) => \fun (pair: Pair[A, B]) =>
+                    Pair::# #second{pair} #first{pair};
+            \definition nestedFirst:
+                \forall (A, B, C: \Set) -> Pair[Pair[A, B], C] -> A :=
+                \fun (A, B, C: \Set) => \fun (pair: Pair[Pair[A, B], C]) =>
+                    #first{#first{pair}};
+            \definition BitPair: \Set := Pair[Bit, Bit];
+            \definition aliasedFirst(pair: BitPair): Bit := #first{pair};
 
             \inductive VBit: \VType :=
             | zero: VBit;
@@ -85,6 +94,8 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
                 first: A,
                 second: A,
             };
+            \definition VPair(A: \VType)::getFirst(pair: VPair[A]): \F(A) :=
+                #first{pair};
             \definition vpair: VPair[VBit] :=
                 VPair::# VBit::zero VBit::one;
             \definition vfirst: \F(VBit) := #first{vpair};

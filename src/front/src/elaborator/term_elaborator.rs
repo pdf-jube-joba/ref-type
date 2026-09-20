@@ -14,7 +14,12 @@ pub(crate) trait Handler {
         &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, String>;
-    fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String>;
+    fn field_projection(
+        &mut self,
+        local_ctx: &mut ExpContext,
+        e: Exp,
+        field_name: &Identifier,
+    ) -> Result<Exp, String>;
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, String>;
     fn elaborate_boxed_computation_type(
         &mut self,
@@ -576,12 +581,12 @@ impl LocalScope {
                 } else {
                     // 2. otherwise, elab base first, then project field
                     let base_elab = self.elab_exp_rec(base, handler)?;
-                    handler.field_projection(base_elab, field)
+                    handler.field_projection(&mut self.typing_binds, base_elab, field)
                 }
             }
             SExp::InferredProjection { value, field } => {
                 let value = self.elab_exp_rec(value, handler)?;
-                handler.field_projection(value, field)
+                handler.field_projection(&mut self.typing_binds, value, field)
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
                 let expanded = expand_macros(exp, handler)?;

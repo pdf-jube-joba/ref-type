@@ -2,7 +2,7 @@ use crate::macros::MacroKind;
 use crate::raw::{
     calculus::{
         exp_contains_inductive, exp_subst_map, instantiate_telescope, remap_all_global_ids,
-        shift_bound_indices,
+        shift_bound_indices, whnf,
     },
     derivation::CheckSession,
     environment::{
@@ -144,14 +144,16 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .ok_or("Failed to access item at path".to_string())
     }
 
-    fn field_projection(&mut self, e: Exp, field_name: &Identifier) -> Result<Exp, String> {
-        let mut ctx = self.module_manager.current_context(&self.crate_env);
-        let infer_type_e =
-            CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
-                .infer_pts(e)
-                .map_err(|error| {
-                    format!("Failed to infer type of expression for field projection: {error:?}")
-                })?;
+    fn field_projection(
+        &mut self,
+        local_ctx: &mut ExpContext,
+        e: Exp,
+        field_name: &Identifier,
+    ) -> Result<Exp, String> {
+        let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
+            format!("Failed to infer type of expression for field projection: {error}")
+        })?;
+        let infer_type_e = whnf(&self.crate_env, infer_type_e);
 
         let ExpNode::IndType {
             indspec,
