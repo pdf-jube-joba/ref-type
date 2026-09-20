@@ -10,8 +10,8 @@ use crate::ids::*;
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
-pub(crate) fn expressions<T: Copy + Into<Expression>>(values: &[T]) -> Vec<Expression> {
-    values.iter().map(|&e| e.into()).collect()
+pub(crate) fn expressions<T: Clone + Into<Expression>>(values: &[T]) -> Vec<Expression> {
+    values.iter().cloned().map(Into::into).collect()
 }
 pub(crate) fn map_children(
     arena: &Arena,
@@ -33,24 +33,26 @@ pub fn shift(
         cutoff: usize,
         cache: &mut FxHashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
-        if a.max_loose_bound(e).is_none_or(|index| index < cutoff) {
+        if a.max_loose_bound(e.clone())
+            .is_none_or(|index| index < cutoff)
+        {
             return Ok(e);
         }
-        if let Some(&result) = cache.get(&(e, cutoff)) {
-            return Ok(result);
+        if let Some(result) = cache.get(&(e.clone(), cutoff)) {
+            return Ok(result.clone());
         }
-        if let Some(index) = structure::bound_index(a, e) {
+        if let Some(index) = structure::bound_index(a, e.clone()) {
             return build::bound(
                 a,
-                a.sort(e),
+                a.sort(e.clone()),
                 e.family().stage(),
                 index.checked_add(n).ok_or("bound index overflow")?,
             );
         }
-        let result = map_children(a, e, |child, depth| {
+        let result = map_children(a, e.clone(), |child, depth| {
             walk(a, child, n, cutoff + depth, cache)
         })?;
-        cache.insert((e, cutoff), result);
+        cache.insert((e, cutoff), result.clone());
         Ok(result)
     }
     let e = e.into();
@@ -90,32 +92,36 @@ fn substitute_inner(
         depth: usize,
         cache: &mut FxHashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
-        if a.max_loose_bound(e).is_none_or(|index| index < depth) {
+        if a.max_loose_bound(e.clone())
+            .is_none_or(|index| index < depth)
+        {
             return Ok(e);
         }
-        if let Some(&result) = cache.get(&(e, depth)) {
-            return Ok(result);
+        if let Some(result) = cache.get(&(e.clone(), depth)) {
+            return Ok(result.clone());
         }
-        if let Some(index) = structure::bound_index(a, e) {
+        if let Some(index) = structure::bound_index(a, e.clone()) {
             if index == depth {
-                let argument = if !a.sort(e).is_program() && a.sort(argument).is_program() {
-                    let env = reflection_env
-                        .ok_or("Program proof substitution requires an environment")?;
-                    super::reflection::reflect_program_expression(env, argument)?
-                } else {
-                    argument
-                };
-                if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
+                let argument =
+                    if !a.sort(e.clone()).is_program() && a.sort(argument.clone()).is_program() {
+                        let env = reflection_env
+                            .ok_or("Program proof substitution requires an environment")?;
+                        super::reflection::reflect_program_expression(env, argument.clone())?
+                    } else {
+                        argument
+                    };
+                if e.family() != argument.family() || a.sort(e.clone()) != a.sort(argument.clone())
+                {
                     return Err("substitution argument has the wrong family or level".into());
                 }
                 return shift(a, argument, depth, 0);
             }
-            return build::bound(a, a.sort(e), e.family().stage(), index - 1);
+            return build::bound(a, a.sort(e.clone()), e.family().stage(), index - 1);
         }
-        let result = map_children(a, e, |child, n| {
-            walk(a, child, argument, reflection_env, depth + n, cache)
+        let result = map_children(a, e.clone(), |child, n| {
+            walk(a, child, argument.clone(), reflection_env, depth + n, cache)
         })?;
-        cache.insert((e, depth), result);
+        cache.insert((e, depth), result.clone());
         Ok(result)
     }
     walk(
@@ -134,13 +140,13 @@ pub fn instantiate_telescope(
 ) -> Result<Expression, String> {
     let arena = &env.arena;
     let mut result = e;
-    for (i, &argument) in arguments.iter().enumerate().rev() {
+    for (i, argument) in arguments.iter().enumerate().rev() {
         result = substitute_with_reflection(env, result, shift(arena, argument, i, 0)?)?;
     }
     Ok(result)
 }
 pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
-    if let Some(i) = structure::bound_index(arena, e) {
+    if let Some(i) = structure::bound_index(arena, e.clone()) {
         return i == index;
     }
     let mut found = false;
@@ -151,11 +157,11 @@ pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
 }
 pub fn is_closed(arena: &Arena, e: Expression) -> bool {
     fn go(a: &Arena, e: Expression, depth: usize) -> bool {
-        if let Some(index) = structure::bound_index(a, e) {
+        if let Some(index) = structure::bound_index(a, e.clone()) {
             return index < depth;
         }
-        if structure::module_parameter(a, e).is_some()
-            || structure::reflected_parameter(a, e).is_some()
+        if structure::module_parameter(a, e.clone()).is_some()
+            || structure::reflected_parameter(a, e.clone()).is_some()
         {
             return false;
         }
@@ -179,16 +185,16 @@ pub fn substitute_parameters(
         depth: usize,
     ) -> Result<Expression, String> {
         let a = &env.arena;
-        let reflected = structure::reflected_parameter(a, e);
-        if let Some(parameter) = structure::module_parameter(a, e).or(reflected)
-            && let Some(&argument) = p.get(&parameter)
+        let reflected = structure::reflected_parameter(a, e.clone());
+        if let Some(parameter) = structure::module_parameter(a, e.clone()).or(reflected)
+            && let Some(argument) = p.get(&parameter)
         {
             let argument = if reflected.is_some() {
-                super::reflection::reflect_program_expression(env, argument)?
+                super::reflection::reflect_program_expression(env, argument.clone())?
             } else {
-                argument
+                argument.clone()
             };
-            if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
+            if e.family() != argument.family() || a.sort(e.clone()) != a.sort(argument.clone()) {
                 return Err("module argument classification mismatch".into());
             }
             return shift(a, argument, depth, 0);
@@ -218,12 +224,13 @@ pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
         if left == right {
             return true;
         }
-        if let Some(&result) = cache.get(&(left, right)) {
+        if let Some(&result) = cache.get(&(left.clone(), right.clone())) {
             return result;
         }
-        let result =
-            structure::compare_children(arena, left, right, |l, r| Ok(go(arena, l, r, cache)))
-                .expect("alpha comparison cannot fail");
+        let result = structure::compare_children(arena, left.clone(), right.clone(), |l, r| {
+            Ok(go(arena, l, r, cache))
+        })
+        .expect("alpha comparison cannot fail");
         cache.insert((left, right), result);
         result
     }
@@ -236,19 +243,19 @@ pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bo
         b: Expression,
         seen: &mut FxHashMap<(Expression, Expression), bool>,
     ) -> Result<bool, String> {
-        if a.family() != b.family() || env.arena.sort(a) != env.arena.sort(b) {
+        if a.family() != b.family() || env.arena.sort(a.clone()) != env.arena.sort(b.clone()) {
             return Ok(false);
         }
-        if alpha_equal(&env.arena, a, b) {
+        if alpha_equal(&env.arena, a.clone(), b.clone()) {
             return Ok(true);
         }
-        if let Some(&result) = seen.get(&(a, b)) {
+        if let Some(&result) = seen.get(&(a.clone(), b.clone())) {
             return Ok(result);
         }
-        let ah = whnf(env, a)?;
-        let bh = whnf(env, b)?;
-        let result = alpha_equal(&env.arena, ah, bh)
-            || structure::compare_children(&env.arena, ah, bh, |left, right| {
+        let ah = whnf(env, a.clone())?;
+        let bh = whnf(env, b.clone())?;
+        let result = alpha_equal(&env.arena, ah.clone(), bh.clone())
+            || structure::compare_children(&env.arena, ah.clone(), bh.clone(), |left, right| {
                 go(env, left, right, seen)
             })?;
         seen.insert((a, b), result);
@@ -261,12 +268,12 @@ pub fn reduce_once(
     e: impl Into<Expression>,
 ) -> Result<Option<Expression>, String> {
     let e = e.into();
-    if let Some(result) = reduce_root(env, e)? {
+    if let Some(result) = reduce_root(env, e.clone())? {
         return Ok(Some(result));
     }
     let mut changed = false;
     let result = structure::map_children(&env.arena, e, Traversal::Evaluation, |child, _| {
-        if !changed && let Some(result) = reduce_once(env, child)? {
+        if !changed && let Some(result) = reduce_once(env, child.clone())? {
             changed = true;
             return Ok(result);
         }
@@ -275,24 +282,25 @@ pub fn reduce_once(
     Ok(changed.then_some(result))
 }
 pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
-    if let Some(&cached) = env.head_cache.borrow().get(&e) {
-        return Ok(cached);
+    if let Some(cached) = env.head_cache.borrow().get(&e) {
+        return Ok(cached.clone());
     }
-    let original = e;
+    let original = e.clone();
     let mut e = e;
     for _ in 0..100_000 {
-        if let Some((body, _)) = structure::annotation(&env.arena, e) {
+        if let Some((body, _)) = structure::annotation(&env.arena, e.clone()) {
             e = body;
             continue;
         }
-        if let Some(next) = reduce_root(env, e)? {
+        if let Some(next) = reduce_root(env, e.clone())? {
             e = next;
             continue;
         }
-        let next =
-            structure::map_children(&env.arena, e, Traversal::Head, |child, _| whnf(env, child))?;
+        let next = structure::map_children(&env.arena, e.clone(), Traversal::Head, |child, _| {
+            whnf(env, child)
+        })?;
         if next == e {
-            env.head_cache.borrow_mut().insert(original, e);
+            env.head_cache.borrow_mut().insert(original, e.clone());
             return Ok(e);
         }
         e = next;
@@ -304,7 +312,7 @@ pub(crate) fn decompose_application(
     mut e: Expression,
 ) -> (Expression, Vec<Expression>) {
     let mut arguments = vec![];
-    while let Some(app) = structure::application(arena, e) {
+    while let Some(app) = structure::application(arena, e.clone()) {
         arguments.push(app.argument);
         e = app.function;
     }
@@ -327,7 +335,7 @@ pub(crate) fn recursive_constructor_field(
 ) -> Result<bool, String> {
     loop {
         ty = whnf(env, ty)?;
-        if let Some(product) = structure::product(&env.arena, ty) {
+        if let Some(product) = structure::product(&env.arena, ty.clone()) {
             ty = product.body;
         } else {
             let (head, _) = decompose_application(&env.arena, ty);
@@ -346,7 +354,7 @@ fn recursive_case_argument(
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
     let ty = whnf(env, ty)?;
-    if let Some(product) = structure::product(a, ty) {
+    if let Some(product) = structure::product(a, ty.clone()) {
         let rule = product.rule;
         let value = shift(a, value, 1, 0)?;
         let argument = build::bound(
@@ -365,7 +373,7 @@ fn recursive_case_argument(
         else {
             return Ok(None);
         };
-        let rule = ProductRule::new(rule.domain, expression_sort(a, body))?;
+        let rule = ProductRule::new(rule.domain, expression_sort(a, body.clone()))?;
         return Ok(Some(build::lambda(
             a,
             rule,
@@ -383,7 +391,7 @@ fn recursive_case_argument(
         a,
         elimination,
         Traversal::Head,
-        |_, _| Ok(value),
+        |_, _| Ok(value.clone()),
     )?))
 }
 fn reduce_inductive(
@@ -402,11 +410,12 @@ fn reduce_inductive(
         return Ok(None);
     }
     let spec = env.inductive(inductive).ok_or("unknown inductive")?;
-    let mut declared_ty = *spec
+    let mut declared_ty = spec
         .constructors
         .get(constructor)
-        .ok_or("unknown constructor")?;
-    let mut ty = instantiate_telescope(env, declared_ty, &expressions(&parameters))?;
+        .ok_or("unknown constructor")?
+        .clone();
+    let mut ty = instantiate_telescope(env, declared_ty.clone(), &expressions(&parameters))?;
     let mut case_args = vec![];
     for argument in arguments {
         // We only need to expose the next constructor field.  Fully
@@ -414,12 +423,17 @@ fn reduce_inductive(
         // contain a large type parameter that is irrelevant to this step.
         ty = whnf(env, ty)?;
         let product = structure::product(a, ty).ok_or("constructor applied to excess arguments")?;
-        case_args.push(argument);
-        let declared = structure::product(a, whnf(env, declared_ty)?)
+        case_args.push(argument.clone());
+        let declared = structure::product(a, whnf(env, declared_ty.clone())?)
             .ok_or("expected declared constructor product")?;
         if recursive_constructor_field(env, inductive, declared.domain)?
-            && let Some(ih) =
-                recursive_case_argument(env, elimination, inductive, product.domain, argument)?
+            && let Some(ih) = recursive_case_argument(
+                env,
+                elimination.clone(),
+                inductive,
+                product.domain.clone(),
+                argument.clone(),
+            )?
         {
             case_args.push(ih);
         }
@@ -431,14 +445,17 @@ fn reduce_inductive(
     }
     let mut sigma = expression_sort(a, elimination);
     let mut rules = vec![];
-    for &argument in case_args.iter().rev() {
-        let rule = ProductRule::new(expression_sort(a, argument), sigma)?;
+    for argument in case_args.iter().rev() {
+        let rule = ProductRule::new(expression_sort(a, argument.clone()), sigma)?;
         rules.push(rule);
         sigma = rule.result;
     }
     rules.reverse();
-    let mut case: Expression =
-        (*cases.get(constructor).ok_or("missing elimination branch")?).into();
+    let mut case: Expression = cases
+        .get(constructor)
+        .ok_or("missing elimination branch")?
+        .clone()
+        .into();
     for (argument, rule) in case_args.into_iter().zip(rules) {
         case = build::apply(a, rule, case, argument)?;
     }
@@ -461,14 +478,14 @@ fn reduce_inductive_case(
     let spec = env.inductive(inductive).ok_or("unknown inductive")?;
     let mut ty = instantiate_telescope(
         env,
-        *spec
-            .constructors
+        spec.constructors
             .get(constructor)
-            .ok_or("unknown constructor")?,
+            .ok_or("unknown constructor")?
+            .clone(),
         &expressions(&parameters),
     )?;
     let mut rules = Vec::with_capacity(arguments.len());
-    for &argument in &arguments {
+    for argument in &arguments {
         ty = whnf(env, ty)?;
         let product = structure::product(a, ty).ok_or("constructor applied to excess arguments")?;
         rules.push(product.rule);
@@ -477,14 +494,18 @@ fn reduce_inductive_case(
     if structure::product(a, whnf(env, ty)?).is_some() {
         return Ok(None);
     }
-    let mut branch: Expression = (*branches.get(constructor).ok_or("missing case branch")?).into();
+    let mut branch: Expression = branches
+        .get(constructor)
+        .ok_or("missing case branch")?
+        .clone()
+        .into();
     for (argument, rule) in arguments.into_iter().zip(rules) {
         branch = build::apply(a, rule, branch, argument)?;
     }
     Ok(Some(branch))
 }
 fn unfold_value(env: &Environment, mut value: Expression) -> Result<Expression, String> {
-    while let Some((body, _)) = structure::annotation(&env.arena, value) {
+    while let Some((body, _)) = structure::annotation(&env.arena, value.clone()) {
         value = body;
     }
     Ok(value)
@@ -496,19 +517,19 @@ pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
         depth: usize,
         cache: &mut FxHashMap<(Expression, usize), bool>,
     ) -> bool {
-        if let Some(&result) = cache.get(&(e, depth)) {
+        if let Some(&result) = cache.get(&(e.clone(), depth)) {
             return result;
         }
         let a = &env.arena;
-        let result = if let Some(index) = structure::bound_index(a, e) {
+        let result = if let Some(index) = structure::bound_index(a, e.clone()) {
             index < depth
-        } else if structure::module_parameter(a, e).is_some()
-            || structure::reflected_parameter(a, e).is_some()
+        } else if structure::module_parameter(a, e.clone()).is_some()
+            || structure::reflected_parameter(a, e.clone()).is_some()
         {
             false
         } else {
             let mut result = true;
-            structure::visit_children(a, e, |child, n| {
+            structure::visit_children(a, e.clone(), |child, n| {
                 result = result && go(env, child, depth + n, cache);
             });
             result
@@ -524,7 +545,7 @@ pub fn locally_closed(arena: &Arena, e: Expression) -> bool {
     // substitution instead of traversing a shared definition at every use site.
     arena.max_loose_bound(e).is_none()
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Evaluation {
     Normal(Expression),
     OutOfFuel(Expression),
@@ -537,12 +558,12 @@ pub fn evaluate(
 ) -> Result<Evaluation, String> {
     let mut e = e.into();
     for _ in 0..fuel {
-        match reduce_once(env, e)? {
+        match reduce_once(env, e.clone())? {
             Some(next) => e = next,
             None => return Ok(Evaluation::Normal(e)),
         }
     }
-    Ok(if reduce_once(env, e)?.is_none() {
+    Ok(if reduce_once(env, e.clone())?.is_none() {
         Evaluation::Normal(e)
     } else {
         Evaluation::OutOfFuel(e)
@@ -574,7 +595,7 @@ fn reduce_application(
 }
 fn reduce_force(env: &Environment, value: ValueTerm) -> Result<Option<Expression>, String> {
     let value: ValueTerm = unfold_value(env, value.into())?.try_into()?;
-    Ok(match env.arena.read(value).form {
+    Ok(match env.arena.get(value).form {
         ValueTermForm::ThunkValue { computation } => Some(computation.into()),
         _ => None,
     })
@@ -584,7 +605,7 @@ fn reduce_sequence(
     computation: ComputationTerm,
     body: ComputationTerm,
 ) -> Result<Option<Expression>, String> {
-    match env.arena.read(computation).form {
+    match env.arena.get(computation).form {
         ComputationTermForm::Return { value } => {
             Ok(Some(substitute_with_reflection(env, body, value)?))
         }
@@ -597,7 +618,7 @@ fn reduce_box_program(
     program_ty: ComputationType,
     program: ComputationTerm,
 ) -> Result<Option<Expression>, String> {
-    if let Some(next) = reduce_once(env, program)? {
+    if let Some(next) = reduce_once(env, program.clone())? {
         return Ok(Some(
             env.arena
                 .alloc(SetTermNode {
@@ -620,9 +641,9 @@ fn reduce_force_box(
     if let SetTermForm::BoxProgram {
         program_ty: actual,
         program,
-    } = env.arena.read(boxed).form
+    } = env.arena.get(boxed).form
         && convertible(env, program_ty.into(), actual.into())?
-        && reduce_once(env, program)?.is_none()
+        && reduce_once(env, program.clone())?.is_none()
     {
         return Ok(Some(
             super::reflection::reflect_computation_term(env, program)?.into(),
@@ -641,7 +662,7 @@ fn reduce_box_application(
     let a = &env.arena;
     let SetTermForm::BoxProgram {
         program: function, ..
-    } = a.read(function).form
+    } = a.get(function).form
     else {
         return Ok(None);
     };
@@ -649,23 +670,26 @@ fn reduce_box_application(
         argument
     } else {
         let argument: SetTerm = argument.try_into()?;
-        let SetTermForm::BoxProgram { program, .. } = a.read(argument).form else {
+        let SetTermForm::BoxProgram { program, .. } = a.get(argument).form else {
             return Ok(None);
         };
-        let ComputationTermForm::Return { value } = a.read(program).form else {
+        let ComputationTermForm::Return { value } = a.get(program).form else {
             return Ok(None);
         };
         value.into()
     };
     let result_ty = if type_application {
-        substitute_with_reflection(env, codomain, argument)?
+        substitute_with_reflection(env, codomain, argument.clone())?
     } else {
         codomain.into()
     };
     let program = build::apply(a, rule, function.into(), argument)?;
     Ok(Some(
         a.alloc(SetTermNode {
-            level: a.sort(result_ty).level().ok_or("expected Program type")?,
+            level: a
+                .sort(result_ty.clone())
+                .level()
+                .ok_or("expected Program type")?,
             form: SetTermForm::BoxProgram {
                 program_ty: result_ty.try_into()?,
                 program: program.try_into()?,
@@ -684,21 +708,27 @@ fn reduce_run(
     accessibility: PropTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let i = a.sort(state_ty).level().ok_or("run requires a level")?;
+    let i = a
+        .sort(state_ty.clone())
+        .level()
+        .ok_or("run requires a level")?;
     let rule = ProductRule::new(
         Sort::Base(BaseSort::Value(i)),
         Sort::Base(BaseSort::Computation(i)),
     )?;
     let force = a.alloc(ComputationTermNode {
         level: i,
-        form: ComputationTermForm::Force { value: step },
+        form: ComputationTermForm::Force {
+            value: step.clone(),
+        },
     });
-    let transition = build::apply(a, rule, force.into(), initial.into())?.try_into()?;
+    let transition: ComputationTerm =
+        build::apply(a, rule, force.into(), initial.clone().into())?.try_into()?;
     let transition_equality = a.alloc(PropTermNode {
         form: PropTermForm::IdRefl {
             element: super::reflection::reflect_term(
                 env,
-                ProgramTerm::ComputationTerm(transition),
+                ProgramTerm::ComputationTerm(transition.clone()),
             )?,
         },
     });
@@ -728,12 +758,13 @@ fn reduce_set_run(
     accessibility: PropTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let b = a.sort(state_ty);
+    let b = a.sort(state_ty.clone());
     let rule = ProductRule::new(Sort::Base(b), Sort::Base(b))?;
-    let transition: SetTerm = build::apply(a, rule, step.into(), initial.into())?.try_into()?;
+    let transition: SetTerm =
+        build::apply(a, rule, step.clone().into(), initial.clone().into())?.try_into()?;
     let transition_equality = a.alloc(PropTermNode {
         form: PropTermForm::IdRefl {
-            element: transition,
+            element: transition.clone(),
         },
     });
     Ok(Some(
@@ -764,11 +795,11 @@ fn reduce_run_case(
     transition_equality: PropTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let ComputationTermForm::Return { value } = a.read(transition).form else {
+    let ComputationTermForm::Return { value } = a.get(transition).form else {
         return Ok(None);
     };
     let value: ValueTerm = unfold_value(env, value.into())?.try_into()?;
-    Ok(match a.read(value).form {
+    Ok(match a.get(value).form {
         ValueTermForm::Finish { output, .. } => Some(
             a.alloc(ComputationTermNode {
                 level,
@@ -780,10 +811,10 @@ fn reduce_run_case(
             a.alloc(ComputationTermNode {
                 level,
                 form: ComputationTermForm::Run {
-                    state_ty,
-                    result_ty,
-                    step,
-                    initial: next,
+                    state_ty: state_ty.clone(),
+                    result_ty: result_ty.clone(),
+                    step: step.clone(),
+                    initial: next.clone(),
                     accessibility: a.alloc(PropTermNode {
                         form: PropTermForm::AccDescent {
                             state_ty: super::reflection::reflect_type(env, state_ty.into())?,
@@ -814,16 +845,16 @@ fn reduce_set_run_case(
     transition_equality: PropTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    Ok(match a.read(transition).form {
+    Ok(match a.get(transition).form {
         SetTermForm::Finish { output, .. } => Some(output.into()),
         SetTermForm::Continue { next, .. } => {
             let accessibility = a.alloc(PropTermNode {
                 form: PropTermForm::AccDescent {
-                    state_ty,
-                    result_ty,
-                    step,
-                    from: initial,
-                    to: next,
+                    state_ty: state_ty.clone(),
+                    result_ty: result_ty.clone(),
+                    step: step.clone(),
+                    from: initial.clone(),
+                    to: next.clone(),
                     accessibility,
                     transition: transition_equality,
                 },
@@ -850,7 +881,7 @@ fn reduce_pred(
     subset: SetTerm,
     element: SetTerm,
 ) -> Result<Option<Expression>, String> {
-    match env.arena.read(subset).form {
+    match env.arena.get(subset).form {
         SetTermForm::Subset { predicate, .. } => {
             Ok(Some(substitute_with_reflection(env, predicate, element)?))
         }
@@ -864,7 +895,7 @@ fn reduce_recursor(
     on_finish: Expression,
     scrutinee: SetTerm,
 ) -> Result<Option<Expression>, String> {
-    match env.arena.read(scrutinee).form {
+    match env.arena.get(scrutinee).form {
         SetTermForm::Continue { next, .. } => Ok(Some(build::apply(
             &env.arena,
             rule,
@@ -895,7 +926,7 @@ fn reduce_case(
     else {
         return Ok(None);
     };
-    let branch = *branches.get(*constructor).ok_or("case branch missing")?;
+    let branch = branches.get(*constructor).ok_or("case branch missing")?;
     Ok(Some(instantiate_telescope(
         env,
         branch.into(),
@@ -911,11 +942,11 @@ fn reduce_set_case(
     let Some((_, constructor, _)) = structure::inductive_constructor(&env.arena, head) else {
         return Ok(None);
     };
-    let branch = *branches.get(constructor).ok_or("case branch missing")?;
+    let branch = branches.get(constructor).ok_or("case branch missing")?;
     Ok(Some(instantiate_telescope(env, branch.into(), &arguments)?))
 }
 fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
-    let root = match e {
+    let root = match e.clone() {
         Expression::SetTerm(h) => reduce_set_term_root(env, h)?,
         Expression::SetType(h) => reduce_set_type_root(env, h)?,
         Expression::SetKind(h) => reduce_set_kind_root(env, h)?,
@@ -929,7 +960,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
         Expression::ComputationType(h) => reduce_computation_type_root(env, h)?,
         Expression::ComputationKind(h) => reduce_computation_kind_root(env, h)?,
     };
-    if let Some(result) = root
+    if let Some(ref result) = root
         && (result.family() != e.family() || env.arena.sort(result) != env.arena.sort(e))
     {
         return Err("reduction changed syntax family or level".into());
@@ -938,7 +969,7 @@ fn reduce_root(env: &Environment, e: Expression) -> Result<Option<Expression>, S
 }
 fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     let e = h.into();
     Ok(match node.form {
@@ -1036,7 +1067,7 @@ fn reduce_set_term_root(env: &Environment, h: SetTerm) -> Result<Option<Expressi
 }
 fn reduce_set_type_root(env: &Environment, h: SetType) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let e = h.into();
     Ok(match node.form {
         SetTypeForm::Annotated { body, .. } => Some(body.into()),
@@ -1074,7 +1105,7 @@ fn reduce_set_type_root(env: &Environment, h: SetType) -> Result<Option<Expressi
 }
 fn reduce_set_kind_root(env: &Environment, h: SetKind) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     Ok(match node.form {
         SetKindForm::Annotated { body, .. } => Some(body.into()),
         _ => None,
@@ -1082,7 +1113,7 @@ fn reduce_set_kind_root(env: &Environment, h: SetKind) -> Result<Option<Expressi
 }
 fn reduce_prop_term_root(env: &Environment, h: PropTerm) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let e = h.into();
     Ok(match node.form {
         PropTermForm::Annotated { body, .. } => Some(body.into()),
@@ -1120,7 +1151,7 @@ fn reduce_prop_term_root(env: &Environment, h: PropTerm) -> Result<Option<Expres
 }
 fn reduce_prop_type_root(env: &Environment, h: PropType) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let e = h.into();
     Ok(match node.form {
         PropTypeForm::Annotated { body, .. } => Some(body.into()),
@@ -1161,7 +1192,7 @@ fn reduce_prop_type_root(env: &Environment, h: PropType) -> Result<Option<Expres
 }
 fn reduce_prop_kind_root(env: &Environment, h: PropKind) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     Ok(match node.form {
         PropKindForm::Annotated { body, .. } => Some(body.into()),
         _ => None,
@@ -1169,7 +1200,7 @@ fn reduce_prop_kind_root(env: &Environment, h: PropKind) -> Result<Option<Expres
 }
 fn reduce_value_type_root(env: &Environment, h: ValueType) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     Ok(match node.form {
         ValueTypeForm::Annotated { body, .. } => Some(body.into()),
         ValueTypeForm::AppType {
@@ -1188,7 +1219,7 @@ fn reduce_computation_term_root(
     h: ComputationTerm,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ComputationTermForm::Annotated { body, .. } => Some(body.into()),
@@ -1256,7 +1287,7 @@ fn reduce_computation_type_root(
     h: ComputationType,
 ) -> Result<Option<Expression>, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     Ok(match node.form {
         ComputationTypeForm::Annotated { body, .. } => Some(body.into()),
         ComputationTypeForm::AppType {

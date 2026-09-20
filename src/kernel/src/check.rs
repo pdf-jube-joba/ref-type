@@ -26,16 +26,16 @@ impl<'a> Checker<'a> {
         let key = self
             .context
             .iter()
-            .map(|b| b.classifier)
+            .map(|b| b.classifier.clone())
             .collect::<Vec<_>>();
         if self.validated_context.as_ref() == Some(&key) {
             return Ok(());
         }
         if let Some(first) = key.first() {
-            let program = self.arena().sort(*first).is_program();
+            let program = self.arena().sort(first.clone()).is_program();
             if key
                 .iter()
-                .any(|e| self.arena().sort(*e).is_program() != program)
+                .any(|e| self.arena().sort(e.clone()).is_program() != program)
             {
                 return Err("Set/Prop and Program contexts are separate".into());
             }
@@ -45,7 +45,7 @@ impl<'a> Checker<'a> {
         let entries = std::mem::take(&mut self.context);
         let result = (|| {
             for entry in &entries {
-                self.formation(entry.classifier)?;
+                self.formation(entry.classifier.clone())?;
                 self.context.push(entry.clone())
             }
             Ok(())
@@ -73,7 +73,7 @@ impl<'a> Checker<'a> {
             Classifier::Upper(b) => Ok(Sort::Upper(b)),
             Classifier::Expression(k) => {
                 let k = whnf(self.env, k)?;
-                if structure::is_base(self.arena(), k) {
+                if structure::is_base(self.arena(), k.clone()) {
                     Ok(Sort::Base(self.arena().sort(k)))
                 } else {
                     Err("expected a type of base kind".into())
@@ -149,8 +149,8 @@ impl<'a> Checker<'a> {
         match (inferred, expected) {
             (Classifier::Upper(a), Classifier::Upper(b)) if a == b => Ok(()),
             (Classifier::Expression(a), Classifier::Expression(b)) => {
-                self.formation(b)?;
-                if self.weaken(a, b)? {
+                self.formation(b.clone())?;
+                if self.weaken(a.clone(), b.clone())? {
                     Ok(())
                 } else {
                     Err(format!(
@@ -193,20 +193,26 @@ impl<'a> Checker<'a> {
         }
         // Closed annotations must not be rechecked under every use-site telescope.
         if !self.context.is_empty()
-            && structure::annotation(self.arena(), e).is_some()
-            && locally_closed(self.arena(), e)
+            && structure::annotation(self.arena(), e.clone()).is_some()
+            && locally_closed(self.arena(), e.clone())
         {
             return Checker::new(self.env, vec![]).infer(e);
         }
-        let key = (e, self.context.iter().map(|b| b.classifier).collect());
-        if let Some(&result) = self.env.inference_cache.borrow().get(&key) {
-            return Ok(result);
+        let key = (
+            e.clone(),
+            self.context.iter().map(|b| b.classifier.clone()).collect(),
+        );
+        if let Some(result) = self.env.inference_cache.borrow().get(&key) {
+            return Ok(result.clone());
         }
         self.inference_depth += 1;
         let result = self.infer_inner(e);
         self.inference_depth -= 1;
         let result = result?;
-        self.env.inference_cache.borrow_mut().insert(key, result);
+        self.env
+            .inference_cache
+            .borrow_mut()
+            .insert(key, result.clone());
         Ok(result)
     }
     fn validate_inferred(&self, e: Expression, ty: Expression) -> Result<(), String> {
@@ -221,8 +227,8 @@ impl<'a> Checker<'a> {
         Ok(())
     }
     fn closed_program_type(&self, p: Expression) -> Result<(), String> {
-        if !matches!(self.arena().sort(p), BaseSort::Computation(_))
-            || !closed_in_environment(self.env, p)
+        if !matches!(self.arena().sort(p.clone()), BaseSort::Computation(_))
+            || !closed_in_environment(self.env, p.clone())
         {
             return Err("Box requires a closed computation type".into());
         }
@@ -237,8 +243,8 @@ impl<'a> Checker<'a> {
             return Err("parameter count mismatch".into());
         }
         for (i, (arg, binder)) in args.iter().zip(telescope).enumerate() {
-            let ty = instantiate_telescope(self.env, binder.classifier, &args[..i])?;
-            self.check(*arg, ty)?;
+            let ty = instantiate_telescope(self.env, binder.classifier.clone(), &args[..i])?;
+            self.check(arg.clone(), ty)?;
         }
         Ok(())
     }
@@ -246,10 +252,13 @@ impl<'a> Checker<'a> {
         if args.len() != motive.domains.len() {
             return Err("motive argument count mismatch".into());
         }
-        for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
-            self.check(arg, instantiate_telescope(self.env, ty, &args[..i])?)?;
+        for (i, (arg, ty)) in args.iter().zip(&motive.domains).enumerate() {
+            self.check(
+                arg.clone(),
+                instantiate_telescope(self.env, ty.clone(), &args[..i])?,
+            )?;
         }
-        instantiate_telescope(self.env, motive.body, args)
+        instantiate_telescope(self.env, motive.body.clone(), args)
     }
     fn lift_motive(&self, m: &Motive) -> Result<Motive, String> {
         Ok(Motive {
@@ -257,9 +266,9 @@ impl<'a> Checker<'a> {
                 .domains
                 .iter()
                 .enumerate()
-                .map(|(i, &e)| shift(self.arena(), e, 1, i))
+                .map(|(i, e)| shift(self.arena(), e, 1, i))
                 .collect::<Result<_, _>>()?,
-            body: shift(self.arena(), m.body, 1, m.domains.len())?,
+            body: shift(self.arena(), m.body.clone(), 1, m.domains.len())?,
         })
     }
     fn infer_inner(&mut self, e: Expression) -> Result<Classifier, String> {
@@ -279,9 +288,9 @@ impl<'a> Checker<'a> {
         }
     }
     fn infer_set_term_node(&mut self, h: SetTerm) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            SetTermForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            SetTermForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             SetTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             SetTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -294,23 +303,23 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             SetTermForm::LambdaType {
                 rule,
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             SetTermForm::AppTerm {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             SetTermForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             SetTermForm::Subset {
                 var,
                 set,
@@ -483,13 +492,13 @@ impl<'a> Checker<'a> {
                 branches,
             )?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_set_type_node(&mut self, h: SetType) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            SetTypeForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            SetTypeForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             SetTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             SetTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -514,23 +523,23 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             SetTypeForm::LambdaType {
                 rule,
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             SetTypeForm::AppTerm {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             SetTypeForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             SetTypeForm::PowerSet { set } => self.infer_power_set(set.into())?,
             SetTypeForm::TypeLift { superset, subset } => {
                 self.infer_type_lift(superset.into(), subset.into())?
@@ -599,12 +608,12 @@ impl<'a> Checker<'a> {
                 branches,
             )?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_set_kind_node(&mut self, h: SetKind) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
             SetKindForm::Base => return Ok(Classifier::Upper(self.arena().sort(e))),
             SetKindForm::ProdTerm {
                 rule,
@@ -627,13 +636,13 @@ impl<'a> Checker<'a> {
                 return self.infer_annotation(e, body.into(), classifier);
             }
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_prop_term_node(&mut self, h: PropTerm) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            PropTermForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            PropTermForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             PropTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             PropTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -643,23 +652,23 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             PropTermForm::LambdaType {
                 rule,
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             PropTermForm::AppTerm {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             PropTermForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             PropTermForm::Recursor {
                 rule,
                 var,
@@ -822,13 +831,13 @@ impl<'a> Checker<'a> {
                 branches,
             )?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_prop_type_node(&mut self, h: PropType) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            PropTypeForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            PropTypeForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             PropTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             PropTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -850,23 +859,23 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             PropTypeForm::LambdaType {
                 rule,
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             PropTypeForm::AppTerm {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             PropTypeForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             PropTypeForm::Pred {
                 superset,
                 subset,
@@ -939,12 +948,12 @@ impl<'a> Checker<'a> {
                 branches,
             )?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_prop_kind_node(&mut self, h: PropKind) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
             PropKindForm::Base => return Ok(Classifier::Upper(self.arena().sort(e))),
             PropKindForm::ProdTerm {
                 rule,
@@ -967,13 +976,13 @@ impl<'a> Checker<'a> {
                 return self.infer_annotation(e, body.into(), classifier);
             }
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_value_term_node(&mut self, h: ValueTerm) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ValueTermForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            ValueTermForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             ValueTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             ValueTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -998,13 +1007,13 @@ impl<'a> Checker<'a> {
                 fields,
             } => self.infer_inductive_constructor(inductive, constructor, parameters, fields)?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_value_type_node(&mut self, h: ValueType) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ValueTypeForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            ValueTypeForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             ValueTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             ValueTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -1023,19 +1032,19 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             ValueTypeForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_value_kind_node(&mut self, h: ValueKind) -> Result<Classifier, String> {
-        let e = h.into();
-        match self.arena().get(h).form {
+        let e: Expression = h.clone().into();
+        match self.arena().get(h.clone()).form {
             ValueKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
             ValueKindForm::ProdType {
                 rule,
@@ -1046,8 +1055,8 @@ impl<'a> Checker<'a> {
         }
     }
     fn infer_computation_term_node(&mut self, h: ComputationTerm) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
             ComputationTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             ComputationTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -1059,23 +1068,23 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             ComputationTermForm::LambdaType {
                 rule,
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             ComputationTermForm::AppTerm {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             ComputationTermForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
             ComputationTermForm::Sequence {
                 var,
                 value_ty,
@@ -1110,7 +1119,7 @@ impl<'a> Checker<'a> {
             } => {
                 self.check_run(
                     state_ty.into(),
-                    result_ty.into(),
+                    result_ty.clone().into(),
                     step.into(),
                     initial.into(),
                 )?;
@@ -1127,7 +1136,7 @@ impl<'a> Checker<'a> {
             } => {
                 let runstep = self.check_run(
                     state_ty.into(),
-                    result_ty.into(),
+                    result_ty.clone().into(),
                     step.into(),
                     initial.into(),
                 )?;
@@ -1136,13 +1145,13 @@ impl<'a> Checker<'a> {
                 self.return_type(result_ty.into())?
             }
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_computation_type_node(&mut self, h: ComputationType) -> Result<Classifier, String> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ComputationTypeForm::Bound { index } => self.infer_bound(e, index)?,
+        let e: Expression = h.clone().into();
+        let inferred = match self.arena().get(h.clone()).form {
+            ComputationTypeForm::Bound { index } => self.infer_bound(e.clone(), index)?,
             ComputationTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
             ComputationTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
@@ -1167,19 +1176,19 @@ impl<'a> Checker<'a> {
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
+            } => self.infer_lambda(e.clone(), rule, var, domain.into(), body.into())?,
             ComputationTypeForm::AppType {
                 rule,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
+            } => self.infer_application(e.clone(), rule, function.into(), argument.into())?,
         };
-        self.validate_inferred(e, inferred)?;
+        self.validate_inferred(e, inferred.clone())?;
         Ok(Classifier::Expression(inferred))
     }
     fn infer_computation_kind_node(&mut self, h: ComputationKind) -> Result<Classifier, String> {
-        let e = h.into();
-        match self.arena().get(h).form {
+        let e: Expression = h.clone().into();
+        match self.arena().get(h.clone()).form {
             ComputationKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
             ComputationKindForm::ProdType {
                 rule,
@@ -1197,7 +1206,11 @@ impl<'a> Checker<'a> {
         Ok(self
             .arena()
             .alloc(SetTypeNode {
-                level: self.arena().sort(set).level().ok_or("expected Set")?,
+                level: self
+                    .arena()
+                    .sort(set.clone())
+                    .level()
+                    .ok_or("expected Set")?,
                 form: SetTypeForm::PowerSet {
                     set: set.try_into()?,
                 },
@@ -1208,7 +1221,11 @@ impl<'a> Checker<'a> {
         Ok(self
             .arena()
             .alloc(SetTypeNode {
-                level: self.arena().sort(superset).level().ok_or("expected Set")?,
+                level: self
+                    .arena()
+                    .sort(superset.clone())
+                    .level()
+                    .ok_or("expected Set")?,
                 form: SetTypeForm::TypeLift {
                     superset: superset.try_into()?,
                     subset: subset.try_into()?,
@@ -1279,7 +1296,7 @@ impl<'a> Checker<'a> {
             .alloc(ComputationTypeNode {
                 level: self
                     .arena()
-                    .sort(value_ty)
+                    .sort(value_ty.clone())
                     .level()
                     .ok_or("expected value type")?,
                 form: ComputationTypeForm::ReturnType {
@@ -1294,7 +1311,7 @@ impl<'a> Checker<'a> {
             .alloc(ValueTypeNode {
                 level: self
                     .arena()
-                    .sort(computation_ty)
+                    .sort(computation_ty.clone())
                     .level()
                     .ok_or("expected computation type")?,
                 form: ValueTypeForm::Thunk {
@@ -1309,7 +1326,7 @@ impl<'a> Checker<'a> {
             .alloc(SetTypeNode {
                 level: self
                     .arena()
-                    .sort(program_ty)
+                    .sort(program_ty.clone())
                     .level()
                     .ok_or("expected Program type")?,
                 form: SetTypeForm::BoxType {
@@ -1323,7 +1340,7 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
     ) -> Result<Expression, String> {
-        Ok(match self.arena().sort(state_ty) {
+        Ok(match self.arena().sort(state_ty.clone()) {
             BaseSort::Set(level) => self
                 .arena()
                 .alloc(SetTypeNode {
@@ -1356,7 +1373,11 @@ impl<'a> Checker<'a> {
         Ok(self
             .arena()
             .alloc(SetTermNode {
-                level: self.arena().sort(state_ty).level().ok_or("expected Set")?,
+                level: self
+                    .arena()
+                    .sort(state_ty.clone())
+                    .level()
+                    .ok_or("expected Set")?,
                 form: SetTermForm::Continue {
                     state_ty: state_ty.try_into()?,
                     result_ty: result_ty.try_into()?,
@@ -1374,7 +1395,11 @@ impl<'a> Checker<'a> {
         Ok(self
             .arena()
             .alloc(SetTermNode {
-                level: self.arena().sort(state_ty).level().ok_or("expected Set")?,
+                level: self
+                    .arena()
+                    .sort(state_ty.clone())
+                    .level()
+                    .ok_or("expected Set")?,
                 form: SetTermForm::Finish {
                     state_ty: state_ty.try_into()?,
                     result_ty: result_ty.try_into()?,
@@ -1389,8 +1414,8 @@ impl<'a> Checker<'a> {
         domain: Expression,
         body: Expression,
     ) -> Result<Expression, String> {
-        let s = self.formation(domain)?;
-        let t = self.under(var, domain, |ch| ch.formation(body))?;
+        let s = self.formation(domain.clone())?;
+        let t = self.under(var, domain.clone(), |ch| ch.formation(body.clone()))?;
         build::product(self.arena(), ProductRule::new(s, t)?, var, domain, body)
     }
     fn application(
@@ -1398,16 +1423,16 @@ impl<'a> Checker<'a> {
         function: Expression,
         argument: Expression,
     ) -> Result<Expression, String> {
-        let ty = self.inferred(function)?;
+        let ty = self.inferred(function.clone())?;
         let product = self.expose_product(ty)?;
         let product = structure::product(self.arena(), product).ok_or("expected a product")?;
-        self.check(argument, product.domain)?;
+        self.check(argument.clone(), product.domain)?;
         build::apply(self.arena(), product.rule, function, argument)
     }
     fn expose_product(&self, mut ty: Expression) -> Result<Expression, String> {
         loop {
             ty = whnf(self.env, ty)?;
-            if structure::product(self.arena(), ty).is_some() {
+            if structure::product(self.arena(), ty.clone()).is_some() {
                 return Ok(ty);
             }
             if let Some(superset) = structure::lifted_superset(self.arena(), ty) {
@@ -1418,15 +1443,16 @@ impl<'a> Checker<'a> {
         }
     }
     fn weaken(&self, a: Expression, b: Expression) -> Result<bool, String> {
-        if convertible(self.env, a, b)? {
+        if convertible(self.env, a.clone(), b.clone())? {
             return Ok(true);
         }
-        if a.family() != b.family() || self.arena().sort(a) != self.arena().sort(b) {
+        if a.family() != b.family() || self.arena().sort(a.clone()) != self.arena().sort(b.clone())
+        {
             return Ok(false);
         }
         let a = whnf(self.env, a)?;
         let b = whnf(self.env, b)?;
-        if let Some(superset) = structure::lifted_superset(self.arena(), a) {
+        if let Some(superset) = structure::lifted_superset(self.arena(), a.clone()) {
             return self.weaken(superset.into(), b);
         }
         match (
@@ -1434,7 +1460,8 @@ impl<'a> Checker<'a> {
             structure::product(self.arena(), b),
         ) {
             (Some(a), Some(b))
-                if a.rule == b.rule && convertible(self.env, a.domain, b.domain)? =>
+                if a.rule == b.rule
+                    && convertible(self.env, a.domain.clone(), b.domain.clone())? =>
             {
                 self.weaken(a.body, b.body)
             }
@@ -1451,7 +1478,7 @@ impl<'a> Checker<'a> {
         let base = |mut e| -> Result<Expression, String> {
             loop {
                 e = whnf(self.env, e)?;
-                if let Some(superset) = structure::lifted_superset(self.arena(), e) {
+                if let Some(superset) = structure::lifted_superset(self.arena(), e.clone()) {
                     e = superset.into();
                 } else {
                     return Ok(e);
@@ -1459,10 +1486,10 @@ impl<'a> Checker<'a> {
             }
         };
         let left = base(left)?;
-        if !convertible(self.env, left, base(right)?)? {
+        if !convertible(self.env, left.clone(), base(right)?)? {
             return Err("different equality carriers".into());
         }
-        self.set_type(left)?;
+        self.set_type(left.clone())?;
         Ok(left)
     }
     fn quantified(
@@ -1470,14 +1497,14 @@ impl<'a> Checker<'a> {
         domain: Expression,
         body: impl FnOnce(&mut Self, Expression) -> Result<Expression, String>,
     ) -> Result<Expression, String> {
-        let sigma = self.formation(domain)?;
+        let sigma = self.formation(domain.clone())?;
         let stage = if sigma.is_upper() {
             Stage::Type
         } else {
             Stage::Term
         };
         let var = build::bound(self.arena(), sigma.base(), stage, 0)?;
-        let body = self.under(SymbolId::ANONYMOUS, domain, |ch| body(ch, var))?;
+        let body = self.under(SymbolId::ANONYMOUS, domain.clone(), |ch| body(ch, var))?;
         self.product(SymbolId::ANONYMOUS, domain, body)
     }
     fn transition(
@@ -1505,8 +1532,8 @@ impl<'a> Checker<'a> {
                     .ok_or("bound variable outside context")?,
             )
             .ok_or("bound variable outside context")?;
-        let classifier = shift(self.arena(), entry.classifier, offset, 0)?;
-        if self.arena().sort(e).is_program()
+        let classifier = shift(self.arena(), entry.classifier.clone(), offset, 0)?;
+        if self.arena().sort(e.clone()).is_program()
             && e.family().stage() != Stage::Term
             && classifier.family().stage() != Stage::Kind
         {
@@ -1519,7 +1546,8 @@ impl<'a> Checker<'a> {
             .env
             .parameter(parameter)
             .ok_or("unknown module parameter")?
-            .classifier)
+            .classifier
+            .clone())
     }
     fn infer_reflected_program_param(
         &mut self,
@@ -1530,7 +1558,8 @@ impl<'a> Checker<'a> {
             self.env
                 .parameter(parameter)
                 .ok_or("unknown reflected parameter")?
-                .classifier,
+                .classifier
+                .clone(),
         )
     }
     fn infer_annotation(
@@ -1540,15 +1569,15 @@ impl<'a> Checker<'a> {
         classifier: Classifier,
     ) -> Result<Classifier, String> {
         match classifier {
-            Classifier::Expression(ty) => {
-                self.validate_inferred(e, ty)?;
-                self.formation(ty)?;
+            Classifier::Expression(ref ty) => {
+                self.validate_inferred(e, ty.clone())?;
+                self.formation(ty.clone())?;
             }
             Classifier::Upper(sort)
                 if e.family().stage() == Stage::Kind && self.arena().sort(e) == sort => {}
             _ => return Err("annotation classification mismatch".into()),
         }
-        self.check(body, classifier)?;
+        self.check(body, classifier.clone())?;
         Ok(classifier)
     }
     fn infer_product(
@@ -1560,9 +1589,9 @@ impl<'a> Checker<'a> {
         body: Expression,
     ) -> Result<Classifier, String> {
         rule.validate()?;
-        let s = self.formation(domain)?;
-        let t = self.under(var, domain, |ch| ch.formation(body))?;
-        let sort = self.arena().sort(e);
+        let s = self.formation(domain.clone())?;
+        let t = self.under(var, domain, |ch| ch.formation(body.clone()))?;
+        let sort = self.arena().sort(e.clone());
         if rule.domain != s
             || rule.body != t
             || rule.result.base() != sort
@@ -1591,14 +1620,14 @@ impl<'a> Checker<'a> {
         body: Expression,
     ) -> Result<Expression, String> {
         rule.validate()?;
-        let s = self.formation(domain)?;
-        let (body_ty, t) = self.under(var, domain, |ch| {
+        let s = self.formation(domain.clone())?;
+        let (body_ty, t) = self.under(var, domain.clone(), |ch| {
             let ty = ch.inferred(body)?;
-            Ok((ty, ch.formation(ty)?))
+            Ok((ty.clone(), ch.formation(ty)?))
         })?;
         if s != rule.domain
             || t != rule.body
-            || self.arena().sort(e) != rule.result.base()
+            || self.arena().sort(e.clone()) != rule.result.base()
             || rule.result.is_upper() != (e.family().stage() == Stage::Type)
         {
             return Err("lambda rule annotation mismatch".into());
@@ -1617,16 +1646,16 @@ impl<'a> Checker<'a> {
         let ty = self.expose_product(ty)?;
         let p = structure::product(self.arena(), ty).ok_or("expected a product")?;
         if p.rule != rule
-            || self.arena().sort(e) != rule.body.base()
+            || self.arena().sort(e.clone()) != rule.body.base()
             || rule.body.is_upper() != (e.family().stage() == Stage::Type)
         {
             return Err("application rule annotation mismatch".into());
         }
-        self.check(argument, p.domain)?;
+        self.check(argument.clone(), p.domain)?;
         substitute_with_reflection(self.env, p.body, argument)
     }
     fn infer_power_set(&mut self, set: Expression) -> Result<Expression, String> {
-        self.set_type(set)?;
+        self.set_type(set.clone())?;
         Ok(self.base_kind(self.arena().sort(set)))
     }
     fn infer_subset(
@@ -1635,8 +1664,8 @@ impl<'a> Checker<'a> {
         set: Expression,
         predicate: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(set)?;
-        self.under(var, set, |ch| ch.proposition(predicate))?;
+        self.set_type(set.clone())?;
+        self.under(var, set.clone(), |ch| ch.proposition(predicate))?;
         self.powerset(set)
     }
     fn infer_type_lift(
@@ -1644,8 +1673,8 @@ impl<'a> Checker<'a> {
         superset: Expression,
         subset: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(superset)?;
-        self.check(subset, self.powerset(superset)?)?;
+        self.set_type(superset.clone())?;
+        self.check(subset, self.powerset(superset.clone())?)?;
         Ok(self.base_kind(self.arena().sort(superset)))
     }
     fn infer_pred(
@@ -1654,7 +1683,7 @@ impl<'a> Checker<'a> {
         subset: Expression,
         element: Expression,
     ) -> Result<Expression, String> {
-        self.infer_type_lift(superset, subset)?;
+        self.infer_type_lift(superset.clone(), subset)?;
         self.check(element, superset)?;
         Ok(self.base_kind(BaseSort::Prop))
     }
@@ -1665,8 +1694,11 @@ impl<'a> Checker<'a> {
         element: Expression,
         proof: Expression,
     ) -> Result<Expression, String> {
-        self.infer_pred(superset, subset, element)?;
-        self.check(proof, self.predicate(superset, subset, element)?)?;
+        self.infer_pred(superset.clone(), subset.clone(), element.clone())?;
+        self.check(
+            proof,
+            self.predicate(superset.clone(), subset.clone(), element)?,
+        )?;
         self.type_lift(superset, subset)
     }
     fn infer_equal(&mut self, left: Expression, right: Expression) -> Result<Expression, String> {
@@ -1678,17 +1710,17 @@ impl<'a> Checker<'a> {
         Ok(self.base_kind(BaseSort::Prop))
     }
     fn infer_id_refl(&mut self, element: Expression) -> Result<Expression, String> {
-        let ty = self.inferred(element)?;
+        let ty = self.inferred(element.clone())?;
         self.set_type(ty)?;
-        self.equality(element, element)
+        self.equality(element.clone(), element)
     }
     fn infer_exists_intro(
         &mut self,
         element: Expression,
         set: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(set)?;
-        self.check(element, set)?;
+        self.set_type(set.clone())?;
+        self.check(element, set.clone())?;
         self.exists(set)
     }
     fn infer_subset_elim(
@@ -1697,8 +1729,11 @@ impl<'a> Checker<'a> {
         subset: Expression,
         superset: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(superset)?;
-        self.check(element, self.type_lift(superset, subset)?)?;
+        self.set_type(superset.clone())?;
+        self.check(
+            element.clone(),
+            self.type_lift(superset.clone(), subset.clone())?,
+        )?;
         self.predicate(superset, subset, element)
     }
     fn infer_id_elim(
@@ -1711,12 +1746,15 @@ impl<'a> Checker<'a> {
         base: Expression,
         equality: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(ty)?;
-        self.check(left, ty)?;
-        self.check(right, ty)?;
-        self.under(var, ty, |ch| ch.proposition(predicate))?;
-        self.check(base, substitute_with_reflection(self.env, predicate, left)?)?;
-        self.check(equality, self.equality(left, right)?)?;
+        self.set_type(ty.clone())?;
+        self.check(left.clone(), ty.clone())?;
+        self.check(right.clone(), ty.clone())?;
+        self.under(var, ty, |ch| ch.proposition(predicate.clone()))?;
+        self.check(
+            base,
+            substitute_with_reflection(self.env, predicate.clone(), left.clone())?,
+        )?;
+        self.check(equality, self.equality(left, right.clone())?)?;
         substitute_with_reflection(self.env, predicate, right)
     }
     fn check_runstep(
@@ -1724,8 +1762,10 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
     ) -> Result<Expression, String> {
-        let b = self.base_type(state_ty)?;
-        if self.base_type(result_ty)? != b || !matches!(b, BaseSort::Set(_) | BaseSort::Value(_)) {
+        let b = self.base_type(state_ty.clone())?;
+        if self.base_type(result_ty.clone())? != b
+            || !matches!(b, BaseSort::Set(_) | BaseSort::Value(_))
+        {
             return Err("RunStep types must share the same Set/value level".into());
         }
         self.runstep_type(state_ty, result_ty)
@@ -1735,7 +1775,7 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
     ) -> Result<Expression, String> {
-        self.check_runstep(state_ty, result_ty)?;
+        self.check_runstep(state_ty.clone(), result_ty)?;
         Ok(self.base_kind(self.arena().sort(state_ty)))
     }
     fn infer_continue(
@@ -1744,7 +1784,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         next: Expression,
     ) -> Result<Expression, String> {
-        let ty = self.check_runstep(state_ty, result_ty)?;
+        let ty = self.check_runstep(state_ty.clone(), result_ty)?;
         self.check(next, state_ty)?;
         Ok(ty)
     }
@@ -1754,7 +1794,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         output: Expression,
     ) -> Result<Expression, String> {
-        let ty = self.check_runstep(state_ty, result_ty)?;
+        let ty = self.check_runstep(state_ty, result_ty.clone())?;
         self.check(output, result_ty)?;
         Ok(ty)
     }
@@ -1765,13 +1805,13 @@ impl<'a> Checker<'a> {
         step: Expression,
         initial: Expression,
     ) -> Result<Expression, String> {
-        let runstep = self.check_runstep(state_ty, result_ty)?;
-        let step_ty = if self.arena().sort(state_ty).is_program() {
-            let result = self.return_type(runstep)?;
-            let arrow = self.arrow(state_ty, result)?;
+        let runstep = self.check_runstep(state_ty.clone(), result_ty)?;
+        let step_ty = if self.arena().sort(state_ty.clone()).is_program() {
+            let result = self.return_type(runstep.clone())?;
+            let arrow = self.arrow(state_ty.clone(), result)?;
             self.thunk_type(arrow)?
         } else {
-            self.arrow(state_ty, runstep)?
+            self.arrow(state_ty.clone(), runstep.clone())?
         };
         self.check(step, step_ty)?;
         self.check(initial, state_ty)?;
@@ -1795,10 +1835,15 @@ impl<'a> Checker<'a> {
         initial: Expression,
         accessibility: Expression,
     ) -> Result<Expression, String> {
-        self.check_run(state_ty, result_ty, step, initial)?;
+        self.check_run(
+            state_ty.clone(),
+            result_ty.clone(),
+            step.clone(),
+            initial.clone(),
+        )?;
         self.check(
             accessibility,
-            self.accessibility(state_ty, result_ty, step, initial)?,
+            self.accessibility(state_ty, result_ty.clone(), step, initial)?,
         )?;
         Ok(result_ty)
     }
@@ -1812,12 +1857,17 @@ impl<'a> Checker<'a> {
         accessibility: Expression,
         transition_equality: Expression,
     ) -> Result<Expression, String> {
-        let runstep = self.check_run(state_ty, result_ty, step, initial)?;
+        let runstep = self.check_run(
+            state_ty.clone(),
+            result_ty.clone(),
+            step.clone(),
+            initial.clone(),
+        )?;
         self.check(
             accessibility,
-            self.accessibility(state_ty, result_ty, step, initial)?,
+            self.accessibility(state_ty, result_ty.clone(), step.clone(), initial.clone())?,
         )?;
-        self.check(transition, runstep)?;
+        self.check(transition.clone(), runstep)?;
         let applied = self.application(step, initial)?;
         self.check(transition_equality, self.equality(applied, transition)?)?;
         Ok(result_ty)
@@ -1839,26 +1889,26 @@ impl<'a> Checker<'a> {
         on_finish: Expression,
         scrutinee: Expression,
     ) -> Result<Expression, String> {
-        let i = self.set_type(state_ty)?;
-        if self.set_type(result_ty)? != i {
+        let i = self.set_type(state_ty.clone())?;
+        if self.set_type(result_ty.clone())? != i {
             return Err("RunStep types must share a level".into());
         }
-        let step = self.runstep_type(state_ty, result_ty)?;
-        self.check(scrutinee, step)?;
-        let sigma = self.under(var, step, |ch| ch.formation(motive))?;
+        let step = self.runstep_type(state_ty.clone(), result_ty.clone())?;
+        self.check(scrutinee.clone(), step.clone())?;
+        let sigma = self.under(var, step, |ch| ch.formation(motive.clone()))?;
         if rule != ProductRule::new(Sort::Base(BaseSort::Set(i)), sigma)? {
             return Err("recursor rule mismatch".into());
         }
-        let state = shift(self.arena(), state_ty, 1, 0)?;
-        let result = shift(self.arena(), result_ty, 1, 0)?;
+        let state = shift(self.arena(), state_ty.clone(), 1, 0)?;
+        let result = shift(self.arena(), result_ty.clone(), 1, 0)?;
         let bound = build::bound(self.arena(), BaseSort::Set(i), Stage::Term, 0)?;
-        let continue_value = self.continue_term(state, result, bound)?;
+        let continue_value = self.continue_term(state.clone(), result.clone(), bound.clone())?;
         let finish_value = self.finish_term(state, result, bound)?;
         for (domain, branch, constructor) in [
             (state_ty, on_continue, continue_value),
             (result_ty, on_finish, finish_value),
         ] {
-            let motive = shift(self.arena(), motive, 1, 1)?;
+            let motive = shift(self.arena(), motive.clone(), 1, 1)?;
             let ty = substitute_with_reflection(self.env, motive, constructor)?;
             let expected = self.product(SymbolId::ANONYMOUS, domain, ty)?;
             self.check(branch, expected)?;
@@ -1888,7 +1938,7 @@ impl<'a> Checker<'a> {
     fn infer_force(&mut self, value: Expression) -> Result<Expression, String> {
         let ty = self.inferred(value)?;
         let ty: ValueType = whnf(self.env, ty)?.try_into()?;
-        match self.arena().read(ty).form {
+        match self.arena().get(ty).form {
             ValueTypeForm::Thunk { computation_ty } => Ok(computation_ty.into()),
             _ => Err("force requires U(B)".into()),
         }
@@ -1901,17 +1951,17 @@ impl<'a> Checker<'a> {
         body: Expression,
         sequence: bool,
     ) -> Result<Expression, String> {
-        if !matches!(self.base_type(value_ty)?, BaseSort::Value(_)) {
+        if !matches!(self.base_type(value_ty.clone())?, BaseSort::Value(_)) {
             return Err("value binder requires value type".into());
         }
         let expected = if sequence {
-            self.return_type(value_ty)?
+            self.return_type(value_ty.clone())?
         } else {
-            value_ty
+            value_ty.clone()
         };
-        self.check(argument, expected)?;
+        self.check(argument.clone(), expected)?;
         let ty = self.under(var, value_ty, |ch| ch.inferred(body))?;
-        if contains_bound(self.arena(), ty, 0) {
+        if contains_bound(self.arena(), ty.clone(), 0) {
             return Err("Program result type depends on value".into());
         }
         substitute_with_reflection(self.env, ty, argument)
@@ -1935,7 +1985,7 @@ impl<'a> Checker<'a> {
         self.infer_value_binding(var, value_ty, value, body, false)
     }
     fn infer_box_type(&mut self, program_ty: Expression) -> Result<Expression, String> {
-        self.closed_program_type(program_ty)?;
+        self.closed_program_type(program_ty.clone())?;
         Ok(self.base_kind(self.arena().sort(program_ty).reflected()))
     }
     fn infer_box_program(
@@ -1943,14 +1993,15 @@ impl<'a> Checker<'a> {
         program_ty: Expression,
         program: Expression,
     ) -> Result<Expression, String> {
-        self.closed_program_type(program_ty)?;
-        if !closed_in_environment(self.env, program) {
+        self.closed_program_type(program_ty.clone())?;
+        if !closed_in_environment(self.env, program.clone()) {
             return Err("Box payload must be closed".into());
         }
         let mut closed = Checker::new(self.env, vec![]);
-        closed.check(program, program_ty)?;
+        closed.check(program.clone(), program_ty.clone())?;
         let reflected = super::reflection::reflect_program_expression(self.env, program)?;
-        let reflected_ty = super::reflection::reflect_program_expression(self.env, program_ty)?;
+        let reflected_ty =
+            super::reflection::reflect_program_expression(self.env, program_ty.clone())?;
         closed.check(reflected, reflected_ty)?;
         self.box_type(program_ty)
     }
@@ -1959,8 +2010,8 @@ impl<'a> Checker<'a> {
         program_ty: Expression,
         boxed: Expression,
     ) -> Result<Expression, String> {
-        self.closed_program_type(program_ty)?;
-        self.check(boxed, self.box_type(program_ty)?)?;
+        self.closed_program_type(program_ty.clone())?;
+        self.check(boxed, self.box_type(program_ty.clone())?)?;
         super::reflection::reflect_program_expression(self.env, program_ty)
     }
     fn infer_box_application(
@@ -1973,31 +2024,31 @@ impl<'a> Checker<'a> {
         argument: Expression,
         type_application: bool,
     ) -> Result<Expression, String> {
-        self.formation(domain)?;
+        self.formation(domain.clone())?;
         let body = if type_application {
-            codomain
+            codomain.clone()
         } else {
-            shift(self.arena(), codomain, 1, 0)?
+            shift(self.arena(), codomain.clone(), 1, 0)?
         };
-        let p = self.product(var, domain, body)?;
-        if structure::product(self.arena(), p)
+        let p = self.product(var, domain.clone(), body)?;
+        if structure::product(self.arena(), p.clone())
             .ok_or("expected product")?
             .rule
             != rule
         {
             return Err("boxed application rule mismatch".into());
         }
-        self.closed_program_type(p)?;
+        self.closed_program_type(p.clone())?;
         self.check(function, self.box_type(p)?)?;
         let result = if type_application {
-            if !closed_in_environment(self.env, argument) {
+            if !closed_in_environment(self.env, argument.clone()) {
                 return Err("boxed type argument must be closed".into());
             }
-            self.check(argument, domain)?;
+            self.check(argument.clone(), domain)?;
             substitute_with_reflection(self.env, codomain, argument)?
         } else {
             let argument_ty = self.return_type(domain)?;
-            self.closed_program_type(argument_ty)?;
+            self.closed_program_type(argument_ty.clone())?;
             self.check(argument, self.box_type(argument_ty)?)?;
             codomain
         };
@@ -2040,18 +2091,18 @@ impl<'a> Checker<'a> {
         existence: Expression,
         uniqueness: Expression,
     ) -> Result<Expression, String> {
-        if self.set_type(codomain)? != self.set_type(domain)? {
+        if self.set_type(codomain.clone())? != self.set_type(domain.clone())? {
             return Err("TakeSet domain/codomain level mismatch".into());
         }
-        let map_ty = self.arrow(domain, codomain)?;
-        self.check(map, map_ty)?;
-        self.check(existence, self.exists(domain)?)?;
-        let unique = self.quantified(domain, |ch, x| {
+        let map_ty = self.arrow(domain.clone(), codomain.clone())?;
+        self.check(map.clone(), map_ty)?;
+        self.check(existence, self.exists(domain.clone())?)?;
+        let unique = self.quantified(domain.clone(), |ch, x| {
             let dom = ch.lifted(domain, 1)?;
             ch.quantified(dom, |ch, y| {
                 let f = ch.lifted(map, 2)?;
                 let x = ch.lifted(x, 1)?;
-                let left = ch.application(f, x)?;
+                let left = ch.application(f.clone(), x)?;
                 let right = ch.application(f, y)?;
                 ch.equality(left, right)
             })
@@ -2066,9 +2117,9 @@ impl<'a> Checker<'a> {
         map: Expression,
         existence: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(domain)?;
-        self.proposition(proposition)?;
-        let map_ty = self.arrow(domain, proposition)?;
+        self.set_type(domain.clone())?;
+        self.proposition(proposition.clone())?;
+        let map_ty = self.arrow(domain.clone(), proposition.clone())?;
         self.check(map, map_ty)?;
         self.check(existence, self.exists(domain)?)?;
         Ok(proposition)
@@ -2083,17 +2134,21 @@ impl<'a> Checker<'a> {
         uniqueness: Expression,
     ) -> Result<Expression, String> {
         let take = self.arena().alloc(SetTermNode {
-            level: self.arena().sort(codomain).level().ok_or("expected Set")?,
+            level: self
+                .arena()
+                .sort(codomain.clone())
+                .level()
+                .ok_or("expected Set")?,
             form: SetTermForm::TakeSet {
-                domain: domain.try_into()?,
-                codomain: codomain.try_into()?,
-                map: func.try_into()?,
+                domain: domain.clone().try_into()?,
+                codomain: codomain.clone().try_into()?,
+                map: func.clone().try_into()?,
                 existence: existence.try_into()?,
                 uniqueness: uniqueness.try_into()?,
             },
         });
-        self.check(take, codomain)?;
-        self.check(element, domain)?;
+        self.check(take.clone(), codomain)?;
+        self.check(element.clone(), domain)?;
         let mapped = self.application(func, element)?;
         self.equality(take.into(), mapped)
     }
@@ -2103,17 +2158,17 @@ impl<'a> Checker<'a> {
         right: Expression,
         pointwise: Expression,
     ) -> Result<Expression, String> {
-        let ty = self.inferred(left)?;
-        self.set_type(ty)?;
-        let product = self.expose_product(ty)?;
+        let ty = self.inferred(left.clone())?;
+        self.set_type(ty.clone())?;
+        let product = self.expose_product(ty.clone())?;
         let domain = structure::product(self.arena(), product)
             .ok_or("expected product")?
             .domain;
-        self.check(right, ty)?;
+        self.check(right.clone(), ty)?;
         let expected = self.quantified(domain, |ch, x| {
-            let left = ch.lifted(left, 1)?;
-            let right = ch.lifted(right, 1)?;
-            let left = ch.application(left, x)?;
+            let left = ch.lifted(left.clone(), 1)?;
+            let right = ch.lifted(right.clone(), 1)?;
+            let left = ch.application(left, x.clone())?;
             let right = ch.application(right, x)?;
             ch.equality(left, right)
         })?;
@@ -2127,20 +2182,22 @@ impl<'a> Checker<'a> {
         left_to_right: Expression,
         right_to_left: Expression,
     ) -> Result<Expression, String> {
-        let ty = self.inferred(left)?;
-        let carrier: Expression = structure::power_set(self.arena(), whnf(self.env, ty)?)
+        let ty = self.inferred(left.clone())?;
+        let carrier: Expression = structure::power_set(self.arena(), whnf(self.env, ty.clone())?)
             .ok_or("setext requires powerset elements")?
             .into();
-        self.set_type(carrier)?;
-        self.check(right, ty)?;
-        for (source, target, proof) in [(left, right, left_to_right), (right, left, right_to_left)]
-        {
-            let direction = self.quantified(carrier, |ch, x| {
-                let carrier = ch.lifted(carrier, 1)?;
+        self.set_type(carrier.clone())?;
+        self.check(right.clone(), ty)?;
+        for (source, target, proof) in [
+            (left.clone(), right.clone(), left_to_right),
+            (right.clone(), left.clone(), right_to_left),
+        ] {
+            let direction = self.quantified(carrier.clone(), |ch, x| {
+                let carrier = ch.lifted(carrier.clone(), 1)?;
                 let source = ch.lifted(source, 1)?;
                 let target = ch.lifted(target, 1)?;
                 ch.arrow(
-                    ch.predicate(carrier, source, x)?,
+                    ch.predicate(carrier.clone(), source, x.clone())?,
                     ch.predicate(carrier, target, x)?,
                 )
             })?;
@@ -2154,21 +2211,21 @@ impl<'a> Checker<'a> {
         family: Expression,
         inhabited: Expression,
     ) -> Result<Expression, String> {
-        self.set_type(domain)?;
-        let ty = self.inferred(family)?;
+        self.set_type(domain.clone())?;
+        let ty = self.inferred(family.clone())?;
         let p = self.expose_product(ty)?;
         let p = structure::product(self.arena(), p).ok_or("expected product")?;
-        if !convertible(self.env, p.domain, domain)? {
+        if !convertible(self.env, p.domain, domain.clone())? {
             return Err("choice family domain mismatch".into());
         }
         let tail = whnf(self.env, p.body)?;
-        if !structure::is_base(self.arena(), tail)
+        if !structure::is_base(self.arena(), tail.clone())
             || !matches!(self.arena().sort(tail), BaseSort::Set(_))
         {
             return Err("choice family must return Set".into());
         }
-        let exists = self.quantified(domain, |ch, x| {
-            let f = ch.lifted(family, 1)?;
+        let exists = self.quantified(domain.clone(), |ch, x| {
+            let f = ch.lifted(family.clone(), 1)?;
             let at = ch.application(f, x)?;
             ch.exists(at)
         })?;
@@ -2187,14 +2244,19 @@ impl<'a> Checker<'a> {
         state: Expression,
         predecessors: Expression,
     ) -> Result<Expression, String> {
-        let acc = self.accessibility(state_ty, result_ty, step, state)?;
-        self.proposition(acc)?;
-        let expected = self.quantified(state_ty, |ch, x| {
+        let acc = self.accessibility(
+            state_ty.clone(),
+            result_ty.clone(),
+            step.clone(),
+            state.clone(),
+        )?;
+        self.proposition(acc.clone())?;
+        let expected = self.quantified(state_ty.clone(), |ch, x| {
             let a = ch.lifted(state_ty, 1)?;
             let b = ch.lifted(result_ty, 1)?;
             let f = ch.lifted(step, 1)?;
             let from = ch.lifted(state, 1)?;
-            let transition = ch.transition(a, b, f, from, x)?;
+            let transition = ch.transition(a.clone(), b.clone(), f.clone(), from, x.clone())?;
             ch.arrow(transition, ch.accessibility(a, b, f, x)?)
         })?;
         self.check(predecessors, expected)?;
@@ -2210,11 +2272,22 @@ impl<'a> Checker<'a> {
         accessibility: Expression,
         transition: Expression,
     ) -> Result<Expression, String> {
-        let acc = self.accessibility(state_ty, result_ty, step, from)?;
-        self.proposition(acc)?;
-        self.check(to, state_ty)?;
+        let acc = self.accessibility(
+            state_ty.clone(),
+            result_ty.clone(),
+            step.clone(),
+            from.clone(),
+        )?;
+        self.proposition(acc.clone())?;
+        self.check(to.clone(), state_ty.clone())?;
         self.check(accessibility, acc)?;
-        let expected = self.transition(state_ty, result_ty, step, from, to)?;
+        let expected = self.transition(
+            state_ty.clone(),
+            result_ty.clone(),
+            step.clone(),
+            from,
+            to.clone(),
+        )?;
         self.check(transition, expected)?;
         self.accessibility(state_ty, result_ty, step, to)
     }
@@ -2233,13 +2306,13 @@ impl<'a> Checker<'a> {
         let parameters = expressions(&parameters);
         self.check_arguments(&parameters, &spec.parameters)?;
         if e.family().stage() == Stage::Kind {
-            if spec.sort != Sort::Upper(self.arena().sort(e)) {
+            if spec.sort != Sort::Upper(self.arena().sort(e.clone())) {
                 return Err("inductive kind index mismatch".into());
             }
             return Ok(Classifier::Upper(self.arena().sort(e)));
         }
         let ty = instantiate_telescope(self.env, spec.arity, &parameters)?;
-        self.validate_inferred(e, ty)?;
+        self.validate_inferred(e, ty.clone())?;
         Ok(Classifier::Expression(ty))
     }
     fn infer_ind_ctor(
@@ -2255,11 +2328,11 @@ impl<'a> Checker<'a> {
             .clone();
         let parameters = expressions(&parameters);
         self.check_arguments(&parameters, &spec.parameters)?;
-        let classifier = *spec
+        let classifier = spec
             .constructors
             .get(constructor)
             .ok_or("invalid constructor")?;
-        instantiate_telescope(self.env, classifier, &parameters)
+        instantiate_telescope(self.env, classifier.clone(), &parameters)
     }
     fn infer_inductive(
         &mut self,
@@ -2295,8 +2368,11 @@ impl<'a> Checker<'a> {
         if declared.len() != fields.len() {
             return Err("constructor field count mismatch".into());
         }
-        for (&field, (_, ty)) in fields.iter().zip(declared) {
-            self.check(field, instantiate_telescope(self.env, (*ty).into(), &args)?)?;
+        for (field, (_, ty)) in fields.iter().zip(declared) {
+            self.check(
+                field,
+                instantiate_telescope(self.env, ty.clone().into(), &args)?,
+            )?;
         }
         Ok(self
             .arena()
@@ -2357,7 +2433,7 @@ impl<'a> Checker<'a> {
             .datatype(inductive)
             .ok_or("unknown datatype")?
             .clone();
-        self.base_type(result_ty)?;
+        self.base_type(result_ty.clone())?;
         let ty = self.inferred(scrutinee)?;
         let head = whnf(self.env, ty)?;
         let parameters = if reflected {
@@ -2385,9 +2461,9 @@ impl<'a> Checker<'a> {
             let mut branch = Checker::new(self.env, self.context.clone());
             for (j, (_, field)) in fields.iter().enumerate() {
                 let field = if reflected {
-                    super::reflection::reflect_type(self.env, (*field).into())?.into()
+                    super::reflection::reflect_type(self.env, field.clone().into())?.into()
                 } else {
-                    (*field).into()
+                    field.clone().into()
                 };
                 let ty = instantiate_telescope(self.env, field, &parameters)?;
                 branch.context.push(Binding {
@@ -2396,8 +2472,8 @@ impl<'a> Checker<'a> {
                 });
             }
             branch.check(
-                branches[i],
-                shift(self.arena(), result_ty, fields.len(), 0)?,
+                branches[i].clone(),
+                shift(self.arena(), result_ty.clone(), fields.len(), 0)?,
             )?;
         }
         Ok(result_ty)
@@ -2437,9 +2513,9 @@ impl<'a> Checker<'a> {
             .inductive(inductive)
             .ok_or("unknown inductive")?
             .clone();
-        let scrutinee_ty = self.inferred(scrutinee)?;
+        let scrutinee_ty = self.inferred(scrutinee.clone())?;
         let mut head = whnf(self.env, scrutinee_ty)?;
-        while let Some(superset) = structure::lifted_superset(self.arena(), head) {
+        while let Some(superset) = structure::lifted_superset(self.arena(), head.clone()) {
             head = whnf(self.env, superset.into())?;
         }
         let (head, args) = self.decompose_app(head);
@@ -2461,13 +2537,13 @@ impl<'a> Checker<'a> {
         }
         let mut local = Checker::new(self.env, self.context.clone());
         for (var, domain) in motive_vars.iter().zip(&motive.domains) {
-            local.formation(*domain)?;
+            local.formation(domain.clone())?;
             local.context.push(Binding {
                 var: *var,
-                classifier: *domain,
+                classifier: domain.clone(),
             });
         }
-        let result_sort = local.formation(motive.body)?;
+        let result_sort = local.formation(motive.body.clone())?;
         let permitted = match (spec.sort, result_sort) {
             (Sort::Base(BaseSort::Set(i)), Sort::Base(BaseSort::Set(j))) => i <= j,
             (_, Sort::Base(BaseSort::Prop))
@@ -2484,8 +2560,8 @@ impl<'a> Checker<'a> {
         applied_args.push(scrutinee);
         let applied = self.apply_motive(&motive, &applied_args)?;
         for (i, case) in cases.into_iter().enumerate() {
-            let ctor_ty = instantiate_telescope(self.env, spec.constructors[i], &params)?;
-            let sigma = self.formation(ctor_ty)?;
+            let ctor_ty = instantiate_telescope(self.env, spec.constructors[i].clone(), &params)?;
+            let sigma = self.formation(ctor_ty.clone())?;
             let ctor = build::inductive_constructor(
                 self.arena(),
                 sigma.base(),
@@ -2499,7 +2575,13 @@ impl<'a> Checker<'a> {
                 parameters.clone(),
             )?;
             let expected = if recursive {
-                self.case_type(inductive, spec.constructors[i], ctor_ty, ctor, &motive)?
+                self.case_type(
+                    inductive,
+                    spec.constructors[i].clone(),
+                    ctor_ty,
+                    ctor,
+                    &motive,
+                )?
             } else {
                 self.case_match_type(ctor_ty, ctor, &motive)?
             };
@@ -2533,7 +2615,7 @@ impl<'a> Checker<'a> {
         motive: &Motive,
     ) -> Result<Expression, String> {
         let constructor_ty = whnf(self.env, constructor_ty)?;
-        if let Some(product) = structure::product(self.arena(), constructor_ty) {
+        if let Some(product) = structure::product(self.arena(), constructor_ty.clone()) {
             return self.quantified(product.domain, |ch, field| {
                 let constructor = ch.application(ch.lifted(constructor, 1)?, field)?;
                 let motive = ch.lift_motive(motive)?;
@@ -2555,7 +2637,7 @@ impl<'a> Checker<'a> {
         motive: &Motive,
     ) -> Result<Option<Expression>, String> {
         let ty = whnf(self.env, ty)?;
-        if let Some(product) = structure::product(self.arena(), ty) {
+        if let Some(product) = structure::product(self.arena(), ty.clone()) {
             let mut found = false;
             let result = self.quantified(product.domain, |ch, arg| {
                 let x = ch.lifted(x, 1)?;
@@ -2587,16 +2669,16 @@ impl<'a> Checker<'a> {
         motive: &Motive,
     ) -> Result<Expression, String> {
         let ty = whnf(self.env, ty)?;
-        if let Some(product) = structure::product(self.arena(), ty) {
-            let declared = structure::product(self.arena(), whnf(self.env, declared_ty)?)
+        if let Some(product) = structure::product(self.arena(), ty.clone()) {
+            let declared = structure::product(self.arena(), whnf(self.env, declared_ty.clone())?)
                 .ok_or("expected declared constructor product")?;
-            let recursive = recursive_constructor_field(self.env, ind, declared.domain)?;
-            return self.quantified(product.domain, |ch, x| {
+            let recursive = recursive_constructor_field(self.env, ind, declared.domain.clone())?;
+            return self.quantified(product.domain.clone(), |ch, x| {
                 let ctor = ch.lifted(ctor, 1)?;
-                let ctor = ch.application(ctor, x)?;
+                let ctor = ch.application(ctor, x.clone())?;
                 let motive = ch.lift_motive(motive)?;
                 let tail = ch.case_type(ind, declared.body, product.body, ctor, &motive)?;
-                let domain = ch.lifted(product.domain, 1)?;
+                let domain = ch.lifted(product.domain.clone(), 1)?;
                 if recursive && let Some(ih) = ch.recursive_hypothesis(ind, domain, x, &motive)? {
                     ch.arrow(ih, tail)
                 } else {

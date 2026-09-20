@@ -25,7 +25,7 @@ pub fn assoc_prod(arena: &Arena, binders: Vec<(SymbolId, Exp)>, mut body: Exp) -
 // a0 a1 ... an  ==>  (a0, [a1, ..., an])
 pub fn decompose_app(arena: &Arena, mut exp: Exp) -> (Exp, Vec<Exp>) {
     let mut args = vec![];
-    while let ExpNode::App { func, arg } = arena.get(exp) {
+    while let ExpNode::App { func, arg } = arena.get(exp.clone()) {
         args.push(arg);
         exp = func;
     }
@@ -36,7 +36,7 @@ pub fn decompose_app(arena: &Arena, mut exp: Exp) -> (Exp, Vec<Exp>) {
 // (x1 : A1) ... (xn : An) -> B  ==>  ([(x1, A1), ..., (xn, An)], B)
 pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(SymbolId, Exp)>, Exp) {
     let mut vars = vec![];
-    while let ExpNode::Prod { var, ty, body } = arena.get(exp) {
+    while let ExpNode::Prod { var, ty, body } = arena.get(exp.clone()) {
         vars.push((var, ty));
         exp = body;
     }
@@ -126,13 +126,18 @@ mod tests {
             module: ModuleId(0),
             position: 2,
         });
-        let application = app!(&arena, app!(&arena, f_exp, x_exp), y_exp);
+        let application = app!(&arena, app!(&arena, f_exp, x_exp.clone()), y_exp.clone());
         let (head, args) = decompose_app(&arena, application);
         assert_eq!(arena.as_module_param(head).unwrap().position, 0);
         assert_eq!(args, vec![x_exp, y_exp]);
 
         let ty = arena.sort(Sort::Set(0));
-        let product = prod!(&arena, x, ty, prod!(&arena, y, ty, ty));
+        let product = prod!(
+            &arena,
+            x,
+            ty.clone(),
+            prod!(&arena, y, ty.clone(), ty.clone())
+        );
         let (binders, body) = decompose_prod(&arena, product);
         assert_eq!(binders.len(), 2);
         assert_eq!(body, ty);

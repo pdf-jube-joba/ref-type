@@ -34,7 +34,12 @@ impl ProgramConstructorSpec {
     ) -> Vec<(SymbolId, ValueType)> {
         self.fields
             .iter()
-            .map(|(name, ty)| (*name, instantiate_type_telescope(arena, *ty, parameters)))
+            .map(|(name, ty)| {
+                (
+                    *name,
+                    instantiate_type_telescope(arena, ty.clone(), parameters),
+                )
+            })
             .collect()
     }
 }
@@ -85,14 +90,14 @@ impl ProgramInductiveTypeSpecs {
         let result = (|| {
             for (constructor_index, constructor) in self.constructors.iter().enumerate() {
                 for (field_index, (_, ty)) in constructor.fields.iter().enumerate() {
-                    session.check_value_type(*ty).map_err(|error| {
+                    session.check_value_type(ty.clone()).map_err(|error| {
                         Box::new(error.with_frame(
                             "ProgramInductiveTypeSpecs::validate",
                             format!("constructor {constructor_index}, field {field_index}"),
                             "field is a value type",
                         ))
                     })?;
-                    if !strictly_positive_value(session.arena(), *ty, inductive, true) {
+                    if !strictly_positive_value(session.arena(), ty.clone(), inductive, true) {
                         return Err(Box::new(
                             JudgementError::caused(format!(
                                 "program datatype occurs in a non-strictly-positive position: constructor {constructor_index}, field {field_index}"
@@ -122,7 +127,7 @@ impl ProgramInductiveTypeSpecs {
         let substitutions = substitutions
             .iter()
             .map(|(p, a)| {
-                let a = match *a {
+                let a = match a.clone() {
                     ModuleArgument::ProgramType(t) => ModuleArgument::ProgramType(
                         super::program_calculus::shift_value_type_indices(
                             arena,
@@ -149,7 +154,11 @@ impl ProgramInductiveTypeSpecs {
                             .map(|(name, ty)| {
                                 (
                                     *name,
-                                    subst_value_type_module_params(arena, *ty, &substitutions),
+                                    subst_value_type_module_params(
+                                        arena,
+                                        ty.clone(),
+                                        &substitutions,
+                                    ),
                                 )
                             })
                             .collect(),
@@ -182,7 +191,7 @@ impl ProgramInductiveTypeSpecs {
                                     *name,
                                     remap_value_type_global_ids(
                                         arena,
-                                        *ty,
+                                        ty.clone(),
                                         definitions,
                                         program_inductives,
                                     ),
@@ -194,7 +203,7 @@ impl ProgramInductiveTypeSpecs {
                 .collect(),
             reflected: inductives
                 .get(&self.reflected)
-                .copied()
+                .cloned()
                 .unwrap_or(self.reflected),
         }
     }
@@ -231,7 +240,7 @@ fn strictly_positive_value(
             // variance, so recursive occurrences there are conservatively
             // rejected.
             parameters.into_iter().all(|parameter| {
-                if contains_program_inductive(arena, parameter, inductive) {
+                if contains_program_inductive(arena, parameter.clone(), inductive) {
                     indspec == inductive
                         && strictly_positive_value(arena, parameter, inductive, positive)
                 } else {

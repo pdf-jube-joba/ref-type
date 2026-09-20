@@ -2,7 +2,7 @@
 
 use hashconsing::{HConsed, HConsign, HashConsign};
 use rustc_hash::FxBuildHasher;
-use std::cell::{Ref, RefCell};
+use std::{cell::RefCell, ops::Deref};
 
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -13,16 +13,19 @@ use crate::raw::{
     sort::Sort,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Exp(u32);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Exp(HConsed<ExpNode>);
 
 impl Exp {
-    pub fn index(self) -> usize {
-        self.0 as usize
+    pub fn index(&self) -> usize {
+        usize::try_from(self.0.uid()).expect("front hashconsing ID exceeds usize")
     }
+}
+impl Deref for Exp {
+    type Target = ExpNode;
 
-    pub(crate) fn from_index(index: u32) -> Self {
-        Self(index)
+    fn deref(&self) -> &Self::Target {
+        self.0.get()
     }
 }
 
@@ -269,7 +272,7 @@ pub struct ExpContextEntry {
 
 pub type ExpContext = Vec<ExpContextEntry>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpJudgement {
     pub term: Exp,
     pub ty: Exp,
@@ -280,64 +283,52 @@ pub trait ArenaNode: Sized {
     fn allocate(self, arena: &Arena) -> Self::Handle;
 }
 
-pub trait ArenaHandle: Copy {
+pub trait ArenaHandle: Clone {
     type Node: Clone;
-    fn get(self, arena: &Arena) -> Self::Node;
+    fn get(&self, arena: &Arena) -> Self::Node;
 }
 
 macro_rules! arena_partition {
-    ($node:ty, $handle:ty, $field:ident) => {
+    ($node:ty, $handle:ident, $field:ident) => {
         impl ArenaNode for $node {
             type Handle = $handle;
             fn allocate(self, arena: &Arena) -> Self::Handle {
-                let mut nodes = arena.$field.borrow_mut();
-                let index =
-                    u32::try_from(nodes.len()).expect("kernel arena partition exceeded u32::MAX");
-                nodes.push(self);
-                <$handle>::from_index(index)
+                $handle(arena.$field.borrow_mut().mk(self))
             }
         }
 
         impl ArenaHandle for $handle {
             type Node = $node;
-            fn get(self, arena: &Arena) -> Self::Node {
-                arena.$field.borrow()[self.index()].clone()
+            fn get(&self, _arena: &Arena) -> Self::Node {
+                self.0.get().clone()
             }
         }
     };
 }
 
 pub struct Arena {
-    exps: RefCell<Vec<HConsed<ExpNode>>>,
     exp_consign: RefCell<HConsign<ExpNode, FxBuildHasher>>,
-    value_types: RefCell<Vec<ValueTypeNode>>,
-    computation_types: RefCell<Vec<ComputationTypeNode>>,
-    values: RefCell<Vec<ValueTermNode>>,
-    computations: RefCell<Vec<ComputationTermNode>>,
+    value_types: RefCell<HConsign<ValueTypeNode, FxBuildHasher>>,
+    computation_types: RefCell<HConsign<ComputationTypeNode, FxBuildHasher>>,
+    values: RefCell<HConsign<ValueTermNode, FxBuildHasher>>,
+    computations: RefCell<HConsign<ComputationTermNode, FxBuildHasher>>,
 }
 
 impl Default for Arena {
     fn default() -> Self {
         Self {
-            exps: RefCell::new(Vec::new()),
             exp_consign: RefCell::new(HConsign::with_hasher(FxBuildHasher)),
-            value_types: RefCell::new(Vec::new()),
-            computation_types: RefCell::new(Vec::new()),
-            values: RefCell::new(Vec::new()),
-            computations: RefCell::new(Vec::new()),
+            value_types: RefCell::new(HConsign::with_hasher(FxBuildHasher)),
+            computation_types: RefCell::new(HConsign::with_hasher(FxBuildHasher)),
+            values: RefCell::new(HConsign::with_hasher(FxBuildHasher)),
+            computations: RefCell::new(HConsign::with_hasher(FxBuildHasher)),
         }
     }
 }
 
 impl std::fmt::Debug for Arena {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Arena")
-            .field("exps", &self.exps)
-            .field("value_types", &self.value_types)
-            .field("computation_types", &self.computation_types)
-            .field("values", &self.values)
-            .field("computations", &self.computations)
-            .finish_non_exhaustive()
+        f.debug_struct("Arena").finish_non_exhaustive()
     }
 }
 
@@ -345,22 +336,15 @@ impl ArenaNode for ExpNode {
     type Handle = Exp;
 
     fn allocate(self, arena: &Arena) -> Self::Handle {
-        let (node, is_new) = (&mut *arena.exp_consign.borrow_mut()).mk_is_new(self);
-        let index = u32::try_from(node.uid()).expect("front arena partition exceeded u32::MAX");
-        if is_new {
-            let mut nodes = arena.exps.borrow_mut();
-            assert_eq!(index as usize, nodes.len());
-            nodes.push(node);
-        }
-        Exp::from_index(index)
+        Exp(arena.exp_consign.borrow_mut().mk(self))
     }
 }
 
 impl ArenaHandle for Exp {
     type Node = ExpNode;
 
-    fn get(self, arena: &Arena) -> Self::Node {
-        arena.exps.borrow()[self.index()].get().clone()
+    fn get(&self, _arena: &Arena) -> Self::Node {
+        self.0.get().clone()
     }
 }
 
@@ -376,7 +360,7 @@ impl Arena {
 
     #[cfg(test)]
     pub(crate) fn exp_len(&self) -> usize {
-        self.exps.borrow().len()
+        self.exp_consign.borrow().len()
     }
 
     pub fn alloc<N: ArenaNode>(&self, node: N) -> N::Handle {
@@ -388,32 +372,39 @@ impl Arena {
     }
 
     pub(crate) fn reuse_exp(&self, original: Exp, node: ExpNode) -> Exp {
-        if *self.exps.borrow()[original.index()].get() == node {
+        if *original == node {
             original
         } else {
             self.alloc(node)
         }
     }
 
-    // Drop the guard before allocating in the same arena partition.
-    pub(crate) fn borrow_exp(&self, exp: Exp) -> Ref<'_, ExpNode> {
-        Ref::map(self.exps.borrow(), |nodes| nodes[exp.index()].get())
+    pub(crate) fn borrow_exp(&self, exp: Exp) -> Exp {
+        exp
     }
 
-    pub(crate) fn borrow_value_type(&self, ty: ValueType) -> Ref<'_, ValueTypeNode> {
-        Ref::map(self.value_types.borrow(), |nodes| &nodes[ty.index()])
+    pub fn collect(&self) {
+        self.exp_consign.borrow_mut().collect();
+        self.value_types.borrow_mut().collect();
+        self.computation_types.borrow_mut().collect();
+        self.values.borrow_mut().collect();
+        self.computations.borrow_mut().collect();
     }
 
-    pub(crate) fn borrow_value(&self, value: ValueTerm) -> Ref<'_, ValueTermNode> {
-        Ref::map(self.values.borrow(), |nodes| &nodes[value.index()])
+    pub(crate) fn borrow_value_type(&self, ty: ValueType) -> ValueTypeNode {
+        ty.0.get().clone()
     }
 
-    pub(crate) fn borrow_computation(&self, term: ComputationTerm) -> Ref<'_, ComputationTermNode> {
-        Ref::map(self.computations.borrow(), |nodes| &nodes[term.index()])
+    pub(crate) fn borrow_value(&self, value: ValueTerm) -> ValueTermNode {
+        value.0.get().clone()
+    }
+
+    pub(crate) fn borrow_computation(&self, term: ComputationTerm) -> ComputationTermNode {
+        term.0.get().clone()
     }
 
     pub(crate) fn reuse_value_type(&self, original: ValueType, node: ValueTypeNode) -> ValueType {
-        if self.value_types.borrow()[original.index()] == node {
+        if *original == node {
             original
         } else {
             self.alloc(node)
@@ -425,7 +416,7 @@ impl Arena {
         original: ComputationType,
         node: ComputationTypeNode,
     ) -> ComputationType {
-        if self.computation_types.borrow()[original.index()] == node {
+        if *original == node {
             original
         } else {
             self.alloc(node)
@@ -433,7 +424,7 @@ impl Arena {
     }
 
     pub(crate) fn reuse_value(&self, original: ValueTerm, node: ValueTermNode) -> ValueTerm {
-        if self.values.borrow()[original.index()] == node {
+        if *original == node {
             original
         } else {
             self.alloc(node)
@@ -445,7 +436,7 @@ impl Arena {
         original: ComputationTerm,
         node: ComputationTermNode,
     ) -> ComputationTerm {
-        if self.computations.borrow()[original.index()] == node {
+        if *original == node {
             original
         } else {
             self.alloc(node)

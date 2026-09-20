@@ -90,7 +90,7 @@ impl ModuleManager {
             .module(self.current)
             .children()
             .iter()
-            .copied()
+            .cloned()
             .find(|child| env.module(*child).name() == module_name)?;
         self.current = child;
         Some(child)
@@ -119,10 +119,10 @@ impl ModuleManager {
                 module
                     .parameters()
                     .iter()
-                    .filter_map(|parameter| match parameter.kind {
+                    .filter_map(|parameter| match &parameter.kind {
                         ModuleParameterKind::Pts { ty } => Some(ExpContextEntry {
                             var: parameter.name,
-                            ty,
+                            ty: ty.clone(),
                         }),
                         ModuleParameterKind::ProgramType
                         | ModuleParameterKind::ProgramValue { .. } => None,
@@ -148,14 +148,14 @@ impl ModuleManager {
                 module
                     .parameters()
                     .iter()
-                    .filter_map(|parameter| match parameter.kind {
+                    .filter_map(|parameter| match &parameter.kind {
                         ModuleParameterKind::ProgramType => Some(ProgramContextEntry::ValueType {
                             var: parameter.name,
                         }),
                         ModuleParameterKind::ProgramValue { ty } => {
                             Some(ProgramContextEntry::ValueTerm {
                                 var: parameter.name,
-                                ty,
+                                ty: ty.clone(),
                             })
                         }
                         ModuleParameterKind::Pts { .. } => None,
@@ -398,15 +398,15 @@ impl ModuleManager {
             .iter()
             .map(|(parameter, argument)| {
                 let reflected = match argument {
-                    ModuleArgument::Pts(exp) => *exp,
+                    ModuleArgument::Pts(exp) => exp.clone(),
                     ModuleArgument::ProgramType(ty) => {
-                        crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
-                            format!("cannot reflect Program type module argument: {error}")
-                        })?
+                        crate::raw::reflection::reflect_value_type(env, ty.clone()).map_err(
+                            |error| format!("cannot reflect Program type module argument: {error}"),
+                        )?
                     }
                     ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
                         env,
-                        crate::raw::program::ProgramTerm::ValueTerm(*value),
+                        crate::raw::program::ProgramTerm::ValueTerm(value.clone()),
                     )
                     .map_err(|error| {
                         format!("cannot reflect Program value module argument: {error}")
@@ -422,7 +422,7 @@ impl ModuleManager {
                 .module(source)
                 .children()
                 .iter()
-                .copied()
+                .cloned()
                 .find(|child| env.module(*child).name() == child_name.as_str())
                 .ok_or_else(|| {
                     format!(
@@ -463,7 +463,7 @@ impl ModuleManager {
                         let expected =
                             exp_subst_map(env.arena(), expected, &reflected_substitutions);
                         CheckSession::new(env, self.current, context)
-                            .check_pts(*argument, expected)
+                            .check_pts(argument.clone(), expected)
                             .map_err(|error| {
                                 format!(
                                     "Module '{}' argument '{}' failed type checking: {error:?}",
@@ -477,7 +477,7 @@ impl ModuleManager {
                             env,
                             &mut Vec::new(),
                         )
-                        .check_value_type(*ty)
+                        .check_value_type(ty.clone())
                         .map_err(|error| {
                             format!("Program type module argument is ill-formed: {error:?}")
                         })?;
@@ -501,7 +501,7 @@ impl ModuleManager {
                             env,
                             &mut Vec::new(),
                         )
-                        .check_value_term(*value, expected)
+                        .check_value_term(value.clone(), expected)
                         .map_err(|error| {
                             format!("Program value module argument is ill-typed: {error:?}")
                         })?;
@@ -519,21 +519,21 @@ impl ModuleManager {
                     position: position as u32,
                 };
                 let reflected = match argument {
-                    ModuleArgument::Pts(exp) => *exp,
+                    ModuleArgument::Pts(exp) => exp.clone(),
                     ModuleArgument::ProgramType(ty) => {
-                        crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
-                            format!("cannot reflect Program type module argument: {error}")
-                        })?
+                        crate::raw::reflection::reflect_value_type(env, ty.clone()).map_err(
+                            |error| format!("cannot reflect Program type module argument: {error}"),
+                        )?
                     }
                     ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
                         env,
-                        crate::raw::program::ProgramTerm::ValueTerm(*value),
+                        crate::raw::program::ProgramTerm::ValueTerm(value.clone()),
                     )
                     .map_err(|error| {
                         format!("cannot reflect Program value module argument: {error}")
                     })?,
                 };
-                substitutions.push((parameter_id, *argument));
+                substitutions.push((parameter_id, argument.clone()));
                 reflected_substitutions.push((parameter_id, reflected));
             }
             source = child;
@@ -825,7 +825,7 @@ fn lookup_name(env: &CrateEnv, module: ModuleId, name: &str) -> Option<ItemAcces
                 module,
                 position: position as u32,
             },
-            parameter.kind,
+            parameter.kind.clone(),
         )
     };
     Some(item)
@@ -917,7 +917,7 @@ mod tests {
 
     fn pts_body(definition: &DefinedConstant) -> Exp {
         match definition {
-            DefinedConstant::Pts { body, .. } => *body,
+            DefinedConstant::Pts { body, .. } => body.clone(),
             _ => panic!("expected a Set/Prop definition"),
         }
     }
@@ -963,8 +963,8 @@ mod tests {
                     &mut env,
                     Identifier(name.into()),
                     DefinedConstant::Pts {
-                        ty: proposition_kind,
-                        body: proposition,
+                        ty: proposition_kind.clone(),
+                        body: proposition.clone(),
                     },
                 )
                 .unwrap();
@@ -1056,7 +1056,7 @@ mod tests {
                 &mut env,
                 Identifier("base".into()),
                 DefinedConstant::Pts {
-                    ty: proposition_kind,
+                    ty: proposition_kind.clone(),
                     body: proposition,
                 },
             )
@@ -1126,7 +1126,7 @@ mod tests {
         let mut manager = ModuleManager::new();
         let mut env = CrateEnv::new();
         let set = env.arena().sort(Sort::Set(0));
-        let parameter = parameter(&mut env, "A", set);
+        let parameter = parameter(&mut env, "A", set.clone());
         manager
             .add_child_and_moveto(&mut env, "Parameterized".into(), vec![parameter])
             .unwrap();
@@ -1174,7 +1174,7 @@ mod tests {
                     None,
                     call(
                         "Parameterized",
-                        vec![(Identifier("A".into()), argument.into())],
+                        vec![(Identifier("A".into()), argument.clone().into())],
                     ),
                 )
                 .is_ok()
@@ -1249,7 +1249,7 @@ mod tests {
         });
         assert!(
             CheckSession::new(&env, env.root_module(), &mut Vec::new())
-                .check_pts(first_constructor, first_type)
+                .check_pts(first_constructor.clone(), first_type)
                 .is_ok()
         );
         assert!(env.is_inductive_materialized(first));
@@ -1273,7 +1273,7 @@ mod tests {
                 "Parent".into(),
                 vec![ModuleParameter {
                     name: parameter,
-                    kind: ModuleParameterKind::Pts { ty: set },
+                    kind: ModuleParameterKind::Pts { ty: set.clone() },
                 }],
             )
             .unwrap();
@@ -1286,7 +1286,7 @@ mod tests {
                 &mut env,
                 Identifier("parent_value".into()),
                 DefinedConstant::Pts {
-                    ty: set,
+                    ty: set.clone(),
                     body: parameter_exp,
                 },
             )
@@ -1311,7 +1311,7 @@ mod tests {
                 &mut env,
                 Identifier("child_value".into()),
                 DefinedConstant::Pts {
-                    ty: set,
+                    ty: set.clone(),
                     body: parent_reference,
                 },
             )
@@ -1335,7 +1335,7 @@ mod tests {
                 vec![
                     (
                         Identifier("Parent".into()),
-                        vec![(Identifier("A".into()), argument.into())],
+                        vec![(Identifier("A".into()), argument.clone().into())],
                     ),
                     (Identifier("Child".into()), vec![]),
                 ],
@@ -1378,7 +1378,7 @@ mod tests {
                 "Param".into(),
                 vec![ModuleParameter {
                     name: parameter,
-                    kind: ModuleParameterKind::Pts { ty: set },
+                    kind: ModuleParameterKind::Pts { ty: set.clone() },
                 }],
             )
             .unwrap();
@@ -1391,7 +1391,7 @@ mod tests {
                 &mut env,
                 Identifier("value".into()),
                 DefinedConstant::Pts {
-                    ty: set,
+                    ty: set.clone(),
                     body: parameter_exp,
                 },
             )
@@ -1406,7 +1406,7 @@ mod tests {
                 "Outer".into(),
                 vec![ModuleParameter {
                     name: outer_parameter,
-                    kind: ModuleParameterKind::Pts { ty: set },
+                    kind: ModuleParameterKind::Pts { ty: set.clone() },
                 }],
             )
             .unwrap();
@@ -1420,7 +1420,7 @@ mod tests {
                 &mut env,
                 &mut vec![ExpContextEntry {
                     var: outer_context_var,
-                    ty: set,
+                    ty: set.clone(),
                 }],
                 None,
                 vec![(
@@ -1452,7 +1452,7 @@ mod tests {
                 &mut env,
                 Identifier("result".into()),
                 DefinedConstant::Pts {
-                    ty: set,
+                    ty: set.clone(),
                     body: imported_value,
                 },
             )
@@ -1472,7 +1472,7 @@ mod tests {
                 None,
                 vec![(
                     Identifier("Outer".into()),
-                    vec![(Identifier("A".into()), argument.into())],
+                    vec![(Identifier("A".into()), argument.clone().into())],
                 )],
             )
             .unwrap();

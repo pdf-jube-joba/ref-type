@@ -10,7 +10,7 @@ impl GlobalEnvironment {
         let mut local_scope = LocalScope::default();
         let exp_elab = local_scope.elab_exp(exp, self)?;
         if !self.metavariables.is_empty() {
-            self.infer_term_with_metavariables(ctx, exp_elab)
+            self.infer_term_with_metavariables(ctx, exp_elab.clone())
                 .map_err(|message| self.metavariables.constraint_error(message))?;
             self.finish_metavariables()?;
         }
@@ -31,7 +31,7 @@ impl GlobalEnvironment {
         let (computation, ty) = scope.infer_computation_term_with_metas(self, computation)?;
         self.certify_program_query(
             scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
+            crate::raw::program::ProgramTerm::ComputationTerm(computation.clone()),
             crate::raw::program::ProgramType::ComputationType(ty),
         )?;
         Ok(computation)
@@ -67,7 +67,7 @@ impl GlobalEnvironment {
     ) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         self.outputs.push(Output::Exp(
-            crate::raw::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
+            crate::raw::calculus::reduce_one(&self.crate_env, exp_elab.clone()).unwrap_or(exp_elab),
         ));
         Ok(())
     }
@@ -91,8 +91,10 @@ impl GlobalEnvironment {
         exp: &ComputationTermExp,
     ) -> Result<(), ElaborationError> {
         let computation = self.elaborate_query_computation(exp)?;
-        let reduced =
-            crate::raw::program_calculus::reduce_computation_once(&self.crate_env, computation);
+        let reduced = crate::raw::program_calculus::reduce_computation_once(
+            &self.crate_env,
+            computation.clone(),
+        );
         self.outputs
             .push(Output::ComputationTerm(reduced.unwrap_or(computation)));
         Ok(())
@@ -127,12 +129,12 @@ impl GlobalEnvironment {
         let (value, ty) = scope.check_value_term_with_metas(self, value, ty)?;
         let mut context = scope.context().clone();
         ProgramCheckSession::new(&self.crate_env, &mut context)
-            .check_value_term(value, ty)
+            .check_value_term(value.clone(), ty.clone())
             .map_err(|error| format!("Program value check failed: {error:?}"))?;
         self.certify_program_query(
             scope.context(),
             crate::raw::program::ProgramTerm::ValueTerm(value),
-            crate::raw::program::ProgramType::ValueType(ty),
+            crate::raw::program::ProgramType::ValueType(ty.clone()),
         )?;
         self.outputs.push(Output::ValueType(ty));
         Ok(())
@@ -149,12 +151,12 @@ impl GlobalEnvironment {
         let (computation, ty) = scope.check_computation_term_with_metas(self, computation, ty)?;
         let mut context = scope.context().clone();
         ProgramCheckSession::new(&self.crate_env, &mut context)
-            .check_computation_term(computation, ty)
+            .check_computation_term(computation.clone(), ty.clone())
             .map_err(|error| format!("Program computation check failed: {error:?}"))?;
         self.certify_program_query(
             scope.context(),
             crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
+            crate::raw::program::ProgramType::ComputationType(ty.clone()),
         )?;
         self.outputs.push(Output::ComputationType(ty));
         Ok(())
@@ -167,7 +169,7 @@ impl GlobalEnvironment {
         self.certify_program_query(
             scope.context(),
             crate::raw::program::ProgramTerm::ValueTerm(value),
-            crate::raw::program::ProgramType::ValueType(ty),
+            crate::raw::program::ProgramType::ValueType(ty.clone()),
         )?;
         self.outputs.push(Output::ValueType(ty));
         Ok(())
@@ -183,7 +185,7 @@ impl GlobalEnvironment {
         self.certify_program_query(
             scope.context(),
             crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
+            crate::raw::program::ProgramType::ComputationType(ty.clone()),
         )?;
         self.outputs.push(Output::ComputationType(ty));
         Ok(())
@@ -199,16 +201,16 @@ impl GlobalEnvironment {
         let exp_elab = local_scope.elab_exp(exp, self)?;
         let ty_elab = local_scope.elab_exp(ty, self)?;
         if !self.metavariables.is_empty() {
-            self.check_term_with_metavariables(ctx, exp_elab, ty_elab)
+            self.check_term_with_metavariables(ctx, exp_elab.clone(), ty_elab.clone())
                 .map_err(|message| self.metavariables.constraint_error(message))?;
             self.finish_metavariables()?;
         }
         let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
         let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
         let result = CheckSession::new(&self.crate_env, self.module_manager.current(), ctx)
-            .check_pts(exp_elab, ty_elab)
+            .check_pts(exp_elab.clone(), ty_elab.clone())
             .map_err(|error| format!("{error:?}"))
-            .and_then(|()| self.certify_query(ctx, exp_elab, ty_elab));
+            .and_then(|()| self.certify_query(ctx, exp_elab, ty_elab.clone()));
         self.outputs.push(match result {
             Ok(()) => Output::Exp(ty_elab),
             Err(error) => Output::Message(format!("check failed: {error}")),
@@ -223,10 +225,10 @@ impl GlobalEnvironment {
     ) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         let result = CheckSession::new(&self.crate_env, self.module_manager.current(), ctx)
-            .infer_exp_judgement(exp_elab)
+            .infer_exp_judgement(exp_elab.clone())
             .map_err(|error| format!("{error:?}"))
             .and_then(|judgement| {
-                self.certify_query(ctx, exp_elab, judgement.ty)?;
+                self.certify_query(ctx, exp_elab, judgement.ty.clone())?;
                 Ok(judgement.ty)
             });
         self.outputs.push(match result {

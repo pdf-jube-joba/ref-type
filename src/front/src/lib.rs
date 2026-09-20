@@ -1,4 +1,7 @@
 // surface syntax
+// Kernel handles contain a memoized analysis Cell that is excluded from their
+// equality and hash implementations.
+#![allow(clippy::mutable_key_type)]
 mod macros;
 pub mod metavariables;
 pub mod output;

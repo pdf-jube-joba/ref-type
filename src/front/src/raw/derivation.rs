@@ -68,7 +68,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
 
     pub fn push_pts(&mut self, var: SymbolId, ty: Exp) {
         tracing::trace!(target: "ref_type::typing", binder = %self.env.symbol(var),
-            ty = %crate::raw::printing::format_exp(self.env, ty), depth = self.context.len(), "enter Set/Prop binder");
+            ty = %crate::raw::printing::format_exp(self.env, ty.clone()), depth = self.context.len(), "enter Set/Prop binder");
         self.context.push(ExpContextEntry { var, ty });
     }
 
@@ -80,7 +80,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     }
 
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
-        let result = check(self, term, ty);
+        let result = check(self, term.clone(), ty.clone());
         if result.is_ok() {
             debug!(target: "ref_type::typing", term = %crate::raw::printing::format_exp(self.env, term),
                 ty = %crate::raw::printing::format_exp(self.env, ty), "Set/Prop check succeeded");
@@ -89,17 +89,17 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     }
 
     pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
-        let result = infer(self, term);
+        let result = infer(self, term.clone());
         if let Ok(ty) = &result {
             debug!(target: "ref_type::typing", term = %crate::raw::printing::format_exp(self.env, term),
-                ty = %crate::raw::printing::format_exp(self.env, *ty), "Set/Prop type inferred");
+                ty = %crate::raw::printing::format_exp(self.env, ty.clone()), "Set/Prop type inferred");
         }
         result
     }
 
     /// Infer a Set/Prop term and return only classified `Exp` handles.
     pub fn infer_exp_judgement(&mut self, term: Exp) -> Result<ExpJudgement, Box<JudgementError>> {
-        let ty = self.infer_pts(term)?;
+        let ty = self.infer_pts(term.clone())?;
         Ok(ExpJudgement { term, ty })
     }
 
@@ -151,7 +151,7 @@ macro_rules! add_infer {
                 debug!(
                     target: "ref_type::typing",
                     premise = $expected,
-                    result = %crate::raw::printing::format_exp($session.env(), *ty),
+                    result = %crate::raw::printing::format_exp($session.env(), ty.clone()),
                 );
             })
             .map_err(|error| propagate(error, $rule, $phase, $expected))
@@ -198,27 +198,27 @@ fn check(
         "check",
         rule = "Check",
         ctx_len = session.context.len(),
-        term = %crate::raw::printing::format_exp(session.env(), term),
-        expected = %crate::raw::printing::format_exp(session.env(), ty),
+        term = %crate::raw::printing::format_exp(session.env(), term.clone()),
+        expected = %crate::raw::printing::format_exp(session.env(), ty.clone()),
     );
     let _entered = span.enter();
     let rule = "Check";
     let phase = "check";
-    let inferred_ty = add_infer!(session, rule, phase, term, "infer given term")?;
+    let inferred_ty = add_infer!(session, rule, phase, term.clone(), "infer given term")?;
 
-    if matches!(arena.get(ty), ExpNode::Sort(sort) if sort.type_of_sort().is_none())
-        && exp_is_alpha_eq(session.env(), ty, inferred_ty)
+    if matches!(arena.get(ty.clone()), ExpNode::Sort(sort) if sort.type_of_sort().is_none())
+        && exp_is_alpha_eq(session.env(), ty.clone(), inferred_ty.clone())
     {
         return Ok(());
     }
-    add_sort!(session, rule, phase, ty, "infer expected type sort")?;
-    if erased_convertible(session.env(), ty, inferred_ty) {
+    add_sort!(session, rule, phase, ty.clone(), "infer expected type sort")?;
+    if erased_convertible(session.env(), ty.clone(), inferred_ty.clone()) {
         debug!(target: "ref_type::typing", "types agree after proof erasure");
         return Ok(());
     }
 
-    let inferred_head = type_head_normal(session.env(), inferred_ty);
-    let expected_head = type_head_normal(session.env(), ty);
+    let inferred_head = type_head_normal(session.env(), inferred_ty.clone());
+    let expected_head = type_head_normal(session.env(), ty.clone());
     if let (ExpNode::Sort(inferred), ExpNode::Sort(expected)) =
         (arena.get(inferred_head), arena.get(expected_head))
     {
@@ -228,7 +228,7 @@ fn check(
         }
         return Err(failure(rule, phase, "fail universe lift"));
     }
-    if can_weaken_to(session.env(), inferred_ty, ty) {
+    if can_weaken_to(session.env(), inferred_ty.clone(), ty.clone()) {
         debug!(target: "ref_type::typing", "subset weakening accepted");
         return Ok(());
     }
@@ -242,15 +242,23 @@ fn check(
 
 fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<JudgementError>> {
     let key = (
-        term,
-        session.context.iter().map(|b| (b.var, b.ty)).collect(),
+        term.clone(),
+        session
+            .context
+            .iter()
+            .map(|b| (b.var, b.ty.clone()))
+            .collect(),
         session.current_module,
     );
-    if let Some(&ty) = session.env.inference_cache.borrow().get(&key) {
-        return Ok(ty);
+    if let Some(ty) = session.env.inference_cache.borrow().get(&key) {
+        return Ok(ty.clone());
     }
     let ty = infer_uncached(session, term)?;
-    session.env.inference_cache.borrow_mut().insert(key, ty);
+    session
+        .env
+        .inference_cache
+        .borrow_mut()
+        .insert(key, ty.clone());
     Ok(ty)
 }
 
@@ -259,13 +267,13 @@ fn infer_uncached(
     term: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
-    let rule = exp_rule(arena, term);
+    let rule = exp_rule(arena, term.clone());
     let span = tracing::debug_span!(
         target: "ref_type::typing",
         "infer",
         rule,
         ctx_len = session.context.len(),
-        term = %crate::raw::printing::format_exp(session.env(), term),
+        term = %crate::raw::printing::format_exp(session.env(), term.clone()),
     );
     let _entered = span.enter();
     let phase = "infer";
@@ -286,25 +294,25 @@ fn infer_uncached(
                         failure(rule, phase, "bound variable index is outside the context")
                     })?,
             )
-            .map(|entry| shift_bound_indices(arena, entry.ty, index + 1, 0))
+            .map(|entry| shift_bound_indices(arena, entry.ty.clone(), index + 1, 0))
             .ok_or_else(|| failure(rule, phase, "bound variable index is outside the context")),
         ExpNode::ModuleParam(parameter) => session
             .env()
             .module_parameter_opt(parameter)
-            .and_then(|parameter| match parameter.kind {
+            .and_then(|parameter| match &parameter.kind {
                 // Named parameters have stable identities in the environment;
                 // they do not occupy slots in the local de Bruijn context.
-                ModuleParameterKind::Pts { ty } => Some(ty),
+                ModuleParameterKind::Pts { ty } => Some(ty.clone()),
                 ModuleParameterKind::ProgramType | ModuleParameterKind::ProgramValue { .. } => None,
             })
             .ok_or_else(|| failure(rule, phase, "module parameter is not a PTS term")),
         ExpNode::ReflectedProgramParam(parameter) => session
             .env()
             .module_parameter_opt(parameter)
-            .and_then(|parameter| match parameter.kind {
+            .and_then(|parameter| match &parameter.kind {
                 ModuleParameterKind::ProgramType => Some(arena.sort(Sort::Set(0))),
                 ModuleParameterKind::ProgramValue { ty } => {
-                    reflect_value_type(session.env(), ty).ok()
+                    reflect_value_type(session.env(), ty.clone()).ok()
                 }
                 ModuleParameterKind::Pts { .. } => None,
             })
@@ -315,7 +323,13 @@ fn infer_uncached(
             "unresolved metavariable reached the strict kernel checker",
         )),
         ExpNode::Prod { var, ty, body } => {
-            let domain_sort = add_sort!(session, rule, phase, ty, "infer domain sort for product")?;
+            let domain_sort = add_sort!(
+                session,
+                rule,
+                phase,
+                ty.clone(),
+                "infer domain sort for product"
+            )?;
             session.push_pts(var, ty);
             let body_sort = add_sort!(
                 session,
@@ -332,8 +346,14 @@ fn infer_uncached(
                 .ok_or_else(|| failure(rule, phase, "no sort relation for product"))
         }
         ExpNode::Lam { var, ty, body } => {
-            add_sort!(session, rule, phase, ty, "infer domain sort for lambda")?;
-            session.push_pts(var, ty);
+            add_sort!(
+                session,
+                rule,
+                phase,
+                ty.clone(),
+                "infer domain sort for lambda"
+            )?;
+            session.push_pts(var, ty.clone());
             let body_ty = add_infer!(session, rule, phase, body, "infer body type for lambda");
             session.pop();
             let body_ty = body_ty?;
@@ -346,7 +366,7 @@ fn infer_uncached(
                 session,
                 rule,
                 phase,
-                lambda_ty,
+                lambda_ty.clone(),
                 "lambda product type should be well-sorted"
             )?;
             Ok(lambda_ty)
@@ -366,7 +386,7 @@ fn infer_uncached(
                 session,
                 rule,
                 phase,
-                arg,
+                arg.clone(),
                 arg_ty,
                 "check argument type for application"
             )?;
@@ -375,7 +395,7 @@ fn infer_uncached(
         ExpNode::DefinedConstant(definition) => {
             let definition = session.env().definition(definition);
             match definition {
-                DefinedConstant::Pts { ty, .. } => Ok(*ty),
+                DefinedConstant::Pts { ty, .. } => Ok(ty.clone()),
                 _ => Err(failure(rule, phase, "definition is not a PTS term")),
             }
         }
@@ -442,8 +462,22 @@ fn infer_uncached(
             result_ty,
             next,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
-            add_check!(session, rule, phase, next, state_ty, "check next state")?;
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty.clone(),
+                None,
+            )?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                next,
+                state_ty.clone(),
+                "check next state"
+            )?;
             Ok(arena.alloc(ExpNode::RunStep {
                 state_ty,
                 result_ty,
@@ -454,13 +488,20 @@ fn infer_uncached(
             result_ty,
             output,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty.clone(),
+                None,
+            )?;
             add_check!(
                 session,
                 rule,
                 phase,
                 output,
-                result_ty,
+                result_ty.clone(),
                 "check final result"
             )?;
             Ok(arena.alloc(ExpNode::RunStep {
@@ -474,7 +515,14 @@ fn infer_uncached(
             step,
             state,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty,
+                Some(step),
+            )?;
             add_check!(
                 session,
                 rule,
@@ -492,13 +540,20 @@ fn infer_uncached(
             initial,
             accessibility,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty.clone(),
+                Some(step.clone()),
+            )?;
             add_check!(
                 session,
                 rule,
                 phase,
-                initial,
-                state_ty,
+                initial.clone(),
+                state_ty.clone(),
                 "check initial state"
             )?;
             add_check!(
@@ -508,7 +563,7 @@ fn infer_uncached(
                 accessibility,
                 arena.alloc(ExpNode::Acc {
                     state_ty,
-                    result_ty,
+                    result_ty: result_ty.clone(),
                     step,
                     state: initial,
                 }),
@@ -525,24 +580,31 @@ fn infer_uncached(
             accessibility,
             transition_equality,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty.clone(),
+                Some(step.clone()),
+            )?;
             add_check!(
                 session,
                 rule,
                 phase,
-                initial,
-                state_ty,
+                initial.clone(),
+                state_ty.clone(),
                 "check current state"
             )?;
             let run_step = arena.alloc(ExpNode::RunStep {
-                state_ty,
-                result_ty,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
             });
             add_check!(
                 session,
                 rule,
                 phase,
-                transition,
+                transition.clone(),
                 run_step,
                 "check transition"
             )?;
@@ -553,9 +615,9 @@ fn infer_uncached(
                 accessibility,
                 arena.alloc(ExpNode::Acc {
                     state_ty,
-                    result_ty,
-                    step,
-                    state: initial,
+                    result_ty: result_ty.clone(),
+                    step: step.clone(),
+                    state: initial.clone(),
                 }),
                 "check accessibility proof"
             )?;
@@ -601,17 +663,19 @@ fn infer_uncached(
             program_ty,
             program,
         } => {
-            check_closed_well_terminated_program(session, program_ty, program)?;
+            check_closed_well_terminated_program(session, program_ty.clone(), program)?;
             Ok(arena.alloc(ExpNode::BoxType { program_ty }))
         }
         ExpNode::ForceBox { program_ty, boxed } => {
-            check_closed_program_type(session, program_ty)?;
+            check_closed_program_type(session, program_ty.clone())?;
             add_check!(
                 session,
                 rule,
                 phase,
                 boxed,
-                arena.alloc(ExpNode::BoxType { program_ty }),
+                arena.alloc(ExpNode::BoxType {
+                    program_ty: program_ty.clone()
+                }),
                 "check boxed Program"
             )?;
             reflect_computation_type(session.env(), program_ty)
@@ -651,16 +715,25 @@ fn infer_uncached(
             element,
             proof,
         } => {
-            let sort = add_sort!(session, rule, phase, superset, "check carrier sort")?;
+            let sort = add_sort!(session, rule, phase, superset.clone(), "check carrier sort")?;
             if !matches!(sort, Sort::Set(_)) {
                 return Err(failure(rule, phase, "SubsetIntro carrier is not Set(i)"));
             }
-            let power = arena.alloc(ExpNode::PowerSet { set: superset });
-            add_check!(session, rule, phase, subset, power, "check subset")?;
-            add_check!(session, rule, phase, element, superset, "check element")?;
+            let power = arena.alloc(ExpNode::PowerSet {
+                set: superset.clone(),
+            });
+            add_check!(session, rule, phase, subset.clone(), power, "check subset")?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                element.clone(),
+                superset.clone(),
+                "check element"
+            )?;
             let membership = arena.alloc(ExpNode::Pred {
-                superset,
-                subset,
+                superset: superset.clone(),
+                subset: subset.clone(),
                 element,
             });
             add_check!(
@@ -685,12 +758,12 @@ fn infer_uncached(
             predicate,
         } => {
             if !matches!(
-                add_sort!(session, rule, phase, set, "check set sort")?,
+                add_sort!(session, rule, phase, set.clone(), "check set sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "set is not of Set(i)"));
             }
-            session.push_pts(var, set);
+            session.push_pts(var, set.clone());
             let proposition = arena.sort(Sort::Prop);
             let result = add_check!(
                 session,
@@ -710,12 +783,20 @@ fn infer_uncached(
             element,
         } => {
             if !matches!(
-                add_sort!(session, rule, phase, superset, "check superset sort")?,
+                add_sort!(
+                    session,
+                    rule,
+                    phase,
+                    superset.clone(),
+                    "check superset sort"
+                )?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "superset is not of Set(i)"));
             }
-            let power = arena.alloc(ExpNode::PowerSet { set: superset });
+            let power = arena.alloc(ExpNode::PowerSet {
+                set: superset.clone(),
+            });
             add_check!(session, rule, phase, subset, power, "check subset type")?;
             add_check!(
                 session,
@@ -728,8 +809,13 @@ fn infer_uncached(
             Ok(arena.sort(Sort::Prop))
         }
         ExpNode::TypeLift { superset, subset } => {
-            let Sort::Set(level) =
-                add_sort!(session, rule, phase, superset, "check superset sort")?
+            let Sort::Set(level) = add_sort!(
+                session,
+                rule,
+                phase,
+                superset.clone(),
+                "check superset sort"
+            )?
             else {
                 return Err(failure(rule, phase, "superset is not of Set(i)"));
             };
@@ -738,9 +824,11 @@ fn infer_uncached(
             Ok(arena.sort(Sort::Set(level)))
         }
         ExpNode::Equal { left, right } => {
-            let left_ty = add_infer!(session, rule, phase, left, "infer left type")?;
-            let right_ty = add_infer!(session, rule, phase, right, "infer right type")?;
-            let Some(carrier) = common_ambient_carrier(session.env(), left_ty, right_ty) else {
+            let left_ty = add_infer!(session, rule, phase, left.clone(), "infer left type")?;
+            let right_ty = add_infer!(session, rule, phase, right.clone(), "infer right type")?;
+            let Some(carrier) =
+                common_ambient_carrier(session.env(), left_ty.clone(), right_ty.clone())
+            else {
                 error!(target: "ref_type::typing",
                     context = %crate::raw::printing::format_ctx(session.env(), session.context()),
                     left = %crate::raw::printing::format_exp(session.env(), left),
@@ -811,8 +899,8 @@ fn check_set_recursion_signature(
     result_ty: Exp,
     step: Option<Exp>,
 ) -> Result<Sort, Box<JudgementError>> {
-    let state_sort = add_sort!(session, rule, phase, state_ty, "check state Set")?;
-    let result_sort = add_sort!(session, rule, phase, result_ty, "check result Set")?;
+    let state_sort = add_sort!(session, rule, phase, state_ty.clone(), "check state Set")?;
+    let result_sort = add_sort!(session, rule, phase, result_ty.clone(), "check result Set")?;
     if !matches!(state_sort, Sort::Set(_)) || state_sort != result_sort {
         return Err(failure(
             rule,
@@ -822,7 +910,7 @@ fn check_set_recursion_signature(
     }
     if let Some(step) = step {
         let run_step = session.arena().alloc(ExpNode::RunStep {
-            state_ty,
+            state_ty: state_ty.clone(),
             result_ty,
         });
         let expected = nondependent_product(session.arena(), state_ty, run_step);
@@ -845,13 +933,20 @@ fn infer_run_step_recursor(
     on_finish: Exp,
     scrutinee: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
-    check_set_recursion_signature(session, rule, phase, state_ty, result_ty, None)?;
+    check_set_recursion_signature(
+        session,
+        rule,
+        phase,
+        state_ty.clone(),
+        result_ty.clone(),
+        None,
+    )?;
     let arena = session.arena();
     let run_step = arena.alloc(ExpNode::RunStep {
-        state_ty,
-        result_ty,
+        state_ty: state_ty.clone(),
+        result_ty: result_ty.clone(),
     });
-    let motive_ty = infer_motive_kind(session, rule, phase, motive)?;
+    let motive_ty = infer_motive_kind(session, rule, phase, motive.clone())?;
     let Some((_, motive_domain, motive_body)) = expose_product(session.env(), motive_ty) else {
         return Err(failure(
             rule,
@@ -859,7 +954,7 @@ fn infer_run_step_recursor(
             "RunStep recursor motive is not a family",
         ));
     };
-    if !convertible(session.env(), motive_domain, run_step) {
+    if !convertible(session.env(), motive_domain, run_step.clone()) {
         return Err(failure(
             rule,
             phase,
@@ -875,18 +970,18 @@ fn infer_run_step_recursor(
     };
 
     let branch_sort = session
-        .infer_sort(state_ty)?
+        .infer_sort(state_ty.clone())?
         .relation_of_sort(motive_sort)
         .ok_or_else(|| failure(rule, phase, "invalid recursor product rule"))?;
-    let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
-    let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
+    let shifted_state = shift_bound_indices(arena, state_ty.clone(), 1, 0);
+    let shifted_result = shift_bound_indices(arena, result_ty.clone(), 1, 0);
     let continue_value = arena.alloc(ExpNode::Continue {
-        state_ty: shifted_state,
-        result_ty: shifted_result,
+        state_ty: shifted_state.clone(),
+        result_ty: shifted_result.clone(),
         next: arena.exp_bound(0),
     });
     let continue_result = arena.alloc(ExpNode::App {
-        func: shift_bound_indices(arena, motive, 1, 0),
+        func: shift_bound_indices(arena, motive.clone(), 1, 0),
         arg: continue_value,
     });
     let continue_ty = arena.alloc(ExpNode::Prod {
@@ -894,7 +989,7 @@ fn infer_run_step_recursor(
         ty: state_ty,
         body: continue_result,
     });
-    if session.infer_sort(continue_ty)? != branch_sort {
+    if session.infer_sort(continue_ty.clone())? != branch_sort {
         return Err(failure(
             rule,
             phase,
@@ -909,7 +1004,7 @@ fn infer_run_step_recursor(
         output: arena.exp_bound(0),
     });
     let finish_result = arena.alloc(ExpNode::App {
-        func: shift_bound_indices(arena, motive, 1, 0),
+        func: shift_bound_indices(arena, motive.clone(), 1, 0),
         arg: finish_value,
     });
     let finish_ty = arena.alloc(ExpNode::Prod {
@@ -917,7 +1012,7 @@ fn infer_run_step_recursor(
         ty: result_ty,
         body: finish_result,
     });
-    if session.infer_sort(finish_ty)? != branch_sort {
+    if session.infer_sort(finish_ty.clone())? != branch_sort {
         return Err(failure(
             rule,
             phase,
@@ -925,7 +1020,7 @@ fn infer_run_step_recursor(
         ));
     }
     session.check_pts(on_finish, finish_ty)?;
-    session.check_pts(scrutinee, run_step)?;
+    session.check_pts(scrutinee.clone(), run_step)?;
     Ok(arena.alloc(ExpNode::App {
         func: motive,
         arg: scrutinee,
@@ -967,16 +1062,16 @@ fn infer_reflected_program_case(
         indspec: reflected,
         parameters: parameters.clone(),
     });
-    let mut result_ty = None;
+    let mut result_ty: Option<Exp> = None;
     for (index, branch) in branches.into_iter().enumerate() {
         let constructor =
             reflected_spec.constructors()[index].instantiate_parameters(arena, &parameters);
-        let constructor_ty = constructor.as_exp_with_type(arena, this);
+        let constructor_ty = constructor.as_exp_with_type(arena, this.clone());
         let (fields, _) = utils::decompose_prod(arena, constructor_ty);
         if fields.len() != branch.binders.len() {
             return Err(failure(rule, phase, "reflected case binder count mismatch"));
         }
-        for (binder, (_, field_ty)) in branch.binders.iter().copied().zip(fields) {
+        for (binder, (_, field_ty)) in branch.binders.iter().cloned().zip(fields) {
             session.push_pts(binder, field_ty);
         }
         let branch_ty = session.infer_pts(branch.body);
@@ -991,9 +1086,9 @@ fn infer_reflected_program_case(
                     "reflected case result depends on branch fields",
                 )
             })?;
-        session.infer_sort(branch_ty)?;
-        if let Some(expected) = result_ty {
-            if !convertible(session.env(), expected, branch_ty) {
+        session.infer_sort(branch_ty.clone())?;
+        if let Some(expected) = &result_ty {
+            if !convertible(session.env(), expected.clone(), branch_ty.clone()) {
                 return Err(failure(rule, phase, "reflected case branch type mismatch"));
             }
         } else {
@@ -1024,10 +1119,10 @@ fn check_closed_well_terminated_program(
     program_ty: ComputationType,
     program: ComputationTerm,
 ) -> Result<(), Box<JudgementError>> {
-    check_closed_program_type(session, program_ty)?;
+    check_closed_program_type(session, program_ty.clone())?;
     let mut empty_program = Vec::new();
     let mut program_session = ProgramCheckSession::new(session.env, &mut empty_program);
-    program_session.check_computation_term(program, program_ty)?;
+    program_session.check_computation_term(program.clone(), program_ty.clone())?;
     let reflected = crate::raw::reflection::reflect_computation(session.env(), program)
         .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let reflected_ty = reflect_computation_type(session.env(), program_ty)
@@ -1050,16 +1145,16 @@ fn check_parameters(
     }
     let mut preceding = Vec::new();
     for (parameter, (_, parameter_ty)) in parameters.iter().zip(expected) {
-        let expected_ty = instantiate_telescope(arena, *parameter_ty, &preceding);
+        let expected_ty = instantiate_telescope(arena, parameter_ty.clone(), &preceding);
         add_check!(
             session,
             rule,
             phase,
-            *parameter,
+            parameter.clone(),
             expected_ty,
             "parameter type mismatch"
         )?;
-        preceding.push(*parameter);
+        preceding.push(parameter.clone());
     }
     Ok(())
 }
@@ -1083,10 +1178,10 @@ pub(crate) fn infer_motive_kind(
             var,
             ty,
             body: next,
-        } = arena.get(body)
+        } = arena.get(body.clone())
         {
-            add_sort!(session, rule, phase, ty, "infer motive binder sort")?;
-            session.push_pts(var, ty);
+            add_sort!(session, rule, phase, ty.clone(), "infer motive binder sort")?;
+            session.push_pts(var, ty.clone());
             binders.push((var, ty));
             body = next;
         }
@@ -1133,7 +1228,7 @@ fn infer_inductive_elimination(
     recursive: bool,
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
-    let inferred = add_infer!(session, rule, phase, elim, "infer eliminator type")?;
+    let inferred = add_infer!(session, rule, phase, elim.clone(), "infer eliminator type")?;
     let inferred = base_carrier(session.env(), inferred);
     let (head, indices) = utils::decompose_app(arena, inferred);
     let ExpNode::IndType {
@@ -1148,7 +1243,7 @@ fn infer_inductive_elimination(
     }
     let env = session.env();
     let spec = env.inductive(indspec);
-    let return_kind = infer_motive_kind(session, rule, phase, return_type)?;
+    let return_kind = infer_motive_kind(session, rule, phase, return_type.clone())?;
     let (telescope, result) = utils::decompose_prod(arena, type_head_normal(env, return_kind));
     let ExpNode::Sort(sort) = arena.get(result) else {
         return Err(failure(rule, phase, "return kind does not end in sort"));
@@ -1184,11 +1279,30 @@ fn infer_inductive_elimination(
             idx: index,
         });
         let case_ty = if recursive {
-            eliminator_type(arena, &constructor_ty, return_type, constructor, this)
+            eliminator_type(
+                arena,
+                &constructor_ty,
+                return_type.clone(),
+                constructor,
+                this.clone(),
+            )
         } else {
-            crate::raw::inductive::case_type(arena, &constructor_ty, return_type, constructor, this)
+            crate::raw::inductive::case_type(
+                arena,
+                &constructor_ty,
+                return_type.clone(),
+                constructor,
+                this.clone(),
+            )
         };
-        add_check!(session, rule, phase, *case, case_ty, "check case type")?;
+        add_check!(
+            session,
+            rule,
+            phase,
+            case.clone(),
+            case_ty,
+            "check case type"
+        )?;
     }
     let motive = utils::assoc_apply(arena, return_type, indices);
     let result = arena.alloc(ExpNode::App {
@@ -1233,10 +1347,16 @@ fn infer_take_set(
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
     if !matches!(
-        add_sort!(session, rule, phase, domain, "check domain sort")?,
+        add_sort!(session, rule, phase, domain.clone(), "check domain sort")?,
         Sort::Set(_)
     ) || !matches!(
-        add_sort!(session, rule, phase, codomain, "check codomain sort")?,
+        add_sort!(
+            session,
+            rule,
+            phase,
+            codomain.clone(),
+            "check codomain sort"
+        )?,
         Sort::Set(_)
     ) {
         return Err(failure(
@@ -1247,18 +1367,20 @@ fn infer_take_set(
     }
     let map_ty = arena.alloc(ExpNode::Prod {
         var: SymbolId::ANONYMOUS,
-        ty: domain,
-        body: shift_bound_indices(arena, codomain, 1, 0),
+        ty: domain.clone(),
+        body: shift_bound_indices(arena, codomain.clone(), 1, 0),
     });
-    add_check!(session, rule, phase, map, map_ty, "check map type")?;
-    let exists = arena.alloc(ExpNode::Exists { set: domain });
+    add_check!(session, rule, phase, map.clone(), map_ty, "check map type")?;
+    let exists = arena.alloc(ExpNode::Exists {
+        set: domain.clone(),
+    });
     add_check!(session, rule, phase, existence, exists, "check existence")?;
 
     let x1 = SymbolId::ANONYMOUS;
     let x2 = SymbolId::ANONYMOUS;
     let map = shift_bound_indices(arena, map, 2, 0);
     let map_x1 = arena.alloc(ExpNode::App {
-        func: map,
+        func: map.clone(),
         arg: arena.exp_bound(1),
     });
     let map_x2 = arena.alloc(ExpNode::App {
@@ -1271,7 +1393,7 @@ fn infer_take_set(
     });
     let inner = arena.alloc(ExpNode::Prod {
         var: x2,
-        ty: shift_bound_indices(arena, domain, 1, 0),
+        ty: shift_bound_indices(arena, domain.clone(), 1, 0),
         body: equality,
     });
     let uniqueness_ty = arena.alloc(ExpNode::Prod {
@@ -1302,18 +1424,25 @@ fn infer_take_prop(
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
     if !matches!(
-        add_sort!(session, rule, phase, domain, "check domain sort")?,
+        add_sort!(session, rule, phase, domain.clone(), "check domain sort")?,
         Sort::Set(_)
     ) {
         return Err(failure(rule, phase, "take domain is not Set(i)"));
     }
-    if add_sort!(session, rule, phase, proposition, "check proposition sort")? != Sort::Prop {
+    if add_sort!(
+        session,
+        rule,
+        phase,
+        proposition.clone(),
+        "check proposition sort"
+    )? != Sort::Prop
+    {
         return Err(failure(rule, phase, "TakeProp codomain is not Prop"));
     }
     let map_ty = arena.alloc(ExpNode::Prod {
         var: SymbolId::ANONYMOUS,
-        ty: domain,
-        body: shift_bound_indices(arena, proposition, 1, 0),
+        ty: domain.clone(),
+        body: shift_bound_indices(arena, proposition.clone(), 1, 0),
     });
     add_check!(session, rule, phase, map, map_ty, "check map")?;
     let exists = arena.alloc(ExpNode::Exists { set: domain });
@@ -1381,10 +1510,10 @@ fn infer_sort(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Sort, Box
     let rule = "Conv";
     let phase = "infer(sort)";
     let inferred_ty = add_infer!(session, rule, phase, term, "infer type of term")?;
-    if let ExpNode::Sort(sort) = arena.get(inferred_ty) {
+    if let ExpNode::Sort(sort) = arena.get(inferred_ty.clone()) {
         return Ok(sort);
     }
-    let normalized = type_head_normal(session.env(), inferred_ty);
+    let normalized = type_head_normal(session.env(), inferred_ty.clone());
     let ExpNode::Sort(sort) = arena.get(normalized) else {
         return Err(failure(rule, phase, "Type is not convertible to a sort"));
     };
@@ -1414,12 +1543,12 @@ fn transition_equality(
 fn set_ext_direction(arena: &Arena, carrier: Exp, source: Exp, target: Exp) -> Exp {
     let element = arena.exp_bound(0);
     let source_membership = arena.alloc(ExpNode::Pred {
-        superset: shift_bound_indices(arena, carrier, 1, 0),
+        superset: shift_bound_indices(arena, carrier.clone(), 1, 0),
         subset: shift_bound_indices(arena, source, 1, 0),
         element,
     });
     let target_membership = arena.alloc(ExpNode::Pred {
-        superset: shift_bound_indices(arena, carrier, 2, 0),
+        superset: shift_bound_indices(arena, carrier.clone(), 2, 0),
         subset: shift_bound_indices(arena, target, 2, 0),
         element: arena.exp_bound(1),
     });
@@ -1445,8 +1574,9 @@ fn infer_axiom_set_ext(
     right_to_left: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
-    let left_ty = add_infer!(session, rule, phase, left, "infer left subset type")?;
-    let ExpNode::PowerSet { set: carrier } = arena.get(type_head_normal(session.env(), left_ty))
+    let left_ty = add_infer!(session, rule, phase, left.clone(), "infer left subset type")?;
+    let ExpNode::PowerSet { set: carrier } =
+        arena.get(type_head_normal(session.env(), left_ty.clone()))
     else {
         return Err(failure(
             rule,
@@ -1455,14 +1585,27 @@ fn infer_axiom_set_ext(
         ));
     };
     if !matches!(
-        add_sort!(session, rule, phase, carrier, "check setext carrier sort")?,
+        add_sort!(
+            session,
+            rule,
+            phase,
+            carrier.clone(),
+            "check setext carrier sort"
+        )?,
         Sort::Set(_)
     ) {
         return Err(failure(rule, phase, "setext carrier is not Set(i)"));
     }
-    add_check!(session, rule, phase, right, left_ty, "check right subset")?;
-    let forward_ty = set_ext_direction(arena, carrier, left, right);
-    let backward_ty = set_ext_direction(arena, carrier, right, left);
+    add_check!(
+        session,
+        rule,
+        phase,
+        right.clone(),
+        left_ty,
+        "check right subset"
+    )?;
+    let forward_ty = set_ext_direction(arena, carrier.clone(), left.clone(), right.clone());
+    let backward_ty = set_ext_direction(arena, carrier, right.clone(), left.clone());
     add_check!(
         session,
         rule,
@@ -1491,20 +1634,21 @@ fn infer_axiom_fun_ext(
     pointwise: Exp,
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
-    let function_ty = add_infer!(session, rule, phase, left, "infer function type")?;
+    let function_ty = add_infer!(session, rule, phase, left.clone(), "infer function type")?;
     if !matches!(
         add_sort!(
             session,
             rule,
             phase,
-            function_ty,
+            function_ty.clone(),
             "check function type sort"
         )?,
         Sort::Set(_)
     ) {
         return Err(failure(rule, phase, "funext functions are not in Set(i)"));
     }
-    let ExpNode::Prod { ty: domain, .. } = arena.get(type_head_normal(session.env(), function_ty))
+    let ExpNode::Prod { ty: domain, .. } =
+        arena.get(type_head_normal(session.env(), function_ty.clone()))
     else {
         return Err(failure(rule, phase, "funext argument is not a function"));
     };
@@ -1512,17 +1656,17 @@ fn infer_axiom_fun_ext(
         session,
         rule,
         phase,
-        right,
+        right.clone(),
         function_ty,
         "check right function"
     )?;
     let argument = arena.exp_bound(0);
     let left_application = arena.alloc(ExpNode::App {
-        func: shift_bound_indices(arena, left, 1, 0),
-        arg: argument,
+        func: shift_bound_indices(arena, left.clone(), 1, 0),
+        arg: argument.clone(),
     });
     let right_application = arena.alloc(ExpNode::App {
-        func: shift_bound_indices(arena, right, 1, 0),
+        func: shift_bound_indices(arena, right.clone(), 1, 0),
         arg: argument,
     });
     let pointwise_equality = arena.alloc(ExpNode::Equal {
@@ -1555,12 +1699,24 @@ fn infer_axiom_classical_indefinite_choice(
 ) -> Result<Exp, Box<JudgementError>> {
     let arena = session.arena();
     if !matches!(
-        add_sort!(session, rule, phase, domain, "check choice domain sort")?,
+        add_sort!(
+            session,
+            rule,
+            phase,
+            domain.clone(),
+            "check choice domain sort"
+        )?,
         Sort::Set(_)
     ) {
         return Err(failure(rule, phase, "choice domain is not Set(i)"));
     }
-    let family_ty = add_infer!(session, rule, phase, family, "infer choice family type")?;
+    let family_ty = add_infer!(
+        session,
+        rule,
+        phase,
+        family.clone(),
+        "infer choice family type"
+    )?;
     let ExpNode::Prod {
         ty: family_domain,
         body: family_sort,
@@ -1573,7 +1729,7 @@ fn infer_axiom_classical_indefinite_choice(
             "choice family is not a dependent function",
         ));
     };
-    if !erased_convertible(session.env(), domain, family_domain) {
+    if !erased_convertible(session.env(), domain.clone(), family_domain) {
         return Err(failure(rule, phase, "choice family has the wrong domain"));
     }
     if !matches!(
@@ -1586,10 +1742,12 @@ fn infer_axiom_classical_indefinite_choice(
         func: shift_bound_indices(arena, family, 1, 0),
         arg: arena.exp_bound(0),
     });
-    let exists_at = arena.alloc(ExpNode::Exists { set: family_at });
+    let exists_at = arena.alloc(ExpNode::Exists {
+        set: family_at.clone(),
+    });
     let inhabited_ty = arena.alloc(ExpNode::Prod {
         var: SymbolId::ANONYMOUS,
-        ty: domain,
+        ty: domain.clone(),
         body: exists_at,
     });
     add_check!(
@@ -1619,9 +1777,9 @@ fn infer_prove(
     let phase = "infer";
     match prove {
         Prove::ExistsIntro { element, set } => {
-            add_check!(session, rule, phase, element, set, "check element")?;
+            add_check!(session, rule, phase, element, set.clone(), "check element")?;
             if !matches!(
-                add_sort!(session, rule, phase, set, "infer set sort")?,
+                add_sort!(session, rule, phase, set.clone(), "infer set sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
@@ -1633,12 +1791,15 @@ fn infer_prove(
             subset,
             superset,
         } => {
-            let lifted = arena.alloc(ExpNode::TypeLift { superset, subset });
+            let lifted = arena.alloc(ExpNode::TypeLift {
+                superset: superset.clone(),
+                subset: subset.clone(),
+            });
             add_check!(
                 session,
                 rule,
                 phase,
-                element,
+                element.clone(),
                 lifted,
                 "check subset elimination"
             )?;
@@ -1649,7 +1810,7 @@ fn infer_prove(
             }))
         }
         Prove::IdRefl { element } => {
-            let ty = add_infer!(session, rule, phase, element, "infer element type")?;
+            let ty = add_infer!(session, rule, phase, element.clone(), "infer element type")?;
             if !matches!(
                 add_sort!(session, rule, phase, ty, "infer type sort")?,
                 Sort::Set(_)
@@ -1657,7 +1818,7 @@ fn infer_prove(
                 return Err(failure(rule, phase, "type is not Set(i)"));
             }
             Ok(arena.alloc(ExpNode::Equal {
-                left: element,
+                left: element.clone(),
                 right: element,
             }))
         }
@@ -1671,16 +1832,30 @@ fn infer_prove(
             equality,
         } => {
             if !matches!(
-                add_sort!(session, rule, phase, ty, "infer type sort")?,
+                add_sort!(session, rule, phase, ty.clone(), "infer type sort")?,
                 Sort::Set(_)
             ) {
                 return Err(failure(rule, phase, "type is not Set(i)"));
             }
-            add_check!(session, rule, phase, left, ty, "check left")?;
-            add_check!(session, rule, phase, right, ty, "check right")?;
-            session.push_pts(var, ty);
+            add_check!(session, rule, phase, left.clone(), ty.clone(), "check left")?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                right.clone(),
+                ty.clone(),
+                "check right"
+            )?;
+            session.push_pts(var, ty.clone());
             let prop = arena.sort(Sort::Prop);
-            let result = add_check!(session, rule, phase, predicate, prop, "check predicate");
+            let result = add_check!(
+                session,
+                rule,
+                phase,
+                predicate.clone(),
+                prop,
+                "check predicate"
+            );
             session.pop();
             result?;
             let apply = arena.alloc(ExpNode::Lam {
@@ -1689,11 +1864,14 @@ fn infer_prove(
                 body: predicate,
             });
             let base_prop = arena.alloc(ExpNode::App {
-                func: apply,
-                arg: left,
+                func: apply.clone(),
+                arg: left.clone(),
             });
             add_check!(session, rule, phase, base, base_prop, "check base")?;
-            let equality_prop = arena.alloc(ExpNode::Equal { left, right });
+            let equality_prop = arena.alloc(ExpNode::Equal {
+                left,
+                right: right.clone(),
+            });
             add_check!(
                 session,
                 rule,
@@ -1742,14 +1920,21 @@ fn infer_prove(
             uniqueness,
         } => {
             let take = arena.alloc(ExpNode::TakeSet {
-                domain,
-                codomain,
-                map: func,
+                domain: domain.clone(),
+                codomain: codomain.clone(),
+                map: func.clone(),
                 existence,
                 uniqueness,
             });
-            add_check!(session, rule, phase, take, codomain, "check take")?;
-            add_check!(session, rule, phase, element, domain, "check element")?;
+            add_check!(session, rule, phase, take.clone(), codomain, "check take")?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                element.clone(),
+                domain,
+                "check element"
+            )?;
             let mapped = arena.alloc(ExpNode::App { func, arg: element });
             Ok(arena.alloc(ExpNode::Equal {
                 left: take,
@@ -1763,30 +1948,37 @@ fn infer_prove(
             state,
             predecessors,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty.clone(),
+                Some(step.clone()),
+            )?;
             add_check!(
                 session,
                 rule,
                 phase,
-                state,
-                state_ty,
+                state.clone(),
+                state_ty.clone(),
                 "check accessible state"
             )?;
 
             // Build the premise under b : A. All outer expressions
             // move out by one de Bruijn level; b itself is Bound(0).
-            let nested_state_ty = shift_bound_indices(arena, state_ty, 1, 0);
-            let nested_result_ty = shift_bound_indices(arena, result_ty, 1, 0);
-            let nested_step = shift_bound_indices(arena, step, 1, 0);
-            let nested_state = shift_bound_indices(arena, state, 1, 0);
+            let nested_state_ty = shift_bound_indices(arena, state_ty.clone(), 1, 0);
+            let nested_result_ty = shift_bound_indices(arena, result_ty.clone(), 1, 0);
+            let nested_step = shift_bound_indices(arena, step.clone(), 1, 0);
+            let nested_state = shift_bound_indices(arena, state.clone(), 1, 0);
             let predecessor = arena.exp_bound(0);
             let transition = transition_equality(
                 arena,
-                nested_state_ty,
-                nested_result_ty,
-                nested_step,
+                nested_state_ty.clone(),
+                nested_result_ty.clone(),
+                nested_step.clone(),
                 nested_state,
-                predecessor,
+                predecessor.clone(),
             );
             let predecessor_acc = accessibility_type(
                 arena,
@@ -1798,7 +1990,7 @@ fn infer_prove(
             let implication = nondependent_product(arena, transition, predecessor_acc);
             let expected_predecessors = arena.alloc(ExpNode::Prod {
                 var: SymbolId::ANONYMOUS,
-                ty: state_ty,
+                ty: state_ty.clone(),
                 body: implication,
             });
             add_check!(
@@ -1820,10 +2012,37 @@ fn infer_prove(
             accessibility,
             transition,
         } => {
-            check_set_recursion_signature(session, rule, phase, state_ty, result_ty, Some(step))?;
-            add_check!(session, rule, phase, from, state_ty, "check source state")?;
-            add_check!(session, rule, phase, to, state_ty, "check target state")?;
-            let source_acc = accessibility_type(arena, state_ty, result_ty, step, from);
+            check_set_recursion_signature(
+                session,
+                rule,
+                phase,
+                state_ty.clone(),
+                result_ty.clone(),
+                Some(step.clone()),
+            )?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                from.clone(),
+                state_ty.clone(),
+                "check source state"
+            )?;
+            add_check!(
+                session,
+                rule,
+                phase,
+                to.clone(),
+                state_ty.clone(),
+                "check target state"
+            )?;
+            let source_acc = accessibility_type(
+                arena,
+                state_ty.clone(),
+                result_ty.clone(),
+                step.clone(),
+                from.clone(),
+            );
             add_check!(
                 session,
                 rule,
@@ -1832,8 +2051,14 @@ fn infer_prove(
                 source_acc,
                 "check source accessibility"
             )?;
-            let expected_transition =
-                transition_equality(arena, state_ty, result_ty, step, from, to);
+            let expected_transition = transition_equality(
+                arena,
+                state_ty.clone(),
+                result_ty.clone(),
+                step.clone(),
+                from,
+                to.clone(),
+            );
             add_check!(
                 session,
                 rule,
@@ -1860,8 +2085,8 @@ fn check_context_entries(
     entries: &ExpContext,
 ) -> Result<(), Box<JudgementError>> {
     for entry in entries {
-        session.infer_sort(entry.ty)?;
-        session.push_pts(entry.var, entry.ty);
+        session.infer_sort(entry.ty.clone())?;
+        session.push_pts(entry.var, entry.ty.clone());
     }
     Ok(())
 }

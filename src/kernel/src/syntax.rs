@@ -19,61 +19,61 @@ use rustc_hash::FxBuildHasher;
 use std::{
     cell::{Cell, RefCell},
     fmt,
-    hash::Hash,
+    hash::{Hash, Hasher},
     ops::Deref,
 };
 
-/// Shared access to an interned node without exposing factory-local hashconsing IDs.
-#[derive(Clone)]
-pub struct NodeRef<N>(HConsed<N>);
-
-impl<N> Deref for NodeRef<N> {
-    type Target = N;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.get()
+struct Interned<N> {
+    node: N,
+    max_loose_bound: Cell<Option<Option<usize>>>,
+}
+impl<N: Clone> Clone for Interned<N> {
+    fn clone(&self) -> Self {
+        Self {
+            node: self.node.clone(),
+            max_loose_bound: Cell::new(self.max_loose_bound.get()),
+        }
     }
 }
-
-impl<N: fmt::Debug> fmt::Debug for NodeRef<N> {
+impl<N: fmt::Debug> fmt::Debug for Interned<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        self.node.fmt(f)
+    }
+}
+impl<N: PartialEq> PartialEq for Interned<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node
+    }
+}
+impl<N: Eq> Eq for Interned<N> {}
+impl<N: Hash> Hash for Interned<N> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.node.hash(state);
     }
 }
 
 /// Immutable, structurally interned nodes.
 struct Partition<N: Clone + Eq + Hash> {
-    nodes: Vec<HConsed<N>>,
-    consign: HConsign<N, FxBuildHasher>,
-    max_loose_bounds: Vec<Cell<Option<Option<usize>>>>,
+    consign: HConsign<Interned<N>, FxBuildHasher>,
 }
 impl<N: Clone + Eq + Hash> Default for Partition<N> {
     fn default() -> Self {
         Self {
-            nodes: Vec::new(),
             consign: HConsign::with_hasher(FxBuildHasher),
-            max_loose_bounds: Vec::new(),
         }
     }
 }
 impl<N: Clone + Eq + Hash + fmt::Debug> fmt::Debug for Partition<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Partition")
-            .field("nodes", &self.nodes)
-            .field("max_loose_bounds", &self.max_loose_bounds)
-            .finish_non_exhaustive()
+        f.debug_struct("Partition").finish_non_exhaustive()
     }
 }
 impl<N: Clone + Eq + Hash> Partition<N> {
-    fn insert(&mut self, node: N) -> u32 {
-        let (node, is_new) = (&mut self.consign).mk_is_new(node);
-        let id = u32::try_from(node.uid()).expect("arena exhausted");
-        if is_new {
-            assert_eq!(id as usize, self.nodes.len());
-            self.nodes.push(node);
-            self.max_loose_bounds.push(Cell::new(None));
-        }
-        id
+    fn insert(&mut self, node: N) -> HConsed<Interned<N>> {
+        (&mut self.consign).mk(Interned {
+            node,
+            max_loose_bound: Cell::new(None),
+        })
     }
 }
 // Keep every family in Set/Prop/Value/Computation order, then Term/Type/Kind.
@@ -81,10 +81,16 @@ impl<N: Clone + Eq + Hash> Partition<N> {
 macro_rules! syntax_families {
     ($($handle:ident => $storage:ident, $node:ident, $sort:pat, $stage:ident;)+) => {
         $(
-            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-            pub struct $handle(u32);
-            impl $handle {
-                pub fn index(self) -> usize { self.0 as usize }
+            #[derive(Clone, PartialEq, Eq, Hash)]
+            pub struct $handle(HConsed<Interned<$node>>);
+            impl Deref for $handle {
+                type Target = $node;
+                fn deref(&self) -> &Self::Target { &self.0.node }
+            }
+            impl fmt::Debug for $handle {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, "{}({})", stringify!($handle), self.0.uid())
+                }
             }
             impl From<$handle> for Expression {
                 fn from(h: $handle) -> Self { Self::$handle(h) }
@@ -99,12 +105,12 @@ macro_rules! syntax_families {
                 }
             }
         )+
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub enum Expression { $($handle($handle),)+ }
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum Family { $($handle,)+ }
         impl Expression {
-            pub fn family(self) -> Family {
+            pub fn family(&self) -> Family {
                 match self { $(Self::$handle(..) => Family::$handle,)+ }
             }
         }
@@ -122,17 +128,20 @@ macro_rules! syntax_families {
         }
         impl Arena {
             pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
-                match e.into() { $(Expression::$handle(h) => self.$storage.borrow().nodes[h.index()].sort(),)+ }
+                match e.into() { $(Expression::$handle(h) => h.sort(),)+ }
             }
-            fn cached_max_loose_bound(&self, e: Expression) -> Option<Option<usize>> {
+            fn cached_max_loose_bound(&self, e: &Expression) -> Option<Option<usize>> {
                 match e {
-                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].get(),)+
+                    $(Expression::$handle(h) => h.0.max_loose_bound.get(),)+
                 }
             }
-            fn cache_max_loose_bound(&self, e: Expression, value: Option<usize>) {
+            fn cache_max_loose_bound(&self, e: &Expression, value: Option<usize>) {
                 match e {
-                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].set(Some(value)),)+
+                    $(Expression::$handle(h) => h.0.max_loose_bound.set(Some(value)),)+
                 }
+            }
+            pub fn collect(&self) {
+                $((&mut self.$storage.borrow_mut().consign).collect();)+
             }
         }
         $(impl ArenaNode for $node {
@@ -143,10 +152,7 @@ macro_rules! syntax_families {
         }
         impl ArenaHandle for $handle {
             type Node = $node;
-            fn get(self, arena: &Arena) -> $node { (*self.read(arena)).clone() }
-            fn read(self, arena: &Arena) -> NodeRef<$node> {
-                NodeRef(arena.$storage.borrow().nodes[self.index()].clone())
-            }
+            fn node(&self) -> &$node { self }
         })+
 
     };
@@ -155,7 +161,7 @@ macro_rules! syntax_families {
 // A classified subset of Expression with checked conversions in both directions.
 macro_rules! expression_subset {
     ($name:ident, $error:literal; $($handle:ident),+ $(,)?) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub enum $name { $($handle($handle),)+ }
         $(impl From<$handle> for $name {
             fn from(h: $handle) -> Self { Self::$handle(h) }
@@ -192,6 +198,15 @@ syntax_families! {
     ComputationKind => computationkind, ComputationKindNode, BaseSort::Computation(_), Kind;
 }
 
+impl<T> From<&T> for Expression
+where
+    T: Clone + Into<Expression>,
+{
+    fn from(value: &T) -> Self {
+        value.clone().into()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Stage {
     Term,
@@ -211,7 +226,7 @@ expression_subset!(ProgramType, "wrong syntax family"; ValueType, ComputationTyp
 expression_subset!(ProgramKind, "wrong syntax family"; ValueKind, ComputationKind);
 
 /// Set/Prop expressions used by mixed binders and inductive elimination.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LogicalExpression {
     Set(SetExpression),
     Prop(PropExpression),
@@ -267,7 +282,7 @@ impl From<LogicalExpression> for Expression {
 impl TryFrom<Expression> for LogicalExpression {
     type Error = String;
     fn try_from(e: Expression) -> Result<Self, String> {
-        if let Ok(e) = SetExpression::try_from(e) {
+        if let Ok(e) = SetExpression::try_from(e.clone()) {
             Ok(Self::Set(e))
         } else {
             PropExpression::try_from(e).map(Self::Prop)
@@ -276,7 +291,7 @@ impl TryFrom<Expression> for LogicalExpression {
 }
 
 /// Set/Prop arguments used by mixed binders and inductive elimination.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LogicalArgument {
     Set(SetArgument),
     Prop(PropArgument),
@@ -322,7 +337,7 @@ impl From<LogicalArgument> for Expression {
 impl TryFrom<Expression> for LogicalArgument {
     type Error = String;
     fn try_from(e: Expression) -> Result<Self, String> {
-        if let Ok(e) = SetArgument::try_from(e) {
+        if let Ok(e) = SetArgument::try_from(e.clone()) {
             Ok(Self::Set(e))
         } else {
             PropArgument::try_from(e).map(Self::Prop)
@@ -1131,10 +1146,9 @@ pub trait ArenaNode {
     type Handle;
     fn allocate(self, arena: &Arena) -> Self::Handle;
 }
-pub trait ArenaHandle: Copy {
-    type Node;
-    fn get(self, arena: &Arena) -> Self::Node;
-    fn read(self, arena: &Arena) -> NodeRef<Self::Node>;
+pub trait ArenaHandle: Clone {
+    type Node: Clone;
+    fn node(&self) -> &Self::Node;
 }
 impl Arena {
     pub fn new() -> Self {
@@ -1144,18 +1158,17 @@ impl Arena {
         node.allocate(self)
     }
     pub fn get<H: ArenaHandle>(&self, handle: H) -> H::Node {
-        handle.get(self)
+        handle.node().clone()
     }
-    /// The owned shared reference does not hold a RefCell borrow across recursion.
-    pub fn read<H: ArenaHandle>(&self, handle: H) -> NodeRef<H::Node> {
-        handle.read(self)
+    pub fn read<H: ArenaHandle>(&self, handle: H) -> H {
+        handle
     }
     pub(crate) fn max_loose_bound(&self, e: Expression) -> Option<usize> {
-        if let Some(cached) = self.cached_max_loose_bound(e) {
+        if let Some(cached) = self.cached_max_loose_bound(&e) {
             return cached;
         }
-        let mut result = super::structure::bound_index(self, e);
-        super::structure::visit_children(self, e, |child, depth| {
+        let mut result = super::structure::bound_index(self, e.clone());
+        super::structure::visit_children(self, e.clone(), |child, depth| {
             if let Some(index) = self
                 .max_loose_bound(child)
                 .and_then(|i| i.checked_sub(depth))
@@ -1163,7 +1176,7 @@ impl Arena {
                 result = Some(result.map_or(index, |old| old.max(index)));
             }
         });
-        self.cache_max_loose_bound(e, result);
+        self.cache_max_loose_bound(&e, result);
         result
     }
 }
@@ -1229,7 +1242,7 @@ impl Arena {
         Ok(match body {
             Expression::SetTerm(h) => self
                 .alloc(SetTermNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: SetTermForm::Annotated {
                         body: h,
                         classifier,
@@ -1238,7 +1251,7 @@ impl Arena {
                 .into(),
             Expression::SetType(h) => self
                 .alloc(SetTypeNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: SetTypeForm::Annotated {
                         body: h,
                         classifier,
@@ -1247,7 +1260,7 @@ impl Arena {
                 .into(),
             Expression::SetKind(h) => self
                 .alloc(SetKindNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: SetKindForm::Annotated {
                         body: h,
                         classifier,
@@ -1280,7 +1293,7 @@ impl Arena {
                 .into(),
             Expression::ValueTerm(h) => self
                 .alloc(ValueTermNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: ValueTermForm::Annotated {
                         body: h,
                         classifier,
@@ -1289,7 +1302,7 @@ impl Arena {
                 .into(),
             Expression::ValueType(h) => self
                 .alloc(ValueTypeNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: ValueTypeForm::Annotated {
                         body: h,
                         classifier,
@@ -1298,7 +1311,7 @@ impl Arena {
                 .into(),
             Expression::ComputationTerm(h) => self
                 .alloc(ComputationTermNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: ComputationTermForm::Annotated {
                         body: h,
                         classifier,
@@ -1307,7 +1320,7 @@ impl Arena {
                 .into(),
             Expression::ComputationType(h) => self
                 .alloc(ComputationTypeNode {
-                    level: self.read(h).level,
+                    level: self.read(h.clone()).level,
                     form: ComputationTypeForm::Annotated {
                         body: h,
                         classifier,

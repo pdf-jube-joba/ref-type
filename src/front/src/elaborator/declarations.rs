@@ -37,7 +37,7 @@ impl GlobalEnvironment {
                     let (body, ty) = scope.check_value_term_with_metas(self, body, ty)?;
                     let mut context = scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut context)
-                        .check_value_term(body, ty)
+                        .check_value_term(body.clone(), ty.clone())
                         .map_err(|error| {
                             format!(
                                 "Program value definition {} is ill-typed: {error:?}",
@@ -81,7 +81,7 @@ impl GlobalEnvironment {
                 let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
                 let mut context = scope.context().clone();
                 ProgramCheckSession::new(&self.crate_env, &mut context)
-                    .check_computation_term(body, ty)
+                    .check_computation_term(body.clone(), ty.clone())
                     .map_err(|error| {
                         format!(
                             "Program computation definition {} is ill-typed: {error:?}",
@@ -267,10 +267,10 @@ impl GlobalEnvironment {
                         .collect(),
                 }),
                 codomain: arena.alloc(ComputationTypeNode::Return {
-                    value_ty: *field_ty,
+                    value_ty: field_ty.clone(),
                 }),
             });
-            let ComputationTypeNode::Function { domain, .. } = arena.get(ty) else {
+            let ComputationTypeNode::Function { domain, .. } = arena.get(ty.clone()) else {
                 unreachable!()
             };
             let body = arena.alloc(ComputationTermNode::Lambda {
@@ -351,7 +351,7 @@ impl GlobalEnvironment {
 
                 let parameters_under_value = parameter_arguments
                     .iter()
-                    .map(|parameter| shift_bound_indices(arena, *parameter, 1, 0))
+                    .map(|parameter| shift_bound_indices(arena, parameter.clone(), 1, 0))
                     .collect::<Vec<_>>();
                 let projected_ty = projected_record_field_type(
                     arena,
@@ -363,14 +363,14 @@ impl GlobalEnvironment {
                 )?;
                 let projection_ty = arena.alloc(ExpNode::Prod {
                     var: structure_var,
-                    ty: record_ty,
+                    ty: record_ty.clone(),
                     body: projected_ty,
                 });
                 let ty = crate::raw::utils::assoc_prod(arena, parameters.clone(), projection_ty);
 
                 let parameters_under_motive = parameters_under_value
                     .iter()
-                    .map(|parameter| shift_bound_indices(arena, *parameter, 1, 0))
+                    .map(|parameter| shift_bound_indices(arena, parameter.clone(), 1, 0))
                     .collect::<Vec<_>>();
                 let motive_record_ty = arena.alloc(ExpNode::IndType {
                     indspec: inductive,
@@ -421,7 +421,7 @@ impl GlobalEnvironment {
 
             let mut context = self.module_manager.current_context(&self.crate_env);
             CheckSession::new(&self.crate_env, module, &mut context)
-                .check_pts(body, ty)
+                .check_pts(body.clone(), ty.clone())
                 .map_err(|error| {
                     format!(
                         "Generated projection {} does not typecheck: {error:?}",
@@ -457,7 +457,7 @@ impl GlobalEnvironment {
             });
         let mut scope = program_term_elaborator::ProgramScope::new();
         if record_fields.is_none() {
-            scope.bind_value_type_name(type_name_symbol, self_ty);
+            scope.bind_value_type_name(type_name_symbol, self_ty.clone());
         }
 
         let mut parameter_names = Vec::new();
@@ -495,13 +495,13 @@ impl GlobalEnvironment {
                 } else {
                     for variable in vars {
                         let variable = self.crate_env.intern(variable.as_str());
-                        elaborated_fields.push((variable, field_ty));
+                        elaborated_fields.push((variable, field_ty.clone()));
                     }
                 }
             }
             // A structure cannot refer to itself in fields; bind its result only now.
             if record_fields.is_some() {
-                scope.bind_value_type_name(type_name_symbol, self_ty);
+                scope.bind_value_type_name(type_name_symbol, self_ty.clone());
             }
             let result: ValueTypeExp = result.clone().try_into()?;
             let result = scope.elaborate_value_type(&result, self)?;
@@ -521,7 +521,7 @@ impl GlobalEnvironment {
                 || (parameters.len() == parameter_names.len()
                     && parameters.iter().enumerate().all(|(index, parameter)| {
                         matches!(
-                            self.crate_env.arena().get(*parameter),
+                            self.crate_env.arena().get(parameter.clone()),
                             crate::raw::program::ValueTypeNode::Bound(bound)
                                 if bound == parameter_names.len() - 1 - index
                         )
@@ -551,7 +551,7 @@ impl GlobalEnvironment {
             .collect();
         let reflected_constructors = self.crate_env.program_inductive(inductive).constructors().iter().map(|constructor| {
             let telescope = constructor.fields().iter().enumerate().map(|(field_index, (name, ty))| {
-                let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, *ty)
+                let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, ty.clone())
                     .map_err(|error| format!("cannot reflect Program constructor field: {error}"))?;
                 let ty = crate::raw::calculus::shift_bound_indices(
                     self.crate_env.arena(),
@@ -559,7 +559,7 @@ impl GlobalEnvironment {
                     field_index,
                     0,
                 );
-                if !exp_contains_inductive(self.crate_env.arena(), ty, reflected) {
+                if !exp_contains_inductive(self.crate_env.arena(), ty.clone(), reflected) {
                     return Ok(CtorBinder::Simple((*name, ty)));
                 }
                 let (binders, tail) = crate::raw::utils::decompose_prod(self.crate_env.arena(), ty);

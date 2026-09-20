@@ -63,7 +63,7 @@ impl CrateEnv {
             .map(|(id, argument)| {
                 // Remap the source graph first. Inserted caller arguments must not
                 // themselves be remapped or substituted a second time.
-                let argument = match *argument {
+                let argument = match argument.clone() {
                     ModuleArgument::Pts(e) => ModuleArgument::Pts(calculus::exp_subst_map(
                         self.arena(),
                         calculus::remap_all_global_ids(
@@ -115,7 +115,7 @@ impl CrateEnv {
         use super::traversal::Term;
         let mut closed = true;
         for (_, arg) in arguments {
-            let term = match *arg {
+            let term = match arg.clone() {
                 ModuleArgument::Pts(e) => Term::Logical(e),
                 ModuleArgument::ProgramType(t) => Term::ValueType(t),
                 ModuleArgument::ProgramValue(v) => Term::Value(v),
@@ -153,7 +153,7 @@ impl CrateEnv {
         left.len() == right.len()
             && left.iter().zip(right).all(|((lp, l), (rp, r))| {
                 lp == rp
-                    && match (*l, *r) {
+                    && match (l.clone(), r.clone()) {
                         (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
                             calculus::convertible(self, l, r)
                         }

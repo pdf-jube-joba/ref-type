@@ -10,12 +10,12 @@ pub fn format_expression(env: &Environment, e: impl Into<Expression>) -> String 
             return format!("{:?}@{:?}", e.family(), arena.sort(e));
         }
         let mut children = vec![];
-        structure::visit_children(arena, e, |child, _| {
+        structure::visit_children(arena, e.clone(), |child, _| {
             children.push(render(arena, child, depth - 1, remaining))
         });
         format!(
             "{}@{:?}({})",
-            label(arena, e),
+            label(arena, e.clone()),
             arena.sort(e),
             children.join("; ")
         )
@@ -24,7 +24,7 @@ pub fn format_expression(env: &Environment, e: impl Into<Expression>) -> String 
 }
 fn label(arena: &Arena, e: Expression) -> String {
     match e {
-        Expression::SetTerm(h) => match &arena.read(h).form {
+        Expression::SetTerm(h) => match &arena.read(h.clone()).form {
             SetTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             SetTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -74,7 +74,7 @@ fn label(arena: &Arena, e: Expression) -> String {
                 inductive, binders, ..
             } => format!("SetCase {{ inductive: {inductive:?}, binders: {binders:?} }}"),
         },
-        Expression::SetType(h) => match &arena.read(h).form {
+        Expression::SetType(h) => match &arena.read(h.clone()).form {
             SetTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             SetTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -121,7 +121,7 @@ fn label(arena: &Arena, e: Expression) -> String {
                 format!("Case {{ inductive: {inductive:?} }}")
             }
         },
-        Expression::SetKind(h) => match &arena.read(h).form {
+        Expression::SetKind(h) => match &arena.read(h.clone()).form {
             SetKindForm::Base => "Base".into(),
             SetKindForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")
@@ -137,7 +137,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             }
             SetKindForm::Annotated { .. } => "annotated".into(),
         },
-        Expression::PropTerm(h) => match &arena.read(h).form {
+        Expression::PropTerm(h) => match &arena.read(h.clone()).form {
             PropTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             PropTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -179,7 +179,7 @@ fn label(arena: &Arena, e: Expression) -> String {
                 format!("Case {{ inductive: {inductive:?} }}")
             }
         },
-        Expression::PropType(h) => match &arena.read(h).form {
+        Expression::PropType(h) => match &arena.read(h.clone()).form {
             PropTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             PropTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -223,7 +223,7 @@ fn label(arena: &Arena, e: Expression) -> String {
                 format!("Case {{ inductive: {inductive:?} }}")
             }
         },
-        Expression::PropKind(h) => match &arena.read(h).form {
+        Expression::PropKind(h) => match &arena.read(h.clone()).form {
             PropKindForm::Base => "Base".into(),
             PropKindForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")
@@ -239,7 +239,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             }
             PropKindForm::Annotated { .. } => "annotated".into(),
         },
-        Expression::ValueTerm(h) => match &arena.read(h).form {
+        Expression::ValueTerm(h) => match &arena.read(h.clone()).form {
             ValueTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             ValueTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -256,7 +256,7 @@ fn label(arena: &Arena, e: Expression) -> String {
                 "InductiveConstructor {{ inductive: {inductive:?}, constructor: {constructor:?} }}"
             ),
         },
-        Expression::ValueType(h) => match &arena.read(h).form {
+        Expression::ValueType(h) => match &arena.read(h.clone()).form {
             ValueTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             ValueTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -272,13 +272,13 @@ fn label(arena: &Arena, e: Expression) -> String {
             }
             ValueTypeForm::AppType { rule, .. } => format!("AppType {{ rule: {rule:?} }}"),
         },
-        Expression::ValueKind(h) => match &arena.read(h).form {
+        Expression::ValueKind(h) => match &arena.read(h.clone()).form {
             ValueKindForm::Base => "Base".into(),
             ValueKindForm::ProdType { rule, var, .. } => {
                 format!("ProdType {{ rule: {rule:?}, var: {var:?} }}")
             }
         },
-        Expression::ComputationTerm(h) => match &arena.read(h).form {
+        Expression::ComputationTerm(h) => match &arena.read(h.clone()).form {
             ComputationTermForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
             }
@@ -301,7 +301,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             ComputationTermForm::Run { .. } => "Run".into(),
             ComputationTermForm::RunCase { .. } => "RunCase".into(),
         },
-        Expression::ComputationType(h) => match &arena.read(h).form {
+        Expression::ComputationType(h) => match &arena.read(h.clone()).form {
             ComputationTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
             ComputationTypeForm::ModuleParam { parameter } => {
                 format!("ModuleParam {{ parameter: {parameter:?} }}")
@@ -319,7 +319,7 @@ fn label(arena: &Arena, e: Expression) -> String {
             }
             ComputationTypeForm::AppType { rule, .. } => format!("AppType {{ rule: {rule:?} }}"),
         },
-        Expression::ComputationKind(h) => match &arena.read(h).form {
+        Expression::ComputationKind(h) => match &arena.read(h.clone()).form {
             ComputationKindForm::Base => "Base".into(),
             ComputationKindForm::ProdType { rule, var, .. } => {
                 format!("ProdType {{ rule: {rule:?}, var: {var:?} }}")

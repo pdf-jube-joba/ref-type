@@ -99,7 +99,7 @@ impl GlobalEnvironment {
                 .module(source)
                 .children()
                 .iter()
-                .copied()
+                .cloned()
                 .find(|child| self.crate_env.module(*child).name() == child_name.as_str())
                 .ok_or_else(|| {
                     ElaborationError::Message(format!(
@@ -123,7 +123,7 @@ impl GlobalEnvironment {
                         child_name.as_str()
                     )));
                 }
-                match (parameter.kind, *argument) {
+                match (parameter.kind, argument.clone()) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(exp)) => {
                         let mut expected = ty;
                         if let Some(remapping) = &base_remapping {
@@ -156,7 +156,7 @@ impl GlobalEnvironment {
                         ));
                     }
                 }
-                let reflected = match *argument {
+                let reflected = match argument.clone() {
                     ModuleArgument::Pts(exp) => exp,
                     ModuleArgument::ProgramType(ty) => {
                         crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
@@ -191,7 +191,7 @@ impl GlobalEnvironment {
         for (_, arguments) in calls {
             for (_, argument) in arguments {
                 if let ModuleArgument::Pts(exp) = argument {
-                    *exp = self.metavariables.zonk(&self.crate_env, *exp);
+                    *exp = self.metavariables.zonk(&self.crate_env, exp.clone());
                 }
             }
         }
@@ -258,7 +258,7 @@ impl GlobalEnvironment {
                     // names into the logical language for proof parameters.
                     let mut program_context = program_scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                        .check_value_type(program_ty)
+                        .check_value_type(program_ty.clone())
                         .map_err(|error| {
                             format!(
                                 "Program module parameter has an ill-formed value type: {error:?}"
@@ -272,14 +272,14 @@ impl GlobalEnvironment {
                                 &self.crate_env,
                                 self.module_manager.current(),
                                 &mut ctx,
-                                pts_ty,
+                                pts_ty.clone(),
                             )
                             .map_err(|message| self.metavariables.constraint_error(message))?;
                         self.finish_metavariables()?;
                         pts_ty = self.metavariables.zonk(&self.crate_env, pts_ty);
                     }
                     CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
-                        .infer_sort(pts_ty)
+                        .infer_sort(pts_ty.clone())
                         .map_err(|error| {
                             format!("Module parameter type is not Set/Prop: {error:?}")
                         })?;
@@ -289,7 +289,7 @@ impl GlobalEnvironment {
                     let program_ty = program_scope.elaborate_value_type(&program_ty, self)?;
                     let mut program_context = program_scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                        .check_value_type(program_ty)
+                        .check_value_type(program_ty.clone())
                         .map_err(|error| {
                             format!(
                                 "Program module parameter has an ill-formed value type: {error:?}"
@@ -309,16 +309,19 @@ impl GlobalEnvironment {
                         reserved_module,
                         ModuleParameter {
                             name: symbol,
-                            kind: parameter_kind,
+                            kind: parameter_kind.clone(),
                         },
                     );
                     parameter_position += 1;
-                    match parameter_kind {
+                    match &parameter_kind {
                         ModuleParameterKind::Pts { ty } => {
-                            ctx.push(ExpContextEntry { var: symbol, ty });
+                            ctx.push(ExpContextEntry {
+                                var: symbol,
+                                ty: ty.clone(),
+                            });
                             local_scope.push_typed_decl_var_exp(
                                 symbol,
-                                ty,
+                                ty.clone(),
                                 self.crate_env.arena().exp_module_param(parameter_id),
                             );
                         }
@@ -346,7 +349,7 @@ impl GlobalEnvironment {
                 span: module
                     .declaration_spans
                     .get(index)
-                    .copied()
+                    .cloned()
                     .unwrap_or(module.span),
             });
             self.metavariables.clear();
@@ -449,8 +452,12 @@ impl GlobalEnvironment {
                             timer.checkpoint("body elaboration");
                         }
                         if !self.metavariables.is_empty() {
-                            self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
+                            self.check_term_with_metavariables(
+                                &mut ctx,
+                                body_elab.clone(),
+                                ty_elab.clone(),
+                            )
+                            .map_err(|message| self.metavariables.constraint_error(message))?;
                             self.finish_metavariables()?;
                         }
                         if let Some(timer) = &mut profile_timer {
@@ -461,7 +468,7 @@ impl GlobalEnvironment {
                         if let Some(timer) = &mut profile_timer {
                             timer.checkpoint("zonking");
                         }
-                        self.validate_definition(&mut ctx, body_elab, ty_elab)
+                        self.validate_definition(&mut ctx, body_elab.clone(), ty_elab.clone())
                         .map_err(|message| {
                             format!(
                                 "Definition {} body does not check against declared type: {message}",
@@ -537,10 +544,10 @@ impl GlobalEnvironment {
                     if !self.metavariables.is_empty() {
                         self.finish_metavariables()?;
                         for (_, ty) in &mut parameter_elab {
-                            *ty = self.metavariables.zonk(&self.crate_env, *ty);
+                            *ty = self.metavariables.zonk(&self.crate_env, ty.clone());
                         }
                         for (_, ty) in &mut indices_elab {
-                            *ty = self.metavariables.zonk(&self.crate_env, *ty);
+                            *ty = self.metavariables.zonk(&self.crate_env, ty.clone());
                         }
                     }
 
@@ -565,9 +572,9 @@ impl GlobalEnvironment {
                             let mut term_elab = local_scope.elab_exp(&term, self)?;
                             if self
                                 .metavariables
-                                .contains_unsolved(&self.crate_env, term_elab)
+                                .contains_unsolved(&self.crate_env, term_elab.clone())
                             {
-                                local_scope.infer_elaborated(term_elab, self)?;
+                                local_scope.infer_elaborated(term_elab.clone(), self)?;
                                 self.finish_metavariables()?;
                                 term_elab = self.metavariables.zonk(&self.crate_env, term_elab);
                             }
@@ -576,14 +583,15 @@ impl GlobalEnvironment {
 
                         let mut ctor_binders = vec![];
                         for (v, e) in telescope {
-                            if exp_contains_inductive(self.crate_env.arena(), e, inductive) {
+                            if exp_contains_inductive(self.crate_env.arena(), e.clone(), inductive)
+                            {
                                 // strict positive case
                                 let (inner_binders, inner_tail) =
                                     crate::raw::utils::decompose_prod(self.crate_env.arena(), e);
                                 for (_, it) in inner_binders.iter() {
                                     if exp_contains_inductive(
                                         self.crate_env.arena(),
-                                        *it,
+                                        it.clone(),
                                         inductive,
                                     ) {
                                         return Err("Ctor contains inductive type name  in non-strictly positive position".into());
@@ -601,7 +609,7 @@ impl GlobalEnvironment {
                                 for tail_elm in tail.iter() {
                                     if exp_contains_inductive(
                                         self.crate_env.arena(),
-                                        *tail_elm,
+                                        tail_elm.clone(),
                                         inductive,
                                     ) {
                                         return Err("Constructor binder type tail contains inductive type name in non-strictly positive position".into());
@@ -627,8 +635,11 @@ impl GlobalEnvironment {
                         }
 
                         for tail_elm in tail.iter() {
-                            if exp_contains_inductive(self.crate_env.arena(), *tail_elm, inductive)
-                            {
+                            if exp_contains_inductive(
+                                self.crate_env.arena(),
+                                tail_elm.clone(),
+                                inductive,
+                            ) {
                                 return Err("Constructor type tail contains inductive type name in non-strictly positive position".into());
                             }
                         }
@@ -689,7 +700,7 @@ impl GlobalEnvironment {
                     if !self.metavariables.is_empty() {
                         self.finish_metavariables()?;
                         for (_, ty) in &mut parameter_elab {
-                            *ty = self.metavariables.zonk(&self.crate_env, *ty);
+                            *ty = self.metavariables.zonk(&self.crate_env, ty.clone());
                         }
                     }
 
@@ -701,15 +712,15 @@ impl GlobalEnvironment {
                         let mut field_ty_elab = local_scope.elab_exp(field_ty, self)?;
                         if self
                             .metavariables
-                            .contains_unsolved(&self.crate_env, field_ty_elab)
+                            .contains_unsolved(&self.crate_env, field_ty_elab.clone())
                         {
-                            local_scope.infer_elaborated(field_ty_elab, self)?;
+                            local_scope.infer_elaborated(field_ty_elab.clone(), self)?;
                             self.finish_metavariables()?;
                             field_ty_elab = self.metavariables.zonk(&self.crate_env, field_ty_elab);
                         }
-                        fields_get.push((field_name_var, field_ty_elab));
+                        fields_get.push((field_name_var, field_ty_elab.clone()));
                         // field may depend on previous fields
-                        local_scope.push_typed_decl_var(field_name_var, field_ty_elab);
+                        local_scope.push_typed_decl_var(field_name_var, field_ty_elab.clone());
                         telescope.push(CtorBinder::Simple((field_name_var, field_ty_elab)));
                     }
 
@@ -810,7 +821,7 @@ impl GlobalEnvironment {
                             .module(source)
                             .children()
                             .iter()
-                            .copied()
+                            .cloned()
                             .find(|child| {
                                 self.crate_env.module(*child).name() == child_name.as_str()
                             })
@@ -874,7 +885,7 @@ impl GlobalEnvironment {
                                     module: child,
                                     position: position as u32,
                                 },
-                                argument,
+                                argument.clone(),
                             ));
                             elaborated.push((name.clone(), argument));
                         }
@@ -886,12 +897,12 @@ impl GlobalEnvironment {
                         for (_, argument) in arguments {
                             match argument {
                                 ModuleArgument::ProgramType(ty) => {
-                                    *ty = program_scope.zonk_module_value_type(self, *ty);
+                                    *ty = program_scope.zonk_module_value_type(self, ty.clone());
                                     ProgramCheckSession::new(
                                         &self.crate_env,
                                         &mut Vec::new(),
                                     )
-                                    .check_value_type(*ty)
+                                    .check_value_type(ty.clone())
                                     .map_err(|error| {
                                         format!(
                                             "Program type module argument is ill-formed: {error:?}"
@@ -899,7 +910,7 @@ impl GlobalEnvironment {
                                     })?;
                                 }
                                 ModuleArgument::ProgramValue(value) => {
-                                    *value = program_scope.zonk_module_value(self, *value);
+                                    *value = program_scope.zonk_module_value(self, value.clone());
                                 }
                                 ModuleArgument::Pts(_) => {}
                             }

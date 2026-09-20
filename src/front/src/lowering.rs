@@ -78,7 +78,7 @@ impl<'a> Lowerer<'a> {
         let mut prefix = vec![];
         let mut result = vec![];
         for b in ctx {
-            let classifier = self.set(b.ty, &mut prefix, m)?;
+            let classifier = self.set(b.ty.clone(), &mut prefix, m)?;
             result.push(ke::Binding {
                 var: b.var,
                 classifier,
@@ -95,7 +95,7 @@ impl<'a> Lowerer<'a> {
         m: ModuleId,
     ) -> Result<ke::Classifier, String> {
         if let ExpNode::Sort(s @ (RawSort::SetKind(_) | RawSort::PropKind)) =
-            self.raw.arena().get(e)
+            self.raw.arena().get(e.clone())
         {
             Ok(ke::Classifier::Upper(Self::sort(s).base()))
         } else {

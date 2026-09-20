@@ -125,7 +125,7 @@ impl Lowerer<'_> {
                 }),
                 raw::program::ProgramContextEntry::ValueTerm { var, ty } => Ok(ke::Binding {
                     var: *var,
-                    classifier: self.value_type(*ty)?.into(),
+                    classifier: self.value_type(ty.clone())?.into(),
                 }),
             })
             .collect()
@@ -155,11 +155,15 @@ impl Lowerer<'_> {
                 else {
                     return Err("wrong Program definition category".into());
                 };
-                let body =
-                    raw::program_definitions::instantiate_value(self.raw, *body, &parameters, 0);
+                let body = raw::program_definitions::instantiate_value(
+                    self.raw,
+                    body.clone(),
+                    &parameters,
+                    0,
+                );
                 let ty = raw::program_definitions::instantiate_value_type(
                     self.raw.arena(),
-                    *ty,
+                    ty.clone(),
                     &parameters,
                     0,
                 );
@@ -178,8 +182,8 @@ impl Lowerer<'_> {
                     .definition(definition)
                     .ok_or("unknown definition")?;
                 F::Annotated {
-                    body: declaration.body.try_into()?,
-                    classifier: declaration.classifier,
+                    body: declaration.body.clone().try_into()?,
+                    classifier: declaration.classifier.clone(),
                 }
             }
             R::Thunk { computation } => F::ThunkValue {
@@ -248,7 +252,7 @@ impl Lowerer<'_> {
     ) -> Result<s::ComputationTerm, String> {
         use raw::program::{ComputationTermNode as R, ProgramContextEntry};
         use s::ComputationTermForm as F;
-        let form = match self.raw.arena().get(e) {
+        let form = match self.raw.arena().get(e.clone()) {
             R::Meta { .. } => return Err("unresolved computation".into()),
             R::DefinitionInstance {
                 definition,
@@ -262,13 +266,13 @@ impl Lowerer<'_> {
                 };
                 let body = raw::program_definitions::instantiate_computation(
                     self.raw,
-                    *body,
+                    body.clone(),
                     &parameters,
                     0,
                 );
                 let ty = raw::program_definitions::instantiate_computation_type(
                     self.raw.arena(),
-                    *ty,
+                    ty.clone(),
                     &parameters,
                     0,
                 );
@@ -287,8 +291,8 @@ impl Lowerer<'_> {
                     .definition(definition)
                     .ok_or("unknown definition")?;
                 F::Annotated {
-                    body: declaration.body.try_into()?,
-                    classifier: declaration.classifier,
+                    body: declaration.body.clone().try_into()?,
+                    classifier: declaration.classifier.clone(),
                 }
             }
             R::Return { value } => F::Return {
@@ -302,7 +306,7 @@ impl Lowerer<'_> {
                 value_ty,
                 body,
             } => {
-                let domain = self.value_type(value_ty)?;
+                let domain = self.value_type(value_ty.clone())?;
                 ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let body = self.computation_term(body, ctx);
                 ctx.pop();
@@ -331,7 +335,10 @@ impl Lowerer<'_> {
                 body,
             } => {
                 let computation = self.computation_term(computation, ctx)?;
-                ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                ctx.push(ProgramContextEntry::ValueTerm {
+                    var,
+                    ty: value_ty.clone(),
+                });
                 let body = self.computation_term(body, ctx);
                 ctx.pop();
                 F::Sequence {
@@ -348,7 +355,10 @@ impl Lowerer<'_> {
                 body,
             } => {
                 let value = self.value_term(value, ctx)?;
-                ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                ctx.push(ProgramContextEntry::ValueTerm {
+                    var,
+                    ty: value_ty.clone(),
+                });
                 let body = self.computation_term(body, ctx);
                 ctx.pop();
                 F::ValueLet {
@@ -399,7 +409,7 @@ impl Lowerer<'_> {
                     .infer_computation_term(e)
                     .map_err(|e| format!("case inference: {e:?}"))?;
                 let scrutinee_ty = checker
-                    .infer_value_term(scrutinee)
+                    .infer_value_term(scrutinee.clone())
                     .map_err(|e| format!("case inference: {e:?}"))?;
                 let raw::program::ValueTypeNode::Inductive { parameters, .. } =
                     self.raw.arena().get(scrutinee_ty)

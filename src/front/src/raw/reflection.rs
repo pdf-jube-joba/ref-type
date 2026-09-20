@@ -92,7 +92,7 @@ pub fn reflect_context(
 ) -> Result<ExpContext, ReflectionError> {
     let mut result = Vec::with_capacity(context.len());
     for entry in context {
-        match *entry {
+        match entry.clone() {
             ProgramContextEntry::ValueType { var } => result.push(ExpContextEntry {
                 var,
                 ty: env.arena().sort(crate::raw::sort::Sort::Set(0)),
@@ -139,7 +139,7 @@ fn reflect_value_inner(
                 DefinedConstant::ProgramValue { body, .. } => {
                     let body = crate::raw::program_definitions::instantiate_value(
                         env,
-                        *body,
+                        body.clone(),
                         &parameters,
                         0,
                     );
@@ -156,7 +156,7 @@ fn reflect_value_inner(
             }
             let result = match env.definition(id) {
                 DefinedConstant::ProgramValue { body, .. } => {
-                    reflect_value_inner(env, *body, visiting)
+                    reflect_value_inner(env, body.clone(), visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };
@@ -211,7 +211,7 @@ fn reflect_value_inner(
 }
 
 #[tracing::instrument(target = "ref_type::reflection", level = "debug", skip_all,
-    fields(term = %crate::raw::printing::format_computation(env, term)), ret, err)]
+    fields(term = %crate::raw::printing::format_computation(env, term.clone())), ret, err)]
 pub fn reflect_computation(env: &CrateEnv, term: ComputationTerm) -> Result<Exp, ReflectionError> {
     reflect_computation_inner(env, term, &mut HashSet::new())
 }
@@ -235,7 +235,7 @@ fn reflect_computation_inner(
                 DefinedConstant::ProgramComputation { body, .. } => {
                     let body = crate::raw::program_definitions::instantiate_computation(
                         env,
-                        *body,
+                        body.clone(),
                         &parameters,
                         0,
                     );
@@ -252,7 +252,7 @@ fn reflect_computation_inner(
             }
             let result = match env.definition(id) {
                 DefinedConstant::ProgramComputation { body, .. } => {
-                    reflect_computation_inner(env, *body, visiting)
+                    reflect_computation_inner(env, body.clone(), visiting)
                 }
                 _ => Err(ReflectionError::NotProgramTerm),
             };

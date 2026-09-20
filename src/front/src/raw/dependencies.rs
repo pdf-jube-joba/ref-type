@@ -25,7 +25,7 @@ pub(crate) fn definition_dependencies(
         ComputationTermNode as C, ComputationTypeNode as CT, ValueTermNode as V,
         ValueTypeNode as VT,
     };
-    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Clone, PartialEq, Eq, Hash)]
     enum E {
         Set(Exp),
         Vt(raw::program::ValueType),
@@ -35,12 +35,14 @@ pub(crate) fn definition_dependencies(
     }
 
     let mut stack = match definition {
-        raw::environment::DefinedConstant::Pts { ty, body } => vec![E::Set(*ty), E::Set(*body)],
+        raw::environment::DefinedConstant::Pts { ty, body } => {
+            vec![E::Set(ty.clone()), E::Set(body.clone())]
+        }
         raw::environment::DefinedConstant::ProgramValue { ty, body } => {
-            vec![E::Vt(*ty), E::V(*body)]
+            vec![E::Vt(ty.clone()), E::V(body.clone())]
         }
         raw::environment::DefinedConstant::ProgramComputation { ty, body } => {
-            vec![E::Ct(*ty), E::C(*body)]
+            vec![E::Ct(ty.clone()), E::C(body.clone())]
         }
     };
     let mut visited = HashSet::new();
@@ -48,7 +50,7 @@ pub(crate) fn definition_dependencies(
     let mut inductives = HashSet::new();
     let mut datatypes = HashSet::new();
     while let Some(e) = stack.pop() {
-        if !visited.insert(e) {
+        if !visited.insert(e.clone()) {
             continue;
         }
         match e {
@@ -68,20 +70,20 @@ pub(crate) fn definition_dependencies(
                         definitions.insert(*id);
                     }
                     ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
-                        stack.push(E::Ct(*program_ty))
+                        stack.push(E::Ct(program_ty.clone()))
                     }
                     ExpNode::BoxProgram {
                         program_ty,
                         program,
                         ..
                     } => {
-                        stack.push(E::Ct(*program_ty));
-                        stack.push(E::C(*program));
+                        stack.push(E::Ct(program_ty.clone()));
+                        stack.push(E::C(program.clone()));
                     }
                     _ => {}
                 }
                 raw::calculus::map_children(node, |e| {
-                    stack.push(E::Set(e));
+                    stack.push(E::Set(e.clone()));
                     e
                 });
             }

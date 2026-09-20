@@ -27,7 +27,7 @@ pub fn reflect_context(env: &Environment, c: &Context) -> Result<Context, String
         .map(|b| {
             Ok(Binding {
                 var: b.var,
-                classifier: reflect_program_expression(env, b.classifier)?,
+                classifier: reflect_program_expression(env, b.classifier.clone())?,
             })
         })
         .collect()
@@ -50,7 +50,7 @@ pub(crate) fn reflect_program_expression(
 
 fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ValueTermForm::Bound { index } => a.alloc(SetTermNode {
@@ -111,8 +111,10 @@ fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String
             .try_into()?;
             for field in fields {
                 let field = reflect_value_term(env, field)?;
-                let rule =
-                    ProductRule::new(Sort::Base(a.sort(field)), Sort::Base(BaseSort::Set(level)))?;
+                let rule = ProductRule::new(
+                    Sort::Base(a.sort(field.clone())),
+                    Sort::Base(BaseSort::Set(level)),
+                )?;
                 result = build::apply(a, rule, result.into(), field.into())?.try_into()?;
             }
             result
@@ -122,7 +124,7 @@ fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String
 
 fn reflect_value_type(env: &Environment, h: ValueType) -> Result<SetType, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ValueTypeForm::Bound { index } => a.alloc(SetTypeNode {
@@ -200,7 +202,7 @@ fn reflect_value_type(env: &Environment, h: ValueType) -> Result<SetType, String
 
 fn reflect_value_kind(env: &Environment, h: ValueKind) -> Result<SetKind, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ValueKindForm::Base => a.alloc(SetKindNode {
@@ -232,7 +234,7 @@ pub(crate) fn reflect_computation_term(
     h: ComputationTerm,
 ) -> Result<SetTerm, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ComputationTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
@@ -317,7 +319,10 @@ pub(crate) fn reflect_computation_term(
             let domain = reflect_value_type(env, value_ty)?;
             let argument = reflect_computation_term(env, computation)?;
             let body = reflect_computation_term(env, body)?;
-            let rule = ProductRule::new(Sort::Base(a.sort(domain)), Sort::Base(a.sort(body)))?;
+            let rule = ProductRule::new(
+                Sort::Base(a.sort(domain.clone())),
+                Sort::Base(a.sort(body.clone())),
+            )?;
             let lambda = build::lambda(a, rule, var, domain.into(), body.into())?;
             build::apply(a, rule, lambda, argument.into())?.try_into()?
         }
@@ -330,7 +335,10 @@ pub(crate) fn reflect_computation_term(
             let domain = reflect_value_type(env, value_ty)?;
             let argument = reflect_value_term(env, value)?;
             let body = reflect_computation_term(env, body)?;
-            let rule = ProductRule::new(Sort::Base(a.sort(domain)), Sort::Base(a.sort(body)))?;
+            let rule = ProductRule::new(
+                Sort::Base(a.sort(domain.clone())),
+                Sort::Base(a.sort(body.clone())),
+            )?;
             let lambda = build::lambda(a, rule, var, domain.into(), body.into())?;
             build::apply(a, rule, lambda, argument.into())?.try_into()?
         }
@@ -394,7 +402,7 @@ pub(crate) fn reflect_computation_term(
 
 fn reflect_computation_type(env: &Environment, h: ComputationType) -> Result<SetType, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ComputationTypeForm::Bound { index } => a.alloc(SetTypeNode {
@@ -496,7 +504,7 @@ fn reflect_annotation(
 
 fn reflect_computation_kind(env: &Environment, h: ComputationKind) -> Result<SetKind, String> {
     let a = &env.arena;
-    let node = a.get(h);
+    let node = a.get(h.clone());
     let level = node.level;
     Ok(match node.form {
         ComputationKindForm::Base => a.alloc(SetKindNode {

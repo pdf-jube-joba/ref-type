@@ -147,11 +147,14 @@ impl Lowerer<'_> {
         let parameters = raw
             .parameters()
             .iter()
-            .map(|(var, ty)| ExpContextEntry { var: *var, ty: *ty })
+            .map(|(var, ty)| ExpContextEntry {
+                var: *var,
+                ty: ty.clone(),
+            })
             .collect::<ExpContext>();
         let mut native_params = vec![];
         for b in &parameters {
-            let classifier = self.set(b.ty, &mut ctx, m)?;
+            let classifier = self.set(b.ty.clone(), &mut ctx, m)?;
             native_params.push(ke::Binding {
                 var: b.var,
                 classifier,
@@ -176,7 +179,7 @@ impl Lowerer<'_> {
         let mut constructors = vec![];
         for ctor in raw.constructors() {
             constructors.push(self.set(
-                ctor.as_exp_with_type(self.raw.arena(), this),
+                ctor.as_exp_with_type(self.raw.arena(), this.clone()),
                 &mut ctx,
                 m,
             )?)
@@ -220,8 +223,8 @@ impl Lowerer<'_> {
         let mut constructors = vec![];
         for ctor in raw.constructors() {
             let mut fields = vec![];
-            for &(var, ty) in ctor.fields() {
-                fields.push((var, self.value_type(ty)?))
+            for (var, ty) in ctor.fields() {
+                fields.push((*var, self.value_type(ty.clone())?))
             }
             constructors.push(fields)
         }

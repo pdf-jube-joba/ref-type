@@ -26,12 +26,12 @@ fn compare_case(
         return Ok(false);
     }
     for (left, right) in left_domains.iter().zip(right_domains) {
-        if !compare((*left).into(), (*right).into())? {
+        if !compare(left.clone().into(), right.clone().into())? {
             return Ok(false);
         }
     }
     for (left, right) in left_branches.iter().zip(right_branches) {
-        if !compare((*left).into(), (*right).into())? {
+        if !compare(left.clone().into(), right.clone().into())? {
             return Ok(false);
         }
     }
@@ -43,7 +43,7 @@ pub(crate) fn compare_children(
     right: Expression,
     mut compare: impl FnMut(Expression, Expression) -> Result<bool, String>,
 ) -> Result<bool, String> {
-    if left.family() != right.family() || arena.sort(left) != arena.sort(right) {
+    if left.family() != right.family() || arena.sort(left.clone()) != arena.sort(right.clone()) {
         return Ok(false);
     }
     match (left, right) {
@@ -116,12 +116,12 @@ fn compare_set_term(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -152,8 +152,8 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetTermForm::LambdaType {
@@ -170,8 +170,8 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetTermForm::AppTerm {
@@ -186,8 +186,8 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             SetTermForm::AppType {
@@ -202,8 +202,8 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             SetTermForm::Subset {
@@ -217,8 +217,8 @@ fn compare_set_term(
                 ..
             },
         ) => {
-            compare((*set_l).into(), (*set_r).into())?
-                && compare((*predicate_l).into(), (*predicate_r).into())?
+            compare(set_l.clone().into(), set_r.clone().into())?
+                && compare(predicate_l.clone().into(), predicate_r.clone().into())?
         }
         (
             SetTermForm::SubsetIntro {
@@ -234,10 +234,10 @@ fn compare_set_term(
                 proof: proof_r,
             },
         ) => {
-            compare((*superset_l).into(), (*superset_r).into())?
-                && compare((*subset_l).into(), (*subset_r).into())?
-                && compare((*element_l).into(), (*element_r).into())?
-                && compare((*proof_l).into(), (*proof_r).into())?
+            compare(superset_l.clone().into(), superset_r.clone().into())?
+                && compare(subset_l.clone().into(), subset_r.clone().into())?
+                && compare(element_l.clone().into(), element_r.clone().into())?
+                && compare(proof_l.clone().into(), proof_r.clone().into())?
         }
         (
             SetTermForm::Continue {
@@ -251,9 +251,9 @@ fn compare_set_term(
                 next: next_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*next_l).into(), (*next_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(next_l.clone().into(), next_r.clone().into())?
         }
         (
             SetTermForm::Finish {
@@ -267,9 +267,9 @@ fn compare_set_term(
                 output: output_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*output_l).into(), (*output_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(output_l.clone().into(), output_r.clone().into())?
         }
         (
             SetTermForm::SetRun {
@@ -287,10 +287,10 @@ fn compare_set_term(
                 ..
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*initial_l).into(), (*initial_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(initial_l.clone().into(), initial_r.clone().into())?
         }
         (
             SetTermForm::SetRunCase {
@@ -310,11 +310,11 @@ fn compare_set_term(
                 ..
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*initial_l).into(), (*initial_r).into())?
-                && compare((*transition_l).into(), (*transition_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(initial_l.clone().into(), initial_r.clone().into())?
+                && compare(transition_l.clone().into(), transition_r.clone().into())?
         }
         (
             SetTermForm::Recursor {
@@ -339,12 +339,12 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*motive_l).into(), (*motive_r).into())?
-                && compare((*on_continue_l).into(), (*on_continue_r).into())?
-                && compare((*on_finish_l).into(), (*on_finish_r).into())?
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(motive_l.clone().into(), motive_r.clone().into())?
+                && compare(on_continue_l.clone().into(), on_continue_r.clone().into())?
+                && compare(on_finish_l.clone().into(), on_finish_r.clone().into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
         }
         (
             SetTermForm::BoxProgram {
@@ -358,8 +358,8 @@ fn compare_set_term(
                 ..
             },
         ) => {
-            compare((*program_ty_l).into(), (*program_ty_r).into())?
-                && compare((*program_l).into(), (*program_r).into())?
+            compare(program_ty_l.clone().into(), program_ty_r.clone().into())?
+                && compare(program_l.clone().into(), program_r.clone().into())?
         }
         (
             SetTermForm::ForceBox {
@@ -371,8 +371,8 @@ fn compare_set_term(
                 boxed: boxed_r,
             },
         ) => {
-            compare((*program_ty_l).into(), (*program_ty_r).into())?
-                && compare((*boxed_l).into(), (*boxed_r).into())?
+            compare(program_ty_l.clone().into(), program_ty_r.clone().into())?
+                && compare(boxed_l.clone().into(), boxed_r.clone().into())?
         }
         (
             SetTermForm::BoxApp {
@@ -391,10 +391,10 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*codomain_l).into(), (*codomain_r).into())?
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(codomain_l.clone().into(), codomain_r.clone().into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             SetTermForm::BoxTypeApp {
@@ -415,10 +415,10 @@ fn compare_set_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*codomain_l).into(), (*codomain_r).into())?
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(codomain_l.clone().into(), codomain_r.clone().into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             SetTermForm::TakeSet {
@@ -436,11 +436,11 @@ fn compare_set_term(
                 uniqueness: uniqueness_r,
             },
         ) => {
-            compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*codomain_l).into(), (*codomain_r).into())?
-                && compare((*map_l).into(), (*map_r).into())?
-                && compare((*existence_l).into(), (*existence_r).into())?
-                && compare((*uniqueness_l).into(), (*uniqueness_r).into())?
+            compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(codomain_l.clone().into(), codomain_r.clone().into())?
+                && compare(map_l.clone().into(), map_r.clone().into())?
+                && compare(existence_l.clone().into(), existence_r.clone().into())?
+                && compare(uniqueness_l.clone().into(), uniqueness_r.clone().into())?
         }
         (
             SetTermForm::IndCtor {
@@ -461,7 +461,7 @@ fn compare_set_term(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -487,20 +487,20 @@ fn compare_set_term(
         ) => {
             if !(inductive_l == inductive_r
                 && motive_vars_l.len() == motive_vars_r.len()
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
                 && motive_domains_l.len() == motive_domains_r.len()
-                && compare((*motive_body_l).into(), (*motive_body_r).into())?
+                && compare(motive_body_l.clone().into(), motive_body_r.clone().into())?
                 && cases_l.len() == cases_r.len())
             {
                 return Ok(false);
             }
             for (left, right) in motive_domains_l.iter().zip(motive_domains_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
             for (left, right) in cases_l.iter().zip(cases_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -526,15 +526,15 @@ fn compare_set_term(
         ) => compare_case(
             *inductive_l,
             vars_l,
-            *scrutinee_l,
+            scrutinee_l.clone(),
             domains_l,
-            *body_l,
+            body_l.clone(),
             branches_l,
             *inductive_r,
             vars_r,
-            *scrutinee_r,
+            scrutinee_r.clone(),
             domains_r,
-            *body_r,
+            body_r.clone(),
             branches_r,
             compare,
         )?,
@@ -559,14 +559,14 @@ fn compare_set_term(
                     .iter()
                     .map(Vec::len)
                     .eq(binders_r.iter().map(Vec::len))
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
                 && branches_l.len() == branches_r.len())
             {
                 return Ok(false);
             }
             for (left, right) in branches_l.iter().zip(branches_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -605,12 +605,12 @@ fn compare_set_type(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -641,8 +641,8 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetTypeForm::ProdType {
@@ -659,8 +659,8 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetTypeForm::LambdaTerm {
@@ -677,8 +677,8 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetTypeForm::LambdaType {
@@ -695,8 +695,8 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetTypeForm::AppTerm {
@@ -711,8 +711,8 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             SetTypeForm::AppType {
@@ -727,11 +727,11 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (SetTypeForm::PowerSet { set: set_l }, SetTypeForm::PowerSet { set: set_r }) => {
-            compare((*set_l).into(), (*set_r).into())?
+            compare(set_l.clone().into(), set_r.clone().into())?
         }
         (
             SetTypeForm::TypeLift {
@@ -743,8 +743,8 @@ fn compare_set_type(
                 subset: subset_r,
             },
         ) => {
-            compare((*superset_l).into(), (*superset_r).into())?
-                && compare((*subset_l).into(), (*subset_r).into())?
+            compare(superset_l.clone().into(), superset_r.clone().into())?
+                && compare(subset_l.clone().into(), subset_r.clone().into())?
         }
         (
             SetTypeForm::RunStep {
@@ -756,8 +756,8 @@ fn compare_set_type(
                 result_ty: result_ty_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
         }
         (
             SetTypeForm::BoxType {
@@ -766,7 +766,7 @@ fn compare_set_type(
             SetTypeForm::BoxType {
                 program_ty: program_ty_r,
             },
-        ) => compare((*program_ty_l).into(), (*program_ty_r).into())?,
+        ) => compare(program_ty_l.clone().into(), program_ty_r.clone().into())?,
         (
             SetTypeForm::Recursor {
                 rule: rule_l,
@@ -790,12 +790,12 @@ fn compare_set_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*motive_l).into(), (*motive_r).into())?
-                && compare((*on_continue_l).into(), (*on_continue_r).into())?
-                && compare((*on_finish_l).into(), (*on_finish_r).into())?
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(motive_l.clone().into(), motive_r.clone().into())?
+                && compare(on_continue_l.clone().into(), on_continue_r.clone().into())?
+                && compare(on_finish_l.clone().into(), on_finish_r.clone().into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
         }
         (
             SetTypeForm::IndType {
@@ -811,7 +811,7 @@ fn compare_set_type(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -836,7 +836,7 @@ fn compare_set_type(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -862,20 +862,20 @@ fn compare_set_type(
         ) => {
             if !(inductive_l == inductive_r
                 && motive_vars_l.len() == motive_vars_r.len()
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
                 && motive_domains_l.len() == motive_domains_r.len()
-                && compare((*motive_body_l).into(), (*motive_body_r).into())?
+                && compare(motive_body_l.clone().into(), motive_body_r.clone().into())?
                 && cases_l.len() == cases_r.len())
             {
                 return Ok(false);
             }
             for (left, right) in motive_domains_l.iter().zip(motive_domains_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
             for (left, right) in cases_l.iter().zip(cases_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -899,7 +899,19 @@ fn compare_set_type(
                 branches: br,
             },
         ) => compare_case(
-            *il, vl, *sl, dl, *ml, bl, *ir, vr, *sr, dr, *mr, br, compare,
+            *il,
+            vl,
+            sl.clone(),
+            dl,
+            ml.clone(),
+            bl,
+            *ir,
+            vr,
+            sr.clone(),
+            dr,
+            mr.clone(),
+            br,
+            compare,
         )?,
         _ => false,
     })
@@ -929,8 +941,8 @@ fn compare_set_kind(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetKindForm::ProdType {
@@ -947,8 +959,8 @@ fn compare_set_kind(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             SetKindForm::IndType {
@@ -964,7 +976,7 @@ fn compare_set_kind(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -988,12 +1000,12 @@ fn compare_set_kind(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -1034,12 +1046,12 @@ fn compare_prop_term(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -1062,8 +1074,8 @@ fn compare_prop_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropTermForm::LambdaType {
@@ -1080,8 +1092,8 @@ fn compare_prop_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropTermForm::AppTerm {
@@ -1096,8 +1108,8 @@ fn compare_prop_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             PropTermForm::AppType {
@@ -1112,8 +1124,8 @@ fn compare_prop_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             PropTermForm::Recursor {
@@ -1138,17 +1150,17 @@ fn compare_prop_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*motive_l).into(), (*motive_r).into())?
-                && compare((*on_continue_l).into(), (*on_continue_r).into())?
-                && compare((*on_finish_l).into(), (*on_finish_r).into())?
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(motive_l.clone().into(), motive_r.clone().into())?
+                && compare(on_continue_l.clone().into(), on_continue_r.clone().into())?
+                && compare(on_finish_l.clone().into(), on_finish_r.clone().into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
         }
         (
             PropTermForm::IdRefl { element: element_l },
             PropTermForm::IdRefl { element: element_r },
-        ) => compare((*element_l).into(), (*element_r).into())?,
+        ) => compare(element_l.clone().into(), element_r.clone().into())?,
         (
             PropTermForm::ExistsIntro {
                 element: element_l,
@@ -1159,8 +1171,8 @@ fn compare_prop_term(
                 set: set_r,
             },
         ) => {
-            compare((*element_l).into(), (*element_r).into())?
-                && compare((*set_l).into(), (*set_r).into())?
+            compare(element_l.clone().into(), element_r.clone().into())?
+                && compare(set_l.clone().into(), set_r.clone().into())?
         }
         (
             PropTermForm::SubsetElim {
@@ -1174,9 +1186,9 @@ fn compare_prop_term(
                 superset: superset_r,
             },
         ) => {
-            compare((*element_l).into(), (*element_r).into())?
-                && compare((*subset_l).into(), (*subset_r).into())?
-                && compare((*superset_l).into(), (*superset_r).into())?
+            compare(element_l.clone().into(), element_r.clone().into())?
+                && compare(subset_l.clone().into(), subset_r.clone().into())?
+                && compare(superset_l.clone().into(), superset_r.clone().into())?
         }
         (
             PropTermForm::IdElim {
@@ -1198,12 +1210,12 @@ fn compare_prop_term(
                 ..
             },
         ) => {
-            compare((*left_l).into(), (*left_r).into())?
-                && compare((*right_l).into(), (*right_r).into())?
-                && compare((*ty_l).into(), (*ty_r).into())?
-                && compare((*predicate_l).into(), (*predicate_r).into())?
-                && compare((*base_l).into(), (*base_r).into())?
-                && compare((*equality_l).into(), (*equality_r).into())?
+            compare(left_l.clone().into(), left_r.clone().into())?
+                && compare(right_l.clone().into(), right_r.clone().into())?
+                && compare(ty_l.clone().into(), ty_r.clone().into())?
+                && compare(predicate_l.clone().into(), predicate_r.clone().into())?
+                && compare(base_l.clone().into(), base_r.clone().into())?
+                && compare(equality_l.clone().into(), equality_r.clone().into())?
         }
         (
             PropTermForm::TakeProp {
@@ -1219,10 +1231,10 @@ fn compare_prop_term(
                 existence: existence_r,
             },
         ) => {
-            compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*proposition_l).into(), (*proposition_r).into())?
-                && compare((*map_l).into(), (*map_r).into())?
-                && compare((*existence_l).into(), (*existence_r).into())?
+            compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(proposition_l.clone().into(), proposition_r.clone().into())?
+                && compare(map_l.clone().into(), map_r.clone().into())?
+                && compare(existence_l.clone().into(), existence_r.clone().into())?
         }
         (
             PropTermForm::TakeEq {
@@ -1242,12 +1254,12 @@ fn compare_prop_term(
                 uniqueness: uniqueness_r,
             },
         ) => {
-            compare((*func_l).into(), (*func_r).into())?
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*codomain_l).into(), (*codomain_r).into())?
-                && compare((*element_l).into(), (*element_r).into())?
-                && compare((*existence_l).into(), (*existence_r).into())?
-                && compare((*uniqueness_l).into(), (*uniqueness_r).into())?
+            compare(func_l.clone().into(), func_r.clone().into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(codomain_l.clone().into(), codomain_r.clone().into())?
+                && compare(element_l.clone().into(), element_r.clone().into())?
+                && compare(existence_l.clone().into(), existence_r.clone().into())?
+                && compare(uniqueness_l.clone().into(), uniqueness_r.clone().into())?
         }
         (
             PropTermForm::SetExt {
@@ -1263,10 +1275,16 @@ fn compare_prop_term(
                 right_to_left: right_to_left_r,
             },
         ) => {
-            compare((*left_l).into(), (*left_r).into())?
-                && compare((*right_l).into(), (*right_r).into())?
-                && compare((*left_to_right_l).into(), (*left_to_right_r).into())?
-                && compare((*right_to_left_l).into(), (*right_to_left_r).into())?
+            compare(left_l.clone().into(), left_r.clone().into())?
+                && compare(right_l.clone().into(), right_r.clone().into())?
+                && compare(
+                    left_to_right_l.clone().into(),
+                    left_to_right_r.clone().into(),
+                )?
+                && compare(
+                    right_to_left_l.clone().into(),
+                    right_to_left_r.clone().into(),
+                )?
         }
         (
             PropTermForm::FunExt {
@@ -1280,9 +1298,9 @@ fn compare_prop_term(
                 pointwise: pointwise_r,
             },
         ) => {
-            compare((*left_l).into(), (*left_r).into())?
-                && compare((*right_l).into(), (*right_r).into())?
-                && compare((*pointwise_l).into(), (*pointwise_r).into())?
+            compare(left_l.clone().into(), left_r.clone().into())?
+                && compare(right_l.clone().into(), right_r.clone().into())?
+                && compare(pointwise_l.clone().into(), pointwise_r.clone().into())?
         }
         (
             PropTermForm::ClassicalIndefiniteChoice {
@@ -1296,9 +1314,9 @@ fn compare_prop_term(
                 inhabited: inhabited_r,
             },
         ) => {
-            compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*family_l).into(), (*family_r).into())?
-                && compare((*inhabited_l).into(), (*inhabited_r).into())?
+            compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(family_l.clone().into(), family_r.clone().into())?
+                && compare(inhabited_l.clone().into(), inhabited_r.clone().into())?
         }
         (
             PropTermForm::AccIntro {
@@ -1316,11 +1334,11 @@ fn compare_prop_term(
                 predecessors: predecessors_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*state_l).into(), (*state_r).into())?
-                && compare((*predecessors_l).into(), (*predecessors_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(state_l.clone().into(), state_r.clone().into())?
+                && compare(predecessors_l.clone().into(), predecessors_r.clone().into())?
         }
         (
             PropTermForm::AccDescent {
@@ -1342,13 +1360,16 @@ fn compare_prop_term(
                 transition: transition_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*from_l).into(), (*from_r).into())?
-                && compare((*to_l).into(), (*to_r).into())?
-                && compare((*accessibility_l).into(), (*accessibility_r).into())?
-                && compare((*transition_l).into(), (*transition_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(from_l.clone().into(), from_r.clone().into())?
+                && compare(to_l.clone().into(), to_r.clone().into())?
+                && compare(
+                    accessibility_l.clone().into(),
+                    accessibility_r.clone().into(),
+                )?
+                && compare(transition_l.clone().into(), transition_r.clone().into())?
         }
         (
             PropTermForm::IndCtor {
@@ -1369,7 +1390,7 @@ fn compare_prop_term(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -1395,20 +1416,20 @@ fn compare_prop_term(
         ) => {
             if !(inductive_l == inductive_r
                 && motive_vars_l.len() == motive_vars_r.len()
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
                 && motive_domains_l.len() == motive_domains_r.len()
-                && compare((*motive_body_l).into(), (*motive_body_r).into())?
+                && compare(motive_body_l.clone().into(), motive_body_r.clone().into())?
                 && cases_l.len() == cases_r.len())
             {
                 return Ok(false);
             }
             for (left, right) in motive_domains_l.iter().zip(motive_domains_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
             for (left, right) in cases_l.iter().zip(cases_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -1432,7 +1453,19 @@ fn compare_prop_term(
                 branches: br,
             },
         ) => compare_case(
-            *il, vl, *sl, dl, *ml, bl, *ir, vr, *sr, dr, *mr, br, compare,
+            *il,
+            vl,
+            sl.clone(),
+            dl,
+            ml.clone(),
+            bl,
+            *ir,
+            vr,
+            sr.clone(),
+            dr,
+            mr.clone(),
+            br,
+            compare,
         )?,
         _ => false,
     })
@@ -1467,12 +1500,12 @@ fn compare_prop_type(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -1495,8 +1528,8 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropTypeForm::ProdType {
@@ -1513,8 +1546,8 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropTypeForm::LambdaTerm {
@@ -1531,8 +1564,8 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropTypeForm::LambdaType {
@@ -1549,8 +1582,8 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropTypeForm::AppTerm {
@@ -1565,8 +1598,8 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             PropTypeForm::AppType {
@@ -1581,8 +1614,8 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             PropTypeForm::Pred {
@@ -1596,9 +1629,9 @@ fn compare_prop_type(
                 element: element_r,
             },
         ) => {
-            compare((*superset_l).into(), (*superset_r).into())?
-                && compare((*subset_l).into(), (*subset_r).into())?
-                && compare((*element_l).into(), (*element_r).into())?
+            compare(superset_l.clone().into(), superset_r.clone().into())?
+                && compare(subset_l.clone().into(), subset_r.clone().into())?
+                && compare(element_l.clone().into(), element_r.clone().into())?
         }
         (
             PropTypeForm::Equal {
@@ -1610,11 +1643,11 @@ fn compare_prop_type(
                 right: right_r,
             },
         ) => {
-            compare((*left_l).into(), (*left_r).into())?
-                && compare((*right_l).into(), (*right_r).into())?
+            compare(left_l.clone().into(), left_r.clone().into())?
+                && compare(right_l.clone().into(), right_r.clone().into())?
         }
         (PropTypeForm::Exists { set: set_l }, PropTypeForm::Exists { set: set_r }) => {
-            compare((*set_l).into(), (*set_r).into())?
+            compare(set_l.clone().into(), set_r.clone().into())?
         }
         (
             PropTypeForm::Acc {
@@ -1630,10 +1663,10 @@ fn compare_prop_type(
                 state: state_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*state_l).into(), (*state_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(state_l.clone().into(), state_r.clone().into())?
         }
         (
             PropTypeForm::Recursor {
@@ -1658,12 +1691,12 @@ fn compare_prop_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*motive_l).into(), (*motive_r).into())?
-                && compare((*on_continue_l).into(), (*on_continue_r).into())?
-                && compare((*on_finish_l).into(), (*on_finish_r).into())?
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(motive_l.clone().into(), motive_r.clone().into())?
+                && compare(on_continue_l.clone().into(), on_continue_r.clone().into())?
+                && compare(on_finish_l.clone().into(), on_finish_r.clone().into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
         }
         (
             PropTypeForm::IndType {
@@ -1679,7 +1712,7 @@ fn compare_prop_type(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -1704,7 +1737,7 @@ fn compare_prop_type(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -1730,20 +1763,20 @@ fn compare_prop_type(
         ) => {
             if !(inductive_l == inductive_r
                 && motive_vars_l.len() == motive_vars_r.len()
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
                 && motive_domains_l.len() == motive_domains_r.len()
-                && compare((*motive_body_l).into(), (*motive_body_r).into())?
+                && compare(motive_body_l.clone().into(), motive_body_r.clone().into())?
                 && cases_l.len() == cases_r.len())
             {
                 return Ok(false);
             }
             for (left, right) in motive_domains_l.iter().zip(motive_domains_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
             for (left, right) in cases_l.iter().zip(cases_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -1767,7 +1800,19 @@ fn compare_prop_type(
                 branches: br,
             },
         ) => compare_case(
-            *il, vl, *sl, dl, *ml, bl, *ir, vr, *sr, dr, *mr, br, compare,
+            *il,
+            vl,
+            sl.clone(),
+            dl,
+            ml.clone(),
+            bl,
+            *ir,
+            vr,
+            sr.clone(),
+            dr,
+            mr.clone(),
+            br,
+            compare,
         )?,
         _ => false,
     })
@@ -1797,8 +1842,8 @@ fn compare_prop_kind(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropKindForm::ProdType {
@@ -1815,8 +1860,8 @@ fn compare_prop_kind(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             PropKindForm::IndType {
@@ -1832,7 +1877,7 @@ fn compare_prop_kind(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -1856,12 +1901,12 @@ fn compare_prop_kind(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -1902,12 +1947,12 @@ fn compare_value_term(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -1922,7 +1967,7 @@ fn compare_value_term(
             ValueTermForm::ThunkValue {
                 computation: computation_r,
             },
-        ) => compare((*computation_l).into(), (*computation_r).into())?,
+        ) => compare(computation_l.clone().into(), computation_r.clone().into())?,
         (
             ValueTermForm::Continue {
                 state_ty: state_ty_l,
@@ -1935,9 +1980,9 @@ fn compare_value_term(
                 next: next_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*next_l).into(), (*next_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(next_l.clone().into(), next_r.clone().into())?
         }
         (
             ValueTermForm::Finish {
@@ -1951,9 +1996,9 @@ fn compare_value_term(
                 output: output_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*output_l).into(), (*output_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(output_l.clone().into(), output_r.clone().into())?
         }
         (
             ValueTermForm::InductiveConstructor {
@@ -1977,12 +2022,12 @@ fn compare_value_term(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
             for (left, right) in fields_l.iter().zip(fields_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -2021,12 +2066,12 @@ fn compare_value_type(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -2041,7 +2086,10 @@ fn compare_value_type(
             ValueTypeForm::Thunk {
                 computation_ty: computation_ty_r,
             },
-        ) => compare((*computation_ty_l).into(), (*computation_ty_r).into())?,
+        ) => compare(
+            computation_ty_l.clone().into(),
+            computation_ty_r.clone().into(),
+        )?,
         (
             ValueTypeForm::RunStep {
                 state_ty: state_ty_l,
@@ -2052,8 +2100,8 @@ fn compare_value_type(
                 result_ty: result_ty_r,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
         }
         (
             ValueTypeForm::Inductive {
@@ -2069,7 +2117,7 @@ fn compare_value_type(
                 return Ok(false);
             }
             for (left, right) in parameters_l.iter().zip(parameters_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -2090,8 +2138,8 @@ fn compare_value_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ValueTypeForm::AppType {
@@ -2106,8 +2154,8 @@ fn compare_value_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         _ => false,
     })
@@ -2137,8 +2185,8 @@ fn compare_value_kind(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         _ => false,
     })
@@ -2170,12 +2218,12 @@ fn compare_computation_term(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -2186,11 +2234,11 @@ fn compare_computation_term(
         (
             ComputationTermForm::Return { value: value_l },
             ComputationTermForm::Return { value: value_r },
-        ) => compare((*value_l).into(), (*value_r).into())?,
+        ) => compare(value_l.clone().into(), value_r.clone().into())?,
         (
             ComputationTermForm::Force { value: value_l },
             ComputationTermForm::Force { value: value_r },
-        ) => compare((*value_l).into(), (*value_r).into())?,
+        ) => compare(value_l.clone().into(), value_r.clone().into())?,
         (
             ComputationTermForm::LambdaTerm {
                 rule: rule_l,
@@ -2206,8 +2254,8 @@ fn compare_computation_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTermForm::LambdaType {
@@ -2224,8 +2272,8 @@ fn compare_computation_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTermForm::AppTerm {
@@ -2240,8 +2288,8 @@ fn compare_computation_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             ComputationTermForm::AppType {
@@ -2256,8 +2304,8 @@ fn compare_computation_term(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         (
             ComputationTermForm::Sequence {
@@ -2273,9 +2321,9 @@ fn compare_computation_term(
                 ..
             },
         ) => {
-            compare((*value_ty_l).into(), (*value_ty_r).into())?
-                && compare((*computation_l).into(), (*computation_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+            compare(value_ty_l.clone().into(), value_ty_r.clone().into())?
+                && compare(computation_l.clone().into(), computation_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTermForm::ValueLet {
@@ -2291,9 +2339,9 @@ fn compare_computation_term(
                 ..
             },
         ) => {
-            compare((*value_ty_l).into(), (*value_ty_r).into())?
-                && compare((*value_l).into(), (*value_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+            compare(value_ty_l.clone().into(), value_ty_r.clone().into())?
+                && compare(value_l.clone().into(), value_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTermForm::Case {
@@ -2316,14 +2364,14 @@ fn compare_computation_term(
                     .iter()
                     .map(Vec::len)
                     .eq(binders_r.iter().map(Vec::len))
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*scrutinee_l).into(), (*scrutinee_r).into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(scrutinee_l.clone().into(), scrutinee_r.clone().into())?
                 && branches_l.len() == branches_r.len())
             {
                 return Ok(false);
             }
             for (left, right) in branches_l.iter().zip(branches_r) {
-                if !compare((*left).into(), (*right).into())? {
+                if !compare(left.clone().into(), right.clone().into())? {
                     return Ok(false);
                 }
             }
@@ -2345,10 +2393,10 @@ fn compare_computation_term(
                 accessibility: _,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*initial_l).into(), (*initial_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(initial_l.clone().into(), initial_r.clone().into())?
         }
         (
             ComputationTermForm::RunCase {
@@ -2370,11 +2418,11 @@ fn compare_computation_term(
                 transition_equality: _,
             },
         ) => {
-            compare((*state_ty_l).into(), (*state_ty_r).into())?
-                && compare((*result_ty_l).into(), (*result_ty_r).into())?
-                && compare((*step_l).into(), (*step_r).into())?
-                && compare((*initial_l).into(), (*initial_r).into())?
-                && compare((*transition_l).into(), (*transition_r).into())?
+            compare(state_ty_l.clone().into(), state_ty_r.clone().into())?
+                && compare(result_ty_l.clone().into(), result_ty_r.clone().into())?
+                && compare(step_l.clone().into(), step_r.clone().into())?
+                && compare(initial_l.clone().into(), initial_r.clone().into())?
+                && compare(transition_l.clone().into(), transition_r.clone().into())?
         }
         _ => false,
     })
@@ -2410,12 +2458,12 @@ fn compare_computation_type(
                 classifier: classifier_r,
             },
         ) => {
-            compare((*body_l).into(), (*body_r).into())?
+            compare(body_l.clone().into(), body_r.clone().into())?
                 && match (classifier_l, classifier_r) {
                     (
                         super::super::environment::Classifier::Expression(l),
                         super::super::environment::Classifier::Expression(r),
-                    ) => compare(*l, *r)?,
+                    ) => compare(l.clone(), r.clone())?,
                     (
                         super::super::environment::Classifier::Upper(l),
                         super::super::environment::Classifier::Upper(r),
@@ -2430,7 +2478,7 @@ fn compare_computation_type(
             ComputationTypeForm::ReturnType {
                 value_ty: value_ty_r,
             },
-        ) => compare((*value_ty_l).into(), (*value_ty_r).into())?,
+        ) => compare(value_ty_l.clone().into(), value_ty_r.clone().into())?,
         (
             ComputationTypeForm::ProdTerm {
                 rule: rule_l,
@@ -2446,8 +2494,8 @@ fn compare_computation_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTypeForm::ProdType {
@@ -2464,8 +2512,8 @@ fn compare_computation_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTypeForm::LambdaType {
@@ -2482,8 +2530,8 @@ fn compare_computation_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         (
             ComputationTypeForm::AppType {
@@ -2498,8 +2546,8 @@ fn compare_computation_type(
             },
         ) => {
             rule_l == rule_r
-                && compare((*function_l).into(), (*function_r).into())?
-                && compare((*argument_l).into(), (*argument_r).into())?
+                && compare(function_l.clone().into(), function_r.clone().into())?
+                && compare(argument_l.clone().into(), argument_r.clone().into())?
         }
         _ => false,
     })
@@ -2529,8 +2577,8 @@ fn compare_computation_kind(
             },
         ) => {
             rule_l == rule_r
-                && compare((*domain_l).into(), (*domain_r).into())?
-                && compare((*body_l).into(), (*body_r).into())?
+                && compare(domain_l.clone().into(), domain_r.clone().into())?
+                && compare(body_l.clone().into(), body_r.clone().into())?
         }
         _ => false,
     })

@@ -12,15 +12,15 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        let ExpNode::App { func, arg } = self.raw.arena().get(e) else {
+        let ExpNode::App { func, arg } = self.raw.arena().get(e.clone()) else {
             return self.set_non_application(e, ctx, m);
         };
-        let key = (e, ctx.iter().map(|b| b.ty).collect(), m);
-        if let Some(&result) = self.cache.get(&key) {
-            return Ok(result);
+        let key = (e.clone(), ctx.iter().map(|b| b.ty.clone()).collect(), m);
+        if let Some(result) = self.cache.get(&key) {
+            return Ok(result.clone());
         }
         let result = self.set_application(e, func, arg, ctx, m)?;
-        self.cache.insert(key, result);
+        self.cache.insert(key, result.clone());
         Ok(result)
     }
 
@@ -33,10 +33,10 @@ impl Lowerer<'_> {
         m: ModuleId,
     ) -> Result<s::Expression, String> {
         self.infer(e, ctx, m)?;
-        let ty = self.infer(func, ctx, m)?;
+        let ty = self.infer(func.clone(), ctx, m)?;
         let (_, domain, codomain) = raw::calculus::expose_product(self.raw, ty)
             .ok_or("application does not have product type")?;
-        let domain_sort = self.formation(domain, ctx, m)?;
+        let domain_sort = self.formation(domain.clone(), ctx, m)?;
         let body_sort = self.under(ctx, SymbolId::ANONYMOUS, domain, |this, ctx| {
             this.formation(codomain, ctx, m)
         })?;
@@ -52,11 +52,12 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        let key = (e, ctx.iter().map(|b| b.ty).collect(), m);
-        if let Some(&v) = self.cache.get(&key) {
-            return Ok(v);
+        let key = (e.clone(), ctx.iter().map(|b| b.ty.clone()).collect(), m);
+        if let Some(v) = self.cache.get(&key) {
+            return Ok(v.clone());
         }
-        let node = self.raw.arena().get(e);
+        let node = self.raw.arena().get(e.clone());
+        let is_product = matches!(&node, ExpNode::Prod { .. });
         if let ExpNode::Sort(raw) = node {
             let sort = Self::sort(raw);
             if sort.is_upper() {
@@ -65,7 +66,7 @@ impl Lowerer<'_> {
             return self.logical_base_kind(sort.base());
         }
         let ty = self.infer(e, ctx, m)?;
-        let head = raw::calculus::whnf(self.raw, ty);
+        let head = raw::calculus::whnf(self.raw, ty.clone());
         let (sort, stage) = if let ExpNode::Sort(raw) = self.raw.arena().get(head) {
             let sort = Self::sort(raw);
             (
@@ -77,7 +78,7 @@ impl Lowerer<'_> {
                 },
             )
         } else {
-            let sort = self.formation(ty, ctx, m)?;
+            let sort = self.formation(ty.clone(), ctx, m)?;
             (
                 sort.base(),
                 if sort.is_upper() {
@@ -102,14 +103,14 @@ impl Lowerer<'_> {
                     .ok_or("unknown definition")?;
                 self.kernel
                     .arena()
-                    .annotated(definition.body, definition.classifier)?
+                    .annotated(definition.body.clone(), definition.classifier.clone())?
             }
             ExpNode::SubSet {
                 var,
                 set,
                 predicate,
             } => {
-                let raw_set = set;
+                let raw_set = set.clone();
                 let set = self.set(set, ctx, m)?;
                 let predicate =
                     self.under(ctx, var, raw_set, |this, ctx| this.set(predicate, ctx, m))?;
@@ -405,7 +406,7 @@ impl Lowerer<'_> {
                     &mut raw::derivation::CheckSession::new(self.raw, m, ctx),
                     "Lower",
                     "motive",
-                    return_type,
+                    return_type.clone(),
                 )
                 .map_err(|e| format!("motive: {e:?}"))?;
                 let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
@@ -413,9 +414,12 @@ impl Lowerer<'_> {
                 let mut motive_domains = vec![];
                 let mut motive_vars = vec![];
                 for (var, ty) in &binders {
-                    motive_domains.push(self.set(*ty, &mut local, m)?.try_into()?);
+                    motive_domains.push(self.set(ty.clone(), &mut local, m)?.try_into()?);
                     motive_vars.push(*var);
-                    local.push(ExpContextEntry { var: *var, ty: *ty });
+                    local.push(ExpContextEntry {
+                        var: *var,
+                        ty: ty.clone(),
+                    });
                 }
                 let shifted = raw::calculus::shift_bound_indices(
                     self.raw.arena(),
@@ -458,7 +462,7 @@ impl Lowerer<'_> {
                     &mut raw::derivation::CheckSession::new(self.raw, m, ctx),
                     "Lower",
                     "case motive",
-                    return_type,
+                    return_type.clone(),
                 )
                 .map_err(|e| format!("case motive: {e:?}"))?;
                 let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
@@ -466,9 +470,12 @@ impl Lowerer<'_> {
                 let mut motive_domains = vec![];
                 let mut motive_vars = vec![];
                 for (var, ty) in &binders {
-                    motive_domains.push(self.set(*ty, &mut local, m)?.try_into()?);
+                    motive_domains.push(self.set(ty.clone(), &mut local, m)?.try_into()?);
                     motive_vars.push(*var);
-                    local.push(ExpContextEntry { var: *var, ty: *ty });
+                    local.push(ExpContextEntry {
+                        var: *var,
+                        ty: ty.clone(),
+                    });
                 }
                 let shifted = raw::calculus::shift_bound_indices(
                     self.raw.arena(),
@@ -515,9 +522,10 @@ impl Lowerer<'_> {
                 else {
                     return Err("recursor motive must be a lambda".into());
                 };
-                let sigma =
-                    self.under(ctx, var, domain, |this, ctx| this.formation(motive, ctx, m))?;
-                let rule = k::ProductRule::new(self.formation(state_ty, ctx, m)?, sigma)?;
+                let sigma = self.under(ctx, var, domain.clone(), |this, ctx| {
+                    this.formation(motive.clone(), ctx, m)
+                })?;
+                let rule = k::ProductRule::new(self.formation(state_ty.clone(), ctx, m)?, sigma)?;
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let motive = self.under(ctx, var, domain, |this, ctx| this.set(motive, ctx, m))?;
@@ -538,19 +546,19 @@ impl Lowerer<'_> {
                 })
             }
             ExpNode::Prod { var, ty, body } | ExpNode::Lam { var, ty, body } => {
-                let domain_sort = self.formation(ty, ctx, m)?;
-                let body_sort = self.under(ctx, var, ty, |this, ctx| {
-                    if matches!(node, ExpNode::Prod { .. }) {
-                        this.formation(body, ctx, m)
+                let domain_sort = self.formation(ty.clone(), ctx, m)?;
+                let body_sort = self.under(ctx, var, ty.clone(), |this, ctx| {
+                    if is_product {
+                        this.formation(body.clone(), ctx, m)
                     } else {
-                        let t = this.infer(body, ctx, m)?;
+                        let t = this.infer(body.clone(), ctx, m)?;
                         this.formation(t, ctx, m)
                     }
                 })?;
                 let rule = k::ProductRule::new(domain_sort, body_sort)?;
-                let domain = self.set(ty, ctx, m)?;
+                let domain = self.set(ty.clone(), ctx, m)?;
                 let body = self.under(ctx, var, ty, |this, ctx| this.set(body, ctx, m))?;
-                if matches!(node, ExpNode::Prod { .. }) {
+                if is_product {
                     build::product(self.kernel.arena(), rule, var, domain, body)?
                 } else {
                     build::lambda(self.kernel.arena(), rule, var, domain, body)?
@@ -597,7 +605,7 @@ impl Lowerer<'_> {
                 } => {
                     let left = self.set(left, ctx, m)?;
                     let right = self.set(right, ctx, m)?;
-                    let raw_ty = ty;
+                    let raw_ty = ty.clone();
                     let ty = self.set(ty, ctx, m)?;
                     let predicate =
                         self.under(ctx, var, raw_ty, |this, ctx| this.set(predicate, ctx, m))?;
@@ -753,7 +761,7 @@ impl Lowerer<'_> {
                 }
             },
             ExpNode::BoxApp { function, argument } => {
-                let ty = self.infer(function, ctx, m)?;
+                let ty = self.infer(function.clone(), ctx, m)?;
                 let head = raw::calculus::whnf(self.raw, ty);
                 let ExpNode::BoxType { program_ty: ty } = self.raw.arena().get(head) else {
                     return Err("expected boxed function".into());
@@ -766,8 +774,8 @@ impl Lowerer<'_> {
                 let domain = self.value_type(domain)?;
                 let codomain = self.computation_type(codomain)?;
                 let rule = k::ProductRule::new(
-                    k::Sort::Base(self.kernel.arena().sort(domain)),
-                    k::Sort::Base(self.kernel.arena().sort(codomain)),
+                    k::Sort::Base(self.kernel.arena().sort(domain.clone())),
+                    k::Sort::Base(self.kernel.arena().sort(codomain.clone())),
                 )?;
                 let function = self.set(function, ctx, m)?;
                 let argument = self.set(argument, ctx, m)?;
@@ -791,7 +799,7 @@ impl Lowerer<'_> {
                     .map(|b| b.binders.clone())
                     .collect::<Vec<_>>();
                 let result_ty = self.set(ty, ctx, m)?;
-                let sty = self.infer(scrutinee, ctx, m)?;
+                let sty = self.infer(scrutinee.clone(), ctx, m)?;
                 let head = raw::calculus::whnf(self.raw, sty);
                 let ExpNode::IndType { parameters, .. } = self.raw.arena().get(head) else {
                     return Err("case scrutinee has no datatype".into());
@@ -803,7 +811,7 @@ impl Lowerer<'_> {
                     for (i, ((_, field), var)) in
                         ctor.fields().iter().zip(&branch.binders).enumerate()
                     {
-                        let field = raw::reflection::reflect_value_type(self.raw, *field)
+                        let field = raw::reflection::reflect_value_type(self.raw, field.clone())
                             .map_err(|e| e.to_string())?;
                         let field = raw::calculus::instantiate_telescope(
                             self.raw.arena(),
@@ -863,7 +871,7 @@ impl Lowerer<'_> {
             ExpNode::Meta { .. } => return Err("unresolved metavariable at kernel boundary".into()),
             ExpNode::Sort(_) => unreachable!(),
         };
-        self.cache.insert(key, result);
+        self.cache.insert(key, result.clone());
         Ok(result)
     }
 }

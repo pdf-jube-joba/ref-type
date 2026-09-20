@@ -141,7 +141,7 @@ fn program_arguments_alpha_eq(
         && left
             .iter()
             .zip(right)
-            .all(|(left, right)| match (*left, *right) {
+            .all(|(left, right)| match (left.clone(), right.clone()) {
                 (ProgramArgument::ValueType(left), ProgramArgument::ValueType(right)) => {
                     value_type_is_alpha_eq(arena, left, right)
                 }
@@ -174,7 +174,7 @@ pub fn value_is_alpha_eq(arena: &Arena, left: ValueTerm, right: ValueTerm) -> bo
                 && lp
                     .iter()
                     .zip(rp)
-                    .all(|(l, r)| value_type_is_alpha_eq(arena, *l, r))
+                    .all(|(l, r)| value_type_is_alpha_eq(arena, l.clone(), r))
         }
         (ValueTermNode::DefinedConstant(left), ValueTermNode::DefinedConstant(right)) => {
             left == right
@@ -272,7 +272,7 @@ pub fn computation_is_alpha_eq(
                 && lp
                     .iter()
                     .zip(rp)
-                    .all(|(l, r)| value_type_is_alpha_eq(arena, *l, r))
+                    .all(|(l, r)| value_type_is_alpha_eq(arena, l.clone(), r))
         }
         (
             ComputationTermNode::DefinedConstant(left),
@@ -371,7 +371,7 @@ pub fn computation_is_alpha_eq(
                 && lb.len() == rb.len()
                 && lb.iter().zip(rb).all(|(left, right)| {
                     left.binders.len() == right.binders.len()
-                        && computation_is_alpha_eq(arena, left.body, right.body)
+                        && computation_is_alpha_eq(arena, left.body.clone(), right.body)
                 })
         }
         (
@@ -430,7 +430,7 @@ fn value_types_alpha_eq(arena: &Arena, left: &[ValueType], right: &[ValueType]) 
         && left
             .iter()
             .zip(right)
-            .all(|(l, r)| value_type_is_alpha_eq(arena, *l, *r))
+            .all(|(l, r)| value_type_is_alpha_eq(arena, l.clone(), r.clone()))
 }
 
 fn values_alpha_eq(arena: &Arena, left: &[ValueTerm], right: &[ValueTerm]) -> bool {
@@ -438,7 +438,7 @@ fn values_alpha_eq(arena: &Arena, left: &[ValueTerm], right: &[ValueTerm]) -> bo
         && left
             .iter()
             .zip(right)
-            .all(|(l, r)| value_is_alpha_eq(arena, *l, *r))
+            .all(|(l, r)| value_is_alpha_eq(arena, l.clone(), r.clone()))
 }
 
 pub fn shift_value_type_indices(
@@ -498,11 +498,11 @@ pub fn instantiate_type_telescope(
 /// Removes one value binder from a value type, adjusting outer de Bruijn
 /// indices. Returns `None` when the type depends on the binder being removed.
 pub fn strengthen_value_type(arena: &Arena, ty: ValueType, target: usize) -> Option<ValueType> {
-    match arena.get(ty) {
+    match arena.get(ty.clone()) {
         ValueTypeNode::Bound(index) if index == target => None,
         ValueTypeNode::Bound(index) if index > target => Some(arena.value_type_bound(index - 1)),
         ValueTypeNode::Thunk { computation_ty } => {
-            let strengthened = strengthen_computation_type(arena, computation_ty, target)?;
+            let strengthened = strengthen_computation_type(arena, computation_ty.clone(), target)?;
             if strengthened == computation_ty {
                 Some(ty)
             } else {
@@ -515,8 +515,8 @@ pub fn strengthen_value_type(arena: &Arena, ty: ValueType, target: usize) -> Opt
             state_ty,
             result_ty,
         } => {
-            let strengthened_state = strengthen_value_type(arena, state_ty, target)?;
-            let strengthened_result = strengthen_value_type(arena, result_ty, target)?;
+            let strengthened_state = strengthen_value_type(arena, state_ty.clone(), target)?;
+            let strengthened_result = strengthen_value_type(arena, result_ty.clone(), target)?;
             if strengthened_state == state_ty && strengthened_result == result_ty {
                 Some(ty)
             } else {
@@ -532,9 +532,9 @@ pub fn strengthen_value_type(arena: &Arena, ty: ValueType, target: usize) -> Opt
         } => {
             let mut changed = false;
             for parameter in &mut parameters {
-                let original = *parameter;
-                *parameter = strengthen_value_type(arena, original, target)?;
-                changed |= *parameter != original;
+                let original = parameter.clone();
+                *parameter = strengthen_value_type(arena, original.clone(), target)?;
+                changed |= parameter.clone() != original;
             }
             if changed {
                 Some(arena.alloc(ValueTypeNode::Inductive {
@@ -556,9 +556,9 @@ pub fn strengthen_computation_type(
     ty: ComputationType,
     target: usize,
 ) -> Option<ComputationType> {
-    match arena.get(ty) {
+    match arena.get(ty.clone()) {
         ComputationTypeNode::Return { value_ty } => {
-            let strengthened = strengthen_value_type(arena, value_ty, target)?;
+            let strengthened = strengthen_value_type(arena, value_ty.clone(), target)?;
             if strengthened == value_ty {
                 Some(ty)
             } else {
@@ -568,8 +568,9 @@ pub fn strengthen_computation_type(
             }
         }
         ComputationTypeNode::Function { domain, codomain } => {
-            let strengthened_domain = strengthen_value_type(arena, domain, target)?;
-            let strengthened_codomain = strengthen_computation_type(arena, codomain, target)?;
+            let strengthened_domain = strengthen_value_type(arena, domain.clone(), target)?;
+            let strengthened_codomain =
+                strengthen_computation_type(arena, codomain.clone(), target)?;
             if strengthened_domain == domain && strengthened_codomain == codomain {
                 Some(ty)
             } else {
@@ -623,7 +624,7 @@ pub fn instantiate_value_in_computation(
         depth: usize,
     ) -> ValueTerm {
         let arena = env.arena();
-        match arena.get(value) {
+        match arena.get(value.clone()) {
             ValueTermNode::DefinitionInstance {
                 definition,
                 parameters,
@@ -689,7 +690,7 @@ pub fn instantiate_value_in_computation(
                     idx,
                     fields: fields
                         .into_iter()
-                        .map(|v| subst_value(env, v, argument, depth))
+                        .map(|v| subst_value(env, v, argument.clone(), depth))
                         .collect(),
                 },
             ),
@@ -704,7 +705,7 @@ pub fn instantiate_value_in_computation(
         depth: usize,
     ) -> ComputationTerm {
         let arena = env.arena();
-        match arena.get(term) {
+        match arena.get(term.clone()) {
             ComputationTermNode::DefinitionInstance {
                 definition,
                 parameters,
@@ -748,7 +749,7 @@ pub fn instantiate_value_in_computation(
             ComputationTermNode::Application { computation, value } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Application {
-                    computation: subst_comp(env, computation, argument, depth),
+                    computation: subst_comp(env, computation, argument.clone(), depth),
                     value: subst_value(env, value, argument, depth),
                 },
             ),
@@ -760,7 +761,7 @@ pub fn instantiate_value_in_computation(
             } => arena.reuse_computation(
                 term,
                 ComputationTermNode::Sequence {
-                    computation: subst_comp(env, computation, argument, depth),
+                    computation: subst_comp(env, computation, argument.clone(), depth),
                     var,
                     value_ty,
                     body: subst_comp(env, body, argument, depth + 1),
@@ -777,7 +778,7 @@ pub fn instantiate_value_in_computation(
                     var,
                     value_ty: strengthen_value_type(arena, value_ty, depth)
                         .expect("Program value types cannot depend on a value binder"),
-                    value: subst_value(env, value, argument, depth),
+                    value: subst_value(env, value, argument.clone(), depth),
                     body: subst_comp(env, body, argument, depth + 1),
                 },
             ),
@@ -789,11 +790,16 @@ pub fn instantiate_value_in_computation(
                 term,
                 ComputationTermNode::Case {
                     indspec,
-                    scrutinee: subst_value(env, scrutinee, argument, depth),
+                    scrutinee: subst_value(env, scrutinee, argument.clone(), depth),
                     branches: branches
                         .into_iter()
                         .map(|b| ProgramCaseBranch {
-                            body: subst_comp(env, b.body, argument, depth + b.binders.len()),
+                            body: subst_comp(
+                                env,
+                                b.body,
+                                argument.clone(),
+                                depth + b.binders.len(),
+                            ),
                             binders: b.binders,
                         })
                         .collect(),
@@ -812,8 +818,8 @@ pub fn instantiate_value_in_computation(
                         .expect("value-independent state type"),
                     result_ty: strengthen_value_type(arena, result_ty, depth)
                         .expect("value-independent result type"),
-                    step: subst_value(env, step, argument, depth),
-                    initial: subst_value(env, initial, argument, depth),
+                    step: subst_value(env, step, argument.clone(), depth),
+                    initial: subst_value(env, initial, argument.clone(), depth),
                     accessibility: crate::raw::calculus::instantiate_at(
                         arena,
                         accessibility,
@@ -838,13 +844,13 @@ pub fn instantiate_value_in_computation(
                         .expect("value-independent state type"),
                     result_ty: strengthen_value_type(arena, result_ty, depth)
                         .expect("value-independent result type"),
-                    step: subst_value(env, step, argument, depth),
-                    initial: subst_value(env, initial, argument, depth),
-                    transition: subst_comp(env, transition, argument, depth),
+                    step: subst_value(env, step, argument.clone(), depth),
+                    initial: subst_value(env, initial, argument.clone(), depth),
+                    transition: subst_comp(env, transition, argument.clone(), depth),
                     accessibility: crate::raw::calculus::instantiate_at(
                         arena,
                         accessibility,
-                        crate::raw::reflection::reflect_value(env, argument)
+                        crate::raw::reflection::reflect_value(env, argument.clone())
                             .expect("checked Program value reflects"),
                         depth,
                     ),
@@ -865,12 +871,12 @@ pub fn instantiate_value_in_computation(
 
 fn unfold_value(env: &CrateEnv, mut value: ValueTerm) -> ValueTerm {
     loop {
-        match env.arena().get(value) {
+        match env.arena().get(value.clone()) {
             ValueTermNode::DefinedConstant(id) => {
                 let DefinedConstant::ProgramValue { body, .. } = env.definition(id) else {
                     break;
                 };
-                value = *body;
+                value = body.clone();
             }
             ValueTermNode::DefinitionInstance {
                 definition,
@@ -879,8 +885,12 @@ fn unfold_value(env: &CrateEnv, mut value: ValueTerm) -> ValueTerm {
                 let DefinedConstant::ProgramValue { body, .. } = env.definition(definition) else {
                     break;
                 };
-                value =
-                    crate::raw::program_definitions::instantiate_value(env, *body, &parameters, 0);
+                value = crate::raw::program_definitions::instantiate_value(
+                    env,
+                    body.clone(),
+                    &parameters,
+                    0,
+                );
             }
             _ => break,
         }
@@ -892,8 +902,8 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
     let arena = env.arena();
     // In particular, selecting a Case branch does not need to clone every
     // branch and its binders. Release the guard before recursive allocation.
-    let node = arena.borrow_computation(term);
-    match *node {
+    let node = arena.borrow_computation(term.clone());
+    match node.clone() {
         ComputationTermNode::DefinitionInstance {
             definition,
             ref parameters,
@@ -904,7 +914,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
                 DefinedConstant::ProgramComputation { body, .. } => {
                     Some(crate::raw::program_definitions::instantiate_computation(
                         env,
-                        *body,
+                        body.clone(),
                         &parameters,
                         0,
                     ))
@@ -913,19 +923,19 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             }
         }
         ComputationTermNode::DefinedConstant(id) => match env.definition(id) {
-            DefinedConstant::ProgramComputation { body, .. } => Some(*body),
+            DefinedConstant::ProgramComputation { body, .. } => Some(body.clone()),
             _ => None,
         },
         ComputationTermNode::Force { value } => {
             drop(node);
-            match *arena.borrow_value(unfold_value(env, value)) {
+            match arena.borrow_value(unfold_value(env, value)) {
                 ValueTermNode::Thunk { computation } => Some(computation),
                 _ => None,
             }
         }
         ComputationTermNode::Application { computation, value } => {
             drop(node);
-            if let Some(next) = reduce_computation_once(env, computation) {
+            if let Some(next) = reduce_computation_once(env, computation.clone()) {
                 Some(arena.alloc(ComputationTermNode::Application {
                     computation: next,
                     value,
@@ -943,7 +953,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             body,
         } => {
             drop(node);
-            if let Some(next) = reduce_computation_once(env, computation) {
+            if let Some(next) = reduce_computation_once(env, computation.clone()) {
                 Some(arena.alloc(ComputationTermNode::Sequence {
                     computation: next,
                     var,
@@ -968,14 +978,17 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             accessibility,
         } => {
             drop(node);
-            let force = arena.alloc(ComputationTermNode::Force { value: step });
+            let force = arena.alloc(ComputationTermNode::Force {
+                value: step.clone(),
+            });
             let transition = arena.alloc(ComputationTermNode::Application {
                 computation: force,
-                value: initial,
+                value: initial.clone(),
             });
             let transition_equality = arena.alloc(crate::raw::exp::ExpNode::Prove(
                 crate::raw::exp::Prove::IdRefl {
-                    element: crate::raw::reflection::reflect_computation(env, transition).ok()?,
+                    element: crate::raw::reflection::reflect_computation(env, transition.clone())
+                        .ok()?,
                 },
             ));
             Some(arena.alloc(ComputationTermNode::RunCase {
@@ -998,7 +1011,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             transition_equality,
         } => {
             drop(node);
-            if let Some(next) = reduce_computation_once(env, transition) {
+            if let Some(next) = reduce_computation_once(env, transition.clone()) {
                 return Some(arena.alloc(ComputationTermNode::RunCase {
                     state_ty,
                     result_ty,
@@ -1015,10 +1028,10 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             match arena.get(unfold_value(env, value)) {
                 ValueTermNode::Continue { next, .. } => Some(
                     arena.alloc(ComputationTermNode::Run {
-                        state_ty,
-                        result_ty,
-                        step,
-                        initial: next,
+                        state_ty: state_ty.clone(),
+                        result_ty: result_ty.clone(),
+                        step: step.clone(),
+                        initial: next.clone(),
                         accessibility: arena.alloc(crate::raw::exp::ExpNode::Prove(
                             crate::raw::exp::Prove::AccDescent {
                                 state_ty: crate::raw::reflection::reflect_value_type(env, state_ty)
@@ -1060,13 +1073,13 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
             }
             let mut body = {
                 let node = arena.borrow_computation(term);
-                let ComputationTermNode::Case { branches, .. } = &*node else {
+                let ComputationTermNode::Case { branches, .. } = &node.clone() else {
                     unreachable!()
                 };
-                branches.get(idx)?.body
+                branches.get(idx)?.body.clone()
             };
             for field in fields.iter().rev() {
-                body = instantiate_value_in_computation(env, body, *field);
+                body = instantiate_value_in_computation(env, body, field.clone());
             }
             Some(body)
         }
@@ -1076,7 +1089,7 @@ pub fn reduce_computation_once(env: &CrateEnv, term: ComputationTerm) -> Option<
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Evaluation {
     Normal(ComputationTerm),
     OutOfFuel(ComputationTerm),
@@ -1088,21 +1101,26 @@ pub fn evaluate_computation_with_fuel(
     fuel: usize,
 ) -> Evaluation {
     let span = tracing::debug_span!(target: "ref_type::reduction::program", "evaluate",
-        fuel, term = %crate::raw::printing::format_computation(env, term));
+            fuel, term = %crate::raw::printing::format_computation(env, term.clone()
+    ));
     let _entered = span.enter();
     for steps in 0..fuel {
-        let Some(next) = reduce_computation_once(env, term) else {
-            tracing::debug!(target: "ref_type::reduction::program", steps, result = %crate::raw::printing::format_computation(env, term), "evaluation finished");
+        let Some(next) = reduce_computation_once(env, term.clone()) else {
+            tracing::debug!(target: "ref_type::reduction::program", steps, result = %crate::raw::printing::format_computation(env, term.clone()
+), "evaluation finished");
             return Evaluation::Normal(term);
         };
-        tracing::trace!(target: "ref_type::reduction::program", steps, before = %crate::raw::printing::format_computation(env, term), after = %crate::raw::printing::format_computation(env, next), "evaluation step");
+        tracing::trace!(target: "ref_type::reduction::program", steps, before = %crate::raw::printing::format_computation(env, term), after = %crate::raw::printing::format_computation(env, next.clone()
+), "evaluation step");
         term = next;
     }
-    if reduce_computation_once(env, term).is_some() {
-        tracing::warn!(target: "ref_type::reduction::program", fuel, remaining = %crate::raw::printing::format_computation(env, term), "evaluation fuel exhausted");
+    if reduce_computation_once(env, term.clone()).is_some() {
+        tracing::warn!(target: "ref_type::reduction::program", fuel, remaining = %crate::raw::printing::format_computation(env, term.clone()
+), "evaluation fuel exhausted");
         Evaluation::OutOfFuel(term)
     } else {
-        tracing::debug!(target: "ref_type::reduction::program", steps = fuel, result = %crate::raw::printing::format_computation(env, term), "evaluation finished");
+        tracing::debug!(target: "ref_type::reduction::program", steps = fuel, result = %crate::raw::printing::format_computation(env, term.clone()
+), "evaluation finished");
         Evaluation::Normal(term)
     }
 }
@@ -1120,7 +1138,7 @@ pub fn remap_value_type_global_ids(
     if inductives.is_empty() {
         return ty;
     }
-    match arena.get(ty) {
+    match arena.get(ty.clone()) {
         ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
             ty,
             ValueTypeNode::Thunk {
@@ -1148,7 +1166,7 @@ pub fn remap_value_type_global_ids(
         } => arena.reuse_value_type(
             ty,
             ValueTypeNode::Inductive {
-                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+                indspec: inductives.get(&indspec).cloned().unwrap_or(indspec),
                 parameters: parameters
                     .into_iter()
                     .map(|p| remap_value_type_global_ids(arena, p, _definitions, inductives))
@@ -1168,7 +1186,7 @@ pub fn remap_computation_type_global_ids(
     if inductives.is_empty() {
         return ty;
     }
-    match arena.get(ty) {
+    match arena.get(ty.clone()) {
         ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
             ty,
             ComputationTypeNode::Return {
@@ -1221,14 +1239,14 @@ pub fn remap_value_global_ids(
     if definitions.is_empty() && inductives.is_empty() && logical_inductives.is_empty() {
         return value;
     }
-    match arena.get(value) {
+    match arena.get(value.clone()) {
         ValueTermNode::DefinitionInstance {
             definition,
             parameters,
         } => arena.reuse_value(
             value,
             ValueTermNode::DefinitionInstance {
-                definition: definitions.get(&definition).copied().unwrap_or(definition),
+                definition: definitions.get(&definition).cloned().unwrap_or(definition),
                 parameters: parameters
                     .into_iter()
                     .map(|t| remap_value_type_global_ids(arena, t, definitions, inductives))
@@ -1237,7 +1255,7 @@ pub fn remap_value_global_ids(
         ),
         ValueTermNode::DefinedConstant(id) => arena.reuse_value(
             value,
-            ValueTermNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
+            ValueTermNode::DefinedConstant(definitions.get(&id).cloned().unwrap_or(id)),
         ),
         ValueTermNode::Meta {
             metavariable,
@@ -1311,7 +1329,7 @@ pub fn remap_value_global_ids(
         } => arena.reuse_value(
             value,
             ValueTermNode::InductiveConstructor {
-                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+                indspec: inductives.get(&indspec).cloned().unwrap_or(indspec),
                 parameters: parameters
                     .into_iter()
                     .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
@@ -1351,14 +1369,14 @@ pub fn remap_computation_global_ids(
         remap_computation_global_ids(arena, term, definitions, inductives, logical_inductives)
     };
     let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
-    match arena.get(computation) {
+    match arena.get(computation.clone()) {
         ComputationTermNode::DefinitionInstance {
             definition,
             parameters,
         } => arena.reuse_computation(
             computation,
             ComputationTermNode::DefinitionInstance {
-                definition: definitions.get(&definition).copied().unwrap_or(definition),
+                definition: definitions.get(&definition).cloned().unwrap_or(definition),
                 parameters: parameters
                     .into_iter()
                     .map(|t| remap_value_type_global_ids(arena, t, definitions, inductives))
@@ -1367,7 +1385,7 @@ pub fn remap_computation_global_ids(
         ),
         ComputationTermNode::DefinedConstant(id) => arena.reuse_computation(
             computation,
-            ComputationTermNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
+            ComputationTermNode::DefinedConstant(definitions.get(&id).cloned().unwrap_or(id)),
         ),
         ComputationTermNode::Meta {
             metavariable,
@@ -1450,7 +1468,7 @@ pub fn remap_computation_global_ids(
         } => arena.reuse_computation(
             computation,
             ComputationTermNode::Case {
-                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
+                indspec: inductives.get(&indspec).cloned().unwrap_or(indspec),
                 scrutinee: value(scrutinee),
                 branches: branches
                     .into_iter()

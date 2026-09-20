@@ -38,15 +38,15 @@ fn local_closure_tracks_shared_binders_and_annotation_classifiers() {
         })
     };
     let free = bound(0);
-    let closed = lambda(free);
+    let closed = lambda(free.clone());
     let open = lambda(bound(1));
     // The same node is open at the root and closed under one binder, including
     // after warming the arena's cache with both kinds of queries.
     for _ in 0..2 {
-        assert!(!locally_closed(&arena, free.into()));
-        assert!(locally_closed(&arena, closed.into()));
-        assert!(!locally_closed(&arena, open.into()));
-        assert!(locally_closed(&arena, lambda(open).into()));
+        assert!(!locally_closed(&arena, free.clone().into()));
+        assert!(locally_closed(&arena, closed.clone().into()));
+        assert!(!locally_closed(&arena, open.clone().into()));
+        assert!(locally_closed(&arena, lambda(open.clone()).into()));
     }
 
     let parameter = arena.alloc(SetTermNode {
@@ -58,8 +58,10 @@ fn local_closure_tracks_shared_binders_and_annotation_classifiers() {
             },
         },
     });
-    assert!(locally_closed(&arena, parameter.into()));
-    let annotated = arena.annotated(parameter.into(), free.into()).unwrap();
+    assert!(locally_closed(&arena, parameter.clone().into()));
+    let annotated = arena
+        .annotated(parameter.clone().into(), free.clone().into())
+        .unwrap();
     // A closed body cannot hide an open type annotation.
     assert!(!locally_closed(&arena, annotated));
 }
@@ -97,20 +99,26 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
     });
     let mut shared = ty(0);
     let mut shifted = ty(1);
-    let mut substituted = argument;
+    let mut substituted = argument.clone();
     // Only the path through domains keeps index 0 free. Every body binds it.
     // This DAG has 25 nodes but more than 16 million paths to its leaf.
     for _ in 0..24 {
-        shifted = product(shifted, shared);
-        substituted = product(substituted, shared);
-        shared = product(shared, shared);
+        shifted = product(shifted, shared.clone());
+        substituted = product(substituted, shared.clone());
+        shared = product(shared.clone(), shared);
     }
-    assert_eq!(shift(&a, shared, 1, 0).unwrap(), shifted.into());
     assert_eq!(
-        substitute(&a, shared, argument).unwrap(),
-        substituted.into()
+        shift(&a, shared.clone(), 1, 0).unwrap(),
+        shifted.clone().into()
     );
-    assert_eq!(shift(&a, shared, 0, 0).unwrap(), shared.into());
+    assert_eq!(
+        substitute(&a, shared.clone(), argument.clone()).unwrap(),
+        substituted.clone().into()
+    );
+    assert_eq!(
+        shift(&a, shared.clone(), 0, 0).unwrap(),
+        shared.clone().into()
+    );
 }
 
 #[test]
@@ -127,17 +135,20 @@ fn typed_nodes_are_interned_and_read_snapshots_survive_transformations() {
         form: SetTypeForm::ProdTerm {
             rule,
             var: SymbolId(4),
-            domain,
-            body: domain,
+            domain: domain.clone(),
+            body: domain.clone(),
         },
     };
     let handle = arena.alloc(original.clone());
     assert_eq!(arena.alloc(original.clone()), handle);
-    let snapshot = arena.read(handle);
-    assert!(std::ptr::eq(&*snapshot, &*arena.read(handle)));
+    let snapshot = arena.read(handle.clone());
+    assert!(std::ptr::eq(&*snapshot, &*arena.read(handle.clone())));
 
     // Allocating during recursion must not conflict with a retained read.
-    let changed: SetType = shift(&arena, handle, 1, 0).unwrap().try_into().unwrap();
+    let changed: SetType = shift(&arena, handle.clone(), 1, 0)
+        .unwrap()
+        .try_into()
+        .unwrap();
     assert_ne!(changed, handle);
     assert_eq!(*snapshot, original);
     assert_eq!(arena.get(handle), original);
@@ -192,7 +203,7 @@ fn substitution_tracks_each_inductive_motive_binder() {
         },
     };
     let elimination = arena.alloc(original.clone());
-    let result: SetType = substitute(&arena, elimination, argument)
+    let result: SetType = substitute(&arena, elimination.clone(), argument.clone())
         .unwrap()
         .try_into()
         .unwrap();
@@ -207,8 +218,11 @@ fn substitution_tracks_each_inductive_motive_binder() {
         panic!("expected an eliminator");
     };
     assert_eq!(scrutinee, term(0).into());
-    assert_eq!(motive_domains, vec![argument.into(), argument.into()]);
-    assert_eq!(motive_body, argument.into());
+    assert_eq!(
+        motive_domains,
+        vec![argument.clone().into(), argument.clone().into()]
+    );
+    assert_eq!(motive_body, argument.clone().into());
     assert_eq!(cases, vec![term(0).into()]);
     assert_eq!(arena.get(elimination), original);
 }
@@ -236,8 +250,8 @@ fn run_certificates_are_transformed_but_ignored_by_conversion() {
         arena.alloc(SetTermNode {
             level: 0,
             form: SetTermForm::SetRun {
-                state_ty: ty,
-                result_ty: ty,
+                state_ty: ty.clone(),
+                result_ty: ty.clone(),
                 step: term(1),
                 initial,
                 accessibility,
@@ -247,11 +261,15 @@ fn run_certificates_are_transformed_but_ignored_by_conversion() {
     let first = run(term(0), proof(0));
     let second = run(term(0), proof(1));
     assert_ne!(first, second);
-    assert!(alpha_equal(arena, first.into(), second.into()));
-    assert!(convertible(&env, first.into(), second.into()).unwrap());
+    assert!(alpha_equal(
+        arena,
+        first.clone().into(),
+        second.clone().into()
+    ));
+    assert!(convertible(&env, first.clone().into(), second.clone().into()).unwrap());
     assert!(!alpha_equal(
         arena,
-        first.into(),
+        first.clone().into(),
         run(term(2), proof(0)).into()
     ));
 
@@ -283,10 +301,10 @@ fn checked_definition_templates_are_retained_without_becoming_constants() {
     let template = Definition {
         context: vec![Binding {
             var: SymbolId(1),
-            classifier: kind.into(),
+            classifier: kind.clone().into(),
         }],
-        body: body.into(),
-        classifier: kind.into(),
+        body: body.clone().into(),
+        classifier: kind.clone().into(),
     };
     env.register_definition_template(id, template.clone())
         .unwrap();
@@ -310,7 +328,7 @@ fn polymorphic_program_identity_and_reflection() {
     });
     let ret = a.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationTermForm::Return { value: v },
+        form: ComputationTermForm::Return { value: v.clone() },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(0)),
@@ -322,7 +340,7 @@ fn polymorphic_program_identity_and_reflection() {
         form: ComputationTermForm::LambdaTerm {
             rule: r,
             var: SymbolId(2),
-            domain: x,
+            domain: x.clone(),
             body: ret,
         },
     });
@@ -336,15 +354,15 @@ fn polymorphic_program_identity_and_reflection() {
         form: ComputationTermForm::LambdaType {
             rule: poly_rule,
             var: SymbolId(1),
-            domain: k.into(),
+            domain: k.clone().into(),
             body: lam,
         },
     });
     let mut checker = Checker::new(&env, vec![]);
-    let ty = checker.infer_computation_term(poly).unwrap();
-    assert_eq!(a.sort(ty), BaseSort::Computation(1));
-    let refl = reflect_term(&env, poly.into()).unwrap();
-    let rty = reflect_type(&env, ty.into()).unwrap();
+    let ty = checker.infer_computation_term(poly.clone()).unwrap();
+    assert_eq!(a.sort(ty.clone()), BaseSort::Computation(1));
+    let refl = reflect_term(&env, poly.clone().into()).unwrap();
+    let rty = reflect_type(&env, ty.clone().into()).unwrap();
     checker.check(refl, rty).unwrap();
     // Instantiate at an open value type A, then at x : A. The result has level 0.
     let arg = a.alloc(ValueTypeNode {
@@ -356,7 +374,7 @@ fn polymorphic_program_identity_and_reflection() {
         form: ComputationTermForm::AppType {
             rule: poly_rule,
             function: poly,
-            argument: arg.into(),
+            argument: arg.clone().into(),
         },
     });
     let applied = a.alloc(ComputationTermNode {
@@ -372,23 +390,24 @@ fn polymorphic_program_identity_and_reflection() {
         vec![
             Binding {
                 var: SymbolId(3),
-                classifier: k.into(),
+                classifier: k.clone().into(),
             },
             Binding {
                 var: SymbolId(4),
-                classifier: x.into(),
+                classifier: x.clone().into(),
             },
         ],
     );
-    let result_ty = checker.infer_computation_term(applied).unwrap();
-    assert_eq!(a.sort(result_ty), BaseSort::Computation(0));
+    let result_ty = checker.infer_computation_term(applied.clone()).unwrap();
+    assert_eq!(a.sort(result_ty.clone()), BaseSort::Computation(0));
     let result = normalize(&env, applied).unwrap();
     assert!(matches!(
-        a.read(ComputationTerm::try_from(result).unwrap()).form,
+        a.read(ComputationTerm::try_from(result.clone()).unwrap())
+            .form,
         ComputationTermForm::Return { .. }
     ));
     let inferred = checker.inferred(result).unwrap();
-    assert!(convertible(&env, inferred, result_ty.into()).unwrap());
+    assert!(convertible(&env, inferred, result_ty.clone().into()).unwrap());
 }
 #[test]
 fn type_operator_beta_preserves_annotations_under_value_binders() {
@@ -401,7 +420,9 @@ fn type_operator_beta_preserves_annotations_under_value_binders() {
     });
     let fx = a.alloc(ComputationTypeNode {
         level: 0,
-        form: ComputationTypeForm::ReturnType { value_ty: x },
+        form: ComputationTypeForm::ReturnType {
+            value_ty: x.clone(),
+        },
     });
     let r = ProductRule::new(
         Sort::Upper(BaseSort::Value(0)),
@@ -413,8 +434,8 @@ fn type_operator_beta_preserves_annotations_under_value_binders() {
         form: ComputationTypeForm::LambdaType {
             rule: r,
             var: SymbolId(2),
-            domain: k.into(),
-            body: fx,
+            domain: k.clone().into(),
+            body: fx.clone(),
         },
     });
     let app = a.alloc(ComputationTypeNode {
@@ -422,18 +443,18 @@ fn type_operator_beta_preserves_annotations_under_value_binders() {
         form: ComputationTypeForm::AppType {
             rule: r,
             function: f,
-            argument: x.into(),
+            argument: x.clone().into(),
         },
     });
     let mut checker = Checker::new(
         &env,
         vec![Binding {
             var: SymbolId(1),
-            classifier: k.into(),
+            classifier: k.clone().into(),
         }],
     );
-    checker.infer_program_type(app.into()).unwrap();
-    assert!(convertible(&env, app.into(), fx.into()).unwrap());
+    checker.infer_program_type(app.clone().into()).unwrap();
+    assert!(convertible(&env, app.clone().into(), fx.clone().into()).unwrap());
 }
 #[test]
 fn incorrect_labels_levels_and_kind_as_type_are_rejected() {
@@ -452,7 +473,7 @@ fn incorrect_labels_levels_and_kind_as_type_are_rejected() {
         &env,
         vec![Binding {
             var: SymbolId(1),
-            classifier: k.into(),
+            classifier: k.clone().into(),
         }],
     );
     assert!(checker.infer_set_type(bad).is_err());
@@ -528,12 +549,12 @@ fn closed_polymorphic_box_type_application_then_value_application() {
     let id0 = program_id(a, 0);
     let id1 = program_id(a, 1);
     let mut c = Checker::new(&env, vec![]);
-    let ty0 = c.infer_computation_term(id0).unwrap();
-    let ty1 = c.infer_computation_term(id1).unwrap();
+    let ty0 = c.infer_computation_term(id0.clone()).unwrap();
+    let ty1 = c.infer_computation_term(id1.clone()).unwrap();
     let boxed = a.alloc(SetTermNode {
         level: 2,
         form: SetTermForm::BoxProgram {
-            program_ty: ty1,
+            program_ty: ty1.clone(),
             program: id1,
         },
     });
@@ -560,26 +581,28 @@ fn closed_polymorphic_box_type_application_then_value_application() {
             domain,
             codomain: body,
             function: boxed,
-            argument: arg_ty.into(),
+            argument: arg_ty.clone().into(),
         },
     });
-    c.infer_set_term(tapp).unwrap();
+    c.infer_set_term(tapp.clone()).unwrap();
     let arg = a.alloc(ValueTermNode {
         level: 1,
         form: ValueTermForm::ThunkValue { computation: id0 },
     });
     let result_ty = a.alloc(ComputationTypeNode {
         level: 1,
-        form: ComputationTypeForm::ReturnType { value_ty: arg_ty },
+        form: ComputationTypeForm::ReturnType {
+            value_ty: arg_ty.clone(),
+        },
     });
     let returned_arg = a.alloc(ComputationTermNode {
         level: 1,
-        form: ComputationTermForm::Return { value: arg },
+        form: ComputationTermForm::Return { value: arg.clone() },
     });
     let boxed_arg = a.alloc(SetTermNode {
         level: 1,
         form: SetTermForm::BoxProgram {
-            program_ty: result_ty,
+            program_ty: result_ty.clone(),
             program: returned_arg,
         },
     });
@@ -593,12 +616,12 @@ fn closed_polymorphic_box_type_application_then_value_application() {
         form: SetTermForm::BoxApp {
             rule: r,
             domain: arg_ty,
-            codomain: result_ty,
+            codomain: result_ty.clone(),
             function: tapp,
             argument: boxed_arg,
         },
     });
-    c.infer_set_term(app).unwrap();
+    c.infer_set_term(app.clone()).unwrap();
     let forced = a.alloc(SetTermNode {
         level: 1,
         form: SetTermForm::ForceBox {
@@ -606,11 +629,11 @@ fn closed_polymorphic_box_type_application_then_value_application() {
             boxed: app,
         },
     });
-    c.infer_set_term(forced).unwrap();
-    let reflected_arg = reflect_term(&env, arg.into()).unwrap();
-    assert!(convertible(&env, forced.into(), reflected_arg.into()).unwrap());
+    c.infer_set_term(forced.clone()).unwrap();
+    let reflected_arg = reflect_term(&env, arg.clone().into()).unwrap();
+    assert!(convertible(&env, forced.clone().into(), reflected_arg.clone().into()).unwrap());
     let nf = normalize(&env, forced).unwrap();
-    c.inferred(nf).unwrap();
+    c.inferred(nf.clone()).unwrap();
     assert_eq!(a.sort(nf), BaseSort::Set(1));
 }
 #[test]
@@ -661,14 +684,14 @@ fn computation_type_quantification_and_type_operator_domains() {
         form: ComputationTermForm::LambdaType {
             rule: r,
             var: SymbolId(1),
-            domain: k.into(),
+            domain: k.clone().into(),
             body: lam,
         },
     });
     let mut checker = Checker::new(&env, vec![]);
-    let ty = checker.infer_computation_term(lam).unwrap();
-    let reflected = reflect_term(&env, lam.into()).unwrap();
-    let reflected_ty = reflect_type(&env, ty.into()).unwrap();
+    let ty = checker.infer_computation_term(lam.clone()).unwrap();
+    let reflected = reflect_term(&env, lam.clone().into()).unwrap();
+    let reflected_ty = reflect_type(&env, ty.clone().into()).unwrap();
     checker.check(reflected, reflected_ty).unwrap();
 }
 #[test]
@@ -683,7 +706,7 @@ fn invalid_declaration_is_not_inserted() {
         id,
         Definition {
             context: vec![],
-            body: k.into(),
+            body: k.clone().into(),
             classifier: Classifier::Upper(BaseSort::Set(1)),
         },
     );
@@ -752,7 +775,7 @@ fn natural(env: &mut Environment) -> (ProgramInductiveId, ValueType, ValueTerm) 
         ProgramDatatype {
             parameters: vec![],
             level: 0,
-            constructors: vec![vec![], vec![(SymbolId(1), ty)]],
+            constructors: vec![vec![], vec![(SymbolId(1), ty.clone())]],
             reflected,
         },
     )
@@ -784,9 +807,9 @@ fn datatype_registration_generates_and_checks_its_set_mirror() {
         },
     });
     let mut c = Checker::new(&env, vec![]);
-    c.check(s, ty).unwrap();
-    let refl = reflect_term(&env, s.into()).unwrap();
-    let refl_ty = reflect_type(&env, ty.into()).unwrap();
+    c.check(s.clone(), ty.clone()).unwrap();
+    let refl = reflect_term(&env, s.clone().into()).unwrap();
+    let refl_ty = reflect_type(&env, ty.clone().into()).unwrap();
     c.check(refl, refl_ty).unwrap();
 }
 #[test]
@@ -809,7 +832,9 @@ fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
     });
     let ret = env.arena.alloc(ComputationTypeNode {
         level: 0,
-        form: ComputationTypeForm::ReturnType { value_ty: own },
+        form: ComputationTypeForm::ReturnType {
+            value_ty: own.clone(),
+        },
     });
     let r = ProductRule::new(
         Sort::Base(BaseSort::Value(0)),
@@ -821,7 +846,7 @@ fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
         form: ComputationTypeForm::ProdTerm {
             rule: r,
             var: SymbolId(1),
-            domain: own,
+            domain: own.clone(),
             body: ret,
         },
     });
@@ -869,7 +894,7 @@ fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
         form: ValueTypeForm::AppType {
             rule: r,
             function: identity,
-            argument: own.into(),
+            argument: own.clone().into(),
         },
     });
     env.register_datatype(
@@ -895,7 +920,7 @@ fn boxed_annotation_cannot_hide_an_open_module_parameter() {
         p,
         Binding {
             var: SymbolId(1),
-            classifier: ty.into(),
+            classifier: ty.clone().into(),
         },
         vec![],
     )
@@ -912,8 +937,8 @@ fn boxed_annotation_cannot_hide_an_open_module_parameter() {
         id,
         Definition {
             context: vec![],
-            body: body.into(),
-            classifier: ty.into(),
+            body: body.clone().into(),
+            classifier: ty.clone().into(),
         },
     )
     .unwrap();
@@ -921,7 +946,7 @@ fn boxed_annotation_cannot_hide_an_open_module_parameter() {
         level: 0,
         form: ValueTermForm::Annotated {
             body,
-            classifier: ty.into(),
+            classifier: ty.clone().into(),
         },
     });
     let computation_ty = env.arena.alloc(ComputationTypeNode {
@@ -930,7 +955,9 @@ fn boxed_annotation_cannot_hide_an_open_module_parameter() {
     });
     let computation = env.arena.alloc(ComputationTermNode {
         level: 0,
-        form: ComputationTermForm::Return { value: constant },
+        form: ComputationTermForm::Return {
+            value: constant.clone(),
+        },
     });
     let boxed = env.arena.alloc(SetTermNode {
         level: 0,
@@ -955,9 +982,9 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
     let finish = a.alloc(ValueTermNode {
         level: 0,
         form: ValueTermForm::Finish {
-            state_ty: ty,
-            result_ty: ty,
-            output: zero,
+            state_ty: ty.clone(),
+            result_ty: ty.clone(),
+            output: zero.clone(),
         },
     });
     let ret = a.alloc(ComputationTermNode {
@@ -974,7 +1001,7 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
         form: ComputationTermForm::LambdaTerm {
             rule: r,
             var: SymbolId(1),
-            domain: ty,
+            domain: ty.clone(),
             body: ret,
         },
     });
@@ -988,10 +1015,10 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
     };
     let accessibility_ty = a.alloc(PropTypeNode {
         form: PropTypeForm::Acc {
-            state_ty: reflect_type(&env, ty.into()).unwrap(),
-            result_ty: reflect_type(&env, ty.into()).unwrap(),
-            step: reflect_term(&env, step.into()).unwrap(),
-            state: reflect_term(&env, zero.into()).unwrap(),
+            state_ty: reflect_type(&env, ty.clone().into()).unwrap(),
+            result_ty: reflect_type(&env, ty.clone().into()).unwrap(),
+            step: reflect_term(&env, step.clone().into()).unwrap(),
+            state: reflect_term(&env, zero.clone().into()).unwrap(),
         },
     });
     let accessibility = a.alloc(PropTermNode {
@@ -1003,7 +1030,7 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
         termination_parameter,
         Binding {
             var: SymbolId::ANONYMOUS,
-            classifier: accessibility_ty.into(),
+            classifier: accessibility_ty.clone().into(),
         },
         vec![],
     )
@@ -1012,40 +1039,40 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
     let run = a.alloc(ComputationTermNode {
         level: 0,
         form: ComputationTermForm::Run {
-            state_ty: ty,
-            result_ty: ty,
-            step,
-            initial: zero,
+            state_ty: ty.clone(),
+            result_ty: ty.clone(),
+            step: step.clone(),
+            initial: zero.clone(),
             accessibility,
         },
     });
     let mut c = Checker::new(&env, vec![]);
-    let result_ty = c.infer_computation_term(run).unwrap();
+    let result_ty = c.infer_computation_term(run.clone()).unwrap();
     let bad = a.alloc(ComputationTermNode {
         level: 0,
         form: ComputationTermForm::Run {
-            state_ty: ty,
+            state_ty: ty.clone(),
             result_ty: ty,
             step,
-            initial: zero,
+            initial: zero.clone(),
             accessibility: a.alloc(PropTermNode {
                 form: PropTermForm::IdRefl {
-                    element: reflect_term(&env, zero.into()).unwrap(),
+                    element: reflect_term(&env, zero.clone().into()).unwrap(),
                 },
             }),
         },
     });
-    assert!(c.infer_computation_term(bad).is_err());
+    assert!(c.infer_computation_term(bad.clone()).is_err());
     // Equality ignores proof identity, while checking still rejects a wrong proof.
-    assert!(alpha_equal(a, run.into(), bad.into()));
+    assert!(alpha_equal(a, run.clone().into(), bad.clone().into()));
     assert!(matches!(
-        evaluate(&env, run, 0).unwrap(),
+        evaluate(&env, run.clone(), 0).unwrap(),
         Evaluation::OutOfFuel(_)
     ));
     let Evaluation::Normal(result) = evaluate(&env, run, 10).unwrap() else {
         panic!()
     };
-    c.check(result, result_ty).unwrap();
+    c.check(result.clone(), result_ty).unwrap();
     assert!(matches!(
         a.read(ComputationTerm::try_from(result).unwrap()).form,
         ComputationTermForm::Return { .. }
@@ -1073,14 +1100,14 @@ fn program_proof_substitution_uses_the_reflected_argument() {
     let run = a.alloc(ComputationTermNode {
         level: 0,
         form: ComputationTermForm::Run {
-            state_ty: ty,
+            state_ty: ty.clone(),
             result_ty: ty,
-            step: variable,
+            step: variable.clone(),
             initial: variable,
             accessibility: proof,
         },
     });
-    let instantiated: ComputationTerm = substitute_with_reflection(&env, run, zero)
+    let instantiated: ComputationTerm = substitute_with_reflection(&env, run.clone(), zero.clone())
         .unwrap()
         .try_into()
         .unwrap();
@@ -1088,7 +1115,7 @@ fn program_proof_substitution_uses_the_reflected_argument() {
         initial,
         accessibility,
         ..
-    } = a.read(instantiated).form
+    } = a.get(instantiated).form
     else {
         panic!()
     };
@@ -1096,14 +1123,14 @@ fn program_proof_substitution_uses_the_reflected_argument() {
     assert_eq!(
         a.read(accessibility).form,
         PropTermForm::IdRefl {
-            element: reflect_term(&env, zero.into()).unwrap()
+            element: reflect_term(&env, zero.clone().into()).unwrap()
         }
     );
     let shifted: ComputationTerm = shift(a, run, 1, 0).unwrap().try_into().unwrap();
-    let ComputationTermForm::Run { accessibility, .. } = a.read(shifted).form else {
+    let ComputationTermForm::Run { accessibility, .. } = a.get(shifted).form else {
         panic!()
     };
-    let PropTermForm::IdRefl { element } = a.read(accessibility).form else {
+    let PropTermForm::IdRefl { element } = a.get(accessibility).form else {
         panic!()
     };
     assert!(matches!(
@@ -1126,8 +1153,8 @@ fn program_proof_substitution_uses_the_reflected_argument() {
     });
     let result: PropTerm = substitute_parameters(
         &env,
-        proof.into(),
-        &std::collections::HashMap::from([(parameter, zero.into())]),
+        proof.clone().into(),
+        &std::collections::HashMap::from([(parameter, zero.clone().into())]),
     )
     .unwrap()
     .try_into()
@@ -1135,7 +1162,7 @@ fn program_proof_substitution_uses_the_reflected_argument() {
     assert_eq!(
         a.read(result).form,
         PropTermForm::IdRefl {
-            element: reflect_term(&env, zero.into()).unwrap()
+            element: reflect_term(&env, zero.clone().into()).unwrap()
         }
     );
 }
@@ -1152,15 +1179,15 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
     let context = vec![
         Binding {
             var: SymbolId(1),
-            classifier: b_kind.into(),
+            classifier: b_kind.clone().into(),
         },
         Binding {
             var: SymbolId(2),
-            classifier: a_kind.into(),
+            classifier: a_kind.clone().into(),
         },
         Binding {
             var: SymbolId(3),
-            classifier: a_var.into(),
+            classifier: a_var.clone().into(),
         },
     ];
     let state = a.alloc(SetTypeNode {
@@ -1186,15 +1213,15 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
         form: SetTypeForm::LambdaTerm {
             rule,
             var: SymbolId(4),
-            domain: state,
+            domain: state.clone(),
             body: nested_b,
         },
     });
     let scrutinee = a.alloc(SetTermNode {
         level: 2,
         form: SetTermForm::Continue {
-            state_ty: state,
-            result_ty: state,
+            state_ty: state.clone(),
+            result_ty: state.clone(),
             next: value,
         },
     });
@@ -1203,18 +1230,18 @@ fn kind_valued_recursor_preserves_the_lower_result_level() {
         form: SetTypeForm::Recursor {
             rule,
             var: SymbolId(4),
-            state_ty: state,
+            state_ty: state.clone(),
             result_ty: state,
             motive: b_kind,
-            on_continue: branch,
+            on_continue: branch.clone(),
             on_finish: branch,
             scrutinee,
         },
     });
     let mut checker = Checker::new(&env, context);
-    checker.infer_set_type(rec).unwrap();
+    checker.infer_set_type(rec.clone()).unwrap();
     let reduced = normalize(&env, rec).unwrap();
-    assert!(convertible(&env, reduced, b.into()).unwrap());
+    assert!(convertible(&env, reduced.clone(), b.clone().into()).unwrap());
     checker.inferred(reduced).unwrap();
 }
 #[test]
@@ -1235,7 +1262,7 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
             &env,
             vec![Binding {
                 var: SymbolId(1),
-                classifier: bad_ty.into()
+                classifier: bad_ty.clone().into()
             }]
         )
         .infer_set_term(term)
@@ -1247,7 +1274,7 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
     });
     let context = vec![Binding {
         var: SymbolId(1),
-        classifier: ty.into(),
+        classifier: ty.clone().into(),
     }];
     let id = DefId {
         module: ModuleId(0),
@@ -1258,8 +1285,8 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
             id,
             Definition {
                 context,
-                body: value.into(),
-                classifier: ty.into()
+                body: value.clone().into(),
+                classifier: ty.clone().into()
             }
         )
         .is_err()
@@ -1283,48 +1310,52 @@ fn prop_proofs_have_their_own_family_and_beta_reduce() {
     let context = vec![
         Binding {
             var: SymbolId::ANONYMOUS,
-            classifier: set_kind.into(),
+            classifier: set_kind.clone().into(),
         },
         Binding {
             var: SymbolId::ANONYMOUS,
-            classifier: carrier.into(),
+            classifier: carrier.clone().into(),
         },
     ];
     let proposition_node = PropTypeNode {
         form: PropTypeForm::Equal {
-            left: element,
-            right: element,
+            left: element.clone(),
+            right: element.clone(),
         },
     };
     let proposition = a.alloc(proposition_node.clone());
     let proof_node = PropTermNode {
-        form: PropTermForm::IdRefl { element },
+        form: PropTermForm::IdRefl {
+            element: element.clone(),
+        },
     };
     let proof = a.alloc(proof_node.clone());
-    assert_eq!(a.get(proposition), proposition_node);
-    assert_eq!(a.get(proof), proof_node);
-    assert_eq!(a.sort(proof), BaseSort::Prop);
-    assert_eq!(Expression::from(proof).family(), Family::PropTerm);
-    assert!(SetTerm::try_from(Expression::from(proof)).is_err());
-    assert!(SetExpression::try_from(Expression::from(proof)).is_err());
-    assert!(SetArgument::try_from(Expression::from(proof)).is_err());
-    assert!(matches!(LogicalExpression::from(proof),
+    assert_eq!(a.get(proposition.clone()), proposition_node);
+    assert_eq!(a.get(proof.clone()), proof_node);
+    assert_eq!(a.sort(proof.clone()), BaseSort::Prop);
+    assert_eq!(Expression::from(proof.clone()).family(), Family::PropTerm);
+    assert!(SetTerm::try_from(Expression::from(proof.clone())).is_err());
+    assert!(SetExpression::try_from(Expression::from(proof.clone())).is_err());
+    assert!(SetArgument::try_from(Expression::from(proof.clone())).is_err());
+    assert!(matches!(LogicalExpression::from(proof.clone()
+),
         LogicalExpression::Prop(PropExpression::PropTerm(h)) if h == proof));
-    assert!(matches!(LogicalArgument::from(element),
+    assert!(matches!(LogicalArgument::from(element.clone()
+),
         LogicalArgument::Set(SetArgument::SetTerm(h)) if h == element));
     assert!(PropTerm::try_from(Expression::from(element)).is_err());
-    assert!(SetType::try_from(Expression::from(proposition)).is_err());
+    assert!(SetType::try_from(Expression::from(proposition.clone())).is_err());
 
     let mut checker = Checker::new(&env, context);
-    assert_eq!(checker.infer_prop_term(proof).unwrap(), proposition);
-    let kind = checker.infer_prop_type(proposition).unwrap();
+    assert_eq!(checker.infer_prop_term(proof.clone()).unwrap(), proposition);
+    let kind = checker.infer_prop_type(proposition.clone()).unwrap();
     assert_eq!(
-        a.get(kind),
+        a.get(kind.clone()),
         PropKindNode {
             form: PropKindForm::Base
         }
     );
-    checker.check_prop_kind(kind).unwrap();
+    checker.check_prop_kind(kind.clone()).unwrap();
     assert!(SetKind::try_from(Expression::from(kind)).is_err());
 
     let rule = ProductRule::new(Sort::Base(BaseSort::Prop), Sort::Base(BaseSort::Prop)).unwrap();
@@ -1335,21 +1366,24 @@ fn prop_proofs_have_their_own_family_and_beta_reduce() {
         form: PropTermForm::LambdaTerm {
             rule,
             var: SymbolId::ANONYMOUS,
-            domain: proposition.into(),
+            domain: proposition.clone().into(),
             body,
         },
     };
     let identity = a.alloc(identity_node.clone());
-    assert_eq!(a.get(identity), identity_node);
+    assert_eq!(a.get(identity.clone()), identity_node);
     let application = a.alloc(PropTermNode {
         form: PropTermForm::AppTerm {
             rule,
             function: identity,
-            argument: proof.into(),
+            argument: proof.clone().into(),
         },
     });
-    assert_eq!(checker.infer_prop_term(application).unwrap(), proposition);
-    assert_eq!(normalize(&env, application).unwrap(), proof.into());
+    assert_eq!(
+        checker.infer_prop_term(application.clone()).unwrap(),
+        proposition
+    );
+    assert_eq!(normalize(&env, application).unwrap(), proof.clone().into());
     assert!(checker.check(proof, carrier).is_err());
 }
 
@@ -1366,7 +1400,7 @@ fn prop_type_operators_quantify_over_set_and_prop_kinds() {
         form: SetTypeForm::Bound { index: 0 },
     });
     let proposition = a.alloc(PropTypeNode {
-        form: PropTypeForm::Exists { set },
+        form: PropTypeForm::Exists { set: set.clone() },
     });
     let set_rule =
         ProductRule::new(Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Prop)).unwrap();
@@ -1374,8 +1408,8 @@ fn prop_type_operators_quantify_over_set_and_prop_kinds() {
         form: PropTypeForm::LambdaType {
             rule: set_rule,
             var: SymbolId::ANONYMOUS,
-            domain: set_kind.into(),
-            body: proposition,
+            domain: set_kind.clone().into(),
+            body: proposition.clone(),
         },
     });
     let prop_rule =
@@ -1387,7 +1421,7 @@ fn prop_type_operators_quantify_over_set_and_prop_kinds() {
         form: PropTypeForm::LambdaType {
             rule: prop_rule,
             var: SymbolId::ANONYMOUS,
-            domain: prop_kind.into(),
+            domain: prop_kind.clone().into(),
             body: bound_prop,
         },
     });
@@ -1395,17 +1429,17 @@ fn prop_type_operators_quantify_over_set_and_prop_kinds() {
         &env,
         vec![Binding {
             var: SymbolId::ANONYMOUS,
-            classifier: set_kind.into(),
+            classifier: set_kind.clone().into(),
         }],
     );
-    for operator in [predicate, identity] {
+    for operator in [predicate.clone(), identity.clone()] {
         let kind = checker.infer_prop_type(operator).unwrap();
-        checker.check_prop_kind(kind).unwrap();
-        assert_eq!(a.alloc(a.get(kind)), kind);
+        checker.check_prop_kind(kind.clone()).unwrap();
+        assert_eq!(a.alloc(a.get(kind.clone())), kind);
     }
     for (rule, function, argument) in [
         (set_rule, predicate, LogicalType::from(set)),
-        (prop_rule, identity, LogicalType::from(proposition)),
+        (prop_rule, identity, LogicalType::from(proposition.clone())),
     ] {
         let node = PropTypeNode {
             form: PropTypeForm::AppType {
@@ -1415,9 +1449,15 @@ fn prop_type_operators_quantify_over_set_and_prop_kinds() {
             },
         };
         let application = a.alloc(node.clone());
-        assert_eq!(a.get(application), node);
-        assert_eq!(checker.infer_prop_type(application).unwrap(), prop_kind);
-        assert_eq!(normalize(&env, application).unwrap(), proposition.into());
+        assert_eq!(a.get(application.clone()), node);
+        assert_eq!(
+            checker.infer_prop_type(application.clone()).unwrap(),
+            prop_kind
+        );
+        assert_eq!(
+            normalize(&env, application).unwrap(),
+            proposition.clone().into()
+        );
     }
 }
 
@@ -1442,10 +1482,10 @@ fn reflected_module_parameters_are_not_closed() {
         level: 0,
         form: ValueTermForm::ModuleParam { parameter },
     });
-    let reflected = reflect_term(&env, term.into()).unwrap();
-    assert!(!is_closed(&env.arena, term.into()));
-    assert!(!is_closed(&env.arena, reflected.into()));
-    assert!(locally_closed(&env.arena, reflected.into()));
+    let reflected = reflect_term(&env, term.clone().into()).unwrap();
+    assert!(!is_closed(&env.arena, term.clone().into()));
+    assert!(!is_closed(&env.arena, reflected.clone().into()));
+    assert!(locally_closed(&env.arena, reflected.clone().into()));
 }
 
 #[test]
@@ -1453,20 +1493,25 @@ fn annotations_are_shared_transparent_and_checked_without_definition_names() {
     let env = Environment::new();
     let kind = sk(&env.arena, 0);
     let classifier = Classifier::Upper(BaseSort::Set(0));
-    let annotated = env.arena.annotated(kind.into(), classifier).unwrap();
+    let annotated = env
+        .arena
+        .annotated(kind.clone().into(), classifier.clone())
+        .unwrap();
     assert_eq!(
         annotated,
-        env.arena.annotated(kind.into(), classifier).unwrap()
+        env.arena
+            .annotated(kind.clone().into(), classifier.clone())
+            .unwrap()
     );
     assert_eq!(
-        Checker::new(&env, vec![]).infer(annotated).unwrap(),
+        Checker::new(&env, vec![]).infer(annotated.clone()).unwrap(),
         classifier
     );
-    assert_eq!(whnf(&env, annotated).unwrap(), kind.into());
-    assert!(convertible(&env, annotated, kind.into()).unwrap());
+    assert_eq!(whnf(&env, annotated.clone()).unwrap(), kind.clone().into());
+    assert!(convertible(&env, annotated, kind.clone().into()).unwrap());
     let forged = env
         .arena
-        .annotated(kind.into(), Classifier::Upper(BaseSort::Set(1)))
+        .annotated(kind.clone().into(), Classifier::Upper(BaseSort::Set(1)))
         .unwrap();
     assert!(Checker::new(&env, vec![]).infer(forged).is_err());
 }
@@ -1475,10 +1520,10 @@ fn annotations_are_shared_transparent_and_checked_without_definition_names() {
 fn annotations_preserve_the_declared_classifier_and_check_the_body() {
     let mut env = Environment::new();
     let (_, program_ty, _) = natural(&mut env);
-    let ty = reflect_type(&env, program_ty.into()).unwrap();
+    let ty = reflect_type(&env, program_ty.clone().into()).unwrap();
     let power = env.arena.alloc(SetTypeNode {
         level: 0,
-        form: SetTypeForm::PowerSet { set: ty },
+        form: SetTypeForm::PowerSet { set: ty.clone() },
     });
     let subset = ModuleParamId {
         module: ModuleId(0),
@@ -1488,7 +1533,7 @@ fn annotations_preserve_the_declared_classifier_and_check_the_body() {
         subset,
         Binding {
             var: SymbolId(1),
-            classifier: power.into(),
+            classifier: power.clone().into(),
         },
         vec![],
     )
@@ -1500,7 +1545,7 @@ fn annotations_preserve_the_declared_classifier_and_check_the_body() {
     let refined = env.arena.alloc(SetTypeNode {
         level: 0,
         form: SetTypeForm::TypeLift {
-            superset: ty,
+            superset: ty.clone(),
             subset,
         },
     });
@@ -1512,7 +1557,7 @@ fn annotations_preserve_the_declared_classifier_and_check_the_body() {
         x,
         Binding {
             var: SymbolId(2),
-            classifier: refined.into(),
+            classifier: refined.clone().into(),
         },
         vec![],
     )
@@ -1521,13 +1566,19 @@ fn annotations_preserve_the_declared_classifier_and_check_the_body() {
         level: 0,
         form: SetTermForm::ModuleParam { parameter: x },
     });
-    let annotated = env.arena.annotated(body.into(), ty.into()).unwrap();
+    let annotated = env
+        .arena
+        .annotated(body.clone().into(), ty.clone().into())
+        .unwrap();
     let mut checker = Checker::new(&env, vec![]);
-    assert_eq!(checker.infer(body).unwrap(), refined.into());
-    assert_eq!(checker.infer(annotated).unwrap(), ty.into());
-    assert!(convertible(&env, annotated, body.into()).unwrap());
+    assert_eq!(checker.infer(body.clone()).unwrap(), refined.clone().into());
+    assert_eq!(checker.infer(annotated.clone()).unwrap(), ty.clone().into());
+    assert!(convertible(&env, annotated, body.clone().into()).unwrap());
     // The family and universe match, but the body does not inhabit Power(ty).
-    let forged = env.arena.annotated(body.into(), power.into()).unwrap();
+    let forged = env
+        .arena
+        .annotated(body.clone().into(), power.clone().into())
+        .unwrap();
     assert!(checker.infer(forged).is_err());
 }
 
@@ -1544,15 +1595,17 @@ fn substitution_visits_annotation_body_and_classifier() {
         level: 0,
         form: ValueTermForm::Bound { index: 0 },
     });
-    let annotation = a.annotated(body.into(), type_parameter.into()).unwrap();
-    let shifted = shift(a, annotation, 1, 0).unwrap();
+    let annotation = a
+        .annotated(body.clone().into(), type_parameter.clone().into())
+        .unwrap();
+    let shifted = shift(a, annotation.clone(), 1, 0).unwrap();
     let Expression::ValueTerm(h) = shifted else {
         panic!("value")
     };
     let ValueTermForm::Annotated {
         body: shifted_body,
         classifier: Classifier::Expression(shifted_type),
-    } = a.get(h).form
+    } = a.get(h.clone()).form
     else {
         panic!("annotation")
     };
@@ -1567,7 +1620,11 @@ fn substitution_visits_annotation_body_and_classifier() {
         a.get(shifted_type).form,
         ValueTypeForm::Bound { index: 2 }
     ));
-    let closed = instantiate_telescope(&env, annotation, &[ty.into(), zero.into()]).unwrap();
-    assert_eq!(Checker::new(&env, vec![]).infer(closed).unwrap(), ty.into());
-    assert!(convertible(&env, closed, zero.into()).unwrap());
+    let closed =
+        instantiate_telescope(&env, annotation, &[ty.clone().into(), zero.clone().into()]).unwrap();
+    assert_eq!(
+        Checker::new(&env, vec![]).infer(closed.clone()).unwrap(),
+        ty.clone().into()
+    );
+    assert!(convertible(&env, closed, zero.clone().into()).unwrap());
 }

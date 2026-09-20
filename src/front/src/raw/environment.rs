@@ -52,7 +52,7 @@ pub struct ModuleParameter {
     pub kind: ModuleParameterKind,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ModuleParameterKind {
     Pts { ty: Exp },
     ProgramType,
@@ -61,14 +61,14 @@ pub enum ModuleParameterKind {
 
 impl ModuleParameter {
     pub fn value_ty(&self) -> Option<ValueType> {
-        match self.kind {
-            ModuleParameterKind::ProgramValue { ty } => Some(ty),
+        match &self.kind {
+            ModuleParameterKind::ProgramValue { ty } => Some(ty.clone()),
             ModuleParameterKind::Pts { .. } | ModuleParameterKind::ProgramType => None,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModuleArgument {
     Pts(Exp),
     ProgramType(ValueType),
@@ -233,7 +233,7 @@ impl ModuleEnv {
     }
 
     pub fn import(&self, name: &str) -> Option<ModuleId> {
-        self.imports.get(name).copied()
+        self.imports.get(name).cloned()
     }
 }
 
@@ -467,7 +467,7 @@ impl CrateEnv {
             current = self
                 .checking_scopes
                 .get(&id)
-                .copied()
+                .cloned()
                 .or(self.module(id).parent());
         }
         ancestors.reverse();
@@ -477,10 +477,10 @@ impl CrateEnv {
             .collect();
         let mut pts_context = parameters
             .iter()
-            .filter_map(|parameter| match parameter.kind {
+            .filter_map(|parameter| match &parameter.kind {
                 ModuleParameterKind::Pts { ty } => Some(crate::raw::exp::ExpContextEntry {
                     var: parameter.name,
-                    ty,
+                    ty: ty.clone(),
                 }),
                 _ => None,
             })
@@ -492,7 +492,7 @@ impl CrateEnv {
             .iter()
             .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect();
-        match *definition {
+        match definition.clone() {
             DefinedConstant::Pts { ty, body } => {
                 CheckSession::new(self, module, &mut pts_context)
                     .check_pts(body, ty)
@@ -543,7 +543,7 @@ impl CrateEnv {
                 .iter()
                 .map(|(p, a)| {
                     use super::traversal::Term;
-                    let a = match *a {
+                    let a = match a.clone() {
                         ModuleArgument::Pts(e) => {
                             let Term::Logical(e) = Term::Logical(e).shift(self.arena(), count, 0)
                             else {
@@ -576,7 +576,7 @@ impl CrateEnv {
                 .map(|(p, e)| {
                     (
                         *p,
-                        super::calculus::shift_bound_indices(self.arena(), *e, count, 0),
+                        super::calculus::shift_bound_indices(self.arena(), e.clone(), count, 0),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -1050,7 +1050,7 @@ impl CrateEnv {
             .module_mut(module)
             .names
             .get(owner)
-            .copied()
+            .cloned()
             .and_then(|index| self.module_mut(module).items.get_mut(index))
             .ok_or_else(|| format!("Associated item owner '{owner}' was not found"))?;
         let (reserved, definitions) = match item {
@@ -1158,23 +1158,24 @@ impl CrateEnv {
             current = self
                 .checking_scopes
                 .get(&id)
-                .copied()
+                .cloned()
                 .or(self.module(id).parent());
         }
         ancestors.reverse();
         ancestors
             .into_iter()
             .flat_map(|id| self.module(id).parameters())
-            .filter_map(|p| match p.kind {
-                ModuleParameterKind::Pts { ty } => {
-                    Some(crate::raw::exp::ExpContextEntry { var: p.name, ty })
-                }
+            .filter_map(|p| match &p.kind {
+                ModuleParameterKind::Pts { ty } => Some(crate::raw::exp::ExpContextEntry {
+                    var: p.name,
+                    ty: ty.clone(),
+                }),
                 ModuleParameterKind::ProgramType => Some(crate::raw::exp::ExpContextEntry {
                     var: p.name,
                     ty: self.arena.sort(crate::raw::sort::Sort::Set(0)),
                 }),
                 ModuleParameterKind::ProgramValue { ty } => {
-                    crate::raw::reflection::reflect_value_type(self, ty)
+                    crate::raw::reflection::reflect_value_type(self, ty.clone())
                         .ok()
                         .map(|ty| crate::raw::exp::ExpContextEntry { var: p.name, ty })
                 }

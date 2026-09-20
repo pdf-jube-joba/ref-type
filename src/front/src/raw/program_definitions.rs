@@ -9,11 +9,11 @@ pub fn instantiate_value_type(
     arguments: &[ValueType],
     depth: usize,
 ) -> ValueType {
-    match arena.get(ty) {
+    match arena.get(ty.clone()) {
         ValueTypeNode::Bound(index) if index >= depth && index < depth + arguments.len() => {
             shift_value_type_indices(
                 arena,
-                arguments[arguments.len() - 1 - (index - depth)],
+                arguments[arguments.len() - 1 - (index - depth)].clone(),
                 depth,
                 0,
             )
@@ -65,7 +65,7 @@ pub fn instantiate_computation_type(
     arguments: &[ValueType],
     depth: usize,
 ) -> ComputationType {
-    match arena.get(ty) {
+    match arena.get(ty.clone()) {
         ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
             ty,
             ComputationTypeNode::Return {
@@ -95,7 +95,7 @@ pub fn instantiate_value(
 
     fn go(env: &CrateEnv, value: ValueTerm, arguments: &[ValueType], cutoff: usize) -> ValueTerm {
         let arena = env.arena();
-        match arena.get(value) {
+        match arena.get(value.clone()) {
             ValueTermNode::DefinitionInstance {
                 definition,
                 parameters,
@@ -207,7 +207,7 @@ pub fn instantiate_computation(
         cutoff: usize,
     ) -> ComputationTerm {
         let arena = env.arena();
-        match arena.get(term) {
+        match arena.get(term.clone()) {
             ComputationTermNode::DefinitionInstance {
                 definition,
                 parameters,
@@ -317,7 +317,7 @@ pub fn instantiate_computation(
                         &arguments
                             .iter()
                             .map(|ty| {
-                                crate::raw::reflection::reflect_value_type(env, *ty)
+                                crate::raw::reflection::reflect_value_type(env, ty.clone())
                                     .expect("checked Program type reflects")
                             })
                             .collect::<Vec<_>>(),
@@ -347,7 +347,7 @@ pub fn instantiate_computation(
                         &arguments
                             .iter()
                             .map(|ty| {
-                                crate::raw::reflection::reflect_value_type(env, *ty)
+                                crate::raw::reflection::reflect_value_type(env, ty.clone())
                                     .expect("checked Program type reflects")
                             })
                             .collect::<Vec<_>>(),
@@ -359,7 +359,7 @@ pub fn instantiate_computation(
                         &arguments
                             .iter()
                             .map(|ty| {
-                                crate::raw::reflection::reflect_value_type(env, *ty)
+                                crate::raw::reflection::reflect_value_type(env, ty.clone())
                                     .expect("checked Program type reflects")
                             })
                             .collect::<Vec<_>>(),

@@ -11,8 +11,8 @@ use smallvec::SmallVec;
 use std::collections::HashMap;
 
 pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNode {
-    macro_rules! one { ($($x:ident),+ $(,)?) => {{ $( *$x = map(*$x); )+ }}; }
-    macro_rules! vecs { ($($x:ident),+ $(,)?) => { $( for item in $x.iter_mut() { *item = map(*item); } )+ }; }
+    macro_rules! one { ($($x:ident),+ $(,)?) => {{ $( *$x = map($x.clone()); )+ }}; }
+    macro_rules! vecs { ($($x:ident),+ $(,)?) => { $( for item in $x.iter_mut() { *item = map(item.clone()); } )+ }; }
     match &mut node {
         ExpNode::Sort(_)
         | ExpNode::Bound(_)
@@ -51,7 +51,7 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         } => {
             one!(scrutinee);
             for branch in branches {
-                branch.body = map(branch.body);
+                branch.body = map(branch.body.clone());
             }
         }
         ExpNode::RunStep {
@@ -269,7 +269,7 @@ where
 fn direct_children(node: ExpNode) -> Vec<Exp> {
     let mut result = Vec::new();
     let _ = map_children(node, |child| {
-        result.push(child);
+        result.push(child.clone());
         child
     });
     result
@@ -402,7 +402,7 @@ fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: u
         let Term::Logical(_) = term else {
             return None;
         };
-        let index = term.bound_index(arena)?;
+        let index = term.clone().bound_index(arena)?;
         if index < depth + inner {
             return Some(term);
         }
@@ -410,7 +410,7 @@ fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: u
         Some(Term::Logical(if telescope_index < arguments.len() {
             shift_bound_indices(
                 arena,
-                arguments[arguments.len() - 1 - telescope_index],
+                arguments[arguments.len() - 1 - telescope_index].clone(),
                 depth + inner,
                 0,
             )
@@ -463,9 +463,9 @@ pub fn exp_subst_module_param(
     replacement: Exp,
 ) -> Exp {
     transform(arena, exp, 0, &mut |e, depth| {
-        let matches = matches!(*arena.borrow_exp(e),
+        let matches = matches!(arena.get(e),
             ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) if id == parameter);
-        matches.then(|| shift_bound_indices(arena, replacement, depth, 0))
+        matches.then(|| shift_bound_indices(arena, replacement.clone(), depth, 0))
     })
 }
 
@@ -497,30 +497,30 @@ pub fn remap_all_global_ids(
     // Rewrite children as well as the node's own identifiers. In particular,
     // reflected cases and parameterized constructors contain further references
     // to the source module, and boxes carry a separate Program syntax tree.
-    let original = arena.get(exp);
+    let original = arena.get(exp.clone());
     let mut node = map_children(original.clone(), |child| {
         remap_all_global_ids(arena, child, definitions, inductives, program_inductives)
     });
     let remap_computation_type = |ty: &mut ComputationType| {
         *ty = crate::raw::program_calculus::remap_computation_type_global_ids(
             arena,
-            *ty,
+            ty.clone(),
             definitions,
             program_inductives,
         );
     };
     match &mut node {
         ExpNode::DefinedConstant(id) => {
-            *id = definitions.get(id).copied().unwrap_or(*id);
+            *id = definitions.get(id).cloned().unwrap_or(*id);
         }
         ExpNode::IndType { indspec, .. }
         | ExpNode::IndCtor { indspec, .. }
         | ExpNode::IndElim { indspec, .. }
         | ExpNode::IndCase { indspec, .. } => {
-            *indspec = inductives.get(indspec).copied().unwrap_or(*indspec);
+            *indspec = inductives.get(indspec).cloned().unwrap_or(*indspec);
         }
         ExpNode::ReflectedProgramCase { indspec, .. } => {
-            *indspec = program_inductives.get(indspec).copied().unwrap_or(*indspec);
+            *indspec = program_inductives.get(indspec).cloned().unwrap_or(*indspec);
         }
         ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
             remap_computation_type(program_ty);
@@ -532,7 +532,7 @@ pub fn remap_all_global_ids(
             remap_computation_type(program_ty);
             *program = crate::raw::program_calculus::remap_computation_global_ids(
                 arena,
-                *program,
+                program.clone(),
                 definitions,
                 program_inductives,
                 inductives,
@@ -602,7 +602,11 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                     .all(|(left, right)| left.binders.len() == right.binders.len())
         }
         (ExpNode::BoxType { program_ty: left }, ExpNode::BoxType { program_ty: right }) => {
-            crate::raw::program_calculus::computation_type_is_alpha_eq(arena, *left, *right)
+            crate::raw::program_calculus::computation_type_is_alpha_eq(
+                arena,
+                left.clone(),
+                right.clone(),
+            )
         }
         (
             ExpNode::BoxProgram {
@@ -616,12 +620,15 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
                 ..
             },
         ) => {
-            crate::raw::program_calculus::computation_type_is_alpha_eq(arena, *left_ty, *right_ty)
-                && crate::raw::program_calculus::computation_is_alpha_eq(
-                    arena,
-                    *left_program,
-                    *right_program,
-                )
+            crate::raw::program_calculus::computation_type_is_alpha_eq(
+                arena,
+                left_ty.clone(),
+                right_ty.clone(),
+            ) && crate::raw::program_calculus::computation_is_alpha_eq(
+                arena,
+                left_program.clone(),
+                right_program.clone(),
+            )
         }
         (
             ExpNode::ForceBox {
@@ -630,17 +637,21 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
             ExpNode::ForceBox {
                 program_ty: right, ..
             },
-        ) => crate::raw::program_calculus::computation_type_is_alpha_eq(arena, *left, *right),
+        ) => crate::raw::program_calculus::computation_type_is_alpha_eq(
+            arena,
+            left.clone(),
+            right.clone(),
+        ),
         _ => std::mem::discriminant(left) == std::mem::discriminant(right),
     }
 }
 
 fn comparison_children(node: &ExpNode, computational: bool) -> SmallVec<[Exp; 8]> {
     let mut children = SmallVec::new();
-    macro_rules! add { ($($child:expr),+ $(,)?) => {{ $( children.push(*$child); )+ }}; }
+    macro_rules! add { ($($child:expr),+ $(,)?) => {{ $( children.push($child.clone()); )+ }}; }
     macro_rules! extend {
         ($children:expr) => {{
-            children.extend($children.iter().copied());
+            children.extend($children.iter().cloned());
         }};
     }
 
@@ -710,7 +721,7 @@ fn comparison_children(node: &ExpNode, computational: bool) -> SmallVec<[Exp; 8]
             ..
         } => {
             add!(scrutinee);
-            children.extend(branches.iter().map(|branch| branch.body));
+            children.extend(branches.iter().map(|branch| branch.body.clone()));
         }
         ExpNode::RunStep {
             state_ty,
@@ -876,7 +887,9 @@ fn comparison_children(node: &ExpNode, computational: bool) -> SmallVec<[Exp; 8]
 fn whnf_with_erasure(env: &CrateEnv, mut exp: Exp, erase_subset_intro: bool) -> Exp {
     loop {
         exp = whnf(env, exp);
-        if erase_subset_intro && let ExpNode::SubsetIntro { element, .. } = env.arena().get(exp) {
+        if erase_subset_intro
+            && let ExpNode::SubsetIntro { element, .. } = env.arena().get(exp.clone())
+        {
             exp = element;
             continue;
         }
@@ -886,10 +899,10 @@ fn whnf_with_erasure(env: &CrateEnv, mut exp: Exp, erase_subset_intro: bool) -> 
 
 fn cached_whnf(env: &CrateEnv, exp: Exp, erase_subset_intro: bool, cache: &mut AlphaCache) -> Exp {
     if let Some(result) = cache.whnf.get(&exp) {
-        return *result;
+        return result.clone();
     }
-    let result = whnf_with_erasure(env, exp, erase_subset_intro);
-    cache.whnf.insert(exp, result);
+    let result = whnf_with_erasure(env, exp.clone(), erase_subset_intro);
+    cache.whnf.insert(exp, result.clone());
     result
 }
 
@@ -911,9 +924,9 @@ fn alpha_rec(
         return true;
     }
     let key = if left.index() <= right.index() {
-        (left, right, reduce, erase_subset_intro)
+        (left.clone(), right.clone(), reduce, erase_subset_intro)
     } else {
-        (right, left, reduce, erase_subset_intro)
+        (right.clone(), left.clone(), reduce, erase_subset_intro)
     };
     if let Some(result) = cache.comparisons.get(&key) {
         return *result;
@@ -935,7 +948,7 @@ fn alpha_rec_uncached(
     // unfolding identical applications of large reflected/library functions.
     // Keep the non-reducing comparison strict (including refinement proofs);
     // any mismatch falls through to the usual reduction/erasure rules.
-    if reduce && alpha_rec(env, left, right, false, false, cache) {
+    if reduce && alpha_rec(env, left.clone(), right.clone(), false, false, cache) {
         return true;
     }
     let (left, right) = if reduce {
@@ -974,14 +987,14 @@ pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
 
 pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     let arena = env.arena();
-    match arena.get(exp) {
+    match arena.get(exp.clone()) {
         ExpNode::App { func, arg } => {
             // Refinement introduction is computationally transparent.  In
             // function position, peel it after exposing the function head so
             // that an enclosed lambda can beta-reduce.
-            let func_head = whnf_with_erasure(env, func, true);
-            match arena.get(func_head) {
-                ExpNode::Lam { body, .. } => Some(match arena.get(body) {
+            let func_head = whnf_with_erasure(env, func.clone(), true);
+            match arena.get(func_head.clone()) {
+                ExpNode::Lam { body, .. } => Some(match arena.get(body.clone()) {
                     // The identity body needs neither a walk nor index adjustment.
                     ExpNode::Bound(0) => arg,
                     _ => instantiate(arena, body, arg),
@@ -994,7 +1007,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             }
         }
         ExpNode::DefinedConstant(id) => match env.definition(id) {
-            DefinedConstant::Pts { body, .. } => Some(*body),
+            DefinedConstant::Pts { body, .. } => Some(body.clone()),
             _ => None,
         },
         ExpNode::Pred {
@@ -1009,9 +1022,9 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             return_type,
             cases,
         } => {
-            let reduced = whnf(env, elim);
+            let reduced = whnf(env, elim.clone());
             let candidate = if reduced == elim {
-                exp
+                exp.clone()
             } else {
                 arena.alloc(ExpNode::IndElim {
                     indspec,
@@ -1020,7 +1033,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     cases,
                 })
             };
-            crate::raw::inductive::inductive_type_elim_reduce(env, candidate)
+            crate::raw::inductive::inductive_type_elim_reduce(env, candidate.clone())
                 .ok()
                 .or((candidate != exp).then_some(candidate))
         }
@@ -1030,8 +1043,8 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             return_type,
             branches,
         } => {
-            let reduced = whnf(env, scrutinee);
-            let (head, fields) = crate::raw::utils::decompose_app(arena, reduced);
+            let reduced = whnf(env, scrutinee.clone());
+            let (head, fields) = crate::raw::utils::decompose_app(arena, reduced.clone());
             match arena.get(head) {
                 ExpNode::IndCtor {
                     indspec: actual,
@@ -1039,7 +1052,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                     ..
                 } if actual == indspec => branches
                     .get(idx)
-                    .copied()
+                    .cloned()
                     .map(|branch| crate::raw::utils::assoc_apply(arena, branch, fields)),
                 _ if reduced != scrutinee => Some(arena.alloc(ExpNode::IndCase {
                     indspec,
@@ -1055,8 +1068,8 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             scrutinee,
             branches,
         } => {
-            let reduced = whnf(env, scrutinee);
-            let (head, fields) = crate::raw::utils::decompose_app(arena, reduced);
+            let reduced = whnf(env, scrutinee.clone());
+            let (head, fields) = crate::raw::utils::decompose_app(arena, reduced.clone());
             match arena.get(head) {
                 ExpNode::IndCtor {
                     indspec: actual,
@@ -1065,7 +1078,7 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 } if actual == env.program_inductive(indspec).reflected() => {
                     let branch = branches.get(idx)?;
                     (branch.binders.len() == fields.len())
-                        .then(|| instantiate_telescope(arena, branch.body, &fields))
+                        .then(|| instantiate_telescope(arena, branch.body.clone(), &fields))
                 }
                 _ if reduced != scrutinee => Some(arena.alloc(ExpNode::ReflectedProgramCase {
                     indspec,
@@ -1100,11 +1113,11 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
         } => Some(arena.alloc(ExpNode::SetRunCase {
             state_ty,
             result_ty,
-            step,
-            initial,
+            step: step.clone(),
+            initial: initial.clone(),
             transition: arena.alloc(ExpNode::App {
-                func: step,
-                arg: initial,
+                func: step.clone(),
+                arg: initial.clone(),
             }),
             accessibility,
             transition_equality: arena.alloc(ExpNode::Prove(Prove::IdRefl {
@@ -1125,10 +1138,10 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
             ..
         } => match arena.get(whnf(env, transition)) {
             ExpNode::Continue { next, .. } => Some(arena.alloc(ExpNode::SetRun {
-                state_ty,
-                result_ty,
-                step,
-                initial: next,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                step: step.clone(),
+                initial: next.clone(),
                 accessibility: arena.alloc(ExpNode::Prove(Prove::AccDescent {
                     state_ty,
                     result_ty,
@@ -1156,9 +1169,14 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                 program_ty: actual,
                 program,
             } if crate::raw::program_calculus::computation_type_is_alpha_eq(
-                arena, actual, program_ty,
-            ) && crate::raw::program_calculus::reduce_computation_once(env, program)
-                .is_none() =>
+                arena,
+                actual.clone(),
+                program_ty,
+            ) && crate::raw::program_calculus::reduce_computation_once(
+                env,
+                program.clone(),
+            )
+            .is_none() =>
             {
                 crate::raw::reflection::reflect_computation(env, program).ok()
             }
@@ -1184,7 +1202,9 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
                         crate::raw::program::ComputationTypeNode::Return { value_ty },
                         ComputationTermNode::Return { value: argument },
                     ) if crate::raw::program_calculus::value_type_is_alpha_eq(
-                        arena, domain, value_ty,
+                        arena,
+                        domain.clone(),
+                        value_ty.clone(),
                     ) =>
                     {
                         Some(arena.alloc(ExpNode::BoxProgram {
@@ -1206,22 +1226,22 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 
 pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
     if let Some(result) = env.whnf_cache.borrow().get(&exp) {
-        return *result;
+        return result.clone();
     }
-    let original = exp;
-    while let Some(next) = exp_reduce_if_top(env, exp) {
-        tracing::trace!(target: "ref_type::reduction", before = %crate::raw::printing::format_exp(env, exp), after = %crate::raw::printing::format_exp(env, next), "weak-head reduction step");
+    let original = exp.clone();
+    while let Some(next) = exp_reduce_if_top(env, exp.clone()) {
+        tracing::trace!(target: "ref_type::reduction", before = %crate::raw::printing::format_exp(env, exp.clone()), after = %crate::raw::printing::format_exp(env, next.clone()), "weak-head reduction step");
         if next == exp {
             break;
         }
         exp = next;
     }
-    env.whnf_cache.borrow_mut().insert(original, exp);
+    env.whnf_cache.borrow_mut().insert(original, exp.clone());
     exp
 }
 
 pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
-    if let Some(next) = exp_reduce_if_top(env, exp) {
+    if let Some(next) = exp_reduce_if_top(env, exp.clone()) {
         return Some(next);
     }
     let node = env.arena().get(exp);
@@ -1229,7 +1249,7 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     let mapped = map_computational_children(node, |child| {
         if changed {
             child
-        } else if let Some(next) = reduce_one(env, child) {
+        } else if let Some(next) = reduce_one(env, child.clone()) {
             changed = true;
             next
         } else {
@@ -1240,23 +1260,23 @@ pub fn reduce_one(env: &CrateEnv, exp: Exp) -> Option<Exp> {
 }
 
 pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
-    let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::raw::printing::format_exp(env, exp));
+    let span = tracing::debug_span!(target: "ref_type::reduction", "normalize", term = %crate::raw::printing::format_exp(env, exp.clone()));
     let _entered = span.enter();
     let result = normalize_with_cache(env, exp, &mut FxHashMap::default());
-    tracing::debug!(target: "ref_type::reduction", result = %crate::raw::printing::format_exp(env, result), "normalization finished");
+    tracing::debug!(target: "ref_type::reduction", result = %crate::raw::printing::format_exp(env, result.clone()), "normalization finished");
     result
 }
 
 fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut FxHashMap<Exp, Exp>) -> Exp {
     if let Some(normal) = cache.get(&exp) {
-        return *normal;
+        return normal.clone();
     }
     let arena = env.arena();
-    let head = whnf(env, exp);
-    let node = arena.get(head);
+    let head = whnf(env, exp.clone());
+    let node = arena.get(head.clone());
     let mut changed = false;
     let normalized = map_computational_children(node, |child| {
-        let result = normalize_with_cache(env, child, cache);
+        let result = normalize_with_cache(env, child.clone(), cache);
         changed |= result != child;
         result
     });
@@ -1265,18 +1285,25 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut FxHashMap<Exp, Exp
     } else {
         head
     };
-    let reduced = whnf(env, candidate);
+    let reduced = whnf(env, candidate.clone());
     let result = if reduced == candidate {
         candidate
     } else {
         normalize_with_cache(env, reduced, cache)
     };
-    cache.insert(exp, result);
+    cache.insert(exp, result.clone());
     result
 }
 
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    let result = alpha_rec(env, left, right, true, false, &mut AlphaCache::default());
+    let result = alpha_rec(
+        env,
+        left.clone(),
+        right.clone(),
+        true,
+        false,
+        &mut AlphaCache::default(),
+    );
     tracing::trace!(target: "ref_type::conversion", left = %crate::raw::printing::format_exp(env, left), right = %crate::raw::printing::format_exp(env, right), result, "conversion compared");
     result
 }
@@ -1305,7 +1332,7 @@ pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
     let arena = env.arena();
     let mut current = type_head_normal(env, ty);
     loop {
-        match arena.get(current) {
+        match arena.get(current.clone()) {
             ExpNode::TypeLift { superset, .. } => current = type_head_normal(env, superset),
             _ => return current,
         }
@@ -1314,21 +1341,21 @@ pub(crate) fn base_carrier(env: &CrateEnv, ty: Exp) -> Exp {
 
 pub fn common_ambient_carrier(env: &CrateEnv, left: Exp, right: Exp) -> Option<Exp> {
     let carrier = base_carrier(env, left);
-    erased_convertible(env, carrier, base_carrier(env, right)).then_some(carrier)
+    erased_convertible(env, carrier.clone(), base_carrier(env, right)).then_some(carrier)
 }
 
 pub fn can_weaken_to(env: &CrateEnv, inferred: Exp, expected: Exp) -> bool {
-    if erased_convertible(env, inferred, expected) {
+    if erased_convertible(env, inferred.clone(), expected.clone()) {
         return true;
     }
     let arena = env.arena();
     match (
         arena.get(type_head_normal(env, inferred)),
-        arena.get(type_head_normal(env, expected)),
+        arena.get(type_head_normal(env, expected.clone())),
     ) {
         (ExpNode::TypeLift { superset, .. }, _) => can_weaken_to(env, superset, expected),
         (ExpNode::Prod { ty: a, body: b, .. }, ExpNode::Prod { ty: c, body: d, .. })
-            if erased_convertible(env, a, c) =>
+            if erased_convertible(env, a.clone(), c.clone()) =>
         {
             can_weaken_to(env, b, d)
         }

@@ -188,10 +188,12 @@ fn format_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> String {
     let exp = |term| crate::raw::printing::format_exp(env, term);
     match constraint {
         GoalConstraint::HasType { term, expected } => {
-            format!("{} : {}", exp(*term), exp(*expected))
+            format!("{} : {}", exp(term.clone()), exp(expected.clone()))
         }
-        GoalConstraint::Equal { left, right } => format!("{} ≡ {}", exp(*left), exp(*right)),
-        GoalConstraint::IsSort { term } => format!("{} has a sort", exp(*term)),
+        GoalConstraint::Equal { left, right } => {
+            format!("{} ≡ {}", exp(left.clone()), exp(right.clone()))
+        }
+        GoalConstraint::IsSort { term } => format!("{} has a sort", exp(term.clone())),
     }
 }
 

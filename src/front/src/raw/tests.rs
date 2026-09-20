@@ -17,7 +17,7 @@ use crate::raw::{
 };
 
 #[test]
-fn logical_arena_interns_nodes() {
+fn arena_interns_all_node_families() {
     let env = CrateEnv::new();
     let arena = env.arena();
     let set = arena.sort(Sort::Set(0));
@@ -26,8 +26,8 @@ fn logical_arena_interns_nodes() {
     let bound = arena.exp_bound(0);
     assert_eq!(arena.exp_bound(0), bound);
     let application = arena.alloc(ExpNode::App {
-        func: bound,
-        arg: set,
+        func: bound.clone(),
+        arg: set.clone(),
     });
     assert_eq!(
         arena.alloc(ExpNode::App {
@@ -42,6 +42,25 @@ fn logical_arena_interns_nodes() {
         spine: vec![application],
     };
     assert_eq!(arena.alloc(meta.clone()), arena.alloc(meta));
+
+    let value_ty = arena.value_type_bound(0);
+    assert_eq!(arena.value_type_bound(0), value_ty);
+    let computation_ty = arena.alloc(ComputationTypeNode::Return {
+        value_ty: value_ty.clone(),
+    });
+    assert_eq!(
+        arena.alloc(ComputationTypeNode::Return { value_ty }),
+        computation_ty
+    );
+    let value = arena.value_bound(0);
+    assert_eq!(arena.value_bound(0), value);
+    let computation = arena.alloc(ComputationTermNode::Return {
+        value: value.clone(),
+    });
+    assert_eq!(
+        arena.alloc(ComputationTermNode::Return { value }),
+        computation
+    );
 }
 
 #[test]
@@ -61,10 +80,10 @@ fn namespace_substitution_is_simultaneous_and_capture_avoiding() {
     let q_term = a.exp_module_param(q);
     let pair = a.alloc(ExpNode::App {
         func: p_term,
-        arg: q_term,
+        arg: q_term.clone(),
     });
     let replacement = a.exp_bound(0);
-    let replaced = exp_subst_map(a, pair, &[(p, q_term), (q, replacement)]);
+    let replaced = exp_subst_map(a, pair, &[(p, q_term.clone()), (q, replacement.clone())]);
     assert!(
         matches!(a.get(replaced), ExpNode::App { func, arg } if func == q_term && arg == replacement)
     );
@@ -111,7 +130,7 @@ fn namespace_substitution_respects_nominal_declaration_telescopes() {
         Sort::Set(0),
         vec![CtorType {
             telescope: vec![
-                CtorBinder::Simple((SymbolId::ANONYMOUS, parameter)),
+                CtorBinder::Simple((SymbolId::ANONYMOUS, parameter.clone())),
                 CtorBinder::Simple((SymbolId::ANONYMOUS, parameter)),
             ],
             indices: vec![],
@@ -119,14 +138,14 @@ fn namespace_substitution_respects_nominal_declaration_telescopes() {
     );
     let substituted = spec.instantiate(a, &[(p, a.exp_bound(0))]);
     let ctor = &substituted.constructors()[0];
-    let CtorBinder::Simple((_, first)) = ctor.telescope[0] else {
+    let CtorBinder::Simple((_, first)) = &ctor.telescope[0] else {
         panic!("field")
     };
-    let CtorBinder::Simple((_, second)) = ctor.telescope[1] else {
+    let CtorBinder::Simple((_, second)) = &ctor.telescope[1] else {
         panic!("field")
     };
-    assert!(matches!(a.get(first), ExpNode::Bound(1)));
-    assert!(matches!(a.get(second), ExpNode::Bound(2)));
+    assert!(matches!(a.get(first.clone()), ExpNode::Bound(1)));
+    assert!(matches!(a.get(second.clone()), ExpNode::Bound(2)));
 }
 
 #[test]
@@ -164,14 +183,14 @@ fn conversion_does_not_reduce_alpha_equal_applications() {
     let right = application(2, 11);
     assert_ne!(left, right);
     let before = arena.exp_len();
-    assert!(convertible(&env, left, right));
-    assert!(erased_convertible(&env, left, right));
+    assert!(convertible(&env, left.clone(), right.clone()));
+    assert!(erased_convertible(&env, left.clone(), right.clone()));
     let after = arena.exp_len();
     assert_eq!(after, before, "conversion unnecessarily reduced the terms");
 
-    let reduced = normalize(&env, left);
-    assert!(convertible(&env, left, reduced));
-    assert!(erased_convertible(&env, right, reduced));
+    let reduced = normalize(&env, left.clone());
+    assert!(convertible(&env, left.clone(), reduced.clone()));
+    assert!(erased_convertible(&env, right.clone(), reduced));
     assert!(!convertible(&env, left, application(3, 12)));
     assert!(!erased_convertible(&env, right, application(3, 13)));
 }
@@ -200,7 +219,7 @@ fn boxed_program_types_compare_structurally() {
             position: 1,
         }),
     });
-    assert_ne!(left_state, right_state);
+    assert_eq!(left_state, right_state);
     let left_return = arena.alloc(ComputationTypeNode::Return {
         value_ty: left_state,
     });
@@ -208,10 +227,10 @@ fn boxed_program_types_compare_structurally() {
         value_ty: right_state,
     });
     let left = arena.alloc(ExpNode::BoxType {
-        program_ty: left_return,
+        program_ty: left_return.clone(),
     });
     let right = arena.alloc(ExpNode::BoxType {
-        program_ty: right_return,
+        program_ty: right_return.clone(),
     });
     assert!(exp_is_alpha_eq(&env, left, right));
 
@@ -250,15 +269,19 @@ fn beta_reduction_remains_set_only() {
     let body = arena.exp_bound(0);
     let lambda = arena.alloc(ExpNode::Lam {
         var: SymbolId::ANONYMOUS,
-        ty: set,
-        body,
+        ty: set.clone(),
+        body: body.clone(),
     });
     let application = arena.alloc(ExpNode::App {
         func: lambda,
-        arg: set,
+        arg: set.clone(),
     });
-    assert!(exp_is_alpha_eq(&env, normalize(&env, application), set));
-    assert_eq!(instantiate(arena, body, set), set);
+    assert!(exp_is_alpha_eq(
+        &env,
+        normalize(&env, application),
+        set.clone()
+    ));
+    assert_eq!(instantiate(arena, body, set.clone()), set);
 }
 
 #[test]
@@ -272,7 +295,7 @@ fn repeated_weak_head_reduction_reuses_the_result() {
     // return a lambda. Repeating it should not allocate another copy.
     let inner = arena.alloc(ExpNode::Lam {
         var: SymbolId::ANONYMOUS,
-        ty,
+        ty: ty.clone(),
         body: arena.exp_bound(1),
     });
     let function = arena.alloc(ExpNode::Lam {
@@ -281,11 +304,11 @@ fn repeated_weak_head_reduction_reuses_the_result() {
         body: inner,
     });
     let application = arena.alloc(ExpNode::App {
-        func: function,
+        func: function.clone(),
         arg: arena.exp_bound(2),
     });
-    let reduced = whnf(&env, application);
-    let ExpNode::Lam { body, .. } = arena.get(reduced) else {
+    let reduced = whnf(&env, application.clone());
+    let ExpNode::Lam { body, .. } = arena.get(reduced.clone()) else {
         panic!("lambda")
     };
     assert_eq!(arena.get(body), ExpNode::Bound(3));
@@ -315,21 +338,23 @@ fn weak_head_cache_keeps_erasure_separate_from_strict_reduction() {
     let element = arena.exp_bound(0);
     let refined = |proof| {
         arena.alloc(ExpNode::SubsetIntro {
-            superset: set,
-            subset: set,
-            element,
+            superset: set.clone(),
+            subset: set.clone(),
+            element: element.clone(),
             proof,
         })
     };
-    let left = refined(arena.alloc(ExpNode::Prove(Prove::IdRefl { element })));
+    let left = refined(arena.alloc(ExpNode::Prove(Prove::IdRefl {
+        element: element.clone(),
+    })));
     let right = refined(arena.exp_bound(1));
 
-    assert!(erased_convertible(&env, left, right));
-    assert!(erased_convertible(&env, left, element));
-    assert_eq!(whnf(&env, left), left);
-    assert_eq!(whnf(&env, right), right);
-    assert!(!convertible(&env, left, right));
-    assert!(!convertible(&env, left, element));
+    assert!(erased_convertible(&env, left.clone(), right.clone()));
+    assert!(erased_convertible(&env, left.clone(), element.clone()));
+    assert_eq!(whnf(&env, left.clone()), left);
+    assert_eq!(whnf(&env, right.clone()), right);
+    assert!(!convertible(&env, left.clone(), right.clone()));
+    assert!(!convertible(&env, left.clone(), element));
     assert!(erased_convertible(&env, left, right));
 }
 
@@ -344,14 +369,17 @@ fn substitution_preserves_free_variables_under_binders() {
         func: arena.exp_bound(0),
         arg: arena.exp_bound(1),
     });
-    assert_eq!(shift_bound_indices(arena, argument, 0, 0), argument);
-    assert_eq!(instantiate(arena, arena.exp_bound(0), argument), argument);
+    assert_eq!(shift_bound_indices(arena, argument.clone(), 0, 0), argument);
+    assert_eq!(
+        instantiate(arena, arena.exp_bound(0), argument.clone()),
+        argument
+    );
 
     // In lambda y. x y, replacing x with an open term must still shift
     // its free variables, while y remains bound to the inner lambda.
     let body = arena.alloc(ExpNode::Lam {
         var: SymbolId::ANONYMOUS,
-        ty,
+        ty: ty.clone(),
         body: arena.alloc(ExpNode::App {
             func: arena.exp_bound(1),
             arg: arena.exp_bound(0),
@@ -401,7 +429,7 @@ fn program_typing_and_evaluation_use_program_handles() {
     let value = arena.value_bound(0);
     let returned = arena.alloc(ComputationTermNode::Return { value });
     assert_eq!(
-        evaluate_computation(&env, returned),
+        evaluate_computation(&env, returned.clone()),
         Evaluation::Normal(returned)
     );
 }
@@ -439,7 +467,7 @@ fn program_case_preserves_field_order_and_fuel_boundary() {
     });
     let case = arena.alloc(ComputationTermNode::Case {
         indspec,
-        scrutinee,
+        scrutinee: scrutinee.clone(),
         branches: vec![
             ProgramCaseBranch {
                 binders: vec![],
@@ -454,19 +482,20 @@ fn program_case_preserves_field_order_and_fuel_boundary() {
         ],
     });
     assert_eq!(
-        evaluate_computation_with_fuel(&env, case, 0),
-        Evaluation::OutOfFuel(case)
+        evaluate_computation_with_fuel(&env, case.clone(), 0),
+        Evaluation::OutOfFuel(case.clone())
     );
     for fuel in [1, 2] {
-        let Evaluation::Normal(result) = evaluate_computation_with_fuel(&env, case, fuel) else {
+        let Evaluation::Normal(result) = evaluate_computation_with_fuel(&env, case.clone(), fuel)
+        else {
             panic!("case should finish in one step");
         };
-        let ComputationTermNode::Return { value } = arena.get(result) else {
+        let ComputationTermNode::Return { value } = arena.get(result.clone()) else {
             panic!("selected the wrong branch");
         };
-        assert!(value_is_alpha_eq(arena, value, scrutinee));
+        assert!(value_is_alpha_eq(arena, value, scrutinee.clone()));
         assert_eq!(
-            evaluate_computation_with_fuel(&env, result, 0),
+            evaluate_computation_with_fuel(&env, result.clone(), 0),
             Evaluation::Normal(result)
         );
     }
@@ -480,7 +509,7 @@ fn program_run_stores_accessibility_proof() {
     let step = arena.alloc(ValueTermNode::Bound(0));
     let initial = arena.alloc(ValueTermNode::Bound(1));
     let run = arena.alloc(ComputationTermNode::Run {
-        state_ty,
+        state_ty: state_ty.clone(),
         result_ty: state_ty,
         step,
         initial,
@@ -510,12 +539,12 @@ fn run_case_proofs_follow_type_and_value_substitution() {
         })),
     });
     let body = arena.alloc(ComputationTermNode::RunCase {
-        state_ty,
+        state_ty: state_ty.clone(),
         result_ty: state_ty,
-        step: initial,
-        initial,
+        step: initial.clone(),
+        initial: initial.clone(),
         transition: arena.alloc(ComputationTermNode::Return { value: initial }),
-        accessibility: proof,
+        accessibility: proof.clone(),
         transition_equality: proof,
     });
     let instantiated =
@@ -525,18 +554,23 @@ fn run_case_proofs_follow_type_and_value_substitution() {
         transition_equality,
         state_ty,
         ..
-    } = arena.get(instantiated)
+    } = arena.get(instantiated.clone())
     else {
         panic!()
     };
     assert_eq!(arena.get(state_ty), ValueTypeNode::Bound(3));
-    assert!(exp_is_alpha_eq(&env, accessibility, transition_equality));
+    assert!(exp_is_alpha_eq(
+        &env,
+        accessibility.clone(),
+        transition_equality
+    ));
     let ExpNode::Lam { ty, body, .. } = arena.get(accessibility) else {
         panic!()
     };
     assert_eq!(arena.get(ty), ExpNode::Bound(3));
     assert!(
-        matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element) == ExpNode::Bound(1))
+        matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element.clone()
+) == ExpNode::Bound(1))
     );
 
     let instantiated = instantiate_value_in_computation(&env, instantiated, arena.value_bound(4));
@@ -550,13 +584,18 @@ fn run_case_proofs_follow_type_and_value_substitution() {
         panic!()
     };
     assert_eq!(arena.get(state_ty), ValueTypeNode::Bound(2));
-    assert!(exp_is_alpha_eq(&env, accessibility, transition_equality));
+    assert!(exp_is_alpha_eq(
+        &env,
+        accessibility.clone(),
+        transition_equality
+    ));
     let ExpNode::Lam { ty, body, .. } = arena.get(accessibility) else {
         panic!()
     };
     assert_eq!(arena.get(ty), ExpNode::Bound(2));
     assert!(
-        matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element) == ExpNode::Bound(5))
+        matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element.clone()
+) == ExpNode::Bound(5))
     );
 }
 
@@ -570,7 +609,7 @@ fn unchanged_program_transforms_reuse_arena_handles() {
     };
     let parameter = arena.value_type_module_param(parameter_id);
     let returned = arena.alloc(crate::raw::program::ComputationTypeNode::Return {
-        value_ty: parameter,
+        value_ty: parameter.clone(),
     });
     let thunk = arena.alloc(ValueTypeNode::Thunk {
         computation_ty: returned,
@@ -589,19 +628,30 @@ fn unchanged_program_transforms_reuse_arena_handles() {
         module: env.root_module(),
         position: 1,
     };
-    let substitutions = [(unrelated_parameter, ModuleArgument::ProgramType(parameter))];
+    let substitutions = [(
+        unrelated_parameter,
+        ModuleArgument::ProgramType(parameter.clone()),
+    )];
 
-    assert_eq!(shift_value_type_indices(arena, thunk, 1, 0), thunk);
-    assert_eq!(instantiate_value_type(arena, thunk, parameter, 0), thunk);
+    assert_eq!(shift_value_type_indices(arena, thunk.clone(), 1, 0), thunk);
     assert_eq!(
-        remap_value_type_global_ids(arena, thunk, &Default::default(), &inductive_remapping),
+        instantiate_value_type(arena, thunk.clone(), parameter, 0),
         thunk
     );
     assert_eq!(
-        subst_value_type_module_params(arena, thunk, &substitutions),
+        remap_value_type_global_ids(
+            arena,
+            thunk.clone(),
+            &Default::default(),
+            &inductive_remapping
+        ),
         thunk
     );
-    assert_eq!(strengthen_value_type(arena, thunk, 0), Some(thunk));
+    assert_eq!(
+        subst_value_type_module_params(arena, thunk.clone(), &substitutions),
+        thunk
+    );
+    assert_eq!(strengthen_value_type(arena, thunk.clone(), 0), Some(thunk));
 
     let value = arena.alloc(ValueTermNode::ModuleParam(parameter_id));
     let computation = arena.alloc(ComputationTermNode::Return { value });
@@ -616,13 +666,13 @@ fn unchanged_program_transforms_reuse_arena_handles() {
         },
     )]);
     assert_eq!(
-        shift_computation_indices(arena, computation, 1, 0),
+        shift_computation_indices(arena, computation.clone(), 1, 0),
         computation
     );
     assert_eq!(
         remap_computation_global_ids(
             arena,
-            computation,
+            computation.clone(),
             &definition_remapping,
             &inductive_remapping,
             &Default::default()
@@ -630,7 +680,7 @@ fn unchanged_program_transforms_reuse_arena_handles() {
         computation
     );
     assert_eq!(
-        subst_computation_module_params(arena, computation, &substitutions, &[]),
+        subst_computation_module_params(arena, computation.clone(), &substitutions, &[]),
         computation
     );
 }
@@ -661,25 +711,27 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
         },
     ];
     let value = arena.value_bound(0);
-    let body = arena.alloc(ComputationTermNode::Return { value });
+    let body = arena.alloc(ComputationTermNode::Return {
+        value: value.clone(),
+    });
     let make_let = |value_ty| {
         arena.alloc(ComputationTermNode::ValueLet {
             var: SymbolId(2),
             value_ty,
-            value,
-            body,
+            value: value.clone(),
+            body: body.clone(),
         })
     };
     let term = make_let(arena.value_type_bound(1));
     let inferred = ProgramCheckSession::new(&env, &mut context)
-        .infer_computation_term(term)
+        .infer_computation_term(term.clone())
         .unwrap();
-    let ComputationTypeNode::Return { value_ty } = arena.get(inferred) else {
+    let ComputationTypeNode::Return { value_ty } = arena.get(inferred.clone()) else {
         panic!()
     };
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(1));
     let wrong = arena.alloc(ValueTypeNode::Thunk {
-        computation_ty: inferred,
+        computation_ty: inferred.clone(),
     });
     for annotation in [arena.value_type_bound(0), wrong] {
         assert!(
@@ -691,7 +743,7 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
     }
 
     let reflected = crate::raw::reflection::reflect_computation(&env, term).unwrap();
-    let ExpNode::App { func, arg } = arena.get(reflected) else {
+    let ExpNode::App { func, arg } = arena.get(reflected.clone()) else {
         panic!()
     };
     assert_eq!(arena.get(arg), ExpNode::Bound(0));
@@ -727,15 +779,15 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
         var: SymbolId(2),
         value_ty: arena.value_type_bound(1),
         value: arena.value_bound(0),
-        body: inner,
+        body: inner.clone(),
     });
-    let shifted = shift_computation_indices(arena, outer, 1, 0);
+    let shifted = shift_computation_indices(arena, outer.clone(), 1, 0);
     let ComputationTermNode::ValueLet {
         value_ty,
         value,
         body,
         ..
-    } = arena.get(shifted)
+    } = arena.get(shifted.clone())
     else {
         panic!()
     };
@@ -750,12 +802,12 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(3));
     assert_eq!(arena.get(value), ValueTermNode::Bound(0));
 
-    let substituted = instantiate_value_in_computation(&env, inner, arena.value_bound(0));
+    let substituted = instantiate_value_in_computation(&env, inner.clone(), arena.value_bound(0));
     let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(substituted) else {
         panic!()
     };
     assert_eq!(arena.get(value_ty), ValueTypeNode::Bound(1));
-    let Evaluation::Normal(normal) = evaluate_computation(&env, outer) else {
+    let Evaluation::Normal(normal) = evaluate_computation(&env, outer.clone()) else {
         panic!()
     };
     let ComputationTermNode::Return { value } = arena.get(normal) else {
@@ -766,10 +818,10 @@ fn value_let_annotations_follow_binder_shifts_and_substitution() {
         var: SymbolId(99),
         value_ty: arena.value_type_bound(1),
         value: arena.value_bound(0),
-        body: inner,
+        body: inner.clone(),
     });
-    assert!(computation_is_alpha_eq(arena, outer, renamed));
-    assert!(!computation_is_alpha_eq(arena, outer, shifted));
+    assert!(computation_is_alpha_eq(arena, outer.clone(), renamed));
+    assert!(!computation_is_alpha_eq(arena, outer.clone(), shifted));
     let different_annotation = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(2),
         value_ty: arena.value_type_bound(2),
@@ -811,10 +863,10 @@ fn value_let_annotations_follow_module_instantiation() {
     let instantiated = subst_computation_module_params(
         arena,
         term,
-        &[(parameter, ModuleArgument::ProgramType(datatype))],
+        &[(parameter, ModuleArgument::ProgramType(datatype.clone()))],
         &[],
     );
-    let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(instantiated) else {
+    let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(instantiated.clone()) else {
         panic!()
     };
     assert_eq!(value_ty, datatype);
@@ -849,16 +901,16 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
     let value = arena.value_bound(0);
     let accessibility = arena.exp_bound(0);
     let run = arena.alloc(ComputationTermNode::Run {
-        state_ty: ty,
-        result_ty: ty,
-        step: value,
-        initial: value,
-        accessibility,
+        state_ty: ty.clone(),
+        result_ty: ty.clone(),
+        step: value.clone(),
+        initial: value.clone(),
+        accessibility: accessibility.clone(),
     });
     let term = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(0),
         value_ty: ty,
-        value,
+        value: value.clone(),
         body: run,
     });
     let reflected = reflect_computation(&env, term).unwrap();
@@ -878,7 +930,7 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
     let term = arena.alloc(ComputationTermNode::ValueLet {
         var: SymbolId(0),
         value_ty: meta,
-        value,
+        value: value.clone(),
         body: arena.alloc(ComputationTermNode::Return { value }),
     });
     assert_eq!(
@@ -913,63 +965,63 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
         let argument = arena.exp_bound(2);
         let terms = [
             ExpNode::RunStep {
-                state_ty,
-                result_ty,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
             },
             ExpNode::Continue {
-                state_ty,
-                result_ty,
-                next: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                next: argument.clone(),
             },
             ExpNode::Finish {
-                state_ty,
-                result_ty,
-                output: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                output: argument.clone(),
             },
             ExpNode::Acc {
-                state_ty,
-                result_ty,
-                step: argument,
-                state: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                step: argument.clone(),
+                state: argument.clone(),
             },
             ExpNode::SetRun {
-                state_ty,
-                result_ty,
-                step: argument,
-                initial: argument,
-                accessibility: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                step: argument.clone(),
+                initial: argument.clone(),
+                accessibility: argument.clone(),
             },
             ExpNode::SetRunCase {
-                state_ty,
-                result_ty,
-                step: argument,
-                initial: argument,
-                transition: argument,
-                accessibility: argument,
-                transition_equality: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                step: argument.clone(),
+                initial: argument.clone(),
+                transition: argument.clone(),
+                accessibility: argument.clone(),
+                transition_equality: argument.clone(),
             },
             ExpNode::RunStepRec {
-                state_ty,
-                result_ty,
-                motive: argument,
-                on_continue: argument,
-                on_finish: argument,
-                scrutinee: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                motive: argument.clone(),
+                on_continue: argument.clone(),
+                on_finish: argument.clone(),
+                scrutinee: argument.clone(),
             },
             ExpNode::Prove(crate::raw::exp::Prove::AccIntro {
-                state_ty,
-                result_ty,
-                step: argument,
-                state: argument,
-                predecessors: argument,
+                state_ty: state_ty.clone(),
+                result_ty: result_ty.clone(),
+                step: argument.clone(),
+                state: argument.clone(),
+                predecessors: argument.clone(),
             }),
             ExpNode::Prove(crate::raw::exp::Prove::AccDescent {
                 state_ty,
                 result_ty,
-                step: argument,
-                from: argument,
-                to: argument,
-                accessibility: argument,
+                step: argument.clone(),
+                from: argument.clone(),
+                to: argument.clone(),
+                accessibility: argument.clone(),
                 transition: argument,
             }),
         ];
@@ -997,7 +1049,7 @@ fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
             module,
             DefinedConstant::Pts {
                 ty: prop,
-                body: set
+                body: set.clone()
             }
         )
         .is_err()
@@ -1010,7 +1062,7 @@ fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
         env.add_definition(
             module,
             DefinedConstant::Pts {
-                ty: set,
+                ty: set.clone(),
                 body: meta
             }
         )
@@ -1021,7 +1073,7 @@ fn definition_registration_rejects_unchecked_terms_without_inserting_them() {
         env.add_definition(
             module,
             DefinedConstant::Pts {
-                ty: set,
+                ty: set.clone(),
                 body: bound
             }
         )
@@ -1064,7 +1116,7 @@ fn program_registration_checks_body() {
         module,
         ModuleParameter {
             name: v,
-            kind: ModuleParameterKind::ProgramValue { ty },
+            kind: ModuleParameterKind::ProgramValue { ty: ty.clone() },
         },
     );
     let body = env.arena().alloc(ValueTermNode::ModuleParam(ModuleParamId {
@@ -1073,11 +1125,23 @@ fn program_registration_checks_body() {
     }));
     let bad_body = env.arena().value_bound(0);
     assert!(
-        env.add_definition(module, DefinedConstant::ProgramValue { ty, body: bad_body })
-            .is_err()
+        env.add_definition(
+            module,
+            DefinedConstant::ProgramValue {
+                ty: ty.clone(),
+                body: bad_body
+            }
+        )
+        .is_err()
     );
     let id = env
-        .add_definition(module, DefinedConstant::ProgramValue { ty, body })
+        .add_definition(
+            module,
+            DefinedConstant::ProgramValue {
+                ty: ty.clone(),
+                body: body.clone(),
+            },
+        )
         .unwrap();
     assert_eq!(id.index, 0);
     let computation_ty = env

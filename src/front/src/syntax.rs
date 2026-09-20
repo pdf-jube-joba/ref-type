@@ -1182,7 +1182,7 @@ impl ModItemRecord {
         Some(crate::raw::utils::assoc_apply(
             arena,
             projection,
-            parameters.iter().copied().chain([e]).collect(),
+            parameters.iter().cloned().chain([e]).collect(),
         ))
     }
 }

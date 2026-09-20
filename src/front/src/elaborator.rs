@@ -36,7 +36,7 @@ fn apply_pts_projection(arena: &Arena, definition: DefId, parameters: &[Exp], va
     crate::raw::utils::assoc_apply(
         arena,
         projection,
-        parameters.iter().copied().chain([value]).collect(),
+        parameters.iter().cloned().chain([value]).collect(),
     )
 }
 
@@ -54,9 +54,9 @@ fn projected_record_field_type(
     };
     let preceding = preceding_projections
         .iter()
-        .map(|definition| apply_pts_projection(arena, *definition, parameters, value))
+        .map(|definition| apply_pts_projection(arena, *definition, parameters, value.clone()))
         .collect::<Vec<_>>();
-    Ok(instantiate_telescope(arena, *field_ty, &preceding))
+    Ok(instantiate_telescope(arena, field_ty.clone(), &preceding))
 }
 
 // do type checking
@@ -151,7 +151,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         e: Exp,
         field_name: &Identifier,
     ) -> Result<Exp, String> {
-        let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
+        let infer_type_e = self.infer(local_ctx, e.clone()).map_err(|error| {
             format!("Failed to infer type of expression for field projection: {error}")
         })?;
         let infer_type_e = whnf(&self.crate_env, infer_type_e);
@@ -184,7 +184,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             // Earlier local definitions may already have solved their holes,
             // but their shared syntax still contains the metavariable nodes.
             for entry in &mut ctx {
-                entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty);
+                entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty.clone());
             }
             self.metavariables.infer_pts(
                 &self.crate_env,
@@ -262,7 +262,10 @@ impl GlobalEnvironment {
         expected: Exp,
     ) -> Result<(), String> {
         let expected = self.metavariables.zonk(&self.crate_env, expected);
-        if matches!(self.crate_env.arena().get(expected), ExpNode::Meta { .. }) {
+        if matches!(
+            self.crate_env.arena().get(expected.clone()),
+            ExpNode::Meta { .. }
+        ) {
             let inferred = self.infer_term_with_metavariables(ctx, term)?;
             self.metavariables
                 .unify(&self.crate_env, expected, inferred)?;
@@ -422,7 +425,7 @@ impl GlobalEnvironment {
             Self::collect_module_tree(module, &mut Vec::new(), &mut scheduled);
         }
         let order = Self::module_order(&scheduled)?;
-        if order.iter().copied().eq(0..scheduled.len()) {
+        if order.iter().cloned().eq(0..scheduled.len()) {
             for module in modules {
                 self.add_new_module_to_root(module)?;
             }
@@ -475,7 +478,7 @@ impl GlobalEnvironment {
                 .module(module)
                 .children()
                 .iter()
-                .copied()
+                .cloned()
                 .find(|child| self.crate_env.module(*child).name() == component)?;
         }
         Some(module)

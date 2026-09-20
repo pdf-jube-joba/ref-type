@@ -1,7 +1,7 @@
 //! Capture-aware traversal across the logical and Program syntax families.
 use super::{environment::ModuleArgument, exp::*, program::*};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Term {
     Logical(Exp),
     ValueType(ValueType),
@@ -16,10 +16,10 @@ pub(crate) fn logical(
     depth: usize,
     rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
 ) -> Exp {
-    if let Some(Term::Logical(result)) = rewrite(Term::Logical(e), depth) {
+    if let Some(Term::Logical(result)) = rewrite(Term::Logical(e.clone()), depth) {
         return result;
     }
-    let result = match arena.get(e) {
+    let result = match arena.get(e.clone()) {
         ExpNode::Prod { var, ty, body } => ExpNode::Prod {
             var,
             ty: logical(arena, ty, depth, rewrite),
@@ -112,10 +112,10 @@ pub(crate) fn value_type(
     depth: usize,
     rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
 ) -> ValueType {
-    if let Some(Term::ValueType(result)) = rewrite(Term::ValueType(t), depth) {
+    if let Some(Term::ValueType(result)) = rewrite(Term::ValueType(t.clone()), depth) {
         return result;
     }
-    let result = match arena.get(t) {
+    let result = match arena.get(t.clone()) {
         ValueTypeNode::Meta {
             metavariable,
             spine,
@@ -157,10 +157,10 @@ pub(crate) fn computation_type(
     depth: usize,
     rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
 ) -> ComputationType {
-    if let Some(Term::ComputationType(result)) = rewrite(Term::ComputationType(t), depth) {
+    if let Some(Term::ComputationType(result)) = rewrite(Term::ComputationType(t.clone()), depth) {
         return result;
     }
-    let result = match arena.get(t) {
+    let result = match arena.get(t.clone()) {
         ComputationTypeNode::Meta {
             metavariable,
             spine,
@@ -188,10 +188,10 @@ pub(crate) fn value(
     depth: usize,
     rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
 ) -> ValueTerm {
-    if let Some(Term::Value(result)) = rewrite(Term::Value(v), depth) {
+    if let Some(Term::Value(result)) = rewrite(Term::Value(v.clone()), depth) {
         return result;
     }
-    let result = match arena.get(v) {
+    let result = match arena.get(v.clone()) {
         ValueTermNode::Meta {
             metavariable,
             spine,
@@ -261,10 +261,10 @@ pub(crate) fn computation(
     depth: usize,
     rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
 ) -> ComputationTerm {
-    if let Some(Term::Computation(result)) = rewrite(Term::Computation(c), depth) {
+    if let Some(Term::Computation(result)) = rewrite(Term::Computation(c.clone()), depth) {
         return result;
     }
-    let result = match arena.get(c) {
+    let result = match arena.get(c.clone()) {
         ComputationTermNode::Meta {
             metavariable,
             spine,
@@ -382,15 +382,15 @@ pub(crate) fn computation(
 impl Term {
     pub(crate) fn bound_index(self, arena: &Arena) -> Option<usize> {
         match self {
-            Term::Logical(e) => match *arena.borrow_exp(e) {
+            Term::Logical(e) => match arena.get(e) {
                 ExpNode::Bound(index) => Some(index),
                 _ => None,
             },
-            Term::ValueType(t) => match *arena.borrow_value_type(t) {
+            Term::ValueType(t) => match arena.borrow_value_type(t) {
                 ValueTypeNode::Bound(index) => Some(index),
                 _ => None,
             },
-            Term::Value(v) => match *arena.borrow_value(v) {
+            Term::Value(v) => match arena.borrow_value(v) {
                 ValueTermNode::Bound(index) => Some(index),
                 _ => None,
             },
@@ -419,7 +419,7 @@ impl Term {
             return self;
         }
         self.walk(arena, 0, &mut |term, depth| {
-            let index = term.bound_index(arena)?;
+            let index = term.clone().bound_index(arena)?;
             if index < cutoff + depth {
                 return Some(term);
             }
@@ -445,13 +445,15 @@ impl Term {
                 Term::Logical(e) => match arena.get(e) {
                     ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
                         .iter()
-                        .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e))),
+                        .find_map(|(p, e)| (*p == id).then_some(Term::Logical(e.clone()))),
                     _ => None,
                 },
                 Term::ValueType(t) => match arena.get(t) {
                     ValueTypeNode::ModuleParam(id) => {
                         substitutions.iter().find_map(|(p, a)| match a {
-                            ModuleArgument::ProgramType(t) if *p == id => Some(Term::ValueType(*t)),
+                            ModuleArgument::ProgramType(t) if *p == id => {
+                                Some(Term::ValueType(t.clone()))
+                            }
                             _ => None,
                         })
                     }
@@ -460,7 +462,9 @@ impl Term {
                 Term::Value(v) => match arena.get(v) {
                     ValueTermNode::ModuleParam(id) => {
                         substitutions.iter().find_map(|(p, a)| match a {
-                            ModuleArgument::ProgramValue(v) if *p == id => Some(Term::Value(*v)),
+                            ModuleArgument::ProgramValue(v) if *p == id => {
+                                Some(Term::Value(v.clone()))
+                            }
                             _ => None,
                         })
                     }

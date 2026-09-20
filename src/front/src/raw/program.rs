@@ -1,47 +1,54 @@
 //! The four syntactic categories of the CBPV Program calculus.
 
 use crate::raw::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId};
+use hashconsing::HConsed;
+use std::ops::Deref;
 
 macro_rules! handle {
-    ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub struct $name(u32);
+    ($name:ident, $node:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        pub struct $name(pub(crate) HConsed<$node>);
 
         impl $name {
-            pub fn index(self) -> usize {
-                self.0 as usize
+            pub fn index(&self) -> usize {
+                usize::try_from(self.0.uid()).expect("front hashconsing ID exceeds usize")
             }
-            pub(crate) fn from_index(index: u32) -> Self {
-                Self(index)
+        }
+
+        impl Deref for $name {
+            type Target = $node;
+
+            fn deref(&self) -> &Self::Target {
+                self.0.get()
             }
         }
     };
 }
 
-handle!(ValueType);
-handle!(ComputationType);
-handle!(ValueTerm);
-handle!(ComputationTerm);
+handle!(ValueType, ValueTypeNode);
+handle!(ComputationType, ComputationTypeNode);
+handle!(ValueTerm, ValueTermNode);
+handle!(ComputationTerm, ComputationTermNode);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ProgramType {
     ValueType(ValueType),
     ComputationType(ComputationType),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ProgramTerm {
     ValueTerm(ValueTerm),
     ComputationTerm(ComputationTerm),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ProgramArgument {
     ValueType(ValueType),
     ValueTerm(ValueTerm),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueTypeNode {
     Bound(usize),
     ModuleParam(ModuleParamId),
@@ -62,7 +69,7 @@ pub enum ValueTypeNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComputationTypeNode {
     Meta {
         metavariable: MetaVarId,
@@ -77,13 +84,13 @@ pub enum ComputationTypeNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProgramCaseBranch {
     pub binders: Vec<SymbolId>,
     pub body: ComputationTerm,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueTermNode {
     Bound(usize),
     ModuleParam(ModuleParamId),
@@ -117,7 +124,7 @@ pub enum ValueTermNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComputationTermNode {
     Meta {
         metavariable: MetaVarId,

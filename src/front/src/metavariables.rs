@@ -68,7 +68,7 @@ impl MetaStore {
     ) -> Exp {
         let flavor = MetaFlavor::from(kind);
         let existing = match flavor {
-            MetaFlavor::Named(number) => self.named.get(&number).copied(),
+            MetaFlavor::Named(number) => self.named.get(&number).cloned(),
             MetaFlavor::Implicit | MetaFlavor::Goal | MetaFlavor::Synthetic => None,
         };
         let metavariable = existing.unwrap_or_else(|| {
@@ -102,7 +102,7 @@ impl MetaStore {
                 let removed = entry.scope_len - common;
                 entry.scope_len = common;
                 entry.context = context[..current_start + common].to_vec();
-                if let Some(assignment) = entry.assignment {
+                if let Some(assignment) = entry.assignment.clone() {
                     entry.assignment =
                         remove_unused_ambient_binders(env.arena(), assignment, removed);
                 }
@@ -159,15 +159,19 @@ impl MetaStore {
     }
 
     fn set_meta_type(&mut self, env: &CrateEnv, term: Exp, expected: Exp) -> Result<(), String> {
-        let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
+        let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term.clone()))
+        else {
             return Ok(());
         };
-        let constraint = GoalConstraint::HasType { term, expected };
+        let constraint = GoalConstraint::HasType {
+            term,
+            expected: expected.clone(),
+        };
         if self.entries[metavariable.index()].principal.is_none() {
             self.entries[metavariable.index()].principal = Some(constraint.clone());
         }
         self.constrain(constraint);
-        if let Some(previous) = self.entries[metavariable.index()].inferred_type {
+        if let Some(previous) = self.entries[metavariable.index()].inferred_type.clone() {
             self.unify(env, previous, expected)?;
         } else {
             self.entries[metavariable.index()].inferred_type = Some(expected);
@@ -181,16 +185,20 @@ impl MetaStore {
         term: Exp,
         context: &ExpContext,
     ) -> Result<Exp, String> {
-        let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
+        let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term.clone()))
+        else {
             return Err("expected metavariable".into());
         };
-        if let Some(ty) = self.entries[metavariable.index()].inferred_type {
+        if let Some(ty) = self.entries[metavariable.index()].inferred_type.clone() {
             return Ok(self.zonk(env, ty));
         }
         let span = self.entries[metavariable.index()].span;
         let ty = self.fresh_synthetic(env, context, span);
-        self.entries[metavariable.index()].inferred_type = Some(ty);
-        let constraint = GoalConstraint::HasType { term, expected: ty };
+        self.entries[metavariable.index()].inferred_type = Some(ty.clone());
+        let constraint = GoalConstraint::HasType {
+            term,
+            expected: ty.clone(),
+        };
         self.entries[metavariable.index()].principal = Some(constraint.clone());
         self.constrain(constraint);
         Ok(ty)
@@ -206,10 +214,10 @@ impl MetaStore {
     ) -> Result<(), String> {
         let term = self.zonk(env, term);
         let expected = self.zonk(env, expected);
-        if matches!(env.arena().get(term), ExpNode::Meta { .. }) {
+        if matches!(env.arena().get(term.clone()), ExpNode::Meta { .. }) {
             return self.set_meta_type(env, term, expected);
         }
-        if matches!(env.arena().get(expected), ExpNode::Meta { .. }) {
+        if matches!(env.arena().get(expected.clone()), ExpNode::Meta { .. }) {
             let inferred = self.infer_pts(env, module, context, term)?;
             self.unify(env, expected, inferred)?;
             return Ok(());
@@ -221,9 +229,11 @@ impl MetaStore {
                 body: expected_body,
                 ..
             },
-        ) = (env.arena().get(term), env.arena().get(expected))
-        {
-            self.unify(env, ty, expected_ty)?;
+        ) = (
+            env.arena().get(term.clone()),
+            env.arena().get(expected.clone()),
+        ) {
+            self.unify(env, ty, expected_ty.clone())?;
             context.push(ExpContextEntry {
                 var,
                 ty: expected_ty,
@@ -244,12 +254,13 @@ impl MetaStore {
     ) -> Result<(), String> {
         let inferred = self.zonk(env, inferred);
         let expected = self.zonk(env, expected);
-        if can_weaken_to(env, inferred, expected) {
+        if can_weaken_to(env, inferred.clone(), expected.clone()) {
             return Ok(());
         }
-        if let (ExpNode::Sort(inferred), ExpNode::Sort(expected)) =
-            (env.arena().get(inferred), env.arena().get(expected))
-            && inferred.can_lift_to(expected)
+        if let (ExpNode::Sort(inferred), ExpNode::Sort(expected)) = (
+            env.arena().get(inferred.clone()),
+            env.arena().get(expected.clone()),
+        ) && inferred.can_lift_to(expected)
         {
             return Ok(());
         }
@@ -264,13 +275,13 @@ impl MetaStore {
         term: Exp,
     ) -> Result<Exp, String> {
         let term = self.zonk(env, term);
-        if !self.contains_unsolved(env, term) {
+        if !self.contains_unsolved(env, term.clone()) {
             return CheckSession::new(env, module, context)
                 .infer_pts(term)
                 .map_err(|error| format!("{error:?}"));
         }
         let arena = env.arena();
-        match arena.get(term) {
+        match arena.get(term.clone()) {
             ExpNode::Meta { .. } => self.type_of_meta(env, term, context),
             ExpNode::Sort(sort) => sort
                 .type_of_sort()
@@ -280,19 +291,19 @@ impl MetaStore {
                 .len()
                 .checked_sub(index + 1)
                 .and_then(|position| context.get(position))
-                .map(|entry| shift_bound_indices(arena, entry.ty, index + 1, 0))
+                .map(|entry| shift_bound_indices(arena, entry.ty.clone(), index + 1, 0))
                 .ok_or_else(|| "bound variable is not a PTS term".into()),
             ExpNode::ModuleParam(parameter) => env
                 .module_parameter_opt(parameter)
-                .and_then(|parameter| match parameter.kind {
-                    ModuleParameterKind::Pts { ty } => Some(ty),
+                .and_then(|parameter| match &parameter.kind {
+                    ModuleParameterKind::Pts { ty } => Some(ty.clone()),
                     _ => None,
                 })
                 .ok_or_else(|| "module parameter is not a PTS term".into()),
             ExpNode::DefinedConstant(definition) => {
                 let definition = env.definition(definition);
                 match definition {
-                    DefinedConstant::Pts { ty, .. } => Ok(*ty),
+                    DefinedConstant::Pts { ty, .. } => Ok(ty.clone()),
                     _ => Err("definition is not a PTS term".into()),
                 }
             }
@@ -305,10 +316,13 @@ impl MetaStore {
                     return Err("inductive parameter count mismatch".into());
                 }
                 let mut preceding = Vec::new();
-                for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
-                    let expected =
-                        crate::raw::calculus::instantiate_telescope(arena, *expected, &preceding);
-                    self.check_pts(env, module, context, argument, expected)?;
+                for (argument, (_, expected)) in parameters.iter().cloned().zip(spec.parameters()) {
+                    let expected = crate::raw::calculus::instantiate_telescope(
+                        arena,
+                        expected.clone(),
+                        &preceding,
+                    );
+                    self.check_pts(env, module, context, argument.clone(), expected)?;
                     preceding.push(argument);
                 }
                 Ok(crate::raw::calculus::instantiate_telescope(
@@ -327,10 +341,13 @@ impl MetaStore {
                     return Err("constructor parameter count mismatch".into());
                 }
                 let mut preceding = Vec::new();
-                for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
-                    let expected =
-                        crate::raw::calculus::instantiate_telescope(arena, *expected, &preceding);
-                    self.check_pts(env, module, context, argument, expected)?;
+                for (argument, (_, expected)) in parameters.iter().cloned().zip(spec.parameters()) {
+                    let expected = crate::raw::calculus::instantiate_telescope(
+                        arena,
+                        expected.clone(),
+                        &preceding,
+                    );
+                    self.check_pts(env, module, context, argument.clone(), expected)?;
                     preceding.push(argument);
                 }
                 if idx >= spec.constructor_len() {
@@ -343,7 +360,7 @@ impl MetaStore {
                 )
             }
             ExpNode::Prod { var, ty, body } => {
-                let domain_sort = self.infer_sort(env, module, context, ty)?;
+                let domain_sort = self.infer_sort(env, module, context, ty.clone())?;
                 context.push(ExpContextEntry { var, ty });
                 let body_sort = self.infer_sort(env, module, context, body);
                 context.pop();
@@ -354,8 +371,11 @@ impl MetaStore {
                     .ok_or_else(|| "no sort relation for product".into())
             }
             ExpNode::Lam { var, ty, body } => {
-                self.infer_sort(env, module, context, ty)?;
-                context.push(ExpContextEntry { var, ty });
+                self.infer_sort(env, module, context, ty.clone())?;
+                context.push(ExpContextEntry {
+                    var,
+                    ty: ty.clone(),
+                });
                 let body_ty = self.infer_pts(env, module, context, body);
                 context.pop();
                 Ok(arena.alloc(ExpNode::Prod {
@@ -367,23 +387,24 @@ impl MetaStore {
             ExpNode::App { func, arg } => {
                 let func_ty = self.infer_pts(env, module, context, func)?;
                 let func_ty = self.zonk(env, func_ty);
-                let (domain, codomain) = match arena.get(crate::raw::calculus::whnf(env, func_ty)) {
-                    ExpNode::Prod { ty, body, .. } => (ty, body),
-                    ExpNode::Meta { .. } => {
-                        let span = meta_span(env, func_ty, &self.entries);
-                        let domain = self.fresh_synthetic(env, context, span);
-                        let codomain = self.fresh_synthetic(env, context, span);
-                        let product = arena.alloc(ExpNode::Prod {
-                            var: SymbolId::ANONYMOUS,
-                            ty: domain,
-                            body: shift_bound_indices(arena, codomain, 1, 0),
-                        });
-                        self.unify(env, func_ty, product)?;
-                        (domain, shift_bound_indices(arena, codomain, 1, 0))
-                    }
-                    _ => return Err("application head type is not a product".into()),
-                };
-                self.check_pts(env, module, context, arg, domain)?;
+                let (domain, codomain) =
+                    match arena.get(crate::raw::calculus::whnf(env, func_ty.clone())) {
+                        ExpNode::Prod { ty, body, .. } => (ty, body),
+                        ExpNode::Meta { .. } => {
+                            let span = meta_span(env, func_ty.clone(), &self.entries);
+                            let domain = self.fresh_synthetic(env, context, span);
+                            let codomain = self.fresh_synthetic(env, context, span);
+                            let product = arena.alloc(ExpNode::Prod {
+                                var: SymbolId::ANONYMOUS,
+                                ty: domain.clone(),
+                                body: shift_bound_indices(arena, codomain.clone(), 1, 0),
+                            });
+                            self.unify(env, func_ty, product)?;
+                            (domain, shift_bound_indices(arena, codomain, 1, 0))
+                        }
+                        _ => return Err("application head type is not a product".into()),
+                    };
+                self.check_pts(env, module, context, arg.clone(), domain)?;
                 Ok(crate::raw::calculus::instantiate(arena, codomain, arg))
             }
             ExpNode::PowerSet { set } => {
@@ -398,11 +419,14 @@ impl MetaStore {
                 set,
                 predicate,
             } => {
-                let sort = self.infer_sort(env, module, context, set)?;
+                let sort = self.infer_sort(env, module, context, set.clone())?;
                 if !matches!(sort, Sort::Set(_)) {
                     return Err("subset carrier is not Set(i)".into());
                 }
-                context.push(ExpContextEntry { var, ty: set });
+                context.push(ExpContextEntry {
+                    var,
+                    ty: set.clone(),
+                });
                 let proposition = arena.sort(Sort::Prop);
                 let result = self.check_pts(env, module, context, predicate, proposition);
                 context.pop();
@@ -414,14 +438,16 @@ impl MetaStore {
                 subset,
                 element,
             } => {
-                self.infer_sort(env, module, context, superset)?;
-                let power = arena.alloc(ExpNode::PowerSet { set: superset });
+                self.infer_sort(env, module, context, superset.clone())?;
+                let power = arena.alloc(ExpNode::PowerSet {
+                    set: superset.clone(),
+                });
                 self.check_pts(env, module, context, subset, power)?;
                 self.check_pts(env, module, context, element, superset)?;
                 Ok(arena.sort(Sort::Prop))
             }
             ExpNode::TypeLift { superset, subset } => {
-                let sort = self.infer_sort(env, module, context, superset)?;
+                let sort = self.infer_sort(env, module, context, superset.clone())?;
                 let power = arena.alloc(ExpNode::PowerSet { set: superset });
                 self.check_pts(env, module, context, subset, power)?;
                 match sort {
@@ -434,7 +460,7 @@ impl MetaStore {
                 let right_ty = self.infer_pts(env, module, context, right)?;
                 let left_ty = self.zonk(env, left_ty);
                 let right_ty = self.zonk(env, right_ty);
-                if common_ambient_carrier(env, left_ty, right_ty).is_none() {
+                if common_ambient_carrier(env, left_ty.clone(), right_ty.clone()).is_none() {
                     self.unify(env, left_ty, right_ty)?;
                 }
                 Ok(arena.sort(Sort::Prop))
@@ -450,15 +476,17 @@ impl MetaStore {
                 existence,
                 uniqueness,
             } => {
-                self.infer_sort(env, module, context, domain)?;
-                self.infer_sort(env, module, context, codomain)?;
-                let map_ty = nondependent_product(arena, domain, codomain);
-                self.check_pts(env, module, context, map, map_ty)?;
-                let exists = arena.alloc(ExpNode::Exists { set: domain });
+                self.infer_sort(env, module, context, domain.clone())?;
+                self.infer_sort(env, module, context, codomain.clone())?;
+                let map_ty = nondependent_product(arena, domain.clone(), codomain.clone());
+                self.check_pts(env, module, context, map.clone(), map_ty)?;
+                let exists = arena.alloc(ExpNode::Exists {
+                    set: domain.clone(),
+                });
                 self.check_pts(env, module, context, existence, exists)?;
                 let shifted_map = shift_bound_indices(arena, map, 2, 0);
                 let mapped_left = arena.alloc(ExpNode::App {
-                    func: shifted_map,
+                    func: shifted_map.clone(),
                     arg: arena.exp_bound(1),
                 });
                 let mapped_right = arena.alloc(ExpNode::App {
@@ -471,7 +499,7 @@ impl MetaStore {
                 });
                 let inner = arena.alloc(ExpNode::Prod {
                     var: SymbolId::ANONYMOUS,
-                    ty: shift_bound_indices(arena, domain, 1, 0),
+                    ty: shift_bound_indices(arena, domain.clone(), 1, 0),
                     body: equality,
                 });
                 let uniqueness_ty = arena.alloc(ExpNode::Prod {
@@ -488,9 +516,9 @@ impl MetaStore {
                 map,
                 existence,
             } => {
-                self.infer_sort(env, module, context, domain)?;
-                self.infer_sort(env, module, context, proposition)?;
-                let map_ty = nondependent_product(arena, domain, proposition);
+                self.infer_sort(env, module, context, domain.clone())?;
+                self.infer_sort(env, module, context, proposition.clone())?;
+                let map_ty = nondependent_product(arena, domain.clone(), proposition.clone());
                 self.check_pts(env, module, context, map, map_ty)?;
                 let exists = arena.alloc(ExpNode::Exists { set: domain });
                 self.check_pts(env, module, context, existence, exists)?;
@@ -508,8 +536,14 @@ impl MetaStore {
                 result_ty,
                 next,
             } => {
-                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
-                self.check_pts(env, module, context, next, state_ty)?;
+                self.infer_recursion_sort(
+                    env,
+                    module,
+                    context,
+                    state_ty.clone(),
+                    result_ty.clone(),
+                )?;
+                self.check_pts(env, module, context, next, state_ty.clone())?;
                 Ok(arena.alloc(ExpNode::RunStep {
                     state_ty,
                     result_ty,
@@ -520,8 +554,14 @@ impl MetaStore {
                 result_ty,
                 output,
             } => {
-                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
-                self.check_pts(env, module, context, output, result_ty)?;
+                self.infer_recursion_sort(
+                    env,
+                    module,
+                    context,
+                    state_ty.clone(),
+                    result_ty.clone(),
+                )?;
+                self.check_pts(env, module, context, output, result_ty.clone())?;
                 Ok(arena.alloc(ExpNode::RunStep {
                     state_ty,
                     result_ty,
@@ -533,8 +573,14 @@ impl MetaStore {
                 step,
                 state,
             } => {
-                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
-                let step_ty = set_step_function_type(arena, state_ty, result_ty);
+                self.infer_recursion_sort(
+                    env,
+                    module,
+                    context,
+                    state_ty.clone(),
+                    result_ty.clone(),
+                )?;
+                let step_ty = set_step_function_type(arena, state_ty.clone(), result_ty);
                 self.check_pts(env, module, context, step, step_ty)?;
                 self.check_pts(env, module, context, state, state_ty)?;
                 Ok(arena.sort(Sort::Prop))
@@ -546,15 +592,21 @@ impl MetaStore {
                 initial,
                 accessibility,
             } => {
-                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
+                self.infer_recursion_sort(
+                    env,
+                    module,
+                    context,
+                    state_ty.clone(),
+                    result_ty.clone(),
+                )?;
                 self.check_pts(
                     env,
                     module,
                     context,
-                    step,
-                    set_step_function_type(arena, state_ty, result_ty),
+                    step.clone(),
+                    set_step_function_type(arena, state_ty.clone(), result_ty.clone()),
                 )?;
-                self.check_pts(env, module, context, initial, state_ty)?;
+                self.check_pts(env, module, context, initial.clone(), state_ty.clone())?;
                 self.check_pts(
                     env,
                     module,
@@ -562,7 +614,7 @@ impl MetaStore {
                     accessibility,
                     arena.alloc(ExpNode::Acc {
                         state_ty,
-                        result_ty,
+                        result_ty: result_ty.clone(),
                         step,
                         state: initial,
                     }),
@@ -578,13 +630,19 @@ impl MetaStore {
                 accessibility,
                 transition_equality,
             } => {
-                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
+                self.infer_recursion_sort(
+                    env,
+                    module,
+                    context,
+                    state_ty.clone(),
+                    result_ty.clone(),
+                )?;
                 self.check_pts(
                     env,
                     module,
                     context,
-                    step,
-                    set_step_function_type(arena, state_ty, result_ty),
+                    step.clone(),
+                    set_step_function_type(arena, state_ty.clone(), result_ty.clone()),
                 )?;
                 self.check_pts(
                     env,
@@ -592,10 +650,10 @@ impl MetaStore {
                     context,
                     accessibility,
                     arena.alloc(ExpNode::Acc {
-                        state_ty,
-                        result_ty,
-                        step,
-                        state: initial,
+                        state_ty: state_ty.clone(),
+                        result_ty: result_ty.clone(),
+                        step: step.clone(),
+                        state: initial.clone(),
                     }),
                 )?;
                 self.check_pts(
@@ -606,12 +664,12 @@ impl MetaStore {
                     arena.alloc(ExpNode::Equal {
                         left: arena.alloc(ExpNode::App {
                             func: step,
-                            arg: initial,
+                            arg: initial.clone(),
                         }),
-                        right: transition,
+                        right: transition.clone(),
                     }),
                 )?;
-                self.check_pts(env, module, context, initial, state_ty)?;
+                self.check_pts(env, module, context, initial, state_ty.clone())?;
                 self.check_pts(
                     env,
                     module,
@@ -619,7 +677,7 @@ impl MetaStore {
                     transition,
                     arena.alloc(ExpNode::RunStep {
                         state_ty,
-                        result_ty,
+                        result_ty: result_ty.clone(),
                     }),
                 )?;
                 Ok(result_ty)
@@ -632,12 +690,18 @@ impl MetaStore {
                 on_finish,
                 scrutinee,
             } => {
-                self.infer_recursion_sort(env, module, context, state_ty, result_ty)?;
+                self.infer_recursion_sort(
+                    env,
+                    module,
+                    context,
+                    state_ty.clone(),
+                    result_ty.clone(),
+                )?;
                 let run_step = arena.alloc(ExpNode::RunStep {
-                    state_ty,
-                    result_ty,
+                    state_ty: state_ty.clone(),
+                    result_ty: result_ty.clone(),
                 });
-                let motive_ty = self.infer_pts(env, module, context, motive)?;
+                let motive_ty = self.infer_pts(env, module, context, motive.clone())?;
                 let ExpNode::Prod {
                     ty: motive_domain,
                     body: motive_body,
@@ -646,25 +710,25 @@ impl MetaStore {
                 else {
                     return Err("RunStep recursor motive is not a family".into());
                 };
-                self.unify(env, motive_domain, run_step)?;
+                self.unify(env, motive_domain, run_step.clone())?;
                 let ExpNode::Sort(motive_sort) =
                     arena.get(crate::raw::calculus::whnf(env, self.zonk(env, motive_body)))
                 else {
                     return Err("RunStep recursor motive does not return a sort".into());
                 };
                 let branch_sort = self
-                    .infer_sort(env, module, context, state_ty)?
+                    .infer_sort(env, module, context, state_ty.clone())?
                     .relation_of_sort(motive_sort)
                     .ok_or("invalid recursor product rule")?;
-                let shifted_state = shift_bound_indices(arena, state_ty, 1, 0);
-                let shifted_result = shift_bound_indices(arena, result_ty, 1, 0);
+                let shifted_state = shift_bound_indices(arena, state_ty.clone(), 1, 0);
+                let shifted_result = shift_bound_indices(arena, result_ty.clone(), 1, 0);
                 let continue_value = arena.alloc(ExpNode::Continue {
-                    state_ty: shifted_state,
-                    result_ty: shifted_result,
+                    state_ty: shifted_state.clone(),
+                    result_ty: shifted_result.clone(),
                     next: arena.exp_bound(0),
                 });
                 let continue_result = arena.alloc(ExpNode::App {
-                    func: shift_bound_indices(arena, motive, 1, 0),
+                    func: shift_bound_indices(arena, motive.clone(), 1, 0),
                     arg: continue_value,
                 });
                 let continue_ty = arena.alloc(ExpNode::Prod {
@@ -672,7 +736,7 @@ impl MetaStore {
                     ty: state_ty,
                     body: continue_result,
                 });
-                if self.infer_sort(env, module, context, continue_ty)? != branch_sort {
+                if self.infer_sort(env, module, context, continue_ty.clone())? != branch_sort {
                     return Err(
                         "RunStep continue branch type must have the branch product sort".into(),
                     );
@@ -684,7 +748,7 @@ impl MetaStore {
                     output: arena.exp_bound(0),
                 });
                 let finish_result = arena.alloc(ExpNode::App {
-                    func: shift_bound_indices(arena, motive, 1, 0),
+                    func: shift_bound_indices(arena, motive.clone(), 1, 0),
                     arg: finish_value,
                 });
                 let finish_ty = arena.alloc(ExpNode::Prod {
@@ -692,13 +756,13 @@ impl MetaStore {
                     ty: result_ty,
                     body: finish_result,
                 });
-                if self.infer_sort(env, module, context, finish_ty)? != branch_sort {
+                if self.infer_sort(env, module, context, finish_ty.clone())? != branch_sort {
                     return Err(
                         "RunStep finish branch type must have the branch product sort".into(),
                     );
                 }
                 self.check_pts(env, module, context, on_finish, finish_ty)?;
-                self.check_pts(env, module, context, scrutinee, run_step)?;
+                self.check_pts(env, module, context, scrutinee.clone(), run_step)?;
                 Ok(arena.alloc(ExpNode::App {
                     func: motive,
                     arg: scrutinee,
@@ -719,10 +783,10 @@ impl MetaStore {
                 let mut empty = Vec::new();
                 let mut session = ProgramCheckSession::new(env, &mut empty);
                 session
-                    .check_computation_term(program, program_ty)
+                    .check_computation_term(program.clone(), program_ty.clone())
                     .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
                 let reflected_ty =
-                    crate::raw::reflection::reflect_computation_type(env, program_ty)
+                    crate::raw::reflection::reflect_computation_type(env, program_ty.clone())
                         .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
                 let reflected = crate::raw::reflection::reflect_computation(env, program)
                     .map_err(|error| format!("cannot reflect boxed Program: {error}"))?;
@@ -735,7 +799,9 @@ impl MetaStore {
                     module,
                     context,
                     boxed,
-                    arena.alloc(ExpNode::BoxType { program_ty }),
+                    arena.alloc(ExpNode::BoxType {
+                        program_ty: program_ty.clone(),
+                    }),
                 )?;
                 crate::raw::reflection::reflect_computation_type(env, program_ty)
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))
@@ -769,21 +835,23 @@ impl MetaStore {
                 element,
                 proof,
             } => {
-                self.infer_sort(env, module, context, superset)?;
-                let power = arena.alloc(ExpNode::PowerSet { set: superset });
-                self.check_pts(env, module, context, subset, power)?;
-                self.check_pts(env, module, context, element, superset)?;
+                self.infer_sort(env, module, context, superset.clone())?;
+                let power = arena.alloc(ExpNode::PowerSet {
+                    set: superset.clone(),
+                });
+                self.check_pts(env, module, context, subset.clone(), power)?;
+                self.check_pts(env, module, context, element.clone(), superset.clone())?;
                 let membership = arena.alloc(ExpNode::Pred {
-                    superset,
-                    subset,
+                    superset: superset.clone(),
+                    subset: subset.clone(),
                     element,
                 });
                 self.check_pts(env, module, context, proof, membership)?;
                 Ok(arena.alloc(ExpNode::TypeLift { superset, subset }))
             }
             ExpNode::Prove(Prove::ExistsIntro { element, set }) => {
-                self.check_pts(env, module, context, element, set)?;
-                self.infer_sort(env, module, context, set)?;
+                self.check_pts(env, module, context, element, set.clone())?;
+                self.infer_sort(env, module, context, set.clone())?;
                 Ok(arena.alloc(ExpNode::Exists { set }))
             }
             ExpNode::Prove(Prove::SubsetElim {
@@ -791,8 +859,11 @@ impl MetaStore {
                 subset,
                 superset,
             }) => {
-                let lifted = arena.alloc(ExpNode::TypeLift { superset, subset });
-                self.check_pts(env, module, context, element, lifted)?;
+                let lifted = arena.alloc(ExpNode::TypeLift {
+                    superset: superset.clone(),
+                    subset: subset.clone(),
+                });
+                self.check_pts(env, module, context, element.clone(), lifted)?;
                 Ok(arena.alloc(ExpNode::Pred {
                     superset,
                     subset,
@@ -800,10 +871,10 @@ impl MetaStore {
                 }))
             }
             ExpNode::Prove(Prove::IdRefl { element }) => {
-                let ty = self.infer_pts(env, module, context, element)?;
+                let ty = self.infer_pts(env, module, context, element.clone())?;
                 self.infer_sort(env, module, context, ty)?;
                 Ok(arena.alloc(ExpNode::Equal {
-                    left: element,
+                    left: element.clone(),
                     right: element,
                 }))
             }
@@ -816,12 +887,16 @@ impl MetaStore {
                 base,
                 equality,
             }) => {
-                self.infer_sort(env, module, context, ty)?;
-                self.check_pts(env, module, context, left, ty)?;
-                self.check_pts(env, module, context, right, ty)?;
-                context.push(ExpContextEntry { var, ty });
+                self.infer_sort(env, module, context, ty.clone())?;
+                self.check_pts(env, module, context, left.clone(), ty.clone())?;
+                self.check_pts(env, module, context, right.clone(), ty.clone())?;
+                context.push(ExpContextEntry {
+                    var,
+                    ty: ty.clone(),
+                });
                 let proposition = arena.sort(Sort::Prop);
-                let predicate_result = self.check_pts(env, module, context, predicate, proposition);
+                let predicate_result =
+                    self.check_pts(env, module, context, predicate.clone(), proposition);
                 context.pop();
                 predicate_result?;
                 let predicate_function = arena.alloc(ExpNode::Lam {
@@ -830,11 +905,14 @@ impl MetaStore {
                     body: predicate,
                 });
                 let base_ty = arena.alloc(ExpNode::App {
-                    func: predicate_function,
-                    arg: left,
+                    func: predicate_function.clone(),
+                    arg: left.clone(),
                 });
                 self.check_pts(env, module, context, base, base_ty)?;
-                let equality_ty = arena.alloc(ExpNode::Equal { left, right });
+                let equality_ty = arena.alloc(ExpNode::Equal {
+                    left,
+                    right: right.clone(),
+                });
                 self.check_pts(env, module, context, equality, equality_ty)?;
                 Ok(arena.alloc(ExpNode::App {
                     func: predicate_function,
@@ -850,14 +928,14 @@ impl MetaStore {
                 uniqueness,
             }) => {
                 let take = arena.alloc(ExpNode::TakeSet {
-                    domain,
-                    codomain,
-                    map: func,
+                    domain: domain.clone(),
+                    codomain: codomain.clone(),
+                    map: func.clone(),
                     existence,
                     uniqueness,
                 });
-                self.check_pts(env, module, context, take, codomain)?;
-                self.check_pts(env, module, context, element, domain)?;
+                self.check_pts(env, module, context, take.clone(), codomain)?;
+                self.check_pts(env, module, context, element.clone(), domain)?;
                 let mapped = arena.alloc(ExpNode::App { func, arg: element });
                 Ok(arena.alloc(ExpNode::Equal {
                     left: take,
@@ -876,8 +954,8 @@ impl MetaStore {
         state_ty: Exp,
         result_ty: Exp,
     ) -> Result<Sort, String> {
-        let state_sort = self.infer_sort(env, module, context, state_ty)?;
-        let result_sort = self.infer_sort(env, module, context, result_ty)?;
+        let state_sort = self.infer_sort(env, module, context, state_ty.clone())?;
+        let result_sort = self.infer_sort(env, module, context, result_ty.clone())?;
         if !matches!(state_sort, Sort::Set(_)) || !matches!(result_sort, Sort::Set(_)) {
             return Err("Set recursion state and result types must inhabit Set(i)".into());
         }
@@ -904,18 +982,18 @@ impl MetaStore {
         term: Exp,
     ) -> Result<Sort, String> {
         let term = self.zonk(env, term);
-        if !self.contains_unsolved(env, term) {
+        if !self.contains_unsolved(env, term.clone()) {
             return CheckSession::new(env, module, context)
                 .infer_sort(term)
                 .map_err(|error| format!("{error:?}"));
         }
-        if matches!(env.arena().get(term), ExpNode::Meta { .. }) {
-            let constraint = GoalConstraint::IsSort { term };
+        if matches!(env.arena().get(term.clone()), ExpNode::Meta { .. }) {
+            let constraint = GoalConstraint::IsSort { term: term.clone() };
             self.set_principal_for_meta(env, term, &constraint);
             self.constrain(constraint);
             return Ok(Sort::Set(0));
         }
-        let ty = self.infer_pts(env, module, context, term)?;
+        let ty = self.infer_pts(env, module, context, term.clone())?;
         match env.arena().get(self.zonk(env, ty)) {
             ExpNode::Sort(sort) => Ok(sort),
             ExpNode::Meta { .. } => {
@@ -928,8 +1006,11 @@ impl MetaStore {
 
     pub(crate) fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
         let index = self.constraints.len();
-        self.constrain(GoalConstraint::Equal { left, right });
-        let result = self.unify_rec(env, left, right, &mut HashSet::new());
+        self.constrain(GoalConstraint::Equal {
+            left: left.clone(),
+            right: right.clone(),
+        });
+        let result = self.unify_rec(env, left.clone(), right.clone(), &mut HashSet::new());
         let normalized_left = self.zonk(env, left);
         let normalized_right = self.zonk(env, right);
         self.constraints[index].normalized = GoalConstraint::Equal {
@@ -953,17 +1034,20 @@ impl MetaStore {
     ) -> Result<bool, String> {
         let left = self.zonk(env, left);
         let right = self.zonk(env, right);
-        if left == right || erased_convertible(env, left, right) {
+        if left == right || erased_convertible(env, left.clone(), right.clone()) {
             return Ok(true);
         }
         // Expand local definitions before rigid comparison. Keep named heads
         // so structural matching can still infer their implicit arguments.
         let left = beta_head(env.arena(), left);
         let right = beta_head(env.arena(), right);
-        if !visiting.insert((left, right)) {
+        if !visiting.insert((left.clone(), right.clone())) {
             return Ok(true);
         }
-        match (env.arena().get(left), env.arena().get(right)) {
+        match (
+            env.arena().get(left.clone()),
+            env.arena().get(right.clone()),
+        ) {
             (
                 ExpNode::Meta {
                     metavariable,
@@ -1013,7 +1097,7 @@ impl MetaStore {
         occurrence_scope: usize,
         value: Exp,
     ) -> Result<bool, String> {
-        if self.occurs(env, metavariable, value, &mut HashSet::new()) {
+        if self.occurs(env, metavariable, value.clone(), &mut HashSet::new()) {
             return Err(format!("occurs check failed for ?m{}", metavariable.0));
         }
         let entry = &self.entries[metavariable.index()];
@@ -1028,7 +1112,7 @@ impl MetaStore {
         } else {
             shift_bound_indices(env.arena(), value, entry.scope_len - occurrence_scope, 0)
         };
-        if let Some(previous) = entry.assignment {
+        if let Some(previous) = entry.assignment.clone() {
             return self.unify_rec(env, previous, value, &mut HashSet::new());
         }
         self.entries[metavariable.index()].assignment = Some(value);
@@ -1036,7 +1120,7 @@ impl MetaStore {
     }
 
     fn occurs(&self, env: &CrateEnv, needle: MetaVarId, exp: Exp, seen: &mut HashSet<Exp>) -> bool {
-        if !seen.insert(exp) {
+        if !seen.insert(exp.clone()) {
             return false;
         }
         match env.arena().get(exp) {
@@ -1047,6 +1131,7 @@ impl MetaStore {
                 metavariable == needle
                     || self.entries[metavariable.index()]
                         .assignment
+                        .clone()
                         .is_some_and(|value| self.occurs(env, needle, value, seen))
                     || spine
                         .into_iter()
@@ -1070,18 +1155,18 @@ impl MetaStore {
         resolving: &mut HashSet<MetaVarId>,
     ) -> Exp {
         if let Some(result) = cache.get(&exp) {
-            return *result;
+            return result.clone();
         }
         let arena = env.arena();
-        let result = match arena.get(exp) {
+        let result = match arena.get(exp.clone()) {
             ExpNode::Meta {
                 metavariable,
                 spine,
             } => {
                 let entry = &self.entries[metavariable.index()];
-                if let Some(assignment) = entry.assignment {
+                if let Some(assignment) = entry.assignment.clone() {
                     if !resolving.insert(metavariable) {
-                        exp
+                        exp.clone()
                     } else {
                         let Some(arguments) = spine.get(..entry.scope_len) else {
                             resolving.remove(&metavariable);
@@ -1093,7 +1178,7 @@ impl MetaStore {
                         result
                     }
                 } else {
-                    exp
+                    exp.clone()
                 }
             }
             node => {
@@ -1101,19 +1186,19 @@ impl MetaStore {
                 let mapped =
                     map_children(node, |child| self.zonk_rec(env, child, cache, resolving));
                 if original == mapped {
-                    exp
+                    exp.clone()
                 } else {
                     arena.alloc(mapped)
                 }
             }
         };
-        cache.insert(exp, result);
+        cache.insert(exp, result.clone());
         result
     }
 
     pub(crate) fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
         fn visit(env: &CrateEnv, exp: Exp, seen: &mut HashSet<Exp>) -> bool {
-            if !seen.insert(exp) {
+            if !seen.insert(exp.clone()) {
                 return false;
             }
             match env.arena().get(exp) {
@@ -1135,6 +1220,7 @@ impl MetaStore {
             let id = MetaVarId(index as u32);
             let solved = entry
                 .assignment
+                .clone()
                 .is_some_and(|assignment| !self.contains_unsolved(env, assignment));
             if solved {
                 continue;
@@ -1206,15 +1292,15 @@ impl MetaStore {
     fn zonk_constraint(&self, env: &CrateEnv, constraint: &GoalConstraint) -> GoalConstraint {
         match constraint {
             GoalConstraint::HasType { term, expected } => GoalConstraint::HasType {
-                term: self.zonk(env, *term),
-                expected: self.zonk(env, *expected),
+                term: self.zonk(env, term.clone()),
+                expected: self.zonk(env, expected.clone()),
             },
             GoalConstraint::Equal { left, right } => GoalConstraint::Equal {
-                left: self.zonk(env, *left),
-                right: self.zonk(env, *right),
+                left: self.zonk(env, left.clone()),
+                right: self.zonk(env, right.clone()),
             },
             GoalConstraint::IsSort { term } => GoalConstraint::IsSort {
-                term: self.zonk(env, *term),
+                term: self.zonk(env, term.clone()),
             },
         }
     }
@@ -1226,8 +1312,8 @@ fn constraint_expressions(constraint: &GoalConstraint) -> Vec<Exp> {
         | GoalConstraint::Equal {
             left: term,
             right: expected,
-        } => vec![*term, *expected],
-        GoalConstraint::IsSort { term } => vec![*term],
+        } => vec![term.clone(), expected.clone()],
+        GoalConstraint::IsSort { term } => vec![term.clone()],
     }
 }
 
@@ -1247,7 +1333,7 @@ fn metas_in_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> HashSet<M
 
 fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
     fn collect(env: &CrateEnv, exp: Exp, result: &mut HashSet<MetaVarId>, seen: &mut HashSet<Exp>) {
-        if !seen.insert(exp) {
+        if !seen.insert(exp.clone()) {
             return;
         }
         match env.arena().get(exp) {
@@ -1273,12 +1359,12 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
 }
 
 fn beta_head(arena: &crate::raw::exp::Arena, exp: Exp) -> Exp {
-    let ExpNode::App { func, arg } = arena.get(exp) else {
+    let ExpNode::App { func, arg } = arena.get(exp.clone()) else {
         return exp;
     };
     let head = beta_head(arena, func);
-    if let ExpNode::Lam { body, .. } = arena.get(head) {
-        let body = match arena.get(body) {
+    if let ExpNode::Lam { body, .. } = arena.get(head.clone()) {
+        let body = match arena.get(body.clone()) {
             ExpNode::Bound(0) => arg,
             _ => crate::raw::calculus::instantiate(arena, body, arg),
         };
@@ -1291,7 +1377,7 @@ fn beta_head(arena: &crate::raw::exp::Arena, exp: Exp) -> Exp {
 fn node_children(node: ExpNode) -> Vec<Exp> {
     let mut children = Vec::new();
     let _ = map_children(node, |child| {
-        children.push(child);
+        children.push(child.clone());
         child
     });
     children
@@ -1338,7 +1424,7 @@ fn nondependent_product(arena: &crate::raw::exp::Arena, domain: Exp, codomain: E
 
 fn set_step_function_type(arena: &crate::raw::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
     let run_step = arena.alloc(ExpNode::RunStep {
-        state_ty,
+        state_ty: state_ty.clone(),
         result_ty,
     });
     nondependent_product(arena, state_ty, run_step)

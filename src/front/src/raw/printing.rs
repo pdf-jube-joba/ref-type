@@ -433,7 +433,13 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
 
 pub fn format_ctx(env: &CrateEnv, ctx: &ExpContext) -> String {
     ctx.iter()
-        .map(|entry| format!("{}: {}", env.symbol(entry.var), format_exp(env, entry.ty)))
+        .map(|entry| {
+            format!(
+                "{}: {}",
+                env.symbol(entry.var),
+                format_exp(env, entry.ty.clone())
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -513,7 +519,7 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
             definition.index,
             parameters
                 .iter()
-                .map(|ty| format_value_type(env, *ty))
+                .map(|ty| format_value_type(env, ty.clone()))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -572,7 +578,7 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
             definition.index,
             parameters
                 .iter()
-                .map(|ty| format_value_type(env, *ty))
+                .map(|ty| format_value_type(env, ty.clone()))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),

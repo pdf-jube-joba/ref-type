@@ -45,14 +45,15 @@ fn record_fields_are_generated_as_eliminator_definitions() {
         panic!("carrier projection should be a PTS definition");
     };
     assert!(matches!(
-        env.arena().get(*body),
-        ExpNode::Lam { body, .. } if matches!(env.arena().get(body), ExpNode::IndElim { .. })
-    ));
+            env.arena().get(body.clone()),
+            ExpNode::Lam { body, .. } if matches!(env.arena().get(body.clone()
+    ), ExpNode::IndElim { .. })
+        ));
 
     let DefinedConstant::Pts { ty, .. } = env.definition(associated_definitions[1].1) else {
         panic!("value projection should be a PTS definition");
     };
-    let ExpNode::Prod { body, .. } = env.arena().get(*ty) else {
+    let ExpNode::Prod { body, .. } = env.arena().get(ty.clone()) else {
         panic!("value projection should accept the structure");
     };
     let (head, _) = crate::raw::utils::decompose_app(env.arena(), body);
@@ -135,9 +136,10 @@ fn logical_case_is_distinct_from_inductive_elimination() {
         panic!("predecessor should be a logical definition");
     };
     assert!(matches!(
-        env.arena().get(*body),
-        ExpNode::Lam { body, .. } if matches!(env.arena().get(body), ExpNode::IndCase { .. })
-    ));
+            env.arena().get(body.clone()),
+            ExpNode::Lam { body, .. } if matches!(env.arena().get(body.clone()
+    ), ExpNode::IndCase { .. })
+        ));
 }
 
 #[test]
@@ -167,8 +169,8 @@ fn deeply_nested_expressions_and_arrow_precedence() {
         panic!("expected unnamed domain");
     };
     assert!(bind.vars.is_empty());
-    assert!(matches!(*bind.ty, SExp::App { .. }));
-    assert!(matches!(*body, SExp::Lam { .. }));
+    assert!(matches!(*bind.clone().ty, SExp::App { .. }));
+    assert!(matches!(*body.clone(), SExp::Lam { .. }));
 
     for invalid in ["(x: X)", "x ->", "x =>", "(x"] {
         assert!(parse::str_parse_exp(invalid).is_err(), "accepted {invalid}");
@@ -1105,7 +1107,7 @@ fn program_value_let_solves_and_zonks_type_annotations() {
     let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
         panic!()
     };
-    let ComputationTermNode::ValueLet { value_ty, .. } = env.arena().get(*body) else {
+    let ComputationTermNode::ValueLet { value_ty, .. } = env.arena().get(body.clone()) else {
         panic!()
     };
     assert!(matches!(
@@ -1182,18 +1184,15 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
         panic!()
     };
     assert_ne!(var.as_str(), "A");
-    assert!(
-        matches!(*value_ty, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "A")
-    );
-    assert!(
-        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "a")
-    );
-    let SExp::Return { value } = *body else {
+    assert!(matches!(*value_ty.clone()
+, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "A"));
+    assert!(matches!(*value.clone()
+, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "a"));
+    let SExp::Return { value } = *body.clone() else {
         panic!()
     };
-    assert!(
-        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access == var)
-    );
+    assert!(matches!(*value.clone()
+, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access == var));
 }
 
 #[test]
@@ -1224,7 +1223,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
     let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
         panic!()
     };
-    let ComputationTermNode::Lambda { body, .. } = env.arena().get(*body) else {
+    let ComputationTermNode::Lambda { body, .. } = env.arena().get(body.clone()) else {
         panic!()
     };
     // Reflect the open case directly, without the enclosing lambda's context.
@@ -1240,7 +1239,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
     assert_eq!(env.arena().get(scrutinee), ExpNode::Bound(0));
     assert_eq!(branches[0].binders.len(), 2);
     assert!(matches!(
-        env.arena().get(branches[0].body),
+        env.arena().get(branches[0].body.clone()),
         ExpNode::App { .. }
     ));
 }
@@ -1319,7 +1318,7 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
         // the elaborator path while retaining A's universe level.
         let family = arena.alloc(ExpNode::Lam {
             var: SymbolId(1),
-            ty: state_ty,
+            ty: state_ty.clone(),
             body: arena.exp_bound(1),
         });
         let state_with_hole = arena.alloc(ExpNode::App {
@@ -1331,7 +1330,7 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
             result_ty: state_ty,
         });
         let inferred = metas
-            .infer_sort(&env, env.root_module(), &mut context, run_step)
+            .infer_sort(&env, env.root_module(), &mut context, run_step.clone())
             .unwrap();
         assert_eq!(inferred, Sort::Set(level));
         assert!(metas.contains_unsolved(&env, run_step));
@@ -1390,11 +1389,11 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     };
     let env = global.kernel_env();
     let def = env.definition(*definition).unwrap();
-    let mut term = def.body;
+    let mut term = def.body.clone();
     let mut steps = 0;
     while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
         kernel::check::Checker::new(env, vec![])
-            .check(next, def.classifier)
+            .check(next.clone(), def.classifier.clone())
             .unwrap();
         term = next;
         steps += 1;
@@ -1428,11 +1427,11 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
         else {
             panic!()
         };
-        let mut term = *body;
+        let mut term = body.clone();
         let mut count = 0;
         while let Some(next) = reduce_computation_once(raw, term) {
             ProgramCheckSession::new(raw, &mut vec![])
-                .check_computation_term(next, *ty)
+                .check_computation_term(next.clone(), ty.clone())
                 .unwrap();
             term = next;
             count += 1;
@@ -1440,11 +1439,11 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
         }
         let env = global.kernel_env();
         let def = env.definition(*definition).unwrap();
-        let mut term = def.body;
+        let mut term = def.body.clone();
         let mut count = 0;
         while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
             kernel::check::Checker::new(env, vec![])
-                .check(next, def.classifier)
+                .check(next.clone(), def.classifier.clone())
                 .unwrap();
             term = next;
             count += 1;
@@ -1498,7 +1497,7 @@ fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
     let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
         panic!("result should be a computation");
     };
-    let Evaluation::Normal(result) = evaluate_computation(env, *body) else {
+    let Evaluation::Normal(result) = evaluate_computation(env, body.clone()) else {
         panic!("block did not finish");
     };
     let ComputationTermNode::Return { value } = env.arena().get(result) else {
@@ -1521,7 +1520,10 @@ fn program_application_classification_preserves_cbpv_boundaries() {
     };
     assert_eq!(arguments.len(), 2);
     assert!(arguments.iter().all(|value| matches!(value, V::Access(_))));
-    assert!(matches!(function, F::Computation(computation) if matches!(*computation, C::Force(_))));
+    assert!(
+        matches!(function, F::Computation(computation) if matches!(*computation.clone()
+, C::Force(_)))
+    );
 
     let V::Constructor { fields, .. } =
         V::try_from(parse::str_parse_exp("Pair::pair x y").unwrap()).unwrap()
@@ -1580,7 +1582,7 @@ fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
             else {
                 panic!("{name} is not a Program computation")
             };
-            (*ty, *body)
+            (ty.clone(), body.clone())
         };
         let (sugared_ty, sugared_body) = get(sugared);
         let (explicit_ty, explicit_body) = get(explicit);
@@ -1590,7 +1592,7 @@ fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
             explicit_ty
         ));
         assert!(
-            computation_is_alpha_eq(env.arena(), sugared_body, explicit_body),
+            computation_is_alpha_eq(env.arena(), sugared_body.clone(), explicit_body.clone()),
             "{sugared} did not match {explicit}:\nsugared: {}\nexplicit: {}",
             crate::raw::printing::format_program(
                 env,
@@ -1628,7 +1630,7 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
         let DefinedConstant::ProgramComputation { ty, body } = env.definition(*definition) else {
             panic!("expected computation")
         };
-        (*ty, *body)
+        (ty.clone(), body.clone())
     };
     let (ty, body) = checked_definition("f");
     let (explicit_ty, explicit_body) = checked_definition("explicit");
@@ -1639,8 +1641,8 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     ));
     assert!(crate::raw::program_calculus::computation_is_alpha_eq(
         env.arena(),
-        body,
-        explicit_body
+        body.clone(),
+        explicit_body.clone()
     ));
     let reflection = crate::raw::reflection::reflect_computation(env, body).unwrap();
     let explicit_reflection =
@@ -1686,7 +1688,8 @@ fn program_records_generate_checked_projections_and_swap_fields() {
             panic!("projection computation");
         };
         assert!(
-            matches!(env.arena().get(*body), C::Lambda { body, .. } if matches!(env.arena().get(body), C::Case { .. }))
+            matches!(env.arena().get(body.clone()), C::Lambda { body, .. } if matches!(env.arena().get(body.clone()
+), C::Case { .. }))
         );
     }
     let returned = |name| {
@@ -1697,7 +1700,7 @@ fn program_records_generate_checked_projections_and_swap_fields() {
         let DefinedConstant::ProgramComputation { body, .. } = env.definition(*definition) else {
             panic!("computation result");
         };
-        let Evaluation::Normal(term) = evaluate_computation(env, *body) else {
+        let Evaluation::Normal(term) = evaluate_computation(env, body.clone()) else {
             panic!("evaluation must finish");
         };
         let C::Return { value } = env.arena().get(term) else {
@@ -1713,11 +1716,11 @@ fn program_records_generate_checked_projections_and_swap_fields() {
     };
     assert_eq!(fields.len(), 2);
     assert!(matches!(
-        env.arena().get(fields[0]),
+        env.arena().get(fields[0].clone()),
         V::InductiveConstructor { idx: 1, .. }
     ));
     assert!(matches!(
-        env.arena().get(fields[1]),
+        env.arena().get(fields[1].clone()),
         V::InductiveConstructor { idx: 0, .. }
     ));
 }
@@ -1754,10 +1757,10 @@ fn program_associated_imports_remap_later_declarations() {
         panic!("associated value");
     };
     assert!(
-        matches!(env.arena().get(*ty), ValueTypeNode::Inductive { indspec, .. } if indspec == *inductive)
+        matches!(env.arena().get(ty.clone()), ValueTypeNode::Inductive { indspec, .. } if indspec == *inductive)
     );
     assert!(
-        matches!(env.arena().get(*body), ValueTermNode::DefinedConstant(id) if id.module == binding.source)
+        matches!(env.arena().get(body.clone()), ValueTermNode::DefinedConstant(id) if id.module == binding.source)
     );
 }
 

@@ -224,7 +224,7 @@ fn fresh_binder(
     counter: &mut usize,
 ) -> (String, String) {
     let original = identifier.0.clone();
-    let fresh = format!("<macro:{declaration_order}:{}>", *counter);
+    let fresh = format!("<macro:{declaration_order}:{}>", counter.clone());
     *counter += 1;
     identifier.0.clone_from(&fresh);
     (original, fresh)
@@ -1079,7 +1079,7 @@ impl ModuleManager {
                 macros
                     .declared
                     .iter()
-                    .find(|definition| definition.name == *macro_name)
+                    .find(|definition| definition.name == macro_name.clone())
             })
             .cloned()
             .ok_or_else(|| {
@@ -1197,7 +1197,9 @@ impl ModuleManager {
             .visible_macros(env, module)
             .into_iter()
             .filter(|definition| max_order.is_none_or(|max| definition.declaration_order <= max))
-            .find(|definition| definition.kind == MacroKind::Named && definition.name == *name)
+            .find(|definition| {
+                definition.kind == MacroKind::Named && definition.name == name.clone()
+            })
             .ok_or_else(|| format!("Named macro '{}' is not visible", name.as_str()))?;
         let mut captures = HashMap::new();
         if !match_pattern(&definition.pattern, tokens, &mut captures) {
@@ -1251,7 +1253,7 @@ fn remap_macro_scope(
             SExp::ResolvedExp(exp) => {
                 let renamed = remap_all_global_ids(
                     env.arena(),
-                    *exp,
+                    exp.clone(),
                     &remapping.definition_ids,
                     &remapping.inductive_ids,
                     &remapping.program_inductive_ids,
