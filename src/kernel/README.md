@@ -6,11 +6,10 @@ Set・Prop・Value・Computation のそれぞれに term/type/kind を持ち、�
 Prop の node は level を持たない。Set と Prop の区別は handle の型で固定する。
 handle は作成した `Environment::arena()` 内で使う。
 
-arena は各 family の型付き `*Node` を直接保持する。`Op` と汎用の子配列への
-変換層は持たず、型検査・簡約・reflection は `*Form` の名前付きフィールドを
-pattern match する。同一構造のノードは intern し、arena と interner は
-`Rc` でノード実体を共有する。`Arena::get` は所有するノードのコピー、
-`Arena::read` は再帰中にも保持できる共有参照を返す。
+arena は各 family の型付き `*Node` を `Rc` で保持し、interner はノードの ID を保持する。
+型検査・簡約・reflection は `*Form` の名前付きフィールドを pattern match する。
+同一構造のノードは intern する。
+`Arena::get` は所有するノードのコピー、`Arena::read` は再帰中にも保持できる共有参照を返す。
 
 共通の束縛走査は `src/structure/traversal.rs`、構文ごとの比較は
 `src/structure/comparison.rs` にある。束縛の深さは走査するフィールドごとに指定し、
@@ -72,6 +71,11 @@ kind formation の右辺には `Classifier::Upper` を使う。
 `register_datatype` は parameter kind・field level・strict positivity を検査し、
 Set の鏡像を生成する。鏡像が既にある場合は宣言との一致を検査する。
 
+宣言登録の検査で作った一時ノードは、検査が終わるとまとめて回収する。
+推論と弱頭簡約のキャッシュは、キーと結果の両方が検査開始前のノードだけを参照するエントリーを残す。
+検査開始前の handle と、直接 `Checker` から返された handle は保持する。
+datatype の鏡像は一時ノードの回収後に生成・登録する。
+
 front の module はパラメーター付き名前空間であり、import は front の名前空間への
 束縛になる。引数を宣言の型と本体へ同時・捕獲回避代入し、kernel へ適用ノードは渡さない。
 元宣言と convertible な引数が同じなら宣言 ID を再利用する。帰納型 ID の同一性は front
@@ -105,6 +109,9 @@ Box が保持する Program 構文は computation type と computation に限る
 
 `calculus::substitute_with_reflection` は Program の引数を証明中では Set 側へ反映して代入する。
 `instantiate_telescope` は複数の引数を一度の走査で同時代入し、束縛の深さごとに共有部分木の結果を再利用する。
+変数のシフト・出現判定は、ノードごとに保存した自由な de Bruijn index の最大値で不要な走査を省く。
+module parameter 置換はノードと束縛の深さ、ID 再割当てと閉性判定はノードをキーに共有部分木の再走査を省く。
+conversion 中の alpha 比較も、再帰全体で比較済みノード対の結果を共有する。
 環境を受け取らない `substitute` は反映が不要な構文用である。`shift`、module parameter 置換、ID の再割当ても
 family と index を保つ。`convertible` は同一 family・level 内の比較であり、
 Program type/kind の型 beta も扱う。証明を記録する内部注釈は型検査したうえで

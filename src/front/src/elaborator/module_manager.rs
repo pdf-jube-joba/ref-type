@@ -462,7 +462,7 @@ impl ModuleManager {
                         );
                         let expected =
                             exp_subst_map(env.arena(), expected, &reflected_substitutions);
-                        CheckSession::new(env, self.current, context)
+                        CheckSession::new(env, context)
                             .check_pts(*argument, expected)
                             .map_err(|error| {
                                 format!(
@@ -1248,14 +1248,14 @@ mod tests {
             parameters: vec![],
         });
         assert!(
-            CheckSession::new(&env, env.root_module(), &mut Vec::new())
+            CheckSession::new(&env, &mut Vec::new())
                 .check_pts(first_constructor, first_type)
                 .is_ok()
         );
         assert!(env.is_inductive_materialized(first));
         assert!(env.is_inductive_materialized(second));
         assert!(
-            CheckSession::new(&env, env.root_module(), &mut Vec::new())
+            CheckSession::new(&env, &mut Vec::new())
                 .check_pts(first_constructor, second_type)
                 .is_ok()
         );

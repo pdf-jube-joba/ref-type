@@ -265,7 +265,7 @@ impl MetaStore {
     ) -> Result<Exp, String> {
         let term = self.zonk(env, term);
         if !self.contains_unsolved(env, term) {
-            return CheckSession::new(env, module, context)
+            return CheckSession::new(env, context)
                 .infer_pts(term)
                 .map_err(|error| format!("{error:?}"));
         }
@@ -905,7 +905,7 @@ impl MetaStore {
     ) -> Result<Sort, String> {
         let term = self.zonk(env, term);
         if !self.contains_unsolved(env, term) {
-            return CheckSession::new(env, module, context)
+            return CheckSession::new(env, context)
                 .infer_sort(term)
                 .map_err(|error| format!("{error:?}"));
         }

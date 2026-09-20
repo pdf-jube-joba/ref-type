@@ -17,6 +17,79 @@ use crate::raw::{
 };
 
 #[test]
+fn shared_transformations_track_depth_and_skip_closed_subtrees() {
+    use crate::raw::calculus::{
+        exp_contains_bound, exp_contains_inductive, instantiate_telescope, shift_bound_indices,
+    };
+    use crate::raw::traversal::Term;
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let product = |ty, body| {
+        a.alloc(ExpNode::Prod {
+            var: SymbolId::ANONYMOUS,
+            ty,
+            body,
+        })
+    };
+    let argument = a.sort(Sort::Set(0));
+    let mut shared = a.exp_bound(0);
+    let mut shifted = a.exp_bound(1);
+    let mut substituted = argument;
+    // A small DAG represents over sixteen million paths through shared nodes.
+    for _ in 0..24 {
+        shifted = product(shifted, shared);
+        substituted = product(substituted, shared);
+        shared = product(shared, shared);
+    }
+    assert_eq!(shift_bound_indices(a, shared, 1, 0), shifted);
+    assert_eq!(instantiate_telescope(a, shared, &[argument]), substituted);
+    assert!(exp_contains_bound(a, shared, 0));
+    assert!(!exp_contains_bound(a, shared, 1));
+    assert!(!exp_contains_inductive(
+        a,
+        shared,
+        crate::raw::ids::InductiveId {
+            module: env.root_module(),
+            index: 0
+        }
+    ));
+    let closed = a.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: argument,
+        body: shared,
+    });
+    assert_eq!(a.max_loose_bound(Term::Logical(closed)), None);
+    assert_eq!(shift_bound_indices(a, closed, 7, 0), closed);
+
+    for index in [usize::MAX - 1, usize::MAX] {
+        let term = Term::Logical(a.exp_bound(index));
+        assert_eq!(a.max_loose_bound(term), Some(index));
+        assert_eq!(a.max_loose_bound(term), Some(index));
+    }
+}
+
+#[test]
+fn inference_cache_tracks_shadowing_and_context_validation() {
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let set = a.sort(Sort::Set(0));
+    let prop = a.sort(Sort::Prop);
+    let var = SymbolId::ANONYMOUS;
+    let mut context = vec![ExpContextEntry { var, ty: set }];
+    let mut session = CheckSession::new(&env, &mut context);
+    let bound = a.exp_bound(0);
+    assert_eq!(session.infer_pts(bound).unwrap(), set);
+    session.check_wellformed_context().unwrap();
+    assert_eq!(session.infer_pts(bound).unwrap(), set);
+    session.push_pts(var, prop);
+    assert_eq!(session.infer_pts(bound).unwrap(), prop);
+    assert_eq!(session.infer_pts(a.exp_bound(1)).unwrap(), set);
+    session.pop();
+    assert_eq!(session.infer_pts(bound).unwrap(), set);
+    assert_eq!(session.context(), &[ExpContextEntry { var, ty: set }]);
+}
+
+#[test]
 fn logical_arena_interns_nodes() {
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -413,7 +486,7 @@ fn set_and_program_contexts_are_distinct() {
         var: SymbolId(2),
         ty: set,
     }];
-    CheckSession::new(&env, env.root_module(), &mut set_context)
+    CheckSession::new(&env, &mut set_context)
         .check_wellformed_context()
         .unwrap();
 
@@ -731,7 +804,7 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
     assert_eq!(arena.get(ty), ExpNode::Bound(1));
     assert_eq!(arena.get(body), ExpNode::Bound(0));
     let mut reflected_context = crate::raw::reflection::reflect_context(&env, &context).unwrap();
-    CheckSession::new(&env, env.root_module(), &mut reflected_context)
+    CheckSession::new(&env, &mut reflected_context)
         .check_pts(
             reflected,
             crate::raw::reflection::reflect_computation_type(&env, inferred).unwrap(),
@@ -1003,7 +1076,7 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
                 transition: argument,
             }),
         ];
-        let mut session = CheckSession::new(&env, env.root_module(), &mut context);
+        let mut session = CheckSession::new(&env, &mut context);
         for term in terms {
             let error = session.infer_pts(arena.alloc(term)).unwrap_err();
             assert!(

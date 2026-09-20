@@ -10,6 +10,7 @@ pub mod environment;
 pub mod ids;
 pub mod printing;
 pub mod reflection;
+pub mod sharing;
 pub mod sort;
 mod structure;
 pub mod syntax;

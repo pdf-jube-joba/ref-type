@@ -16,6 +16,150 @@ fn sk(a: &Arena, i: usize) -> SetKind {
 }
 
 #[test]
+fn definition_checking_discards_scratch_nodes_and_stale_cache_entries() {
+    let mut env = Environment::new();
+    let kind = sk(env.arena(), 0);
+    let rule =
+        ProductRule::new(Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Set(0))).unwrap();
+    let bound = env.arena().alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let identity = env.arena().alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::LambdaType {
+            rule,
+            var: SymbolId::ANONYMOUS,
+            domain: kind,
+            body: bound,
+        },
+    });
+    let classifier = env.arena().alloc(SetKindNode {
+        level: 0,
+        form: SetKindForm::ProdType {
+            rule,
+            var: SymbolId(1),
+            domain: kind,
+            body: kind,
+        },
+    });
+    // The checker synthesizes an anonymous product distinct from the declared
+    // product. Only the latter belongs to the persistent declaration.
+    let counts = env.arena().node_counts();
+    let snapshot = env.arena().read(identity);
+    let id = DefId {
+        module: ModuleId(0),
+        index: 0,
+    };
+    env.register_definition(
+        id,
+        Definition {
+            context: vec![],
+            body: identity.into(),
+            classifier: classifier.into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(env.arena().node_counts(), counts);
+    assert_eq!(env.arena().get(identity), *snapshot);
+    assert_eq!(env.arena().alloc((*snapshot).clone()), identity);
+    let unrelated = sk(env.arena(), 1);
+    let inferred = Checker::new(&env, vec![]).infer_set_type(identity).unwrap();
+    assert_ne!(inferred, unrelated);
+    assert!(convertible(&env, inferred.into(), classifier.into()).unwrap());
+
+    let counts = env.arena().node_counts();
+    let bad_id = DefId {
+        module: ModuleId(0),
+        index: 1,
+    };
+    assert!(
+        env.register_definition(
+            bad_id,
+            Definition {
+                context: vec![],
+                body: identity.into(),
+                classifier: unrelated.into()
+            }
+        )
+        .is_err()
+    );
+    assert!(env.definition(bad_id).is_none());
+    assert_eq!(env.arena().node_counts(), counts);
+    assert_eq!(
+        Checker::new(&env, vec![]).infer_set_type(identity).unwrap(),
+        inferred
+    );
+}
+
+#[test]
+fn closed_dag_queries_and_global_substitutions_preserve_sharing() {
+    let env = Environment::new();
+    let a = env.arena();
+    let id = InductiveId {
+        module: ModuleId(0),
+        index: 0,
+    };
+    let other = InductiveId {
+        module: ModuleId(0),
+        index: 1,
+    };
+    let parameter = ModuleParamId {
+        module: ModuleId(0),
+        position: 0,
+    };
+    let rule =
+        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
+    let product = |domain, body| {
+        a.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::ProdTerm {
+                rule,
+                var: SymbolId::ANONYMOUS,
+                domain,
+                body,
+            },
+        })
+    };
+    let leaf = a.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::IndType {
+            inductive: id,
+            parameters: vec![],
+        },
+    });
+    let mut shared = leaf;
+    let mut remapped = a.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::IndType {
+            inductive: other,
+            parameters: vec![],
+        },
+    });
+    let mut named = a.alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::ModuleParam { parameter },
+    });
+    for _ in 0..24 {
+        shared = product(shared, shared);
+        remapped = product(remapped, remapped);
+        named = product(named, named);
+    }
+    assert!(is_closed(a, shared.into()));
+    assert!(closed_in_environment(&env, shared.into()));
+    assert!(!contains_bound(a, shared.into(), 0));
+    assert!(!is_closed(a, named.into()));
+    assert_eq!(
+        remap_ids(a, shared.into(), &[(id, other)].into(), &Default::default()).unwrap(),
+        remapped.into()
+    );
+    assert_eq!(
+        substitute_parameters(&env, named.into(), &[(parameter, leaf.into())].into()).unwrap(),
+        shared.into()
+    );
+}
+
+#[test]
 fn local_closure_tracks_shared_binders_and_annotation_classifiers() {
     let arena = Arena::new();
     let bound = |index| {

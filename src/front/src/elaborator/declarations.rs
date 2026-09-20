@@ -309,7 +309,7 @@ impl GlobalEnvironment {
         body: Exp,
         ty: Exp,
     ) -> Result<(), String> {
-        CheckSession::new(&self.crate_env, self.module_manager.current(), context)
+        CheckSession::new(&self.crate_env, context)
             .check_pts(body, ty)
             .map_err(|error| format!("Set/Prop definition check failed: {error:?}"))
     }
@@ -420,7 +420,7 @@ impl GlobalEnvironment {
             };
 
             let mut context = self.module_manager.current_context(&self.crate_env);
-            CheckSession::new(&self.crate_env, module, &mut context)
+            CheckSession::new(&self.crate_env, &mut context)
                 .check_pts(body, ty)
                 .map_err(|error| {
                     format!(
@@ -595,7 +595,7 @@ impl GlobalEnvironment {
         self.crate_env
             .inductive(reflected)
             .validate(
-                &mut CheckSession::new(&self.crate_env, module, &mut reflected_context),
+                &mut CheckSession::new(&self.crate_env, &mut reflected_context),
                 reflected,
             )
             .map_err(|error| format!("Ill-formed reflected datatype: {error:?}"))?;

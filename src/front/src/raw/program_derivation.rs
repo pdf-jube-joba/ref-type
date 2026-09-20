@@ -686,7 +686,6 @@ fn check_run_certificate(
         .map_err(|e| failure("Program run", "reflection", &e.to_string()))?;
     let reflected = crate::raw::reflection::reflect_computation(session.env, term)
         .map_err(|e| failure("Program run", "reflection", &e.to_string()))?;
-    crate::raw::derivation::CheckSession::new(session.env, session.env.root_module(), &mut context)
-        .infer_pts(reflected)?;
+    crate::raw::derivation::CheckSession::new(session.env, &mut context).infer_pts(reflected)?;
     Ok(())
 }

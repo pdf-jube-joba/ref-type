@@ -56,9 +56,15 @@ fn elaborate_and_format(
     let result = global.add_modules_to_root(&modules);
     if stats {
         eprintln!("raw nodes: {:?}", global.arena().node_counts());
+        eprintln!("raw caches: {:?}", global.crate_env().cache_counts());
         eprintln!(
             "kernel nodes: {:?}",
             global.kernel_env().arena().node_counts()
+        );
+        eprintln!("kernel caches: {:?}", global.kernel_env().cache_counts());
+        eprintln!(
+            "kernel declaration nodes: {}",
+            global.kernel_env().declaration_node_count()
         );
     }
     if let Err(err) = result {

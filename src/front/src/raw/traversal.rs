@@ -1,5 +1,50 @@
 //! Capture-aware traversal across the logical and Program syntax families.
 use super::{environment::ModuleArgument, exp::*, program::*};
+use rustc_hash::FxHashMap;
+
+pub(crate) trait Rewrite {
+    fn rewrite(&mut self, term: Term, depth: usize) -> Option<Term>;
+    fn remember(&mut self, _term: Term, _depth: usize, _result: Term) {}
+}
+
+impl<F: FnMut(Term, usize) -> Option<Term>> Rewrite for F {
+    fn rewrite(&mut self, term: Term, depth: usize) -> Option<Term> {
+        self(term, depth)
+    }
+}
+
+/// A transformation must depend only on the node and binder depth for its
+/// results to be shared across paths through the same syntax DAG.
+pub(crate) struct Memoized<F> {
+    rewrite: F,
+    results: FxHashMap<(Term, usize), Term>,
+}
+
+impl<F: FnMut(Term, usize) -> Option<Term>> Memoized<F> {
+    pub(crate) fn new(rewrite: F) -> Self {
+        Self {
+            rewrite,
+            results: FxHashMap::default(),
+        }
+    }
+}
+
+impl<F: FnMut(Term, usize) -> Option<Term>> Rewrite for Memoized<F> {
+    fn rewrite(&mut self, term: Term, depth: usize) -> Option<Term> {
+        if let Some(&result) = self.results.get(&(term, depth)) {
+            return Some(result);
+        }
+        let result = (self.rewrite)(term, depth)?;
+        if result != term {
+            self.remember(term, depth, result);
+        }
+        Some(result)
+    }
+
+    fn remember(&mut self, term: Term, depth: usize, result: Term) {
+        self.results.insert((term, depth), result);
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Term {
@@ -10,13 +55,8 @@ pub(crate) enum Term {
     Computation(ComputationTerm),
 }
 
-pub(crate) fn logical(
-    arena: &Arena,
-    e: Exp,
-    depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
-) -> Exp {
-    if let Some(Term::Logical(result)) = rewrite(Term::Logical(e), depth) {
+pub(crate) fn logical(arena: &Arena, e: Exp, depth: usize, rewrite: &mut impl Rewrite) -> Exp {
+    if let Some(Term::Logical(result)) = rewrite.rewrite(Term::Logical(e), depth) {
         return result;
     }
     let result = match arena.get(e) {
@@ -87,14 +127,16 @@ pub(crate) fn logical(
         },
         other => super::calculus::map_children(other, |e| logical(arena, e, depth, rewrite)),
     };
-    arena.reuse_exp(e, result)
+    let result = arena.reuse_exp(e, result);
+    rewrite.remember(Term::Logical(e), depth, Term::Logical(result));
+    result
 }
 
 fn program_argument(
     arena: &Arena,
     a: ProgramArgument,
     depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
+    rewrite: &mut impl Rewrite,
 ) -> ProgramArgument {
     match a {
         ProgramArgument::ValueType(t) => {
@@ -110,9 +152,9 @@ pub(crate) fn value_type(
     arena: &Arena,
     t: ValueType,
     depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
+    rewrite: &mut impl Rewrite,
 ) -> ValueType {
-    if let Some(Term::ValueType(result)) = rewrite(Term::ValueType(t), depth) {
+    if let Some(Term::ValueType(result)) = rewrite.rewrite(Term::ValueType(t), depth) {
         return result;
     }
     let result = match arena.get(t) {
@@ -148,16 +190,18 @@ pub(crate) fn value_type(
         },
         other => other,
     };
-    arena.reuse_value_type(t, result)
+    let result = arena.reuse_value_type(t, result);
+    rewrite.remember(Term::ValueType(t), depth, Term::ValueType(result));
+    result
 }
 
 pub(crate) fn computation_type(
     arena: &Arena,
     t: ComputationType,
     depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
+    rewrite: &mut impl Rewrite,
 ) -> ComputationType {
-    if let Some(Term::ComputationType(result)) = rewrite(Term::ComputationType(t), depth) {
+    if let Some(Term::ComputationType(result)) = rewrite.rewrite(Term::ComputationType(t), depth) {
         return result;
     }
     let result = match arena.get(t) {
@@ -179,16 +223,22 @@ pub(crate) fn computation_type(
             codomain: computation_type(arena, codomain, depth, rewrite),
         },
     };
-    arena.reuse_computation_type(t, result)
+    let result = arena.reuse_computation_type(t, result);
+    rewrite.remember(
+        Term::ComputationType(t),
+        depth,
+        Term::ComputationType(result),
+    );
+    result
 }
 
 pub(crate) fn value(
     arena: &Arena,
     v: ValueTerm,
     depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
+    rewrite: &mut impl Rewrite,
 ) -> ValueTerm {
-    if let Some(Term::Value(result)) = rewrite(Term::Value(v), depth) {
+    if let Some(Term::Value(result)) = rewrite.rewrite(Term::Value(v), depth) {
         return result;
     }
     let result = match arena.get(v) {
@@ -252,16 +302,18 @@ pub(crate) fn value(
         },
         other => other,
     };
-    arena.reuse_value(v, result)
+    let result = arena.reuse_value(v, result);
+    rewrite.remember(Term::Value(v), depth, Term::Value(result));
+    result
 }
 
 pub(crate) fn computation(
     arena: &Arena,
     c: ComputationTerm,
     depth: usize,
-    rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
+    rewrite: &mut impl Rewrite,
 ) -> ComputationTerm {
-    if let Some(Term::Computation(result)) = rewrite(Term::Computation(c), depth) {
+    if let Some(Term::Computation(result)) = rewrite.rewrite(Term::Computation(c), depth) {
         return result;
     }
     let result = match arena.get(c) {
@@ -376,10 +428,24 @@ pub(crate) fn computation(
         },
         other => other,
     };
-    arena.reuse_computation(c, result)
+    let result = arena.reuse_computation(c, result);
+    rewrite.remember(Term::Computation(c), depth, Term::Computation(result));
+    result
 }
 
 impl Term {
+    /// Visit immediate children with their local binder depths.
+    pub(crate) fn visit_children(self, arena: &Arena, mut visit: impl FnMut(Term, usize)) {
+        let mut root = true;
+        self.walk(arena, 0, &mut |term, depth| {
+            if std::mem::take(&mut root) {
+                return None;
+            }
+            visit(term, depth);
+            Some(term)
+        });
+    }
+
     pub(crate) fn bound_index(self, arena: &Arena) -> Option<usize> {
         match self {
             Term::Logical(e) => match *arena.borrow_exp(e) {
@@ -398,12 +464,7 @@ impl Term {
         }
     }
 
-    pub(crate) fn walk(
-        self,
-        arena: &Arena,
-        depth: usize,
-        rewrite: &mut impl FnMut(Term, usize) -> Option<Term>,
-    ) -> Term {
+    pub(crate) fn walk(self, arena: &Arena, depth: usize, rewrite: &mut impl Rewrite) -> Term {
         match self {
             Term::Logical(e) => Term::Logical(logical(arena, e, depth, rewrite)),
             Term::ValueType(t) => Term::ValueType(value_type(arena, t, depth, rewrite)),
@@ -418,18 +479,28 @@ impl Term {
         if amount == 0 {
             return self;
         }
-        self.walk(arena, 0, &mut |term, depth| {
-            let index = term.bound_index(arena)?;
-            if index < cutoff + depth {
-                return Some(term);
-            }
-            Some(match term {
-                Term::Logical(_) => Term::Logical(arena.exp_bound(index + amount)),
-                Term::ValueType(_) => Term::ValueType(arena.value_type_bound(index + amount)),
-                Term::Value(_) => Term::Value(arena.value_bound(index + amount)),
-                _ => unreachable!(),
-            })
-        })
+        self.walk(
+            arena,
+            0,
+            &mut Memoized::new(|term: Term, depth| {
+                if arena
+                    .max_loose_bound(term)
+                    .is_none_or(|index| index < cutoff + depth)
+                {
+                    return Some(term);
+                }
+                let index = term.bound_index(arena)?;
+                if index < cutoff + depth {
+                    return Some(term);
+                }
+                Some(match term {
+                    Term::Logical(_) => Term::Logical(arena.exp_bound(index + amount)),
+                    Term::ValueType(_) => Term::ValueType(arena.value_type_bound(index + amount)),
+                    Term::Value(_) => Term::Value(arena.value_bound(index + amount)),
+                    _ => unreachable!(),
+                })
+            }),
+        )
     }
     pub(crate) fn substitute(
         self,
@@ -440,35 +511,43 @@ impl Term {
         if substitutions.is_empty() && reflected.is_empty() {
             return self;
         }
-        self.walk(arena, 0, &mut |term, depth| {
-            let replacement = match term {
-                Term::Logical(e) => match arena.get(e) {
-                    ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
-                        .iter()
-                        .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e))),
+        self.walk(
+            arena,
+            0,
+            &mut Memoized::new(|term: Term, depth| {
+                let replacement = match term {
+                    Term::Logical(e) => match arena.get(e) {
+                        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
+                            .iter()
+                            .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e))),
+                        _ => None,
+                    },
+                    Term::ValueType(t) => match arena.get(t) {
+                        ValueTypeNode::ModuleParam(id) => {
+                            substitutions.iter().find_map(|(p, a)| match a {
+                                ModuleArgument::ProgramType(t) if *p == id => {
+                                    Some(Term::ValueType(*t))
+                                }
+                                _ => None,
+                            })
+                        }
+                        _ => None,
+                    },
+                    Term::Value(v) => match arena.get(v) {
+                        ValueTermNode::ModuleParam(id) => {
+                            substitutions.iter().find_map(|(p, a)| match a {
+                                ModuleArgument::ProgramValue(v) if *p == id => {
+                                    Some(Term::Value(*v))
+                                }
+                                _ => None,
+                            })
+                        }
+                        _ => None,
+                    },
                     _ => None,
-                },
-                Term::ValueType(t) => match arena.get(t) {
-                    ValueTypeNode::ModuleParam(id) => {
-                        substitutions.iter().find_map(|(p, a)| match a {
-                            ModuleArgument::ProgramType(t) if *p == id => Some(Term::ValueType(*t)),
-                            _ => None,
-                        })
-                    }
-                    _ => None,
-                },
-                Term::Value(v) => match arena.get(v) {
-                    ValueTermNode::ModuleParam(id) => {
-                        substitutions.iter().find_map(|(p, a)| match a {
-                            ModuleArgument::ProgramValue(v) if *p == id => Some(Term::Value(*v)),
-                            _ => None,
-                        })
-                    }
-                    _ => None,
-                },
-                _ => None,
-            };
-            replacement.map(|term| term.shift(arena, depth, 0))
-        })
+                };
+                replacement.map(|term| term.shift(arena, depth, 0))
+            }),
+        )
     }
 }

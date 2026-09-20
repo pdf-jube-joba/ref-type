@@ -1,13 +1,14 @@
 use crate::raw::calculus::*;
 use crate::raw::environment::{CrateEnv, DefinedConstant, ModuleParameterKind};
 use crate::raw::exp::*;
-use crate::raw::ids::{InductiveId, ModuleId, SymbolId};
+use crate::raw::ids::{InductiveId, SymbolId};
 use crate::raw::inductive::eliminator_type;
 use crate::raw::program::{ComputationTerm, ComputationType, ComputationTypeNode};
 use crate::raw::program_derivation::ProgramCheckSession;
 use crate::raw::reflection::{reflect_computation_type, reflect_value_type};
 use crate::raw::sort::Sort;
 use crate::raw::utils;
+use kernel::sharing::ContextId;
 use tracing::{debug, error};
 
 #[derive(Debug, Clone)]
@@ -37,19 +38,15 @@ impl std::error::Error for JudgementError {}
 
 pub struct CheckSession<'env, 'context> {
     env: &'env CrateEnv,
-    current_module: ModuleId,
     context: &'context mut ExpContext,
+    context_id: ContextId,
 }
 
 impl<'env, 'context> CheckSession<'env, 'context> {
-    pub fn new(
-        env: &'env CrateEnv,
-        current_module: ModuleId,
-        context: &'context mut ExpContext,
-    ) -> Self {
+    pub fn new(env: &'env CrateEnv, context: &'context mut ExpContext) -> Self {
         Self {
             env,
-            current_module,
+            context_id: env.context_id(context),
             context,
         }
     }
@@ -70,6 +67,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         tracing::trace!(target: "ref_type::typing", binder = %self.env.symbol(var),
             ty = %crate::raw::printing::format_exp(self.env, ty), depth = self.context.len(), "enter Set/Prop binder");
         self.context.push(ExpContextEntry { var, ty });
+        self.context_id = self.env.contexts.borrow_mut().push(self.context_id, ty);
     }
 
     pub fn pop(&mut self) {
@@ -77,6 +75,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         self.context
             .pop()
             .expect("CheckSession context stack underflow");
+        self.context_id = self.env.contexts.borrow().parent(self.context_id);
     }
 
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
@@ -241,11 +240,15 @@ fn check(
 }
 
 fn infer(session: &mut CheckSession<'_, '_>, term: Exp) -> Result<Exp, Box<JudgementError>> {
-    let key = (
-        term,
-        session.context.iter().map(|b| (b.var, b.ty)).collect(),
-        session.current_module,
-    );
+    // These classifiers are direct lookups, independent of the local context.
+    // Retaining a cache entry for each use-site telescope only adds work.
+    if matches!(
+        *session.arena().borrow_exp(term),
+        ExpNode::Sort(_) | ExpNode::ModuleParam(_) | ExpNode::DefinedConstant(_)
+    ) {
+        return infer_uncached(session, term);
+    }
+    let key = (term, session.context_id);
     if let Some(&ty) = session.env.inference_cache.borrow().get(&key) {
         return Ok(ty);
     }
@@ -1033,8 +1036,7 @@ fn check_closed_well_terminated_program(
     let reflected_ty = reflect_computation_type(session.env(), program_ty)
         .map_err(|error| failure("WellTerminated", "reflection", &error.to_string()))?;
     let mut reflected_context = Vec::new();
-    CheckSession::new(session.env, session.current_module, &mut reflected_context)
-        .check_pts(reflected, reflected_ty)
+    CheckSession::new(session.env, &mut reflected_context).check_pts(reflected, reflected_ty)
 }
 
 fn check_parameters(
@@ -1849,9 +1851,11 @@ fn infer_prove(
 
 fn check_wellformed_context(session: &mut CheckSession<'_, '_>) -> Result<(), Box<JudgementError>> {
     let original = std::mem::take(session.context);
+    let original_id = std::mem::take(&mut session.context_id);
     let result = check_context_entries(session, &original);
     session.context.clear();
     *session.context = original;
+    session.context_id = original_id;
     result
 }
 

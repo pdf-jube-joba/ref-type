@@ -23,14 +23,19 @@ impl<'a> Checker<'a> {
         &self.env.arena
     }
     pub fn check_context(&mut self) -> Result<(), String> {
+        if self.validated_context.as_ref().is_some_and(|validated| {
+            validated
+                .iter()
+                .copied()
+                .eq(self.context.iter().map(|b| b.classifier))
+        }) {
+            return Ok(());
+        }
         let key = self
             .context
             .iter()
             .map(|b| b.classifier)
             .collect::<Vec<_>>();
-        if self.validated_context.as_ref() == Some(&key) {
-            return Ok(());
-        }
         if let Some(first) = key.first() {
             let program = self.arena().sort(*first).is_program();
             if key

@@ -15,7 +15,7 @@ impl Lowerer<'_> {
         let ExpNode::App { func, arg } = self.raw.arena().get(e) else {
             return self.set_non_application(e, ctx, m);
         };
-        let key = (e, ctx.iter().map(|b| b.ty).collect(), m);
+        let key = (e, self.raw.context_id(ctx), m);
         if let Some(&result) = self.cache.get(&key) {
             return Ok(result);
         }
@@ -32,13 +32,13 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        self.infer(e, ctx, m)?;
-        let ty = self.infer(func, ctx, m)?;
+        self.infer(e, ctx)?;
+        let ty = self.infer(func, ctx)?;
         let (_, domain, codomain) = raw::calculus::expose_product(self.raw, ty)
             .ok_or("application does not have product type")?;
-        let domain_sort = self.formation(domain, ctx, m)?;
+        let domain_sort = self.formation(domain, ctx)?;
         let body_sort = self.under(ctx, SymbolId::ANONYMOUS, domain, |this, ctx| {
-            this.formation(codomain, ctx, m)
+            this.formation(codomain, ctx)
         })?;
         let rule = k::ProductRule::new(domain_sort, body_sort)?;
         let function = self.set(func, ctx, m)?;
@@ -52,7 +52,7 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        let key = (e, ctx.iter().map(|b| b.ty).collect(), m);
+        let key = (e, self.raw.context_id(ctx), m);
         if let Some(&v) = self.cache.get(&key) {
             return Ok(v);
         }
@@ -64,7 +64,7 @@ impl Lowerer<'_> {
             }
             return self.logical_base_kind(sort.base());
         }
-        let ty = self.infer(e, ctx, m)?;
+        let ty = self.infer(e, ctx)?;
         let head = raw::calculus::whnf(self.raw, ty);
         let (sort, stage) = if let ExpNode::Sort(raw) = self.raw.arena().get(head) {
             let sort = Self::sort(raw);
@@ -77,7 +77,7 @@ impl Lowerer<'_> {
                 },
             )
         } else {
-            let sort = self.formation(ty, ctx, m)?;
+            let sort = self.formation(ty, ctx)?;
             (
                 sort.base(),
                 if sort.is_upper() {
@@ -402,7 +402,7 @@ impl Lowerer<'_> {
                 self.inductive(indspec, m, ctx)?;
                 let inductive = indspec;
                 let kind = raw::derivation::infer_motive_kind(
-                    &mut raw::derivation::CheckSession::new(self.raw, m, ctx),
+                    &mut raw::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
                     "motive",
                     return_type,
@@ -455,7 +455,7 @@ impl Lowerer<'_> {
                 self.inductive(indspec, m, ctx)?;
                 let inductive = indspec;
                 let kind = raw::derivation::infer_motive_kind(
-                    &mut raw::derivation::CheckSession::new(self.raw, m, ctx),
+                    &mut raw::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
                     "case motive",
                     return_type,
@@ -516,8 +516,8 @@ impl Lowerer<'_> {
                     return Err("recursor motive must be a lambda".into());
                 };
                 let sigma =
-                    self.under(ctx, var, domain, |this, ctx| this.formation(motive, ctx, m))?;
-                let rule = k::ProductRule::new(self.formation(state_ty, ctx, m)?, sigma)?;
+                    self.under(ctx, var, domain, |this, ctx| this.formation(motive, ctx))?;
+                let rule = k::ProductRule::new(self.formation(state_ty, ctx)?, sigma)?;
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let motive = self.under(ctx, var, domain, |this, ctx| this.set(motive, ctx, m))?;
@@ -538,13 +538,13 @@ impl Lowerer<'_> {
                 })
             }
             ExpNode::Prod { var, ty, body } | ExpNode::Lam { var, ty, body } => {
-                let domain_sort = self.formation(ty, ctx, m)?;
+                let domain_sort = self.formation(ty, ctx)?;
                 let body_sort = self.under(ctx, var, ty, |this, ctx| {
                     if matches!(node, ExpNode::Prod { .. }) {
-                        this.formation(body, ctx, m)
+                        this.formation(body, ctx)
                     } else {
-                        let t = this.infer(body, ctx, m)?;
-                        this.formation(t, ctx, m)
+                        let t = this.infer(body, ctx)?;
+                        this.formation(t, ctx)
                     }
                 })?;
                 let rule = k::ProductRule::new(domain_sort, body_sort)?;
@@ -753,7 +753,7 @@ impl Lowerer<'_> {
                 }
             },
             ExpNode::BoxApp { function, argument } => {
-                let ty = self.infer(function, ctx, m)?;
+                let ty = self.infer(function, ctx)?;
                 let head = raw::calculus::whnf(self.raw, ty);
                 let ExpNode::BoxType { program_ty: ty } = self.raw.arena().get(head) else {
                     return Err("expected boxed function".into());
@@ -791,7 +791,7 @@ impl Lowerer<'_> {
                     .map(|b| b.binders.clone())
                     .collect::<Vec<_>>();
                 let result_ty = self.set(ty, ctx, m)?;
-                let sty = self.infer(scrutinee, ctx, m)?;
+                let sty = self.infer(scrutinee, ctx)?;
                 let head = raw::calculus::whnf(self.raw, sty);
                 let ExpNode::IndType { parameters, .. } = self.raw.arena().get(head) else {
                     return Err("case scrutinee has no datatype".into());

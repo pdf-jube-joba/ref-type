@@ -1014,15 +1014,18 @@ pub(crate) fn map_children(
 // This macro only updates a typed field. The match arms explicitly list each
 // field's binder depth and the traversals that may enter it.
 macro_rules! child {
-    ($arena:ident, $map:ident, $traversal:ident, $program:expr; $slot:expr, $depth:expr, $($mode:pat_param)|+) => {
+    ($arena:ident, $map:ident, $traversal:ident, $changed:ident, $program:expr; $slot:expr, $depth:expr, $($mode:pat_param)|+) => {
         if matches!($traversal,$($mode)|+) {
             let before:Expression=(*$slot).into();
             if !matches!($traversal,Evaluation) || $program || !$arena.sort(before).is_program() {
                 let after=$map(before,$depth)?;
-                if before.family()!=after.family() || $arena.sort(before)!=$arena.sort(after) {
-                    return Err("transformation changed syntax family or sort index".into());
+                if before != after {
+                    if before.family()!=after.family() || $arena.sort(before)!=$arena.sort(after) {
+                        return Err("transformation changed syntax family or sort index".into());
+                    }
+                    *$slot=after.try_into().map_err(|error| format!("{error}"))?;
+                    $changed = true;
                 }
-                *$slot=after.try_into().map_err(|error| format!("{error}"))?;
             }
         }
     };
@@ -1035,7 +1038,8 @@ fn map_set_term(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetTermForm::Bound { .. } => {}
         SetTermForm::ModuleParam { .. } => {}
@@ -1246,7 +1250,7 @@ fn map_set_term(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1260,7 +1264,8 @@ fn map_set_type(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetTypeForm::Bound { .. } => {}
         SetTypeForm::ModuleParam { .. } => {}
@@ -1377,7 +1382,7 @@ fn map_set_type(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1391,7 +1396,8 @@ fn map_set_kind(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetKindForm::Base => {}
         SetKindForm::ProdTerm { domain, body, .. } => {
@@ -1415,7 +1421,7 @@ fn map_set_kind(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1429,7 +1435,8 @@ fn map_prop_term(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropTermForm::Bound { .. } => {}
         PropTermForm::ModuleParam { .. } => {}
@@ -1632,7 +1639,7 @@ fn map_prop_term(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1646,7 +1653,8 @@ fn map_prop_type(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropTypeForm::Bound { .. } => {}
         PropTypeForm::ModuleParam { .. } => {}
@@ -1772,7 +1780,7 @@ fn map_prop_type(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1786,7 +1794,8 @@ fn map_prop_kind(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropKindForm::Base => {}
         PropKindForm::ProdTerm { domain, body, .. } => {
@@ -1810,7 +1819,7 @@ fn map_prop_kind(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1824,7 +1833,8 @@ fn map_value_term(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueTermForm::Bound { .. } => {}
         ValueTermForm::ModuleParam { .. } => {}
@@ -1866,7 +1876,7 @@ fn map_value_term(
             }
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1880,7 +1890,8 @@ fn map_value_type(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueTypeForm::Bound { .. } => {}
         ValueTypeForm::ModuleParam { .. } => {}
@@ -1916,7 +1927,7 @@ fn map_value_type(
             field!(argument, 0, All | Evaluation);
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1930,7 +1941,8 @@ fn map_value_kind(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueKindForm::Base => {}
         ValueKindForm::ProdType { domain, body, .. } => {
@@ -1938,7 +1950,7 @@ fn map_value_kind(
             field!(body, 1, All | Evaluation);
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -1952,7 +1964,8 @@ fn map_computation_term(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ComputationTermForm::ModuleParam { .. } => {}
         ComputationTermForm::Annotated { body, classifier } => {
@@ -2051,7 +2064,7 @@ fn map_computation_term(
             field!(transition_equality, 0, All);
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -2065,7 +2078,8 @@ fn map_computation_type(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ComputationTypeForm::Bound { .. } => {}
         ComputationTypeForm::ModuleParam { .. } => {}
@@ -2097,7 +2111,7 @@ fn map_computation_type(
             field!(argument, 0, All | Evaluation);
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())
@@ -2111,7 +2125,8 @@ fn map_computation_kind(
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = false;
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ComputationKindForm::Base => {}
         ComputationKindForm::ProdType { domain, body, .. } => {
@@ -2119,7 +2134,7 @@ fn map_computation_kind(
             field!(body, 1, All | Evaluation);
         }
     }
-    if *original == node {
+    if !changed {
         Ok(h.into())
     } else {
         Ok(arena.alloc(node).into())

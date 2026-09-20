@@ -1,7 +1,9 @@
 //! Elaboration boundary: attach syntax families and rule labels, then check in the kernel.
 use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
+use kernel::sharing::ContextId;
 use kernel::{environment as ke, sort as k, syntax as s};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
+use std::collections::HashSet;
 
 mod declarations;
 mod logical;
@@ -13,7 +15,7 @@ pub(crate) struct Lowerer<'a> {
     pub(crate) kernel: &'a mut ke::Environment,
     active: HashSet<InductiveId>,
     active_program: HashSet<ProgramInductiveId>,
-    cache: HashMap<(Exp, Vec<Exp>, ModuleId), s::Expression>,
+    cache: FxHashMap<(Exp, ContextId, ModuleId), s::Expression>,
 }
 
 impl<'a> Lowerer<'a> {
@@ -26,7 +28,7 @@ impl<'a> Lowerer<'a> {
             kernel,
             active: HashSet::new(),
             active_program: HashSet::new(),
-            cache: HashMap::new(),
+            cache: FxHashMap::default(),
         }
     }
 
@@ -48,14 +50,14 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn infer(&self, e: Exp, ctx: &mut ExpContext, m: ModuleId) -> Result<Exp, String> {
-        raw::derivation::CheckSession::new(self.raw, m, ctx)
+    fn infer(&self, e: Exp, ctx: &mut ExpContext) -> Result<Exp, String> {
+        raw::derivation::CheckSession::new(self.raw, ctx)
             .infer_pts(e)
             .map_err(|e| format!("classification: {e:?}"))
     }
 
-    fn formation(&self, e: Exp, ctx: &mut ExpContext, m: ModuleId) -> Result<k::Sort, String> {
-        raw::derivation::CheckSession::new(self.raw, m, ctx)
+    fn formation(&self, e: Exp, ctx: &mut ExpContext) -> Result<k::Sort, String> {
+        raw::derivation::CheckSession::new(self.raw, ctx)
             .infer_sort(e)
             .map(Self::sort)
             .map_err(|e| format!("classification formation: {e:?}"))

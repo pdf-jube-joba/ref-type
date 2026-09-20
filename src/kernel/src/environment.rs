@@ -1,6 +1,7 @@
 use super::{construction as build, structure};
 use super::{sort::*, syntax::*};
 use crate::ids::*;
+use crate::sharing::ScopedCache;
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
@@ -47,8 +48,8 @@ pub struct ProgramDatatype {
 pub struct Environment {
     pub(crate) arena: Arena,
     pub(crate) inference_cache:
-        std::cell::RefCell<FxHashMap<(Expression, Vec<Expression>), Classifier>>,
-    pub(crate) head_cache: std::cell::RefCell<FxHashMap<Expression, Expression>>,
+        std::cell::RefCell<ScopedCache<(Expression, Vec<Expression>), Classifier>>,
+    pub(crate) head_cache: std::cell::RefCell<ScopedCache<Expression, Expression>>,
     pub(crate) definitions: HashMap<DefId, Definition>,
     pub(crate) definition_templates: HashMap<DefId, Definition>,
     pub(crate) parameters: HashMap<ModuleParamId, Binding>,
@@ -56,13 +57,154 @@ pub struct Environment {
     pub(crate) datatypes: HashMap<ProgramInductiveId, ProgramDatatype>,
 }
 
+struct CheckScope<'a> {
+    env: &'a mut Environment,
+    checkpoint: ArenaCheckpoint,
+}
+
+#[cfg(test)]
+mod scope_tests {
+    use super::*;
+
+    #[test]
+    fn scratch_scope_is_discarded_during_unwinding() {
+        let mut env = Environment::new();
+        let counts = env.arena.node_counts();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = env.check_scoped(|env| {
+                let term: Expression = env
+                    .arena
+                    .alloc(SetKindNode {
+                        level: 0,
+                        form: SetKindForm::Base,
+                    })
+                    .into();
+                env.head_cache.borrow_mut().insert(term, term);
+                env.inference_cache
+                    .borrow_mut()
+                    .insert((term, vec![]), Classifier::Upper(BaseSort::Set(0)));
+                panic!("interrupt scratch checking");
+            });
+        }));
+        assert!(result.is_err());
+        assert_eq!(env.arena.node_counts(), counts);
+        assert!(env.cache_counts().iter().all(|(_, count)| *count == 0));
+        env.check_scoped(|_| Ok(())).unwrap();
+    }
+}
+
+impl Drop for CheckScope<'_> {
+    fn drop(&mut self) {
+        let checkpoint = self.checkpoint;
+        self.env
+            .inference_cache
+            .get_mut()
+            .finish_scope(|(e, context), classifier| {
+                checkpoint.contains(*e)
+                    && context.iter().all(|&ty| checkpoint.contains(ty))
+                    && match classifier {
+                        Classifier::Expression(ty) => checkpoint.contains(*ty),
+                        Classifier::Upper(_) => true,
+                    }
+            });
+        self.env
+            .head_cache
+            .get_mut()
+            .finish_scope(|e, head| checkpoint.contains(*e) && checkpoint.contains(*head));
+        self.env.arena.truncate(checkpoint);
+    }
+}
+
 impl Environment {
+    fn check_scoped(
+        &mut self,
+        check: impl FnOnce(&Self) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let checkpoint = self.arena.checkpoint();
+        self.inference_cache.get_mut().begin_scope();
+        self.head_cache.get_mut().begin_scope();
+        let scope = CheckScope {
+            env: self,
+            checkpoint,
+        };
+        check(scope.env)
+    }
+
+    fn check_definition(&mut self, definition: &Definition) -> Result<(), String> {
+        self.check_scoped(|env| {
+            let mut checker = super::check::Checker::new(env, definition.context.clone());
+            checker.check_context()?;
+            checker.check(definition.body, definition.classifier)?;
+            if let Classifier::Expression(ty) = definition.classifier
+                && env.arena.sort(ty).is_program()
+            {
+                let context = super::reflection::reflect_context(env, &definition.context)?;
+                let ty = super::reflection::reflect_program_expression(env, ty)?;
+                let body = super::reflection::reflect_program_expression(env, definition.body)?;
+                super::check::Checker::new(env, context).check(body, ty)?;
+            }
+            Ok(())
+        })
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn arena(&self) -> &Arena {
         &self.arena
+    }
+
+    /// Retained cache entries and the number of copied context bindings.
+    pub fn cache_counts(&self) -> [(&'static str, usize); 3] {
+        let inference = self.inference_cache.borrow();
+        [
+            ("inference", inference.len()),
+            (
+                "context bindings",
+                inference.keys().map(|(_, ctx)| ctx.len()).sum(),
+            ),
+            ("weak heads", self.head_cache.borrow().len()),
+        ]
+    }
+
+    /// Nodes reachable from declarations, excluding caches and external handles.
+    pub fn declaration_node_count(&self) -> usize {
+        let mut pending = Vec::new();
+        for definition in self
+            .definitions
+            .values()
+            .chain(self.definition_templates.values())
+        {
+            pending.push(definition.body);
+            if let Classifier::Expression(ty) = definition.classifier {
+                pending.push(ty);
+            }
+            pending.extend(definition.context.iter().map(|b| b.classifier));
+        }
+        pending.extend(self.parameters.values().map(|b| b.classifier));
+        for spec in self.inductives.values() {
+            pending.push(spec.arity);
+            pending.extend(spec.parameters.iter().map(|b| b.classifier));
+            pending.extend(&spec.constructors);
+        }
+        for datatype in self.datatypes.values() {
+            pending.extend(datatype.parameters.iter().map(|b| b.classifier));
+            pending.extend(
+                datatype
+                    .constructors
+                    .iter()
+                    .flatten()
+                    .map(|(_, ty)| Expression::from(*ty)),
+            );
+        }
+        let mut seen = rustc_hash::FxHashSet::default();
+        while let Some(e) = pending.pop() {
+            if seen.insert(e) {
+                structure::visit_children(&self.arena, e, |child, _| pending.push(child));
+            }
+        }
+        seen.len()
     }
 
     pub fn definition(&self, id: DefId) -> Option<&Definition> {
@@ -94,17 +236,7 @@ impl Environment {
         {
             return Err("a definition must abstract over its local bound variables".into());
         }
-        let mut checker = super::check::Checker::new(self, definition.context.clone());
-        checker.check_context()?;
-        checker.check(definition.body, definition.classifier)?;
-        if let Classifier::Expression(ty) = definition.classifier
-            && self.arena.sort(ty).is_program()
-        {
-            let context = super::reflection::reflect_context(self, &definition.context)?;
-            let ty = super::reflection::reflect_program_expression(self, ty)?;
-            let body = super::reflection::reflect_program_expression(self, definition.body)?;
-            super::check::Checker::new(self, context).check(body, ty)?;
-        }
+        self.check_definition(&definition)?;
         self.definitions.insert(id, definition);
         // Expressions contain annotations, not names. Adding metadata cannot
         // change the meaning of any previously checked expression.
@@ -121,17 +253,7 @@ impl Environment {
         if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
             return Err("duplicate definition template".into());
         }
-        let mut checker = super::check::Checker::new(self, definition.context.clone());
-        checker.check_context()?;
-        checker.check(definition.body, definition.classifier)?;
-        if let Classifier::Expression(ty) = definition.classifier
-            && self.arena.sort(ty).is_program()
-        {
-            let context = super::reflection::reflect_context(self, &definition.context)?;
-            let ty = super::reflection::reflect_program_expression(self, ty)?;
-            let body = super::reflection::reflect_program_expression(self, definition.body)?;
-            super::check::Checker::new(self, context).check(body, ty)?;
-        }
+        self.check_definition(&definition)?;
         self.definition_templates.insert(id, definition);
         Ok(())
     }
@@ -148,9 +270,12 @@ impl Environment {
         if !super::calculus::locally_closed(&self.arena, binding.classifier) {
             return Err("a named parameter cannot capture local bound variables".into());
         }
-        let mut checker = super::check::Checker::new(self, context);
-        checker.check_context()?;
-        checker.formation(binding.classifier)?;
+        self.check_scoped(|env| {
+            let mut checker = super::check::Checker::new(env, context);
+            checker.check_context()?;
+            checker.formation(binding.classifier)?;
+            Ok(())
+        })?;
         self.parameters.insert(id, binding);
         Ok(())
     }
@@ -175,8 +300,8 @@ impl Environment {
             return Err("inductive occurs in its arity".into());
         }
         self.inductives.insert(id, spec.clone());
-        let result = (|| {
-            let mut checker = super::check::Checker::new(self, spec.parameters.clone());
+        let result = self.check_scoped(|env| {
+            let mut checker = super::check::Checker::new(env, spec.parameters.clone());
             checker.check_context()?;
             if spec.sort.is_upper() {
                 checker.check(spec.arity, Classifier::Upper(spec.sort.base()))?;
@@ -195,16 +320,16 @@ impl Environment {
                     // also reduces parameters embedded in field and result types;
                     // those parameters can be arbitrarily large and are irrelevant
                     // to this check.
-                    let head = super::calculus::whnf(self, tail)?;
-                    if let Some(product) = structure::product(&self.arena, head) {
-                        check_positive(self, product.domain, id, true)?;
+                    let head = super::calculus::whnf(env, tail)?;
+                    if let Some(product) = structure::product(&env.arena, head) {
+                        check_positive(env, product.domain, id, true)?;
                         tail = product.body;
                     } else {
                         let mut head = head;
-                        while let Some(application) = structure::application(&self.arena, head) {
+                        while let Some(application) = structure::application(&env.arena, head) {
                             head = application.function;
                         }
-                        if !structure::inductive_type(&self.arena, head)
+                        if !structure::inductive_type(&env.arena, head)
                             .is_some_and(|(inductive, _)| inductive == id)
                         {
                             return Err("constructor does not return its declared inductive".into());
@@ -214,7 +339,7 @@ impl Environment {
                 }
             }
             Ok(())
-        })();
+        });
         if result.is_err() {
             self.inductives.remove(&id);
             self.head_cache.borrow_mut().clear();
@@ -239,30 +364,33 @@ impl Environment {
             return Err("datatype mirror identity is already owned".into());
         }
         self.datatypes.insert(id, spec.clone());
-        let result = (|| {
-            let mut checker = super::check::Checker::new(self, spec.parameters.clone());
-            checker.check_context()?;
-            for p in &spec.parameters {
-                let s = checker.formation(p.classifier)?;
-                if !s.is_upper() || !s.base().is_program() || s.base().level().unwrap() > spec.level
-                {
-                    return Err("datatype parameter kind level exceeds result level".into());
-                }
-            }
-            for fields in &spec.constructors {
-                for (_, ty) in fields {
-                    let s = checker.formation((*ty).into())?;
-                    if !matches!(s,Sort::Base(BaseSort::Value(i)) if i<=spec.level) {
-                        return Err("datatype field level exceeds result level".into());
+        let result = self
+            .check_scoped(|env| {
+                let mut checker = super::check::Checker::new(env, spec.parameters.clone());
+                checker.check_context()?;
+                for p in &spec.parameters {
+                    let s = checker.formation(p.classifier)?;
+                    if !s.is_upper()
+                        || !s.base().is_program()
+                        || s.base().level().unwrap() > spec.level
+                    {
+                        return Err("datatype parameter kind level exceeds result level".into());
                     }
-                    check_program_positive(self, (*ty).into(), id, true)?;
-                    let reflected = super::reflection::reflect_type(self, (*ty).into())?;
-                    check_positive(self, reflected.into(), spec.reflected, true)?;
                 }
-            }
-            Ok(())
-        })()
-        .and_then(|()| self.install_datatype_mirror(&spec));
+                for fields in &spec.constructors {
+                    for (_, ty) in fields {
+                        let s = checker.formation((*ty).into())?;
+                        if !matches!(s,Sort::Base(BaseSort::Value(i)) if i<=spec.level) {
+                            return Err("datatype field level exceeds result level".into());
+                        }
+                        check_program_positive(env, (*ty).into(), id, true)?;
+                        let reflected = super::reflection::reflect_type(env, (*ty).into())?;
+                        check_positive(env, reflected.into(), spec.reflected, true)?;
+                    }
+                }
+                Ok(())
+            })
+            .and_then(|()| self.install_datatype_mirror(&spec));
         if result.is_err() {
             self.datatypes.remove(&id);
             self.head_cache.borrow_mut().clear();

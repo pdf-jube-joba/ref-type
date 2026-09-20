@@ -18,6 +18,14 @@ front は未分類の構文を解析・elaboration し、kernel に渡す分類�
 に集約する。
 走査に渡すクロージャが部分木の置換を返した場合、その部分木の走査を止める。
 変更がないノードは元の handle を使う。
+シフト・telescope 代入・module parameter 置換は、ノードと束縛の深さをキーに走査結果を共有する。
+自由な de Bruijn index の最大値をノードごとに保存し、シフトや代入が影響しない部分木の走査を省く。
+変数・帰納型の出現判定も共有部分木を一度ずつ調べる。
+
+論理ノードと自由変数の情報は固定長のチャンクに格納し、arena の拡張時に全体をコピーする費用と余剰容量を抑える。
+型推論と lowering のキャッシュは、局所文脈の型の列を接頭辞ごとに共有した ID で参照する。
+`CheckSession` は binder の出入りに合わせてこの ID を更新する。
+raw の名前参照は解決済みの ID なので、型推論のキーは式と文脈の ID になる。
 
 - [`raw/program_definitions.rs`](src/raw/program_definitions.rs) は定義の型引数を同時代入する。
   単一の型引数を代入する入口もこの実装を使う。定義代入は評価時にも呼ばれるため、
@@ -59,4 +67,7 @@ env -u RUST_LOG /usr/bin/time -f 'elapsed=%e user=%U sys=%S maxrss_kb=%M' target
 ```
 
 `--stats` を付けると、処理後に raw と kernel の family ごとの保持ノード数を標準エラーへ表示する。
-ノード数は `Arena::node_counts` からも取得できる。
+推論・弱頭簡約のキャッシュ件数、文脈の束縛数、kernel の宣言から到達できるノード数も表示する。
+文脈の束縛数は raw では共有された文脈の拡張数、kernel ではキャッシュ内の文脈の長さの合計である。
+宣言からの到達数には、キャッシュと外部の handle だけが保持するノードは含まない。
+これらは `Arena::node_counts`、`Environment::cache_counts`、`CrateEnv::cache_counts`、`Environment::declaration_node_count` からも取得できる。

@@ -278,7 +278,7 @@ impl GlobalEnvironment {
                         self.finish_metavariables()?;
                         pts_ty = self.metavariables.zonk(&self.crate_env, pts_ty);
                     }
-                    CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
+                    CheckSession::new(&self.crate_env, &mut ctx)
                         .infer_sort(pts_ty)
                         .map_err(|error| {
                             format!("Module parameter type is not Set/Prop: {error:?}")
@@ -648,17 +648,10 @@ impl GlobalEnvironment {
 
                     self.crate_env.define_inductive(inductive, indspec);
                     let spec = self.crate_env.inductive(inductive).clone();
-                    spec.validate(
-                        &mut CheckSession::new(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut ctx,
-                        ),
-                        inductive,
-                    )
-                    .map_err(|error| {
-                        format!("Ill-formed inductive type specification: {error:?}")
-                    })?;
+                    spec.validate(&mut CheckSession::new(&self.crate_env, &mut ctx), inductive)
+                        .map_err(|error| {
+                            format!("Ill-formed inductive type specification: {error:?}")
+                        })?;
                     self.module_manager.publish_reserved_inductive(
                         &mut self.crate_env,
                         type_name.clone(),
@@ -730,14 +723,7 @@ impl GlobalEnvironment {
                     self.crate_env
                         .inductive(inductive)
                         .clone()
-                        .validate(
-                            &mut CheckSession::new(
-                                &self.crate_env,
-                                self.module_manager.current(),
-                                &mut ctx,
-                            ),
-                            inductive,
-                        )
+                        .validate(&mut CheckSession::new(&self.crate_env, &mut ctx), inductive)
                         .map_err(|error| format!("Ill-formed structure: {error:?}"))?;
                     let projections = self.add_record_projection_definitions(inductive)?;
                     self.module_manager.publish_reserved_record(

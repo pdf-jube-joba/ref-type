@@ -143,32 +143,47 @@ pub fn instantiate_telescope(
     substitute_inner(&env.arena, e, arguments, Some(env))
 }
 pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
-    if let Some(i) = structure::bound_index(arena, e) {
-        return i == index;
+    fn go(
+        arena: &Arena,
+        e: Expression,
+        index: usize,
+        seen: &mut rustc_hash::FxHashSet<(Expression, usize)>,
+    ) -> bool {
+        if arena.max_loose_bound(e).is_none_or(|max| max < index) || !seen.insert((e, index)) {
+            return false;
+        }
+        if let Some(i) = structure::bound_index(arena, e) {
+            return i == index;
+        }
+        let mut found = false;
+        structure::visit_children(arena, e, |child, depth| {
+            found |= !found
+                && index
+                    .checked_add(depth)
+                    .is_some_and(|index| go(arena, child, index, seen));
+        });
+        found
     }
-    let mut found = false;
-    structure::visit_children(arena, e, |child, depth| {
-        found |= !found && contains_bound(arena, child, index + depth);
-    });
-    found
+    go(arena, e, index, &mut rustc_hash::FxHashSet::default())
 }
 pub fn is_closed(arena: &Arena, e: Expression) -> bool {
-    fn go(a: &Arena, e: Expression, depth: usize) -> bool {
-        if let Some(index) = structure::bound_index(a, e) {
-            return index < depth;
+    if !locally_closed(arena, e) {
+        return false;
+    }
+    let mut pending = vec![e];
+    let mut seen = rustc_hash::FxHashSet::default();
+    while let Some(e) = pending.pop() {
+        if !seen.insert(e) {
+            continue;
         }
-        if structure::module_parameter(a, e).is_some()
-            || structure::reflected_parameter(a, e).is_some()
+        if structure::module_parameter(arena, e).is_some()
+            || structure::reflected_parameter(arena, e).is_some()
         {
             return false;
         }
-        let mut closed = true;
-        structure::visit_children(a, e, |child, n| {
-            closed = closed && go(a, child, depth + n);
-        });
-        closed
+        structure::visit_children(arena, e, |child, _| pending.push(child));
     }
-    go(arena, e, 0)
+    true
 }
 pub fn substitute_parameters(
     env: &Environment,
@@ -180,8 +195,12 @@ pub fn substitute_parameters(
         e: Expression,
         p: &HashMap<ModuleParamId, Expression>,
         depth: usize,
+        cache: &mut FxHashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
         let a = &env.arena;
+        if let Some(&result) = cache.get(&(e, depth)) {
+            return Ok(result);
+        }
         let reflected = structure::reflected_parameter(a, e);
         if let Some(parameter) = structure::module_parameter(a, e).or(reflected)
             && let Some(&argument) = p.get(&parameter)
@@ -194,11 +213,18 @@ pub fn substitute_parameters(
             if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
                 return Err("module argument classification mismatch".into());
             }
-            return shift(a, argument, depth, 0);
+            let result = shift(a, argument, depth, 0)?;
+            cache.insert((e, depth), result);
+            return Ok(result);
         }
-        map_children(a, e, |child, n| go(env, child, p, depth + n))
+        let result = map_children(a, e, |child, n| go(env, child, p, depth + n, cache))?;
+        cache.insert((e, depth), result);
+        Ok(result)
     }
-    go(env, e, parameters, 0)
+    if parameters.is_empty() {
+        return Ok(e);
+    }
+    go(env, e, parameters, 0, &mut FxHashMap::default())
 }
 pub fn remap_ids(
     arena: &Arena,
@@ -206,31 +232,50 @@ pub fn remap_ids(
     inductives: &HashMap<InductiveId, InductiveId>,
     datatypes: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Result<Expression, String> {
-    let e = map_children(arena, e, |child, _| {
-        remap_ids(arena, child, inductives, datatypes)
-    })?;
-    Ok(structure::remap_references(arena, e, inductives, datatypes))
-}
-pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
     fn go(
         arena: &Arena,
-        left: Expression,
-        right: Expression,
-        cache: &mut FxHashMap<(Expression, Expression), bool>,
-    ) -> bool {
-        if left == right {
-            return true;
+        e: Expression,
+        inductives: &HashMap<InductiveId, InductiveId>,
+        datatypes: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+        cache: &mut FxHashMap<Expression, Expression>,
+    ) -> Result<Expression, String> {
+        if let Some(&result) = cache.get(&e) {
+            return Ok(result);
         }
-        if let Some(&result) = cache.get(&(left, right)) {
-            return result;
-        }
-        let result =
-            structure::compare_children(arena, left, right, |l, r| Ok(go(arena, l, r, cache)))
-                .expect("alpha comparison cannot fail");
-        cache.insert((left, right), result);
-        result
+        let mapped = map_children(arena, e, |child, _| {
+            go(arena, child, inductives, datatypes, cache)
+        })?;
+        let result = structure::remap_references(arena, mapped, inductives, datatypes);
+        cache.insert(e, result);
+        Ok(result)
     }
-    go(arena, left, right, &mut FxHashMap::default())
+    if inductives.is_empty() && datatypes.is_empty() {
+        return Ok(e);
+    }
+    go(arena, e, inductives, datatypes, &mut FxHashMap::default())
+}
+pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
+    alpha_equal_cached(arena, left, right, &mut FxHashMap::default())
+}
+
+fn alpha_equal_cached(
+    arena: &Arena,
+    left: Expression,
+    right: Expression,
+    cache: &mut FxHashMap<(Expression, Expression), bool>,
+) -> bool {
+    if left == right {
+        return true;
+    }
+    if let Some(&result) = cache.get(&(left, right)) {
+        return result;
+    }
+    let result = structure::compare_children(arena, left, right, |l, r| {
+        Ok(alpha_equal_cached(arena, l, r, cache))
+    })
+    .expect("alpha comparison cannot fail");
+    cache.insert((left, right), result);
+    result
 }
 pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bool, String> {
     fn go(
@@ -238,26 +283,36 @@ pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bo
         a: Expression,
         b: Expression,
         seen: &mut FxHashMap<(Expression, Expression), bool>,
+        alpha: &mut FxHashMap<(Expression, Expression), bool>,
     ) -> Result<bool, String> {
-        if a.family() != b.family() || env.arena.sort(a) != env.arena.sort(b) {
-            return Ok(false);
-        }
-        if alpha_equal(&env.arena, a, b) {
+        if a == b {
             return Ok(true);
         }
         if let Some(&result) = seen.get(&(a, b)) {
             return Ok(result);
         }
+        if a.family() != b.family() || env.arena.sort(a) != env.arena.sort(b) {
+            return Ok(false);
+        }
+        if alpha_equal_cached(&env.arena, a, b, alpha) {
+            return Ok(true);
+        }
         let ah = whnf(env, a)?;
         let bh = whnf(env, b)?;
-        let result = alpha_equal(&env.arena, ah, bh)
+        let result = alpha_equal_cached(&env.arena, ah, bh, alpha)
             || structure::compare_children(&env.arena, ah, bh, |left, right| {
-                go(env, left, right, seen)
+                go(env, left, right, seen, alpha)
             })?;
         seen.insert((a, b), result);
         Ok(result)
     }
-    go(env, a, b, &mut FxHashMap::default())
+    go(
+        env,
+        a,
+        b,
+        &mut FxHashMap::default(),
+        &mut FxHashMap::default(),
+    )
 }
 pub fn reduce_once(
     env: &Environment,
@@ -542,33 +597,7 @@ fn unfold_value(env: &Environment, mut value: Expression) -> Result<Expression, 
     Ok(value)
 }
 pub fn closed_in_environment(env: &Environment, e: Expression) -> bool {
-    fn go(
-        env: &Environment,
-        e: Expression,
-        depth: usize,
-        cache: &mut FxHashMap<(Expression, usize), bool>,
-    ) -> bool {
-        if let Some(&result) = cache.get(&(e, depth)) {
-            return result;
-        }
-        let a = &env.arena;
-        let result = if let Some(index) = structure::bound_index(a, e) {
-            index < depth
-        } else if structure::module_parameter(a, e).is_some()
-            || structure::reflected_parameter(a, e).is_some()
-        {
-            false
-        } else {
-            let mut result = true;
-            structure::visit_children(a, e, |child, n| {
-                result = result && go(env, child, depth + n, cache);
-            });
-            result
-        };
-        cache.insert((e, depth), result);
-        result
-    }
-    go(env, e, 0, &mut FxHashMap::default())
+    is_closed(&env.arena, e)
 }
 /// Local binders must be abstracted before a named declaration is registered.
 pub fn locally_closed(arena: &Arena, e: Expression) -> bool {

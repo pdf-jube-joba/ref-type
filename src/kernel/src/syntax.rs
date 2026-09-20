@@ -14,9 +14,9 @@
 //! ```
 use super::sort::*;
 use crate::ids::*;
-use rustc_hash::FxHashMap;
+use crate::sharing::{LooseBound, ScopedCache};
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     hash::{Hash, Hasher},
     rc::Rc,
 };
@@ -27,21 +27,28 @@ const NO_NODE: u32 = u32::MAX;
 #[derive(Debug)]
 struct Partition<N> {
     nodes: Vec<Rc<N>>,
-    interner: FxHashMap<u64, u32>,
+    interner: ScopedCache<u64, u32>,
     hash_links: Vec<u32>,
-    max_loose_bounds: Vec<Cell<Option<Option<usize>>>>,
+    max_loose_bounds: Vec<LooseBound>,
 }
 impl<N> Default for Partition<N> {
     fn default() -> Self {
         Self {
             nodes: Vec::new(),
-            interner: FxHashMap::default(),
+            interner: ScopedCache::default(),
             hash_links: Vec::new(),
             max_loose_bounds: Vec::new(),
         }
     }
 }
 impl<N: Eq + Hash> Partition<N> {
+    fn truncate(&mut self, len: usize) {
+        self.interner.discard_scope();
+        self.nodes.truncate(len);
+        self.hash_links.truncate(len);
+        self.max_loose_bounds.truncate(len);
+    }
+
     fn insert(&mut self, node: N) -> u32 {
         let mut hasher = rustc_hash::FxHasher::default();
         node.hash(&mut hasher);
@@ -61,11 +68,46 @@ impl<N: Eq + Hash> Partition<N> {
             .expect("arena exhausted");
         self.nodes.push(Rc::new(node));
         self.hash_links.push(first);
-        self.max_loose_bounds.push(Cell::new(None));
+        self.max_loose_bounds.push(LooseBound::default());
         self.interner.insert(fingerprint, id);
         id
     }
 }
+
+#[cfg(test)]
+mod partition_tests {
+    use super::*;
+
+    #[derive(PartialEq, Eq)]
+    struct Colliding(u32);
+
+    impl Hash for Colliding {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            0u32.hash(state);
+        }
+    }
+
+    #[test]
+    fn scratch_collision_chains_preserve_permanent_nodes() {
+        let mut partition = Partition::default();
+        let first = partition.insert(Colliding(1));
+        let second = partition.insert(Colliding(2));
+        for _ in 0..2 {
+            partition.interner.begin_scope();
+            let temporary = partition.insert(Colliding(3));
+            assert_eq!(partition.insert(Colliding(1)), first);
+            assert_eq!(partition.insert(Colliding(2)), second);
+            assert_eq!(partition.insert(Colliding(3)), temporary);
+            partition.truncate(2);
+            assert_eq!(partition.insert(Colliding(1)), first);
+            assert_eq!(partition.insert(Colliding(2)), second);
+        }
+        let third = partition.insert(Colliding(4));
+        assert_eq!(third, 2);
+        assert_ne!(partition.insert(Colliding(3)), third);
+    }
+}
+
 // Keep every family in Set/Prop/Value/Computation order, then Term/Type/Kind.
 // One table defines handles, family tags, conversions, and arena partitions.
 macro_rules! syntax_families {
@@ -110,7 +152,23 @@ macro_rules! syntax_families {
         pub struct Arena {
             $($storage: RefCell<Partition<$node>>,)+
         }
+        #[derive(Clone, Copy)]
+        pub(crate) struct ArenaCheckpoint { $($storage: usize,)+ }
+        impl ArenaCheckpoint {
+            pub(crate) fn contains(self, e: Expression) -> bool {
+                match e { $(Expression::$handle(h) => h.index() < self.$storage,)+ }
+            }
+        }
         impl Arena {
+            pub(crate) fn checkpoint(&self) -> ArenaCheckpoint {
+                $(self.$storage.borrow_mut().interner.begin_scope();)+
+                ArenaCheckpoint { $($storage: self.$storage.borrow().nodes.len(),)+ }
+            }
+
+            pub(crate) fn truncate(&mut self, checkpoint: ArenaCheckpoint) {
+                $(self.$storage.get_mut().truncate(checkpoint.$storage);)+
+            }
+
             /// Number of retained nodes in each syntax family.
             pub fn node_counts(&self) -> Vec<(Family, usize)> {
                 vec![$((Family::$handle, self.$storage.borrow().nodes.len()),)+]
@@ -126,7 +184,7 @@ macro_rules! syntax_families {
             }
             fn cache_max_loose_bound(&self, e: Expression, value: Option<usize>) {
                 match e {
-                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].set(Some(value)),)+
+                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].set(value),)+
                 }
             }
         }

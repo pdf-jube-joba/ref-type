@@ -193,7 +193,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
                 e,
             )
         } else {
-            CheckSession::new(&self.crate_env, self.module_manager.current(), &mut ctx)
+            CheckSession::new(&self.crate_env, &mut ctx)
                 .infer_pts(e)
                 .map_err(|error| {
                     format!("Failed to infer elaborated Set/Prop expression: {error:?}")

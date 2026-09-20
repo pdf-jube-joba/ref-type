@@ -205,7 +205,7 @@ impl GlobalEnvironment {
         }
         let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);
         let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
-        let result = CheckSession::new(&self.crate_env, self.module_manager.current(), ctx)
+        let result = CheckSession::new(&self.crate_env, ctx)
             .check_pts(exp_elab, ty_elab)
             .map_err(|error| format!("{error:?}"))
             .and_then(|()| self.certify_query(ctx, exp_elab, ty_elab));
@@ -222,7 +222,7 @@ impl GlobalEnvironment {
         ctx: &mut ExpContext,
     ) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
-        let result = CheckSession::new(&self.crate_env, self.module_manager.current(), ctx)
+        let result = CheckSession::new(&self.crate_env, ctx)
             .infer_exp_judgement(exp_elab)
             .map_err(|error| format!("{error:?}"))
             .and_then(|judgement| {

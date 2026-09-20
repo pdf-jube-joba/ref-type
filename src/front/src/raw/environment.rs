@@ -7,6 +7,7 @@ use crate::raw::{
     program::{ComputationTerm, ComputationType, ValueTerm, ValueType},
     program_inductive::ProgramInductiveTypeSpecs,
 };
+use kernel::sharing::{ContextId, ContextInterner};
 use rustc_hash::FxHashMap;
 use std::{
     cell::{Cell, OnceCell, RefCell},
@@ -237,13 +238,14 @@ impl ModuleEnv {
     }
 }
 
-type InferenceCache = FxHashMap<(Exp, Vec<(SymbolId, Exp)>, ModuleId), Exp>;
+type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 
 #[derive(Debug)]
 pub struct CrateEnv {
     definition_parameters: HashMap<DefId, Vec<SymbolId>>,
     arena: Arena,
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
+    pub(crate) contexts: RefCell<ContextInterner<Exp>>,
     // Raw nodes and registered declarations are immutable. Weak-head reduction
     // depends only on those, not on the elaborator's context or meta assignments.
     pub(crate) whnf_cache: RefCell<FxHashMap<Exp, Exp>>,
@@ -274,6 +276,22 @@ impl Default for CrateEnv {
 }
 
 impl CrateEnv {
+    /// Retained cache entries and distinct shared context extensions.
+    pub fn cache_counts(&self) -> [(&'static str, usize); 3] {
+        let inference = self.inference_cache.borrow();
+        [
+            ("inference", inference.len()),
+            ("context bindings", self.contexts.borrow().len()),
+            ("weak heads", self.whnf_cache.borrow().len()),
+        ]
+    }
+
+    pub(crate) fn context_id(&self, context: &super::exp::ExpContext) -> ContextId {
+        self.contexts
+            .borrow_mut()
+            .intern(context.iter().map(|b| b.ty))
+    }
+
     pub fn new() -> Self {
         let anonymous = "_".to_string();
         let root = "root".to_string();
@@ -284,6 +302,7 @@ impl CrateEnv {
             definition_parameters: HashMap::new(),
             arena: Arena::new(),
             inference_cache: Default::default(),
+            contexts: Default::default(),
             whnf_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
@@ -339,7 +358,7 @@ impl CrateEnv {
         owner: ModuleId,
         mut context: crate::raw::exp::ExpContext,
     ) -> Result<ModuleId, String> {
-        crate::raw::derivation::CheckSession::new(self, owner, &mut context)
+        crate::raw::derivation::CheckSession::new(self, &mut context)
             .check_wellformed_context()
             .map_err(|error| error.to_string())?;
         let module = self.add_module();
@@ -494,7 +513,7 @@ impl CrateEnv {
             .collect();
         match *definition {
             DefinedConstant::Pts { ty, body } => {
-                CheckSession::new(self, module, &mut pts_context)
+                CheckSession::new(self, &mut pts_context)
                     .check_pts(body, ty)
                     .map_err(|error| format!("definition check failed: {error:?}"))?;
             }

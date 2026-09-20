@@ -266,103 +266,61 @@ where
     })
 }
 
-fn direct_children(node: ExpNode) -> Vec<Exp> {
-    let mut result = Vec::new();
-    let _ = map_children(node, |child| {
-        result.push(child);
-        child
-    });
-    result
-}
-
 pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
-    fn go(arena: &Arena, exp: Exp, target: usize, depth: usize) -> bool {
-        match arena.get(exp) {
-            ExpNode::Bound(index) => index == target + depth,
-            ExpNode::Prod { ty, body, .. } | ExpNode::Lam { ty, body, .. } => {
-                go(arena, ty, target, depth) || go(arena, body, target, depth + 1)
-            }
-            ExpNode::SubSet { set, predicate, .. } => {
-                go(arena, set, target, depth) || go(arena, predicate, target, depth + 1)
-            }
-            ExpNode::Prove(Prove::IdElim {
-                left,
-                right,
-                ty,
-                predicate,
-                base,
-                equality,
-                ..
-            }) => {
-                [left, right, ty, base, equality]
-                    .into_iter()
-                    .any(|e| go(arena, e, target, depth))
-                    || go(arena, predicate, target, depth + 1)
-            }
-            ExpNode::ReflectedProgramCase {
-                scrutinee,
-                branches,
-                ..
-            } => {
-                go(arena, scrutinee, target, depth)
-                    || branches
-                        .into_iter()
-                        .any(|b| go(arena, b.body, target, depth + b.binders.len()))
-            }
-            node => direct_children(node)
-                .into_iter()
-                .any(|e| go(arena, e, target, depth)),
+    use super::traversal::Term;
+    fn go(
+        arena: &Arena,
+        exp: Exp,
+        target: usize,
+        seen: &mut rustc_hash::FxHashSet<(Exp, usize)>,
+    ) -> bool {
+        let term = Term::Logical(exp);
+        if arena.max_loose_bound(term).is_none_or(|max| max < target) || !seen.insert((exp, target))
+        {
+            return false;
         }
+        if let Some(index) = term.bound_index(arena) {
+            return index == target;
+        }
+        let mut found = false;
+        term.visit_children(arena, |child, depth| {
+            if !found && let Term::Logical(child) = child {
+                found = target
+                    .checked_add(depth)
+                    .is_some_and(|target| go(arena, child, target, seen));
+            }
+        });
+        found
     }
-    go(arena, exp, target, 0)
+    go(arena, exp, target, &mut rustc_hash::FxHashSet::default())
 }
 
 pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
-    match arena.get(exp) {
-        ExpNode::IndType {
-            indspec,
-            parameters,
+    use super::traversal::Term;
+    let mut pending = vec![exp];
+    let mut seen = rustc_hash::FxHashSet::default();
+    while let Some(e) = pending.pop() {
+        if !seen.insert(e) {
+            continue;
         }
-        | ExpNode::IndCtor {
-            indspec,
-            parameters,
-            ..
-        } => {
-            indspec == inductive
-                || parameters
-                    .into_iter()
-                    .any(|e| exp_contains_inductive(arena, e, inductive))
+        let matches = match *arena.borrow_exp(e) {
+            ExpNode::IndType { indspec, .. }
+            | ExpNode::IndCtor { indspec, .. }
+            | ExpNode::IndElim { indspec, .. }
+            | ExpNode::IndCase { indspec, .. } => indspec == inductive,
+            _ => false,
+        };
+        if matches {
+            return true;
         }
-        ExpNode::IndElim {
-            indspec,
-            elim,
-            return_type,
-            cases,
-        } => {
-            indspec == inductive
-                || [elim, return_type]
-                    .into_iter()
-                    .chain(cases)
-                    .any(|e| exp_contains_inductive(arena, e, inductive))
-        }
-        ExpNode::IndCase {
-            indspec,
-            scrutinee,
-            return_type,
-            branches,
-        } => {
-            indspec == inductive
-                || [scrutinee, return_type]
-                    .into_iter()
-                    .chain(branches)
-                    .any(|e| exp_contains_inductive(arena, e, inductive))
-        }
-        node => direct_children(node)
-            .into_iter()
-            .any(|e| exp_contains_inductive(arena, e, inductive)),
+        Term::Logical(e).visit_children(arena, |child, _| {
+            if let Term::Logical(e) = child {
+                pending.push(e);
+            }
+        });
     }
+    false
 }
-
 pub fn shift_bound_indices(arena: &Arena, exp: Exp, amount: usize, cutoff: usize) -> Exp {
     let super::traversal::Term::Logical(e) =
         super::traversal::Term::Logical(exp).shift(arena, amount, cutoff)
@@ -398,26 +356,37 @@ fn instantiate_telescope_at(arena: &Arena, exp: Exp, arguments: &[Exp], inner: u
         return exp;
     }
     use super::traversal::{self, Term};
-    traversal::logical(arena, exp, 0, &mut |term, depth| {
-        let Term::Logical(_) = term else {
-            return None;
-        };
-        let index = term.bound_index(arena)?;
-        if index < depth + inner {
-            return Some(term);
-        }
-        let telescope_index = index - depth - inner;
-        Some(Term::Logical(if telescope_index < arguments.len() {
-            shift_bound_indices(
-                arena,
-                arguments[arguments.len() - 1 - telescope_index],
-                depth + inner,
-                0,
-            )
-        } else {
-            arena.exp_bound(index - arguments.len())
-        }))
-    })
+    traversal::logical(
+        arena,
+        exp,
+        0,
+        &mut traversal::Memoized::new(|term: Term, depth| {
+            if arena
+                .max_loose_bound(term)
+                .is_none_or(|index| index < depth + inner)
+            {
+                return Some(term);
+            }
+            let Term::Logical(_) = term else {
+                return None;
+            };
+            let index = term.bound_index(arena)?;
+            if index < depth + inner {
+                return Some(term);
+            }
+            let telescope_index = index - depth - inner;
+            Some(Term::Logical(if telescope_index < arguments.len() {
+                shift_bound_indices(
+                    arena,
+                    arguments[arguments.len() - 1 - telescope_index],
+                    depth + inner,
+                    0,
+                )
+            } else {
+                arena.exp_bound(index - arguments.len())
+            }))
+        }),
+    )
 }
 
 pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp {
