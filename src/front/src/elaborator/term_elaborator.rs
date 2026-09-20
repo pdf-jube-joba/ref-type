@@ -1,6 +1,8 @@
 use crate::elaborator::ItemAccessResult;
 use crate::elaborator::profiling::ProfileTimer;
-use crate::raw::calculus::{exp_contains_bound, instantiate, shift_bound_indices};
+use crate::raw::calculus::{
+    exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
+};
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
@@ -1101,8 +1103,25 @@ impl LocalScope {
                 }))
             }
             SExp::ForceBox { program_ty, boxed } => {
-                let program_ty = handler.elaborate_boxed_computation_type(program_ty)?;
                 let boxed = self.elab_exp_rec(boxed, handler)?;
+                let program_ty = if matches!(
+                    program_ty.as_ref(),
+                    SExp::Meta {
+                        kind: SurfaceMeta::Implicit,
+                        ..
+                    }
+                ) {
+                    let boxed_ty = handler.infer(&mut self.typing_binds, boxed)?;
+                    let boxed_ty = type_head_normal(handler.env(), boxed_ty);
+                    let ExpNode::BoxType { program_ty } = handler.arena().get(boxed_ty) else {
+                        return Err(
+                            "cannot infer \\force type: argument is not boxed Program code".into(),
+                        );
+                    };
+                    program_ty
+                } else {
+                    handler.elaborate_boxed_computation_type(program_ty)?
+                };
                 Ok(handler
                     .arena()
                     .alloc(ExpNode::ForceBox { program_ty, boxed }))

@@ -840,6 +840,20 @@ fn program_value_definition_uses_the_value_judgement() {
 }
 
 #[test]
+fn force_infers_implicit_program_type_from_boxed_argument() {
+    let source = r#"
+        \module ForceMeta {
+            \inductive Unit: \VType := | unit: Unit; ;
+            \definition reflected: Unit^ :=
+                \force[_](\box[\F(Unit)](\return Unit::unit));
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
 fn program_value_and_computation_commands_are_separate() {
     let source = r#"
             \module ProgramTypeMeta(A: \VType, x: A) {
