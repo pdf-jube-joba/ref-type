@@ -25,6 +25,19 @@ fn format_var(env: &CrateEnv, var: ModuleParamId) -> String {
     format!("{}[{}:{}]", name, var.module.0, var.position)
 }
 
+fn format_app_operand(env: &CrateEnv, exp: Exp) -> String {
+    let formatted = format_exp(env, exp);
+    match env.arena().get(exp) {
+        ExpNode::Sort(_)
+        | ExpNode::Bound(_)
+        | ExpNode::ModuleParam(_)
+        | ExpNode::ReflectedProgramParam(_)
+        | ExpNode::Meta { .. }
+        | ExpNode::DefinedConstant(_) => formatted,
+        _ => format!("({formatted})"),
+    }
+}
+
 pub fn format_sort(sort: &Sort) -> String {
     match sort {
         Sort::Prop => "\\Prop".to_string(),
@@ -69,7 +82,13 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
                 child(body)
             )
         }
-        ExpNode::App { func, arg } => format!("({}) ({})", child(func), child(arg)),
+        ExpNode::App { func, arg } => {
+            format!(
+                "{} {}",
+                format_app_operand(env, func),
+                format_app_operand(env, arg)
+            )
+        }
         ExpNode::DefinedConstant(definition) => {
             format!("def({}:{})", definition.module.0, definition.index)
         }

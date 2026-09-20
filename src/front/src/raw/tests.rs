@@ -118,6 +118,18 @@ fn logical_arena_interns_nodes() {
 }
 
 #[test]
+fn raw_printer_does_not_parenthesize_atomic_application_operands() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let application = arena.alloc(ExpNode::App {
+        func: arena.exp_bound(0),
+        arg: arena.exp_bound(1),
+    });
+
+    assert_eq!(crate::raw::printing::format_exp(&env, application), "#0 #1");
+}
+
+#[test]
 fn namespace_substitution_is_simultaneous_and_capture_avoiding() {
     use crate::raw::calculus::exp_subst_map;
     let env = CrateEnv::new();
