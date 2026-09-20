@@ -247,14 +247,14 @@ Dedekind 実数は inhabited・proper・lower・rounded・located な切断と�
 構成済みであり、それらが切断になる証明は `Operations.Closed` の parameter に残る。
 
 Cauchy 実数は有理数列を「差が零へ収束する」関係で割った商である。
-`Close` と列同値の対称律は証明済みである。反射律・推移律、列演算の Cauchy 性、
-商上の閉性は parameter に残る。
+`Close` の三角不等式と列同値の反射律・対称律・推移律は証明済みである。
+定数列・和・反数の Cauchy 性と同値関係の保存、および商上の加法群の法則も証明済みである。
 
 今後の主な作業は次の通り。
 
 - Rat の商上の加法・乗法・除法について `ClassClosed` の obligation を証明する
 - Dedekind の演算が切断を保つことを証明する
-- Cauchy の同値関係の反射律・推移律、列演算、商演算の閉性を証明する
+- Cauchy の乗法・逆数・順序・完備性を構成する
 - 実数の乗法・逆数・完備性を構成する
 - `AxiomaticRealStructure` の具体的な項を構成する
 
