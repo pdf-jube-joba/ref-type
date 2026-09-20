@@ -39,37 +39,34 @@
       }
     }
   }));
-\definition diffStepSet: DiffState^ -> \RunStep[DiffState^, Int^] := \squash[_](\box[_](\return diffStep));
-\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop := \In[N.Nat^] (\runStepRec[DiffState^, Int^]((\fun (t: \RunStep[DiffState^, Int^]) => \Pow N.Nat^), (\fun (s: DiffState^) => { n : N.Nat^ \where \Acc[DiffState^, Int^](diffStepSet, s) }), (\fun (r: Int^) => { n : N.Nat^ \where N.Nat^::zero = N.Nat^::zero }), t)) N.Nat^::zero;
-\definition diffAccIntro (s: DiffState^) (ready: diffReady (diffStepSet s)): \Acc[DiffState^, Int^](diffStepSet, s)
+
+\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop := \In[N.Nat^] (\runStepRec[DiffState^, Int^]((\fun (t: \RunStep[DiffState^, Int^]) => \Pow N.Nat^), (\fun (s: DiffState^) => { n : N.Nat^ \where \Acc[DiffState^, Int^](diffStep^, s) }), (\fun (r: Int^) => { n : N.Nat^ \where N.Nat^::zero = N.Nat^::zero }), t)) N.Nat^::zero;
+\definition diffAccIntro (s: DiffState^) (ready: diffReady (diffStep^ s)): \Acc[DiffState^, Int^](diffStep^, s)
     :=
-    \accintro[DiffState^, Int^](diffStepSet, s, \fun (next: DiffState^) => \fun (edge: diffStepSet s = \continue[DiffState^, Int^](next)) =>
-        \idelim(diffStepSet s = \continue[DiffState^, Int^](next)
+    \accintro[DiffState^, Int^](diffStep^, s, \fun (next: DiffState^) => \fun (edge: diffStep^ s = \continue[DiffState^, Int^](next)) =>
+        \idelim(diffStep^ s = \continue[DiffState^, Int^](next)
           \with t: \RunStep[DiffState^, Int^] => diffReady t) \by { base: ready, equality: edge });
 
-\definition diffTerminates: \forall (b, a: N.Nat^) -> \Acc[DiffState^, Int^](diffStepSet, DiffState^::running a b) :=
-  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStepSet, DiffState^::running a
+\definition diffTerminates: \forall (b, a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a b) :=
+  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a
     b) \with {
-    | zero => (\induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStepSet, DiffState^::running a
+    | zero => (\induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStep^, DiffState^::running a
     N.Nat^::zero) \with {
       | zero => (diffAccIntro (DiffState^::running N.Nat^::zero N.Nat^::zero) (\refl(N.Nat^::zero)))
       | succ => (\fun (j: N.Nat^) => \fun (unused:
-      \Acc[DiffState^, Int^](diffStepSet, DiffState^::running j N.Nat^::zero)) => diffAccIntro
+      \Acc[DiffState^, Int^](diffStep^, DiffState^::running j N.Nat^::zero)) => diffAccIntro
     (DiffState^::running
       (N.Nat^::succ j) N.Nat^::zero) (\refl(N.Nat^::zero)))
       })
-    | succ => (\fun (k: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStepSet, DiffState^::running a k)) =>
-      \induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStepSet, DiffState^::running a (N.Nat^::succ
+    | succ => (\fun (k: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a k)) =>
+      \induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStep^, DiffState^::running a (N.Nat^::succ
     k)) \with {
       | zero => (diffAccIntro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) (\refl(N.Nat^::zero)))
-      | succ => (\fun (j: N.Nat^) => \fun (unused: \Acc[DiffState^, Int^](diffStepSet, DiffState^::running j (N.Nat^::succ k))) =>
+      | succ => (\fun (j: N.Nat^) => \fun (unused: \Acc[DiffState^, Int^](diffStep^, DiffState^::running j (N.Nat^::succ k))) =>
           diffAccIntro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
       })
     };
 \definition diff: (N.Nat -> (N.Nat -> Int)) := (\cfun (a: N.Nat) => \return(\thunk((\cfun (b: N.Nat) => \run[DiffState, Int](diffStep, DiffState::running a b) \by { diffTerminates b a }))));
-\definition diffSet: N.Nat^ -> N.Nat^ -> Int^ :=
-  \squash[_](\box[_](diff));
-
 /* A Set-only normal form, independent of Program reflection. */
 \definition diffPrec (a, b: N.Nat^): Int^ :=
   \induction (b: N.Nat^) \return N.Nat^ -> Int^ \with {
@@ -80,42 +77,38 @@
         | succ => (\fun (j: N.Nat^) => \fun (_: _) => rec j)
         } a)
     } b a;
-\definition diffMatchesPrec: \forall (b, a: N.Nat^) -> diffSet a b = diffPrec a b :=
-  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> diffSet a b = diffPrec a b \with {
-    | zero => (\induction (a: N.Nat^) \return diffSet a N.Nat^::zero = diffPrec a N.Nat^::zero \with {
+\definition diffMatchesPrec: \forall (b, a: N.Nat^) -> diff^ a b = diffPrec a b :=
+  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> diff^ a b = diffPrec a b \with {
+    | zero => (\induction (a: N.Nat^) \return diff^ a N.Nat^::zero = diffPrec a N.Nat^::zero \with {
       | zero => (\refl(Int^::ofNat N.Nat^::zero))
-      | succ => (\fun (a: N.Nat^) => \fun (ih: diffSet a N.Nat^::zero = diffPrec a N.Nat^::zero) => \refl(Int^::ofNat (N.Nat^::succ
+      | succ => (\fun (a: N.Nat^) => \fun (ih: diff^ a N.Nat^::zero = diffPrec a N.Nat^::zero) => \refl(Int^::ofNat (N.Nat^::succ
     a)))
       })
-    | succ => (\fun (b: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> diffSet a b = diffPrec a b) =>
-      \induction (a: N.Nat^) \return diffSet a (N.Nat^::succ b) = diffPrec a (N.Nat^::succ b) \with {
+    | succ => (\fun (b: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> diff^ a b = diffPrec a b) =>
+      \induction (a: N.Nat^) \return diff^ a (N.Nat^::succ b) = diffPrec a (N.Nat^::succ b) \with {
       | zero => (\refl(Int^::negSucc b))
-      | succ => (\fun (a: N.Nat^) => \fun (unused: diffSet a (N.Nat^::succ b) = diffPrec a (N.Nat^::succ b)) => ih a)
+      | succ => (\fun (a: N.Nat^) => \fun (unused: diff^ a (N.Nat^::succ b) = diffPrec a (N.Nat^::succ b)) => ih a)
       })
     };
 
 \definition positive: (Int -> N.Nat) := (\cfun (z: Int) => \match z \in Int \with { | ofNat n => \return n | negSucc n => \return N.Nat::zero });
-\definition positiveSet: Int^ -> N.Nat^ :=
-  \squash[_](\box[_](positive));
 \definition positivePrec: Int^ -> N.Nat^ := \induction (z: Int^) \return N.Nat^ \with {
   | ofNat => (\fun (n: N.Nat^) => n)
   | negSucc => (\fun (n: N.Nat^) => N.Nat^::zero)
   };
-\definition positiveMatchesPrec: \forall (z: Int^) -> positiveSet z = positivePrec z :=
-  \induction (z: Int^) \return positiveSet z = positivePrec z \with {
+\definition positiveMatchesPrec: \forall (z: Int^) -> positive^ z = positivePrec z :=
+  \induction (z: Int^) \return positive^ z = positivePrec z \with {
     | ofNat => (\fun (n: N.Nat^) => \refl(n))
     | negSucc => (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
     };
 
 \definition negative: (Int -> N.Nat) := (\cfun (z: Int) => \match z \in Int \with { | ofNat n => \return N.Nat::zero | negSucc n => \return(N.Nat::succ n) });
-\definition negativeSet: Int^ -> N.Nat^ :=
-  \squash[_](\box[_](negative));
 \definition negativePrec: Int^ -> N.Nat^ := \induction (z: Int^) \return N.Nat^ \with {
   | ofNat => (\fun (n: N.Nat^) => N.Nat^::zero)
   | negSucc => (\fun (n: N.Nat^) => N.Nat^::succ n)
   };
-\definition negativeMatchesPrec: \forall (z: Int^) -> negativeSet z = negativePrec z :=
-  \induction (z: Int^) \return negativeSet z = negativePrec z \with {
+\definition negativeMatchesPrec: \forall (z: Int^) -> negative^ z = negativePrec z :=
+  \induction (z: Int^) \return negative^ z = negativePrec z \with {
     | ofNat => (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
     | negSucc => (\fun (n: N.Nat^) => \refl(N.Nat^::succ n))
     };
@@ -135,34 +128,29 @@
  * Nat arithmetic above. Every exported computation has a MatchesPrec theorem. */
 
 \definition zero: Int := (Int::ofNat N.Nat::zero);
-\definition zeroSet: Int^ := \squash[_](\box[_](\return zero));
 \definition zeroPrec: Int := (Int::ofNat N.Nat::zero);
-\definition zeroMatchesPrec: zeroSet = zeroPrec^ := \refl((Int^::ofNat N.Nat^::zero));
+\definition zeroMatchesPrec: zero^ = zeroPrec^ := \refl((Int^::ofNat N.Nat^::zero));
 
 \definition one: Int := (Int::ofNat (N.Nat::succ N.Nat::zero));
-\definition oneSet: Int^ := \squash[_](\box[_](\return one));
 \definition onePrec: Int := (Int::ofNat (N.Nat::succ N.Nat::zero));
-\definition oneMatchesPrec: oneSet = onePrec^ := \refl((Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
+\definition oneMatchesPrec: one^ = onePrec^ := \refl((Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
 
 \definition minusOne: Int := (Int::negSucc N.Nat::zero);
-\definition minusOneSet: Int^ := \squash[_](\box[_](\return minusOne));
 \definition minusOnePrec: Int := (Int::negSucc N.Nat::zero);
-\definition minusOneMatchesPrec: minusOneSet = minusOnePrec^ := \refl((Int^::negSucc N.Nat^::zero));
+\definition minusOneMatchesPrec: minusOne^ = minusOnePrec^ := \refl((Int^::negSucc N.Nat^::zero));
 
 /* Nat imports its own Bool instance. Convert its decisions through Nat.choose
  * so that Int consistently exposes the Bool instance imported here. */
 \definition natIsZero: (N.Nat -> B.Bool) := (\cfun (n: N.Nat) => \match n \in N.Nat \with { | zero => \return B.Bool::true | succ k => \return B.Bool::false });
-\definition natIsZeroSet: N.Nat^ -> B.Bool^ :=
-  \squash[_](\box[_](natIsZero));
 \definition natIsZeroPrec: N.Nat^ -> B.Bool^ :=
   \induction (n: N.Nat^) \return B.Bool^ \with {
     | zero => B.Bool^::true
     | succ => (\fun (n: N.Nat^) => \fun (ih: B.Bool^) => B.Bool^::false)
     };
-\definition natIsZeroMatchesPrec: \forall (n: N.Nat^) -> natIsZeroSet n = natIsZeroPrec n :=
-  \induction (n: N.Nat^) \return natIsZeroSet n = natIsZeroPrec n \with {
+\definition natIsZeroMatchesPrec: \forall (n: N.Nat^) -> natIsZero^ n = natIsZeroPrec n :=
+  \induction (n: N.Nat^) \return natIsZero^ n = natIsZeroPrec n \with {
     | zero => (\refl(B.Bool^::true))
-    | succ => (\fun (n: N.Nat^) => \fun (ih: natIsZeroSet n = natIsZeroPrec n) => \refl(B.Bool^::false))
+    | succ => (\fun (n: N.Nat^) => \fun (ih: natIsZero^ n = natIsZeroPrec n) => \refl(B.Bool^::false))
     };
 
 \definition natEqb: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk((\cfun (b: N.Nat) => \program {
@@ -174,10 +162,9 @@
   \bind result: B.Bool <- (natIsZero number);
   \return result;
 }))));
-\definition natEqbSet: N.Nat^ -> N.Nat^ -> B.Bool^ := \squash[_](\box[_](natEqb));
-\definition natEqbPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.chooseSet (N.eqbSet a b)
+\definition natEqbPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.eqb^ a b)
     N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
-\definition natEqbMatchesPrec (a, b: N.Nat^): natEqbSet a b = natEqbPrec a b := natIsZeroMatchesPrec (N.chooseSet (N.eqbSet a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natEqbMatchesPrec (a, b: N.Nat^): natEqb^ a b = natEqbPrec a b := natIsZeroMatchesPrec (N.choose^ (N.eqb^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
 
 \definition natLeb: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk((\cfun (b: N.Nat) => \program {
   \bind f: _ <- (N.leb a);
@@ -188,10 +175,9 @@
   \bind result: B.Bool <- (natIsZero number);
   \return result;
 }))));
-\definition natLebSet: N.Nat^ -> N.Nat^ -> B.Bool^ := \squash[_](\box[_](natLeb));
-\definition natLebPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.chooseSet (N.lebSet a b)
+\definition natLebPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.leb^ a b)
     N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
-\definition natLebMatchesPrec (a, b: N.Nat^): natLebSet a b = natLebPrec a b := natIsZeroMatchesPrec (N.chooseSet (N.lebSet a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natLebMatchesPrec (a, b: N.Nat^): natLeb^ a b = natLebPrec a b := natIsZeroMatchesPrec (N.choose^ (N.leb^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
 
 \definition natLtb: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk((\cfun (b: N.Nat) => \program {
   \bind f: _ <- (N.ltb a);
@@ -202,10 +188,9 @@
   \bind result: B.Bool <- (natIsZero number);
   \return result;
 }))));
-\definition natLtbSet: N.Nat^ -> N.Nat^ -> B.Bool^ := \squash[_](\box[_](natLtb));
-\definition natLtbPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.chooseSet (N.ltbSet a b)
+\definition natLtbPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.ltb^ a b)
     N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
-\definition natLtbMatchesPrec (a, b: N.Nat^): natLtbSet a b = natLtbPrec a b := natIsZeroMatchesPrec (N.chooseSet (N.ltbSet a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natLtbMatchesPrec (a, b: N.Nat^): natLtb^ a b = natLtbPrec a b := natIsZeroMatchesPrec (N.choose^ (N.ltb^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
 
 \definition natEven: (N.Nat -> B.Bool) := (\cfun (a: N.Nat) => \program {
   \bind test: _ <- (N.even a);
@@ -215,10 +200,9 @@
   \bind result: B.Bool <- (natIsZero number);
   \return result;
 });
-\definition natEvenSet: N.Nat^ -> B.Bool^ := \squash[_](\box[_](natEven));
-\definition natEvenPrec (a: N.Nat^): B.Bool^ := natIsZeroPrec (N.chooseSet (N.evenSet a) N.Nat^::zero
+\definition natEvenPrec (a: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.even^ a) N.Nat^::zero
     (N.Nat^::succ N.Nat^::zero));
-\definition natEvenMatchesPrec (a: N.Nat^): natEvenSet a = natEvenPrec a := natIsZeroMatchesPrec (N.chooseSet (N.evenSet a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natEvenMatchesPrec (a: N.Nat^): natEven^ a = natEvenPrec a := natIsZeroMatchesPrec (N.choose^ (N.even^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
 
 \definition natOdd: (N.Nat -> B.Bool) := (\cfun (a: N.Nat) => \program {
   \bind test: _ <- (N.odd a);
@@ -228,36 +212,31 @@
   \bind result: B.Bool <- (natIsZero number);
   \return result;
 });
-\definition natOddSet: N.Nat^ -> B.Bool^ := \squash[_](\box[_](natOdd));
-\definition natOddPrec (a: N.Nat^): B.Bool^ := natIsZeroPrec (N.chooseSet (N.oddSet a) N.Nat^::zero
+\definition natOddPrec (a: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.odd^ a) N.Nat^::zero
     (N.Nat^::succ N.Nat^::zero));
-\definition natOddMatchesPrec (a: N.Nat^): natOddSet a = natOddPrec a := natIsZeroMatchesPrec (N.chooseSet (N.oddSet a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natOddMatchesPrec (a: N.Nat^): natOdd^ a = natOddPrec a := natIsZeroMatchesPrec (N.choose^ (N.odd^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
 
 \definition choose: (B.Bool -> (Int -> (Int -> Int))) :=
   (\cfun (test: B.Bool) => \return(\thunk((\cfun (yes: Int) => \return(\thunk((\cfun (no: Int) => \match test \in B.Bool \with { | false => \return no | true => \return yes })))))));
-\definition chooseSet: B.Bool^ -> Int^ -> Int^ -> Int^ :=
-  \squash[_](\box[_](choose));
 \definition choosePrec: B.Bool^ -> Int^ -> Int^ -> Int^ := B.ite Int^;
 \definition chooseMatchesPrec: \forall (test: B.Bool^) -> \forall (yes, no: Int^) ->
-  chooseSet test yes no = choosePrec test yes no :=
+  choose^ test yes no = choosePrec test yes no :=
   \induction (test: B.Bool^) \return \forall (yes, no: Int^) ->
-    chooseSet test yes no = choosePrec test yes no \with {
+    choose^ test yes no = choosePrec test yes no \with {
     | false => (\fun (yes, no: Int^) => \refl(no))
     | true => (\fun (yes, no: Int^) => \refl(yes))
     };
 
 \definition ofNat: (N.Nat -> Int) := (\cfun (n: N.Nat) => \return((Int::ofNat n)));
-\definition ofNatSet: N.Nat^ -> Int^ := \squash[_](\box[_](ofNat));
 \definition ofNatPrec (n: N.Nat^): Int^ := (Int^::ofNat n);
-\definition ofNatMatchesPrec (n: N.Nat^): ofNatSet n = ofNatPrec n := \refl((Int^::ofNat n));
+\definition ofNatMatchesPrec (n: N.Nat^): ofNat^ n = ofNatPrec n := \refl((Int^::ofNat n));
 
 \definition negOfNat: (N.Nat -> Int) := (\cfun (n: N.Nat) => \program {
   \bind v1: Int <- \run[DiffState, Int](diffStep, DiffState::running N.Nat::zero n) \by { diffTerminates n N.Nat^::zero };
   \return v1;
 });
-\definition negOfNatSet: N.Nat^ -> Int^ := \squash[_](\box[_](negOfNat));
 \definition negOfNatPrec (n: N.Nat^): Int^ := (diffPrec N.Nat^::zero n);
-\definition negOfNatMatchesPrec (n: N.Nat^): negOfNatSet n = negOfNatPrec n := diffMatchesPrec n N.Nat^::zero;
+\definition negOfNatMatchesPrec (n: N.Nat^): negOfNat^ n = negOfNatPrec n := diffMatchesPrec n N.Nat^::zero;
 
 \definition neg: (Int -> Int) := (\cfun (x: Int) => \program {
   \bind v2: N.Nat <- (negative x);
@@ -266,15 +245,14 @@
     v4) \by { diffTerminates v4 v2 };
   \return v5;
 });
-\definition negSet: Int^ -> Int^ := \squash[_](\box[_](neg));
 \definition negPrec (x: Int^): Int^ := (diffPrec (negativePrec x) (positivePrec x));
-\definition negMatchesPrec: \forall (x: Int^) -> negSet x = negPrec x :=
+\definition negMatchesPrec: \forall (x: Int^) -> neg^ x = negPrec x :=
   \block {
     \fix (x: Int^);
     \let componentsMatch:
-      diffSet (negativeSet x) (positiveSet x) = diffSet (negativePrec x) (positivePrec x) :=
-      congr2!{N.Nat^ N.Nat^ Int^} diffSet
-        (negativeSet x) (negativePrec x) (positiveSet x) (positivePrec x)
+      diff^ (negative^ x) (positive^ x) = diff^ (negativePrec x) (positivePrec x) :=
+      congr2!{N.Nat^ N.Nat^ Int^} diff^
+        (negative^ x) (negativePrec x) (positive^ x) (positivePrec x)
         (negativeMatchesPrec x) (positiveMatchesPrec x);
     \return trans!{Int^} _ _ _ componentsMatch
       (diffMatchesPrec (positivePrec x) (negativePrec x));
@@ -290,35 +268,34 @@
   \bind v11: Int <- \run[DiffState, Int](diffStep, DiffState::running v5 v10) \by { diffTerminates v10 v5 };
   \return v11;
 }))));
-\definition addSet: Int^ -> Int^ -> Int^ := \squash[_](\box[_](add));
-\definition addPrec (x: Int^) (y: Int^): Int^ := (diffPrec (N.addSet (positivePrec x)
-    (positivePrec y)) (N.addSet (negativePrec x) (negativePrec y)));
-\definition addMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> addSet x y = addPrec x y :=
+\definition addPrec (x: Int^) (y: Int^): Int^ := (diffPrec (N.add^ (positivePrec x)
+    (positivePrec y)) (N.add^ (negativePrec x) (negativePrec y)));
+\definition addMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> add^ x y = addPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let positivesMatch:
-      N.addSet (positiveSet x) (positiveSet y) =
-        N.addSet (positivePrec x) (positivePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet x) (positivePrec x) (positiveSet y) (positivePrec y)
+      N.add^ (positive^ x) (positive^ y) =
+        N.add^ (positivePrec x) (positivePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (positive^ y) (positivePrec y)
         (positiveMatchesPrec x) (positiveMatchesPrec y);
     \let negativesMatch:
-      N.addSet (negativeSet x) (negativeSet y) =
-        N.addSet (negativePrec x) (negativePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (negativeSet x) (negativePrec x) (negativeSet y) (negativePrec y)
+      N.add^ (negative^ x) (negative^ y) =
+        N.add^ (negativePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (negative^ x) (negativePrec x) (negative^ y) (negativePrec y)
         (negativeMatchesPrec x) (negativeMatchesPrec y);
     \let componentsMatch:
-      diffSet (N.addSet (positiveSet x) (positiveSet y))
-        (N.addSet (negativeSet x) (negativeSet y)) =
-      diffSet (N.addSet (positivePrec x) (positivePrec y))
-        (N.addSet (negativePrec x) (negativePrec y)) :=
-      congr2!{N.Nat^ N.Nat^ Int^} diffSet
+      diff^ (N.add^ (positive^ x) (positive^ y))
+        (N.add^ (negative^ x) (negative^ y)) =
+      diff^ (N.add^ (positivePrec x) (positivePrec y))
+        (N.add^ (negativePrec x) (negativePrec y)) :=
+      congr2!{N.Nat^ N.Nat^ Int^} diff^
         _ _ _ _ positivesMatch negativesMatch;
     \return trans!{Int^} _ _ _ componentsMatch
       (diffMatchesPrec
-        (N.addSet (negativePrec x) (negativePrec y))
-        (N.addSet (positivePrec x) (positivePrec y)));
+        (N.add^ (negativePrec x) (negativePrec y))
+        (N.add^ (positivePrec x) (positivePrec y)));
   };
 
 \definition sub: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk((\cfun (y: Int) => \program {
@@ -327,14 +304,13 @@
   \bind v5: Int <- ((\force v3) v2);
   \return v5;
 }))));
-\definition subSet: Int^ -> Int^ -> Int^ := \squash[_](\box[_](sub));
 \definition subPrec (x: Int^) (y: Int^): Int^ := (addPrec x (negPrec y));
-\definition subMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> subSet x y = subPrec x y :=
+\definition subMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> sub^ x y = subPrec x y :=
   \block {
     \fix (x, y: Int^);
-    \let argumentMatches: addSet x (negSet y) = addSet x (negPrec y) :=
-      congr2!{Int^ Int^ Int^} addSet
-        x x (negSet y) (negPrec y) (\refl(x)) (negMatchesPrec y);
+    \let argumentMatches: add^ x (neg^ y) = add^ x (negPrec y) :=
+      congr2!{Int^ Int^ Int^} add^
+        x x (neg^ y) (negPrec y) (\refl(x)) (negMatchesPrec y);
     \return trans!{Int^} _ _ _ argumentMatches (addMatchesPrec x (negPrec y));
   };
 
@@ -342,91 +318,90 @@
   \bind v2: N.Nat <- (positive x);
   \bind v4: N.Nat <- (positive y);
   \bind v5: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running \thunk((\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 current) \by { N.addTerminates current v2 }))
-    N.Nat::zero v4) \by { N.iterTerminates v4 (N.addSet v2) N.Nat^::zero };
+    N.Nat::zero v4) \by { N.iterTerminates v4 (N.add^ v2) N.Nat^::zero };
   \bind v7: N.Nat <- (negative x);
   \bind v9: N.Nat <- (negative y);
   \bind v10: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running \thunk((\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running
-    v7 current) \by { N.addTerminates current v7 })) N.Nat::zero v9) \by { N.iterTerminates v9 (N.addSet v7)
+    v7 current) \by { N.addTerminates current v7 })) N.Nat::zero v9) \by { N.iterTerminates v9 (N.add^ v7)
     N.Nat^::zero };
   \bind v11: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v5 v10) \by
     { N.addTerminates v10 v5 };
   \bind v12: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running
     \thunk((\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 current) \by
-    { N.addTerminates current v2 })) N.Nat::zero v9) \by { N.iterTerminates v9 (N.addSet v2) N.Nat^::zero };
+    { N.addTerminates current v2 })) N.Nat::zero v9) \by { N.iterTerminates v9 (N.add^ v2) N.Nat^::zero };
   \bind v13: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running \thunk((\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running v7 current) \by { N.addTerminates current v7 }))
-    N.Nat::zero v4) \by { N.iterTerminates v4 (N.addSet v7) N.Nat^::zero };
+    N.Nat::zero v4) \by { N.iterTerminates v4 (N.add^ v7) N.Nat^::zero };
   \bind v14: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v12 v13) \by { N.addTerminates v13 v12 };
   \bind v15: Int <- \run[DiffState, Int](diffStep, DiffState::running v11 v14) \by { diffTerminates v14 v11 };
   \return v15;
 }))));
-\definition mulSet: Int^ -> Int^ -> Int^ := \squash[_](\box[_](mul));
-\definition mulPrec (x: Int^) (y: Int^): Int^ := (diffPrec (N.addSet (N.mulSet (positivePrec
-    x) (positivePrec y)) (N.mulSet (negativePrec x) (negativePrec y))) (N.addSet (N.mulSet (positivePrec x)
-    (negativePrec y)) (N.mulSet (negativePrec x) (positivePrec y))));
-\definition mulMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> mulSet x y = mulPrec x y :=
+\definition mulPrec (x: Int^) (y: Int^): Int^ := (diffPrec (N.add^ (N.mul^ (positivePrec
+    x) (positivePrec y)) (N.mul^ (negativePrec x) (negativePrec y))) (N.add^ (N.mul^ (positivePrec x)
+    (negativePrec y)) (N.mul^ (negativePrec x) (positivePrec y))));
+\definition mulMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> mul^ x y = mulPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let ppMatches:
-      N.mulSet (positiveSet x) (positiveSet y) =
-        N.mulSet (positivePrec x) (positivePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mulSet
-        (positiveSet x) (positivePrec x) (positiveSet y) (positivePrec y)
+      N.mul^ (positive^ x) (positive^ y) =
+        N.mul^ (positivePrec x) (positivePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (positive^ x) (positivePrec x) (positive^ y) (positivePrec y)
         (positiveMatchesPrec x) (positiveMatchesPrec y);
     \let nnMatches:
-      N.mulSet (negativeSet x) (negativeSet y) =
-        N.mulSet (negativePrec x) (negativePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mulSet
-        (negativeSet x) (negativePrec x) (negativeSet y) (negativePrec y)
+      N.mul^ (negative^ x) (negative^ y) =
+        N.mul^ (negativePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (negative^ x) (negativePrec x) (negative^ y) (negativePrec y)
         (negativeMatchesPrec x) (negativeMatchesPrec y);
     \let pnMatches:
-      N.mulSet (positiveSet x) (negativeSet y) =
-        N.mulSet (positivePrec x) (negativePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mulSet
-        (positiveSet x) (positivePrec x) (negativeSet y) (negativePrec y)
+      N.mul^ (positive^ x) (negative^ y) =
+        N.mul^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
         (positiveMatchesPrec x) (negativeMatchesPrec y);
     \let npMatches:
-      N.mulSet (negativeSet x) (positiveSet y) =
-        N.mulSet (negativePrec x) (positivePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mulSet
-        (negativeSet x) (negativePrec x) (positiveSet y) (positivePrec y)
+      N.mul^ (negative^ x) (positive^ y) =
+        N.mul^ (negativePrec x) (positivePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (negative^ x) (negativePrec x) (positive^ y) (positivePrec y)
         (negativeMatchesPrec x) (positiveMatchesPrec y);
     \let positiveTermsMatch:
-      N.addSet
-        (N.mulSet (positiveSet x) (positiveSet y))
-        (N.mulSet (negativeSet x) (negativeSet y)) =
-      N.addSet
-        (N.mulSet (positivePrec x) (positivePrec y))
-        (N.mulSet (negativePrec x) (negativePrec y)) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
+      N.add^
+        (N.mul^ (positive^ x) (positive^ y))
+        (N.mul^ (negative^ x) (negative^ y)) =
+      N.add^
+        (N.mul^ (positivePrec x) (positivePrec y))
+        (N.mul^ (negativePrec x) (negativePrec y)) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
         _ _ _ _ ppMatches nnMatches;
     \let negativeTermsMatch:
-      N.addSet
-        (N.mulSet (positiveSet x) (negativeSet y))
-        (N.mulSet (negativeSet x) (positiveSet y)) =
-      N.addSet
-        (N.mulSet (positivePrec x) (negativePrec y))
-        (N.mulSet (negativePrec x) (positivePrec y)) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
+      N.add^
+        (N.mul^ (positive^ x) (negative^ y))
+        (N.mul^ (negative^ x) (positive^ y)) =
+      N.add^
+        (N.mul^ (positivePrec x) (negativePrec y))
+        (N.mul^ (negativePrec x) (positivePrec y)) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
         _ _ _ _ pnMatches npMatches;
     \let componentsMatch:
-      diffSet
-        (N.addSet (N.mulSet (positiveSet x) (positiveSet y))
-          (N.mulSet (negativeSet x) (negativeSet y)))
-        (N.addSet (N.mulSet (positiveSet x) (negativeSet y))
-          (N.mulSet (negativeSet x) (positiveSet y))) =
-      diffSet
-        (N.addSet (N.mulSet (positivePrec x) (positivePrec y))
-          (N.mulSet (negativePrec x) (negativePrec y)))
-        (N.addSet (N.mulSet (positivePrec x) (negativePrec y))
-          (N.mulSet (negativePrec x) (positivePrec y))) :=
-      congr2!{N.Nat^ N.Nat^ Int^} diffSet
+      diff^
+        (N.add^ (N.mul^ (positive^ x) (positive^ y))
+          (N.mul^ (negative^ x) (negative^ y)))
+        (N.add^ (N.mul^ (positive^ x) (negative^ y))
+          (N.mul^ (negative^ x) (positive^ y))) =
+      diff^
+        (N.add^ (N.mul^ (positivePrec x) (positivePrec y))
+          (N.mul^ (negativePrec x) (negativePrec y)))
+        (N.add^ (N.mul^ (positivePrec x) (negativePrec y))
+          (N.mul^ (negativePrec x) (positivePrec y))) :=
+      congr2!{N.Nat^ N.Nat^ Int^} diff^
         _ _ _ _ positiveTermsMatch negativeTermsMatch;
     \return trans!{Int^} _ _ _ componentsMatch
       (diffMatchesPrec
-        (N.addSet (N.mulSet (positivePrec x) (negativePrec y))
-          (N.mulSet (negativePrec x) (positivePrec y)))
-        (N.addSet (N.mulSet (positivePrec x) (positivePrec y))
-          (N.mulSet (negativePrec x) (negativePrec y))));
+        (N.add^ (N.mul^ (positivePrec x) (negativePrec y))
+          (N.mul^ (negativePrec x) (positivePrec y)))
+        (N.add^ (N.mul^ (positivePrec x) (positivePrec y))
+          (N.mul^ (negativePrec x) (negativePrec y))));
   };
 
 \definition succ: (Int -> Int) := (\cfun (x: Int) => \program {
@@ -434,18 +409,16 @@
   \bind v3: Int <- ((\force v1) ((Int::ofNat (N.Nat::succ N.Nat::zero))));
   \return v3;
 });
-\definition succSet: Int^ -> Int^ := \squash[_](\box[_](succ));
 \definition succPrec (x: Int^): Int^ := (addPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
-\definition succMatchesPrec (x: Int^): succSet x = succPrec x := addMatchesPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+\definition succMatchesPrec (x: Int^): succ^ x = succPrec x := addMatchesPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
 
 \definition pred: (Int -> Int) := (\cfun (x: Int) => \program {
   \bind v1: \U((Int -> Int)) <- (sub x);
   \bind v3: Int <- ((\force v1) ((Int::ofNat (N.Nat::succ N.Nat::zero))));
   \return v3;
 });
-\definition predSet: Int^ -> Int^ := \squash[_](\box[_](pred));
 \definition predPrec (x: Int^): Int^ := (subPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
-\definition predMatchesPrec (x: Int^): predSet x = predPrec x := subMatchesPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+\definition predMatchesPrec (x: Int^): pred^ x = predPrec x := subMatchesPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
 
 \definition natAbs: (Int -> N.Nat) := (\cfun (x: Int) => \program {
   \bind v2: N.Nat <- (positive x);
@@ -454,9 +427,8 @@
     v2 v4) \by { N.addTerminates v4 v2 };
   \return v5;
 });
-\definition natAbsSet: Int^ -> N.Nat^ := \squash[_](\box[_](natAbs));
-\definition natAbsPrec (x: Int^): N.Nat^ := (N.addSet (positivePrec x) (negativePrec x));
-\definition natAbsMatchesPrec (x: Int^): natAbsSet x = natAbsPrec x := congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet (positiveSet x) (positivePrec x) (negativeSet x) (negativePrec x)
+\definition natAbsPrec (x: Int^): N.Nat^ := (N.add^ (positivePrec x) (negativePrec x));
+\definition natAbsMatchesPrec (x: Int^): natAbs^ x = natAbsPrec x := congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^ (positive^ x) (positivePrec x) (negative^ x) (negativePrec x)
     (positiveMatchesPrec x) (negativeMatchesPrec x);
 
 \definition abs: (Int -> Int) := (\cfun (x: Int) => \program {
@@ -464,9 +436,8 @@
   \bind v4: Int <- (ofNat v2);
   \return v4;
 });
-\definition absSet: Int^ -> Int^ := \squash[_](\box[_](abs));
 \definition absPrec (x: Int^): Int^ := (ofNatPrec (natAbsPrec x));
-\definition absMatchesPrec (x: Int^): absSet x = absPrec x := trans!{Int^} _ _ _ (congr!{N.Nat^ Int^} ofNatSet (natAbsSet x) (natAbsPrec x) (natAbsMatchesPrec x))
+\definition absMatchesPrec (x: Int^): abs^ x = absPrec x := trans!{Int^} _ _ _ (congr!{N.Nat^ Int^} ofNat^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
     (ofNatMatchesPrec (natAbsPrec x));
 
 \definition isZero: (Int -> B.Bool) := (\cfun (x: Int) => \program {
@@ -474,9 +445,8 @@
   \bind v4: B.Bool <- (natIsZero v2);
   \return v4;
 });
-\definition isZeroSet: Int^ -> B.Bool^ := \squash[_](\box[_](isZero));
 \definition isZeroPrec (x: Int^): B.Bool^ := (natIsZeroPrec (natAbsPrec x));
-\definition isZeroMatchesPrec (x: Int^): isZeroSet x = isZeroPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natIsZeroSet (natAbsSet x) (natAbsPrec x) (natAbsMatchesPrec x))
+\definition isZeroMatchesPrec (x: Int^): isZero^ x = isZeroPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natIsZero^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
     (natIsZeroMatchesPrec (natAbsPrec x));
 
 \definition eqb: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk((\cfun (y: Int) => \program {
@@ -490,30 +460,29 @@
   \bind v13: B.Bool <- ((\force v11) v10);
   \return v13;
 }))));
-\definition eqbSet: Int^ -> Int^ -> B.Bool^ := \squash[_](\box[_](eqb));
-\definition eqbPrec (x: Int^) (y: Int^): B.Bool^ := (natEqbPrec (N.addSet (positivePrec x)
-    (negativePrec y)) (N.addSet (positivePrec y) (negativePrec x)));
-\definition eqbMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> eqbSet x y = eqbPrec x y :=
+\definition eqbPrec (x: Int^) (y: Int^): B.Bool^ := (natEqbPrec (N.add^ (positivePrec x)
+    (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)));
+\definition eqbMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> eqb^ x y = eqbPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let leftMatches:
-      N.addSet (positiveSet x) (negativeSet y) = N.addSet (positivePrec x) (negativePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet x) (positivePrec x) (negativeSet y) (negativePrec y)
+      N.add^ (positive^ x) (negative^ y) = N.add^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
         (positiveMatchesPrec x) (negativeMatchesPrec y);
     \let rightMatches:
-      N.addSet (positiveSet y) (negativeSet x) = N.addSet (positivePrec y) (negativePrec x) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet y) (positivePrec y) (negativeSet x) (negativePrec x)
+      N.add^ (positive^ y) (negative^ x) = N.add^ (positivePrec y) (negativePrec x) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ y) (positivePrec y) (negative^ x) (negativePrec x)
         (positiveMatchesPrec y) (negativeMatchesPrec x);
     \let argumentsMatch:
-      natEqbSet (N.addSet (positiveSet x) (negativeSet y)) (N.addSet (positiveSet y) (negativeSet x)) =
-      natEqbSet (N.addSet (positivePrec x) (negativePrec y)) (N.addSet (positivePrec y) (negativePrec x)) :=
-      congr2!{N.Nat^ N.Nat^ B.Bool^} natEqbSet _ _ _ _ leftMatches rightMatches;
+      natEqb^ (N.add^ (positive^ x) (negative^ y)) (N.add^ (positive^ y) (negative^ x)) =
+      natEqb^ (N.add^ (positivePrec x) (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)) :=
+      congr2!{N.Nat^ N.Nat^ B.Bool^} natEqb^ _ _ _ _ leftMatches rightMatches;
     \return trans!{B.Bool^} _ _ _ argumentsMatch
       (natEqbMatchesPrec
-        (N.addSet (positivePrec x) (negativePrec y))
-        (N.addSet (positivePrec y) (negativePrec x)));
+        (N.add^ (positivePrec x) (negativePrec y))
+        (N.add^ (positivePrec y) (negativePrec x)));
   };
 
 \definition leb: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk((\cfun (y: Int) => \program {
@@ -527,30 +496,29 @@
   \bind v13: B.Bool <- ((\force v11) v10);
   \return v13;
 }))));
-\definition lebSet: Int^ -> Int^ -> B.Bool^ := \squash[_](\box[_](leb));
-\definition lebPrec (x: Int^) (y: Int^): B.Bool^ := (natLebPrec (N.addSet (positivePrec x)
-    (negativePrec y)) (N.addSet (positivePrec y) (negativePrec x)));
-\definition lebMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> lebSet x y = lebPrec x y :=
+\definition lebPrec (x: Int^) (y: Int^): B.Bool^ := (natLebPrec (N.add^ (positivePrec x)
+    (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)));
+\definition lebMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> leb^ x y = lebPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let leftMatches:
-      N.addSet (positiveSet x) (negativeSet y) = N.addSet (positivePrec x) (negativePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet x) (positivePrec x) (negativeSet y) (negativePrec y)
+      N.add^ (positive^ x) (negative^ y) = N.add^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
         (positiveMatchesPrec x) (negativeMatchesPrec y);
     \let rightMatches:
-      N.addSet (positiveSet y) (negativeSet x) = N.addSet (positivePrec y) (negativePrec x) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet y) (positivePrec y) (negativeSet x) (negativePrec x)
+      N.add^ (positive^ y) (negative^ x) = N.add^ (positivePrec y) (negativePrec x) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ y) (positivePrec y) (negative^ x) (negativePrec x)
         (positiveMatchesPrec y) (negativeMatchesPrec x);
     \let argumentsMatch:
-      natLebSet (N.addSet (positiveSet x) (negativeSet y)) (N.addSet (positiveSet y) (negativeSet x)) =
-      natLebSet (N.addSet (positivePrec x) (negativePrec y)) (N.addSet (positivePrec y) (negativePrec x)) :=
-      congr2!{N.Nat^ N.Nat^ B.Bool^} natLebSet _ _ _ _ leftMatches rightMatches;
+      natLeb^ (N.add^ (positive^ x) (negative^ y)) (N.add^ (positive^ y) (negative^ x)) =
+      natLeb^ (N.add^ (positivePrec x) (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)) :=
+      congr2!{N.Nat^ N.Nat^ B.Bool^} natLeb^ _ _ _ _ leftMatches rightMatches;
     \return trans!{B.Bool^} _ _ _ argumentsMatch
       (natLebMatchesPrec
-        (N.addSet (positivePrec x) (negativePrec y))
-        (N.addSet (positivePrec y) (negativePrec x)));
+        (N.add^ (positivePrec x) (negativePrec y))
+        (N.add^ (positivePrec y) (negativePrec x)));
   };
 
 \definition ltb: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk((\cfun (y: Int) => \program {
@@ -564,30 +532,29 @@
   \bind v13: B.Bool <- ((\force v11) v10);
   \return v13;
 }))));
-\definition ltbSet: Int^ -> Int^ -> B.Bool^ := \squash[_](\box[_](ltb));
-\definition ltbPrec (x: Int^) (y: Int^): B.Bool^ := (natLtbPrec (N.addSet (positivePrec x)
-    (negativePrec y)) (N.addSet (positivePrec y) (negativePrec x)));
-\definition ltbMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> ltbSet x y = ltbPrec x y :=
+\definition ltbPrec (x: Int^) (y: Int^): B.Bool^ := (natLtbPrec (N.add^ (positivePrec x)
+    (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)));
+\definition ltbMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> ltb^ x y = ltbPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let leftMatches:
-      N.addSet (positiveSet x) (negativeSet y) = N.addSet (positivePrec x) (negativePrec y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet x) (positivePrec x) (negativeSet y) (negativePrec y)
+      N.add^ (positive^ x) (negative^ y) = N.add^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
         (positiveMatchesPrec x) (negativeMatchesPrec y);
     \let rightMatches:
-      N.addSet (positiveSet y) (negativeSet x) = N.addSet (positivePrec y) (negativePrec x) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} N.addSet
-        (positiveSet y) (positivePrec y) (negativeSet x) (negativePrec x)
+      N.add^ (positive^ y) (negative^ x) = N.add^ (positivePrec y) (negativePrec x) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ y) (positivePrec y) (negative^ x) (negativePrec x)
         (positiveMatchesPrec y) (negativeMatchesPrec x);
     \let argumentsMatch:
-      natLtbSet (N.addSet (positiveSet x) (negativeSet y)) (N.addSet (positiveSet y) (negativeSet x)) =
-      natLtbSet (N.addSet (positivePrec x) (negativePrec y)) (N.addSet (positivePrec y) (negativePrec x)) :=
-      congr2!{N.Nat^ N.Nat^ B.Bool^} natLtbSet _ _ _ _ leftMatches rightMatches;
+      natLtb^ (N.add^ (positive^ x) (negative^ y)) (N.add^ (positive^ y) (negative^ x)) =
+      natLtb^ (N.add^ (positivePrec x) (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)) :=
+      congr2!{N.Nat^ N.Nat^ B.Bool^} natLtb^ _ _ _ _ leftMatches rightMatches;
     \return trans!{B.Bool^} _ _ _ argumentsMatch
       (natLtbMatchesPrec
-        (N.addSet (positivePrec x) (negativePrec y))
-        (N.addSet (positivePrec y) (negativePrec x)));
+        (N.add^ (positivePrec x) (negativePrec y))
+        (N.add^ (positivePrec y) (negativePrec x)));
   };
 
 \definition min: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk((\cfun (y: Int) => \program {
@@ -598,15 +565,14 @@
   \bind v7: Int <- ((\force v5) y);
   \return v7;
 }))));
-\definition minSet: Int^ -> Int^ -> Int^ := \squash[_](\box[_](min));
 \definition minPrec (x: Int^) (y: Int^): Int^ := (choosePrec (lebPrec x y) x y);
-\definition minMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> minSet x y = minPrec x y :=
+\definition minMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> min^ x y = minPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let argumentsMatch:
-      chooseSet (lebSet x y) x y = chooseSet (lebPrec x y) x y :=
-      congr3!{B.Bool^ Int^ Int^ Int^} chooseSet
-        (lebSet x y) (lebPrec x y) x x y y
+      choose^ (leb^ x y) x y = choose^ (lebPrec x y) x y :=
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        (leb^ x y) (lebPrec x y) x x y y
         (lebMatchesPrec x y) (\refl(x)) (\refl(y));
     \return trans!{Int^} _ _ _ argumentsMatch (chooseMatchesPrec (lebPrec x y) x y);
   };
@@ -619,15 +585,14 @@
   \bind v7: Int <- ((\force v5) x);
   \return v7;
 }))));
-\definition maxSet: Int^ -> Int^ -> Int^ := \squash[_](\box[_](max));
 \definition maxPrec (x: Int^) (y: Int^): Int^ := (choosePrec (lebPrec x y) y x);
-\definition maxMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> maxSet x y = maxPrec x y :=
+\definition maxMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> max^ x y = maxPrec x y :=
   \block {
     \fix (x, y: Int^);
     \let argumentsMatch:
-      chooseSet (lebSet x y) y x = chooseSet (lebPrec x y) y x :=
-      congr3!{B.Bool^ Int^ Int^ Int^} chooseSet
-        (lebSet x y) (lebPrec x y) y y x x
+      choose^ (leb^ x y) y x = choose^ (lebPrec x y) y x :=
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        (leb^ x y) (lebPrec x y) y y x x
         (lebMatchesPrec x y) (\refl(y)) (\refl(x));
     \return trans!{Int^} _ _ _ argumentsMatch (chooseMatchesPrec (lebPrec x y) y x);
   };
@@ -644,32 +609,31 @@
   \bind v14: Int <- ((\force v12) v10);
   \return v14;
 });
-\definition signSet: Int^ -> Int^ := \squash[_](\box[_](sign));
 \definition signPrec (x: Int^): Int^ := (choosePrec (isZeroPrec x) (Int^::ofNat N.Nat^::zero)
     (choosePrec (natIsZeroPrec (negativePrec x)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc
     N.Nat^::zero)));
-\definition signMatchesPrec: \forall (x: Int^) -> signSet x = signPrec x :=
+\definition signMatchesPrec: \forall (x: Int^) -> sign^ x = signPrec x :=
   \block {
     \fix (x: Int^);
     \let negativeTestMatches:
-      natIsZeroSet (negativeSet x) = natIsZeroPrec (negativePrec x) :=
+      natIsZero^ (negative^ x) = natIsZeroPrec (negativePrec x) :=
       trans!{B.Bool^} _ _ _
-        (congr!{N.Nat^ B.Bool^} natIsZeroSet
-          (negativeSet x) (negativePrec x) (negativeMatchesPrec x))
+        (congr!{N.Nat^ B.Bool^} natIsZero^
+          (negative^ x) (negativePrec x) (negativeMatchesPrec x))
         (natIsZeroMatchesPrec (negativePrec x));
     \let innerArgumentsMatch:
-      chooseSet (natIsZeroSet (negativeSet x))
+      choose^ (natIsZero^ (negative^ x))
         (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
-      chooseSet (natIsZeroPrec (negativePrec x))
+      choose^ (natIsZeroPrec (negativePrec x))
         (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
-      congr3!{B.Bool^ Int^ Int^ Int^} chooseSet
-        (natIsZeroSet (negativeSet x)) (natIsZeroPrec (negativePrec x))
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        (natIsZero^ (negative^ x)) (natIsZeroPrec (negativePrec x))
         (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero))
         (Int^::negSucc N.Nat^::zero) (Int^::negSucc N.Nat^::zero)
         negativeTestMatches (\refl((Int^::ofNat (N.Nat^::succ N.Nat^::zero))))
         (\refl((Int^::negSucc N.Nat^::zero)));
     \let innerMatches:
-      chooseSet (natIsZeroSet (negativeSet x))
+      choose^ (natIsZero^ (negative^ x))
         (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
       choosePrec (natIsZeroPrec (negativePrec x))
         (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
@@ -677,13 +641,13 @@
         (chooseMatchesPrec (natIsZeroPrec (negativePrec x))
           (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero));
     \let outerArgumentsMatch:
-      chooseSet (isZeroSet x) (Int^::ofNat N.Nat^::zero)
-        (chooseSet (natIsZeroSet (negativeSet x))
+      choose^ (isZero^ x) (Int^::ofNat N.Nat^::zero)
+        (choose^ (natIsZero^ (negative^ x))
           (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) =
-      chooseSet (isZeroPrec x) (Int^::ofNat N.Nat^::zero)
+      choose^ (isZeroPrec x) (Int^::ofNat N.Nat^::zero)
         (choosePrec (natIsZeroPrec (negativePrec x))
           (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) :=
-      congr3!{B.Bool^ Int^ Int^ Int^} chooseSet
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
         _ _ _ _ _ _ (isZeroMatchesPrec x)
         (\refl((Int^::ofNat N.Nat^::zero))) innerMatches;
     \return trans!{Int^} _ _ _ outerArgumentsMatch
@@ -697,9 +661,8 @@
   \bind v4: B.Bool <- (natEven v2);
   \return v4;
 });
-\definition evenSet: Int^ -> B.Bool^ := \squash[_](\box[_](even));
 \definition evenPrec (x: Int^): B.Bool^ := (natEvenPrec (natAbsPrec x));
-\definition evenMatchesPrec (x: Int^): evenSet x = evenPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natEvenSet (natAbsSet x) (natAbsPrec x) (natAbsMatchesPrec x))
+\definition evenMatchesPrec (x: Int^): even^ x = evenPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natEven^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
     (natEvenMatchesPrec (natAbsPrec x));
 
 \definition odd: (Int -> B.Bool) := (\cfun (x: Int) => \program {
@@ -707,9 +670,8 @@
   \bind v4: B.Bool <- (natOdd v2);
   \return v4;
 });
-\definition oddSet: Int^ -> B.Bool^ := \squash[_](\box[_](odd));
 \definition oddPrec (x: Int^): B.Bool^ := (natOddPrec (natAbsPrec x));
-\definition oddMatchesPrec (x: Int^): oddSet x = oddPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natOddSet (natAbsSet x) (natAbsPrec x) (natAbsMatchesPrec x))
+\definition oddMatchesPrec (x: Int^): odd^ x = oddPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natOdd^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
     (natOddMatchesPrec (natAbsPrec x));
 
 /* Apply a sign after computing the magnitude once. */
@@ -718,14 +680,12 @@
     | false => \return(Int::ofNat magnitude)
     | true => (negOfNat magnitude)
     }))));
-\definition powerSignSet: B.Bool^ -> N.Nat^ -> Int^ :=
-  \squash[_](\box[_](powerSign));
 \definition powerSignPrec (test: B.Bool^) (magnitude: N.Nat^): Int^ :=
   B.ite Int^ test (negOfNatPrec magnitude) (Int^::ofNat magnitude);
 \definition powerSignMatchesPrec: \forall (test: B.Bool^) -> \forall (magnitude: N.Nat^) ->
-  powerSignSet test magnitude = powerSignPrec test magnitude :=
+  powerSign^ test magnitude = powerSignPrec test magnitude :=
   \induction (test: B.Bool^) \return \forall (magnitude: N.Nat^) ->
-    powerSignSet test magnitude = powerSignPrec test magnitude \with {
+    powerSign^ test magnitude = powerSignPrec test magnitude \with {
     | false => (\fun (magnitude: N.Nat^) => \refl(Int^::ofNat magnitude))
     | true => negOfNatMatchesPrec
     };
@@ -745,22 +705,20 @@
   \return result;
 }
     }))));
-\definition powSet: Int^ -> N.Nat^ -> Int^ :=
-  \squash[_](\box[_](pow));
 \definition powPrec: Int^ -> N.Nat^ -> Int^ :=
   \induction (x: Int^) \return N.Nat^ -> Int^ \with {
-    | ofNat => (\fun (a, n: N.Nat^) => Int^::ofNat (N.powSet a n))
-    | negSucc => (\fun (a, n: N.Nat^) => powerSignPrec (natOddPrec n) (N.powSet (N.Nat^::succ a) n))
+    | ofNat => (\fun (a, n: N.Nat^) => Int^::ofNat (N.pow^ a n))
+    | negSucc => (\fun (a, n: N.Nat^) => powerSignPrec (natOddPrec n) (N.pow^ (N.Nat^::succ a) n))
     };
 \definition powerSignTestMatches (n, magnitude: N.Nat^):
-  powerSignSet (natOddSet n) magnitude = powerSignPrec (natOddPrec n) magnitude :=
-    \idelim(natOddSet n = natOddPrec n \with test: B.Bool^ =>
-      powerSignSet (natOddSet n) magnitude = powerSignPrec test magnitude)
-    \by { base: powerSignMatchesPrec (natOddSet n) magnitude, equality: natOddMatchesPrec n };
-\definition powMatchesPrec: \forall (x: Int^) -> \forall (n: N.Nat^) -> powSet x n = powPrec x n :=
-  \induction (x: Int^) \return \forall (n: N.Nat^) -> powSet x n = powPrec x n \with {
-    | ofNat => (\fun (a, n: N.Nat^) => \refl(Int^::ofNat (N.powSet a n)))
-    | negSucc => (\fun (a, n: N.Nat^) => powerSignTestMatches n (N.powSet (N.Nat^::succ a) n))
+  powerSign^ (natOdd^ n) magnitude = powerSignPrec (natOddPrec n) magnitude :=
+    \idelim(natOdd^ n = natOddPrec n \with test: B.Bool^ =>
+      powerSign^ (natOdd^ n) magnitude = powerSignPrec test magnitude)
+    \by { base: powerSignMatchesPrec (natOdd^ n) magnitude, equality: natOddMatchesPrec n };
+\definition powMatchesPrec: \forall (x: Int^) -> \forall (n: N.Nat^) -> pow^ x n = powPrec x n :=
+  \induction (x: Int^) \return \forall (n: N.Nat^) -> pow^ x n = powPrec x n \with {
+    | ofNat => (\fun (a, n: N.Nat^) => \refl(Int^::ofNat (N.pow^ a n)))
+    | negSucc => (\fun (a, n: N.Nat^) => powerSignTestMatches n (N.pow^ (N.Nat^::succ a) n))
     };
 
 \module Math;
@@ -1034,39 +992,39 @@
 
 \definition scaleIntegerNatural (a, n: Nat):
     IntegerEq (scaleInteger (integer a zeroNat) n)
-      (integer (N.mulSet a n) zeroNat) :=
+      (integer (N.mul^ a n) zeroNat) :=
     IM.equivalentTrans
       (IM.representative (scaleInteger (integer a zeroNat) n))
       (IM.scaleRep (IM.representative (integer a zeroNat)) n)
-      (IM.representative (integer (N.mulSet a n) zeroNat))
+      (IM.representative (integer (N.mul^ a n) zeroNat))
       (scaleIntegerRep (integer a zeroNat) n)
       (IM.equivalentTrans
         (IM.scaleRep (IM.representative (integer a zeroNat)) n)
         (IM.scaleRep (pair a zeroNat) n)
-        (IM.representative (integer (N.mulSet a n) zeroNat))
+        (IM.representative (integer (N.mul^ a n) zeroNat))
         (IM.scaleRepRespects
           (IM.representative (integer a zeroNat)) (pair a zeroNat) n
           (normalizedRepresentative (pair a zeroNat)))
         (IM.equivalentTrans
           (IM.scaleRep (pair a zeroNat) n)
-          (pair (N.mulSet a n) zeroNat)
-          (IM.representative (integer (N.mulSet a n) zeroNat))
+          (pair (N.mul^ a n) zeroNat)
+          (IM.representative (integer (N.mul^ a n) zeroNat))
           (IM.equivalentOfFields
             (IM.scaleRep (pair a zeroNat) n)
-            (pair (N.mulSet a n) zeroNat)
-            (\refl(N.mulSet a n))
+            (pair (N.mul^ a n) zeroNat)
+            (\refl(N.mul^ a n))
             (NL.mulZeroLeft n))
-          (IM.representativeNormalize (pair (N.mulSet a n) zeroNat))));
+          (IM.representativeNormalize (pair (N.mul^ a n) zeroNat))));
 
 \definition addIntegerNatural (a, b: Nat):
     IntegerEq (addInteger (integer a zeroNat) (integer b zeroNat))
-      (integer (N.addSet a b) zeroNat) :=
+      (integer (N.add^ a b) zeroNat) :=
   IM.equivalentTrans
     (IM.representative
       (addInteger (integer a zeroNat) (integer b zeroNat)))
     (IM.addRep (IM.representative (integer a zeroNat))
       (IM.representative (integer b zeroNat)))
-    (IM.representative (integer (N.addSet a b) zeroNat))
+    (IM.representative (integer (N.add^ a b) zeroNat))
     (addIntegerRep (integer a zeroNat) (integer b zeroNat))
     (IM.equivalentTrans _ _ _
       (IM.addRepRespects
@@ -1077,9 +1035,9 @@
       (IM.equivalentTrans _ _ _
         (IM.equivalentOfFields
           (IM.addRep (pair a zeroNat) (pair b zeroNat))
-          (pair (N.addSet a b) zeroNat)
-          (\refl(N.addSet a b)) (NL.addZeroLeft zeroNat))
-        (IM.representativeNormalize (pair (N.addSet a b) zeroNat))));
+          (pair (N.add^ a b) zeroNat)
+          (\refl(N.add^ a b)) (NL.addZeroLeft zeroNat))
+        (IM.representativeNormalize (pair (N.add^ a b) zeroNat))));
 
 \definition mulIntegerAssoc (x, y, z: Integer):
     IntegerEq (mulInteger (mulInteger x y) z) (mulInteger x (mulInteger y z)) :=
@@ -1333,15 +1291,15 @@
             (IM.mulRep (IM.representative x) (pair n zeroNat))
             (IM.scaleRep (IM.representative x) n)
             (trans!{Nat} _ _ _
-              (congr2!{Nat Nat Nat} N.addSet _ _ _ _
-                (\refl(N.mulSet (positivePrec x) n))
+              (congr2!{Nat Nat Nat} N.add^ _ _ _ _
+                (\refl(N.mul^ (positivePrec x) n))
                 (NL.mulZeroRight (negativePrec x)))
-              (NL.addZeroRight (N.mulSet (positivePrec x) n)))
+              (NL.addZeroRight (N.mul^ (positivePrec x) n)))
             (trans!{Nat} _ _ _
-              (congr2!{Nat Nat Nat} N.addSet _ _ _ _
+              (congr2!{Nat Nat Nat} N.add^ _ _ _ _
                 (NL.mulZeroRight (positivePrec x))
-                (\refl(N.mulSet (negativePrec x) n)))
-              (NL.addZeroLeft (N.mulSet (negativePrec x) n))))
+                (\refl(N.mul^ (negativePrec x) n)))
+              (NL.addZeroLeft (N.mul^ (negativePrec x) n))))
           (IM.representativeNormalize (IM.scaleRep (IM.representative x) n))));
 
 \definition addIntegerSubCancelRight (x, y: Integer):
@@ -1410,8 +1368,8 @@
           (integerEqRefl zeroInteger)));
 
 \definition integerAddShuffle: \forall (a, b, c, d: Nat) ->
-  N.addSet (N.addSet a b) (N.addSet c d) =
-    N.addSet (N.addSet a d) (N.addSet c b) :=
+  N.add^ (N.add^ a b) (N.add^ c d) =
+    N.add^ (N.add^ a d) (N.add^ c b) :=
   IM.addShuffle;
 
 \definition natSucc: Nat -> Nat := N.Nat^::succ;

@@ -1,25 +1,25 @@
 \import N.Laws[].Order[] \as NO;
 \import \root.Logic[].Order[] \as O;
-\definition crossLeft (x, y: Integer): Nat := N.addSet (positivePrec x) (negativePrec y);
-\definition natLtbAgrees (a, b: Nat): natLtbPrec a b = N.ltbSet a b :=
-  \case (N.ltbSet a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => natIsZeroPrec (N.chooseSet flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) {
+\definition crossLeft (x, y: Integer): Nat := N.add^ (positivePrec x) (negativePrec y);
+\definition natLtbAgrees (a, b: Nat): natLtbPrec a b = N.ltb^ a b :=
+  \case (N.ltb^ a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => natIsZeroPrec (N.choose^ flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) {
     | false => (\refl(B.Bool^::false))
     | true => (\refl(B.Bool^::true))
     };
 \definition ltbAsCross (x, y: Integer):
-  ltbSet x y = N.ltbSet (crossLeft x y) (crossLeft y x) :=
+  ltb^ x y = N.ltb^ (crossLeft x y) (crossLeft y x) :=
   trans!{B.Bool^} _ _ _ (ltbMatchesPrec x y)
     (natLtbAgrees (crossLeft x y) (crossLeft y x));
 \definition ltOfCross (x, y: Integer)
   (h: NL.Lt (crossLeft x y) (crossLeft y x)): IntegerLt x y :=
-  \idelim(ltbPrec x y = ltbSet x y \with flag: B.Bool^ => flag = B.Bool^::true)
+  \idelim(ltbPrec x y = ltb^ x y \with flag: B.Bool^ => flag = B.Bool^::true)
     \by { base: congr!{B.Bool^ B.Bool^}
-      (\fun (flag: B.Bool^) => natIsZeroPrec (N.chooseSet flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
-      (N.ltbSet (crossLeft x y) (crossLeft y x)) B.Bool^::true h, equality:
+      (\fun (flag: B.Bool^) => natIsZeroPrec (N.choose^ flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
+      (N.ltb^ (crossLeft x y) (crossLeft y x)) B.Bool^::true h, equality:
       sym!{B.Bool^} _ _ (ltbMatchesPrec x y) };
 \definition crossOfLt (x, y: Integer) (h: IntegerLt x y):
   NL.Lt (crossLeft x y) (crossLeft y x) :=
-  \idelim(ltbSet x y = N.ltbSet (crossLeft x y) (crossLeft y x)
+  \idelim(ltb^ x y = N.ltb^ (crossLeft x y) (crossLeft y x)
     \with flag: B.Bool^ => flag = B.Bool^::true)
     \by { base: h, equality: ltbAsCross x y };
 \definition Comparison (x, y: Integer): \Prop :=
@@ -43,7 +43,7 @@
   NL.ltIrrefl (crossLeft x x) (crossOfLt x x h);
 
 \definition rawCross (x, y: Difference): Nat :=
-  N.addSet (pos x) (negPart y);
+  N.add^ (pos x) (negPart y);
 \definition RawLt (x, y: Difference): \Prop :=
   NL.Lt (rawCross x y) (rawCross y x);
 
@@ -55,87 +55,87 @@
   ltOfCross x y;
 
 \definition rawShuffle (x, y, z: Difference):
-  N.addSet (rawCross x y) (rawCross y z) =
-    N.addSet (rawCross x z) (N.addSet (pos y) (negPart y)) :=
+  N.add^ (rawCross x y) (rawCross y z) =
+    N.add^ (rawCross x z) (N.add^ (pos y) (negPart y)) :=
   integerAddShuffle (pos x) (negPart y) (pos y) (negPart z);
 
 \definition rawLtTrans (x, y, z: Difference)
   (xy: RawLt x y) (yz: RawLt y z): RawLt x z :=
   \block {
     \let leftStep: NL.Lt
-      (N.addSet (rawCross x y) (rawCross y z))
-      (N.addSet (rawCross y x) (rawCross y z)) :=
+      (N.add^ (rawCross x y) (rawCross y z))
+      (N.add^ (rawCross y x) (rawCross y z)) :=
       NO.ltAddRight (rawCross x y) (rawCross y x) (rawCross y z) xy;
     \let rightStep: NL.Lt
-      (N.addSet (rawCross y x) (rawCross y z))
-      (N.addSet (rawCross z y) (rawCross y x)) :=
+      (N.add^ (rawCross y x) (rawCross y z))
+      (N.add^ (rawCross z y) (rawCross y x)) :=
       NO.ltRespects
-        (N.addSet (rawCross y z) (rawCross y x))
-        (N.addSet (rawCross z y) (rawCross y x))
-        (N.addSet (rawCross y x) (rawCross y z))
-        (N.addSet (rawCross z y) (rawCross y x))
+        (N.add^ (rawCross y z) (rawCross y x))
+        (N.add^ (rawCross z y) (rawCross y x))
+        (N.add^ (rawCross y x) (rawCross y z))
+        (N.add^ (rawCross z y) (rawCross y x))
         (NL.addComm (rawCross y z) (rawCross y x))
-        (\refl(N.addSet (rawCross z y) (rawCross y x)))
+        (\refl(N.add^ (rawCross z y) (rawCross y x)))
         (NO.ltAddRight (rawCross y z) (rawCross z y)
           (rawCross y x) yz);
     \let enlarged: NL.Lt
-      (N.addSet (rawCross x y) (rawCross y z))
-      (N.addSet (rawCross z y) (rawCross y x)) :=
+      (N.add^ (rawCross x y) (rawCross y z))
+      (N.add^ (rawCross z y) (rawCross y x)) :=
       NO.ltTrans _ _ _ leftStep rightStep;
     \let aligned: NL.Lt
-      (N.addSet (rawCross x z) (N.addSet (pos y) (negPart y)))
-      (N.addSet (rawCross z x) (N.addSet (pos y) (negPart y))) :=
+      (N.add^ (rawCross x z) (N.add^ (pos y) (negPart y)))
+      (N.add^ (rawCross z x) (N.add^ (pos y) (negPart y))) :=
       NO.ltRespects _ _ _ _
         (rawShuffle x y z) (rawShuffle z y x) enlarged;
     \return NO.ltCancelRight (rawCross x z) (rawCross z x)
-      (N.addSet (pos y) (negPart y)) aligned;
+      (N.add^ (pos y) (negPart y)) aligned;
   };
 
 \definition rawEquivalentEquation (x, y: Difference)
   (xy: IM.Equivalent x y):
-  N.addSet (pos x) (negPart y) = N.addSet (pos y) (negPart x) := xy;
+  N.add^ (pos x) (negPart y) = N.add^ (pos y) (negPart x) := xy;
 \definition rawEquivalentUnderAdd (x, x2, y: Difference)
   (xx: IM.Equivalent x x2):
-  N.addSet (N.addSet (pos x) (negPart x2)) (negPart y) =
-    N.addSet (N.addSet (pos x2) (negPart x)) (negPart y) :=
-  congr!{Nat Nat} (\fun (n: Nat) => N.addSet n (negPart y)) _ _
+  N.add^ (N.add^ (pos x) (negPart x2)) (negPart y) =
+    N.add^ (N.add^ (pos x2) (negPart x)) (negPart y) :=
+  congr!{Nat Nat} (\fun (n: Nat) => N.add^ n (negPart y)) _ _
     (rawEquivalentEquation x x2 xx);
 
 \definition rawReplaceLeftLower (x, x2, y: Difference)
   (xx: IM.Equivalent x x2):
-  N.addSet (rawCross x y) (negPart x2) =
-    N.addSet (rawCross x2 y) (negPart x) :=
+  N.add^ (rawCross x y) (negPart x2) =
+    N.add^ (rawCross x2 y) (negPart x) :=
   trans!{Nat} _ _ _
     (NO.addRotate (pos x) (negPart y) (negPart x2))
     (trans!{Nat} _ _ _
       (rawEquivalentUnderAdd x x2 y xx)
       (NO.addRotate (pos x2) (negPart x) (negPart y)));
 \definition rawReplaceLeftUpper (x, x2, y: Difference):
-  N.addSet (rawCross y x) (negPart x2) =
-    N.addSet (rawCross y x2) (negPart x) :=
+  N.add^ (rawCross y x) (negPart x2) =
+    N.add^ (rawCross y x2) (negPart x) :=
   NO.addRotate (pos y) (negPart x) (negPart x2);
 
 \definition rawLtReplaceLeft (x, x2, y: Difference)
   (xx: IM.Equivalent x x2) (xy: RawLt x y): RawLt x2 y :=
   NO.ltCancelRight (rawCross x2 y) (rawCross y x2) (negPart x)
     (NO.ltRespects
-      (N.addSet (rawCross x y) (negPart x2))
-      (N.addSet (rawCross y x) (negPart x2))
-      (N.addSet (rawCross x2 y) (negPart x))
-      (N.addSet (rawCross y x2) (negPart x))
+      (N.add^ (rawCross x y) (negPart x2))
+      (N.add^ (rawCross y x) (negPart x2))
+      (N.add^ (rawCross x2 y) (negPart x))
+      (N.add^ (rawCross y x2) (negPart x))
       (rawReplaceLeftLower x x2 y xx)
       (rawReplaceLeftUpper x x2 y)
       (NO.ltAddRight (rawCross x y) (rawCross y x)
         (negPart x2) xy));
 
 \definition rawReplaceRightLower (x, y, y2: Difference):
-  N.addSet (rawCross x y) (negPart y2) =
-    N.addSet (rawCross x y2) (negPart y) :=
+  N.add^ (rawCross x y) (negPart y2) =
+    N.add^ (rawCross x y2) (negPart y) :=
   NO.addRotate (pos x) (negPart y) (negPart y2);
 \definition rawReplaceRightUpper (x, y, y2: Difference)
   (yy: IM.Equivalent y y2):
-  N.addSet (rawCross y x) (negPart y2) =
-    N.addSet (rawCross y2 x) (negPart y) :=
+  N.add^ (rawCross y x) (negPart y2) =
+    N.add^ (rawCross y2 x) (negPart y) :=
   trans!{Nat} _ _ _
     (NO.addRotate (pos y) (negPart x) (negPart y2))
     (trans!{Nat} _ _ _
@@ -146,10 +146,10 @@
   (yy: IM.Equivalent y y2) (xy: RawLt x y): RawLt x y2 :=
   NO.ltCancelRight (rawCross x y2) (rawCross y2 x) (negPart y)
     (NO.ltRespects
-      (N.addSet (rawCross x y) (negPart y2))
-      (N.addSet (rawCross y x) (negPart y2))
-      (N.addSet (rawCross x y2) (negPart y))
-      (N.addSet (rawCross y2 x) (negPart y))
+      (N.add^ (rawCross x y) (negPart y2))
+      (N.add^ (rawCross y x) (negPart y2))
+      (N.add^ (rawCross x y2) (negPart y))
+      (N.add^ (rawCross y2 x) (negPart y))
       (rawReplaceRightLower x y y2)
       (rawReplaceRightUpper x y y2 yy)
       (NO.ltAddRight (rawCross x y) (rawCross y x)
@@ -161,7 +161,7 @@
   rawLtReplaceRight x2 y y2 yy (rawLtReplaceLeft x x2 y xx xy);
 
 \definition rawAddCross (z, x, y: Difference):
-  N.addSet (rawCross x y) (rawCross z z) =
+  N.add^ (rawCross x y) (rawCross z z) =
     rawCross (IM.addRep z x) (IM.addRep z y) :=
   trans!{Nat} _ _ _
     (NL.addComm (rawCross x y) (rawCross z z))
@@ -172,8 +172,8 @@
 \definition rawLtAddLeft (z, x, y: Difference)
   (xy: RawLt x y): RawLt (IM.addRep z x) (IM.addRep z y) :=
   NO.ltRespects
-    (N.addSet (rawCross x y) (rawCross z z))
-    (N.addSet (rawCross y x) (rawCross z z))
+    (N.add^ (rawCross x y) (rawCross z z))
+    (N.add^ (rawCross y x) (rawCross z z))
     (rawCross (IM.addRep z x) (IM.addRep z y))
     (rawCross (IM.addRep z y) (IM.addRep z x))
     (rawAddCross z x y)
@@ -312,8 +312,8 @@
   (xy: RawLt x y): RawLt (IM.scaleRep x (N.Nat^::succ k))
     (IM.scaleRep y (N.Nat^::succ k)) :=
   NO.ltRespects
-    (N.mulSet (rawCross x y) (N.Nat^::succ k))
-    (N.mulSet (rawCross y x) (N.Nat^::succ k))
+    (N.mul^ (rawCross x y) (N.Nat^::succ k))
+    (N.mul^ (rawCross y x) (N.Nat^::succ k))
     (rawCross (IM.scaleRep x (N.Nat^::succ k))
       (IM.scaleRep y (N.Nat^::succ k)))
     (rawCross (IM.scaleRep y (N.Nat^::succ k))
@@ -331,8 +331,8 @@
         (IM.scaleRep y (N.Nat^::succ k)))
       (rawCross (IM.scaleRep y (N.Nat^::succ k))
         (IM.scaleRep x (N.Nat^::succ k)))
-      (N.mulSet (rawCross x y) (N.Nat^::succ k))
-      (N.mulSet (rawCross y x) (N.Nat^::succ k))
+      (N.mul^ (rawCross x y) (N.Nat^::succ k))
+      (N.mul^ (rawCross y x) (N.Nat^::succ k))
       (sym!{Nat} _ _
         (NL.mulDistribRight (pos x) (negPart y) (N.Nat^::succ k)))
       (sym!{Nat} _ _
@@ -399,7 +399,7 @@
     (Int^::ofNat (N.Nat^::succ k)) :=
   \block {
     \let n: Nat := N.Nat^::succ a;
-    \let product: Nat := N.mulSet (N.Nat^::succ k) n;
+    \let product: Nat := N.mul^ (N.Nat^::succ k) n;
     \let belowProduct:
         IntegerLt (Int^::ofNat a) (integer product zeroNat) :=
       ltNatural a product (NO.ltPositiveProduct a k);
