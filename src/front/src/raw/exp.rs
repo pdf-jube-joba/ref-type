@@ -1,10 +1,8 @@
 //! Unclassified Set/Prop syntax and the front-end arena used during elaboration.
 
-use rustc_hash::{FxHashMap, FxHasher};
-use std::{
-    cell::{Ref, RefCell},
-    hash::{Hash, Hasher},
-};
+use hashconsing::{HConsed, HConsign, HashConsign};
+use rustc_hash::FxBuildHasher;
+use std::cell::{Ref, RefCell};
 
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -309,41 +307,52 @@ macro_rules! arena_partition {
     };
 }
 
-#[derive(Debug, Default)]
 pub struct Arena {
-    exps: RefCell<Vec<ExpNode>>,
-    interned_exps: RefCell<FxHashMap<u64, Exp>>,
+    exps: RefCell<Vec<HConsed<ExpNode>>>,
+    exp_consign: RefCell<HConsign<ExpNode, FxBuildHasher>>,
     value_types: RefCell<Vec<ValueTypeNode>>,
     computation_types: RefCell<Vec<ComputationTypeNode>>,
     values: RefCell<Vec<ValueTermNode>>,
     computations: RefCell<Vec<ComputationTermNode>>,
 }
 
+impl Default for Arena {
+    fn default() -> Self {
+        Self {
+            exps: RefCell::new(Vec::new()),
+            exp_consign: RefCell::new(HConsign::with_hasher(FxBuildHasher)),
+            value_types: RefCell::new(Vec::new()),
+            computation_types: RefCell::new(Vec::new()),
+            values: RefCell::new(Vec::new()),
+            computations: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl std::fmt::Debug for Arena {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Arena")
+            .field("exps", &self.exps)
+            .field("value_types", &self.value_types)
+            .field("computation_types", &self.computation_types)
+            .field("values", &self.values)
+            .field("computations", &self.computations)
+            .finish_non_exhaustive()
+    }
+}
+
 impl ArenaNode for ExpNode {
     type Handle = Exp;
 
     fn allocate(self, arena: &Arena) -> Self::Handle {
-        let mut hasher = FxHasher::default();
-        self.hash(&mut hasher);
-        let fingerprint = hasher.finish();
-        if let Some(existing) = arena.interned_exps.borrow().get(&fingerprint).copied()
-            && arena.exps.borrow()[existing.index()] == self
-        {
-            return existing;
+        let (node, is_new) = (&mut *arena.exp_consign.borrow_mut()).mk_is_new(self);
+        let index = u32::try_from(node.uid()).expect("front arena partition exceeded u32::MAX");
+        if is_new {
+            let mut nodes = arena.exps.borrow_mut();
+            assert_eq!(index as usize, nodes.len());
+            nodes.push(node);
         }
-        let mut nodes = arena.exps.borrow_mut();
-        let index = u32::try_from(nodes.len()).expect("kernel arena partition exceeded u32::MAX");
-        nodes.push(self);
-        drop(nodes);
-        let result = Exp::from_index(index);
-        // A hash collision only misses a sharing opportunity; equality above
-        // prevents distinct expressions from ever receiving the same handle.
-        arena
-            .interned_exps
-            .borrow_mut()
-            .entry(fingerprint)
-            .or_insert(result);
-        result
+        Exp::from_index(index)
     }
 }
 
@@ -351,7 +360,7 @@ impl ArenaHandle for Exp {
     type Node = ExpNode;
 
     fn get(self, arena: &Arena) -> Self::Node {
-        arena.exps.borrow()[self.index()].clone()
+        arena.exps.borrow()[self.index()].get().clone()
     }
 }
 
@@ -379,7 +388,7 @@ impl Arena {
     }
 
     pub(crate) fn reuse_exp(&self, original: Exp, node: ExpNode) -> Exp {
-        if self.exps.borrow()[original.index()] == node {
+        if *self.exps.borrow()[original.index()].get() == node {
             original
         } else {
             self.alloc(node)
@@ -388,7 +397,7 @@ impl Arena {
 
     // Drop the guard before allocating in the same arena partition.
     pub(crate) fn borrow_exp(&self, exp: Exp) -> Ref<'_, ExpNode> {
-        Ref::map(self.exps.borrow(), |nodes| &nodes[exp.index()])
+        Ref::map(self.exps.borrow(), |nodes| nodes[exp.index()].get())
     }
 
     pub(crate) fn borrow_value_type(&self, ty: ValueType) -> Ref<'_, ValueTypeNode> {

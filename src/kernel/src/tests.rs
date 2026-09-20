@@ -134,7 +134,7 @@ fn typed_nodes_are_interned_and_read_snapshots_survive_transformations() {
     let handle = arena.alloc(original.clone());
     assert_eq!(arena.alloc(original.clone()), handle);
     let snapshot = arena.read(handle);
-    assert!(std::rc::Rc::ptr_eq(&snapshot, &arena.read(handle)));
+    assert!(std::ptr::eq(&*snapshot, &*arena.read(handle)));
 
     // Allocating during recursion must not conflict with a retained read.
     let changed: SetType = shift(&arena, handle, 1, 0).unwrap().try_into().unwrap();

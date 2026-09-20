@@ -14,55 +14,65 @@
 //! ```
 use super::sort::*;
 use crate::ids::*;
-use rustc_hash::FxHashMap;
+use hashconsing::{HConsed, HConsign, HashConsign};
+use rustc_hash::FxBuildHasher;
 use std::{
     cell::{Cell, RefCell},
-    hash::{Hash, Hasher},
-    rc::Rc,
+    fmt,
+    hash::Hash,
+    ops::Deref,
 };
 
-const NO_NODE: u32 = u32::MAX;
+/// Shared access to an interned node without exposing factory-local hashconsing IDs.
+#[derive(Clone)]
+pub struct NodeRef<N>(HConsed<N>);
+
+impl<N> Deref for NodeRef<N> {
+    type Target = N;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.get()
+    }
+}
+
+impl<N: fmt::Debug> fmt::Debug for NodeRef<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 /// Immutable, structurally interned nodes.
-#[derive(Debug)]
-struct Partition<N> {
-    nodes: Vec<Rc<N>>,
-    interner: FxHashMap<u64, u32>,
-    hash_links: Vec<u32>,
+struct Partition<N: Clone + Eq + Hash> {
+    nodes: Vec<HConsed<N>>,
+    consign: HConsign<N, FxBuildHasher>,
     max_loose_bounds: Vec<Cell<Option<Option<usize>>>>,
 }
-impl<N> Default for Partition<N> {
+impl<N: Clone + Eq + Hash> Default for Partition<N> {
     fn default() -> Self {
         Self {
             nodes: Vec::new(),
-            interner: FxHashMap::default(),
-            hash_links: Vec::new(),
+            consign: HConsign::with_hasher(FxBuildHasher),
             max_loose_bounds: Vec::new(),
         }
     }
 }
-impl<N: Eq + Hash> Partition<N> {
+impl<N: Clone + Eq + Hash + fmt::Debug> fmt::Debug for Partition<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Partition")
+            .field("nodes", &self.nodes)
+            .field("max_loose_bounds", &self.max_loose_bounds)
+            .finish_non_exhaustive()
+    }
+}
+impl<N: Clone + Eq + Hash> Partition<N> {
     fn insert(&mut self, node: N) -> u32 {
-        let mut hasher = rustc_hash::FxHasher::default();
-        node.hash(&mut hasher);
-        let fingerprint = hasher.finish();
-        let first = self.interner.get(&fingerprint).copied().unwrap_or(NO_NODE);
-        let mut candidate = first;
-        while candidate != NO_NODE {
-            let id = candidate;
-            if *self.nodes[id as usize] == node {
-                return id;
-            }
-            candidate = self.hash_links[id as usize];
+        let (node, is_new) = (&mut self.consign).mk_is_new(node);
+        let id = u32::try_from(node.uid()).expect("arena exhausted");
+        if is_new {
+            assert_eq!(id as usize, self.nodes.len());
+            self.nodes.push(node);
+            self.max_loose_bounds.push(Cell::new(None));
         }
-        let id = u32::try_from(self.nodes.len())
-            .ok()
-            .filter(|&id| id != NO_NODE)
-            .expect("arena exhausted");
-        self.nodes.push(Rc::new(node));
-        self.hash_links.push(first);
-        self.max_loose_bounds.push(Cell::new(None));
-        self.interner.insert(fingerprint, id);
         id
     }
 }
@@ -134,8 +144,8 @@ macro_rules! syntax_families {
         impl ArenaHandle for $handle {
             type Node = $node;
             fn get(self, arena: &Arena) -> $node { (*self.read(arena)).clone() }
-            fn read(self, arena: &Arena) -> Rc<$node> {
-                arena.$storage.borrow().nodes[self.index()].clone()
+            fn read(self, arena: &Arena) -> NodeRef<$node> {
+                NodeRef(arena.$storage.borrow().nodes[self.index()].clone())
             }
         })+
 
@@ -1124,7 +1134,7 @@ pub trait ArenaNode {
 pub trait ArenaHandle: Copy {
     type Node;
     fn get(self, arena: &Arena) -> Self::Node;
-    fn read(self, arena: &Arena) -> Rc<Self::Node>;
+    fn read(self, arena: &Arena) -> NodeRef<Self::Node>;
 }
 impl Arena {
     pub fn new() -> Self {
@@ -1137,7 +1147,7 @@ impl Arena {
         handle.get(self)
     }
     /// The owned shared reference does not hold a RefCell borrow across recursion.
-    pub fn read<H: ArenaHandle>(&self, handle: H) -> Rc<H::Node> {
+    pub fn read<H: ArenaHandle>(&self, handle: H) -> NodeRef<H::Node> {
         handle.read(self)
     }
     pub(crate) fn max_loose_bound(&self, e: Expression) -> Option<usize> {
