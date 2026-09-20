@@ -74,6 +74,8 @@ value^
 identity^
 Import.Bool^
 Import.value^
+Pair[Bool]::first^
+Pair[Bool]::#^
 ```
 
 Program の datatype、constructor、record literal、型関連 item の parameter は、文脈から決まる場合に省略または `_` で指定できる。
