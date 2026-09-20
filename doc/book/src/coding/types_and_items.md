@@ -131,3 +131,18 @@ record literal と型関連定義の型引数は全省略または `_` によっ
 `\vcheck`／`\vinfer` は関連値、`\ccheck`／`\cinfer` は関連計算を扱う。
 structure は内部で単一 constructor の Program datatype として表現し、
 その constructor を表面構文で公開しない。
+
+## field projection っぽいものの導入
+record 型の元に対しては次のように書きたい。
+
+```
+\record Pair[A: \Set, B: \Set]: \Set {
+  first: A,
+  second: B,
+}
+
+\definition natf (rc: Pair[Nat, Nat]): Nat := #first{rc}; // field projection
+\definition natf (first: Nat) (second: Nat): Pair[Nat, Nat] := Pair[Nat, Nat]::# first second; // mk や intro
+```
+
+`#field{instance}` で型推論などをしていい感じに対応する structure を持ってくる。

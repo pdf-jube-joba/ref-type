@@ -10,7 +10,6 @@
   - [syntax](./coding/syntax.md)
   - [proof](./coding/proof_writing.md)
   - [types](./coding/types_and_items.md)
-  - [type class](./coding/type_class.md)
   - [macro](./coding/macro.md)
 - [props](./props/props.md)
   - [相対無矛盾性](./props/proof.md)
