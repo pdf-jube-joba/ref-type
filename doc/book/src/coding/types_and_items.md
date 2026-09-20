@@ -129,8 +129,6 @@ constructor、projection、ユーザー定義 item の名前は重複できな�
 record literal と型関連定義の型引数は全省略または `_` によって推論できる。
 文脈から決まらない型引数はエラーになる。
 `\vcheck`／`\vinfer` は関連値、`\ccheck`／`\cinfer` は関連計算を扱う。
-structure は内部で単一 constructor の Program datatype として表現し、
-その constructor を表面構文で公開しない。
 
 ## field projection っぽいものの導入
 record 型の元に対しては次のように書きたい。
@@ -146,3 +144,8 @@ record 型の元に対しては次のように書きたい。
 ```
 
 `#field{instance}` で型推論などをしていい感じに対応する structure を持ってくる。
+実装上は多分型推論をして持ってくることになりそうだが、そのように書くと AI がそのようにしか書かなそう。
+（本当は他のやり方もあるかもしれないのに、ここの書き方であまり選択肢をつぶしたくない。）
+
+`#field{instance}` は VType の場合は普通に field projection として computation が出てくる。
+なので、完全に略記としての取扱いとする。
