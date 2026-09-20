@@ -1317,22 +1317,24 @@ impl LocalScope {
                         .to_string(),
                 ),
                 Bind::Subset { var, ty, predicate } => {
-                    let subset_as_exp = {
-                        let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var = handler.intern(var.as_str());
-                        self.push_binded_var(var, ty_elab);
-                        let predicate_elab = self.elab_exp_rec(predicate, handler)?;
-                        self.pop_binded_var();
+                    let ty_elab = self.elab_exp_rec(ty, handler)?;
+                    let var = handler.intern(var.as_str());
+                    self.push_binded_var(var, ty_elab);
+                    let predicate_elab = self.elab_exp_rec(predicate, handler)?;
+                    self.pop_binded_var();
 
-                        handler.arena().alloc(ExpNode::SubSet {
-                            var,
-                            set: ty_elab,
-                            predicate: predicate_elab,
-                        })
-                    };
+                    let subset_as_exp = handler.arena().alloc(ExpNode::SubSet {
+                        var,
+                        set: ty_elab,
+                        predicate: predicate_elab,
+                    });
+                    let set = handler.arena().alloc(ExpNode::TypeLift {
+                        superset: ty_elab,
+                        subset: subset_as_exp,
+                    });
                     Ok(handler
                         .arena()
-                        .alloc(ExpNode::Exists { set: subset_as_exp }))
+                        .alloc(ExpNode::Exists { set }))
                 }
             },
             SExp::TakeSet {
