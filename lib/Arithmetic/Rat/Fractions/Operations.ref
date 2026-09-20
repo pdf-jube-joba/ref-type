@@ -637,21 +637,21 @@
     | ofNat => (\fun (n: I.Nat) =>
       \induction (_: N.Nat^) \return Fraction \with {
         | zero => zero
-        | succ => (\fun (k: I.Nat) => \fun (_: _) => Fraction::# ((denominator x)) (k))
+        | succ => (\fun (k: I.Nat) => \fun (_: _) => Fraction::# ((denominator x)) k)
         } n)
     | negSucc => (\fun (k: I.Nat) =>
-      Fraction::# ((I.negInteger (denominator x))) (k))
+      Fraction::# ((I.negInteger (denominator x))) k)
     } (#numerator{x});
 
 \definition positiveReciprocalLaw (d, k: I.Nat):
   FractionEq
     (mul
-      (Fraction::# ((I.Int^::ofNat (I.natSucc k))) (d))
-      (Fraction::# ((denominator (Fraction::# (I.Int^::ofNat (I.natSucc k)) (d)))) (k)))
+      (Fraction::# ((I.Int^::ofNat (I.natSucc k))) d)
+      (Fraction::# ((denominator (Fraction::# (I.Int^::ofNat (I.natSucc k)) d))) k))
     one :=
   \block {
-    \let x: Fraction := Fraction::# ((I.Int^::ofNat (I.natSucc k))) (d);
-    \let r: Fraction := Fraction::# ((denominator x)) (k);
+    \let x: Fraction := Fraction::# ((I.Int^::ofNat (I.natSucc k))) d;
+    \let r: Fraction := Fraction::# ((denominator x)) k;
     \return fractionEqOneOfEqualNumeratorDenominator (mul x r)
       (I.integerEqTrans
         (#numerator{(mul x r)})
@@ -676,12 +676,12 @@
 \definition negativeReciprocalLaw (d, k: I.Nat):
   FractionEq
     (mul
-      (Fraction::# ((I.Int^::negSucc k)) (d))
-      (Fraction::# ((I.negInteger (denominator (Fraction::# (I.Int^::negSucc k) (d))))) (k)))
+      (Fraction::# ((I.Int^::negSucc k)) d)
+      (Fraction::# ((I.negInteger (denominator (Fraction::# (I.Int^::negSucc k) d)))) k))
     one :=
   \block {
-    \let x: Fraction := Fraction::# ((I.Int^::negSucc k)) (d);
-    \let r: Fraction := Fraction::# ((I.negInteger (denominator x))) (k);
+    \let x: Fraction := Fraction::# ((I.Int^::negSucc k)) d;
+    \let r: Fraction := Fraction::# ((I.negInteger (denominator x))) k;
     \let n: I.Integer := I.integer (I.natSucc k) I.zeroNat;
     \let dn: I.IntegerEq (#numerator{x}) (I.negInteger n) :=
       I.negSuccAsNegNatural k;
@@ -730,13 +730,13 @@
   (nonzero: NumeratorNonZero x): FractionEq (mul x (reciprocal x)) one :=
   \induction (n: I.Int^) \return \forall (d: I.Nat) -> I.IntegerNonZero n ->
         FractionEq
-          (mul (Fraction::# (n) (d)) (reciprocal (Fraction::# (n) (d)))) one \with {
+          (mul (Fraction::# n d) (reciprocal (Fraction::# n d))) one \with {
     | ofNat => (\fun (n: I.Nat) =>
       \induction (n: N.Nat^) \return \forall (d: I.Nat) ->
             I.IntegerNonZero (I.Int^::ofNat n) ->
             FractionEq
-              (mul (Fraction::# ((I.Int^::ofNat n)) (d))
-                (reciprocal (Fraction::# ((I.Int^::ofNat n)) (d)))) one \with {
+              (mul (Fraction::# ((I.Int^::ofNat n)) d)
+                (reciprocal (Fraction::# ((I.Int^::ofNat n)) d))) one \with {
                   | zero => (\fun (d: I.Nat) =>
           \fun (impossible: I.IntegerNonZero I.zeroInteger) =>
             Logic.falseElim _ (impossible (I.integerEqRefl I.zeroInteger)))
@@ -1594,19 +1594,19 @@
 \definition subFieldsLeft (x, y, z: Fraction)
   (num: #numerator{x} = #numerator{z}) (den: #denominatorIndex{x} = #denominatorIndex{z}):
   sub x y = sub z y :=
-  congr2!{I.Integer I.Nat Fraction} (\fun (n: I.Integer) => \fun (d: I.Nat) => sub (Fraction::# (n) (d)) y)
+  congr2!{I.Integer I.Nat Fraction} (\fun (n: I.Integer) => \fun (d: I.Nat) => sub (Fraction::# n d) y)
     (#numerator{x}) (#numerator{z}) (#denominatorIndex{x}) (#denominatorIndex{z}) num den;
 \definition subFieldsRight (x, y, z: Fraction)
   (num: #numerator{y} = #numerator{z}) (den: #denominatorIndex{y} = #denominatorIndex{z}):
   sub x y = sub x z :=
-  congr2!{I.Integer I.Nat Fraction} (\fun (n: I.Integer) => \fun (d: I.Nat) => sub x (Fraction::# (n) (d)))
+  congr2!{I.Integer I.Nat Fraction} (\fun (n: I.Integer) => \fun (d: I.Nat) => sub x (Fraction::# n d))
     (#numerator{y}) (#numerator{z}) (#denominatorIndex{y}) (#denominatorIndex{z}) num den;
 \definition negInvolutiveNumerator (x: Fraction): #numerator{(neg (neg x))} = #numerator{x} :=
   I.integerEqToEquality _ _ (I.negIntegerInvolutive (#numerator{x}));
 \definition subNegEquality (x, y: Fraction): sub (neg x) (neg y) = sub y x :=
   trans!{Fraction} _ _ _
     (congr!{I.Integer Fraction}
-      (\fun (n: I.Integer) => add (neg x) (Fraction::# (n) ((#denominatorIndex{y}))))
+      (\fun (n: I.Integer) => add (neg x) (Fraction::# n ((#denominatorIndex{y}))))
       (I.negInteger (I.negInteger (#numerator{y}))) (#numerator{y})
       (negInvolutiveNumerator y))
     (addCommEquality (neg x) y);
@@ -2241,8 +2241,8 @@
               \return \exact(
                 \into[Fraction](a, { a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }) \by { Logic.And[lt zero a,
-                    Logic.And[lt a one, lt q (mul a c)]]::# (aPositive) (Logic.And[
-                        lt a one, lt q (mul a c)]::# (aOne) (qac)) },
+                    Logic.And[lt a one, lt q (mul a c)]]::# aPositive (Logic.And[
+                        lt a one, lt q (mul a c)]::# aOne qac) },
                 \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }));
             })
@@ -2263,8 +2263,8 @@
               \return \exact(
                 \into[Fraction](half, { a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }) \by { Logic.And[lt zero half,
-                    Logic.And[lt half one, lt q (mul half c)]]::# (halfPositive) (Logic.And[
-                        lt half one, lt q (mul half c)]::# (halfBelowOne) (qProduct)) },
+                    Logic.And[lt half one, lt q (mul half c)]]::# halfPositive (Logic.And[
+                        lt half one, lt q (mul half c)]::# halfBelowOne qProduct) },
                 \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }));
             })
@@ -2289,8 +2289,8 @@
               \return \exact(
                 \into[Fraction](half, { a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }) \by { Logic.And[lt zero half,
-                    Logic.And[lt half one, lt q (mul half c)]]::# (halfPositive) (Logic.And[
-                        lt half one, lt q (mul half c)]::# (halfBelowOne) (qProduct)) },
+                    Logic.And[lt half one, lt q (mul half c)]]::# halfPositive (Logic.And[
+                        lt half one, lt q (mul half c)]::# halfBelowOne qProduct) },
                 \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }));
             })
@@ -2306,8 +2306,8 @@
               \return \exact(
                 \into[Fraction](half, { a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }) \by { Logic.And[lt zero half,
-                    Logic.And[lt half one, lt q (mul half c)]]::# (halfPositive) (Logic.And[
-                        lt half one, lt q (mul half c)]::# (halfBelowOne) (qProduct)) },
+                    Logic.And[lt half one, lt q (mul half c)]]::# halfPositive (Logic.And[
+                        lt half one, lt q (mul half c)]::# halfBelowOne qProduct) },
                 \Cast[Fraction] ({ a : Fraction \where Logic.And[lt zero a,
                     Logic.And[lt a one, lt q (mul a c)]] }));
             })
@@ -2365,7 +2365,7 @@
         (fractionNegInvolutive q)
         (fractionEqSym _ _ (fractionMulNegLeft e u)) negated;
     \return \exact(
-      \into[Fraction](e, { e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] }) \by { Logic.And[lt zero e, lt q (mul (neg e) u)]::# (ePositive) (result) },
+      \into[Fraction](e, { e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] }) \by { Logic.And[lt zero e, lt q (mul (neg e) u)]::# ePositive result },
       \Cast[Fraction] ({ e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] }));
   };
 
