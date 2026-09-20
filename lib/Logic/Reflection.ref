@@ -1,0 +1,45 @@
+/* Boolean reflection of propositions and predicates. */
+\import \root.Logic[].Proposition[] \as Logic;
+\import \root.Data[].Bool[] \as B;
+\import \root.Nat[] \as N;
+
+\definition Reflect(P: \Prop) (b: B.Bool^): \Prop :=
+  Logic.And[B.IsTrue b -> P, P -> B.IsTrue b];
+
+\definition reflectTrue(P: \Prop) (proof: P): Reflect P B.Bool^::true :=
+  \record Logic.And[B.IsTrue B.Bool^::true -> P,
+    P -> B.IsTrue B.Bool^::true] {
+    left := \fun (_: B.IsTrue B.Bool^::true) => proof,
+    right := \fun (_: P) => \refl(B.Bool^::true),
+  };
+
+\definition reflectFalse(P: \Prop) (refute: Logic.Not P):
+    Reflect P B.Bool^::false :=
+  \record Logic.And[B.IsTrue B.Bool^::false -> P,
+    P -> B.IsTrue B.Bool^::false] {
+    left := B.absurd P,
+    right := \fun (proof: P) =>
+      Logic.falseElim (B.IsTrue B.Bool^::false) (refute proof),
+  };
+
+\definition Decidable(P: \Prop): \Prop :=
+  \exists \Cast[B.Bool^] ({ b : B.Bool^ \where Reflect P b });
+
+\definition Decides(A: \Set) (test: A -> B.Bool^) (P: A -> \Prop): \Prop :=
+  \forall (x: A) -> Reflect (P x) (test x);
+
+\definition Semidecision: \Set := N.Nat^ -> B.Bool^;
+
+\definition Accepts(test: Semidecision): \Prop :=
+  \exists \Cast[N.Nat^] ({ n : N.Nat^ \where B.IsTrue (test n) });
+
+\definition SemiReflect(P: \Prop) (test: Semidecision): \Prop :=
+  Logic.And[Accepts test -> P, P -> Accepts test];
+
+\definition Semidecidable(P: \Prop): \Prop :=
+  \exists \Cast[Semidecision]
+    ({ test : Semidecision \where SemiReflect P test });
+
+\definition Semidecides(A: \Set) (test: A -> Semidecision)
+    (P: A -> \Prop): \Prop :=
+  \forall (x: A) -> SemiReflect (P x) (test x);
