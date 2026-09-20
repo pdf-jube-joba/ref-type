@@ -90,6 +90,7 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             | zero: VBit;
             | one: VBit;
             ;
+            \definition VBit::default: VBit := VBit::zero;
             \record VPair[A: \VType]: \VType := {
                 first: A,
                 second: A,
@@ -99,6 +100,13 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             \definition vpair: VPair[VBit] :=
                 VPair::# VBit::zero VBit::one;
             \definition vfirst: \F(VBit) := #first{vpair};
+            \definition reflectedPair: VPair^[VBit^] :=
+                VPair[VBit]::#^ VBit^::zero VBit^::one;
+            \definition reflectedFirst: VBit^ :=
+                VPair[VBit]::first^ reflectedPair;
+            \definition reflectedGetFirst: VBit^ :=
+                VPair[VBit]::getFirst^ reflectedPair;
+            \definition reflectedDefault: VBit^ := VBit::default^;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -937,10 +945,7 @@ fn dependency_ordered_module_errors_include_source_location() {
     let error = environment.add_modules_to_root(&modules).unwrap_err();
     let rendered = crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
     assert!(rendered.contains("name does not denote a Program value: 'P.one^'"));
-    assert!(
-        rendered.contains("dependency-error.ref:3:"),
-        "{rendered}"
-    );
+    assert!(rendered.contains("dependency-error.ref:3:"), "{rendered}");
 }
 
 #[test]

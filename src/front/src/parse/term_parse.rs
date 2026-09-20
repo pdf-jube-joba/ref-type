@@ -1029,14 +1029,22 @@ impl<'a> TermParser<'a> {
 
                 // field access case or record construction case
                 if self.bump_if_token(Token::RecordConstructor) {
+                    let field = if self.bump_if_token(Token::Caret) {
+                        Identifier("#^".into())
+                    } else {
+                        Identifier("#".into())
+                    };
                     return Ok(SExp::AssociatedAccess {
                         base: Box::new(SExp::AccessPath { access, parameters }),
-                        field: Identifier("#".into()),
+                        field,
                     });
                 }
                 if self.bump_if_token(Token::DoubleColon) {
                     // field access case
-                    let field_name = self.expect_associated_name()?;
+                    let mut field_name = self.expect_associated_name()?;
+                    if self.bump_if_token(Token::Caret) {
+                        field_name.0.push('^');
+                    }
                     return Ok(SExp::AssociatedAccess {
                         base: Box::new(SExp::AccessPath { access, parameters }),
                         field: field_name,
@@ -1113,13 +1121,16 @@ impl<'a> TermParser<'a> {
     fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
         loop {
-            let field_name = if self.bump_if_token(Token::RecordConstructor) {
+            let mut field_name = if self.bump_if_token(Token::RecordConstructor) {
                 Identifier("#".into())
             } else if self.bump_if_token(Token::DoubleColon) {
                 self.expect_associated_name()?
             } else {
                 break;
             };
+            if self.bump_if_token(Token::Caret) {
+                field_name.0.push('^');
+            }
             expr = SExp::AssociatedAccess {
                 base: Box::new(expr),
                 field: field_name,
@@ -1635,6 +1646,15 @@ mod tests {
         };
         assert_eq!(field.0, "first");
         assert!(matches!(*base, SExp::App { .. }));
+
+        let SExp::AssociatedAccess { field, .. } = complete(r"Pair[A]::first^") else {
+            panic!("expected reflected associated access");
+        };
+        assert_eq!(field.0, "first^");
+        let SExp::AssociatedAccess { field, .. } = complete(r"Pair[A]::#^") else {
+            panic!("expected reflected record constructor");
+        };
+        assert_eq!(field.0, "#^");
 
         let SExp::Prod {
             bind: Bind::Named(bind),

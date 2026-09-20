@@ -7,7 +7,7 @@ use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
 use crate::raw::inductive::InductiveTypeSpecs;
-use crate::raw::program::{ComputationTerm, ComputationType};
+use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
 use crate::syntax::*;
 
 pub(crate) trait Handler {
@@ -33,6 +33,11 @@ pub(crate) trait Handler {
         ty: &SExp,
         computation: &SExp,
     ) -> Result<(ComputationType, ComputationTerm), String>;
+    fn elaborate_program_type_arguments(
+        &mut self,
+        expressions: &[SExp],
+        expected: usize,
+    ) -> Result<Vec<ValueType>, String>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(
@@ -469,6 +474,60 @@ impl LocalScope {
                 // 1. if base is local access, try to get constructor (parameter is allowed)
                 if let SExp::AccessPath { access, parameters } = base.as_ref() {
                     let item = handler.get_item_from_access_path(access)?;
+                    if let Some(field) = field.as_str().strip_suffix('^') {
+                        let ItemAccessResult::ProgramInductive(item) = item else {
+                            return Err(format!(
+                                "reflection of associated item '{field}' requires a Program datatype"
+                            ));
+                        };
+                        let count = handler
+                            .env()
+                            .program_inductive(item.inductive)
+                            .parameters()
+                            .len();
+                        let reflected_parameters = handler
+                            .elaborate_program_type_arguments(parameters, count)?
+                            .into_iter()
+                            .map(|parameter| {
+                                crate::raw::reflection::reflect_value_type(handler.env(), parameter)
+                                    .map_err(|error| error.to_string())
+                            })
+                            .collect::<Result<Vec<_>, _>>()?;
+                        if field == "#" {
+                            if item.record_fields.is_none() {
+                                return Err("::#^ requires a Program record".into());
+                            }
+                            return Ok(handler.arena().alloc(ExpNode::IndCtor {
+                                indspec: item.reflected,
+                                parameters: reflected_parameters,
+                                idx: 0,
+                            }));
+                        }
+                        let (_, definition) = item
+                            .associated_definitions
+                            .iter()
+                            .find(|(candidate, _)| candidate.as_str() == field)
+                            .ok_or_else(|| {
+                                format!("Program associated item {} was not found", field)
+                            })?;
+                        let reflected = match handler.env().definition(*definition) {
+                            DefinedConstant::ProgramValue { body, .. } => {
+                                crate::raw::reflection::reflect_value(handler.env(), *body)
+                            }
+                            DefinedConstant::ProgramComputation { body, .. } => {
+                                crate::raw::reflection::reflect_computation(handler.env(), *body)
+                            }
+                            DefinedConstant::Pts { .. } => {
+                                return Err("associated item is not a Program definition".into());
+                            }
+                        };
+                        let reflected = reflected.map_err(|error| error.to_string())?;
+                        return Ok(crate::raw::calculus::instantiate_telescope(
+                            handler.arena(),
+                            reflected,
+                            &reflected_parameters,
+                        ));
+                    }
                     match item {
                         ItemAccessResult::Inductive(ModItemInductive {
                             inductive,
@@ -1332,9 +1391,7 @@ impl LocalScope {
                         superset: ty_elab,
                         subset: subset_as_exp,
                     });
-                    Ok(handler
-                        .arena()
-                        .alloc(ExpNode::Exists { set }))
+                    Ok(handler.arena().alloc(ExpNode::Exists { set }))
                 }
             },
             SExp::TakeSet {

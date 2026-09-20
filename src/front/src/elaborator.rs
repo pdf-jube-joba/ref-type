@@ -231,6 +231,29 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let (computation, ty) = scope.check_computation_term_with_metas(self, computation, ty)?;
         Ok((ty, computation))
     }
+
+    fn elaborate_program_type_arguments(
+        &mut self,
+        expressions: &[SExp],
+        expected: usize,
+    ) -> Result<Vec<crate::raw::program::ValueType>, String> {
+        if expressions.len() != expected {
+            return Err(format!(
+                "reflected Program item expects {expected} type parameter(s), found {}",
+                expressions.len()
+            ));
+        }
+        let expressions = expressions
+            .iter()
+            .cloned()
+            .map(ValueTypeExp::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut scope = program_term_elaborator::ProgramScope::new();
+        expressions
+            .iter()
+            .map(|expression| scope.elaborate_value_type(expression, self))
+            .collect()
+    }
 }
 
 impl GlobalEnvironment {
