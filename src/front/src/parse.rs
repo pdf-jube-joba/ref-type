@@ -394,7 +394,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_structure_decl(&mut self) -> Result<ModuleItem, ParseError> {
+    fn parse_record_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
         let mut parameters = Vec::new();
         while self.peek() == Some(&Token::LParen) {
@@ -408,7 +408,7 @@ impl<'a> Parser<'a> {
             SExp::ValueType => InductiveKind::Program,
             _ => {
                 return Err(ParseError {
-                    msg: "expected PTS sort or \\VType in structure declaration".into(),
+                    msg: "expected PTS sort or \\VType in record declaration".into(),
                     start: self.span_at(self.pos.saturating_sub(1)).start,
                     end: self.span_at(self.pos.saturating_sub(1)).end,
                 });
@@ -690,8 +690,8 @@ impl<'a> Parser<'a> {
             let ind = self.parse_inductive_decl()?;
             return Ok(Some(ind));
         }
-        if self.bump_if_keyword("\\structure") {
-            return self.parse_structure_decl().map(Some);
+        if self.bump_if_keyword("\\record") {
+            return self.parse_record_decl().map(Some);
         }
         if self.bump_if_keyword("\\math-macro") {
             return self.parse_macro_decl(true).map(Some);

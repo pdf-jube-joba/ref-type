@@ -138,7 +138,7 @@ Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を�
 `\record T { field := value }` と書く。論理／Program 共通の構文であり、Program では次のように使う。
 
 ```text
-\structure Pair(A: \VType): \VType := { first: A, second: A };
+\record Pair(A: \VType): \VType := { first: A, second: A };
 \definition Pair(A: \VType)::first_again: Pair[A] ~> \F(A) := Pair[A]::first;
 \definition Pair(A: \VType)::get_first: \U(Pair[A] ~> \F(A)) :=
   \thunk (Pair[A]::first);

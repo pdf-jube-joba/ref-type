@@ -166,7 +166,7 @@ constructor は `Type[parameters]::constructor arguments` で参照する。
 ### structure と record
 
 ```text
-\structure Type(parameters): result-kind := {
+\record Type(parameters): result-kind := {
   field1: type1,
   field2: type2,
 };

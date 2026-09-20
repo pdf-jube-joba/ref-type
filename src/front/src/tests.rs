@@ -13,7 +13,7 @@ use crate::{
 fn record_fields_are_generated_as_eliminator_definitions() {
     let source = r#"
         \module Records {
-            \structure Packed: \SetKind := {
+            \record Packed: \SetKind := {
                 carrier: \Set,
                 value: carrier,
             };

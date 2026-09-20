@@ -44,10 +44,10 @@ Set/Prop の帰納型に対する通常の関数も qualified name で定義す�
 
 ## structure
 
-named field を持つ通常の record が必要な場合は、`\structure` として明示的に宣言する。
+named field を持つ通常の record が必要な場合は、`\record` として明示的に宣言する。
 
 ```text
-\structure Point(A: \Set): \Set := {
+\record Point(A: \Set): \Set := {
   x : A,
   y : A,
 };
@@ -72,7 +72,7 @@ Point[A]::y : Point[A] -> A
 \definition origin_x : Nat := Point[Nat]::x origin;
 ```
 
-surface syntax としては `\inductive` と `\structure` を完全に分ける。
+surface syntax としては `\inductive` と `\record` を完全に分ける。
 一方、nominal identity を維持する限り、core や実装内部で structure を
 固有の1 constructor を持つ帰納型として表現することは構わない。
 
@@ -90,7 +90,7 @@ PTS structure の field は宣言順に依存できる。たとえば次の `val
 `carrier` projection によって定まる。
 
 ```text
-\structure Packed: \SetKind := {
+\record Packed: \SetKind := {
   carrier: \Set,
   value: carrier,
 };
@@ -102,7 +102,7 @@ Program の structure は `\VType` の型パラメータと、非依存・非再
 field に thunk 型 `\U(C)` を使うこともできる。空の structure も宣言できる。
 
 ```text
-\structure Pair(A: \VType): \VType := {
+\record Pair(A: \VType): \VType := {
   first: A,
   second: A,
 };
