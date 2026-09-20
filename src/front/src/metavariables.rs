@@ -1112,12 +1112,20 @@ impl MetaStore {
     }
 
     pub(crate) fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
-        match env.arena().get(self.zonk(env, exp)) {
-            ExpNode::Meta { .. } => true,
-            node => node_children(node)
-                .into_iter()
-                .any(|child| self.contains_unsolved(env, child)),
+        fn visit(env: &CrateEnv, exp: Exp, seen: &mut HashSet<Exp>) -> bool {
+            if !seen.insert(exp) {
+                return false;
+            }
+            match env.arena().get(exp) {
+                ExpNode::Meta { .. } => true,
+                node => node_children(node)
+                    .into_iter()
+                    .any(|child| visit(env, child, seen)),
+            }
         }
+
+        let exp = self.zonk(env, exp);
+        visit(env, exp, &mut HashSet::new())
     }
 
     pub(crate) fn finish(&self, env: &CrateEnv) -> Result<(), ElaborationError> {

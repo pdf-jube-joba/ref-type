@@ -173,6 +173,15 @@ RUST_LOG=ref_type=trace cargo run -p cli -- lib/root.ref
 front の型不一致には局所文脈・対象の項・推論した型・要求された型を、等号の carrier が
 一致しない場合には左右の項と型を表示します。式中の `#0` は最も内側の束縛を指します。
 
+宣言ごとの処理時間と定義内の各段階を調べる場合は、`REF_TYPE_PROFILE_DECLARATIONS=1` を指定します。
+値を宣言名の一部にすると、一致する宣言だけを表示します。
+where 節の局所定義の検査時間は `REF_TYPE_PROFILE_LOCAL_DEFINITIONS=1` で表示し、同様に名前で絞り込めます。
+
+```sh
+REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- lib/root.ref
+REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- lib/root.ref
+```
+
 未解決ゴールには文脈・要求される型・制約を表示します。ファイルから読み込んだ宣言のエラーには
 元ファイル・行・列とソースの抜粋を付けます。型検査の位置表示は宣言単位、構文エラーはトークン単位です。
 外部モジュールのパラメータは宣言元ファイル、本文は外部ファイルの位置を使います。

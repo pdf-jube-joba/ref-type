@@ -1,4 +1,5 @@
 use crate::elaborator::ItemAccessResult;
+use crate::elaborator::profiling::ProfileTimer;
 use crate::raw::calculus::{exp_contains_bound, instantiate, shift_bound_indices};
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
@@ -618,6 +619,10 @@ impl LocalScope {
                         });
                         // Check even unused definitions, before publishing their
                         // names. This also records constraints for implicit types.
+                        let _profile_timer =
+                            ProfileTimer::start("REF_TYPE_PROFILE_LOCAL_DEFINITIONS", || {
+                                format!("local definition {}", name.as_str())
+                            });
                         handler
                             .infer(&mut self.typing_binds, value)
                             .map_err(|error| {

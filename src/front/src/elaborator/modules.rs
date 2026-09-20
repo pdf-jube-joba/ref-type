@@ -1,6 +1,24 @@
 //! Elaborate module parameters, imports, and declaration order.
 use super::*;
 
+fn declaration_profile_label(item: &ModuleItem) -> String {
+    match item {
+        ModuleItem::Definition { name, .. } => format!("definition {}", name.as_str()),
+        ModuleItem::Inductive { type_name, .. } => {
+            format!("inductive {}", type_name.as_str())
+        }
+        ModuleItem::Record { type_name, .. } => format!("record {}", type_name.as_str()),
+        ModuleItem::ChildModule { module } => format!("module {}", module.name.as_str()),
+        ModuleItem::Import { import_name, .. } => format!("import {}", import_name.as_str()),
+        ModuleItem::MathMacro { name, .. } => format!("math macro {}", name.as_str()),
+        ModuleItem::UserMacro { name, .. } => format!("macro {}", name.as_str()),
+        ModuleItem::UseMacro { macro_name, .. } => {
+            format!("use macro {}", macro_name.as_str())
+        }
+        _ => "query".to_string(),
+    }
+}
+
 fn require_explicit_module_argument(expression: &SExp) -> Result<(), ElaborationError> {
     let mut expression = expression.clone();
     let mut has_meta = false;
@@ -319,6 +337,10 @@ impl GlobalEnvironment {
 
         // 2. elaborate declarations
         for (index, decl) in declarations.iter().enumerate() {
+            let mut profile_timer =
+                profiling::ProfileTimer::start("REF_TYPE_PROFILE_DECLARATIONS", || {
+                    declaration_profile_label(decl)
+                });
             self.diagnostic_location = module.source.as_ref().map(|source| SourceLocation {
                 source: source.clone(),
                 span: module
@@ -337,13 +359,17 @@ impl GlobalEnvironment {
                     ty,
                     body,
                 } => {
-                    let program_errors = match self.elaborate_program_definition_decl(
+                    let program_result = self.elaborate_program_definition_decl(
                         owner.as_ref(),
                         name,
                         binders,
                         ty,
                         body,
-                    ) {
+                    );
+                    if let Some(timer) = &mut profile_timer {
+                        timer.checkpoint("Program elaboration attempt");
+                    }
+                    let program_errors = match program_result {
                         Ok((parameters, definition)) => {
                             self.publish_program_definition(
                                 owner.as_ref(),
@@ -415,14 +441,26 @@ impl GlobalEnvironment {
                             };
                         }
                         let ty_elab = local_scope.elab_exp(&ty, self)?;
+                        if let Some(timer) = &mut profile_timer {
+                            timer.checkpoint("type elaboration");
+                        }
                         let body_elab = local_scope.elab_exp(&body, self)?;
+                        if let Some(timer) = &mut profile_timer {
+                            timer.checkpoint("body elaboration");
+                        }
                         if !self.metavariables.is_empty() {
                             self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
                                 .map_err(|message| self.metavariables.constraint_error(message))?;
                             self.finish_metavariables()?;
                         }
+                        if let Some(timer) = &mut profile_timer {
+                            timer.checkpoint("metavariable checking");
+                        }
                         let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
                         let body_elab = self.metavariables.zonk(&self.crate_env, body_elab);
+                        if let Some(timer) = &mut profile_timer {
+                            timer.checkpoint("zonking");
+                        }
                         self.validate_definition(&mut ctx, body_elab, ty_elab)
                         .map_err(|message| {
                             format!(
@@ -430,6 +468,9 @@ impl GlobalEnvironment {
                                 name.as_str()
                             )
                         })?;
+                        if let Some(timer) = &mut profile_timer {
+                            timer.checkpoint("strict checking");
+                        }
                         let defined_constant = DefinedConstant::Pts {
                             ty: ty_elab,
                             body: body_elab,

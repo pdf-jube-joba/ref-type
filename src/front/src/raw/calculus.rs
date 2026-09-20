@@ -6,6 +6,7 @@ use crate::raw::{
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{ComputationTermNode, ComputationType},
 };
+use smallvec::SmallVec;
 use std::collections::HashMap;
 
 pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNode {
@@ -633,6 +634,244 @@ fn same_node_shape(arena: &Arena, left: &ExpNode, right: &ExpNode) -> bool {
     }
 }
 
+fn comparison_children(node: &ExpNode, computational: bool) -> SmallVec<[Exp; 8]> {
+    let mut children = SmallVec::new();
+    macro_rules! add { ($($child:expr),+ $(,)?) => {{ $( children.push(*$child); )+ }}; }
+    macro_rules! extend {
+        ($children:expr) => {{
+            children.extend($children.iter().copied());
+        }};
+    }
+
+    if computational {
+        match node {
+            ExpNode::SetRun {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                ..
+            } => {
+                add!(state_ty, result_ty, step, initial);
+                return children;
+            }
+            ExpNode::SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                ..
+            } => {
+                add!(state_ty, result_ty, step, initial, transition);
+                return children;
+            }
+            ExpNode::BoxProgram { .. } => return children,
+            _ => {}
+        }
+    }
+
+    match node {
+        ExpNode::Sort(_)
+        | ExpNode::Bound(_)
+        | ExpNode::ModuleParam(_)
+        | ExpNode::ReflectedProgramParam(_)
+        | ExpNode::DefinedConstant(_)
+        | ExpNode::BoxType { .. }
+        | ExpNode::BoxProgram { .. } => {}
+        ExpNode::Meta { spine, .. } => extend!(spine),
+        ExpNode::Prod { ty, body, .. } | ExpNode::Lam { ty, body, .. } => add!(ty, body),
+        ExpNode::App { func, arg } => add!(func, arg),
+        ExpNode::IndType { parameters, .. } | ExpNode::IndCtor { parameters, .. } => {
+            extend!(parameters)
+        }
+        ExpNode::IndElim {
+            elim,
+            return_type,
+            cases,
+            ..
+        } => {
+            add!(elim, return_type);
+            extend!(cases);
+        }
+        ExpNode::IndCase {
+            scrutinee,
+            return_type,
+            branches,
+            ..
+        } => {
+            add!(scrutinee, return_type);
+            extend!(branches);
+        }
+        ExpNode::ReflectedProgramCase {
+            scrutinee,
+            branches,
+            ..
+        } => {
+            add!(scrutinee);
+            children.extend(branches.iter().map(|branch| branch.body));
+        }
+        ExpNode::RunStep {
+            state_ty,
+            result_ty,
+        } => add!(state_ty, result_ty),
+        ExpNode::Continue {
+            state_ty,
+            result_ty,
+            next,
+        } => add!(state_ty, result_ty, next),
+        ExpNode::Finish {
+            state_ty,
+            result_ty,
+            output,
+        } => add!(state_ty, result_ty, output),
+        ExpNode::Acc {
+            state_ty,
+            result_ty,
+            step,
+            state,
+        } => add!(state_ty, result_ty, step, state),
+        ExpNode::RunStepRec {
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => add!(
+            state_ty,
+            result_ty,
+            motive,
+            on_continue,
+            on_finish,
+            scrutinee
+        ),
+        ExpNode::SetRun {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            accessibility,
+        } => add!(state_ty, result_ty, step, initial, accessibility),
+        ExpNode::SetRunCase {
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality,
+        } => add!(
+            state_ty,
+            result_ty,
+            step,
+            initial,
+            transition,
+            accessibility,
+            transition_equality
+        ),
+        ExpNode::ForceBox { boxed, .. } => add!(boxed),
+        ExpNode::BoxApp { function, argument } => add!(function, argument),
+        ExpNode::Prove(proof) => match proof {
+            Prove::AccIntro {
+                state_ty,
+                result_ty,
+                step,
+                state,
+                predecessors,
+            } => add!(state_ty, result_ty, step, state, predecessors),
+            Prove::AccDescent {
+                state_ty,
+                result_ty,
+                step,
+                from,
+                to,
+                accessibility,
+                transition,
+            } => add!(
+                state_ty,
+                result_ty,
+                step,
+                from,
+                to,
+                accessibility,
+                transition
+            ),
+            Prove::ExistsIntro { element, set } => add!(element, set),
+            Prove::SubsetElim {
+                element,
+                subset,
+                superset,
+            } => add!(element, subset, superset),
+            Prove::IdRefl { element } => add!(element),
+            Prove::IdElim {
+                left,
+                right,
+                ty,
+                predicate,
+                base,
+                equality,
+                ..
+            } => add!(left, right, ty, predicate, base, equality),
+            Prove::Axiom(axiom) => match axiom {
+                Axiom::SetExt {
+                    left,
+                    right,
+                    left_to_right,
+                    right_to_left,
+                } => add!(left, right, left_to_right, right_to_left),
+                Axiom::FunExt {
+                    left,
+                    right,
+                    pointwise,
+                } => add!(left, right, pointwise),
+                Axiom::ClassicalIndefiniteChoice {
+                    domain,
+                    family,
+                    inhabited,
+                } => add!(domain, family, inhabited),
+            },
+            Prove::TakeEq {
+                func,
+                domain,
+                codomain,
+                element,
+                existence,
+                uniqueness,
+            } => add!(func, domain, codomain, element, existence, uniqueness),
+        },
+        ExpNode::PowerSet { set } | ExpNode::Exists { set } => add!(set),
+        ExpNode::SubSet { set, predicate, .. } => add!(set, predicate),
+        ExpNode::Pred {
+            superset,
+            subset,
+            element,
+        } => add!(superset, subset, element),
+        ExpNode::TypeLift { superset, subset } => add!(superset, subset),
+        ExpNode::SubsetIntro {
+            superset,
+            subset,
+            element,
+            proof,
+        } => add!(superset, subset, element, proof),
+        ExpNode::Equal { left, right } => add!(left, right),
+        ExpNode::TakeSet {
+            domain,
+            codomain,
+            map,
+            existence,
+            uniqueness,
+        } => add!(domain, codomain, map, existence, uniqueness),
+        ExpNode::TakeProp {
+            domain,
+            proposition,
+            map,
+            existence,
+        } => add!(domain, proposition, map, existence),
+    }
+    children
+}
+
 fn whnf_with_erasure(env: &CrateEnv, mut exp: Exp, erase_subset_intro: bool) -> Exp {
     loop {
         exp = whnf(env, exp);
@@ -644,18 +883,19 @@ fn whnf_with_erasure(env: &CrateEnv, mut exp: Exp, erase_subset_intro: bool) -> 
     }
 }
 
-fn cached_whnf(
-    env: &CrateEnv,
-    exp: Exp,
-    erase_subset_intro: bool,
-    cache: &mut HashMap<Exp, Exp>,
-) -> Exp {
-    if let Some(result) = cache.get(&exp) {
+fn cached_whnf(env: &CrateEnv, exp: Exp, erase_subset_intro: bool, cache: &mut AlphaCache) -> Exp {
+    if let Some(result) = cache.whnf.get(&exp) {
         return *result;
     }
     let result = whnf_with_erasure(env, exp, erase_subset_intro);
-    cache.insert(exp, result);
+    cache.whnf.insert(exp, result);
     result
+}
+
+#[derive(Default)]
+struct AlphaCache {
+    whnf: HashMap<Exp, Exp>,
+    comparisons: HashMap<(Exp, Exp, bool, bool), bool>,
 }
 
 fn alpha_rec(
@@ -664,16 +904,37 @@ fn alpha_rec(
     right: Exp,
     reduce: bool,
     erase_subset_intro: bool,
-    cache: &mut HashMap<Exp, Exp>,
+    cache: &mut AlphaCache,
 ) -> bool {
     if left == right {
         return true;
     }
+    let key = if left.index() <= right.index() {
+        (left, right, reduce, erase_subset_intro)
+    } else {
+        (right, left, reduce, erase_subset_intro)
+    };
+    if let Some(result) = cache.comparisons.get(&key) {
+        return *result;
+    }
+    let result = alpha_rec_uncached(env, left, right, reduce, erase_subset_intro, cache);
+    cache.comparisons.insert(key, result);
+    result
+}
+
+fn alpha_rec_uncached(
+    env: &CrateEnv,
+    left: Exp,
+    right: Exp,
+    reduce: bool,
+    erase_subset_intro: bool,
+    cache: &mut AlphaCache,
+) -> bool {
     // Congruent syntax already establishes conversion. In particular, avoid
     // unfolding identical applications of large reflected/library functions.
     // Keep the non-reducing comparison strict (including refinement proofs);
     // any mismatch falls through to the usual reduction/erasure rules.
-    if reduce && alpha_rec(env, left, right, false, false, &mut HashMap::new()) {
+    if reduce && alpha_rec(env, left, right, false, false, cache) {
         return true;
     }
     let (left, right) = if reduce {
@@ -688,177 +949,26 @@ fn alpha_rec(
         return true;
     }
     let arena = env.arena();
-    let left_node = arena.get(left);
-    let right_node = arena.get(right);
-    if !same_node_shape(arena, &left_node, &right_node) {
-        return false;
-    }
-    macro_rules! equal {
-        ($left:expr, $right:expr) => {
-            alpha_rec(env, $left, $right, reduce, erase_subset_intro, cache)
-        };
-    }
-    // Most expressions consist of these fixed-arity nodes. Comparing their
-    // children directly avoids allocating two temporary Vecs at every node.
-    match (&left_node, &right_node) {
-        (ExpNode::Sort(_), ExpNode::Sort(_))
-        | (ExpNode::Bound(_), ExpNode::Bound(_))
-        | (ExpNode::ModuleParam(_), ExpNode::ModuleParam(_))
-        | (ExpNode::ReflectedProgramParam(_), ExpNode::ReflectedProgramParam(_))
-        | (ExpNode::DefinedConstant(_), ExpNode::DefinedConstant(_))
-        | (ExpNode::BoxType { .. }, ExpNode::BoxType { .. })
-        | (ExpNode::BoxProgram { .. }, ExpNode::BoxProgram { .. }) => return true,
-        (
-            ExpNode::Prod {
-                ty: left_ty,
-                body: left_body,
-                ..
-            }
-            | ExpNode::Lam {
-                ty: left_ty,
-                body: left_body,
-                ..
-            },
-            ExpNode::Prod {
-                ty: right_ty,
-                body: right_body,
-                ..
-            }
-            | ExpNode::Lam {
-                ty: right_ty,
-                body: right_body,
-                ..
-            },
-        ) => return equal!(*left_ty, *right_ty) && equal!(*left_body, *right_body),
-        (
-            ExpNode::App {
-                func: left_func,
-                arg: left_arg,
-            },
-            ExpNode::App {
-                func: right_func,
-                arg: right_arg,
-            },
-        ) => return equal!(*left_func, *right_func) && equal!(*left_arg, *right_arg),
-        (
-            ExpNode::SubSet {
-                set: left_set,
-                predicate: left_predicate,
-                ..
-            },
-            ExpNode::SubSet {
-                set: right_set,
-                predicate: right_predicate,
-                ..
-            },
-        ) => return equal!(*left_set, *right_set) && equal!(*left_predicate, *right_predicate),
-        (
-            ExpNode::RunStep {
-                state_ty: left_state,
-                result_ty: left_result,
-            },
-            ExpNode::RunStep {
-                state_ty: right_state,
-                result_ty: right_result,
-            },
-        ) => return equal!(*left_state, *right_state) && equal!(*left_result, *right_result),
-        (
-            ExpNode::Continue {
-                state_ty: left_state,
-                result_ty: left_result,
-                next: left_next,
-            },
-            ExpNode::Continue {
-                state_ty: right_state,
-                result_ty: right_result,
-                next: right_next,
-            },
-        ) => {
-            return equal!(*left_state, *right_state)
-                && equal!(*left_result, *right_result)
-                && equal!(*left_next, *right_next);
+    let (left_children, right_children) = {
+        let left_node = arena.borrow_exp(left);
+        let right_node = arena.borrow_exp(right);
+        if !same_node_shape(arena, &left_node, &right_node) {
+            return false;
         }
         (
-            ExpNode::Finish {
-                state_ty: left_state,
-                result_ty: left_result,
-                output: left_output,
-            },
-            ExpNode::Finish {
-                state_ty: right_state,
-                result_ty: right_result,
-                output: right_output,
-            },
-        ) => {
-            return equal!(*left_state, *right_state)
-                && equal!(*left_result, *right_result)
-                && equal!(*left_output, *right_output);
-        }
-        (
-            ExpNode::PowerSet { set: left } | ExpNode::Exists { set: left },
-            ExpNode::PowerSet { set: right } | ExpNode::Exists { set: right },
-        ) => return equal!(*left, *right),
-        (
-            ExpNode::Equal {
-                left: left_a,
-                right: left_b,
-            }
-            | ExpNode::TypeLift {
-                superset: left_a,
-                subset: left_b,
-            }
-            | ExpNode::BoxApp {
-                function: left_a,
-                argument: left_b,
-            },
-            ExpNode::Equal {
-                left: right_a,
-                right: right_b,
-            }
-            | ExpNode::TypeLift {
-                superset: right_a,
-                subset: right_b,
-            }
-            | ExpNode::BoxApp {
-                function: right_a,
-                argument: right_b,
-            },
-        ) => return equal!(*left_a, *right_a) && equal!(*left_b, *right_b),
-        (
-            ExpNode::ForceBox {
-                boxed: left_boxed, ..
-            },
-            ExpNode::ForceBox {
-                boxed: right_boxed, ..
-            },
-        ) => return equal!(*left_boxed, *right_boxed),
-        _ => {}
-    }
-    let children = |node| {
-        let mut result = Vec::new();
-        let _ = if reduce {
-            map_computational_children(node, |child| {
-                result.push(child);
-                child
-            })
-        } else {
-            map_children(node, |child| {
-                result.push(child);
-                child
-            })
-        };
-        result
+            comparison_children(&left_node, reduce),
+            comparison_children(&right_node, reduce),
+        )
     };
-    let l = children(left_node);
-    let r = children(right_node);
-    l.len() == r.len()
-        && l.into_iter()
-            .zip(r)
+    left_children.len() == right_children.len()
+        && left_children
+            .into_iter()
+            .zip(right_children)
             .all(|(a, b)| alpha_rec(env, a, b, reduce, erase_subset_intro, cache))
 }
 
 pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    alpha_rec(env, left, right, false, false, &mut HashMap::new())
+    alpha_rec(env, left, right, false, false, &mut AlphaCache::default())
 }
 
 pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
@@ -1165,13 +1275,13 @@ fn normalize_with_cache(env: &CrateEnv, exp: Exp, cache: &mut HashMap<Exp, Exp>)
 }
 
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    let result = alpha_rec(env, left, right, true, false, &mut HashMap::new());
+    let result = alpha_rec(env, left, right, true, false, &mut AlphaCache::default());
     tracing::trace!(target: "ref_type::conversion", left = %crate::raw::printing::format_exp(env, left), right = %crate::raw::printing::format_exp(env, right), result, "conversion compared");
     result
 }
 
 pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    alpha_rec(env, left, right, true, true, &mut HashMap::new())
+    alpha_rec(env, left, right, true, true, &mut AlphaCache::default())
 }
 
 pub(crate) fn type_head_normal(env: &CrateEnv, ty: Exp) -> Exp {

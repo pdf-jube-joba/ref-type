@@ -26,6 +26,7 @@ use std::collections::{HashMap, HashSet};
 mod declarations;
 pub(crate) mod module_manager;
 mod modules;
+mod profiling;
 pub(crate) mod program_term_elaborator;
 mod queries;
 pub(crate) mod term_elaborator;
