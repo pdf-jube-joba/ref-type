@@ -10,8 +10,11 @@ struct Args {
     #[arg(long)]
     trace: bool,
     /// 処理後に raw / kernel の構文ノード数を標準エラーへ表示する
-    #[arg(long)]
+    #[arg(long, conflicts_with = "parse_only")]
     stats: bool,
+    /// front 側の構文への変換だけを行う
+    #[arg(long)]
+    parse_only: bool,
 }
 
 mod printing;
@@ -19,7 +22,7 @@ mod printing;
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_tracing(args.trace)?;
-    let err = run_file_mode(args.file, args.stats)?;
+    let err = run_file_mode(args.file, args.stats, args.parse_only)?;
     if err.is_some() {
         std::process::exit(1);
     }
@@ -83,9 +86,10 @@ fn push_outputs(global: &front::elaborator::GlobalEnvironment, output_lines: &mu
     }
 }
 
-fn run_file_mode(path: PathBuf, stats: bool) -> anyhow::Result<Option<String>> {
+fn run_file_mode(path: PathBuf, stats: bool, parse_only: bool) -> anyhow::Result<Option<String>> {
     let loaded = front::module_loader::load_modules_from_root(&path);
     let (out, err_message) = match loaded {
+        Ok(_) if parse_only => (Vec::new(), None),
         Ok(modules) => elaborate_and_format(modules, stats),
         Err(error) => (Vec::new(), Some(format!("Module Load Error: {error}"))),
     };

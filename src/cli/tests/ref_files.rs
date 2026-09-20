@@ -219,6 +219,46 @@ fn file_errors_are_only_written_to_stderr() {
     assert_eq!(stderr.matches("Elaboration Error:").count(), 1);
 }
 
+#[test]
+fn parse_only_skips_elaboration_but_reports_parse_errors() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        "\\module Root { \\definition invalid: \\Prop := \\Set; }\n",
+    );
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--parse-only"]).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+    assert!(output.stdout.is_empty(), "{}", output_details(&output));
+    assert!(output.stderr.is_empty(), "{}", output_details(&output));
+
+    let root = fixture.write(
+        "root.ref",
+        "\\module Root { \\definition invalid: \\Prop := ; }\n",
+    );
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--parse-only"]).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+    assert!(output.stdout.is_empty(), "{}", output_details(&output));
+    assert!(stderr.contains("Module Load Error:"), "{stderr}");
+    assert!(stderr.contains("parse error:"), "{stderr}");
+}
+
+#[test]
+fn parse_only_follows_external_modules() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write("root.ref", "\\module Child;\n");
+    fixture.write("Child.ref", "\\definition invalid: \\Prop := \\Set;\n");
+
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--parse-only"]).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+
+    fixture.write("Child.ref", "\\definition invalid: \\Prop := ;\n");
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--parse-only"]).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+    assert!(stderr.contains("Child.ref"), "{stderr}");
+}
+
 struct FixtureDirectory(PathBuf);
 
 impl FixtureDirectory {

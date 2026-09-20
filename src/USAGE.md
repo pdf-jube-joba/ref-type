@@ -22,6 +22,12 @@ typing rule の呼び出しを木構造で確認する場合は `--trace` を付
 cargo run -- path/to/root.ref --trace
 ```
 
+`--parse-only` を付けると、ルートファイルと外部 module を front 側の構文に変換できるかだけを確認する。
+
+```sh
+cargo run -- path/to/root.ref --parse-only
+```
+
 typing は通常の `tracing` span/event として記録される。ログレベルを細かく指定する
 場合は、たとえば `RUST_LOG=ref_type::typing=debug` を利用できる。通常実行では
 typing span は無効で、型検査に必要な証明は各項の部分項として検査される。
