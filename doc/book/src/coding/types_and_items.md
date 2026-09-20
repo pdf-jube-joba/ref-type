@@ -19,7 +19,7 @@ constructor、field projection、ユーザー定義の関数などは
 ## 帰納型の型関連 item
 
 ```text
-\inductive List(A: \Set): \Set :=
+\inductive List[A: \Set]: \Set :=
 | nil  : List
 | cons : A -> List -> List
 ;
@@ -47,7 +47,7 @@ Set/Prop の帰納型に対する通常の関数も qualified name で定義す�
 named field を持つ通常の record が必要な場合は、`\record` として明示的に宣言する。
 
 ```text
-\record Point(A: \Set): \Set := {
+\record Point[A: \Set]: \Set := {
   x : A,
   y : A,
 };
@@ -102,7 +102,7 @@ Program の structure は `\VType` の型パラメータと、非依存・非再
 field に thunk 型 `\U(C)` を使うこともできる。空の structure も宣言できる。
 
 ```text
-\record Pair(A: \VType): \VType := {
+\record Pair[A: \VType]: \VType := {
   first: A,
   second: A,
 };

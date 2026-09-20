@@ -140,7 +140,7 @@ Program computation 定義の引数は CBV の糖衣である。
 ### inductive
 
 ```text
-\inductive Type(parameters): result-kind :=
+\inductive Type[parameters]: result-kind :=
 | constructor1: constructor-type;
 | constructor2: constructor-type;
 ;
@@ -155,7 +155,7 @@ constructor type は `->`、`\forall`、通常の式を組み合わせる。Prog
 | succ: Nat -> Nat;
 ;
 
-\inductive List(A: \VType): \VType :=
+\inductive List[A: \VType]: \VType :=
 | nil: List;
 | cons: A -> List[A] -> List;
 ;
@@ -166,7 +166,7 @@ constructor は `Type[parameters]::constructor arguments` で参照する。
 ### structure と record
 
 ```text
-\record Type(parameters): result-kind := {
+\record Type[parameters]: result-kind := {
   field1: type1,
   field2: type2,
 };

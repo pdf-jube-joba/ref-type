@@ -356,6 +356,13 @@ impl<'a> Parser<'a> {
         Ok(rightbind)
     }
 
+    fn parse_bracketed_rightbinds(&mut self) -> Result<Vec<RightBind>, ParseError> {
+        let mut term_parser = TermParser::new(&self.tokens[self.pos..]);
+        let (rightbind, advanced) = term_parser.parse_simple_binds_bracketed_advanced()?;
+        self.pos += advanced;
+        Ok(rightbind)
+    }
+
     // <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
         let first_name = self.expect_ident()?;
@@ -399,8 +406,8 @@ impl<'a> Parser<'a> {
     fn parse_record_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
         let mut parameters = Vec::new();
-        while self.peek() == Some(&Token::LParen) {
-            let parsed = self.parse_rightbinds()?;
+        while self.peek() == Some(&Token::LBracket) {
+            let parsed = self.parse_bracketed_rightbinds()?;
             parameters.extend(parsed);
         }
         self.expect_token(Token::Colon)?;
@@ -534,14 +541,14 @@ impl<'a> Parser<'a> {
         Ok((ctor_name, rightbinds, ends))
     }
 
-    //  <type_name: Ident> ("(" <param: Ident> ":" <ty: SExp> ")")* ":" <arity> ":=" (<ctor_decl>)* ";"
+    //  <type_name: Ident> ("[" <param: Ident> ":" <ty: SExp> "]")* ":" <arity> ":=" (<ctor_decl>)* ";"
     fn parse_inductive_decl(&mut self) -> Result<ModuleItem, ParseError> {
         let type_name = self.expect_ident()?;
 
         let mut parameters = vec![];
 
-        while self.peek() == Some(&Token::LParen) {
-            let param = self.parse_rightbinds()?;
+        while self.peek() == Some(&Token::LBracket) {
+            let param = self.parse_bracketed_rightbinds()?;
             parameters.extend(param);
         }
 

@@ -1159,9 +1159,12 @@ impl<'a> TermParser<'a> {
 
     // parse multiple annotations separated by commas
     // trailing comma is allowed (it consumes trailing comma)
-    fn parse_annotate_comma_separated(&mut self) -> Result<Vec<RightBind>, ParseError> {
+    fn parse_annotate_comma_separated_until(
+        &mut self,
+        end: Token<'a>,
+    ) -> Result<Vec<RightBind>, ParseError> {
         let mut annotations = Vec::new();
-        while self.peek().is_some() && self.peek() != Some(&Token::RParen) {
+        while self.peek().is_some() && self.peek() != Some(&end) {
             let (vars, ty) = self.parse_annotate()?;
             annotations.push(RightBind {
                 vars,
@@ -1174,6 +1177,10 @@ impl<'a> TermParser<'a> {
         Ok(annotations)
     }
 
+    fn parse_annotate_comma_separated(&mut self) -> Result<Vec<RightBind>, ParseError> {
+        self.parse_annotate_comma_separated_until(Token::RParen)
+    }
+
     // "(" <multiple annotations comma separated> ")"
     fn parse_simple_binds_paren(&mut self) -> Result<Vec<RightBind>, ParseError> {
         self.parse_parenthesized(|parser| parser.parse_annotate_comma_separated())
@@ -1183,6 +1190,16 @@ impl<'a> TermParser<'a> {
         &mut self,
     ) -> Result<(Vec<RightBind>, usize), ParseError> {
         let binds = self.parse_simple_binds_paren()?;
+        let advanced_pos = self.pos;
+        Ok((binds, advanced_pos))
+    }
+
+    pub(super) fn parse_simple_binds_bracketed_advanced(
+        &mut self,
+    ) -> Result<(Vec<RightBind>, usize), ParseError> {
+        let binds = self.parse_bracketed(|parser| {
+            parser.parse_annotate_comma_separated_until(Token::RBracket)
+        })?;
         let advanced_pos = self.pos;
         Ok((binds, advanced_pos))
     }

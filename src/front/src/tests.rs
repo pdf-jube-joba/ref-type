@@ -70,7 +70,7 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             | zero: Bit;
             | one: Bit;
             ;
-            \record Pair(A: \Set, B: \Set): \Set := {
+            \record Pair[A: \Set, B: \Set]: \Set := {
                 first: A,
                 second: B,
             };
@@ -90,7 +90,7 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             | zero: VBit;
             | one: VBit;
             ;
-            \record VPair(A: \VType): \VType := {
+            \record VPair[A: \VType]: \VType := {
                 first: A,
                 second: A,
             };
@@ -619,7 +619,7 @@ fn grouped_lambda_binders_keep_the_outer_type() {
 fn grouped_declaration_binders_keep_the_outer_type() {
     let source = r#"
         \module Grouped {
-            \inductive Witness(A: \Set, x, y, z: A): \Prop :=
+            \inductive Witness[A: \Set, x, y, z: A]: \Prop :=
                 | intro: Witness;
                 ;
         }
@@ -871,7 +871,7 @@ fn module_parameter_hole_uses_the_same_structured_ambiguity() {
 fn inductive_constructor_parameter_is_inferred_from_its_field() {
     let source = r#"
         \module InductiveMeta(A: \Set(0), a: A) {
-            \inductive Box(X: \Set(0)): \Set(0) :=
+            \inductive Box[X: \Set(0)]: \Set(0) :=
                 | box: X -> Box;
             ;
             \definition boxed: Box[A] := Box[_]::box a;
@@ -1202,7 +1202,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
     let modules = parse::str_parse_modules(
         r#"
         \module LetCase(A: \VType) {
-            \inductive Pair(X: \VType): \VType :=
+          \inductive Pair[X: \VType]: \VType :=
             | pair: X -> X -> Pair;
             ;
             \definition first: (Pair[A] ~> \F(A)) :=
