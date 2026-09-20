@@ -64,8 +64,9 @@
 
 \definition add:
   (Nat -> (Nat -> Nat)) :=
-  (\cfun (left: Nat) => \return(\thunk((\cfun (right: Nat) => \run[AddState, Nat](addStep, AddState::running left right)
-        \by { addTerminates right left }))));
+  \fun (left, right: Nat) =>
+    \run[AddState, Nat](addStep, AddState::running left right)
+      \by { addTerminates right left };
 
 
 
@@ -151,7 +152,9 @@
           subAccIntro (SubState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
     };
-\definition sub: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run[SubState, Nat](subStep, SubState::running a b) \by { subTerminates b a }))));
+\definition sub: (Nat -> (Nat -> Nat)) :=
+  \fun (a, b: Nat) =>
+    \run[SubState, Nat](subStep, SubState::running a b) \by { subTerminates b a };
 
 \definition subPrec (a, b: Nat^): Nat^ :=
   \induction (b: Nat^) \return Nat^ -> Nat^ \with {
@@ -212,7 +215,9 @@
           eqbAccIntro (EqbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
     };
-\definition eqb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run[EqbState, B.Bool](eqbStep, EqbState::running a b) \by { eqbTerminates b a }))));
+\definition eqb: (Nat -> (Nat -> B.Bool)) :=
+  \fun (a, b: Nat) =>
+    \run[EqbState, B.Bool](eqbStep, EqbState::running a b) \by { eqbTerminates b a };
 
 \definition eqbPrec (a, b: Nat^): B.Bool^ :=
   \induction (b: Nat^) \return Nat^ -> B.Bool^ \with {
@@ -273,7 +278,9 @@
           lebAccIntro (LebState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
     };
-\definition leb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run[LebState, B.Bool](lebStep, LebState::running a b) \by { lebTerminates b a }))));
+\definition leb: (Nat -> (Nat -> B.Bool)) :=
+  \fun (a, b: Nat) =>
+    \run[LebState, B.Bool](lebStep, LebState::running a b) \by { lebTerminates b a };
 
 \definition lebPrec (a, b: Nat^): B.Bool^ :=
   \induction (b: Nat^) \return Nat^ -> B.Bool^ \with {
@@ -333,7 +340,9 @@
           ltbAccIntro (LtbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
     };
-\definition ltb: (Nat -> (Nat -> B.Bool)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run[LtbState, B.Bool](ltbStep, LtbState::running a b) \by { ltbTerminates b a }))));
+\definition ltb: (Nat -> (Nat -> B.Bool)) :=
+  \fun (a, b: Nat) =>
+    \run[LtbState, B.Bool](ltbStep, LtbState::running a b) \by { ltbTerminates b a };
 
 \definition ltbPrec (a, b: Nat^): B.Bool^ :=
   \induction (b: Nat^) \return Nat^ -> B.Bool^ \with {
@@ -369,11 +378,11 @@
   | running f value count => \match count \in Nat \with {
     | zero => \return(\finish[IterState, Nat](value))
     | succ k => \program {
-  \bind next: Nat <- ((\force f) value);
-  \return \continue[IterState, Nat](IterState::running f next k);
-}
+      \bind next: Nat <- ((\force f) value);
+      \return \continue[IterState, Nat](IterState::running f next k);
     }
-  }));
+  }
+}));
 
 \definition iterReady (t: \RunStep[IterState^, Nat^]): \Prop := \In[Nat^] (\runStepRec[IterState^, Nat^]((\fun (t: \RunStep[IterState^, Nat^]) => \Pow Nat^), (\fun (s: IterState^) => { n : Nat^ \where \Acc[IterState^, Nat^](iterStep^, s) }), (\fun (r: Nat^) => { n : Nat^ \where Nat^::zero = Nat^::zero }), t)) Nat^::zero;
 \definition iterAccIntro (s: IterState^) (ready: iterReady (iterStep^ s)): \Acc[IterState^, Nat^](iterStep^, s) :=
@@ -393,8 +402,10 @@
     };
 \definition iter:
   (\U((Nat -> Nat)) -> (Nat -> (Nat -> Nat))) :=
-  (\cfun (f: \U((Nat -> Nat))) => \return(\thunk((\cfun (value: Nat) => \return(\thunk((\cfun (count: Nat) => \run[IterState, Nat](iterStep, IterState::running f value count)
-        \by { iterTerminates count f value })))))));
+  \fun (f: \U((Nat -> Nat))) =>
+    \fun (value, count: Nat) =>
+      \run[IterState, Nat](iterStep, IterState::running f value count)
+        \by { iterTerminates count f value };
 
 \definition iterPrec (f: Nat^ -> Nat^) (value, count: Nat^): Nat^ :=
     \induction (n: Nat^) \return Nat^ \with {
@@ -423,28 +434,32 @@
     };
 
 \definition mul: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run[IterState, Nat](iterStep, IterState::running
+  \fun (a, b: Nat) =>
+    \run[IterState, Nat](iterStep, IterState::running
       \thunk((\cfun (current: Nat) => \run[AddState, Nat](addStep, AddState::running a current)
         \by { addTerminates current a }))
-      Nat::zero b) \by { iterTerminates b (add^ a) Nat^::zero }))));
+      Nat::zero b) \by { iterTerminates b (add^ a) Nat^::zero };
 
 \definition mulPrec (a, b: Nat^): Nat^ := iterPrec (add^ a) Nat^::zero b;
 \definition mulMatchesPrec (a, b: Nat^): mul^ a b = mulPrec a b := iterMatchesPrec (add^ a) b Nat^::zero;
 
 \definition pow: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \run[IterState, Nat](iterStep, IterState::running
+  \fun (a, b: Nat) =>
+    \run[IterState, Nat](iterStep, IterState::running
       \thunk((\cfun (current: Nat) => \run[IterState, Nat](iterStep, IterState::running
           \thunk((\cfun (next: Nat) => \run[AddState, Nat](addStep, AddState::running a next)
             \by { addTerminates next a }))
           Nat::zero current) \by { iterTerminates current (add^ a) Nat^::zero }))
-      one b) \by { iterTerminates b (mul^ a) (Nat^::succ Nat^::zero) }))));
+      one b) \by { iterTerminates b (mul^ a) (Nat^::succ Nat^::zero) };
 
 \definition powPrec (a, b: Nat^): Nat^ := iterPrec (mul^ a) (Nat^::succ Nat^::zero) b;
 \definition powMatchesPrec (a, b: Nat^): pow^ a b = powPrec a b := iterMatchesPrec (mul^ a) b (Nat^::succ Nat^::zero);
 
 /* Selection is reflected once, then shared by min and max. */
 \definition choose: (B.Bool -> (Nat -> (Nat -> Nat))) :=
-  (\cfun (test: B.Bool) => \return(\thunk((\cfun (yes: Nat) => \return(\thunk((\cfun (no: Nat) => \match test \in B.Bool \with { | false => \return no | true => \return yes })))))));
+  \fun (test: B.Bool) =>
+    \fun (yes, no: Nat) =>
+      \match test \in B.Bool \with { | false => \return no | true => \return yes };
 
 \definition choosePrec (test: B.Bool^) (yes, no: Nat^): Nat^ := B.ite Nat^ test yes no;
 \definition chooseMatchesPrec: \forall (test: B.Bool^) -> \forall (yes, no: Nat^) -> choose^ test yes no = choosePrec test yes
@@ -454,11 +469,11 @@
     | true => (\fun (yes, no: Nat^) => \refl(yes))
     };
 
-\definition min: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+\definition min: (Nat -> (Nat -> Nat)) := \fun (a, b: Nat) => \program {
   \bind test: B.Bool <- \run[LtbState, B.Bool](ltbStep, LtbState::running a b) \by { ltbTerminates b a };
   \bind selected: Nat <- \match test \in B.Bool \with { | false => \return b | true => \return a };
   \return selected;
-}))));
+};
 
 \definition minPrec (a, b: Nat^): Nat^ := choosePrec (ltbPrec a b) a b;
 \definition minMatchesPrec: \forall (a, b: Nat^) -> min^ a b = minPrec a b :=
@@ -471,11 +486,11 @@
     \by { base: chooseMatchesPrec (ltb^ a b) a b, equality: testMatches };
   };
 
-\definition max: (Nat -> (Nat -> Nat)) := (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+\definition max: (Nat -> (Nat -> Nat)) := \fun (a, b: Nat) => \program {
   \bind test: B.Bool <- \run[LtbState, B.Bool](ltbStep, LtbState::running a b) \by { ltbTerminates b a };
   \bind selected: Nat <- \match test \in B.Bool \with { | false => \return a | true => \return b };
   \return selected;
-}))));
+};
 
 \definition maxPrec (a, b: Nat^): Nat^ := choosePrec (ltbPrec a b) b a;
 \definition maxMatchesPrec: \forall (a, b: Nat^) -> max^ a b = maxPrec a b :=
@@ -613,8 +628,11 @@
     };
 \definition pairIter:
   (\U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) -> (P.Times[Nat, Nat] -> (Nat -> P.Times[Nat, Nat]))) :=
-  (\cfun (f: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat]))) => \return(\thunk((\cfun (value: P.Times[Nat, Nat]) => \return(\thunk((\cfun (count: Nat) => \run[PairIterState, P.Times[Nat, Nat]](pairIterStep, PairIterState::running f value count)
-        \by { pairIterTerminates count f value })))))));
+  \fun (f: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat]))) =>
+    \fun (value: P.Times[Nat, Nat]) =>
+      \fun (count: Nat) =>
+        \run[PairIterState, P.Times[Nat, Nat]](pairIterStep, PairIterState::running f value count)
+          \by { pairIterTerminates count f value };
 
 \definition pairIterPrec (f: NatPair -> NatPair) (value: NatPair) (count: Nat^): NatPair :=
     \induction (n: Nat^) \return NatPair \with {
@@ -641,7 +659,9 @@
 
 \definition pairChoose:
   (B.Bool -> (P.Times[Nat, Nat] -> (P.Times[Nat, Nat] -> P.Times[Nat, Nat]))) :=
-  (\cfun (test: B.Bool) => \return(\thunk((\cfun (yes: P.Times[Nat, Nat]) => \return(\thunk((\cfun (no: P.Times[Nat, Nat]) => \match test \in B.Bool \with { | false => \return no | true => \return yes })))))));
+  \fun (test: B.Bool) =>
+    \fun (yes, no: P.Times[Nat, Nat]) =>
+      \match test \in B.Bool \with { | false => \return no | true => \return yes };
 
 \definition pairChoosePrec (test: B.Bool^) (yes, no: NatPair): NatPair := B.ite NatPair test yes no;
 \definition pairChooseMatchesPrec: \forall (test: B.Bool^) -> \forall (yes, no: NatPair) ->
@@ -655,7 +675,9 @@
  * remainder wraps to zero and the quotient increases. At divisor zero only
  * the remainder increases: div a 0 = 0, mod a 0 = a. */
 \definition divModNext: (Nat -> (P.Times[Nat, Nat] -> P.Times[Nat, Nat])) :=
-  (\cfun (b: Nat) => \return(\thunk((\cfun (p: P.Times[Nat, Nat]) => \match p \in P.Times \with {
+  \fun (b: Nat) =>
+    \fun (p: P.Times[Nat, Nat]) =>
+      \match p \in P.Times \with {
   | pair q r => \match b \in Nat \with {
     | zero => \return(P.Times[Nat, Nat]::pair q (Nat::succ r))
     | succ d =>
@@ -668,7 +690,7 @@
   \return next;
 }
     }
-  }))));
+  };
 
 \definition divModNextPrec (b: Nat^): NatPair -> NatPair := \induction (p: P.Times^[Nat^, Nat^]) \return NatPair \with {
   | pair => (\fun (q, r: Nat^) => \induction (b: Nat^) \return NatPair \with {
@@ -688,12 +710,12 @@
       } b)
     };
 \definition divMod: (Nat -> (Nat -> P.Times[Nat, Nat])) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \fun (a, b: Nat) => \program {
   \bind advance: \U((P.Times[Nat, Nat] -> P.Times[Nat, Nat])) <- (divModNext b);
   \bind result: P.Times[Nat, Nat] <- \run[PairIterState, P.Times[Nat, Nat]](pairIterStep, PairIterState::running advance (P.Times[Nat, Nat]::pair Nat::zero Nat::zero) a)
         \by { pairIterTerminates a advance (P.Times^[Nat^, Nat^]::pair Nat^::zero Nat^::zero) };
   \return result;
-}))));
+};
 
 \definition divModPrec (a, b: Nat^): NatPair := pairIterPrec (divModNextPrec b) (natPair Nat^::zero Nat^::zero) a;
 \definition pairIterPrecCong (f, g: NatPair -> NatPair)
@@ -717,19 +739,19 @@
     \return trans!{NatPair} _ _ _ iterationMatches stepMatches;
   };
 \definition div: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \fun (a, b: Nat) => \program {
   \bind partial: \U((Nat -> P.Times[Nat, Nat])) <- (divMod a);
   \bind result: P.Times[Nat, Nat] <- ((\force partial) b);
   \bind quotient: Nat <- (P.Times[Nat, Nat]::first result);
   \return quotient;
-}))));
+};
 \definition mod: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \fun (a, b: Nat) => \program {
   \bind partial: \U((Nat -> P.Times[Nat, Nat])) <- (divMod a);
   \bind result: P.Times[Nat, Nat] <- ((\force partial) b);
   \bind remainder: Nat <- (P.Times[Nat, Nat]::second result);
   \return remainder;
-}))));
+};
 
 
 \definition divPrec (a, b: Nat^): Nat^ := P.Times[Nat, Nat]::first^ (divModPrec a b);
@@ -768,12 +790,12 @@
       } b)
     };
 \definition gcd: (Nat -> (Nat -> Nat)) :=
-  (\cfun (a: Nat) => \return(\thunk((\cfun (b: Nat) => \program {
+  \fun (a, b: Nat) => \program {
   \bind result: P.Times[Nat, Nat] <- \run[PairIterState, P.Times[Nat, Nat]](pairIterStep, PairIterState::running gcdNext (P.Times[Nat, Nat]::pair a b) b)
       \by { pairIterTerminates b gcdNext^ (P.Times^[Nat^, Nat^]::pair a b) };
   \bind divisor: Nat <- (P.Times[Nat, Nat]::first result);
   \return divisor;
-}))));
+};
 
 \definition gcdPrec (a, b: Nat^): Nat^ := P.Times[Nat, Nat]::first^ (pairIterPrec gcdNextPrec (natPair a b) b);
 \definition gcdMatchesPrec: \forall (a, b: Nat^) -> gcd^ a b = gcdPrec a b :=
