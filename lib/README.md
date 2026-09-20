@@ -10,7 +10,7 @@
 | 分野 | ファイル | 内容 |
 | --- | --- | --- |
 | 論理 | `Logic/Proposition.ref`、`Logic/Law.ref`、`Logic/Rel.ref`、`Logic/Classical.ref`、`Logic/Equality.ref` | 命題、関係、法則、古典論理、等式 |
-| データ | `Data/Bool.ref`、`Data/Pair.ref`、`Data/Sum.ref`、`Data/FinSet.ref`、`Data/FiniteSubset.ref` | 基本データ、直積、直和、有限集合 |
+| データ | `Data/Bool.ref`、`Data/Pair.ref`、`Data/Sum.ref`、`Data/FinSet.ref` | 基本データ、直積、直和、有限集合 |
 | 自然数 | `Nat.ref` と `Nat/` 以下 | 自然数の演算、仕様、法則 |
 | 集合 | `Set/Quotient.ref` | 同値類、商の台集合、演算の relational image |
 | 代数 | `Algebra/Monoid.ref`、`Algebra/Algebra.ref` | Monoid、Group、Semiring、Ring、Field |
@@ -141,7 +141,7 @@ Bool と Nat を使った直接の Program 呼び出しも検査する。
 `NatPair` と Int の `Difference` はこの対型の alias である。Rat の `Integer` は
 Int の正規形キャリアを使い、形式差との往復は `Int.Math` が担う。
 
-`FiniteSubset(A := A)` は、空集合と有限回の `insert` で生成される `Power(A)` の
+`Set.FiniteSubset(A := A)` は、空集合と有限回の `insert` で生成される `Power(A)` の
 subtype を提供する。`empty`、`insert`、`singleton`、`unorderedPair` で有限部分集合を
 構築し、`Member` で所属、`induction` で有限集合についての帰納法を表す。大文字の
 `Empty`、`Insert`、`Singleton`、`UnorderedPair` は対応する生の `Power(A)` である。
