@@ -26,6 +26,7 @@ front は未分類の構文を解析・elaboration し、kernel に渡す分類�
 - 論理側の弱頭簡約は `CrateEnv` 内で結果を再利用する。raw ノードと登録済み宣言は
   不変で、この簡約は局所文脈や metavariable の解決状態に依存しない。
   refinement の消去はキャッシュした通常の簡約の後に行い、厳密な比較と区別する。
+  連続した lambda への適用は引数をまとめて同時代入し、部分適用の中間ノードの生成を抑える。
 - `raw/reflection.rs` は Program を論理構文へ反映する。型の反映は定義を展開しないため
   巡回検出の状態を持たず、定義を辿る値・計算の反映でのみ巡回を検出する。
 
@@ -56,3 +57,6 @@ cargo clippy --workspace --all-targets --locked --offline -- -D warnings
 cargo build --release --locked --offline
 env -u RUST_LOG /usr/bin/time -f 'elapsed=%e user=%U sys=%S maxrss_kb=%M' target/release/cli lib/root.ref
 ```
+
+`--stats` を付けると、処理後に raw と kernel の family ごとの保持ノード数を標準エラーへ表示する。
+ノード数は `Arena::node_counts` からも取得できる。

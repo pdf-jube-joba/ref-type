@@ -114,6 +114,115 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
 }
 
 #[test]
+fn telescope_substitution_is_simultaneous_and_avoids_intermediate_nodes() {
+    let env = Environment::new();
+    let a = env.arena();
+    let bound = |index| {
+        a.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::Bound { index },
+        })
+    };
+    let rule =
+        ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
+    let product = |domain, body| {
+        a.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::ProdTerm {
+                rule,
+                var: SymbolId::ANONYMOUS,
+                domain,
+                body,
+            },
+        })
+    };
+    let body = product(bound(1), product(bound(1), bound(4)));
+    // The shared index 1 selects different arguments at the two depths.
+    // Index 4 refers outside the telescope; the arguments are themselves open.
+    let expected = product(bound(0), product(bound(2), bound(2)));
+    let arguments = [bound(0).into(), bound(1).into()];
+    let counts = a.node_counts();
+    assert_eq!(
+        instantiate_telescope(&env, body.into(), &arguments).unwrap(),
+        expected.into()
+    );
+    assert_eq!(a.node_counts(), counts);
+    assert_eq!(
+        instantiate_telescope(&env, body.into(), &[]).unwrap(),
+        body.into()
+    );
+
+    let mut sequential = body.into();
+    for (i, &argument) in arguments.iter().enumerate().rev() {
+        sequential =
+            substitute_with_reflection(&env, sequential, shift(a, argument, i, 0).unwrap())
+                .unwrap();
+    }
+    assert_eq!(sequential, expected.into());
+}
+
+#[test]
+fn weak_head_reduction_batches_arguments_and_preserves_partial_applications() {
+    let env = Environment::new();
+    let a = env.arena();
+    let kind = sk(a, 0);
+    let rule =
+        ProductRule::new(Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Set(0))).unwrap();
+    let bound = |index| {
+        a.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::Bound { index },
+        })
+    };
+    let lambda = |body| {
+        a.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::LambdaType {
+                rule,
+                var: SymbolId::ANONYMOUS,
+                domain: kind,
+                body,
+            },
+        })
+    };
+    let apply = |function, argument| {
+        a.alloc(SetTypeNode {
+            level: 0,
+            form: SetTypeForm::AppType {
+                rule,
+                function,
+                argument,
+            },
+        })
+    };
+    let function = lambda(lambda(bound(1)));
+    let function = a
+        .annotated(function.into(), kind.into())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let first = bound(2);
+    let second = bound(4);
+    let partial = apply(function, first);
+    let full = apply(partial, second);
+    let extra = apply(full, second);
+    let expected_partial = lambda(bound(3));
+    let expected_extra = apply(first, second);
+    let counts = a.node_counts();
+    assert_eq!(whnf(&env, full.into()).unwrap(), first.into());
+    assert_eq!(whnf(&env, partial.into()).unwrap(), expected_partial.into());
+    assert_eq!(whnf(&env, extra.into()).unwrap(), expected_extra.into());
+    assert_eq!(a.node_counts(), counts);
+    assert_eq!(normalize(&env, full).unwrap(), first.into());
+
+    let malformed = a.alloc(SetTypeNode {
+        level: 1,
+        form: a.get(full).form,
+    });
+    assert!(whnf(&env, malformed.into()).is_err());
+}
+
+#[test]
 fn typed_nodes_are_interned_and_read_snapshots_survive_transformations() {
     let arena = Arena::new();
     let domain = arena.alloc(SetTypeNode {
@@ -1084,6 +1193,24 @@ fn program_proof_substitution_uses_the_reflected_argument() {
         .unwrap()
         .try_into()
         .unwrap();
+    let type_variable = a.alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Bound { index: 1 },
+    });
+    let polymorphic_run = a.alloc(ComputationTermNode {
+        level: 0,
+        form: ComputationTermForm::Run {
+            state_ty: type_variable,
+            result_ty: type_variable,
+            step: variable,
+            initial: variable,
+            accessibility: proof,
+        },
+    });
+    assert_eq!(
+        instantiate_telescope(&env, polymorphic_run.into(), &[ty.into(), zero.into()]).unwrap(),
+        instantiated.into()
+    );
     let ComputationTermForm::Run {
         initial,
         accessibility,

@@ -365,6 +365,17 @@ impl Arena {
         Self::default()
     }
 
+    /// Number of retained nodes in each syntax family.
+    pub fn node_counts(&self) -> [(&'static str, usize); 5] {
+        [
+            ("Logical", self.exps.borrow().len()),
+            ("ValueType", self.value_types.borrow().len()),
+            ("ComputationType", self.computation_types.borrow().len()),
+            ("ValueTerm", self.values.borrow().len()),
+            ("ComputationTerm", self.computations.borrow().len()),
+        ]
+    }
+
     #[cfg(test)]
     pub(crate) fn exp_len(&self) -> usize {
         self.exps.borrow().len()

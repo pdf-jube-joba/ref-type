@@ -104,6 +104,7 @@ Box が保持する Program 構文は computation type と computation に限る
 閉性の検査は名前付き定義の本体も辿る。
 
 `calculus::substitute_with_reflection` は Program の引数を証明中では Set 側へ反映して代入する。
+`instantiate_telescope` は複数の引数を一度の走査で同時代入し、束縛の深さごとに共有部分木の結果を再利用する。
 環境を受け取らない `substitute` は反映が不要な構文用である。`shift`、module parameter 置換、ID の再割当ても
 family と index を保つ。`convertible` は同一 family・level 内の比較であり、
 Program type/kind の型 beta も扱う。証明を記録する内部注釈は型検査したうえで
@@ -112,6 +113,7 @@ Program type/kind の型 beta も扱う。証明を記録する内部注釈は�
 `calculus::evaluate` は fuel を受け取り `Normal` または `OutOfFuel` を返す。
 Program value 自身は step せず、computation は定められた評価位置で簡約する。
 `normalize` と `whnf` は上限を超えた場合にエラーを返す。
+`whnf` は関数への連続した適用をまとめ、対応する lambda の引数を同時代入して中間ノードの生成を抑える。
 
 `src/tests.rs` に多相 identity、computation 型の量化、型適用後の level、
 Box / boxed type application、datatype の反映、positivity と拒否例を収録している。

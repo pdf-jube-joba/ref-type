@@ -1204,12 +1204,47 @@ pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
     }
 }
 
+// Consume consecutive lambda binders together so partial substitutions do not
+// leave copies of the remaining body in the arena.
+fn reduce_application_spine(env: &CrateEnv, exp: Exp) -> Option<Exp> {
+    let arena = env.arena();
+    let mut head = exp;
+    let mut arguments = SmallVec::<[Exp; 8]>::new();
+    while let ExpNode::App { func, arg } = *arena.borrow_exp(head) {
+        arguments.push(arg);
+        head = func;
+    }
+    if arguments.is_empty() {
+        return None;
+    }
+    let mut body = whnf_with_erasure(env, head, true);
+    let mut consumed = 0;
+    while consumed < arguments.len() {
+        let ExpNode::Lam { body: next, .. } = *arena.borrow_exp(body) else {
+            break;
+        };
+        body = next;
+        consumed += 1;
+    }
+    if consumed == 0 && body == head {
+        return Some(exp);
+    }
+    arguments.reverse();
+    body = instantiate_telescope(arena, body, &arguments[..consumed]);
+    for &arg in &arguments[consumed..] {
+        body = arena.alloc(ExpNode::App { func: body, arg });
+    }
+    Some(body)
+}
+
 pub fn whnf(env: &CrateEnv, mut exp: Exp) -> Exp {
     if let Some(result) = env.whnf_cache.borrow().get(&exp) {
         return *result;
     }
     let original = exp;
-    while let Some(next) = exp_reduce_if_top(env, exp) {
+    while let Some(next) =
+        reduce_application_spine(env, exp).or_else(|| exp_reduce_if_top(env, exp))
+    {
         tracing::trace!(target: "ref_type::reduction", before = %crate::raw::printing::format_exp(env, exp), after = %crate::raw::printing::format_exp(env, next), "weak-head reduction step");
         if next == exp {
             break;

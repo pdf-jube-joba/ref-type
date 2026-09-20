@@ -64,7 +64,7 @@ pub fn substitute(
     body: impl Into<Expression>,
     argument: impl Into<Expression>,
 ) -> Result<Expression, String> {
-    substitute_inner(arena, body.into(), argument.into(), None)
+    substitute_inner(arena, body.into(), &[argument.into()], None)
 }
 
 /// Substitute a Program argument in runtime syntax and its Set/Prop proofs.
@@ -73,19 +73,19 @@ pub fn substitute_with_reflection(
     body: impl Into<Expression>,
     argument: impl Into<Expression>,
 ) -> Result<Expression, String> {
-    substitute_inner(&env.arena, body.into(), argument.into(), Some(env))
+    substitute_inner(&env.arena, body.into(), &[argument.into()], Some(env))
 }
 
 fn substitute_inner(
     arena: &Arena,
     body: Expression,
-    argument: Expression,
+    arguments: &[Expression],
     reflection_env: Option<&Environment>,
 ) -> Result<Expression, String> {
     fn walk(
         a: &Arena,
         e: Expression,
-        argument: Expression,
+        arguments: &[Expression],
         reflection_env: Option<&Environment>,
         depth: usize,
         cache: &mut FxHashMap<(Expression, usize), Expression>,
@@ -97,7 +97,9 @@ fn substitute_inner(
             return Ok(result);
         }
         if let Some(index) = structure::bound_index(a, e) {
-            if index == depth {
+            let parameter = index - depth;
+            let result = if parameter < arguments.len() {
+                let argument = arguments[arguments.len() - 1 - parameter];
                 let argument = if !a.sort(e).is_program() && a.sort(argument).is_program() {
                     let env = reflection_env
                         .ok_or("Program proof substitution requires an environment")?;
@@ -108,20 +110,26 @@ fn substitute_inner(
                 if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
                     return Err("substitution argument has the wrong family or level".into());
                 }
-                return shift(a, argument, depth, 0);
-            }
-            return build::bound(a, a.sort(e), e.family().stage(), index - 1);
+                shift(a, argument, depth, 0)?
+            } else {
+                build::bound(a, a.sort(e), e.family().stage(), index - arguments.len())?
+            };
+            cache.insert((e, depth), result);
+            return Ok(result);
         }
         let result = map_children(a, e, |child, n| {
-            walk(a, child, argument, reflection_env, depth + n, cache)
+            walk(a, child, arguments, reflection_env, depth + n, cache)
         })?;
         cache.insert((e, depth), result);
         Ok(result)
     }
+    if arguments.is_empty() {
+        return Ok(body);
+    }
     walk(
         arena,
         body,
-        argument,
+        arguments,
         reflection_env,
         0,
         &mut FxHashMap::default(),
@@ -132,12 +140,7 @@ pub fn instantiate_telescope(
     e: Expression,
     arguments: &[Expression],
 ) -> Result<Expression, String> {
-    let arena = &env.arena;
-    let mut result = e;
-    for (i, &argument) in arguments.iter().enumerate().rev() {
-        result = substitute_with_reflection(env, result, shift(arena, argument, i, 0)?)?;
-    }
-    Ok(result)
+    substitute_inner(&env.arena, e, arguments, Some(env))
 }
 pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
     if let Some(i) = structure::bound_index(arena, e) {
@@ -274,6 +277,47 @@ pub fn reduce_once(
     })?;
     Ok(changed.then_some(result))
 }
+fn reduce_application_spine(
+    env: &Environment,
+    e: Expression,
+) -> Result<Option<Expression>, String> {
+    let a = &env.arena;
+    let mut head = e;
+    let mut spine = Vec::new();
+    while let Some(application) = structure::application(a, head) {
+        application.rule.validate()?;
+        spine.push((head, application));
+        head = application.function;
+    }
+    if spine.is_empty() {
+        return Ok(None);
+    }
+    let mut body = whnf(env, head)?;
+    let mut arguments = Vec::new();
+    for &(original, application) in spine.iter().rev() {
+        let Some(lambda) = structure::lambda(a, body) else {
+            break;
+        };
+        if lambda.rule != application.rule {
+            break;
+        }
+        if lambda.body.family() != original.family() || a.sort(lambda.body) != a.sort(original) {
+            return Err("reduction changed syntax family or level".into());
+        }
+        arguments.push(application.argument);
+        body = lambda.body;
+    }
+    if arguments.is_empty() && body == head {
+        return Ok(Some(e));
+    }
+    // Substitute all consumed binders at once, retaining only the final body.
+    body = instantiate_telescope(env, body, &arguments)?;
+    for &(original, _) in spine.iter().rev().skip(arguments.len()) {
+        body = structure::map_children(a, original, Traversal::Head, |_, _| Ok(body))?;
+    }
+    Ok(Some(body))
+}
+
 pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
     if let Some(&cached) = env.head_cache.borrow().get(&e) {
         return Ok(cached);
@@ -283,6 +327,14 @@ pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
     for _ in 0..100_000 {
         if let Some((body, _)) = structure::annotation(&env.arena, e) {
             e = body;
+            continue;
+        }
+        if let Some(next) = reduce_application_spine(env, e)? {
+            if next == e {
+                env.head_cache.borrow_mut().insert(original, e);
+                return Ok(e);
+            }
+            e = next;
             continue;
         }
         if let Some(next) = reduce_root(env, e)? {

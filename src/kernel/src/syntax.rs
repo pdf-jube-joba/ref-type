@@ -111,6 +111,11 @@ macro_rules! syntax_families {
             $($storage: RefCell<Partition<$node>>,)+
         }
         impl Arena {
+            /// Number of retained nodes in each syntax family.
+            pub fn node_counts(&self) -> Vec<(Family, usize)> {
+                vec![$((Family::$handle, self.$storage.borrow().nodes.len()),)+]
+            }
+
             pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
                 match e.into() { $(Expression::$handle(h) => self.$storage.borrow().nodes[h.index()].sort(),)+ }
             }

@@ -9,6 +9,9 @@ struct Args {
     /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
     #[arg(long)]
     trace: bool,
+    /// 処理後に raw / kernel の構文ノード数を標準エラーへ表示する
+    #[arg(long)]
+    stats: bool,
 }
 
 mod printing;
@@ -16,7 +19,7 @@ mod printing;
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_tracing(args.trace)?;
-    let err = run_file_mode(args.file)?;
+    let err = run_file_mode(args.file, args.stats)?;
     if err.is_some() {
         std::process::exit(1);
     }
@@ -44,10 +47,21 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn elaborate_and_format(modules: Vec<front::syntax::Module>) -> (Vec<String>, Option<String>) {
+fn elaborate_and_format(
+    modules: Vec<front::syntax::Module>,
+    stats: bool,
+) -> (Vec<String>, Option<String>) {
     let mut global = front::elaborator::GlobalEnvironment::default();
     let mut output_lines = Vec::new();
-    if let Err(err) = global.add_modules_to_root(&modules) {
+    let result = global.add_modules_to_root(&modules);
+    if stats {
+        eprintln!("raw nodes: {:?}", global.arena().node_counts());
+        eprintln!(
+            "kernel nodes: {:?}",
+            global.kernel_env().arena().node_counts()
+        );
+    }
+    if let Err(err) = result {
         let detail = front::metavariables::format_elaboration_error(global.crate_env(), &err);
         push_outputs(&global, &mut output_lines);
         return (output_lines, Some(format!("Elaboration Error: {detail}")));
@@ -63,10 +77,10 @@ fn push_outputs(global: &front::elaborator::GlobalEnvironment, output_lines: &mu
     }
 }
 
-fn run_file_mode(path: PathBuf) -> anyhow::Result<Option<String>> {
+fn run_file_mode(path: PathBuf, stats: bool) -> anyhow::Result<Option<String>> {
     let loaded = front::module_loader::load_modules_from_root(&path);
     let (out, err_message) = match loaded {
-        Ok(modules) => elaborate_and_format(modules),
+        Ok(modules) => elaborate_and_format(modules, stats),
         Err(error) => (Vec::new(), Some(format!("Module Load Error: {error}"))),
     };
     for entry in out {

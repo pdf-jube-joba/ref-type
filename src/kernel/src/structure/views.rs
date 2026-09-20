@@ -9,6 +9,7 @@ pub(crate) struct Product {
 }
 #[derive(Clone, Copy)]
 pub(crate) struct Application {
+    pub rule: ProductRule,
     pub function: Expression,
     pub argument: Expression,
 }
@@ -590,14 +591,20 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
     match e {
         Expression::SetTerm(h) => match arena.read(h).form {
             SetTermForm::AppTerm {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
             SetTermForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
@@ -605,14 +612,20 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
         },
         Expression::SetType(h) => match arena.read(h).form {
             SetTypeForm::AppTerm {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
             SetTypeForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
@@ -620,14 +633,20 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
         },
         Expression::PropTerm(h) => match arena.read(h).form {
             PropTermForm::AppTerm {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
             PropTermForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
@@ -635,14 +654,20 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
         },
         Expression::PropType(h) => match arena.read(h).form {
             PropTypeForm::AppTerm {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
             PropTypeForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
@@ -650,8 +675,11 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
         },
         Expression::ValueType(h) => match arena.read(h).form {
             ValueTypeForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
@@ -659,14 +687,20 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
         },
         Expression::ComputationTerm(h) => match arena.read(h).form {
             ComputationTermForm::AppTerm {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
             ComputationTermForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),
@@ -674,8 +708,11 @@ pub(crate) fn application(arena: &Arena, e: Expression) -> Option<Application> {
         },
         Expression::ComputationType(h) => match arena.read(h).form {
             ComputationTypeForm::AppType {
-                function, argument, ..
+                rule,
+                function,
+                argument,
             } => Some(Application {
+                rule,
                 function: function.into(),
                 argument: argument.into(),
             }),

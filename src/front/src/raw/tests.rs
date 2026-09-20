@@ -262,6 +262,36 @@ fn beta_reduction_remains_set_only() {
 }
 
 #[test]
+fn weak_head_reduction_batches_arguments_without_intermediate_nodes() {
+    use crate::raw::calculus::whnf;
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let ty = a.sort(Sort::Set(0));
+    let lambda = |body| {
+        a.alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty,
+            body,
+        })
+    };
+    let apply = |func, arg| a.alloc(ExpNode::App { func, arg });
+    let function = lambda(lambda(a.exp_bound(1)));
+    let first = a.exp_bound(2);
+    let second = a.exp_bound(4);
+    let partial = apply(function, first);
+    let full = apply(partial, second);
+    let extra = apply(full, ty);
+    let expected_partial = lambda(a.exp_bound(3));
+    let expected_extra = apply(first, ty);
+    let counts = a.node_counts();
+    // Full application is checked first, before any partial result is cached.
+    assert_eq!(whnf(&env, full), first);
+    assert_eq!(whnf(&env, partial), expected_partial);
+    assert_eq!(whnf(&env, extra), expected_extra);
+    assert_eq!(a.node_counts(), counts);
+}
+
+#[test]
 fn repeated_weak_head_reduction_reuses_the_result() {
     use crate::raw::calculus::whnf;
 
