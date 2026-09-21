@@ -195,8 +195,12 @@
     (ofRatAddLe a b) (leOfRatAdd a b);
 
 \definition ofRatNegLe (a: Rat): Le (neg (ofRat a)) (ofRat (negRat a)) :=
-  \fun (q: Rat) => \fun (member: mem (neg (ofRat a)) q) =>
-    CutLaws.negElim (ofRat a) q (negMemLower (ofRat a) q member)
+  \block {
+    \fix (q: Rat);
+    \fix (member: mem (neg (ofRat a)) q);
+    \let lowerMember: In (NegLower (ofRat a)) q :=
+      negMemLower (ofRat a) q member;
+    \return CutLaws.negElim (ofRat a) q lowerMember
       (mem (ofRat (negRat a)) q)
       (\fun (r: Rat) =>
         \fun (nra: Logic.Not (mem (ofRat a) r)) =>
@@ -221,6 +225,7 @@
                         (RationalOperations.ltNegReverse a r ar)))
                   rest)
               (RationalOrder.trichotomy r a));
+  };
 
 \definition leOfRatNeg (a: Rat): Le (ofRat (negRat a)) (neg (ofRat a)) :=
   \fun (q: Rat) => \fun (qa: mem (ofRat (negRat a)) q) =>
@@ -1443,6 +1448,7 @@
 
 \definition signedMulCandidatesUnique (x, y: Real):
   \forall (u, v: SignedMulCandidate x y) -> u = v :=
+
   \fun (u, v: SignedMulCandidate x y) =>
     Classical.orElim (Le zero x) (Lt x zero) (u = v)
       (\fun (zeroX: Le zero x) =>
@@ -1523,6 +1529,7 @@
   CutOrder.leOfLt zero one (ltOfRat zeroRat oneRat RationalOrder.zeroLtOne);
 
 \definition fieldMulComm (x, y: Real): fieldMul x y = fieldMul y x :=
+
   Classical.orElim (Le zero x) (Lt x zero) (fieldMul x y = fieldMul y x)
     (\fun (zeroX: Le zero x) =>
       Classical.orElim (Le zero y) (Lt y zero) (fieldMul x y = fieldMul y x)
@@ -1846,7 +1853,10 @@
   (zeroX: Le zero x) (zeroY: Le zero y)
   (aPositive: lt zeroRat a) (xa: mem x a) (yb: mem y b)
   (qab: lt q (mulRat a b)): mem (mul x y) q :=
-  Classical.orElim (lt zeroRat b)
+  \block {
+    \let productNonnegative: Le zero (mul x y) :=
+      nonnegativeMul x y zeroX zeroY;
+    \return Classical.orElim (lt zeroRat b)
     (Logic.Or[RationalFractions.FractionEq zeroRat b, lt b zeroRat])
     (mem (mul x y) q)
     (\fun (bPositive: lt zeroRat b) =>
@@ -1856,7 +1866,7 @@
       Classical.orElim (RationalFractions.FractionEq zeroRat b)
         (lt b zeroRat) (mem (mul x y) q)
         (\fun (zeroB: RationalFractions.FractionEq zeroRat b) =>
-          (nonnegativeMul x y zeroX zeroY) q
+          productNonnegative q
             (ofRatMem zeroRat q
               (RationalOrder.ltReplaceRight q (mulRat a b) zeroRat
                 (RationalFractions.fractionEqTrans _ _ _
@@ -1865,13 +1875,14 @@
                     (RationalFractions.fractionEqSym _ _ zeroB))
                   (RationalOperations.fractionMulZeroRight a)) qab)))
         (\fun (bNegative: lt b zeroRat) =>
-          (nonnegativeMul x y zeroX zeroY) q
+          productNonnegative q
             (ofRatMem zeroRat q
               (RationalOrder.ltTrans q (mulRat a b) zeroRat qab
                 (RationalOperations.mulLtZeroPositiveNegative a b
                   aPositive bNegative))))
         rest)
     (RationalOrder.trichotomy zeroRat b);
+  };
 
 \definition mulAddNonnegativeForward (x, y, z: Real)
   (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
