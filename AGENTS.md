@@ -20,3 +20,52 @@ perf は `/usr/lib/linux-tools/6.8.0-139-generic/perf` にあります。
 - 古い構文を reject することをチェックするためだけのテストは書かない。
 - コードをきれいに保つ。既存の rust コードを大きく変更してかまわない。簡潔さや規則性を既存のコードよりも尊重する。
 - コードのデバッグ用に kernel に作って便利だった機能は残す。
+
+### 過去の微妙だった点
+- `()` をつけなくていいところにつける `(x)` とか。
+- 一気に生成しすぎているのか、こういうミスをやってる？
+  ```
+  • Edited lib/Reals/CauchyReal/Sequences.ref (+2 -2)
+  1082     \forall (j: Nat) -> NatLe k j ->
+  1083 -     RationalOperations.Le s (at y j)] }, N))}
+  1083 + RationalOperations.Le s (at y j)] }, N))}
+  1084   n (NL.leTrans N (commonBound M N) n
+  1085 -   (rightLeCommonBound M N) Kn)) },
+  1085 +   (rightLeCommonBound M N) Kn))) },
+  1086   \Cast[Nat] ({ k : Nat \where
+  ```
+  括弧の対応をちゃんとみればよさそうだが、その前に大量の定義を入れるのをやめたい。 `--parse-only` を使う。
+- こういう定義は `byCases` がそのままゴールなので無駄っぽい。
+  ```
+  \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
+  \block {
+    \fix (a, b: Bool^);
+    \fix (e: IsTrue (eqbSet a b));
+    \let byCases: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
+      \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (eqbSet a b) -> a = b \with {
+        | false => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::false b) -> Bool^::false = b \with {
+          | false => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::false))
+          | true => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::false = Bool^::true) e)
+          })
+        | true => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::true b) -> Bool^::true = b \with {
+          | false => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::true = Bool^::false) e)
+          | true => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::true))
+          })
+        };
+    \return byCases a b e;
+  };
+  ```
+- できれば `_` を型の位置には使うようにしてほしい。
+  ```
+  \definition diffStepSet: DiffState^ -> \RunStep[DiffState^, Int^] := \squash[\F(\U((DiffState -> \RunStep[DiffState, Int])))](\box[\F(\U((DiffState -> \RunStep[DiffState, Int])))](\return diffStep));
+  ```
+  こういうのをやめる。
+- `\cfun ... \return \thunk` を `\fun` に移行しようという命令に対して、機械的に移行しようとしたところ括弧の数が変わって対応が取れなくなった。
+  ```
+  • 括弧と内部の式を壊さずに戻せました。次に add だけで、外側の \cfun を \fun に置換
+  し、\return(\thunk(...)) はそのまま残す形を試します。これが通れば同じ規則を全対象へ適用します。
+  ```
+  もとの要件を満たせないみたいな感じにいって途中までやるのをやめるべき。機械的な移行（ python や perl ）に失敗したなら、 ちゃんと理由を分析して python や perl を書き直すようにして、元の内容を変更しない。
+- `mulIntegerDistribLeft` とかすごい長い。
+- `mulIntegerDistribLeft` はブロック使ったら何とかなりそう。
+- `addMonotone` もどんどんインデントをしていく。インデントをすること自体は自然な内容だが、もっと分割できないか。
