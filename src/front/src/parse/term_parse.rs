@@ -195,17 +195,13 @@ impl<'a> TermParser<'a> {
             return Ok(SExp::ValueType);
         }
         if self.bump_if_keyword("\\U") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|computation_ty| SExp::ThunkType {
-                    computation_ty: Box::new(computation_ty),
-                })
+            return Ok(SExp::ThunkType {
+                computation_ty: Box::new(self.parse_postfix()?),
             });
         }
         if self.bump_if_keyword("\\F") {
-            return self.parse_parenthesized(|parser| {
-                parser.parse_sexp().map(|value_ty| SExp::ReturnType {
-                    value_ty: Box::new(value_ty),
-                })
+            return Ok(SExp::ReturnType {
+                value_ty: Box::new(self.parse_postfix()?),
             });
         }
         if self.bump_if_keyword(r"\record") {
@@ -656,11 +652,8 @@ impl<'a> TermParser<'a> {
         }
 
         if self.bump_if_keyword("\\refl") {
-            self.expect_token(Token::LParen)?; // expect '('
-            let term = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?; // expect ')'
             return Ok(SExp::IdRefl {
-                element: Box::new(term),
+                element: Box::new(self.parse_postfix()?),
             });
         }
 
@@ -1612,6 +1605,32 @@ mod tests {
         };
         assert!(matches!(*func, SExp::Force { .. }));
         complete(r"\cfun (x: A) (y: B) => \return y");
+    }
+
+    #[test]
+    fn atom_prefix_keywords_are_right_associative() {
+        let SExp::ThunkType { computation_ty } = complete(r"\U \F A") else {
+            panic!("expected an outer thunk type");
+        };
+        assert!(matches!(*computation_ty, SExp::ReturnType { .. }));
+
+        let SExp::IdRefl { element } = complete(r"\refl \refl x") else {
+            panic!("expected an outer reflexivity term");
+        };
+        assert!(matches!(*element, SExp::IdRefl { .. }));
+
+        let SExp::Thunk { computation } = complete(r"\thunk \force suspended") else {
+            panic!("expected an outer thunk");
+        };
+        assert!(matches!(*computation, SExp::Force { .. }));
+
+        let SExp::App { func, .. } = complete(r"\refl f x") else {
+            panic!("the second atom should be applied outside the prefix keyword");
+        };
+        assert!(matches!(*func, SExp::IdRefl { .. }));
+
+        complete(r"\U(A ~> \F(B))");
+        complete(r"\refl(f x)");
     }
 
     #[test]

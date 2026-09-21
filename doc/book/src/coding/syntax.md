@@ -230,6 +230,7 @@ Program:
 | --- | --- |
 | `atom`、括弧 | — |
 | `expression::item` | 左 |
+| `keyword atom` | 右 |
 | `function argument` | 左 |
 | `left = right` | 一度だけ |
 | `A -> B`、`A ~> C` | 右 |
@@ -242,7 +243,7 @@ A ~> B ~> C
 ```
 
 `\let` と `\bind` は `\in` の後を右端まで読む。`\return` も後続の value 式全体を読む。
-`\thunk` と `\force` は直後の postfix atom だけを取るため、複合式を引数にするときは括弧で囲む。
+atom を一つ取る keyword は右結合する。複合式を引数にするときは括弧で囲む。
 
 ## 5. Set/Prop
 
@@ -304,7 +305,7 @@ A -> B
 
 ```text
 left = right
-\refl(element)
+\refl element-atom
 \exact(element, set)
 \bysub(superset, subset, element)
 \idelim(left = right \with x: A => predicate) \by { base: base-proof, equality: equality-proof }
@@ -361,8 +362,8 @@ value type、computation type、value、computation を区別する。
 
 ```text
 \VType
-\F(A)
-\U(C)
+\F value-type-atom
+\U computation-type-atom
 A ~> C
 \RunStep[A, B]
 ```

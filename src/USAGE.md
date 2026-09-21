@@ -77,7 +77,7 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 ## Program の構文
 
 Program の関数型は `A ~> C`、ラムダは `\cfun (x: A) => computation`。
-値の型と計算の型は区別し、`\F(A)` と `\U(C)` は従来どおり使う。
+値の型と計算の型は区別し、`\F A` と `\U C` を使う。
 計算の適用は `function value` と書き、左結合する。引数は値であり、
 計算結果を渡す場合は先に `\bind` で受け取る。
 
