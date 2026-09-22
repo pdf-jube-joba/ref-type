@@ -906,6 +906,7 @@
 \definition addIntegerAssoc (x, y, z: Integer):
     IntegerEq (addInteger (addInteger x y) z)
       (addInteger x (addInteger y z)) :=
+
   IM.equivalentTrans
     (IM.representative (addInteger (addInteger x y) z))
     (IM.addRep (IM.representative (addInteger x y)) (IM.representative z))
@@ -1041,7 +1042,22 @@
 
 \definition mulIntegerAssoc (x, y, z: Integer):
     IntegerEq (mulInteger (mulInteger x y) z) (mulInteger x (mulInteger y z)) :=
-    IM.equivalentTrans
+  \block {
+    \let normalizeRight:
+      IM.Equivalent (IM.representative (mulInteger y z))
+        (IM.mulRep (IM.representative y) (IM.representative z)) :=
+      mulIntegerRep y z \then
+    \let associateRepresentatives:
+      IM.Equivalent
+        (IM.mulRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.representative z))
+        (IM.mulRep
+          (IM.representative x)
+          (IM.mulRep (IM.representative y) (IM.representative z))) :=
+      IR.mulIntegerAssoc (IM.representative x)
+        (IM.representative y) (IM.representative z) \then
+    \return IM.equivalentTrans
       (IM.representative (mulInteger (mulInteger x y) z))
       (IM.mulRep (IM.representative (mulInteger x y)) (IM.representative z))
       (IM.representative (mulInteger x (mulInteger y z)))
@@ -1065,7 +1081,7 @@
             (IM.representative x)
             (IM.mulRep (IM.representative y) (IM.representative z)))
           (IM.representative (mulInteger x (mulInteger y z)))
-          (IR.mulIntegerAssoc (IM.representative x) (IM.representative y) (IM.representative z))
+          associateRepresentatives
           (IM.equivalentTrans
             (IM.mulRep
               (IM.representative x)
@@ -1082,13 +1098,28 @@
               (IM.equivalentSym
                 (IM.representative (mulInteger y z))
                 (IM.mulRep (IM.representative y) (IM.representative z))
-                (mulIntegerRep y z)))
+                normalizeRight))
             (IM.representativeNormalize
-              (IM.mulRep (IM.representative x) (IM.representative (mulInteger y z)))))));
+              (IM.mulRep (IM.representative x) (IM.representative (mulInteger y z)))))))
+  };
 \definition mulIntegerDistribLeft (x, y, z: Integer):
     IntegerEq (mulInteger x (addInteger y z))
       (addInteger (mulInteger x y) (mulInteger x z)) :=
-  IM.equivalentTrans
+  \block {
+    \let normalizeSum:
+      IM.Equivalent (IM.representative (addInteger y z))
+        (IM.addRep (IM.representative y) (IM.representative z)) :=
+      addIntegerRep y z \then
+    \let distributeRepresentatives:
+      IM.Equivalent
+        (IM.mulRep (IM.representative x)
+          (IM.addRep (IM.representative y) (IM.representative z)))
+        (IM.addRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.mulRep (IM.representative x) (IM.representative z))) :=
+      IR.mulIntegerDistribLeft (IM.representative x)
+        (IM.representative y) (IM.representative z) \then
+    \return IM.equivalentTrans
     (IM.representative (mulInteger x (addInteger y z)))
     (IM.mulRep (IM.representative x)
       (IM.representative (addInteger y z)))
@@ -1106,7 +1137,7 @@
         (IM.representative x) (IM.representative x)
         (IM.representative (addInteger y z))
         (IM.addRep (IM.representative y) (IM.representative z))
-        (integerEqRefl x) (addIntegerRep y z))
+        (integerEqRefl x) normalizeSum)
       (IM.equivalentTrans
         (IM.mulRep (IM.representative x)
           (IM.addRep (IM.representative y) (IM.representative z)))
@@ -1115,8 +1146,7 @@
           (IM.mulRep (IM.representative x) (IM.representative z)))
         (IM.representative
           (addInteger (mulInteger x y) (mulInteger x z)))
-        (IR.mulIntegerDistribLeft (IM.representative x)
-          (IM.representative y) (IM.representative z))
+        distributeRepresentatives
         (IM.equivalentTrans
           (IM.addRep
             (IM.mulRep (IM.representative x) (IM.representative y))
@@ -1133,8 +1163,9 @@
             (IM.equivalentSym _ _ (mulIntegerRep x y))
             (IM.equivalentSym _ _ (mulIntegerRep x z)))
           (IM.representativeNormalize
-            (IM.addRep (IM.representative (mulInteger x y))
-              (IM.representative (mulInteger x z)))))));
+              (IM.addRep (IM.representative (mulInteger x y))
+              (IM.representative (mulInteger x z)))))))
+  };
 \definition mulIntegerDistribRight (x, y, z: Integer):
     IntegerEq (mulInteger (addInteger x y) z)
       (addInteger (mulInteger x z) (mulInteger y z)) :=
@@ -1231,6 +1262,7 @@
 
 \definition mulIntegerNegLeft (x, y: Integer):
     IntegerEq (mulInteger (negInteger x) y) (negInteger (mulInteger x y)) :=
+
     IM.equivalentTrans
       (IM.representative (mulInteger (negInteger x) y))
       (IM.mulRep (IM.representative (negInteger x)) (IM.representative y))
@@ -1270,6 +1302,7 @@
 
 \definition mulIntegerNatural (x: Integer) (n: Nat):
     IntegerEq (mulInteger x (integer n zeroNat)) (scaleInteger x n) :=
+
     IM.equivalentTrans
       (IM.representative (mulInteger x (integer n zeroNat)))
       (IM.mulRep (IM.representative x) (IM.representative (integer n zeroNat)))
