@@ -8,6 +8,7 @@ pub(super) struct TermParser<'a> {
     tokens: &'a [SpannedToken<'a>],
     pos: usize,
     allow_macro_parameters: bool,
+    allow_empty_record_literal: bool,
     #[cfg(test)]
     consumed: usize,
 }
@@ -18,6 +19,7 @@ impl<'a> TermParser<'a> {
             tokens,
             pos: 0,
             allow_macro_parameters: false,
+            allow_empty_record_literal: true,
             #[cfg(test)]
             consumed: 0,
         }
@@ -28,6 +30,7 @@ impl<'a> TermParser<'a> {
             tokens,
             pos: 0,
             allow_macro_parameters: true,
+            allow_empty_record_literal: true,
             #[cfg(test)]
             consumed: 0,
         }
@@ -202,16 +205,6 @@ impl<'a> TermParser<'a> {
         if self.bump_if_keyword("\\F") {
             return Ok(SExp::ReturnType {
                 value_ty: Box::new(self.parse_postfix()?),
-            });
-        }
-        if self.bump_if_keyword(r"\record") {
-            let access = self.parse_access_path()?;
-            let parameters = self.parse_optional_parameters()?;
-            let fields = self.parse_record_body()?;
-            return Ok(SExp::RecordTypeCtor {
-                access,
-                parameters,
-                fields,
             });
         }
         if self.bump_if_keyword(r"\match") {
@@ -452,7 +445,11 @@ impl<'a> TermParser<'a> {
             self.expect_keyword("\\in")?; // expect '\in'
             let path = self.parse_access_path()?;
             self.expect_keyword("\\return")?; // expect '\\return'
-            let return_type = self.parse_sexp()?;
+            let allow_empty_record_literal = self.allow_empty_record_literal;
+            self.allow_empty_record_literal = false;
+            let return_type = self.parse_sexp();
+            self.allow_empty_record_literal = allow_empty_record_literal;
+            let return_type = return_type?;
 
             let branches = self.parse_branches(|parser| {
                 let case_name = parser.expect_ident()?;
@@ -1019,6 +1016,26 @@ impl<'a> TermParser<'a> {
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
                 let parameters = self.parse_optional_parameters()?;
+
+                let starts_record_body = match (
+                    self.tokens.get(self.pos).map(|token| token.kind),
+                    self.tokens.get(self.pos + 1).map(|token| token.kind),
+                    self.tokens.get(self.pos + 2).map(|token| token.kind),
+                ) {
+                    (Some(Token::LBrace), Some(Token::RBrace), _) => {
+                        self.allow_empty_record_literal
+                    }
+                    (Some(Token::LBrace), Some(Token::Ident(_)), Some(Token::Assign)) => true,
+                    _ => false,
+                };
+                if starts_record_body {
+                    let fields = self.parse_record_body()?;
+                    return Ok(SExp::RecordTypeCtor {
+                        access,
+                        parameters,
+                        fields,
+                    });
+                }
 
                 // field access case or record construction case
                 if self.bump_if_token(Token::RecordConstructor) {
@@ -1729,12 +1746,13 @@ mod tests {
     #[test]
     fn records_remain_unclassified_and_case_has_an_unambiguous_body() {
         let SExp::RecordTypeCtor { fields, .. } =
-            complete(r"\record Future[A] { suspended := \thunk (\return x) }")
+            complete(r"Future[A] { suspended := \thunk (\return x) }")
         else {
             panic!()
         };
         assert!(matches!(fields[0].1, SExp::Thunk { .. }));
-        complete(r"\record Empty {}");
+        complete(r"Empty {}");
+        complete(r"f ({ x : A \where P })");
         complete(r"\case x \in T \return R { | ctor => branch }");
         let SExp::ProgramCase { branches, .. } =
             complete(r"\match x \in T \with { | ctor a b => \return a }")
@@ -1824,7 +1842,7 @@ mod tests {
         for (input, bad) in [
             (r"f[x, ;]", ";"),
             (r"\fun (x: A \where P \as ) => x", ")"),
-            (r"\record T { field := ; }", ";"),
+            (r"T { field := ; }", ";"),
             (r"\match x \in T \with { | ctor x => ; }", ";"),
             (r"\match x \in T { | ctor => c }", "{"),
             (r"\match x \in T \with { | ctor => c; }", ";"),
@@ -1913,13 +1931,13 @@ mod tests {
         print_and_unwrap(r"types.Bool^[A]");
         print_and_unwrap(r"Bool^::true");
         print_and_unwrap(r"types.Wrap ^ [Bool ^]::wrap");
-        print_and_unwrap(r"\record x { a := A, b := B }");
-        print_and_unwrap(r"\record x.y { a := A, b := B }");
-        print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");
+        print_and_unwrap(r"x { a := A, b := B }");
+        print_and_unwrap(r"x.y { a := A, b := B }");
+        print_and_unwrap(r"x.y[ A, B ] { a := A, b := B }");
         print_and_unwrap(r"x::y"); // Repeated :: is handled by parse_postfix.
         print_and_unwrap(r"List[Nat]::Nil");
         print_and_unwrap(r"list.List[Nat]::Nil");
-        print_and_unwrap(r"\record Group[Nat] { mul := x, e := y }");
+        print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
         print_and_unwrap(r"\( x + y \)");
         print_and_unwrap(r"mymacro!{ a + b c }");
     }
@@ -1966,14 +1984,14 @@ mod tests {
         print_and_unwrap(r"x.y");
         print_and_unwrap(r"x[ A, B, C ]");
         print_and_unwrap(r"x.y[ A, B ]");
-        print_and_unwrap(r"\record x { a := A, b := B }");
-        print_and_unwrap(r"\record x.y { a := A, b := B }");
-        print_and_unwrap(r"\record x.y[ A, B ] { a := A, b := B }");
+        print_and_unwrap(r"x { a := A, b := B }");
+        print_and_unwrap(r"x.y { a := A, b := B }");
+        print_and_unwrap(r"x.y[ A, B ] { a := A, b := B }");
         print_and_unwrap(r"x::y");
         print_and_unwrap(r"x::y::z");
         print_and_unwrap(r"List[Nat]::Nil");
         print_and_unwrap(r"list.List[Nat]::Nil");
-        print_and_unwrap(r"\record Group[Nat] { mul := x, e := y }");
+        print_and_unwrap(r"Group[Nat] { mul := x, e := y }");
     }
     #[test]
     fn parse_special_exp_test() {

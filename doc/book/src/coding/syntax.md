@@ -173,7 +173,7 @@ constructor は `Type[parameters]::constructor arguments` で参照する。
   field2: type2,
 };
 
-\record Type[parameters] {
+Type[parameters] {
   field1 := value1,
   field2 := value2
 }

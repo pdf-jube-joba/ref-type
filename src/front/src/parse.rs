@@ -87,7 +87,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\cfun",
     "\\match",
     "\\tmatch",
-    "\\record",
     "\\VType",
     "\\U",
     "\\F",

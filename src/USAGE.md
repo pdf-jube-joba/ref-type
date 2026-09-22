@@ -141,7 +141,7 @@ Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を�
 
 論理側の束縛は `\fun (x: A) => body` と `\forall (x: A) -> B`。
 束縛のない `A -> B` はそのまま使える。レコード生成は
-`\record T { field := value }` と書く。論理／Program 共通の構文であり、Program では次のように使う。
+`T { field := value }` と書く。論理／Program 共通の構文であり、Program では次のように使う。
 
 ```text
 \record Pair[A: \VType]: \VType := { first: A, second: A };
@@ -151,7 +151,7 @@ Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を�
 ```
 
 Program record の field は非依存・非再帰の値型とする。構築は
-`\record Pair[A] { first := a, second := b }`、field の取得は
+`Pair[A] { first := a, second := b }`、field の取得は
 `Pair[A]::first pair` と書く。取得結果は `\F(A)` なので、
 後続の計算で使うには `\bind` で受け取る。
 Program の inductive／structure には

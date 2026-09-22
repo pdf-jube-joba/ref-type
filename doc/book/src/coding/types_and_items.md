@@ -57,7 +57,7 @@ structure の parameter は通常の名前付き parameter とする。
 structure が carrier を持つとは限らないため、特別な carrier binder は用意しない。
 
 ```text
-\definition origin: Point[Nat] := \record Point[Nat] {
+\definition origin: Point[Nat] := Point[Nat] {
   x := Nat::zero,
   y := Nat::zero,
 };
@@ -110,7 +110,7 @@ field に thunk 型 `\U(C)` を使うこともできる。空の structure も�
 \definition Pair(A: \VType)::swap(p: Pair[A]): \F(Pair[A]) :=
   \bind x: A <- Pair[A]::first p \in
   \bind y: A <- Pair[A]::second p \in
-  \return \record Pair[A] { first := y, second := x };
+  \return Pair[A] { first := y, second := x };
 
 \definition Pair(A: \VType)::swap_thunk:
   \U(Pair[A] ~> \F(Pair[A])) := \thunk (Pair[A]::swap);
