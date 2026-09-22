@@ -128,9 +128,9 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 
 ```text
 \definition transform(p: P.Times[A, B]): \F(C) := \program {
-  \bind mapped: P.Times[C, D] <- PM.map (\thunk f) (\thunk g) p;
-  \bind result: C <- P.Times::first mapped;
-  \return result;
+  \bind mapped: P.Times[C, D] <- PM.map (\thunk f) (\thunk g) p \then
+  \bind result: C <- P.Times::first mapped \then
+  \return result
 };
 ```
 
@@ -202,7 +202,7 @@ Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持�
 ```
 
 Program の逐次計算は `\program` 内の `\bind` 文で記述する。各 block は最後に
-`\return value;` を置き、旧来の深く入れ子になった `\bind ... \in ...` は使わない。
+`\return value` を置き、中間文は `\then` でつなぐ。旧来の深く入れ子になった `\bind ... \in ...` は使わない。
 
 別々に import した Nat / Bool の instance は混ぜられない。Int と組み合わせる場合は、
 Int が公開する `Nat` / `Bool` alias と `natZero!{}`、`natSucc!{n}`、

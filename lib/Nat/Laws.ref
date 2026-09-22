@@ -7,12 +7,12 @@
 \definition addZeroRight (a: Nat^): add^ a Nat^::zero = a := \refl(a);
 \definition addSuccLeft: \forall (a, b: Nat^) -> add^ (Nat^::succ a) b = Nat^::succ (add^ a b) :=
   \block {
-    \fix (a, b: Nat^);
+    \fix (a, b: Nat^) \then
     \let reflectedSuccessor:
       addPrec (Nat^::succ a) b = Nat^::succ (add^ a b) :=
       trans!{Nat^} _ _ _ (addPrecSuccLeft a b)
-        (succCong _ _ (sym!{Nat^} _ _ (addMatchesPrec b a)));
-    \return trans!{Nat^} _ _ _ (addMatchesPrec b (Nat^::succ a)) reflectedSuccessor;
+        (succCong _ _ (sym!{Nat^} _ _ (addMatchesPrec b a))) \then
+    \return trans!{Nat^} _ _ _ (addMatchesPrec b (Nat^::succ a)) reflectedSuccessor
   };
 \definition addSuccRight (a, b: Nat^): add^ a (Nat^::succ b) = Nat^::succ (add^ a b) := addSuccLeft a b;
 \definition addZeroLeft: \forall (a: Nat^) -> add^ Nat^::zero a = a :=
@@ -32,20 +32,20 @@
   \induction (c: Nat^) \return add^ (add^ a b) c = add^ a (add^ b c) \with {
     | zero => (\refl(add^ a b))
     | succ => (\block {
-      \fix (c: Nat^);
-      \fix (ih: add^ (add^ a b) c = add^ a (add^ b c));
+      \fix (c: Nat^) \then
+      \fix (ih: add^ (add^ a b) c = add^ a (add^ b c)) \then
       \let inductionUnderSuccessor:
         Nat^::succ (add^ (add^ a b) c) = Nat^::succ (add^ a (add^ b c)) :=
-        succCong (add^ (add^ a b) c) (add^ a (add^ b c)) ih;
+        succCong (add^ (add^ a b) c) (add^ a (add^ b c)) ih \then
       \let exposeOuterAddition:
         Nat^::succ (add^ a (add^ b c)) = add^ a (Nat^::succ (add^ b c)) :=
-        sym!{Nat^} _ _ (addSuccRight a (add^ b c));
+        sym!{Nat^} _ _ (addSuccRight a (add^ b c)) \then
       \let exposeInnerAddition:
         add^ a (Nat^::succ (add^ b c)) = add^ a (add^ b (Nat^::succ c)) :=
-        congr!{Nat^ Nat^} (add^ a) _ _ (sym!{Nat^} _ _ (addSuccRight b c));
+        congr!{Nat^ Nat^} (add^ a) _ _ (sym!{Nat^} _ _ (addSuccRight b c)) \then
       \return trans!{Nat^} _ _ _ (addSuccRight (add^ a b) c)
         (trans!{Nat^} _ _ _ inductionUnderSuccessor
-          (trans!{Nat^} _ _ _ exposeOuterAddition exposeInnerAddition));
+          (trans!{Nat^} _ _ _ exposeOuterAddition exposeInnerAddition))
     })
     };
 \definition addCancelRight: \forall (c, a, b: Nat^) -> add^ a c = add^ b c -> a = b :=
@@ -59,12 +59,12 @@
     };
 \definition addCancelLeft: \forall (c, a, b: Nat^) -> add^ c a = add^ c b -> a = b :=
   \block {
-    \fix (c, a, b: Nat^);
-    \fix (e: add^ c a = add^ c b);
+    \fix (c, a, b: Nat^) \then
+    \fix (e: add^ c a = add^ c b) \then
     \let rightSumsEqual: add^ a c = add^ b c :=
       trans!{Nat^} _ _ _ (addComm a c)
-        (trans!{Nat^} _ _ _ e (addComm c b));
-    \return addCancelRight c a b rightSumsEqual;
+        (trans!{Nat^} _ _ _ e (addComm c b)) \then
+    \return addCancelRight c a b rightSumsEqual
   };
 \definition subZeroRight (a: Nat^): sub^ a Nat^::zero = a := \refl(a);
 \definition subZeroLeft: \forall (a: Nat^) -> sub^ Nat^::zero a = Nat^::zero :=
@@ -180,26 +180,26 @@
   congr2!{Nat^ Nat^ Nat^} add^;
 \definition addSwap: \forall (a, b, c: Nat^) -> add^ a (add^ b c) = add^ b (add^ a c) :=
   \block {
-    \fix (a, b, c: Nat^);
+    \fix (a, b, c: Nat^) \then
     \let regroupLeft: add^ a (add^ b c) = add^ (add^ a b) c :=
-      sym!{Nat^} _ _ (addAssoc a b c);
+      sym!{Nat^} _ _ (addAssoc a b c) \then
     \let swapLeft: add^ (add^ a b) c = add^ (add^ b a) c :=
-      congr!{Nat^ Nat^} (\fun (x: Nat^) => add^ x c) _ _ (addComm a b);
+      congr!{Nat^ Nat^} (\fun (x: Nat^) => add^ x c) _ _ (addComm a b) \then
     \return trans!{Nat^} _ _ _ regroupLeft
-      (trans!{Nat^} _ _ _ swapLeft (addAssoc b a c));
+      (trans!{Nat^} _ _ _ swapLeft (addAssoc b a c))
   };
 \definition addInterchange: \forall (a, b, c, d: Nat^) ->
   add^ (add^ a b) (add^ c d) = add^ (add^ a c) (add^ b d) :=
   \block {
-    \fix (a, b, c, d: Nat^);
+    \fix (a, b, c, d: Nat^) \then
     \let regroupLeft:
       add^ (add^ a b) (add^ c d) = add^ a (add^ b (add^ c d)) :=
-      addAssoc a b (add^ c d);
+      addAssoc a b (add^ c d) \then
     \let swapMiddle:
       add^ a (add^ b (add^ c d)) = add^ a (add^ c (add^ b d)) :=
-      congr!{Nat^ Nat^} (add^ a) _ _ (addSwap b c d);
+      congr!{Nat^ Nat^} (add^ a) _ _ (addSwap b c d) \then
     \return trans!{Nat^} _ _ _ regroupLeft
-      (trans!{Nat^} _ _ _ swapMiddle (sym!{Nat^} _ _ (addAssoc a c (add^ b d))));
+      (trans!{Nat^} _ _ _ swapMiddle (sym!{Nat^} _ _ (addAssoc a c (add^ b d))))
   };
 \definition mulZeroLeft: \forall (a: Nat^) -> mul^ Nat^::zero a = Nat^::zero :=
   \induction (a: Nat^) \return mul^ Nat^::zero a = Nat^::zero \with {
@@ -223,37 +223,37 @@
   \induction (c: Nat^) \return mul^ (add^ a b) c = add^ (mul^ a c) (mul^ b c) \with {
     | zero => (\refl(Nat^::zero))
     | succ => (\block {
-      \fix (c: Nat^);
-      \fix (ih: mul^ (add^ a b) c = add^ (mul^ a c) (mul^ b c));
+      \fix (c: Nat^) \then
+      \fix (ih: mul^ (add^ a b) c = add^ (mul^ a c) (mul^ b c)) \then
       \let inductionUnderAddition:
         add^ (add^ a b) (mul^ (add^ a b) c) =
           add^ (add^ a b) (add^ (mul^ a c) (mul^ b c)) :=
         congr!{Nat^ Nat^} (add^ (add^ a b))
-          (mul^ (add^ a b) c) (add^ (mul^ a c) (mul^ b c)) ih;
+          (mul^ (add^ a b) c) (add^ (mul^ a c) (mul^ b c)) ih \then
       \let interchange:
         add^ (add^ a b) (add^ (mul^ a c) (mul^ b c)) =
           add^ (add^ a (mul^ a c)) (add^ b (mul^ b c)) :=
-        addInterchange a b (mul^ a c) (mul^ b c);
+        addInterchange a b (mul^ a c) (mul^ b c) \then
       \let foldSuccessors:
         add^ (add^ a (mul^ a c)) (add^ b (mul^ b c)) =
           add^ (mul^ a (Nat^::succ c)) (mul^ b (Nat^::succ c)) :=
         addCong _ _ _ _
           (sym!{Nat^} _ _ (mulSuccRight a c))
-          (sym!{Nat^} _ _ (mulSuccRight b c));
+          (sym!{Nat^} _ _ (mulSuccRight b c)) \then
       \return trans!{Nat^} _ _ _ (mulSuccRight (add^ a b) c)
         (trans!{Nat^} _ _ _ inductionUnderAddition
-          (trans!{Nat^} _ _ _ interchange foldSuccessors));
+          (trans!{Nat^} _ _ _ interchange foldSuccessors))
     })
     };
 \definition mulSuccLeft: \forall (a, b: Nat^) -> mul^ (Nat^::succ a) b = add^ b (mul^ a b) :=
   \block {
-    \fix (a, b: Nat^);
+    \fix (a, b: Nat^) \then
     \let removeOne:
       add^ (mul^ a b) (mul^ (Nat^::succ Nat^::zero) b) =
         add^ (mul^ a b) b :=
-      congr!{Nat^ Nat^} (add^ (mul^ a b)) _ _ (mulOneLeft b);
+      congr!{Nat^ Nat^} (add^ (mul^ a b)) _ _ (mulOneLeft b) \then
     \return trans!{Nat^} _ _ _ (mulDistribRight a (Nat^::succ Nat^::zero) b)
-      (trans!{Nat^} _ _ _ removeOne (addComm (mul^ a b) b));
+      (trans!{Nat^} _ _ _ removeOne (addComm (mul^ a b) b))
   };
 \definition mulComm (a: Nat^): \forall (b: Nat^) -> mul^ a b = mul^ b a :=
   \induction (b: Nat^) \return mul^ a b = mul^ b a \with {
@@ -266,37 +266,37 @@
 \definition mulDistribLeft: \forall (a, b, c: Nat^) ->
   mul^ a (add^ b c) = add^ (mul^ a b) (mul^ a c) :=
   \block {
-    \fix (a, b, c: Nat^);
+    \fix (a, b, c: Nat^) \then
     \let distribute:
       mul^ (add^ b c) a = add^ (mul^ b a) (mul^ c a) :=
-      mulDistribRight b c a;
+      mulDistribRight b c a \then
     \let commuteProducts:
       add^ (mul^ b a) (mul^ c a) = add^ (mul^ a b) (mul^ a c) :=
-      addCong _ _ _ _ (mulComm b a) (mulComm c a);
+      addCong _ _ _ _ (mulComm b a) (mulComm c a) \then
     \return trans!{Nat^} _ _ _ (mulComm a (add^ b c))
-      (trans!{Nat^} _ _ _ distribute commuteProducts);
+      (trans!{Nat^} _ _ _ distribute commuteProducts)
   };
 \definition mulAssoc (a, b: Nat^): \forall (c: Nat^) -> mul^ (mul^ a b) c = mul^ a (mul^ b c) :=
   \induction (c: Nat^) \return mul^ (mul^ a b) c = mul^ a (mul^ b c) \with {
     | zero => (\refl(Nat^::zero))
     | succ => (\block {
-      \fix (c: Nat^);
-      \fix (ih: mul^ (mul^ a b) c = mul^ a (mul^ b c));
+      \fix (c: Nat^) \then
+      \fix (ih: mul^ (mul^ a b) c = mul^ a (mul^ b c)) \then
       \let inductionUnderAddition:
         add^ (mul^ a b) (mul^ (mul^ a b) c) =
           add^ (mul^ a b) (mul^ a (mul^ b c)) :=
         congr!{Nat^ Nat^} (add^ (mul^ a b))
-          (mul^ (mul^ a b) c) (mul^ a (mul^ b c)) ih;
+          (mul^ (mul^ a b) c) (mul^ a (mul^ b c)) ih \then
       \let factorLeft:
         add^ (mul^ a b) (mul^ a (mul^ b c)) =
           mul^ a (add^ b (mul^ b c)) :=
-        sym!{Nat^} _ _ (mulDistribLeft a b (mul^ b c));
+        sym!{Nat^} _ _ (mulDistribLeft a b (mul^ b c)) \then
       \let foldSuccessor:
         mul^ a (add^ b (mul^ b c)) = mul^ a (mul^ b (Nat^::succ c)) :=
-        congr!{Nat^ Nat^} (mul^ a) _ _ (sym!{Nat^} _ _ (mulSuccRight b c));
+        congr!{Nat^ Nat^} (mul^ a) _ _ (sym!{Nat^} _ _ (mulSuccRight b c)) \then
       \return trans!{Nat^} _ _ _ (mulSuccRight (mul^ a b) c)
         (trans!{Nat^} _ _ _ inductionUnderAddition
-          (trans!{Nat^} _ _ _ factorLeft foldSuccessor));
+          (trans!{Nat^} _ _ _ factorLeft foldSuccessor))
     })
     };
 

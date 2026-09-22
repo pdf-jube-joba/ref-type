@@ -283,11 +283,11 @@
   \definition natToBool(n: N.Nat): \F(B.Bool) :=
     \match n \in N.Nat \with { | zero => \return B.Bool::true | succ k => \return B.Bool::false };
   \definition pipeline: \F(B.Bool) := \program {
-    \bind input: P.Times[B.Bool, N.Nat] <- P.Times::make B.Bool::true (N.Nat::succ N.Nat::zero);
-    \bind mapped: P.Times[N.Nat, B.Bool] <- PM.map (\thunk boolToNat) (\thunk natToBool) input;
-    \bind swapped: P.Times[B.Bool, N.Nat] <- P.Times::swap mapped;
-    \bind result: B.Bool <- P.Times::first swapped;
-    \return result;
+    \bind input: P.Times[B.Bool, N.Nat] <- P.Times::make B.Bool::true (N.Nat::succ N.Nat::zero) \then
+    \bind mapped: P.Times[N.Nat, B.Bool] <- PM.map (\thunk boolToNat) (\thunk natToBool) input \then
+    \bind swapped: P.Times[B.Bool, N.Nat] <- P.Times::swap mapped \then
+    \bind result: B.Bool <- P.Times::first swapped \then
+    \return result
   };
   \definition pipelineResult: \squash[_](\box[_](pipeline)) = B.Bool^::false := \refl(B.Bool^::false);
   \definition changeFirst: \F(P.Times[N.Nat, N.Nat]) := PM.mapFirst (\thunk boolToNat) value;
@@ -303,9 +303,9 @@
   \definition curriedResult: \squash[_](\box[_](curried)) = N.one^ := \refl(N.one^);
   \definition uncurriedResult: \squash[_](\box[_](uncurried)) = N.one^ := \refl(N.one^);
   \definition nestedRoundTrip: \F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]) := \program {
-    \bind right: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] <- PF.assoc (P.Times[_, _]::pair value N.Nat::zero);
-    \bind left: P.Times[P.Times[B.Bool, N.Nat], N.Nat] <- PF.unassoc right;
-    \return left;
+    \bind right: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] <- PF.assoc (P.Times[_, _]::pair value N.Nat::zero) \then
+    \bind left: P.Times[P.Times[B.Bool, N.Nat], N.Nat] <- PF.unassoc right \then
+    \return left
   };
   \definition nestedResult:
     \squash[_](\box[_](nestedRoundTrip)) = P.pair _ _ reflected N.zero^ :=

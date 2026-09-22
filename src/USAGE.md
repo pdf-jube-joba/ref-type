@@ -117,14 +117,14 @@ Set 側では名前に `^` を付けて反映を明示する。`Unit^: \Set`、
 
 ```text
 \definition result: \F(A) := \program {
-  \let x: A := a;
-  \bind y: A <- identity x;
-  \return y;
+  \let x: A := a \then
+  \bind y: A <- identity x \then
+  \return y
 };
 ```
 
-Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を順に並べ、値を返す
-`\return value;` で終える。各束縛名は後続の文だけで有効になる。
+Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を `\then` でつなぎ、値を返す
+`\return value` で終える。各束縛名は後続の文だけで有効になる。
 `\definition f(x: A, y: B): C := body;` は、型 `A ~> B ~> C` と
 本体 `\cfun (x: A) (y: B) => body` に展開する。
 `\definition` は宣言した型と本体から Set/Prop、Program value、Program computation を判定する。

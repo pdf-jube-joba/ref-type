@@ -294,8 +294,8 @@ A -> B
 \by { existence: existence-proof, uniqueness: uniqueness-proof }
 
 \block {
-  \takefrom x: A \by existence-proof;
-  \return body;
+  \takefrom x: A \by existence-proof \then
+  \return body
 }
 ```
 
@@ -344,15 +344,15 @@ left = right
 
 ```text
 \block {
-  \fix (x, y: A), (h: P x);
-  \let z: B := term;
-  \enough C \by { map };
-  \return result;
+  \fix (x, y: A), (h: P x) \then
+  \let z: B := term \then
+  \enough C \by { map } \then
+  \return result
 }
 ```
 
 `\fix`、`\let`、`\enough` を 0 個以上並べ、必須の `\return` で終える。`\fix` は目標の前方に binder を追加する。`\let` は後続の項と型から展開できる局所定義である。
-`\enough A \by { map };` は `map: A -> B` を使って残りの目標を `A` にする。
+`\enough A \by { map } \then` は `map: A -> B` を使って残りの目標を `A` にする。
 
 ## 6. Program (CBPV)
 
@@ -393,13 +393,13 @@ computation application の引数は value である。computation の結果を�
 \bind y: B <- computation1 \in computation2
 
 \program {
-  \let x: A := value;
-  \bind y: B <- computation;
-  \return result;
+  \let x: A := value \then
+  \bind y: B <- computation \then
+  \return result
 }
 ```
 
-`\let` は value、`\bind` は computation の結果を束縛する。型注釈は必須で、名前は `\in` より後だけで有効である。Program block の中間文は `\let` と `\bind`、終端は `\return value;` である。
+`\let` は value、`\bind` は computation の結果を束縛する。型注釈は必須で、名前は `\in` より後だけで有効である。Program block の中間文は `\let` と `\bind` であり、`\then` でつなぐ。終端は `\return value` である。
 block の `\let` 名は通常の識別子、`\bind` 名は `_` も使える。
 
 ### case

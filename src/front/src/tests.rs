@@ -482,51 +482,51 @@ fn logical_let_definitions_are_transparent_and_capture_avoiding() {
         \module LocalDefinitions(A: \Set, a: A) {
             \macro equality($x, $y) := $x = $y;
             \definition simple: a = a := \block {
-                \let x: A := a;
-                \let h: x = a := \refl(a);
-                \return h;
+                \let x: A := a \then
+                \let h: x = a := \refl(a) \then
+                \return h
             };
             \definition nested: \forall (x: A) -> \forall (y: A) -> x = x :=
                 \fun (x: A) => \block {
-                    \let saved: A := x;
-                    \let alias: A := saved;
-                    \fix (x: A);
-                    \let x: A := alias;
-                    \let h: equality!{x saved} := \refl(saved);
-                    \return h;
+                    \let saved: A := x \then
+                    \let alias: A := saved \then
+                    \fix (x: A) \then
+                    \let x: A := alias \then
+                    \let h: equality!{x saved} := \refl(saved) \then
+                    \return h
                 };
             \definition shadowed: \forall (x: A) -> x = x := \block {
-                \let x: A := a;
-                \return \fun (x: A) => \refl(x);
+                \let x: A := a \then
+                \return \fun (x: A) => \refl(x)
             };
             \definition restored: a = a := \block {
-                \let x: A := a;
+                \let x: A := a \then
                 \let f: A -> A := \fun (x: A) => \block {
-                    \let x: A := x;
-                    \return x;
-                };
-                \return \refl(f x);
+                    \let x: A := x \then
+                    \return x
+                } \then
+                \return \refl(f x)
             };
             \definition inferred: a = a := \block {
-                \let x: _ := a;
-                \let h: x = a := \refl(x);
-                \return h;
+                \let x: _ := a \then
+                \let h: x = a := \refl(x) \then
+                \return h
             };
             \definition inferred_later: a = a := \block {
-                \let x: A := _;
-                \let h: x = a := \refl(a);
-                \return h;
+                \let x: A := _ \then
+                \let h: x = a := \refl(a) \then
+                \return h
             };
             \definition type_alias: a = a := \block {
-                \let T: \Set := A;
-                \let x: T := a;
-                \let P: \Prop := x = a;
-                \let h: P := \refl(a);
-                \return h;
+                \let T: \Set := A \then
+                \let x: T := a \then
+                \let P: \Prop := x = a \then
+                \let h: P := \refl(a) \then
+                \return h
             };
             \definition unused_proof: A := \block {
-                \let h: a = a := \refl(a);
-                \return a;
+                \let h: a = a := \refl(a) \then
+                \return a
             };
         }
     "#;
@@ -540,8 +540,8 @@ fn logical_enough_changes_the_remaining_goal() {
     let source = r#"
         \module Enough(P, Q: \Prop, p: P, implication: P -> Q) {
             \definition result: Q := \block {
-                \enough P \by { implication };
-                \return p;
+                \enough P \by { implication } \then
+                \return p
             };
         }
     "#;
@@ -555,8 +555,8 @@ fn logical_let_preserves_the_declared_type() {
     let source = r#"
         \module LocalAnnotation(A: \Set, S: \Pow (A), s: \Cast[A] (S)) {
             \definition invalid: \Cast[A] (S) := \block {
-                \let x: A := s;
-                \return x;
+                \let x: A := s \then
+                \return x
             };
         }
     "#;
@@ -573,16 +573,16 @@ fn logical_let_preserves_the_declared_type() {
 #[test]
 fn logical_let_checks_unused_definitions() {
     for statement in [
-        r"\let unused: A := p;",
-        r"\let unused: P := a;",
-        r"\let unused: _ := _;",
-        r"\let unused: A := unused;",
+        r"\let unused: A := p \then",
+        r"\let unused: P := a \then",
+        r"\let unused: _ := _ \then",
+        r"\let unused: A := unused \then",
     ] {
         let source = format!(
             r"\module Invalid(A: \Set, a: A, P: \Prop, p: P) {{
                 \definition example: a = a := \block {{
                     {statement}
-                    \return \refl(a);
+                    \return \refl(a)
                 }};
             }}"
         );

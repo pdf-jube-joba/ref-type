@@ -797,7 +797,7 @@ impl<'a> TermParser<'a> {
 
         loop {
             if self.bump_if_keyword("\\fix") {
-                // r"\fix" ("(" RightBind ")" ",")* ";"
+                // r"\fix" ("(" RightBind ")" ",")* "\then"
                 let mut binds: Vec<RightBind> = Vec::new();
                 while self.peek() == Some(&Token::LParen) {
                     let bind = self.parse_simple_binds_paren()?;
@@ -806,31 +806,31 @@ impl<'a> TermParser<'a> {
                         break;
                     }
                 }
-                self.expect_token(Token::Semicolon)?; // expect ';'
+                self.expect_keyword("\\then")?;
                 statements.push(Statement::Fix(binds));
                 continue;
             }
 
             if self.bump_if_keyword("\\let") {
-                // r"\let" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> ";"
+                // r"\let" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> "\then"
                 let var = self.expect_ident()?;
                 self.expect_token(Token::Colon)?; // expect ':'
                 let ty = self.parse_sexp()?;
                 self.expect_token(Token::Assign)?; // expect ':='
                 let body = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?; // expect ';'
+                self.expect_keyword("\\then")?;
                 statements.push(Statement::Let { var, ty, body });
                 continue;
             }
 
             if self.bump_if_keyword("\\bind") {
-                // r"\bind" <var: Ident> ":" <ty: SExp> "<-" <computation: SExp> ";"
+                // r"\bind" <var: Ident> ":" <ty: SExp> "<-" <computation: SExp> "\then"
                 let var = self.expect_binder_ident()?;
                 self.expect_token(Token::Colon)?;
                 let ty = self.parse_sexp()?;
                 self.expect_token(Token::BindArrow)?;
                 let computation = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
+                self.expect_keyword("\\then")?;
                 statements.push(Statement::Bind {
                     var,
                     ty,
@@ -842,7 +842,7 @@ impl<'a> TermParser<'a> {
             if self.bump_if_keyword("\\enough") {
                 let map_ty = self.parse_sexp()?;
                 let map = self.parse_by(Self::parse_sexp)?;
-                self.expect_token(Token::Semicolon)?;
+                self.expect_keyword("\\then")?;
                 statements.push(Statement::Sufficient { map, map_ty });
                 continue;
             }
@@ -853,15 +853,14 @@ impl<'a> TermParser<'a> {
                 let ty = self.parse_sexp()?;
                 self.expect_keyword("\\by")?;
                 let existence = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?;
+                self.expect_keyword("\\then")?;
                 statements.push(Statement::TakeFrom { var, ty, existence });
                 continue;
             }
 
             if self.bump_if_keyword("\\return") {
-                // r"\return" <exp: SExp> ";"
+                // r"\return" <exp: SExp>
                 let result = self.parse_sexp()?;
-                self.expect_token(Token::Semicolon)?; // expect ';'
                 return Ok(Block {
                     statements,
                     result: Box::new(result),
@@ -1734,7 +1733,7 @@ mod tests {
     #[test]
     fn program_block_parses_statement_sequencing() {
         let SExp::Program(block) =
-            complete(r"\program { \let x: A := a; \bind y: B <- f x; \return y; }")
+            complete(r"\program { \let x: A := a \then \bind y: B <- f x \then \return y }")
         else {
             panic!()
         };

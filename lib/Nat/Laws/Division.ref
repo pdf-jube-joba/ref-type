@@ -50,18 +50,18 @@
   divModValue (Nat^::succ d) (natPair (Nat^::succ q) Nat^::zero) =
     Nat^::succ (divModValue (Nat^::succ d) (natPair q d)) :=
   \block {
-    \fix (d, q: Nat^);
+    \fix (d, q: Nat^) \then
     \let carryProduct:
       mul^ (Nat^::succ d) (Nat^::succ q) =
         add^ (Nat^::succ d) (mul^ (Nat^::succ d) q) :=
-      mulSuccRight (Nat^::succ d) q;
+      mulSuccRight (Nat^::succ d) q \then
     \let exposeSuccessor:
       add^ (Nat^::succ d) (mul^ (Nat^::succ d) q) =
         Nat^::succ (add^ d (mul^ (Nat^::succ d) q)) :=
-      addSuccLeft d (mul^ (Nat^::succ d) q);
+      addSuccLeft d (mul^ (Nat^::succ d) q) \then
     \return trans!{Nat^} _ _ _ carryProduct
       (trans!{Nat^} _ _ _ exposeSuccessor
-        (succCong _ _ (addComm d (mul^ (Nat^::succ d) q))));
+        (succCong _ _ (addComm d (mul^ (Nat^::succ d) q))))
   };
 \definition divModNextValue: \forall (b: Nat^) -> \forall (p: NatPair) ->
   divModValue b (divModNextPrec b p) = Nat^::succ (divModValue b p) :=
@@ -88,11 +88,11 @@
     };
 \definition divModReconstructs: \forall (a, b: Nat^) -> add^ (mul^ b (div^ a b)) (mod^ a b) = a :=
   \block {
-    \fix (a, b: Nat^);
+    \fix (a, b: Nat^) \then
     \let representationMatches:
       divModValue b (divMod^ a b) = divModValue b (divModPrec a b) :=
-      congr!{NatPair Nat^} (divModValue b) _ _ (divModMatchesPrec a b);
-    \return trans!{Nat^} _ _ _ representationMatches (divModPrecReconstructs a b);
+      congr!{NatPair Nat^} (divModValue b) _ _ (divModMatchesPrec a b) \then
+    \return trans!{Nat^} _ _ _ representationMatches (divModPrecReconstructs a b)
   };
 
 /* The Euclidean loop's bound is proved, rather than assumed as fuel. */
@@ -123,14 +123,14 @@
 \definition gcdRemainderZero: \forall (a, b: Nat^) ->
   P.Times[Nat, Nat]::second^ (pairIter^ gcdNext^ (natPair a b) b) = Nat^::zero :=
   \block {
-    \fix (a, b: Nat^);
+    \fix (a, b: Nat^) \then
     \let iterationMatches:
       P.Times[Nat, Nat]::second^ (pairIter^ gcdNext^ (natPair a b) b) =
         P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ (natPair a b) b) :=
       congr!{NatPair Nat^} P.Times[Nat, Nat]::second^ _ _
-        (pairIterMatchesPrec gcdNext^ b (natPair a b));
+        (pairIterMatchesPrec gcdNext^ b (natPair a b)) \then
     \return trans!{Nat^} _ _ _ iterationMatches
-      (gcdIterSettles b a b (leRefl b));
+      (gcdIterSettles b a b (leRefl b))
   };
 
 /* Zero conventions and division of zero are universal equations. */
@@ -200,44 +200,44 @@
           (trans!{Nat^} _ _ _ (subCong _ _ _ _ ex ey) (mulSub d y x))));
 \definition modAsSub: \forall (a, b: Nat^) -> mod^ a b = sub^ a (mul^ b (div^ a b)) :=
   \block {
-    \fix (a, b: Nat^);
+    \fix (a, b: Nat^) \then
     \let reconstruction:
       add^ (mod^ a b) (mul^ b (div^ a b)) = a :=
       trans!{Nat^} _ _ _
         (addComm (mod^ a b) (mul^ b (div^ a b)))
-        (divModReconstructs a b);
+        (divModReconstructs a b) \then
     \let subtractReconstruction:
       sub^ (add^ (mod^ a b) (mul^ b (div^ a b)))
         (mul^ b (div^ a b)) =
       sub^ a (mul^ b (div^ a b)) :=
       congr!{Nat^ Nat^} (\fun (x: Nat^) => sub^ x (mul^ b (div^ a b)))
-        _ _ reconstruction;
+        _ _ reconstruction \then
     \return trans!{Nat^} _ _ _
       (sym!{Nat^} _ _ (subAddCancel (mul^ b (div^ a b)) (mod^ a b)))
-      subtractReconstruction;
+      subtractReconstruction
   };
 \definition dividesMod: \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (mod^ a b) :=
   \block {
-    \fix (d, a, b: Nat^);
-    \fix (ha: Divides d a), (hb: Divides d b);
+    \fix (d, a, b: Nat^) \then
+    \fix (ha: Divides d a), (hb: Divides d b) \then
     \let productDivides: Divides d (mul^ b (div^ a b)) :=
-      dividesMul d b (div^ a b) hb;
+      dividesMul d b (div^ a b) hb \then
     \let differenceDivides: Divides d (sub^ a (mul^ b (div^ a b))) :=
-      dividesSub d a (mul^ b (div^ a b)) ha productDivides;
+      dividesSub d a (mul^ b (div^ a b)) ha productDivides \then
     \return dividesTransport d (sub^ a (mul^ b (div^ a b))) (mod^ a b)
-      (sym!{Nat^} _ _ (modAsSub a b)) differenceDivides;
+      (sym!{Nat^} _ _ (modAsSub a b)) differenceDivides
   };
 \definition dividesOfMod: \forall (d, a, b: Nat^) -> Divides d b -> Divides d (mod^ a b) -> Divides d a :=
   \block {
-    \fix (d, a, b: Nat^);
-    \fix (hb: Divides d b), (hr: Divides d (mod^ a b));
+    \fix (d, a, b: Nat^) \then
+    \fix (hb: Divides d b), (hr: Divides d (mod^ a b)) \then
     \let quotientProductDivides: Divides d (mul^ b (div^ a b)) :=
-      dividesMul d b (div^ a b) hb;
+      dividesMul d b (div^ a b) hb \then
     \let reconstructionDivides:
       Divides d (add^ (mul^ b (div^ a b)) (mod^ a b)) :=
-      dividesAdd d (mul^ b (div^ a b)) (mod^ a b) quotientProductDivides hr;
+      dividesAdd d (mul^ b (div^ a b)) (mod^ a b) quotientProductDivides hr \then
     \return dividesTransport d (add^ (mul^ b (div^ a b)) (mod^ a b)) a
-      (divModReconstructs a b) reconstructionDivides;
+      (divModReconstructs a b) reconstructionDivides
   };
 
 \definition CommonDivisor (d, a, b: Nat^): \Prop := \forall (P: \Prop) -> (Divides d a -> Divides d b -> P) -> P;
@@ -286,18 +286,18 @@
 \definition gcdFinalSecond (a, b: Nat^): P.Times[Nat, Nat]::second^ (gcdFinal a b) = Nat^::zero := gcdIterSettles b a b (leRefl b);
 \definition gcdCommonDivisor: \forall (a, b: Nat^) -> CommonDivisor (gcd^ a b) a b :=
   \block {
-    \fix (a, b: Nat^);
+    \fix (a, b: Nat^) \then
     \let finalFirstDivides: Divides (gcd^ a b) (P.Times[Nat, Nat]::first^ (gcdFinal a b)) :=
       dividesTransport (gcd^ a b) (gcd^ a b) (P.Times[Nat, Nat]::first^ (gcdFinal a b))
-        (sym!{Nat^} _ _ (gcdFinalFirst a b)) (dividesSelf (gcd^ a b));
+        (sym!{Nat^} _ _ (gcdFinalFirst a b)) (dividesSelf (gcd^ a b)) \then
     \let finalSecondDivides: Divides (gcd^ a b) (P.Times[Nat, Nat]::second^ (gcdFinal a b)) :=
       dividesTransport (gcd^ a b) Nat^::zero (P.Times[Nat, Nat]::second^ (gcdFinal a b))
-        (sym!{Nat^} _ _ (gcdFinalSecond a b)) (dividesZero (gcd^ a b));
+        (sym!{Nat^} _ _ (gcdFinalSecond a b)) (dividesZero (gcd^ a b)) \then
     \let finalCommonDivisor:
       CommonDivisor (gcd^ a b) (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (P.Times[Nat, Nat]::second^ (gcdFinal a b)) :=
       commonDivisorIntro (gcd^ a b) (P.Times[Nat, Nat]::first^ (gcdFinal a b))
-        (P.Times[Nat, Nat]::second^ (gcdFinal a b)) finalFirstDivides finalSecondDivides;
-    \return gcdIterReflects (gcd^ a b) b (natPair a b) finalCommonDivisor;
+        (P.Times[Nat, Nat]::second^ (gcdFinal a b)) finalFirstDivides finalSecondDivides \then
+    \return gcdIterReflects (gcd^ a b) b (natPair a b) finalCommonDivisor
   };
 \definition gcdDividesLeft (a, b: Nat^): Divides (gcd^ a b) a := gcdCommonDivisor a b (Divides (gcd^ a b) a)
     (\fun (ha: Divides (gcd^ a b) a) => \fun (hb: Divides (gcd^ a b) b) => ha);
@@ -305,18 +305,18 @@
     (\fun (ha: Divides (gcd^ a b) a) => \fun (hb: Divides (gcd^ a b) b) => hb);
 \definition gcdGreatest: \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (gcd^ a b) :=
   \block {
-    \fix (d, a, b: Nat^);
-    \fix (ha: Divides d a), (hb: Divides d b);
+    \fix (d, a, b: Nat^) \then
+    \fix (ha: Divides d a), (hb: Divides d b) \then
     \let finalCommonDivisor:
       CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (P.Times[Nat, Nat]::second^ (gcdFinal a b)) :=
       pairIterInvariant gcdNext^
         (\fun (p: NatPair) => CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p))
-        (gcdNextPreserves d) b (natPair a b) (commonDivisorIntro d a b ha hb);
+        (gcdNextPreserves d) b (natPair a b) (commonDivisorIntro d a b ha hb) \then
     \return finalCommonDivisor (Divides d (gcd^ a b))
       (\fun (hfirst: Divides d (P.Times[Nat, Nat]::first^ (gcdFinal a b))) =>
         \fun (hsecond: Divides d (P.Times[Nat, Nat]::second^ (gcdFinal a b))) =>
           dividesTransport d (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (gcd^ a b)
-            (gcdFinalFirst a b) hfirst);
+            (gcdFinalFirst a b) hfirst)
   };
 
 \definition leToLtSucc: \forall (d, r: Nat^) -> Le r d -> Lt r (Nat^::succ d) :=
