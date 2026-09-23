@@ -2,18 +2,6 @@
 
 Set case と induction は declaration から生成される通常の規則を持つ。
 
-### case と run への elaboration
-
-Program 側の構造再帰を surface syntax として提供する場合、core では
-case を使う一段の step function へ elaboration する。再帰呼び出し後に処理を続ける定義や
-複数の recursive field を処理する定義では、Program state に
-未処理の field、途中結果、defunctionalize した continuation stack を
-含める。
-
-elaboration が生成する Program step function は case で state の外側を一層だけ
-観察し、continue で次状態を返す。Reflection によって得られる Set step
-function に対して Acc proof を構成し、Set の run を適用する。
-
 ## 課題
 - datatype declaration environment の well-formedness と positivity 判定
 - Set の鏡像に対する case と induction の raw syntax、typing、reduction の生成規則
