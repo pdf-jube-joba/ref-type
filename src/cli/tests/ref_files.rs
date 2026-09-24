@@ -194,7 +194,7 @@ fn ng_ref_files_fail() {
 #[test]
 fn library_examples_succeed() {
     let workspace = workspace_root();
-    let path = workspace.join("lib/tests.ref");
+    let path = workspace.join("tests/library/ref.toml");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
@@ -204,6 +204,34 @@ fn library_examples_succeed() {
         "{}",
         output_details(&output)
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn package_entry_points_resolve_dependency_paths_and_shared_symlinks() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("dep/ref.toml", "[package]\nname = 'shared'\n");
+    fixture.write(
+        "dep/src/root.ref",
+        r"\module Types { \inductive Token: \Set := | token: Token; }",
+    );
+    std::os::unix::fs::symlink(fixture.0.join("dep"), fixture.0.join("alias")).unwrap();
+    let manifest = fixture.write(
+        "app/ref.toml",
+        "[package]\nname='app'\n[dependencies]\na={path='../dep'}\nb={path='../alias'}\n",
+    );
+    let root = fixture.write(
+        "app/src/root.ref",
+        r"\module Consumer {
+        \import a.Types[] \as A;
+        \import b.Types[] \as B;
+        \definition shared: A.Token := B.Token::token;
+    }",
+    );
+    for entry in [fixture.0.join("app"), manifest, root] {
+        let output = run_ref_file(&workspace_root(), &entry).unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+    }
 }
 
 #[test]
@@ -353,7 +381,7 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
         r#"
 \module Source(X: \VType, x: X);
 \module Consumer {
-  \inductive Unit: \VType := | unit: Unit; ;
+  \inductive Unit: \VType := | unit: Unit ;
   \import \root.Source[X := Unit, x := Unit::unit] \as S;
   \import \root.Source[X := Unit, x := Unit::unit].Child[] \as C;
   \vcheck S.value: Unit;

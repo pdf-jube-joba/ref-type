@@ -16,6 +16,25 @@ fn sk(a: &Arena, i: usize) -> SetKind {
 }
 
 #[test]
+fn typed_handles_remain_tied_to_their_owning_environment() {
+    let first = Environment::new();
+    let second = Environment::new();
+    let left: Expression = sk(first.arena(), 0).into();
+    let right: Expression = sk(second.arena(), 0).into();
+    assert_ne!(left, right);
+    assert_ne!(first.arena().id(), second.arena().id());
+    assert!(
+        Checker::new(&first, vec![])
+            .infer(right)
+            .unwrap_err()
+            .contains("another arena")
+    );
+    assert!(convertible(&first, right, right).is_err());
+    assert!(!alpha_equal(first.arena(), right, right));
+    assert!(Checker::new(&first, vec![]).infer(left).is_ok());
+}
+
+#[test]
 fn definition_checking_discards_scratch_nodes_and_stale_cache_entries() {
     let mut env = Environment::new();
     let kind = sk(env.arena(), 0);

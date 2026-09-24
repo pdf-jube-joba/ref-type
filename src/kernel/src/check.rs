@@ -193,6 +193,7 @@ impl<'a> Checker<'a> {
     }
     pub fn infer(&mut self, e: impl Into<Expression>) -> Result<Classifier, String> {
         let e = e.into();
+        self.arena().validate_owner(e)?;
         if self.inference_depth == 0 && !self.checking_context {
             self.check_context()?
         }

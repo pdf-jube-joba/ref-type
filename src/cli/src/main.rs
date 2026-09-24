@@ -4,7 +4,7 @@ use std::{io::IsTerminal, path::PathBuf};
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Args {
-    /// ファイルをパースして結果を標準出力に出す
+    /// package のディレクトリ、ref.toml、または単独のルート .ref ファイル
     file: PathBuf,
     /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
     #[arg(long)]
@@ -12,16 +12,25 @@ struct Args {
     /// 処理後に raw / kernel の構文ノード数を標準エラーへ表示する
     #[arg(long, conflicts_with = "parse_only")]
     stats: bool,
-    /// front 側の構文への変換だけを行う
+    /// 読み込む source の構文解析だけを行う
     #[arg(long)]
     parse_only: bool,
+    /// LSP の標準入出力サーバーを起動する
+    #[arg(long, conflicts_with_all = ["parse_only", "stats", "mcp"])]
+    lsp: bool,
+    /// MCP の標準入出力サーバーを起動する
+    #[arg(long, conflicts_with_all = ["parse_only", "stats", "lsp"])]
+    mcp: bool,
 }
 
-mod printing;
+mod protocol;
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_tracing(args.trace)?;
+    if args.lsp || args.mcp {
+        return protocol::serve(args.file, args.mcp);
+    }
     let err = run_file_mode(args.file, args.stats, args.parse_only)?;
     if err.is_some() {
         std::process::exit(1);
@@ -50,52 +59,31 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn elaborate_and_format(
-    modules: Vec<front::syntax::Module>,
-    stats: bool,
-) -> (Vec<String>, Option<String>) {
-    let mut global = front::elaborator::GlobalEnvironment::default();
-    let mut output_lines = Vec::new();
-    let result = global.add_modules_to_root(&modules);
-    if stats {
-        eprintln!("raw nodes: {:?}", global.arena().node_counts());
-        eprintln!("raw caches: {:?}", global.crate_env().cache_counts());
-        eprintln!(
-            "kernel nodes: {:?}",
-            global.kernel_env().arena().node_counts()
-        );
-        eprintln!("kernel caches: {:?}", global.kernel_env().cache_counts());
-        eprintln!(
-            "kernel declaration nodes: {}",
-            global.kernel_env().declaration_node_count()
-        );
-    }
-    if let Err(err) = result {
-        let detail = front::metavariables::format_elaboration_error(global.crate_env(), &err);
-        push_outputs(&global, &mut output_lines);
-        return (output_lines, Some(format!("Elaboration Error: {detail}")));
-    }
-
-    push_outputs(&global, &mut output_lines);
-    (output_lines, None)
-}
-
-fn push_outputs(global: &front::elaborator::GlobalEnvironment, output_lines: &mut Vec<String>) {
-    for output in global.outputs() {
-        output_lines.push(printing::format_output(global.crate_env(), output));
-    }
-}
-
 fn run_file_mode(path: PathBuf, stats: bool, parse_only: bool) -> anyhow::Result<Option<String>> {
-    let loaded = front::module_loader::load_modules_from_root(&path);
-    let (out, err_message) = match loaded {
-        Ok(_) if parse_only => (Vec::new(), None),
-        Ok(modules) => elaborate_and_format(modules, stats),
-        Err(error) => (Vec::new(), Some(format!("Module Load Error: {error}"))),
+    let mut host = sema::AnalysisHost::new(path)?;
+    host.refresh_disk();
+    let snapshot = host.snapshot();
+    let diagnostics = if parse_only {
+        snapshot.parse_diagnostics().diagnostics
+    } else {
+        let result = snapshot.check();
+        for entry in &result.outputs {
+            println!("{entry}");
+        }
+        if stats {
+            for statistic in &result.statistics {
+                eprintln!("{statistic}");
+            }
+        }
+        result.diagnostics.clone()
     };
-    for entry in out {
-        println!("{entry}");
-    }
+    let err_message = (!diagnostics.is_empty()).then(|| {
+        diagnostics
+            .iter()
+            .map(|diagnostic| snapshot.render_diagnostic(diagnostic))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    });
     if let Some(msg) = &err_message {
         if std::io::stderr().is_terminal() {
             eprintln!("\x1b[31m{msg}\x1b[0m");

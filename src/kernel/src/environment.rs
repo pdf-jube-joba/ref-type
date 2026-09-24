@@ -168,6 +168,12 @@ impl Environment {
         ]
     }
 
+    /// Release inference and reduction working state while retaining declarations.
+    pub fn clear_caches(&self) {
+        *self.inference_cache.borrow_mut() = Default::default();
+        *self.head_cache.borrow_mut() = Default::default();
+    }
+
     /// Nodes reachable from declarations, excluding caches and external handles.
     pub fn declaration_node_count(&self) -> usize {
         let mut pending = Vec::new();

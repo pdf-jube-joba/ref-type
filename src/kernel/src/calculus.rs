@@ -255,6 +255,9 @@ pub fn remap_ids(
     go(arena, e, inductives, datatypes, &mut FxHashMap::default())
 }
 pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
+    if !arena.owns(left) || !arena.owns(right) {
+        return false;
+    }
     alpha_equal_cached(arena, left, right, &mut FxHashMap::default())
 }
 
@@ -278,6 +281,8 @@ fn alpha_equal_cached(
     result
 }
 pub fn convertible(env: &Environment, a: Expression, b: Expression) -> Result<bool, String> {
+    env.arena().validate_owner(a)?;
+    env.arena().validate_owner(b)?;
     fn go(
         env: &Environment,
         a: Expression,
@@ -374,6 +379,8 @@ fn reduce_application_spine(
 }
 
 pub fn whnf(env: &Environment, e: Expression) -> Result<Expression, String> {
+    crate::control::checkpoint();
+    env.arena().validate_owner(e)?;
     if let Some(&cached) = env.head_cache.borrow().get(&e) {
         return Ok(cached);
     }

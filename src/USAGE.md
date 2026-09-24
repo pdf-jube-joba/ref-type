@@ -1,16 +1,53 @@
-## フォルダ構成
-- kernel: ほぼ理論通りの実装
-  - 理論側の言語
-  - type-check / type-infer
-  - checker
-- front: 言語処理系
-  - 実装側の言語
-  - parser
-  - elaboration
+## crate 構成
+
+| crate | 担当 |
+| --- | --- |
+| `kernel` | 分類済み calculus、型検査、conversion、reflection |
+| `raw` | 未分類の項、環境、構造操作、評価 |
+| `syntax` | source と展開後の構文、位置、lexer、parser |
+| `elab` | macro 展開、elaboration、metavariable、kernel bridge |
+| `sema` | source snapshot、package/module graph、問い合わせ、診断 |
+| `cli` | コマンドラインと既存 protocol adapter |
+
+依存は `cli → sema → elab → syntax → raw → kernel` を軸にする。
+各層は必要な下位 crate の公開 API を直接利用する。
+
+## Package
+
+```toml
+[package]
+name = "example"
+
+[dependencies]
+std = { path = "../../libs/std" }
+```
+
+`ref.toml` と同じディレクトリの `src/root.ref` が entry point である。
+依存の path は、その依存を記述した `ref.toml` のディレクトリを基準に解決する。
+package directory または manifest を CLI に渡す。
+
+```sh
+cargo run -p cli -- libs/real
+cargo run -p cli -- libs/real/ref.toml --parse-only
+```
+
+```text
+\import std \as Std;
+\import std.Data[].Bool[] \as Bool;
+\import .Child[].Descendant[] \as Local;
+\import .Local.Nested[] \as Nested;
+\import \root.OwnModule[] \as Own;
+```
+
+依存の参照名は `[dependencies]` のキーであり、参照先の package の表示名とは独立している。
+`\root` は現在の package の root を指す。
+各 package の宣言は dependency 経由で参照できる。
+同じ実体の manifest を指す依存は `PackageId` を共有し、同名でも別の manifest を持つ package は区別する。
 
 ## ソースファイルと module
 
-ソースファイルの拡張子は `.ref`。CLI にはルートファイルを一つ渡す。
+ソースファイルの拡張子は `.ref` である。
+単独のルートファイルも CLI に渡せる。
 
 ```sh
 cargo run -- path/to/root.ref
@@ -22,7 +59,7 @@ typing rule の呼び出しを木構造で確認する場合は `--trace` を付
 cargo run -- path/to/root.ref --trace
 ```
 
-`--parse-only` を付けると、ルートファイルと外部 module を front 側の構文に変換できるかだけを確認する。
+`--parse-only` を付けると、ルートファイルと外部 module を syntax の構文に変換できるかだけを確認する。
 
 ```sh
 cargo run -- path/to/root.ref --parse-only
@@ -40,15 +77,15 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
-module は front のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
+module は elab のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
 その alias を起点に child module も参照できる。module 内で宣言した import alias は
 その子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
-各 module path には `[]` が必要で、parameter は名前と宣言順を一致させてすべて指定する。
+parameter は名前と宣言順を一致させてすべて指定する。
 module argument 内では `_`・`?` による推論を行わない。
 
 ```text
 \import \root.Parent[A := Nat] \as P;
-\import P.Child[x := value] \as C;
+\import .P.Child[x := value] \as C;
 ```
 
 `C` は `P` の代入を引き継ぐ。同じ元宣言に convertible な引数を渡す import は、
@@ -57,7 +94,7 @@ module argument 内では `_`・`?` による推論を行わない。
 引数を持つ帰納型は別の型になる（使われない引数や証明引数も区別に含む）。
 
 通常の定義は kernel では本体と宣言した型を保持する `Annotated` ノードになる。
-注釈は型推論に使い、conversion では本体を比較する。module の代入は front で完了し、
+注釈は型推論に使い、conversion では本体を比較する。module の代入は elab で完了し、
 kernel の関数適用や product rule は追加しない。
 
 ## 公理
@@ -73,6 +110,17 @@ kernel が提供する公理は proof term として使う。各引数は通常�
 `setext` は同じ `Power(X)` の要素と双方向の包含証明を、`funext` は同じ関数型の
 二項と各点での等号を要求する。`classicalIndefiniteChoice` は `Family: X -> Set` と
 `\forall (x: X) -> exists (Family x)` から `exists (\forall (x: X) -> Family x)` を返す。
+
+## Inductive の宣言
+
+```text
+\inductive Nat: \Set :=
+  | zero: Nat
+  | succ: Nat -> Nat
+;
+
+\inductive Bool: \VType := | no: Bool | yes: Bool;
+```
 
 ## Program の構文
 
@@ -98,7 +146,7 @@ Program の値型と値は module parameter にできる。具体化するとき
   \definition value: A := a;
 }
 \module Consumer {
-  \inductive Unit: \VType := | unit: Unit; ;
+  \inductive Unit: \VType := | unit: Unit;
   \import \root.Source[A := Unit, a := Unit::unit] \as S;
   \vcheck S.value: Unit;
 }
@@ -164,9 +212,9 @@ Program の inductive／structure には
 ## 実行と診断
 
 ```sh
-cargo run -p cli -- lib/root.ref
-cargo run -p cli -- lib/root.ref --trace
-RUST_LOG=ref_type=trace cargo run -p cli -- lib/root.ref
+cargo run -p cli -- tests/library/ref.toml
+cargo run -p cli -- tests/library/ref.toml --trace
+RUST_LOG=ref_type=trace cargo run -p cli -- tests/library/ref.toml
 ```
 
 `--trace` は Set/Prop・Program の型検査、定義登録、反映、正規化・評価のログを木構造で表示します。
@@ -184,8 +232,8 @@ front の型不一致には局所文脈・対象の項・推論した型・要�
 where 節の局所定義の検査時間は `REF_TYPE_PROFILE_LOCAL_DEFINITIONS=1` で表示し、同様に名前で絞り込めます。
 
 ```sh
-REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- lib/root.ref
-REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- lib/root.ref
+REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- tests/library/ref.toml
+REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- tests/library/ref.toml
 ```
 
 未解決ゴールには文脈・要求される型・制約を表示します。ファイルから読み込んだ宣言のエラーには

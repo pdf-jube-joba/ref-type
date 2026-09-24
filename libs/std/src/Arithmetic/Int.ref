@@ -1,0 +1,1410 @@
+\import \root.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.congr3;
+
+/* Integers: Nat + Nat in Program, with negSucc n denoting -(n+1).
+ * The mathematical carrier below is the Grothendieck quotient of (Nat,+,0).
+ */
+\import \root.Nat[] \as N;
+\import .N.Laws[] \as NL;
+\import \root.Data[].Bool[] \as B;
+\import \root.Logic[].Proposition[] \as L;
+\use L.not;
+\import \root.Data[].Pair[] \as P;
+
+/* Expose the imported instances, including Program constructor notation. */
+\definition Nat: \Set := N.Nat^;
+\definition Bool: \Set := B.Bool^;
+\macro natZero() := N.Nat^::zero;
+\macro natSucc($n) := N.Nat^::succ $n;
+\macro boolTrue() := B.Bool^::true;
+\macro boolFalse() := B.Bool^::false;
+
+
+\inductive Int: \VType :=
+| ofNat: N.Nat -> Int
+| negSucc: N.Nat -> Int
+;
+
+\inductive DiffState: \VType := | running: N.Nat -> N.Nat -> DiffState ;
+\definition diffStep: \U(DiffState -> \RunStep[DiffState, Int]) := \thunk(\cfun (state: DiffState) => \match state \in DiffState \with { | running a b =>
+    \match b \in N.Nat \with {
+    | zero => \return(\finish[DiffState, Int](Int::ofNat a))
+    | succ k => \match a \in N.Nat \with {
+      | zero => \return(\finish[DiffState, Int](Int::negSucc k))
+      | succ j => \return(\continue[DiffState, Int](DiffState::running j k))
+      }
+    }
+  });
+
+\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop := \In[N.Nat^] (\runStepRec[DiffState^, Int^](\fun (t: \RunStep[DiffState^, Int^]) => \Pow N.Nat^, (\fun (s: DiffState^) => { n : N.Nat^ \where \Acc[DiffState^, Int^](diffStep^, s) }), (\fun (r: Int^) => { n : N.Nat^ \where N.Nat^::zero = N.Nat^::zero }), t)) N.Nat^::zero;
+\definition diffAccIntro (s: DiffState^) (ready: diffReady (diffStep^ s)): \Acc[DiffState^, Int^](diffStep^, s)
+    :=
+    \accintro[DiffState^, Int^](diffStep^, s, \fun (next: DiffState^) => \fun (edge: diffStep^ s = \continue[DiffState^, Int^](next)) =>
+        \idelim(diffStep^ s = \continue[DiffState^, Int^](next)
+          \with t: \RunStep[DiffState^, Int^] => diffReady t) \by { base: ready, equality: edge });
+
+\definition diffTerminates: \forall (b, a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a b) :=
+  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a
+    b) \with {
+    | zero => (\induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStep^, DiffState^::running a
+    N.Nat^::zero) \with {
+      | zero => (diffAccIntro (DiffState^::running N.Nat^::zero N.Nat^::zero) (\refl(N.Nat^::zero)))
+      | succ => (\fun (j: N.Nat^) => \fun (unused:
+      \Acc[DiffState^, Int^](diffStep^, DiffState^::running j N.Nat^::zero)) => diffAccIntro
+    (DiffState^::running
+      (N.Nat^::succ j) N.Nat^::zero) (\refl(N.Nat^::zero)))
+      })
+    | succ => (\fun (k: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a k)) =>
+      \induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStep^, DiffState^::running a (N.Nat^::succ
+    k)) \with {
+      | zero => (diffAccIntro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) (\refl(N.Nat^::zero)))
+      | succ => (\fun (j: N.Nat^) => \fun (unused: \Acc[DiffState^, Int^](diffStep^, DiffState^::running j (N.Nat^::succ k))) =>
+          diffAccIntro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+      })
+    };
+\definition diff: (N.Nat -> (N.Nat -> Int)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \run[DiffState, Int](diffStep, DiffState::running a b) \by { diffTerminates b a })));
+/* A Set-only normal form, independent of Program reflection. */
+\definition diffPrec (a, b: N.Nat^): Int^ :=
+  \induction (b: N.Nat^) \return N.Nat^ -> Int^ \with {
+    | zero => (\fun (a: N.Nat^) => Int^::ofNat a)
+    | succ => (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> Int^) => \fun (a: N.Nat^) =>
+      \induction (a: N.Nat^) \return Int^ \with {
+        | zero => (Int^::negSucc k)
+        | succ => (\fun (j: N.Nat^) => \fun (_: _) => rec j)
+        } a)
+    } b a;
+\definition diffMatchesPrec: \forall (b, a: N.Nat^) -> diff^ a b = diffPrec a b :=
+  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> diff^ a b = diffPrec a b \with {
+    | zero => (\induction (a: N.Nat^) \return diff^ a N.Nat^::zero = diffPrec a N.Nat^::zero \with {
+      | zero => (\refl(Int^::ofNat N.Nat^::zero))
+      | succ => (\fun (a: N.Nat^) => \fun (ih: diff^ a N.Nat^::zero = diffPrec a N.Nat^::zero) => \refl(Int^::ofNat (N.Nat^::succ
+    a)))
+      })
+    | succ => (\fun (b: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> diff^ a b = diffPrec a b) =>
+      \induction (a: N.Nat^) \return diff^ a (N.Nat^::succ b) = diffPrec a (N.Nat^::succ b) \with {
+      | zero => (\refl(Int^::negSucc b))
+      | succ => (\fun (a: N.Nat^) => \fun (unused: diff^ a (N.Nat^::succ b) = diffPrec a (N.Nat^::succ b)) => ih a)
+      })
+    };
+
+\definition positive: (Int -> N.Nat) := (\cfun (z: Int) => \match z \in Int \with { | ofNat n => \return n | negSucc n => \return N.Nat::zero });
+\definition positivePrec: Int^ -> N.Nat^ := \induction (z: Int^) \return N.Nat^ \with {
+  | ofNat => (\fun (n: N.Nat^) => n)
+  | negSucc => (\fun (n: N.Nat^) => N.Nat^::zero)
+  };
+\definition positiveMatchesPrec: \forall (z: Int^) -> positive^ z = positivePrec z :=
+  \induction (z: Int^) \return positive^ z = positivePrec z \with {
+    | ofNat => (\fun (n: N.Nat^) => \refl(n))
+    | negSucc => (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
+    };
+
+\definition negative: (Int -> N.Nat) := (\cfun (z: Int) => \match z \in Int \with { | ofNat n => \return N.Nat::zero | negSucc n => \return(N.Nat::succ n) });
+\definition negativePrec: Int^ -> N.Nat^ := \induction (z: Int^) \return N.Nat^ \with {
+  | ofNat => (\fun (n: N.Nat^) => N.Nat^::zero)
+  | negSucc => (\fun (n: N.Nat^) => N.Nat^::succ n)
+  };
+\definition negativeMatchesPrec: \forall (z: Int^) -> negative^ z = negativePrec z :=
+  \induction (z: Int^) \return negative^ z = negativePrec z \with {
+    | ofNat => (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
+    | negSucc => (\fun (n: N.Nat^) => \refl(N.Nat^::succ n))
+    };
+
+\definition diffCanonical: \forall (z: Int^) -> diffPrec (positivePrec z) (negativePrec z) = z :=
+  \induction (z: Int^) \return diffPrec (positivePrec z) (negativePrec z) = z \with {
+    | ofNat => (\fun (n: N.Nat^) => \refl(Int^::ofNat n))
+    | negSucc => (\fun (n: N.Nat^) => \refl(Int^::negSucc n))
+    };
+
+/* Formal differences in the cancellative commutative monoid (Nat,+,0). */
+\definition Difference: \Set := P.Times^[N.Nat^, N.Nat^];
+\definition pair: N.Nat^ -> N.Nat^ -> Difference := P.pair N.Nat^ N.Nat^;
+\definition pos: Difference -> N.Nat^ := P.first N.Nat^ N.Nat^;
+\definition negPart: Difference -> N.Nat^ := P.second N.Nat^ N.Nat^;
+/* Computational operations and their Set specifications use the certified
+ * Nat arithmetic above. Every exported computation has a MatchesPrec theorem. */
+
+\definition zero: Int := (Int::ofNat N.Nat::zero);
+\definition zeroPrec: Int := (Int::ofNat N.Nat::zero);
+\definition zeroMatchesPrec: zero^ = zeroPrec^ := \refl(Int^::ofNat N.Nat^::zero);
+
+\definition one: Int := (Int::ofNat (N.Nat::succ N.Nat::zero));
+\definition onePrec: Int := (Int::ofNat (N.Nat::succ N.Nat::zero));
+\definition oneMatchesPrec: one^ = onePrec^ := \refl(Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+
+\definition minusOne: Int := (Int::negSucc N.Nat::zero);
+\definition minusOnePrec: Int := (Int::negSucc N.Nat::zero);
+\definition minusOneMatchesPrec: minusOne^ = minusOnePrec^ := \refl(Int^::negSucc N.Nat^::zero);
+
+/* Nat imports its own Bool instance. Convert its decisions through Nat.choose
+ * so that Int consistently exposes the Bool instance imported here. */
+\definition natIsZero: (N.Nat -> B.Bool) := (\cfun (n: N.Nat) => \match n \in N.Nat \with { | zero => \return B.Bool::true | succ k => \return B.Bool::false });
+\definition natIsZeroPrec: N.Nat^ -> B.Bool^ :=
+  \induction (n: N.Nat^) \return B.Bool^ \with {
+    | zero => B.Bool^::true
+    | succ => (\fun (n: N.Nat^) => \fun (ih: B.Bool^) => B.Bool^::false)
+    };
+\definition natIsZeroMatchesPrec: \forall (n: N.Nat^) -> natIsZero^ n = natIsZeroPrec n :=
+  \induction (n: N.Nat^) \return natIsZero^ n = natIsZeroPrec n \with {
+    | zero => (\refl(B.Bool^::true))
+    | succ => (\fun (n: N.Nat^) => \fun (ih: natIsZero^ n = natIsZeroPrec n) => \refl(B.Bool^::false))
+    };
+
+\definition natEqb: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
+  \bind f: _ <- (N.eqb a) \then
+  \bind test: _ <- (\force f) b \then
+  \bind yes: _ <- (N.choose test) \then
+  \bind no: _ <- (\force yes) N.Nat::zero \then
+  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+  \bind result: B.Bool <- (natIsZero number) \then
+  \return result
+})));
+\definition natEqbPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.eqb^ a b)
+    N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natEqbMatchesPrec (a, b: N.Nat^): natEqb^ a b = natEqbPrec a b := natIsZeroMatchesPrec (N.choose^ (N.eqb^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+\definition natLeb: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
+  \bind f: _ <- (N.leb a) \then
+  \bind test: _ <- (\force f) b \then
+  \bind yes: _ <- (N.choose test) \then
+  \bind no: _ <- (\force yes) N.Nat::zero \then
+  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+  \bind result: B.Bool <- (natIsZero number) \then
+  \return result
+})));
+\definition natLebPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.leb^ a b)
+    N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natLebMatchesPrec (a, b: N.Nat^): natLeb^ a b = natLebPrec a b := natIsZeroMatchesPrec (N.choose^ (N.leb^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+\definition natLtb: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
+  \bind f: _ <- (N.ltb a) \then
+  \bind test: _ <- (\force f) b \then
+  \bind yes: _ <- (N.choose test) \then
+  \bind no: _ <- (\force yes) N.Nat::zero \then
+  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+  \bind result: B.Bool <- (natIsZero number) \then
+  \return result
+})));
+\definition natLtbPrec (a, b: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.ltb^ a b)
+    N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+\definition natLtbMatchesPrec (a, b: N.Nat^): natLtb^ a b = natLtbPrec a b := natIsZeroMatchesPrec (N.choose^ (N.ltb^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+\definition natEven: (N.Nat -> B.Bool) := (\cfun (a: N.Nat) => \program {
+  \bind test: _ <- (N.even a) \then
+  \bind yes: _ <- (N.choose test) \then
+  \bind no: _ <- (\force yes) N.Nat::zero \then
+  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+  \bind result: B.Bool <- (natIsZero number) \then
+  \return result
+});
+\definition natEvenPrec (a: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.even^ a) N.Nat^::zero
+    (N.Nat^::succ N.Nat^::zero));
+\definition natEvenMatchesPrec (a: N.Nat^): natEven^ a = natEvenPrec a := natIsZeroMatchesPrec (N.choose^ (N.even^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+\definition natOdd: (N.Nat -> B.Bool) := (\cfun (a: N.Nat) => \program {
+  \bind test: _ <- (N.odd a) \then
+  \bind yes: _ <- (N.choose test) \then
+  \bind no: _ <- (\force yes) N.Nat::zero \then
+  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+  \bind result: B.Bool <- (natIsZero number) \then
+  \return result
+});
+\definition natOddPrec (a: N.Nat^): B.Bool^ := natIsZeroPrec (N.choose^ (N.odd^ a) N.Nat^::zero
+    (N.Nat^::succ N.Nat^::zero));
+\definition natOddMatchesPrec (a: N.Nat^): natOdd^ a = natOddPrec a := natIsZeroMatchesPrec (N.choose^ (N.odd^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+\definition choose: (B.Bool -> (Int -> (Int -> Int))) :=
+  (\cfun (test: B.Bool) => \return(\thunk(\cfun (yes: Int) => \return(\thunk(\cfun (no: Int) => \match test \in B.Bool \with { | false => \return no | true => \return yes })))));
+\definition choosePrec: B.Bool^ -> Int^ -> Int^ -> Int^ := B.ite Int^;
+\definition chooseMatchesPrec: \forall (test: B.Bool^) -> \forall (yes, no: Int^) ->
+  choose^ test yes no = choosePrec test yes no :=
+  \induction (test: B.Bool^) \return \forall (yes, no: Int^) ->
+    choose^ test yes no = choosePrec test yes no \with {
+    | false => (\fun (yes, no: Int^) => \refl(no))
+    | true => (\fun (yes, no: Int^) => \refl(yes))
+    };
+
+\definition ofNat: (N.Nat -> Int) := (\cfun (n: N.Nat) => \return(Int::ofNat n));
+\definition ofNatPrec (n: N.Nat^): Int^ := (Int^::ofNat n);
+\definition ofNatMatchesPrec (n: N.Nat^): ofNat^ n = ofNatPrec n := \refl(Int^::ofNat n);
+
+\definition negOfNat: (N.Nat -> Int) := (\cfun (n: N.Nat) => \program {
+  \bind v1: Int <- \run[DiffState, Int](diffStep, DiffState::running N.Nat::zero n) \by { diffTerminates n N.Nat^::zero } \then
+  \return v1
+});
+\definition negOfNatPrec (n: N.Nat^): Int^ := (diffPrec N.Nat^::zero n);
+\definition negOfNatMatchesPrec (n: N.Nat^): negOfNat^ n = negOfNatPrec n := diffMatchesPrec n N.Nat^::zero;
+
+\definition neg: (Int -> Int) := (\cfun (x: Int) => \program {
+  \bind v2: N.Nat <- (negative x) \then
+  \bind v4: N.Nat <- (positive x) \then
+  \bind v5: Int <- \run[DiffState, Int](diffStep, DiffState::running v2
+    v4) \by { diffTerminates v4 v2 } \then
+  \return v5
+});
+\definition negPrec (x: Int^): Int^ := (diffPrec (negativePrec x) (positivePrec x));
+\definition negMatchesPrec: \forall (x: Int^) -> neg^ x = negPrec x :=
+  \block {
+    \fix (x: Int^) \then
+    \let componentsMatch:
+      diff^ (negative^ x) (positive^ x) = diff^ (negativePrec x) (positivePrec x) :=
+      congr2!{N.Nat^ N.Nat^ Int^} diff^
+        (negative^ x) (negativePrec x) (positive^ x) (positivePrec x)
+        (negativeMatchesPrec x) (positiveMatchesPrec x) \then
+    \return trans!{Int^} _ _ _ componentsMatch
+      (diffMatchesPrec (positivePrec x) (negativePrec x))
+  };
+
+\definition add: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v2: N.Nat <- (positive x) \then
+  \bind v4: N.Nat <- (positive y) \then
+  \bind v5: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 v4) \by { N.addTerminates v4 v2 } \then
+  \bind v7: N.Nat <- (negative x) \then
+  \bind v9: N.Nat <- (negative y) \then
+  \bind v10: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v7 v9) \by { N.addTerminates v9 v7 } \then
+  \bind v11: Int <- \run[DiffState, Int](diffStep, DiffState::running v5 v10) \by { diffTerminates v10 v5 } \then
+  \return v11
+})));
+\definition addPrec (x: Int^) (y: Int^): Int^ := (diffPrec (N.add^ (positivePrec x)
+    (positivePrec y)) (N.add^ (negativePrec x) (negativePrec y)));
+\definition addMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> add^ x y = addPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let positivesMatch:
+      N.add^ (positive^ x) (positive^ y) =
+        N.add^ (positivePrec x) (positivePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (positive^ y) (positivePrec y)
+        (positiveMatchesPrec x) (positiveMatchesPrec y) \then
+    \let negativesMatch:
+      N.add^ (negative^ x) (negative^ y) =
+        N.add^ (negativePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (negative^ x) (negativePrec x) (negative^ y) (negativePrec y)
+        (negativeMatchesPrec x) (negativeMatchesPrec y) \then
+    \let componentsMatch:
+      diff^ (N.add^ (positive^ x) (positive^ y))
+        (N.add^ (negative^ x) (negative^ y)) =
+      diff^ (N.add^ (positivePrec x) (positivePrec y))
+        (N.add^ (negativePrec x) (negativePrec y)) :=
+      congr2!{N.Nat^ N.Nat^ Int^} diff^
+        _ _ _ _ positivesMatch negativesMatch \then
+    \return trans!{Int^} _ _ _ componentsMatch
+      (diffMatchesPrec
+        (N.add^ (negativePrec x) (negativePrec y))
+        (N.add^ (positivePrec x) (positivePrec y)))
+  };
+
+\definition sub: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v2: Int <- (neg y) \then
+  \bind v3: \U(Int -> Int) <- (add x) \then
+  \bind v5: Int <- (\force v3) v2 \then
+  \return v5
+})));
+\definition subPrec (x: Int^) (y: Int^): Int^ := (addPrec x (negPrec y));
+\definition subMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> sub^ x y = subPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let argumentMatches: add^ x (neg^ y) = add^ x (negPrec y) :=
+      congr2!{Int^ Int^ Int^} add^
+        x x (neg^ y) (negPrec y) (\refl(x)) (negMatchesPrec y) \then
+    \return trans!{Int^} _ _ _ argumentMatches (addMatchesPrec x (negPrec y))
+  };
+
+\definition mul: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v2: N.Nat <- (positive x) \then
+  \bind v4: N.Nat <- (positive y) \then
+  \bind v5: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running \thunk(\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 current) \by { N.addTerminates current v2 })
+    N.Nat::zero v4) \by { N.iterTerminates v4 (N.add^ v2) N.Nat^::zero } \then
+  \bind v7: N.Nat <- (negative x) \then
+  \bind v9: N.Nat <- (negative y) \then
+  \bind v10: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running \thunk(\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running
+    v7 current) \by { N.addTerminates current v7 }) N.Nat::zero v9) \by { N.iterTerminates v9 (N.add^ v7)
+    N.Nat^::zero } \then
+  \bind v11: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v5 v10) \by
+    { N.addTerminates v10 v5 } \then
+  \bind v12: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running
+    \thunk(\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 current) \by
+    { N.addTerminates current v2 }) N.Nat::zero v9) \by { N.iterTerminates v9 (N.add^ v2) N.Nat^::zero } \then
+  \bind v13: N.Nat <- \run[N.IterState, N.Nat](N.iterStep, N.IterState::running \thunk(\cfun (current: N.Nat) => \run[N.AddState, N.Nat](N.addStep, N.AddState::running v7 current) \by { N.addTerminates current v7 })
+    N.Nat::zero v4) \by { N.iterTerminates v4 (N.add^ v7) N.Nat^::zero } \then
+  \bind v14: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v12 v13) \by { N.addTerminates v13 v12 } \then
+  \bind v15: Int <- \run[DiffState, Int](diffStep, DiffState::running v11 v14) \by { diffTerminates v14 v11 } \then
+  \return v15
+})));
+\definition mulPrec (x: Int^) (y: Int^): Int^ := (diffPrec (N.add^ (N.mul^ (positivePrec
+    x) (positivePrec y)) (N.mul^ (negativePrec x) (negativePrec y))) (N.add^ (N.mul^ (positivePrec x)
+    (negativePrec y)) (N.mul^ (negativePrec x) (positivePrec y))));
+\definition mulMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> mul^ x y = mulPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let ppMatches:
+      N.mul^ (positive^ x) (positive^ y) =
+        N.mul^ (positivePrec x) (positivePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (positive^ x) (positivePrec x) (positive^ y) (positivePrec y)
+        (positiveMatchesPrec x) (positiveMatchesPrec y) \then
+    \let nnMatches:
+      N.mul^ (negative^ x) (negative^ y) =
+        N.mul^ (negativePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (negative^ x) (negativePrec x) (negative^ y) (negativePrec y)
+        (negativeMatchesPrec x) (negativeMatchesPrec y) \then
+    \let pnMatches:
+      N.mul^ (positive^ x) (negative^ y) =
+        N.mul^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
+        (positiveMatchesPrec x) (negativeMatchesPrec y) \then
+    \let npMatches:
+      N.mul^ (negative^ x) (positive^ y) =
+        N.mul^ (negativePrec x) (positivePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.mul^
+        (negative^ x) (negativePrec x) (positive^ y) (positivePrec y)
+        (negativeMatchesPrec x) (positiveMatchesPrec y) \then
+    \let positiveTermsMatch:
+      N.add^
+        (N.mul^ (positive^ x) (positive^ y))
+        (N.mul^ (negative^ x) (negative^ y)) =
+      N.add^
+        (N.mul^ (positivePrec x) (positivePrec y))
+        (N.mul^ (negativePrec x) (negativePrec y)) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        _ _ _ _ ppMatches nnMatches \then
+    \let negativeTermsMatch:
+      N.add^
+        (N.mul^ (positive^ x) (negative^ y))
+        (N.mul^ (negative^ x) (positive^ y)) =
+      N.add^
+        (N.mul^ (positivePrec x) (negativePrec y))
+        (N.mul^ (negativePrec x) (positivePrec y)) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        _ _ _ _ pnMatches npMatches \then
+    \let componentsMatch:
+      diff^
+        (N.add^ (N.mul^ (positive^ x) (positive^ y))
+          (N.mul^ (negative^ x) (negative^ y)))
+        (N.add^ (N.mul^ (positive^ x) (negative^ y))
+          (N.mul^ (negative^ x) (positive^ y))) =
+      diff^
+        (N.add^ (N.mul^ (positivePrec x) (positivePrec y))
+          (N.mul^ (negativePrec x) (negativePrec y)))
+        (N.add^ (N.mul^ (positivePrec x) (negativePrec y))
+          (N.mul^ (negativePrec x) (positivePrec y))) :=
+      congr2!{N.Nat^ N.Nat^ Int^} diff^
+        _ _ _ _ positiveTermsMatch negativeTermsMatch \then
+    \return trans!{Int^} _ _ _ componentsMatch
+      (diffMatchesPrec
+        (N.add^ (N.mul^ (positivePrec x) (negativePrec y))
+          (N.mul^ (negativePrec x) (positivePrec y)))
+        (N.add^ (N.mul^ (positivePrec x) (positivePrec y))
+          (N.mul^ (negativePrec x) (negativePrec y))))
+  };
+
+\definition succ: (Int -> Int) := (\cfun (x: Int) => \program {
+  \bind v1: \U(Int -> Int) <- (add x) \then
+  \bind v3: Int <- (\force v1) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+  \return v3
+});
+\definition succPrec (x: Int^): Int^ := (addPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
+\definition succMatchesPrec (x: Int^): succ^ x = succPrec x := addMatchesPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+
+\definition pred: (Int -> Int) := (\cfun (x: Int) => \program {
+  \bind v1: \U(Int -> Int) <- (sub x) \then
+  \bind v3: Int <- (\force v1) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+  \return v3
+});
+\definition predPrec (x: Int^): Int^ := (subPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
+\definition predMatchesPrec (x: Int^): pred^ x = predPrec x := subMatchesPrec x (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+
+\definition natAbs: (Int -> N.Nat) := (\cfun (x: Int) => \program {
+  \bind v2: N.Nat <- (positive x) \then
+  \bind v4: N.Nat <- (negative x) \then
+  \bind v5: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running
+    v2 v4) \by { N.addTerminates v4 v2 } \then
+  \return v5
+});
+\definition natAbsPrec (x: Int^): N.Nat^ := (N.add^ (positivePrec x) (negativePrec x));
+\definition natAbsMatchesPrec (x: Int^): natAbs^ x = natAbsPrec x := congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^ (positive^ x) (positivePrec x) (negative^ x) (negativePrec x)
+    (positiveMatchesPrec x) (negativeMatchesPrec x);
+
+\definition abs: (Int -> Int) := (\cfun (x: Int) => \program {
+  \bind v2: N.Nat <- (natAbs x) \then
+  \bind v4: Int <- (ofNat v2) \then
+  \return v4
+});
+\definition absPrec (x: Int^): Int^ := (ofNatPrec (natAbsPrec x));
+\definition absMatchesPrec (x: Int^): abs^ x = absPrec x := trans!{Int^} _ _ _ (congr!{N.Nat^ Int^} ofNat^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
+    (ofNatMatchesPrec (natAbsPrec x));
+
+\definition isZero: (Int -> B.Bool) := (\cfun (x: Int) => \program {
+  \bind v2: N.Nat <- (natAbs x) \then
+  \bind v4: B.Bool <- (natIsZero v2) \then
+  \return v4
+});
+\definition isZeroPrec (x: Int^): B.Bool^ := (natIsZeroPrec (natAbsPrec x));
+\definition isZeroMatchesPrec (x: Int^): isZero^ x = isZeroPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natIsZero^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
+    (natIsZeroMatchesPrec (natAbsPrec x));
+
+\definition eqb: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v2: N.Nat <- (positive x) \then
+  \bind v4: N.Nat <- (negative y) \then
+  \bind v5: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 v4) \by { N.addTerminates v4 v2 } \then
+  \bind v7: N.Nat <- (positive y) \then
+  \bind v9: N.Nat <- (negative x) \then
+  \bind v10: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v7 v9) \by { N.addTerminates v9 v7 } \then
+  \bind v11: \U(N.Nat -> B.Bool) <- (natEqb v5) \then
+  \bind v13: B.Bool <- (\force v11) v10 \then
+  \return v13
+})));
+\definition eqbPrec (x: Int^) (y: Int^): B.Bool^ := (natEqbPrec (N.add^ (positivePrec x)
+    (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)));
+\definition eqbMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> eqb^ x y = eqbPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let leftMatches:
+      N.add^ (positive^ x) (negative^ y) = N.add^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
+        (positiveMatchesPrec x) (negativeMatchesPrec y) \then
+    \let rightMatches:
+      N.add^ (positive^ y) (negative^ x) = N.add^ (positivePrec y) (negativePrec x) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ y) (positivePrec y) (negative^ x) (negativePrec x)
+        (positiveMatchesPrec y) (negativeMatchesPrec x) \then
+    \let argumentsMatch:
+      natEqb^ (N.add^ (positive^ x) (negative^ y)) (N.add^ (positive^ y) (negative^ x)) =
+      natEqb^ (N.add^ (positivePrec x) (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)) :=
+      congr2!{N.Nat^ N.Nat^ B.Bool^} natEqb^ _ _ _ _ leftMatches rightMatches \then
+    \return trans!{B.Bool^} _ _ _ argumentsMatch
+      (natEqbMatchesPrec
+        (N.add^ (positivePrec x) (negativePrec y))
+        (N.add^ (positivePrec y) (negativePrec x)))
+  };
+
+\definition leb: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v2: N.Nat <- (positive x) \then
+  \bind v4: N.Nat <- (negative y) \then
+  \bind v5: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 v4) \by { N.addTerminates v4 v2 } \then
+  \bind v7: N.Nat <- (positive y) \then
+  \bind v9: N.Nat <- (negative x) \then
+  \bind v10: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v7 v9) \by { N.addTerminates v9 v7 } \then
+  \bind v11: \U(N.Nat -> B.Bool) <- (natLeb v5) \then
+  \bind v13: B.Bool <- (\force v11) v10 \then
+  \return v13
+})));
+\definition lebPrec (x: Int^) (y: Int^): B.Bool^ := (natLebPrec (N.add^ (positivePrec x)
+    (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)));
+\definition lebMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> leb^ x y = lebPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let leftMatches:
+      N.add^ (positive^ x) (negative^ y) = N.add^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
+        (positiveMatchesPrec x) (negativeMatchesPrec y) \then
+    \let rightMatches:
+      N.add^ (positive^ y) (negative^ x) = N.add^ (positivePrec y) (negativePrec x) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ y) (positivePrec y) (negative^ x) (negativePrec x)
+        (positiveMatchesPrec y) (negativeMatchesPrec x) \then
+    \let argumentsMatch:
+      natLeb^ (N.add^ (positive^ x) (negative^ y)) (N.add^ (positive^ y) (negative^ x)) =
+      natLeb^ (N.add^ (positivePrec x) (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)) :=
+      congr2!{N.Nat^ N.Nat^ B.Bool^} natLeb^ _ _ _ _ leftMatches rightMatches \then
+    \return trans!{B.Bool^} _ _ _ argumentsMatch
+      (natLebMatchesPrec
+        (N.add^ (positivePrec x) (negativePrec y))
+        (N.add^ (positivePrec y) (negativePrec x)))
+  };
+
+\definition ltb: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v2: N.Nat <- (positive x) \then
+  \bind v4: N.Nat <- (negative y) \then
+  \bind v5: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v2 v4) \by { N.addTerminates v4 v2 } \then
+  \bind v7: N.Nat <- (positive y) \then
+  \bind v9: N.Nat <- (negative x) \then
+  \bind v10: N.Nat <- \run[N.AddState, N.Nat](N.addStep, N.AddState::running v7 v9) \by { N.addTerminates v9 v7 } \then
+  \bind v11: \U(N.Nat -> B.Bool) <- (natLtb v5) \then
+  \bind v13: B.Bool <- (\force v11) v10 \then
+  \return v13
+})));
+\definition ltbPrec (x: Int^) (y: Int^): B.Bool^ := (natLtbPrec (N.add^ (positivePrec x)
+    (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)));
+\definition ltbMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> ltb^ x y = ltbPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let leftMatches:
+      N.add^ (positive^ x) (negative^ y) = N.add^ (positivePrec x) (negativePrec y) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ x) (positivePrec x) (negative^ y) (negativePrec y)
+        (positiveMatchesPrec x) (negativeMatchesPrec y) \then
+    \let rightMatches:
+      N.add^ (positive^ y) (negative^ x) = N.add^ (positivePrec y) (negativePrec x) :=
+      congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^
+        (positive^ y) (positivePrec y) (negative^ x) (negativePrec x)
+        (positiveMatchesPrec y) (negativeMatchesPrec x) \then
+    \let argumentsMatch:
+      natLtb^ (N.add^ (positive^ x) (negative^ y)) (N.add^ (positive^ y) (negative^ x)) =
+      natLtb^ (N.add^ (positivePrec x) (negativePrec y)) (N.add^ (positivePrec y) (negativePrec x)) :=
+      congr2!{N.Nat^ N.Nat^ B.Bool^} natLtb^ _ _ _ _ leftMatches rightMatches \then
+    \return trans!{B.Bool^} _ _ _ argumentsMatch
+      (natLtbMatchesPrec
+        (N.add^ (positivePrec x) (negativePrec y))
+        (N.add^ (positivePrec y) (negativePrec x)))
+  };
+
+\definition min: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v1: \U(Int -> B.Bool) <- (leb x) \then
+  \bind v3: B.Bool <- (\force v1) y \then
+  \bind v4: \U(Int -> (Int -> Int)) <- (choose v3) \then
+  \bind v5: \U(Int -> Int) <- (\force v4) x \then
+  \bind v7: Int <- (\force v5) y \then
+  \return v7
+})));
+\definition minPrec (x: Int^) (y: Int^): Int^ := (choosePrec (lebPrec x y) x y);
+\definition minMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> min^ x y = minPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let argumentsMatch:
+      choose^ (leb^ x y) x y = choose^ (lebPrec x y) x y :=
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        (leb^ x y) (lebPrec x y) x x y y
+        (lebMatchesPrec x y) (\refl(x)) (\refl(y)) \then
+    \return trans!{Int^} _ _ _ argumentsMatch (chooseMatchesPrec (lebPrec x y) x y)
+  };
+
+\definition max: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+  \bind v1: \U(Int -> B.Bool) <- (leb x) \then
+  \bind v3: B.Bool <- (\force v1) y \then
+  \bind v4: \U(Int -> (Int -> Int)) <- (choose v3) \then
+  \bind v5: \U(Int -> Int) <- (\force v4) y \then
+  \bind v7: Int <- (\force v5) x \then
+  \return v7
+})));
+\definition maxPrec (x: Int^) (y: Int^): Int^ := (choosePrec (lebPrec x y) y x);
+\definition maxMatchesPrec: \forall (x: Int^) -> \forall (y: Int^) -> max^ x y = maxPrec x y :=
+  \block {
+    \fix (x, y: Int^) \then
+    \let argumentsMatch:
+      choose^ (leb^ x y) y x = choose^ (lebPrec x y) y x :=
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        (leb^ x y) (lebPrec x y) y y x x
+        (lebMatchesPrec x y) (\refl(y)) (\refl(x)) \then
+    \return trans!{Int^} _ _ _ argumentsMatch (chooseMatchesPrec (lebPrec x y) y x)
+  };
+
+\definition sign: (Int -> Int) := (\cfun (x: Int) => \program {
+  \bind v2: B.Bool <- (isZero x) \then
+  \bind v4: N.Nat <- (negative x) \then
+  \bind v6: B.Bool <- (natIsZero v4) \then
+  \bind v7: \U(Int -> (Int -> Int)) <- (choose v6) \then
+  \bind v8: \U(Int -> Int) <- (\force v7) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+  \bind v10: Int <- (\force v8) (Int::negSucc N.Nat::zero) \then
+  \bind v11: \U(Int -> (Int -> Int)) <- (choose v2) \then
+  \bind v12: \U(Int -> Int) <- (\force v11) (Int::ofNat N.Nat::zero) \then
+  \bind v14: Int <- (\force v12) v10 \then
+  \return v14
+});
+\definition signPrec (x: Int^): Int^ := (choosePrec (isZeroPrec x) (Int^::ofNat N.Nat^::zero)
+    (choosePrec (natIsZeroPrec (negativePrec x)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc
+    N.Nat^::zero)));
+\definition signMatchesPrec: \forall (x: Int^) -> sign^ x = signPrec x :=
+  \block {
+    \fix (x: Int^) \then
+    \let negativeTestMatches:
+      natIsZero^ (negative^ x) = natIsZeroPrec (negativePrec x) :=
+      trans!{B.Bool^} _ _ _
+        (congr!{N.Nat^ B.Bool^} natIsZero^
+          (negative^ x) (negativePrec x) (negativeMatchesPrec x))
+        (natIsZeroMatchesPrec (negativePrec x)) \then
+    \let innerArgumentsMatch:
+      choose^ (natIsZero^ (negative^ x))
+        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
+      choose^ (natIsZeroPrec (negativePrec x))
+        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        (natIsZero^ (negative^ x)) (natIsZeroPrec (negativePrec x))
+        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero))
+        (Int^::negSucc N.Nat^::zero) (Int^::negSucc N.Nat^::zero)
+        negativeTestMatches (\refl(Int^::ofNat (N.Nat^::succ N.Nat^::zero)))
+        (\refl(Int^::negSucc N.Nat^::zero)) \then
+    \let innerMatches:
+      choose^ (natIsZero^ (negative^ x))
+        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
+      choosePrec (natIsZeroPrec (negativePrec x))
+        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
+      trans!{Int^} _ _ _ innerArgumentsMatch
+        (chooseMatchesPrec (natIsZeroPrec (negativePrec x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) \then
+    \let outerArgumentsMatch:
+      choose^ (isZero^ x) (Int^::ofNat N.Nat^::zero)
+        (choose^ (natIsZero^ (negative^ x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) =
+      choose^ (isZeroPrec x) (Int^::ofNat N.Nat^::zero)
+        (choosePrec (natIsZeroPrec (negativePrec x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) :=
+      congr3!{B.Bool^ Int^ Int^ Int^} choose^
+        _ _ _ _ _ _ (isZeroMatchesPrec x)
+        (\refl(Int^::ofNat N.Nat^::zero)) innerMatches \then
+    \return trans!{Int^} _ _ _ outerArgumentsMatch
+      (chooseMatchesPrec (isZeroPrec x) (Int^::ofNat N.Nat^::zero)
+        (choosePrec (natIsZeroPrec (negativePrec x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)))
+  };
+
+\definition even: (Int -> B.Bool) := (\cfun (x: Int) => \program {
+  \bind v2: N.Nat <- (natAbs x) \then
+  \bind v4: B.Bool <- (natEven v2) \then
+  \return v4
+});
+\definition evenPrec (x: Int^): B.Bool^ := (natEvenPrec (natAbsPrec x));
+\definition evenMatchesPrec (x: Int^): even^ x = evenPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natEven^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
+    (natEvenMatchesPrec (natAbsPrec x));
+
+\definition odd: (Int -> B.Bool) := (\cfun (x: Int) => \program {
+  \bind v2: N.Nat <- (natAbs x) \then
+  \bind v4: B.Bool <- (natOdd v2) \then
+  \return v4
+});
+\definition oddPrec (x: Int^): B.Bool^ := (natOddPrec (natAbsPrec x));
+\definition oddMatchesPrec (x: Int^): odd^ x = oddPrec x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} natOdd^ (natAbs^ x) (natAbsPrec x) (natAbsMatchesPrec x))
+    (natOddMatchesPrec (natAbsPrec x));
+
+/* Apply a sign after computing the magnitude once. */
+\definition powerSign: (B.Bool -> (N.Nat -> Int)) :=
+  (\cfun (test: B.Bool) => \return(\thunk(\cfun (magnitude: N.Nat) => \match test \in B.Bool \with {
+    | false => \return(Int::ofNat magnitude)
+    | true => (negOfNat magnitude)
+    })));
+\definition powerSignPrec (test: B.Bool^) (magnitude: N.Nat^): Int^ :=
+  B.ite Int^ test (negOfNatPrec magnitude) (Int^::ofNat magnitude);
+\definition powerSignMatchesPrec: \forall (test: B.Bool^) -> \forall (magnitude: N.Nat^) ->
+  powerSign^ test magnitude = powerSignPrec test magnitude :=
+  \induction (test: B.Bool^) \return \forall (magnitude: N.Nat^) ->
+    powerSign^ test magnitude = powerSignPrec test magnitude \with {
+    | false => (\fun (magnitude: N.Nat^) => \refl(Int^::ofNat magnitude))
+    | true => negOfNatMatchesPrec
+    };
+\definition pow: (Int -> (N.Nat -> Int)) :=
+  (\cfun (x: Int) => \return(\thunk(\cfun (n: N.Nat) => \match x \in Int \with {
+    | ofNat a => \program {
+  \bind f: \U(N.Nat -> N.Nat) <- (N.pow a) \then
+  \bind magnitude: N.Nat <- (\force f) n \then
+  \return Int::ofNat magnitude
+}
+    | negSucc a => \program {
+  \bind f: \U(N.Nat -> N.Nat) <- (N.pow (N.Nat::succ a)) \then
+  \bind magnitude: N.Nat <- (\force f) n \then
+  \bind test: B.Bool <- (natOdd n) \then
+  \bind sign: \U(N.Nat -> Int) <- (powerSign test) \then
+  \bind result: Int <- (\force sign) magnitude \then
+  \return result
+}
+    })));
+\definition powPrec: Int^ -> N.Nat^ -> Int^ :=
+  \induction (x: Int^) \return N.Nat^ -> Int^ \with {
+    | ofNat => (\fun (a, n: N.Nat^) => Int^::ofNat (N.pow^ a n))
+    | negSucc => (\fun (a, n: N.Nat^) => powerSignPrec (natOddPrec n) (N.pow^ (N.Nat^::succ a) n))
+    };
+\definition powerSignTestMatches (n, magnitude: N.Nat^):
+  powerSign^ (natOdd^ n) magnitude = powerSignPrec (natOddPrec n) magnitude :=
+    \idelim(natOdd^ n = natOddPrec n \with test: B.Bool^ =>
+      powerSign^ (natOdd^ n) magnitude = powerSignPrec test magnitude)
+    \by { base: powerSignMatchesPrec (natOdd^ n) magnitude, equality: natOddMatchesPrec n };
+\definition powMatchesPrec: \forall (x: Int^) -> \forall (n: N.Nat^) -> pow^ x n = powPrec x n :=
+  \induction (x: Int^) \return \forall (n: N.Nat^) -> pow^ x n = powPrec x n \with {
+    | ofNat => (\fun (a, n: N.Nat^) => \refl(Int^::ofNat (N.pow^ a n)))
+    | negSucc => (\fun (a, n: N.Nat^) => powerSignTestMatches n (N.pow^ (N.Nat^::succ a) n))
+    };
+
+\module Math;
+
+/* Integer laws used by constructions such as the rationals. */
+\import .Math[] \as IM;
+\import .IM.Ring[] \as IR;
+\import .IM.Specification[] \as IS;
+
+\definition zeroNat: Nat := N.Nat^::zero;
+\definition oneNat: Nat := N.Nat^::succ N.Nat^::zero;
+/* Integer operations on the canonical ofNat/negSucc carrier. */
+\definition Integer: \Set := Int^;
+\definition integer (a, b: Nat): Integer := IM.normalize (pair a b);
+\definition zeroInteger: Integer := integer zeroNat zeroNat;
+\definition oneInteger: Integer := integer oneNat zeroNat;
+\definition negInteger (x: Integer): Integer := IM.normalize (IM.negRep (IM.representative x));
+\definition addInteger (x, y: Integer): Integer := IM.normalize (IM.addRep (IM.representative x) (IM.representative y));
+\definition mulInteger (x, y: Integer): Integer := IM.normalize (IM.mulRep (IM.representative x) (IM.representative y));
+\definition subInteger (x, y: Integer): Integer := addInteger x (negInteger y);
+\definition scaleInteger (x: Integer) (n: Nat): Integer :=
+    IM.normalize (IM.scaleRep (IM.representative x) n);
+
+/* Equality is the formal-difference relation on canonical representatives.
+ * IM.equivalentOfNormalize shows that this coincides with Int equality. */
+\definition IntegerEq (x, y: Integer): \Prop := IM.Equivalent (IM.representative x) (IM.representative y);
+\definition normalizedRepresentative (x: Difference):
+    IM.Equivalent (IM.representative (IM.normalize x)) x :=
+    IR.integerEqSym x (IM.representative (IM.normalize x))
+      (IM.representativeNormalize x);
+\definition integerEqRefl (x: Integer): IntegerEq x x := IM.equivalentRefl (IM.representative x);
+\definition integerEqSym (x, y: Integer): IntegerEq x y -> IntegerEq y x := IM.equivalentSym (IM.representative x) (IM.representative y);
+\definition integerEqTrans (x, y, z: Integer): IntegerEq x y -> IntegerEq y z -> IntegerEq x z :=
+    IM.equivalentTrans (IM.representative x) (IM.representative y) (IM.representative z);
+\definition integerEqToEquality (x, y: Integer) (xy: IntegerEq x y): x = y :=
+    trans!{Integer} x (IM.normalize (IM.representative x)) y
+      (sym!{Integer} _ _ (diffCanonical x))
+      (trans!{Integer}
+        (IM.normalize (IM.representative x))
+        (IM.normalize (IM.representative y))
+        y
+        (IM.normalizeRespects (IM.representative x) (IM.representative y) xy)
+        (diffCanonical y));
+\definition integerEqOfEquality (x, y: Integer) (xy: x = y): IntegerEq x y :=
+    \idelim(x = y \with z: Integer => IntegerEq x z)
+      \by { base: integerEqRefl x, equality: xy };
+\definition integerEqOfFields (x, y: Integer):
+    positivePrec x = positivePrec y -> negativePrec x = negativePrec y -> IntegerEq x y := IM.equivalentOfFields (IM.representative x) (IM.representative y);
+\definition ofNatAsInteger (n: Nat):
+    IntegerEq (Int^::ofNat n) (integer n zeroNat) :=
+  integerEqOfFields (Int^::ofNat n) (integer n zeroNat)
+    (\refl(n)) (\refl(zeroNat));
+\definition negSuccAsNegNatural (n: Nat):
+    IntegerEq (Int^::negSucc n)
+      (negInteger (integer (N.Nat^::succ n) zeroNat)) :=
+  integerEqOfFields (Int^::negSucc n)
+    (negInteger (integer (N.Nat^::succ n) zeroNat))
+    (\refl(zeroNat)) (\refl(N.Nat^::succ n));
+\definition integerEqOfParts (a, b, c, d: Nat) (ac: a = c) (bd: b = d):
+    IntegerEq (integer a b) (integer c d) :=
+    IM.equivalentTrans
+      (IM.representative (integer a b)) (pair a b)
+      (IM.representative (integer c d))
+      (normalizedRepresentative (pair a b))
+      (IM.equivalentTrans
+        (pair a b) (pair c d) (IM.representative (integer c d))
+        (IM.equivalentOfFields (pair a b) (pair c d) ac bd)
+        (IM.representativeNormalize (pair c d)));
+
+\definition addIntegerRep (x, y: Integer):
+  IM.Equivalent (IM.representative (addInteger x y))
+    (IM.addRep (IM.representative x) (IM.representative y)) :=
+    normalizedRepresentative (IM.addRep (IM.representative x) (IM.representative y));
+\definition negIntegerRep (x: Integer):
+  IM.Equivalent (IM.representative (negInteger x)) (IM.negRep (IM.representative x)) := normalizedRepresentative (IM.negRep (IM.representative x));
+\definition mulIntegerRep (x, y: Integer):
+  IM.Equivalent (IM.representative (mulInteger x y))
+    (IM.mulRep (IM.representative x) (IM.representative y)) :=
+    normalizedRepresentative (IM.mulRep (IM.representative x) (IM.representative y));
+\definition scaleIntegerRep (x: Integer) (n: Nat):
+  IM.Equivalent (IM.representative (scaleInteger x n))
+    (IM.scaleRep (IM.representative x) n) :=
+    normalizedRepresentative (IM.scaleRep (IM.representative x) n);
+
+\definition addIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
+    IntegerEq (addInteger x u) (addInteger y v) :=
+    IM.equivalentTrans
+      (IM.representative (addInteger x u))
+      (IM.addRep (IM.representative x) (IM.representative u))
+      (IM.representative (addInteger y v))
+      (addIntegerRep x u)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative u))
+        (IM.addRep (IM.representative y) (IM.representative v))
+        (IM.representative (addInteger y v))
+        (IM.addRepRespects
+          (IM.representative x) (IM.representative y)
+          (IM.representative u) (IM.representative v) xy uv)
+        (IM.representativeNormalize (IM.addRep (IM.representative y) (IM.representative v))));
+\definition negIntegerRespects (x, y: Integer) (xy: IntegerEq x y): IntegerEq (negInteger x) (negInteger y) :=
+    IM.equivalentTrans
+      (IM.representative (negInteger x))
+      (IM.negRep (IM.representative x))
+      (IM.representative (negInteger y))
+      (negIntegerRep x)
+      (IM.equivalentTrans
+        (IM.negRep (IM.representative x))
+        (IM.negRep (IM.representative y))
+        (IM.representative (negInteger y))
+        (IM.negRepRespects (IM.representative x) (IM.representative y) xy)
+        (IM.representativeNormalize (IM.negRep (IM.representative y))));
+\definition subIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
+    IntegerEq (subInteger x u) (subInteger y v) :=
+    addIntegerRespects x y (negInteger u) (negInteger v) xy (negIntegerRespects u v uv);
+\definition mulIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
+    IntegerEq (mulInteger x u) (mulInteger y v) :=
+    IM.equivalentTrans
+      (IM.representative (mulInteger x u))
+      (IM.mulRep (IM.representative x) (IM.representative u))
+      (IM.representative (mulInteger y v))
+      (mulIntegerRep x u)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative u))
+        (IM.mulRep (IM.representative y) (IM.representative v))
+        (IM.representative (mulInteger y v))
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative y)
+          (IM.representative u) (IM.representative v) xy uv)
+        (IM.representativeNormalize (IM.mulRep (IM.representative y) (IM.representative v))));
+\definition scaleIntegerRespects (x, y: Integer) (n: Nat) (xy: IntegerEq x y): IntegerEq (scaleInteger x n) (scaleInteger y n) :=
+    IM.equivalentTrans
+      (IM.representative (scaleInteger x n))
+      (IM.scaleRep (IM.representative x) n)
+      (IM.representative (scaleInteger y n))
+      (scaleIntegerRep x n)
+      (IM.equivalentTrans
+        (IM.scaleRep (IM.representative x) n)
+        (IM.scaleRep (IM.representative y) n)
+        (IM.representative (scaleInteger y n))
+        (IM.scaleRepRespects (IM.representative x) (IM.representative y) n xy)
+        (IM.representativeNormalize (IM.scaleRep (IM.representative y) n)));
+
+\definition addIntegerZeroLeft (x: Integer): IntegerEq (addInteger zeroInteger x) x :=
+    IM.equivalentTrans
+      (IM.representative (addInteger zeroInteger x))
+      (IM.addRep (IM.representative zeroInteger) (IM.representative x))
+      (IM.representative x)
+      (addIntegerRep zeroInteger x)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative zeroInteger) (IM.representative x))
+        (IM.addRep IR.zeroInteger (IM.representative x))
+        (IM.representative x)
+        (IM.addRepRespects
+          (IM.representative zeroInteger) IR.zeroInteger
+          (IM.representative x) (IM.representative x)
+          (normalizedRepresentative IR.zeroInteger) (integerEqRefl x))
+        (IR.addIntegerZeroLeft (IM.representative x)));
+\definition addIntegerZeroRight (x: Integer): IntegerEq (addInteger x zeroInteger) x :=
+    IM.equivalentTrans
+      (IM.representative (addInteger x zeroInteger))
+      (IM.addRep (IM.representative x) (IM.representative zeroInteger))
+      (IM.representative x)
+      (addIntegerRep x zeroInteger)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative zeroInteger))
+        (IM.addRep (IM.representative x) IR.zeroInteger)
+        (IM.representative x)
+        (IM.addRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative zeroInteger) IR.zeroInteger
+          (integerEqRefl x) (normalizedRepresentative IR.zeroInteger))
+        (IR.addIntegerZeroRight (IM.representative x)));
+\definition addIntegerComm (x, y: Integer): IntegerEq (addInteger x y) (addInteger y x) :=
+    IM.equivalentTrans
+      (IM.representative (addInteger x y))
+      (IM.addRep (IM.representative x) (IM.representative y))
+      (IM.representative (addInteger y x))
+      (addIntegerRep x y)
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative y))
+        (IM.addRep (IM.representative y) (IM.representative x))
+        (IM.representative (addInteger y x))
+        (IR.addIntegerComm (IM.representative x) (IM.representative y))
+        (IM.representativeNormalize (IM.addRep (IM.representative y) (IM.representative x))));
+\definition addIntegerAssoc (x, y, z: Integer):
+    IntegerEq (addInteger (addInteger x y) z)
+      (addInteger x (addInteger y z)) :=
+
+  IM.equivalentTrans
+    (IM.representative (addInteger (addInteger x y) z))
+    (IM.addRep (IM.representative (addInteger x y)) (IM.representative z))
+    (IM.representative (addInteger x (addInteger y z)))
+    (addIntegerRep (addInteger x y) z)
+    (IM.equivalentTrans
+      (IM.addRep (IM.representative (addInteger x y)) (IM.representative z))
+      (IM.addRep (IM.addRep (IM.representative x) (IM.representative y))
+        (IM.representative z))
+      (IM.representative (addInteger x (addInteger y z)))
+      (IM.addRepRespects
+        (IM.representative (addInteger x y))
+        (IM.addRep (IM.representative x) (IM.representative y))
+        (IM.representative z) (IM.representative z)
+        (addIntegerRep x y) (integerEqRefl z))
+      (IM.equivalentTrans
+        (IM.addRep (IM.addRep (IM.representative x) (IM.representative y))
+          (IM.representative z))
+        (IM.addRep (IM.representative x)
+          (IM.addRep (IM.representative y) (IM.representative z)))
+        (IM.representative (addInteger x (addInteger y z)))
+        (IR.addIntegerAssoc (IM.representative x)
+          (IM.representative y) (IM.representative z))
+        (IM.equivalentTrans
+          (IM.addRep (IM.representative x)
+            (IM.addRep (IM.representative y) (IM.representative z)))
+          (IM.addRep (IM.representative x)
+            (IM.representative (addInteger y z)))
+          (IM.representative (addInteger x (addInteger y z)))
+          (IM.addRepRespects
+            (IM.representative x) (IM.representative x)
+            (IM.addRep (IM.representative y) (IM.representative z))
+            (IM.representative (addInteger y z))
+            (integerEqRefl x)
+            (IM.equivalentSym _ _ (addIntegerRep y z)))
+          (IM.representativeNormalize
+            (IM.addRep (IM.representative x)
+              (IM.representative (addInteger y z)))))));
+\definition mulIntegerComm (x, y: Integer): IntegerEq (mulInteger x y) (mulInteger y x) :=
+    IM.equivalentTrans
+      (IM.representative (mulInteger x y))
+      (IM.mulRep (IM.representative x) (IM.representative y))
+      (IM.representative (mulInteger y x))
+      (mulIntegerRep x y)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative y))
+        (IM.mulRep (IM.representative y) (IM.representative x))
+        (IM.representative (mulInteger y x))
+        (IR.mulIntegerComm (IM.representative x) (IM.representative y))
+        (IM.representativeNormalize (IM.mulRep (IM.representative y) (IM.representative x))));
+
+\definition scaleIntegerZero (n: Nat): IntegerEq (scaleInteger zeroInteger n) zeroInteger :=
+    IM.equivalentTrans _ _ _ (scaleIntegerRep zeroInteger n)
+      (IM.equivalentTrans _ _ _
+        (IM.scaleRepRespects _ _ n (normalizedRepresentative IR.zeroInteger))
+        (IM.equivalentTrans _ _ _ (IR.scaleIntegerZero n)
+          (IM.representativeNormalize IR.zeroInteger)));
+\definition scaleIntegerSwap (x: Integer) (a, b: Nat):
+    IntegerEq (scaleInteger (scaleInteger x a) b) (scaleInteger (scaleInteger x b) a) :=
+    IM.equivalentTrans _ _ _ (scaleIntegerRep (scaleInteger x a) b)
+      (IM.equivalentTrans _ _ _
+        (IM.scaleRepRespects _ _ b (scaleIntegerRep x a))
+        (IM.equivalentTrans _ _ _ (IR.scaleIntegerSwap (IM.representative x) a b)
+          (IM.equivalentTrans _ _ _
+            (IM.scaleRepRespects _ _ a
+              (IM.equivalentSym _ _ (scaleIntegerRep x b)))
+            (IM.representativeNormalize
+              (IM.scaleRep (IM.representative (scaleInteger x b)) a)))));
+\definition scaleIntegerCancelPositive (x, y: Integer) (k: Nat) (xy:
+    IntegerEq (scaleInteger x (N.Nat^::succ k)) (scaleInteger y (N.Nat^::succ k))):
+    IntegerEq x y :=
+    IR.scaleIntegerCancelPositive (IM.representative x) (IM.representative y) k
+      (IM.equivalentTrans
+        (IM.scaleRep (IM.representative x) (N.Nat^::succ k))
+        (IM.representative (scaleInteger x (N.Nat^::succ k)))
+        (IM.scaleRep (IM.representative y) (N.Nat^::succ k))
+        (IM.representativeNormalize (IM.scaleRep (IM.representative x) (N.Nat^::succ k)))
+        (IM.equivalentTrans
+          (IM.representative (scaleInteger x (N.Nat^::succ k)))
+          (IM.representative (scaleInteger y (N.Nat^::succ k)))
+          (IM.scaleRep (IM.representative y) (N.Nat^::succ k))
+          xy
+          (normalizedRepresentative (IM.scaleRep (IM.representative y) (N.Nat^::succ k)))));
+
+\definition scaleIntegerNatural (a, n: Nat):
+    IntegerEq (scaleInteger (integer a zeroNat) n)
+      (integer (N.mul^ a n) zeroNat) :=
+    IM.equivalentTrans
+      (IM.representative (scaleInteger (integer a zeroNat) n))
+      (IM.scaleRep (IM.representative (integer a zeroNat)) n)
+      (IM.representative (integer (N.mul^ a n) zeroNat))
+      (scaleIntegerRep (integer a zeroNat) n)
+      (IM.equivalentTrans
+        (IM.scaleRep (IM.representative (integer a zeroNat)) n)
+        (IM.scaleRep (pair a zeroNat) n)
+        (IM.representative (integer (N.mul^ a n) zeroNat))
+        (IM.scaleRepRespects
+          (IM.representative (integer a zeroNat)) (pair a zeroNat) n
+          (normalizedRepresentative (pair a zeroNat)))
+        (IM.equivalentTrans
+          (IM.scaleRep (pair a zeroNat) n)
+          (pair (N.mul^ a n) zeroNat)
+          (IM.representative (integer (N.mul^ a n) zeroNat))
+          (IM.equivalentOfFields
+            (IM.scaleRep (pair a zeroNat) n)
+            (pair (N.mul^ a n) zeroNat)
+            (\refl(N.mul^ a n))
+            (NL.mulZeroLeft n))
+          (IM.representativeNormalize (pair (N.mul^ a n) zeroNat))));
+
+\definition addIntegerNatural (a, b: Nat):
+    IntegerEq (addInteger (integer a zeroNat) (integer b zeroNat))
+      (integer (N.add^ a b) zeroNat) :=
+  IM.equivalentTrans
+    (IM.representative
+      (addInteger (integer a zeroNat) (integer b zeroNat)))
+    (IM.addRep (IM.representative (integer a zeroNat))
+      (IM.representative (integer b zeroNat)))
+    (IM.representative (integer (N.add^ a b) zeroNat))
+    (addIntegerRep (integer a zeroNat) (integer b zeroNat))
+    (IM.equivalentTrans _ _ _
+      (IM.addRepRespects
+        (IM.representative (integer a zeroNat)) (pair a zeroNat)
+        (IM.representative (integer b zeroNat)) (pair b zeroNat)
+        (normalizedRepresentative (pair a zeroNat))
+        (normalizedRepresentative (pair b zeroNat)))
+      (IM.equivalentTrans _ _ _
+        (IM.equivalentOfFields
+          (IM.addRep (pair a zeroNat) (pair b zeroNat))
+          (pair (N.add^ a b) zeroNat)
+          (\refl(N.add^ a b)) (NL.addZeroLeft zeroNat))
+        (IM.representativeNormalize (pair (N.add^ a b) zeroNat))));
+
+\definition mulIntegerAssoc (x, y, z: Integer):
+    IntegerEq (mulInteger (mulInteger x y) z) (mulInteger x (mulInteger y z)) :=
+  \block {
+    \let normalizeRight:
+      IM.Equivalent (IM.representative (mulInteger y z))
+        (IM.mulRep (IM.representative y) (IM.representative z)) :=
+      mulIntegerRep y z \then
+    \let associateRepresentatives:
+      IM.Equivalent
+        (IM.mulRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.representative z))
+        (IM.mulRep
+          (IM.representative x)
+          (IM.mulRep (IM.representative y) (IM.representative z))) :=
+      IR.mulIntegerAssoc (IM.representative x)
+        (IM.representative y) (IM.representative z) \then
+    \return IM.equivalentTrans
+      (IM.representative (mulInteger (mulInteger x y) z))
+      (IM.mulRep (IM.representative (mulInteger x y)) (IM.representative z))
+      (IM.representative (mulInteger x (mulInteger y z)))
+      (mulIntegerRep (mulInteger x y) z)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative (mulInteger x y)) (IM.representative z))
+        (IM.mulRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.representative z))
+        (IM.representative (mulInteger x (mulInteger y z)))
+        (IM.mulRepRespects
+          (IM.representative (mulInteger x y))
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.representative z) (IM.representative z)
+          (mulIntegerRep x y) (integerEqRefl z))
+        (IM.equivalentTrans
+          (IM.mulRep
+            (IM.mulRep (IM.representative x) (IM.representative y))
+            (IM.representative z))
+          (IM.mulRep
+            (IM.representative x)
+            (IM.mulRep (IM.representative y) (IM.representative z)))
+          (IM.representative (mulInteger x (mulInteger y z)))
+          associateRepresentatives
+          (IM.equivalentTrans
+            (IM.mulRep
+              (IM.representative x)
+              (IM.mulRep (IM.representative y) (IM.representative z)))
+            (IM.mulRep
+              (IM.representative x)
+              (IM.representative (mulInteger y z)))
+            (IM.representative (mulInteger x (mulInteger y z)))
+            (IM.mulRepRespects
+              (IM.representative x) (IM.representative x)
+              (IM.mulRep (IM.representative y) (IM.representative z))
+              (IM.representative (mulInteger y z))
+              (integerEqRefl x)
+              (IM.equivalentSym
+                (IM.representative (mulInteger y z))
+                (IM.mulRep (IM.representative y) (IM.representative z))
+                normalizeRight))
+            (IM.representativeNormalize
+              (IM.mulRep (IM.representative x) (IM.representative (mulInteger y z)))))))
+  };
+\definition mulIntegerDistribLeft (x, y, z: Integer):
+    IntegerEq (mulInteger x (addInteger y z))
+      (addInteger (mulInteger x y) (mulInteger x z)) :=
+  \block {
+    \let normalizeSum:
+      IM.Equivalent (IM.representative (addInteger y z))
+        (IM.addRep (IM.representative y) (IM.representative z)) :=
+      addIntegerRep y z \then
+    \let distributeRepresentatives:
+      IM.Equivalent
+        (IM.mulRep (IM.representative x)
+          (IM.addRep (IM.representative y) (IM.representative z)))
+        (IM.addRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.mulRep (IM.representative x) (IM.representative z))) :=
+      IR.mulIntegerDistribLeft (IM.representative x)
+        (IM.representative y) (IM.representative z) \then
+    \return IM.equivalentTrans
+    (IM.representative (mulInteger x (addInteger y z)))
+    (IM.mulRep (IM.representative x)
+      (IM.representative (addInteger y z)))
+    (IM.representative
+      (addInteger (mulInteger x y) (mulInteger x z)))
+    (mulIntegerRep x (addInteger y z))
+    (IM.equivalentTrans
+      (IM.mulRep (IM.representative x)
+        (IM.representative (addInteger y z)))
+      (IM.mulRep (IM.representative x)
+        (IM.addRep (IM.representative y) (IM.representative z)))
+      (IM.representative
+        (addInteger (mulInteger x y) (mulInteger x z)))
+      (IM.mulRepRespects
+        (IM.representative x) (IM.representative x)
+        (IM.representative (addInteger y z))
+        (IM.addRep (IM.representative y) (IM.representative z))
+        (integerEqRefl x) normalizeSum)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x)
+          (IM.addRep (IM.representative y) (IM.representative z)))
+        (IM.addRep
+          (IM.mulRep (IM.representative x) (IM.representative y))
+          (IM.mulRep (IM.representative x) (IM.representative z)))
+        (IM.representative
+          (addInteger (mulInteger x y) (mulInteger x z)))
+        distributeRepresentatives
+        (IM.equivalentTrans
+          (IM.addRep
+            (IM.mulRep (IM.representative x) (IM.representative y))
+            (IM.mulRep (IM.representative x) (IM.representative z)))
+          (IM.addRep (IM.representative (mulInteger x y))
+            (IM.representative (mulInteger x z)))
+          (IM.representative
+            (addInteger (mulInteger x y) (mulInteger x z)))
+          (IM.addRepRespects
+            (IM.mulRep (IM.representative x) (IM.representative y))
+            (IM.representative (mulInteger x y))
+            (IM.mulRep (IM.representative x) (IM.representative z))
+            (IM.representative (mulInteger x z))
+            (IM.equivalentSym _ _ (mulIntegerRep x y))
+            (IM.equivalentSym _ _ (mulIntegerRep x z)))
+          (IM.representativeNormalize
+              (IM.addRep (IM.representative (mulInteger x y))
+              (IM.representative (mulInteger x z)))))))
+  };
+\definition mulIntegerDistribRight (x, y, z: Integer):
+    IntegerEq (mulInteger (addInteger x y) z)
+      (addInteger (mulInteger x z) (mulInteger y z)) :=
+  integerEqTrans _ _ _ (mulIntegerComm (addInteger x y) z)
+    (integerEqTrans _ _ _ (mulIntegerDistribLeft z x y)
+      (addIntegerRespects _ _ _ _
+        (mulIntegerComm z x) (mulIntegerComm z y)));
+
+\definition mulIntegerCongRight (x, y, z: Integer) (yz: IntegerEq y z):
+    IntegerEq (mulInteger x y) (mulInteger x z) :=
+    mulIntegerRespects x x y z (integerEqRefl x) yz;
+\definition mulIntegerInterchange (a, b, c, d: Integer):
+    IntegerEq (mulInteger (mulInteger a b) (mulInteger c d))
+      (mulInteger (mulInteger a c) (mulInteger b d)) :=
+    integerEqTrans _ _ _
+      (mulIntegerAssoc a b (mulInteger c d))
+      (integerEqTrans _ _ _
+        (mulIntegerCongRight a _ _
+          (integerEqSym _ _ (mulIntegerAssoc b c d)))
+        (integerEqTrans _ _ _
+          (mulIntegerCongRight a _ _
+            (mulIntegerRespects _ _ d d (mulIntegerComm b c) (integerEqRefl d)))
+          (integerEqTrans _ _ _
+            (mulIntegerCongRight a _ _ (mulIntegerAssoc c b d))
+            (integerEqSym _ _ (mulIntegerAssoc a c (mulInteger b d))))));
+
+\definition negIntegerInvolutive (x: Integer): IntegerEq (negInteger (negInteger x)) x :=
+    IM.equivalentTrans _ _ _ (negIntegerRep (negInteger x))
+      (IM.equivalentTrans _ _ _
+        (IM.negRepRespects _ _ (negIntegerRep x))
+        (IR.negIntegerInvolutive (IM.representative x)));
+\definition addIntegerNegRight (x: Integer): IntegerEq (addInteger x (negInteger x)) zeroInteger :=
+    IM.equivalentTrans
+      (IM.representative (addInteger x (negInteger x)))
+      (IM.addRep (IM.representative x) (IM.representative (negInteger x)))
+      (IM.representative zeroInteger)
+      (addIntegerRep x (negInteger x))
+      (IM.equivalentTrans
+        (IM.addRep (IM.representative x) (IM.representative (negInteger x)))
+        (IM.addRep (IM.representative x) (IM.negRep (IM.representative x)))
+        (IM.representative zeroInteger)
+        (IM.addRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative (negInteger x)) (IM.negRep (IM.representative x))
+          (integerEqRefl x) (negIntegerRep x))
+        (IM.equivalentTrans
+          (IM.addRep (IM.representative x) (IM.negRep (IM.representative x)))
+          IR.zeroInteger
+          (IM.representative zeroInteger)
+          (IR.addIntegerNegRight (IM.representative x))
+          (IM.representativeNormalize IR.zeroInteger)));
+\definition addIntegerNegLeft (x: Integer): IntegerEq (addInteger (negInteger x) x) zeroInteger :=
+    integerEqTrans _ _ _ (addIntegerComm (negInteger x) x) (addIntegerNegRight x);
+
+\definition mulIntegerZeroRight (x: Integer): IntegerEq (mulInteger x zeroInteger) zeroInteger :=
+    IM.equivalentTrans
+      (IM.representative (mulInteger x zeroInteger))
+      (IM.mulRep (IM.representative x) (IM.representative zeroInteger))
+      (IM.representative zeroInteger)
+      (mulIntegerRep x zeroInteger)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative zeroInteger))
+        (IM.mulRep (IM.representative x) IR.zeroInteger)
+        (IM.representative zeroInteger)
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative zeroInteger) IR.zeroInteger
+          (integerEqRefl x) (normalizedRepresentative IR.zeroInteger))
+        (IM.equivalentTrans
+          (IM.mulRep (IM.representative x) IR.zeroInteger)
+          IR.zeroInteger
+          (IM.representative zeroInteger)
+          (IR.mulIntegerZeroRight (IM.representative x))
+          (IM.representativeNormalize IR.zeroInteger)));
+\definition mulIntegerZeroLeft (x: Integer): IntegerEq (mulInteger zeroInteger x) zeroInteger :=
+    integerEqTrans _ _ _ (mulIntegerComm zeroInteger x) (mulIntegerZeroRight x);
+\definition mulIntegerOneRight (x: Integer): IntegerEq (mulInteger x oneInteger) x :=
+    IM.equivalentTrans
+      (IM.representative (mulInteger x oneInteger))
+      (IM.mulRep (IM.representative x) (IM.representative oneInteger))
+      (IM.representative x)
+      (mulIntegerRep x oneInteger)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative oneInteger))
+        (IM.mulRep (IM.representative x) IR.oneInteger)
+        (IM.representative x)
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative oneInteger) IR.oneInteger
+          (integerEqRefl x) (normalizedRepresentative IR.oneInteger))
+        (IR.mulIntegerOneRight (IM.representative x)));
+\definition mulIntegerOneLeft (x: Integer): IntegerEq (mulInteger oneInteger x) x :=
+    integerEqTrans _ _ _ (mulIntegerComm oneInteger x) (mulIntegerOneRight x);
+
+\definition mulIntegerNegLeft (x, y: Integer):
+    IntegerEq (mulInteger (negInteger x) y) (negInteger (mulInteger x y)) :=
+
+    IM.equivalentTrans
+      (IM.representative (mulInteger (negInteger x) y))
+      (IM.mulRep (IM.representative (negInteger x)) (IM.representative y))
+      (IM.representative (negInteger (mulInteger x y)))
+      (mulIntegerRep (negInteger x) y)
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative (negInteger x)) (IM.representative y))
+        (IM.mulRep (IM.negRep (IM.representative x)) (IM.representative y))
+        (IM.representative (negInteger (mulInteger x y)))
+        (IM.mulRepRespects
+          (IM.representative (negInteger x)) (IM.negRep (IM.representative x))
+          (IM.representative y) (IM.representative y)
+          (negIntegerRep x) (integerEqRefl y))
+        (IM.equivalentTrans
+          (IM.mulRep (IM.negRep (IM.representative x)) (IM.representative y))
+          (IM.negRep (IM.mulRep (IM.representative x) (IM.representative y)))
+          (IM.representative (negInteger (mulInteger x y)))
+          (IR.mulIntegerNegLeft (IM.representative x) (IM.representative y))
+          (IM.equivalentTrans
+            (IM.negRep (IM.mulRep (IM.representative x) (IM.representative y)))
+            (IM.negRep (IM.representative (mulInteger x y)))
+            (IM.representative (negInteger (mulInteger x y)))
+            (IM.negRepRespects
+              (IM.mulRep (IM.representative x) (IM.representative y))
+              (IM.representative (mulInteger x y))
+              (IM.equivalentSym
+                (IM.representative (mulInteger x y))
+                (IM.mulRep (IM.representative x) (IM.representative y))
+                (mulIntegerRep x y)))
+            (IM.representativeNormalize (IM.negRep (IM.representative (mulInteger x y)))))));
+\definition mulIntegerNegRight (x, y: Integer):
+    IntegerEq (mulInteger x (negInteger y)) (negInteger (mulInteger x y)) :=
+    integerEqTrans _ _ _
+      (mulIntegerComm x (negInteger y))
+      (integerEqTrans _ _ _ (mulIntegerNegLeft y x)
+        (negIntegerRespects _ _ (mulIntegerComm y x)));
+
+\definition mulIntegerNatural (x: Integer) (n: Nat):
+    IntegerEq (mulInteger x (integer n zeroNat)) (scaleInteger x n) :=
+
+    IM.equivalentTrans
+      (IM.representative (mulInteger x (integer n zeroNat)))
+      (IM.mulRep (IM.representative x) (IM.representative (integer n zeroNat)))
+      (IM.representative (scaleInteger x n))
+      (mulIntegerRep x (integer n zeroNat))
+      (IM.equivalentTrans
+        (IM.mulRep (IM.representative x) (IM.representative (integer n zeroNat)))
+        (IM.mulRep (IM.representative x) (pair n zeroNat))
+        (IM.representative (scaleInteger x n))
+        (IM.mulRepRespects
+          (IM.representative x) (IM.representative x)
+          (IM.representative (integer n zeroNat)) (pair n zeroNat)
+          (integerEqRefl x) (normalizedRepresentative (pair n zeroNat)))
+        (IM.equivalentTrans
+          (IM.mulRep (IM.representative x) (pair n zeroNat))
+          (IM.scaleRep (IM.representative x) n)
+          (IM.representative (scaleInteger x n))
+          (IR.integerEqOfFields
+            (IM.mulRep (IM.representative x) (pair n zeroNat))
+            (IM.scaleRep (IM.representative x) n)
+            (trans!{Nat} _ _ _
+              (congr2!{Nat Nat Nat} N.add^ _ _ _ _
+                (\refl(N.mul^ (positivePrec x) n))
+                (NL.mulZeroRight (negativePrec x)))
+              (NL.addZeroRight (N.mul^ (positivePrec x) n)))
+            (trans!{Nat} _ _ _
+              (congr2!{Nat Nat Nat} N.add^ _ _ _ _
+                (NL.mulZeroRight (positivePrec x))
+                (\refl(N.mul^ (negativePrec x) n)))
+              (NL.addZeroLeft (N.mul^ (negativePrec x) n))))
+          (IM.representativeNormalize (IM.scaleRep (IM.representative x) n))));
+
+\definition addIntegerSubCancelRight (x, y: Integer):
+  IntegerEq (addInteger (addInteger x (negInteger y)) y) x :=
+  integerEqTrans _ _ _ (addIntegerAssoc x (negInteger y) y)
+    (integerEqTrans _ _ _
+      (addIntegerRespects _ _ _ _ (integerEqRefl x)
+        (addIntegerNegLeft y))
+      (addIntegerZeroRight x));
+
+\definition scaleIntegerMulRight (x, y: Integer) (n: Nat):
+  IntegerEq (scaleInteger (mulInteger x y) n)
+    (mulInteger (scaleInteger x n) y) :=
+  integerEqTrans _ _ _
+    (integerEqSym _ _ (mulIntegerNatural (mulInteger x y) n))
+    (integerEqTrans _ _ _
+      (integerEqTrans _ _ _
+        (mulIntegerAssoc x y (integer n zeroNat))
+        (integerEqTrans _ _ _
+          (mulIntegerRespects _ _ _ _ (integerEqRefl x)
+            (mulIntegerComm y (integer n zeroNat)))
+          (integerEqSym _ _
+            (mulIntegerAssoc x (integer n zeroNat) y))))
+      (mulIntegerRespects _ _ _ _
+        (mulIntegerNatural x n) (integerEqRefl y)));
+
+\definition integerSuccAsAdd (n: Nat):
+  IntegerEq (integer (N.Nat^::succ n) zeroNat)
+    (addInteger oneInteger (integer n zeroNat)) :=
+  integerEqTrans _ _ _
+    (integerEqOfParts _ _ _ _
+      (sym!{Nat} _ _
+        (trans!{Nat} _ _ _ (NL.addSuccLeft zeroNat n)
+          (N.succCong _ _ (NL.addZeroLeft n))))
+      (\refl(zeroNat)))
+    (integerEqSym _ _ (addIntegerNatural oneNat n));
+
+\definition scaleIntegerSucc (x: Integer) (n: Nat):
+  IntegerEq (scaleInteger x (N.Nat^::succ n))
+    (addInteger x (scaleInteger x n)) :=
+  integerEqTrans _ _ _
+    (integerEqSym _ _ (mulIntegerNatural x (N.Nat^::succ n)))
+    (integerEqTrans _ _ _
+      (mulIntegerRespects _ _ _ _ (integerEqRefl x)
+        (integerSuccAsAdd n))
+      (integerEqTrans _ _ _
+        (mulIntegerDistribLeft x oneInteger (integer n zeroNat))
+        (addIntegerRespects _ _ _ _
+          (mulIntegerOneRight x) (mulIntegerNatural x n))));
+
+\definition scaleIntegerByZero (x: Integer):
+  IntegerEq (scaleInteger x zeroNat) zeroInteger :=
+  integerEqTrans _ _ _
+    (integerEqSym _ _ (mulIntegerNatural x zeroNat))
+    (mulIntegerZeroRight x);
+
+\definition IntegerLt: Integer -> Integer -> \Prop := IS.Lt;
+\definition IntegerNonZero (x: Integer): \Prop := not!{{ IntegerEq x zeroInteger }};
+\definition integerNonZeroNeg (x: Integer) (nonzero: IntegerNonZero x): IntegerNonZero (negInteger x) :=
+  \fun (negZero: IntegerEq (negInteger x) zeroInteger) =>
+    nonzero
+      (integerEqTrans x (negInteger (negInteger x)) zeroInteger
+        (integerEqSym _ _ (negIntegerInvolutive x))
+        (integerEqTrans _ _ _
+          (negIntegerRespects _ _ negZero)
+          (integerEqRefl zeroInteger)));
+
+\definition integerAddShuffle: \forall (a, b, c, d: Nat) ->
+  N.add^ (N.add^ a b) (N.add^ c d) =
+    N.add^ (N.add^ a d) (N.add^ c b) :=
+  IM.addShuffle;
+
+\definition natSucc: Nat -> Nat := N.Nat^::succ;
+
+\module Order;

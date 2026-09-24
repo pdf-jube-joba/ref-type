@@ -1,0 +1,434 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+
+\definition ofRat (a: Rat): Real := class (ConstCauchy a);
+
+\definition one: Real := ofRat oneRat;
+
+\definition add (x, y: Real): Real :=
+    \into[\Pow CauchySeq](AddClass x y, ClassSet) \by { addClassIsClass x y };
+
+\definition mul (x, y: Real): Real :=
+    \into[\Pow CauchySeq](MulClass x y, ClassSet) \by { mulClassIsClass x y };
+
+\definition neg (x: Real): Real :=
+    \into[\Pow CauchySeq](NegClass x, ClassSet) \by { negClassIsClass x };
+
+\definition sub (x, y: Real): Real := add x (neg y);
+
+\definition zero: Real := ofRat zeroRat;
+
+\definition zeroNeOne: Logic.Not (zero = one) :=
+  \fun (same: zero = one) =>
+    S.zeroNotEquivalentOne
+      (equivalentOfClassEq (ConstCauchy zeroRat) (ConstCauchy oneRat) same);
+
+\definition addClass (x, y: CauchySeq):
+    add (class x) (class y) = class (AddCauchy x y) :=
+  binaryImageClass AddCauchy S.addRespects x y;
+
+\definition negClass (x: CauchySeq):
+    neg (class x) = class (NegCauchy x) :=
+  unaryImageClass NegCauchy S.negRespects x;
+
+\definition mulClass (x, y: CauchySeq):
+    mul (class x) (class y) = class (MulCauchy x y) :=
+  binaryImageClass MulCauchy S.mulRespects x y;
+
+\definition addZeroLeft: \forall (x: Real) -> add zero x = x :=
+  quotientInduction (\fun (x: Real) => add zero x = x)
+    (\fun (x: CauchySeq) =>
+      trans!{Real}
+        (add zero (class x))
+        (class (AddCauchy (ConstCauchy zeroRat) x))
+        (class x)
+        (addClass (ConstCauchy zeroRat) x)
+        (classOfEq (AddCauchy (ConstCauchy zeroRat) x) x
+          (S.addZeroLeft x)));
+
+\definition addNegLeft: \forall (x: Real) -> add (neg x) x = zero :=
+  quotientInduction (\fun (x: Real) => add (neg x) x = zero)
+    (\fun (x: CauchySeq) =>
+      trans!{Real}
+        (add (neg (class x)) (class x))
+        (add (class (NegCauchy x)) (class x))
+        zero
+        (congr!{Real Real} (\fun (u: Real) => add u (class x))
+          _ _ (negClass x))
+        (trans!{Real}
+          (add (class (NegCauchy x)) (class x))
+          (class (AddCauchy (NegCauchy x) x))
+          zero
+          (addClass (NegCauchy x) x)
+          (classOfEq (AddCauchy (NegCauchy x) x)
+            (ConstCauchy zeroRat) (S.addNegLeft x))));
+
+\definition addComm: \forall (x, y: Real) -> add x y = add y x :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) -> add x y = add y x)
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => add (class x) y = add y (class x))
+        (\fun (y: CauchySeq) =>
+          trans!{Real}
+            (add (class x) (class y))
+            (class (AddCauchy x y))
+            (add (class y) (class x))
+            (addClass x y)
+            (trans!{Real}
+              (class (AddCauchy x y))
+              (class (AddCauchy y x))
+              (add (class y) (class x))
+              (classOfEq (AddCauchy x y) (AddCauchy y x)
+                (S.addComm x y))
+              (sym!{Real} _ _ (addClass y x)))));
+
+\definition addAssoc: \forall (x, y, z: Real) ->
+    add (add x y) z = add x (add y z) :=
+
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) ->
+      add (add x y) z = add x (add y z))
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          add (add (class x) y) z = add (class x) (add y z))
+        (\fun (y: CauchySeq) =>
+          quotientInduction
+            (\fun (z: Real) =>
+              add (add (class x) (class y)) z =
+                add (class x) (add (class y) z))
+            (\fun (z: CauchySeq) =>
+              trans!{Real}
+                (add (add (class x) (class y)) (class z))
+                (add (class (AddCauchy x y)) (class z))
+                (add (class x) (add (class y) (class z)))
+                (congr!{Real Real} (\fun (u: Real) => add u (class z))
+                  _ _ (addClass x y))
+                (trans!{Real}
+                  (add (class (AddCauchy x y)) (class z))
+                  (class (AddCauchy (AddCauchy x y) z))
+                  (add (class x) (add (class y) (class z)))
+                  (addClass (AddCauchy x y) z)
+                  (trans!{Real}
+                    (class (AddCauchy (AddCauchy x y) z))
+                    (class (AddCauchy x (AddCauchy y z)))
+                    (add (class x) (add (class y) (class z)))
+                    (classOfEq
+                      (AddCauchy (AddCauchy x y) z)
+                      (AddCauchy x (AddCauchy y z))
+                      (S.addAssoc x y z))
+                    (trans!{Real}
+                      (class (AddCauchy x (AddCauchy y z)))
+                      (add (class x) (class (AddCauchy y z)))
+                      (add (class x) (add (class y) (class z)))
+                      (sym!{Real} _ _ (addClass x (AddCauchy y z)))
+                      (congr!{Real Real} (add (class x))
+                        _ _ (sym!{Real} _ _ (addClass y z)))))))));
+
+\definition negInvolutive: \forall (x: Real) -> neg (neg x) = x :=
+  quotientInduction (\fun (x: Real) => neg (neg x) = x)
+    (\fun (x: CauchySeq) =>
+      trans!{Real}
+        (neg (neg (class x)))
+        (neg (class (NegCauchy x)))
+        (class x)
+        (congr!{Real Real} neg _ _ (negClass x))
+        (trans!{Real}
+          (neg (class (NegCauchy x)))
+          (class (NegCauchy (NegCauchy x)))
+          (class x)
+          (negClass (NegCauchy x))
+          (classOfEq (NegCauchy (NegCauchy x)) x
+            (S.negInvolutive x))));
+
+\definition negZero: neg zero = zero :=
+  trans!{Real}
+    (neg zero)
+    (class (NegCauchy (ConstCauchy zeroRat)))
+    zero
+    (negClass (ConstCauchy zeroRat))
+    (classOfEq (NegCauchy (ConstCauchy zeroRat))
+      (ConstCauchy zeroRat) S.negZero);
+
+\definition mulOneLeft: \forall (x: Real) -> mul one x = x :=
+  quotientInduction (\fun (x: Real) => mul one x = x)
+    (\fun (x: CauchySeq) =>
+      trans!{Real}
+        (mul one (class x))
+        (class (MulCauchy (ConstCauchy oneRat) x))
+        (class x)
+        (mulClass (ConstCauchy oneRat) x)
+        (classOfEq (MulCauchy (ConstCauchy oneRat) x) x
+          (S.mulOneLeft x)));
+
+\definition mulComm: \forall (x, y: Real) -> mul x y = mul y x :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) -> mul x y = mul y x)
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => mul (class x) y = mul y (class x))
+        (\fun (y: CauchySeq) =>
+          trans!{Real}
+            (mul (class x) (class y))
+            (class (MulCauchy x y))
+            (mul (class y) (class x))
+            (mulClass x y)
+            (trans!{Real}
+              (class (MulCauchy x y))
+              (class (MulCauchy y x))
+              (mul (class y) (class x))
+              (classOfEq (MulCauchy x y) (MulCauchy y x)
+                (S.mulComm x y))
+              (sym!{Real} _ _ (mulClass y x)))));
+
+\definition mulAssoc: \forall (x, y, z: Real) ->
+    mul (mul x y) z = mul x (mul y z) :=
+
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) ->
+      mul (mul x y) z = mul x (mul y z))
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          mul (mul (class x) y) z = mul (class x) (mul y z))
+        (\fun (y: CauchySeq) =>
+          quotientInduction
+            (\fun (z: Real) =>
+              mul (mul (class x) (class y)) z =
+                mul (class x) (mul (class y) z))
+            (\fun (z: CauchySeq) =>
+              trans!{Real}
+                (mul (mul (class x) (class y)) (class z))
+                (mul (class (MulCauchy x y)) (class z))
+                (mul (class x) (mul (class y) (class z)))
+                (congr!{Real Real} (\fun (u: Real) => mul u (class z))
+                  _ _ (mulClass x y))
+                (trans!{Real}
+                  (mul (class (MulCauchy x y)) (class z))
+                  (class (MulCauchy (MulCauchy x y) z))
+                  (mul (class x) (mul (class y) (class z)))
+                  (mulClass (MulCauchy x y) z)
+                  (trans!{Real}
+                    (class (MulCauchy (MulCauchy x y) z))
+                    (class (MulCauchy x (MulCauchy y z)))
+                    (mul (class x) (mul (class y) (class z)))
+                    (classOfEq
+                      (MulCauchy (MulCauchy x y) z)
+                      (MulCauchy x (MulCauchy y z))
+                      (S.mulAssoc x y z))
+                    (trans!{Real}
+                      (class (MulCauchy x (MulCauchy y z)))
+                      (mul (class x) (class (MulCauchy y z)))
+                      (mul (class x) (mul (class y) (class z)))
+                      (sym!{Real} _ _ (mulClass x (MulCauchy y z)))
+                      (congr!{Real Real} (mul (class x))
+                        _ _ (sym!{Real} _ _ (mulClass y z)))))))));
+
+\definition mulAddLeft: \forall (x, y, z: Real) ->
+    mul x (add y z) = add (mul x y) (mul x z) :=
+
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) ->
+      mul x (add y z) = add (mul x y) (mul x z))
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          mul (class x) (add y z) =
+            add (mul (class x) y) (mul (class x) z))
+        (\fun (y: CauchySeq) =>
+          quotientInduction
+            (\fun (z: Real) =>
+              mul (class x) (add (class y) z) =
+                add (mul (class x) (class y)) (mul (class x) z))
+            (\fun (z: CauchySeq) =>
+              trans!{Real}
+                (mul (class x) (add (class y) (class z)))
+                (mul (class x) (class (AddCauchy y z)))
+                (add (mul (class x) (class y))
+                  (mul (class x) (class z)))
+                (congr!{Real Real} (mul (class x)) _ _
+                  (addClass y z))
+                (trans!{Real}
+                  (mul (class x) (class (AddCauchy y z)))
+                  (class (MulCauchy x (AddCauchy y z)))
+                  (add (mul (class x) (class y))
+                    (mul (class x) (class z)))
+                  (mulClass x (AddCauchy y z))
+                  (trans!{Real}
+                    (class (MulCauchy x (AddCauchy y z)))
+                    (class (AddCauchy (MulCauchy x y) (MulCauchy x z)))
+                    (add (mul (class x) (class y))
+                      (mul (class x) (class z)))
+                    (classOfEq
+                      (MulCauchy x (AddCauchy y z))
+                      (AddCauchy (MulCauchy x y) (MulCauchy x z))
+                      (S.mulAddLeft x y z))
+                    (trans!{Real}
+                      (class (AddCauchy (MulCauchy x y) (MulCauchy x z)))
+                      (add (class (MulCauchy x y))
+                        (class (MulCauchy x z)))
+                      (add (mul (class x) (class y))
+                        (mul (class x) (class z)))
+                      (sym!{Real} _ _
+                        (addClass (MulCauchy x y) (MulCauchy x z)))
+                      (trans!{Real}
+                        (add (class (MulCauchy x y))
+                          (class (MulCauchy x z)))
+                        (add (mul (class x) (class y))
+                          (class (MulCauchy x z)))
+                        (add (mul (class x) (class y))
+                          (mul (class x) (class z)))
+                        (congr!{Real Real}
+                          (\fun (u: Real) =>
+                            add u (class (MulCauchy x z)))
+                          _ _ (sym!{Real} _ _ (mulClass x y)))
+                        (congr!{Real Real}
+                          (add (mul (class x) (class y)))
+                          _ _ (sym!{Real} _ _ (mulClass x z))))))))));
+
+\definition mulOneRight (x: Real): mul x one = x :=
+  trans!{Real} (mul x one) (mul one x) x
+    (mulComm x one) (mulOneLeft x);
+
+\definition InverseSpec (x, y: Real): \Prop :=
+  Logic.And[
+    x = zero -> y = zero,
+    Logic.Not (x = zero) -> mul y x = one];
+
+\definition inverseSpecZero: InverseSpec zero zero :=
+  Logic.And[zero = zero -> zero = zero,
+    Logic.Not (zero = zero) -> mul zero zero = one]::#
+    (\fun (_: zero = zero) => \refl(zero))
+    (\fun (impossible: Logic.Not (zero = zero)) =>
+      Logic.falseElim (mul zero zero = one) (impossible (\refl(zero))));
+
+\definition classNonzeroApart (x: CauchySeq)
+    (nonzero: Logic.Not (class x = zero)): S.EventuallyApart x :=
+  S.nonEquivalentApart x
+    (\fun (equivalent: Equivalent x (ConstCauchy zeroRat)) =>
+      nonzero (classOfEq x (ConstCauchy zeroRat) equivalent));
+
+\definition inverseExistsClass (x: CauchySeq):
+    \exists { y : Real \where InverseSpec (class x) y } :=
+  Classical.orElim (class x = zero) (Logic.Not (class x = zero))
+    (\exists { y : Real \where InverseSpec (class x) y })
+    (\fun (same: class x = zero) =>
+      \exact(
+        \into[Real](zero, { y : Real \where InverseSpec (class x) y })
+          \by { Logic.And[class x = zero -> zero = zero,
+            Logic.Not (class x = zero) -> mul zero (class x) = one]::#
+            (\fun (_: class x = zero) => \refl(zero))
+            (\fun (different: Logic.Not (class x = zero)) =>
+              Logic.falseElim (mul zero (class x) = one)
+                (different same)) },
+        \Cast[Real] ({ y : Real \where InverseSpec (class x) y })))
+    (\fun (nonzero: Logic.Not (class x = zero)) =>
+      \block {
+        \let apart: S.EventuallyApart x := classNonzeroApart x nonzero \then
+        \let invSeq: CauchySeq :=
+          \into[Sequence](S.ReciprocalSeq x, CauchySet) \by {
+            S.reciprocalCauchy x apart } \then
+        \let graph: S.ReciprocalGraph x invSeq :=
+          S.reciprocalGraph x (S.reciprocalCauchy x apart) \then
+        \let product: mul (class invSeq) (class x) = one :=
+          trans!{Real}
+            (mul (class invSeq) (class x))
+            (class (MulCauchy invSeq x)) one
+            (mulClass invSeq x)
+            (classOfEq (MulCauchy invSeq x) (ConstCauchy oneRat)
+              (S.reciprocalMulEquivalent x invSeq apart graph)) \then
+        \return \exact(
+          \into[Real](class invSeq,
+            { y : Real \where InverseSpec (class x) y }) \by {
+              Logic.And[class x = zero -> class invSeq = zero,
+                Logic.Not (class x = zero) ->
+                  mul (class invSeq) (class x) = one]::#
+                (\fun (same: class x = zero) =>
+                  Logic.falseElim (class invSeq = zero) (nonzero same))
+                (\fun (_: Logic.Not (class x = zero)) => product) },
+          \Cast[Real] ({ y : Real \where InverseSpec (class x) y }))
+      })
+    (Classical.excludedMiddle (class x = zero));
+
+\definition inverseExists (x: Real):
+    \exists { y : Real \where InverseSpec x y } :=
+  quotientInduction
+    (\fun (z: Real) =>
+      \exists { y : Real \where InverseSpec z y })
+    inverseExistsClass x;
+
+\definition inverseUniqueNonzero (x, u, v: Real)
+    (nonzero: Logic.Not (x = zero))
+    (uLaw: mul u x = one) (vLaw: mul v x = one): u = v :=
+  trans!{Real} u (mul u one) v
+    (sym!{Real} _ _ (mulOneRight u))
+    (trans!{Real}
+      (mul u one) (mul u (mul v x)) v
+      (congr!{Real Real} (mul u) _ _ (sym!{Real} _ _ vLaw))
+      (trans!{Real}
+        (mul u (mul v x)) (mul (mul u v) x) v
+        (sym!{Real} _ _ (mulAssoc u v x))
+        (trans!{Real}
+          (mul (mul u v) x) (mul (mul v u) x) v
+          (congr!{Real Real} (\fun (z: Real) => mul z x)
+            _ _ (mulComm u v))
+          (trans!{Real}
+            (mul (mul v u) x) (mul v (mul u x)) v
+            (mulAssoc v u x)
+            (trans!{Real}
+              (mul v (mul u x)) (mul v one) v
+              (congr!{Real Real} (mul v) _ _ uLaw)
+              (mulOneRight v))))));
+
+\definition inverseSpecUnique (x: Real):
+    \forall (u, v: \Cast[Real] ({ y : Real \where InverseSpec x y })) ->
+      u = v :=
+  \fun (u, v: \Cast[Real] ({ y : Real \where InverseSpec x y })) =>
+    Classical.orElim (x = zero) (Logic.Not (x = zero)) (u = v)
+      (\fun (same: x = zero) =>
+        trans!{Real} u zero v
+          (#left{(\bysub(Real, { y : Real \where InverseSpec x y }, u))}
+            same)
+          (sym!{Real} _ _
+            (#left{(\bysub(Real, { y : Real \where InverseSpec x y }, v))}
+              same)))
+      (\fun (nonzero: Logic.Not (x = zero)) =>
+        inverseUniqueNonzero x u v nonzero
+          (#right{(\bysub(Real, { y : Real \where InverseSpec x y }, u))}
+            nonzero)
+          (#right{(\bysub(Real, { y : Real \where InverseSpec x y }, v))}
+            nonzero))
+      (Classical.excludedMiddle (x = zero));
+
+\definition InverseSet (x: Real): \Pow Real :=
+  { y : Real \where InverseSpec x y };
+
+\definition InverseCandidate (x: Real): \Set :=
+  \Cast[Real] (InverseSet x);
+
+\definition inverseCandidateValue (x: Real)
+    (y: InverseCandidate x): Real := y;
+
+\definition inv (x: Real): Real :=
+  \take (y: InverseCandidate x) => inverseCandidateValue x y
+  \by { existence: inverseExists x, uniqueness: inverseSpecUnique x };
+
+\definition invSpec (x: Real): InverseSpec x (inv x) :=
+  \take (y: InverseCandidate x) =>
+    \idelim(inverseCandidateValue x y = inv x
+      \with z: Real => InverseSpec x z)
+      \by { base: \bysub(Real, InverseSet x, y), equality:
+        sym!{Real} (inv x) (inverseCandidateValue x y)
+          (\takeelim((inverseCandidateValue x),
+            y, InverseCandidate x, Real)
+            \by { existence: inverseExists x,
+              uniqueness: inverseSpecUnique x }) }
+  \by { inverseExists x };
+
+\definition invZero: inv zero = zero :=
+  #left{(invSpec zero)} (\refl(zero));
+
+\definition inverseNonzero (x: Real) (nonzero: Logic.Not (x = zero)):
+    mul (inv x) x = one :=
+  #right{(invSpec x)} nonzero;

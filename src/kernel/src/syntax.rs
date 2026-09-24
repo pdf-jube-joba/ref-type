@@ -23,6 +23,23 @@ use std::{
 
 const NO_NODE: u32 = u32::MAX;
 
+/// Identity of the arena that owns a typed handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ArenaId(u32);
+
+impl ArenaId {
+    fn fresh() -> Self {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static NEXT: AtomicU32 = AtomicU32::new(1);
+        Self(
+            NEXT.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
+                next.checked_add(1)
+            })
+            .expect("arena identity exhausted"),
+        )
+    }
+}
+
 /// Immutable, structurally interned nodes.
 #[derive(Debug)]
 struct Partition<N> {
@@ -114,9 +131,10 @@ macro_rules! syntax_families {
     ($($handle:ident => $storage:ident, $node:ident, $sort:pat, $stage:ident;)+) => {
         $(
             #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-            pub struct $handle(u32);
+            pub struct $handle(u64);
             impl $handle {
-                pub fn index(self) -> usize { self.0 as usize }
+                pub fn index(self) -> usize { self.0 as u32 as usize }
+                pub fn arena_id(self) -> ArenaId { ArenaId((self.0 >> 32) as u32) }
             }
             impl From<$handle> for Expression {
                 fn from(h: $handle) -> Self { Self::$handle(h) }
@@ -136,6 +154,9 @@ macro_rules! syntax_families {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum Family { $($handle,)+ }
         impl Expression {
+            pub fn arena_id(self) -> ArenaId {
+                match self { $(Self::$handle(handle) => handle.arena_id(),)+ }
+            }
             pub fn family(self) -> Family {
                 match self { $(Self::$handle(..) => Family::$handle,)+ }
             }
@@ -148,24 +169,36 @@ macro_rules! syntax_families {
                 match (sort, stage) { $(($sort, Stage::$stage) => Self::$handle,)+ }
             }
         }
-        #[derive(Debug, Default)]
+        #[derive(Debug)]
         pub struct Arena {
+            id: ArenaId,
             $($storage: RefCell<Partition<$node>>,)+
         }
+        impl Default for Arena {
+            fn default() -> Self { Self { id: ArenaId::fresh(), $($storage: RefCell::default(),)+ } }
+        }
         #[derive(Clone, Copy)]
-        pub(crate) struct ArenaCheckpoint { $($storage: usize,)+ }
+        pub(crate) struct ArenaCheckpoint { id: ArenaId, $($storage: usize,)+ }
         impl ArenaCheckpoint {
             pub(crate) fn contains(self, e: Expression) -> bool {
+                if e.arena_id() != self.id { return false; }
                 match e { $(Expression::$handle(h) => h.index() < self.$storage,)+ }
             }
         }
         impl Arena {
+            pub fn id(&self) -> ArenaId { self.id }
+            pub fn owns(&self, expression: Expression) -> bool { expression.arena_id() == self.id }
+            pub fn validate_owner(&self, expression: Expression) -> Result<(), String> {
+                if self.owns(expression) { Ok(()) } else { Err("kernel handle belongs to another arena".into()) }
+            }
+            fn assert_owner(&self, expression: Expression) { assert_eq!(self.id, expression.arena_id(), "kernel handle belongs to another arena"); }
             pub(crate) fn checkpoint(&self) -> ArenaCheckpoint {
                 $(self.$storage.borrow_mut().interner.begin_scope();)+
-                ArenaCheckpoint { $($storage: self.$storage.borrow().nodes.len(),)+ }
+                ArenaCheckpoint { id: self.id, $($storage: self.$storage.borrow().nodes.len(),)+ }
             }
 
             pub(crate) fn truncate(&mut self, checkpoint: ArenaCheckpoint) {
+                assert_eq!(self.id, checkpoint.id, "checkpoint belongs to another arena");
                 $(self.$storage.get_mut().truncate(checkpoint.$storage);)+
             }
 
@@ -175,14 +208,18 @@ macro_rules! syntax_families {
             }
 
             pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
-                match e.into() { $(Expression::$handle(h) => self.$storage.borrow().nodes[h.index()].sort(),)+ }
+                let e = e.into();
+                self.assert_owner(e);
+                match e { $(Expression::$handle(h) => self.$storage.borrow().nodes[h.index()].sort(),)+ }
             }
             fn cached_max_loose_bound(&self, e: Expression) -> Option<Option<usize>> {
+                self.assert_owner(e);
                 match e {
                     $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].get(),)+
                 }
             }
             fn cache_max_loose_bound(&self, e: Expression, value: Option<usize>) {
+                self.assert_owner(e);
                 match e {
                     $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].set(value),)+
                 }
@@ -191,13 +228,14 @@ macro_rules! syntax_families {
         $(impl ArenaNode for $node {
             type Handle = $handle;
             fn allocate(self, arena: &Arena) -> $handle {
-                $handle(arena.$storage.borrow_mut().insert(self))
+                $handle((u64::from(arena.id.0) << 32) | u64::from(arena.$storage.borrow_mut().insert(self)))
             }
         }
         impl ArenaHandle for $handle {
             type Node = $node;
             fn get(self, arena: &Arena) -> $node { (*self.read(arena)).clone() }
             fn read(self, arena: &Arena) -> Rc<$node> {
+                arena.assert_owner(self.into());
                 arena.$storage.borrow().nodes[self.index()].clone()
             }
         })+
@@ -1194,6 +1232,7 @@ impl Arena {
         Self::default()
     }
     pub fn alloc<N: ArenaNode>(&self, node: N) -> N::Handle {
+        crate::control::checkpoint();
         node.allocate(self)
     }
     pub fn get<H: ArenaHandle>(&self, handle: H) -> H::Node {
